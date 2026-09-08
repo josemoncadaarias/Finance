@@ -54,7 +54,27 @@ silently orphans thousands of transactions.
 
 ### Catalog
 
-**`currencies`** — `COP` and `USD`, both with `minor_units = 2`.
+**`currencies`** — `COP`, `USD` and `EUR`, all with `minor_units = 2`.
+
+**`account_groups`** — one real account that holds several currencies:
+Global66 (COP and USD), ARQ (USD and EUR). Balances in different currencies
+cannot be added, so each currency is its own row in `accounts` and this table
+is what ties them back into the account the user actually has.
+Single-currency accounts — Bancolombia, Nequi, Plata — leave `group_id` null.
+
+`UNIQUE (group_id, currency_code)` stops a group holding the same currency
+twice. Ungrouped accounts are exempt, because SQLite treats NULLs as distinct
+in a unique index.
+
+A group carries no balance of its own: 500 USD plus 300 EUR is not a number
+without choosing a rate, and choosing it belongs to whoever is asking, not to
+the repository. `balancesByGroup()` returns one entry per group with a balance
+per currency, and no total.
+
+The payoff shows up in an unexpected place: converting COP to USD *inside*
+Global66 is an ordinary transfer between two of its rows, so the rate the
+provider applied is captured by machinery that already exists. That rate is
+otherwise unobtainable.
 
 **`custom_icons`** — user-supplied images, stored as `BLOB` inside the
 database. Keeping them in the database rather than in a folder means a backup
