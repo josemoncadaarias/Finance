@@ -314,3 +314,69 @@ Note that several of the reconstructed balances are large and negative, which
 means those accounts returned more than the surviving rows show them receiving
 — unsurprising for investment funds that earned a return before being closed,
 and further reason to review rather than trust them blindly.
+
+---
+
+## Accounts to create, and opening balances (2026-09-08)
+
+Deciding this is a step of its own, because the backup cannot answer it: every
+row says `COP` even for the dollar accounts, and a deleted account leaves
+nothing but a name. What is actually known lives in `KNOWN_ACCOUNTS` in
+`src/app/core/database/import/account-plan.ts`, with each entry marked
+**confirmed** (Jose said so) or **assumed** (inferred, and reviewed).
+
+The plan over the real export produces **36 accounts**:
+
+| | Count |
+|---|---|
+| Accounts in the backup | 22 |
+| Extra rows from the two multi-currency accounts | +2 |
+| Deleted accounts, reconstructed and archived | +12 |
+| **Total** | **36** |
+
+Of those, 9 carry a currency and type Jose confirmed. The other 27 are
+assumptions and each raises a review entry: 15 `assumed_account`,
+12 `deleted_account`, plus 2 `multi_currency_split`.
+
+### The two multi-currency accounts
+
+ARQ becomes `ARQ USD` and `ARQ EUR`; Global66 becomes `Global66 COP` and
+`Global66 USD`. Only one side of each takes the imported history — ARQ's dollar
+side, Global66's peso side — and the other starts empty, which is correct: the
+backup contains no evidence of the euro side at all, and only 2 of Global66's
+27 rows mention dollars.
+
+Which side a given historical row truly belonged to is not recoverable from a
+file that flattened everything to pesos, so both splits are flagged for review
+rather than guessed at per row.
+
+### Opening balances
+
+`Initial balance 'X'` is a pseudo-category and becomes the account's opening
+balance. Only 8 of the 22 accounts declare one:
+
+| Account | Declared | Stored as |
+|---|---|---|
+| Fiducuenta | 66,750,767.94 | same |
+| Bancolombia | 4,703,079.56 | same |
+| Cuenta leidy bancolombia prestamos | 2,655,000.00 | same |
+| Rappi cuenta | 234,763.00 | same |
+| Multinversion | 171,777.54 | same |
+| Efectivo | 150,000.00 | same |
+| Nequi | 9,421.28 | same |
+| Tarjeta crédito rappi | 800,000.00 | **0** |
+
+The other 14 start at zero.
+
+### The credit card rebase, verified
+
+Monefy stored the card's balance as `limit − debt`, so it opens at +800,000 —
+the limit as it stood in 2021, which was never money. **Dropping that opening
+is the whole rebase.** Every purchase since already subtracts, so the balance
+becomes the plain negative of the debt, which is what the schema wants.
+
+The arithmetic confirms it: the card's rows sum to **+273,507.73** including
+the 800,000 opening. Without it the balance is **−526,492.27**, a debt of that
+much, leaving **573,507.73** of the current 1,100,000 limit available. A
+plausible figure, which the naive reading — treating 800,000 as money — would
+not have produced.
