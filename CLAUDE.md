@@ -6,8 +6,15 @@ locally on the phone. Replaces and improves on Monefy.
 Claude Code reads this file automatically when the project is opened.
 Keep it up to date whenever we make new decisions.
 
-**Working language: English.** All code, comments, identifiers, documentation,
-commit messages and file names in this repository are written in English.
+## Language rule
+
+- **The repository is English.** Code, comments, identifiers, documentation,
+  commit messages, branch names and file names: all in English. The only
+  exception is data coming from the real Monefy backup (account and category
+  names such as `Tarjeta credito rappi` or `Ahorros`), which stays verbatim so
+  the importer keeps working.
+- **The conversation with Jose is in Spanish**, with simple, easy-to-follow
+  explanations. English technical terms inside that Spanish are fine.
 
 ---
 
