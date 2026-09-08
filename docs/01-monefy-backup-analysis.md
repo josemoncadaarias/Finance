@@ -47,6 +47,17 @@ the backup.
 
 ## Problems the importer has to solve
 
+### 0. The file is Windows-1252, not UTF-8
+
+Verified 2026-09-08. Every non-ASCII byte is a single-byte accented Latin
+character (8,296 `é`, 4,061 `ó`, 2,684 `á`, 1,429 `í`, 237 `ñ`, and a few
+more); strict UTF-8 decoding fails on the first one. Node reads files as UTF-8
+by default, so the importer must decode with `windows-1252` explicitly.
+
+This matters beyond cosmetics: the account name is part of the import
+fingerprint, so mojibake in `Ualá` or `Tarjeta crédito rappi` would change the
+fingerprint and re-import the whole history as new rows.
+
 ### 1. Currency was lost entirely
 
 The `currency` and `converted amount` columns carry **COP in 100% of the
@@ -56,14 +67,19 @@ pesos and exported neither the original currency nor the applied rate.
 That information **cannot be recovered from the file**. It has to be
 reconstructed.
 
-### 2. Dates in three mixed formats
+### 2. Dates — a problem in the `.xlsx`, not in the CSV
 
-- `dd/mm/yyyy` text (7,683 rows)
-- Excel serials (`44203`)
-- Dates with day and month swapped (`2021-09-07` is really September 7)
+The original `.xlsx` analysis found three mixed formats (`dd/mm/yyyy` text,
+Excel serials such as `44203`, and dates with day and month swapped) and
+concluded that days ≤ 12 were ambiguous, to be resolved by row position.
 
-For days ≤ 12 it is ambiguous. **Agreed rule: rows come in chronological
-order**, so ambiguity is resolved by row position.
+**That does not apply to the CSV, verified 2026-09-08.** All 12,890 rows use
+`dd/mm/yyyy` and nothing else. The reading is unambiguous: the first component
+reaches 31 while the second never exceeds 12, so it is day/month for certain.
+Range: 25/06/2021 to 07/09/2026.
+
+The importer therefore needs no disambiguation pass. Keep this section only so
+the reasoning is not re-derived if an `.xlsx` export shows up again.
 
 ### 3. Transfers do not exist as an entity
 
@@ -149,7 +165,7 @@ applied can be extracted:
 | COP | USD | Implied rate |
 |---|---|---|
 | 2,107,000 | 500 | 4,214.00 |
-| 309,875 | 71.71 | 4,321.70 |
+| 309,875 | 71.71 | 4,321.22 |
 | 4,300 | 1 | 4,300.00 |
 | 820,378 | 187.5 | 4,375.35 |
 

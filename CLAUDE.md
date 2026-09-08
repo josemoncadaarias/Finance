@@ -101,7 +101,13 @@ the framework on a long-running project.
    Each form is a configurable set of rules and line items, so others can be
    added later.
 
-9. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+9. **Icons are user-supplied, not just a fixed catalog.** Accounts and
+   categories can use either a built-in icon or an image the user provides
+   (a real bank logo, for instance). Custom images are stored inside the
+   database itself, so a backup stays a single file. Decision by Jose,
+   2026-09-08.
+
+10. **Manual edits win over re-imports.** The Monefy CSV is re-exported
    regularly, carrying the whole history again plus new rows, so the importer
    must be repeatable. Any record edited by hand inside Finance is flagged
    `locked` and a later re-import never overwrites it: a manual edit means Jose
@@ -123,8 +129,17 @@ the framework on a long-running project.
 
 ## Current status
 
-Phase 0. No code yet. Next up is the data model and the SQLite schema
-(see `docs/03-roadmap.md`).
+Phase 1 in progress. The SQLite schema, the migration runner, the money
+helpers and the repository layer are written and covered by 36 tests that run
+against a real SQLite engine with no dependencies:
+
+```
+node tools/db/run-tests.mjs
+```
+
+The Angular/Ionic project itself **does not exist yet** — `src/` currently
+holds only the database layer, waiting to be dropped into the scaffold.
+Creating it is the next step. See `docs/05-data-model.md`.
 
 ## Pending from Jose
 
@@ -146,4 +161,5 @@ Phase 0. No code yet. Next up is the data model and the SQLite schema
 - `docs/02-technical-decisions.md` — the reasoning behind each decision
 - `docs/03-roadmap.md` — order of work by phase
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
+- `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `data/Monefy.Data.csv` — the real backup, ~12,889 transactions

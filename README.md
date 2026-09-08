@@ -17,8 +17,10 @@ Angular + Ionic + Capacitor + local SQLite.
 1. `SETUP.md` — installation, Git and GitHub, step by step
 2. `CLAUDE.md` — context and decisions (Claude Code reads it on its own)
 3. `docs/04-stack-guide.md` — the stack explained coming from .NET/Angular
-4. `docs/03-roadmap.md` — what comes next
+4. `docs/05-data-model.md` — the schema, and why it is shaped that way
+5. `docs/03-roadmap.md` — what comes next
 
 ## Status
 
-Phase 0. No code yet. Next up is the data model.
+Phase 1. The data model and SQLite schema are done and tested; the Angular
+project is not scaffolded yet. See `docs/05-data-model.md`.
