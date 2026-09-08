@@ -1,4 +1,4 @@
-# Dependencias
+# Dependencies
 node_modules/
 npm-debug.log*
 
@@ -25,15 +25,15 @@ android/app/release/
 .idea/
 *.iml
 
-# Sistema
+# System
 .DS_Store
 Thumbs.db
 
-# Entorno
+# Environment
 .env
 .env.local
 
-# Base de datos local generada en pruebas
+# Local database generated during testing
 *.db
 *.sqlite
 *.sqlite3

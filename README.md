@@ -1,24 +1,24 @@
-# finanzas-app
+# Finance
 
-App Android de finanzas personales, offline-first, con todos los datos
-locales en el teléfono.
+Android personal finance app. Offline-first, with all data stored locally on
+the phone.
 
-Reemplaza a Monefy agregando lo que le falta: cuentas en moneda extranjera
-con la tasa real de cada transacción, rendimientos y cashback separados del
-saldo, y un módulo para estimar el impuesto de renta y saber cuánto ahorrar
-cada mes.
+It replaces Monefy and adds what Monefy is missing: foreign-currency accounts
+with the real rate of each transaction, interest and cashback kept separate
+from the account balance, and a module to estimate income tax and know how
+much to save each month.
 
 ## Stack
 
-Angular + Ionic + Capacitor + SQLite local.
+Angular + Ionic + Capacitor + local SQLite.
 
-## Por dónde empezar
+## Where to start
 
-1. `SETUP.md` — instalación, Git y GitHub paso a paso
-2. `CLAUDE.md` — contexto y decisiones (lo lee Claude Code solo)
-3. `docs/04-guia-stack.md` — el stack explicado viniendo de .NET/Angular
-4. `docs/03-roadmap.md` — qué sigue
+1. `SETUP.md` — installation, Git and GitHub, step by step
+2. `CLAUDE.md` — context and decisions (Claude Code reads it on its own)
+3. `docs/04-stack-guide.md` — the stack explained coming from .NET/Angular
+4. `docs/03-roadmap.md` — what comes next
 
-## Estado
+## Status
 
-Fase 0. Sin código todavía. Lo siguiente es el modelo de datos.
+Phase 0. No code yet. Next up is the data model.

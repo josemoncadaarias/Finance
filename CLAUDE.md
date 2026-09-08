@@ -1,124 +1,129 @@
-# Contexto del proyecto
+# Project context — Finance
 
-App móvil Android de finanzas personales, offline-first, con todos los datos
-guardados localmente en el teléfono. Reemplaza y mejora Monefy.
+Android mobile app for personal finance. Offline-first, with all data stored
+locally on the phone. Replaces and improves on Monefy.
 
-Este archivo lo lee Claude Code automáticamente al abrir el proyecto.
-Manténlo actualizado cuando tomemos decisiones nuevas.
+Claude Code reads this file automatically when the project is opened.
+Keep it up to date whenever we make new decisions.
 
----
-
-## Sobre el usuario
-
-- Jose, desarrollador full-stack. Fuerte en .NET, Angular, TypeScript, SQL, Azure.
-- Nuevo en: Ionic, Capacitor, SQLite móvil, Git/GitHub para proyectos propios.
-- Vive en Colombia. Ingresos en COP. Maneja cuentas en USD.
-- Explicaciones: simples y claras, incluso en análisis técnico profundo.
-- Antes de recomendar algo, verificarlo contra el código o los datos reales.
-  Marcar explícitamente qué es supuesto y qué está verificado.
-- Antes de aplicar un cambio, evaluar el riesgo de romper lo que ya funciona.
-
-## Objetivo real de la app
-
-No es solo registrar gastos. El objetivo de fondo es **previsibilidad
-tributaria**: saber durante todo el año cuánto va a deber de impuesto de
-renta, y por lo tanto cuánto hay que ahorrar cada mes para pagarlo con
-plata ya apartada, sin sorpresas.
-
-Todo lo demás (categorías, cuentas, gráficos) existe para alimentar eso.
+**Working language: English.** All code, comments, identifiers, documentation,
+commit messages and file names in this repository are written in English.
 
 ---
 
-## Decisiones ya tomadas
+## About the user
+
+- Jose, full-stack developer. Strong in .NET, Angular, TypeScript, SQL, Azure.
+- New to: Ionic, Capacitor, mobile SQLite, Git/GitHub for personal projects.
+- Lives in Colombia. Income in COP. Also holds USD accounts.
+- Explanations: simple and clear, even in deep technical analysis.
+- Before recommending anything, verify it against the real code or data.
+  Explicitly mark what is assumed and what is verified.
+- Before applying a change, assess the risk of breaking what already works.
+
+## The real goal of the app
+
+It is not just expense tracking. The underlying goal is **tax predictability**:
+knowing, all year long, how much income tax will be owed, and therefore how
+much to save each month so it can be paid with money already set aside, with
+no surprises.
+
+Everything else (categories, accounts, charts) exists to feed that.
+
+---
+
+## Decisions already made
 
 ### Stack
 
-| Pieza | Elección |
+| Piece | Choice |
 |---|---|
-| Framework UI | Angular + Ionic |
-| Empaquetado nativo | Capacitor |
-| Base de datos | SQLite local (`@capacitor-community/sqlite`) |
-| Lenguaje | TypeScript |
+| UI framework | Angular + Ionic |
+| Native packaging | Capacitor |
+| Database | Local SQLite (`@capacitor-community/sqlite`) |
+| Language | TypeScript |
 | IDE | VS Code |
-| Android | Android Studio (solo por SDK, emulador y firma del APK) |
+| Android | Android Studio (only for the SDK, emulator and APK signing) |
 
-Se descartó .NET MAUI Blazor Hybrid pese a encajar mejor con la experiencia
-de Jose: a la fecha tiene issues abiertos en Android (safe areas que dejan la
-UI inutilizable en .NET 10, crashes al arrancar en emulador). No vale la pena
-pelear con el framework en un proyecto de largo aliento.
+.NET MAUI Blazor Hybrid was ruled out despite being a better fit for Jose's
+experience: as of today it has open Android issues (safe areas that leave the
+UI unusable on .NET 10, startup crashes on the emulator). Not worth fighting
+the framework on a long-running project.
 
-### Reglas de negocio innegociables
+### Non-negotiable business rules
 
-1. **Offline-first.** La app nunca se rompe sin internet. Si falta un dato de
-   red (TRM, tasa), se usa el último valor cacheado y se marca como tal.
+1. **Offline-first.** The app never breaks without internet. If a network
+   value is missing (FX rate, interest rate), the last cached value is used
+   and flagged as such.
 
-2. **Dinero como enteros.** JavaScript no tiene decimal, todo es float64. Los
-   montos se guardan como enteros en unidades mínimas (centavos para USD,
-   pesos enteros para COP) y solo se formatean al mostrar. **Nunca sumar
-   floats.** El backup de Monefy ya trae la basura típica: `9421.2800000000007`.
+2. **Money as integers.** JavaScript has no decimal type; everything is
+   float64. Amounts are stored as integers in minor units (cents for USD,
+   whole pesos for COP) and only formatted for display. **Never add floats.**
+   The Monefy backup already carries the typical garbage: `9421.2800000000007`.
 
-3. **Multimoneda con tasa por movimiento.** Cada movimiento en divisa guarda
-   la tasa que aplicó ese banco en esa transacción, como dato editable. No se
-   recalcula el histórico cuando cambia la TRM. La TRM oficial (Superfinanciera,
-   API pública de datos.gov.co) es el ancla; la tasa del banco se deriva o se
-   digita.
+3. **Multi-currency with a per-transaction rate.** Every foreign-currency
+   transaction stores the rate that bank actually applied to that transaction,
+   as an editable value. History is never recalculated when the official rate
+   changes. The official TRM (Superfinanciera, public API on datos.gov.co) is
+   the anchor; the bank rate is derived or typed in.
 
-4. **Tarjetas de crédito como pasivo.** El saldo representa la deuda
-   (negativo o cero). El cupo total es un atributo aparte. El cupo disponible
-   se calcula: cupo total − deuda. No cuentan para el patrimonio como activo,
-   pero sí restan como pasivo. En Monefy estaban mal modeladas (saldo inicial
-   positivo de 800.000 = cupo, mezclando dos conceptos).
+4. **Credit cards as liabilities.** The balance represents the debt (negative
+   or zero). The credit limit is a separate attribute. Available credit is
+   computed: credit limit − debt. They do not count as an asset for net worth,
+   but they do subtract as a liability. Monefy modeled them wrong (a positive
+   initial balance of 800,000 = the credit limit, mixing two concepts).
 
-5. **Cuentas marcables como "no cuenta para patrimonio"**, igual que Monefy.
+5. **Accounts can be flagged as "excluded from net worth"**, same as Monefy.
 
-6. **Rendimientos y cashback viven aparte.** No se mezclan con el saldo de la
-   cuenta que los generó. Módulo propio, porque tienen tratamiento tributario
-   distinto.
+6. **Interest and cashback live separately.** They are not mixed into the
+   balance of the account that produced them. Their own module, because their
+   tax treatment is different.
 
-7. **Todo editable.** Cualquier valor que la app calcule o traiga de internet
-   debe poder sobreescribirse a mano. Además la app guarda ambos: el calculado
-   y el ingresado manualmente, para poder compararlos.
+7. **Everything editable.** Any value the app computes or fetches from the
+   internet must be overridable by hand. The app also stores both: the
+   computed value and the manually entered one, so they can be compared.
 
-8. **Formularios DIAN configurables.** El módulo tributario no debe quemar el
-   formulario 210. Cada formulario es un conjunto de reglas y renglones
-   configurables, para poder agregar otros después.
+8. **Configurable DIAN forms.** The tax module must not hardcode form 210.
+   Each form is a configurable set of rules and line items, so others can be
+   added later.
 
-### Límites reales que no se deben prometer
+### Real limits that must not be promised away
 
-- **La tasa que aplicó cada banco un día dado no es consultable en internet.**
-  No existe fuente pública ni histórica. Solo existe la TRM oficial diaria.
-- **Las tasas de rendimiento por banco tampoco son consultables de forma
-  confiable.** Están en términos y condiciones que cambian sin aviso. La
-  solución es un historial de tasas por cuenta (tasa E.A. con vigencia
-  desde/hasta) que el usuario mantiene, y la app devenga día a día.
-- **No usar un LLM para traer cifras exactas** (TRM, tasas). Inventa números.
-  Para datos numéricos, APIs deterministas con caché local. Un LLM sí encaja
-  para clasificar categorías automáticamente o leer un extracto bancario.
+- **The rate a given bank applied on a given day is not available online.**
+  There is no public or historical source. Only the official daily TRM exists.
+- **Per-bank interest rates are not reliably available either.** They live in
+  terms and conditions that change without notice. The solution is a per-account
+  rate history (effective annual rate with valid-from/valid-to) maintained by
+  the user, with the app accruing day by day.
+- **Do not use an LLM to fetch exact figures** (TRM, interest rates). It makes
+  numbers up. For numeric data, use deterministic APIs with a local cache. An
+  LLM does fit for auto-classifying categories or reading a bank statement.
 
 ---
 
-## Estado actual
+## Current status
 
-Fase 0. Todavía no hay código. Lo siguiente es el modelo de datos y el
-esquema SQLite (ver `docs/03-roadmap.md`).
+Phase 0. No code yet. Next up is the data model and the SQLite schema
+(see `docs/03-roadmap.md`).
 
-## Pendientes de Jose
+## Pending from Jose
 
-- Node 26.1.0 instalado (compartido con proyectos Angular del cliente).
-  Está fuera del rango declarado por Angular (^20.19 || ^22.12 || ^24),
-  pero funciona con advertencia. NO reemplazar: rompería el entorno de
-  trabajo. Si el toolchain falla por versión, instalar fnm y aislar por
-  proyecto con .node-version.
+- Node 26.1.0 installed (shared with the client's Angular projects). It is
+  outside the range Angular declares (^20.19 || ^22.12 || ^24), but it works
+  with a warning. DO NOT replace it: it would break the work environment. If
+  the toolchain fails because of the version, install fnm and isolate per
+  project with `.node-version`.
 
-- [ ] Saldo real actual en USD de: ARQ (DolarApp), eToro, XTB, Plenti, Global66.
-      Necesario para reconciliar el histórico importado (ver
-      `docs/01-analisis-backup-monefy.md`).
-- [ ] Confirmar si presenta hoy el formulario 210 y si aplica persona jurídica.
+- [ ] Current real USD balance for: ARQ (DolarApp), eToro, XTB, Plenti,
+      Global66. Needed to reconcile the imported history (see
+      `docs/01-monefy-backup-analysis.md`).
+- [ ] Confirm whether he currently files form 210 and whether a legal entity
+      is involved.
 
-## Documentos
+## Documents
 
-- `docs/01-analisis-backup-monefy.md` — qué trae el backup y sus problemas
-- `docs/02-decisiones-tecnicas.md` — el porqué de cada decisión
-- `docs/03-roadmap.md` — orden de trabajo por fases
-- `docs/04-guia-stack.md` — introducción al stack para alguien que viene de .NET/Angular
-- `data/monefy-backup-2026-09-07.xlsx` — backup real, 12.889 movimientos
+- `docs/01-monefy-backup-analysis.md` — what the backup contains and its problems
+- `docs/02-technical-decisions.md` — the reasoning behind each decision
+- `docs/03-roadmap.md` — order of work by phase
+- `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
+- `data/Monefy.Data.csv` — the real backup, ~12,889 transactions

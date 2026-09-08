@@ -1,84 +1,82 @@
 # Roadmap
 
-Orden pensado para minimizar retrabajo: primero los cimientos (datos), luego
-lo visible, y el módulo tributario al final, cuando ya haya datos limpios que
-alimentarlo.
+Ordered to minimize rework: foundations first (data), then what is visible,
+and the tax module last, once there is clean data to feed it.
 
 ---
 
-## Fase 1 — Modelo de datos y esquema SQLite
+## Phase 1 — Data model and SQLite schema
 
-**Entregable:** esquema creado y migrable, con seeds mínimos.
+**Deliverable:** schema created and migratable, with minimal seeds.
 
-Entidades base:
+Base entities:
 
-- `currencies` — código, decimales, símbolo
-- `accounts` — nombre, icono, moneda, tipo (débito / crédito / efectivo /
-  inversión), `credit_limit`, `include_in_net_worth`, saldo inicial, fecha de
-  apertura
-- `categories` — nombre, icono, color, tipo (ingreso / gasto), padre opcional
-- `transactions` — cuenta, categoría, fecha, `amount`, `rate`, `amount_base`,
-  `rate_source`, `confidence`, descripción
-- `transfers` — entidad propia con pata origen y pata destino, cada una con su
-  monto y su tasa (permite transferencias entre monedas distintas)
-- `exchange_rates` — fecha, par, tasa, fuente (caché de TRM)
-- `account_rates` — cuenta, tasa E.A., vigencia desde/hasta
-- `yields` — rendimientos calculados y reales, por cuenta y periodo
-- `cashbacks` — monto, transacción origen, cuenta
+- `currencies` — code, decimal places, symbol
+- `accounts` — name, icon, currency, type (debit / credit / cash / investment),
+  `credit_limit`, `include_in_net_worth`, opening balance, opening date
+- `categories` — name, icon, color, type (income / expense), optional parent
+- `transactions` — account, category, date, `amount`, `rate`, `amount_base`,
+  `rate_source`, `confidence`, description
+- `transfers` — its own entity with a source leg and a destination leg, each
+  with its own amount and rate (allows cross-currency transfers)
+- `exchange_rates` — date, pair, rate, source (TRM cache)
+- `account_rates` — account, effective annual rate, valid from/to
+- `interest_accruals` — computed and actual interest, per account and period
+- `cashbacks` — amount, source transaction, account
 
-Sin UI todavía. Solo esquema, tipos TypeScript y una capa de repositorio.
+No UI yet. Only the schema, TypeScript types and a repository layer.
 
-## Fase 2 — Importador del backup de Monefy
+## Phase 2 — Monefy backup importer
 
-**Entregable:** script que lee el `.xlsx` y puebla la base, más una cola de
-revisión.
+**Deliverable:** a script that reads the backup and populates the database,
+plus a review queue.
 
-- Desambiguar fechas asumiendo orden cronológico
-- Emparejar `To '...'` / `From '...'` en transferencias reales
-- Convertir `Initial balance` en saldo inicial de cuenta
-- Rebasar tarjetas de crédito a modelo de pasivo
-- Extraer montos USD de las descripciones (162 candidatos)
-- Marcar de baja confianza lo estimado
-- Reconciliar contra los saldos reales en USD que dé Jose
+- Disambiguate dates assuming chronological order
+- Pair `To '...'` / `From '...'` into real transfers
+- Turn `Initial balance` into an account opening balance
+- Rebase credit cards onto the liability model
+- Extract USD amounts from descriptions (162 candidates)
+- Flag estimated values as low confidence
+- Reconcile against the real USD balances Jose provides
 
-Ver `01-analisis-backup-monefy.md` para el detalle de cada problema.
+See `01-monefy-backup-analysis.md` for the detail of each problem.
 
-## Fase 3 — UI base
+## Phase 3 — Base UI
 
-**Entregable:** app usable para el día a día.
+**Deliverable:** an app usable day to day.
 
-- Registro rápido de movimiento (la fortaleza de Monefy: pocos toques)
-- CRUD de cuentas y categorías con catálogo amplio de iconos
-- Listado y edición de movimientos
-- Navegación por periodo: mes, año, viaje a periodos anteriores
-- Exportación
+- Fast transaction entry (Monefy's strength: few taps)
+- Account and category CRUD with a broad icon catalog
+- Transaction list and editing
+- Period navigation: month, year, jumping to earlier periods
+- Export
 
-En este punto la app ya reemplaza a Monefy.
+At this point the app already replaces Monefy.
 
-## Fase 4 — Multimoneda y TRM
+## Phase 4 — Multi-currency and TRM
 
-- Consulta de TRM oficial con caché local
-- Comportamiento offline con último valor conocido
-- Edición manual de la tasa por movimiento
-- Vista de patrimonio consolidado en COP
+- Official TRM lookup with local cache
+- Offline behavior using the last known value
+- Manual per-transaction rate editing
+- Consolidated net worth view in COP
 
-## Fase 5 — Rendimientos, cashback y patrimonio
+## Phase 5 — Interest, cashback and net worth
 
-- Historial de tasas por cuenta
-- Devengo diario calculado vs. rendimiento real abonado
-- Acumulado de cashback
-- Patrimonio: activos, pasivos, exclusiones
+- Per-account rate history
+- Computed daily accrual vs. actual interest posted
+- Cashback accumulation
+- Net worth: assets, liabilities, exclusions
 
-## Fase 6 — Módulo de renta
+## Phase 6 — Income tax module
 
-- Formularios configurables (arrancar por el 210)
-- Componente inflacionario editable con estimación
-- Proyección anual a partir de lo registrado
-- Cuánto ahorrar al mes para cubrir el impuesto estimado
+- Configurable forms (starting with 210)
+- Editable inflationary component with an estimate
+- Yearly projection from what has been recorded
+- How much to save per month to cover the estimated tax
 
-Requiere mapear antes el Estatuto Tributario. Validar con contador.
+Requires mapping the Estatuto Tributario first. Validate with an accountant.
 
-## Después
+## Later
 
-Sincronización en la nube (opcional, nunca obligatoria — la app debe seguir
-funcionando 100% local).
+Cloud sync (optional, never mandatory — the app must keep working 100%
+locally).

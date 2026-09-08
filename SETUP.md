@@ -1,30 +1,30 @@
-# Puesta en marcha, paso a paso
+# Getting started, step by step
 
-Escrito para alguien que nunca ha montado un proyecto propio en GitHub.
-Sigue el orden. No te saltes pasos.
+Written for someone who has never set up a personal project on GitHub.
+Follow the order. Do not skip steps.
 
 ---
 
-## Paso 1 — Instalar lo necesario
+## Step 1 — Install what you need
 
-Instala en este orden:
+Install in this order:
 
 1. **Git** — https://git-scm.com/download/win
-   En el instalador, deja todo por defecto. Solo asegúrate de que quede
-   marcada la opción de agregar Git al PATH.
+   Leave every installer option at its default. Just make sure the option to
+   add Git to the PATH stays checked.
 
 2. **Node.js LTS** — https://nodejs.org
-   Elige la versión LTS (la de la izquierda), no la "Current".
+   Pick the LTS version (the one on the left), not "Current".
 
 3. **Android Studio** — https://developer.android.com/studio
-   Es pesado (varios GB) y se demora. Déjalo instalando mientras haces otra
-   cosa. Al abrirlo la primera vez, acepta el asistente que descarga el SDK.
+   It is heavy (several GB) and slow. Let it install while you do something
+   else. The first time you open it, accept the wizard that downloads the SDK.
 
-4. **JDK 17** — Android Studio normalmente ya lo trae. Verifica después.
+4. **JDK 17** — Android Studio usually ships it. Verify afterwards.
 
-VS Code ya lo tienes.
+You already have VS Code.
 
-**Verifica que todo quedó bien.** Abre una terminal nueva (PowerShell) y corre:
+**Check that everything landed.** Open a new terminal (PowerShell) and run:
 
 ```bash
 git --version
@@ -32,10 +32,10 @@ node --version
 npm --version
 ```
 
-Si alguno falla con "no se reconoce el comando", cierra y abre la terminal de
-nuevo. Si sigue fallando, es que no quedó en el PATH.
+If any of them fails with "command not found", close the terminal and open a
+new one. If it still fails, it did not make it into the PATH.
 
-Luego instala el CLI de Ionic:
+Then install the Ionic CLI:
 
 ```bash
 npm install -g @ionic/cli
@@ -44,141 +44,141 @@ ionic --version
 
 ---
 
-## Paso 2 — Configurar Git por primera vez
+## Step 2 — Configure Git for the first time
 
-Solo se hace una vez en la vida por computador:
+Done once per computer, for life:
 
 ```bash
-git config --global user.name "Tu Nombre"
-git config --global user.email "tu@correo.com"
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
 git config --global init.defaultBranch main
 ```
 
-El correo debe ser el mismo con el que vas a crear la cuenta de GitHub.
+The email must be the same one you use for the GitHub account.
 
 ---
 
-## Paso 3 — Crear la carpeta del proyecto
+## Step 3 — Create the project folder
 
-Elige dónde va a vivir. Por ejemplo `C:\proyectos\finanzas-app`.
+Pick where it will live. For example `C:\DEV\Finance`.
 
-Descomprime ahí los archivos que te entregué. Te debe quedar así:
+Unzip the files there. You should end up with:
 
 ```
-finanzas-app/
+Finance/
   CLAUDE.md
   README.md
   SETUP.md
   .gitignore
   docs/
-    01-analisis-backup-monefy.md
-    02-decisiones-tecnicas.md
+    01-monefy-backup-analysis.md
+    02-technical-decisions.md
     03-roadmap.md
-    04-guia-stack.md
+    04-stack-guide.md
   data/
-    monefy-backup-2026-09-07.xlsx
+    Monefy.Data.csv
 ```
 
 ---
 
-## Paso 4 — Convertirla en repositorio Git
+## Step 4 — Turn it into a Git repository
 
-Abre una terminal **dentro de esa carpeta** y corre:
+Open a terminal **inside that folder** and run:
 
 ```bash
 git init
 git add .
-git commit -m "Contexto inicial del proyecto"
+git commit -m "Initial project context"
 ```
 
-Qué acabas de hacer, en cristiano:
+What you just did, in plain words:
 
-- `git init` → le dice a Git "vigila esta carpeta"
-- `git add .` → "prepara todos estos archivos para guardar"
-- `git commit` → "guarda una foto del estado actual con este mensaje"
+- `git init` → tells Git "watch this folder"
+- `git add .` → "stage all these files to be saved"
+- `git commit` → "save a snapshot of the current state with this message"
 
-Un commit es un punto al que siempre puedes volver. Haz commits seguido.
+A commit is a point you can always come back to. Commit often.
 
 ---
 
-## Paso 5 — Subirlo a GitHub
+## Step 5 — Push it to GitHub
 
-1. Crea una cuenta en https://github.com si no tienes.
-2. Botón **+** arriba a la derecha → **New repository**.
-3. Nombre: `finanzas-app`. Marca **Private**.
-4. **No** marques ninguna de las casillas de inicializar con README,
-   .gitignore ni licencia. Ya los tienes localmente y chocarían.
-5. Crear.
+1. Create an account at https://github.com if you do not have one.
+2. **+** button at the top right → **New repository**.
+3. Name: `finance`. Check **Private**.
+4. Do **not** check any of the boxes that initialize a README, .gitignore or
+   license. You already have them locally and they would clash.
+5. Create.
 
-GitHub te va a mostrar unos comandos. Usa los de "push an existing
+GitHub will show you some commands. Use the ones under "push an existing
 repository":
 
 ```bash
-git remote add origin https://github.com/TU-USUARIO/finanzas-app.git
+git remote add origin https://github.com/YOUR-USERNAME/finance.git
 git branch -M main
 git push -u origin main
 ```
 
-Te va a pedir autenticarte. Se abre el navegador, autorizas, listo.
+It will ask you to authenticate. The browser opens, you authorize, done.
 
-Refresca la página de GitHub: ahí deben estar tus archivos.
+Refresh the GitHub page: your files should be there.
 
-### El ciclo de aquí en adelante
+### The cycle from here on
 
-Cada vez que trabajes:
+Every time you work:
 
 ```bash
 git add .
-git commit -m "descripción de lo que hiciste"
+git commit -m "description of what you did"
 git push
 ```
 
-Con eso basta por ahora. Ramas, merges y pull requests los vemos cuando
-hagan falta; para un proyecto de una sola persona no los necesitas todavía.
+That is enough for now. Branches, merges and pull requests come later, when
+they are actually needed; for a one-person project you do not need them yet.
 
 ---
 
-## Paso 6 — Instalar Claude Code
+## Step 6 — Install Claude Code
 
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
 
-Luego, **parado en la carpeta del proyecto**:
+Then, **from inside the project folder**:
 
 ```bash
-cd C:\proyectos\finanzas-app
+cd C:\DEV\Finance
 claude
 ```
 
-La primera vez te pide autenticarte con tu cuenta de Anthropic.
+The first time it asks you to authenticate with your Anthropic account.
 
-Claude Code lee `CLAUDE.md` automáticamente al arrancar, así que ya llega con
-todo el contexto de lo que decidimos. No tienes que explicar nada de nuevo.
+Claude Code reads `CLAUDE.md` automatically on startup, so it arrives with all
+the context of what we decided. You do not have to explain anything again.
 
-También puedes usarlo desde VS Code instalando la extensión de Claude Code,
-si prefieres tenerlo al lado del editor en vez de en una terminal aparte.
-
----
-
-## Paso 7 — Primer mensaje en Claude Code
-
-Cuando arranques, algo así:
-
-```
-Lee CLAUDE.md y docs/. Vamos por la Fase 1 del roadmap:
-el modelo de datos y el esquema SQLite.
-Antes de escribir código, muéstrame el diseño de tablas
-propuesto para que lo revisemos.
-```
-
-De ahí en adelante la conversación sigue allá, con acceso al código real.
+You can also use it from VS Code by installing the Claude Code extension, if
+you prefer having it next to the editor instead of in a separate terminal.
 
 ---
 
-## Notas
+## Step 7 — First message in Claude Code
 
-- El proyecto Angular/Ionic **todavía no está creado**. Se crea en la Fase 1,
-  desde Claude Code, para que veas cada paso.
-- Si algo del setup falla, el error exacto es la mejor pista. Pégalo tal cual
-  en Claude Code y se resuelve más rápido que buscándolo a ciegas.
+When you start, something like:
+
+```
+Read CLAUDE.md and docs/. Let's do Phase 1 of the roadmap:
+the data model and the SQLite schema.
+Before writing code, show me the proposed table design
+so we can review it.
+```
+
+From there the conversation continues over there, with access to the real code.
+
+---
+
+## Notes
+
+- The Angular/Ionic project **does not exist yet**. It gets created in Phase 1,
+  from Claude Code, so you can see every step.
+- If something in the setup fails, the exact error is the best clue. Paste it
+  verbatim into Claude Code — it gets resolved faster than searching blind.
