@@ -248,3 +248,61 @@ applied can be extracted:
 With several of these points you compute the provider's typical spread against
 that day's official TRM, and apply that spread to the rows with no explicit
 figure.
+
+---
+
+## Transfers, rebuilt (2026-09-08)
+
+Running the pairing over the 2026-09-08 export:
+
+| | Rows |
+|---|---|
+| `To '...'` halves | 2,701 |
+| `From '...'` halves | 2,635 |
+| **Transfers rebuilt** | **2,624**, all by exact match |
+| Rows left unpaired | 88 (77 outgoing, 11 incoming) |
+
+Matching is on the same day, the two accounts naming each other, and the same
+amount, with rows consumed in file order so repeated identical transfers each
+get their own counterpart. A second pass allowing a few days between the halves
+found **nothing**: every real transfer in this backup is same-day. The pass is
+kept because transfers between banks genuinely can straddle days, and it is
+tested, but it earns nothing on the current data.
+
+### The 88 unpaired rows are deleted accounts, not bad data
+
+All 88 name an account that **never appears in the account column** — 88 of 88,
+verified. Twelve accounts, deleted from Monefy at some point:
+
+| Deleted account | In | Out | Balance it would end with |
+|---|---|---|---|
+| Tarjeta de crédito mastercard | 16 | 0 | 2,079,113 |
+| Renta alta convicción | 11 | 1 | −325,089.22 |
+| Renta sostenible global | 10 | 1 | −676,972.78 |
+| Tyba comprar vivienda | 10 | 1 | −26,469.03 |
+| Tyba portafolio 8 | 10 | 1 | 37,511 |
+| Balanceado | 7 | 1 | 469,847.56 |
+| Renta Fija Plazo | 5 | 2 | −5,862,666.55 |
+| Airtm | 4 | 0 | 450,054 |
+| Hapi | 2 | 1 | −414,380 |
+| Cuenta leidy (transferencia susana) | 0 | 3 | −1,271,027.46 |
+| Tarjeta nequi | 1 | 0 | 24,000 |
+| Cuenta leidy | 1 | 0 | 225,000 |
+
+Deleting an account in Monefy removes its own rows but leaves the surviving
+half of every transfer behind, category text and all. `To 'Renta Fija Plazo'`
+stays on Bancolombia long after the fund is gone, and can never be paired.
+
+67 of the 88 are from 2021 and they taper off after that — the shape of someone
+trying several investment funds early on and closing them.
+
+**These should be reconstructed, not discarded.** The money really did leave
+Bancolombia, and the name, date and amount are all present. The importer
+recreates each as an **archived** account and synthesises the missing leg, so
+the transfer is whole and the ledger balances, then flags each one for review:
+a name cannot tell you an account's currency or type.
+
+Note that several of the reconstructed balances are large and negative, which
+means those accounts returned more than the surviving rows show them receiving
+— unsurprising for investment funds that earned a return before being closed,
+and further reason to review rather than trust them blindly.
