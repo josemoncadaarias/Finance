@@ -3,7 +3,7 @@
 //   node --import ./tools/db/register-ts.mjs --test tools/db/repositories.test.mjs
 //
 // The accounts, amounts and transfers used here are real ones from
-// data/Monefy.Data.csv.
+// data/monefy-2026-09-07.csv.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';

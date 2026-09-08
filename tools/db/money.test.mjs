@@ -4,7 +4,7 @@
 //
 // Node strips the TypeScript types on import, so this runs with nothing
 // installed and no build step. The values used here are real ones from
-// data/Monefy.Data.csv.
+// data/monefy-2026-09-07.csv.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';

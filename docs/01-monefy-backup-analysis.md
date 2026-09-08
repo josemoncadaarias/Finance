@@ -1,6 +1,6 @@
 # Monefy backup analysis
 
-File: `data/Monefy.Data.csv`
+File: `data/monefy-2026-09-07.csv` (12,890 rows, 25/06/2021 to 07/09/2026)
 Everything here is **verified** by reading the file, not assumed.
 
 > Note: this analysis was originally produced from the `.xlsx` export

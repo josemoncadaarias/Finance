@@ -157,12 +157,20 @@ timestamp.
 
 The Monefy CSV is re-exported regularly and carries the whole history again
 plus whatever is new, so the importer has to recognise what it has already
-seen. It does that with a fingerprint: the SHA-256 of five normalised fields
-joined together.
+seen. It does that with a fingerprint: five normalised fields joined by a
+separator.
 
 ```
-2021-06-28|Bancolombia|Comunicaciones|-5177409|Claro datos
+2021-06-28 | Bancolombia | Comunicaciones | -5177409 | Claro datos
 ```
+
+The first design hashed that with SHA-256. Storing the readable string instead
+turned out better on every axis: `crypto.subtle` in a browser is async and
+would have made every call site async for nothing, a readable fingerprint can
+be shown in the review queue and understood at a glance rather than being 64
+characters of hex, and equality becomes exact instead of merely very likely.
+The cost is about 80 bytes per row — roughly 1 MB across the whole backup,
+against a database already several MB in size.
 
 Normalising means decoding the file correctly, trimming, collapsing repeated
 spaces, and converting the amount to minor units *before* hashing, so
@@ -266,3 +274,21 @@ error rather than a silent truncation.
 Amounts in COP cents get large (`66,750,767.94` is `6675076794`) but stay far
 below `Number.MAX_SAFE_INTEGER`; every helper checks anyway and throws rather
 than quietly losing precision.
+
+---
+
+## Comparing two exports
+
+Each Monefy export is kept as its own file, `data/monefy-YYYY-MM-DD.csv`, and
+none is ever overwritten. Comparing consecutive exports is the only way to
+check the order-stability assumption, and it also shows what the importer will
+have to deal with on a re-run:
+
+```
+node --import ./tools/db/register-ts.mjs tools/db/compare-exports.mjs \
+  data/monefy-2026-09-07.csv data/monefy-2026-10-01.csv
+```
+
+It reports whether the old export is a prefix of the new one (order stable),
+which rows were added, which went missing — edited or deleted inside Monefy —
+and any new accounts or categories. Read-only: it touches no database.

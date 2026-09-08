@@ -76,7 +76,7 @@ Finance/
     03-roadmap.md
     04-stack-guide.md
   data/
-    Monefy.Data.csv
+    monefy-2026-09-07.csv
 ```
 
 ---

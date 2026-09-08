@@ -162,4 +162,6 @@ Creating it is the next step. See `docs/05-data-model.md`.
 - `docs/03-roadmap.md` — order of work by phase
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
-- `data/Monefy.Data.csv` — the real backup, ~12,889 transactions
+- `data/monefy-YYYY-MM-DD.csv` — the real backups, one file per export.
+  Never overwrite one: comparing consecutive exports is what verifies that
+  Monefy orders rows stably, which the import fingerprint relies on.
