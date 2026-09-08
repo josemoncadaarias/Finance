@@ -130,7 +130,7 @@ the framework on a long-running project.
 ## Current status
 
 Phase 1 in progress. The SQLite schema, the migration runner, the money
-helpers and the repository layer are written and covered by 36 tests that run
+helpers and the repository layer are written and covered by 44 tests that run
 against a real SQLite engine with no dependencies:
 
 ```
