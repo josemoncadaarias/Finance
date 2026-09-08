@@ -375,8 +375,37 @@ the limit as it stood in 2021, which was never money. **Dropping that opening
 is the whole rebase.** Every purchase since already subtracts, so the balance
 becomes the plain negative of the debt, which is what the schema wants.
 
-The arithmetic confirms it: the card's rows sum to **+273,507.73** including
-the 800,000 opening. Without it the balance is **−526,492.27**, a debt of that
-much, leaving **573,507.73** of the current 1,100,000 limit available. A
-plausible figure, which the naive reading — treating 800,000 as money — would
-not have produced.
+### Limit increases are logged as deposits (corrected 2026-09-08)
+
+Dropping the opening balance is only half the fix, and getting the other half
+wrong produced a figure Jose caught immediately: the import said 573,507.73 was
+available when Monefy showed 273,507.73, exactly 300,000 too much.
+
+Monefy has no concept of a credit limit, so the only way to record one growing
+is to add money to the card. Jose did that twice:
+
+| Date | Amount | Description |
+|---|---|---|
+| 2023-02-01 | +200,000 | `Aumento cupo` |
+| 2024-11-10 | +100,000 | `Aumento cupo` |
+
+Those two are limit increases wearing the costume of deposits. Read as
+payments they cut the debt by 300,000 that was never paid.
+
+**The three numbers reconcile exactly**, which is what confirms the reading:
+
+```
+  800,000  opening balance (the limit in 2021)
++ 200,000  Aumento cupo, 2023
++ 100,000  Aumento cupo, 2024
+= 1,100,000  the limit Jose confirmed
+```
+
+So the importer removes all three from the ledger. The card's rows then sum to
+**−826,492.27** — the debt — leaving **273,507.73** of the 1,100,000 limit,
+which is what Monefy shows.
+
+Because the file states the limit twice over, the importer cross-checks the
+configured limit against the one the rows imply, and raises
+`credit_limit_mismatch` if they disagree rather than silently preferring
+either.

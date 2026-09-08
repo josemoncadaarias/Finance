@@ -260,7 +260,9 @@ test('imports the real export', { skip: !existsSync(REAL_EXPORT) && 'export not 
   assert.equal(summary.groupsCreated, 2);
 
   // Every row is accounted for: 8 opening balances are not transactions.
-  assert.equal(summary.rowsInserted, 12898 - 8);
+  // 8 opening balances and 2 credit-limit changes are not transactions.
+  assert.equal(summary.rowsInserted, 12898 - 8 - 2);
+  assert.equal(summary.creditLimitChanges, 2);
 
   const counted = await db.queryOne('SELECT COUNT(*) AS n FROM transactions');
   assert.equal(counted.n, summary.rowsInserted + summary.synthesizedLegs);
@@ -277,10 +279,11 @@ test('imports the real export', { skip: !existsSync(REAL_EXPORT) && 'export not 
   const accounts = new AccountsRepository(db, NOW);
   const card = await accounts.findByName('Tarjeta crédito rappi');
   const cardBalance = await accounts.balance(card.id);
-  // Verified by hand from the file: the card's rows sum to +273,507.73 with
-  // the 800,000 opening included, so the debt is 526,492.27.
-  assert.equal(cardBalance.balance_minor, -52649227);
-  assert.equal(cardBalance.available_credit_minor, 110000000 - 52649227);
+  // The card's rows sum to +273,507.73 with the 800,000 opening and the two
+  // Aumento cupo rows included. All three are limit, not money, so the debt is
+  // 826,492.27 and 273,507.73 of the limit is free — the figure Monefy shows.
+  assert.equal(cardBalance.balance_minor, -82649227);
+  assert.equal(cardBalance.available_credit_minor, 27350773);
 
   const balances = await accounts.balances({ includeArchived: true });
   console.log(`\n    Imported ${summary.rowsRead} rows in ${elapsed} ms`);
@@ -319,5 +322,47 @@ test('a re-import adds no new categories and no repeated reviews', async () => {
   assert.equal(second.categoriesCreated, 0, 'the categories already existed');
   assert.equal(second.reviewsRaised, 0, 'the same doubts must not pile up');
   assert.equal((await db.query('SELECT id FROM review_queue')).length, reviewsAfterFirst);
+  await db.close();
+});
+
+test('a limit increase is not treated as money arriving', async () => {
+  const db = await freshDb();
+  // The real shape: the card opens at its 2021 limit, and the increase is
+  // logged as a deposit because Monefy has no other way to express it.
+  const summary = await run(db, csv(
+    `21/08/2021,Tarjeta crédito rappi,Initial balance 'Tarjeta crédito rappi',"800,000",COP,"800,000",COP,`,
+    '22/08/2021,Tarjeta crédito rappi,Restaurante,"-500,000",COP,"-500,000",COP,Compras',
+    '01/02/2023,Tarjeta crédito rappi,Depósitos,"200,000",COP,"200,000",COP,Aumento cupo',
+    '10/11/2024,Tarjeta crédito rappi,Depósitos,"100,000",COP,"100,000",COP,Aumento cupo',
+  ));
+
+  assert.equal(summary.creditLimitChanges, 2);
+  assert.equal(summary.rowsInserted, 1, 'only the purchase is a real movement');
+
+  const accounts = new AccountsRepository(db, NOW);
+  const card = await accounts.findByName('Tarjeta crédito rappi');
+  const balance = await accounts.balance(card.id);
+
+  // Believed as deposits, the two increases would have cut the debt to 200,000.
+  assert.equal(balance.balance_minor, -50000000, 'the debt is the purchase alone');
+  assert.equal(balance.available_credit_minor, 110000000 - 50000000);
+
+  assert.equal((await db.query(`SELECT id FROM review_queue WHERE kind = 'credit_limit_change'`)).length, 2);
+  // 800,000 + 200,000 + 100,000 is the configured 1,100,000, so no mismatch.
+  assert.equal((await db.query(`SELECT id FROM review_queue WHERE kind = 'credit_limit_mismatch'`)).length, 0);
+  await db.close();
+});
+
+test('a limit that disagrees with the file is reported', async () => {
+  const db = await freshDb();
+  await run(db, csv(
+    `21/08/2021,Tarjeta crédito rappi,Initial balance 'Tarjeta crédito rappi',"800,000",COP,"800,000",COP,`,
+    '01/02/2023,Tarjeta crédito rappi,Depósitos,"50,000",COP,"50,000",COP,Aumento cupo',
+  ));
+
+  // 800,000 + 50,000 is 850,000, not the configured 1,100,000.
+  const mismatch = await db.queryOne(`SELECT reason FROM review_queue WHERE kind = 'credit_limit_mismatch'`);
+  assert.ok(mismatch, 'the disagreement must be reported, not resolved silently');
+  assert.match(mismatch.reason, /850\.000,00/);
   await db.close();
 });

@@ -25,7 +25,7 @@ import { TransfersRepository } from '../repositories/transfers.repository';
 
 import { parseMonefyCsv, type MonefyCsvResult, type MonefyRow } from './monefy-csv';
 import { pairTransfers, findGhostAccounts, type TransferPair } from './pair-transfers';
-import { planAccounts, type AccountPlan, type PlannedAccount } from './account-plan';
+import { planAccounts, isCreditLimitChange, derivedCreditLimit, type AccountPlan, type PlannedAccount } from './account-plan';
 import { assessUsdMention, type UsdCandidate } from './extract-usd';
 
 export interface ImportOptions {
@@ -54,6 +54,8 @@ export interface ImportSummary {
   usdRecovered: number;
   /** Rows in a dollar account whose amount had to be estimated. */
   usdEstimated: number;
+  /** Rows that changed a credit limit instead of moving money. */
+  creditLimitChanges: number;
 }
 
 interface ResolvedAmount {
@@ -103,6 +105,8 @@ class ImportWriter {
   private readonly accountIds = new Map<string, number>();
   /** Backup account name to the currency that row holds. */
   private readonly currencies = new Map<string, string>();
+  /** Backup account name to the type of the row its history goes to. */
+  private readonly accountTypes = new Map<string, string>();
   private readonly categoryIds = new Map<string, number>();
   /** Fingerprints already in the database, and the highest sequence of each. */
   private seen = new Map<string, number>();
@@ -120,6 +124,8 @@ class ImportWriter {
   private synthesizedLegs = 0;
   private usdRecovered = 0;
   private usdEstimated = 0;
+  /** Rows that changed a credit limit rather than moving money. */
+  private limitChanges = 0;
 
   // Declared and assigned rather than written as constructor parameter
   // properties: Node runs these files by stripping types only, and parameter
@@ -157,6 +163,7 @@ class ImportWriter {
     await this.createGroups();
     await this.createAccounts();
     await this.createCategories();
+    await this.checkCreditLimits();
     this.collectKnownRates();
 
     // Transfers first, so both halves are consumed before the loose rows are
@@ -199,6 +206,7 @@ class ImportWriter {
       synthesizedLegs: this.synthesizedLegs,
       usdRecovered: this.usdRecovered,
       usdEstimated: this.usdEstimated,
+      creditLimitChanges: this.limitChanges,
     };
   }
 
@@ -237,6 +245,7 @@ class ImportWriter {
       if (account.receivesHistory) {
         this.accountIds.set(account.sourceName, id);
         this.currencies.set(account.sourceName, account.currency);
+        this.accountTypes.set(account.sourceName, account.type);
       }
     }
   }
@@ -295,7 +304,6 @@ class ImportWriter {
   }
 
   /**
-   * Every dollar rate the descriptions confirm, sorted by date, so a row
    * without one can borrow the nearest in time.
    */
   private collectKnownRates(): void {
@@ -310,7 +318,6 @@ class ImportWriter {
   }
 
   /**
-   * The confirmed rate closest in time to a date.
    *
    * Used only to estimate rows whose dollar amount was never written down.
    * The official TRM would be better and arrives in Phase 4; until then, rates
@@ -333,7 +340,6 @@ class ImportWriter {
   }
 
   /**
-   * Works out what to store for one row, given the currency of the account it
    * lands in.
    *
    * A peso row is trivial. A dollar row is not: the file states pesos, and the
@@ -406,6 +412,22 @@ class ImportWriter {
   private async writeTransaction(row: MonefyRow): Promise<void> {
     if (this.alreadyStored(row)) {
       this.rowsSkipped += 1;
+      return;
+    }
+
+    // A limit increase is not money arriving. Monefy had no way to express one,
+    // so it was logged as a deposit; taken literally it understates the debt by
+    // exactly the amount the limit grew.
+    if (isCreditLimitChange(row.description, this.accountTypes.get(row.account) ?? 'debit')) {
+      this.limitChanges += 1;
+      await this.raiseReview(
+        'credit_limit_change',
+        `"${row.description}" on ${row.occurredOn} raises the credit limit by ` +
+          `${(row.amountMinor / 100).toLocaleString('es-CO', { minimumFractionDigits: 2 })}; ` +
+          'it is kept out of the ledger because it is not money moving.',
+        'account',
+        this.accountIds.get(row.account) ?? null,
+      );
       return;
     }
 
@@ -490,7 +512,6 @@ class ImportWriter {
   }
 
   /**
-   * A transfer half whose counterpart was deleted along with its account.
    *
    * The money really moved, and the surviving row states the date, the amount
    * and the other account's name, so the missing leg is reconstructed against
@@ -543,6 +564,34 @@ class ImportWriter {
     );
   }
 
+
+  /**
+   * Cross-checks each credit limit against the one the file implies.
+   *
+   * The backup states a card's limit twice over: once as the opening balance,
+   * and again through every `Aumento cupo` row. Adding them up should land on
+   * the limit Jose confirmed, and for the Rappi card it does exactly —
+   * 800,000 + 200,000 + 100,000 = 1,100,000. When the two disagree one of them
+   * is stale, and saying so is more useful than quietly preferring either.
+   */
+  private async checkCreditLimits(): Promise<void> {
+    for (const account of this.plan.accounts) {
+      if (account.type !== 'credit' || account.creditLimitMinor === null) continue;
+
+      const derived = derivedCreditLimit(this.parsed.rows, account.sourceName);
+      if (derived === null || derived === account.creditLimitMinor) continue;
+
+      await this.raiseReview(
+        'credit_limit_mismatch',
+        `The configured limit for ${account.name} is ` +
+          `${(account.creditLimitMinor / 100).toLocaleString('es-CO', { minimumFractionDigits: 2 })}, ` +
+          `but the backup implies ${(derived / 100).toLocaleString('es-CO', { minimumFractionDigits: 2 })} ` +
+          '(its opening balance plus every recorded limit change). One of the two is out of date.',
+        'account',
+        this.accountIds.get(account.sourceName) ?? null,
+      );
+    }
+  }
   /**
    * Adds an item to the review queue, unless the same one is already waiting.
    *

@@ -156,9 +156,13 @@ export interface AccountPlan {
  * balance as `limit − debt`, so it opens at +800,000 — the limit as it stood
  * in 2021, which was never money. Dropping that opening leaves the balance as
  * the plain negative of the debt, which is what the schema wants: every
- * purchase since then already subtracts. Verified: the card's rows sum to
- * +273,507.73 including the opening, so without it the debt comes out at
- * 526,492.27, leaving 573,507.73 of the current 1,100,000 limit.
+ * purchase since then already subtracts.
+ *
+ * Dropping the opening is only half of it. The two `Aumento cupo` rows are
+ * limit increases wearing the costume of deposits, and they have to come out
+ * of the ledger too — see `isCreditLimitChange`. With all three removed the
+ * card's rows sum to −826,492.27, the debt, leaving 273,507.73 of the
+ * 1,100,000 limit: exactly the figure Monefy shows.
  */
 export function openingBalances(rows: readonly MonefyRow[]): Map<string, { amountMinor: number; on: string }> {
   const openings = new Map<string, { amountMinor: number; on: string }>();
@@ -309,4 +313,51 @@ export function historyTargets(plan: AccountPlan): Map<string, PlannedAccount> {
     if (account.receivesHistory) targets.set(account.sourceName, account);
   }
   return targets;
+}
+
+/**
+ * A row that raises or lowers a credit limit rather than moving money.
+ *
+ * Monefy has no concept of a credit limit. Modelling a card as an account
+ * whose balance is `limit − debt` means the only way to record a limit
+ * increase is to add money to it, so Jose logged both of his as ordinary
+ * deposits captioned `Aumento cupo`.
+ *
+ * Left alone they are read as payments and understate the debt. There are two
+ * in the real backup — 200,000 in 2023 and 100,000 in 2024 — which together
+ * take the card from the 800,000 it opened with to the 1,100,000 it has today.
+ * That the three numbers add up exactly is what confirms this reading.
+ */
+export const CREDIT_LIMIT_CHANGE = /\b(aumento|incremento|reducci[oó]n|disminuci[oó]n)\s+(?:de\s+|del\s+)?cupo\b/i;
+
+export function isCreditLimitChange(description: string, accountType: AccountType): boolean {
+  return accountType === 'credit' && CREDIT_LIMIT_CHANGE.test(description);
+}
+
+/**
+ * The credit limit the backup itself implies: what the card opened with, plus
+ * every recorded change.
+ *
+ * Compared against the limit Jose confirmed, this is a cross-check rather than
+ * a source. If the two disagree, one of them is wrong and the importer says so
+ * instead of silently preferring either.
+ */
+export function derivedCreditLimit(rows: readonly MonefyRow[], accountName: string): number | null {
+  const known = KNOWN_ACCOUNTS[accountName];
+  if (known?.type !== 'credit') return null;
+
+  let limit = 0;
+  let sawOpening = false;
+
+  for (const row of rows) {
+    if (row.account !== accountName) continue;
+    if (row.kind === 'initial_balance') {
+      limit += row.amountMinor;
+      sawOpening = true;
+    } else if (isCreditLimitChange(row.description, 'credit')) {
+      limit += row.amountMinor;
+    }
+  }
+
+  return sawOpening ? limit : null;
 }
