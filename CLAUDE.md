@@ -158,10 +158,16 @@ Creating it is the next step. See `docs/05-data-model.md`.
   project with `.node-version`.
 
 - [x] `Plata` is COP only, ungrouped. New in the 2026-09-08 export.
-- [ ] Which currencies each multi-currency account actually holds, and the
-      current real balance of each. Known so far: Global66 holds COP and USD,
-      ARQ holds USD and EUR. Still open for eToro, XTB and Plenti. Needed to
-      reconcile the imported history (see `docs/01-monefy-backup-analysis.md`).
+- [x] eToro, XTB and Plenti hold USD only. Balances on 2026-09-08:
+      eToro 17,195.31, XTB 2,607, Plenti 0.
+- [ ] Current balance of each currency of the two multi-currency accounts:
+      ARQ (USD and EUR) and Global66 (COP and USD). The last ones needed to
+      reconcile the import (see `docs/01-monefy-backup-analysis.md`).
+- [ ] Decide how investment gains are treated for tax. eToro and XTB have
+      grown well beyond what was deposited and the backup records none of it.
+      Interest (`interest_accruals`) and a change in market value are taxed
+      differently in Colombia, so they should not share a table just because
+      they look alike. Blocks Phase 5, not Phase 2.
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 

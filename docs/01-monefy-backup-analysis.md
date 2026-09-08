@@ -165,6 +165,57 @@ TRM would produce an equally made-up USD figure.
    difference **only** across the low-confidence transactions. That way the
    final balance is exact even if the intermediate history is approximate.
 
+### Step 3 does not hold for investment accounts (found 2026-09-08)
+
+Real balances Jose reported on 2026-09-08: **eToro 17,195.31 USD, XTB 2,607
+USD, Plenti 0 USD**. All three hold USD only.
+
+Comparing those against what the backup records:
+
+| Account | Rows | Net COP in backup | Real USD | Implied rate |
+|---|---|---|---|---|
+| eToro | 38 | 52,163,869 | 17,195.31 | **3,034** |
+| XTB | 20 | 8,764,007 | 2,607 | **3,362** |
+| Plenti | 7 | 0 | 0 | — |
+
+The implied rates are far below every rate derivable from Jose's own file
+(4,214.00 / 4,300.00 / 4,321.22 / 4,375.35). At any of those, the COP recorded
+buys markedly fewer dollars than he actually holds.
+
+The reason is visible in the categories. **Neither eToro nor XTB has a single
+gain entry.** Every eToro row is a transfer in (`From 'ARQ'` ×30,
+`From 'Bancolombia'` ×7, `From 'Tarjeta crédito rappi'` ×1); XTB is the same
+plus one `Depósitos`. So the backup records only deposits, and the gap between
+deposits and today's balance is **investment return that was never recorded**.
+
+That breaks step 3 for these accounts. Spreading the difference across
+low-confidence transactions would inflate the historical deposits until they
+matched today's balance, erasing the gain. For a tax app that is the wrong
+direction to be wrong in: the gain is taxable and would vanish from the record.
+
+**So reconciliation has to separate two different causes of the same gap:**
+
+- estimation error in the eyeballed COP → spread across low-confidence rows,
+  as agreed;
+- investment gain or loss → its own explicit entry, dated and reviewable.
+
+Nothing can tell them apart automatically. The importer should reconcile the
+deposits as well as it can and leave the remainder on investment accounts as a
+single explicit adjustment for review, never silently distributed.
+
+**Plenti reconciles exactly**: 490,000 in, 159,930 in, 649,930 out, balance
+zero, and all 7 rows carry an explicit USD amount. One account confirms the
+approach works when the data is complete.
+
+### USD-to-USD transfers have no meaningful COP
+
+ARQ is the hub: `To 'eToro'` ×30 and `To 'XTB'` ×14, plus `To 'Plenti'`. Those
+45 transfers move dollars between two USD accounts with **no conversion at
+all**, exactly the case Jose warned about. Their COP figures on both legs are
+inventions and must not be treated as evidence of a rate; the transfer is
+1:1 in USD, and the base-currency amount has to come from the COP that
+originally entered ARQ, not from re-converting at some day's TRM.
+
 ### Real rates derivable from the file
 
 From the pairs where both COP and USD are present, the rate DolarApp actually
