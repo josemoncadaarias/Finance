@@ -18,7 +18,8 @@ Angular + Ionic + Capacitor + local SQLite.
 2. `CLAUDE.md` — context and decisions (Claude Code reads it on its own)
 3. `docs/04-stack-guide.md` — the stack explained coming from .NET/Angular
 4. `docs/05-data-model.md` — the schema, and why it is shaped that way
-5. `docs/03-roadmap.md` — what comes next
+5. `docs/06-schema.md` — the schema drawn, with the ER diagram
+6. `docs/03-roadmap.md` — what comes next
 
 ## Status
 

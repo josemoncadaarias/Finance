@@ -138,7 +138,7 @@ the framework on a long-running project.
 ## Current status
 
 Phase 1 in progress. The SQLite schema, the migration runner, the money
-helpers and the repository layer are written and covered by 104 tests that run
+helpers and the repository layer are written and covered by 111 tests that run
 against a real SQLite engine with no dependencies:
 
 ```
@@ -180,6 +180,7 @@ Creating it is the next step. See `docs/05-data-model.md`.
 - `docs/03-roadmap.md` — order of work by phase
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
+- `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
 - `data/monefy-YYYY-MM-DD.csv` — the real backups, one file per export.
   Never overwrite one: comparing consecutive exports is what verifies that
   Monefy orders rows stably, which the import fingerprint relies on.
