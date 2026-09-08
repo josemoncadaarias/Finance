@@ -152,6 +152,8 @@ Creating it is the next step. See `docs/05-data-model.md`.
 - [ ] Current real USD balance for: ARQ (DolarApp), eToro, XTB, Plenti,
       Global66. Needed to reconcile the imported history (see
       `docs/01-monefy-backup-analysis.md`).
+- [ ] Currency and account type for `Plata`, new in the 2026-09-08 export
+      (one 200,000 COP transfer in). The importer must not guess a currency.
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 

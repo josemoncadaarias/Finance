@@ -202,9 +202,17 @@ which looks exactly like a delete plus an insert. There is no way to tell them
 apart, because the CSV carries no stable id. The importer surfaces both and
 lets the user decide.
 
-**Unverified assumption.** That Monefy exports rows in a stable order. If it
-ever reorders, the `import_seq` of those six duplicate pairs could shift.
-Worst case: 12 rows. Confirm with a second export.
+**Order stability — VERIFIED 2026-09-08.** `import_seq` assumes Monefy exports
+rows in a stable order, so a row keeps its slot between exports. Comparing
+`monefy-2026-09-07.csv` with `monefy-2026-09-08.csv`: all 12,890 rows from the
+older export appear at the same positions in the newer one, 8 rows were
+appended, and none went missing. The older export is an exact prefix of the
+newer.
+
+One pair of exports one day apart is good evidence, not proof — Monefy could
+still reorder after some future edit. The comparison is cheap, so run it on
+each new export; a divergence would show up immediately rather than as
+duplicated history.
 
 **Manual edits win.** Editing a transaction through the repository sets
 `locked = 1`, and a re-import skips locked rows. A hand correction is the true
@@ -279,8 +287,20 @@ than quietly losing precision.
 
 ## Comparing two exports
 
-Each Monefy export is kept as its own file, `data/monefy-YYYY-MM-DD.csv`, and
-none is ever overwritten. Comparing consecutive exports is the only way to
+Each Monefy export is kept as its own file and none is ever overwritten:
+
+```
+data/monefy-YYYY-MM-DD.csv          one export that day
+data/monefy-YYYY-MM-DD-HHMM.csv     a second one the same day
+```
+
+The 24-hour time is only added when a day holds more than one export. The name
+is for humans and for sorting — every tool takes explicit paths, so nothing
+breaks if a file is named differently; it just stops sorting chronologically.
+That is also why Monefy's own `Monefy.Data.8-9-2026.csv` gets renamed: `8-9` is
+ambiguous between August and September, and it sorts alphabetically rather than
+by date.
+ Comparing consecutive exports is the only way to
 check the order-stability assumption, and it also shows what the importer will
 have to deal with on a re-run:
 

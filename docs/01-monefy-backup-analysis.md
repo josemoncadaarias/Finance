@@ -1,6 +1,8 @@
 # Monefy backup analysis
 
-File: `data/monefy-2026-09-07.csv` (12,890 rows, 25/06/2021 to 07/09/2026)
+File: `data/monefy-2026-09-08.csv` — the latest export (12,898 rows,
+25/06/2021 to 08/09/2026, 22 accounts, 87 categories). Earlier exports are
+kept alongside it; see docs/05-data-model.md for the naming rule.
 Everything here is **verified** by reading the file, not assumed.
 
 > Note: this analysis was originally produced from the `.xlsx` export
@@ -42,6 +44,12 @@ Everything here is **verified** by reading the file, not assumed.
 USD accounts (confirmed by Jose): **ARQ (DolarApp), eToro, XTB, Plenti,
 Global66**. Each one's start date is inferred from its first transaction in
 the backup.
+
+**New in the 2026-09-08 export: `Plata`**, with a single 200,000 COP transfer
+in from Rappi cuenta on 08/09/2026, plus the matching `To 'Plata'`
+pseudo-category. Its currency and account type still need confirming — the
+importer would otherwise have to guess, and guessing the currency of an
+account is not something it should do.
 
 ---
 
