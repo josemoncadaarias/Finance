@@ -193,15 +193,32 @@ low-confidence transactions would inflate the historical deposits until they
 matched today's balance, erasing the gain. For a tax app that is the wrong
 direction to be wrong in: the gain is taxable and would vanish from the record.
 
-**So reconciliation has to separate two different causes of the same gap:**
+**Decision by Jose, 2026-09-08: brokers are not reconciled at all.**
 
-- estimation error in the eyeballed COP → spread across low-confidence rows,
-  as agreed;
-- investment gain or loss → its own explicit entry, dated and reviewable.
+eToro and XTB are trading accounts. Their value moves with the market every
+day, so today's balance is not a target the ledger should be bent to match —
+it is a different quantity altogether, and chasing it would corrupt the
+history of what actually moved.
 
-Nothing can tell them apart automatically. The importer should reconcile the
-deposits as well as it can and leave the remainder on investment accounts as a
-single explicit adjustment for review, never silently distributed.
+So for accounts of type `investment` the importer records **only the exact
+movements**: deposits in, withdrawals out. The balance the app derives for them
+is therefore the amount put in, not what the broker is worth today. Those two
+numbers are meant to differ, and the difference is the return.
+
+Two consequences worth being explicit about, because they will look like bugs
+otherwise:
+
+- Net worth understates eToro and XTB by whatever they have gained. On the
+  figures above that is thousands of dollars.
+- No reconciliation step runs on them, so their `confidence` flags stay as the
+  parser set them and are never adjusted.
+
+Tracking market value — a daily or periodic valuation, and the tax treatment
+that goes with it — is deferred. It is genuinely a separate problem: a broker
+balance changes continuously and cannot be derived from transactions at all.
+
+Reconciliation still applies as agreed to the accounts that hold cash rather
+than positions: ARQ and Global66.
 
 **Plenti reconciles exactly**: 490,000 in, 159,930 in, 649,930 out, balance
 zero, and all 7 rows carry an explicit USD amount. One account confirms the

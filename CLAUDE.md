@@ -163,11 +163,13 @@ Creating it is the next step. See `docs/05-data-model.md`.
 - [ ] Current balance of each currency of the two multi-currency accounts:
       ARQ (USD and EUR) and Global66 (COP and USD). The last ones needed to
       reconcile the import (see `docs/01-monefy-backup-analysis.md`).
-- [ ] Decide how investment gains are treated for tax. eToro and XTB have
-      grown well beyond what was deposited and the backup records none of it.
-      Interest (`interest_accruals`) and a change in market value are taxed
-      differently in Colombia, so they should not share a table just because
-      they look alike. Blocks Phase 5, not Phase 2.
+- Deferred, not pending: market value of the brokers. eToro and XTB move with
+  the market daily, so their balance is not derivable from transactions and is
+  not something the ledger should be reconciled against. The app records their
+  exact movements only, and the balance it shows for them is what was put in,
+  not what they are worth. Valuation and its tax treatment come later; interest
+  and a change in market value are taxed differently in Colombia and must not
+  share a table just because they look alike. Decision by Jose, 2026-09-08.
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 
