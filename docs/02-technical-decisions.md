@@ -31,8 +31,16 @@ accumulates error. The Monefy backup already shows it: `9421.2800000000007`.
 
 **Rule:** all amounts are stored as **integers in minor units**.
 
-- COP → whole pesos (Colombia does not use cents in practice)
 - USD → cents (`$12.34` is stored as `1234`)
+- COP → cents too (`$51,774.09` is stored as `5177409`)
+
+COP was originally going to be stored as whole pesos, on the assumption that
+Colombia does not use cents in practice. The real data says otherwise:
+**2,313 of the 12,890 backup rows carry cents**, opening balances included
+(`66,750,767.94` on Fiducuenta). Rounding them would introduce drift that makes
+balances impossible to reconcile against the bank, so COP keeps 2 minor units
+like every other currency, and is displayed with 2 decimals the same way
+Monefy displays it.
 
 Every account knows its currency and therefore its decimal places. Formatting
 happens only in the presentation layer. Arithmetic is never done on a

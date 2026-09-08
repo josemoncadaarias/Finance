@@ -64,9 +64,16 @@ the framework on a long-running project.
    and flagged as such.
 
 2. **Money as integers.** JavaScript has no decimal type; everything is
-   float64. Amounts are stored as integers in minor units (cents for USD,
-   whole pesos for COP) and only formatted for display. **Never add floats.**
-   The Monefy backup already carries the typical garbage: `9421.2800000000007`.
+   float64. Amounts are stored as integers in minor units and only formatted
+   for display. **Never add floats.** The Monefy backup already carries the
+   typical garbage: `9421.2800000000007`.
+
+   **Both COP and USD use 2 minor units (cents).** COP was originally going to
+   be stored as whole pesos, but 2,313 of the 12,890 backup rows carry cents
+   (including opening balances such as `66,750,767.94`), and rounding them
+   would make balances impossible to reconcile against the bank. COP is also
+   *displayed* with 2 decimals, the same way Monefy does it. Decision by Jose,
+   2026-09-08.
 
 3. **Multi-currency with a per-transaction rate.** Every foreign-currency
    transaction stores the rate that bank actually applied to that transaction,
@@ -93,6 +100,12 @@ the framework on a long-running project.
 8. **Configurable DIAN forms.** The tax module must not hardcode form 210.
    Each form is a configurable set of rules and line items, so others can be
    added later.
+
+9. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+   regularly, carrying the whole history again plus new rows, so the importer
+   must be repeatable. Any record edited by hand inside Finance is flagged
+   `locked` and a later re-import never overwrites it: a manual edit means Jose
+   corrected it towards the final, true version. Decision by Jose, 2026-09-08.
 
 ### Real limits that must not be promised away
 

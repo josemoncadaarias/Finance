@@ -98,6 +98,11 @@ to the transaction that produced it.
 800,000**, which is really the credit limit. On import it has to be rebased:
 debt = credit limit − current balance.
 
+**Current limit confirmed by Jose (2026-09-08): 1,100,000 COP.** So 800,000 is
+the limit as it stood back in 2021, not today's. The account's `credit_limit`
+is set to the current 1,100,000; the 800,000 is only used to rebase the
+historical opening balance.
+
 ---
 
 ## Reconstructing the USD amounts
