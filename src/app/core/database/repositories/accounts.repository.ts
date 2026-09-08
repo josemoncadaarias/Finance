@@ -8,13 +8,14 @@
  */
 
 import type { SqlDriver } from '../sql-driver';
-import type { AccountBalance, AccountRow, IsoDate } from '../types';
+import type { AccountBalance, AccountGroupRow, AccountRow, GroupedBalance, IsoDate } from '../types';
 import { availableCreditMinor } from '../money';
 
 export interface NewAccount {
   name: string;
   type: AccountRow['type'];
   currency_code: string;
+  group_id?: number | null;
   builtin_icon?: string | null;
   custom_icon_id?: number | null;
   color?: string;
@@ -29,7 +30,7 @@ export interface NewAccount {
 
 export type AccountUpdate = Partial<Omit<NewAccount, 'currency_code'>> & { archived?: boolean };
 
-const COLUMNS = `id, name, type, currency_code, builtin_icon, custom_icon_id, color,
+const COLUMNS = `id, name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
   credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
   archived, sort_order, created_at, updated_at`;
 
@@ -60,14 +61,15 @@ export class AccountsRepository {
   async create(account: NewAccount): Promise<number> {
     const timestamp = this.now();
     const result = await this.db.run(
-      `INSERT INTO accounts (name, type, currency_code, builtin_icon, custom_icon_id, color,
+      `INSERT INTO accounts (name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
          credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
          sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         account.name,
         account.type,
         account.currency_code,
+        account.group_id ?? null,
         account.builtin_icon ?? null,
         account.custom_icon_id ?? null,
         account.color ?? '#607D8B',
@@ -101,6 +103,7 @@ export class AccountsRepository {
     if (changes.opening_balance_base_minor !== undefined) set('opening_balance_base_minor', changes.opening_balance_base_minor);
     if (changes.opened_on !== undefined) set('opened_on', changes.opened_on);
     if (changes.sort_order !== undefined) set('sort_order', changes.sort_order);
+    if (changes.group_id !== undefined) set('group_id', changes.group_id);
     if (changes.include_in_net_worth !== undefined) set('include_in_net_worth', changes.include_in_net_worth ? 1 : 0);
     if (changes.archived !== undefined) set('archived', changes.archived ? 1 : 0);
 
@@ -187,6 +190,50 @@ export class AccountsRepository {
             : null,
       };
     });
+  }
+
+  /**
+   * The same balances, gathered by multi-currency account.
+   *
+   * Global66 comes back once with its COP and USD balances side by side, ARQ
+   * with its USD and EUR. Single-currency accounts come back under a null
+   * group, one balance each.
+   *
+   * There is no total per group on purpose: 500 USD and 300 EUR do not add up
+   * without choosing a rate, and choosing it is the caller's decision.
+   */
+  async balancesByGroup(options: { asOf?: IsoDate; includeArchived?: boolean } = {}): Promise<GroupedBalance[]> {
+    const balances = await this.balances(options);
+    const groups = await this.db.query<AccountGroupRow>(
+      `SELECT id, name, builtin_icon, custom_icon_id, color, sort_order, created_at, updated_at
+       FROM account_groups ORDER BY sort_order, name`,
+    );
+    const groupsById = new Map(groups.map(group => [group.id, group]));
+
+    const grouped: GroupedBalance[] = [];
+    const byGroupId = new Map<number, GroupedBalance>();
+
+    for (const balance of balances) {
+      const groupId = balance.account.group_id;
+
+      // An ungrouped account stands alone rather than being lumped in with
+      // every other ungrouped one.
+      if (groupId === null) {
+        grouped.push({ group: null, balances: [balance] });
+        continue;
+      }
+
+      const existing = byGroupId.get(groupId);
+      if (existing) {
+        existing.balances.push(balance);
+      } else {
+        const entry: GroupedBalance = { group: groupsById.get(groupId) ?? null, balances: [balance] };
+        byGroupId.set(groupId, entry);
+        grouped.push(entry);
+      }
+    }
+
+    return grouped;
   }
 
   /**

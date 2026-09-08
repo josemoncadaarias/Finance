@@ -38,11 +38,30 @@ export interface CustomIconRow {
   created_at: IsoDateTime;
 }
 
+/**
+ * One real-world account that holds several currencies, such as Global66
+ * (COP and USD) or ARQ (USD and EUR). Each currency is its own `AccountRow`;
+ * this is what ties them back together.
+ */
+export interface AccountGroupRow {
+  id: number;
+  name: string;
+  builtin_icon: string | null;
+  custom_icon_id: number | null;
+  color: string;
+  sort_order: number;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime;
+}
+
 export interface AccountRow {
   id: number;
   name: string;
   type: AccountType;
+  /** Exactly one currency per row. */
   currency_code: string;
+  /** The multi-currency account this is one currency of, if any. */
+  group_id: number | null;
   /** Exactly one of `builtin_icon` and `custom_icon_id` is set. */
   builtin_icon: string | null;
   custom_icon_id: number | null;
@@ -194,4 +213,16 @@ export interface AccountBalance {
   balance_minor: number;
   /** Credit cards only: limit minus debt. */
   available_credit_minor: number | null;
+}
+
+/**
+ * A multi-currency account with one balance per currency.
+ *
+ * There is deliberately no single total here: 500 USD and 300 EUR do not add
+ * up to anything without a rate, and which rate to use is a decision for the
+ * screen asking the question, not for the repository.
+ */
+export interface GroupedBalance {
+  group: AccountGroupRow | null;
+  balances: AccountBalance[];
 }

@@ -4,7 +4,7 @@ Phase 1. The schema lives in
 `src/app/core/database/migrations/001_initial_schema.sql`, which is the single
 source of truth; this document explains the reasoning behind it.
 
-Everything here is exercised by 44 tests that run against a real SQLite engine:
+Everything here is exercised by 52 tests that run against a real SQLite engine:
 
 ```
 node tools/db/run-tests.mjs
@@ -50,7 +50,7 @@ silently orphans thousands of transactions.
 
 ---
 
-## The thirteen tables
+## The fourteen tables
 
 ### Catalog
 

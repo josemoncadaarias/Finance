@@ -101,13 +101,21 @@ the framework on a long-running project.
    Each form is a configurable set of rules and line items, so others can be
    added later.
 
-9. **Icons are user-supplied, not just a fixed catalog.** Accounts and
+9. **An account can hold several currencies.** Global66 holds COP and USD, ARQ
+   holds USD and EUR, and more will follow. Each currency is its own row in
+   `accounts`; an `account_groups` row ties them into the one account the user
+   actually has. Single-currency accounts leave `group_id` null. Converting
+   between two currencies of the same account is an ordinary transfer between
+   its rows, which captures the rate the provider applied. Decision by Jose,
+   2026-09-08.
+
+10. **Icons are user-supplied, not just a fixed catalog.** Accounts and
    categories can use either a built-in icon or an image the user provides
    (a real bank logo, for instance). Custom images are stored inside the
    database itself, so a backup stays a single file. Decision by Jose,
    2026-09-08.
 
-10. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+11. **Manual edits win over re-imports.** The Monefy CSV is re-exported
    regularly, carrying the whole history again plus new rows, so the importer
    must be repeatable. Any record edited by hand inside Finance is flagged
    `locked` and a later re-import never overwrites it: a manual edit means Jose
@@ -130,7 +138,7 @@ the framework on a long-running project.
 ## Current status
 
 Phase 1 in progress. The SQLite schema, the migration runner, the money
-helpers and the repository layer are written and covered by 44 tests that run
+helpers and the repository layer are written and covered by 52 tests that run
 against a real SQLite engine with no dependencies:
 
 ```
@@ -149,11 +157,11 @@ Creating it is the next step. See `docs/05-data-model.md`.
   the toolchain fails because of the version, install fnm and isolate per
   project with `.node-version`.
 
-- [ ] Current real USD balance for: ARQ (DolarApp), eToro, XTB, Plenti,
-      Global66. Needed to reconcile the imported history (see
-      `docs/01-monefy-backup-analysis.md`).
-- [ ] Currency and account type for `Plata`, new in the 2026-09-08 export
-      (one 200,000 COP transfer in). The importer must not guess a currency.
+- [x] `Plata` is COP only, ungrouped. New in the 2026-09-08 export.
+- [ ] Which currencies each multi-currency account actually holds, and the
+      current real balance of each. Known so far: Global66 holds COP and USD,
+      ARQ holds USD and EUR. Still open for eToro, XTB and Plenti. Needed to
+      reconcile the imported history (see `docs/01-monefy-backup-analysis.md`).
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 

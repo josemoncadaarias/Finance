@@ -47,7 +47,7 @@ happens only in the presentation layer. Arithmetic is never done on a
 formatted value.
 
 Exchange rates are the exception: they are stored with high precision (for
-example a scaled integer ×10,000) because 4,321.70 needs real decimals.
+example a scaled integer ×10,000) because 4,321.22 needs real decimals.
 
 ---
 
@@ -132,3 +132,37 @@ worth is declared.
 
 **Note:** whatever tax rules get implemented must be validated with an
 accountant before trusting the final number.
+
+---
+
+## Accounts that hold more than one currency
+
+Some real accounts hold several currencies at once: Global66 holds COP and USD,
+ARQ holds USD and EUR, and more will follow.
+
+Balances in different currencies cannot be added, so **each currency is its own
+row in `accounts`**, and an `account_groups` row ties them back into the single
+account the user actually has. Single-currency accounts — Bancolombia, Nequi,
+Plata — need no group and leave `group_id` null.
+
+**Why not put the currency on the transaction instead**, letting one account
+hold anything? Because then "the balance of this account" stops being a number
+and every caller has to remember to group by currency. Splitting by currency
+makes the invariant structural: a row in `accounts` has exactly one currency,
+so `SUM(amount_minor)` is always meaningful.
+
+The arrangement pays off in an unexpected place. Converting COP to USD *inside*
+Global66 becomes an ordinary transfer between two of its rows — which means the
+rate the provider applied is captured by the machinery that already exists,
+instead of needing a special case. That rate is otherwise unobtainable, so
+capturing it wherever it appears matters.
+
+A group carries no balance of its own. There is deliberately no total across
+its currencies: 500 USD plus 300 EUR is not a number without choosing a rate,
+and which rate to use is a decision for the screen asking, not for the
+repository.
+
+`UNIQUE (group_id, currency_code)` stops one group from holding the same
+currency twice. Ungrouped accounts are exempt because SQLite treats NULLs as
+distinct in a unique index — which is exactly the wanted behaviour, since
+Bancolombia, Nequi and Plata are all COP and all ungrouped.

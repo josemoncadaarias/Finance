@@ -60,11 +60,11 @@ test('the schema applies cleanly and creates every table', () => {
   ).all().map(r => r.name);
 
   assert.deepEqual(tables, [
-    'account_rates', 'accounts', 'cashbacks', 'categories', 'currencies',
+    'account_groups', 'account_rates', 'accounts', 'cashbacks', 'categories', 'currencies',
     'custom_icons', 'exchange_rates', 'import_batches', 'interest_accruals',
     'review_queue', 'settings', 'transactions', 'transfers',
   ]);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM currencies').get().n, 2);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM currencies').get().n, 3);
   // COP keeps cents: 2,313 of the 12,890 backup rows carry them.
   assert.equal(db.prepare("SELECT minor_units AS u FROM currencies WHERE code='COP'").get().u, 2);
 });
@@ -83,7 +83,7 @@ test('accounts: exactly one icon, and only credit cards carry a limit', () => {
     'no icon at all must be rejected');
   assert.throws(() => insertAccount(db, 13, 'Limit', 'debit', 'COP', 'card', null, 500000, 1, 0, '2024-01-01', NOW, NOW),
     'a non-credit account must not carry a credit limit');
-  assert.throws(() => insertAccount(db, 14, 'Euros', 'debit', 'EUR', 'card', null, null, 1, 0, '2024-01-01', NOW, NOW),
+  assert.throws(() => insertAccount(db, 14, 'Pounds', 'debit', 'GBP', 'card', null, null, 1, 0, '2024-01-01', NOW, NOW),
     'an unknown currency must be rejected by the foreign key');
   assert.throws(() => insertAccount(db, 15, 'Bad date', 'debit', 'COP', 'card', null, null, 1, 0, '01/01/2024', NOW, NOW),
     'dates must be ISO, not dd/mm/yyyy');

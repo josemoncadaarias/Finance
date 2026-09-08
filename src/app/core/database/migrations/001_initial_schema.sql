@@ -39,11 +39,38 @@ CREATE TABLE custom_icons (
   created_at TEXT    NOT NULL
 );
 
+-- One real-world account that holds more than one currency, such as Global66
+-- (COP and USD) or ARQ (USD and EUR).
+--
+-- Balances in different currencies cannot be added together, so each currency
+-- is its own row in `accounts` and this table is what ties them back into the
+-- single account the user actually has. Converting inside such an account is
+-- then an ordinary transfer between two of its rows, which means the rate the
+-- provider applied gets captured like any other.
+--
+-- Single-currency accounts do not need a group and leave `group_id` null.
+CREATE TABLE account_groups (
+  id           INTEGER PRIMARY KEY,
+  name         TEXT    NOT NULL UNIQUE,
+  builtin_icon TEXT,
+  custom_icon_id INTEGER REFERENCES custom_icons(id) ON DELETE RESTRICT,
+  color        TEXT    NOT NULL DEFAULT '#607D8B',
+  sort_order   INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT    NOT NULL,
+  updated_at   TEXT    NOT NULL,
+
+  CHECK ((builtin_icon IS NULL) <> (custom_icon_id IS NULL))
+);
+
 CREATE TABLE accounts (
   id                    INTEGER PRIMARY KEY,
   name                  TEXT    NOT NULL,
   type                  TEXT    NOT NULL CHECK (type IN ('debit', 'credit', 'cash', 'investment')),
+
+  -- Exactly one currency per row. An account holding several currencies is
+  -- several rows sharing a group.
   currency_code         TEXT    NOT NULL REFERENCES currencies(code),
+  group_id              INTEGER REFERENCES account_groups(id) ON DELETE SET NULL,
 
   -- Exactly one of the two icon columns is set. See the CHECK at the bottom.
   builtin_icon          TEXT,
@@ -75,6 +102,14 @@ CREATE TABLE accounts (
 );
 
 CREATE UNIQUE INDEX idx_accounts_name ON accounts(name);
+
+-- A group holds each currency at most once: there is no such thing as two
+-- separate USD balances inside one Global66. Ungrouped accounts are exempt,
+-- because SQLite treats NULLs as distinct in a unique index, which is exactly
+-- the behaviour wanted here.
+CREATE UNIQUE INDEX idx_accounts_group_currency ON accounts(group_id, currency_code);
+
+CREATE INDEX idx_accounts_group ON accounts(group_id);
 
 CREATE TABLE categories (
   id             INTEGER PRIMARY KEY,
@@ -290,7 +325,8 @@ CREATE TABLE settings (
 -- 2,313 of the 12,890 backup rows carry cents, opening balances included.
 INSERT INTO currencies (code, name, symbol, minor_units) VALUES
   ('COP', 'Peso colombiano', '$',   2),
-  ('USD', 'US Dollar',       'US$', 2);
+  ('USD', 'US Dollar',       'US$', 2),
+  ('EUR', 'Euro',            '€',   2);
 
 INSERT INTO settings (key, value, updated_at) VALUES
   ('base_currency', 'COP', '1970-01-01T00:00:00Z');
