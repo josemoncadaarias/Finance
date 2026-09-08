@@ -12,10 +12,16 @@ Everything here is **verified** by reading the file, not assumed.
 
 ## Overall shape
 
-- 12,889 rows, starting June 2021
+Counts below are from the 2026-09-08 export, produced by the parser rather
+than by hand, and asserted in `tools/db/monefy-csv.test.mjs`.
+
+- 12,898 rows, starting June 2021
 - 8 columns: `date`, `account`, `category`, `amount`, `currency`,
-  `converted amount`, `currency.1`, `description`
-- 21 accounts, 86 categories (including pseudo-categories, see below)
+  `converted amount`, `currency`, `description`
+- 22 accounts, plus 12 more that were deleted from Monefy but are still
+  referenced by the history (see "Transfers, rebuilt" below)
+- Rows by kind: 7,554 ordinary transactions, 2,701 `To '...'`,
+  2,635 `From '...'`, 8 opening balances
 
 ### Accounts by volume
 
@@ -94,12 +100,14 @@ the reasoning is not re-derived if an `.xlsx` export shows up again.
 They are two mirror rows with fake categories: `To 'X'` and `From 'Y'`.
 There is no id linking them.
 
-- 2,698 `To '...'` rows
-- 2,632 `From '...'` rows
-- ≈66 end up unpaired → manual review
+- 2,701 `To '...'` rows
+- 2,635 `From '...'` rows
+- 88 end up unpaired, every one of them explained
 
 In the new model a transfer must be **one entity with two legs**, not two
-loose transactions.
+loose transactions. Solved: see "Transfers, rebuilt" below for the result over
+the real file. The earlier estimate of ≈66 unpaired rows came from the `.xlsx`
+and was low.
 
 ### 4. `Initial balance 'X'` is a pseudo-category
 
