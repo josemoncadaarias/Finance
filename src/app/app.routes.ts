@@ -10,6 +10,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
   },
   {
+    path: 'review',
+    loadComponent: () => import('./features/review/review.page').then(m => m.ReviewPage),
+  },
+  {
     path: 'import',
     loadComponent: () => import('./features/import/import.page').then(m => m.ImportPage),
   },

@@ -1,0 +1,104 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+
+  h2 { margin: 0; font-size: 1.05rem; color: var(--ion-text-color); }
+  p { margin: 0; max-width: 34ch; line-height: 1.5; }
+  &.error h2 { color: var(--ion-color-danger); }
+
+  .clear { font-size: 3rem; color: var(--ion-color-success); }
+}
+
+.intro {
+  padding: 1rem 1rem 0.5rem;
+
+  h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+  p { margin: 0; font-size: 0.85rem; line-height: 1.45; color: var(--ion-color-medium); }
+}
+
+.failed {
+  margin: 0.5rem 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
+  color: var(--ion-color-danger);
+  font-size: 0.85rem;
+}
+
+.group {
+  margin-top: 0.5rem;
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: var(--ion-color-light);
+    color: var(--ion-text-color);
+    font-size: 0.92rem;
+    text-align: left;
+    cursor: pointer;
+
+    ion-icon { color: var(--ion-color-medium); font-size: 1rem; flex: none; }
+    .what { flex: 1; }
+  }
+}
+
+/* What this kind of item means, in the reader's own language. The reason on
+   each row stays as the importer wrote it: it carries the exact figures and
+   dates, which are the same in any language. */
+.help {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ion-color-medium);
+  background: var(--ion-background-color);
+  border-bottom: 1px solid var(--ion-color-light-shade);
+}
+
+/* Items the importer is telling you about rather than asking about. */
+.batch {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+
+  p { margin: 0; flex: 1; font-size: 0.78rem; line-height: 1.4; color: var(--ion-color-medium); }
+  ion-button { --border-radius: 999px; text-transform: none; letter-spacing: 0; flex: none; }
+}
+
+.review {
+  --padding-start: 1rem;
+
+  h3 { font-size: 0.92rem; font-weight: 600; }
+  .when { font-weight: 400; color: var(--ion-color-medium); font-size: 0.8rem; }
+
+  /* The reason is the whole point of the row, so it wraps rather than
+     truncating: half an explanation explains nothing. */
+  .reason {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+    white-space: normal;
+  }
+
+  .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+
+  ion-button { --border-radius: 999px; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+}

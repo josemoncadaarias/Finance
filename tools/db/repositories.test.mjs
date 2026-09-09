@@ -17,6 +17,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { CreditLimitsRepository } from '../../src/app/core/database/repositories/credit-limits.repository.ts';
 import { CustomIconsRepository } from '../../src/app/core/database/repositories/custom-icons.repository.ts';
+import { ReviewRepository } from '../../src/app/core/database/repositories/review.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
 
 const NOW = () => '2026-09-08T12:00:00Z';
@@ -562,5 +563,76 @@ test('a user-supplied icon is stored whole and guarded by its size', async () =>
   await accounts.update(ids.bancolombia, { custom_icon_id: null, builtin_icon: 'business' });
   await icons.delete(id);
   assert.equal(await icons.findById(id), null);
+  await db.close();
+});
+
+test('review items can be read, corrected and closed', async () => {
+  const { db, transactions, ids } = await setup();
+  const reviews = new ReviewRepository(db, NOW);
+
+  const spend = await transactions.create({
+    account_id: ids.arq, category_id: ids.restaurante, occurred_on: '2026-08-25',
+    amount_minor: -1070, description: 'Videojuego digital', source: 'monefy',
+  });
+
+  const add = (kind, entity_id, reason) => db.run(
+    `INSERT INTO review_queue (kind, entity_type, entity_id, reason, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [kind, entity_id === null ? null : 'transaction', entity_id, reason, NOW()]);
+
+  await add('estimated_amount', spend, 'Estimated from the nearest confirmed rate');
+  await add('estimated_amount', spend, 'Another estimate');
+  await add('multi_currency_split', null, 'ARQ split into USD and EUR');
+
+  assert.equal(await reviews.openCount(), 3);
+  // Mapped rather than compared whole: node:sqlite hands back null-prototype
+  // objects, which deepEqual will not call equal to a plain one.
+  assert.deepEqual((await reviews.openGroups()).map(g => [g.kind, g.count]), [
+    ['estimated_amount', 2],
+    ['multi_currency_split', 1],
+  ]);
+
+  // An item carries enough of its subject to be recognised without a second query.
+  const [first] = await reviews.open('estimated_amount');
+  assert.equal(first.subject, 'Videojuego digital');
+  assert.equal(first.occurred_on, '2026-08-25');
+  assert.equal(first.amount_minor, -1070);
+  assert.equal(first.currency_code, 'USD', 'shown in the account it belongs to');
+
+  // Confirming one leaves the rest alone.
+  await reviews.resolve(first.id);
+  assert.equal(await reviews.openCount(), 2);
+
+  // A whole kind can be closed at once, for the ones that are statements.
+  assert.equal(await reviews.resolveKind('estimated_amount', 'batch'), 1);
+  assert.equal(await reviews.openCount(), 1);
+
+  // Closed too eagerly? It can come back.
+  await reviews.reopen(first.id);
+  assert.equal(await reviews.openCount(), 2);
+  await db.close();
+});
+
+test('a review item outlives the row it points at', async () => {
+  const { db, transactions, ids } = await setup();
+  const reviews = new ReviewRepository(db, NOW);
+
+  const spend = await transactions.create({
+    account_id: ids.bancolombia, category_id: ids.restaurante,
+    occurred_on: '2026-08-25', amount_minor: -5000, source: 'monefy',
+  });
+  await db.run(
+    `INSERT INTO review_queue (kind, entity_type, entity_id, reason, created_at)
+     VALUES ('estimated_amount', 'transaction', ?, 'x', ?)`, [spend, NOW()]);
+
+  // Deleting the movement must not hide the item or crash the listing: it has
+  // to stay closable, or it haunts the count forever.
+  await transactions.delete(spend);
+
+  const [item] = await reviews.open('estimated_amount');
+  assert.equal(item.subject, null);
+  assert.equal(await reviews.openCount(), 1);
+  await reviews.resolve(item.id);
+  assert.equal(await reviews.openCount(), 0);
   await db.close();
 });

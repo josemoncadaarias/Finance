@@ -247,6 +247,56 @@ export const SPANISH = {
   'icons.moving': 'Transporte',
   'icons.living': 'Vida',
 
+  // --- reviewing what the importer assumed -------------------------------
+  'nav.review': 'Revisar',
+  'nav.review.hint': 'Lo que el importador tuvo que suponer',
+  'review.title': 'Por revisar',
+  'review.intro.title': '{count} cosas por confirmar',
+  'review.intro.body':
+    'Cada vez que el importador no pudo estar seguro, lo anotó en vez de ' +
+    'decidirlo en silencio. Confirma o corrige: lo que corrijas queda protegido ' +
+    'y no se pisa al volver a importar.',
+  'review.clear.title': 'Todo revisado',
+  'review.clear.body': 'No queda ninguna suposición sin confirmar.',
+  'review.fix': 'Corregir',
+  'review.itIsRight': 'Está bien',
+  'review.markAllRead': 'Marcar los {count} como vistos',
+  'review.informational': 'Esto el importador lo resolvió bien; solo te está avisando.',
+  'review.closedInBatch': 'Visto en grupo, sin revisar uno por uno',
+  'review.noSubject': 'Sobre la importación',
+  'review.gone': 'Eso ya no existe; márcalo como visto',
+
+  // What each kind means, and what to do about it. The reason on each row is
+  // the importer's own technical note; this is the plain-language version.
+  'review.help.estimated_amount':
+    'Monefy solo guardaba pesos. Cuando la descripción no decía el monto en ' +
+    'dólares, el importador lo estimó con la tasa más cercana que sí conocía. ' +
+    'Si sabes el valor real, corrígelo; si no, déjalo y ajusta el saldo de la cuenta.',
+  'review.help.assumed_account':
+    'El backup no dice en qué moneda está cada cuenta. El importador la dedujo ' +
+    'por los movimientos. Confirma que sea la correcta.',
+  'review.help.deleted_account':
+    'Estas cuentas ya no existían en Monefy, pero tenían movimientos. Se ' +
+    'recrearon para no perder el historial. Si ya no las usas, archívalas.',
+  'review.help.reconstructed_transfer':
+    'Monefy guardó solo un lado de estas transferencias. El importador armó el ' +
+    'otro para que la plata no aparezca de la nada. Revisa que la otra cuenta sea la correcta.',
+  'review.help.credit_limit_change':
+    'Aumentos de cupo que Monefy registró como si fuera plata que entró. Se ' +
+    'sacaron del saldo y hoy viven en el historial de cupos de la tarjeta.',
+  'review.help.multi_currency_split':
+    'Cuentas que manejan más de una moneda, separadas en una fila por moneda ' +
+    'para que los saldos no se sumen entre sí.',
+  'review.help.ambiguous_category':
+    'Categorías usadas como gasto y como ingreso. Quedaron como gasto; si alguna ' +
+    'debería ser de ingresos, cámbiala.',
+  'review.help.credit_limit_mismatch':
+    'El cupo configurado no coincide con lo que dice el archivo. Uno de los dos ' +
+    'está desactualizado.',
+  'review.help.near_date_transfer':
+    'Transferencias emparejadas aunque las dos patas tienen fechas distintas. ' +
+    'Revisa que de verdad sean el mismo movimiento.',
+
   // --- shared states ----------------------------------------------------
   'state.opening': 'Abriendo la base de datos…',
   'state.failed': 'No se pudo abrir la base de datos',
@@ -475,6 +525,52 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'icons.home': 'Home',
   'icons.moving': 'Getting around',
   'icons.living': 'Living',
+
+  'nav.review': 'Review',
+  'nav.review.hint': 'What the importer had to assume',
+  'review.title': 'To review',
+  'review.intro.title': '{count} things to confirm',
+  'review.intro.body':
+    'Every time the importer could not be sure, it wrote it down instead of ' +
+    'deciding quietly. Confirm or correct: what you correct is protected and ' +
+    'a later import will not overwrite it.',
+  'review.clear.title': 'All reviewed',
+  'review.clear.body': 'No assumption is left unconfirmed.',
+  'review.fix': 'Correct',
+  'review.itIsRight': "It's right",
+  'review.markAllRead': 'Mark all {count} as seen',
+  'review.informational': 'The importer got these right; it is only telling you.',
+  'review.closedInBatch': 'Seen as a batch, not one by one',
+  'review.noSubject': 'About the import',
+  'review.gone': 'That no longer exists; mark it as seen',
+
+  'review.help.estimated_amount':
+    'Monefy only stored pesos. Where the description did not say the dollar ' +
+    'amount, the importer estimated it from the nearest rate it did know. If you ' +
+    'know the real figure, correct it; if not, leave it and adjust the balance.',
+  'review.help.assumed_account':
+    'The backup does not say which currency an account is in. The importer ' +
+    'inferred it from the movements. Confirm it is right.',
+  'review.help.deleted_account':
+    'These accounts no longer existed in Monefy but still had movements. They ' +
+    'were recreated so the history is not lost. Archive them if you are done with them.',
+  'review.help.reconstructed_transfer':
+    'Monefy stored only one side of these transfers. The importer built the other ' +
+    'so money does not appear from nowhere. Check the other account is right.',
+  'review.help.credit_limit_change':
+    'Limit increases Monefy recorded as money arriving. They were taken out of the ' +
+    'balance and now live in the card\'s limit history.',
+  'review.help.multi_currency_split':
+    'Accounts holding more than one currency, split into a row per currency so ' +
+    'balances are never added across them.',
+  'review.help.ambiguous_category':
+    'Categories used both as spending and as income. They were kept as spending; ' +
+    'change any that should be income.',
+  'review.help.credit_limit_mismatch':
+    'The configured limit disagrees with the file. One of the two is out of date.',
+  'review.help.near_date_transfer':
+    'Transfers paired even though the two legs carry different dates. Check they ' +
+    'really are the same movement.',
 
   'state.opening': 'Opening the database…',
   'state.failed': 'The database could not be opened',

@@ -4,16 +4,19 @@
  * See `app.component.html` for why navigation is a drawer and not a tab bar.
  */
 
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-  IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
+  IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge, MenuController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
-import { pieChartOutline, walletOutline, cloudUploadOutline } from 'ionicons/icons';
+import { pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline } from 'ionicons/icons';
+
+import { DatabaseService } from './core/database/database.service';
+import { ReviewRepository } from './core/database/repositories/review.repository';
 
 interface Section {
   path: string;
@@ -31,21 +34,41 @@ interface Section {
   imports: [
     RouterLink, TranslatePipe, LanguageButtonComponent,
     IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-    IonContent, IonList, IonItem, IonIcon, IonLabel,
+    IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge,
   ],
 })
 export class AppComponent {
+  private readonly database = inject(DatabaseService);
   private readonly menu = inject(MenuController);
   private readonly router = inject(Router);
 
   readonly sections: Section[] = [
     { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
     { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
+    { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'alert-circle-outline' },
     { path: '/import', label: 'nav.import', hint: 'nav.import.hint', icon: 'cloud-upload-outline' },
   ];
 
+  /**
+   * How many assumptions are still unreviewed.
+   *
+   * On the drawer rather than only on its own screen: an assumption nobody
+   * knows about is the one that quietly makes a total wrong, so the app says
+   * out loud that it is waiting for an answer.
+   */
+  readonly pending = signal(0);
+
   constructor() {
-    addIcons({ pieChartOutline, walletOutline, cloudUploadOutline });
+    addIcons({ pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline });
+
+    effect(() => {
+      this.database.dataVersion();
+      if (this.database.status() === 'ready') void this.countPending();
+    });
+  }
+
+  private async countPending(): Promise<void> {
+    this.pending.set(await new ReviewRepository(this.database.driver).openCount());
   }
 
   isCurrent(path: string): boolean {

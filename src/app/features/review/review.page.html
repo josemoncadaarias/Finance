@@ -1,0 +1,116 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'review.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>{{ 'state.failed' | t }}</h2>
+      <p>{{ database.error()?.message }}</p>
+    </div>
+  } @else if (allClear()) {
+    <div class="state">
+      <ion-icon name="checkmark-circle-outline" class="clear"></ion-icon>
+      <h2>{{ 'review.clear.title' | t }}</h2>
+      <p>{{ 'review.clear.body' | t }}</p>
+    </div>
+  } @else {
+    <section class="intro">
+      <h2>{{ 'review.intro.title' | t:{ count: total() } }}</h2>
+      <p>{{ 'review.intro.body' | t }}</p>
+    </section>
+
+    @if (error()) { <p class="failed">{{ error() }}</p> }
+
+    @for (group of groups(); track group.kind) {
+      <div class="group">
+        <button type="button" class="head" (click)="openGroup(group.kind)">
+          <ion-icon [name]="openKind() === group.kind ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          <span class="what">{{ $any('review.' + group.kind) | t }}</span>
+          <ion-badge>{{ group.count }}</ion-badge>
+        </button>
+
+        @if (openKind() === group.kind) {
+          <p class="help">{{ $any('review.help.' + group.kind) | t }}</p>
+
+          <!-- Statements can be closed together; assumptions about money cannot. -->
+          @if (isInformational(group.kind)) {
+            <div class="batch">
+              <p>{{ 'review.informational' | t }}</p>
+              <ion-button size="small" fill="outline" (click)="resolveAll(group.kind)">
+                {{ 'review.markAllRead' | t:{ count: group.count } }}
+              </ion-button>
+            </div>
+          }
+
+          @if (loading()) {
+            <div class="state"><ion-spinner></ion-spinner></div>
+          } @else {
+            <ion-list>
+              @for (item of items(); track item.id) {
+                <ion-item lines="full" class="review">
+                  <ion-label class="wrap">
+                    <h3>
+                      {{ item.subject || ('review.noSubject' | t) }}
+                      @if (item.occurred_on) { <span class="when">· {{ item.occurred_on }}</span> }
+                    </h3>
+                    <p class="reason">{{ item.reason }}</p>
+                  </ion-label>
+
+                  @if (item.amount_minor !== null) {
+                    <ion-note slot="end" class="amount">
+                      {{ item.amount_minor | money:(item.currency_code ?? 'COP') }}
+                      @if (item.currency_code && item.currency_code !== 'COP') {
+                        <small>{{ item.currency_code }}</small>
+                      }
+                    </ion-note>
+                  }
+                </ion-item>
+
+                <div class="actions">
+                  @if (item.entity_type === 'transaction' || item.entity_type === 'account') {
+                    <ion-button size="small" fill="solid" (click)="startFix(item)">
+                      <ion-icon slot="start" name="create-outline"></ion-icon>
+                      {{ 'review.fix' | t }}
+                    </ion-button>
+                  }
+                  <ion-button size="small" fill="clear" (click)="resolve(item)">
+                    <ion-icon slot="start" name="checkmark-outline"></ion-icon>
+                    {{ 'review.itIsRight' | t }}
+                  </ion-button>
+                </div>
+              }
+            </ion-list>
+          }
+        }
+      </div>
+    }
+  }
+</ion-content>
+
+<ion-modal [isOpen]="entry() !== null" (didDismiss)="cancelFix()">
+  <ng-template>
+    @if (entry(); as request) {
+      <app-entry [request]="request" (saved)="finishFix()" (cancelled)="cancelFix()"></app-entry>
+    }
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="accountEditor() !== null" (didDismiss)="cancelFix()">
+  <ng-template>
+    @if (accountEditor(); as account) {
+      <app-account-editor [editing]="account" (saved)="finishFix()"
+                          (cancelled)="cancelFix()"></app-account-editor>
+    }
+  </ng-template>
+</ion-modal>
