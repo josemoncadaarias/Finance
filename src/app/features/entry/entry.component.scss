@@ -11,8 +11,43 @@
   width: 100%;
 }
 
-ion-toolbar.expense { --color: var(--ion-color-danger); }
-ion-toolbar.income { --color: var(--ion-color-success); }
+/* ---------- header ---------- */
+
+.entry-header ion-toolbar {
+  --min-height: 3.5rem;
+  --border-width: 0;
+
+  &.expense { --background: var(--ion-color-danger); }
+  &.income { --background: var(--ion-color-success); }
+  &.transfer { --background: var(--ion-color-medium); }
+
+  --color: #fff;
+  ion-button { --color: #fff; }
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+}
+
+ion-button.save {
+  --color: #fff;
+  --background: rgba(255, 255, 255, 0.22);
+  --background-hover: rgba(255, 255, 255, 0.32);
+  --border-radius: 999px;
+  --padding-start: 0.85rem;
+  --padding-end: 0.9rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+
+  &[disabled] { --background: rgba(255, 255, 255, 0.08); opacity: 0.55; }
+}
+
+/* ---------- amount ---------- */
 
 .amount {
   display: flex;
@@ -28,6 +63,38 @@ ion-toolbar.income { --color: var(--ion-color-success); }
 
   &.expense .sign, &.expense .value { color: var(--ion-color-danger); }
   &.income .sign, &.income .value { color: var(--ion-color-success); }
+  &.transfer .sign, &.transfer .value { color: var(--ion-text-color); }
+
+  /* Two amounts when a transfer crosses currencies: tapping picks which one
+     the keypad is typing into. */
+  .pair {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+
+    > ion-icon { color: var(--ion-color-medium); flex: none; }
+  }
+
+  .side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.5rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--ion-color-light);
+    cursor: pointer;
+    min-width: 0;
+
+    .lead { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ion-color-medium); }
+    .figure { font-size: 1.4rem; font-weight: 600; color: var(--ion-text-color); }
+    .unit { font-size: 0.7rem; color: var(--ion-color-medium); }
+
+    &.active { border-color: var(--ion-color-primary); background: rgba(var(--ion-color-primary-rgb), 0.1); }
+  }
 }
 
 .error {
@@ -39,10 +106,14 @@ ion-toolbar.income { --color: var(--ion-color-success); }
   font-size: 0.85rem;
 }
 
+/* ---------- accounts, date ---------- */
+
 .context {
   display: flex;
   gap: 0.5rem;
   padding: 0 1rem 0.75rem;
+
+  &.single { justify-content: center; button { flex: 0 1 12rem; } }
 
   button {
     flex: 1;
@@ -64,11 +135,68 @@ ion-toolbar.income { --color: var(--ion-color-success); }
   }
 }
 
+.route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0 1rem 0.75rem;
+
+  .leg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 8px;
+    background: var(--ion-color-light);
+    cursor: pointer;
+    text-align: left;
+    min-width: 0;
+
+    .lead { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ion-color-medium); }
+    .who { font-size: 0.9rem; color: var(--ion-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    &.needed { border-color: var(--ion-color-warning); }
+  }
+
+  .swap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--ion-color-medium);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+}
+
+/* ---------- categories ---------- */
+
+.prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0 1rem 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-warning);
+
+  &.done { color: var(--ion-color-success); }
+  ion-icon { font-size: 1rem; }
+}
+
 .categories {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
   gap: 0.4rem;
   padding: 0 1rem 0.75rem;
+  border-radius: 10px;
+
+  &.waiting { outline: 1px dashed var(--ion-color-warning); outline-offset: 0.35rem; }
 
   .category {
     display: flex;
@@ -110,6 +238,17 @@ ion-toolbar.income { --color: var(--ion-color-success); }
   margin-bottom: 0.5rem;
 }
 
+/* ---------- keypad ---------- */
+
+.missing {
+  margin: 0;
+  padding: 0.45rem 1rem;
+  background: rgba(var(--ion-color-warning-rgb), 0.14);
+  color: var(--ion-color-warning-shade);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -120,18 +259,18 @@ ion-toolbar.income { --color: var(--ion-color-success); }
   button {
     background: var(--ion-background-color);
     border: none;
-    padding: 0.9rem 0;
-    font-size: 1.4rem;
+    padding: 0.85rem 0;
+    font-size: 1.35rem;
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);
     cursor: pointer;
 
     &:active { background: var(--ion-color-light); }
-    ion-icon { font-size: 1.3rem; color: var(--ion-color-medium); }
+    ion-icon { font-size: 1.25rem; color: var(--ion-color-medium); }
   }
 }
 
-.danger-zone { padding: 1rem 1rem 2rem; }
+.danger-zone { padding: 0.5rem 1rem 1.5rem; }
 
 .sheet {
   --padding-start: 1rem;

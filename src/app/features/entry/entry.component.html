@@ -1,13 +1,16 @@
-<ion-header>
-  <ion-toolbar [class.expense]="kind() === 'expense'" [class.income]="kind() === 'income'">
+<ion-header class="entry-header">
+  <ion-toolbar [class]="kind()">
     <ion-buttons slot="start">
-      <ion-button (click)="cancelled.emit()">Cancelar</ion-button>
+      <ion-button (click)="cancelled.emit()" aria-label="Cancelar">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
     </ion-buttons>
-    <ion-title>
-      {{ isEditing() ? 'Editar' : (kind() === 'expense' ? 'Gasto' : 'Ingreso') }}
-    </ion-title>
+
+    <h1 class="title">{{ title() }}</h1>
+
     <ion-buttons slot="end">
-      <ion-button [disabled]="!canSave() || saving()" (click)="save()" strong="true">
+      <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
+        <ion-icon slot="start" name="checkmark-outline"></ion-icon>
         Guardar
       </ion-button>
     </ion-buttons>
@@ -16,56 +19,96 @@
 
 <ion-content>
   <!-- The amount, and nothing competing with it -->
-  <section class="amount" [class.expense]="kind() === 'expense'" [class.income]="kind() === 'income'">
-    <span class="sign">{{ kind() === 'expense' ? '−' : '+' }}</span>
-    <span class="value">{{ display() }}</span>
-    <span class="currency">{{ currency() }}</span>
+  <section class="amount" [class]="kind()">
+    @if (crossesCurrency()) {
+      <div class="pair">
+        <button type="button" class="side" [class.active]="!editingTarget()"
+                (click)="focusAmount(false)">
+          <span class="lead">Sale</span>
+          <span class="figure">{{ amount().isEmpty ? '0' : amount().text }}</span>
+          <span class="unit">{{ currency() }}</span>
+        </button>
+        <ion-icon name="arrow-forward-outline"></ion-icon>
+        <button type="button" class="side" [class.active]="editingTarget()"
+                (click)="focusAmount(true)">
+          <span class="lead">Llega</span>
+          <span class="figure">{{ targetAmount().isEmpty ? '0' : targetAmount().text }}</span>
+          <span class="unit">{{ targetCurrency() }}</span>
+        </button>
+      </div>
+    } @else {
+      <span class="sign">{{ kind() === 'expense' ? '−' : kind() === 'income' ? '+' : '⇄' }}</span>
+      <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
+      <span class="currency">{{ currency() }}</span>
+    }
   </section>
 
   @if (error()) {
     <p class="error">{{ error() }}</p>
   }
 
-  <!-- Where it happened and when, already filled with the usual answer -->
-  <div class="context">
-    <button type="button" (click)="showAccounts.set(true)">
-      <ion-icon name="wallet-outline"></ion-icon>
-      <span>{{ account()?.name ?? 'Escoge una cuenta' }}</span>
-    </button>
-    <button type="button" (click)="showDate.set(true)">
-      <ion-icon name="calendar-outline"></ion-icon>
-      <span>{{ dateLabel() }}</span>
-    </button>
-  </div>
-
-  <!-- Categories: the whole point is not having to scroll for the common ones -->
-  <div class="categories">
-    @for (category of categories(); track category.id) {
-      <button type="button" class="category" [class.on]="categoryId() === category.id"
-              (click)="pickCategory(category.id)">
-        <ion-icon [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
-        <span>{{ category.name }}</span>
+  <!-- Accounts and date -->
+  @if (isTransfer()) {
+    <div class="route">
+      <button type="button" class="leg" (click)="picking.set('from')">
+        <span class="lead">Desde</span>
+        <span class="who">{{ account()?.name ?? 'Escoge' }}</span>
       </button>
-    }
-  </div>
+
+      <button type="button" class="swap" (click)="swapAccounts()" aria-label="Invertir">
+        <ion-icon name="swap-horizontal-outline"></ion-icon>
+      </button>
+
+      <button type="button" class="leg" [class.needed]="toAccountId() === null"
+              (click)="picking.set('to')">
+        <span class="lead">Hasta</span>
+        <span class="who">{{ toAccount()?.name ?? 'Escoge' }}</span>
+      </button>
+    </div>
+
+    <div class="context single">
+      <button type="button" (click)="showDate.set(true)">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <span>{{ dateLabel() }}</span>
+      </button>
+    </div>
+  } @else {
+    <div class="context">
+      <button type="button" (click)="picking.set('from')">
+        <ion-icon name="wallet-outline"></ion-icon>
+        <span>{{ account()?.name ?? 'Escoge una cuenta' }}</span>
+      </button>
+      <button type="button" (click)="showDate.set(true)">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <span>{{ dateLabel() }}</span>
+      </button>
+    </div>
+
+    <!-- Says what is still needed, instead of leaving a dead button to explain
+         itself -->
+    <p class="prompt" [class.done]="categoryId() !== null">
+      @if (categoryId() === null) {
+        <ion-icon name="arrow-down-outline"></ion-icon> Escoge una categoría
+      } @else {
+        <ion-icon name="checkmark-circle-outline"></ion-icon> {{ selectedCategory()?.name }}
+      }
+    </p>
+
+    <div class="categories" [class.waiting]="categoryId() === null">
+      @for (category of categories(); track category.id) {
+        <button type="button" class="category" [class.on]="categoryId() === category.id"
+                (click)="pickCategory(category.id)">
+          <ion-icon [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+          <span>{{ category.name }}</span>
+        </button>
+      }
+    </div>
+  }
 
   <ion-item lines="none" class="note">
     <ion-input placeholder="Nota (opcional)" [value]="note()"
                (ionInput)="note.set($any($event.target).value ?? '')"></ion-input>
   </ion-item>
-
-  <!-- Keypad. Pesos first, cents only if wanted. -->
-  <div class="keypad">
-    @for (key of ['1','2','3','4','5','6','7','8','9',',','0','<']; track key) {
-      <button type="button" (click)="press(key)" [class.wide]="key === '<'">
-        @if (key === '<') {
-          <ion-icon name="backspace-outline"></ion-icon>
-        } @else {
-          {{ key }}
-        }
-      </button>
-    }
-  </div>
 
   @if (isEditing()) {
     <div class="danger-zone">
@@ -77,15 +120,34 @@
   }
 </ion-content>
 
-<ion-modal [isOpen]="showAccounts()" (didDismiss)="showAccounts.set(false)"
+<ion-footer class="pad">
+  <!-- What is missing, then the keypad -->
+  @if (missing(); as hint) {
+    <p class="missing">{{ hint }}</p>
+  }
+
+  <div class="keypad">
+    @for (key of ['1','2','3','4','5','6','7','8','9',',','0','<']; track key) {
+      <button type="button" (click)="press(key)">
+        @if (key === '<') {
+          <ion-icon name="backspace-outline"></ion-icon>
+        } @else {
+          {{ key }}
+        }
+      </button>
+    }
+  </div>
+</ion-footer>
+
+<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)"
            [initialBreakpoint]="0.7" [breakpoints]="[0, 0.7, 1]">
   <ng-template>
     <ion-content class="sheet">
-      <h2>Cuenta</h2>
+      <h2>{{ picking() === 'to' ? 'Hacia dónde' : 'Desde dónde' }}</h2>
       <ion-list>
         @for (option of accounts(); track option.id) {
           <ion-item button lines="full" (click)="pickAccount(option.id)"
-                    [class.selected]="accountId() === option.id">
+                    [class.selected]="(picking() === 'to' ? toAccountId() : accountId()) === option.id">
             <ion-label>
               <h3>{{ option.name }}</h3>
               <p>{{ option.currency_code }}</p>
