@@ -198,15 +198,14 @@ export class EntryComponent implements OnInit {
   /**
    * Which way a transfer should point before anyone chooses.
    *
-   * The account on screen is the one being thought about, so it stays in the
-   * route — but which end it belongs on depends on how it is actually used.
-   * The credit card almost only receives, so it is the destination and the
-   * question becomes where the payment comes from; Rappi cuenta almost only
-   * sends, so it is the source. Its own history decides, and then the other
-   * end is whatever most often sits across from it.
+   * The account on screen is where the money is going: opening a transfer
+   * while looking at the credit card means paying that card, not taking money
+   * out of it. So the destination is settled, and the only open question is
+   * where the money comes from — answered by whichever account has sent to
+   * that destination most often.
    *
    * With no account selected, the route starts from wherever money usually
-   * leaves.
+   * leaves and goes wherever that account usually sends it.
    */
   private async defaultRoute(
     accounts: readonly AccountRow[],
@@ -214,21 +213,8 @@ export class EntryComponent implements OnInit {
     if (accounts.length === 0) return { from: null, to: null };
 
     const selected = this.request().preferredAccountId;
-    const known = selected != null && accounts.some(a => a.id === selected) ? selected : null;
-
-    if (known !== null) {
-      const sides = await this.database.driver.queryOne<{ sent: number; received: number }>(
-        `SELECT
-           SUM(CASE WHEN transfer_leg = 'from' THEN 1 ELSE 0 END) AS sent,
-           SUM(CASE WHEN transfer_leg = 'to' THEN 1 ELSE 0 END) AS received
-         FROM transactions WHERE account_id = ?`,
-        [known],
-      );
-
-      const receives = (sides?.received ?? 0) >= (sides?.sent ?? 0);
-      const other = await this.counterpart(accounts, known, receives ? 'to' : 'from');
-
-      return receives ? { from: other, to: known } : { from: known, to: other };
+    if (selected != null && accounts.some(a => a.id === selected)) {
+      return { from: await this.counterpart(accounts, selected, 'to'), to: selected };
     }
 
     const from = await this.defaultAccount(accounts);
