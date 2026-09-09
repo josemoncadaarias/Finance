@@ -107,8 +107,20 @@
 
   <ion-item lines="none" class="note">
     <ion-input placeholder="Nota (opcional)" [value]="note()"
-               (ionInput)="note.set($any($event.target).value ?? '')"></ion-input>
+               (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-input>
   </ion-item>
+
+  <!-- Notes repeat; these are the ones already written that match -->
+  @if (noteSuggestions().length > 0) {
+    <div class="note-hints">
+      @for (hint of noteSuggestions(); track hint) {
+        <button type="button" (click)="useNote(hint)">
+          <ion-icon name="time-outline"></ion-icon>
+          <span>{{ hint }}</span>
+        </button>
+      }
+    </div>
+  }
 
   @if (isEditing()) {
     <div class="danger-zone">

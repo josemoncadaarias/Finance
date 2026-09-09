@@ -312,3 +312,33 @@ test('categories are found or created, never duplicated', async () => {
   assert.equal((await categories.list({ kind: 'expense', includeArchived: true })).some(c => c.id === first), true);
   await db.close();
 });
+
+test('a note that was written before comes back as a suggestion', async () => {
+  const { db, transactions, ids } = await setup();
+
+  const spend = (description, occurred_on) => transactions.create({
+    account_id: ids.bancolombia, category_id: ids.restaurante,
+    occurred_on, amount_minor: -1500000, description, source: 'manual',
+  });
+
+  await spend('Almuerzo con Ana', '2026-01-10');
+  await spend('Almuerzo con Ana', '2026-03-04');
+  await spend('Almuerzo solo', '2026-08-20');
+  await spend('Mercado', '2026-08-21');
+  await spend(null, '2026-08-22');
+
+  // Three letters, and both matches are offered — the one used twice first.
+  assert.deepEqual(await transactions.suggestNotes('alm'),
+    ['Almuerzo con Ana', 'Almuerzo solo']);
+
+  // It matches anywhere in the note, not only at the start.
+  assert.deepEqual(await transactions.suggestNotes('con Ana'), ['Almuerzo con Ana']);
+
+  // Nothing written, nothing to suggest.
+  assert.deepEqual(await transactions.suggestNotes('  '), []);
+  assert.deepEqual(await transactions.suggestNotes('zzz'), []);
+
+  // A wildcard means the character itself, not "everything".
+  assert.deepEqual(await transactions.suggestNotes('%'), []);
+  await db.close();
+});

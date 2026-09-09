@@ -295,6 +295,39 @@ export class TransactionsRepository {
     return new Map(rows.map(row => [row.import_fingerprint, row.max_seq]));
   }
 
+  /**
+   * Notes already used that contain `fragment`, most-used first.
+   *
+   * The notes people write repeat far more than they vary — the same shop,
+   * the same rent, the same monthly transfer — so the history is already the
+   * list of suggestions, and no separate table has to be kept in step with it.
+   * Ordered by how often each note was written and then by how recently, so
+   * the everyday one wins over something typed once two years ago.
+   */
+  async suggestNotes(fragment: string, limit = 6): Promise<string[]> {
+    const needle = fragment.trim();
+    if (needle === '') return [];
+
+    // `%` and `_` are wildcards in LIKE. Someone typing them means the
+    // characters themselves.
+    const escaped = needle.replace(/[\\%_]/g, character => `\\${character}`);
+
+    const rows = await this.db.query<{ description: string }>(
+      `SELECT description,
+              COUNT(*) AS times,
+              MAX(occurred_on) AS last_used
+       FROM transactions
+       WHERE description IS NOT NULL
+         AND TRIM(description) <> ''
+         AND description LIKE ? ESCAPE '\\'
+       GROUP BY description COLLATE NOCASE
+       ORDER BY times DESC, last_used DESC
+       LIMIT ?`,
+      [`%${escaped}%`, limit],
+    );
+    return rows.map(row => row.description);
+  }
+
   /** Totals per category over a period, for reports. Transfer legs are left out. */
   async totalsByCategory(filter: { from?: IsoDate; to?: IsoDate; accountId?: number } = {}): Promise<
     { category_id: number; total_minor: number; total_base_minor: number; count: number }[]

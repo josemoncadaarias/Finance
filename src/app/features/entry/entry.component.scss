@@ -280,3 +280,41 @@ ion-button.save {
   h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
   ion-item.selected { --background: var(--ion-color-light); }
 }
+
+/* Notes written before, offered back while typing */
+.note-hints {
+  display: flex;
+  flex-direction: column;
+  margin: -0.25rem 1rem 0.75rem;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 0.75rem;
+  overflow: hidden;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--ion-color-step-50);
+    border: 0;
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--ion-text-color);
+
+    & + button {
+      border-top: 1px solid var(--ion-color-step-150);
+    }
+
+    ion-icon {
+      flex: none;
+      font-size: 1rem;
+      color: var(--ion-color-medium);
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

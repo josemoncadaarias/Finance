@@ -81,6 +81,8 @@ export class EntryComponent implements OnInit {
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
+  /** Notes used before that match what is being typed. */
+  readonly noteSuggestions = signal<string[]>([]);
 
   readonly kind = computed(() => this.request().kind);
   readonly isEditing = computed(() => this.request().editing !== undefined);
@@ -183,11 +185,89 @@ export class EntryComponent implements OnInit {
       return;
     }
 
-    const from = await this.defaultAccount(accounts);
-    this.accountId.set(from);
     if (this.isTransfer()) {
-      this.toAccountId.set(await this.defaultDestination(accounts, from));
+      const route = await this.defaultRoute(accounts);
+      this.accountId.set(route.from);
+      this.toAccountId.set(route.to);
+      return;
     }
+
+    this.accountId.set(await this.defaultAccount(accounts));
+  }
+
+  /**
+   * Which way a transfer should point before anyone chooses.
+   *
+   * The account on screen is the one being thought about, so it stays in the
+   * route — but which end it belongs on depends on how it is actually used.
+   * The credit card almost only receives, so it is the destination and the
+   * question becomes where the payment comes from; Rappi cuenta almost only
+   * sends, so it is the source. Its own history decides, and then the other
+   * end is whatever most often sits across from it.
+   *
+   * With no account selected, the route starts from wherever money usually
+   * leaves.
+   */
+  private async defaultRoute(
+    accounts: readonly AccountRow[],
+  ): Promise<{ from: number | null; to: number | null }> {
+    if (accounts.length === 0) return { from: null, to: null };
+
+    const selected = this.request().preferredAccountId;
+    const known = selected != null && accounts.some(a => a.id === selected) ? selected : null;
+
+    if (known !== null) {
+      const sides = await this.database.driver.queryOne<{ sent: number; received: number }>(
+        `SELECT
+           SUM(CASE WHEN transfer_leg = 'from' THEN 1 ELSE 0 END) AS sent,
+           SUM(CASE WHEN transfer_leg = 'to' THEN 1 ELSE 0 END) AS received
+         FROM transactions WHERE account_id = ?`,
+        [known],
+      );
+
+      const receives = (sides?.received ?? 0) >= (sides?.sent ?? 0);
+      const other = await this.counterpart(accounts, known, receives ? 'to' : 'from');
+
+      return receives ? { from: other, to: known } : { from: known, to: other };
+    }
+
+    const from = await this.defaultAccount(accounts);
+    return { from, to: await this.counterpart(accounts, from, 'from') };
+  }
+
+  /**
+   * The account most often on the other end of `account`'s transfers.
+   *
+   * `side` is the side `account` sits on: 'from' looks for where its money
+   * goes, 'to' for where its money comes from.
+   */
+  private async counterpart(
+    accounts: readonly AccountRow[],
+    account: number | null,
+    side: 'from' | 'to',
+  ): Promise<number | null> {
+    if (account === null) return null;
+
+    const usual = await this.database.driver.queryOne<{ account_id: number }>(
+      `SELECT other.account_id AS account_id, COUNT(*) AS times
+       FROM transactions t
+       JOIN transactions other
+         ON other.transfer_id = t.transfer_id AND other.id <> t.id
+       WHERE t.account_id = ? AND t.transfer_leg = ?
+       GROUP BY other.account_id
+       ORDER BY times DESC
+       LIMIT 1`,
+      [account, side],
+    );
+    if (usual && accounts.some(a => a.id === usual.account_id)) return usual.account_id;
+
+    // Nothing in this account's history. Fall back to something in the same
+    // currency, so the amount means the same on both sides.
+    const currency = accounts.find(a => a.id === account)?.currency_code;
+    return (
+      accounts.find(a => a.id !== account && a.currency_code === currency) ??
+      accounts.find(a => a.id !== account)
+    )?.id ?? null;
   }
 
   /**
@@ -227,52 +307,37 @@ export class EntryComponent implements OnInit {
   }
 
   /**
-   * Where money most often goes from that account.
-   *
-   * Transfers repeat: the same card gets paid from the same account month
-   * after month. Offering last time's destination is right far more often than
-   * offering whatever sorts first.
+   * Notes are typed again and again — the same shop, the same rent. Three
+   * letters is enough to tell one apart without offering the whole history on
+   * the first keystroke.
    */
-  private async defaultDestination(
-    accounts: readonly AccountRow[],
-    from: number | null,
-  ): Promise<number | null> {
-    if (from === null) return null;
+  private static readonly NOTE_HINT_AT = 3;
 
-    const usual = await this.database.driver.queryOne<{ account_id: number }>(
-      `SELECT other.account_id AS account_id, COUNT(*) AS times
-       FROM transactions t
-       JOIN transactions other
-         ON other.transfer_id = t.transfer_id AND other.id <> t.id
-       WHERE t.account_id = ? AND t.transfer_leg = 'from'
-       GROUP BY other.account_id
-       ORDER BY times DESC
-       LIMIT 1`,
-      [from],
-    );
-    if (usual && accounts.some(a => a.id === usual.account_id)) return usual.account_id;
+  /** Rises with every keystroke, so a slow query cannot overwrite a newer one. */
+  private noteQuery = 0;
 
-    // No history from this account. The account that receives transfers most
-    // often is a far better guess than whichever sorts first — for Jose that
-    // is the credit card, which is paid every month.
-    const popular = await this.database.driver.queryOne<{ account_id: number }>(
-      `SELECT account_id, COUNT(*) AS times
-       FROM transactions
-       WHERE transfer_leg = 'to' AND account_id <> ?
-       GROUP BY account_id
-       ORDER BY times DESC
-       LIMIT 1`,
-      [from],
-    );
-    if (popular && accounts.some(a => a.id === popular.account_id)) return popular.account_id;
+  async onNoteInput(value: string): Promise<void> {
+    this.note.set(value);
 
-    // Last resort: something in the same currency, so the amount means the
-    // same on both sides.
-    const currency = accounts.find(a => a.id === from)?.currency_code;
-    return (
-      accounts.find(a => a.id !== from && a.currency_code === currency) ??
-      accounts.find(a => a.id !== from)
-    )?.id ?? null;
+    const typed = value.trim();
+    const mine = ++this.noteQuery;
+
+    if (typed.length < EntryComponent.NOTE_HINT_AT || this.database.status() !== 'ready') {
+      this.noteSuggestions.set([]);
+      return;
+    }
+
+    const found = await new TransactionsRepository(this.database.driver).suggestNotes(typed);
+    if (mine !== this.noteQuery) return;
+
+    // Not the note already written: offering back what is on screen is noise.
+    this.noteSuggestions.set(found.filter(note => note !== value));
+  }
+
+  useNote(note: string): void {
+    this.note.set(note);
+    this.noteSuggestions.set([]);
+    this.noteQuery++;
   }
 
   press(key: string): void {
@@ -302,7 +367,7 @@ export class EntryComponent implements OnInit {
       this.accountId.set(id);
       // Changing where the money leaves from changes where it usually goes.
       if (this.isTransfer() && this.toAccountId() === id) {
-        this.toAccountId.set(await this.defaultDestination(this.accounts(), id));
+        this.toAccountId.set(await this.counterpart(this.accounts(), id, 'from'));
       }
     }
     this.picking.set(null);
