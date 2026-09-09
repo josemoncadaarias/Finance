@@ -25,6 +25,13 @@ export interface KnownAccount {
   group?: KnownGroup;
   /** Credit cards only, in minor units. */
   creditLimitMinor?: number;
+  /**
+   * False for an account Jose does not count towards his net worth.
+   *
+   * The backup cannot say: Monefy exports eight columns and none of them is
+   * this flag. It only ever comes from Jose.
+   */
+  includeInNetWorth?: boolean;
   /** True when Jose stated it; false when inferred from the data. */
   confirmed: boolean;
   note?: string;
@@ -66,8 +73,8 @@ const GLOBAL66: KnownGroup = {
  */
 export const KNOWN_ACCOUNTS: Readonly<Record<string, KnownAccount>> = {
   // Confirmed by Jose, 2026-09-08.
-  'eToro': { currency: 'USD', type: 'investment', confirmed: true, note: 'Broker: movements only, never reconciled against market value' },
-  'XTB': { currency: 'USD', type: 'investment', confirmed: true, note: 'Broker: movements only, never reconciled against market value' },
+  'eToro': { currency: 'USD', type: 'investment', includeInNetWorth: false, confirmed: true, note: 'Broker: movements only, never reconciled against market value' },
+  'XTB': { currency: 'USD', type: 'investment', includeInNetWorth: false, confirmed: true, note: 'Broker: movements only, never reconciled against market value' },
   'Plenti': { currency: 'USD', type: 'investment', confirmed: true },
   'ARQ': { currency: 'USD', type: 'investment', group: ARQ, confirmed: true, note: 'DolarApp' },
   'Global66': { currency: 'COP', type: 'debit', group: GLOBAL66, confirmed: true },
@@ -84,7 +91,7 @@ export const KNOWN_ACCOUNTS: Readonly<Record<string, KnownAccount>> = {
   'Efectivo': { currency: 'COP', type: 'cash', confirmed: false },
   'Fiducuenta': { currency: 'COP', type: 'investment', confirmed: false, note: 'Bancolombia fund' },
   'Multinversion': { currency: 'COP', type: 'investment', confirmed: false, note: 'Bancolombia fund' },
-  'Pibank para renta': { currency: 'COP', type: 'investment', confirmed: false },
+  'Pibank para renta': { currency: 'COP', type: 'investment', includeInNetWorth: false, confirmed: true, note: 'Set aside for the tax bill; Jose keeps it out of net worth' },
 };
 
 /** Every account absent from the table starts here. */
@@ -118,6 +125,8 @@ export interface PlannedAccount {
   type: AccountType;
   groupName: string | null;
   creditLimitMinor: number | null;
+  /** False keeps the account out of the net worth total. */
+  includeInNetWorth: boolean;
   openingBalanceMinor: number;
   openedOn: string;
   archived: boolean;
@@ -223,6 +232,7 @@ export function planAccounts(parsed: MonefyCsvResult, ghosts: readonly GhostAcco
           type: known.type,
           groupName: known.group.name,
           creditLimitMinor: known.creditLimitMinor ?? null,
+          includeInNetWorth: known.includeInNetWorth !== false,
           openingBalanceMinor: receivesHistory ? opening?.amountMinor ?? 0 : 0,
           openedOn,
           archived: false,
@@ -250,6 +260,7 @@ export function planAccounts(parsed: MonefyCsvResult, ghosts: readonly GhostAcco
       type: known.type,
       groupName: null,
       creditLimitMinor: known.creditLimitMinor ?? null,
+      includeInNetWorth: known.includeInNetWorth !== false,
       openingBalanceMinor: opening?.amountMinor ?? 0,
       openedOn,
       archived: false,
@@ -280,6 +291,8 @@ export function planAccounts(parsed: MonefyCsvResult, ghosts: readonly GhostAcco
       type: known.type,
       groupName: null,
       creditLimitMinor: null,
+      // A closed account still counted while it held money.
+      includeInNetWorth: true,
       openingBalanceMinor: 0,
       openedOn: ghost.firstSeen,
       archived: true,

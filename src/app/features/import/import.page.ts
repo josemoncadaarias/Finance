@@ -91,6 +91,10 @@ export class ImportPage {
       this.summary.set(summary);
       this.reviews.set(await this.loadReviewCounts());
       this.phase.set('done');
+
+      // Wakes the other screens. Without this the balances stay as they were
+      // until the app is reloaded by hand.
+      this.database.dataChanged();
     } catch (error) {
       this.errorMessage.set(error instanceof Error ? error.message : String(error));
       this.phase.set('failed');

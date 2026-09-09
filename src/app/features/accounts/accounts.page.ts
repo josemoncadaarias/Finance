@@ -60,6 +60,9 @@ export class AccountsPage {
     // The database opens in the background, so the page cannot read it once at
     // construction and be done. This reruns the moment it becomes ready.
     effect(() => {
+      // Reads dataVersion so an import elsewhere in the app refreshes this
+      // screen, not just the first open.
+      this.database.dataVersion();
       if (this.database.status() === 'ready') void this.load();
     });
   }

@@ -366,3 +366,49 @@ test('a limit that disagrees with the file is reported', async () => {
   assert.match(mismatch.reason, /850\.000,00/);
   await db.close();
 });
+
+test('the accounts Jose keeps out of net worth are excluded', async () => {
+  const db = await freshDb();
+  await run(db, csv(
+    '10/04/2024,eToro,Depósitos,"1,000,000",COP,"1,000,000",COP,Inversión etoro 250 usd',
+    '13/11/2024,XTB,Depósitos,"400,000",COP,"400,000",COP,Fondeo',
+    '27/07/2026,Pibank para renta,Depósitos,"2,470,000",COP,"2,470,000",COP,Aparte para renta',
+    '26/06/2021,Bancolombia,Restaurante,"-50,200",COP,"-50,200",COP,Rappi',
+  ));
+
+  const accounts = new AccountsRepository(db, NOW);
+  const flags = Object.fromEntries(
+    (await accounts.list()).map(a => [a.name, a.include_in_net_worth]),
+  );
+
+  // Monefy exports eight columns and none of them is this flag, so it can only
+  // come from what Jose stated.
+  assert.equal(flags['eToro'], 0);
+  assert.equal(flags['XTB'], 0);
+  assert.equal(flags['Pibank para renta'], 0);
+  assert.equal(flags['Bancolombia'], 1);
+
+  // Their money is still in the ledger; it just does not count in the total.
+  assert.equal((await accounts.balance((await accounts.findByName('eToro')).id)).balance_minor !== 0, true);
+  const netWorth = await accounts.netWorthMinor();
+  assert.equal(netWorth, -5020000, 'only Bancolombia counts');
+  await db.close();
+});
+
+test('re-importing corrects an account that was left counting', async () => {
+  const db = await freshDb();
+  const source = csv('10/04/2024,eToro,Depósitos,"1,000,000",COP,"1,000,000",COP,Inversión etoro 250 usd');
+  await run(db, source);
+
+  const accounts = new AccountsRepository(db, NOW);
+  const etoro = await accounts.findByName('eToro');
+  // Simulate a database imported before the flag was known.
+  await db.run('UPDATE accounts SET include_in_net_worth = 1 WHERE id = ?', [etoro.id]);
+
+  await run(db, source);
+
+  const after = await accounts.findById(etoro.id);
+  assert.equal(after.include_in_net_worth, 0,
+    'the plan is the authority for this, so a re-import fixes it');
+  await db.close();
+});

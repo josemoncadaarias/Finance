@@ -22,6 +22,15 @@ export class DatabaseService {
   private opening: Promise<SqlDriver> | null = null;
 
   readonly status = signal<DatabaseStatus>('closed');
+
+  /**
+   * Bumped whenever something writes enough to change what a screen shows.
+   *
+   * Pages read it alongside the status, so an import refreshes the balances
+   * without the user having to reload the app — which is exactly what they had
+   * to do before this existed.
+   */
+  readonly dataVersion = signal(0);
   readonly lastMigration = signal<MigrationResult | null>(null);
   readonly error = signal<Error | null>(null);
 
@@ -73,6 +82,11 @@ export class DatabaseService {
   /** Schema version this build expects. Useful in a diagnostics screen. */
   get expectedVersion(): number {
     return targetVersion(MIGRATION_SOURCES);
+  }
+
+  /** Tells every screen watching that the data underneath them has changed. */
+  dataChanged(): void {
+    this.dataVersion.update(version => version + 1);
   }
 
   async close(): Promise<void> {

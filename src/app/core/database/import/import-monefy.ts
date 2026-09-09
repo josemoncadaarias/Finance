@@ -253,7 +253,18 @@ class ImportWriter {
 
   private async ensureAccount(account: PlannedAccount, groupIds: Map<string, number>): Promise<number> {
     const existing = await this.accounts.findByName(account.name);
-    if (existing) return existing.id;
+    if (existing) {
+      // Whether an account counts towards net worth is something Jose states,
+      // never something the backup carries — Monefy exports eight columns and
+      // none of them is this flag. So the plan is the authority for it, and an
+      // account created by an earlier import gets corrected rather than being
+      // left with a stale answer that only a re-import from scratch would fix.
+      const wanted = account.includeInNetWorth ? 1 : 0;
+      if (existing.include_in_net_worth !== wanted) {
+        await this.accounts.update(existing.id, { include_in_net_worth: account.includeInNetWorth });
+      }
+      return existing.id;
+    }
 
     const id = await this.accounts.create({
       name: account.name,
@@ -262,6 +273,7 @@ class ImportWriter {
       group_id: account.groupName ? groupIds.get(account.groupName) ?? null : null,
       builtin_icon: this.icon,
       credit_limit_minor: account.creditLimitMinor,
+      include_in_net_worth: account.includeInNetWorth,
       opening_balance_minor: account.openingBalanceMinor,
       // The backup states opening balances in pesos, so for a dollar account
       // the two differ. Only the peso accounts have a meaningful figure here,

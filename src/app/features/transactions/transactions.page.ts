@@ -81,6 +81,7 @@ export class TransactionsPage {
     // Watches the status only: load() reads month(), and tracking that here
     // would race with step(), which loads on purpose.
     effect(() => {
+      this.database.dataVersion();
       if (this.database.status() === 'ready') untracked(() => void this.load());
     });
   }
