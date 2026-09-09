@@ -29,14 +29,16 @@ import { MovementsStore } from './movements.store';
 import { DonutComponent } from './donut.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SwipeDirective } from '../../shared/swipe.directive';
+import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entry.component';
 import type { Grouping } from './group-movements';
+import type { TransactionRow } from '../../core/database/types';
 
 @Component({
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
-    CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective,
+    CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
@@ -53,6 +55,9 @@ export class MovementsPage {
   readonly showPeriodSheet = signal(false);
   readonly showAccountSheet = signal(false);
   readonly showSearch = signal(false);
+
+  /** Non-null while the entry screen is open, describing what it is editing. */
+  readonly entry = signal<EntryRequest | null>(null);
   readonly rangeStart = signal<string | null>(null);
   readonly rangeEnd = signal<string | null>(null);
 
@@ -113,6 +118,30 @@ export class MovementsPage {
     if (this.canStep() && (steps < 0 || !this.atNewest())) {
       this.filter.step(steps);
     }
+  }
+
+  add(kind: EntryKind): void {
+    this.entry.set({ kind, preferredAccountId: this.filter.accountId() });
+  }
+
+  /**
+   * Opens a movement for correction.
+   *
+   * A transfer leg is not editable here: changing one half without the other
+   * would leave money appearing on one side and not the other. Editing
+   * transfers needs its own screen, and until it exists this does nothing
+   * rather than something wrong.
+   */
+  edit(transaction: TransactionRow): void {
+    if (transaction.transfer_id !== null) return;
+    this.entry.set({
+      kind: transaction.amount_minor >= 0 ? 'income' : 'expense',
+      editing: transaction,
+    });
+  }
+
+  onSaved(): void {
+    this.entry.set(null);
   }
 
   closeSearch(): void {

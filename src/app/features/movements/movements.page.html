@@ -154,7 +154,8 @@
 
             @if (!store.isCollapsed(group.key)) {
               @for (movement of group.movements; track movement.transaction.id) {
-                <ion-item lines="full" class="movement">
+                <ion-item lines="full" class="movement" button
+                          (click)="edit(movement.transaction)">
                   <span class="dot" [class]="movement.flow" slot="start"></span>
                   <ion-label>
                     @if (filter.grouping() === 'date') {
@@ -192,7 +193,25 @@
                  (sliceTapped)="filter.openCategory($event)"></app-donut>
     }
   }
+
+  <!-- The two buttons the whole app is really for -->
+  <div class="compose">
+    <button type="button" class="big expense" (click)="add('expense')" aria-label="Registrar un gasto">
+      <ion-icon name="remove-outline"></ion-icon>
+    </button>
+    <button type="button" class="big income" (click)="add('income')" aria-label="Registrar un ingreso">
+      <ion-icon name="add-outline"></ion-icon>
+    </button>
+  </div>
 </ion-content>
+
+<ion-modal [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
+  <ng-template>
+    @if (entry(); as request) {
+      <app-entry [request]="request" (saved)="onSaved()" (cancelled)="entry.set(null)"></app-entry>
+    }
+  </ng-template>
+</ion-modal>
 
 <!-- Period and account, the way Monefy puts them in one drawer -->
 <ion-modal [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)"

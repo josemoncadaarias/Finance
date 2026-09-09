@@ -1,0 +1,108 @@
+<ion-header>
+  <ion-toolbar [class.expense]="kind() === 'expense'" [class.income]="kind() === 'income'">
+    <ion-buttons slot="start">
+      <ion-button (click)="cancelled.emit()">Cancelar</ion-button>
+    </ion-buttons>
+    <ion-title>
+      {{ isEditing() ? 'Editar' : (kind() === 'expense' ? 'Gasto' : 'Ingreso') }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button [disabled]="!canSave() || saving()" (click)="save()" strong="true">
+        Guardar
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- The amount, and nothing competing with it -->
+  <section class="amount" [class.expense]="kind() === 'expense'" [class.income]="kind() === 'income'">
+    <span class="sign">{{ kind() === 'expense' ? '−' : '+' }}</span>
+    <span class="value">{{ display() }}</span>
+    <span class="currency">{{ currency() }}</span>
+  </section>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  <!-- Where it happened and when, already filled with the usual answer -->
+  <div class="context">
+    <button type="button" (click)="showAccounts.set(true)">
+      <ion-icon name="wallet-outline"></ion-icon>
+      <span>{{ account()?.name ?? 'Escoge una cuenta' }}</span>
+    </button>
+    <button type="button" (click)="showDate.set(true)">
+      <ion-icon name="calendar-outline"></ion-icon>
+      <span>{{ dateLabel() }}</span>
+    </button>
+  </div>
+
+  <!-- Categories: the whole point is not having to scroll for the common ones -->
+  <div class="categories">
+    @for (category of categories(); track category.id) {
+      <button type="button" class="category" [class.on]="categoryId() === category.id"
+              (click)="pickCategory(category.id)">
+        <ion-icon [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+        <span>{{ category.name }}</span>
+      </button>
+    }
+  </div>
+
+  <ion-item lines="none" class="note">
+    <ion-input placeholder="Nota (opcional)" [value]="note()"
+               (ionInput)="note.set($any($event.target).value ?? '')"></ion-input>
+  </ion-item>
+
+  <!-- Keypad. Pesos first, cents only if wanted. -->
+  <div class="keypad">
+    @for (key of ['1','2','3','4','5','6','7','8','9',',','0','<']; track key) {
+      <button type="button" (click)="press(key)" [class.wide]="key === '<'">
+        @if (key === '<') {
+          <ion-icon name="backspace-outline"></ion-icon>
+        } @else {
+          {{ key }}
+        }
+      </button>
+    }
+  </div>
+
+  @if (isEditing()) {
+    <div class="danger-zone">
+      <ion-button expand="block" fill="clear" color="danger" (click)="remove()">
+        <ion-icon slot="start" name="trash-outline"></ion-icon>
+        Borrar este movimiento
+      </ion-button>
+    </div>
+  }
+</ion-content>
+
+<ion-modal [isOpen]="showAccounts()" (didDismiss)="showAccounts.set(false)"
+           [initialBreakpoint]="0.7" [breakpoints]="[0, 0.7, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <h2>Cuenta</h2>
+      <ion-list>
+        @for (option of accounts(); track option.id) {
+          <ion-item button lines="full" (click)="pickAccount(option.id)"
+                    [class.selected]="accountId() === option.id">
+            <ion-label>
+              <h3>{{ option.name }}</h3>
+              <p>{{ option.currency_code }}</p>
+            </ion-label>
+          </ion-item>
+        }
+      </ion-list>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="showDate()" (didDismiss)="showDate.set(false)"
+           [initialBreakpoint]="0.6" [breakpoints]="[0, 0.6, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <ion-datetime presentation="date" [value]="occurredOn()"
+                    (ionChange)="pickDate($any($event.detail).value)"></ion-datetime>
+    </ion-content>
+  </ng-template>
+</ion-modal>
