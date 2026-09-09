@@ -16,7 +16,7 @@ Keep it up to date whenever we make new decisions.
 - **The conversation with Jose is in Spanish**, with simple, easy-to-follow
   explanations. English technical terms inside that Spanish are fine.
 - **The app itself is multilingual** (Spanish by default, English available).
-  Its own words live in  under English keys;
+  Its own words live in `src/app/core/i18n/translations.ts` under English keys;
   no user-facing string belongs in a template or a component. What is NOT
   translated: the user's data (account names, category names, notes on a
   movement), the Monefy importer's pattern matching, and the Colombian tax
