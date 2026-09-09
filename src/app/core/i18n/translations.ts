@@ -137,10 +137,15 @@ export const SPANISH = {
   // --- accounts ---------------------------------------------------------
   'accounts.title': 'Cuentas',
   'accounts.netWorth': 'Patrimonio',
-  'accounts.available': 'Disponible',
-  'accounts.limit': 'Cupo',
-  'accounts.setAside': 'Aparte del patrimonio',
-  'accounts.archived': 'Archivada',
+  'accounts.brokersCaveat': 'Los brókers muestran lo que metiste, no lo que valen hoy.',
+  'accounts.currencies': '{count} monedas',
+  'accounts.availableOf': '{available} disponible de {limit}',
+  'accounts.archived': 'archivada',
+  'accounts.showArchived': 'Ver {count} cuentas archivadas',
+  'accounts.hideArchived': 'Ocultar {count} cuentas archivadas',
+  'accounts.empty.title': 'Todavía no hay cuentas',
+  'accounts.empty.body':
+    'Importa tu backup de Monefy desde el menú y aparecerán aquí con sus saldos.',
 
   // --- import -----------------------------------------------------------
   'import.title': 'Importar',
@@ -149,6 +154,36 @@ export const SPANISH = {
     'Exporta el CSV desde Monefy y escógelo aquí. Puedes hacerlo cuantas veces ' +
     'quieras: lo que ya está guardado se reconoce y se salta, y lo que hayas ' +
     'corregido a mano no se toca.',
+  'import.notReady': 'La base de datos todavía no está lista.',
+  'import.choose': 'Escoger archivo CSV',
+  'import.reading': 'Importando {file}…',
+  'import.failed': 'No se importó nada',
+  'import.failed.hint': 'La base quedó como estaba: la importación es todo o nada.',
+  'import.done': 'Listo',
+  'import.rowsRead': 'Filas leídas',
+  'import.rowsInserted': 'Movimientos nuevos',
+  'import.rowsSkipped': 'Ya estaban guardados',
+  'import.accountsCreated': 'Cuentas creadas',
+  'import.categoriesCreated': 'Categorías creadas',
+  'import.transfers': 'Transferencias',
+  'import.rebuiltLegs': '{count} con una pata reconstruida',
+  'import.usdAmounts': 'Montos en dólares',
+  'import.usdDetail': '{read} leídos de la descripción, {estimated} estimados',
+  'import.reviews.title': 'Pendientes de que los mires',
+  'import.reviews.body':
+    'Nada de esto se escribió a la brava: son las cosas que el importador no ' +
+    'pudo resolver solo.',
+
+  // --- what the importer flags for review -------------------------------
+  'review.reconstructed_transfer': 'Transferencias con una pata reconstruida',
+  'review.estimated_amount': 'Montos en dólares estimados',
+  'review.assumed_account': 'Cuentas cuya moneda se dedujo',
+  'review.deleted_account': 'Cuentas borradas de Monefy, recreadas',
+  'review.multi_currency_split': 'Reparto de cuentas multimoneda',
+  'review.ambiguous_category': 'Categorías usadas como ingreso y gasto',
+  'review.credit_limit_change': 'Aumentos de cupo, fuera del saldo',
+  'review.credit_limit_mismatch': 'El cupo no coincide con el archivo',
+  'review.near_date_transfer': 'Transferencias emparejadas con días de diferencia',
 
   // --- shared states ----------------------------------------------------
   'state.opening': 'Abriendo la base de datos…',
@@ -274,10 +309,15 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'accounts.title': 'Accounts',
   'accounts.netWorth': 'Net worth',
-  'accounts.available': 'Available',
-  'accounts.limit': 'Limit',
-  'accounts.setAside': 'Set aside from net worth',
-  'accounts.archived': 'Archived',
+  'accounts.brokersCaveat': 'Brokers show what you put in, not what it is worth today.',
+  'accounts.currencies': '{count} currencies',
+  'accounts.availableOf': '{available} available of {limit}',
+  'accounts.archived': 'archived',
+  'accounts.showArchived': 'Show {count} archived accounts',
+  'accounts.hideArchived': 'Hide {count} archived accounts',
+  'accounts.empty.title': 'No accounts yet',
+  'accounts.empty.body':
+    'Import your Monefy backup from the menu and they will show up here with their balances.',
 
   'import.title': 'Import',
   'import.intro.title': 'Bring in your Monefy backup',
@@ -285,6 +325,35 @@ export const ENGLISH: Record<TranslationKey, string> = {
     'Export the CSV from Monefy and choose it here. Do it as often as you like: ' +
     'what is already stored is recognised and skipped, and anything you corrected ' +
     'by hand is left alone.',
+  'import.notReady': 'The database is not ready yet.',
+  'import.choose': 'Choose a CSV file',
+  'import.reading': 'Importing {file}…',
+  'import.failed': 'Nothing was imported',
+  'import.failed.hint': 'The database is as it was: an import is all or nothing.',
+  'import.done': 'Done',
+  'import.rowsRead': 'Rows read',
+  'import.rowsInserted': 'New movements',
+  'import.rowsSkipped': 'Already stored',
+  'import.accountsCreated': 'Accounts created',
+  'import.categoriesCreated': 'Categories created',
+  'import.transfers': 'Transfers',
+  'import.rebuiltLegs': '{count} with a rebuilt leg',
+  'import.usdAmounts': 'Dollar amounts',
+  'import.usdDetail': '{read} read from the description, {estimated} estimated',
+  'import.reviews.title': 'Waiting for you to look',
+  'import.reviews.body':
+    'None of this was written blind: these are the things the importer could not ' +
+    'settle on its own.',
+
+  'review.reconstructed_transfer': 'Transfers with one leg rebuilt',
+  'review.estimated_amount': 'Estimated dollar amounts',
+  'review.assumed_account': 'Accounts whose currency was inferred',
+  'review.deleted_account': 'Accounts deleted in Monefy, recreated',
+  'review.multi_currency_split': 'Multi-currency accounts split',
+  'review.ambiguous_category': 'Categories used as both income and expense',
+  'review.credit_limit_change': 'Limit increases, kept out of the balance',
+  'review.credit_limit_mismatch': 'The limit disagrees with the file',
+  'review.near_date_transfer': 'Transfers paired across a few days',
 
   'state.opening': 'Opening the database…',
   'state.failed': 'The database could not be opened',

@@ -174,7 +174,7 @@ export function includesToday(period: Period, today: Date = new Date()): boolean
  * `allLabel` is passed in rather than written here: this module formats dates
  * and knows nothing about which language the app is speaking.
  */
-export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'Todo'): string {
+export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'All'): string {
   if (period.kind === 'all') return allLabel;
   if (period.from === null || period.to === null) return allLabel;
 

@@ -3,6 +3,10 @@
     <ion-buttons slot="start">
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
+
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
     <ion-title>{{ 'accounts.title' | t }}</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -26,17 +30,16 @@
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else if (visible().length === 0) {
     <div class="state">
-      <h2>Todavía no hay cuentas</h2>
-      <p>Importa tu backup de Monefy desde la pestaña <strong>Importar</strong> y
-        aparecerán aquí con sus saldos.</p>
+      <h2>{{ 'accounts.empty.title' | t }}</h2>
+      <p>{{ 'accounts.empty.body' | t }}</p>
     </div>
   } @else {
     <section class="networth">
-      <span class="label">Patrimonio</span>
+      <span class="label">{{ 'accounts.netWorth' | t }}</span>
       <span class="amount" [class]="netWorthMinor() | sign">
         {{ netWorthMinor() | money }} <small>COP</small>
       </span>
-      <p class="caveat">Los brókers muestran lo que metiste, no lo que valen hoy.</p>
+      <p class="caveat">{{ 'accounts.brokersCaveat' | t }}</p>
     </section>
 
     <ion-list [inset]="true">
@@ -46,7 +49,7 @@
           <ion-item class="group-head" lines="none">
             <ion-label>
               <h2>{{ entry.group.name }}</h2>
-              <p>{{ entry.balances.length }} monedas</p>
+              <p>{{ 'accounts.currencies' | t:{ count: entry.balances.length } }}</p>
             </ion-label>
           </ion-item>
         }
@@ -59,13 +62,14 @@
               <h3>
                 {{ entry.group ? balance.account.currency_code : balance.account.name }}
                 @if (balance.account.archived) {
-                  <ion-badge color="medium">archivada</ion-badge>
+                  <ion-badge color="medium">{{ 'accounts.archived' | t }}</ion-badge>
                 }
               </h3>
               @if (balance.available_credit_minor !== null) {
                 <p>
-                  {{ balance.available_credit_minor | money }} disponible de
-                  {{ balance.account.credit_limit_minor | money }}
+                  {{ 'accounts.availableOf' | t:{
+                       available: (balance.available_credit_minor | money),
+                       limit: (balance.account.credit_limit_minor | money) } }}
                 </p>
               }
             </ion-label>
@@ -82,7 +86,8 @@
       <div class="archived-toggle">
         <button type="button" (click)="toggleArchived()">
           <ion-icon name="archive-outline"></ion-icon>
-          {{ showArchived() ? 'Ocultar' : 'Ver' }} {{ archivedCount() }} cuentas archivadas
+          {{ (showArchived() ? 'accounts.hideArchived' : 'accounts.showArchived')
+               | t:{ count: archivedCount() } }}
         </button>
       </div>
     }

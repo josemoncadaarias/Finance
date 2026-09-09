@@ -20,6 +20,7 @@ import { documentAttachOutline, checkmarkCircleOutline, alertCircleOutline } fro
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { importMonefy, type ImportSummary } from '../../core/database/import/import-monefy';
 
 type Phase = 'idle' | 'reading' | 'done' | 'failed';
@@ -30,17 +31,24 @@ interface ReviewCount {
   count: number;
 }
 
-/** Plain-language names for what the importer flags. */
-const REVIEW_LABELS: Record<string, string> = {
-  reconstructed_transfer: 'Transferencias con una pata reconstruida',
-  estimated_amount: 'Montos en dólares estimados',
-  assumed_account: 'Cuentas cuya moneda se dedujo',
-  deleted_account: 'Cuentas borradas de Monefy, recreadas',
-  multi_currency_split: 'Reparto de cuentas multimoneda',
-  ambiguous_category: 'Categorías usadas como ingreso y gasto',
-  credit_limit_change: 'Aumentos de cupo, fuera del saldo',
-  credit_limit_mismatch: 'El cupo no coincide con el archivo',
-  near_date_transfer: 'Transferencias emparejadas con días de diferencia',
+/**
+ * Plain-language names for what the importer flags.
+ *
+ * Keys rather than phrases: the importer names its own concerns in snake_case
+ * and the screen turns each one into a sentence in whichever language is on.
+ * An unknown kind falls back to `review.` plus its own name, which at least
+ * says what it is.
+ */
+const REVIEW_KEYS: Record<string, string> = {
+  reconstructed_transfer: 'review.reconstructed_transfer',
+  estimated_amount: 'review.estimated_amount',
+  assumed_account: 'review.assumed_account',
+  deleted_account: 'review.deleted_account',
+  multi_currency_split: 'review.multi_currency_split',
+  ambiguous_category: 'review.ambiguous_category',
+  credit_limit_change: 'review.credit_limit_change',
+  credit_limit_mismatch: 'review.credit_limit_mismatch',
+  near_date_transfer: 'review.near_date_transfer',
 };
 
 @Component({
@@ -48,7 +56,7 @@ const REVIEW_LABELS: Record<string, string> = {
   templateUrl: './import.page.html',
   styleUrls: ['./import.page.scss'],
   imports: [
-    CommonModule, TranslatePipe,
+    CommonModule, TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonSpinner,
     IonList, IonItem, IonLabel, IonNote, IonMenuButton, IonButtons,
   ],
@@ -111,7 +119,7 @@ export class ImportPage {
     );
     return rows.map(row => ({
       kind: row.kind,
-      label: REVIEW_LABELS[row.kind] ?? row.kind,
+      label: REVIEW_KEYS[row.kind] ?? `review.${row.kind}`,
       count: row.n,
     }));
   }

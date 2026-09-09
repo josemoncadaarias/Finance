@@ -17,6 +17,7 @@ import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutl
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import type { GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -27,7 +28,7 @@ import { SignPipe } from '../../shared/sign.pipe';
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
-    CommonModule, MoneyPipe, SignPipe, TranslatePipe,
+    CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
     IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
   ],

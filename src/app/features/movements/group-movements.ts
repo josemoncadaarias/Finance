@@ -167,7 +167,7 @@ export function groupMovements(
   grouping: Grouping,
   sortWithin: SortWithin = 'date',
   locale = 'es-CO',
-  allLabel = 'Todos los movimientos',
+  allLabel = 'All movements',
 ): MovementGroup[] {
   if (grouping === 'largest') return [flatByAmount(movements, allLabel)];
 

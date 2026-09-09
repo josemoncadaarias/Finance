@@ -123,9 +123,15 @@ test('the app can tell when it is already at the newest period', () => {
 
 test('labels say enough to be unambiguous', () => {
   assert.equal(periodLabel(periodContaining('month', on('2026-09-08'))), 'septiembre 2026');
+  // The same period, read in English.
+  assert.equal(periodLabel(periodContaining('month', on('2026-09-08')), 'en-GB'), 'September 2026');
+  assert.equal(periodLabel(periodContaining('day', on('2026-09-08')), 'en-GB'), 'Tuesday 8 September');
   assert.equal(periodLabel(periodContaining('year', on('2026-09-08'))), '2026');
   assert.equal(periodLabel(periodContaining('day', on('2026-09-08'))), 'martes 8 de septiembre');
-  assert.equal(periodLabel(ALL_TIME), 'Todo');
+  // The 'all' label is passed in by the screen, in whatever language is on;
+  // the default is the repository's own English.
+  assert.equal(periodLabel(ALL_TIME), 'All');
+  assert.equal(periodLabel(ALL_TIME, 'es-CO', 'Todo'), 'Todo');
 
   // A week inside one month, and a week that straddles two.
   assert.equal(periodLabel(periodContaining('week', on('2026-09-08'))), '7–13 de septiembre');
