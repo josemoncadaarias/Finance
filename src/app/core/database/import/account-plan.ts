@@ -374,3 +374,48 @@ export function derivedCreditLimit(rows: readonly MonefyRow[], accountName: stri
 
   return sawOpening ? limit : null;
 }
+
+export interface CreditLimitPoint {
+  effectiveOn: string;
+  /** The limit as of that day, not the size of the change. */
+  limitMinor: number;
+  note: string | null;
+}
+
+/**
+ * The credit limit over time, as the backup tells it.
+ *
+ * Same walk as `derivedCreditLimit`, but keeping every step instead of only
+ * the total: the opening row is the limit the card started with, and each
+ * `Aumento cupo` row moves it. Monefy logged these as deposits because it had
+ * nowhere else to put them; here they become what they actually are.
+ */
+export function creditLimitHistory(
+  rows: readonly MonefyRow[],
+  accountName: string,
+): CreditLimitPoint[] {
+  const known = KNOWN_ACCOUNTS[accountName];
+  if (known?.type !== 'credit') return [];
+
+  const points: CreditLimitPoint[] = [];
+  let limit = 0;
+
+  for (const row of rows) {
+    if (row.account !== accountName) continue;
+
+    if (row.kind === 'initial_balance') {
+      limit += row.amountMinor;
+      points.push({ effectiveOn: row.occurredOn, limitMinor: limit, note: 'Cupo inicial' });
+    } else if (isCreditLimitChange(row.description, 'credit')) {
+      limit += row.amountMinor;
+      points.push({ effectiveOn: row.occurredOn, limitMinor: limit, note: row.description });
+    }
+  }
+
+  // Two changes on the same day are one answer: the last one stated wins, the
+  // same rule the unique index enforces.
+  const byDay = new Map<string, CreditLimitPoint>();
+  for (const point of points) byDay.set(point.effectiveOn, point);
+
+  return [...byDay.values()].sort((a, b) => a.effectiveOn.localeCompare(b.effectiveOn));
+}

@@ -1,13 +1,20 @@
 <ion-header [translucent]="true">
   <!-- Account: a control that looks like one, not a title -->
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="showAccountSheet.set(true)" class="account">
-        <ion-icon slot="start" name="wallet-outline"></ion-icon>
-        <span class="name">{{ accountLabel() }}</span>
-        <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+    <!-- What you are looking at, said plainly: the account's own icon, its
+         name, and what that selection includes. -->
+    <button type="button" class="identity" slot="start" (click)="showAccountSheet.set(true)">
+      <span class="badge" [class.all]="filter.allAccounts()">
+        <ion-icon [name]="accountIcon()"></ion-icon>
+      </span>
+      <span class="who">
+        <span class="name">
+          {{ accountLabel() }}
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </span>
+        <span class="hint">{{ accountHint() }}</span>
+      </span>
+    </button>
 
     <ion-buttons slot="end">
       <ion-button (click)="showSearch.set(!showSearch())" aria-label="Buscar">
@@ -282,6 +289,7 @@
         @for (account of selectable(); track account.id) {
           <ion-item button lines="full" (click)="pickAccount(account.id)"
                     [class.selected]="filter.accountId() === account.id">
+            <ion-icon slot="start" [name]="account.builtin_icon ?? 'wallet-outline'"></ion-icon>
             <ion-label>
               <h3>
                 {{ account.name }}

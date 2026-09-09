@@ -15,6 +15,7 @@ import { AccountsRepository } from '../../src/app/core/database/repositories/acc
 import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
+import { CreditLimitsRepository } from '../../src/app/core/database/repositories/credit-limits.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
 
 const NOW = () => '2026-09-08T12:00:00Z';
@@ -340,5 +341,75 @@ test('a note that was written before comes back as a suggestion', async () => {
 
   // A wildcard means the character itself, not "everything".
   assert.deepEqual(await transactions.suggestNotes('%'), []);
+  await db.close();
+});
+
+test('a credit limit keeps its history and the card follows the current one', async () => {
+  const { db, accounts, ids } = await setup();
+  const limits = new CreditLimitsRepository(db, NOW);
+
+  // The card opened at 800,000 and grew twice, exactly as the backup tells it.
+  await limits.set({ account_id: ids.card, limit_minor: 80000000,
+                     effective_on: '2021-06-25', note: 'Cupo inicial' });
+  await limits.set({ account_id: ids.card, limit_minor: 100000000,
+                     effective_on: '2024-03-11', note: 'Aumento cupo' });
+  await limits.set({ account_id: ids.card, limit_minor: 110000000,
+                     effective_on: '2025-07-02', note: 'Aumento cupo' });
+
+  const history = await limits.history(ids.card);
+  assert.deepEqual(history.map(h => [h.effective_on, h.limit_minor]), [
+    ['2021-06-25', 80000000],
+    ['2024-03-11', 100000000],
+    ['2025-07-02', 110000000],
+  ]);
+
+  // Available credit comes from the limit in force, which the card now carries.
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 110000000);
+  assert.equal(await limits.limitOn(ids.card, '2024-06-01'), 100000000);
+  assert.equal(await limits.limitOn(ids.card, '2021-01-01'), null);
+
+  // A limit can go down as easily as up: same act, same call.
+  await limits.set({ account_id: ids.card, limit_minor: 90000000,
+                     effective_on: '2026-09-09', note: 'Reducción de cupo' });
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 90000000);
+
+  // A change dated ahead is recorded but is not in force yet.
+  await limits.set({ account_id: ids.card, limit_minor: 150000000, effective_on: '2099-01-01' });
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 90000000);
+  assert.equal((await limits.history(ids.card)).length, 5);
+
+  // One answer per day: correcting a typo replaces it, never doubles it.
+  await limits.set({ account_id: ids.card, limit_minor: 95000000, effective_on: '2026-09-09' });
+  assert.equal((await limits.history(ids.card)).length, 5);
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 95000000);
+
+  // Undoing a change puts the previous limit back in force.
+  const latest = (await limits.history(ids.card)).find(h => h.effective_on === '2026-09-09');
+  await limits.remove(latest.id);
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 110000000);
+  await db.close();
+});
+
+test('the import seeds limit history without overruling a corrected limit', async () => {
+  const { db, accounts, ids } = await setup();
+  const limits = new CreditLimitsRepository(db, NOW);
+
+  assert.equal(await limits.addIfMissing({
+    account_id: ids.card, limit_minor: 80000000, effective_on: '2021-06-25' }), true);
+  // The card was configured at 1,100,000; a backup that only reaches 800,000
+  // must not drag it back.
+  assert.equal((await accounts.findById(ids.card)).credit_limit_minor, 110000000);
+
+  // Re-importing states the same change again and changes nothing.
+  assert.equal(await limits.addIfMissing({
+    account_id: ids.card, limit_minor: 80000000, effective_on: '2021-06-25' }), false);
+  assert.equal((await limits.history(ids.card)).length, 1);
+
+  // And it never overwrites a figure the user fixed by hand.
+  await limits.set({ account_id: ids.card, limit_minor: 85000000,
+                     effective_on: '2021-06-25', note: 'Corregido' });
+  await limits.addIfMissing({
+    account_id: ids.card, limit_minor: 80000000, effective_on: '2021-06-25' });
+  assert.equal((await limits.history(ids.card))[0].limit_minor, 85000000);
   await db.close();
 });

@@ -10,18 +10,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SCHEMA = join(HERE, '..', '..', 'src', 'app', 'core', 'database', 'migrations', '001_initial_schema.sql');
+const MIGRATIONS = join(HERE, '..', '..', 'src', 'app', 'core', 'database', 'migrations');
 const DIAGRAM = join(HERE, '..', '..', 'docs', '06-schema.md');
 
 function realSchema() {
   const db = new DatabaseSync(':memory:');
   db.exec('PRAGMA foreign_keys = ON;');
-  db.exec(readFileSync(SCHEMA, 'utf8'));
+  // Every migration, not only the first: the diagram documents the schema a
+  // phone actually ends up with.
+  for (const file of readdirSync(MIGRATIONS).filter(f => f.endsWith('.sql')).sort()) {
+    db.exec(readFileSync(join(MIGRATIONS, file), 'utf8'));
+  }
 
   const tables = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
@@ -53,7 +57,7 @@ test('every table in the schema appears in the diagram', () => {
   const block = diagram.slice(diagram.indexOf('erDiagram'), diagram.indexOf('```', diagram.indexOf('erDiagram')));
   const missing = schema.tables.filter(table => !new RegExp(`\\b${table}\\b`).test(block));
   assert.deepEqual(missing, [], 'tables missing from the diagram');
-  assert.equal(schema.tables.length, 14, 'the count in the prose says 14');
+  assert.equal(schema.tables.length, 15, 'the count in the prose says 15');
 });
 
 test('the diagram invents no table', () => {

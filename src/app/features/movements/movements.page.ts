@@ -16,12 +16,7 @@ import {
   IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import {
-  chevronBackOutline, chevronForwardOutline, searchOutline, closeOutline,
-  listOutline, pieChartOutline, calendarOutline, walletOutline, swapHorizontalOutline,
-  chevronDownOutline, chevronUpOutline, lockClosedOutline,
-  arrowUpOutline, arrowDownOutline,
-} from 'ionicons/icons';
+import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { FilterService } from '../../core/filters/filter.service';
@@ -71,6 +66,38 @@ export class MovementsPage {
 
   readonly accountLabel = computed(() => this.store.selectedAccount()?.name ?? 'Todas las cuentas');
 
+  /**
+   * The icon standing for what is on screen: the account's own, or the wallet
+   * that means all of them.
+   *
+   * A screen that shows one account's money and one that shows everything look
+   * identical otherwise, and the difference changes what every figure below
+   * means.
+   */
+  readonly accountIcon = computed(() =>
+    this.store.selectedAccount()?.builtin_icon ?? 'albums-outline');
+
+  /** The line under the name: which currency, or how many accounts are in. */
+  readonly accountHint = computed(() => {
+    const account = this.store.selectedAccount();
+    if (account) {
+      const parts = [account.currency_code];
+      if (account.type === 'credit') parts.push('tarjeta de crédito');
+      if (!account.include_in_net_worth) parts.push('aparte del patrimonio');
+      if (account.archived) parts.push('archivada');
+      return parts.join(' · ');
+    }
+
+    const counted = this.store.accounts()
+      .filter(a => !a.archived && (this.filter.includeExcluded() || a.include_in_net_worth === 1))
+      .length;
+    const hidden = this.filter.includeExcluded() ? 0 : this.store.hiddenCount();
+
+    return hidden === 0
+      ? `${counted} cuentas, todas incluidas`
+      : `${counted} cuentas · ${hidden} apartadas del patrimonio`;
+  });
+
   /** Selectable accounts: everything, since a single pick ignores the flags. */
   readonly selectable = computed(() =>
     [...this.store.accounts()].sort((a, b) => {
@@ -80,12 +107,11 @@ export class MovementsPage {
   );
 
   constructor() {
-    addIcons({
-      chevronBackOutline, chevronForwardOutline, searchOutline, closeOutline,
-      listOutline, pieChartOutline, calendarOutline, walletOutline, swapHorizontalOutline,
-      chevronDownOutline, chevronUpOutline, lockClosedOutline,
-      arrowUpOutline, arrowDownOutline,
-    });
+    // Account and category icons come from the user's data, so which names
+    // are needed is not known until runtime. Ionicons draws nothing for a name
+    // it was never given - which is exactly why the two main buttons rendered
+    // as empty circles.
+    addIcons(allIcons as unknown as Record<string, string>);
   }
 
   setGrouping(grouping: Grouping): void {

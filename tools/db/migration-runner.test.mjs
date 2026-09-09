@@ -25,7 +25,7 @@ test('a fresh database gets every migration and lands on the target version', as
   const tables = await driver.query(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
   );
-  assert.equal(tables.length, 14);
+  assert.equal(tables.length, 15);
   await driver.close();
 });
 

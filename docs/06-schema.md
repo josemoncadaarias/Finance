@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 14 tables and how they relate. The authority is always
+The 15 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -116,6 +116,13 @@ erDiagram
         TEXT reason
         INTEGER resolved
     }
+    credit_limit_changes {
+        INTEGER id PK
+        INTEGER account_id FK
+        INTEGER limit_minor
+        TEXT effective_on
+        TEXT source
+    }
     settings {
         TEXT key PK
         TEXT value
@@ -131,6 +138,7 @@ erDiagram
     accounts       ||--o{ transactions      : "holds"
     categories     ||--o{ transactions      : "classifies"
     transfers      ||--o{ transactions      : "has exactly two legs"
+    accounts       ||--o{ credit_limit_changes : "limit over time"
     accounts       ||--o{ account_rates     : "earns at"
     accounts       ||--o{ interest_accruals : "accrues"
     accounts       ||--o{ cashbacks         : "receives"
@@ -232,3 +240,4 @@ outright:
 | `idx_account_rates_account` | finding the rate in force on a date |
 | `idx_cashbacks_account`, `idx_cashbacks_source` | the cashback module |
 | `idx_review_queue_open` | listing what is still unresolved |
+| `idx_credit_limit_changes_day` | unique; one credit limit per card per day |

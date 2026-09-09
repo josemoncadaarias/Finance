@@ -22,11 +22,12 @@ import { AccountGroupsRepository } from '../repositories/account-groups.reposito
 import { CategoriesRepository } from '../repositories/categories.repository';
 import { TransactionsRepository } from '../repositories/transactions.repository';
 import { TransfersRepository } from '../repositories/transfers.repository';
+import { CreditLimitsRepository } from '../repositories/credit-limits.repository';
 
 
 import { parseMonefyCsv, type MonefyCsvResult, type MonefyRow } from './monefy-csv';
 import { pairTransfers, findGhostAccounts, type TransferPair } from './pair-transfers';
-import { planAccounts, isCreditLimitChange, derivedCreditLimit, type AccountPlan, type PlannedAccount } from './account-plan';
+import { planAccounts, isCreditLimitChange, derivedCreditLimit, creditLimitHistory, type AccountPlan, type PlannedAccount } from './account-plan';
 import { assessUsdMention, type UsdCandidate } from './extract-usd';
 import { iconForCategory } from '../category-icons';
 
@@ -166,6 +167,7 @@ class ImportWriter {
     await this.createAccounts();
     await this.createCategories();
     await this.checkCreditLimits();
+    await this.recordCreditLimitHistory();
     this.collectKnownRates();
 
     // Transfers first, so both halves are consumed before the loose rows are
@@ -588,6 +590,37 @@ class ImportWriter {
    * 800,000 + 200,000 + 100,000 = 1,100,000. When the two disagree one of them
    * is stale, and saying so is more useful than quietly preferring either.
    */
+  /**
+   * Keeps the limit changes the backup describes, as history rather than as
+   * money.
+   *
+   * They are dropped from the ledger — an `Aumento cupo` row is not a deposit
+   * — but the dates and figures are real and exist nowhere else, so throwing
+   * them away would lose the only record of what the limit was in 2024. A day
+   * that already has an answer is left alone, so re-importing never overwrites
+   * a limit corrected by hand.
+   */
+  private async recordCreditLimitHistory(): Promise<void> {
+    const limits = new CreditLimitsRepository(this.db, this.now);
+
+    for (const account of this.plan.accounts) {
+      if (account.type !== 'credit') continue;
+
+      const accountId = this.accountIds.get(account.sourceName);
+      if (accountId === undefined) continue;
+
+      for (const point of creditLimitHistory(this.parsed.rows, account.sourceName)) {
+        await limits.addIfMissing({
+          account_id: accountId,
+          limit_minor: point.limitMinor,
+          effective_on: point.effectiveOn,
+          note: point.note,
+          source: 'import',
+        });
+      }
+    }
+  }
+
   private async checkCreditLimits(): Promise<void> {
     for (const account of this.plan.accounts) {
       if (account.type !== 'credit' || account.creditLimitMinor === null) continue;

@@ -115,7 +115,17 @@ the framework on a long-running project.
    database itself, so a backup stays a single file. Decision by Jose,
    2026-09-08.
 
-11. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+11. **A credit limit is history, not a movement.** Changing a limit - up or
+   down - moves no money and leaves the debt untouched; only the room left
+   over changes. So limits live in `credit_limit_changes` (one row per card
+   per day, holding the limit as of that day) and never in the ledger. That is
+   the mistake Monefy forced: with nowhere to put a limit increase, it was
+   logged as a deposit, which understated the debt by exactly the increase.
+   `accounts.credit_limit_minor` stays the limit in force today, kept in step
+   by the repository. The import seeds the history from the backup but never
+   overrules a confirmed or hand-corrected limit. Decision by Jose, 2026-09-09.
+
+12. **Manual edits win over re-imports.** The Monefy CSV is re-exported
    regularly, carrying the whole history again plus new rows, so the importer
    must be repeatable. Any record edited by hand inside Finance is flagged
    `locked` and a later re-import never overwrites it: a manual edit means Jose

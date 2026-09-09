@@ -29,8 +29,8 @@ interface Segment {
 
 const SIZE = 280;
 const CENTRE = SIZE / 2;
-const OUTER = 92;
-const INNER = 60;
+const OUTER = 104;
+const INNER = 64;
 
 /**
  * Spending shades, walked in order so neighbouring slices stay distinguishable.
@@ -71,14 +71,14 @@ const INCOME = '#2f9e6e';
           </path>
         }
 
-        <text [attr.x]="centre" [attr.y]="centre - 12" class="figure out">
+        <text [attr.x]="centre" [attr.y]="centre - 10" class="figure out">
           {{ outLabel() }}
         </text>
-        <text [attr.x]="centre" [attr.y]="centre + 10" class="figure in">
+        <text [attr.x]="centre" [attr.y]="centre + 12" class="figure in">
           {{ inLabel() }}
         </text>
         @if (movedMinor() > 0) {
-          <text [attr.x]="centre" [attr.y]="centre + 30" class="figure moved">
+          <text [attr.x]="centre" [attr.y]="centre + 33" class="figure moved">
             {{ movedLabel() }}
           </text>
         }
@@ -120,12 +120,14 @@ const INCOME = '#2f9e6e';
       p { margin: 0; }
     }
 
-    .ring { position: relative; width: 100%; max-width: 17rem; margin: 0.5rem auto 1rem; }
+    /* As wide as the screen allows: this is the screen the app opens on, and a
+       small ring wastes the space it is given. */
+    .ring { position: relative; width: 100%; max-width: min(88vw, 23rem); margin: 0.25rem auto 0.75rem; }
 
     .ring-icon {
       position: absolute;
       transform: translate(-50%, -50%);
-      font-size: 1.15rem;
+      font-size: 1.3rem;
       cursor: pointer;
       filter: drop-shadow(0 0 2px var(--ion-background-color));
     }
@@ -150,11 +152,11 @@ const INCOME = '#2f9e6e';
 
     .figure {
       text-anchor: middle;
-      font-size: 13px;
+      font-size: 14px;
       font-variant-numeric: tabular-nums;
       fill: var(--ion-text-color);
     }
-    .figure.out { fill: var(--ion-color-danger); font-weight: 600; font-size: 15px; }
+    .figure.out { fill: var(--ion-color-danger); font-weight: 600; font-size: 17px; }
     .figure.in { fill: var(--ion-color-success); }
     .figure.moved { fill: var(--ion-color-medium); font-size: 12px; }
 
@@ -236,8 +238,8 @@ export class DonutComponent {
         slice,
         path,
         colour,
-        labelX: CENTRE + Math.cos(mid) * (OUTER + 24),
-        labelY: CENTRE + Math.sin(mid) * (OUTER + 24),
+        labelX: CENTRE + Math.cos(mid) * (OUTER + 18),
+        labelY: CENTRE + Math.sin(mid) * (OUTER + 18),
       };
     });
   });

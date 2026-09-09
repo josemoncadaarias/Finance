@@ -1,19 +1,61 @@
-ion-button.account {
-  --padding-start: 0.5rem;
-  --padding-end: 0.5rem;
-  max-width: 72vw;
+/* The account on screen, as an identity rather than a title: icon, name, and
+   what the selection covers. The same control opens the picker. */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 78vw;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+
+  .badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    flex: none;
+    border-radius: 50%;
+    background: rgba(var(--ion-color-primary-rgb), 0.16);
+    color: var(--ion-color-primary);
+
+    ion-icon { font-size: 1.2rem; }
+
+    /* All accounts is a different kind of thing, not a nameless account. */
+    &.all {
+      background: rgba(var(--ion-color-medium-rgb), 0.18);
+      color: var(--ion-color-medium-shade);
+    }
+  }
+
+  .who { min-width: 0; display: flex; flex-direction: column; }
 
   .name {
-    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 1.02rem;
     font-weight: 600;
-    text-transform: none;
-    letter-spacing: 0;
+    color: var(--ion-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    ion-icon { font-size: 0.8rem; opacity: 0.6; flex: none; }
+  }
+
+  .hint {
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  ion-icon[slot='end'] { font-size: 0.9rem; margin-inline-start: 0.15rem; opacity: 0.7; }
+  &:active { opacity: 0.7; }
 }
 
 ion-toolbar.stepper {
