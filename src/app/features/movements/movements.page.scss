@@ -200,12 +200,14 @@ ion-toolbar.stepper {
     font-size: 0.9rem;
     cursor: pointer;
 
+    /* The count reads as part of the label, not as a badge stuck to it: a
+       paler pill inside a pill made the button look like two controls that
+       had collided. A thin rule separates them instead. */
     .count {
-      background: rgba(255, 255, 255, 0.25);
-      border-radius: 999px;
-      padding: 0.05rem 0.5rem;
+      padding-inline-start: 0.55rem;
+      border-inline-start: 1px solid rgba(255, 255, 255, 0.35);
       font-variant-numeric: tabular-nums;
-      font-size: 0.8rem;
+      font-weight: 600;
     }
   }
 }
