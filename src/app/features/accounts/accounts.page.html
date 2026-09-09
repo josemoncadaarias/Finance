@@ -1,0 +1,87 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Cuentas</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($any($event))">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  @if (status() === 'opening') {
+    <div class="state">
+      <ion-spinner></ion-spinner>
+      <p>Abriendo la base de datos…</p>
+    </div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>No se pudo abrir la base de datos</h2>
+      <p>{{ error()?.message }}</p>
+    </div>
+  } @else if (grouped() === null) {
+    <div class="state"><ion-spinner></ion-spinner></div>
+  } @else if (visible().length === 0) {
+    <div class="state">
+      <h2>Todavía no hay cuentas</h2>
+      <p>Importa tu backup de Monefy desde la pestaña <strong>Importar</strong> y
+        aparecerán aquí con sus saldos.</p>
+    </div>
+  } @else {
+    <section class="networth">
+      <span class="label">Patrimonio</span>
+      <span class="amount" [class]="netWorthMinor() | sign">
+        {{ netWorthMinor() | money }} <small>COP</small>
+      </span>
+      <p class="caveat">Los brókers muestran lo que metiste, no lo que valen hoy.</p>
+    </section>
+
+    <ion-list [inset]="true">
+      @for (entry of visible(); track entry.group?.id ?? entry.balances[0].account.id) {
+
+        @if (entry.group) {
+          <ion-item class="group-head" lines="none">
+            <ion-label>
+              <h2>{{ entry.group.name }}</h2>
+              <p>{{ entry.balances.length }} monedas</p>
+            </ion-label>
+          </ion-item>
+        }
+
+        @for (balance of entry.balances; track balance.account.id) {
+          <ion-item [class.nested]="entry.group" lines="full">
+            <ion-icon slot="start" [name]="iconFor(balance.account.type)"
+                      [class.archived]="balance.account.archived"></ion-icon>
+            <ion-label>
+              <h3>
+                {{ entry.group ? balance.account.currency_code : balance.account.name }}
+                @if (balance.account.archived) {
+                  <ion-badge color="medium">archivada</ion-badge>
+                }
+              </h3>
+              @if (balance.available_credit_minor !== null) {
+                <p>
+                  {{ balance.available_credit_minor | money }} disponible de
+                  {{ balance.account.credit_limit_minor | money }}
+                </p>
+              }
+            </ion-label>
+            <ion-note slot="end" [class]="balance.balance_minor | sign">
+              {{ balance.balance_minor | money }}
+              <small>{{ balance.account.currency_code }}</small>
+            </ion-note>
+          </ion-item>
+        }
+      }
+    </ion-list>
+
+    @if (archivedCount() > 0) {
+      <div class="archived-toggle">
+        <button type="button" (click)="toggleArchived()">
+          <ion-icon name="archive-outline"></ion-icon>
+          {{ showArchived() ? 'Ocultar' : 'Ver' }} {{ archivedCount() }} cuentas archivadas
+        </button>
+      </div>
+    }
+  }
+</ion-content>

@@ -1,0 +1,114 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Importar</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+
+  <section class="intro">
+    <h2>Trae tu backup de Monefy</h2>
+    <p>Exporta el CSV desde Monefy y escógelo aquí. Puedes hacerlo cuantas veces
+      quieras: lo que ya está guardado se reconoce y se salta, y lo que hayas
+      corregido a mano no se toca.</p>
+  </section>
+
+  @if (status() !== 'ready') {
+    <p class="unavailable">La base de datos todavía no está lista.</p>
+  } @else {
+    <label class="picker" [class.busy]="phase() === 'reading'">
+      <input type="file" accept=".csv,text/csv" (change)="onFileChosen($event)"
+             [disabled]="phase() === 'reading'">
+      @if (phase() === 'reading') {
+        <ion-spinner></ion-spinner>
+        <span>Importando {{ fileName() }}…</span>
+      } @else {
+        <ion-icon name="document-attach-outline"></ion-icon>
+        <span>Escoger archivo CSV</span>
+      }
+    </label>
+  }
+
+  @if (phase() === 'failed') {
+    <div class="result failed">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <div>
+        <h3>No se importó nada</h3>
+        <p>{{ errorMessage() }}</p>
+        <p class="hint">La base quedó como estaba: la importación es todo o nada.</p>
+      </div>
+    </div>
+  }
+
+  @if (phase() === 'done' && summary(); as done) {
+    <div class="result ok">
+      <ion-icon name="checkmark-circle-outline"></ion-icon>
+      <div>
+        <h3>Listo</h3>
+        <p>{{ fileName() }}</p>
+      </div>
+    </div>
+
+    <ion-list [inset]="true">
+      <ion-item lines="full">
+        <ion-label>Filas leídas</ion-label>
+        <ion-note slot="end">{{ done.rowsRead }}</ion-note>
+      </ion-item>
+      <ion-item lines="full">
+        <ion-label>Movimientos nuevos</ion-label>
+        <ion-note slot="end" class="strong">{{ done.rowsInserted }}</ion-note>
+      </ion-item>
+      <ion-item lines="full">
+        <ion-label>Ya estaban guardados</ion-label>
+        <ion-note slot="end">{{ done.rowsSkipped }}</ion-note>
+      </ion-item>
+      @if (done.accountsCreated > 0) {
+        <ion-item lines="full">
+          <ion-label>Cuentas creadas</ion-label>
+          <ion-note slot="end">{{ done.accountsCreated }}</ion-note>
+        </ion-item>
+      }
+      @if (done.categoriesCreated > 0) {
+        <ion-item lines="full">
+          <ion-label>Categorías creadas</ion-label>
+          <ion-note slot="end">{{ done.categoriesCreated }}</ion-note>
+        </ion-item>
+      }
+      @if (done.transfersCreated > 0) {
+        <ion-item lines="full">
+          <ion-label>
+            Transferencias
+            @if (done.synthesizedLegs > 0) {
+              <p>{{ done.synthesizedLegs }} con una pata reconstruida</p>
+            }
+          </ion-label>
+          <ion-note slot="end">{{ done.transfersCreated }}</ion-note>
+        </ion-item>
+      }
+      @if (done.usdRecovered > 0 || done.usdEstimated > 0) {
+        <ion-item lines="full">
+          <ion-label>
+            Montos en dólares
+            <p>{{ done.usdRecovered }} leídos de la descripción, {{ done.usdEstimated }} estimados</p>
+          </ion-label>
+        </ion-item>
+      }
+    </ion-list>
+
+    @if (reviews().length > 0) {
+      <section class="reviews">
+        <h3>Pendientes de que los mires</h3>
+        <p>Nada de esto se escribió a la brava: son las cosas que el importador no
+          pudo resolver solo.</p>
+        <ion-list [inset]="true">
+          @for (review of reviews(); track review.kind) {
+            <ion-item lines="full">
+              <ion-label class="wrap">{{ review.label }}</ion-label>
+              <ion-note slot="end">{{ review.count }}</ion-note>
+            </ion-item>
+          }
+        </ion-list>
+      </section>
+    }
+  }
+</ion-content>

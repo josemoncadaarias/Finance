@@ -1,0 +1,91 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+
+  h2 { margin: 0; font-size: 1.1rem; color: var(--ion-text-color); }
+  p { margin: 0; max-width: 30ch; line-height: 1.5; }
+
+  &.error h2 { color: var(--ion-color-danger); }
+}
+
+.networth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1.5rem 1.25rem 1rem;
+
+  .label {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .amount {
+    font-size: 2rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+
+    small { font-size: 0.9rem; font-weight: 400; color: var(--ion-color-medium); }
+  }
+
+  .caveat {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    color: var(--ion-color-medium);
+  }
+}
+
+.group-head {
+  --min-height: 2.5rem;
+  --background: var(--ion-color-light);
+
+  h2 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  p { font-size: 0.75rem; }
+}
+
+ion-item.nested {
+  --padding-start: 2.25rem;
+}
+
+ion-icon[slot='start'] {
+  color: var(--ion-color-medium);
+  &.archived { opacity: 0.45; }
+}
+
+ion-note[slot='end'] {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  small { font-size: 0.72rem; opacity: 0.7; margin-left: 0.15rem; }
+}
+
+.positive { color: var(--ion-color-success); }
+.negative { color: var(--ion-color-danger); }
+.zero { color: var(--ion-color-medium); }
+
+ion-badge { margin-left: 0.4rem; font-weight: 400; }
+
+.archived-toggle {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 1rem 2rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    color: var(--ion-color-primary);
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    cursor: pointer;
+  }
+}

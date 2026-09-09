@@ -40,3 +40,16 @@ Thumbs.db
 build/
 *.db-wal
 *.db-shm
+
+# Angular build cache and test output
+/.angular/cache
+/out-tsc
+/coverage
+/.sass-cache
+connect.lock
+libpeerconnection.log
+testem.log
+typings
+
+# Capacitor generated native projects
+/ios

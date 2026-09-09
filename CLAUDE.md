@@ -145,9 +145,22 @@ against a real SQLite engine with no dependencies:
 node tools/db/run-tests.mjs
 ```
 
-The Angular/Ionic project itself **does not exist yet** — `src/` currently
-holds only the database layer, waiting to be dropped into the scaffold.
-Creating it is the next step. See `docs/05-data-model.md`.
+Phase 3 has started. The Angular/Ionic project now exists around the database
+layer: Angular 22, Ionic 9, Capacitor 8, standalone components.
+
+```
+npm start          ionic serve, in the browser
+npm run db:test    the 114 database tests
+npm run db:import  import the newest export into build/finance.db
+```
+
+Three screens so far — accounts with balances, the month view of movements, and
+the CSV import. The importer runs in the app itself, which is how the history
+gets onto the phone, where there is no command line.
+
+**Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
+to mount and `initWebStore()` to succeed, and that only happens at runtime.
+Everything up to it — build, types, plugin API — is confirmed.
 
 ## Pending from Jose
 

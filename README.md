@@ -23,5 +23,12 @@ Angular + Ionic + Capacitor + local SQLite.
 
 ## Status
 
-Phase 1. The data model and SQLite schema are done and tested; the Angular
-project is not scaffolded yet. See `docs/05-data-model.md`.
+Phase 3 in progress. The database layer is done and tested (114 tests), the
+Monefy importer works end to end, and the Ionic app is up with three screens:
+accounts, the month view, and CSV import.
+
+```
+npm install
+npm start          # ionic serve
+npm run db:test    # the database tests, no build step needed
+```

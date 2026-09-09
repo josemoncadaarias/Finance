@@ -16,6 +16,7 @@
  */
 
 import type { SqlDriver } from '../sql-driver';
+import type { AccountType } from '../types';
 import { AccountsRepository } from '../repositories/accounts.repository';
 import { AccountGroupsRepository } from '../repositories/account-groups.repository';
 import { CategoriesRepository } from '../repositories/categories.repository';
@@ -106,7 +107,7 @@ class ImportWriter {
   /** Backup account name to the currency that row holds. */
   private readonly currencies = new Map<string, string>();
   /** Backup account name to the type of the row its history goes to. */
-  private readonly accountTypes = new Map<string, string>();
+  private readonly accountTypes = new Map<string, AccountType>();
   private readonly categoryIds = new Map<string, number>();
   /** Fingerprints already in the database, and the highest sequence of each. */
   private seen = new Map<string, number>();
