@@ -57,7 +57,12 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   async execute(sql: string): Promise<void> {
     try {
-      await this.db.execute(sql);
+      // `false` turns off the plugin's own transaction. Without it every call
+      // is wrapped in one, and the explicit BEGIN this driver issues for a real
+      // transaction lands inside it: "cannot start a transaction within a
+      // transaction". Transaction control belongs to one layer, and that layer
+      // is BaseSqlDriver, which the Node tests exercise.
+      await this.db.execute(sql, false);
       await this.persist();
     } catch (error) {
       throw new SqlError(messageOf(error), sql, error);
@@ -66,7 +71,7 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   async run(sql: string, params: readonly unknown[] = []): Promise<SqlRunResult> {
     try {
-      const result = await this.db.run(sql, [...params]);
+      const result = await this.db.run(sql, [...params], false);
       await this.persist();
       return {
         changes: result.changes?.changes ?? 0,
@@ -91,8 +96,41 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
     await this.connection.closeConnection(DATABASE_NAME, false);
   }
 
-  /** On the web, writes only survive a reload once flushed to IndexedDB. */
+  // The plugin owns transaction state; asking it directly is the only way to
+  // open one that survives across calls. A BEGIN sent as a statement is gone by
+  // the time the matching COMMIT arrives, which surfaces as
+  // "cannot commit - no transaction is active".
+  protected override async begin(): Promise<void> {
+    await this.db.beginTransaction();
+  }
+
+  protected override async commit(): Promise<void> {
+    await this.db.commitTransaction();
+    // Saves unconditionally: the transaction is over, but the base class only
+    // clears its depth counter after this returns, so `persist()` would still
+    // think one is open and skip the write that makes the whole thing durable.
+    await this.saveNow();
+  }
+
+  protected override async rollback(): Promise<void> {
+    await this.db.rollbackTransaction();
+  }
+
+  /**
+   * Flushes to IndexedDB after a statement that ran on its own.
+   *
+   * Skipped inside a transaction, and that is the point. Saving **exports the
+   * database**, and exporting ends the transaction underneath it — which
+   * surfaced as "cannot commit - no transaction is active" on the very first
+   * migration. The commit saves instead, once, when the work is really done.
+   */
   private async persist(): Promise<void> {
+    if (!this.inTransaction) {
+      await this.saveNow();
+    }
+  }
+
+  private async saveNow(): Promise<void> {
     if (this.isWeb) {
       await CapacitorSQLite.saveToStore({ database: DATABASE_NAME });
     }

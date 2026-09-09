@@ -75,10 +75,35 @@ export class SqlError extends Error {
 export abstract class BaseSqlDriver implements SqlDriver {
   private depth = 0;
 
+  /** True while a transaction is open, for drivers that need to know. */
+  protected get inTransaction(): boolean {
+    return this.depth > 0;
+  }
+
   abstract execute(sql: string): Promise<void>;
   abstract run(sql: string, params?: readonly unknown[]): Promise<SqlRunResult>;
   abstract query<T>(sql: string, params?: readonly unknown[]): Promise<T[]>;
   abstract close(): Promise<void>;
+
+  /**
+   * How a transaction is opened and closed.
+   *
+   * Plain SQL by default, which is what an in-process engine wants. A driver
+   * whose engine manages transactions itself overrides these — issuing `BEGIN`
+   * as a statement through such an engine either nests inside a transaction it
+   * already opened, or is discarded before the matching `COMMIT` arrives.
+   */
+  protected begin(): Promise<void> {
+    return this.execute('BEGIN');
+  }
+
+  protected commit(): Promise<void> {
+    return this.execute('COMMIT');
+  }
+
+  protected rollback(): Promise<void> {
+    return this.execute('ROLLBACK');
+  }
 
   async queryOne<T>(sql: string, params: readonly unknown[] = []): Promise<T | null> {
     const rows = await this.query<T>(sql, params);
@@ -96,14 +121,14 @@ export abstract class BaseSqlDriver implements SqlDriver {
     }
 
     this.depth = 1;
-    await this.execute('BEGIN');
+    await this.begin();
     try {
       const result = await work();
-      await this.execute('COMMIT');
+      await this.commit();
       return result;
     } catch (error) {
       try {
-        await this.execute('ROLLBACK');
+        await this.rollback();
       } catch {
         // A failed rollback must not hide the error that caused it.
       }

@@ -349,3 +349,50 @@ node --import ./tools/db/register-ts.mjs tools/db/compare-exports.mjs \
 It reports whether the old export is a prefix of the new one (order stable),
 which rows were added, which went missing — edited or deleted inside Monefy —
 and any new accounts or categories. Read-only: it touches no database.
+
+---
+
+## Running in the browser
+
+`ionic serve` is a real development environment, not a demo: the same schema,
+the same repositories, the same importer. Three things had to be right, and
+each one failed at runtime while every build and type check stayed green.
+
+**`sql.js` is pinned to 1.11.0, exactly.** `jeep-sqlite` bundles the sql.js
+JavaScript glue at its own build time and declares `^1.11.0`, so npm happily
+installs 1.14.2 — and the `.wasm` binary that ships with the app has to match
+the glue byte for byte. Mismatched, it fails as:
+
+```
+LinkError: WebAssembly.instantiate(): Import #34 "a" "I": function import requires a callable
+```
+
+Nothing about that message points at a version. Do not let this float.
+
+**The web store opens asynchronously, and `initWebStore()` does not wait.** It
+records what it finds and returns:
+
+```js
+if (!this.isWebStoreOpen) {
+  this.isWebStoreOpen = await this.jeepSqliteElement.isStoreOpen();
+}
+```
+
+Ask too early and the answer is `false`, with the failure surfacing much later
+as "WebStore is not open yet". `web-sqlite.ts` waits on the component's
+`componentOnReady()` and then polls `isStoreOpen()`.
+
+**Saving ends the transaction.** Flushing to IndexedDB exports the database,
+and exporting drops the open transaction underneath it. Persisting after every
+statement therefore broke the first migration with "cannot commit - no
+transaction is active". The Capacitor driver saves only outside a transaction,
+and once more on commit.
+
+Transaction control also differs by engine. The plugin manages its own, so the
+driver overrides `begin`/`commit`/`rollback` to call `beginTransaction()` and
+friends; a `BEGIN` sent as a statement does not survive to its `COMMIT`.
+
+Verified end to end in a real browser: the full 12,899-row export imports in
+about 3 seconds, producing the same 36 accounts, 25 categories and 2,712
+transfers as the command-line run, and the same balances — including the card
+at −956,492.27 with 143,507.73 free.
