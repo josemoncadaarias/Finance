@@ -107,6 +107,38 @@ export class MovementsStore {
     else this.collapseAll();
   }
 
+  /** Only asked once: after that the filter has an answer of its own. */
+  private startResolved = false;
+
+  /**
+   * Starts on the account the spending actually happens on.
+   *
+   * "Todas las cuentas" is a summary of everything, which is rarely the
+   * question being asked when the app is opened — the answer wanted is
+   * usually about the account money is spent from. Most used over the last
+   * year, so a rare purchase somewhere else does not move where the app
+   * opens. Choosing any account by hand, "todas" included, ends the guessing
+   * for good.
+   */
+  private async openOnBusiestAccount(accounts: readonly AccountRow[]): Promise<void> {
+    if (this.startResolved) return;
+    this.startResolved = true;
+
+    const since = aYearAgo();
+    const ranked = await this.database.driver.query<{ account_id: number }>(
+      `SELECT account_id, COUNT(*) AS times
+       FROM transactions
+       WHERE transfer_id IS NULL AND amount_minor < 0 AND occurred_on >= ?
+       GROUP BY account_id
+       ORDER BY times DESC
+       LIMIT 5`,
+      [since],
+    );
+
+    const busiest = ranked.find(row => accounts.some(a => a.id === row.account_id && !a.archived));
+    this.filter.startOn(busiest?.account_id ?? null);
+  }
+
   async load(): Promise<void> {
     const driver = this.database.driver;
     this.loading.set(true);
@@ -115,6 +147,8 @@ export class MovementsStore {
       const accountsRepo = new AccountsRepository(driver);
       const accounts = await accountsRepo.list({ includeArchived: true });
       this.accounts.set(accounts);
+
+      await this.openOnBusiestAccount(accounts);
 
       const scope = this.filter.scopeFor(accounts);
       const period = this.filter.period();
@@ -164,4 +198,12 @@ function toMovement(row: DetailedTransaction): Movement {
     icon: isTransfer ? 'swap-horizontal-outline' : row.category_icon,
     flow: flowOf(row, row.account_type),
   };
+}
+
+/** Today, one year back. Text dates compare in the same order as real ones. */
+function aYearAgo(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear() - 1}-${month}-${day}`;
 }

@@ -70,10 +70,26 @@ export class FilterService {
   }
 
   selectAccount(id: number | null): void {
+    this.picked = true;
     this.accountId.set(id);
     // A category picked from one account's donut means nothing in another's.
     this.categoryFilter.set(null);
   }
+
+  /**
+   * Opens the app on the account the money actually moves through, once the
+   * data is loaded and it is known which one that is.
+   *
+   * Only until someone chooses for themselves: after that the choice stands,
+   * including a deliberate "todas las cuentas", which this must never undo.
+   */
+  startOn(id: number | null): void {
+    if (this.picked || id === null) return;
+    this.accountId.set(id);
+  }
+
+  /** True once the account was chosen by hand rather than guessed. */
+  private picked = false;
 
   openCategory(label: string): void {
     this.categoryFilter.set(label);

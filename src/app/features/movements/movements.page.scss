@@ -4,8 +4,9 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  max-width: 78vw;
-  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem 0.4rem 0.85rem;
   border: none;
   background: none;
   cursor: pointer;
@@ -15,14 +16,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
+    width: 2.5rem;
+    height: 2.5rem;
     flex: none;
     border-radius: 50%;
     background: rgba(var(--ion-color-primary-rgb), 0.16);
     color: var(--ion-color-primary);
 
-    ion-icon { font-size: 1.2rem; }
+    ion-icon { font-size: 1.35rem; }
 
     /* All accounts is a different kind of thing, not a nameless account. */
     &.all {
@@ -37,7 +38,7 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    font-size: 1.02rem;
+    font-size: 1.12rem;
     font-weight: 600;
     color: var(--ion-text-color);
     overflow: hidden;
@@ -48,7 +49,7 @@
   }
 
   .hint {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--ion-color-medium);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -289,26 +290,23 @@ ion-note[slot='end'] {
   }
 }
 
-/* The two buttons the app is really for: always within thumb reach. */
+/* The two buttons the app is really for: always within thumb reach.
+   They live in a footer rather than floating over the list - a translucent
+   strip crossing the middle of a row reads as a rendering fault. */
+.compose-bar {
+  background: var(--ion-background-color);
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
 .compose {
-  position: sticky;
-  bottom: 0;
   display: flex;
   justify-content: center;
   gap: 0.75rem;
-  padding: 1.75rem 1rem 1.25rem;
-  pointer-events: none;
-  /* The list scrolls under them, so it fades out rather than colliding with
-     the labels. */
-  background: linear-gradient(to bottom,
-    rgba(var(--ion-background-color-rgb), 0),
-    rgba(var(--ion-background-color-rgb), 0.92) 45%,
-    rgb(var(--ion-background-color-rgb)));
+  padding: 0.75rem 1rem;
 
   /* Solid, labelled pills. Colour alone asked the user to remember which
      circle meant what; the word and the arrow say it outright. */
   .big {
-    pointer-events: auto;
     flex: 0 1 9.5rem;
     display: flex;
     align-items: center;

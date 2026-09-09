@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
-  IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
+  IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -37,7 +37,7 @@ import type { TransactionRow } from '../../core/database/types';
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
-    IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
+    IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter,
   ],
 })
 export class MovementsPage {

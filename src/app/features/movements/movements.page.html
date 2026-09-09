@@ -3,7 +3,7 @@
   <ion-toolbar>
     <!-- What you are looking at, said plainly: the account's own icon, its
          name, and what that selection includes. -->
-    <button type="button" class="identity" slot="start" (click)="showAccountSheet.set(true)">
+    <button type="button" class="identity" (click)="showAccountSheet.set(true)">
       <span class="badge" [class.all]="filter.allAccounts()">
         <ion-icon [name]="accountIcon()"></ion-icon>
       </span>
@@ -204,6 +204,9 @@
     }
   }
 
+</ion-content>
+
+<ion-footer class="compose-bar">
   <!-- The two buttons the whole app is really for. They say what they do:
        a bare coloured circle asks the user to remember which side is which. -->
   <div class="compose">
@@ -216,7 +219,7 @@
       <span class="what">Ingreso</span>
     </button>
   </div>
-</ion-content>
+</ion-footer>
 
 <ion-modal [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
   <ng-template>

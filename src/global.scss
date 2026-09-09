@@ -35,3 +35,29 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import '@ionic/angular/css/palettes/dark.system.css';
+
+/*
+ * A phone-shaped column, whatever the window is.
+ *
+ * This is an Android app that also runs in a browser during development. On a
+ * wide screen, without this, every row stretches the full width: a category
+ * name on the far left and its amount 1,800 pixels away on the right, the
+ * account header alone in a sea of black, a donut adrift in the middle of it.
+ * None of that is a layout anyone designed; it is the phone layout with
+ * nothing holding it in.
+ *
+ * Capped at the root rather than per screen. `ion-app` is the fixed box every
+ * page, header and tab bar lives inside, so one rule holds all of them to the
+ * same column - and Ionic's own scrolling, which depends on the content box
+ * filling its page, is left exactly as it was.
+ */
+@media (min-width: 34rem) {
+  ion-app {
+    max-width: 30rem;
+    margin-inline: auto;
+
+    /* Wide windows would otherwise show the column and the void beside it as
+       one flat black surface. */
+    border-inline: 1px solid var(--ion-color-step-150, rgba(128, 128, 128, 0.25));
+  }
+}
