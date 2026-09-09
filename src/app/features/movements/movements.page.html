@@ -90,21 +90,24 @@
     }
 
     <!-- And what happened during the period being looked at -->
-    <p class="period-tag">{{ 'summary.inPeriod' | t:{ period: label() } }}</p>
+    <p class="period-tag">
+      {{ 'summary.inPeriod' | t:{ period: label() } }}
+      @if (store.currency() !== 'COP') { · {{ store.currency() }} }
+    </p>
 
     <section class="totals">
       <div>
         <span class="tag">{{ 'summary.in' | t }}</span>
-        <span class="value in">{{ store.totals().inMinor | money }}</span>
+        <span class="value in">{{ store.totals().inMinor | money:store.currency() }}</span>
       </div>
       <div>
         <span class="tag">{{ 'summary.out' | t }}</span>
-        <span class="value out">{{ store.totals().outMinor | money }}</span>
+        <span class="value out">{{ store.totals().outMinor | money:store.currency() }}</span>
       </div>
       @if (store.totals().movedMinor > 0) {
         <div>
           <span class="tag">{{ 'summary.moved' | t }}</span>
-          <span class="value moved">{{ store.totals().movedMinor | money }}</span>
+          <span class="value moved">{{ store.totals().movedMinor | money:store.currency() }}</span>
         </div>
       }
     </section>
@@ -183,7 +186,9 @@
               @if (group.icon) { <ion-icon class="cat" [name]="group.icon"></ion-icon> }
               <span class="title" [class.by-date]="filter.grouping() === 'date'">{{ group.title }}</span>
               <ion-badge>{{ group.count }}</ion-badge>
-              <span class="total" [class]="group.flow">{{ group.totalBaseMinor | money }}</span>
+              <span class="total" [class]="group.flow">
+                {{ group.totalBaseMinor | money:store.currency() }}
+              </span>
             </div>
             }
 
@@ -213,7 +218,7 @@
                     }
                   </ion-label>
                   <ion-note slot="end" [class]="movement.flow">
-                    {{ movement.transaction.amount_minor | money }}
+                    {{ movement.transaction.amount_minor | money:movement.currency }}
                     @if (movement.currency !== 'COP') { <small>{{ movement.currency }}</small> }
                   </ion-note>
                 </ion-item>

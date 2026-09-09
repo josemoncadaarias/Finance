@@ -271,3 +271,32 @@ test('an empty period has nothing to show in any view', () => {
   // The flat view still returns its one group, holding nothing.
   assert.equal(groupMovements([], 'largest')[0].movements.length, 0);
 });
+
+test('one account is totalled in its own currency, many in pesos', () => {
+  // 100 dollars that were worth 420,000 pesos on the day.
+  const movements = [
+    movement({ amount: -10000, base: -42000000, date: '2026-09-01', label: 'Vuelos' }),
+    movement({ amount: -2000, base: -8400000, date: '2026-09-02', label: 'Comida' }),
+  ];
+
+  // Looking at the dollar account: what left is 120 dollars, not 504,000.
+  const own = totalsOf(movements, 'own');
+  assert.equal(own.outMinor, 12000);
+
+  // Looking at everything at once: pesos, the only thing several currencies
+  // have in common.
+  const base = totalsOf(movements, 'base');
+  assert.equal(base.outMinor, 50400000);
+
+  // Group totals follow the same rule, or a heading would contradict the
+  // figures under it.
+  const [group] = groupMovements(movements, 'category', 'amount', 'es-CO', 'Todos', 'own');
+  assert.equal(group.totalBaseMinor, -10000, 'the biggest category, in dollars');
+
+  const [inPesos] = groupMovements(movements, 'category', 'amount', 'es-CO', 'Todos', 'base');
+  assert.equal(inPesos.totalBaseMinor, -42000000);
+
+  // And so does the donut.
+  assert.equal(slicesOf(movements, 'own')[0].amountMinor, 10000);
+  assert.equal(slicesOf(movements, 'base')[0].amountMinor, 42000000);
+});

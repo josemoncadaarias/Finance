@@ -123,14 +123,35 @@ export function matchesSearch(movement: Movement, search: string): boolean {
   );
 }
 
-export function totalsOf(movements: readonly Movement[]): Totals {
+/**
+ * Which figure of a movement to add up.
+ *
+ * Two amounts are stored: what actually moved (`amount_minor`, in the
+ * account's own currency) and what it was worth in pesos (`amount_base_minor`).
+ * Which one to use is not a detail — it is the difference between a dollar
+ * account's month reading 2,013.33 and 8,700,000.
+ *
+ * One account: its own currency, because every movement in it is already in
+ * that currency and converting would answer a question nobody asked. Several
+ * accounts at once: pesos, because dollars and euros cannot be added together
+ * and the base amount is the only thing they have in common.
+ */
+export type AmountBasis = 'own' | 'base';
+
+function amountOf(movement: Movement, basis: AmountBasis): number {
+  return basis === 'own'
+    ? movement.transaction.amount_minor
+    : movement.transaction.amount_base_minor;
+}
+
+export function totalsOf(movements: readonly Movement[], basis: AmountBasis = 'base'): Totals {
   let inMinor = 0;
   let outMinor = 0;
   let movedMinor = 0;
   let refundedMinor = 0;
 
   for (const movement of movements) {
-    const amount = Math.abs(movement.transaction.amount_base_minor);
+    const amount = Math.abs(amountOf(movement, basis));
     if (movement.flow === 'in') inMinor += amount;
     else if (movement.flow === 'out') outMinor += amount;
     else if (movement.flow === 'refund') refundedMinor += amount;
@@ -168,8 +189,9 @@ export function groupMovements(
   sortWithin: SortWithin = 'date',
   locale = 'es-CO',
   allLabel = 'All movements',
+  basis: AmountBasis = 'base',
 ): MovementGroup[] {
-  if (grouping === 'largest') return [flatByAmount(movements, allLabel)];
+  if (grouping === 'largest') return [flatByAmount(movements, allLabel, basis)];
 
   const groups = new Map<string, MovementGroup>();
 
@@ -192,7 +214,7 @@ export function groupMovements(
 
     group.movements.push(movement);
     group.count += 1;
-    group.totalBaseMinor += movement.transaction.amount_base_minor;
+    group.totalBaseMinor += amountOf(movement, basis);
 
     // A day mixing income and spending is neither; a category is whatever its
     // movements consistently are.
@@ -207,7 +229,7 @@ export function groupMovements(
   for (const group of groups.values()) {
     group.movements.sort((a, b) =>
       sortWithin === 'amount'
-        ? Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor)
+        ? Math.abs(amountOf(b, basis)) - Math.abs(amountOf(a, basis))
         : b.transaction.occurred_on.localeCompare(a.transaction.occurred_on));
   }
 
@@ -239,11 +261,15 @@ export function groupMovements(
  * heading of its own: a single "Todos" bar above an ungrouped list would be
  * furniture. The screen skips the heading when there is only this group.
  */
-function flatByAmount(movements: readonly Movement[], allLabel: string): MovementGroup {
+function flatByAmount(
+  movements: readonly Movement[],
+  allLabel: string,
+  basis: AmountBasis,
+): MovementGroup {
   const sorted = [...movements].sort((a, b) =>
-    Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor));
+    Math.abs(amountOf(b, basis)) - Math.abs(amountOf(a, basis)));
 
-  const totalBaseMinor = sorted.reduce((sum, m) => sum + m.transaction.amount_base_minor, 0);
+  const totalBaseMinor = sorted.reduce((sum, m) => sum + amountOf(m, basis), 0);
 
   return {
     key: 'largest',
@@ -274,15 +300,15 @@ export interface Slice {
   flow: Flow;
 }
 
-export function slicesOf(movements: readonly Movement[]): Slice[] {
+export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'base'): Slice[] {
   const byLabel = new Map<string, Slice>();
 
   for (const movement of movements) {
     // A refund is negative spending: it comes off its own category rather than
     // standing on its own, so a month of returns shrinks the slice it undid.
     const signed = movement.flow === 'refund'
-      ? -Math.abs(movement.transaction.amount_base_minor)
-      : Math.abs(movement.transaction.amount_base_minor);
+      ? -Math.abs(amountOf(movement, basis))
+      : Math.abs(amountOf(movement, basis));
 
     const slice = byLabel.get(movement.label);
     if (slice) {

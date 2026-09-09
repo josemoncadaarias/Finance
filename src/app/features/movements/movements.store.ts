@@ -18,7 +18,7 @@ import type { AccountRow } from '../../core/database/types';
 import { formatMoney as money } from '../../core/database/money';
 import {
   flowOf, groupMovements, matchesSearch, slicesOf, totalsOf,
-  type Movement, type MovementGroup, type Slice, type Totals,
+  type AmountBasis, type Movement, type MovementGroup, type Slice, type Totals,
 } from './group-movements';
 
 @Injectable({ providedIn: 'root' })
@@ -67,12 +67,22 @@ export class MovementsStore {
       .filter(movement => matchesSearch(movement, search));
   });
 
-  readonly totals = computed<Totals>(() => totalsOf(this.visible()));
-  readonly slices = computed<Slice[]>(() => slicesOf(this.rows()));
+  /**
+   * Whether the figures on screen are in one account's own currency.
+   *
+   * True when a single account is selected: everything in it is already
+   * denominated the same way. False for "all accounts", where dollars and
+   * euros are in play and pesos are the only thing they share.
+   */
+  readonly basis = computed<AmountBasis>(() =>
+    this.selectedAccount() === null ? 'base' : 'own');
+
+  readonly totals = computed<Totals>(() => totalsOf(this.visible(), this.basis()));
+  readonly slices = computed<Slice[]>(() => slicesOf(this.rows(), this.basis()));
 
   readonly groups = computed<MovementGroup[]>(() =>
     groupMovements(this.visible(), this.filter.grouping(), this.filter.sortWithin(),
-      this.i18n.dateLocale(), this.i18n.t('summary.allMovements')),
+      this.i18n.dateLocale(), this.i18n.t('summary.allMovements'), this.basis()),
   );
 
   /** True when every group is collapsed, so one control can do both jobs. */
