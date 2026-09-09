@@ -240,7 +240,27 @@ ion-button.save {
       color: var(--ion-color-primary);
       font-weight: 600;
     }
+
+    /* The way to the long tail: a door, not a category. */
+    &.more {
+      border-style: dashed;
+      color: var(--ion-color-primary);
+    }
   }
+}
+
+/* The full list, when the shortlist is not enough. */
+.nothing {
+  margin: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}
+
+.sheet {
+  ion-searchbar { --box-shadow: none; padding-inline: 0; }
+  ion-item ion-icon[slot='start'] { color: var(--ion-color-medium); margin-inline-end: 0.85rem; }
+  ion-item ion-note { font-size: 0.75rem; }
 }
 
 .note {

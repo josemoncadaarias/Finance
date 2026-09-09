@@ -1,7 +1,12 @@
 /** Categories. Same icon rule as accounts: exactly one of the two columns. */
 
 import type { SqlDriver } from '../sql-driver';
-import type { CategoryKind, CategoryRow } from '../types';
+import type { CategoryKind, CategoryRow, IsoDate } from '../types';
+
+/** A category plus how often it has been used, for ordering by habit. */
+export interface UsedCategory extends CategoryRow {
+  times: number;
+}
 
 export interface NewCategory {
   name: string;
@@ -40,6 +45,47 @@ export class CategoriesRepository {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     return this.db.query<CategoryRow>(
       `SELECT ${COLUMNS} FROM categories ${where} ORDER BY sort_order, name`,
+      values,
+    );
+  }
+
+  /**
+   * Categories with how often each was used, most used first.
+   *
+   * Habit is heavily lopsided — five categories carry 76% of a year's
+   * movements here — so a screen that offers them alphabetically buries the
+   * ones actually needed. `since` limits the count to recent history, so a
+   * category abandoned two years ago stops winning on old volume.
+   */
+  async listByUse(options: { kind?: CategoryKind; since?: IsoDate } = {}): Promise<UsedCategory[]> {
+    const conditions = ['c.archived = 0'];
+    const values: unknown[] = [];
+
+    // The date filter belongs to the join: in WHERE it would drop every
+    // category not used lately, which is exactly the set that still has to be
+    // reachable.
+    //
+    // Its value is bound first because its "?" comes first in the statement —
+    // SQLite matches parameters by position, not by name, so binding the kind
+    // before the date silently asked for categories whose kind was a date.
+    const recent = options.since ? 'AND t.occurred_on >= ?' : '';
+    if (options.since) values.push(options.since);
+
+    if (options.kind) {
+      conditions.push('c.kind = ?');
+      values.push(options.kind);
+    }
+
+    const columns = COLUMNS.split(',').map(column => 'c.' + column.trim()).join(', ');
+
+    return this.db.query<UsedCategory>(
+      `SELECT ${columns}, COUNT(t.id) AS times
+       FROM categories c
+       LEFT JOIN transactions t
+         ON t.category_id = c.id AND t.transfer_id IS NULL ${recent}
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY c.id
+       ORDER BY times DESC, c.name`,
       values,
     );
   }

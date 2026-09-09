@@ -110,12 +110,21 @@
       }
     </p>
 
+    <!-- The ones actually used, then a way to the rest. Offering all of them
+         alphabetically buries Restaurante and Taxi under Automóvil. -->
     <div class="categories" [class.waiting]="categoryId() === null">
-      @for (category of categories(); track category.id) {
+      @for (category of shortlist(); track category.id) {
         <button type="button" class="category" [class.on]="categoryId() === category.id"
                 (click)="pickCategory(category.id)">
           <ion-icon [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
           <span>{{ category.name }}</span>
+        </button>
+      }
+
+      @if (hasMoreCategories()) {
+        <button type="button" class="category more" (click)="openCategories()">
+          <ion-icon name="search-outline"></ion-icon>
+          <span>{{ 'entry.allCategories' | t:{ count: categories().length } }}</span>
         </button>
       }
     </div>
@@ -193,6 +202,37 @@
           </ion-item>
         }
       </ion-list>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Every category, searchable. The way in for the long tail. -->
+<ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)"
+           [initialBreakpoint]="0.9" [breakpoints]="[0, 0.9, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <h2>{{ 'entry.pickCategory' | t }}</h2>
+
+      <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
+                     (ionInput)="categorySearch.set($any($event.target).value ?? '')"
+                     [debounce]="0" autofocus="true"></ion-searchbar>
+
+      @if (foundCategories().length === 0) {
+        <p class="nothing">{{ 'entry.noCategory' | t:{ search: categorySearch() } }}</p>
+      } @else {
+        <ion-list>
+          @for (category of foundCategories(); track category.id) {
+            <ion-item button lines="full" (click)="pickCategory(category.id)"
+                      [class.selected]="categoryId() === category.id">
+              <ion-icon slot="start" [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+              <ion-label>{{ category.name }}</ion-label>
+              @if (category.times > 0) {
+                <ion-note slot="end">{{ 'entry.timesUsed' | t:{ count: category.times } }}</ion-note>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      }
     </ion-content>
   </ng-template>
 </ion-modal>

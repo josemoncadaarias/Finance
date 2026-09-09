@@ -21,6 +21,7 @@ import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
+  IonSearchbar, IonNote,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -29,7 +30,9 @@ import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { monthName } from '../../core/filters/period';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
+import {
+  CategoriesRepository, type UsedCategory,
+} from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
@@ -60,6 +63,7 @@ export interface EntryRequest {
     CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
+    IonSearchbar, IonNote,
   ],
   templateUrl: './entry.component.html',
   styleUrls: ['./entry.component.scss'],
@@ -85,7 +89,12 @@ export class EntryComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal('');
 
-  readonly categories = signal<CategoryRow[]>([]);
+  /** Every category of this kind, ordered by how often it is used. */
+  readonly categories = signal<UsedCategory[]>([]);
+
+  /** Open while the full list with its search box is showing. */
+  readonly browsingCategories = signal(false);
+  readonly categorySearch = signal('');
   readonly accounts = signal<AccountRow[]>([]);
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
@@ -143,6 +152,49 @@ export class EntryComponent implements OnInit {
 
   readonly selectedCategory = computed(() =>
     this.categories().find(c => c.id === this.categoryId()) ?? null);
+
+  /**
+   * How many categories the grid offers before the rest go behind "see all".
+   *
+   * Eight covers 91% of what actually gets recorded here, and two rows of four
+   * is what fits above the keypad without pushing it off the screen. The rest
+   * are one tap away, which is the right price for the remaining 9%.
+   */
+  private static readonly SHORTLIST = 8;
+
+  /**
+   * The grid: the most used, plus whichever one is already chosen.
+   *
+   * Editing a movement filed under a rare category must show that category as
+   * selected, or the screen would look like nothing was chosen and quietly
+   * invite re-picking.
+   */
+  readonly shortlist = computed<UsedCategory[]>(() => {
+    const all = this.categories();
+    const top = all.slice(0, EntryComponent.SHORTLIST);
+
+    const chosen = this.categoryId();
+    if (chosen === null || top.some(category => category.id === chosen)) return top;
+
+    const missing = all.find(category => category.id === chosen);
+    return missing ? [...top.slice(0, EntryComponent.SHORTLIST - 1), missing] : top;
+  });
+
+  /** True when there is more than the grid is showing. */
+  readonly hasMoreCategories = computed(() =>
+    this.categories().length > EntryComponent.SHORTLIST);
+
+  /**
+   * The full list, filtered by what is typed.
+   *
+   * Accents are folded away: someone looking for "Tecnología" should not have
+   * to produce the accent, and nobody types one while hurrying.
+   */
+  readonly foundCategories = computed<UsedCategory[]>(() => {
+    const term = fold(this.categorySearch());
+    if (term === '') return this.categories();
+    return this.categories().filter(category => fold(category.name).includes(term));
+  });
 
   readonly dateLabel = computed(() => {
     const iso = this.occurredOn();
@@ -203,9 +255,10 @@ export class EntryComponent implements OnInit {
 
     const [categories, accounts] = await Promise.all([
       this.isTransfer()
-        ? Promise.resolve([] as CategoryRow[])
-        : new CategoriesRepository(driver).list({
+        ? Promise.resolve([] as UsedCategory[])
+        : new CategoriesRepository(driver).listByUse({
             kind: this.kind() === 'expense' ? 'expense' : 'income',
+            since: aYearAgo(),
           }),
       new AccountsRepository(driver).list(),
     ]);
@@ -431,8 +484,8 @@ export class EntryComponent implements OnInit {
       return;
     }
 
-    // A picker or the date sheet is open: it owns the keyboard.
-    if (this.picking() !== null || this.showDate()) return;
+    // A picker or a sheet is open: it owns the keyboard.
+    if (this.picking() !== null || this.showDate() || this.browsingCategories()) return;
 
     if (typingText) return;
 
@@ -555,6 +608,13 @@ export class EntryComponent implements OnInit {
 
   pickCategory(id: number): void {
     this.categoryId.set(id);
+    this.browsingCategories.set(false);
+    this.categorySearch.set('');
+  }
+
+  openCategories(): void {
+    this.categorySearch.set('');
+    this.browsingCategories.set(true);
   }
 
   async pickAccount(id: number): Promise<void> {
@@ -700,4 +760,14 @@ function todayIso(): string {
 function aYearAgo(): string {
   const now = new Date();
   return `${now.getFullYear() - 1}${todayIso().slice(4)}`;
+}
+
+/**
+ * Lowercased and stripped of accents, for searching.
+ *
+ * "Tecnologia" has to find "Tecnología": nobody reaches for the accent key
+ * while hurrying, and a search that insists on it finds nothing.
+ */
+function fold(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }

@@ -636,3 +636,38 @@ test('a review item outlives the row it points at', async () => {
   assert.equal(await reviews.openCount(), 0);
   await db.close();
 });
+
+test('categories come back ordered by how often they are used', async () => {
+  const { db, categories, transactions, ids } = await setup();
+  const taxi = await categories.create({ name: 'Taxi', kind: 'expense', builtin_icon: 'car' });
+  const rare = await categories.create({ name: 'Regalos', kind: 'expense', builtin_icon: 'gift' });
+  await categories.create({ name: 'Sueldo', kind: 'income', builtin_icon: 'cash' });
+
+  const spend = (category, occurred_on) => transactions.create({
+    account_id: ids.bancolombia, category_id: category, occurred_on,
+    amount_minor: -1000, source: 'manual',
+  });
+
+  for (let i = 0; i < 5; i++) await spend(taxi, '2026-09-0' + (i + 1));
+  await spend(ids.restaurante, '2026-09-06');
+  await spend(rare, '2020-01-01');           // long ago, and only once
+
+  const used = await categories.listByUse({ kind: 'expense', since: '2025-09-09' });
+
+  assert.deepEqual(used.map(c => [c.name, c.times]), [
+    ['Taxi', 5],
+    ['Restaurante', 1],
+    // Used once, years ago: still offered, but last.
+    ['Regalos', 0],
+    ['Transporte', 0],
+  ]);
+
+  // Income categories are a different list, not mixed in.
+  const income = await categories.listByUse({ kind: 'income' });
+  assert.deepEqual(income.map(c => c.name), ['Sueldo']);
+
+  // Without a date, the whole history counts and the old one is not zero.
+  const ever = await categories.listByUse({ kind: 'expense' });
+  assert.equal(ever.find(c => c.name === 'Regalos').times, 1);
+  await db.close();
+});
