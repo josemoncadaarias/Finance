@@ -14,7 +14,9 @@
  * re-import of the Monefy backup leaves the correction alone.
  */
 
-import { Component, computed, inject, input, output, signal, type OnInit } from '@angular/core';
+import {
+  Component, HostListener, computed, inject, input, output, signal, type OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
@@ -374,6 +376,66 @@ export class EntryComponent implements OnInit {
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;
+  }
+
+  /**
+   * The physical keyboard drives the on-screen one.
+   *
+   * On a phone this changes nothing. On a computer — which is where a backlog
+   * of movements actually gets corrected — reaching for the mouse between
+   * every digit is the whole cost of the task. The number row and the numeric
+   * keypad both work, comma and full stop both start the cents, Enter saves
+   * and Escape closes.
+   *
+   * Typing inside the note field is left alone: there, digits are text.
+   */
+  @HostListener('document:keydown', ['$event'])
+  onKey(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+
+    const target = event.target as HTMLElement | null;
+    const typingText = target?.closest('ion-input, ion-searchbar, input, textarea') !== null;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelled.emit();
+      return;
+    }
+
+    // A picker or the date sheet is open: it owns the keyboard.
+    if (this.picking() !== null || this.showDate()) return;
+
+    if (typingText) return;
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (this.canSave()) void this.save();
+      return;
+    }
+
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      this.press(event.key);
+      return;
+    }
+
+    if (event.key === ',' || event.key === '.') {
+      event.preventDefault();
+      this.press(',');
+      return;
+    }
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.press('<');
+      return;
+    }
+
+    // Across currencies there are two amounts; Tab moves between them.
+    if (event.key === 'Tab' && this.crossesCurrency()) {
+      event.preventDefault();
+      this.focusAmount(!this.editingTarget());
+    }
   }
 
   press(key: string): void {

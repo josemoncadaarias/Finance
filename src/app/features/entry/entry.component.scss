@@ -340,3 +340,19 @@ ion-button.save {
     }
   }
 }
+
+/* Says the physical keyboard works, and only where there is one: on a phone
+   the pointer is coarse and the hint would be noise. */
+.typing-hint { display: none; }
+
+@media (pointer: fine) {
+  .typing-hint {
+    display: block;
+    margin: 0;
+    padding: 0.3rem 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--ion-color-medium);
+    border-top: 1px solid var(--ion-color-light-shade);
+  }
+}

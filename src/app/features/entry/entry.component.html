@@ -147,6 +147,8 @@
     <p class="missing">{{ hint }}</p>
   }
 
+  <p class="typing-hint">{{ 'entry.keyboardHint' | t }}</p>
+
   <div class="keypad">
     @for (key of ['1','2','3','4','5','6','7','8','9',',','0','<']; track key) {
       <button type="button" (click)="press(key)">

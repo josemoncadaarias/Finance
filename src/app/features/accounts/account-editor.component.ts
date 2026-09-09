@@ -13,7 +13,9 @@
  * which leaves a trail.
  */
 
-import { Component, computed, inject, input, output, signal, type OnInit } from '@angular/core';
+import {
+  Component, HostListener, computed, inject, input, output, signal, type OnInit,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
@@ -136,6 +138,23 @@ export class AccountEditorComponent implements OnInit {
 
     this.limitHistory.set(
       await new CreditLimitsRepository(this.database.driver).history(account.id));
+  }
+
+  /** Escape closes, Enter saves — the same reflexes as everywhere else. */
+  @HostListener('document:keydown', ['$event'])
+  onKey(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelled.emit();
+      return;
+    }
+
+    if (event.key === 'Enter' && this.showDate() === null) {
+      event.preventDefault();
+      if (this.canSave()) void this.save();
+    }
   }
 
   onIcon(choice: IconChoice): void {
