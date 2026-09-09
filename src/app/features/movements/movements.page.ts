@@ -23,7 +23,9 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { FilterService } from '../../core/filters/filter.service';
-import { PERIOD_KINDS, periodLabel, includesToday, rangePeriod } from '../../core/filters/period';
+import {
+  PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName,
+} from '../../core/filters/period';
 import { MovementsStore } from './movements.store';
 import { DonutComponent } from './donut.component';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -66,8 +68,21 @@ export class MovementsPage {
 
   /** Non-null while the entry screen is open, describing what it is editing. */
   readonly entry = signal<EntryRequest | null>(null);
+  /**
+   * Whether the two date pickers are showing.
+   *
+   * Its own state, not read from the period. The period only becomes a range
+   * once both dates exist, so keying the pickers off `period().kind === 'range'`
+   * meant they appeared only after they had already been used — which is to
+   * say never. That was the bug: picking "entre dos fechas" did nothing at all.
+   */
+  readonly choosingRange = signal(false);
+
   readonly rangeStart = signal<string | null>(null);
   readonly rangeEnd = signal<string | null>(null);
+
+  /** Today, so a picker opens somewhere useful rather than in 1970. */
+  readonly today = todayIso();
 
   readonly label = computed(() =>
     periodLabel(this.filter.period(), this.i18n.dateLocale(), this.i18n.t('period.all')));
@@ -141,10 +156,18 @@ export class MovementsPage {
 
   choosePeriod(kind: string): void {
     if (kind === 'range') {
-      // Leave the sheet open: the range needs two dates before it means
-      // anything, and closing would throw away the half-made choice.
+      // The sheet stays open: a range needs two dates before it means
+      // anything, and closing would throw away the half-made choice. Seed the
+      // two pickers with the period on screen, so "between two dates" starts
+      // from what is already being looked at instead of from nothing.
+      const current = this.filter.period();
+      this.rangeStart.set(this.rangeStart() ?? current.from ?? this.today);
+      this.rangeEnd.set(this.rangeEnd() ?? current.to ?? this.today);
+      this.choosingRange.set(true);
       return;
     }
+
+    this.choosingRange.set(false);
     this.filter.setPeriodKind(kind as never);
     this.showPeriodSheet.set(false);
   }
@@ -153,8 +176,29 @@ export class MovementsPage {
     const from = this.rangeStart();
     const to = this.rangeEnd();
     if (!from || !to) return;
-    this.filter.period.set(rangePeriod(from.slice(0, 10), to.slice(0, 10)));
+
+    // Picked back to front is a legitimate mistake, and swapping is friendlier
+    // than refusing: an empty range would just look broken.
+    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
+
+    this.filter.period.set(rangePeriod(start, end));
+    this.choosingRange.set(false);
     this.showPeriodSheet.set(false);
+  }
+
+  /** The range as it currently stands, for the button that applies it. */
+  rangeLabel(): string {
+    const from = this.rangeStart();
+    const to = this.rangeEnd();
+    if (!from || !to) return '';
+
+    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
+    return `${this.dayLabel(start)} – ${this.dayLabel(end)}`;
+  }
+
+  private dayLabel(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
   }
 
   pickAccount(id: number | null): void {
@@ -198,4 +242,12 @@ export class MovementsPage {
     this.filter.search.set('');
     this.showSearch.set(false);
   }
+}
+
+/** Today as an ISO day, in local time. */
+function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }

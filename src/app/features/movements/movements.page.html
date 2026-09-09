@@ -277,16 +277,29 @@
         }
       </ion-radio-group>
 
-      @if (filter.period().kind === 'range') {
+      @if (choosingRange()) {
         <div class="range">
-          <p>{{ 'summary.from' | t }}</p>
-          <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
-                        (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
-          <p>{{ 'summary.to' | t }}</p>
-          <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
-                        (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
+          <div class="ends">
+            <div class="end">
+              <p>{{ 'summary.from' | t }}</p>
+              <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                            [value]="rangeStart()" [max]="today"
+                            (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
+            </div>
+
+            <div class="end">
+              <p>{{ 'summary.to' | t }}</p>
+              <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                            [value]="rangeEnd()" [max]="today"
+                            (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
+            </div>
+          </div>
+
           <ion-button expand="block" (click)="applyRange()"
-                      [disabled]="!rangeStart() || !rangeEnd()">{{ 'summary.apply' | t }}</ion-button>
+                      [disabled]="!rangeStart() || !rangeEnd()">
+            {{ 'summary.apply' | t }}
+            @if (rangeLabel(); as range) { <span class="range-label">{{ range }}</span> }
+          </ion-button>
         </div>
       }
 
