@@ -413,3 +413,117 @@ test('the import seeds limit history without overruling a corrected limit', asyn
   assert.equal((await limits.history(ids.card))[0].limit_minor, 85000000);
   await db.close();
 });
+
+test('editing a transfer rewrites both legs together', async () => {
+  const { db, accounts, transfers, transactions, ids } = await setup();
+
+  const id = await transfers.create({
+    occurred_on: '2026-09-01',
+    description: 'Pago tarjeta',
+    from: { account_id: ids.rappi, amount_minor: 20000000 },
+    to: { account_id: ids.card, amount_minor: 20000000 },
+  });
+
+  // Wrong account, wrong amount, wrong day: all three fixed at once.
+  await transfers.update(id, {
+    occurred_on: '2026-09-03',
+    description: 'Pago tarjeta corregido',
+    from: { account_id: ids.bancolombia, amount_minor: 25000000 },
+    to: { account_id: ids.card, amount_minor: 25000000 },
+  });
+
+  const after = await transfers.findById(id);
+  assert.equal(after.transfer.occurred_on, '2026-09-03');
+  assert.equal(after.transfer.description, 'Pago tarjeta corregido');
+
+  assert.equal(after.from.account_id, ids.bancolombia);
+  assert.equal(after.from.amount_minor, -25000000, 'the leg that pays is negative');
+  assert.equal(after.from.occurred_on, '2026-09-03');
+  assert.equal(after.to.amount_minor, 25000000);
+  assert.equal(after.to.account_id, ids.card);
+
+  // Base amounts follow, or a same-currency transfer would stop balancing.
+  assert.equal(after.from.amount_base_minor + after.to.amount_base_minor, 0);
+
+  // Both legs are locked, so a re-import leaves the correction alone.
+  assert.equal(after.from.locked, 1);
+  assert.equal(after.to.locked, 1);
+
+  // The account it was moved off no longer carries it.
+  assert.equal((await accounts.balance(ids.rappi)).balance_minor, 0);
+  assert.equal((await accounts.balance(ids.card)).balance_minor, 25000000);
+
+  // Still exactly two legs: an edit never adds a third.
+  const legs = await transactions.list({});
+  assert.equal(legs.filter(t => t.transfer_id === id).length, 2);
+  await db.close();
+});
+
+test('editing a cross-currency transfer keeps each side its own figure', async () => {
+  const { db, transfers, ids } = await setup();
+
+  // 100,000 COP left Rappi and 23.73 USD arrived at ARQ.
+  const id = await transfers.create({
+    occurred_on: '2026-09-01',
+    from: { account_id: ids.rappi, amount_minor: 10000000 },
+    to: { account_id: ids.arq, amount_minor: 2373, rate_scaled: 42140000,
+          amount_base_minor: 10000000, rate_source: 'derived' },
+  });
+
+  await transfers.update(id, {
+    occurred_on: '2026-09-01',
+    from: { account_id: ids.rappi, amount_minor: 20000000 },
+    to: { account_id: ids.arq, amount_minor: 4746, rate_scaled: 42140000,
+          amount_base_minor: 20000000, rate_source: 'derived' },
+  });
+
+  const after = await transfers.findById(id);
+  assert.equal(after.from.amount_minor, -20000000, 'pesos left');
+  assert.equal(after.to.amount_minor, 4746, 'dollars arrived');
+  // The dollar leg is worth what left, not what a dollar figure would convert to.
+  assert.equal(after.to.amount_base_minor, 20000000);
+  assert.equal(after.from.amount_base_minor, -20000000);
+  await db.close();
+});
+
+test('deleting a transfer takes both legs, never one', async () => {
+  const { db, accounts, transfers, transactions, ids } = await setup();
+
+  const id = await transfers.create({
+    occurred_on: '2026-09-01',
+    from: { account_id: ids.rappi, amount_minor: 20000000 },
+    to: { account_id: ids.card, amount_minor: 20000000 },
+  });
+
+  await transfers.delete(id);
+
+  assert.equal(await transfers.findById(id), null);
+  assert.equal((await transactions.list({})).filter(t => t.transfer_id === id).length, 0);
+  assert.equal((await accounts.balance(ids.rappi)).balance_minor, 0);
+  assert.equal((await accounts.balance(ids.card)).balance_minor, 0);
+  await db.close();
+});
+
+test('a transfer edit is refused rather than half applied', async () => {
+  const { db, transfers, ids } = await setup();
+
+  const id = await transfers.create({
+    occurred_on: '2026-09-01',
+    from: { account_id: ids.rappi, amount_minor: 20000000 },
+    to: { account_id: ids.card, amount_minor: 20000000 },
+  });
+
+  // A negative amount says the caller is applying signs itself, which is the
+  // one way to end up with both legs pointing the same direction.
+  await assert.rejects(() => transfers.update(id, {
+    occurred_on: '2026-09-02',
+    from: { account_id: ids.rappi, amount_minor: -5000000 },
+    to: { account_id: ids.card, amount_minor: 5000000 },
+  }));
+
+  // Nothing moved.
+  const after = await transfers.findById(id);
+  assert.equal(after.transfer.occurred_on, '2026-09-01');
+  assert.equal(after.from.amount_minor, -20000000);
+  await db.close();
+});

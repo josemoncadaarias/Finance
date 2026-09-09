@@ -126,8 +126,11 @@
     <div class="danger-zone">
       <ion-button expand="block" fill="clear" color="danger" (click)="remove()">
         <ion-icon slot="start" name="trash-outline"></ion-icon>
-        Borrar este movimiento
+        {{ isTransfer() ? 'Borrar esta transferencia' : 'Borrar este movimiento' }}
       </ion-button>
+      @if (isTransfer()) {
+        <p class="warn">Se borra de las dos cuentas: {{ account()?.name }} y {{ toAccount()?.name }}.</p>
+      }
     </div>
   }
 </ion-content>

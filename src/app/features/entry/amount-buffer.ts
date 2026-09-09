@@ -22,8 +22,22 @@ export class AmountBuffer {
   private fraction = '';
   private typingFraction = false;
 
-  /** The digits as typed, for showing back. Empty means nothing yet. */
+  /**
+   * The digits as typed, for showing back. Empty means nothing yet.
+   *
+   * Grouped in thousands, because Colombian amounts run long: 975894,47 has
+   * to be counted digit by digit to be read, and someone correcting an amount
+   * needs to see at a glance whether it says nine hundred thousand or nine
+   * million. Grouping is display only — `minor` never sees it.
+   */
   get text(): string {
+    if (this.whole === '' && !this.typingFraction) return '';
+    const whole = groupThousands(this.whole === '' ? '0' : this.whole);
+    return this.typingFraction ? `${whole},${this.fraction}` : whole;
+  }
+
+  /** The digits without grouping, for anything that has to parse them back. */
+  get raw(): string {
     if (this.whole === '' && !this.typingFraction) return '';
     const whole = this.whole === '' ? '0' : this.whole;
     return this.typingFraction ? `${whole},${this.fraction}` : whole;
@@ -92,4 +106,9 @@ export class AmountBuffer {
     }
     return buffer;
   }
+}
+
+/** 1234567 -> 1.234.567, the Colombian way round. */
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }

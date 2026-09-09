@@ -155,15 +155,16 @@ export class MovementsPage {
   /**
    * Opens a movement for correction.
    *
-   * A transfer leg is not editable here: changing one half without the other
-   * would leave money appearing on one side and not the other. Editing
-   * transfers needs its own screen, and until it exists this does nothing
-   * rather than something wrong.
+   * Tapping either leg of a transfer opens the whole transfer — both accounts
+   * and both amounts — because that is the act that was recorded. The entry
+   * screen rewrites the two legs together; there is no way to change one side
+   * on its own, which is what would leave money arriving from nowhere.
    */
   edit(transaction: TransactionRow): void {
-    if (transaction.transfer_id !== null) return;
     this.entry.set({
-      kind: transaction.amount_minor >= 0 ? 'income' : 'expense',
+      kind: transaction.transfer_id !== null
+        ? 'transfer'
+        : transaction.amount_minor >= 0 ? 'income' : 'expense',
       editing: transaction,
     });
   }

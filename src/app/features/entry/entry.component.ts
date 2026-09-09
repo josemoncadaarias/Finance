@@ -81,12 +81,15 @@ export class EntryComponent implements OnInit {
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
+  /** Set when the screen is editing an existing transfer rather than a movement. */
+  readonly editingTransferId = signal<number | null>(null);
   /** Notes used before that match what is being typed. */
   readonly noteSuggestions = signal<string[]>([]);
 
   readonly kind = computed(() => this.request().kind);
   readonly isEditing = computed(() => this.request().editing !== undefined);
-  readonly isTransfer = computed(() => this.kind() === 'transfer');
+  readonly isTransfer = computed(() =>
+    this.kind() === 'transfer' || this.request().editing?.transfer_id != null);
 
   readonly account = computed(() => this.find(this.accountId()));
   readonly toAccount = computed(() => this.find(this.toAccountId()));
@@ -102,7 +105,7 @@ export class EntryComponent implements OnInit {
     this.editingTarget() ? this.targetAmount() : this.amount());
 
   readonly title = computed(() => {
-    if (this.isEditing()) return 'Editar movimiento';
+    if (this.isEditing()) return this.isTransfer() ? 'Editar transferencia' : 'Editar movimiento';
     if (this.isTransfer()) return 'Transferencia';
     return this.kind() === 'expense' ? 'Nuevo gasto' : 'Nuevo ingreso';
   });
@@ -177,6 +180,13 @@ export class EntryComponent implements OnInit {
 
     const editing = this.request().editing;
     if (editing) {
+      // A transfer is three rows, and the leg that was tapped may be either
+      // side of it. Both are loaded so the screen shows the whole act.
+      if (editing.transfer_id !== null) {
+        await this.loadTransfer(editing.transfer_id);
+        return;
+      }
+
       this.amount.set(AmountBuffer.from(editing.amount_minor));
       this.categoryId.set(editing.category_id);
       this.accountId.set(editing.account_id);
@@ -193,6 +203,31 @@ export class EntryComponent implements OnInit {
     }
 
     this.accountId.set(await this.defaultAccount(accounts));
+  }
+
+  /**
+   * Fills the screen from an existing transfer.
+   *
+   * Both amounts are kept as they were stored rather than one being derived
+   * from the other: across currencies they are two different figures, and the
+   * rate between them is the one the provider actually applied that day, which
+   * cannot be looked up afterwards. Re-deriving it would quietly replace a
+   * fact with an approximation.
+   */
+  private async loadTransfer(transferId: number): Promise<void> {
+    const found = await new TransfersRepository(this.database.driver).findById(transferId);
+    if (!found) {
+      this.error.set('No se encontró la transferencia');
+      return;
+    }
+
+    this.editingTransferId.set(transferId);
+    this.accountId.set(found.from.account_id);
+    this.toAccountId.set(found.to.account_id);
+    this.amount.set(AmountBuffer.from(found.from.amount_minor));
+    this.targetAmount.set(AmountBuffer.from(found.to.amount_minor));
+    this.occurredOn.set(found.transfer.occurred_on);
+    this.note.set(found.transfer.description ?? found.from.description ?? '');
   }
 
   /**
@@ -440,7 +475,8 @@ export class EntryComponent implements OnInit {
     // which cannot be looked up afterwards.
     const rateScaled = this.crossesCurrency() ? deriveRateScaled(out, into) : null;
 
-    await new TransfersRepository(this.database.driver).create({
+    const transfers = new TransfersRepository(this.database.driver);
+    const transfer = {
       occurred_on: this.occurredOn(),
       description: this.note().trim() || null,
       from: { account_id: this.accountId()!, amount_minor: out },
@@ -449,10 +485,19 @@ export class EntryComponent implements OnInit {
         amount_minor: into,
         rate_scaled: rateScaled,
         amount_base_minor: this.crossesCurrency() ? out : undefined,
-        rate_source: rateScaled === null ? null : 'derived',
+        rate_source: rateScaled === null ? null : ('derived' as const),
       },
-      source: 'manual',
-    });
+      source: 'manual' as const,
+    };
+
+    const editing = this.editingTransferId();
+    if (editing !== null) {
+      // Rewrites both legs together, so the two sides can never disagree.
+      await transfers.update(editing, transfer);
+      return;
+    }
+
+    await transfers.create(transfer);
   }
 
   async remove(): Promise<void> {
@@ -461,7 +506,14 @@ export class EntryComponent implements OnInit {
 
     this.saving.set(true);
     try {
-      await new TransactionsRepository(this.database.driver).delete(editing.id);
+      const transferId = this.editingTransferId();
+      if (transferId !== null) {
+        // Deleting one leg would leave money arriving from nowhere. The
+        // header takes both with it.
+        await new TransfersRepository(this.database.driver).delete(transferId);
+      } else {
+        await new TransactionsRepository(this.database.driver).delete(editing.id);
+      }
       this.database.dataChanged();
       this.saved.emit();
     } catch (error) {

@@ -20,7 +20,8 @@ const type = (keys) => {
 test('digits are pesos until a separator is pressed', () => {
   // 50200 is fifty thousand two hundred pesos, not five hundred and two.
   assert.equal(type('50200').minor, 5020000);
-  assert.equal(type('50200').text, '50200');
+  assert.equal(type('50200').text, '50.200', 'grouped for reading');
+  assert.equal(type('50200').raw, '50200');
   assert.equal(type('1').minor, 100);
 });
 
@@ -29,7 +30,7 @@ test('the separator starts the cents, and only two fit', () => {
   assert.equal(type('50200,50').minor, 5020050);
   assert.equal(type('50200,509').minor, 5020050, 'a third decimal is ignored');
   assert.equal(type('50200,09').minor, 5020009);
-  assert.equal(type('50200,09').text, '50200,09');
+  assert.equal(type('50200,09').text, '50.200,09');
 });
 
 test('pressing the separator twice changes nothing', () => {
@@ -84,12 +85,26 @@ test('an existing amount loads back for editing', () => {
   }
   // A whole amount shows no cents; the sign never survives, since which way it
   // goes is the button pressed, not the number typed.
-  assert.equal(AmountBuffer.from(5020000).text, '50200');
+  assert.equal(AmountBuffer.from(5020000).text, '50.200');
   assert.equal(AmountBuffer.from(-5020000).minor, 5020000);
-  assert.equal(AmountBuffer.from(5020009).text, '50200,09');
+  assert.equal(AmountBuffer.from(5020009).text, '50.200,09');
 });
 
 test('a very long number stops growing instead of overflowing', () => {
   const buffer = type('1'.repeat(20));
   assert.ok(Number.isSafeInteger(buffer.minor));
+});
+
+test('long amounts are grouped, and grouping never reaches the value', () => {
+  // The figure that made this worth doing: a card payment, read at a glance.
+  const buffer = type('975894,47');
+  assert.equal(buffer.text, '975.894,47');
+  assert.equal(buffer.minor, 97589447);
+
+  assert.equal(type('1234567').text, '1.234.567');
+  assert.equal(type('1234567').minor, 123456700);
+
+  // Below a thousand nothing is grouped.
+  assert.equal(type('999').text, '999');
+  assert.equal(type('1000').text, '1.000');
 });
