@@ -102,10 +102,33 @@ const newer = loadExport(newPath);
 console.log(`Comparing ${basename(oldPath)} (${older.rows.length} rows)`);
 console.log(`     with ${basename(newPath)} (${newer.rows.length} rows)`);
 
-// --- 1. Order stability -----------------------------------------------------
-// If Monefy appends new rows and never reorders, the old export is a prefix of
-// the new one. That is the assumption import_seq depends on.
-heading('1. Row order');
+// --- 1. Do existing rows keep their slot? -----------------------------------
+//
+// This is the check that matters, and it is narrower than "the file is in the
+// same order". A row is recognised on re-import by its fingerprint plus its
+// import_seq, and seq is its position *among rows sharing that fingerprint*.
+// So a new row inserted in the middle is harmless: it only shifts seq numbers
+// if it shares a fingerprint with rows after it.
+//
+// Positional order is reported too, but as information rather than a verdict:
+// Monefy sorts by date, so a row added on a day that already has rows lands in
+// the middle, and that is normal.
+heading('1. Do the old rows keep their slots?');
+
+const newerKeySet = new Set(newer.rows.map(row => row.key));
+const lostSlot = older.rows.filter(row => !newerKeySet.has(row.key));
+
+if (lostSlot.length === 0) {
+  console.log(`SAFE: all ${older.rows.length} rows from the old export still hold the same`);
+  console.log('      fingerprint and sequence number, so a re-import recognises every');
+  console.log('      one of them and rewrites nothing.');
+} else {
+  console.log(`WARNING: ${lostSlot.length} row(s) no longer hold their slot.`);
+  console.log('         A re-import would treat these as new and duplicate them.');
+  for (const row of lostSlot.slice(0, 8)) {
+    console.log(`  seq ${row.seq}  ${formatFingerprint(row.fingerprint)}`);
+  }
+}
 
 let commonPrefix = 0;
 while (
@@ -116,18 +139,15 @@ while (
   commonPrefix += 1;
 }
 
+console.log('');
 if (commonPrefix === older.rows.length) {
-  console.log(`STABLE: all ${commonPrefix} old rows appear in the same positions.`);
-  console.log(`        ${newer.rows.length - commonPrefix} new rows were appended after them.`);
-  console.log('        The import_seq assumption holds for this pair of exports.');
+  console.log(`Positions: the old export is an exact prefix of the new one; the`);
+  console.log(`           ${newer.rows.length - commonPrefix} new row(s) were appended at the end.`);
 } else {
-  console.log(`DIVERGES at row ${commonPrefix + 1} of ${older.rows.length}.`);
-  console.log(`  old: ${formatFingerprint(older.rows[commonPrefix].fingerprint)}`);
-  console.log(`  new: ${commonPrefix < newer.rows.length
-    ? formatFingerprint(newer.rows[commonPrefix].fingerprint)
-    : '(past the end of the new file)'}`);
-  console.log('  Rows before that point still line up; the importer must not rely on');
-  console.log('  position alone past it.');
+  console.log(`Positions: they diverge at row ${commonPrefix + 1}, which is expected — Monefy`);
+  console.log('           keeps the file in date order, so a row added on a day that already');
+  console.log('           had rows is inserted rather than appended. Harmless on its own;');
+  console.log('           the check above is the one that matters.');
 }
 
 // --- 2. What changed --------------------------------------------------------

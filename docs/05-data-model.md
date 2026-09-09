@@ -4,7 +4,7 @@ Phase 1. The schema lives in
 `src/app/core/database/migrations/001_initial_schema.sql`, which is the single
 source of truth; this document explains the reasoning behind it.
 
-Everything here is exercised by 111 tests that run against a real SQLite engine:
+Everything here is exercised by 114 tests that run against a real SQLite engine:
 
 ```
 node tools/db/run-tests.mjs
@@ -222,17 +222,29 @@ which looks exactly like a delete plus an insert. There is no way to tell them
 apart, because the CSV carries no stable id. The importer surfaces both and
 lets the user decide.
 
-**Order stability — VERIFIED 2026-09-08.** `import_seq` assumes Monefy exports
-rows in a stable order, so a row keeps its slot between exports. Comparing
-`monefy-2026-09-07.csv` with `monefy-2026-09-08.csv`: all 12,890 rows from the
-older export appear at the same positions in the newer one, 8 rows were
-appended, and none went missing. The older export is an exact prefix of the
-newer.
+**Slot stability — what actually has to hold.** A row is recognised on
+re-import by its fingerprint *and* its `import_seq`, and `import_seq` counts
+its position **among rows sharing that fingerprint** — not its position in the
+file. So the requirement is narrower than "the file keeps its order".
 
-One pair of exports one day apart is good evidence, not proof — Monefy could
-still reorder after some future edit. The comparison is cheap, so run it on
-each new export; a divergence would show up immediately rather than as
-duplicated history.
+The first comparison (`monefy-2026-09-07.csv` against `monefy-2026-09-08.csv`)
+suggested the stronger property: 8 rows appended, the old file an exact prefix
+of the new. **That reading was too strong, and the next export disproved it.**
+Comparing `monefy-2026-09-08.csv` against `monefy-2026-09-08-1748.csv`, the
+single new row was *inserted* at position 12,893 rather than appended — Monefy
+keeps the file in date order, so a row added on a day that already has rows
+lands in the middle.
+
+The property that matters held anyway: all 12,898 existing rows kept the same
+fingerprint and sequence, and the re-import inserted exactly one row and
+rewrote nothing.
+
+**Residual risk, small but real.** A seq number shifts only when a new row
+shares a fingerprint with an existing one *and* sorts before it. That needs a
+new movement identical to an old one — same day, account, category, amount and
+description — added to a day that already holds its twin. `compare-exports.mjs`
+checks for exactly this and says `WARNING` when it happens, so run it on each
+new export.
 
 **Manual edits win.** Editing a transaction through the repository sets
 `locked = 1`, and a re-import skips locked rows. A hand correction is the true
@@ -314,12 +326,17 @@ data/monefy-YYYY-MM-DD.csv          one export that day
 data/monefy-YYYY-MM-DD-HHMM.csv     a second one the same day
 ```
 
-The 24-hour time is only added when a day holds more than one export. The name
-is for humans and for sorting — every tool takes explicit paths, so nothing
-breaks if a file is named differently; it just stops sorting chronologically.
-That is also why Monefy's own `Monefy.Data.8-9-2026.csv` gets renamed: `8-9` is
-ambiguous between August and September, and it sorts alphabetically rather than
-by date.
+The 24-hour time is only added when a day holds more than one export. Monefy's
+own `Monefy.Data.8-9-2026.csv` gets renamed because `8-9` is ambiguous between
+August and September and sorts alphabetically rather than by date.
+
+**Do not sort these names as plain strings.** `-` sorts before `.`, so
+`monefy-2026-09-08-1748.csv` lands *before* `monefy-2026-09-08.csv` — the
+convention breaks exactly in the case it exists for. The importer got this
+wrong on its first run with two same-day exports and silently picked the older
+file. `exportOrder()` in `tools/db/import.mjs` parses the date and time
+instead, treating a missing time as the earliest that day, and
+`export-naming.test.mjs` pins the behaviour.
  Comparing consecutive exports is the only way to
 check the order-stability assumption, and it also shows what the importer will
 have to deal with on a re-run:

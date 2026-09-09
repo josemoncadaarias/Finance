@@ -25,15 +25,36 @@ import { formatMoney } from '../../src/app/core/database/money.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
 
-/** The newest export in data/, by the date in its name. */
-function newestExport() {
-  const dataDir = join(ROOT, 'data');
-  const files = readdirSync(dataDir).filter(f => /^monefy-\d{4}-\d{2}-\d{2}.*\.csv$/.test(f)).sort();
-  if (files.length === 0) {
-    throw new Error(`No monefy-YYYY-MM-DD.csv found in ${dataDir}`);
-  }
-  return join(dataDir, files[files.length - 1]);
+/**
+ * Sorts export file names chronologically.
+ *
+ * Plain string order is wrong here, and quietly so: `-` sorts before `.`, so
+ * `monefy-2026-09-08-1748.csv` lands *before* `monefy-2026-09-08.csv` and the
+ * older file wins. Sorting on the parsed date and time fixes it, and treats a
+ * name with no time as the earliest that day - which is right, since the time
+ * only gets added to the second export of a day.
+ */
+export function exportOrder(fileName) {
+  const match = /^monefy-(\d{4})-(\d{2})-(\d{2})(?:-(\d{2})(\d{2}))?\.csv$/.exec(fileName);
+  if (!match) return null;
+  const [, year, month, day, hour = '00', minute = '00'] = match;
+  return `${year}${month}${day}${hour}${minute}`;
 }
+
+/** The newest export in data/, by the date and time in its name. */
+export function newestExport(dataDir = join(ROOT, 'data')) {
+  const dated = readdirSync(dataDir)
+    .map(name => ({ name, order: exportOrder(name) }))
+    .filter(entry => entry.order !== null)
+    .sort((a, b) => a.order.localeCompare(b.order));
+
+  if (dated.length === 0) {
+    throw new Error(`No monefy-YYYY-MM-DD[-HHMM].csv found in ${dataDir}`);
+  }
+  return join(dataDir, dated[dated.length - 1].name);
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 
 const [, , csvArg, dbArg] = process.argv;
 const csvPath = csvArg ? join(ROOT, csvArg) : newestExport();
@@ -105,3 +126,5 @@ for (const review of reviews) {
 
 await db.close();
 console.log(`\nDone. ${dbPath}`);
+
+}
