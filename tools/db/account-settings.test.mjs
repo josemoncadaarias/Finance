@@ -87,3 +87,28 @@ test('an account the rules do not mention is never touched', async () => {
   assert.equal((await accounts.findById(id)).include_in_net_worth, 0);
   await db.close();
 });
+
+test('a choice made in the app is never undone by the defaults', async () => {
+  const db = await freshDb();
+
+  const id = await new AccountsRepository(db, NOW).create({
+    name: 'eToro', type: 'investment', currency_code: 'USD',
+    builtin_icon: 'trending-up', opened_on: '2024-01-01',
+  });
+
+  // First run seeds the defaults: eToro is one Jose keeps out of net worth.
+  const first = await applyAccountSettings(db);
+  assert.equal(first.changed.length, 1);
+  assert.equal((await db.queryOne('SELECT include_in_net_worth v FROM accounts WHERE id = ?', [id])).v, 0);
+
+  // The user changes their mind from inside the app.
+  await db.run('UPDATE accounts SET include_in_net_worth = 1 WHERE id = ?', [id]);
+
+  // Restarting must not quietly reverse that.
+  const second = await applyAccountSettings(db);
+  assert.deepEqual(second.changed, []);
+  assert.equal((await db.queryOne('SELECT include_in_net_worth v FROM accounts WHERE id = ?', [id])).v, 1,
+    'the account stays counted, as the user asked');
+
+  await db.close();
+});

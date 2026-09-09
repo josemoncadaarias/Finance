@@ -16,6 +16,7 @@ import { CategoriesRepository } from '../../src/app/core/database/repositories/c
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { CreditLimitsRepository } from '../../src/app/core/database/repositories/credit-limits.repository.ts';
+import { CustomIconsRepository } from '../../src/app/core/database/repositories/custom-icons.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
 
 const NOW = () => '2026-09-08T12:00:00Z';
@@ -525,5 +526,41 @@ test('a transfer edit is refused rather than half applied', async () => {
   const after = await transfers.findById(id);
   assert.equal(after.transfer.occurred_on, '2026-09-01');
   assert.equal(after.from.amount_minor, -20000000);
+  await db.close();
+});
+
+test('a user-supplied icon is stored whole and guarded by its size', async () => {
+  const { db, accounts, ids } = await setup();
+  const icons = new CustomIconsRepository(db, NOW);
+
+  // A tiny PNG, byte for byte what a real one starts with.
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const id = await icons.create({ name: 'Bancolombia', mime_type: 'image/png', data: png });
+
+  const stored = await icons.findById(id);
+  assert.equal(stored.name, 'Bancolombia');
+  assert.deepEqual(new Uint8Array(stored.data), png, 'the bytes come back untouched');
+  assert.equal((await icons.list()).length, 1);
+  assert.equal((await icons.list())[0].data, undefined, 'listing does not carry the bytes');
+
+  // Not an image this app can store.
+  await assert.rejects(() => icons.create({
+    name: 'x', mime_type: 'application/pdf', data: png }), /not an image/);
+
+  // Too big to be an icon.
+  await assert.rejects(() => icons.create({
+    name: 'x', mime_type: 'image/png', data: new Uint8Array(100_001) }), /the limit is/);
+
+  await assert.rejects(() => icons.create({
+    name: 'x', mime_type: 'image/png', data: new Uint8Array(0) }), /empty/);
+
+  // An account wearing it cannot have it pulled out from under it.
+  await accounts.update(ids.bancolombia, { builtin_icon: null, custom_icon_id: id });
+  await assert.rejects(() => icons.delete(id), /still used by Bancolombia/);
+
+  // Once nothing wears it, it goes.
+  await accounts.update(ids.bancolombia, { custom_icon_id: null, builtin_icon: 'business' });
+  await icons.delete(id);
+  assert.equal(await icons.findById(id), null);
   await db.close();
 });

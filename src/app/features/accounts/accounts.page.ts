@@ -12,6 +12,7 @@ import { Router } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
   IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
+  IonButton, IonModal,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
@@ -21,6 +22,8 @@ import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
+import { AccountEditorComponent } from './account-editor.component';
 import type { AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SignPipe } from '../../shared/sign.pipe';
@@ -31,14 +34,22 @@ import { SignPipe } from '../../shared/sign.pipe';
   styleUrls: ['./accounts.page.scss'],
   imports: [
     CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent,
+    AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
     IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
+    IonButton, IonModal,
   ],
 })
 export class AccountsPage {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
   private readonly router = inject(Router);
+
+  /** Non-null while the editor is open; its account is null when creating. */
+  readonly editor = signal<{ account: AccountRow | null } | null>(null);
+
+  /** Data URLs for user-supplied icons, built once each. */
+  private readonly iconUrls = signal<Map<number, string>>(new Map());
 
   readonly grouped = signal<GroupedBalance[] | null>(null);
   readonly netWorthMinor = signal(0);
@@ -83,6 +94,7 @@ export class AccountsPage {
     ]);
     this.grouped.set(grouped);
     this.netWorthMinor.set(netWorth);
+    await this.loadIcons();
   }
 
   async refresh(event: CustomEvent): Promise<void> {
@@ -118,5 +130,30 @@ export class AccountsPage {
   open(account: AccountRow): void {
     this.filter.selectAccount(account.id);
     void this.router.navigateByUrl('/movements');
+  }
+  iconUrl(id: number | null): string | undefined {
+    return id === null ? undefined : this.iconUrls().get(id);
+  }
+
+  /** Loads the images accounts wear, so a bank logo renders as itself. */
+  private async loadIcons(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+
+    const repository = new CustomIconsRepository(this.database.driver);
+    const urls = new Map(this.iconUrls());
+    for (const icon of await repository.list()) {
+      if (urls.has(icon.id)) continue;
+      const full = await repository.findById(icon.id);
+      if (full) urls.set(icon.id, iconDataUrl(full));
+    }
+    this.iconUrls.set(urls);
+  }
+
+  edit(account: AccountRow | null): void {
+    this.editor.set({ account });
+  }
+
+  onSaved(): void {
+    this.editor.set(null);
   }
 }

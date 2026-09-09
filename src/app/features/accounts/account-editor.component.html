@@ -1,0 +1,157 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
+    <h1 class="title">{{ title() }}</h1>
+
+    <ion-buttons slot="end">
+      <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
+        <ion-icon slot="start" name="checkmark-outline"></ion-icon>
+        {{ 'entry.save' | t }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  <!-- The face and the name, together: this is what the account is -->
+  <section class="identity">
+    <app-icon-picker [catalog]="accountIcons" [builtin]="builtinIcon()"
+                     [custom]="customIconId()" (chosen)="onIcon($event)"></app-icon-picker>
+
+    <ion-input class="name" [value]="name()" [placeholder]="'accounts.namePlaceholder' | t"
+               (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
+  </section>
+
+  <ion-list [inset]="true">
+    <ion-item>
+      <ion-select [label]="'accounts.type' | t" [value]="type()" interface="action-sheet"
+                  (ionChange)="type.set($any($event.detail).value)">
+        @for (option of types; track option) {
+          <ion-select-option [value]="option">{{ $any('accounts.type.' + option) | t }}</ion-select-option>
+        }
+      </ion-select>
+    </ion-item>
+
+    <!-- The currency of an existing account is what every stored amount means,
+         so it is shown but never editable. -->
+    @if (isNew()) {
+      <ion-item>
+        <ion-select [label]="'accounts.currency' | t" [value]="currency()" interface="action-sheet"
+                    (ionChange)="currency.set($any($event.detail).value)">
+          @for (option of currencies(); track option.code) {
+            <ion-select-option [value]="option.code">{{ option.code }} · {{ option.name }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+    } @else {
+      <ion-item lines="full">
+        <ion-label>
+          <h3>{{ 'accounts.currency' | t }}</h3>
+          <p>{{ 'accounts.currency.locked' | t }}</p>
+        </ion-label>
+        <ion-note slot="end">{{ currency() }}</ion-note>
+      </ion-item>
+    }
+
+    <ion-item>
+      <ion-input [label]="'accounts.opening' | t" inputmode="decimal"
+                 [value]="openingBalance().text"
+                 (ionInput)="onAmount('opening', $any($event.target).value ?? '')"></ion-input>
+      <ion-note slot="end">{{ currency() }}</ion-note>
+    </ion-item>
+
+    <ion-item button (click)="showDate.set('opened')">
+      <ion-label>{{ 'accounts.openedOn' | t }}</ion-label>
+      <ion-note slot="end">{{ dateLabel(openedOn()) }}</ion-note>
+    </ion-item>
+  </ion-list>
+
+  <!-- What used to need a code change -->
+  <ion-list [inset]="true">
+    <ion-item>
+      <ion-toggle [checked]="includeInNetWorth()"
+                  (ionChange)="includeInNetWorth.set($any($event.detail).checked)">
+        <div>
+          <p class="strong">{{ 'accounts.countsToNetWorth' | t }}</p>
+          <p class="hint">{{ 'accounts.countsToNetWorth.hint' | t }}</p>
+        </div>
+      </ion-toggle>
+    </ion-item>
+
+    @if (!isNew()) {
+      <ion-item>
+        <ion-toggle [checked]="archived()"
+                    (ionChange)="archived.set($any($event.detail).checked)">
+          <div>
+            <p class="strong">{{ 'accounts.archive' | t }}</p>
+            <p class="hint">{{ 'accounts.archive.hint' | t }}</p>
+          </div>
+        </ion-toggle>
+      </ion-item>
+    }
+  </ion-list>
+
+  <!-- A credit card's limit, with the history behind it -->
+  @if (isCredit()) {
+    <ion-list [inset]="true">
+      <ion-item>
+        <ion-input [label]="'accounts.creditLimit' | t" inputmode="decimal"
+                   [value]="creditLimit().text"
+                   (ionInput)="onAmount('limit', $any($event.target).value ?? '')"></ion-input>
+        <ion-note slot="end">{{ currency() }}</ion-note>
+      </ion-item>
+
+      <ion-item button (click)="showDate.set('limit')">
+        <ion-label>{{ 'accounts.limitFrom' | t }}</ion-label>
+        <ion-note slot="end">{{ dateLabel(limitEffectiveOn()) }}</ion-note>
+      </ion-item>
+    </ion-list>
+
+    <p class="explain">{{ 'accounts.creditLimit.hint' | t }}</p>
+
+    @if (limitHistory().length > 0) {
+      <section class="history">
+        <h3>{{ 'accounts.limitHistory' | t }}</h3>
+        <ion-list [inset]="true">
+          @for (change of limitHistory(); track change.id) {
+            <ion-item lines="full">
+              <ion-label>
+                <h3>{{ money(change.limit_minor) }}</h3>
+                <p>{{ dateLabel(change.effective_on) }}@if (change.note) { · {{ change.note }} }</p>
+              </ion-label>
+              @if (change.source === 'import') {
+                <ion-note slot="end">{{ 'accounts.fromBackup' | t }}</ion-note>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      </section>
+    }
+  }
+</ion-content>
+
+<ion-footer class="pad">
+  @if (missing(); as hint) {
+    <p class="missing">{{ hint }}</p>
+  }
+</ion-footer>
+
+<ion-modal [isOpen]="showDate() !== null" (didDismiss)="showDate.set(null)"
+           [initialBreakpoint]="0.6" [breakpoints]="[0, 0.6, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                    [value]="showDate() === 'opened' ? openedOn() : limitEffectiveOn()"
+                    (ionChange)="pickDate($any($event.detail).value)"></ion-datetime>
+    </ion-content>
+  </ng-template>
+</ion-modal>
