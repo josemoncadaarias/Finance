@@ -13,6 +13,7 @@ import {
   TransactionsRepository, type DetailedTransaction,
 } from '../../core/database/repositories/transactions.repository';
 import { FilterService } from '../../core/filters/filter.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import type { AccountRow } from '../../core/database/types';
 import { formatMoney as money } from '../../core/database/money';
 import {
@@ -24,6 +25,7 @@ import {
 export class MovementsStore {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
+  private readonly i18n = inject(I18nService);
 
   readonly accounts = signal<AccountRow[]>([]);
   readonly loading = signal(false);
@@ -69,7 +71,8 @@ export class MovementsStore {
   readonly slices = computed<Slice[]>(() => slicesOf(this.rows()));
 
   readonly groups = computed<MovementGroup[]>(() =>
-    groupMovements(this.visible(), this.filter.grouping(), this.filter.sortWithin()),
+    groupMovements(this.visible(), this.filter.grouping(), this.filter.sortWithin(),
+      this.i18n.dateLocale(), this.i18n.t('summary.allMovements')),
   );
 
   /** True when every group is collapsed, so one control can do both jobs. */
@@ -85,6 +88,7 @@ export class MovementsStore {
       // Reruns whenever the database opens, the data changes, or the filter
       // moves. Everything downstream is derived, so this is the only load.
       this.database.dataVersion();
+      this.i18n.language();
       this.filter.accountId();
       this.filter.period();
       this.filter.includeExcluded();
@@ -164,7 +168,7 @@ export class MovementsStore {
     if (selected === null) {
       this.standing.set({
         kind: 'net-worth',
-        label: 'Patrimonio hoy',
+        label: this.i18n.t('summary.netWorthToday'),
         amountMinor: await accounts.netWorthMinor(),
         currency: 'COP',
         detail: null,
@@ -183,20 +187,22 @@ export class MovementsStore {
       const limit = balance.account.credit_limit_minor;
       this.standing.set({
         kind: 'credit',
-        label: 'Debes hoy',
+        label: this.i18n.t('summary.owedToday'),
         amountMinor: balance.balance_minor,
         currency,
         detail: balance.available_credit_minor === null || limit === null
           ? null
-          : `Disponible ${money(balance.available_credit_minor, currency, { withSymbol: false })}` +
-            ` de ${money(limit, currency, { withSymbol: false })}`,
+          : this.i18n.t('summary.available', {
+              available: money(balance.available_credit_minor, currency, { withSymbol: false }),
+              limit: money(limit, currency, { withSymbol: false }),
+            }),
       });
       return;
     }
 
     this.standing.set({
       kind: 'balance',
-      label: 'Saldo hoy',
+      label: this.i18n.t('summary.balanceToday'),
       amountMinor: balance.balance_minor,
       currency,
       detail: null,
@@ -235,7 +241,7 @@ export class MovementsStore {
         row.other_account_id === null ||
         !inScope.has(row.other_account_id));
 
-      this.rows.set(visible.map(toMovement));
+      this.rows.set(visible.map(row => toMovement(row, this.i18n)));
     } finally {
       this.loading.set(false);
     }
@@ -248,9 +254,11 @@ export class MovementsStore {
  * A transfer leg has no category, so it is labelled by where the money went or
  * came from — which is what it means — rather than left blank.
  */
-function toMovement(row: DetailedTransaction): Movement {
+function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
   const isTransfer = row.transfer_id !== null;
-  const other = row.other_account_name ?? 'otra cuenta';
+  // The account's own name is data and stays as it was typed; only the "to"
+  // and "from" around it are the app speaking.
+  const other = row.other_account_name ?? i18n.t('movement.otherAccount');
 
   return {
     transaction: row,
@@ -258,8 +266,9 @@ function toMovement(row: DetailedTransaction): Movement {
     accountType: row.account_type,
     currency: row.currency_code,
     label: isTransfer
-      ? row.transfer_leg === 'from' ? `A ${other}` : `De ${other}`
-      : row.category_name ?? 'Sin categoría',
+      ? i18n.t(row.transfer_leg === 'from' ? 'movement.toAccount' : 'movement.fromAccount',
+               { account: other })
+      : row.category_name ?? i18n.t('movement.noCategory'),
     icon: isTransfer ? 'swap-horizontal-outline' : row.category_icon,
     flow: flowOf(row, row.account_type),
   };

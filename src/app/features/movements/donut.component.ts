@@ -15,6 +15,7 @@ import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import type { Slice } from './group-movements';
 import { formatMoney } from '../../core/database/money';
 
@@ -47,11 +48,11 @@ const INCOME = '#2f9e6e';
 
 @Component({
   selector: 'app-donut',
-  imports: [CommonModule, IonIcon],
+  imports: [CommonModule, IonIcon, TranslatePipe],
   template: `
     @if (slices().length === 0) {
       <div class="empty">
-        <p>Nada en este periodo</p>
+        <p>{{ 'donut.empty' | t }}</p>
       </div>
     } @else {
       <!-- A month with income but no spending has an empty ring and a legend
@@ -59,14 +60,14 @@ const INCOME = '#2f9e6e';
       @if (segments().length > 0) {
       <div class="ring">
       <svg [attr.viewBox]="'0 0 ' + size + ' ' + size" class="donut" role="img"
-           [attr.aria-label]="'Gasto por categoría: ' + summary()">
+           [attr.aria-label]="'donut.byCategory' | t:{ summary: summary() }">
         @for (segment of segments(); track segment.slice.label) {
           <path [attr.d]="segment.path" [attr.fill]="segment.colour"
                 class="segment" [class.dimmed]="highlighted() && highlighted() !== segment.slice.label"
                 (click)="sliceTapped.emit(segment.slice.label)"
                 (keydown.enter)="sliceTapped.emit(segment.slice.label)"
                 tabindex="0" role="button"
-                [attr.aria-label]="segment.slice.label + ', ' + segment.slice.percent + ' por ciento'">
+                [attr.aria-label]="'donut.percentOf' | t:{ label: segment.slice.label, percent: segment.slice.percent }">
             <title>{{ segment.slice.label }} — {{ segment.slice.percent }}%</title>
           </path>
         }

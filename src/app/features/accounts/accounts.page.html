@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
-    <ion-title>Cuentas</ion-title>
+    <ion-title>{{ 'accounts.title' | t }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -15,11 +15,11 @@
   @if (status() === 'opening') {
     <div class="state">
       <ion-spinner></ion-spinner>
-      <p>Abriendo la base de datos…</p>
+      <p>{{ 'state.opening' | t }}</p>
     </div>
   } @else if (status() === 'failed') {
     <div class="state error">
-      <h2>No se pudo abrir la base de datos</h2>
+      <h2>{{ 'state.failed' | t }}</h2>
       <p>{{ error()?.message }}</p>
     </div>
   } @else if (grouped() === null) {

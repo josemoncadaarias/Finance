@@ -24,6 +24,9 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { monthName } from '../../core/filters/period';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
@@ -49,7 +52,7 @@ export interface EntryRequest {
 @Component({
   selector: 'app-entry',
   imports: [
-    CommonModule,
+    CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
   ],
@@ -58,6 +61,7 @@ export interface EntryRequest {
 })
 export class EntryComponent implements OnInit {
   private readonly database = inject(DatabaseService);
+  readonly i18n = inject(I18nService);
 
   readonly request = input.required<EntryRequest>();
   readonly saved = output<void>();
@@ -105,9 +109,9 @@ export class EntryComponent implements OnInit {
     this.editingTarget() ? this.targetAmount() : this.amount());
 
   readonly title = computed(() => {
-    if (this.isEditing()) return this.isTransfer() ? 'Editar transferencia' : 'Editar movimiento';
-    if (this.isTransfer()) return 'Transferencia';
-    return this.kind() === 'expense' ? 'Nuevo gasto' : 'Nuevo ingreso';
+    if (this.isEditing()) return this.i18n.t(this.isTransfer() ? 'entry.editTransfer' : 'entry.editMovement');
+    if (this.isTransfer()) return this.i18n.t('entry.transfer');
+    return this.i18n.t(this.kind() === 'expense' ? 'entry.newExpense' : 'entry.newIncome');
   });
 
   readonly selectedCategory = computed(() =>
@@ -115,11 +119,11 @@ export class EntryComponent implements OnInit {
 
   readonly dateLabel = computed(() => {
     const iso = this.occurredOn();
-    if (iso === todayIso()) return 'Hoy';
+    if (iso === todayIso()) return this.i18n.t('period.today');
+
     const [year, month, day] = iso.split('-').map(Number);
-    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
-      'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    return `${day} ${months[month - 1]} ${year}`;
+    const name = monthName(new Date(year, month - 1, day), this.i18n.dateLocale());
+    return `${day} ${name} ${year}`;
   });
 
   /**
@@ -130,19 +134,19 @@ export class EntryComponent implements OnInit {
    * explaining itself.
    */
   readonly missing = computed<string | null>(() => {
-    if (this.amount().minor <= 0) return 'Escribe el monto';
-    if (this.accountId() === null) return 'Escoge la cuenta';
+    if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
+    if (this.accountId() === null) return this.i18n.t('entry.need.account');
 
     if (this.isTransfer()) {
-      if (this.toAccountId() === null) return 'Escoge la cuenta de destino';
-      if (this.toAccountId() === this.accountId()) return 'Las dos cuentas no pueden ser la misma';
+      if (this.toAccountId() === null) return this.i18n.t('entry.need.destination');
+      if (this.toAccountId() === this.accountId()) return this.i18n.t('entry.need.differentAccounts');
       if (this.crossesCurrency() && this.targetAmount().minor <= 0) {
-        return `Escribe cuánto llegó en ${this.targetCurrency()}`;
+        return this.i18n.t('entry.need.arrived', { currency: this.targetCurrency() });
       }
       return null;
     }
 
-    if (this.categoryId() === null) return 'Escoge una categoría';
+    if (this.categoryId() === null) return this.i18n.t('entry.need.category');
     return null;
   });
 
@@ -217,7 +221,7 @@ export class EntryComponent implements OnInit {
   private async loadTransfer(transferId: number): Promise<void> {
     const found = await new TransfersRepository(this.database.driver).findById(transferId);
     if (!found) {
-      this.error.set('No se encontró la transferencia');
+      this.error.set(this.i18n.t('entry.transferNotFound'));
       return;
     }
 

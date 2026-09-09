@@ -21,12 +21,35 @@ export interface Period {
   to: string | null;
 }
 
-const MONTHS = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-];
+/**
+ * Month and weekday names come from `Intl`, which already knows every
+ * language, rather than from a list written by hand in one of them.
+ *
+ * The formatters are built once per locale and kept: constructing one costs
+ * far more than using it, and this runs for every group heading in a list that
+ * can hold a year of movements.
+ */
+const formatters = new Map<string, { month: Intl.DateTimeFormat; weekday: Intl.DateTimeFormat }>();
 
-const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function namesFor(locale: string) {
+  let found = formatters.get(locale);
+  if (!found) {
+    found = {
+      month: new Intl.DateTimeFormat(locale, { month: 'long' }),
+      weekday: new Intl.DateTimeFormat(locale, { weekday: 'long' }),
+    };
+    formatters.set(locale, found);
+  }
+  return found;
+}
+
+export function monthName(date: Date, locale = 'es-CO'): string {
+  return namesFor(locale).month.format(date);
+}
+
+export function weekdayName(date: Date, locale = 'es-CO'): string {
+  return namesFor(locale).weekday.format(date);
+}
 
 /** Everything, with no bounds. */
 export const ALL_TIME: Period = { kind: 'all', from: null, to: null };
@@ -147,27 +170,31 @@ export function includesToday(period: Period, today: Date = new Date()): boolean
  * Short enough to sit in a header, and specific enough that the year is never
  * a guess — a month label without its year is a small trap in an app holding
  * five years of history.
+ *
+ * `allLabel` is passed in rather than written here: this module formats dates
+ * and knows nothing about which language the app is speaking.
  */
-export function periodLabel(period: Period): string {
-  if (period.kind === 'all') return 'Todo';
-  if (period.from === null || period.to === null) return 'Todo';
+export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'Todo'): string {
+  if (period.kind === 'all') return allLabel;
+  if (period.from === null || period.to === null) return allLabel;
 
   const start = fromIsoDay(period.from);
+  const joiner = locale.startsWith('es') ? ' de ' : ' ';
 
   switch (period.kind) {
     case 'day':
-      return `${WEEKDAYS[start.getDay()]} ${start.getDate()} de ${MONTHS[start.getMonth()]}`;
+      return `${weekdayName(start, locale)} ${start.getDate()}${joiner}${monthName(start, locale)}`;
 
     case 'week': {
       const end = fromIsoDay(period.to);
       const sameMonth = start.getMonth() === end.getMonth();
       return sameMonth
-        ? `${start.getDate()}–${end.getDate()} de ${MONTHS[start.getMonth()]}`
-        : `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]}`;
+        ? `${start.getDate()}–${end.getDate()}${joiner}${monthName(start, locale)}`
+        : `${start.getDate()} ${monthName(start, locale)} – ${end.getDate()} ${monthName(end, locale)}`;
     }
 
     case 'month':
-      return `${MONTHS[start.getMonth()]} ${start.getFullYear()}`;
+      return `${monthName(start, locale)} ${start.getFullYear()}`;
 
     case 'year':
       return String(start.getFullYear());
@@ -180,12 +207,12 @@ export function periodLabel(period: Period): string {
   }
 }
 
-/** Names for the period buttons, in the order Monefy lists them. */
+/** The period buttons, in the order Monefy lists them. Named by the screen. */
 export const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
-  { kind: 'day', label: 'Día' },
-  { kind: 'week', label: 'Semana' },
-  { kind: 'month', label: 'Mes' },
-  { kind: 'year', label: 'Año' },
-  { kind: 'all', label: 'Todo' },
-  { kind: 'range', label: 'Intervalo' },
+  { kind: 'day', label: 'period.day' },
+  { kind: 'week', label: 'period.week' },
+  { kind: 'month', label: 'period.month' },
+  { kind: 'year', label: 'period.year' },
+  { kind: 'all', label: 'period.all' },
+  { kind: 'range', label: 'period.range' },
 ];

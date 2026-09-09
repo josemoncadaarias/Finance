@@ -19,6 +19,7 @@ import { addIcons } from 'ionicons';
 import { documentAttachOutline, checkmarkCircleOutline, alertCircleOutline } from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { importMonefy, type ImportSummary } from '../../core/database/import/import-monefy';
 
 type Phase = 'idle' | 'reading' | 'done' | 'failed';
@@ -47,7 +48,7 @@ const REVIEW_LABELS: Record<string, string> = {
   templateUrl: './import.page.html',
   styleUrls: ['./import.page.scss'],
   imports: [
-    CommonModule,
+    CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonSpinner,
     IonList, IonItem, IonLabel, IonNote, IonMenuButton, IonButtons,
   ],

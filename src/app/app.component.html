@@ -22,12 +22,19 @@
                     [class.on]="isCurrent(item.path)" (click)="close()">
             <ion-icon slot="start" [name]="item.icon"></ion-icon>
             <ion-label>
-              <h3>{{ item.label }}</h3>
-              <p>{{ item.hint }}</p>
+              <h3>{{ $any(item.label) | t }}</h3>
+              <p>{{ $any(item.hint) | t }}</p>
             </ion-label>
           </ion-item>
         }
       </ion-list>
+
+      <!-- The same control as the flag in the toolbar, spelled out. This is
+           where a setting is looked for; the flag is where it is noticed. -->
+      <div class="language">
+        <p class="section">{{ 'nav.language' | t }}</p>
+        <app-language-button [wide]="true"></app-language-button>
+      </div>
     </ion-content>
   </ion-menu>
 

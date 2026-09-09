@@ -21,28 +21,29 @@
     </button>
 
     <ion-buttons slot="end">
-      <ion-button (click)="showSearch.set(!showSearch())" aria-label="Buscar">
+      <ion-button (click)="showSearch.set(!showSearch())" [attr.aria-label]="'summary.search' | t">
         <ion-icon slot="icon-only" name="search-outline"></ion-icon>
       </ion-button>
-      <ion-button (click)="add('transfer')" aria-label="Nueva transferencia">
+      <ion-button (click)="add('transfer')" [attr.aria-label]="'summary.newTransfer' | t">
         <ion-icon slot="icon-only" name="swap-horizontal-outline"></ion-icon>
       </ion-button>
+      <app-language-button></app-language-button>
     </ion-buttons>
   </ion-toolbar>
 
   @if (showSearch()) {
     <ion-toolbar>
-      <ion-searchbar placeholder="Buscar movimiento" [value]="filter.search()"
+      <ion-searchbar [placeholder]="'summary.search.placeholder' | t" [value]="filter.search()"
                      (ionInput)="filter.search.set($any($event.target).value ?? '')"
                      (ionCancel)="closeSearch()" showCancelButton="always"
-                     cancelButtonText="Cerrar"></ion-searchbar>
+                     [cancelButtonText]="'summary.close' | t"></ion-searchbar>
     </ion-toolbar>
   }
 
   <!-- Period: arrows to step, and the label itself opens the picker -->
   <ion-toolbar class="stepper">
     <ion-buttons slot="start">
-      <ion-button (click)="filter.step(-1)" [disabled]="!canStep()" aria-label="Periodo anterior">
+      <ion-button (click)="filter.step(-1)" [disabled]="!canStep()" [attr.aria-label]="'summary.previousPeriod' | t">
         <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -54,7 +55,7 @@
 
     <ion-buttons slot="end">
       <ion-button (click)="filter.step(1)" [disabled]="!canStep() || atNewest()"
-                  aria-label="Periodo siguiente">
+                  [attr.aria-label]="'summary.nextPeriod' | t">
         <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -65,10 +66,10 @@
 <ion-content [fullscreen]="true" appSwipe (swiped)="onSwipe($event)">
 
   @if (status() === 'opening') {
-    <div class="state"><ion-spinner></ion-spinner><p>Abriendo la base de datos…</p></div>
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
   } @else if (status() === 'failed') {
     <div class="state error">
-      <h2>No se pudo abrir la base de datos</h2>
+      <h2>{{ 'state.failed' | t }}</h2>
       <p>{{ database.error()?.message }}</p>
     </div>
   } @else {
@@ -89,20 +90,20 @@
     }
 
     <!-- And what happened during the period being looked at -->
-    <p class="period-tag">En {{ label() }}</p>
+    <p class="period-tag">{{ 'summary.inPeriod' | t:{ period: label() } }}</p>
 
     <section class="totals">
       <div>
-        <span class="tag">Entró</span>
+        <span class="tag">{{ 'summary.in' | t }}</span>
         <span class="value in">{{ store.totals().inMinor | money }}</span>
       </div>
       <div>
-        <span class="tag">Salió</span>
+        <span class="tag">{{ 'summary.out' | t }}</span>
         <span class="value out">{{ store.totals().outMinor | money }}</span>
       </div>
       @if (store.totals().movedMinor > 0) {
         <div>
-          <span class="tag">Movido</span>
+          <span class="tag">{{ 'summary.moved' | t }}</span>
           <span class="value moved">{{ store.totals().movedMinor | money }}</span>
         </div>
       }
@@ -111,17 +112,17 @@
     <!-- Balance pill, flanked by the control that swaps donut and list -->
     <div class="switcher">
       <button type="button" class="side" (click)="filter.toggleList()"
-              [attr.aria-label]="filter.showList() ? 'Ver la gráfica' : 'Ver los movimientos'">
+              [attr.aria-label]="(filter.showList() ? 'summary.seeChart' : 'summary.seeMovements') | t">
         <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
       </button>
 
       <button type="button" class="pill" (click)="filter.toggleList()">
-        <span class="tag">{{ filter.showList() ? 'Movimientos' : 'Ver movimientos' }}</span>
+        <span class="tag">{{ (filter.showList() ? 'summary.movements' : 'summary.seeMovements') | t }}</span>
         <span class="count">{{ store.visible().length }}</span>
       </button>
 
       <button type="button" class="side" (click)="filter.toggleList()"
-              [attr.aria-label]="filter.showList() ? 'Ver la gráfica' : 'Ver los movimientos'">
+              [attr.aria-label]="(filter.showList() ? 'summary.seeChart' : 'summary.seeMovements') | t">
         <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
       </button>
     </div>
@@ -137,7 +138,7 @@
           <button type="button" [class.on]="filter.grouping() === view.id"
                   (click)="setGrouping(view.id)">
             <ion-icon [name]="view.icon"></ion-icon>
-            <span>{{ view.label }}</span>
+            <span>{{ $any(view.label) | t }}</span>
           </button>
         }
       </div>
@@ -147,7 +148,7 @@
           <span class="within-note">{{ withinNote() }}</span>
           <button type="button" class="collapse" (click)="store.toggleAll()">
             <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-            {{ store.allCollapsed() ? 'Expandir todo' : 'Colapsar todo' }}
+            {{ (store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
           </button>
         </div>
       }
@@ -163,8 +164,14 @@
 
       @if (store.groups().length === 0) {
         <div class="state">
-          <h2>Nada por aquí</h2>
-          <p>No hay movimientos en {{ label() }}@if (filter.search()) { que digan "{{ filter.search() }}" }.</p>
+          <h2>{{ 'summary.empty.title' | t }}</h2>
+          <p>
+            @if (filter.search()) {
+              {{ 'summary.empty.search' | t:{ period: label(), search: filter.search() } }}
+            } @else {
+              {{ 'summary.empty.body' | t:{ period: label() } }}
+            }
+          </p>
         </div>
       } @else {
         <ion-list>
@@ -195,7 +202,7 @@
                         {{ movement.transaction.description || movement.accountName }}
                         @if (movement.transaction.locked) {
                           <ion-icon name="lock-closed-outline" class="locked"
-                                    title="Corregido a mano"></ion-icon>
+                                    [title]="'summary.correctedByHand' | t"></ion-icon>
                         }
                       </p>
                     } @else {
@@ -233,11 +240,11 @@
   <div class="compose">
     <button type="button" class="big expense" (click)="add('expense')">
       <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
-      <span class="what">Gasto</span>
+      <span class="what">{{ 'summary.expense' | t }}</span>
     </button>
     <button type="button" class="big income" (click)="add('income')">
       <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
-      <span class="what">Ingreso</span>
+      <span class="what">{{ 'summary.income' | t }}</span>
     </button>
   </div>
 </ion-footer>
@@ -255,13 +262,13 @@
            [initialBreakpoint]="0.75" [breakpoints]="[0, 0.75, 1]">
   <ng-template>
     <ion-content class="sheet">
-      <h2>Periodo</h2>
+      <h2>{{ 'summary.period' | t }}</h2>
       <ion-radio-group [value]="filter.period().kind"
                        (ionChange)="choosePeriod($any($event.detail).value)">
         @for (option of periodKinds; track option.kind) {
           <ion-item lines="full">
             <ion-radio [value]="option.kind" justify="start" labelPlacement="end">
-              {{ option.label }}
+              {{ $any(option.label) | t }}
             </ion-radio>
           </ion-item>
         }
@@ -269,14 +276,14 @@
 
       @if (filter.period().kind === 'range') {
         <div class="range">
-          <p>Desde</p>
+          <p>{{ 'summary.from' | t }}</p>
           <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
                         (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
-          <p>Hasta</p>
+          <p>{{ 'summary.to' | t }}</p>
           <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
                         (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
           <ion-button expand="block" (click)="applyRange()"
-                      [disabled]="!rangeStart() || !rangeEnd()">Aplicar</ion-button>
+                      [disabled]="!rangeStart() || !rangeEnd()">{{ 'summary.apply' | t }}</ion-button>
         </div>
       }
 
@@ -285,8 +292,8 @@
           <ion-toggle [checked]="filter.includeExcluded()"
                       (ionChange)="filter.includeExcluded.set($any($event.detail).checked)">
             <div>
-              <p class="strong">Incluir las cuentas apartadas</p>
-              <p class="hint">{{ store.hiddenCount() }} cuentas que no cuentan para el patrimonio</p>
+              <p class="strong">{{ 'summary.includeSetAside' | t }}</p>
+              <p class="hint">{{ 'summary.includeSetAside.hint' | t:{ count: store.hiddenCount() } }}</p>
             </div>
           </ion-toggle>
         </ion-item>
@@ -299,14 +306,14 @@
            [initialBreakpoint]="0.8" [breakpoints]="[0, 0.8, 1]">
   <ng-template>
     <ion-content class="sheet">
-      <h2>Cuenta</h2>
+      <h2>{{ 'summary.account' | t }}</h2>
       <ion-list>
         <ion-item button lines="full" (click)="pickAccount(null)"
                   [class.selected]="filter.accountId() === null">
           <ion-icon slot="start" name="wallet-outline"></ion-icon>
           <ion-label>
-            <h3>Todas las cuentas</h3>
-            <p>Sin las archivadas ni las apartadas del patrimonio</p>
+            <h3>{{ 'summary.allAccounts' | t }}</h3>
+            <p>{{ 'summary.allAccounts.hint' | t }}</p>
           </ion-label>
         </ion-item>
 
@@ -317,8 +324,8 @@
             <ion-label>
               <h3>
                 {{ account.name }}
-                @if (account.archived) { <ion-badge color="medium">archivada</ion-badge> }
-                @if (!account.include_in_net_worth) { <ion-badge color="medium">aparte</ion-badge> }
+                @if (account.archived) { <ion-badge color="medium">{{ 'summary.archived' | t }}</ion-badge> }
+                @if (!account.include_in_net_worth) { <ion-badge color="medium">{{ 'summary.setAside' | t }}</ion-badge> }
               </h3>
               <p>{{ account.currency_code }}</p>
             </ion-label>

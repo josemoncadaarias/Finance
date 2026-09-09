@@ -11,7 +11,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
+  IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
   IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
 } from '@ionic/angular';
@@ -19,6 +19,9 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { FilterService } from '../../core/filters/filter.service';
 import { PERIOD_KINDS, periodLabel, includesToday, rangePeriod } from '../../core/filters/period';
 import { MovementsStore } from './movements.store';
@@ -35,7 +38,8 @@ import type { TransactionRow } from '../../core/database/types';
   styleUrls: ['./movements.page.scss'],
   imports: [
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
+    TranslatePipe, LanguageButtonComponent,
+    IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
   ],
@@ -44,15 +48,16 @@ export class MovementsPage {
   readonly filter = inject(FilterService);
   readonly store = inject(MovementsStore);
   readonly database = inject(DatabaseService);
+  readonly i18n = inject(I18nService);
 
   readonly status = this.database.status;
   readonly periodKinds = PERIOD_KINDS;
 
   /** The three ways of reading the list, each with its ordering settled. */
   readonly views: { id: Grouping; label: string; icon: string }[] = [
-    { id: 'date', label: 'Por día', icon: 'calendar-outline' },
-    { id: 'category', label: 'Por categoría', icon: 'pie-chart-outline' },
-    { id: 'largest', label: 'Los más grandes', icon: 'trending-down-outline' },
+    { id: 'date', label: 'summary.view.date', icon: 'calendar-outline' },
+    { id: 'category', label: 'summary.view.category', icon: 'pie-chart-outline' },
+    { id: 'largest', label: 'summary.view.largest', icon: 'trending-down-outline' },
   ];
 
   readonly showPeriodSheet = signal(false);
@@ -64,14 +69,16 @@ export class MovementsPage {
   readonly rangeStart = signal<string | null>(null);
   readonly rangeEnd = signal<string | null>(null);
 
-  readonly label = computed(() => periodLabel(this.filter.period()));
+  readonly label = computed(() =>
+    periodLabel(this.filter.period(), this.i18n.dateLocale(), this.i18n.t('period.all')));
   readonly atNewest = computed(() => includesToday(this.filter.period()));
   readonly canStep = computed(() => {
     const kind = this.filter.period().kind;
     return kind !== 'all' && kind !== 'range';
   });
 
-  readonly accountLabel = computed(() => this.store.selectedAccount()?.name ?? 'Todas las cuentas');
+  readonly accountLabel = computed(() =>
+    this.store.selectedAccount()?.name ?? this.i18n.t('summary.allAccounts'));
 
   /**
    * The icon standing for what is on screen: the account's own, or the wallet
@@ -89,9 +96,9 @@ export class MovementsPage {
     const account = this.store.selectedAccount();
     if (account) {
       const parts = [account.currency_code];
-      if (account.type === 'credit') parts.push('tarjeta de crédito');
-      if (!account.include_in_net_worth) parts.push('aparte del patrimonio');
-      if (account.archived) parts.push('archivada');
+      if (account.type === 'credit') parts.push(this.i18n.t('summary.creditCard'));
+      if (!account.include_in_net_worth) parts.push(this.i18n.t('summary.setAside'));
+      if (account.archived) parts.push(this.i18n.t('summary.archived'));
       return parts.join(' · ');
     }
 
@@ -101,8 +108,8 @@ export class MovementsPage {
     const hidden = this.filter.includeExcluded() ? 0 : this.store.hiddenCount();
 
     return hidden === 0
-      ? `${counted} cuentas, todas incluidas`
-      : `${counted} cuentas · ${hidden} apartadas del patrimonio`;
+      ? this.i18n.t('summary.accountsCounted', { count: counted })
+      : this.i18n.t('summary.accountsWithHidden', { count: counted, hidden });
   });
 
   /** Selectable accounts: everything, since a single pick ignores the flags. */
@@ -127,9 +134,9 @@ export class MovementsPage {
 
   /** Says what the ordering inside each group is, so it is never a guess. */
   withinNote(): string {
-    return this.filter.grouping() === 'category'
-      ? 'Dentro de cada categoría, de mayor a menor'
-      : 'Dentro de cada día, lo más reciente primero';
+    return this.i18n.t(this.filter.grouping() === 'category'
+      ? 'summary.within.category'
+      : 'summary.within.date');
   }
 
   choosePeriod(kind: string): void {

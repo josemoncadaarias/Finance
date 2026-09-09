@@ -11,6 +11,7 @@
  */
 
 import type { TransactionRow } from '../../core/database/types';
+import { monthName } from '../../core/filters/period';
 
 /**
  * How the list is read.
@@ -140,14 +141,10 @@ export function totalsOf(movements: readonly Movement[]): Totals {
   return { inMinor, outMinor: outMinor - refundedMinor, refundedMinor, movedMinor };
 }
 
-const MONTHS = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-];
-
-function dayTitle(iso: string): string {
-  const [, month, day] = iso.split('-').map(Number);
-  return `${day} de ${MONTHS[month - 1]}`;
+function dayTitle(iso: string, locale: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const name = monthName(new Date(year, month - 1, day), locale);
+  return locale.startsWith('es') ? `${day} de ${name}` : `${day} ${name}`;
 }
 
 /**
@@ -169,8 +166,10 @@ export function groupMovements(
   movements: readonly Movement[],
   grouping: Grouping,
   sortWithin: SortWithin = 'date',
+  locale = 'es-CO',
+  allLabel = 'Todos los movimientos',
 ): MovementGroup[] {
-  if (grouping === 'largest') return [flatByAmount(movements)];
+  if (grouping === 'largest') return [flatByAmount(movements, allLabel)];
 
   const groups = new Map<string, MovementGroup>();
 
@@ -181,7 +180,7 @@ export function groupMovements(
     if (!group) {
       group = {
         key,
-        title: grouping === 'date' ? dayTitle(key) : key,
+        title: grouping === 'date' ? dayTitle(key, locale) : key,
         icon: grouping === 'date' ? null : movement.icon,
         count: 0,
         totalBaseMinor: 0,
@@ -240,7 +239,7 @@ export function groupMovements(
  * heading of its own: a single "Todos" bar above an ungrouped list would be
  * furniture. The screen skips the heading when there is only this group.
  */
-function flatByAmount(movements: readonly Movement[]): MovementGroup {
+function flatByAmount(movements: readonly Movement[], allLabel: string): MovementGroup {
   const sorted = [...movements].sort((a, b) =>
     Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor));
 
@@ -248,7 +247,7 @@ function flatByAmount(movements: readonly Movement[]): MovementGroup {
 
   return {
     key: 'largest',
-    title: 'Todos los movimientos',
+    title: allLabel,
     icon: null,
     count: sorted.length,
     totalBaseMinor,

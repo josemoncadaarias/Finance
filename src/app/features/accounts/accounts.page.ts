@@ -16,6 +16,7 @@ import { addIcons } from 'ionicons';
 import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import type { GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -26,7 +27,7 @@ import { SignPipe } from '../../shared/sign.pipe';
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
-    CommonModule, MoneyPipe, SignPipe,
+    CommonModule, MoneyPipe, SignPipe, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
     IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
   ],

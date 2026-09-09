@@ -1,7 +1,7 @@
 <ion-header class="entry-header">
   <ion-toolbar [class]="kind()">
     <ion-buttons slot="start">
-      <ion-button (click)="cancelled.emit()" aria-label="Cancelar">
+      <ion-button (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
         <ion-icon slot="icon-only" name="close-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -11,7 +11,7 @@
     <ion-buttons slot="end">
       <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
         <ion-icon slot="start" name="checkmark-outline"></ion-icon>
-        Guardar
+        {{ 'entry.save' | t }}
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -24,14 +24,14 @@
       <div class="pair">
         <button type="button" class="side" [class.active]="!editingTarget()"
                 (click)="focusAmount(false)">
-          <span class="lead">Sale</span>
+          <span class="lead">{{ 'entry.leaves' | t }}</span>
           <span class="figure">{{ amount().isEmpty ? '0' : amount().text }}</span>
           <span class="unit">{{ currency() }}</span>
         </button>
         <ion-icon name="arrow-forward-outline"></ion-icon>
         <button type="button" class="side" [class.active]="editingTarget()"
                 (click)="focusAmount(true)">
-          <span class="lead">Llega</span>
+          <span class="lead">{{ 'entry.arrives' | t }}</span>
           <span class="figure">{{ targetAmount().isEmpty ? '0' : targetAmount().text }}</span>
           <span class="unit">{{ targetCurrency() }}</span>
         </button>
@@ -51,23 +51,23 @@
   @if (isTransfer()) {
     <div class="route">
       <button type="button" class="leg" (click)="picking.set('from')">
-        <span class="lead">Desde</span>
+        <span class="lead">{{ 'entry.from' | t }}</span>
         <span class="who">
           <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
-          <span class="name">{{ account()?.name ?? 'Escoge' }}</span>
+          <span class="name">{{ account()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
 
-      <button type="button" class="swap" (click)="swapAccounts()" aria-label="Invertir">
+      <button type="button" class="swap" (click)="swapAccounts()" [attr.aria-label]="'entry.swap' | t">
         <ion-icon name="swap-horizontal-outline"></ion-icon>
       </button>
 
       <button type="button" class="leg" [class.needed]="toAccountId() === null"
               (click)="picking.set('to')">
-        <span class="lead">Hasta</span>
+        <span class="lead">{{ 'entry.to' | t }}</span>
         <span class="who">
           <ion-icon [name]="toAccount()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
-          <span class="name">{{ toAccount()?.name ?? 'Escoge' }}</span>
+          <span class="name">{{ toAccount()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
     </div>
@@ -82,7 +82,7 @@
     <div class="context">
       <button type="button" (click)="picking.set('from')">
         <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
-        <span>{{ account()?.name ?? 'Escoge una cuenta' }}</span>
+        <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
       </button>
       <button type="button" (click)="showDate.set(true)">
         <ion-icon name="calendar-outline"></ion-icon>
@@ -94,7 +94,7 @@
          itself -->
     <p class="prompt" [class.done]="categoryId() !== null">
       @if (categoryId() === null) {
-        <ion-icon name="arrow-down-outline"></ion-icon> Escoge una categoría
+        <ion-icon name="arrow-down-outline"></ion-icon> {{ 'entry.need.category' | t }}
       } @else {
         <ion-icon name="checkmark-circle-outline"></ion-icon> {{ selectedCategory()?.name }}
       }
@@ -112,7 +112,7 @@
   }
 
   <ion-item lines="none" class="note">
-    <ion-input placeholder="Nota (opcional)" [value]="note()"
+    <ion-input [placeholder]="'entry.note' | t" [value]="note()"
                (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-input>
   </ion-item>
 
@@ -132,10 +132,10 @@
     <div class="danger-zone">
       <ion-button expand="block" fill="clear" color="danger" (click)="remove()">
         <ion-icon slot="start" name="trash-outline"></ion-icon>
-        {{ isTransfer() ? 'Borrar esta transferencia' : 'Borrar este movimiento' }}
+        {{ (isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t }}
       </ion-button>
       @if (isTransfer()) {
-        <p class="warn">Se borra de las dos cuentas: {{ account()?.name }} y {{ toAccount()?.name }}.</p>
+        <p class="warn">{{ 'entry.deleteTransfer.hint' | t:{ from: account()?.name ?? '', to: toAccount()?.name ?? '' } }}</p>
       }
     </div>
   }
@@ -164,7 +164,7 @@
            [initialBreakpoint]="0.7" [breakpoints]="[0, 0.7, 1]">
   <ng-template>
     <ion-content class="sheet">
-      <h2>{{ picking() === 'to' ? 'Hacia dónde' : 'Desde dónde' }}</h2>
+      <h2>{{ (picking() === 'to' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
       <ion-list>
         @for (option of accounts(); track option.id) {
           <ion-item button lines="full" (click)="pickAccount(option.id)"
@@ -187,7 +187,7 @@
     <ion-content class="sheet">
       <!-- Ionic defaults to the browser's locale and a Sunday week; both are
            wrong here. -->
-      <ion-datetime presentation="date" [value]="occurredOn()" locale="es-CO"
+      <ion-datetime presentation="date" [value]="occurredOn()" [locale]="i18n.dateLocale()"
                     [firstDayOfWeek]="1"
                     (ionChange)="pickDate($any($event.detail).value)"></ion-datetime>
     </ion-content>

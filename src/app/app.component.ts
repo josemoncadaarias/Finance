@@ -11,10 +11,13 @@ import {
   IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { TranslatePipe } from './core/i18n/translate.pipe';
+import { LanguageButtonComponent } from './core/i18n/language-button.component';
 import { pieChartOutline, walletOutline, cloudUploadOutline } from 'ionicons/icons';
 
 interface Section {
   path: string;
+  /** Translation keys, resolved by the template. */
   label: string;
   /** One line saying what the screen answers, for someone new to the app. */
   hint: string;
@@ -26,7 +29,7 @@ interface Section {
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
   imports: [
-    RouterLink,
+    RouterLink, TranslatePipe, LanguageButtonComponent,
     IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
     IonContent, IonList, IonItem, IonIcon, IonLabel,
   ],
@@ -36,9 +39,9 @@ export class AppComponent {
   private readonly router = inject(Router);
 
   readonly sections: Section[] = [
-    { path: '/movements', label: 'Resumen', hint: 'Gastos, ingresos y saldo', icon: 'pie-chart-outline' },
-    { path: '/accounts', label: 'Cuentas', hint: 'Saldos y patrimonio', icon: 'wallet-outline' },
-    { path: '/import', label: 'Importar', hint: 'Traer el backup de Monefy', icon: 'cloud-upload-outline' },
+    { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
+    { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
+    { path: '/import', label: 'nav.import', hint: 'nav.import.hint', icon: 'cloud-upload-outline' },
   ];
 
   constructor() {
