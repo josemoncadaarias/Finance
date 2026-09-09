@@ -11,6 +11,9 @@
 
 import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { IonIcon } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import * as allIcons from 'ionicons/icons';
 
 import type { Slice } from './group-movements';
 import { formatMoney } from '../../core/database/money';
@@ -24,10 +27,10 @@ interface Segment {
   labelY: number;
 }
 
-const SIZE = 240;
+const SIZE = 280;
 const CENTRE = SIZE / 2;
-const OUTER = 96;
-const INNER = 62;
+const OUTER = 92;
+const INNER = 60;
 
 /**
  * Spending shades, walked in order so neighbouring slices stay distinguishable.
@@ -41,13 +44,14 @@ const MOVED = '#5b7c99';
 
 @Component({
   selector: 'app-donut',
-  imports: [CommonModule],
+  imports: [CommonModule, IonIcon],
   template: `
     @if (segments().length === 0) {
       <div class="empty">
         <p>Nada en este periodo</p>
       </div>
     } @else {
+      <div class="ring">
       <svg [attr.viewBox]="'0 0 ' + size + ' ' + size" class="donut" role="img"
            [attr.aria-label]="'Gasto por categoría: ' + summary()">
         @for (segment of segments(); track segment.slice.label) {
@@ -74,11 +78,22 @@ const MOVED = '#5b7c99';
         }
       </svg>
 
+        @for (segment of labelled(); track segment.slice.label) {
+          <ion-icon [name]="segment.slice.icon ?? 'pricetag-outline'"
+                    class="ring-icon"
+                    [style.left.%]="segment.labelX / size * 100"
+                    [style.top.%]="segment.labelY / size * 100"
+                    [style.color]="segment.colour"
+                    (click)="sliceTapped.emit(segment.slice.label)"></ion-icon>
+        }
+      </div>
+
       <ul class="legend">
         @for (segment of segments(); track segment.slice.label) {
           <li (click)="sliceTapped.emit(segment.slice.label)"
               (keydown.enter)="sliceTapped.emit(segment.slice.label)" tabindex="0">
-            <span class="swatch" [style.background]="segment.colour"></span>
+            <ion-icon [name]="segment.slice.icon ?? 'pricetag-outline'"
+                      [style.color]="segment.colour"></ion-icon>
             <span class="name">{{ segment.slice.label }}</span>
             <span class="percent">{{ segment.slice.percent }}%</span>
             <span class="amount">{{ money(segment.slice.amountMinor) }}</span>
@@ -97,11 +112,23 @@ const MOVED = '#5b7c99';
       p { margin: 0; }
     }
 
+    .ring { position: relative; width: 100%; max-width: 17rem; margin: 0.5rem auto 1rem; }
+
+    .ring-icon {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-size: 1.15rem;
+      cursor: pointer;
+      filter: drop-shadow(0 0 2px var(--ion-background-color));
+    }
+
+    .legend li ion-icon { font-size: 1.1rem; align-self: center; }
+
     .donut {
       display: block;
       width: 100%;
-      max-width: 17rem;
-      margin: 0.5rem auto 1rem;
+      max-width: 100%;
+      margin: 0;
     }
 
     .segment {
@@ -153,6 +180,14 @@ const MOVED = '#5b7c99';
   `],
 })
 export class DonutComponent {
+  constructor() {
+    // Ionicons only renders a name that has been registered. The categories
+    // come from the user's data, so which icons are needed is not known until
+    // runtime - registering the set the app can assign is the honest answer,
+    // and tree-shaking still drops the rest of the library from the bundle.
+    addIcons(allIcons as unknown as Record<string, string>);
+  }
+
   readonly slices = input.required<Slice[]>();
   readonly inMinor = input(0);
   readonly outMinor = input(0);
@@ -188,11 +223,20 @@ export class DonutComponent {
         slice,
         path,
         colour,
-        labelX: CENTRE + Math.cos(mid) * (OUTER + 14),
-        labelY: CENTRE + Math.sin(mid) * (OUTER + 14),
+        labelX: CENTRE + Math.cos(mid) * (OUTER + 24),
+        labelY: CENTRE + Math.sin(mid) * (OUTER + 24),
       };
     });
   });
+
+  /**
+   * The slices big enough to carry an icon on the ring without colliding.
+   *
+   * Below about a twentieth of the circle two icons sit on top of each other
+   * and the ring stops being readable, so the small ones live in the legend
+   * only.
+   */
+  readonly labelled = computed(() => this.segments().filter(s => s.slice.percent >= 5));
 
   readonly summary = computed(() =>
     this.segments().map(s => `${s.slice.label} ${s.slice.percent}%`).join(', '),

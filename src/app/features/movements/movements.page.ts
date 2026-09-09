@@ -19,7 +19,7 @@ import { addIcons } from 'ionicons';
 import {
   chevronBackOutline, chevronForwardOutline, searchOutline, closeOutline,
   listOutline, pieChartOutline, calendarOutline, walletOutline, swapHorizontalOutline,
-  chevronDownOutline, chevronUpOutline, lockClosedOutline, funnelOutline,
+  chevronDownOutline, chevronUpOutline, lockClosedOutline,
 } from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -76,7 +76,7 @@ export class MovementsPage {
     addIcons({
       chevronBackOutline, chevronForwardOutline, searchOutline, closeOutline,
       listOutline, pieChartOutline, calendarOutline, walletOutline, swapHorizontalOutline,
-      chevronDownOutline, chevronUpOutline, lockClosedOutline, funnelOutline,
+      chevronDownOutline, chevronUpOutline, lockClosedOutline,
     });
   }
 

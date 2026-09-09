@@ -28,6 +28,7 @@ import { parseMonefyCsv, type MonefyCsvResult, type MonefyRow } from './monefy-c
 import { pairTransfers, findGhostAccounts, type TransferPair } from './pair-transfers';
 import { planAccounts, isCreditLimitChange, derivedCreditLimit, type AccountPlan, type PlannedAccount } from './account-plan';
 import { assessUsdMention, type UsdCandidate } from './extract-usd';
+import { iconForCategory } from '../category-icons';
 
 export interface ImportOptions {
   fileName: string;
@@ -300,7 +301,7 @@ class ImportWriter {
       const kind = positives > negatives ? 'income' : 'expense';
 
       const existing = await this.categories.findByName(name, kind);
-      const id = existing ? existing.id : await this.categories.create({ name, kind, builtin_icon: this.icon });
+      const id = existing ? existing.id : await this.categories.create({ name, kind, builtin_icon: iconForCategory(name) });
       this.categoryIds.set(name, id);
       if (!existing) this.categoriesCreated += 1;
 

@@ -1,15 +1,13 @@
 <ion-header [translucent]="true">
+  <!-- Account: a control that looks like one, not a title -->
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-button (click)="showPeriodSheet.set(true)" aria-label="Filtros">
-        <ion-icon slot="icon-only" name="funnel-outline"></ion-icon>
+      <ion-button (click)="showAccountSheet.set(true)" class="account">
+        <ion-icon slot="start" name="wallet-outline"></ion-icon>
+        <span class="name">{{ accountLabel() }}</span>
+        <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-
-    <ion-title (click)="showAccountSheet.set(true)" class="account-title">
-      <span class="name">{{ accountLabel() }}</span>
-      <span class="period">{{ label() }}</span>
-    </ion-title>
 
     <ion-buttons slot="end">
       <ion-button (click)="showSearch.set(!showSearch())" aria-label="Buscar">
@@ -27,22 +25,28 @@
     </ion-toolbar>
   }
 
-  @if (canStep()) {
-    <ion-toolbar class="stepper">
-      <ion-buttons slot="start">
-        <ion-button (click)="filter.step(-1)" aria-label="Periodo anterior">
-          <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-      <ion-title size="small" class="period-label">{{ label() }}</ion-title>
-      <ion-buttons slot="end">
-        <ion-button (click)="filter.step(1)" [disabled]="atNewest()" aria-label="Periodo siguiente">
-          <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  }
+  <!-- Period: arrows to step, and the label itself opens the picker -->
+  <ion-toolbar class="stepper">
+    <ion-buttons slot="start">
+      <ion-button (click)="filter.step(-1)" [disabled]="!canStep()" aria-label="Periodo anterior">
+        <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
+    <ion-button fill="clear" class="period-button" (click)="showPeriodSheet.set(true)">
+      <span class="label">{{ label() }}</span>
+      <ion-icon name="calendar-outline"></ion-icon>
+    </ion-button>
+
+    <ion-buttons slot="end">
+      <ion-button (click)="filter.step(1)" [disabled]="!canStep() || atNewest()"
+                  aria-label="Periodo siguiente">
+        <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
 </ion-header>
+
 
 <ion-content [fullscreen]="true">
 
