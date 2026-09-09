@@ -55,7 +55,8 @@
         }
 
         @for (balance of entry.balances; track balance.account.id) {
-          <ion-item [class.nested]="entry.group" lines="full">
+          <ion-item [class.nested]="entry.group" lines="full" button [detail]="true"
+                    (click)="open(balance.account)">
             <ion-icon slot="start" [name]="iconFor(balance.account.type)"
                       [class.archived]="balance.account.archived"></ion-icon>
             <ion-label>

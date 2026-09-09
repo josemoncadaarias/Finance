@@ -8,6 +8,7 @@
 
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
   IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
@@ -16,10 +17,11 @@ import { addIcons } from 'ionicons';
 import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
-import type { GroupedBalance } from '../../core/database/types';
+import type { AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SignPipe } from '../../shared/sign.pipe';
 
@@ -35,6 +37,8 @@ import { SignPipe } from '../../shared/sign.pipe';
 })
 export class AccountsPage {
   private readonly database = inject(DatabaseService);
+  private readonly filter = inject(FilterService);
+  private readonly router = inject(Router);
 
   readonly grouped = signal<GroupedBalance[] | null>(null);
   readonly netWorthMinor = signal(0);
@@ -97,5 +101,22 @@ export class AccountsPage {
       case 'investment': return 'trending-up-outline';
       default: return 'wallet-outline';
     }
+  }
+
+  /**
+   * Opens the summary on the account that was tapped.
+   *
+   * A balance is a total, and the next question is always what it is made
+   * of — so the row that shows the number leads to the movements behind it.
+   * A currency of a multi-currency account opens on its own, because that
+   * is the row the balance belongs to: ARQ USD and ARQ EUR hold different
+   * money.
+   *
+   * Choosing here counts as choosing by hand, so the summary stops guessing
+   * which account to open on from then on.
+   */
+  open(account: AccountRow): void {
+    this.filter.selectAccount(account.id);
+    void this.router.navigateByUrl('/movements');
   }
 }
