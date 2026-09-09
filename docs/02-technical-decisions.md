@@ -166,3 +166,43 @@ repository.
 currency twice. Ungrouped accounts are exempt because SQLite treats NULLs as
 distinct in a unique index — which is exactly the wanted behaviour, since
 Bancolombia, Nequi and Plata are all COP and all ungrouped.
+
+---
+
+## When a credit-card purchase becomes an expense
+
+Decided 2026-09-09, after Jose noticed August totalled 16,605,769.76 here and
+18,868,506.92 in Monefy. Neither was wrong. The gap is entirely a difference in
+when a card purchase counts, and it reconciles to the peso:
+
+```
+  11,583,201.76   spending, excluding the credit card
++  3,100,000.00   transfers to eToro and Pibank para renta
++  4,185,305.16   payments made to the credit card
+= 18,868,506.92   Monefy's figure
+```
+
+**Monefy does not treat the card as one of your accounts.** Buying with it is
+not spending — the money is the bank's. Paying the statement is, because that
+is when your own money leaves. Expense at payment.
+
+**Finance treats the card as an account with a negative balance**, which is
+what it is: a liability. Buying with it is spending on the day you buy, since
+that is when you took on the obligation. Paying it moves money between two
+things already inside your net worth, so it changes nothing and is never
+spending. Expense at purchase.
+
+Jose chose this one. Three reasons, the first of which is the whole point of
+the app:
+
+- **Tax is about when you spent.** Something bought on 28 December and paid on
+  15 January belongs to December. Monefy's reading moves it into the next
+  year.
+- **Monefy cannot tell you what you owe.** With the card outside the accounts,
+  the 956,492.27 of debt never appears in net worth. Here it subtracts.
+- **A month reads evenly.** Under Monefy's model a month in which two
+  statements happened to fall looks expensive even if nothing was bought.
+
+The consequence to remember: **spending totals here will not match Monefy's,
+and that is correct.** The difference is always the card purchases of the
+period, less the card payments made in it.

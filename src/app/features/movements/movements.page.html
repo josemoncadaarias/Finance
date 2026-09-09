@@ -48,7 +48,7 @@
 </ion-header>
 
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" appSwipe (swiped)="onSwipe($event)">
 
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>Abriendo la base de datos…</p></div>

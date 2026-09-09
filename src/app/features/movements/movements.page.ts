@@ -28,6 +28,7 @@ import { PERIOD_KINDS, periodLabel, includesToday, rangePeriod } from '../../cor
 import { MovementsStore } from './movements.store';
 import { DonutComponent } from './donut.component';
 import { MoneyPipe } from '../../shared/money.pipe';
+import { SwipeDirective } from '../../shared/swipe.directive';
 import type { Grouping } from './group-movements';
 
 @Component({
@@ -35,7 +36,7 @@ import type { Grouping } from './group-movements';
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
-    CommonModule, FormsModule, MoneyPipe, DonutComponent,
+    CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
@@ -105,6 +106,13 @@ export class MovementsPage {
   pickAccount(id: number | null): void {
     this.filter.selectAccount(id);
     this.showAccountSheet.set(false);
+  }
+
+  /** A flick left or right steps the period, when the period can step. */
+  onSwipe(steps: number): void {
+    if (this.canStep() && (steps < 0 || !this.atNewest())) {
+      this.filter.step(steps);
+    }
   }
 
   closeSearch(): void {
