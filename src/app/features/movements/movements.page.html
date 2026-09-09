@@ -323,9 +323,16 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal [isOpen]="showAccountSheet()" (didDismiss)="showAccountSheet.set(false)"
-           [initialBreakpoint]="0.8" [breakpoints]="[0, 0.8, 1]">
+<ion-modal [isOpen]="showAccountSheet()" (didDismiss)="showAccountSheet.set(false)">
   <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="showAccountSheet.set(false)">{{ 'summary.close' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
     <ion-content class="sheet">
       <h2>{{ 'summary.account' | t }}</h2>
       <ion-list>

@@ -47,6 +47,15 @@
       <span class="currency">{{ currency() }}</span>
     }
 
+    <!-- Backspace stays the everyday one; clearing outright is for starting
+         an amount over rather than deleting seven digits. -->
+    @if (!activeBuffer().isEmpty) {
+      <button type="button" class="clear-all" (click)="clearAmount()"
+              [attr.aria-label]="'entry.clearAmount' | t">
+        <ion-icon name="close-circle"></ion-icon>
+      </button>
+    }
+
     <button type="button" class="erase" (click)="press('<')"
             [attr.aria-label]="'entry.erase' | t">
       <ion-icon name="backspace-outline"></ion-icon>
@@ -106,7 +115,10 @@
       @if (categoryId() === null) {
         <ion-icon name="arrow-down-outline"></ion-icon> {{ 'entry.need.category' | t }}
       } @else {
-        <ion-icon name="checkmark-circle-outline"></ion-icon> {{ selectedCategory()?.name }}
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        <ion-icon class="chosen"
+                  [name]="selectedCategory()?.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+        {{ selectedCategory()?.name }}
       }
     </p>
 
@@ -133,6 +145,12 @@
   <ion-item lines="none" class="note">
     <ion-input [placeholder]="'entry.note' | t" [value]="note()"
                (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-input>
+    @if (note() !== '') {
+      <button type="button" slot="end" class="clear-note" (click)="clearNote()"
+              [attr.aria-label]="'entry.clearNote' | t">
+        <ion-icon name="close-circle"></ion-icon>
+      </button>
+    }
   </ion-item>
 
   <!-- Notes repeat; these are the ones already written that match -->
@@ -166,8 +184,6 @@
     <p class="missing">{{ hint }}</p>
   }
 
-  <p class="typing-hint">{{ 'entry.keyboardHint' | t }}</p>
-
   <!-- Four columns: the digits, and the arithmetic anyone does at a counter -->
   <div class="keypad">
     @for (key of keys; track key) {
@@ -185,9 +201,16 @@
   </div>
 </ion-footer>
 
-<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)"
-           [initialBreakpoint]="0.7" [breakpoints]="[0, 0.7, 1]">
+<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
   <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="picking.set(null)">{{ 'entry.cancel' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
     <ion-content class="sheet">
       <h2>{{ (picking() === 'to' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
       <ion-list>
@@ -207,9 +230,16 @@
 </ion-modal>
 
 <!-- Every category, searchable. The way in for the long tail. -->
-<ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)"
-           [initialBreakpoint]="0.9" [breakpoints]="[0, 0.9, 1]">
+<ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
     <ion-content class="sheet">
       <h2>{{ 'entry.pickCategory' | t }}</h2>
 

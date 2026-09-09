@@ -156,11 +156,13 @@ export class EntryComponent implements OnInit {
   /**
    * How many categories the grid offers before the rest go behind "see all".
    *
-   * Eight covers 91% of what actually gets recorded here, and two rows of four
-   * is what fits above the keypad without pushing it off the screen. The rest
-   * are one tap away, which is the right price for the remaining 9%.
+   * Four, plus the door to the rest, is exactly one row — and a single row is
+   * worth more than the extra coverage a second one buys: it leaves the amount
+   * and the keypad in view, which is what the screen is for. The four most
+   * used carry two thirds of what gets recorded here, and everything else is
+   * one tap and a search away.
    */
-  private static readonly SHORTLIST = 8;
+  private static readonly SHORTLIST = 4;
 
   /**
    * The grid: the most used, plus whichever one is already chosen.
@@ -452,6 +454,20 @@ export class EntryComponent implements OnInit {
 
     // Not the note already written: offering back what is on screen is noise.
     this.noteSuggestions.set(found.filter(note => note !== value));
+  }
+
+  /** Empties the note in one tap, rather than holding backspace down. */
+  clearNote(): void {
+    this.note.set('');
+    this.noteSuggestions.set([]);
+    this.noteQuery++;
+  }
+
+  /** Starts the amount over, sum and all. */
+  clearAmount(): void {
+    this.pending.set(null);
+    if (this.editingTarget()) this.targetAmount.set(new AmountBuffer());
+    else this.amount.set(new AmountBuffer());
   }
 
   useNote(note: string): void {

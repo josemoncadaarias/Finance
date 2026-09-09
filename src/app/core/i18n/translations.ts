@@ -133,7 +133,9 @@ export const SPANISH = {
   'entry.transferNotFound': 'No se encontró la transferencia',
 
   'entry.keyboardHint': 'Teclado y calculadora: + − × ÷ · Enter guarda · Esc cierra',
-  'entry.erase': 'Borrar',
+  'entry.erase': 'Borrar un dígito',
+  'entry.clearAmount': 'Borrar el monto',
+  'entry.clearNote': 'Borrar la nota',
   'entry.need.finishSum': 'Termina la operación con =',
   'entry.need.amount': 'Escribe el monto',
   'entry.need.account': 'Escoge la cuenta',
@@ -426,7 +428,9 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'entry.transferNotFound': 'That transfer was not found',
 
   'entry.keyboardHint': 'Keyboard and calculator: + − × ÷ · Enter saves · Esc closes',
-  'entry.erase': 'Erase',
+  'entry.erase': 'Delete a digit',
+  'entry.clearAmount': 'Clear the amount',
+  'entry.clearNote': 'Clear the note',
   'entry.need.finishSum': 'Finish the sum with =',
   'entry.need.amount': 'Type the amount',
   'entry.need.account': 'Pick the account',

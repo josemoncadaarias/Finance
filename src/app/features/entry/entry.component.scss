@@ -374,22 +374,6 @@ ion-button.save {
   }
 }
 
-/* Says the physical keyboard works, and only where there is one: on a phone
-   the pointer is coarse and the hint would be noise. */
-.typing-hint { display: none; }
-
-@media (pointer: fine) {
-  .typing-hint {
-    display: block;
-    margin: 0;
-    padding: 0.3rem 1rem;
-    text-align: center;
-    font-size: 0.7rem;
-    color: var(--ion-color-medium);
-    border-top: 1px solid var(--ion-color-light-shade);
-  }
-}
-
 /* The sum in progress, above the amount it will become. */
 .pending {
   margin: 0;
@@ -403,6 +387,26 @@ ion-button.save {
 /* Backspace lives in the display, acting on what it clears. */
 .amount {
   position: relative;
+
+  .clear-all {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--ion-color-medium);
+    cursor: pointer;
+
+    ion-icon { font-size: 1.3rem; }
+    &:active { background: var(--ion-color-light); }
+  }
 
   .erase {
     position: absolute;
@@ -423,4 +427,27 @@ ion-button.save {
     ion-icon { font-size: 1.25rem; }
     &:active { background: var(--ion-color-light); }
   }
+}
+
+/* Clearing the note outright, next to the field it empties. */
+.clear-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+
+  ion-icon { font-size: 1.1rem; }
+  &:active { background: var(--ion-color-light); }
+}
+
+/* The chosen category shows its own face beside its name. */
+.prompt .chosen {
+  color: var(--ion-color-success);
+  font-size: 1.05rem;
 }
