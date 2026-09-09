@@ -10,7 +10,7 @@ import {
 } from '../../src/app/features/movements/group-movements.ts';
 
 /** A movement, with only the fields the grouping actually reads. */
-function movement({ date, label, amount, base = amount, transfer = null, account = 'Bancolombia', icon = null, description = '' }) {
+function movement({ date, label, amount, base = amount, transfer = null, account = 'Bancolombia', accountType = 'debit', icon = null, description = '' }) {
   const transaction = {
     id: Math.random(),
     occurred_on: date,
@@ -25,7 +25,8 @@ function movement({ date, label, amount, base = amount, transfer = null, account
     currency: 'COP',
     label,
     icon,
-    flow: flowOf(transaction),
+    accountType,
+    flow: flowOf(transaction, accountType),
   };
 }
 
@@ -133,7 +134,7 @@ test('totals use the base amount, so mixed currencies still add up', () => {
   assert.equal(totals.outMinor, 9999822 + 130000);
 });
 
-test('the donut leaves income out and rounds to whole percents', () => {
+test('the legend lists income first and percents are shares of spending', () => {
   const slices = slicesOf([
     movement({ date: '2026-09-08', label: 'Casa', amount: -360000 }),
     movement({ date: '2026-09-08', label: 'Restaurante', amount: -270000 }),
@@ -144,11 +145,16 @@ test('the donut leaves income out and rounds to whole percents', () => {
     movement({ date: '2026-09-08', label: 'Salario', amount: 5000000 }),
   ]);
 
-  assert.equal(slices.length, 6, 'income gets no slice');
-  assert.deepEqual(slices.map(s => s.label),
+  // Income is listed, first, but takes no share of spending: the ring draws
+  // only what went out, and a percentage of the ring is what a percent means.
+  assert.equal(slices[0].label, 'Salario');
+  assert.equal(slices[0].percent, 0);
+
+  const spending = slices.slice(1);
+  assert.deepEqual(spending.map(s => s.label),
     ['Casa', 'Restaurante', 'Mercado', 'Tecnología', 'Salud', 'Transporte']);
   // The real shares from Jose's own screenshot.
-  assert.deepEqual(slices.map(s => s.percent), [36, 27, 18, 8, 7, 4]);
+  assert.deepEqual(spending.map(s => s.percent), [36, 27, 18, 8, 7, 4]);
 });
 
 test('a transfer gets a slice but stays marked as moved', () => {
@@ -166,7 +172,7 @@ test('a transfer gets a slice but stays marked as moved', () => {
 
 test('an empty period produces no slices and no division by zero', () => {
   assert.deepEqual(slicesOf([]), []);
-  assert.deepEqual(totalsOf([]), { inMinor: 0, outMinor: 0, movedMinor: 0 });
+  assert.deepEqual(totalsOf([]), { inMinor: 0, outMinor: 0, refundedMinor: 0, movedMinor: 0 });
   assert.deepEqual(groupMovements([], 'date'), []);
 });
 
@@ -182,4 +188,58 @@ test('search looks at the description, the category and the account', () => {
   assert.equal(matchesSearch(row, 'casa'), true, 'the category counts');
   assert.equal(matchesSearch(row, 'rappi'), true, 'so does the account');
   assert.equal(matchesSearch(row, 'mercado'), false);
+});
+
+
+test('money arriving on a credit card is a refund, not income', () => {
+  // The card holds the bank's money. A reversed charge or a returned purchase
+  // undoes spending; it does not add to what Jose earned, and he was explicit
+  // that it must never be counted as income.
+  const card = { account: 'Tarjeta crédito rappi', accountType: 'credit' };
+
+  assert.equal(movement({ ...card, date: '2026-09-08', label: 'Casa', amount: 60000 }).flow, 'refund');
+  assert.equal(movement({ ...card, date: '2026-09-08', label: 'Casa', amount: -60000 }).flow, 'out');
+  // The same positive amount on a debit account really is income.
+  assert.equal(movement({ date: '2026-09-08', label: 'Salario', amount: 60000 }).flow, 'in');
+});
+
+test('a refund comes off what was spent, not onto what came in', () => {
+  const totals = totalsOf([
+    movement({ date: '2026-09-08', label: 'Casa', amount: -500000,
+               account: 'Tarjeta crédito rappi', accountType: 'credit' }),
+    movement({ date: '2026-09-08', label: 'Casa', amount: 120000,
+               account: 'Tarjeta crédito rappi', accountType: 'credit' }),
+    movement({ date: '2026-09-08', label: 'Salario', amount: 3000000 }),
+  ]);
+
+  assert.equal(totals.inMinor, 3000000, 'the refund is not income');
+  assert.equal(totals.outMinor, 380000, 'spending is net of the refund');
+  assert.equal(totals.refundedMinor, 120000);
+});
+
+test('a refund shrinks the category it undid', () => {
+  const slices = slicesOf([
+    movement({ date: '2026-09-08', label: 'Casa', amount: -300000 }),
+    movement({ date: '2026-09-08', label: 'Casa', amount: 100000,
+               account: 'Tarjeta crédito rappi', accountType: 'credit' }),
+    movement({ date: '2026-09-08', label: 'Comida', amount: -200000 }),
+  ]);
+
+  const casa = slices.find(s => s.label === 'Casa');
+  assert.equal(casa.amountMinor, 200000, '300,000 spent less 100,000 returned');
+  assert.equal(casa.flow, 'out', 'still a spending slice');
+  assert.deepEqual(slices.map(s => s.percent), [50, 50]);
+});
+
+test('the legend lists income too, and puts it first', () => {
+  const slices = slicesOf([
+    movement({ date: '2026-09-08', label: 'Casa', amount: -300000 }),
+    movement({ date: '2026-09-08', label: 'Salario', amount: 3000000 }),
+    movement({ date: '2026-09-08', label: 'Comida', amount: -100000 }),
+  ]);
+
+  assert.deepEqual(slices.map(s => s.label), ['Salario', 'Casa', 'Comida']);
+  // Income has no share of spending, so it shows none.
+  assert.equal(slices[0].percent, 0);
+  assert.deepEqual(slices.slice(1).map(s => s.percent), [75, 25]);
 });

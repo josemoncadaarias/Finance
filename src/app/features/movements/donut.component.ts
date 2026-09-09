@@ -42,15 +42,21 @@ const SPENT = ['#c8553d', '#e0913f', '#b5457a', '#7f5aa6', '#a8603c', '#d16b8a',
 /** Transfers never take a spending colour; they are money moved, not gone. */
 const MOVED = '#5b7c99';
 
+/** Income never reaches the ring, only the legend, and always reads as green. */
+const INCOME = '#2f9e6e';
+
 @Component({
   selector: 'app-donut',
   imports: [CommonModule, IonIcon],
   template: `
-    @if (segments().length === 0) {
+    @if (slices().length === 0) {
       <div class="empty">
         <p>Nada en este periodo</p>
       </div>
     } @else {
+      <!-- A month with income but no spending has an empty ring and a legend
+           worth reading, so the two are shown independently. -->
+      @if (segments().length > 0) {
       <div class="ring">
       <svg [attr.viewBox]="'0 0 ' + size + ' ' + size" class="donut" role="img"
            [attr.aria-label]="'Gasto por categoría: ' + summary()">
@@ -87,16 +93,18 @@ const MOVED = '#5b7c99';
                     (click)="sliceTapped.emit(segment.slice.label)"></ion-icon>
         }
       </div>
+      }
 
       <ul class="legend">
-        @for (segment of segments(); track segment.slice.label) {
-          <li (click)="sliceTapped.emit(segment.slice.label)"
-              (keydown.enter)="sliceTapped.emit(segment.slice.label)" tabindex="0">
-            <ion-icon [name]="segment.slice.icon ?? 'pricetag-outline'"
-                      [style.color]="segment.colour"></ion-icon>
-            <span class="name">{{ segment.slice.label }}</span>
-            <span class="percent">{{ segment.slice.percent }}%</span>
-            <span class="amount">{{ money(segment.slice.amountMinor) }}</span>
+        @for (row of legend(); track row.slice.label) {
+          <li (click)="sliceTapped.emit(row.slice.label)"
+              (keydown.enter)="sliceTapped.emit(row.slice.label)" tabindex="0"
+              [class.income]="row.slice.flow === 'in'">
+            <ion-icon [name]="row.slice.icon ?? 'pricetag-outline'"
+                      [style.color]="row.colour"></ion-icon>
+            <span class="name">{{ row.slice.label }}</span>
+            <span class="percent">{{ row.slice.flow === 'in' ? '' : row.slice.percent + '%' }}</span>
+            <span class="amount">{{ money(row.slice.amountMinor) }}</span>
           </li>
         }
       </ul>
@@ -123,6 +131,7 @@ const MOVED = '#5b7c99';
     }
 
     .legend li ion-icon { font-size: 1.1rem; align-self: center; }
+    .legend li.income .amount { color: var(--ion-color-success); }
 
     .donut {
       display: block;
@@ -201,8 +210,12 @@ export class DonutComponent {
   readonly size = SIZE;
   readonly centre = CENTRE;
 
+  /** Only spending is drawn: a ring mixing what came in with what went out
+   * answers nothing. Income lives in the legend. */
+  readonly spentSlices = computed(() => this.slices().filter(s => s.flow !== 'in'));
+
   readonly segments = computed<Segment[]>(() => {
-    const slices = this.slices();
+    const slices = this.spentSlices();
     const total = slices.reduce((sum, slice) => sum + slice.amountMinor, 0);
     if (total === 0) return [];
 
@@ -237,6 +250,22 @@ export class DonutComponent {
    * only.
    */
   readonly labelled = computed(() => this.segments().filter(s => s.slice.percent >= 5));
+
+  /**
+   * Every slice with a colour: the ones on the ring keep theirs, and income —
+   * which the ring does not draw — takes the colour that means money in.
+   *
+   * Jose asked for income to appear here and to appear first, on the same
+   * reasoning as the list: what came in is the context the spending is read
+   * against.
+   */
+  readonly legend = computed(() => {
+    const drawn = new Map(this.segments().map(segment => [segment.slice.label, segment.colour]));
+    return this.slices().map(slice => ({
+      slice,
+      colour: drawn.get(slice.label) ?? INCOME,
+    }));
+  });
 
   readonly summary = computed(() =>
     this.segments().map(s => `${s.slice.label} ${s.slice.percent}%`).join(', '),

@@ -156,11 +156,12 @@ function toMovement(row: DetailedTransaction): Movement {
   return {
     transaction: row,
     accountName: row.account_name,
+    accountType: row.account_type,
     currency: row.currency_code,
     label: isTransfer
       ? row.transfer_leg === 'from' ? `A ${other}` : `De ${other}`
       : row.category_name ?? 'Sin categoría',
     icon: isTransfer ? 'swap-horizontal-outline' : row.category_icon,
-    flow: flowOf(row),
+    flow: flowOf(row, row.account_type),
   };
 }

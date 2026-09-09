@@ -24,11 +24,19 @@ export type Flow =
   /** Money left: an expense. */
   | 'out'
   /** Money moved between the user's own accounts. Neither earned nor spent. */
-  | 'moved';
+  | 'moved'
+  /**
+   * Money that came back on a credit card: a refund, a reversed charge, a fee
+   * corrected. It reduces what was spent rather than adding to what was
+   * earned — the card is borrowed money, so nothing arrived.
+   */
+  | 'refund';
 
 export interface Movement {
   transaction: TransactionRow;
   accountName: string;
+  /** Needed to read a positive amount on a credit card correctly. */
+  accountType: string;
   currency: string;
   /** The real category, or the other account's name for a transfer. */
   label: string;
@@ -55,8 +63,10 @@ export interface MovementGroup {
 export interface Totals {
   /** Money that came in, as a positive figure. */
   inMinor: number;
-  /** Money that went out, as a positive figure. */
+  /** Money that went out, net of refunds, as a positive figure. */
   outMinor: number;
+  /** Money that came back on a credit card, as a positive figure. */
+  refundedMinor: number;
   /**
    * Money moved between the user's own accounts, as a positive figure.
    *
@@ -74,9 +84,15 @@ export interface Totals {
  * confusion worth not inheriting: spending is money gone, a transfer is money
  * somewhere else.
  */
-export function flowOf(transaction: TransactionRow): Flow {
+export function flowOf(transaction: TransactionRow, accountType = 'debit'): Flow {
   if (transaction.transfer_id !== null) return 'moved';
-  return transaction.amount_minor >= 0 ? 'in' : 'out';
+  if (transaction.amount_minor < 0) return 'out';
+
+  // A credit card holds the bank's money, not yours. Money arriving on it did
+  // not enter your net worth; it undid a charge. Counted as income it would
+  // inflate what you earned with refunds and reversed fees, which is exactly
+  // what Jose said it must never do.
+  return accountType === 'credit' ? 'refund' : 'in';
 }
 
 /** Filters by free text over the description and the label. */
@@ -94,15 +110,18 @@ export function totalsOf(movements: readonly Movement[]): Totals {
   let inMinor = 0;
   let outMinor = 0;
   let movedMinor = 0;
+  let refundedMinor = 0;
 
   for (const movement of movements) {
     const amount = Math.abs(movement.transaction.amount_base_minor);
     if (movement.flow === 'in') inMinor += amount;
     else if (movement.flow === 'out') outMinor += amount;
+    else if (movement.flow === 'refund') refundedMinor += amount;
     else movedMinor += amount;
   }
 
-  return { inMinor, outMinor, movedMinor };
+  // Refunds come off what was spent rather than adding to what was earned.
+  return { inMinor, outMinor: outMinor - refundedMinor, refundedMinor, movedMinor };
 }
 
 const MONTHS = [
@@ -212,31 +231,46 @@ export interface Slice {
 
 export function slicesOf(movements: readonly Movement[]): Slice[] {
   const byLabel = new Map<string, Slice>();
-  let total = 0;
 
   for (const movement of movements) {
-    if (movement.flow === 'in') continue;
-
-    const amount = Math.abs(movement.transaction.amount_base_minor);
-    total += amount;
+    // A refund is negative spending: it comes off its own category rather than
+    // standing on its own, so a month of returns shrinks the slice it undid.
+    const signed = movement.flow === 'refund'
+      ? -Math.abs(movement.transaction.amount_base_minor)
+      : Math.abs(movement.transaction.amount_base_minor);
 
     const slice = byLabel.get(movement.label);
     if (slice) {
-      slice.amountMinor += amount;
+      slice.amountMinor += signed;
     } else {
       byLabel.set(movement.label, {
         label: movement.label,
         icon: movement.icon,
-        amountMinor: amount,
+        amountMinor: signed,
         percent: 0,
-        flow: movement.flow,
+        flow: movement.flow === 'refund' ? 'out' : movement.flow,
       });
     }
   }
 
-  const slices = [...byLabel.values()].sort((a, b) => b.amountMinor - a.amountMinor);
+  const slices = [...byLabel.values()].filter(slice => slice.amountMinor !== 0);
+
+  // Percentages are shares of spending, since that is what the ring draws.
+  // Income has no share of it and shows none.
+  const spent = slices
+    .filter(slice => slice.flow !== 'in')
+    .reduce((sum, slice) => sum + Math.max(slice.amountMinor, 0), 0);
+
   for (const slice of slices) {
-    slice.percent = total === 0 ? 0 : Math.round((slice.amountMinor / total) * 100);
+    slice.percent = slice.flow === 'in' || spent === 0
+      ? 0
+      : Math.round((Math.max(slice.amountMinor, 0) / spent) * 100);
   }
-  return slices;
+
+  // Income first, then spending largest first - the same order as the list.
+  return slices.sort((a, b) => {
+    const rank = (slice: Slice) => (slice.flow === 'in' ? 0 : 1);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    return Math.abs(b.amountMinor) - Math.abs(a.amountMinor);
+  });
 }

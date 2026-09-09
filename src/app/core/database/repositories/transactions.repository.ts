@@ -59,6 +59,7 @@ export interface DetailedTransaction extends TransactionRow {
   account_name: string;
   currency_code: string;
   account_archived: number;
+  account_type: string;
   category_name: string | null;
   category_icon: string | null;
   /** The other side of a transfer, for labelling it. Null otherwise. */
@@ -262,6 +263,7 @@ export class TransactionsRepository {
               a.name AS account_name,
               a.currency_code,
               a.archived AS account_archived,
+              a.type AS account_type,
               c.name AS category_name,
               c.builtin_icon AS category_icon,
               other.name AS other_account_name,
