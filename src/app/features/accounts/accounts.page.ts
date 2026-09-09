@@ -6,7 +6,7 @@
  * ledger rather than of a cached number that could have drifted.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
@@ -56,7 +56,12 @@ export class AccountsPage {
 
   constructor() {
     addIcons({ walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline });
-    void this.load();
+
+    // The database opens in the background, so the page cannot read it once at
+    // construction and be done. This reruns the moment it becomes ready.
+    effect(() => {
+      if (this.database.status() === 'ready') void this.load();
+    });
   }
 
   async load(): Promise<void> {

@@ -1,28 +1,26 @@
 /**
- * Opens and migrates the database before the first screen renders.
+ * Starts opening the database as the app boots.
  *
- * Registered as an app initializer, so no page ever has to wonder whether the
- * database is ready: by the time a component exists, it is — or startup failed
- * loudly and the shell says so.
+ * Deliberately does **not** block the first render. An app initializer that
+ * awaits leaves the screen black for as long as the database takes, which in
+ * the browser means waiting on a web component and a wasm download — long
+ * enough to look broken. Instead the shell paints immediately and each page
+ * watches `DatabaseService.status`, showing a spinner or the reason it failed.
  */
 
 import { inject, provideAppInitializer } from '@angular/core';
 import type { EnvironmentProviders } from '@angular/core';
 
 import { DatabaseService } from './database.service';
-import { prepareWebSqlite } from './web-sqlite';
 
 export function provideDatabase(): EnvironmentProviders {
-  return provideAppInitializer(async () => {
+  return provideAppInitializer(() => {
     const database = inject(DatabaseService);
-    await prepareWebSqlite();
-    try {
-      await database.initialize();
-    } catch (error) {
-      // Swallowed on purpose: the service records the failure in its `error`
-      // signal and the shell renders it. Rethrowing here would blank the page
-      // and hide the reason.
+
+    // Not awaited: the service records success or failure in its own signals,
+    // and every page reads them.
+    void database.initialize().catch((error: unknown) => {
       console.error('The database could not be opened', error);
-    }
+    });
   });
 }

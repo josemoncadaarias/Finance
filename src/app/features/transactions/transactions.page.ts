@@ -6,7 +6,7 @@
  * either is how a month ends up looking twice as busy as it was.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
@@ -77,7 +77,12 @@ export class TransactionsPage {
 
   constructor() {
     addIcons({ chevronBackOutline, chevronForwardOutline, swapHorizontalOutline, lockClosedOutline });
-    void this.load();
+
+    // Watches the status only: load() reads month(), and tracking that here
+    // would race with step(), which loads on purpose.
+    effect(() => {
+      if (this.database.status() === 'ready') untracked(() => void this.load());
+    });
   }
 
   async load(): Promise<void> {

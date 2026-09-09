@@ -9,6 +9,7 @@
 import { Injectable, signal } from '@angular/core';
 
 import { CapacitorSqlDriver } from './capacitor-sql-driver';
+import { prepareWebSqlite } from './web-sqlite';
 import type { SqlDriver } from './sql-driver';
 import { migrate, targetVersion, type MigrationResult } from './migrations/migration-runner';
 import { MIGRATION_SOURCES } from './migrations/statements.generated';
@@ -83,6 +84,12 @@ export class DatabaseService {
   }
 
   private async openAndMigrate(): Promise<SqlDriver> {
+    // Preparing the browser's SQLite emulation belongs here rather than in the
+    // caller: when it fails it is a failure to open the database, and it has to
+    // land in the same `error` signal the pages already render. On a device it
+    // returns immediately.
+    await prepareWebSqlite();
+
     const driver = await CapacitorSqlDriver.open();
     const result = await migrate(driver, MIGRATION_SOURCES);
     this.lastMigration.set(result);
