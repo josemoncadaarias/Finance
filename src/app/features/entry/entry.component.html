@@ -18,6 +18,11 @@
 </ion-header>
 
 <ion-content>
+  <!-- The sum in progress, when there is one -->
+  @if (pendingLabel(); as sum) {
+    <p class="pending">{{ sum }}</p>
+  }
+
   <!-- The amount, and nothing competing with it -->
   <section class="amount" [class]="kind()">
     @if (crossesCurrency()) {
@@ -41,6 +46,11 @@
       <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
       <span class="currency">{{ currency() }}</span>
     }
+
+    <button type="button" class="erase" (click)="press('<')"
+            [attr.aria-label]="'entry.erase' | t">
+      <ion-icon name="backspace-outline"></ion-icon>
+    </button>
   </section>
 
   @if (error()) {
@@ -149,9 +159,13 @@
 
   <p class="typing-hint">{{ 'entry.keyboardHint' | t }}</p>
 
+  <!-- Four columns: the digits, and the arithmetic anyone does at a counter -->
   <div class="keypad">
-    @for (key of ['1','2','3','4','5','6','7','8','9',',','0','<']; track key) {
-      <button type="button" (click)="press(key)">
+    @for (key of keys; track key) {
+      <button type="button" (click)="press(key)"
+              [class.operator]="key === '+' || key === '-' || key === '×' || key === '÷'"
+              [class.equals]="key === '='"
+              [class.on]="pending()?.operator === key">
         @if (key === '<') {
           <ion-icon name="backspace-outline"></ion-icon>
         } @else {

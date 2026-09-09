@@ -36,6 +36,9 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import type { AccountRow, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
+import {
+  apply, isOperator, operatorFromKey, type Operator, type Pending,
+} from './calculator';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -87,6 +90,28 @@ export class EntryComponent implements OnInit {
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
+  /**
+   * A half-finished sum, when one is in progress.
+   *
+   * Splitting a bill or adding up a shop happens at the counter, and doing it
+   * in another app and typing the result back is how amounts get mistyped.
+   */
+  readonly pending = signal<Pending | null>(null);
+
+  /**
+   * The pad, four columns wide.
+   *
+   * Backspace moved into the amount display to free this column, which is
+   * where Monefy puts it too - and it is the right place: it acts on what is
+   * shown there.
+   */
+  readonly keys = [
+    '1', '2', '3', '+',
+    '4', '5', '6', '-',
+    '7', '8', '9', '×',
+    ',', '0', '=', '÷',
+  ];
+
   /** Set when the screen is editing an existing transfer rather than a movement. */
   readonly editingTransferId = signal<number | null>(null);
   /** Notes used before that match what is being typed. */
@@ -136,6 +161,7 @@ export class EntryComponent implements OnInit {
    * explaining itself.
    */
   readonly missing = computed<string | null>(() => {
+    if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
     if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
 
@@ -153,6 +179,9 @@ export class EntryComponent implements OnInit {
   });
 
   readonly canSave = computed(() => this.missing() === null);
+
+  /** True while a sum is waiting for its other side. */
+  readonly midSum = computed(() => this.pending() !== null);
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
@@ -407,9 +436,24 @@ export class EntryComponent implements OnInit {
 
     if (typingText) return;
 
+    const operator = operatorFromKey(event.key);
+    if (operator) {
+      event.preventDefault();
+      this.operate(operator);
+      return;
+    }
+
+    if (event.key === '=') {
+      event.preventDefault();
+      this.equals();
+      return;
+    }
+
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (this.canSave()) void this.save();
+      // Mid-sum, Enter finishes the sum rather than saving half of it.
+      if (this.pending() !== null) this.equals();
+      else if (this.canSave()) void this.save();
       return;
     }
 
@@ -438,7 +482,62 @@ export class EntryComponent implements OnInit {
     }
   }
 
+  /** What the running sum looks like, for showing above the amount. */
+  readonly pendingLabel = computed(() => {
+    const sum = this.pending();
+    if (!sum) return '';
+    return `${this.money(sum.leftMinor)} ${sum.operator}`;
+  });
+
+  /**
+   * Starts or continues an operation.
+   *
+   * Pressing a second operator finishes the first, so 2 + 3 + 4 works the way
+   * anyone expects rather than needing = between each step.
+   */
+  operate(operator: Operator): void {
+    const buffer = this.activeBuffer();
+    const sum = this.pending();
+
+    if (sum && !buffer.isEmpty) {
+      this.setActive(AmountBuffer.from(apply(sum.leftMinor, sum.operator, buffer.minor)));
+      this.pending.set({ leftMinor: apply(sum.leftMinor, sum.operator, buffer.minor), operator });
+    } else if (!buffer.isEmpty) {
+      this.pending.set({ leftMinor: buffer.minor, operator });
+    } else if (sum) {
+      // Changing your mind about which operator, before typing the other side.
+      this.pending.set({ ...sum, operator });
+      return;
+    } else {
+      return;
+    }
+
+    this.setActive(new AmountBuffer());
+  }
+
+  /** Finishes the sum and leaves the result as the amount. */
+  equals(): void {
+    const sum = this.pending();
+    const buffer = this.activeBuffer();
+    if (!sum) return;
+
+    const result = buffer.isEmpty
+      ? sum.leftMinor
+      : apply(sum.leftMinor, sum.operator, buffer.minor);
+
+    this.pending.set(null);
+    this.setActive(AmountBuffer.from(Math.max(result, 0)));
+  }
+
+  private setActive(buffer: AmountBuffer): void {
+    if (this.editingTarget()) this.targetAmount.set(buffer);
+    else this.amount.set(buffer);
+  }
+
   press(key: string): void {
+    if (isOperator(key)) { this.operate(key); return; }
+    if (key === '=') { this.equals(); return; }
+
     const buffer = this.activeBuffer();
     if (key === '<') buffer.backspace();
     else if (key === ',') buffer.separator();

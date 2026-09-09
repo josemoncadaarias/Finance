@@ -127,7 +127,9 @@ export const SPANISH = {
   'entry.deleteTransfer.hint': 'Se borra de las dos cuentas: {from} y {to}.',
   'entry.transferNotFound': 'No se encontró la transferencia',
 
-  'entry.keyboardHint': 'Puedes escribir con el teclado · Enter guarda · Esc cierra',
+  'entry.keyboardHint': 'Teclado y calculadora: + − × ÷ · Enter guarda · Esc cierra',
+  'entry.erase': 'Borrar',
+  'entry.need.finishSum': 'Termina la operación con =',
   'entry.need.amount': 'Escribe el monto',
   'entry.need.account': 'Escoge la cuenta',
   'entry.need.destination': 'Escoge la cuenta de destino',
@@ -413,7 +415,9 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'entry.deleteTransfer.hint': 'It goes from both accounts: {from} and {to}.',
   'entry.transferNotFound': 'That transfer was not found',
 
-  'entry.keyboardHint': 'You can type with the keyboard · Enter saves · Esc closes',
+  'entry.keyboardHint': 'Keyboard and calculator: + − × ÷ · Enter saves · Esc closes',
+  'entry.erase': 'Erase',
+  'entry.need.finishSum': 'Finish the sum with =',
   'entry.need.amount': 'Type the amount',
   'entry.need.account': 'Pick the account',
   'entry.need.destination': 'Pick where it goes',
