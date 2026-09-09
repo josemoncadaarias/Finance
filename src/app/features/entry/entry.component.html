@@ -52,7 +52,10 @@
     <div class="route">
       <button type="button" class="leg" (click)="picking.set('from')">
         <span class="lead">Desde</span>
-        <span class="who">{{ account()?.name ?? 'Escoge' }}</span>
+        <span class="who">
+          <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
+          <span class="name">{{ account()?.name ?? 'Escoge' }}</span>
+        </span>
       </button>
 
       <button type="button" class="swap" (click)="swapAccounts()" aria-label="Invertir">
@@ -62,7 +65,10 @@
       <button type="button" class="leg" [class.needed]="toAccountId() === null"
               (click)="picking.set('to')">
         <span class="lead">Hasta</span>
-        <span class="who">{{ toAccount()?.name ?? 'Escoge' }}</span>
+        <span class="who">
+          <ion-icon [name]="toAccount()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
+          <span class="name">{{ toAccount()?.name ?? 'Escoge' }}</span>
+        </span>
       </button>
     </div>
 
@@ -75,7 +81,7 @@
   } @else {
     <div class="context">
       <button type="button" (click)="picking.set('from')">
-        <ion-icon name="wallet-outline"></ion-icon>
+        <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
         <span>{{ account()?.name ?? 'Escoge una cuenta' }}</span>
       </button>
       <button type="button" (click)="showDate.set(true)">
@@ -163,6 +169,7 @@
         @for (option of accounts(); track option.id) {
           <ion-item button lines="full" (click)="pickAccount(option.id)"
                     [class.selected]="(picking() === 'to' ? toAccountId() : accountId()) === option.id">
+            <ion-icon slot="start" [name]="option.builtin_icon ?? 'wallet-outline'"></ion-icon>
             <ion-label>
               <h3>{{ option.name }}</h3>
               <p>{{ option.currency_code }}</p>
@@ -178,7 +185,10 @@
            [initialBreakpoint]="0.6" [breakpoints]="[0, 0.6, 1]">
   <ng-template>
     <ion-content class="sheet">
-      <ion-datetime presentation="date" [value]="occurredOn()"
+      <!-- Ionic defaults to the browser's locale and a Sunday week; both are
+           wrong here. -->
+      <ion-datetime presentation="date" [value]="occurredOn()" locale="es-CO"
+                    [firstDayOfWeek]="1"
                     (ionChange)="pickDate($any($event.detail).value)"></ion-datetime>
     </ion-content>
   </ng-template>

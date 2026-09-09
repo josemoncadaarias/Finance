@@ -155,7 +155,19 @@ ion-button.save {
     min-width: 0;
 
     .lead { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ion-color-medium); }
-    .who { font-size: 0.9rem; color: var(--ion-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Name and icon travel together: an account is recognised by its icon
+       before its name is read. */
+    .who {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.9rem;
+      color: var(--ion-text-color);
+      min-width: 0;
+
+      ion-icon { font-size: 1rem; color: var(--ion-color-medium); flex: none; }
+      .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    }
 
     &.needed { border-color: var(--ion-color-warning); }
   }
@@ -288,6 +300,7 @@ ion-button.save {
 
   h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
   ion-item.selected { --background: var(--ion-color-light); }
+  ion-item ion-icon[slot='start'] { color: var(--ion-color-medium); font-size: 1.2rem; margin-inline-end: 0.75rem; }
 }
 
 /* Notes written before, offered back while typing */

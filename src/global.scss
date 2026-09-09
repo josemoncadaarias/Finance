@@ -60,4 +60,23 @@
        one flat black surface. */
     border-inline: 1px solid var(--ion-color-step-150, rgba(128, 128, 128, 0.25));
   }
+
+  /*
+   * Modals belong to the column too.
+   *
+   * Past its md breakpoint Ionic gives a modal a fixed 600px card and centres
+   * it in its host. Inside a 480px column that is 60px of overflow on each
+   * side, which is why an account picker showed its names cut off at the left
+   * edge. Full width of the column instead, which is what a phone gets anyway.
+   */
+  ion-modal {
+    --width: 100%;
+    --max-width: 100%;
+  }
+}
+
+/* A calendar has a width of its own; centre it rather than leave it hugging
+   one edge of the sheet it opens in. */
+ion-datetime {
+  margin-inline: auto;
 }

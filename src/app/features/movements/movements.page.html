@@ -270,10 +270,10 @@
       @if (filter.period().kind === 'range') {
         <div class="range">
           <p>Desde</p>
-          <ion-datetime presentation="date" [preferWheel]="true"
+          <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
                         (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
           <p>Hasta</p>
-          <ion-datetime presentation="date" [preferWheel]="true"
+          <ion-datetime presentation="date" [preferWheel]="true" locale="es-CO" [firstDayOfWeek]="1"
                         (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
           <ion-button expand="block" (click)="applyRange()"
                       [disabled]="!rangeStart() || !rangeEnd()">Aplicar</ion-button>
