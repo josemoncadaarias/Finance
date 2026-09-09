@@ -290,23 +290,90 @@ ion-toolbar.stepper {
   cursor: pointer;
 }
 
+/*
+ * A group is a section, not a row that happens to sit above other rows.
+ *
+ * Before this, the heading and the movements under it had nearly the same
+ * weight and the same width, so a day heading read as one more movement. Three
+ * things separate them now: the heading is smaller and spaced like a label
+ * rather than like content, the movements are inset behind a rule that runs
+ * the height of the group, and there is real air between one group and the
+ * next.
+ */
 .group-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.65rem 1rem;
-  background: var(--ion-color-light);
+  padding: 0.85rem 1rem 0.4rem;
+  margin-top: 0.75rem;
+  background: var(--ion-background-color);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   position: sticky;
   top: 0;
   z-index: 2;
 
-  .chevron { color: var(--ion-color-medium); font-size: 1rem; }
-  .cat { color: var(--ion-color-medium); }
-  .title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .title.by-date { text-transform: capitalize; }
-  .total { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chevron { color: var(--ion-color-medium); font-size: 0.9rem; }
+  .cat { color: var(--ion-color-medium); font-size: 1rem; }
+
+  .title {
+    flex: 1;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A day is already a proper noun in Spanish; uppercasing the whole label
+     avoids "8 De Septiembre", which capitalize produced. */
+  .title.by-date { text-transform: uppercase; }
+
+  .total {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  ion-badge {
+    font-size: 0.68rem;
+    --padding-start: 0.4rem;
+    --padding-end: 0.4rem;
+  }
+}
+
+/*
+ * Everything inside the group, held together by one rule down its left.
+ *
+ * The rule carries the group's own colour — red for a day or a category that
+ * spent, green for one that earned, grey for money only moved — so a section
+ * says what it is before a figure is read. Colour is the only thing it says;
+ * the amount beside the heading is still the authority.
+ */
+.group-body {
+  margin-left: 1rem;
+  margin-right: 0.75rem;
+  border-left: 3px solid var(--ion-color-medium);
+  border-radius: 3px;
+  overflow: hidden;
+
+  &.out { border-left-color: var(--ion-color-danger); }
+  &.in { border-left-color: var(--ion-color-success); }
+  &.moved, &.refund { border-left-color: var(--ion-color-medium); }
+
+  /* The flat view has no heading, so it needs no bracket either. */
+  &.flat { margin: 0; border-left: none; border-radius: 0; }
+
+  ion-item.movement {
+    --padding-start: 0.75rem;
+    --background: var(--ion-color-light);
+    --inner-border-width: 0 0 1px 0;
+  }
+
+  ion-item.movement:last-child { --inner-border-width: 0; }
 }
 
 ion-badge { font-weight: 400; }

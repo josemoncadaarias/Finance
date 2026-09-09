@@ -188,6 +188,8 @@
             }
 
             @if (filter.grouping() === 'largest' || !store.isCollapsed(group.key)) {
+              <div class="group-body" [class]="group.flow"
+                   [class.flat]="filter.grouping() === 'largest'">
               @for (movement of group.movements; track movement.transaction.id) {
                 <ion-item lines="full" class="movement" button
                           (click)="edit(movement.transaction)">
@@ -216,6 +218,7 @@
                   </ion-note>
                 </ion-item>
               }
+              </div>
             }
           }
         </ion-list>
