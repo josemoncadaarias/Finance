@@ -14,6 +14,7 @@ import {
 } from '../../core/database/repositories/transactions.repository';
 import { FilterService } from '../../core/filters/filter.service';
 import type { AccountRow } from '../../core/database/types';
+import { formatMoney as money } from '../../core/database/money';
 import {
   flowOf, groupMovements, matchesSearch, slicesOf, totalsOf,
   type Movement, type MovementGroup, type Slice, type Totals,
@@ -26,6 +27,17 @@ export class MovementsStore {
 
   readonly accounts = signal<AccountRow[]>([]);
   readonly loading = signal(false);
+
+  /**
+   * What the selected account holds right now, and net worth when the
+   * selection is all of them.
+   *
+   * Deliberately not tied to the period. Looking at March does not change how
+   * much money there is today, and "how much do I have" is the question
+   * someone opens a finance app with — Monefy answers it at the top of the
+   * screen and it is the one figure this app was still missing.
+   */
+  readonly standing = signal<Standing | null>(null);
 
   /** Everything in scope for the period, before search or category filtering. */
   private readonly rows = signal<Movement[]>([]);
@@ -139,6 +151,58 @@ export class MovementsStore {
     this.filter.startOn(busiest?.account_id ?? null);
   }
 
+  /**
+   * The figure that answers "how much do I have", for whatever is selected.
+   *
+   * A credit card holds a debt rather than money, so it says what is owed and
+   * how much room is left — the two numbers that matter about a card and that
+   * Monefy mixed into one.
+   */
+  private async loadStanding(accounts: AccountsRepository): Promise<void> {
+    const selected = this.filter.accountId();
+
+    if (selected === null) {
+      this.standing.set({
+        kind: 'net-worth',
+        label: 'Patrimonio hoy',
+        amountMinor: await accounts.netWorthMinor(),
+        currency: 'COP',
+        detail: null,
+      });
+      return;
+    }
+
+    const balance = await accounts.balance(selected);
+    if (balance === null) {
+      this.standing.set(null);
+      return;
+    }
+
+    const currency = balance.account.currency_code;
+    if (balance.account.type === 'credit') {
+      const limit = balance.account.credit_limit_minor;
+      this.standing.set({
+        kind: 'credit',
+        label: 'Debes hoy',
+        amountMinor: balance.balance_minor,
+        currency,
+        detail: balance.available_credit_minor === null || limit === null
+          ? null
+          : `Disponible ${money(balance.available_credit_minor, currency, { withSymbol: false })}` +
+            ` de ${money(limit, currency, { withSymbol: false })}`,
+      });
+      return;
+    }
+
+    this.standing.set({
+      kind: 'balance',
+      label: 'Saldo hoy',
+      amountMinor: balance.balance_minor,
+      currency,
+      detail: null,
+    });
+  }
+
   async load(): Promise<void> {
     const driver = this.database.driver;
     this.loading.set(true);
@@ -149,6 +213,7 @@ export class MovementsStore {
       this.accounts.set(accounts);
 
       await this.openOnBusiestAccount(accounts);
+      await this.loadStanding(accountsRepo);
 
       const scope = this.filter.scopeFor(accounts);
       const period = this.filter.period();
@@ -206,4 +271,19 @@ function aYearAgo(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear() - 1}-${month}-${day}`;
+}
+
+/**
+ * What the account holds today, however the period is set.
+ *
+ * `kind` exists so the screen can colour a debt differently from a balance
+ * without re-deriving why the figure is negative.
+ */
+export interface Standing {
+  kind: 'balance' | 'credit' | 'net-worth';
+  label: string;
+  amountMinor: number;
+  currency: string;
+  /** A second line, when one figure is not the whole answer. */
+  detail: string | null;
 }

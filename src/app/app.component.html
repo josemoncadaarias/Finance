@@ -1,3 +1,35 @@
 <ion-app>
-  <ion-router-outlet></ion-router-outlet>
+  <!--
+    Navigation lives in a drawer rather than a bar across the bottom.
+
+    On an Android phone the bottom edge already belongs to the system: three
+    buttons, or a gesture bar, sitting exactly where a tab bar wants to be.
+    Fighting for that strip means either a cramped target or a mis-tap that
+    leaves the app. A drawer costs one tap to open and gives the screen its
+    whole height back — which is also where Monefy puts it.
+  -->
+  <ion-menu contentId="main" side="start" type="overlay">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Finance</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content>
+      <ion-list lines="none" class="nav">
+        @for (item of sections; track item.path) {
+          <ion-item button [routerLink]="item.path" routerDirection="root"
+                    [class.on]="isCurrent(item.path)" (click)="close()">
+            <ion-icon slot="start" [name]="item.icon"></ion-icon>
+            <ion-label>
+              <h3>{{ item.label }}</h3>
+              <p>{{ item.hint }}</p>
+            </ion-label>
+          </ion-item>
+        }
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <ion-router-outlet id="main"></ion-router-outlet>
 </ion-app>

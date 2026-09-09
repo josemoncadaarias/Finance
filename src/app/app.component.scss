@@ -1,0 +1,16 @@
+/* The drawer: a short list where the current screen is obvious. */
+.nav ion-item {
+  --padding-start: 1rem;
+  --inner-padding-end: 1rem;
+  --min-height: 3.4rem;
+
+  ion-icon { color: var(--ion-color-medium); font-size: 1.25rem; }
+  h3 { font-size: 1rem; font-weight: 500; }
+  p { font-size: 0.78rem; color: var(--ion-color-medium); }
+
+  &.on {
+    --background: rgba(var(--ion-color-primary-rgb), 0.12);
+    ion-icon, h3 { color: var(--ion-color-primary); }
+    h3 { font-weight: 600; }
+  }
+}

@@ -13,7 +13,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonSpinner,
-  IonList, IonItem, IonLabel, IonNote,
+  IonList, IonItem, IonLabel, IonNote, IonMenuButton, IonButtons,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { documentAttachOutline, checkmarkCircleOutline, alertCircleOutline } from 'ionicons/icons';
@@ -49,7 +49,7 @@ const REVIEW_LABELS: Record<string, string> = {
   imports: [
     CommonModule,
     IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonSpinner,
-    IonList, IonItem, IonLabel, IonNote,
+    IonList, IonItem, IonLabel, IonNote, IonMenuButton, IonButtons,
   ],
 })
 export class ImportPage {

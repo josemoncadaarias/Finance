@@ -123,6 +123,33 @@ worth" switch, which today can only be changed by editing the importer's table.
 
 Out of the app, in a format that can be read back in.
 
+### 3.7 Settings
+
+Monefy keeps its settings in a drawer. Going through them one by one, against
+what this app is for:
+
+| Monefy setting | Here |
+|---|---|
+| **Traslado** (carry the previous period's balance forward) | **Not needed, and already answered better.** It exists because Monefy's headline figure is the period's arithmetic, so without it a month starts at zero and the balance means nothing. This app shows the account's real balance today, above the period, so there is nothing to carry. |
+| **Modo de presupuesto** | **Worth having, later.** A monthly limit per category, with what is left. It feeds the same habit the tax goal needs: knowing before the month ends. Phase 5 or 6, not before the tax module. |
+| **Registros recurrentes futuros** | **Yes, and it matters more here than in Monefy.** Rent, subscriptions and salary are known in advance, and a year's projection of tax owed is far better with them than without. Phase 6, as an input to the projection. |
+| **Tema oscuro** | Follows the phone. A manual override is a one-line setting; worth adding whenever settings exist. |
+| **Idioma** | Spanish only. One user, one language. Not worth the machinery. |
+| **Moneda** | The base currency is COP and everything is stored against it. Making it configurable would mean re-deriving every `amount_base_minor` ever written. No. |
+| **Primer día de la semana / del mes** | **Yes.** The month view already exists and a payday-to-payday month (the 15th, say) is a real way to read one's own money. Small change to the period model. |
+| **Contraseña** | **Yes, eventually.** The whole financial history sits on the phone. Android's own biometric prompt, not a password of our own. |
+| **Exportar a archivo** | Already planned as 3.6. |
+| **Copia de seguridad / restaurar / borrar datos** | **Yes, and more important than in Monefy**, because this database is the only copy. A single file that can be copied off the phone and read back. Belongs beside export. |
+| **Dropbox / Google Drive sync** | Later, and always optional — the app must keep working entirely offline. |
+| **Premium, reseña, soporte, política de privacidad, Purchase ID** | Not applicable. |
+
+Two settings this app needs that Monefy has no reason to:
+
+- **Which accounts count towards net worth.** Today it lives in the importer's
+  table and can only be changed by editing code. It belongs in the account
+  editor (3.5).
+- **The tax year and its parameters** (UVT, the inflationary component). Phase 6.
+
 ## Phase 4 — Multi-currency and TRM
 
 - Official TRM lookup with local cache

@@ -10,7 +10,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
-  IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge,
+  IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
@@ -28,7 +28,7 @@ import { SignPipe } from '../../shared/sign.pipe';
   imports: [
     CommonModule, MoneyPipe, SignPipe,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
-    IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge,
+    IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
   ],
 })
 export class AccountsPage {

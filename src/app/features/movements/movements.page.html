@@ -1,6 +1,10 @@
 <ion-header [translucent]="true">
   <!-- Account: a control that looks like one, not a title -->
   <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+
     <!-- What you are looking at, said plainly: the account's own icon, its
          name, and what that selection includes. -->
     <button type="button" class="identity" (click)="showAccountSheet.set(true)">
@@ -69,7 +73,24 @@
     </div>
   } @else {
 
-    <!-- The three figures, replacing Monefy's unexplainable third number -->
+    <!-- How much there is, right now. Not the period's arithmetic: the
+         question someone opens the app with. -->
+    @if (store.standing(); as standing) {
+      <section class="standing" [class]="standing.kind">
+        <span class="tag">{{ standing.label }}</span>
+        <span class="figure" [class.owed]="standing.amountMinor < 0">
+          {{ standing.amountMinor | money:standing.currency }}
+          @if (standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+        </span>
+        @if (standing.detail) {
+          <span class="detail">{{ standing.detail }}</span>
+        }
+      </section>
+    }
+
+    <!-- And what happened during the period being looked at -->
+    <p class="period-tag">En {{ label() }}</p>
+
     <section class="totals">
       <div>
         <span class="tag">Entró</span>
