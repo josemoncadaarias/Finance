@@ -197,13 +197,16 @@
     }
   }
 
-  <!-- The two buttons the whole app is really for -->
+  <!-- The two buttons the whole app is really for. They say what they do:
+       a bare coloured circle asks the user to remember which side is which. -->
   <div class="compose">
-    <button type="button" class="big expense" (click)="add('expense')" aria-label="Registrar un gasto">
-      <ion-icon name="remove-outline"></ion-icon>
+    <button type="button" class="big expense" (click)="add('expense')">
+      <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
+      <span class="what">Gasto</span>
     </button>
-    <button type="button" class="big income" (click)="add('income')" aria-label="Registrar un ingreso">
-      <ion-icon name="add-outline"></ion-icon>
+    <button type="button" class="big income" (click)="add('income')">
+      <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
+      <span class="what">Ingreso</span>
     </button>
   </div>
 </ion-content>
