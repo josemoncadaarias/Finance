@@ -43,15 +43,57 @@ See `01-monefy-backup-analysis.md` for the detail of each problem.
 
 ## Phase 3 — Base UI
 
-**Deliverable:** an app usable day to day.
+**Deliverable:** an app usable day to day. At this point it replaces Monefy,
+which means matching what Monefy is actually good at, not merely showing the
+same data.
 
-- Fast transaction entry (Monefy's strength: few taps)
-- Account and category CRUD with a broad icon catalog
-- Transaction list and editing
-- Period navigation: month, year, jumping to earlier periods
-- Export
+Specified by Jose on 2026-09-09, from using Monefy daily. The order below is
+the order to build in: the filter state comes first because everything else
+reads from it.
 
-At this point the app already replaces Monefy.
+### 3.1 One filter, shared by the whole screen
+
+Two controls that every view obeys at once, the way Monefy does it:
+
+- **Account.** All accounts, or one. Picking one narrows the balance, the
+  totals, the chart and the list together.
+- **Period.** Day, week, month, year, all time, or a custom range.
+
+Moving between periods has to be **swipeable** — a flick left or right steps to
+the previous or next day / week / month / year, whatever the period is set to.
+That gesture is most of why Monefy feels quick.
+
+### 3.2 The list
+
+- Group by **date** or by **category**, switchable.
+- Sorting follows the grouping: by date, newest first; by category, biggest
+  spender first.
+- **Collapse and expand all**, for either grouping. Landing on a wall of 400
+  rows is not useful; landing on twelve categories is.
+- **Search**, over description and category.
+
+### 3.3 The chart
+
+The pie Monefy opens on: each category as a slice with its share of the
+period's spending, obeying the same account and period filter. Tapping a slice
+filters to that category.
+
+### 3.4 Entry and editing
+
+- Fast entry, few taps. This is Monefy's real strength and the thing most worth
+  copying carefully.
+- Editing a movement, which sets `locked` so a re-import leaves it alone.
+- Transfers between accounts, including across currencies.
+
+### 3.5 CRUD
+
+Accounts, account groups, categories and currencies — with the icon picker
+(built-in catalog plus the user's own images) and the "counts towards net
+worth" switch, which today can only be changed by editing the importer's table.
+
+### 3.6 Export
+
+Out of the app, in a format that can be read back in.
 
 ## Phase 4 — Multi-currency and TRM
 
