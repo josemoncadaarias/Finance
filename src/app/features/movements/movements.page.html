@@ -1,0 +1,258 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="showPeriodSheet.set(true)" aria-label="Filtros">
+        <ion-icon slot="icon-only" name="funnel-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
+    <ion-title (click)="showAccountSheet.set(true)" class="account-title">
+      <span class="name">{{ accountLabel() }}</span>
+      <span class="period">{{ label() }}</span>
+    </ion-title>
+
+    <ion-buttons slot="end">
+      <ion-button (click)="showSearch.set(!showSearch())" aria-label="Buscar">
+        <ion-icon slot="icon-only" name="search-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+
+  @if (showSearch()) {
+    <ion-toolbar>
+      <ion-searchbar placeholder="Buscar movimiento" [value]="filter.search()"
+                     (ionInput)="filter.search.set($any($event.target).value ?? '')"
+                     (ionCancel)="closeSearch()" showCancelButton="always"
+                     cancelButtonText="Cerrar"></ion-searchbar>
+    </ion-toolbar>
+  }
+
+  @if (canStep()) {
+    <ion-toolbar class="stepper">
+      <ion-buttons slot="start">
+        <ion-button (click)="filter.step(-1)" aria-label="Periodo anterior">
+          <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+      <ion-title size="small" class="period-label">{{ label() }}</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="filter.step(1)" [disabled]="atNewest()" aria-label="Periodo siguiente">
+          <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  }
+</ion-header>
+
+<ion-content [fullscreen]="true">
+
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner><p>Abriendo la base de datos…</p></div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>No se pudo abrir la base de datos</h2>
+      <p>{{ database.error()?.message }}</p>
+    </div>
+  } @else {
+
+    <!-- The three figures, replacing Monefy's unexplainable third number -->
+    <section class="totals">
+      <div>
+        <span class="tag">Entró</span>
+        <span class="value in">{{ store.totals().inMinor | money }}</span>
+      </div>
+      <div>
+        <span class="tag">Salió</span>
+        <span class="value out">{{ store.totals().outMinor | money }}</span>
+      </div>
+      @if (store.totals().movedMinor > 0) {
+        <div>
+          <span class="tag">Movido</span>
+          <span class="value moved">{{ store.totals().movedMinor | money }}</span>
+        </div>
+      }
+    </section>
+
+    <!-- Balance pill, flanked by the control that swaps donut and list -->
+    <div class="switcher">
+      <button type="button" class="side" (click)="filter.toggleList()"
+              [attr.aria-label]="filter.showList() ? 'Ver la gráfica' : 'Ver los movimientos'">
+        <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
+      </button>
+
+      <button type="button" class="pill" (click)="filter.toggleList()">
+        <span class="tag">{{ filter.showList() ? 'Movimientos' : 'Ver movimientos' }}</span>
+        <span class="count">{{ store.visible().length }}</span>
+      </button>
+
+      <button type="button" class="side" (click)="filter.toggleList()"
+              [attr.aria-label]="filter.showList() ? 'Ver la gráfica' : 'Ver los movimientos'">
+        <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
+      </button>
+    </div>
+
+    @if (store.loading()) {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (filter.showList()) {
+
+      <div class="list-controls">
+        <div class="grouping">
+          <button type="button" [class.on]="filter.grouping() === 'date'" (click)="setGrouping('date')">
+            <ion-icon name="calendar-outline"></ion-icon> Fecha
+          </button>
+          <button type="button" [class.on]="filter.grouping() === 'category'" (click)="setGrouping('category')">
+            <ion-icon name="pie-chart-outline"></ion-icon> Categoría
+          </button>
+        </div>
+
+        <button type="button" class="collapse" (click)="store.toggleAll()">
+          <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+          {{ store.allCollapsed() ? 'Expandir todo' : 'Colapsar todo' }}
+        </button>
+      </div>
+
+      @if (filter.categoryFilter(); as category) {
+        <div class="chip-row">
+          <button type="button" class="chip" (click)="filter.clearCategory()">
+            {{ category }}
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+      }
+
+      @if (store.groups().length === 0) {
+        <div class="state">
+          <h2>Nada por aquí</h2>
+          <p>No hay movimientos en {{ label() }}@if (filter.search()) { que digan "{{ filter.search() }}" }.</p>
+        </div>
+      } @else {
+        <ion-list>
+          @for (group of store.groups(); track group.key) {
+            <div class="group-head" (click)="store.toggleGroup(group.key)">
+              <ion-icon class="chevron"
+                        [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+              @if (group.icon) { <ion-icon class="cat" [name]="group.icon"></ion-icon> }
+              <span class="title">{{ group.title }}</span>
+              <ion-badge>{{ group.count }}</ion-badge>
+              <span class="total" [class]="group.flow">{{ group.totalBaseMinor | money }}</span>
+            </div>
+
+            @if (!store.isCollapsed(group.key)) {
+              @for (movement of group.movements; track movement.transaction.id) {
+                <ion-item lines="full" class="movement">
+                  <span class="dot" [class]="movement.flow" slot="start"></span>
+                  <ion-label>
+                    @if (filter.grouping() === 'date') {
+                      <h3>{{ movement.label }}</h3>
+                      <p>
+                        {{ movement.transaction.description || movement.accountName }}
+                        @if (movement.transaction.locked) {
+                          <ion-icon name="lock-closed-outline" class="locked"
+                                    title="Corregido a mano"></ion-icon>
+                        }
+                      </p>
+                    } @else {
+                      <h3>{{ movement.transaction.description || movement.label }}</h3>
+                      <p>{{ movement.accountName }} · {{ movement.transaction.occurred_on }}</p>
+                    }
+                  </ion-label>
+                  <ion-note slot="end" [class]="movement.flow">
+                    {{ movement.transaction.amount_minor | money }}
+                    @if (movement.currency !== 'COP') { <small>{{ movement.currency }}</small> }
+                  </ion-note>
+                </ion-item>
+              }
+            }
+          }
+        </ion-list>
+      }
+
+    } @else {
+      <app-donut [slices]="store.slices()"
+                 [inMinor]="store.totals().inMinor"
+                 [outMinor]="store.totals().outMinor"
+                 [movedMinor]="store.totals().movedMinor"
+                 [currency]="store.currency()"
+                 [highlighted]="filter.categoryFilter()"
+                 (sliceTapped)="filter.openCategory($event)"></app-donut>
+    }
+  }
+</ion-content>
+
+<!-- Period and account, the way Monefy puts them in one drawer -->
+<ion-modal [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)"
+           [initialBreakpoint]="0.75" [breakpoints]="[0, 0.75, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <h2>Periodo</h2>
+      <ion-radio-group [value]="filter.period().kind"
+                       (ionChange)="choosePeriod($any($event.detail).value)">
+        @for (option of periodKinds; track option.kind) {
+          <ion-item lines="full">
+            <ion-radio [value]="option.kind" justify="start" labelPlacement="end">
+              {{ option.label }}
+            </ion-radio>
+          </ion-item>
+        }
+      </ion-radio-group>
+
+      @if (filter.period().kind === 'range') {
+        <div class="range">
+          <p>Desde</p>
+          <ion-datetime presentation="date" [preferWheel]="true"
+                        (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
+          <p>Hasta</p>
+          <ion-datetime presentation="date" [preferWheel]="true"
+                        (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
+          <ion-button expand="block" (click)="applyRange()"
+                      [disabled]="!rangeStart() || !rangeEnd()">Aplicar</ion-button>
+        </div>
+      }
+
+      @if (filter.allAccounts() && store.hiddenCount() > 0) {
+        <ion-item lines="none" class="include">
+          <ion-toggle [checked]="filter.includeExcluded()"
+                      (ionChange)="filter.includeExcluded.set($any($event.detail).checked)">
+            <div>
+              <p class="strong">Incluir las cuentas apartadas</p>
+              <p class="hint">{{ store.hiddenCount() }} cuentas que no cuentan para el patrimonio</p>
+            </div>
+          </ion-toggle>
+        </ion-item>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="showAccountSheet()" (didDismiss)="showAccountSheet.set(false)"
+           [initialBreakpoint]="0.8" [breakpoints]="[0, 0.8, 1]">
+  <ng-template>
+    <ion-content class="sheet">
+      <h2>Cuenta</h2>
+      <ion-list>
+        <ion-item button lines="full" (click)="pickAccount(null)"
+                  [class.selected]="filter.accountId() === null">
+          <ion-icon slot="start" name="wallet-outline"></ion-icon>
+          <ion-label>
+            <h3>Todas las cuentas</h3>
+            <p>Sin las archivadas ni las apartadas del patrimonio</p>
+          </ion-label>
+        </ion-item>
+
+        @for (account of selectable(); track account.id) {
+          <ion-item button lines="full" (click)="pickAccount(account.id)"
+                    [class.selected]="filter.accountId() === account.id">
+            <ion-label>
+              <h3>
+                {{ account.name }}
+                @if (account.archived) { <ion-badge color="medium">archivada</ion-badge> }
+                @if (!account.include_in_net_worth) { <ion-badge color="medium">aparte</ion-badge> }
+              </h3>
+              <p>{{ account.currency_code }}</p>
+            </ion-label>
+          </ion-item>
+        }
+      </ion-list>
+    </ion-content>
+  </ng-template>
+</ion-modal>

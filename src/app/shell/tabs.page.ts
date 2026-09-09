@@ -3,7 +3,7 @@
 import { Component } from '@angular/core';
 import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { walletOutline, listOutline, cloudUploadOutline } from 'ionicons/icons';
+import { walletOutline, pieChartOutline, cloudUploadOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-tabs',
@@ -12,6 +12,6 @@ import { walletOutline, listOutline, cloudUploadOutline } from 'ionicons/icons';
 })
 export class TabsPage {
   constructor() {
-    addIcons({ walletOutline, listOutline, cloudUploadOutline });
+    addIcons({ walletOutline, pieChartOutline, cloudUploadOutline });
   }
 }

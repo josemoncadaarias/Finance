@@ -6,19 +6,18 @@ export const routes: Routes = [
     loadComponent: () => import('./shell/tabs.page').then(m => m.TabsPage),
     children: [
       {
-        path: 'accounts',
-        loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
+        path: 'movements',
+        loadComponent: () => import('./features/movements/movements.page').then(m => m.MovementsPage),
       },
       {
-        path: 'transactions',
-        loadComponent: () =>
-          import('./features/transactions/transactions.page').then(m => m.TransactionsPage),
+        path: 'accounts',
+        loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
       },
       {
         path: 'import',
         loadComponent: () => import('./features/import/import.page').then(m => m.ImportPage),
       },
-      { path: '', redirectTo: 'accounts', pathMatch: 'full' },
+      { path: '', redirectTo: 'movements', pathMatch: 'full' },
     ],
   },
 ];

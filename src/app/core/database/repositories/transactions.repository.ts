@@ -54,6 +54,26 @@ export interface TransactionFilter {
   offset?: number;
 }
 
+/** A movement with everything a screen needs, fetched in one query. */
+export interface DetailedTransaction extends TransactionRow {
+  account_name: string;
+  currency_code: string;
+  account_archived: number;
+  category_name: string | null;
+  category_icon: string | null;
+  /** The other side of a transfer, for labelling it. Null otherwise. */
+  other_account_name: string | null;
+}
+
+export interface DetailedFilter {
+  /** Accounts in scope. Empty or absent means every account. */
+  accountIds?: readonly number[];
+  from?: IsoDate;
+  to?: IsoDate;
+  /** Leave out transfer legs, which is what "all accounts" wants. */
+  excludeTransfers?: boolean;
+}
+
 const COLUMNS = `id, account_id, category_id, occurred_on, amount_minor, rate_scaled,
   amount_base_minor, rate_source, confidence, description, transfer_id, transfer_leg,
   source, import_fingerprint, import_seq, import_batch_id, locked, created_at, updated_at`;
@@ -200,6 +220,59 @@ export class TransactionsRepository {
 
   async delete(id: number): Promise<void> {
     await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
+  }
+
+  /**
+   * Movements with everything a screen needs, in one query.
+   *
+   * The alternative — fetching transactions, then accounts, then categories,
+   * and stitching them in TypeScript — costs three round trips and a pair of
+   * lookup maps for every render. With five years of history the join is the
+   * cheaper and the simpler of the two.
+   *
+   * The self-join finds the far side of a transfer, so a leg can be labelled
+   * with the account the money went to or came from rather than left blank.
+   */
+  async listDetailed(filter: DetailedFilter = {}): Promise<DetailedTransaction[]> {
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+
+    if (filter.accountIds && filter.accountIds.length > 0) {
+      conditions.push(`t.account_id IN (${filter.accountIds.map(() => '?').join(', ')})`);
+      values.push(...filter.accountIds);
+    }
+    if (filter.from) {
+      conditions.push('t.occurred_on >= ?');
+      values.push(filter.from);
+    }
+    if (filter.to) {
+      conditions.push('t.occurred_on <= ?');
+      values.push(filter.to);
+    }
+    if (filter.excludeTransfers) {
+      conditions.push('t.transfer_id IS NULL');
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    return this.db.query<DetailedTransaction>(
+      `SELECT t.*,
+              a.name AS account_name,
+              a.currency_code,
+              a.archived AS account_archived,
+              c.name AS category_name,
+              c.builtin_icon AS category_icon,
+              other.name AS other_account_name
+       FROM transactions t
+       JOIN accounts a ON a.id = t.account_id
+       LEFT JOIN categories c ON c.id = t.category_id
+       LEFT JOIN transactions sibling
+              ON sibling.transfer_id = t.transfer_id AND sibling.id <> t.id
+       LEFT JOIN accounts other ON other.id = sibling.account_id
+       ${where}
+       ORDER BY t.occurred_on DESC, t.id DESC`,
+      values,
+    );
   }
 
   /**
