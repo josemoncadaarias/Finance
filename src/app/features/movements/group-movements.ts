@@ -12,7 +12,23 @@
 
 import type { TransactionRow } from '../../core/database/types';
 
-export type Grouping = 'date' | 'category';
+/**
+ * How the list is read.
+ *
+ * One control, not two. Grouping and ordering used to be separate choices,
+ * which put "Fecha / Categoría" and "Reciente / Monto" side by side as if they
+ * were the same kind of decision — and nothing on screen said the second only
+ * applied inside the groups the first had made. Picking "Monto" looked like it
+ * would order everything by size and did not.
+ *
+ * These three are the questions actually being asked, and each one settles its
+ * own ordering:
+ *
+ *   - `date`: what have I been spending on lately (grouped by day, newest first)
+ *   - `category`: where is my money going (grouped by category, biggest first)
+ *   - `largest`: what were my biggest movements (no groups, largest first)
+ */
+export type Grouping = 'date' | 'category' | 'largest';
 
 /** How the movements inside a group are ordered. */
 export type SortWithin = 'date' | 'amount';
@@ -144,12 +160,18 @@ function dayTitle(iso: string): string {
  * biggest spender is at the top. Income and transfers sort after spending
  * rather than competing with it on size, since "which category took the most
  * money" is the question the ordering exists to answer.
+ *
+ * Largest: no groups at all. Every movement in one list, biggest first, because
+ * the question is about individual movements and any grouping would break the
+ * ordering into pieces.
  */
 export function groupMovements(
   movements: readonly Movement[],
   grouping: Grouping,
   sortWithin: SortWithin = 'date',
 ): MovementGroup[] {
+  if (grouping === 'largest') return [flatByAmount(movements)];
+
   const groups = new Map<string, MovementGroup>();
 
   for (const movement of movements) {
@@ -209,6 +231,30 @@ export function groupMovements(
   }
 
   return ordered;
+}
+
+/**
+ * Every movement in one list, largest first.
+ *
+ * Still a group, so the list renders the same way, but one that carries no
+ * heading of its own: a single "Todos" bar above an ungrouped list would be
+ * furniture. The screen skips the heading when there is only this group.
+ */
+function flatByAmount(movements: readonly Movement[]): MovementGroup {
+  const sorted = [...movements].sort((a, b) =>
+    Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor));
+
+  const totalBaseMinor = sorted.reduce((sum, m) => sum + m.transaction.amount_base_minor, 0);
+
+  return {
+    key: 'largest',
+    title: 'Todos los movimientos',
+    icon: null,
+    count: sorted.length,
+    totalBaseMinor,
+    flow: totalBaseMinor >= 0 ? 'in' : 'out',
+    movements: sorted,
+  };
 }
 
 /**

@@ -210,45 +210,66 @@ ion-toolbar.stepper {
   }
 }
 
+/* One row of views. Three questions, each answering itself. */
+.views {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0 1rem 0.5rem;
+
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.5rem 0.3rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 8px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium);
+    font-size: 0.74rem;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+
+    ion-icon { font-size: 1.05rem; }
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
 .list-controls {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: space-between;
   align-items: center;
   padding: 0 1rem 0.5rem;
 
-  .grouping {
-    display: flex;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 6px;
+  /* Says out loud what the ordering inside a group is, instead of leaving it
+     to be inferred from a control that no longer exists. */
+  .within-note {
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
+    min-width: 0;
     overflow: hidden;
-
-    button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      background: none;
-      border: none;
-      padding: 0.4rem 0.7rem;
-      font-size: 0.82rem;
-      color: var(--ion-color-medium);
-      cursor: pointer;
-
-      &.on { background: var(--ion-color-light); color: var(--ion-text-color); font-weight: 600; }
-    }
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .grouping.within button { padding: 0.4rem 0.6rem; }
 
   .collapse {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
+    flex: none;
     background: none;
     border: none;
     color: var(--ion-color-primary);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     cursor: pointer;
   }
 }

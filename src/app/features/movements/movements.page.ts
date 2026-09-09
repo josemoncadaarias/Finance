@@ -48,6 +48,13 @@ export class MovementsPage {
   readonly status = this.database.status;
   readonly periodKinds = PERIOD_KINDS;
 
+  /** The three ways of reading the list, each with its ordering settled. */
+  readonly views: { id: Grouping; label: string; icon: string }[] = [
+    { id: 'date', label: 'Por día', icon: 'calendar-outline' },
+    { id: 'category', label: 'Por categoría', icon: 'pie-chart-outline' },
+    { id: 'largest', label: 'Los más grandes', icon: 'trending-down-outline' },
+  ];
+
   readonly showPeriodSheet = signal(false);
   readonly showAccountSheet = signal(false);
   readonly showSearch = signal(false);
@@ -115,7 +122,14 @@ export class MovementsPage {
   }
 
   setGrouping(grouping: Grouping): void {
-    this.filter.grouping.set(grouping);
+    this.filter.setView(grouping);
+  }
+
+  /** Says what the ordering inside each group is, so it is never a guess. */
+  withinNote(): string {
+    return this.filter.grouping() === 'category'
+      ? 'Dentro de cada categoría, de mayor a menor'
+      : 'Dentro de cada día, lo más reciente primero';
   }
 
   choosePeriod(kind: string): void {

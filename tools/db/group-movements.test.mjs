@@ -243,3 +243,31 @@ test('the legend lists income too, and puts it first', () => {
   assert.equal(slices[0].percent, 0);
   assert.deepEqual(slices.slice(1).map(s => s.percent), [75, 25]);
 });
+
+test('the largest view is one flat list, biggest first', () => {
+  const movements = [
+    movement({ amount: -2500000, date: '2026-09-01', label: 'Restaurante' }),
+    movement({ amount: -13000000, date: '2026-09-08', label: 'Casa' }),
+    movement({ amount: -12210100, date: '2026-09-07', label: 'Casa' }),
+    movement({ amount: 30264043, date: '2026-09-05', label: 'Ahorros' }),
+  ];
+
+  const groups = groupMovements(movements, 'largest');
+
+  // One group, so the ordering is never broken into pieces by a heading.
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].movements.map(m => m.transaction.amount_base_minor),
+    [30264043, -13000000, -12210100, -2500000], 'by size, whichever way the money went');
+  assert.equal(groups[0].count, 4);
+
+  // Grouping by date over the same movements answers a different question.
+  const byDate = groupMovements(movements, 'date');
+  assert.equal(byDate.length, 4);
+});
+
+test('an empty period has nothing to show in any view', () => {
+  assert.deepEqual(groupMovements([], 'date'), []);
+  assert.deepEqual(groupMovements([], 'category'), []);
+  // The flat view still returns its one group, holding nothing.
+  assert.equal(groupMovements([], 'largest')[0].movements.length, 0);
+});

@@ -130,32 +130,27 @@
       <div class="state"><ion-spinner></ion-spinner></div>
     } @else if (filter.showList()) {
 
-      <div class="list-controls">
-        <div class="grouping">
-          <button type="button" [class.on]="filter.grouping() === 'date'" (click)="setGrouping('date')">
-            <ion-icon name="calendar-outline"></ion-icon> Fecha
+      <!-- One control. Each view is a question, and each answers it in the
+           only order that makes sense for it. -->
+      <div class="views">
+        @for (view of views; track view.id) {
+          <button type="button" [class.on]="filter.grouping() === view.id"
+                  (click)="setGrouping(view.id)">
+            <ion-icon [name]="view.icon"></ion-icon>
+            <span>{{ view.label }}</span>
           </button>
-          <button type="button" [class.on]="filter.grouping() === 'category'" (click)="setGrouping('category')">
-            <ion-icon name="pie-chart-outline"></ion-icon> Categoría
-          </button>
-        </div>
-
-        <div class="grouping within">
-          <button type="button" [class.on]="filter.sortWithin() === 'date'"
-                  (click)="filter.sortWithin.set('date')" title="Dentro de cada grupo, lo más reciente primero">
-            Reciente
-          </button>
-          <button type="button" [class.on]="filter.sortWithin() === 'amount'"
-                  (click)="filter.sortWithin.set('amount')" title="Dentro de cada grupo, el monto mayor primero">
-            Monto
-          </button>
-        </div>
-
-        <button type="button" class="collapse" (click)="store.toggleAll()">
-          <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-          {{ store.allCollapsed() ? 'Expandir todo' : 'Colapsar todo' }}
-        </button>
+        }
       </div>
+
+      @if (filter.grouping() !== 'largest') {
+        <div class="list-controls">
+          <span class="within-note">{{ withinNote() }}</span>
+          <button type="button" class="collapse" (click)="store.toggleAll()">
+            <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+            {{ store.allCollapsed() ? 'Expandir todo' : 'Colapsar todo' }}
+          </button>
+        </div>
+      }
 
       @if (filter.categoryFilter(); as category) {
         <div class="chip-row">
@@ -174,6 +169,7 @@
       } @else {
         <ion-list>
           @for (group of store.groups(); track group.key) {
+            @if (filter.grouping() !== 'largest') {
             <div class="group-head" (click)="store.toggleGroup(group.key)">
               <ion-icon class="chevron"
                         [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
@@ -182,14 +178,18 @@
               <ion-badge>{{ group.count }}</ion-badge>
               <span class="total" [class]="group.flow">{{ group.totalBaseMinor | money }}</span>
             </div>
+            }
 
-            @if (!store.isCollapsed(group.key)) {
+            @if (filter.grouping() === 'largest' || !store.isCollapsed(group.key)) {
               @for (movement of group.movements; track movement.transaction.id) {
                 <ion-item lines="full" class="movement" button
                           (click)="edit(movement.transaction)">
                   <span class="dot" [class]="movement.flow" slot="start"></span>
                   <ion-label>
-                    @if (filter.grouping() === 'date') {
+                    @if (filter.grouping() === 'largest') {
+                      <h3>{{ movement.transaction.description || movement.label }}</h3>
+                      <p>{{ movement.label }} · {{ movement.accountName }} · {{ movement.transaction.occurred_on }}</p>
+                    } @else if (filter.grouping() === 'date') {
                       <h3>{{ movement.label }}</h3>
                       <p>
                         {{ movement.transaction.description || movement.accountName }}

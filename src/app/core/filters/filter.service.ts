@@ -19,9 +19,16 @@ export class FilterService {
 
   readonly period = signal<Period>(currentPeriod('month'));
 
+  /** Which of the three readings of the list is on screen. */
   readonly grouping = signal<Grouping>('date');
 
-  /** How movements are ordered inside each group. */
+  /**
+   * How movements are ordered inside each group.
+   *
+   * Not a control of its own any more: each view settles it. Two side-by-side
+   * choices where one silently governed the other read as one contradicting
+   * the other — picking "Monto" looked like it would order the whole list.
+   */
   readonly sortWithin = signal<SortWithin>('date');
 
   readonly search = signal('');
@@ -58,6 +65,15 @@ export class FilterService {
       .filter(account => !account.archived)
       .filter(account => this.includeExcluded() || account.include_in_net_worth === 1)
       .map(account => account.id);
+  }
+
+  /**
+   * Switches the list's reading, and with it the ordering that reading
+   * implies: newest first inside a day, largest first inside a category.
+   */
+  setView(view: Grouping): void {
+    this.grouping.set(view);
+    this.sortWithin.set(view === 'date' ? 'date' : 'amount');
   }
 
   setPeriodKind(kind: PeriodKind): void {
