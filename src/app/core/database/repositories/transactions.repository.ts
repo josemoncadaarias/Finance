@@ -63,6 +63,8 @@ export interface DetailedTransaction extends TransactionRow {
   category_icon: string | null;
   /** The other side of a transfer, for labelling it. Null otherwise. */
   other_account_name: string | null;
+  /** The far account's id, so a caller can tell inside a scope from outside. */
+  other_account_id: number | null;
 }
 
 export interface DetailedFilter {
@@ -262,7 +264,8 @@ export class TransactionsRepository {
               a.archived AS account_archived,
               c.name AS category_name,
               c.builtin_icon AS category_icon,
-              other.name AS other_account_name
+              other.name AS other_account_name,
+              other.id AS other_account_id
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id

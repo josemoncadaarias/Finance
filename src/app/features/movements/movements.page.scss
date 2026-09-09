@@ -144,6 +144,8 @@ ion-toolbar.stepper {
     }
   }
 
+  .grouping.within button { padding: 0.4rem 0.6rem; }
+
   .collapse {
     display: inline-flex;
     align-items: center;
@@ -184,7 +186,8 @@ ion-toolbar.stepper {
 
   .chevron { color: var(--ion-color-medium); font-size: 1rem; }
   .cat { color: var(--ion-color-medium); }
-  .title { font-weight: 600; text-transform: capitalize; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title.by-date { text-transform: capitalize; }
   .total { font-variant-numeric: tabular-nums; white-space: nowrap; }
 }
 

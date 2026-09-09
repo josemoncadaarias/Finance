@@ -14,6 +14,9 @@ import type { TransactionRow } from '../../core/database/types';
 
 export type Grouping = 'date' | 'category';
 
+/** How the movements inside a group are ordered. */
+export type SortWithin = 'date' | 'amount';
+
 /** What a movement means for the money, and therefore what colour it is. */
 export type Flow =
   /** Money arrived: income. */
@@ -123,7 +126,11 @@ function dayTitle(iso: string): string {
  * rather than competing with it on size, since "which category took the most
  * money" is the question the ordering exists to answer.
  */
-export function groupMovements(movements: readonly Movement[], grouping: Grouping): MovementGroup[] {
+export function groupMovements(
+  movements: readonly Movement[],
+  grouping: Grouping,
+  sortWithin: SortWithin = 'date',
+): MovementGroup[] {
   const groups = new Map<string, MovementGroup>();
 
   for (const movement of movements) {
@@ -154,14 +161,29 @@ export function groupMovements(movements: readonly Movement[], grouping: Groupin
     }
   }
 
+  // Inside a group, either the most recent or the largest first. Sorting by
+  // amount uses the magnitude, so the biggest movement leads whichever
+  // direction it went.
+  for (const group of groups.values()) {
+    group.movements.sort((a, b) =>
+      sortWithin === 'amount'
+        ? Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor)
+        : b.transaction.occurred_on.localeCompare(a.transaction.occurred_on));
+  }
+
   const ordered = [...groups.values()];
 
   if (grouping === 'date') {
     ordered.sort((a, b) => b.key.localeCompare(a.key));
   } else {
     ordered.sort((a, b) => {
-      // Spending first, largest first; then transfers; then income.
-      const rank = (group: MovementGroup) => (group.flow === 'out' ? 0 : group.flow === 'moved' ? 1 : 2);
+      // What came in first, then everything that left, each largest first.
+      //
+      // The opposite order reads better as an answer to "where did the money
+      // go", and was what this did at first. Jose uses Monefy every day and
+      // reads it the other way round, so it follows him: income is the
+      // context you read the spending against.
+      const rank = (group: MovementGroup) => (group.flow === 'in' ? 0 : 1);
       if (rank(a) !== rank(b)) return rank(a) - rank(b);
       return Math.abs(b.totalBaseMinor) - Math.abs(a.totalBaseMinor);
     });

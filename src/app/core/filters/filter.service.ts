@@ -9,7 +9,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { currentPeriod, shiftPeriod, type Period, type PeriodKind } from './period';
-import type { Grouping } from '../../features/movements/group-movements';
+import type { Grouping, SortWithin } from '../../features/movements/group-movements';
 import type { AccountRow } from '../database/types';
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +20,9 @@ export class FilterService {
   readonly period = signal<Period>(currentPeriod('month'));
 
   readonly grouping = signal<Grouping>('date');
+
+  /** How movements are ordered inside each group. */
+  readonly sortWithin = signal<SortWithin>('date');
 
   readonly search = signal('');
 

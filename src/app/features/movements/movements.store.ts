@@ -57,7 +57,7 @@ export class MovementsStore {
   readonly slices = computed<Slice[]>(() => slicesOf(this.rows()));
 
   readonly groups = computed<MovementGroup[]>(() =>
-    groupMovements(this.visible(), this.filter.grouping()),
+    groupMovements(this.visible(), this.filter.grouping(), this.filter.sortWithin()),
   );
 
   /** True when every group is collapsed, so one control can do both jobs. */
@@ -123,13 +123,20 @@ export class MovementsStore {
         accountIds: scope,
         from: period.from ?? undefined,
         to: period.to ?? undefined,
-        // Across accounts a transfer between two of them is invisible: nothing
-        // was earned and nothing was spent. Within one account it is money that
-        // really moved, so it stays.
-        excludeTransfers: this.filter.allAccounts(),
       });
 
-      this.rows.set(detailed.map(toMovement));
+      // A transfer is only invisible when both of its ends are inside what is
+      // being looked at: moving money between two accounts you are counting
+      // changes nothing. Moving it to an account outside the scope - eToro,
+      // Pibank para renta, an archived one - really is money leaving, and
+      // hiding it would lose it.
+      const inScope = new Set(scope);
+      const visible = detailed.filter(row =>
+        row.transfer_id === null ||
+        row.other_account_id === null ||
+        !inScope.has(row.other_account_id));
+
+      this.rows.set(visible.map(toMovement));
     } finally {
       this.loading.set(false);
     }

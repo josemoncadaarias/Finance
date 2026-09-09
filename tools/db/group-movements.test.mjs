@@ -76,17 +76,41 @@ test('grouping by category puts the biggest spender first', () => {
   assert.equal(groups[0].totalBaseMinor, -252101);
 });
 
-test('spending outranks transfers, and transfers outrank income', () => {
-  // Otherwise a big salary sits above every category and the ordering stops
-  // answering "where did the money go".
+test('income comes first, then everything that left', () => {
+  // Jose's call, and Monefy's order: what came in is the context you read the
+  // spending against. An earlier version put spending on top; this follows the
+  // person who uses it every day.
   const groups = groupMovements([
-    movement({ date: '2026-09-08', label: 'Salario', amount: 3000000 }),
-    movement({ date: '2026-09-08', label: "A 'ARQ'", amount: -900000, transfer: 1 }),
     movement({ date: '2026-09-08', label: 'Casa', amount: -130000 }),
+    movement({ date: '2026-09-08', label: "A 'ARQ'", amount: -900000, transfer: 1 }),
+    movement({ date: '2026-09-08', label: 'Salario', amount: 3000000 }),
+    movement({ date: '2026-09-08', label: 'Ahorros', amount: 500000 }),
   ], 'category');
 
-  assert.deepEqual(groups.map(g => g.title), ['Casa', "A 'ARQ'", 'Salario']);
-  assert.deepEqual(groups.map(g => g.flow), ['out', 'moved', 'in']);
+  assert.deepEqual(groups.map(g => g.title), ['Salario', 'Ahorros', "A 'ARQ'", 'Casa']);
+  // Transfers are not a tier of their own: they sort among what left, by size.
+  assert.deepEqual(groups.map(g => g.flow), ['in', 'in', 'moved', 'out']);
+});
+
+test('within a group, either the newest or the biggest leads', () => {
+  const rows = [
+    movement({ date: '2026-09-02', label: 'Casa', amount: -900000, description: 'grande y vieja' }),
+    movement({ date: '2026-09-08', label: 'Casa', amount: -130000, description: 'reciente' }),
+    movement({ date: '2026-09-05', label: 'Casa', amount: -400000, description: 'media' }),
+  ];
+
+  const byDate = groupMovements(rows, 'category', 'date')[0].movements;
+  assert.deepEqual(byDate.map(m => m.transaction.description), ['reciente', 'media', 'grande y vieja']);
+
+  const byAmount = groupMovements(rows, 'category', 'amount')[0].movements;
+  assert.deepEqual(byAmount.map(m => m.transaction.description), ['grande y vieja', 'media', 'reciente']);
+
+  // It applies to date groups too, not only category ones.
+  const inADay = groupMovements([
+    movement({ date: '2026-09-08', label: 'Casa', amount: -130000, description: 'pequeño' }),
+    movement({ date: '2026-09-08', label: 'Vuelos', amount: -5200000, description: 'enorme' }),
+  ], 'date', 'amount')[0].movements;
+  assert.deepEqual(inADay.map(m => m.transaction.description), ['enorme', 'pequeño']);
 });
 
 test('a day that mixes income and spending takes the sign of its total', () => {

@@ -109,6 +109,17 @@
           </button>
         </div>
 
+        <div class="grouping within">
+          <button type="button" [class.on]="filter.sortWithin() === 'date'"
+                  (click)="filter.sortWithin.set('date')" title="Dentro de cada grupo, lo más reciente primero">
+            Reciente
+          </button>
+          <button type="button" [class.on]="filter.sortWithin() === 'amount'"
+                  (click)="filter.sortWithin.set('amount')" title="Dentro de cada grupo, el monto mayor primero">
+            Monto
+          </button>
+        </div>
+
         <button type="button" class="collapse" (click)="store.toggleAll()">
           <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
           {{ store.allCollapsed() ? 'Expandir todo' : 'Colapsar todo' }}
@@ -136,7 +147,7 @@
               <ion-icon class="chevron"
                         [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
               @if (group.icon) { <ion-icon class="cat" [name]="group.icon"></ion-icon> }
-              <span class="title">{{ group.title }}</span>
+              <span class="title" [class.by-date]="filter.grouping() === 'date'">{{ group.title }}</span>
               <ion-badge>{{ group.count }}</ion-badge>
               <span class="total" [class]="group.flow">{{ group.totalBaseMinor | money }}</span>
             </div>
