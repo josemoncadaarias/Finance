@@ -106,7 +106,11 @@ test('the backup carries every table, and says what it holds', async () => {
   const backup = await exportBackup(db);
 
   assert.equal(backup.app, 'finance');
-  assert.equal(backup.schemaVersion, 17, 'the schema it came from');
+  // Derived, not typed: the version the backup records is whatever the
+  // migrations reach, and a test that spells it out fails on every new one for
+  // no reason of its own.
+  assert.equal(backup.schemaVersion, MIGRATION_SOURCES.length,
+    'the schema it came from');
   assert.ok(backup.tables.accounts.length === 2);
   assert.ok(backup.tables.transactions.length === 1);
 

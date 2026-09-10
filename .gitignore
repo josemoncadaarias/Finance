@@ -53,3 +53,6 @@ typings
 
 # Capacitor generated native projects
 /ios
+
+# Generated for review, regenerable from the database.
+sugerencias-categorias.csv
