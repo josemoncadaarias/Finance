@@ -162,10 +162,21 @@ export function totalsOf(movements: readonly Movement[], basis: AmountBasis = 'b
   return { inMinor, outMinor: outMinor - refundedMinor, refundedMinor, movedMinor };
 }
 
-function dayTitle(iso: string, locale: string): string {
+/**
+ * A day heading, carrying its year whenever that is not this year.
+ *
+ * "8 de septiembre" is unambiguous while it means this year and a quiet lie
+ * once it does not — and looking at everything, or at a range that crosses a
+ * new year, puts days from four different years in one list. The year is left
+ * off the current one because that is the case where repeating it on every
+ * heading is noise rather than information.
+ */
+function dayTitle(iso: string, locale: string, thisYear: number): string {
   const [year, month, day] = iso.split('-').map(Number);
   const name = monthName(new Date(year, month - 1, day), locale);
-  return locale.startsWith('es') ? `${day} de ${name}` : `${day} ${name}`;
+
+  const date = locale.startsWith('es') ? `${day} de ${name}` : `${day} ${name}`;
+  return year === thisYear ? date : `${date} ${year}`;
 }
 
 /**
@@ -190,6 +201,7 @@ export function groupMovements(
   locale = 'es-CO',
   allLabel = 'All movements',
   basis: AmountBasis = 'base',
+  thisYear = new Date().getFullYear(),
 ): MovementGroup[] {
   if (grouping === 'largest') return [flatByAmount(movements, allLabel, basis)];
 
@@ -202,7 +214,7 @@ export function groupMovements(
     if (!group) {
       group = {
         key,
-        title: grouping === 'date' ? dayTitle(key, locale) : key,
+        title: grouping === 'date' ? dayTitle(key, locale, thisYear) : key,
         icon: grouping === 'date' ? null : movement.icon,
         count: 0,
         totalBaseMinor: 0,

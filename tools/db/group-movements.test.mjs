@@ -300,3 +300,29 @@ test('one account is totalled in its own currency, many in pesos', () => {
   assert.equal(slicesOf(movements, 'own')[0].amountMinor, 10000);
   assert.equal(slicesOf(movements, 'base')[0].amountMinor, 42000000);
 });
+
+test('a day heading carries its year unless it is this year', () => {
+  const movements = [
+    movement({ amount: -1000, date: '2026-09-08', label: 'Casa' }),
+    movement({ amount: -2000, date: '2023-09-08', label: 'Casa' }),
+    movement({ amount: -3000, date: '2021-12-31', label: 'Casa' }),
+  ];
+
+  // Pretending today is in 2026, which is what the screen passes.
+  const groups = groupMovements(movements, 'date', 'date', 'es-CO', 'Todos', 'base', 2026);
+
+  assert.deepEqual(groups.map(g => g.title), [
+    '8 de septiembre',        // this year: the year would be noise
+    '8 de septiembre 2023',   // four years of history in one list
+    '31 de diciembre 2021',
+  ]);
+
+  // English drops the "de" and keeps the same rule.
+  const english = groupMovements(movements, 'date', 'date', 'en-GB', 'All', 'base', 2026);
+  assert.deepEqual(english.map(g => g.title),
+    ['8 September', '8 September 2023', '31 December 2021']);
+
+  // And from another year, today's date is the one that carries it.
+  const later = groupMovements(movements, 'date', 'date', 'es-CO', 'Todos', 'base', 2027);
+  assert.equal(later[0].title, '8 de septiembre 2026');
+});
