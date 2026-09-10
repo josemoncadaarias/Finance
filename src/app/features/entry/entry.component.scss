@@ -587,3 +587,27 @@ ion-item.selected ion-label h3 {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/*
+ * The keypad keeps clear of the bottom edge.
+ *
+ * The sheet rests on the bottom of the screen, so the last row of keys ends
+ * exactly where the phone's own strip begins - the three navigation buttons
+ * on Android, the home indicator on an iPhone. Android 15 forces edge-to-edge,
+ * which puts that strip over the page rather than beside it, so a key drawn
+ * there is a key that shares its area with a system button and a mis-tap
+ * leaves the app mid-entry.
+ *
+ * `env(safe-area-inset-bottom)` is what the phone reports for that strip; the
+ * floor under it is for the case where nothing is reported and the keys would
+ * otherwise sit hard against the glass. The padding is on the footer, so it
+ * carries the footer's own background and reads as the base of the keypad
+ * rather than as a gap under it.
+ *
+ * The same rule is on `.compose-bar` on the movements screen, for the same
+ * reason.
+ */
+ion-footer.pad {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.4rem);
+  background: var(--ion-background-color);
+}
