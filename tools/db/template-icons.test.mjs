@@ -117,3 +117,31 @@ test('icon names written in component code exist too', () => {
   assert.ok(checked > 5, `only ${checked} icons found in code; the pattern has stopped working`);
   assert.deepEqual(missing, [], 'icons in code that would render as empty space');
 });
+
+test('an account or category icon is never drawn without its image', () => {
+  // A category and an account each carry either a name from the catalog or a
+  // picture the user supplied — the schema allows exactly one. So a template
+  // that reads `builtin_icon` and nothing else renders nothing at all for
+  // everything Jose gave a real logo to, silently, and it looks like a default
+  // icon rather than a bug.
+  //
+  // That was found and fixed one screen at a time on the accounts list, the
+  // summary header, the movement list and the donut, and was still live in six
+  // more places. `<app-icon>` is the one place it is drawn now, and this is
+  // what keeps it that way.
+  const offenders = [];
+
+  for (const file of templates) {
+    const source = readFileSync(file, 'utf8');
+    const lines = source.split('\n');
+    lines.forEach((line, index) => {
+      if (!line.includes('builtin_icon')) return;
+      // `<app-icon [builtin]="...builtin_icon">` is the sanctioned shape.
+      if (line.includes('[builtin]')) return;
+      offenders.push(`${file.split('src')[1]}:${index + 1}  ${line.trim()}`);
+    });
+  }
+
+  assert.deepEqual(offenders, [],
+    'draw these with <app-icon [builtin] [customId]> instead');
+});

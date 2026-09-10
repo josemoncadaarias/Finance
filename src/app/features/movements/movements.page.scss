@@ -371,9 +371,10 @@ ion-toolbar.stepper {
   position: relative;
 }
 
-/* Bottom right, clear of the safe area, over the list rather than in it. */
+/* Bottom right, clear of the safe area, over the list rather than in it.
+   Ionic places a `slot="fixed"` child itself, so this only says where. */
 .fold-fab {
-  position: fixed;
+  position: absolute;
   right: 1rem;
   bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
   z-index: 20;
@@ -390,6 +391,15 @@ ion-toolbar.stepper {
   cursor: pointer;
 
   ion-icon { font-size: 1.25rem; }
+}
+
+/* The category's icon on a row, when the day is what groups the list.
+   Narrow and muted: the amount and the description are what is being read,
+   and the icon is there to be recognised out of the corner of an eye. */
+.movement app-icon.row-cat {
+  margin-inline-end: 0.55rem;
+  color: var(--ion-color-medium);
+  opacity: 0.85;
 }
 
 /* An image stands in for the built-in icon at the same size, so a list

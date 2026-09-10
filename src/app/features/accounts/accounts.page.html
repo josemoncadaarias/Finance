@@ -83,13 +83,10 @@
         @for (balance of entry.balances; track balance.account.id) {
           <ion-item [class.nested]="entry.group" lines="full" button [detail]="false"
                     (click)="open(balance.account)">
-            @if (iconUrl(balance.account.custom_icon_id); as url) {
-              <img slot="start" class="own-icon" [src]="url" alt=""
-                   [class.archived]="balance.account.archived">
-            } @else {
-              <ion-icon slot="start" [class.archived]="balance.account.archived"
-                        [name]="outlined(balance.account.builtin_icon)"></ion-icon>
-            }
+            <app-icon slot="start" [class.archived]="balance.account.archived"
+                      [builtin]="balance.account.builtin_icon"
+                      [customId]="balance.account.custom_icon_id"
+                      fallback="wallet"></app-icon>
             <ion-label>
               <h3>
                 {{ entry.group ? balance.account.currency_code : balance.account.name }}
@@ -191,8 +188,10 @@
               @for (balance of entry.balances; track balance.account.id) {
                 <ion-item [class.nested]="entry.group" lines="full" button
                           (click)="open(balance.account)">
-                  <ion-icon slot="start" class="archived"
-                            [name]="outlined(balance.account.builtin_icon)"></ion-icon>
+                  <app-icon slot="start" class="archived"
+                            [builtin]="balance.account.builtin_icon"
+                            [customId]="balance.account.custom_icon_id"
+                            fallback="wallet"></app-icon>
                   <ion-label>
                     <h3>{{ entry.group ? balance.account.currency_code : balance.account.name }}</h3>
                   </ion-label>

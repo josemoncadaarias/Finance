@@ -451,3 +451,28 @@ ion-button.save {
   color: var(--ion-color-success);
   font-size: 1.05rem;
 }
+
+/* Which order the full category list is in. Two plain choices, the one in
+   force filled in, so the sequence on screen is never a guess. */
+.order {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0.75rem 0.5rem;
+
+  button {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+    }
+  }
+}

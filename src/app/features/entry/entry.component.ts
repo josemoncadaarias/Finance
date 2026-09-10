@@ -43,6 +43,7 @@ import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
 } from './calculator';
 import { outlined } from '../../core/icons/icon-catalog';
+import { IconComponent } from '../../core/icons/icon.component';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -61,6 +62,7 @@ export interface EntryRequest {
 @Component({
   selector: 'app-entry',
   imports: [
+    IconComponent,
     CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
@@ -190,16 +192,46 @@ export class EntryComponent implements OnInit {
   readonly hasMoreCategories = computed(() =>
     this.categories().length > EntryComponent.SHORTLIST);
 
+/**
+   * How the full list is ordered, and the user's to choose.
+   *
+   * It came back from the database by how often each category was used in the
+   * last year, and stayed that way. That is the right default - habit is what
+   * you are picking from - but past the first handful it reads as no order at
+   * all: forty categories used two, two and one times, with the counts hidden
+   * on the unused ones so there was nothing on screen to explain the sequence.
+   *
+   * So: two orders, the choice remembered, and the count shown on every row
+   * including the ones at zero, so whichever order is on can be seen to be an
+   * order.
+   */
+  readonly categoryOrder = signal<'use' | 'name'>(readOrder());
+
+  setCategoryOrder(order: 'use' | 'name'): void {
+    this.categoryOrder.set(order);
+    try {
+      localStorage.setItem('finance.categoryOrder', order);
+    } catch {
+      // A browser with site data blocked still gets the order for this visit.
+    }
+  }
+
   /**
-   * The full list, filtered by what is typed.
+   * The full list, filtered by what is typed and ordered as asked.
    *
    * Accents are folded away: someone looking for "Tecnología" should not have
    * to produce the accent, and nobody types one while hurrying.
    */
   readonly foundCategories = computed<UsedCategory[]>(() => {
     const term = fold(this.categorySearch());
-    if (term === '') return this.categories();
-    return this.categories().filter(category => fold(category.name).includes(term));
+    const found = term === ''
+      ? this.categories()
+      : this.categories().filter(category => fold(category.name).includes(term));
+
+    if (this.categoryOrder() === 'use') return found;
+
+    // `localeCompare` so "Éxito" files under E and not after Z.
+    return [...found].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   });
 
   readonly dateLabel = computed(() => {
@@ -766,6 +798,15 @@ export class EntryComponent implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+}
+
+/** The order last chosen, or habit if there is none to read. */
+function readOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.categoryOrder') === 'name' ? 'name' : 'use';
+  } catch {
+    return 'use';
   }
 }
 

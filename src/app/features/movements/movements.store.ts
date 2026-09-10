@@ -120,16 +120,52 @@ export class MovementsStore {
    * landing on twelve categories with their totals is, and opening one is
    * a tap. It also means the expensive part of a long list is never paid
    * for until someone asks to see it.
+   *
+   * Saving an edit is NOT a new question. It was treated as one, because the
+   * only thing watched was the list of group keys and correcting a movement's
+   * category or date changes those - so every correction shut the list you
+   * were reading and put you back at the top of it. The question is watched
+   * directly now, and on a reload only groups that were not there before
+   * arrive closed.
    */
-  private groupsFingerprint = '';
+  private lastQuestion = '';
+  private knownKeys: ReadonlySet<string> = new Set();
 
   private closeNewGroups(): void {
     const groups = this.groups();
-    const fingerprint = groups.map(group => group.key).join('|');
-    if (fingerprint === this.groupsFingerprint) return;
+    const keys = groups.map(group => group.key);
 
-    this.groupsFingerprint = fingerprint;
-    untracked(() => this.collapsed.set(new Set(groups.map(group => group.key))));
+    // Mid-reload the list is briefly whatever it was; acting on that would
+    // discard the collapse state and then re-close everything when the real
+    // rows land.
+    if (this.loading()) return;
+
+    const question = [
+      this.filter.accountId(),
+      this.filter.period().kind, this.filter.period().from, this.filter.period().to,
+      this.filter.grouping(), this.filter.search(), this.filter.includeExcluded(),
+    ].join('|');
+
+    untracked(() => {
+      if (question !== this.lastQuestion) {
+        this.lastQuestion = question;
+        this.knownKeys = new Set(keys);
+        this.collapsed.set(new Set(keys));
+        return;
+      }
+
+      const fresh = keys.filter(key => !this.knownKeys.has(key));
+      const gone = keys.length !== this.knownKeys.size;
+      if (fresh.length === 0 && !gone) return;
+
+      const surviving = new Set(keys);
+      this.knownKeys = surviving;
+      this.collapsed.update(current => {
+        const next = new Set([...current].filter(key => surviving.has(key)));
+        for (const key of fresh) next.add(key);
+        return next;
+      });
+    });
   }
 
   isCollapsed(key: string): boolean {

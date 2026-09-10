@@ -52,12 +52,8 @@
           <ion-list [inset]="true">
             @for (category of side.rows; track category.id) {
               <ion-item button lines="full" (click)="edit(category)" [detail]="true">
-                @if (iconUrl(category.custom_icon_id); as url) {
-                  <img slot="start" class="own-icon" [src]="url" alt="">
-                } @else {
-                  <ion-icon slot="start"
-                            [name]="outlined(category.builtin_icon)"></ion-icon>
-                }
+                <app-icon slot="start" [builtin]="category.builtin_icon"
+                          [customId]="category.custom_icon_id"></app-icon>
                 <ion-label>{{ category.name }}</ion-label>
                 <ion-note slot="end">{{ 'categories.inUse' | t:{ count: category.times } }}</ion-note>
               </ion-item>
@@ -84,8 +80,9 @@
           <ion-list [inset]="true">
             @for (category of archived(); track category.id) {
               <ion-item button lines="full" (click)="edit(category)" [detail]="true">
-                <ion-icon slot="start"
-                          [name]="outlined(category.builtin_icon)"></ion-icon>
+                <app-icon slot="start" class="archived"
+                          [builtin]="category.builtin_icon"
+                          [customId]="category.custom_icon_id"></app-icon>
                 <ion-label>{{ category.name }}</ion-label>
                 <ion-badge color="medium">{{ $any('categories.kind.' + category.kind) | t }}</ion-badge>
               </ion-item>

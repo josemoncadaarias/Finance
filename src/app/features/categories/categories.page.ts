@@ -28,12 +28,15 @@ import { LanguageButtonComponent } from '../../core/i18n/language-button.compone
 import { CategoryEditorComponent } from './category-editor.component';
 import type { CategoryKind, CategoryRow } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
+import { IconComponent } from '../../core/icons/icon.component';
+import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 @Component({
   selector: 'app-categories',
   templateUrl: './categories.page.html',
   styleUrls: ['./categories.page.scss'],
   imports: [
+    IconComponent,
     TranslatePipe, LanguageButtonComponent, CategoryEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
@@ -115,20 +118,19 @@ export class CategoriesPage {
     }
   }
 
+  /**
+   * The images, from the one service that holds them.
+   *
+   * This screen used to keep its own copy of the read-the-blobs loop, which is
+   * the duplication `CustomIconsService` exists to end - and now that the
+   * icons are drawn by <app-icon>, which reads that service, a private copy
+   * would have left this screen showing fallbacks while holding the right
+   * images in a map nothing looks at.
+   */
+  private readonly customIcons = inject(CustomIconsService);
+
   private async loadIcons(): Promise<void> {
-    const repository = new CustomIconsRepository(this.database.driver);
-    const urls = new Map(this.iconUrls());
-
-    for (const icon of await repository.list()) {
-      if (urls.has(icon.id)) continue;
-      const full = await repository.findById(icon.id);
-      if (full) urls.set(icon.id, iconDataUrl(full));
-    }
-    this.iconUrls.set(urls);
-  }
-
-  iconUrl(id: number | null): string | undefined {
-    return id === null ? undefined : this.iconUrls().get(id);
+    await this.customIcons.load();
   }
 
   add(kind: CategoryKind): void {

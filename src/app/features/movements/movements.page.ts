@@ -36,12 +36,14 @@ import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
+import { IconComponent } from '../../core/icons/icon.component';
 
 @Component({
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
+    IconComponent,
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
     TranslatePipe, LanguageButtonComponent, AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
@@ -129,26 +131,17 @@ export class MovementsPage {
     this.store.selectedAccount()?.builtin_icon ?? 'albums-outline');
 
   /**
-   * Whether the list has been scrolled far enough to have lost its own
-   * controls off the top.
+   * The floating fold control: on wherever folding means anything.
    *
-   * Written only when it flips. `ionScroll` fires on every frame of a drag,
-   * and setting a signal on each one would redraw the whole list while it is
-   * moving - which is the one moment that has to stay cheap.
+   * It used to appear only past a scroll depth, which read well and worked
+   * badly: the button is wanted exactly when the list is long, and hiding it
+   * until you have scrolled makes it one more thing to go looking for. The
+   * groups count keeps it off a screen with nothing to fold.
    */
-  private readonly scrolledDown = signal(false);
-
-  onScroll(event: CustomEvent<{ scrollTop: number }>): void {
-    const past = event.detail.scrollTop > 500;
-    if (past !== this.scrolledDown()) this.scrolledDown.set(past);
-  }
-
-  /** The floating fold control: only where folding means anything. */
   readonly showFold = computed(() =>
-    this.scrolledDown()
-    && this.filter.showList()
+    this.filter.showList()
     && this.filter.grouping() !== 'largest'
-    && this.store.groups().length > 0);
+    && this.store.groups().length > 1);
 
   /** The image a category wears, for a group heading. */
   iconUrl(id: number | null): string | undefined {

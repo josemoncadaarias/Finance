@@ -32,12 +32,15 @@ import type { AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SignPipe } from '../../shared/sign.pipe';
 import { outlined } from '../../core/icons/icon-catalog';
+import { IconComponent } from '../../core/icons/icon.component';
+import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 @Component({
   selector: 'app-accounts',
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
+    IconComponent,
     CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent,
     AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
@@ -339,22 +342,19 @@ export class AccountsPage {
     this.filter.selectAccount(account.id);
     void this.router.navigateByUrl('/movements');
   }
-  iconUrl(id: number | null): string | undefined {
-    return id === null ? undefined : this.iconUrls().get(id);
-  }
+  /**
+   * The images, from the one service that holds them.
+   *
+   * This screen used to keep its own copy of the read-the-blobs loop, which is
+   * the duplication `CustomIconsService` exists to end - and now that the
+   * icons are drawn by <app-icon>, which reads that service, a private copy
+   * would have left this screen showing fallbacks while holding the right
+   * images in a map nothing looks at.
+   */
+  private readonly customIcons = inject(CustomIconsService);
 
-  /** Loads the images accounts wear, so a bank logo renders as itself. */
   private async loadIcons(): Promise<void> {
-    if (this.database.status() !== 'ready') return;
-
-    const repository = new CustomIconsRepository(this.database.driver);
-    const urls = new Map(this.iconUrls());
-    for (const icon of await repository.list()) {
-      if (urls.has(icon.id)) continue;
-      const full = await repository.findById(icon.id);
-      if (full) urls.set(icon.id, iconDataUrl(full));
-    }
-    this.iconUrls.set(urls);
+    await this.customIcons.load();
   }
 
   edit(account: AccountRow | null): void {

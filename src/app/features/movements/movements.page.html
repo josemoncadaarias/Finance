@@ -68,8 +68,7 @@
 </ion-header>
 
 
-<ion-content [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll($event)"
-             appSwipe (swiped)="onSwipe($event)">
+<ion-content [fullscreen]="true" appSwipe (swiped)="onSwipe($event)">
 
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
@@ -143,7 +142,11 @@
       </button>
     </div>
 
-    @if (store.loading()) {
+    <!-- The spinner only when there is nothing behind it. A reload after
+         saving an edit used to swap the whole list for it, and the list came
+         back scrolled to the top - so correcting one movement lost your place
+         among four thousand of them. -->
+    @if (store.loading() && store.groups().length === 0) {
       <div class="state"><ion-spinner></ion-spinner></div>
     } @else if (filter.showList()) {
 
@@ -233,6 +236,13 @@
                 <ion-item lines="full" class="movement" button
                           (click)="edit(movement.transaction)">
                   <span class="dot" [class]="movement.flow" slot="start"></span>
+                  <!-- Grouped by day, a row's category is the one thing the
+                       heading does not already say. Grouped by category it
+                       would be the same icon down the whole group. -->
+                  @if (filter.grouping() === 'date') {
+                    <app-icon slot="start" class="row-cat" [builtin]="movement.icon"
+                              [customId]="movement.customIconId" size="1.15rem"></app-icon>
+                  }
                   <ion-label>
                     @if (filter.grouping() === 'largest') {
                       <h3>{{ movement.transaction.description || movement.label }}</h3>
@@ -294,10 +304,17 @@
   <!-- The same control as the one at the top of the list, reachable from
        wherever you have got to. Four thousand movements is a long way back up
        to close what you opened, and the toolbar holding that button is at the
-       far end of it. It appears only once there is something to scroll back
-       past, so it is not sitting over a list of six rows. -->
+       far end of it.
+     
+       `slot="fixed"` is what keeps it still: content in the default slot is
+       inside the scrolling box, and `position: fixed` there is measured
+       against whichever ancestor Ionic happens to be transforming during a
+       page transition - which is why the first attempt scrolled away with the
+       list. It is always on, rather than appearing past some scroll depth,
+       because a control you have to scroll to reveal is the problem it was
+       meant to solve. -->
   @if (showFold()) {
-    <button type="button" class="fold-fab" (click)="store.toggleAll()"
+    <button type="button" class="fold-fab" slot="fixed" (click)="store.toggleAll()"
             [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
             [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
       <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
@@ -437,7 +454,8 @@
         @for (account of selectable(); track account.id) {
           <ion-item button lines="full" (click)="pickAccount(account.id)"
                     [class.selected]="filter.accountId() === account.id">
-            <ion-icon slot="start" [name]="outlined(account.builtin_icon ?? 'wallet')"></ion-icon>
+            <app-icon slot="start" [builtin]="account.builtin_icon"
+                      [customId]="account.custom_icon_id" fallback="wallet"></app-icon>
             <ion-label>
               <h3>
                 {{ account.name }}

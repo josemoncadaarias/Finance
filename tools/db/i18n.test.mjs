@@ -41,6 +41,8 @@ test('no phrase is left empty or accidentally identical', () => {
     // The banks say cashback in Spanish too. "Reembolso" would be a word
     // nobody uses for the thing that comes back off the card.
     'cushion.kind.cashback',
+    // The alphabet is the alphabet.
+    'entry.order.name',
   ]);
   const identical = Object.keys(SPANISH)
     .filter(key => SPANISH[key] === ENGLISH[key] && !sameOnPurpose.has(key));

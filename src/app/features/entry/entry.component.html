@@ -72,7 +72,8 @@
       <button type="button" class="leg" (click)="picking.set('from')">
         <span class="lead">{{ 'entry.from' | t }}</span>
         <span class="who">
-          <ion-icon [name]="outlined(account()?.builtin_icon ?? 'wallet')"></ion-icon>
+          <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
+                    fallback="wallet"></app-icon>
           <span class="name">{{ account()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
@@ -85,7 +86,8 @@
               (click)="picking.set('to')">
         <span class="lead">{{ 'entry.to' | t }}</span>
         <span class="who">
-          <ion-icon [name]="outlined(toAccount()?.builtin_icon ?? 'wallet')"></ion-icon>
+          <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
+                    fallback="wallet"></app-icon>
           <span class="name">{{ toAccount()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
@@ -100,7 +102,8 @@
   } @else {
     <div class="context">
       <button type="button" (click)="picking.set('from')">
-        <ion-icon [name]="outlined(account()?.builtin_icon ?? 'wallet')"></ion-icon>
+        <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
+                  fallback="wallet"></app-icon>
         <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
       </button>
       <button type="button" (click)="showDate.set(true)">
@@ -116,8 +119,8 @@
         <ion-icon name="arrow-down-outline"></ion-icon> {{ 'entry.need.category' | t }}
       } @else {
         <ion-icon name="checkmark-circle-outline"></ion-icon>
-        <ion-icon class="chosen"
-                  [name]="outlined(selectedCategory()?.builtin_icon)"></ion-icon>
+        <app-icon class="chosen" [builtin]="selectedCategory()?.builtin_icon"
+                  [customId]="selectedCategory()?.custom_icon_id" size="1.05rem"></app-icon>
         {{ selectedCategory()?.name }}
       }
     </p>
@@ -128,7 +131,8 @@
       @for (category of shortlist(); track category.id) {
         <button type="button" class="category" [class.on]="categoryId() === category.id"
                 (click)="pickCategory(category.id)">
-          <ion-icon [name]="outlined(category.builtin_icon)"></ion-icon>
+          <app-icon [builtin]="category.builtin_icon"
+                    [customId]="category.custom_icon_id" size="1.35rem"></app-icon>
           <span>{{ category.name }}</span>
         </button>
       }
@@ -217,7 +221,8 @@
         @for (option of accounts(); track option.id) {
           <ion-item button lines="full" (click)="pickAccount(option.id)"
                     [class.selected]="(picking() === 'to' ? toAccountId() : accountId()) === option.id">
-            <ion-icon slot="start" [name]="outlined(option.builtin_icon ?? 'wallet')"></ion-icon>
+            <app-icon slot="start" [builtin]="option.builtin_icon"
+                      [customId]="option.custom_icon_id" fallback="wallet"></app-icon>
             <ion-label>
               <h3>{{ option.name }}</h3>
               <p>{{ option.currency_code }}</p>
@@ -247,6 +252,15 @@
                      (ionInput)="categorySearch.set($any($event.target).value ?? '')"
                      [debounce]="0" autofocus="true"></ion-searchbar>
 
+      <!-- Which order, said out loud. Two is the whole useful set: what you
+           reach for most, and where a name sits when you know it. -->
+      <div class="order">
+        <button type="button" [class.on]="categoryOrder() === 'use'"
+                (click)="setCategoryOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="categoryOrder() === 'name'"
+                (click)="setCategoryOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
+
       @if (foundCategories().length === 0) {
         <p class="nothing">{{ 'entry.noCategory' | t:{ search: categorySearch() } }}</p>
       } @else {
@@ -254,11 +268,18 @@
           @for (category of foundCategories(); track category.id) {
             <ion-item button lines="full" (click)="pickCategory(category.id)"
                       [class.selected]="categoryId() === category.id">
-              <ion-icon slot="start" [name]="outlined(category.builtin_icon)"></ion-icon>
+              <app-icon slot="start" [builtin]="category.builtin_icon"
+                        [customId]="category.custom_icon_id"></app-icon>
               <ion-label>{{ category.name }}</ion-label>
-              @if (category.times > 0) {
-                <ion-note slot="end">{{ 'entry.timesUsed' | t:{ count: category.times } }}</ion-note>
-              }
+              <!-- On every row, zero included: a hidden count is what made
+                   the order look like no order. -->
+              <ion-note slot="end">
+                @if (category.times > 0) {
+                  {{ 'entry.timesUsed' | t:{ count: category.times } }}
+                } @else {
+                  {{ 'entry.neverUsed' | t }}
+                }
+              </ion-note>
             </ion-item>
           }
         </ion-list>
