@@ -305,6 +305,7 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
                { account: other })
       : row.category_name ?? i18n.t('movement.noCategory'),
     icon: isTransfer ? 'swap-horizontal-outline' : row.category_icon,
+    customIconId: isTransfer ? null : row.category_custom_icon_id,
     flow: flowOf(row, row.account_type),
   };
 }

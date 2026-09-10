@@ -128,6 +128,33 @@ export class MovementsPage {
   readonly accountIcon = computed(() =>
     this.store.selectedAccount()?.builtin_icon ?? 'albums-outline');
 
+  /**
+   * Whether the list has been scrolled far enough to have lost its own
+   * controls off the top.
+   *
+   * Written only when it flips. `ionScroll` fires on every frame of a drag,
+   * and setting a signal on each one would redraw the whole list while it is
+   * moving - which is the one moment that has to stay cheap.
+   */
+  private readonly scrolledDown = signal(false);
+
+  onScroll(event: CustomEvent<{ scrollTop: number }>): void {
+    const past = event.detail.scrollTop > 500;
+    if (past !== this.scrolledDown()) this.scrolledDown.set(past);
+  }
+
+  /** The floating fold control: only where folding means anything. */
+  readonly showFold = computed(() =>
+    this.scrolledDown()
+    && this.filter.showList()
+    && this.filter.grouping() !== 'largest'
+    && this.store.groups().length > 0);
+
+  /** The image a category wears, for a group heading. */
+  iconUrl(id: number | null): string | undefined {
+    return this.customIcons.urlFor(id);
+  }
+
   /** The line under the name: which currency, or how many accounts are in. */
   readonly accountHint = computed(() => {
     const account = this.store.selectedAccount();

@@ -58,6 +58,8 @@ export interface Movement {
   /** The real category, or the other account's name for a transfer. */
   label: string;
   icon: string | null;
+  /** Its image, when the category wears one instead of a built-in icon. */
+  customIconId: number | null;
   flow: Flow;
 }
 
@@ -67,6 +69,8 @@ export interface MovementGroup {
   title: string;
   /** For a category group, its icon. Null for a date group. */
   icon: string | null;
+  /** And its image, when it has one. Null for a date group. */
+  customIconId: number | null;
   count: number;
   /**
    * The group's total, in the base currency so a mixed-currency group still
@@ -216,6 +220,7 @@ export function groupMovements(
         key,
         title: grouping === 'date' ? dayTitle(key, locale, thisYear) : key,
         icon: grouping === 'date' ? null : movement.icon,
+        customIconId: grouping === 'date' ? null : movement.customIconId,
         count: 0,
         totalBaseMinor: 0,
         flow: movement.flow,
@@ -287,6 +292,7 @@ function flatByAmount(
     key: 'largest',
     title: allLabel,
     icon: null,
+    customIconId: null,
     count: sorted.length,
     totalBaseMinor,
     flow: totalBaseMinor >= 0 ? 'in' : 'out',
@@ -306,6 +312,7 @@ function flatByAmount(
 export interface Slice {
   label: string;
   icon: string | null;
+  customIconId: number | null;
   amountMinor: number;
   /** Rounded to a whole number, the way Monefy shows it. */
   percent: number;
@@ -329,6 +336,7 @@ export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'b
       byLabel.set(movement.label, {
         label: movement.label,
         icon: movement.icon,
+        customIconId: movement.customIconId,
         amountMinor: signed,
         percent: 0,
         flow: movement.flow === 'refund' ? 'out' : movement.flow,

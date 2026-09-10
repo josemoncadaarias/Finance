@@ -9,7 +9,7 @@
  * left as a transfer, and the ring is the only place either appears.
  */
 
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -18,6 +18,7 @@ import * as allIcons from 'ionicons/icons';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import type { Slice } from './group-movements';
 import { formatMoney } from '../../core/database/money';
+import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 interface Segment {
   slice: Slice;
@@ -86,12 +87,19 @@ const INCOME = '#2f9e6e';
       </svg>
 
         @for (segment of labelled(); track segment.slice.label) {
-          <ion-icon [name]="segment.slice.icon ?? 'pricetag-outline'"
-                    class="ring-icon"
-                    [style.left.%]="segment.labelX / size * 100"
-                    [style.top.%]="segment.labelY / size * 100"
-                    [style.color]="segment.colour"
-                    (click)="sliceTapped.emit(segment.slice.label)"></ion-icon>
+          @if (iconUrl(segment.slice.customIconId); as url) {
+            <img [src]="url" alt="" class="ring-icon image"
+                 [style.left.%]="segment.labelX / size * 100"
+                 [style.top.%]="segment.labelY / size * 100"
+                 (click)="sliceTapped.emit(segment.slice.label)">
+          } @else {
+            <ion-icon [name]="segment.slice.icon ?? 'pricetag-outline'"
+                      class="ring-icon"
+                      [style.left.%]="segment.labelX / size * 100"
+                      [style.top.%]="segment.labelY / size * 100"
+                      [style.color]="segment.colour"
+                      (click)="sliceTapped.emit(segment.slice.label)"></ion-icon>
+          }
         }
       </div>
       }
@@ -101,8 +109,12 @@ const INCOME = '#2f9e6e';
           <li (click)="sliceTapped.emit(row.slice.label)"
               (keydown.enter)="sliceTapped.emit(row.slice.label)" tabindex="0"
               [class.income]="row.slice.flow === 'in'">
-            <ion-icon [name]="row.slice.icon ?? 'pricetag-outline'"
-                      [style.color]="row.colour"></ion-icon>
+            @if (iconUrl(row.slice.customIconId); as url) {
+              <img [src]="url" alt="" class="legend-image">
+            } @else {
+              <ion-icon [name]="row.slice.icon ?? 'pricetag-outline'"
+                        [style.color]="row.colour"></ion-icon>
+            }
             <span class="name">{{ row.slice.label }}</span>
             <span class="percent">{{ row.slice.flow === 'in' ? '' : row.slice.percent + '%' }}</span>
             <span class="amount">{{ money(row.slice.amountMinor) }}</span>
@@ -133,7 +145,22 @@ const INCOME = '#2f9e6e';
       filter: drop-shadow(0 0 2px var(--ion-background-color));
     }
 
+    .ring-icon.image {
+      width: 1.3rem;
+      height: 1.3rem;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+
     .legend li ion-icon { font-size: 1.1rem; align-self: center; }
+
+    .legend-image {
+      width: 1.1rem;
+      height: 1.1rem;
+      border-radius: 3px;
+      object-fit: cover;
+      align-self: center;
+    }
     .legend li.income .amount { color: var(--ion-color-success); }
 
     .donut {
@@ -192,6 +219,19 @@ const INCOME = '#2f9e6e';
   `],
 })
 export class DonutComponent {
+  private readonly customIcons = inject(CustomIconsService);
+
+  /**
+   * The image a category wears.
+   *
+   * A category has either a built-in icon or a picture, never both, so a
+   * chart reading only the icon left every category Jose gave a real image
+   * to wearing the generic price tag.
+   */
+  iconUrl(id: number | null): string | undefined {
+    return this.customIcons.urlFor(id);
+  }
+
   constructor() {
     // Ionicons only renders a name that has been registered. The categories
     // come from the user's data, so which icons are needed is not known until

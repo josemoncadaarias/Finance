@@ -62,6 +62,15 @@ export interface DetailedTransaction extends TransactionRow {
   account_type: string;
   category_name: string | null;
   category_icon: string | null;
+  /**
+   * The image a category wears, when it wears one.
+   *
+   * A category has exactly one of the two - the schema enforces it - so a
+   * category given a real picture has `builtin_icon` null, and a screen
+   * reading only that column draws nothing at all. Which is what every screen
+   * did: every category Jose gave his own image to appeared with no icon.
+   */
+  category_custom_icon_id: number | null;
   /** The other side of a transfer, for labelling it. Null otherwise. */
   other_account_name: string | null;
   /** The far account's id, so a caller can tell inside a scope from outside. */
@@ -310,6 +319,7 @@ export class TransactionsRepository {
               a.type AS account_type,
               c.name AS category_name,
               c.builtin_icon AS category_icon,
+              c.custom_icon_id AS category_custom_icon_id,
               other.name AS other_account_name,
               other.id AS other_account_id
        FROM transactions t

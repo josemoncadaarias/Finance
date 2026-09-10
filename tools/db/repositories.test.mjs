@@ -804,3 +804,40 @@ test('the rate in force is the most recent one on or before the day', async () =
     on_date: '2026-09-09', base_code: 'USD', quote_code: 'COP', rate_scaled: 0 }), /greater than zero/);
   await db.close();
 });
+
+test('a category wearing an image carries it into the movement list', async () => {
+  // This has been forgotten five times. A category has either a built-in icon
+  // or a picture — the schema enforces exactly one — so a query that reads
+  // only `builtin_icon` returns null for every category the user gave a real
+  // image to, and the screen draws nothing at all beside it.
+  const { db, categories, transactions, ids } = await setup();
+  const icons = new CustomIconsRepository(db, NOW);
+
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const iconId = await icons.create({ name: 'D1', mime_type: 'image/png', data: png });
+
+  const d1 = await categories.create({ name: 'Tiendas D1', kind: 'expense', builtin_icon: 'cart' });
+  await categories.update(d1, { builtin_icon: null, custom_icon_id: iconId });
+
+  await transactions.create({
+    account_id: ids.bancolombia, category_id: d1, occurred_on: '2026-09-10',
+    amount_minor: -3500000, source: 'manual',
+  });
+  await transactions.create({
+    account_id: ids.bancolombia, category_id: ids.restaurante, occurred_on: '2026-09-10',
+    amount_minor: -5000000, source: 'manual',
+  });
+
+  const rows = await transactions.listDetailed({});
+  const shop = rows.find(row => row.category_name === 'Tiendas D1');
+  const lunch = rows.find(row => row.category_name === 'Restaurante');
+
+  assert.equal(shop.category_icon, null, 'it has no built-in icon to fall back on');
+  assert.equal(shop.category_custom_icon_id, iconId, 'so the image is what the screen needs');
+
+  // The other way round still works: a built-in icon and no image.
+  assert.equal(lunch.category_icon, 'restaurant');
+  assert.equal(lunch.category_custom_icon_id, null);
+
+  await db.close();
+});

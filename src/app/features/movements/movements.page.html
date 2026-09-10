@@ -68,7 +68,8 @@
 </ion-header>
 
 
-<ion-content [fullscreen]="true" appSwipe (swiped)="onSwipe($event)">
+<ion-content [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll($event)"
+             appSwipe (swiped)="onSwipe($event)">
 
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
@@ -210,7 +211,13 @@
             <div class="group-head" (click)="store.toggleGroup(group.key)">
               <ion-icon class="chevron"
                         [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-              @if (group.icon) { <ion-icon class="cat" [name]="group.icon"></ion-icon> }
+              <!-- The image first: a category wearing one has no built-in
+                   icon at all, so reading only the icon drew nothing. -->
+              @if (iconUrl(group.customIconId); as url) {
+                <img class="cat image" [src]="url" alt="">
+              } @else if (group.icon) {
+                <ion-icon class="cat" [name]="group.icon"></ion-icon>
+              }
               <span class="title" [class.by-date]="filter.grouping() === 'date'">{{ group.title }}</span>
               <ion-badge>{{ group.count }}</ion-badge>
               <span class="total" [class]="group.flow">
@@ -282,6 +289,19 @@
                  [highlighted]="filter.categoryFilter()"
                  (sliceTapped)="filter.openCategory($event)"></app-donut>
     }
+  }
+
+  <!-- The same control as the one at the top of the list, reachable from
+       wherever you have got to. Four thousand movements is a long way back up
+       to close what you opened, and the toolbar holding that button is at the
+       far end of it. It appears only once there is something to scroll back
+       past, so it is not sitting over a list of six rows. -->
+  @if (showFold()) {
+    <button type="button" class="fold-fab" (click)="store.toggleAll()"
+            [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+            [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+      <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+    </button>
   }
 
 </ion-content>

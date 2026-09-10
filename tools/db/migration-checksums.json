@@ -16,5 +16,6 @@
   "015_rappi_correct_balance.sql": "a38c69e3725b37ea47f647ad154f968459a48e1300d84b90bd444e47e64ac8f8",
   "016_rates_per_pocket.sql": "f1d2823d3ff1936e736666b9fcf0ac880c38935a4e0f457cefddffffeb6ffe08",
   "017_rate_end_date.sql": "0b0218ac6193e8bc93712ba80fbfe7c5f1fd9e7a6a6d215c54aaa1f00acdfe7d",
-  "018_recategorise.sql": "c379c5a947f5c8bf75b62923c2dc7c0ed840118fccbf7b27687822ea86286765"
+  "018_recategorise.sql": "c379c5a947f5c8bf75b62923c2dc7c0ed840118fccbf7b27687822ea86286765",
+  "019_fix_recategorise.sql": "e7ac805b35c207c6dcfe2f5e53013b980d95761aede627683d48257c16adf0ff"
 }
