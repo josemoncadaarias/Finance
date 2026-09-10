@@ -292,8 +292,10 @@ ion-button.save {
 .note {
   position: relative;
   display: flex;
-  flex: 1;
-  min-height: 5rem;
+  /* One line plus its padding, which is the height the note had as a
+     single-line field. It grows to several lines only on a phone, where
+     there is room going spare. */
+  min-height: 3.2rem;
   margin: 0 1rem 0.6rem;
   border: 1px solid var(--ion-color-step-150, var(--ion-color-light-shade));
   border-radius: 12px;
@@ -339,20 +341,15 @@ ion-button.save {
 /*
  * One column above the keypad.
  *
- * The keypad is pinned to the bottom, where a thumb reaches it, and the rest
- * sat at the top - so on a 932pt screen there were some three hundred points
- * of nothing between the note field and the keys. Centring gives that surplus
- * to the gaps between the sections, where it reads as room to breathe rather
- * than as a screen that failed to fill.
- *
- * `min-height` and not `height`: when the content is taller than the screen -
- * a short phone, or the delete button while editing - the column simply grows
- * and scrolls, and centring has nothing left to do.
+ * It takes its natural height here and is stretched only where there is
+ * surplus to absorb, which is the tall-phone rule at the bottom of this file.
+ * Making it fill the height everywhere is what put a scrollbar inside the
+ * form on a desktop window, where the modal is short and the content had
+ * nowhere to go.
  */
 .entry-body {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
 }
 
 .keypad {
@@ -367,15 +364,14 @@ ion-button.save {
     border: none;
 
     /*
-     * The keys take a share of the height rather than a fixed one.
+     * A fixed height here, and a bigger one only on a tall phone.
      *
-     * The other half of the same gap: on a tall screen the space is better
-     * spent on bigger targets than on padding above them, and 8vh over four
-     * rows comes to about 380pt on a Pro Max, which is what iOS gives its own
-     * calculator keypad on that screen. The floor keeps it tappable on a small screen and the
-     * ceiling stops a tablet from drawing keys the size of playing cards.
+     * This was a clamp against 9.5vh for one commit, and vh is the browser
+     * window - not the modal this form is drawn in. On a desktop window
+     * 945px tall that made every key 90px, so a 360px keypad was squeezed
+     * into a 570px modal and the form grew its own scrollbar.
      */
-    height: clamp(2.9rem, 9.5vh, 5.5rem);
+    height: 2.9rem;
     padding: 0;
     font-size: 1.35rem;
     font-variant-numeric: tabular-nums;
@@ -574,5 +570,35 @@ ion-item.selected ion-label h3 {
       background: var(--ion-color-primary);
       color: var(--ion-color-primary-contrast);
     }
+  }
+}
+
+/*
+ * A tall phone, and nothing else.
+ *
+ * On a 932pt screen the form's parts add up to about 740pt, leaving some two
+ * hundred of nothing between the note and the keypad - which is pinned to the
+ * bottom, where a thumb reaches it. The surplus is split between the two parts
+ * that are better for having it: bigger keys, and a note with room for a few
+ * lines.
+ *
+ * Both conditions matter, and getting this wrong is what broke the desktop
+ * layout. `max-width` keeps the rule to a phone-shaped viewport - a desktop
+ * window is far wider than 34rem, so it never sees any of this whatever its
+ * height, which `vh` units could not express. `min-height` keeps it off a
+ * screen too short for the keypad to grow into, where stretching anything
+ * would push it off the bottom.
+ */
+@media (max-width: 34rem) and (min-height: 40rem) {
+  .entry-body {
+    min-height: 100%;
+  }
+
+  .note {
+    flex: 1;
+  }
+
+  .keypad button {
+    height: 4.4rem;
   }
 }
