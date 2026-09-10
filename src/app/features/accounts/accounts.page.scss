@@ -119,3 +119,61 @@ ion-badge { margin-left: 0.4rem; font-weight: 400; }
   ion-icon { font-size: 1.15rem; }
   &:active { background: var(--ion-color-light); }
 }
+
+/* How the list is ordered: what is in each account, or its name. */
+.sorting {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0 1rem 0.5rem;
+
+  button {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium);
+    font-size: 0.78rem;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+/*
+ * Archived accounts, entirely apart from the live ones.
+ *
+ * Their money is gone — spent, moved, or in an account that no longer exists —
+ * so they are excluded from net worth and must not sit in the same list as
+ * real balances. Their figures are drawn muted for the same reason: they are a
+ * record of what was, not of what is.
+ */
+.archived-section {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ion-color-light-shade);
+
+  h2 {
+    margin: 0 1.5rem 0.15rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  p {
+    margin: 0 1.5rem 0.5rem;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+
+  ion-item { --background: transparent; opacity: 0.72; }
+  ion-note.past { color: var(--ion-color-medium); font-variant-numeric: tabular-nums; }
+  ion-icon.archived { color: var(--ion-color-medium); }
+}

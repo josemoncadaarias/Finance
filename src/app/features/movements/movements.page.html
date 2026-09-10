@@ -257,6 +257,15 @@
   </div>
 </ion-footer>
 
+<ion-modal [isOpen]="editingAccount() !== null" (didDismiss)="editingAccount.set(null)">
+  <ng-template>
+    @if (editingAccount(); as account) {
+      <app-account-editor [editing]="account" (saved)="onAccountSaved()"
+                          (cancelled)="editingAccount.set(null)"></app-account-editor>
+    }
+  </ng-template>
+</ion-modal>
+
 <ion-modal [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
   <ng-template>
     @if (entry(); as request) {
@@ -357,6 +366,14 @@
               </h3>
               <p>{{ account.currency_code }}</p>
             </ion-label>
+
+            <!-- Editing an account from where it is being looked at, rather
+                 than only from the accounts screen. -->
+            <button type="button" slot="end" class="edit-account"
+                    (click)="$event.stopPropagation(); editAccount(account)"
+                    [attr.aria-label]="'accounts.edit.action' | t">
+              <ion-icon name="create-outline"></ion-icon>
+            </button>
           </ion-item>
         }
       </ion-list>

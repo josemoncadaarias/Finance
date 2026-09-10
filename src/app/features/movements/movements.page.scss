@@ -521,3 +521,20 @@ ion-note[slot='end'] {
 @media (prefers-reduced-motion: reduce) {
   .compose .big:active { transform: none; }
 }
+
+/* Editing an account from the picker it is chosen in. */
+.edit-account {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+
+  ion-icon { font-size: 1.15rem; }
+  &:active { background: var(--ion-color-light); }
+}

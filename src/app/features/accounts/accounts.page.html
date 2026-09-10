@@ -45,6 +45,15 @@
       <p class="caveat">{{ 'accounts.brokersCaveat' | t }}</p>
     </section>
 
+    <div class="sorting">
+      <button type="button" [class.on]="sortBy() === 'amount'" (click)="setSort('amount')">
+        {{ 'accounts.sort.amount' | t }}
+      </button>
+      <button type="button" [class.on]="sortBy() === 'name'" (click)="setSort('name')">
+        {{ 'accounts.sort.name' | t }}
+      </button>
+    </div>
+
     <ion-list [inset]="true">
       @for (entry of visible(); track entry.group?.id ?? entry.balances[0].account.id) {
 
@@ -71,9 +80,7 @@
             <ion-label>
               <h3>
                 {{ entry.group ? balance.account.currency_code : balance.account.name }}
-                @if (balance.account.archived) {
-                  <ion-badge color="medium">{{ 'accounts.archived' | t }}</ion-badge>
-                }
+
               </h3>
               @if (balance.available_credit_minor !== null) {
                 <p>
@@ -103,9 +110,51 @@
         <button type="button" (click)="toggleArchived()">
           <ion-icon name="archive-outline"></ion-icon>
           {{ (showArchived() ? 'accounts.hideArchived' : 'accounts.showArchived')
-               | t:{ count: archivedCount() } }}
+             | t:{ count: archivedCount() } }}
         </button>
       </div>
+
+      @if (showArchived()) {
+        <section class="archived-section">
+          <h2>{{ 'accounts.archivedTitle' | t }}</h2>
+          <p>{{ 'accounts.archivedHint' | t }}</p>
+
+          <ion-list [inset]="true">
+            @for (entry of archived(); track entry.group?.id ?? entry.balances[0].account.id) {
+              @if (entry.group) {
+                <ion-item class="group-head" lines="none">
+                  <ion-label>
+                    <h2>{{ entry.group.name }}</h2>
+                    <p>{{ 'accounts.currencies' | t:{ count: entry.balances.length } }}</p>
+                  </ion-label>
+                </ion-item>
+              }
+
+              @for (balance of entry.balances; track balance.account.id) {
+                <ion-item [class.nested]="entry.group" lines="full" button
+                          (click)="open(balance.account)">
+                  <ion-icon slot="start" class="archived"
+                            [name]="(balance.account.builtin_icon ?? '') + '-outline'
+                                    || iconFor(balance.account.type)"></ion-icon>
+                  <ion-label>
+                    <h3>{{ entry.group ? balance.account.currency_code : balance.account.name }}</h3>
+                  </ion-label>
+                  <ion-note slot="end" class="past">
+                    {{ balance.balance_minor | money }}
+                    <small>{{ balance.account.currency_code }}</small>
+                  </ion-note>
+
+                  <button type="button" slot="end" class="edit"
+                          (click)="$event.stopPropagation(); edit(balance.account)"
+                          [attr.aria-label]="'accounts.edit.action' | t">
+                    <ion-icon name="create-outline"></ion-icon>
+                  </button>
+                </ion-item>
+              }
+            }
+          </ion-list>
+        </section>
+      }
     }
   }
 </ion-content>

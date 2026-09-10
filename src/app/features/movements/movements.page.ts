@@ -32,7 +32,8 @@ import { MoneyPipe } from '../../shared/money.pipe';
 import { SwipeDirective } from '../../shared/swipe.directive';
 import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entry.component';
 import type { Grouping } from './group-movements';
-import type { TransactionRow } from '../../core/database/types';
+import type { AccountRow, TransactionRow } from '../../core/database/types';
+import { AccountEditorComponent } from '../accounts/account-editor.component';
 
 @Component({
   selector: 'app-movements',
@@ -40,7 +41,7 @@ import type { TransactionRow } from '../../core/database/types';
   styleUrls: ['./movements.page.scss'],
   imports: [
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    TranslatePipe, LanguageButtonComponent,
+    TranslatePipe, LanguageButtonComponent, AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
@@ -68,6 +69,9 @@ export class MovementsPage {
 
   /** Non-null while the entry screen is open, describing what it is editing. */
   readonly entry = signal<EntryRequest | null>(null);
+
+  /** Non-null while an account is being edited from this screen. */
+  readonly editingAccount = signal<AccountRow | null>(null);
   /**
    * Whether the two date pickers are showing.
    *
@@ -199,6 +203,15 @@ export class MovementsPage {
   private dayLabel(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
     return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
+  }
+
+  editAccount(account: AccountRow): void {
+    this.showAccountSheet.set(false);
+    this.editingAccount.set(account);
+  }
+
+  onAccountSaved(): void {
+    this.editingAccount.set(null);
   }
 
   pickAccount(id: number | null): void {

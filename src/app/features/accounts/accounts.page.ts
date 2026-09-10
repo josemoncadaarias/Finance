@@ -59,17 +59,62 @@ export class AccountsPage {
   readonly error = this.database.error;
 
   /** Archived accounts are history; they stay out of the way until asked for. */
+  /** How the list is sorted: by what is in each account, or by name. */
+  readonly sortBy = signal<'amount' | 'name'>('amount');
+
+  /**
+   * The live accounts, sorted as asked.
+   *
+   * Sorting a group by its largest balance keeps a multi-currency account
+   * together: ARQ is one account holding two currencies, and splitting it
+   * across the list to sort its halves separately would say otherwise.
+   */
   readonly visible = computed(() => {
-    const all = this.grouped() ?? [];
-    if (this.showArchived()) return all;
-    return all
+    const live = (this.grouped() ?? [])
       .map(entry => ({ ...entry, balances: entry.balances.filter(b => !b.account.archived) }))
       .filter(entry => entry.balances.length > 0);
+
+    return this.sorted(live);
   });
+
+  /**
+   * Archived accounts, kept entirely apart.
+   *
+   * An archived account is history and nothing else: its money is gone, spent
+   * or moved elsewhere long ago. It is excluded from net worth by the query
+   * that computes it, and mixing it into the same list as the live ones - in
+   * alphabetical order, next to real balances - said the opposite.
+   */
+  readonly archived = computed(() => {
+    const dead = (this.grouped() ?? [])
+      .map(entry => ({ ...entry, balances: entry.balances.filter(b => b.account.archived) }))
+      .filter(entry => entry.balances.length > 0);
+
+    return this.sorted(dead);
+  });
+
+  private sorted(entries: GroupedBalance[]): GroupedBalance[] {
+    const byName = (entry: GroupedBalance) =>
+      entry.group?.name ?? entry.balances[0].account.name;
+
+    // A group is placed by its largest balance, so one big currency is not
+    // hidden behind an empty sibling.
+    const size = (entry: GroupedBalance) =>
+      Math.max(...entry.balances.map(balance => Math.abs(balance.balance_minor)));
+
+    return [...entries].sort((a, b) =>
+      this.sortBy() === 'name'
+        ? byName(a).localeCompare(byName(b))
+        : size(b) - size(a));
+  }
 
   readonly archivedCount = computed(
     () => (this.grouped() ?? []).flatMap(e => e.balances).filter(b => b.account.archived).length,
   );
+
+  setSort(by: 'amount' | 'name'): void {
+    this.sortBy.set(by);
+  }
 
   constructor() {
     addIcons({ walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline });

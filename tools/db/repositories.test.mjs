@@ -671,3 +671,41 @@ test('categories come back ordered by how often they are used', async () => {
   assert.equal(ever.find(c => c.name === 'Regalos').times, 1);
   await db.close();
 });
+
+test('an archived account leaves net worth entirely', async () => {
+  const { db, accounts, transactions, ids } = await setup();
+
+  const before = await accounts.netWorthMinor();
+
+  // A real case from the backup: an account closed years ago, still holding a
+  // figure in the ledger.
+  const old = await accounts.create({
+    name: 'Renta Fija Plazo', type: 'investment', currency_code: 'COP',
+    builtin_icon: 'trending-up', opened_on: '2021-07-15',
+    opening_balance_minor: 100000000, opening_balance_base_minor: 100000000,
+  });
+  await transactions.create({
+    account_id: old, category_id: ids.restaurante, occurred_on: '2022-06-13',
+    amount_minor: -20000000, source: 'manual',
+  });
+
+  // While it is live it counts, opening balance and movements together.
+  assert.equal(await accounts.netWorthMinor(), before + 100000000 - 20000000);
+
+  // Archived, it is gone from net worth completely - not reduced, not
+  // partially counted. The money is history; only the record remains.
+  await accounts.archive(old);
+  assert.equal(await accounts.netWorthMinor(), before,
+    'archiving takes the whole account out of the total');
+
+  // Its balance is still readable, because the history is the point of keeping
+  // it at all.
+  const balance = await accounts.balance(old);
+  assert.equal(balance.balance_minor, 80000000);
+  assert.equal(balance.account.archived, 1);
+
+  // And it does not come back through the grouped listing used by the screen.
+  const live = await accounts.balancesByGroup();
+  assert.equal(live.flatMap(g => g.balances).some(b => b.account.id === old), false);
+  await db.close();
+});
