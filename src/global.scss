@@ -191,3 +191,26 @@ ion-item > app-icon[slot='end'],
 ion-item > img[slot='start'] {
   flex: none;
 }
+
+/*
+ * A form control does not fill its box; it sizes itself to its content.
+ *
+ * This is the second half of the same bug, and the half that made the first
+ * fix look like it had done nothing. The account name in the toolbar sits in a
+ * `<button>` laid out with `display: flex; flex: 1; min-width: 0`, all of
+ * which reads as "take the space you are given and no more". Measured, the
+ * button came out 406px wide inside a 280px slot.
+ *
+ * Two reasons, neither visible in the stylesheet. Ionic's `.toolbar-content`
+ * is a *block*, not a flex container, so `flex: 1` and `min-width: 0` were
+ * inert. And a `<button>` with `width: auto` shrinks to fit its content even
+ * when it is itself a flex container - so it grew to the length of the name
+ * and printed it across the buttons beside it.
+ *
+ * `max-width: 100%` is the floor under all of it: whatever a control's
+ * content wants, it may not be wider than the box it is in. It changes
+ * nothing that already fits.
+ */
+button, input, select, textarea {
+  max-width: 100%;
+}

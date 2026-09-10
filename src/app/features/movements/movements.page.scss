@@ -7,11 +7,13 @@
   flex: 1;
   min-width: 0;
 
-  /* Belt and braces on the element that carries the name. A <button> is a
-     flex container here, and a button's intrinsic width does not always
-     respect min-width: 0 - so the box is clipped at its own edge as well,
-     and nothing inside it can be painted over the toolbar buttons whatever
-     the intrinsic sizing decides. */
+  /* Ionic's toolbar content area is a block, not a flex container, so the
+     `flex: 1` above is inert - and a <button> with width auto shrinks to fit
+     its content even when it is itself a flex container. Measured, this came
+     out 406px wide inside a 280px slot, printed across the search and
+     language buttons. The width is stated outright, and the box clips
+     whatever is still too long for it. */
+  width: 100%;
   overflow: hidden;
 
   padding: 0.4rem 0.5rem 0.4rem 0.85rem;

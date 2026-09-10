@@ -109,4 +109,10 @@ test('the global net that lets long names shrink is still there', () => {
   assert.match(global, /overflow-wrap:\s*break-word/,
     'an unbroken run of characters needs somewhere to break');
   assert.match(global, /ion-label/, 'the net covers the label of a list row');
+
+  // The half that made the first fix look like it had done nothing: a
+  // <button> with width auto shrinks to fit its content even as a flex
+  // container, so the toolbar name measured 406px inside a 280px slot.
+  assert.match(global, /button,\s*input,\s*select,\s*textarea/,
+    'a form control may not be wider than the box it is in');
 });
