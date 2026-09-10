@@ -1,0 +1,87 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'export.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>{{ 'state.failed' | t }}</h2>
+      <p>{{ database.error()?.message }}</p>
+    </div>
+  } @else {
+
+    @if (error()) { <p class="failed">{{ error() }}</p> }
+
+    @if (lastFile()) {
+      <p class="done">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        {{ 'export.saved' | t:{ file: lastFile() } }}
+      </p>
+    }
+
+    <!-- The one that matters: this database is the only copy -->
+    <section class="option important">
+      <h2>{{ 'export.backup.title' | t }}</h2>
+      <p>{{ 'export.backup.body' | t }}</p>
+
+      <ion-list [inset]="true">
+        <ion-item lines="full">
+          <ion-label>{{ 'export.movements' | t }}</ion-label>
+          <ion-note slot="end">{{ counts().movements }}</ion-note>
+        </ion-item>
+        <ion-item lines="full">
+          <ion-label>{{ 'nav.accounts' | t }}</ion-label>
+          <ion-note slot="end">{{ counts().accounts }}</ion-note>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label>{{ 'nav.categories' | t }}</ion-label>
+          <ion-note slot="end">{{ counts().categories }}</ion-note>
+        </ion-item>
+      </ion-list>
+
+      <ion-button expand="block" [disabled]="!hasData() || working() !== null"
+                  (click)="downloadBackup()">
+        @if (working() === 'backup') {
+          <ion-spinner slot="start" name="dots"></ion-spinner>
+        } @else {
+          <ion-icon slot="start" name="shield-checkmark-outline"></ion-icon>
+        }
+        {{ 'export.backup.action' | t }}
+      </ion-button>
+
+      <p class="hint">{{ 'export.backup.hint' | t }}</p>
+    </section>
+
+    <!-- The readable one -->
+    <section class="option">
+      <h2>{{ 'export.csv.title' | t }}</h2>
+      <p>{{ 'export.csv.body' | t }}</p>
+
+      <ion-button expand="block" fill="outline"
+                  [disabled]="!hasData() || working() !== null" (click)="downloadCsv()">
+        @if (working() === 'csv') {
+          <ion-spinner slot="start" name="dots"></ion-spinner>
+        } @else {
+          <ion-icon slot="start" name="document-text-outline"></ion-icon>
+        }
+        {{ 'export.csv.action' | t }}
+      </ion-button>
+
+      <p class="hint warn">{{ 'export.csv.hint' | t }}</p>
+    </section>
+
+    @if (!hasData()) {
+      <p class="hint">{{ 'export.nothing' | t }}</p>
+    }
+  }
+</ion-content>

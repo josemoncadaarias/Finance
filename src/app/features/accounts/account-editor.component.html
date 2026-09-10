@@ -52,6 +52,29 @@
           }
         </ion-select>
       </ion-item>
+
+      <!-- A currency the app does not know yet, added from where it is missed -->
+      @if (addingCurrency()) {
+        <ion-item lines="full" class="new-currency">
+          <ion-input [label]="'accounts.currency.code' | t" [value]="newCode()" maxlength="3"
+                     [placeholder]="'accounts.currency.codeHint' | t"
+                     (ionInput)="newCode.set($any($event.target).value ?? '')"></ion-input>
+        </ion-item>
+        <ion-item lines="full" class="new-currency">
+          <ion-input [label]="'accounts.currency.name' | t" [value]="newName()"
+                     (ionInput)="newName.set($any($event.target).value ?? '')"></ion-input>
+        </ion-item>
+        <ion-item lines="full" class="new-currency">
+          <ion-input [label]="'accounts.currency.symbol' | t" [value]="newSymbol()"
+                     (ionInput)="newSymbol.set($any($event.target).value ?? '')"></ion-input>
+          <ion-button slot="end" size="small" (click)="saveCurrency()">{{ 'entry.save' | t }}</ion-button>
+        </ion-item>
+      } @else {
+        <ion-item button lines="full" (click)="addingCurrency.set(true)">
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          <ion-label color="primary">{{ 'accounts.currency.add' | t }}</ion-label>
+        </ion-item>
+      }
     } @else {
       <ion-item lines="full">
         <ion-label>

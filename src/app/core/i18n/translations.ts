@@ -227,6 +227,13 @@ export const SPANISH = {
   'accounts.type.cash': 'Efectivo',
   'accounts.type.investment': 'Inversión',
   'accounts.currency': 'Moneda',
+  'accounts.currency.add': 'Agregar una moneda',
+  'accounts.currency.code': 'Código',
+  'accounts.currency.codeHint': 'CAD, MXN, BRL…',
+  'accounts.currency.name': 'Nombre',
+  'accounts.currency.symbol': 'Símbolo',
+  'accounts.currency.badCode': 'El código son tres letras, como USD o CAD',
+  'accounts.currency.needName': 'Escribe el nombre de la moneda',
   'accounts.currency.locked': 'No se puede cambiar: todos los montos guardados están en esta moneda',
   'accounts.opening': 'Saldo inicial',
   'accounts.openedOn': 'Abierta el',
@@ -340,6 +347,50 @@ export const SPANISH = {
   'review.help.near_date_transfer':
     'Transferencias emparejadas aunque las dos patas tienen fechas distintas. ' +
     'Revisa que de verdad sean el mismo movimiento.',
+
+  'nav.export': 'Exportar',
+  'nav.export.hint': 'Copia de seguridad y CSV',
+  'csv.date': 'fecha',
+  'csv.account': 'cuenta',
+  'csv.currency': 'moneda',
+  'csv.category': 'categoria',
+  'csv.amount': 'monto',
+  'csv.amountInPesos': 'monto_en_pesos',
+  'csv.rate': 'tasa',
+  'csv.note': 'nota',
+  'csv.kind': 'tipo',
+  'csv.counterpart': 'contraparte',
+  'csv.correctedByHand': 'corregido_a_mano',
+  'csv.source': 'origen',
+  'csv.confidence': 'confianza',
+  'csv.transfer': 'Transferencia',
+  'csv.movement': 'movimiento',
+  'csv.transferLeg': 'transferencia',
+  'csv.yes': 'si',
+  'csv.no': 'no',
+  'export.title': 'Exportar',
+  'export.movements': 'Movimientos',
+  'export.saved': 'Se guardó {file}',
+  'export.nothing': 'Todavía no hay nada que exportar.',
+
+  'export.backup.title': 'Copia de seguridad',
+  'export.backup.body':
+    'Todo lo que hay en la app, en un archivo que se puede volver a cargar: ' +
+    'cuentas, movimientos, transferencias completas, tus correcciones a mano, ' +
+    'el historial de cupos y las imágenes de los iconos.',
+  'export.backup.action': 'Guardar copia de seguridad',
+  'export.backup.hint':
+    'Esta base de datos vive solo en este dispositivo. Si lo pierdes y no tienes ' +
+    'esta copia, se pierde todo. Guárdala fuera del teléfono.',
+
+  'export.csv.title': 'CSV para leer',
+  'export.csv.body':
+    'Los movimientos en una tabla que abre Excel: fecha, cuenta, categoría, ' +
+    'monto en su moneda y en pesos, tasa y nota.',
+  'export.csv.action': 'Descargar CSV',
+  'export.csv.hint':
+    'Sirve para revisar o pasarle a alguien, pero NO sirve para restaurar: un CSV ' +
+    'no puede guardar qué pata pertenece a cuál transferencia ni qué corregiste a mano.',
 
   // --- shared states ----------------------------------------------------
   'state.opening': 'Abriendo la base de datos…',
@@ -552,6 +603,13 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.type.cash': 'Cash',
   'accounts.type.investment': 'Investment',
   'accounts.currency': 'Currency',
+  'accounts.currency.add': 'Add a currency',
+  'accounts.currency.code': 'Code',
+  'accounts.currency.codeHint': 'CAD, MXN, BRL…',
+  'accounts.currency.name': 'Name',
+  'accounts.currency.symbol': 'Symbol',
+  'accounts.currency.badCode': 'A code is three letters, like USD or CAD',
+  'accounts.currency.needName': 'Type the name of the currency',
   'accounts.currency.locked': 'Cannot change: every stored amount is in this currency',
   'accounts.opening': 'Opening balance',
   'accounts.openedOn': 'Opened on',
@@ -658,6 +716,50 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'review.help.near_date_transfer':
     'Transfers paired even though the two legs carry different dates. Check they ' +
     'really are the same movement.',
+
+  'nav.export': 'Export',
+  'nav.export.hint': 'Backup and CSV',
+  'csv.date': 'date',
+  'csv.account': 'account',
+  'csv.currency': 'currency',
+  'csv.category': 'category',
+  'csv.amount': 'amount',
+  'csv.amountInPesos': 'amount_in_pesos',
+  'csv.rate': 'rate',
+  'csv.note': 'note',
+  'csv.kind': 'kind',
+  'csv.counterpart': 'counterpart',
+  'csv.correctedByHand': 'corrected_by_hand',
+  'csv.source': 'source',
+  'csv.confidence': 'confidence',
+  'csv.transfer': 'Transfer',
+  'csv.movement': 'movement',
+  'csv.transferLeg': 'transfer',
+  'csv.yes': 'yes',
+  'csv.no': 'no',
+  'export.title': 'Export',
+  'export.movements': 'Movements',
+  'export.saved': '{file} was saved',
+  'export.nothing': 'There is nothing to export yet.',
+
+  'export.backup.title': 'Backup',
+  'export.backup.body':
+    'Everything the app holds, in a file that can be read back: accounts, ' +
+    'movements, whole transfers, your hand corrections, the credit-limit history ' +
+    'and the images used as icons.',
+  'export.backup.action': 'Save a backup',
+  'export.backup.hint':
+    'This database lives only on this device. Lose it without this file and ' +
+    'everything is gone. Keep it somewhere other than the phone.',
+
+  'export.csv.title': 'CSV to read',
+  'export.csv.body':
+    'The movements as a table Excel can open: date, account, category, amount in ' +
+    'its own currency and in pesos, rate and note.',
+  'export.csv.action': 'Download CSV',
+  'export.csv.hint':
+    'Good for checking or handing to someone, but NOT for restoring: a CSV cannot ' +
+    'record which leg belongs to which transfer, or what you corrected by hand.',
 
   'state.opening': 'Opening the database…',
   'state.failed': 'The database could not be opened',

@@ -36,6 +36,8 @@ const ALLOWED = [
   'core/database/import/extract-usd.ts',
   'core/database/import/monefy-csv.ts',
   'core/database/import/import-monefy.ts',
+  // The CSV's default words; the screen passes translated ones.
+  'core/database/export/export-csv.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */

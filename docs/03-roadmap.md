@@ -113,15 +113,29 @@ any expense, which is exactly the confusion worth not inheriting.
 - Editing a movement, which sets `locked` so a re-import leaves it alone.
 - Transfers between accounts, including across currencies.
 
-### 3.5 CRUD
+### 3.5 Editing what the importer created — done
 
-Accounts, account groups, categories and currencies — with the icon picker
-(built-in catalog plus the user's own images) and the "counts towards net
-worth" switch, which today can only be changed by editing the importer's table.
+Accounts, account groups, categories and currencies, with the icon picker
+(built-in catalog plus the user's own images) and the net-worth switch that
+until then lived in the importer's table and needed a code change.
 
-### 3.6 Export
+Also here: a credit card's limit with its dated history, and adding a currency
+the app did not ship with.
 
-Out of the app, in a format that can be read back in.
+### 3.6 Export — done
+
+Two files, because they do two different jobs and confusing them is expensive:
+
+- **Backup (JSON).** Every table, in dependency order, including what a CSV
+  cannot express: which leg belongs to which transfer, which rows are locked
+  against re-import, the credit-limit history, the icon images. This database
+  is the only copy of five years, so this is the file that matters.
+- **CSV.** The movements as a table Excel opens, each amount written twice —
+  in its own currency and in pesos. For reading and for handing to someone;
+  explicitly not a restore path, and the screen says so.
+
+Restoring from a backup is not built yet: writing one is what protects against
+losing the phone, and reading it back can follow.
 
 ### 3.7 Settings
 

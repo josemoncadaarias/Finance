@@ -18,6 +18,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/review/review.page').then(m => m.ReviewPage),
   },
   {
+    path: 'export',
+    loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
+  },
+  {
     path: 'import',
     loadComponent: () => import('./features/import/import.page').then(m => m.ImportPage),
   },

@@ -32,7 +32,13 @@ test('no phrase is left empty or accidentally identical', () => {
   // A handful legitimately match (currency codes, "Monefy"), but a translation
   // that is the Spanish string copied over is a mistake worth catching. These
   // are the ones that are meant to be the same word in both.
-  const sameOnPurpose = new Set(['summary.moved', 'entry.transfer']);
+  const sameOnPurpose = new Set([
+    'summary.moved', 'entry.transfer',
+    // Currency codes are the same in every language.
+    'accounts.currency.codeHint',
+    // "no" is spelled the same in Spanish and English.
+    'csv.no',
+  ]);
   const identical = Object.keys(SPANISH)
     .filter(key => SPANISH[key] === ENGLISH[key] && !sameOnPurpose.has(key));
 

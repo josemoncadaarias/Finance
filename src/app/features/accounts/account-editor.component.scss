@@ -90,3 +90,8 @@ ion-toggle .hint { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--ion-col
   p { font-size: 0.78rem; color: var(--ion-color-medium); }
   ion-note { font-size: 0.7rem; }
 }
+
+/* The little form for a currency the app has not met before. */
+.new-currency {
+  --background: rgba(var(--ion-color-primary-rgb), 0.06);
+}
