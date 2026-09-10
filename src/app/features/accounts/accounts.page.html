@@ -43,6 +43,20 @@
         {{ netWorthMinor() | money }} <small>COP</small>
       </span>
       <p class="caveat">{{ 'accounts.brokersCaveat' | t }}</p>
+
+      <button type="button" class="explain" (click)="showBreakdown.set(true)">
+        <ion-icon name="information-circle-outline"></ion-icon>
+        {{ 'accounts.whereFrom' | t }}
+      </button>
+
+      <!-- Money the app cannot value is said out loud rather than left out
+           silently. -->
+      @if (missingRates().length > 0) {
+        <button type="button" class="missing-rate" (click)="showBreakdown.set(true)">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+          {{ 'accounts.missingRate' | t:{ currencies: missingRates().join(', ') } }}
+        </button>
+      }
     </section>
 
     <div class="sorting">
@@ -165,5 +179,81 @@
       <app-account-editor [editing]="request.account" (saved)="onSaved()"
                           (cancelled)="editor.set(null)"></app-account-editor>
     }
+  </ng-template>
+</ion-modal>
+
+<!-- Where the total comes from, line by line, with the rate each foreign
+     balance was valued at. -->
+<ion-modal [isOpen]="showBreakdown()" (didDismiss)="showBreakdown.set(false)">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="showBreakdown.set(false)">{{ 'summary.close' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="sheet">
+      <h2>{{ 'accounts.breakdown.title' | t }}</h2>
+      <p class="explainer">{{ 'accounts.breakdown.body' | t }}</p>
+
+      @if (foreignCurrencies().length > 0) {
+        <section class="rates">
+          <h3>{{ 'accounts.rates.title' | t }}</h3>
+          <p class="explainer">{{ 'accounts.rates.body' | t }}</p>
+
+          <ion-list [inset]="true">
+            @for (currency of foreignCurrencies(); track currency) {
+              <ion-item lines="full">
+                <ion-input [label]="currency + ' → COP'" inputmode="decimal"
+                           [value]="rateDraft(currency)"
+                           (ionInput)="onRateTyped(currency, $any($event.target).value ?? '')"
+                           (ionBlur)="saveRate(currency)"></ion-input>
+                <ion-button slot="end" size="small" fill="clear" (click)="saveRate(currency)">
+                  {{ 'entry.save' | t }}
+                </ion-button>
+              </ion-item>
+            }
+          </ion-list>
+        </section>
+      }
+
+      <ion-list [inset]="true">
+        @for (line of worth()?.lines ?? []; track line.account_id) {
+          <ion-item lines="full">
+            <ion-label>
+              <h3>{{ line.name }}</h3>
+              @if (line.currency_code !== 'COP') {
+                @if (line.rate) {
+                  <p>{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }}
+                     × {{ line.rate.rate_scaled / 10000 | number:'1.2-2' }}</p>
+                } @else {
+                  <p class="warn">{{ line.balance_minor | money:line.currency_code }}
+                     {{ line.currency_code }} · {{ 'accounts.noRate' | t }}</p>
+                }
+              }
+            </ion-label>
+            <ion-note slot="end" [class]="(line.baseMinor ?? 0) | sign">
+              @if (line.baseMinor !== null) {
+                {{ line.baseMinor | money }}
+              } @else {
+                —
+              }
+            </ion-note>
+          </ion-item>
+        }
+
+        <ion-item lines="none" class="sum">
+          <ion-label><h3>{{ 'accounts.netWorth' | t }}</h3></ion-label>
+          <ion-note slot="end" [class]="netWorthMinor() | sign">
+            {{ netWorthMinor() | money }} COP
+          </ion-note>
+        </ion-item>
+      </ion-list>
+
+      <p class="explainer">{{ 'accounts.breakdown.rates' | t }}</p>
+      <p class="explainer">{{ 'accounts.breakdown.excluded' | t }}</p>
+    </ion-content>
   </ng-template>
 </ion-modal>

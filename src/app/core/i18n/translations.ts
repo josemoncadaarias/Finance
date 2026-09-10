@@ -152,6 +152,21 @@ export const SPANISH = {
   'accounts.currencies': '{count} monedas',
   'accounts.availableOf': '{available} disponible de {limit}',
   'accounts.archived': 'archivada',
+  'accounts.whereFrom': '¿De dónde sale?',
+  'accounts.breakdown.title': 'Cómo se arma el patrimonio',
+  'accounts.breakdown.body': 'Cada cuenta que cuenta, con lo que aporta al total.',
+  'accounts.breakdown.rates':
+    'Lo que tienes en otra moneda vale la tasa de hoy, no la de cuando lo ' +
+    'compraste. Cada movimiento sí conserva la tasa de su día — eso dice qué te ' +
+    'costó — pero el patrimonio dice cuánto tienes hoy.',
+  'accounts.breakdown.excluded':
+    'No entran: las archivadas ni las que marcaste como apartadas del patrimonio.',
+  'accounts.rates.title': 'Tasa de hoy',
+  'accounts.rates.body':
+    'Escribe cuánto vale una unidad en pesos. Se guarda con la fecha de hoy; ' +
+    'mañana puedes poner otra sin cambiar la de hoy.',
+  'accounts.noRate': 'sin tasa, no se puede valorar',
+  'accounts.missingRate': 'Falta la tasa de {currencies}: esa plata no está sumando',
   'accounts.sort.amount': 'Por monto',
   'accounts.sort.name': 'Por nombre',
   'accounts.archivedTitle': 'Archivadas',
@@ -451,6 +466,21 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.currencies': '{count} currencies',
   'accounts.availableOf': '{available} available of {limit}',
   'accounts.archived': 'archived',
+  'accounts.whereFrom': 'Where from?',
+  'accounts.breakdown.title': 'How net worth is built',
+  'accounts.breakdown.body': 'Every account that counts, with what it adds to the total.',
+  'accounts.breakdown.rates':
+    "What you hold in another currency is worth today's rate, not the rate you " +
+    'bought it at. Each movement does keep its own day rate — that says what it ' +
+    'cost you — but net worth says what you have today.',
+  'accounts.breakdown.excluded':
+    'Left out: archived accounts, and the ones marked as set aside from net worth.',
+  'accounts.rates.title': "Today's rate",
+  'accounts.rates.body':
+    'Type what one unit is worth in pesos. It is stored under today, so ' +
+    "tomorrow's figure will not change today's.",
+  'accounts.noRate': 'no rate, cannot be valued',
+  'accounts.missingRate': 'No rate for {currencies}: that money is not being counted',
   'accounts.sort.amount': 'By amount',
   'accounts.sort.name': 'By name',
   'accounts.archivedTitle': 'Archived',

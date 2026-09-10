@@ -81,7 +81,16 @@ the framework on a long-running project.
    *displayed* with 2 decimals, the same way Monefy does it. Decision by Jose,
    2026-09-08.
 
-3. **Multi-currency with a per-transaction rate.** Every foreign-currency
+3. **Two different questions, two different rates.** A movement keeps the rate
+   that applied the day it happened — that answers *what did this cost me*, and
+   it is what the tax module needs. **Net worth is a different question**: what
+   is held today is worth today`s rate, not a blend of the rates it was bought
+   at. Summing each movement`s historical peso value to answer it was wrong,
+   and was corrected on 2026-09-09 at Jose`s insistence. A currency with no rate on
+   record is reported, never guessed at: its accounts sit out of the total and
+   the screen says so.
+
+4. **Multi-currency with a per-transaction rate.** Every foreign-currency
    transaction stores the rate that bank actually applied to that transaction,
    as an editable value. History is never recalculated when the official rate
    changes. The official TRM (Superfinanciera, public API on datos.gov.co) is

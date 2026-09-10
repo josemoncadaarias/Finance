@@ -18,6 +18,7 @@ import { TransfersRepository } from '../../src/app/core/database/repositories/tr
 import { CreditLimitsRepository } from '../../src/app/core/database/repositories/credit-limits.repository.ts';
 import { CustomIconsRepository } from '../../src/app/core/database/repositories/custom-icons.repository.ts';
 import { ReviewRepository } from '../../src/app/core/database/repositories/review.repository.ts';
+import { RatesRepository } from '../../src/app/core/database/repositories/rates.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
 
 const NOW = () => '2026-09-08T12:00:00Z';
@@ -272,27 +273,33 @@ test('reports exclude transfer legs and total by category', async () => {
   await db.close();
 });
 
-test('net worth adds base amounts and honours the exclusion flag', async () => {
+test('net worth values today, and honours the exclusion flag', async () => {
   const { db, accounts, transactions, transfers, ids } = await setup();
+  const rates = new RatesRepository(db, NOW);
 
   await transactions.create({
     account_id: ids.bancolombia, category_id: ids.restaurante,
     occurred_on: '2024-03-01', amount_minor: -5020000,
   });
-  // A USD leg contributes its frozen COP equivalent, not its dollar figure.
+
+  // Dollars bought in 2024 at 4,214 a dollar.
   await transfers.create({
     occurred_on: '2024-08-13',
     from: { account_id: ids.rappi, amount_minor: 10000000 },
     to: { account_id: ids.arq, amount_minor: 2373, rate_scaled: 42140000 },
   });
 
-  const total = await accounts.netWorthMinor();
-  // Bancolombia opening less the meal, Rappi negative, ARQ at its frozen COP.
-  assert.equal(total, 470307956 - 5020000 - 10000000 + 9999822);
+  // Today they are worth today's rate, not the one they were bought at.
+  await rates.set({ on_date: '2026-09-09', base_code: 'USD', quote_code: 'COP', rate_scaled: 40000000 });
+
+  const pesos = 470307956 - 5020000 - 10000000;
+  assert.equal(await accounts.netWorthMinor("2026-09-09"), pesos + 9492000,
+    '23.73 dollars at 4,000, not the 9,999.82 they cost');
 
   // Excluding an account removes it from the total but leaves its ledger alone.
   await db.run('UPDATE accounts SET include_in_net_worth = 0 WHERE id = ?', [ids.arq]);
-  assert.equal(await accounts.netWorthMinor(), 470307956 - 5020000 - 10000000);
+  assert.equal(await accounts.netWorthMinor('2026-09-09'), pesos);
+  assert.equal((await accounts.balance(ids.arq)).balance_minor, 2373);
   await db.close();
 });
 
@@ -707,5 +714,93 @@ test('an archived account leaves net worth entirely', async () => {
   // And it does not come back through the grouped listing used by the screen.
   const live = await accounts.balancesByGroup();
   assert.equal(live.flatMap(g => g.balances).some(b => b.account.id === old), false);
+  await db.close();
+});
+
+test('net worth values what you hold at today\'s rate, not at each purchase\'s', async () => {
+  const { db, accounts, transactions, ids } = await setup();
+  const rates = new RatesRepository(db, NOW);
+
+  // Dollars bought across the years at very different rates: the peso value
+  // recorded on each movement is what they cost, not what they are worth.
+  await transactions.create({
+    account_id: ids.arq, category_id: ids.restaurante, occurred_on: '2024-01-10',
+    amount_minor: 100000, rate_scaled: 39000000, rate_source: 'manual', source: 'manual',
+  });
+  await transactions.create({
+    account_id: ids.arq, category_id: ids.restaurante, occurred_on: '2026-08-24',
+    amount_minor: 100000, rate_scaled: 33000000, rate_source: 'manual', source: 'manual',
+  });
+
+  // 2,000 dollars in the account. What they cost, added up, was 7,200,000.
+  assert.equal((await accounts.balance(ids.arq)).balance_minor, 200000);
+
+  // Today a dollar is 4,000 pesos, so they are worth 8,000,000 — not what
+  // they cost, and not a blend of the two rates they were bought at.
+  await rates.set({ on_date: '2026-09-09', base_code: 'USD', quote_code: 'COP', rate_scaled: 40000000 });
+
+  const worth = await accounts.netWorth({ asOf: '2026-09-09' });
+  const arq = worth.lines.find(line => line.account_id === ids.arq);
+
+  assert.equal(arq.balance_minor, 200000, '2,000 dollars');
+  assert.equal(arq.baseMinor, 800000000, 'valued at 4,000 a dollar');
+  assert.equal(arq.rate.rate_scaled, 40000000);
+
+  // Tomorrow's rate does not reach into yesterday.
+  await rates.set({ on_date: '2026-09-10', base_code: 'USD', quote_code: 'COP', rate_scaled: 45000000 });
+  assert.equal(
+    (await accounts.netWorth({ asOf: '2026-09-09' })).lines
+      .find(l => l.account_id === ids.arq).baseMinor,
+    800000000, 'as of the 9th, the 9th rate');
+  assert.equal(
+    (await accounts.netWorth({ asOf: '2026-09-10' })).lines
+      .find(l => l.account_id === ids.arq).baseMinor,
+    900000000, 'as of the 10th, the 10th rate');
+
+  await db.close();
+});
+
+test('a currency with no rate is reported, never guessed at', async () => {
+  const { db, accounts, transactions, ids } = await setup();
+
+  await transactions.create({
+    account_id: ids.arq, category_id: ids.restaurante, occurred_on: '2026-01-10',
+    amount_minor: 50000, rate_scaled: 40000000, rate_source: 'manual', source: 'manual',
+  });
+
+  const worth = await accounts.netWorth({ asOf: '2026-09-09' });
+  const arq = worth.lines.find(line => line.account_id === ids.arq);
+
+  // The balance is real; its peso value is unknown, and saying so beats
+  // inventing a rate.
+  assert.equal(arq.balance_minor, 50000);
+  assert.equal(arq.baseMinor, null);
+  assert.deepEqual(worth.missingRatesFor, ['USD']);
+
+  // The dollars are not silently added as if they were pesos: the total is
+  // Bancolombia's opening balance and nothing else.
+  assert.equal(worth.totalMinor, 470307956);
+  await db.close();
+});
+
+test('the rate in force is the most recent one on or before the day', async () => {
+  const { db } = await setup();
+  const rates = new RatesRepository(db, NOW);
+
+  await rates.set({ on_date: '2026-09-04', base_code: 'USD', quote_code: 'COP', rate_scaled: 39000000 });
+  await rates.set({ on_date: '2026-09-08', base_code: 'USD', quote_code: 'COP', rate_scaled: 40000000 });
+
+  // A Sunday has no quote of its own; the Friday before is what a bank uses.
+  assert.equal((await rates.inForce('USD', 'COP', '2026-09-06')).rate_scaled, 39000000);
+  assert.equal((await rates.inForce('USD', 'COP', '2026-09-09')).rate_scaled, 40000000);
+  assert.equal(await rates.inForce('USD', 'COP', '2026-09-01'), null, 'nothing before the first quote');
+
+  // Correcting a typo replaces the day rather than sitting beside it.
+  await rates.set({ on_date: '2026-09-08', base_code: 'USD', quote_code: 'COP', rate_scaled: 41000000 });
+  assert.equal((await rates.history('USD', 'COP')).length, 2);
+  assert.equal((await rates.inForce('USD', 'COP', '2026-09-09')).rate_scaled, 41000000);
+
+  await assert.rejects(() => rates.set({
+    on_date: '2026-09-09', base_code: 'USD', quote_code: 'COP', rate_scaled: 0 }), /greater than zero/);
   await db.close();
 });

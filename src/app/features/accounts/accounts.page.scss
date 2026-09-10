@@ -177,3 +177,55 @@ ion-badge { margin-left: 0.4rem; font-weight: 400; }
   ion-note.past { color: var(--ion-color-medium); font-variant-numeric: tabular-nums; }
   ion-icon.archived { color: var(--ion-color-medium); }
 }
+
+/* The total, explained — and the warning when part of it cannot be valued. */
+.networth .explain,
+.networth .missing-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  border: none;
+  background: none;
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  ion-icon { font-size: 0.95rem; }
+}
+
+.networth .explain { color: var(--ion-color-primary); }
+.networth .missing-rate { color: var(--ion-color-warning); }
+
+.sheet {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --padding-top: 0.5rem;
+
+  h2 { margin: 0 0.5rem 0.25rem; font-size: 1.05rem; }
+
+  .rates h3 {
+    margin: 0.75rem 0.5rem 0.15rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .explainer {
+    margin: 0.35rem 0.5rem 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--ion-color-medium);
+  }
+
+  ion-item h3 { font-size: 0.92rem; }
+  ion-item p { font-size: 0.76rem; color: var(--ion-color-medium); }
+  ion-item p.warn { color: var(--ion-color-warning); }
+  ion-note { font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+
+  .sum {
+    --background: var(--ion-color-light);
+    h3 { font-weight: 600; }
+    ion-note { font-weight: 600; font-size: 1rem; }
+  }
+}

@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
   IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
-  IonButton, IonModal,
+  IonButton, IonModal, IonInput,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
@@ -23,6 +23,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
+import { RatesRepository, RATE_SCALE } from '../../core/database/repositories/rates.repository';
+import type { NetWorth } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from './account-editor.component';
 import type { AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -37,7 +39,7 @@ import { SignPipe } from '../../shared/sign.pipe';
     AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
     IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
-    IonButton, IonModal,
+    IonButton, IonModal, IonInput,
   ],
 })
 export class AccountsPage {
@@ -54,6 +56,25 @@ export class AccountsPage {
   readonly grouped = signal<GroupedBalance[] | null>(null);
   readonly netWorthMinor = signal(0);
   readonly showArchived = signal(false);
+
+  /** The total, and every line that makes it. */
+  readonly worth = signal<NetWorth | null>(null);
+  readonly showBreakdown = signal(false);
+
+  /** The rate being typed in, per currency, while the sheet is open. */
+  readonly rateDrafts = signal<Record<string, string>>({});
+
+  /** Currencies holding money that has no rate to value it with. */
+  readonly missingRates = computed(() => this.worth()?.missingRatesFor ?? []);
+
+  /** Every non-peso currency in play, so a rate can be set before it is missed. */
+  readonly foreignCurrencies = computed(() => {
+    const seen = new Set<string>();
+    for (const line of this.worth()?.lines ?? []) {
+      if (line.currency_code !== 'COP') seen.add(line.currency_code);
+    }
+    return [...seen].sort();
+  });
 
   readonly status = this.database.status;
   readonly error = this.database.error;
@@ -112,6 +133,47 @@ export class AccountsPage {
     () => (this.grouped() ?? []).flatMap(e => e.balances).filter(b => b.account.archived).length,
   );
 
+  /** What is typed into a currency's rate box, or the rate already in force. */
+  rateDraft(currency: string): string {
+    const typed = this.rateDrafts()[currency];
+    if (typed !== undefined) return typed;
+
+    const line = this.worth()?.lines.find(l => l.currency_code === currency && l.rate);
+    return line?.rate ? String(line.rate.rate_scaled / RATE_SCALE) : '';
+  }
+
+  onRateTyped(currency: string, text: string): void {
+    this.rateDrafts.update(drafts => ({ ...drafts, [currency]: text }));
+  }
+
+  /**
+   * Records today's rate for a currency.
+   *
+   * Typed by hand for now: the official TRM comes from a public API, and
+   * fetching it is Phase 4. Until then the app asks rather than assuming, and
+   * whatever is entered is dated today so tomorrow's figure does not silently
+   * reinterpret today's.
+   */
+  async saveRate(currency: string): Promise<void> {
+    const typed = this.rateDraft(currency).replace(/[^0-9.,]/g, '').replace(',', '.');
+    const value = Number(typed);
+    if (!Number.isFinite(value) || value <= 0) return;
+
+    await new RatesRepository(this.database.driver).set({
+      on_date: todayIso(),
+      base_code: currency,
+      quote_code: 'COP',
+      rate_scaled: Math.round(value * RATE_SCALE),
+    });
+
+    this.rateDrafts.update(drafts => {
+      const next = { ...drafts };
+      delete next[currency];
+      return next;
+    });
+    await this.load();
+  }
+
   setSort(by: 'amount' | 'name'): void {
     this.sortBy.set(by);
   }
@@ -133,12 +195,13 @@ export class AccountsPage {
     if (this.database.status() !== 'ready') return;
 
     const accounts = new AccountsRepository(this.database.driver);
-    const [grouped, netWorth] = await Promise.all([
+    const [grouped, worth] = await Promise.all([
       accounts.balancesByGroup({ includeArchived: true }),
-      accounts.netWorthMinor(),
+      accounts.netWorth(),
     ]);
     this.grouped.set(grouped);
-    this.netWorthMinor.set(netWorth);
+    this.worth.set(worth);
+    this.netWorthMinor.set(worth.totalMinor);
     await this.loadIcons();
   }
 
@@ -201,4 +264,12 @@ export class AccountsPage {
   onSaved(): void {
     this.editor.set(null);
   }
+}
+
+/** Today as an ISO day, in local time. */
+function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }

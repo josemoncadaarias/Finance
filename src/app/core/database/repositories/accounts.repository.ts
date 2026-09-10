@@ -9,6 +9,34 @@
 
 import type { SqlDriver } from '../sql-driver';
 import type { AccountBalance, AccountGroupRow, AccountRow, GroupedBalance, IsoDate } from '../types';
+import { RatesRepository, convertAt, type Rate } from './rates.repository';
+
+/** Everything is valued against the peso; that is the currency Jose lives in. */
+const BASE_CURRENCY = 'COP';
+
+/**
+ * One account's contribution to net worth.
+ *
+ * `baseMinor` is null when the account holds a currency with no rate on
+ * record: the balance is real, its peso value is simply unknown, and inventing
+ * one would be worse than saying so.
+ */
+export interface NetWorthLine {
+  account_id: number;
+  name: string;
+  currency_code: string;
+  balance_minor: number;
+  rate: Rate | null;
+  baseMinor: number | null;
+}
+
+export interface NetWorth {
+  totalMinor: number;
+  asOf: IsoDate;
+  lines: NetWorthLine[];
+  /** Currencies holding money that could not be valued. */
+  missingRatesFor: string[];
+}
 import { availableCreditMinor } from '../money';
 
 export interface NewAccount {
@@ -241,20 +269,82 @@ export class AccountsRepository {
    * from today's rate. Accounts flagged out of net worth are left out;
    * credit-card debt is already negative, so it subtracts on its own.
    */
-  async netWorthMinor(asOf?: IsoDate): Promise<number> {
-    const dateFilter = asOf ? 'AND t.occurred_on <= ?' : '';
-    const row = await this.db.queryOne<{ total: number | null }>(
-      `SELECT SUM(a.opening_balance_base_minor + COALESCE(base.total, 0)) AS total
+  /**
+   * What everything is worth today, in pesos.
+   *
+   * Deliberately **not** the sum of each movement's historical peso value.
+   * Those rates answer "what did this cost me", which is a different question
+   * and stays where it belongs, on the movements. Net worth asks "what do I
+   * have", and two thousand dollars bought across five years at five different
+   * rates are still two thousand dollars — worth what a dollar is worth now.
+   *
+   * A currency with no rate on record is **not** guessed at. Its accounts are
+   * left out of the total and reported separately, so a missing rate shows up
+   * as a question rather than as a wrong number.
+   */
+  async netWorth(options: { asOf?: IsoDate } = {}): Promise<NetWorth> {
+    const asOf = options.asOf ?? todayIso();
+
+    const rows = await this.db.query<{
+      account_id: number;
+      name: string;
+      currency_code: string;
+      balance_minor: number;
+    }>(
+      `SELECT a.id AS account_id, a.name, a.currency_code,
+              a.opening_balance_minor + COALESCE(own.total, 0) AS balance_minor
        FROM accounts a
        LEFT JOIN (
-         SELECT t.account_id, SUM(t.amount_base_minor) AS total
+         SELECT t.account_id, SUM(t.amount_minor) AS total
          FROM transactions t
-         WHERE 1 = 1 ${dateFilter}
+         WHERE t.occurred_on <= ?
          GROUP BY t.account_id
-       ) base ON base.account_id = a.id
+       ) own ON own.account_id = a.id
        WHERE a.include_in_net_worth = 1 AND a.archived = 0`,
-      asOf ? [asOf] : [],
+      [asOf],
     );
-    return row?.total ?? 0;
+
+    const rates = await new RatesRepository(this.db).allInForce(BASE_CURRENCY, asOf);
+
+    const lines: NetWorthLine[] = [];
+    let totalMinor = 0;
+    const missing = new Set<string>();
+
+    for (const row of rows) {
+      if (row.currency_code === BASE_CURRENCY) {
+        lines.push({ ...row, rate: null, baseMinor: row.balance_minor });
+        totalMinor += row.balance_minor;
+        continue;
+      }
+
+      const rate = rates.get(row.currency_code) ?? null;
+      if (rate === null) {
+        // Nothing to convert it with. Shown, counted by nobody.
+        lines.push({ ...row, rate: null, baseMinor: null });
+        if (row.balance_minor !== 0) missing.add(row.currency_code);
+        continue;
+      }
+
+      const baseMinor = convertAt(row.balance_minor, rate.rate_scaled);
+      lines.push({ ...row, rate, baseMinor });
+      totalMinor += baseMinor;
+    }
+
+    lines.sort((a, b) => (b.baseMinor ?? 0) - (a.baseMinor ?? 0));
+
+    return { totalMinor, asOf, lines, missingRatesFor: [...missing].sort() };
   }
+
+  /** Just the figure, for screens that only show the total. */
+  async netWorthMinor(asOf?: IsoDate): Promise<number> {
+    return (await this.netWorth({ asOf })).totalMinor;
+  }
+}
+
+/** Today as an ISO day, in local time. */
+function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
