@@ -454,6 +454,21 @@ ion-button.save {
 
 /* Which order the full category list is in. Two plain choices, the one in
    force filled in, so the sequence on screen is never a guess. */
+/* Which row is the one in force. The tinted background alone reads as a
+   shade of the list in light and vanishes in dark. */
+ion-item.selected ion-label,
+ion-item.selected ion-label h3 {
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.tick {
+  color: var(--ion-color-primary);
+  font-size: 1.25rem;
+  flex: none;
+  margin-inline-start: 0.5rem;
+}
+
 .order {
   display: flex;
   gap: 0.4rem;

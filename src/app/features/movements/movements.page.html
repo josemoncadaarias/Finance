@@ -460,7 +460,8 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal [isOpen]="showAccountSheet()" (didDismiss)="showAccountSheet.set(false)">
+<ion-modal [isOpen]="showAccountSheet()" (didPresent)="revealSelectedAccount()"
+            (didDismiss)="showAccountSheet.set(false)">
   <ng-template>
     <ion-header>
       <ion-toolbar>
@@ -474,18 +475,40 @@
 
     <ion-content class="sheet">
       <h2>{{ 'summary.account' | t }}</h2>
+
+      <!-- What is being looked at, in full and before the alternatives.
+           The toolbar has to cut a long name off at the width it is given,
+           and the natural way to read the rest of it is to tap the name -
+           which opens this. Arriving at a list of everything, with the
+           answer somewhere down it, is not an answer. -->
+      <div class="current">
+        <app-icon [builtin]="store.selectedAccount()?.builtin_icon"
+                  [customId]="store.selectedAccount()?.custom_icon_id"
+                  [fallback]="filter.allAccounts() ? 'albums' : 'wallet'"
+                  size="1.5rem"></app-icon>
+        <span class="what">
+          <span class="lead">{{ 'summary.viewing' | t }}</span>
+          <span class="name">{{ accountLabel() }}</span>
+        </span>
+      </div>
+
       <ion-list>
-        <ion-item button lines="full" (click)="pickAccount(null)"
+        <ion-item button lines="full" id="account-option-all" (click)="pickAccount(null)"
                   [class.selected]="filter.accountId() === null">
           <ion-icon slot="start" name="wallet-outline"></ion-icon>
           <ion-label>
             <h3>{{ 'summary.allAccounts' | t }}</h3>
             <p>{{ 'summary.allAccounts.hint' | t }}</p>
           </ion-label>
+          @if (filter.accountId() === null) {
+            <ion-icon slot="end" class="tick" name="checkmark-circle"
+                      [attr.aria-label]="'summary.selected' | t"></ion-icon>
+          }
         </ion-item>
 
         @for (account of selectable(); track account.id) {
-          <ion-item button lines="full" (click)="pickAccount(account.id)"
+          <ion-item button lines="full" [id]="'account-option-' + account.id"
+                    (click)="pickAccount(account.id)"
                     [class.selected]="filter.accountId() === account.id">
             <app-icon slot="start" [builtin]="account.builtin_icon"
                       [customId]="account.custom_icon_id" fallback="wallet"></app-icon>
@@ -497,6 +520,14 @@
               </h3>
               <p>{{ account.currency_code }}</p>
             </ion-label>
+
+            <!-- A tick, not only a tinted row. The tint is a shade apart
+                 from the others and disappears entirely against a dark
+                 palette; a mark either is there or is not. -->
+            @if (filter.accountId() === account.id) {
+              <ion-icon slot="end" class="tick" name="checkmark-circle"
+                        [attr.aria-label]="'summary.selected' | t"></ion-icon>
+            }
 
             <!-- Editing an account from where it is being looked at, rather
                  than only from the accounts screen. -->

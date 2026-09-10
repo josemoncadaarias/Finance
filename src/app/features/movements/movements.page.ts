@@ -211,6 +211,20 @@ export class MovementsPage {
 
   readonly showJumpDown = computed(() => this.scrollable() && !this.atBottom());
 
+  /**
+   * Opens the account sheet with the selected row already on screen.
+   *
+   * Marking it is not enough on its own: with twenty accounts the mark can be
+   * three screens down, and a list that has to be searched for the answer is
+   * the same problem as no answer. Waiting for `didPresent` matters - during
+   * the animation the row has no final position to scroll to.
+   */
+  revealSelectedAccount(): void {
+    const id = this.filter.accountId();
+    const row = document.getElementById(`account-option-${id ?? 'all'}`);
+    row?.scrollIntoView({ block: 'center' });
+  }
+
   /** The image a category wears, for a group heading. */
   iconUrl(id: number | null): string | undefined {
     return this.customIcons.urlFor(id);

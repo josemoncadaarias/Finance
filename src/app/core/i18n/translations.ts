@@ -43,6 +43,8 @@ export const SPANISH = {
   // --- the summary screen ----------------------------------------------
   'summary.allAccounts': 'Todas las cuentas',
   'summary.account': 'Cuenta',
+  'summary.viewing': 'Estás viendo',
+  'summary.selected': 'Seleccionada',
   'summary.allAccounts.hint': 'Sin las archivadas ni las apartadas del patrimonio',
   'summary.accountsCounted': '{count} cuentas, todas incluidas',
   'summary.accountsWithHidden': '{count} cuentas · {hidden} apartadas del patrimonio',
@@ -136,6 +138,7 @@ export const SPANISH = {
   'entry.searchCategory': 'Buscar categoría',
   'entry.timesUsed': '{count} veces',
   'entry.neverUsed': 'sin usar',
+  'entry.selected': 'Seleccionada',
   'entry.order.use': 'Más usadas',
   'entry.order.name': 'A–Z',
   'entry.noCategory': 'Ninguna categoría dice "{search}"',
@@ -613,6 +616,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'summary.allAccounts': 'All accounts',
   'summary.account': 'Account',
+  'summary.viewing': 'You are viewing',
+  'summary.selected': 'Selected',
   'summary.allAccounts.hint': 'Without the archived or the ones set aside',
   'summary.accountsCounted': '{count} accounts, all counted',
   'summary.accountsWithHidden': '{count} accounts · {hidden} set aside from net worth',
@@ -704,6 +709,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'entry.searchCategory': 'Search a category',
   'entry.timesUsed': '{count} times',
   'entry.neverUsed': 'unused',
+  'entry.selected': 'Selected',
   'entry.order.use': 'Most used',
   'entry.order.name': 'A–Z',
   'entry.noCategory': 'No category says "{search}"',

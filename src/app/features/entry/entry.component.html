@@ -227,6 +227,13 @@
               <h3>{{ option.name }}</h3>
               <p>{{ option.currency_code }}</p>
             </ion-label>
+            <!-- The same mark the account sheet uses. A tinted row is a shade
+                 apart from its neighbours in the light palette and nothing at
+                 all in the dark one; a tick either is there or is not. -->
+            @if ((picking() === 'to' ? toAccountId() : accountId()) === option.id) {
+              <ion-icon slot="end" class="tick" name="checkmark-circle"
+                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
+            }
           </ion-item>
         }
       </ion-list>
@@ -280,6 +287,10 @@
                   {{ 'entry.neverUsed' | t }}
                 }
               </ion-note>
+              @if (categoryId() === category.id) {
+                <ion-icon slot="end" class="tick" name="checkmark-circle"
+                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              }
             </ion-item>
           }
         </ion-list>
