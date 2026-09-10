@@ -599,10 +599,14 @@ ion-item.selected ion-label h3 {
  * leaves the app mid-entry.
  *
  * `env(safe-area-inset-bottom)` is what the phone reports for that strip; the
- * floor under it is deliberately generous, because a phone that overlays its
- * navigation bar without reporting an inset would leave the keys under it and
- * nothing in the page can detect that. Sixteen points costs one row of keys a
- * little height and removes the whole class of mis-tap. The padding is on the footer, so it
+ * floor is 24px, the height of an Android gesture bar. The measurements that
+ * matter: a three-button navigation bar is 48dp, a gesture bar 24dp, and an
+ * iPhone home indicator 34pt. Each of those is reported through env() - the
+ * page carries viewport-fit=cover, and an edge-to-edge Android activity and
+ * iOS both hand the real number over - so max() takes the larger and the
+ * floor only ever applies where nothing is overlaying at all. Twenty-four is
+ * then not clearance from anything; it is the form not ending flush against
+ * the glass. The padding is on the footer, so it
  * carries the footer's own background and reads as the base of the keypad
  * rather than as a gap under it.
  *
@@ -610,6 +614,6 @@ ion-item.selected ion-label h3 {
  * reason.
  */
 ion-footer.pad {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1.5rem);
   background: var(--ion-background-color);
 }

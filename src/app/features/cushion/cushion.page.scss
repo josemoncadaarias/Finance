@@ -363,3 +363,38 @@ ion-modal {
 
   ion-icon { flex: none; margin-top: 0.1rem; font-size: 0.95rem; }
 }
+
+/* Choosing where the withdrawal is filed. The categories carry the icons Jose
+   gave them, which is the whole reason this is not a select. */
+.pick-category {
+  --padding-start: 1rem;
+  --inner-padding-end: 1rem;
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.35rem 0 0.5rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium-shade);
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.14);
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+  }
+}

@@ -46,6 +46,7 @@ import { parseAmountToMinor } from '../../core/database/money';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
+import { IconComponent } from '../../core/icons/icon.component';
 
 /** One row of the list: an enrolled account and what its cushion is worth. */
 interface CushionLine {
@@ -96,6 +97,7 @@ interface Payment {
   templateUrl: './cushion.page.html',
   styleUrls: ['./cushion.page.scss'],
   imports: [
+    IconComponent,
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,

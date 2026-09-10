@@ -941,14 +941,23 @@
                            type="date" [value]="onDate()"
                            (ionInput)="onDate.set($any($event.target).value)"></ion-input>
               </ion-item>
-              <ion-item>
-                <ion-select [label]="'cushion.field.category' | t" labelPlacement="stacked"
-                            [value]="categoryId()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                            (ionChange)="categoryId.set($any($event.detail).value)">
+              <!-- Chips rather than a select. An Ionic select opens an alert,
+                   and an alert is a radio list with no room for an icon in it -
+                   so every category Jose gave a real image to arrived here as
+                   a name and nothing else. There are only a handful of income
+                   categories, which is few enough to simply show. -->
+              <ion-item lines="none" class="pick-category">
+                <ion-label position="stacked">{{ 'cushion.field.category' | t }}</ion-label>
+                <div class="chips">
                   @for (category of incomeCategories(); track category.id) {
-                    <ion-select-option [value]="category.id">{{ category.name }}</ion-select-option>
+                    <button type="button" class="chip" [class.on]="categoryId() === category.id"
+                            (click)="categoryId.set(category.id)">
+                      <app-icon [builtin]="category.builtin_icon"
+                                [customId]="category.custom_icon_id" size="1.1rem"></app-icon>
+                      <span>{{ category.name }}</span>
+                    </button>
                   }
-                </ion-select>
+                </div>
               </ion-item>
               <ion-item>
                 <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
