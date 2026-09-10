@@ -162,6 +162,14 @@ export const SPANISH = {
     'costó — pero el patrimonio dice cuánto tienes hoy.',
   'accounts.breakdown.excluded':
     'No entran: las archivadas ni las que marcaste como apartadas del patrimonio.',
+  'accounts.trm.on': 'TRM del {date}',
+  'accounts.trm.official': 'oficial',
+  'accounts.trm.typed': 'escrita a mano',
+  'accounts.trm.none': 'Todavía no hay tasa para el dólar',
+  'accounts.trm.refresh': 'Actualizar',
+  'accounts.trm.updated': 'Actualizada ahora',
+  'accounts.trm.offline': 'Sin internet: se queda la última que había.',
+  'accounts.trm.failed': 'No se pudo consultar; se queda la última que había.',
   'accounts.rates.title': 'Tasa de hoy',
   'accounts.rates.body':
     'Escribe cuánto vale una unidad en pesos. Se guarda con la fecha de hoy; ' +
@@ -561,6 +569,14 @@ export const ENGLISH: Record<TranslationKey, string> = {
     'cost you — but net worth says what you have today.',
   'accounts.breakdown.excluded':
     'Left out: archived accounts, and the ones marked as set aside from net worth.',
+  'accounts.trm.on': 'TRM of {date}',
+  'accounts.trm.official': 'official',
+  'accounts.trm.typed': 'typed by hand',
+  'accounts.trm.none': 'No rate for the dollar yet',
+  'accounts.trm.refresh': 'Refresh',
+  'accounts.trm.updated': 'Just updated',
+  'accounts.trm.offline': 'No connection: the last one stays.',
+  'accounts.trm.failed': 'Could not be fetched; the last one stays.',
   'accounts.rates.title': "Today's rate",
   'accounts.rates.body':
     'Type what one unit is worth in pesos. It is stored under today, so ' +

@@ -166,10 +166,20 @@ Two settings this app needs that Monefy has no reason to:
 
 ## Phase 4 — Multi-currency and TRM
 
-- Official TRM lookup with local cache
-- Offline behavior using the last known value
-- Manual per-transaction rate editing
-- Consolidated net worth view in COP
+- **Official TRM lookup — done.** From datos.gov.co, stored under the day it
+  takes effect. A quote covers a validity range (Friday's covers the weekend),
+  and "the rate in force" is the most recent one on or before the day being
+  asked about — which reproduces the range without storing it.
+- **Offline behaviour — done.** A failed fetch leaves the stored rates exactly
+  as they were and says so; the screen keeps showing the last one, with its
+  date. A currency with no rate at all is reported, never guessed at.
+- **Manual rates — done.** Any currency can be typed by hand. Only the dollar
+  has a public source, so EUR and anything else stays manual.
+- **Net worth in COP — done in Phase 3**, and corrected there: it values what
+  is held today at today's rate, rather than summing what each movement cost.
+
+Left for later: refreshing on a schedule rather than on demand and at startup,
+and a screen showing the rate history.
 
 ## Phase 5 — Interest, cashback and net worth
 

@@ -25,6 +25,7 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
 import { RatesRepository, RATE_SCALE } from '../../core/database/repositories/rates.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { RatesService } from '../../core/rates/rates.service';
 import type { NetWorth } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from './account-editor.component';
 import type { AccountRow, GroupedBalance } from '../../core/database/types';
@@ -49,6 +50,7 @@ export class AccountsPage {
   private readonly filter = inject(FilterService);
   private readonly router = inject(Router);
   private readonly i18n = inject(I18nService);
+  readonly rates = inject(RatesService);
 
   /** Non-null while the editor is open; its account is null when creating. */
   readonly editor = signal<{ account: AccountRow | null } | null>(null);
@@ -245,6 +247,31 @@ export class AccountsPage {
     }
   }
 
+  /**
+   * Asks the TRM service for today's rate.
+   *
+   * Nothing waits on it: the screen is already showing what it has, and this
+   * either improves it or leaves it exactly as it was.
+   */
+  async refreshTrm(): Promise<void> {
+    await this.rates.refresh({ force: true });
+    await this.load();
+  }
+
+  /**
+   * A rate as it should be read, in Colombian notation.
+   *
+   * Angular's number pipe formats in the locale the app was registered with —
+   * US English — so 3.116,47 came out as 3,116.47, which reads as three
+   * thousand something to the wrong eye and as three point one to the right
+   * one.
+   */
+  rateText(scaled: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(scaled / RATE_SCALE);
+  }
+
   setSort(by: 'amount' | 'name'): void {
     this.sortBy.set(by);
   }
@@ -275,6 +302,7 @@ export class AccountsPage {
     this.netWorthMinor.set(worth.totalMinor);
     await this.loadCurrencies();
     await this.loadIcons();
+    await this.rates.load();
   }
 
   async refresh(event: CustomEvent): Promise<void> {

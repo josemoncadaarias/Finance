@@ -244,6 +244,42 @@
       @if (foreignCurrencies().length > 0) {
         <section class="rates">
           <h3>{{ 'accounts.rates.title' | t }}</h3>
+
+          <!-- The dollar has a public source; the app fetches it rather than
+               asking someone to look it up. -->
+          <div class="trm">
+            <div class="trm-what">
+              @if (rates.currentText(); as value) {
+                <p class="figure">1 USD = {{ value }} COP</p>
+                <p class="when">
+                  {{ 'accounts.trm.on' | t:{ date: rates.current()!.on_date } }}
+                  @if (rates.current()!.source === 'trm') { · {{ 'accounts.trm.official' | t }} }
+                  @else { · {{ 'accounts.trm.typed' | t }} }
+                </p>
+              } @else {
+                <p class="figure none">{{ 'accounts.trm.none' | t }}</p>
+              }
+
+              @if (rates.state() === 'offline') {
+                <p class="warn">{{ 'accounts.trm.offline' | t }}</p>
+              } @else if (rates.state() === 'failed') {
+                <p class="warn">{{ 'accounts.trm.failed' | t }}</p>
+              } @else if (rates.state() === 'updated') {
+                <p class="ok">{{ 'accounts.trm.updated' | t }}</p>
+              }
+            </div>
+
+            <ion-button size="small" fill="outline"
+                        [disabled]="rates.state() === 'checking'" (click)="refreshTrm()">
+              @if (rates.state() === 'checking') {
+                <ion-spinner slot="start" name="dots"></ion-spinner>
+              } @else {
+                <ion-icon slot="start" name="refresh-outline"></ion-icon>
+              }
+              {{ 'accounts.trm.refresh' | t }}
+            </ion-button>
+          </div>
+
           <p class="explainer">{{ 'accounts.rates.body' | t }}</p>
 
           <ion-list [inset]="true">
@@ -270,7 +306,7 @@
               @if (line.currency_code !== 'COP') {
                 @if (line.rate) {
                   <p>{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }}
-                     × {{ line.rate.rate_scaled / 10000 | number:'1.2-2' }}</p>
+                     × {{ rateText(line.rate.rate_scaled) }}</p>
                 } @else {
                   <p class="warn">{{ line.balance_minor | money:line.currency_code }}
                      {{ line.currency_code }} · {{ 'accounts.noRate' | t }}</p>
