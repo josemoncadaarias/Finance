@@ -215,12 +215,13 @@
             <div class="group-head" (click)="store.toggleGroup(group.key)">
               <ion-icon class="chevron"
                         [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-              <!-- The image first: a category wearing one has no built-in
-                   icon at all, so reading only the icon drew nothing. -->
-              @if (iconUrl(group.customIconId); as url) {
-                <img class="cat image" [src]="url" alt="">
-              } @else if (group.icon) {
-                <ion-icon class="cat" [name]="group.icon"></ion-icon>
+              <!-- One icon for the heading, drawn the one way. Reading the
+                   built-in name alone drew nothing for a category wearing an
+                   image, and the branch that fixed that drew nothing either
+                   until the images had finished loading. -->
+              @if (group.icon !== null || group.customIconId !== null) {
+                <app-icon class="cat" [builtin]="group.icon"
+                          [customId]="group.customIconId" size="1.05rem"></app-icon>
               }
               <span class="title" [class.by-date]="filter.grouping() === 'date'">{{ group.title }}</span>
               <ion-badge>{{ group.count }}</ion-badge>
@@ -237,12 +238,17 @@
                 <ion-item lines="full" class="movement" button
                           (click)="edit(movement.transaction)">
                   <span class="dot" [class]="movement.flow" slot="start"></span>
-                  <!-- Grouped by day, a row's category is the one thing the
-                       heading does not already say. Grouped by category it
-                       would be the same icon down the whole group. -->
+                  <!-- Whichever of the two the heading is not already
+                       saying. Grouped by day that is the category; grouped by
+                       category every row shares it, so the account is what
+                       tells one row from the next. -->
                   @if (filter.grouping() === 'date') {
                     <app-icon slot="start" class="row-cat" [builtin]="movement.icon"
                               [customId]="movement.customIconId" size="1.15rem"></app-icon>
+                  } @else {
+                    <app-icon slot="start" class="row-cat" [builtin]="movement.accountIcon"
+                              [customId]="movement.accountCustomIconId"
+                              fallback="wallet" size="1.15rem"></app-icon>
                   }
                   <ion-label>
                     @if (filter.grouping() === 'largest') {

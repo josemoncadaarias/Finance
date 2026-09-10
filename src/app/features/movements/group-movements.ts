@@ -57,9 +57,23 @@ export interface Movement {
   currency: string;
   /** The real category, or the other account's name for a transfer. */
   label: string;
+  /**
+   * What the row is about: its category, or for a transfer the account at the
+   * other end - which is what the label names, and the only part of a transfer
+   * row that is not already obvious.
+   */
   icon: string | null;
-  /** Its image, when the category wears one instead of a built-in icon. */
+  /** Its image, when that thing wears one instead of a built-in icon. */
   customIconId: number | null;
+  /**
+   * The row's own account.
+   *
+   * Grouped by category every row shares the heading's icon, so the account is
+   * what tells them apart; grouped by day it is the other way round. One of
+   * the two is drawn, never both, and which one depends on the grouping.
+   */
+  accountIcon: string | null;
+  accountCustomIconId: number | null;
   flow: Flow;
 }
 

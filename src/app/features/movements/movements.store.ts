@@ -340,8 +340,18 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
       ? i18n.t(row.transfer_leg === 'from' ? 'movement.toAccount' : 'movement.fromAccount',
                { account: other })
       : row.category_name ?? i18n.t('movement.noCategory'),
-    icon: isTransfer ? 'swap-horizontal-outline' : row.category_icon,
-    customIconId: isTransfer ? null : row.category_custom_icon_id,
+    // A transfer wears the far account's face. The generic swap arrow said
+    // only "this is a transfer", which the colour and the wording already say.
+    // It falls back to the arrow when the far account is outside what is being
+    // looked at and there is no row to read an icon from.
+    icon: isTransfer
+      ? row.other_account_builtin_icon ?? (row.other_account_custom_icon_id === null
+          ? 'swap-horizontal-outline'
+          : null)
+      : row.category_icon,
+    customIconId: isTransfer ? row.other_account_custom_icon_id : row.category_custom_icon_id,
+    accountIcon: row.account_builtin_icon,
+    accountCustomIconId: row.account_custom_icon_id,
     flow: flowOf(row, row.account_type),
   };
 }

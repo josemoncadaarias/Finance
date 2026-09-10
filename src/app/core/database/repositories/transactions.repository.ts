@@ -57,6 +57,9 @@ export interface TransactionFilter {
 /** A movement with everything a screen needs, fetched in one query. */
 export interface DetailedTransaction extends TransactionRow {
   account_name: string;
+  /** The account's own icon, for a list where the account is what varies. */
+  account_builtin_icon: string | null;
+  account_custom_icon_id: number | null;
   currency_code: string;
   account_archived: number;
   account_type: string;
@@ -73,6 +76,14 @@ export interface DetailedTransaction extends TransactionRow {
   category_custom_icon_id: number | null;
   /** The other side of a transfer, for labelling it. Null otherwise. */
   other_account_name: string | null;
+  /**
+   * And its icon. A transfer's row said "swap-horizontal-outline" and nothing
+   * else, which is the one thing the reader already knows: the amount is
+   * painted as moved and the label reads "a Pibank". What it does not say is
+   * which account that is, and a bank's own logo says it at a glance.
+   */
+  other_account_builtin_icon: string | null;
+  other_account_custom_icon_id: number | null;
   /** The far account's id, so a caller can tell inside a scope from outside. */
   other_account_id: number | null;
 }
@@ -314,6 +325,8 @@ export class TransactionsRepository {
     return this.db.query<DetailedTransaction>(
       `SELECT t.*,
               a.name AS account_name,
+              a.builtin_icon AS account_builtin_icon,
+              a.custom_icon_id AS account_custom_icon_id,
               a.currency_code,
               a.archived AS account_archived,
               a.type AS account_type,
@@ -321,6 +334,8 @@ export class TransactionsRepository {
               c.builtin_icon AS category_icon,
               c.custom_icon_id AS category_custom_icon_id,
               other.name AS other_account_name,
+              other.builtin_icon AS other_account_builtin_icon,
+              other.custom_icon_id AS other_account_custom_icon_id,
               other.id AS other_account_id
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id

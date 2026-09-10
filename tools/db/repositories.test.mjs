@@ -841,3 +841,30 @@ test('a category wearing an image carries it into the movement list', async () =
 
   await db.close();
 });
+
+test('a transfer carries the far account, icon included', async () => {
+  // A transfer row used to draw a generic swap arrow, which says the one thing
+  // the reader already knows: the amount is painted as moved and the label
+  // reads "a ARQ". Which account that is, is the part worth showing, so the
+  // query has to hand over the far account's icon as well as its name.
+  const { db, transfers, transactions, ids } = await setup();
+
+  await transfers.create({
+    occurred_on: '2026-09-10',
+    from: { account_id: ids.bancolombia, amount_minor: 20000000 },
+    to: { account_id: ids.arq, amount_minor: 500000, rate_scaled: 40000000, rate_source: 'derived' },
+  });
+
+  const rows = await transactions.listDetailed({});
+  const leaving = rows.find(row => row.transfer_leg === 'from');
+
+  assert.equal(leaving.other_account_name, 'ARQ');
+  assert.equal(leaving.other_account_builtin_icon, 'trending-up', 'the far account, to draw');
+  assert.equal(leaving.other_account_custom_icon_id, null);
+
+  // And its own account, for a list grouped by category where every row shares
+  // the heading's icon and the account is what tells them apart.
+  assert.equal(leaving.account_builtin_icon, 'business');
+
+  await db.close();
+});
