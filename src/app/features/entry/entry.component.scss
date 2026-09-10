@@ -263,11 +263,28 @@ ion-button.save {
   ion-item ion-note { font-size: 0.75rem; }
 }
 
+/*
+ * The note takes whatever height is left over.
+ *
+ * Something has to absorb the surplus on a tall screen, and of the parts on
+ * this screen the note is the one that is better for being bigger: it is the
+ * only free-text field, and a taller box is a larger place to tap into.
+ *
+ * The alternatives were worse. Centring the column floated the amount in the
+ * middle of the screen, and the amount is the first thing anyone reads here.
+ * Leaving the surplus where it was is what Jose photographed.
+ */
 .note {
   --background: transparent;
   --padding-start: 1rem;
   --inner-padding-end: 1rem;
   margin-bottom: 0.5rem;
+  flex: 1;
+
+  /* The placeholder sits where writing starts, not adrift in the middle of
+     the box it grew into. */
+  --align-items: flex-start;
+  --padding-top: 0.35rem;
 }
 
 /* ---------- keypad ---------- */
@@ -281,6 +298,25 @@ ion-button.save {
   text-align: center;
 }
 
+/*
+ * One column above the keypad.
+ *
+ * The keypad is pinned to the bottom, where a thumb reaches it, and the rest
+ * sat at the top - so on a 932pt screen there were some three hundred points
+ * of nothing between the note field and the keys. Centring gives that surplus
+ * to the gaps between the sections, where it reads as room to breathe rather
+ * than as a screen that failed to fill.
+ *
+ * `min-height` and not `height`: when the content is taller than the screen -
+ * a short phone, or the delete button while editing - the column simply grows
+ * and scrolls, and centring has nothing left to do.
+ */
+.entry-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .keypad {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -291,7 +327,18 @@ ion-button.save {
   button {
     background: var(--ion-background-color);
     border: none;
-    padding: 0.85rem 0;
+
+    /*
+     * The keys take a share of the height rather than a fixed one.
+     *
+     * The other half of the same gap: on a tall screen the space is better
+     * spent on bigger targets than on padding above them, and 8vh over four
+     * rows is a third of the screen, which is what a keypad on a phone is
+     * usually given. The floor keeps it tappable on a small screen and the
+     * ceiling stops a tablet from drawing keys the size of playing cards.
+     */
+    height: clamp(2.9rem, 8vh, 4.6rem);
+    padding: 0;
     font-size: 1.35rem;
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);

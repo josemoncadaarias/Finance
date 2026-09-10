@@ -18,6 +18,10 @@
 </ion-header>
 
 <ion-content>
+  <!-- Everything above the keypad is one column, so that on a tall screen the
+       spare height becomes space between the sections instead of a hole. On a
+       short one the column overflows and scrolls exactly as before. -->
+  <div class="entry-body">
   <!-- The sum in progress, when there is one -->
   @if (pendingLabel(); as sum) {
     <p class="pending">{{ sum }}</p>
@@ -180,6 +184,7 @@
       }
     </div>
   }
+  </div>
 </ion-content>
 
 <ion-footer class="pad">
