@@ -11,11 +11,10 @@ import {
   IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge, MenuController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import * as allIcons from 'ionicons/icons';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
-import {
-  pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline, pricetagsOutline,
-} from 'ionicons/icons';
+
 
 import { DatabaseService } from './core/database/database.service';
 import { ReviewRepository } from './core/database/repositories/review.repository';
@@ -62,9 +61,8 @@ export class AppComponent {
   readonly pending = signal(0);
 
   constructor() {
-    addIcons({
-      pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline, pricetagsOutline,
-    });
+    // Every icon, once, for the whole app: see the note above the class.
+    addIcons(allIcons as unknown as Record<string, string>);
 
     effect(() => {
       this.database.dataVersion();

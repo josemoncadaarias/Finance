@@ -15,7 +15,7 @@ import {
   IonButton, IonModal, IonInput,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline } from 'ionicons/icons';
+import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { FilterService } from '../../core/filters/filter.service';
@@ -183,7 +183,7 @@ export class AccountsPage {
   }
 
   constructor() {
-    addIcons({ walletOutline, cardOutline, cashOutline, trendingUpOutline, archiveOutline });
+    addIcons(allIcons as unknown as Record<string, string>);
 
     // The database opens in the background, so the page cannot read it once at
     // construction and be done. This reruns the moment it becomes ready.

@@ -16,7 +16,7 @@ import {
   IonList, IonItem, IonLabel, IonNote, IonMenuButton, IonButtons,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { documentAttachOutline, checkmarkCircleOutline, alertCircleOutline } from 'ionicons/icons';
+import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -73,7 +73,7 @@ export class ImportPage {
   readonly status = this.database.status;
 
   constructor() {
-    addIcons({ documentAttachOutline, checkmarkCircleOutline, alertCircleOutline });
+    addIcons(allIcons as unknown as Record<string, string>);
   }
 
   async onFileChosen(event: Event): Promise<void> {
