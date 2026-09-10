@@ -412,3 +412,60 @@ test('re-importing corrects an account that was left counting', async () => {
     'the plan is the authority for this, so a re-import fixes it');
   await db.close();
 });
+
+test('a new movement in a foreign account arrives flagged, and old ones stay put', async () => {
+  const db = await freshDb();
+
+  // First import: the history as it stands.
+  await run(db, csv(
+    `13/08/2024,ARQ,Initial balance 'ARQ',"0",COP,"0",COP,`,
+    '20/08/2024,ARQ,Ahorros,"1,000,000",COP,"1,000,000",COP,deposito 237 usd',
+    '21/08/2024,Bancolombia,Restaurante,"-50,000",COP,"-50,000",COP,Almuerzo',
+  ));
+
+  const flagged = await db.query(
+    `SELECT r.id, r.reason, t.description
+     FROM review_queue r JOIN transactions t ON t.id = r.entity_id
+     WHERE r.kind = 'foreign_new_movement'`);
+  assert.equal(flagged.length, 1, 'the dollar row, not the peso one');
+  assert.match(flagged[0].reason, /held in USD/);
+  assert.match(flagged[0].description, /deposito 237 usd/);
+
+  // Jose corrects the dollar figure by hand and closes the review.
+  const arqRow = await db.queryOne(
+    `SELECT t.id FROM transactions t JOIN accounts a ON a.id = t.account_id
+     WHERE a.name = 'ARQ USD' AND t.description LIKE 'deposito%'`);
+  await new TransactionsRepository(db, NOW).update(arqRow.id, { amount_minor: 23700 });
+  await db.run('UPDATE review_queue SET resolved = 1, resolved_at = ? WHERE id = ?',
+    [NOW(), flagged[0].id]);
+
+  // A later export: the same rows again, plus one new dollar movement.
+  await run(db, csv(
+    `13/08/2024,ARQ,Initial balance 'ARQ',"0",COP,"0",COP,`,
+    '20/08/2024,ARQ,Ahorros,"1,000,000",COP,"1,000,000",COP,deposito 237 usd',
+    '21/08/2024,Bancolombia,Restaurante,"-50,000",COP,"-50,000",COP,Almuerzo',
+    '09/09/2026,ARQ,Ahorros,"2,000,000",COP,"2,000,000",COP,otro deposito',
+    '09/09/2026,Bancolombia,Restaurante,"-30,000",COP,"-30,000",COP,Cena',
+  ));
+
+  // The corrected row is exactly as it was left: not rewritten, not re-flagged.
+  const corrected = await db.queryOne('SELECT amount_minor, locked FROM transactions WHERE id = ?', [arqRow.id]);
+  assert.equal(corrected.amount_minor, 23700, 'the hand-corrected figure survives');
+  assert.equal(corrected.locked, 1);
+
+  const open = await db.query(
+    `SELECT r.reason, t.description FROM review_queue r
+     JOIN transactions t ON t.id = r.entity_id
+     WHERE r.kind = 'foreign_new_movement' AND r.resolved = 0`);
+  assert.equal(open.length, 1, 'only the new dollar movement');
+  assert.equal(open[0].description, 'otro deposito');
+
+  // And the new peso movement went in without ceremony.
+  const cena = await db.queryOne("SELECT id FROM transactions WHERE description = 'Cena'");
+  assert.ok(cena, 'the peso row was imported');
+  assert.equal(
+    (await db.query('SELECT id FROM review_queue WHERE entity_id = ? AND resolved = 0', [cena.id])).length,
+    0, 'a peso row needs no review');
+
+  await db.close();
+});

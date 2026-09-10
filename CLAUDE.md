@@ -140,7 +140,17 @@ the framework on a long-running project.
    by the repository. The import seeds the history from the backup but never
    overrules a confirmed or hand-corrected limit. Decision by Jose, 2026-09-09.
 
-12. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+12. **A new movement in a foreign-currency account always goes to review.**
+   Monefy only ever stored pesos, so the dollar or euro figure of any row in
+   ARQ, eToro, XTB, Plenti or Global66 USD is a reading or an estimate. Jose
+   has corrected many of those by hand to figures more exact than Monefy could
+   hold. Those are protected twice over - the fingerprint skips them and the
+   `locked` flag guards them - and every genuinely new row in such an account
+   arrives flagged `foreign_new_movement` so it is corrected at once instead of
+   sitting there as an approximation nobody was told about. Peso rows import
+   silently: there the CSV figure is the real one. Decision by Jose, 2026-09-09.
+
+13. **Manual edits win over re-imports.** The Monefy CSV is re-exported
    regularly, carrying the whole history again plus new rows, so the importer
    must be repeatable. Any record edited by hand inside Finance is flagged
    `locked` and a later re-import never overwrites it: a manual edit means Jose

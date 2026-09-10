@@ -31,6 +31,9 @@ import { planAccounts, isCreditLimitChange, derivedCreditLimit, creditLimitHisto
 import { assessUsdMention, type UsdCandidate } from './extract-usd';
 import { iconForCategory } from '../category-icons';
 
+/** The currency everything is measured against; rows in it need no review. */
+const BASE_CURRENCY = 'COP';
+
 export interface ImportOptions {
   fileName: string;
   /** Identifies the file, so the same export is recognisable later. */
@@ -474,6 +477,70 @@ class ImportWriter {
     if (resolved.review) {
       await this.raiseReview('estimated_amount', resolved.review, 'transaction', id);
     }
+
+    await this.flagForeign(id, row, currency);
+  }
+
+  /**
+   * Every new row in a foreign-currency account is put up for review.
+   *
+   * Monefy only ever stored pesos, so a dollar movement's real figure is
+   * either buried in its description or gone entirely — the importer's best
+   * effort is a reading or an estimate, and Jose has been correcting those by
+   * hand to figures that are more exact than Monefy could hold.
+   *
+   * Those corrections must survive, and they do: a row already stored is
+   * recognised by its fingerprint and skipped, and a row edited by hand is
+   * locked besides. What this adds is the other half — a genuinely new
+   * movement in one of those accounts arrives flagged, so it is corrected
+   * straight away instead of sitting in the ledger as an approximation
+   * nobody was told about.
+   *
+   * Peso accounts are untouched: there the CSV figure is the real one.
+   */
+  private async flagForeign(id: number, row: MonefyRow, currency: string): Promise<void> {
+    if (currency === BASE_CURRENCY) return;
+
+    await this.raiseReview(
+      'foreign_new_movement',
+      `New movement in ${row.account}, which is held in ${currency}. Monefy stored ` +
+        `only the peso figure, so the ${currency} amount here is a reading or an ` +
+        `estimate. Confirm or correct it.`,
+      'transaction',
+      id,
+    );
+  }
+
+  /**
+   * Flags the legs of a new transfer that landed in a foreign account.
+   *
+   * The legs are found by the transfer they belong to rather than returned by
+   * the writer: the transfer is what was created, and asking for it back keeps
+   * this from depending on the order its two halves were written in.
+   */
+  private async flagForeignLegs(transferId: number, accounts: string[]): Promise<void> {
+    const foreign = accounts.filter(
+      account => (this.currencies.get(account) ?? BASE_CURRENCY) !== BASE_CURRENCY);
+    if (foreign.length === 0) return;
+
+    const legs = await this.db.query<{ id: number; account_id: number }>(
+      'SELECT id, account_id FROM transactions WHERE transfer_id = ?', [transferId]);
+
+    for (const account of foreign) {
+      const accountId = this.accountIds.get(account);
+      const leg = legs.find(row => row.account_id === accountId);
+      if (!leg) continue;
+
+      const currency = this.currencies.get(account) ?? BASE_CURRENCY;
+      await this.raiseReview(
+        'foreign_new_movement',
+        `New transfer leg in ${account}, held in ${currency}. Monefy stored only ` +
+          `the peso figure, so the ${currency} amount is a reading or an estimate. ` +
+          `Confirm or correct it.`,
+        'transaction',
+        leg.id,
+      );
+    }
   }
 
   private async writeTransfer(pair: TransferPair): Promise<void> {
@@ -489,7 +556,7 @@ class ImportWriter {
     const fromResolved = this.resolveAmount(pair.out, this.currencies.get(pair.out.account) ?? 'COP');
     const toResolved = this.resolveAmount(pair.into, this.currencies.get(pair.into.account) ?? 'COP');
 
-    await this.transfers.create({
+    const transferId = await this.transfers.create({
       occurred_on: pair.out.occurredOn,
       description: pair.out.description || pair.into.description || null,
       from: {
@@ -516,6 +583,8 @@ class ImportWriter {
 
     this.transfersCreated += 1;
     this.rowsInserted += 2;
+
+    await this.flagForeignLegs(transferId, [pair.out.account, pair.into.account]);
 
     if (pair.method !== 'exact') {
       await this.raiseReview(

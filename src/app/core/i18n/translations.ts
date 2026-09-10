@@ -206,6 +206,7 @@ export const SPANISH = {
 
   // --- what the importer flags for review -------------------------------
   'review.reconstructed_transfer': 'Transferencias con una pata reconstruida',
+  'review.foreign_new_movement': 'Movimientos nuevos en cuentas en otra moneda',
   'review.estimated_amount': 'Montos en dólares estimados',
   'review.assumed_account': 'Cuentas cuya moneda se dedujo',
   'review.deleted_account': 'Cuentas borradas de Monefy, recreadas',
@@ -298,6 +299,11 @@ export const SPANISH = {
 
   // What each kind means, and what to do about it. The reason on each row is
   // the importer's own technical note; this is the plain-language version.
+  'review.help.foreign_new_movement':
+    'Monefy solo guardaba pesos, así que el monto en dólares o euros de un ' +
+    'movimiento nuevo es una lectura o una estimación. Corrígelo aquí y queda ' +
+    'protegido: al volver a importar no se toca. Lo que ya habías corregido antes ' +
+    'tampoco se pisa.',
   'review.help.estimated_amount':
     'Monefy solo guardaba pesos. Cuando la descripción no decía el monto en ' +
     'dólares, el importador lo estimó con la tasa más cercana que sí conocía. ' +
@@ -518,6 +524,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
     'settle on its own.',
 
   'review.reconstructed_transfer': 'Transfers with one leg rebuilt',
+  'review.foreign_new_movement': 'New movements in foreign-currency accounts',
   'review.estimated_amount': 'Estimated dollar amounts',
   'review.assumed_account': 'Accounts whose currency was inferred',
   'review.deleted_account': 'Accounts deleted in Monefy, recreated',
@@ -604,6 +611,10 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'review.noSubject': 'About the import',
   'review.gone': 'That no longer exists; mark it as seen',
 
+  'review.help.foreign_new_movement':
+    'Monefy only stored pesos, so the dollar or euro amount of a new movement is ' +
+    'a reading or an estimate. Correct it here and it is protected: a later ' +
+    'import will not touch it, and neither will it touch what you corrected before.',
   'review.help.estimated_amount':
     'Monefy only stored pesos. Where the description did not say the dollar ' +
     'amount, the importer estimated it from the nearest rate it did know. If you ' +
