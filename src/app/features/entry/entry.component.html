@@ -150,16 +150,23 @@
     </div>
   }
 
-  <ion-item lines="none" class="note">
-    <ion-input [placeholder]="'entry.note' | t" [value]="note()"
-               (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-input>
+  <!-- The note is what the leftover height goes to, so it is drawn as a
+       field that size: a bordered area you write into, not a single line with
+       two hundred points of nothing under it. Several lines is also what a
+       note often is - "Almuerzo ejecutivo de pechuga de caseritos mas
+       impuesto 4x1000" is one line only because there was nowhere else for it
+       to go. -->
+  <div class="note">
+    <ion-textarea [placeholder]="'entry.note' | t" [value]="note()"
+                  [autoGrow]="false" [rows]="2"
+                  (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
     @if (note() !== '') {
-      <button type="button" slot="end" class="clear-note" (click)="clearNote()"
+      <button type="button" class="clear-note" (click)="clearNote()"
               [attr.aria-label]="'entry.clearNote' | t">
         <ion-icon name="close-circle"></ion-icon>
       </button>
     }
-  </ion-item>
+  </div>
 
   <!-- Notes repeat; these are the ones already written that match -->
   @if (noteSuggestions().length > 0) {

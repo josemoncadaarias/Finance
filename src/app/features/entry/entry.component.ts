@@ -20,7 +20,7 @@ import {
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-  IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
+  IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
   IonSearchbar, IonNote,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -65,7 +65,7 @@ export interface EntryRequest {
     IconComponent,
     CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-    IonItem, IonInput, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
+    IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
     IonSearchbar, IonNote,
   ],
   templateUrl: './entry.component.html',
