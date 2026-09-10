@@ -6,6 +6,14 @@
   gap: 0.6rem;
   flex: 1;
   min-width: 0;
+
+  /* Belt and braces on the element that carries the name. A <button> is a
+     flex container here, and a button's intrinsic width does not always
+     respect min-width: 0 - so the box is clipped at its own edge as well,
+     and nothing inside it can be painted over the toolbar buttons whatever
+     the intrinsic sizing decides. */
+  overflow: hidden;
+
   padding: 0.4rem 0.5rem 0.4rem 0.85rem;
   border: none;
   background: none;
@@ -49,12 +57,18 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    min-width: 0;
     font-size: 1.12rem;
     font-weight: 600;
     color: var(--ion-text-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+
+    /* The clipping lives on the text, not on the row that holds it. */
+    .text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     ion-icon { font-size: 0.8rem; opacity: 0.6; flex: none; }
   }
@@ -382,9 +396,14 @@ ion-toolbar.stepper {
   bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
   z-index: 20;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+
+  /* Its place is kept, so the buttons beside it never move. */
+  .gone {
+    visibility: hidden;
+    pointer-events: none;
+  }
 
   button {
     display: flex;
@@ -424,6 +443,10 @@ ion-toolbar.stepper {
 }
 
 
+/* Room under the last row for the floating cluster, so anything the buttons
+   would otherwise cover can be scrolled clear of them. */
+ion-list { padding-bottom: 4.5rem; }
+
 .group-head {
   display: flex;
   align-items: center;
@@ -448,7 +471,7 @@ ion-toolbar.stepper {
   border-bottom: 1px solid var(--ion-color-light-shade);
 
   .chevron { color: var(--ion-color-medium); font-size: 0.9rem; }
-  .cat { color: var(--ion-color-medium); font-size: 1rem; }
+  .cat { color: var(--ion-color-medium); flex: none; }
 
   .title {
     flex: 1;

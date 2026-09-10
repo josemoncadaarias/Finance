@@ -194,7 +194,7 @@ export class MovementsPage {
   }
 
   /** True when the list is long enough for any of this to be worth showing. */
-  private readonly scrollable = computed(() =>
+  readonly scrollable = computed(() =>
     this.filter.showList()
     && this.filter.grouping() !== 'largest'
     && this.store.groups().length > 1);

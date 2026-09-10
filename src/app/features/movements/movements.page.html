@@ -17,8 +17,13 @@
         }
       </span>
       <span class="who">
+        <!-- The name is wrapped rather than sitting loose beside the
+             chevron. `text-overflow` clips a block's inline content, and a
+             bare text node inside a flex box is an anonymous flex item, which
+             it never touches - so "Cuenta leidy bancolombia prestamos" ran
+             straight across the search and language buttons. -->
         <span class="name">
-          {{ accountLabel() }}
+          <span class="text">{{ accountLabel() }}</span>
           <ion-icon name="chevron-down-outline"></ion-icon>
         </span>
         <span class="hint">{{ accountHint() }}</span>
@@ -321,29 +326,33 @@
        against whichever ancestor Ionic is transforming during a page
        transition - which is why the first attempt scrolled away with the
        list. -->
-  <div class="jump" slot="fixed">
-    @if (showJumpUp()) {
-      <button type="button" (click)="toTop()"
+@if (scrollable()) {
+    <div class="jump" slot="fixed">
+      <!-- A row, one button tall, rather than the column this started as. The
+           column stood three buttons high and lay across three group totals -
+           the amounts are on the right, which is where a control at the bottom
+           right has to live. One row covers the bottom edge only, and the list
+           is padded so the last row can always be scrolled clear of it.
+
+           A button that has nothing to do keeps its place instead of leaving
+           it, so the other two never move sideways under the thumb. -->
+      <button type="button" [class.gone]="!showJumpUp()" (click)="toTop()"
               [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
         <ion-icon name="arrow-up-outline"></ion-icon>
       </button>
-    }
 
-    @if (showFold()) {
-      <button type="button" class="fold" (click)="foldAll()"
+      <button type="button" class="fold" [class.gone]="!showFold()" (click)="foldAll()"
               [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
               [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
         <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
       </button>
-    }
 
-    @if (showJumpDown()) {
-      <button type="button" (click)="toBottom()"
+      <button type="button" [class.gone]="!showJumpDown()" (click)="toBottom()"
               [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
         <ion-icon name="arrow-down-outline"></ion-icon>
       </button>
-    }
-  </div>
+    </div>
+  }
 
 </ion-content>
 

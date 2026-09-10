@@ -153,3 +153,41 @@ ion-alert.select-alert {
     font-weight: 600;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Long text never lies across something else.
+
+   Every one of these values is a name the user typed, and none of them has a
+   length the app gets to assume: an account called "Cuenta leidy bancolombia
+   prestamos", a category, a product, a note on a movement. The failure is
+   always the same shape - the text refuses to shrink, so it pushes past its
+   own box and prints over the icon or the figure beside it.
+
+   Two rules cover it wherever a screen has not said otherwise:
+
+   `min-width: 0` undoes the flexbox default that a flex item may not shrink
+   below its content's minimum width. That default is what turns a long name
+   into an overflow instead of a narrower name.
+
+   `overflow-wrap: break-word` is the last resort for a single unbroken run of
+   characters - a URL pasted into a note, a reference number - which has no
+   space to wrap at and would otherwise leave the box on its own.
+
+   Neither changes a layout that already fits.
+   --------------------------------------------------------------------------- */
+
+ion-label,
+ion-label h1, ion-label h2, ion-label h3, ion-label p,
+ion-note {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* An icon beside text keeps its size; it is the text that gives way. */
+ion-item > ion-icon[slot='start'],
+ion-item > ion-icon[slot='end'],
+ion-item > app-icon[slot='start'],
+ion-item > app-icon[slot='end'],
+ion-item > img[slot='start'] {
+  flex: none;
+}
