@@ -88,8 +88,7 @@
                    [class.archived]="balance.account.archived">
             } @else {
               <ion-icon slot="start" [class.archived]="balance.account.archived"
-                        [name]="(balance.account.builtin_icon ?? '') + '-outline'
-                                || iconFor(balance.account.type)"></ion-icon>
+                        [name]="outlined(balance.account.builtin_icon)"></ion-icon>
             }
             <ion-label>
               <h3>
@@ -148,8 +147,7 @@
                 <ion-item [class.nested]="entry.group" lines="full" button
                           (click)="open(balance.account)">
                   <ion-icon slot="start" class="archived"
-                            [name]="(balance.account.builtin_icon ?? '') + '-outline'
-                                    || iconFor(balance.account.type)"></ion-icon>
+                            [name]="outlined(balance.account.builtin_icon)"></ion-icon>
                   <ion-label>
                     <h3>{{ entry.group ? balance.account.currency_code : balance.account.name }}</h3>
                   </ion-label>

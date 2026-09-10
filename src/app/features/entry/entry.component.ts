@@ -42,6 +42,7 @@ import { AmountBuffer } from './amount-buffer';
 import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
 } from './calculator';
+import { outlined } from '../../core/icons/icon-catalog';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -99,6 +100,9 @@ export class EntryComponent implements OnInit {
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
+
+  /** Icon names arrive with or without their suffix; this settles it. */
+  readonly outlined = outlined;
   /**
    * A half-finished sum, when one is in progress.
    *

@@ -9,7 +9,7 @@
          name, and what that selection includes. -->
     <button type="button" class="identity" (click)="showAccountSheet.set(true)">
       <span class="badge" [class.all]="filter.allAccounts()">
-        <ion-icon [name]="accountIcon()"></ion-icon>
+        <ion-icon [name]="outlined(accountIcon())"></ion-icon>
       </span>
       <span class="who">
         <span class="name">
@@ -357,7 +357,7 @@
         @for (account of selectable(); track account.id) {
           <ion-item button lines="full" (click)="pickAccount(account.id)"
                     [class.selected]="filter.accountId() === account.id">
-            <ion-icon slot="start" [name]="account.builtin_icon ?? 'wallet-outline'"></ion-icon>
+            <ion-icon slot="start" [name]="outlined(account.builtin_icon ?? 'wallet')"></ion-icon>
             <ion-label>
               <h3>
                 {{ account.name }}

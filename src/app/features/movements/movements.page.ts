@@ -34,6 +34,7 @@ import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entr
 import type { Grouping } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
+import { outlined } from '../../core/icons/icon-catalog';
 
 @Component({
   selector: 'app-movements',
@@ -66,6 +67,9 @@ export class MovementsPage {
   readonly showPeriodSheet = signal(false);
   readonly showAccountSheet = signal(false);
   readonly showSearch = signal(false);
+
+  /** Icon names arrive with or without their suffix; this settles it. */
+  readonly outlined = outlined;
 
   /** Non-null while the entry screen is open, describing what it is editing. */
   readonly entry = signal<EntryRequest | null>(null);

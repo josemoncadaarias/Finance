@@ -24,7 +24,7 @@ import {
 } from '../database/repositories/custom-icons.repository';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { I18nService } from '../i18n/i18n.service';
-import type { IconGroup } from './icon-catalog';
+import { bareIcon, outlined, type IconGroup } from './icon-catalog';
 
 /** What the picker hands back: exactly one of the two is set. */
 export interface IconChoice {
@@ -44,7 +44,7 @@ export interface IconChoice {
       @if (customUrl(); as url) {
         <img [src]="url" alt="">
       } @else {
-        <ion-icon [name]="(builtin() ?? 'wallet') + '-outline'"></ion-icon>
+        <ion-icon [name]="outlined(builtin() ?? 'wallet')"></ion-icon>
       }
       <span class="change">{{ 'icons.change' | t }}</span>
     </button>
@@ -90,7 +90,7 @@ export interface IconChoice {
               <div class="grid">
                 @for (name of group.icons; track name) {
                   <button type="button" class="option"
-                          [class.on]="builtin() === name && custom() === null"
+                          [class.on]="bareIcon(builtin()) === name && custom() === null"
                           (click)="chooseBuiltin(name)">
                     <ion-icon [name]="name + '-outline'"></ion-icon>
                   </button>
@@ -187,6 +187,10 @@ export class IconPickerComponent implements OnInit {
   readonly custom = input<number | null>(null);
 
   readonly chosen = output<IconChoice>();
+
+  /** Both helpers are used by the template. */
+  readonly outlined = outlined;
+  readonly bareIcon = bareIcon;
 
   readonly open = signal(false);
   readonly customIcons = signal<CustomIcon[]>([]);

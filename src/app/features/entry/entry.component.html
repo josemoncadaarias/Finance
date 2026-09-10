@@ -72,7 +72,7 @@
       <button type="button" class="leg" (click)="picking.set('from')">
         <span class="lead">{{ 'entry.from' | t }}</span>
         <span class="who">
-          <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
+          <ion-icon [name]="outlined(account()?.builtin_icon ?? 'wallet')"></ion-icon>
           <span class="name">{{ account()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
@@ -85,7 +85,7 @@
               (click)="picking.set('to')">
         <span class="lead">{{ 'entry.to' | t }}</span>
         <span class="who">
-          <ion-icon [name]="toAccount()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
+          <ion-icon [name]="outlined(toAccount()?.builtin_icon ?? 'wallet')"></ion-icon>
           <span class="name">{{ toAccount()?.name ?? ('entry.pick' | t) }}</span>
         </span>
       </button>
@@ -100,7 +100,7 @@
   } @else {
     <div class="context">
       <button type="button" (click)="picking.set('from')">
-        <ion-icon [name]="account()?.builtin_icon ?? 'wallet-outline'"></ion-icon>
+        <ion-icon [name]="outlined(account()?.builtin_icon ?? 'wallet')"></ion-icon>
         <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
       </button>
       <button type="button" (click)="showDate.set(true)">
@@ -117,7 +117,7 @@
       } @else {
         <ion-icon name="checkmark-circle-outline"></ion-icon>
         <ion-icon class="chosen"
-                  [name]="selectedCategory()?.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+                  [name]="outlined(selectedCategory()?.builtin_icon)"></ion-icon>
         {{ selectedCategory()?.name }}
       }
     </p>
@@ -128,7 +128,7 @@
       @for (category of shortlist(); track category.id) {
         <button type="button" class="category" [class.on]="categoryId() === category.id"
                 (click)="pickCategory(category.id)">
-          <ion-icon [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+          <ion-icon [name]="outlined(category.builtin_icon)"></ion-icon>
           <span>{{ category.name }}</span>
         </button>
       }
@@ -217,7 +217,7 @@
         @for (option of accounts(); track option.id) {
           <ion-item button lines="full" (click)="pickAccount(option.id)"
                     [class.selected]="(picking() === 'to' ? toAccountId() : accountId()) === option.id">
-            <ion-icon slot="start" [name]="option.builtin_icon ?? 'wallet-outline'"></ion-icon>
+            <ion-icon slot="start" [name]="outlined(option.builtin_icon ?? 'wallet')"></ion-icon>
             <ion-label>
               <h3>{{ option.name }}</h3>
               <p>{{ option.currency_code }}</p>
@@ -254,7 +254,7 @@
           @for (category of foundCategories(); track category.id) {
             <ion-item button lines="full" (click)="pickCategory(category.id)"
                       [class.selected]="categoryId() === category.id">
-              <ion-icon slot="start" [name]="category.builtin_icon ?? 'pricetag-outline'"></ion-icon>
+              <ion-icon slot="start" [name]="outlined(category.builtin_icon)"></ion-icon>
               <ion-label>{{ category.name }}</ion-label>
               @if (category.times > 0) {
                 <ion-note slot="end">{{ 'entry.timesUsed' | t:{ count: category.times } }}</ion-note>

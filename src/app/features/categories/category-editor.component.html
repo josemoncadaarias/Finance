@@ -1,0 +1,79 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
+    <h1 class="title">{{ title() }}</h1>
+
+    <ion-buttons slot="end">
+      <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
+        <ion-icon slot="start" name="checkmark-outline"></ion-icon>
+        {{ 'entry.save' | t }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  <section class="identity">
+    <app-icon-picker [catalog]="catalog" [builtin]="builtinIcon()"
+                     [custom]="customIconId()" (chosen)="onIcon($event)"></app-icon-picker>
+
+    <ion-input class="name" [value]="name()" [placeholder]="'categories.namePlaceholder' | t"
+               (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
+  </section>
+
+  <ion-list [inset]="true">
+    <!-- Which side it belongs to. Locked once it exists: every movement filed
+         under it was filed as spending or as income, and flipping the label
+         would rewrite a year of them. -->
+    @if (isNew()) {
+      <ion-item>
+        <ion-select [label]="'categories.kind' | t" [value]="kind()" interface="action-sheet"
+                    (ionChange)="kind.set($any($event.detail).value)">
+          @for (option of kinds; track option) {
+            <ion-select-option [value]="option">{{ $any('categories.kind.' + option) | t }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+    } @else {
+      <ion-item lines="full">
+        <ion-label>
+          <h3>{{ 'categories.kind' | t }}</h3>
+          <p>{{ 'categories.kind.locked' | t }}</p>
+        </ion-label>
+        <ion-note slot="end">{{ $any('categories.kind.' + kind()) | t }}</ion-note>
+      </ion-item>
+    }
+
+    @if (!isNew()) {
+      <ion-item lines="full">
+        <ion-label>{{ 'categories.usedIn' | t }}</ion-label>
+        <ion-note slot="end">{{ 'categories.inUse' | t:{ count: usedBy() } }}</ion-note>
+      </ion-item>
+
+      <ion-item>
+        <ion-toggle [checked]="archived()"
+                    (ionChange)="archived.set($any($event.detail).checked)">
+          <div>
+            <p class="strong">{{ 'categories.archive' | t }}</p>
+            <p class="hint">{{ 'categories.archive.hint' | t }}</p>
+          </div>
+        </ion-toggle>
+      </ion-item>
+    }
+  </ion-list>
+</ion-content>
+
+<ion-footer class="pad">
+  @if (missing(); as hint) {
+    <p class="missing">{{ hint }}</p>
+  }
+</ion-footer>

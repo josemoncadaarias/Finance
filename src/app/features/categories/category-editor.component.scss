@@ -1,0 +1,92 @@
+/* Inside an ion-modal the header and content must be the page's own children,
+   so the host takes the page's box. Same reason as the entry screen. */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+ion-button.save {
+  --border-radius: 999px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.error {
+  margin: 0.75rem 1rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
+  color: var(--ion-color-danger);
+  font-size: 0.85rem;
+}
+
+/* The icon and the name side by side: an account is a face and a name. */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.25rem;
+
+  .name {
+    flex: 1;
+    font-size: 1.15rem;
+    font-weight: 600;
+    --padding-start: 0.5rem;
+  }
+}
+
+ion-toggle .strong { margin: 0; font-size: 0.92rem; color: var(--ion-text-color); }
+ion-toggle .hint { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--ion-color-medium); }
+
+.explain {
+  margin: -0.5rem 1.5rem 1rem;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ion-color-medium);
+}
+
+.history h3 {
+  margin: 0 1.5rem 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}
+
+.missing {
+  margin: 0;
+  padding: 0.45rem 1rem;
+  background: rgba(var(--ion-color-warning-rgb), 0.14);
+  color: var(--ion-color-warning-shade);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.sheet {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --padding-top: 1rem;
+}
+
+/* The limit is what the row is about; the date is the qualifier. */
+.history ion-item {
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
+    font-variant-numeric: tabular-nums;
+  }
+
+  p { font-size: 0.78rem; color: var(--ion-color-medium); }
+  ion-note { font-size: 0.7rem; }
+}

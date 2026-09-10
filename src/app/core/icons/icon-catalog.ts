@@ -86,3 +86,23 @@ export function everyCatalogIcon(): string[] {
   }
   return [...names];
 }
+
+/**
+ * The outline form of an icon name, whichever form it arrives in.
+ *
+ * Icons reach the app from three places — the account plan, the category map,
+ * and this catalog — and they do not agree on whether the name carries its
+ * `-outline` suffix. Appending it blindly produced `car-outline-outline`,
+ * which Ionicons draws as nothing at all: an icon that silently disappears
+ * rather than complaining.
+ */
+export function outlined(name: string | null | undefined): string {
+  const base = (name ?? 'pricetag').trim();
+  return base.endsWith('-outline') ? base : `${base}-outline`;
+}
+
+/** The name without its suffix, for comparing against the catalog. */
+export function bareIcon(name: string | null | undefined): string | null {
+  if (!name) return null;
+  return name.endsWith('-outline') ? name.slice(0, -'-outline'.length) : name;
+}

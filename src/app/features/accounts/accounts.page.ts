@@ -29,6 +29,7 @@ import { AccountEditorComponent } from './account-editor.component';
 import type { AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SignPipe } from '../../shared/sign.pipe';
+import { outlined } from '../../core/icons/icon-catalog';
 
 @Component({
   selector: 'app-accounts',
@@ -56,6 +57,9 @@ export class AccountsPage {
   readonly grouped = signal<GroupedBalance[] | null>(null);
   readonly netWorthMinor = signal(0);
   readonly showArchived = signal(false);
+
+  /** Icon names arrive with or without their suffix; this settles it. */
+  readonly outlined = outlined;
 
   /** The total, and every line that makes it. */
   readonly worth = signal<NetWorth | null>(null);

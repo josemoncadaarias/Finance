@@ -1,0 +1,97 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'categories.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>{{ 'state.failed' | t }}</h2>
+      <p>{{ database.error()?.message }}</p>
+    </div>
+  } @else if (loading()) {
+    <div class="state"><ion-spinner></ion-spinner></div>
+  } @else {
+
+    <!-- Two lists, because they are never chosen together -->
+    @for (side of [
+      { kind: 'expense', title: 'categories.expenses', rows: expenses() },
+      { kind: 'income', title: 'categories.incomes', rows: incomes() }
+    ]; track side.kind) {
+      <section class="side">
+        <div class="head">
+          <h2>{{ $any(side.title) | t }}</h2>
+          <button type="button" (click)="add($any(side.kind))">
+            <ion-icon name="add-outline"></ion-icon>
+            {{ 'categories.new' | t }}
+          </button>
+        </div>
+
+        @if (side.rows.length === 0) {
+          <p class="empty">{{ 'categories.empty' | t }}</p>
+        } @else {
+          <ion-list [inset]="true">
+            @for (category of side.rows; track category.id) {
+              <ion-item button lines="full" (click)="edit(category)" [detail]="true">
+                @if (iconUrl(category.custom_icon_id); as url) {
+                  <img slot="start" class="own-icon" [src]="url" alt="">
+                } @else {
+                  <ion-icon slot="start"
+                            [name]="outlined(category.builtin_icon)"></ion-icon>
+                }
+                <ion-label>{{ category.name }}</ion-label>
+                <ion-note slot="end">{{ 'categories.inUse' | t:{ count: category.times } }}</ion-note>
+              </ion-item>
+            }
+          </ion-list>
+        }
+      </section>
+    }
+
+    @if (archivedCount() > 0) {
+      <div class="archived-toggle">
+        <button type="button" (click)="toggleArchived()">
+          <ion-icon name="archive-outline"></ion-icon>
+          {{ (showArchived() ? 'categories.hideArchived' : 'categories.showArchived')
+             | t:{ count: archivedCount() } }}
+        </button>
+      </div>
+
+      @if (showArchived()) {
+        <section class="side archived-section">
+          <h2>{{ 'accounts.archivedTitle' | t }}</h2>
+          <p class="hint">{{ 'categories.archivedHint' | t }}</p>
+
+          <ion-list [inset]="true">
+            @for (category of archived(); track category.id) {
+              <ion-item button lines="full" (click)="edit(category)" [detail]="true">
+                <ion-icon slot="start"
+                          [name]="outlined(category.builtin_icon)"></ion-icon>
+                <ion-label>{{ category.name }}</ion-label>
+                <ion-badge color="medium">{{ $any('categories.kind.' + category.kind) | t }}</ion-badge>
+              </ion-item>
+            }
+          </ion-list>
+        </section>
+      }
+    }
+  }
+</ion-content>
+
+<ion-modal [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
+  <ng-template>
+    @if (editor(); as request) {
+      <app-category-editor [editing]="request.category" [startKind]="request.kind"
+                           (saved)="onSaved()" (cancelled)="editor.set(null)"></app-category-editor>
+    }
+  </ng-template>
+</ion-modal>

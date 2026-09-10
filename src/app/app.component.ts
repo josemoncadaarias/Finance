@@ -13,7 +13,9 @@ import {
 import { addIcons } from 'ionicons';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
-import { pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline } from 'ionicons/icons';
+import {
+  pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline, pricetagsOutline,
+} from 'ionicons/icons';
 
 import { DatabaseService } from './core/database/database.service';
 import { ReviewRepository } from './core/database/repositories/review.repository';
@@ -45,6 +47,7 @@ export class AppComponent {
   readonly sections: Section[] = [
     { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
     { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
+    { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
     { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'alert-circle-outline' },
     { path: '/import', label: 'nav.import', hint: 'nav.import.hint', icon: 'cloud-upload-outline' },
   ];
@@ -59,7 +62,9 @@ export class AppComponent {
   readonly pending = signal(0);
 
   constructor() {
-    addIcons({ pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline });
+    addIcons({
+      pieChartOutline, walletOutline, cloudUploadOutline, alertCircleOutline, pricetagsOutline,
+    });
 
     effect(() => {
       this.database.dataVersion();

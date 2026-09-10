@@ -248,6 +248,13 @@ export const SPANISH = {
   'accounts.edit.action': 'Editar',
 
   // --- editing a category -----------------------------------------------
+  'nav.categories': 'Categorías',
+  'nav.categories.hint': 'Crear, renombrar y archivar',
+  'categories.kind.locked':
+    'No se puede cambiar: lo que ya está clasificado aquí se registró como gasto o como ingreso.',
+  'categories.usedIn': 'Usada en',
+  'categories.archivedHint':
+    'Ya no se ofrecen al registrar, pero lo que quedó clasificado en ellas no cambió.',
   'categories.title': 'Categorías',
   'categories.new': 'Nueva categoría',
   'categories.edit': 'Editar categoría',
@@ -564,6 +571,13 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.addAccount': 'New account',
   'accounts.edit.action': 'Edit',
 
+  'nav.categories': 'Categories',
+  'nav.categories.hint': 'Create, rename and archive',
+  'categories.kind.locked':
+    'Cannot change: what is already filed here was recorded as spending or as income.',
+  'categories.usedIn': 'Used in',
+  'categories.archivedHint':
+    'No longer offered when recording, but what was filed under them is unchanged.',
   'categories.title': 'Categories',
   'categories.new': 'New category',
   'categories.edit': 'Edit category',
