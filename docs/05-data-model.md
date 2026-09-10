@@ -147,19 +147,62 @@ currency pair. This is the *official* rate, which is not what a bank charged:
 that one lives on the transaction. The gap between them is the provider's
 spread.
 
-**`account_rates`** — per-account interest rate history with
-valid-from/valid-to, maintained by hand because bank rates are not reliably
-available online. A rate change adds a row rather than editing one, so history
-stays intact.
+### The cushion — yields and cashback
 
-### Separate modules
+Interest and cashback are money that was earned and never counted on. They are
+not part of net worth and not part of the balance of the account that produced
+them: they are a *cushion*, and moving any of it into an account is a
+deliberate act, which the real history already shows happening (2026-08-13,
+part of the accumulated yield of Rappi cuenta, taken to pay the income-tax
+return).
 
-**`interest_accruals`** — `computed_minor` and `actual_minor` side by side: what
-the app worked out from the rate history, and what the bank actually paid.
+**`yield_accounts`** — which accounts the app accrues, and from when. Being in
+this table is the switch: XTB, eToro, Fiducuenta and Multinversion are simply
+not in it, because their return is the market's and already arrives as ordinary
+movements. It also holds the opening cushion — the figure typed in once,
+because five years of daily yields cannot be reconstructed.
 
-**`cashbacks`** — linked to the purchase that produced it. If that purchase is
-later deleted the link goes null but the cashback survives, which is the right
-trade: the money was real even if the record of its cause is gone.
+**`yield_rates`** — the effective annual rate history, maintained by hand
+because bank rates are not reliably available online. A rate change adds a row
+rather than editing one, and there is no `valid_to`: the next row ends the
+previous one, so the history cannot contradict itself. A rate may be banded by
+balance, and the band the balance falls into applies to the whole balance.
+
+**`yield_days`** — one row per account per day: the balance it was worked out
+on, the rate in force, gross, withholding and net, plus `actual_net_minor` for
+what the bank really paid. Daily rather than monthly because the withholding
+rule is a per-day threshold, and because a figure that carries its own inputs
+can be explained rather than only recomputed.
+
+The daily rate is not the annual one over 365. An effective annual rate already
+contains its compounding, so the daily one is `(1 + annual) ^ (1/365) - 1`;
+dividing would under-pay by about 5% of the figure, every day. The accrual base
+is the account's ledger balance plus the cushion, because the bank did pay
+those yields in even though the ledger never recorded them.
+
+**`cashback_rules`** — the conditions as they stood on a date: a percentage,
+optionally limited to one category, optionally requiring a minimum balance in
+another account. Both real cases fit: the Rappi card's reward that depends on
+Rappi cuenta holding at least 500,000, and Plata's that depends on the
+category. Conditions change, so they are history, not settings.
+
+**`cashback_entries`** — the reward one purchase produced under one rule,
+`computed_minor` beside `actual_minor`. Deleting the purchase deletes the
+reward: a figure with nothing behind it cannot be checked against a statement.
+A reward typed in from a statement has no purchase and stands on its own.
+
+**`cushion_withdrawals`** — money moved out of the cushion and into an account,
+pointing at the movement it became so it is never counted twice. It outlives
+that movement being deleted, so the cushion never quietly grows back.
+
+**`tax_parameters`** — the dated figures a withholding rule is made of: the UVT
+in pesos, the daily threshold in UVT, the percentage, and whether the
+percentage applies to the whole yield or only the excess. Ships **empty**.
+Yields on a savings account do withhold and cashback does not, but the exact
+figures come from the Estatuto Tributario and the DIAN resolution of the year,
+and CLAUDE.md forbids taking them from an LLM. Until one is entered and marked
+confirmed, the accrual runs without withholding and flags every day it could
+not decide.
 
 ### Infrastructure
 

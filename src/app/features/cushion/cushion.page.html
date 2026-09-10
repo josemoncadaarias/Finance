@@ -1,0 +1,685 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'cushion.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <!-- Recomputing from scratch is for after a rate changed. Not a headline
+           action: the ordinary path is that the screen is already up to date. -->
+      <ion-button [disabled]="working()" (click)="picking.set(true)">
+        <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+      </ion-button>
+      <ion-button [disabled]="working()" (click)="recalculate()">
+        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+      </ion-button>
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+  } @else if (status() === 'failed') {
+    <div class="state error">
+      <h2>{{ 'state.failed' | t }}</h2>
+      <p>{{ database.error()?.message }}</p>
+    </div>
+  } @else if (lines().length === 0 && !loading() && !working()) {
+    <div class="state">
+      <ion-icon name="bed-outline"></ion-icon>
+      <h2>{{ 'cushion.empty.title' | t }}</h2>
+      <p>{{ 'cushion.empty.body' | t }}</p>
+    </div>
+  } @else {
+
+    <!-- The headline, and immediately under it the sentence that keeps this
+         screen honest: none of this is net worth. -->
+    <section class="total">
+      <p class="label">{{ 'cushion.total' | t }}</p>
+      <p class="amount">{{ money(copTotalMinor()) }}</p>
+      <p class="caption">{{ 'cushion.total.hint' | t }}</p>
+
+      @if (working()) {
+        <p class="upto"><ion-spinner name="dots"></ion-spinner> {{ 'cushion.calculating' | t }}</p>
+      } @else if (lastAccrued(); as day) {
+        <p class="upto">
+          {{ 'cushion.earnedOn' | t:{ date: dayText(day) } }}
+          <strong>{{ money(earnedLastDayMinor()) }}</strong>
+        </p>
+      } @else {
+        <p class="upto">{{ 'cushion.notYet' | t }}</p>
+      }
+    </section>
+
+    @if (error()) { <p class="failed">{{ error() }}</p> }
+
+    @if (unknownWithholdingDays() > 0) {
+      <p class="warn">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        {{ 'cushion.withholdingUnknown' | t:{ days: unknownWithholdingDays() } }}
+      </p>
+    }
+
+    <ion-list [inset]="true">
+      @for (line of copLines(); track line.account.id) {
+        <ion-item button detail="true" (click)="open(line)">
+          <ion-icon slot="start" [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
+          <ion-label>
+            <h3>{{ line.account.name }}</h3>
+            <p>
+              @if (!line.enabled) {
+                {{ 'cushion.paused' | t }} ·
+              }
+              {{ rateText(line.rate?.annual_rate_scaled) }}
+              @if (line.rate?.requires_monthly_spend_minor) {
+                · {{ 'cushion.conditional' | t }}
+              }
+              @if (line.pockets.length > 1) {
+                · {{ 'cushion.pockets.count' | t:{ count: line.pockets.length } }}
+              }
+              @if (line.notEarningMinor > 0) {
+                · {{ 'cushion.notEarning' | t:{ amount: money(line.notEarningMinor) } }}
+              }
+            </p>
+          </ion-label>
+          <ion-note slot="end">
+            <span class="net">{{ money(line.cushion.totalMinor) }}</span>
+            @if (line.lastDayMinor > 0) {
+              <span class="perDay">+{{ money(line.lastDayMinor) }}</span>
+            }
+          </ion-note>
+        </ion-item>
+      }
+    </ion-list>
+
+    <!-- Foreign currencies never join the total: two currencies do not add up
+         without choosing a rate, and choosing one here would invent a figure. -->
+    @if (foreignLines().length > 0) {
+      <p class="section">{{ 'cushion.foreign' | t }}</p>
+      <ion-list [inset]="true">
+        @for (line of foreignLines(); track line.account.id) {
+          <ion-item button detail="true" (click)="open(line)">
+            <ion-icon slot="start" [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
+            <ion-label>
+              <h3>{{ line.account.name }}</h3>
+              <p>{{ rateText(line.rate?.annual_rate_scaled) }} · {{ 'cushion.noWithholding' | t }}</p>
+            </ion-label>
+            <ion-note slot="end">
+              <span class="net">{{ money(line.cushion.totalMinor, line.account.currency_code) }}</span>
+              @if (line.lastDayMinor > 0) {
+                <span class="perDay">+{{ money(line.lastDayMinor, line.account.currency_code) }}</span>
+              }
+            </ion-note>
+          </ion-item>
+        }
+      </ion-list>
+    }
+  }
+
+  <!-- Adding an account. The list is every account not already here, so the
+       brokers can be added deliberately and never by accident. -->
+  <ion-modal [isOpen]="picking()" (didDismiss)="picking.set(false)">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button (click)="picking.set(false)" [attr.aria-label]="'summary.close' | t">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>{{ 'cushion.add' | t }}</ion-title>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="sheet">
+        <p class="hint">{{ 'cushion.add.hint' | t }}</p>
+        @if (candidates().length === 0) {
+          <p class="hint">{{ 'cushion.add.none' | t }}</p>
+        } @else {
+          <ion-list [inset]="true">
+            @for (account of candidates(); track account.id) {
+              <ion-item button [disabled]="saving()" (click)="enrol(account)">
+                <ion-icon slot="start" [name]="iconOf(account)" [style.color]="account.color"></ion-icon>
+                <ion-label>
+                  <h3>{{ account.name }}</h3>
+                  <p>{{ account.currency_code }}</p>
+                </ion-label>
+              </ion-item>
+            }
+          </ion-list>
+        }
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <!-- The detail. Full height rather than a draggable sheet, because the day
+       list has to scroll from the moment it opens. -->
+  <ion-modal [isOpen]="openLine() !== null" (didDismiss)="closeDetail()">
+    <ng-template>
+      @if (openLine(); as line) {
+        <ion-header>
+          <ion-toolbar>
+            <!-- Back while a form is open, out while it is not. The two are
+                 different intentions and used to share one button. -->
+            <ion-buttons slot="start">
+              @if (form() === 'none') {
+                <ion-button (click)="closeDetail()" [attr.aria-label]="'summary.close' | t">
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
+              } @else {
+                <ion-button (click)="back()" [attr.aria-label]="'entry.cancel' | t">
+                  <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+                </ion-button>
+              }
+            </ion-buttons>
+
+            <!-- The account, with its own icon and colour: the same row that
+                 was tapped to get here, so it is obviously the same thing.
+                 Nothing under it - a toolbar has no room for a second line,
+                 and both things that were there are already on the screen: the
+                 figure below in full size, the form's name as its heading. -->
+            <ion-title>
+              <span class="who">
+                <ion-icon [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
+                <span class="name">{{ line.account.name }}</span>
+              </span>
+            </ion-title>
+
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="sheet">
+          @if (form() === 'none') {
+            <section class="total inner">
+              <p class="amount">{{ money(line.cushion.totalMinor, line.account.currency_code) }}</p>
+              <p class="caption">{{ 'cushion.detail.total' | t }}</p>
+            </section>
+
+            <!-- Taken apart, because a total nobody can check is a total
+                 nobody trusts. -->
+            <ion-list [inset]="true">
+              <ion-item lines="full">
+                <ion-label>{{ 'cushion.part.opening' | t }}</ion-label>
+                <ion-note slot="end">{{ money(line.cushion.opening_minor, line.account.currency_code) }}</ion-note>
+              </ion-item>
+              <ion-item lines="full">
+                <ion-label>{{ 'cushion.part.accrued' | t }}</ion-label>
+                <ion-note slot="end">{{ money(line.cushion.accrued_minor, line.account.currency_code) }}</ion-note>
+              </ion-item>
+              <ion-item lines="full">
+                <ion-label>{{ 'cushion.part.adjusted' | t }}</ion-label>
+                <ion-note slot="end">{{ money(line.cushion.adjusted_minor, line.account.currency_code) }}</ion-note>
+              </ion-item>
+              <ion-item lines="none">
+                <ion-label>{{ 'cushion.part.withdrawn' | t }}</ion-label>
+                <ion-note slot="end">−{{ money(line.cushion.withdrawn_minor, line.account.currency_code) }}</ion-note>
+              </ion-item>
+            </ion-list>
+
+            @if (line.driftMinor !== null && line.driftMinor !== 0) {
+              <p class="warn">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                {{ 'cushion.pockets.drift' | t:{
+                     amount: money(line.driftMinor, line.account.currency_code) } }}
+              </p>
+            }
+
+            @if (line.pockets.length > 1) {
+              <p class="section">{{ 'cushion.pockets' | t }}</p>
+              <ion-list [inset]="true">
+                @for (pocket of line.pockets; track pocket.id) {
+                  <ion-item>
+                    <ion-label>
+                      <h3>{{ pocket.name }}</h3>
+                      <p>
+                        @if (pocket.source === 'ledger') {
+                          {{ 'cushion.pockets.ledger' | t }}
+                        } @else {
+                          {{ 'cushion.pockets.manual' | t }}
+                        }
+                      </p>
+                    </ion-label>
+                  </ion-item>
+                }
+              </ion-list>
+            }
+
+            <div class="actions">
+              <ion-button expand="block" fill="outline" (click)="startForm('adjust')">
+                <ion-icon slot="start" name="create-outline"></ion-icon>
+                {{ 'cushion.adjust' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="line.cushion.totalMinor <= 0"
+                          (click)="startForm('withdraw')">
+                <ion-icon slot="start" name="arrow-forward-outline"></ion-icon>
+                {{ 'cushion.withdraw' | t }}
+              </ion-button>
+            </div>
+
+            <!-- Spelled out. This was an unlabelled icon in the toolbar and
+                 nobody found it, which is the same as not having built it. -->
+            <ion-list [inset]="true">
+              <ion-item button detail="true" (click)="openSettings()">
+                <ion-icon slot="start" name="options-outline"></ion-icon>
+                <ion-label>
+                  <h3>{{ 'cushion.settings' | t }}</h3>
+                  <p>{{ 'cushion.settings.what' | t }}</p>
+                </ion-label>
+              </ion-item>
+            </ion-list>
+
+            <p class="section">{{ 'cushion.days' | t }}</p>
+            @if (openDays().length === 0) {
+              <p class="hint">{{ 'cushion.days.none' | t }}</p>
+            } @else {
+              <p class="hint">{{ 'cushion.days.hint' | t }}</p>
+              <ion-list [inset]="true">
+                @for (day of openDays(); track day.on_date) {
+                  <ion-item button detail="false" (click)="openDayForm(day)">
+                    <ion-label>
+                      <h3>
+                        {{ dayText(day.on_date) }}
+                        @if (line.pockets.length > 1) {
+                          <span class="pocket">{{ pocketNameOf(line, day) }}</span>
+                        }
+                      </h3>
+                      <p>
+                        {{ rateText(day.annual_rate_scaled) }}
+                        {{ 'cushion.on' | t }}
+                        {{ money(day.balance_minor, line.account.currency_code) }}
+                      </p>
+                    </ion-label>
+                    <ion-note slot="end">
+                      <span class="net">{{ money(netOf(day), line.account.currency_code) }}</span>
+                      @if (day.locked === 1) {
+                        <span class="tag corrected">{{ 'cushion.corrected' | t }}</span>
+                      } @else if (day.withholding_unknown === 1) {
+                        <span class="tag unknown">{{ 'cushion.unknown' | t }}</span>
+                      } @else if (day.withholding_minor > 0) {
+                        <span class="tag">−{{ money(day.withholding_minor, line.account.currency_code) }}</span>
+                      }
+                    </ion-note>
+                  </ion-item>
+                }
+              </ion-list>
+            }
+          }
+
+          <!-- One day, opened to be checked against a statement -->
+          @if (form() === 'day') {
+            @if (openDay(); as day) {
+              <h2>
+                {{ longDayText(day.on_date) }}
+                @if (line.pockets.length > 1) {
+                  <span class="pocket">{{ pocketNameOf(line, day) }}</span>
+                }
+              </h2>
+              <p class="hint">{{ 'cushion.day.hint' | t }}</p>
+
+              <!-- How the figure was reached, in the order it was reached. -->
+              <ion-list [inset]="true">
+                <ion-item lines="full">
+                  <ion-label>{{ 'cushion.day.base' | t }}</ion-label>
+                  <ion-note slot="end">{{ money(day.balance_minor, line.account.currency_code) }}</ion-note>
+                </ion-item>
+                <ion-item lines="full">
+                  <ion-label>{{ 'cushion.day.rate' | t }}</ion-label>
+                  <ion-note slot="end">{{ rateText(day.annual_rate_scaled) }}</ion-note>
+                </ion-item>
+                <ion-item lines="full">
+                  <ion-label>{{ 'cushion.day.gross' | t }}</ion-label>
+                  <ion-note slot="end">{{ money(day.gross_minor, line.account.currency_code) }}</ion-note>
+                </ion-item>
+                <ion-item lines="full">
+                  <ion-label>{{ 'cushion.day.tax' | t }}</ion-label>
+                  <ion-note slot="end">
+                    @if (day.withholding_unknown === 1) {
+                      {{ 'cushion.unknown' | t }}
+                    } @else {
+                      −{{ money(day.withholding_minor, line.account.currency_code) }}
+                    }
+                  </ion-note>
+                </ion-item>
+                <ion-item lines="none">
+                  <ion-label><strong>{{ 'cushion.day.net' | t }}</strong></ion-label>
+                  <ion-note slot="end"><strong>{{ money(day.net_minor, line.account.currency_code) }}</strong></ion-note>
+                </ion-item>
+              </ion-list>
+
+              <ion-list [inset]="true">
+                <ion-item>
+                  <ion-input [label]="'cushion.day.actual' | t" labelPlacement="stacked"
+                             inputmode="decimal" [value]="amount()"
+                             (ionInput)="amount.set($any($event.target).value)"></ion-input>
+                </ion-item>
+              </ion-list>
+
+              @if (day.locked === 1) {
+                <p class="hint warn">{{ 'cushion.day.locked' | t }}</p>
+              }
+
+              <div class="actions">
+                <ion-button expand="block" fill="clear" (click)="form.set('none')">
+                  {{ 'entry.cancel' | t }}
+                </ion-button>
+                @if (day.locked === 1) {
+                  <ion-button expand="block" fill="outline" color="medium"
+                              [disabled]="saving()" (click)="undoDay()">
+                    {{ 'cushion.day.undo' | t }}
+                  </ion-button>
+                }
+                <ion-button expand="block" [disabled]="saving()" (click)="saveDay()">
+                  {{ 'entry.save' | t }}
+                </ion-button>
+              </div>
+            }
+          }
+
+          <!-- Everything that decides what this account earns -->
+          @if (form() === 'settings') {
+            <h2>{{ 'cushion.settings' | t }}</h2>
+            <p class="hint">{{ 'cushion.settings.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.settings.opening' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="openingAmount()"
+                           (ionInput)="openingAmount.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.settings.openingFrom' | t" labelPlacement="stacked"
+                           type="date" [value]="openingDate()"
+                           (ionInput)="openingDate.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-toggle [checked]="withholds()"
+                            (ionChange)="withholds.set($any($event.detail).checked)">
+                  {{ 'cushion.settings.withholding' | t }}
+                </ion-toggle>
+              </ion-item>
+            </ion-list>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.settings.notEarning' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="notEarning()"
+                           (ionInput)="notEarning.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.settings.notEarningFrom' | t" labelPlacement="stacked"
+                           type="date" [value]="notEarningFrom()"
+                           (ionInput)="notEarningFrom.set($any($event.target).value)"></ion-input>
+              </ion-item>
+            </ion-list>
+
+            <p class="section">{{ 'cushion.pockets' | t }}</p>
+            <p class="hint">{{ 'cushion.pockets.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              @for (pocket of editablePockets(); track pocket.id) {
+                <ion-item button detail="true" (click)="openPocket(pocket)">
+                  <ion-label>
+                    <h3>{{ pocket.name }}</h3>
+                    <p>
+                      @if (pocket.source === 'ledger') {
+                        {{ 'cushion.pockets.ledger' | t }}
+                      } @else {
+                        {{ 'cushion.pockets.manual' | t }}
+                      }
+                    </p>
+                  </ion-label>
+                </ion-item>
+              }
+            </ion-list>
+
+            <div class="actions">
+              <ion-button expand="block" fill="outline" (click)="openPocket(null)">
+                <ion-icon slot="start" name="add-outline"></ion-icon>
+                {{ 'cushion.pockets.add' | t }}
+              </ion-button>
+            </div>
+
+            <p class="section">{{ 'cushion.rates' | t }}</p>
+            <p class="hint">{{ 'cushion.rates.hint' | t }}</p>
+
+            @if (rates().length === 0) {
+              <p class="hint warn">{{ 'cushion.rates.none' | t }}</p>
+            } @else {
+              <ion-list [inset]="true">
+                @for (rate of rates(); track rate.id) {
+                  <ion-item>
+                    <ion-label>
+                      <h3>{{ percentOf(rate.annual_rate_scaled) }} %</h3>
+                      <p>
+                        {{ 'cushion.rates.from' | t:{ date: dayText(rate.valid_from) } }}
+                        @if (rate.requires_monthly_spend_minor) {
+                          · {{ 'cushion.rate.condition' | t:{
+                                amount: money(rate.requires_monthly_spend_minor, line.account.currency_code),
+                                rate: percentOf(rate.fallback_annual_rate_scaled ?? 0) + ' %' } }}
+                        }
+                      </p>
+                    </ion-label>
+                    <ion-button slot="end" fill="clear" color="medium"
+                                [disabled]="saving()" (click)="removeRate(rate)">
+                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                    </ion-button>
+                  </ion-item>
+                }
+              </ion-list>
+            }
+
+            <div class="actions">
+              <ion-button expand="block" fill="outline" (click)="startRateForm()">
+                <ion-icon slot="start" name="add-outline"></ion-icon>
+                {{ 'cushion.rates.add' | t }}
+              </ion-button>
+            </div>
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="form.set('none')">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveSettings()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+
+            <div class="actions">
+              @if (line.enabled) {
+                <ion-button expand="block" fill="clear" color="danger"
+                            [disabled]="saving()" (click)="stopAccruing()">
+                  {{ 'cushion.settings.stop' | t }}
+                </ion-button>
+              } @else {
+                <ion-button expand="block" fill="clear"
+                            [disabled]="saving()" (click)="resumeAccruing()">
+                  {{ 'cushion.settings.resume' | t }}
+                </ion-button>
+              }
+            </div>
+          }
+
+          <!-- One pocket: its name, where its balance comes from, and how
+               much it holds. -->
+          @if (form() === 'pocket') {
+            <h2>{{ (editingPocket() ? 'cushion.pocket.name' : 'cushion.pockets.add') | t }}</h2>
+            <p class="hint">{{ 'cushion.pockets.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.pocket.name' | t" labelPlacement="stacked"
+                           [value]="pocketName()"
+                           (ionInput)="pocketName.set($any($event.target).value)"
+                           [placeholder]="'cushion.pocket.namePlaceholder' | t"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-select [label]="'cushion.pocket.source' | t" labelPlacement="stacked"
+                            [value]="pocketSource()" interface="action-sheet"
+                            (ionChange)="pocketSource.set($any($event.detail).value)">
+                  <ion-select-option value="manual">{{ 'cushion.pocket.sourceManual' | t }}</ion-select-option>
+                  <ion-select-option value="ledger">{{ 'cushion.pocket.sourceLedger' | t }}</ion-select-option>
+                </ion-select>
+              </ion-item>
+            </ion-list>
+
+            @if (pocketSource() === 'manual') {
+              <ion-list [inset]="true">
+                <ion-item>
+                  <ion-input [label]="'cushion.pocket.amount' | t" labelPlacement="stacked"
+                             inputmode="decimal" [value]="pocketAmount()"
+                             (ionInput)="pocketAmount.set($any($event.target).value)"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-input [label]="'cushion.pocket.from' | t" labelPlacement="stacked"
+                             type="date" [value]="pocketFrom()"
+                             (ionInput)="pocketFrom.set($any($event.target).value)"></ion-input>
+                </ion-item>
+              </ion-list>
+              <p class="hint">{{ 'cushion.pocket.amountHint' | t }}</p>
+            }
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="openSettings()">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="savePocket()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+
+            @if (editingPocket() && editablePockets().length > 1) {
+              <div class="actions">
+                <ion-button expand="block" fill="clear" color="danger"
+                            [disabled]="saving()" (click)="deletePocket()">
+                  {{ 'cushion.pocket.delete' | t }}
+                </ion-button>
+              </div>
+            }
+          }
+
+          <!-- A rate, from a date. Never an edit of the one before it. -->
+          @if (form() === 'rate') {
+            <h2>{{ 'cushion.rates.add' | t }}</h2>
+            <p class="hint">{{ 'cushion.rates.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="ratePercent()"
+                           (ionInput)="ratePercent.set($any($event.target).value)"
+                           placeholder="10,5"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.rate.from' | t" labelPlacement="stacked"
+                           type="date" [value]="rateFrom()"
+                           (ionInput)="rateFrom.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.rate.spend' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="rateSpend()"
+                           (ionInput)="rateSpend.set($any($event.target).value)"
+                           placeholder="400.000"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.rate.fallback' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="rateFallback()"
+                           (ionInput)="rateFallback.set($any($event.target).value)"
+                           placeholder="5"></ion-input>
+              </ion-item>
+            </ion-list>
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="openSettings()">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveRate()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+          }
+
+          <!-- Correcting against what the bank really paid -->
+          @if (form() === 'adjust') {
+            <h2>{{ 'cushion.adjust' | t }}</h2>
+            <p class="hint">{{ 'cushion.adjust.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="amount()"
+                           (ionInput)="amount.set($any($event.target).value)"
+                           placeholder="-1.500,00"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
+                           type="date" [value]="onDate()"
+                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
+                              [autoGrow]="true" rows="2" [value]="note()"
+                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
+              </ion-item>
+            </ion-list>
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="form.set('none')">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveAdjustment()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+          }
+
+          <!-- Moving it into the account, which is what the module is for -->
+          @if (form() === 'withdraw') {
+            <h2>{{ 'cushion.withdraw' | t }}</h2>
+            <p class="hint">{{ 'cushion.withdraw.hint' | t }}</p>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="amount()"
+                           (ionInput)="amount.set($any($event.target).value)"
+                           [placeholder]="money(line.cushion.totalMinor, line.account.currency_code)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
+                           type="date" [value]="onDate()"
+                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-select [label]="'cushion.field.category' | t" labelPlacement="stacked"
+                            [value]="categoryId()" interface="action-sheet"
+                            (ionChange)="categoryId.set($any($event.detail).value)">
+                  @for (category of incomeCategories(); track category.id) {
+                    <ion-select-option [value]="category.id">{{ category.name }}</ion-select-option>
+                  }
+                </ion-select>
+              </ion-item>
+              <ion-item>
+                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
+                              [autoGrow]="true" rows="2" [value]="note()"
+                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
+              </ion-item>
+            </ion-list>
+
+            <p class="hint warn">{{ 'cushion.withdraw.warning' | t }}</p>
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="form.set('none')">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveWithdrawal()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+          }
+        </ion-content>
+      }
+    </ng-template>
+  </ion-modal>
+</ion-content>

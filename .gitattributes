@@ -1,0 +1,24 @@
+# Line endings are not cosmetic in this repository.
+#
+# The SQLite plugin on the device splits a migration into statements itself,
+# and it does it with `split(";\n")`. A file checked out with Windows line
+# endings has ";\r\n", never splits, and the phone is handed one enormous
+# statement it cannot run — with nothing about the SQL looking wrong.
+#
+# Git on Windows converts to CRLF on checkout by default (core.autocrlf), so
+# a fresh clone would produce exactly that. This pins every text file to LF in
+# the working tree, which is also what `tools/db/device-sql.test.mjs` checks.
+* text=auto eol=lf
+
+# Never touched: they are not text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.db binary
+*.sqlite binary
+*.keystore binary
+*.jks binary
+*.apk binary
+*.aab binary

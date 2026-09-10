@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 16 tables and how they relate. The authority is always
+The 24 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -78,27 +78,100 @@ erDiagram
         INTEGER rate_scaled
         TEXT source
     }
-    account_rates {
+    yield_accounts {
+        INTEGER account_id PK, FK
+        INTEGER opening_cushion_minor
+        TEXT opening_on
+        INTEGER withholding
+        INTEGER enabled
+    }
+    yield_rates {
         INTEGER id PK
         INTEGER account_id FK
+        TEXT valid_from
         INTEGER annual_rate_scaled
+        INTEGER min_balance_minor
+        INTEGER max_balance_minor
+        INTEGER requires_monthly_spend_minor
+        INTEGER fallback_annual_rate_scaled
+    }
+    yield_excluded_balances {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT valid_from
+        INTEGER amount_minor
+    }
+    yield_pockets {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT name UK
+        TEXT source
+        INTEGER sort_order
+    }
+    yield_pocket_balances {
+        INTEGER id PK
+        INTEGER pocket_id FK
+        TEXT valid_from
+        INTEGER amount_minor
+    }
+    yield_days {
+        INTEGER pocket_id PK, FK
+        INTEGER account_id FK
+        TEXT on_date PK
+        INTEGER balance_minor
+        INTEGER annual_rate_scaled
+        INTEGER gross_minor
+        INTEGER withholding_minor
+        INTEGER net_minor
+        INTEGER actual_net_minor
+        INTEGER withholding_unknown
+        INTEGER locked
+    }
+    cashback_rules {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT name
         TEXT valid_from
         TEXT valid_to
+        INTEGER percent_scaled
+        INTEGER category_id FK
+        INTEGER min_purchase_minor
+        INTEGER max_cashback_minor
+        INTEGER requires_account_id FK
+        INTEGER requires_balance_minor
     }
-    interest_accruals {
+    cashback_entries {
         INTEGER id PK
         INTEGER account_id FK
-        TEXT period_start
-        TEXT period_end
+        INTEGER rule_id FK
+        INTEGER source_transaction_id FK
+        TEXT on_date
         INTEGER computed_minor
         INTEGER actual_minor
+        INTEGER locked
     }
-    cashbacks {
+    cushion_adjustments {
         INTEGER id PK
         INTEGER account_id FK
-        INTEGER source_transaction_id FK
-        TEXT occurred_on
+        TEXT source
+        TEXT on_date
         INTEGER amount_minor
+    }
+    cushion_withdrawals {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT source
+        TEXT on_date
+        INTEGER amount_minor
+        INTEGER transaction_id FK
+    }
+    tax_parameters {
+        INTEGER id PK
+        TEXT key UK
+        TEXT valid_from UK
+        TEXT value
+        TEXT source
+        INTEGER confirmed
     }
     import_batches {
         INTEGER id PK
@@ -144,10 +217,22 @@ erDiagram
     categories     ||--o{ transactions      : "classifies"
     transfers      ||--o{ transactions      : "has exactly two legs"
     accounts       ||--o{ credit_limit_changes : "limit over time"
-    accounts       ||--o{ account_rates     : "earns at"
-    accounts       ||--o{ interest_accruals : "accrues"
-    accounts       ||--o{ cashbacks         : "receives"
-    transactions   ||--o{ cashbacks         : "produced"
+    accounts       ||--o| yield_accounts    : "earns a yield"
+    accounts       ||--o{ yield_rates       : "at these rates"
+    accounts       ||--o{ yield_excluded_balances : "part of it not earning"
+    accounts       ||--o{ yield_pockets     : "split into"
+    yield_pockets  ||--o{ yield_pocket_balances : "held this much"
+    yield_pockets  ||--o{ yield_days        : "day by day"
+    accounts       ||--o{ yield_days        : "day by day"
+    accounts       ||--o{ cashback_rules    : "rewards under"
+    accounts       ||--o{ cashback_rules    : "conditioned on the balance of"
+    categories     ||--o{ cashback_rules    : "restricted to"
+    accounts       ||--o{ cashback_entries  : "receives"
+    cashback_rules ||--o{ cashback_entries  : "worked out by"
+    transactions   ||--o{ cashback_entries  : "produced"
+    accounts       ||--o{ cushion_adjustments : "corrected by"
+    accounts       ||--o{ cushion_withdrawals : "moved into"
+    transactions   ||--o| cushion_withdrawals : "became"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
 ```
@@ -179,13 +264,45 @@ case, and lets the two legs be in different currencies.
 
 ### 3. Rates and the modules that need them
 
-`exchange_rates` caches the official TRM. `account_rates` is the per-account
-interest history you maintain by hand. `interest_accruals` and `cashbacks`
-hang off accounts, deliberately outside the balance of the account that
-produced them.
+`exchange_rates` caches the official TRM.
 
-`cashbacks.source_transaction_id` is the link Monefy never had: the cashback
-knows which purchase produced it.
+The rest is the cushion: money earned but never counted on, kept deliberately
+outside the balance of the account that produced it and outside net worth.
+
+`yield_accounts` says which accounts the app accrues at all — an account with
+no row here is never accrued, which is how the brokers stay out without a list
+of names in code. `yield_rates` is the effective-annual-rate history you
+maintain by hand, optionally banded by balance. `yield_days` is one row per
+**pocket** per day, holding the balance and the rate it was worked out from, so
+any figure can be explained rather than only recomputed.
+
+`yield_pockets` is why the day belongs to a pocket rather than an account. One
+account can be several pots that the bank pays separately — Dale is two
+"alcancias" — and the withholding threshold applies to a payment, not to an
+account. Adding the pots up before taxing charges withholding that is not owed:
+on 2026-09-10 that was 386.73 pesos a day Dale was not actually charged. A
+pocket either follows the account's own balance (`source = 'ledger'`, at most
+one per account, holding whatever the others did not take) or carries a figure
+typed in and dated in `yield_pocket_balances`, because a movement never says
+which pocket it landed in.
+
+`cashback_rules` holds the conditions as they stood on a date — a percentage,
+optionally on one category, optionally requiring a minimum balance somewhere
+else. `cashback_entries.source_transaction_id` is the link Monefy never had:
+the reward knows which purchase produced it.
+
+`cushion_adjustments` is the gap between what the app accrued and what the
+bank actually paid. Most of these banks deposit once a month, so a daily
+accrual is an estimate until the deposit lands; the difference is recorded here
+rather than by rewriting the daily history, which is the evidence of what was
+worked out and why. Signed, because the bank can pay more or less than expected.
+
+`cushion_withdrawals` is money taken out of the cushion and into an account,
+pointing at the movement it became so it is never counted twice.
+
+`tax_parameters` holds the dated figures a withholding rule is made of, and
+ships empty. Until a figure is entered and marked confirmed, the accrual runs
+without withholding and says so.
 
 ### 4. Import bookkeeping
 
@@ -242,7 +359,15 @@ outright:
 | `idx_accounts_name` | unique; the importer matches accounts by name |
 | `idx_accounts_group_currency` | unique; one currency per group |
 | `idx_categories_name_kind` | unique; the importer matches categories this way |
-| `idx_account_rates_account` | finding the rate in force on a date |
-| `idx_cashbacks_account`, `idx_cashbacks_source` | the cashback module |
+| `idx_yield_pockets_account` | the pockets of an account, in order |
+| `idx_yield_pocket_balances` | what a pocket held on a date |
+| `idx_yield_days_account` | every pocket's days for one account |
+| `idx_yield_rates_account` | finding the rate in force on a date |
+| `idx_yield_excluded_account` | how much of an account was not earning on a date |
+| `idx_cashback_rules_account` | the rules in force for a card on a date |
+| `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
+| `idx_cushion_adjustments_account` | the corrections against what the bank paid |
+| `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
+| `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |

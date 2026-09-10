@@ -57,7 +57,7 @@ test('every table in the schema appears in the diagram', () => {
   const block = diagram.slice(diagram.indexOf('erDiagram'), diagram.indexOf('```', diagram.indexOf('erDiagram')));
   const missing = schema.tables.filter(table => !new RegExp(`\\b${table}\\b`).test(block));
   assert.deepEqual(missing, [], 'tables missing from the diagram');
-  assert.equal(schema.tables.length, 16, 'the count in the prose says 16');
+  assert.equal(schema.tables.length, 24, 'the count in the prose says 24');
 });
 
 test('the diagram invents no table', () => {
@@ -70,7 +70,7 @@ test('the diagram invents no table', () => {
 
 test('every foreign key is drawn as a relationship', () => {
   const block = diagram.slice(diagram.indexOf('erDiagram'), diagram.indexOf('```', diagram.indexOf('erDiagram')));
-  const relationships = [...block.matchAll(/^\s{4}(\w+)\s+\|\|--o\{\s+(\w+)\s*:/gm)]
+  const relationships = [...block.matchAll(/^\s{4}(\w+)\s+\|\|--o[{|]\s+(\w+)\s*:/gm)]
     .map(m => `${m[2]}->${m[1]}`);
 
   const missing = [];
@@ -108,9 +108,15 @@ test('the delete rules described match the schema', () => {
   assert.equal(rule('transactions', 'import_batch_id'), 'SET NULL');
   assert.equal(rule('accounts', 'group_id'), 'SET NULL');
   assert.equal(rule('accounts', 'custom_icon_id'), 'RESTRICT');
-  assert.equal(rule('cashbacks', 'source_transaction_id'), 'SET NULL');
-  assert.equal(rule('cashbacks', 'account_id'), 'RESTRICT');
-  assert.equal(rule('account_rates', 'account_id'), 'CASCADE');
-  assert.equal(rule('interest_accruals', 'account_id'), 'CASCADE');
+  // The cushion. A reward with no purchase behind it is a figure nobody can
+  // check, so it goes when the purchase does; a withdrawal outlives the
+  // movement it became, so the cushion never quietly grows back.
+  assert.equal(rule('cashback_entries', 'source_transaction_id'), 'CASCADE');
+  assert.equal(rule('cashback_entries', 'account_id'), 'CASCADE');
+  assert.equal(rule('cushion_withdrawals', 'transaction_id'), 'SET NULL');
+  assert.equal(rule('yield_rates', 'account_id'), 'CASCADE');
+  assert.equal(rule('yield_days', 'account_id'), 'CASCADE');
+  assert.equal(rule('yield_days', 'pocket_id'), 'CASCADE');
+  assert.equal(rule('yield_pocket_balances', 'pocket_id'), 'CASCADE');
   assert.equal(rule('review_queue', 'batch_id'), 'CASCADE');
 });

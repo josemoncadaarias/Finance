@@ -232,7 +232,9 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="showBreakdown.set(false)">{{ 'summary.close' | t }}</ion-button>
+          <ion-button (click)="showBreakdown.set(false)" [attr.aria-label]="'summary.close' | t">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>

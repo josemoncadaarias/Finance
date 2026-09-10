@@ -1,0 +1,10 @@
+{
+  "001_initial_schema.sql": "578793c7066252a7014f773d786d6e481b1d2d75e2363a82a635d2022cfa828c",
+  "002_credit_limit_history.sql": "82e3d36c7b4ed64c8e9e8366538a8fb4fc5b73f9e5ac637bbf3023df648d9d9d",
+  "003_deleted_imports.sql": "ad5e56fca00008cf03baa985dc1c51f9c2c24a33f401fe6ded2f6e5c9404b03b",
+  "004_yields_and_cashback.sql": "7afe2514048239efc88c411324bbd906cbb854726245126a4ab1235c500cb9e5",
+  "005_opening_cushions.sql": "dd116a2c330f96474f0fd1a1814c8f085f9417133447d298228b2aadff5af0a5",
+  "006_partial_and_fallback_rates.sql": "f40bcddb3b52c2d7624ed77b7344de71762497e033e00d2ffb3cf00cabaeb3da",
+  "007_rappi_not_earning.sql": "02c24f14d02fd669ddb556543061f4918b7649a94a9b0e494dd970e68d88a01d",
+  "008_pockets.sql": "dbbd1202bbb027800e5c78e18e9d0ee089fc47bcffc045f03c0025a8c4f88435"
+}

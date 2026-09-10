@@ -1,0 +1,213 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+
+  ion-icon { font-size: 2.5rem; opacity: 0.5; }
+  h2 { margin: 0; font-size: 1.05rem; color: var(--ion-text-color); }
+  &.error h2 { color: var(--ion-color-danger); }
+}
+
+/* The headline figure, and immediately under it the sentence that keeps this
+   screen honest: none of this is net worth. */
+.total {
+  padding: 1.5rem 1rem 1rem;
+  text-align: center;
+
+  .label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .amount {
+    margin: 0.35rem 0 0;
+    font-size: 1.9rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .caption {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+
+  /* What the last day produced, on one line with the figure emphasised.
+     It answers "is this thing running" without a status widget. */
+  .upto {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ion-color-medium);
+
+    strong {
+      color: var(--ion-color-success);
+      font-variant-numeric: tabular-nums;
+    }
+
+    ion-spinner { width: 1rem; height: 1rem; }
+  }
+}
+
+/* Inside the detail sheet the figure carries the screen on its own. */
+.total.inner {
+  padding: 1.25rem 1rem 0.5rem;
+  .amount { font-size: 1.6rem; }
+}
+
+/* The account in the header of its own sheet: its icon, its name, one line.
+   A toolbar is a fixed height and anything stacked inside it ends up touching
+   both edges. */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+
+  ion-icon {
+    flex: none;
+    font-size: 1.25rem;
+  }
+
+  .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+/* Left-aligned beside the back button rather than centred: a name long enough
+   to be truncated reads better from its start. */
+ion-modal ion-title {
+  padding-inline: 0.25rem;
+  text-align: start;
+}
+
+/* The pocket a day belongs to, beside the date rather than under it: the
+   date is what you scan for, the pocket is what tells them apart. */
+.pocket {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(var(--ion-color-primary-rgb), 0.12);
+  color: var(--ion-color-primary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.section {
+  margin: 1.25rem 1rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}
+
+.failed,
+.warn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 1rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.failed {
+  background: rgba(var(--ion-color-danger-rgb), 0.14);
+  color: var(--ion-color-danger);
+}
+
+/* A day whose withholding could not be worked out is not a detail to bury:
+   the net figure on that day is higher than it will really be. */
+.warn {
+  background: rgba(var(--ion-color-warning-rgb), 0.16);
+  color: var(--ion-color-warning-shade);
+}
+
+ion-note[slot='end'] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-variant-numeric: tabular-nums;
+
+  .net { font-weight: 600; color: var(--ion-text-color); }
+
+  /* What the account earned on the last day worked out. Green because it is
+     the thing this screen is about, and small because the total is bigger. */
+  .perDay {
+    font-size: 0.7rem;
+    color: var(--ion-color-success);
+  }
+
+  .tag {
+    font-size: 0.68rem;
+    color: var(--ion-color-medium);
+  }
+
+  .tag.unknown { color: var(--ion-color-warning-shade); }
+  .tag.corrected { color: var(--ion-color-primary); }
+}
+
+.sheet {
+  h2 {
+    margin: 1.5rem 1rem 0.35rem;
+    font-size: 1.1rem;
+  }
+
+  .hint {
+    margin: 0 1rem 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--ion-color-medium);
+  }
+
+  /* Moving money out of the cushion changes net worth. Worth reading. */
+  .hint.warn {
+    display: block;
+    background: none;
+    color: var(--ion-color-warning-shade);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0;
+
+  ion-button {
+    flex: 1;
+    --border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+}
+
+/* Ionic's modal stops being full width past its md breakpoint and would sit as
+   a fixed card inside the column this app caps itself to. */
+ion-modal {
+  --width: 100%;
+  --max-width: 100%;
+  --height: 100%;
+}

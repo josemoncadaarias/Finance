@@ -9,10 +9,14 @@
  *
  * Rules for adding one:
  *
- *   1. Add `00N_what_it_does.sql` next to this file. Never edit an applied
- *      migration: someone's phone has already run it.
+ *   1. Add `00N_what_it_does.sql` next to this file. **Never edit an applied
+ *      migration**: a database that has already passed it will never read the
+ *      file again, so the edit reaches nothing and only breaks whatever comes
+ *      next. That happened on 2026-09-09 and left the app unable to open.
+ *      `tools/db/migration-checksums.test.mjs` now enforces this.
  *   2. Run `node tools/db/build-migrations.mjs`.
- *   3. Add a case to the schema tests.
+ *   3. Run `node tools/db/record-migration-checksums.mjs`.
+ *   4. Add a case to the schema tests.
  */
 
 // Both imports are type-only and vanish at runtime, so this module has no
@@ -84,8 +88,17 @@ export async function migrate(
         await driver.execute(`PRAGMA user_version = ${migration.version}`);
       });
     } catch (error) {
+      // This message is the only thing anyone will ever see about the failure,
+      // and it has to survive being read off a screenshot of a phone. So it
+      // names the file, what SQLite actually said, and — when the driver knows
+      // it — the statement that was running. Without that last part,
+      // diagnosing a migration failure on a device is guesswork.
+      const reason = error instanceof Error ? error.message : String(error);
+      const sql = (error as { sql?: unknown }).sql;
+      const where = typeof sql === 'string' ? ` while running: ${firstLineOf(sql)}` : '';
+
       throw new MigrationError(
-        `Migration ${migration.file} failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Migration ${migration.file} failed: ${reason}${where}`,
         migration,
         error,
       );
@@ -94,4 +107,10 @@ export async function migrate(
   }
 
   return { from, to: await currentVersion(driver), applied };
+}
+
+/** The opening of a statement: enough to recognise it, short enough to read. */
+function firstLineOf(sql: string): string {
+  const line = sql.split('\n').map(part => part.trim()).find(part => part.length > 0) ?? '';
+  return line.length > 120 ? `${line.slice(0, 120)}...` : line;
 }

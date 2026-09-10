@@ -181,12 +181,62 @@ Two settings this app needs that Monefy has no reason to:
 Left for later: refreshing on a schedule rather than on demand and at startup,
 and a screen showing the rate history.
 
-## Phase 5 — Interest, cashback and net worth
+## Phase 5 — The cushion: yields and cashback
 
-- Per-account rate history
-- Computed daily accrual vs. actual interest posted
-- Cashback accumulation
-- Net worth: assets, liabilities, exclusions
+Money earned but never counted on, kept out of net worth and out of the balance
+of the account that produced it, and moved in only on purpose.
+
+- **5.1 The model — done.** Migration 004: `yield_accounts`, `yield_rates`,
+  `yield_days`, `cashback_rules`, `cashback_entries`, `cushion_withdrawals`,
+  `tax_parameters`. The three placeholders from 001 were dropped; they had
+  never been written to and their shape did not fit. The daily-rate arithmetic
+  (`yield-math.ts`) is written and tested, withholding included.
+- **5.2 The engine - done.** `YieldsRepository`, `TaxParametersRepository` and
+  `AccrualEngine`: it walks the days from the opening date, earning on the
+  ledger balance plus the cushion, picking the band in force, skipping a day
+  corrected by hand, and flagging every day whose withholding it could not
+  work out. A recompute always restarts at the top of a month, because a
+  monthly condition can only be judged on a whole month. Migration 005 seeded
+  the real opening figures and rates, measured on 2026-09-09.
+- **5.2b** Not built: seeding a fresh install. Migration 005 matches accounts
+  by name, so on an empty database it inserts nothing and the cushions have to
+  be entered from the screen instead.
+- **5.3 The screen - done.** The cushion per account, the peso total kept
+  apart from the foreign ones, every figure taken into its four parts, the last
+  month of days with the rate and balance each was worked out from, and the
+  button that walks the days up to today.
+- **5.4 Adjusting and withdrawing - done.** An adjustment records the gap
+  against what the bank really paid without touching the daily history; a
+  withdrawal writes the income movement and the withdrawal row together, in one
+  transaction, so the money is never counted twice.
+- **5.5 Maintained from the app - done.** Rates, opening figures, the
+  withholding switch and what is not earning are all edited on the screen. A
+  rate change writes a new dated row and never edits the one before it, so what
+  was true last month stays explainable; only the days from that date are
+  worked out again. An account is added or paused from here too, which is what
+  keeps the brokers out without a list of names in code.
+- **5.6 Pockets - done.** An account can be several pots the bank pays
+  separately, which is what makes the withholding threshold come out right.
+- **5.7** Still to build: **cashback**. `cashback_rules` and
+  `cashback_entries` exist and hold their invariants, but nothing computes a
+  reward yet and there is no screen for the rules. The two real cases to
+  express are the Rappi card, whose percentage depends on Rappi cuenta holding
+  at least 500,000, and Plata, whose percentage depends on the category.
+
+Still open, in order of how much it changes the numbers:
+
+1. **The withholding rule**, seeded by 006 from Decreto 1625 de 2016
+   (articulos 1.2.4.2.87 and 1.2.4.2.5) and Resolucion DIAN 000238 de 2025.
+   Each figure carries its source and is one edit away from being changed.
+   To be confirmed with an accountant before a return leans on it.
+2. **Which accounts withhold.** 005 assumes every peso account does and no
+   foreign-currency one does — the second half because there is no Colombian
+   paying agent, not because the income is untaxed.
+3. **How much of each account is not earning.** Only Rappi cuenta is known to
+   have money in an internal product that pays nothing; the figure itself is
+   still to be entered.
+4. **Whether a banded rate applies to the whole balance** or tier by tier. None
+   of the accounts is banded today, so nothing depends on it yet.
 
 ## Phase 6 — Income tax module
 

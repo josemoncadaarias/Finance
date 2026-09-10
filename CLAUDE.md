@@ -164,6 +164,63 @@ the framework on a long-running project.
    `locked` and a later re-import never overwrites it: a manual edit means Jose
    corrected it towards the final, true version. Decision by Jose, 2026-09-08.
 
+15. **Interest and cashback are a cushion, not net worth.** Money earned that
+   was never counted on. It accumulates outside the balance of the account that
+   produced it and outside net worth, and moving part of it in is a deliberate
+   act that writes both a movement and a `cushion_withdrawals` row, so nothing
+   is counted twice - modelled on the real 2026-08-13 adjustment on Rappi
+   cuenta. Historical yields cannot be reconstructed, so each account gets one
+   opening figure typed by hand and accrual runs day by day from there, against
+   an effective-annual-rate history the user maintains. The daily rate is
+   `(1 + annual) ^ (1/365) - 1`, never the annual one over 365, and the accrual
+   base is the ledger balance plus the cushion. Accounts whose return is the
+   market's - XTB, eToro, Fiducuenta, Multinversion - are never accrued: they
+   already carry their own movements. Decision by Jose, 2026-09-09.
+
+16. **Withholding figures are configuration, each carrying its source.** They
+   live in `tax_parameters`, dated, and are unusable until marked confirmed
+   with a source; until then the accrual runs without withholding and flags
+   every affected day. The rule as looked up on 2026-09-09 and seeded by
+   migration 006:
+
+   - **0.055 UVT a day** is the threshold, and at or above it **the whole
+     day's yield is the base**, not only the excess — Decreto 1625 de 2016,
+     articulo 1.2.4.2.87: *"Cuando los intereses ... correspondan a un interes
+     diario de veintisiete pesos ($27.00) (0.055 UVT) o mas, para efectos de
+     la retencion en la fuente se considerara el valor total del pago o abono
+     en cuenta."*
+   - **7%** — Decreto 1625 articulo 1.2.4.2.5, regulating articulo 395 ET.
+   - **UVT 2026: $52.374** — Resolucion DIAN 000238 del 15 de diciembre de
+     2025. A new resolution every December, so this needs a new row each year.
+   - The rule is written against the **daily** interest even though most banks
+     deposit monthly. That is why the module accrues by day.
+
+   Cashback is not withheld. Foreign-currency accounts are not withheld either:
+   retencion en la fuente is a Colombian withholding by a Colombian paying
+   agent — which does **not** mean the income is untaxed, since a resident
+   declares worldwide income. **Still to be confirmed with an accountant before
+   a return leans on it.**
+
+17. **An account can be several pockets, and the tax is per pocket.** Dale is
+   two "alcancias" and the bank pays each separately, so each is its own pago o
+   abono en cuenta and the 0.055 UVT threshold is measured on each. Adding them
+   up before taxing charged 386.73 pesos a day of withholding that was not
+   owed. A pocket either follows the account balance (`ledger`, at most one per
+   account, holding whatever the others left) or carries a figure typed in and
+   dated, because a movement never says which pocket it landed in - so the app
+   compares the two and reports the drift rather than accruing on a stale
+   figure. The account's cushion is spread across its pockets in proportion to
+   what each holds; putting it all on the first one pushed that one over the
+   threshold by itself. Decision by Jose, 2026-09-10.
+
+18. **A missed condition is a different rate, not no rate.** Uala pays 10.5%
+   E.A. in a month with at least 400,000 spent on the card and 5% E.A. in a
+   month without, so a conditional rate carries a fallback. And not all the
+   money in an account is necessarily earning: these accounts hold several
+   products inside one balance, and what is sitting in one that pays nothing is
+   recorded by hand in `yield_excluded_balances`, dated, and taken off the
+   accrual base. Both found by Jose against his real accounts, 2026-09-09.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
@@ -180,9 +237,9 @@ the framework on a long-running project.
 
 ## Current status
 
-Phase 1 in progress. The SQLite schema, the migration runner, the money
-helpers and the repository layer are written and covered by 114 tests that run
-against a real SQLite engine with no dependencies:
+The SQLite schema, the migration runner, the money helpers, the repository
+layer and the yields module are covered by 267 tests that run against a real
+SQLite engine with no dependencies:
 
 ```
 node tools/db/run-tests.mjs
@@ -193,7 +250,7 @@ layer: Angular 22, Ionic 9, Capacitor 8, standalone components.
 
 ```
 npm start          ionic serve, in the browser
-npm run db:test    the 114 database tests
+npm run db:test    the database tests
 npm run db:import  import the newest export into build/finance.db
 ```
 

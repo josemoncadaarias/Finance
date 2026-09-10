@@ -287,7 +287,9 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="showPeriodSheet.set(false)">{{ 'summary.close' | t }}</ion-button>
+          <ion-button (click)="showPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -356,7 +358,9 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="showAccountSheet.set(false)">{{ 'summary.close' | t }}</ion-button>
+          <ion-button (click)="showAccountSheet.set(false)" [attr.aria-label]="'summary.close' | t">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
