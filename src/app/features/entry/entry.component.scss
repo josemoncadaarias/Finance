@@ -204,6 +204,7 @@ ion-button.save {
 .categories {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  align-content: start;
   gap: 0.4rem;
   padding: 0 1rem 0.75rem;
   border-radius: 10px;
@@ -339,13 +340,15 @@ ion-button.save {
 }
 
 /*
- * One column above the keypad.
+ * One column above the keypad, at its natural height.
  *
- * It takes its natural height here and is stretched only where there is
- * surplus to absorb, which is the tall-phone rule at the bottom of this file.
- * Making it fill the height everywhere is what put a scrollbar inside the
- * form on a desktop window, where the modal is short and the content had
- * nowhere to go.
+ * Nothing here is stretched any more, and that is the whole fix. The form's
+ * parts have sizes of their own - an amount, two chips, a grid of categories,
+ * a note - and on a 932pt screen they add up to less than the screen. Four
+ * separate attempts were made to give that surplus to something: the gaps,
+ * the note, the keypad, the category grid. Each one only moved the hole. The
+ * surplus does not belong inside the form at all, so the form no longer
+ * claims it - see `ion-modal.entry-sheet` in global.scss.
  */
 .entry-body {
   display: flex;
@@ -574,31 +577,13 @@ ion-item.selected ion-label h3 {
 }
 
 /*
- * A tall phone, and nothing else.
+ * The form's body.
  *
- * On a 932pt screen the form's parts add up to about 740pt, leaving some two
- * hundred of nothing between the note and the keypad - which is pinned to the
- * bottom, where a thumb reaches it. The surplus is split between the two parts
- * that are better for having it: bigger keys, and a note with room for a few
- * lines.
- *
- * Both conditions matter, and getting this wrong is what broke the desktop
- * layout. `max-width` keeps the rule to a phone-shaped viewport - a desktop
- * window is far wider than 34rem, so it never sees any of this whatever its
- * height, which `vh` units could not express. `min-height` keeps it off a
- * screen too short for the keypad to grow into, where stretching anything
- * would push it off the bottom.
+ * It has no height of its own, so the sheet is as tall as its content. The
+ * cap and the scrolling only come into play when the sheet has hit the top of
+ * a short window and there is more form than room.
  */
-@media (max-width: 34rem) and (min-height: 40rem) {
-  .entry-body {
-    min-height: 100%;
-  }
-
-  .note {
-    flex: 1;
-  }
-
-  .keypad button {
-    height: 4.4rem;
-  }
+.entry-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }

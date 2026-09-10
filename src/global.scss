@@ -214,3 +214,31 @@ ion-item > img[slot='start'] {
 button, input, select, textarea {
   max-width: 100%;
 }
+
+/*
+ * The movement form is a sheet, not a screen.
+ *
+ * It has a natural height - an amount, two chips, a grid of categories, a
+ * note, a keypad - and on a tall phone that comes to less than the screen.
+ * Presented as a full-height modal, the difference had to go somewhere inside
+ * the form, and four attempts at placing it (in the gaps, in the note, in the
+ * keypad, in the category grid) only moved the hole from one part to another.
+ *
+ * So the form stops claiming the height it does not use. `--height: auto`
+ * makes the modal exactly as tall as what is in it and `align-items: flex-end`
+ * rests it on the bottom, where the keypad is under a thumb and the space
+ * above is the list it was opened from, dimmed. `--max-height` is what keeps a
+ * short window honest: past that the sheet stops growing and its own body
+ * scrolls.
+ *
+ * An auto-height Ionic modal cannot contain an `ion-content` - that element
+ * expands to fill whatever it is given, which is the very thing being avoided
+ * - so the form's body is a plain scrolling div instead.
+ */
+ion-modal.entry-sheet {
+  --height: auto;
+  --max-height: 100%;
+  --border-radius: 18px 18px 0 0;
+
+  align-items: flex-end;
+}

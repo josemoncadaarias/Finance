@@ -168,7 +168,15 @@ export class EntryComponent implements OnInit {
    * used carry two thirds of what gets recorded here, and everything else is
    * one tap and a search away.
    */
-  private static readonly SHORTLIST = 4;
+  /**
+   * How many categories the grid offers before "Ver todas".
+   *
+   * Four was a single row. The grid wraps and takes the height the screen has
+   * left, so this is now "enough to fill a tall phone" rather than "enough for
+   * one row" - on a short screen the extra rows are simply scrolled to, and
+   * the ordering puts what is actually used at the top either way.
+   */
+  private static readonly SHORTLIST = 8;
 
   /**
    * The grid: the most used, plus whichever one is already chosen.

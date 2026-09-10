@@ -17,7 +17,10 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<!-- A plain scroller, not an ion-content: this form is presented as an
+     auto-height sheet, and ion-content expands to fill whatever it is given,
+     which is exactly the height this form should not be claiming. -->
+<div class="entry-scroll">
   <!-- Everything above the keypad is one column, so that on a tall screen the
        spare height becomes space between the sections instead of a hole. On a
        short one the column overflows and scrolls exactly as before. -->
@@ -192,7 +195,7 @@
     </div>
   }
   </div>
-</ion-content>
+</div>
 
 <ion-footer class="pad">
   <!-- What is missing, then the keypad -->

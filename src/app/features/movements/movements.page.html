@@ -380,7 +380,7 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
   <ng-template>
     @if (entry(); as request) {
       <app-entry [request]="request" (saved)="onSaved()" (cancelled)="entry.set(null)"></app-entry>

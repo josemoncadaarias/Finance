@@ -98,7 +98,7 @@
   }
 </ion-content>
 
-<ion-modal [isOpen]="entry() !== null" (didDismiss)="cancelFix()">
+<ion-modal class="entry-sheet" [isOpen]="entry() !== null" (didDismiss)="cancelFix()">
   <ng-template>
     @if (entry(); as request) {
       <app-entry [request]="request" (saved)="finishFix()" (cancelled)="cancelFix()"></app-entry>
