@@ -84,6 +84,7 @@ export const SPANISH = {
   'summary.correctedByHand': 'Corregido a mano',
   'summary.allMovements': 'Todos los movimientos',
 
+  'summary.editAccount': 'Editar esta cuenta',
   'summary.period': 'Periodo',
   'summary.from': 'Desde',
   'summary.to': 'Hasta',
@@ -414,6 +415,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.correctedByHand': 'Corrected by hand',
   'summary.allMovements': 'All movements',
 
+  'summary.editAccount': 'Edit this account',
   'summary.period': 'Period',
   'summary.from': 'From',
   'summary.to': 'To',

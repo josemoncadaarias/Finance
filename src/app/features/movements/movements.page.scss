@@ -538,3 +538,22 @@ ion-note[slot='end'] {
   ion-icon { font-size: 1.15rem; }
   &:active { background: var(--ion-color-light); }
 }
+
+/* Editing the account on screen, from the screen it is on. Quiet enough not to
+   compete with the balance it sits under. */
+.standing .edit-here {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 999px;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 0.74rem;
+  cursor: pointer;
+
+  ion-icon { font-size: 0.9rem; }
+  &:active { background: var(--ion-color-light); }
+}
