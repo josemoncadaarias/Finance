@@ -1189,3 +1189,72 @@ test('a product with no rate of its own uses the account rate', async () => {
   assert.equal((await yields.pocketDays(other, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
     pct(6.5), 'and the one with its own keeps it');
 });
+
+test('moving money from one product to another is reported until both are updated', async () => {
+  // Jose's scenario: close part of one product and open another with it. A
+  // movement records that money left the ACCOUNT; nothing records which
+  // product inside it the money came out of, so the only thing that can
+  // update a product's balance is Jose typing the new one. Until he does, the
+  // first product goes on earning on money it no longer holds — and the whole
+  // point of the check is that this is said out loud rather than compounded
+  // quietly.
+  const { db, yields, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+
+  // Enrolling gives an account one pocket that follows the ledger. Splitting
+  // it into named products is a deliberate act, and it turns that first one
+  // into a product with a balance of its own.
+  const [general] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(general.id, 'manual');
+  await yields.renamePocket(general.id, 'Ahorro');
+  const savings = general.id;
+
+  const cdt = await yields.addPocket({
+    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+
+  await yields.setPocketBalance({
+    pocket_id: savings, valid_from: '2026-09-01', amount_minor: 600_000_000 });
+  await yields.setPocketBalance({
+    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 400_000_000 });
+
+  assert.equal(await engine.drift(ids.rappi, '2026-09-01'), 0,
+    'they add up to the account, so nothing to report');
+
+  // 1,500,000.00 moves out of Ahorro and into the CDT. Inside one account,
+  // that writes no movement at all — the account still holds the same money.
+  await yields.setPocketBalance({
+    pocket_id: cdt, valid_from: '2026-09-10', amount_minor: 550_000_000 });
+
+  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 150_000_000,
+    'the products now claim more than the account holds');
+
+  // Jose updates the other half, which is what the warning asks for.
+  await yields.setPocketBalance({
+    pocket_id: savings, valid_from: '2026-09-10', amount_minor: 450_000_000 });
+
+  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
+
+  await db.close();
+});
+
+test('an account with one product that follows the ledger never drifts', async () => {
+  // The common case, and it must never cry wolf: a single ledger-backed
+  // product is the account by definition, so no amount of movement can put
+  // the two out of step.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+  // Enrolling already gave it exactly that pocket.
+  await transactions.create({
+    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-05',
+    amount_minor: -25_000_000, source: 'manual',
+  });
+
+  assert.equal(await engine.drift(ids.uala, '2026-09-10'), 0);
+  await db.close();
+});

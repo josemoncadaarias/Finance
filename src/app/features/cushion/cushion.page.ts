@@ -67,6 +67,16 @@ interface CushionLine {
    * when nothing has been worked out yet.
    */
   earnsOnMinor: number;
+  /**
+   * What the products say they hold, minus what the account holds.
+   *
+   * Zero when they agree. A product's balance is a figure read off the bank
+   * and it stays that figure until another is entered, so moving money from
+   * one product to another leaves this non-zero until both are updated -
+   * which is the only warning there can be, since a movement never says which
+   * product inside an account it came from.
+   */
+  driftMinor: number;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -284,7 +294,8 @@ export class CushionPage {
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const { accounts, categories, yields } = this.repos();
+      const { db, accounts, categories, yields, tax } = this.repos();
+      const engine = new AccrualEngine(db, yields, tax);
       const enrolled = await yields.accounts();
       const all = await accounts.list({ includeArchived: true });
       const byId = new Map(all.map(account => [account.id, account]));
@@ -315,6 +326,7 @@ export class CushionPage {
           // them showed Uala earning on twice what it holds.
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
+          driftMinor: await engine.drift(entry.account_id, today()),
         });
       }
 
@@ -1130,6 +1142,11 @@ export class CushionPage {
   // app's locale, which is en-US, and would print 3,116.47 for a figure a
   // Colombian reads as 3.116,47.
   // ---------------------------------------------------------------------------
+
+  /** The size of a difference, without its direction. */
+  abs(value: number): number {
+    return Math.abs(value);
+  }
 
   money(minor: number, currency = 'COP'): string {
     const formatted = new Intl.NumberFormat('es-CO', {

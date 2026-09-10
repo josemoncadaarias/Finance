@@ -79,6 +79,40 @@ export class AccrualEngine {
     return out;
   }
 
+  /**
+   * How far the products have drifted from the account they live in.
+   *
+   * A product's balance is a figure read off the bank on a date, and it stays
+   * that figure until another one is entered. So money that leaves one product
+   * to go into another - closing an alcancia to open a CDT, moving part of a
+   * savings pot - is invisible here unless both figures are updated by hand.
+   * Nothing else can update them: a movement records that money left the
+   * ACCOUNT, never which product inside it.
+   *
+   * Left alone, a product goes on earning on money it no longer holds. This is
+   * what makes that visible: what the products say they hold, against what the
+   * account actually holds, on the same day. Zero means they agree.
+   *
+   * The comparison is against the ledger rather than against another figure
+   * typed by hand, because the ledger is the half that cannot be forgotten.
+   */
+  async drift(accountId: number, on: IsoDate): Promise<number> {
+    const pockets = await this.yields.pockets(accountId);
+    if (pockets.length === 0) return 0;
+
+    const balances = await this.dailyBalances(accountId, on);
+
+    let held = 0;
+    for (const pocket of pockets) {
+      held += pocket.source === 'manual'
+        ? statedOn(await this.yields.pocketBalances(pocket.id), on, balances,
+                   pocket.id === pockets[0].id)
+        : balanceOn(balances, on);
+    }
+
+    return held - balanceOn(balances, on);
+  }
+
   async accrue(accountId: number, upTo: IsoDate): Promise<AccrualResult> {
     const nothing: AccrualResult = {
       account_id: accountId, from: null, to: null, daysWritten: 0, daysLocked: 0,

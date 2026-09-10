@@ -599,8 +599,10 @@ ion-item.selected ion-label h3 {
  * leaves the app mid-entry.
  *
  * `env(safe-area-inset-bottom)` is what the phone reports for that strip; the
- * floor under it is for the case where nothing is reported and the keys would
- * otherwise sit hard against the glass. The padding is on the footer, so it
+ * floor under it is deliberately generous, because a phone that overlays its
+ * navigation bar without reporting an inset would leave the keys under it and
+ * nothing in the page can detect that. Sixteen points costs one row of keys a
+ * little height and removes the whole class of mis-tap. The padding is on the footer, so it
  * carries the footer's own background and reads as the base of the keypad
  * rather than as a gap under it.
  *
@@ -608,6 +610,6 @@ ion-item.selected ion-label h3 {
  * reason.
  */
 ion-footer.pad {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.4rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
   background: var(--ion-background-color);
 }

@@ -349,3 +349,17 @@ ion-modal {
   height: 1.5rem;
   margin-inline-end: 0;
 }
+
+/* A product that no longer holds what it says it holds. Warning-coloured
+   rather than red: nothing is broken, a figure is out of date. */
+.drift {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--ion-color-warning-shade);
+
+  ion-icon { flex: none; margin-top: 0.1rem; font-size: 0.95rem; }
+}

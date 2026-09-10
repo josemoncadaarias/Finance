@@ -245,6 +245,19 @@
                 </p>
               }
 
+              <!-- Money that left one product for another is invisible to
+                   the app: a movement says it left the account, never which
+                   product it came out of. So the two figures are compared and
+                   the difference is said out loud, because the alternative is
+                   a product quietly earning on money it no longer holds. -->
+              @if (line.driftMinor !== 0) {
+                <p class="drift">
+                  <ion-icon name="alert-circle-outline"></ion-icon>
+                  {{ 'cushion.pockets.drift' | t:{
+                       amount: money(abs(line.driftMinor), line.account.currency_code) } }}
+                </p>
+              }
+
               <!-- What the bank has not handed over yet is money you are owed,
                    not money you have. Saying so is the difference between a
                    figure someone trusts and one they have to argue with. -->
