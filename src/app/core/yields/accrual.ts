@@ -33,11 +33,11 @@
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type {
-  ExcludedBalance, PocketBalance, YieldRate, YieldsRepository,
+  CushionEntry, PocketBalance, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import { accrueDay, bandFor, rateWhenConditionMissed, type RateBand, type WithholdingRule } from './yield-math';
-import { addDays, eachDay, monthOf, nextDay, startOfMonth } from './days';
+import { addDays, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
 
 export interface AccrualResult {
   account_id: number;
@@ -56,8 +56,6 @@ export interface AccrualResult {
   pockets: number;
   /** Days that fell back to a lower rate because a monthly condition was missed. */
   daysConditionNotMet: number;
-  /** Part of the balance that was sitting in something that pays nothing. */
-  excludedMinor: number;
 }
 
 export class AccrualEngine {
@@ -85,7 +83,7 @@ export class AccrualEngine {
     const nothing: AccrualResult = {
       account_id: accountId, from: null, to: null, daysWritten: 0, daysLocked: 0,
       netMinor: 0, withheldMinor: 0, daysWithUnknownWithholding: 0,
-      daysConditionNotMet: 0, excludedMinor: 0, pockets: 0,
+      daysConditionNotMet: 0, pockets: 0,
     };
 
     const enrolled = await this.yields.account(accountId);
@@ -103,23 +101,35 @@ export class AccrualEngine {
 
       const balances = await this.dailyBalances(accountId, upTo);
       const rates = await this.yields.rateHistory(accountId);
-      const excluded = await this.yields.excludedHistory(accountId);
 
       // An account always has at least one pocket. Without one there is
       // nothing to accrue on, and saying so beats writing zeroes.
       const pockets = await this.yields.pockets(accountId);
       if (pockets.length === 0) return nothing;
 
+      const entries: CushionEntry[] = await this.yields.adjustments(accountId);
+      const takenOut = await this.yields.withdrawals(accountId);
+
       const balancesOf = new Map<number, PocketBalance[]>();
       for (const pocket of pockets) {
         balancesOf.set(pocket.id, await this.yields.pocketBalances(pocket.id));
       }
       const spendByMonth = await this.monthlySpend(accountId, upTo);
-      const cushionBefore = await this.yields.cushion(accountId, addDays(from, -1));
+      // Anything that lands in the cushion inside the range being worked
+      // out has to be part of it from that day on. The starting figure
+      // above only covers what happened BEFORE the range, so without this
+      // an entry dated on the Wednesday left Thursday onwards still
+      // earning on the old balance: the total came out right and every
+      // day after it was quietly too small.
+      const arriving = new Map<string, number>();
+      const land = (day: IsoDate, pocketId: number, amount: number) => {
+        const key = `${pocketId}|${day}`;
+        arriving.set(key, (arriving.get(key) ?? 0) + amount);
+      };
       const locked = new Map(
         (await this.yields.days(accountId, from, upTo))
           .filter(day => day.locked === 1)
-          .map(day => [`${day.pocket_id}|${day.on_date}`, day]));
+          .map(day => [`${day.pocket_id}|${day.component}|${day.on_date}`, day]));
 
       // The rule can change from one day to the next, and asking the database
       // for it on every one of two thousand days would be the slow part.
@@ -130,95 +140,152 @@ export class AccrualEngine {
         return rules.get(key) ?? null;
       };
 
-      const cushion = cushionBefore.totalMinor;
       const result: AccrualResult = { ...nothing, from, to: upTo, pockets: pockets.length };
 
-      // Where the cushion earns depends on what the pocket balance means.
+      // The opening cushion is a RECORD, not money to add to the balance.
       //
-      // A figure typed in for a pocket is what the BANK says that pocket
-      // holds, and a bank balance already contains every yield it has ever
-      // paid in. Adding the cushion on top of it would count that money
-      // twice - which it did, until Jose read the real figures off Dale on
-      // 2026-09-10 and they were 263,309 lower than this app believed.
+      // This took four attempts to get right, so it is worth stating plainly:
+      // the figure Jose entered per account is what that account had already
+      // earned historically, and that money is already sitting inside the
+      // balance. Adding it to the base counts it twice - it is what made
+      // Rappi cuenta earn on 72.8 million when the account holds 67.9, and
+      // what pushed one of Dale's alcancias over the withholding threshold.
       //
-      // The ledger pocket is the opposite case. Its balance comes from the
-      // movements, and the movements never recorded those yields - that is
-      // the whole reason the cushion is a separate figure. So the cushion
-      // earns there, which is exactly what a single-pocket account always
-      // did.
-      //
-      // With no ledger pocket the cushion earns nowhere: it is already
-      // inside the figures typed in. It stays recorded, and it is still
-      // money that can be moved into net worth.
+      // So every pocket starts at zero here. What grows during the walk is
+      // only what THIS app worked out, which the balance genuinely does not
+      // know about yet, and which therefore genuinely does compound.
       const cushionOf = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
       const ledgerPocket = pockets.find(pocket => pocket.source === 'ledger');
-      if (ledgerPocket) cushionOf.set(ledgerPocket.id, cushion);
+
+      // An entry says which pocket it landed in when the user knows. When
+      // it does not, it goes to the pocket that follows the account
+      // balance, and failing that to the first one - the same order the
+      // cushion itself follows.
+      const fallbackPocket = ledgerPocket?.id ?? pockets[0].id;
+
+      // A component paid monthly works its yield out every day and hands it
+      // over at the end of the month. Until then the money is not in the
+      // account and is not earning: it waits here, keyed by pocket and
+      // component, and joins the base on the day it is actually paid.
+      const waiting = new Map<string, number>();
+
+      const creditTo = (pocketId: number, component: string, payout: 'daily' | 'monthly', net: number) => {
+        if (payout === 'daily') {
+          cushionOf.set(pocketId, (cushionOf.get(pocketId) ?? 0) + net);
+          return;
+        }
+        const key = `${pocketId}|${component}`;
+        waiting.set(key, (waiting.get(key) ?? 0) + net);
+      };
+      const pocketOf = (id: number | null) =>
+        pockets.some(pocket => pocket.id === id) ? (id as number) : fallbackPocket;
+
+      for (const entry of entries) {
+        if (entry.on_date < from || entry.on_date > upTo) continue;
+        land(entry.on_date, pocketOf(entry.pocket_id), entry.amount_minor);
+      }
+      for (const taken of takenOut) {
+        if (taken.on_date < from || taken.on_date > upTo) continue;
+        land(taken.on_date, fallbackPocket, -taken.amount_minor);
+      }
 
       for (const day of eachDay(from, upTo)) {
         const rule = await ruleFor(day);
 
-        // What the ledger pocket is left with, once the pockets holding a
-        // figure of their own have taken theirs.
-        const manualTotal = pockets
-          .filter(pocket => pocket.source === 'manual')
-          .reduce((sum, pocket) => sum + amountOn(balancesOf.get(pocket.id) ?? [], day), 0);
-        const ledger = balanceOn(balances, day) - excludedOn(excluded, day) - manualTotal;
-
         for (const pocket of pockets) {
-          const lockedDay = locked.get(`${pocket.id}|${day}`);
-          if (lockedDay) {
-            // Left exactly as it was, and still part of the cushion.
-            const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
-            cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + net);
-            result.daysLocked += 1;
-            continue;
-          }
-
+          // What the pocket holds on this day.
+          //
+          // A stated balance is a figure Jose read off the bank on a date, and
+          // it is the whole truth about that pocket on that date - not a part
+          // of a sum. Everything that has moved in or out of the account since
+          // then is added on top, so a deposit made afterwards earns like any
+          // other money.
+          //
+          // The movements go to the first pocket. A movement never says which
+          // pocket it landed in, and putting it in all of them would count it
+          // once per pocket; the drift check is what surfaces a guess gone
+          // stale. With one pocket - which is every account but Dale - there is
+          // nothing to guess.
           const held = pocket.source === 'manual'
-            ? amountOn(balancesOf.get(pocket.id) ?? [], day)
-            : ledger;
+            ? statedOn(balancesOf.get(pocket.id) ?? [], day, balances,
+                       pocket.id === pockets[0].id)
+            : balanceOn(balances, day);
+
           const base = Math.max(0, held) + (cushionOf.get(pocket.id) ?? 0);
 
-          let band = bandFor(bandsInForce(rates, day), base);
+          // Every component earns on the same base and is worked out apart:
+          // each has its own rate, its own condition and its own payday, and
+          // the withholding threshold in articulo 1.2.4.2.87 is measured per
+          // payment. Two components are two payments.
+          for (const [component, bands] of componentsInForce(ratesFor(rates, pocket.id), day)) {
+            const lockedDay = locked.get(`${pocket.id}|${component}|${day}`);
 
-          if (band?.requiresMonthlySpendMinor != null) {
-            const spent = spendByMonth.get(monthOf(day)) ?? 0;
-            if (spent < band.requiresMonthlySpendMinor) {
-              // Missing the condition is not the same as earning nothing:
-              // Uala drops to 5% E.A. rather than to zero. A band with no
-              // fallback does pay nothing, and says so with a rate of zero.
-              band = { ...band, annual_rate_scaled: rateWhenConditionMissed(band.fallbackAnnualRateScaled) };
-              result.daysConditionNotMet += 1;
+            if (lockedDay) {
+              // Left exactly as it was, and still part of the cushion.
+              const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
+              creditTo(pocket.id, component, lockedDay.payout, net);
+              result.daysLocked += 1;
+              continue;
             }
+
+            let band = bandFor(bands, base);
+            if (band === null) continue;
+            const payout = band.payout;
+
+            if (band.requiresMonthlySpendMinor != null) {
+              const spent = spendByMonth.get(monthOf(day)) ?? 0;
+              if (spent < band.requiresMonthlySpendMinor) {
+                // Missing the condition is not the same as earning nothing:
+                // a band can fall back to a lower rate. One with no fallback
+                // does pay nothing, and says so with a rate of zero.
+                band = { ...band, annual_rate_scaled: rateWhenConditionMissed(band.fallbackAnnualRateScaled) };
+                result.daysConditionNotMet += 1;
+              }
+            }
+
+            const accrued = accrueDay(base, band, rule, enrolled.withholding === 1);
+
+            await this.yields.putDay({
+              pocket_id: pocket.id,
+              account_id: accountId,
+              component,
+              payout,
+              on_date: day,
+              balance_minor: accrued.balance_minor,
+              annual_rate_scaled: accrued.annual_rate_scaled,
+              gross_minor: accrued.gross_minor,
+              withholding_minor: accrued.withholding_minor,
+              net_minor: accrued.net_minor,
+              withholding_unknown: accrued.withholding_unknown ? 1 : 0,
+            });
+
+            creditTo(pocket.id, component, payout, accrued.net_minor);
+            result.daysWritten += 1;
+            result.netMinor += accrued.net_minor;
+            result.withheldMinor += accrued.withholding_minor;
+            if (accrued.withholding_unknown) result.daysWithUnknownWithholding += 1;
           }
-
-          // The withholding is worked out here, on this pocket alone. That
-          // is the whole reason pockets exist: the threshold in articulo
-          // 1.2.4.2.87 applies to a payment, and the bank pays each pocket
-          // separately. Summing first and taxing the total charges
-          // withholding that is not owed.
-          const accrued = accrueDay(base, band, rule, enrolled.withholding === 1);
-
-          await this.yields.putDay({
-            pocket_id: pocket.id,
-            account_id: accountId,
-            on_date: day,
-            balance_minor: accrued.balance_minor,
-            annual_rate_scaled: accrued.annual_rate_scaled,
-            gross_minor: accrued.gross_minor,
-            withholding_minor: accrued.withholding_minor,
-            net_minor: accrued.net_minor,
-            withholding_unknown: accrued.withholding_unknown ? 1 : 0,
-          });
-
-          cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + accrued.net_minor);
-          result.daysWritten += 1;
-          result.netMinor += accrued.net_minor;
-          result.withheldMinor += accrued.withholding_minor;
-          if (accrued.withholding_unknown) result.daysWithUnknownWithholding += 1;
         }
 
-        result.excludedMinor = excludedOn(excluded, day);
+        // At the close of the day, so what arrived earns from the next one.
+        // That is the same rule the opening figure follows: a figure
+        // recorded on a day already covers that day.
+        for (const pocket of pockets) {
+          const landed = arriving.get(`${pocket.id}|${day}`);
+          if (landed) cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + landed);
+        }
+
+        // Payday: everything a monthly component has worked out since the
+        // last one lands at once, and starts earning tomorrow.
+        if (day === endOfMonth(day)) {
+          for (const [key, owed] of waiting) {
+            if (owed === 0) continue;
+            const pocketId = Number(key.split('|')[0]);
+            cushionOf.set(pocketId, (cushionOf.get(pocketId) ?? 0) + owed);
+            waiting.set(key, 0);
+          }
+        }
+
       }
 
       return result;
@@ -275,6 +342,41 @@ export class AccrualEngine {
 interface ConditionalBand extends RateBand {
   requiresMonthlySpendMinor: number | null;
   fallbackAnnualRateScaled: number | null;
+  component: string;
+  payout: 'daily' | 'monthly';
+}
+
+/**
+ * What a pocket holds on a day: the figure stated for it, plus whatever has
+ * moved in the account since that figure was read.
+ *
+ * The stated figure is the starting point and it is not negotiable - it is
+ * what the bank said on the day it was read. What the ledger contributes is
+ * only the CHANGE since then, which is exactly what "new movements are added
+ * here too" means.
+ */
+function statedOn(
+  history: PocketBalance[],
+  day: IsoDate,
+  balances: DayBalance[],
+  takesMovements: boolean,
+): number {
+  let stated = 0;
+  let statedFrom: IsoDate | null = null;
+  for (const entry of history) {
+    if (entry.valid_from > day) break;
+    stated = entry.amount_minor;
+    statedFrom = entry.valid_from;
+  }
+
+  if (statedFrom === null || !takesMovements) return stated;
+
+  // What moved up to the END of the day before, not up to this one. A deposit
+  // made today is in the account today, but the yield of a day is worked out
+  // on what was there when the day started - which is the same rule the stated
+  // figure follows, and the same rule an entry in the cushion follows. Money
+  // that arrives today earns from tomorrow.
+  return stated + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
 }
 
 /** What a manual pocket held on a day: the newest figure on or before it. */
@@ -287,15 +389,6 @@ function amountOn(history: PocketBalance[], day: IsoDate): number {
   return amount;
 }
 
-/** How much of the account was not earning on a day. */
-function excludedOn(history: ExcludedBalance[], day: IsoDate): number {
-  let amount = 0;
-  for (const entry of history) {
-    if (entry.valid_from > day) break;
-    amount = entry.amount_minor;
-  }
-  return amount;
-}
 
 /**
  * The bands in force on a day, out of the account's whole rate history.
@@ -305,26 +398,63 @@ function excludedOn(history: ExcludedBalance[], day: IsoDate): number {
  * wins — which is what makes a future-dated rate (Plata dropping to 9% on
  * 2026-11-09) simply wait its turn instead of needing to be remembered.
  */
-function bandsInForce(rates: YieldRate[], day: IsoDate): ConditionalBand[] {
-  const newest = new Map<number, YieldRate>();
+/**
+ * The rates that apply to one pocket: its own if it has any, the account's
+ * otherwise.
+ *
+ * Not a merge and not a precedence order - a pocket with a rate of its own
+ * is a pocket the bank treats differently, and mixing in the account rate
+ * would earn at both. One sentence, and no surprises at midnight.
+ */
+function ratesFor(rates: YieldRate[], pocketId: number): YieldRate[] {
+  const own = rates.filter(rate => rate.pocket_id === pocketId);
+  return own.length > 0 ? own : rates.filter(rate => rate.pocket_id === null);
+}
+
+/**
+ * The bands in force on a day, grouped by component.
+ *
+ * An account earns the SUM of its components: Uala pays 5% E.A. every day
+ * and 5.5% E.A. at the end of a month it spent enough in. Each one is its
+ * own set of balance bands, its own condition and its own payday, so each
+ * is worked out on its own and written as its own row.
+ */
+function componentsInForce(rates: YieldRate[], day: IsoDate): Map<string, ConditionalBand[]> {
+  const newest = new Map<string, YieldRate>();
   for (const rate of rates) {
     if (rate.valid_from > day) continue;
-    const current = newest.get(rate.min_balance_minor);
+
+    const key = `${rate.component}|${rate.min_balance_minor}`;
+    const current = newest.get(key);
     if (!current || rate.valid_from > current.valid_from ||
         (rate.valid_from === current.valid_from && rate.id > current.id)) {
-      newest.set(rate.min_balance_minor, rate);
+      newest.set(key, rate);
     }
   }
 
-  return [...newest.values()]
-    .sort((a, b) => a.min_balance_minor - b.min_balance_minor)
-    .map(rate => ({
+  const byComponent = new Map<string, ConditionalBand[]>();
+  for (const rate of newest.values()) {
+    // An ended rate is not replaced by the one before it: that one had
+    // already been superseded. Past the end the component earns nothing,
+    // until a new rate says otherwise.
+    if (rate.valid_to !== null && rate.valid_to < day) continue;
+    const bands = byComponent.get(rate.component) ?? [];
+    bands.push({
       annual_rate_scaled: rate.annual_rate_scaled,
       min_balance_minor: rate.min_balance_minor,
       max_balance_minor: rate.max_balance_minor,
       requiresMonthlySpendMinor: rate.requires_monthly_spend_minor,
       fallbackAnnualRateScaled: rate.fallback_annual_rate_scaled,
-    }));
+      component: rate.component,
+      payout: rate.payout,
+    });
+    byComponent.set(rate.component, bands);
+  }
+
+  for (const bands of byComponent.values()) {
+    bands.sort((a, b) => a.min_balance_minor - b.min_balance_minor);
+  }
+  return byComponent;
 }
 
 interface DayBalance {

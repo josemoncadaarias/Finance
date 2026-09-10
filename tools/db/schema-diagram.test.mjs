@@ -57,7 +57,7 @@ test('every table in the schema appears in the diagram', () => {
   const block = diagram.slice(diagram.indexOf('erDiagram'), diagram.indexOf('```', diagram.indexOf('erDiagram')));
   const missing = schema.tables.filter(table => !new RegExp(`\\b${table}\\b`).test(block));
   assert.deepEqual(missing, [], 'tables missing from the diagram');
-  assert.equal(schema.tables.length, 24, 'the count in the prose says 24');
+  assert.equal(schema.tables.length, 23, 'the count in the prose says 23');
 });
 
 test('the diagram invents no table', () => {

@@ -274,24 +274,6 @@ test('every tax parameter carries the norm it came from', () => {
     'one value per key per start date');
 });
 
-test('only part of an account can be earning, and it is dated', () => {
-  const db = freshDb();
-  enrol(db, 1);
-
-  db.exec(`INSERT INTO yield_excluded_balances (id, account_id, valid_from, amount_minor, note, created_at, updated_at)
-           VALUES (1, 1, '2026-09-09', 540000000, 'Sitting in a product that pays nothing', '${NOW}', '${NOW}')`);
-
-  assert.throws(() => db.exec(
-    `INSERT INTO yield_excluded_balances (id, account_id, valid_from, amount_minor, created_at, updated_at)
-     VALUES (2, 1, '2026-09-09', 1, '${NOW}', '${NOW}')`), 'one figure per account per day');
-
-  assert.throws(() => db.exec(
-    `INSERT INTO yield_excluded_balances (id, account_id, valid_from, amount_minor, created_at, updated_at)
-     VALUES (3, 1, '2026-10-01', -1, '${NOW}', '${NOW}')`), 'a negative amount is not an exclusion');
-
-  db.exec('DELETE FROM accounts WHERE id = 1');
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM yield_excluded_balances').get().n, 0);
-});
 
 test('deleting an account takes its whole cushion with it', () => {
   const db = freshDb();

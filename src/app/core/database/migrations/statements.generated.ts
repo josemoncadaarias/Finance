@@ -1202,4 +1202,555 @@ WHERE name = 'Alcancía complemento'
   AND account_id = (SELECT id FROM accounts WHERE name = 'Dale');
 `,
   },
+  {
+    version: 9,
+    name: 'cushion_entries',
+    file: '009_cushion_entries.sql',
+    sql: `-- Migration 009 - money can land in the cushion for more than one reason
+--
+-- \`cushion_adjustments\` was built for one job: recording that the bank paid
+-- more or less than this app worked out. Jose pointed out that the same shape
+-- is what cashback needs, and that cashback is not an adjustment at all.
+--
+-- Cashback is money that arrives, on a date, for a reason worth writing down.
+-- It piles up in different accounts at different moments under conditions that
+-- change without notice, which is exactly why trying to derive it from rules
+-- was the wrong place to start. Recorded by hand it is simple and true.
+--
+-- Two columns, then:
+--
+--   \`kind\`      what this entry IS, so a screen can say so and a tax module
+--               can tell them apart later. Cashback is not withheld and
+--               interest is; an entry that does not say which is a figure
+--               nobody can classify.
+--   \`pocket_id\` which pocket it landed in. An account can be several pots the
+--               bank pays separately, so money arriving has to arrive
+--               somewhere. Null means the app decides - the pocket that
+--               follows the account balance, or the first one.
+--
+-- The far more important half of this change is in the engine, not here: an
+-- entry dated inside the range being worked out now compounds into every day
+-- after it. It did not before, which meant adding 10,000 on a Wednesday left
+-- Thursday onwards still earning on the old balance. The total was right and
+-- every day after it was quietly too small.
+
+ALTER TABLE cushion_adjustments ADD COLUMN kind TEXT NOT NULL DEFAULT 'correction'
+  CHECK (kind IN ('correction', 'cashback', 'other'));
+
+ALTER TABLE cushion_adjustments ADD COLUMN pocket_id INTEGER REFERENCES yield_pockets(id) ON DELETE SET NULL;
+
+-- Everything recorded before today was a correction against the bank, which is
+-- the only thing the screen could produce. The default above already says so;
+-- this is here to be explicit about what the old rows mean.
+UPDATE cushion_adjustments SET kind = 'correction' WHERE kind IS NULL;
+
+CREATE INDEX idx_cushion_adjustments_pocket ON cushion_adjustments(pocket_id, on_date);
+`,
+  },
+  {
+    version: 10,
+    name: 'payout_frequency',
+    file: '010_payout_frequency.sql',
+    sql: `-- Migration 010 - how often the bank actually pays, and one figure corrected
+--
+-- Two things Jose caught on 2026-09-11.
+--
+-- ---------------------------------------------------------------------------
+-- 1. Plata was given a balance where a yield was asked for
+-- ---------------------------------------------------------------------------
+--
+-- The opening figure of the cushion is the interest accumulated and never
+-- recorded, not what the account holds. For Plata the figure entered was
+-- 200,057.44 against a ledger balance of 200,000.00 - which is the balance the
+-- bank app shows, yields included, read off the screen. The app then added the
+-- two and accrued on 400,057.44.
+--
+-- The yield part is the difference: 57.44. With it the base comes out at
+-- 200,057.44, which is what Plata actually holds.
+--
+-- Every other account was checked the same way. None of the rest comes close
+-- to its own balance - the next highest is Uala at 32% of it - so this is the
+-- only figure of the fourteen that was read as the wrong kind of number.
+
+UPDATE yield_accounts
+SET opening_cushion_minor = 5744,
+    note = 'Corrected 2026-09-11: 200,057.44 was the balance the bank shows, not the yield inside it',
+    updated_at = '2026-09-11T00:00:00Z'
+WHERE account_id = (SELECT id FROM accounts WHERE name = 'Plata');
+
+-- ---------------------------------------------------------------------------
+-- 2. Most banks pay monthly, not daily
+-- ---------------------------------------------------------------------------
+--
+-- The module was built assuming the yield lands in the account every day. Only
+-- four of these accounts do that - Uala, Dale, Plata and ARQ in dollars. The
+-- rest work it out daily and pay once a month.
+--
+-- The difference is not cosmetic. A yield that has not been paid yet is not in
+-- the account, so it is not earning: it compounds only from the day it lands.
+-- Treating a monthly payer as a daily one pays interest on money the bank has
+-- not handed over.
+--
+-- What does NOT change is the daily arithmetic, and that is deliberate:
+-- articulo 1.2.4.2.87 measures the withholding threshold against the interes
+-- diario whoever pays it and whenever. So the days are still worked out one by
+-- one; what a monthly account does is hold them back until the month ends.
+
+ALTER TABLE yield_accounts ADD COLUMN payout TEXT NOT NULL DEFAULT 'daily'
+  CHECK (payout IN ('daily', 'monthly'));
+
+-- Everything is monthly unless it is one of the four.
+UPDATE yield_accounts SET payout = 'monthly', updated_at = '2026-09-11T00:00:00Z';
+
+UPDATE yield_accounts SET payout = 'daily', updated_at = '2026-09-11T00:00:00Z'
+WHERE account_id IN (
+  SELECT id FROM accounts WHERE name IN ('Ualá', 'Dale', 'Plata', 'ARQ USD')
+);
+`,
+  },
+  {
+    version: 11,
+    name: 'rate_components',
+    file: '011_rate_components.sql',
+    sql: `-- Migration 011 - a rate can be several parts, paid at different times
+--
+-- Uala pays 10.5% E.A., and that is two things wearing one number: 5% E.A.
+-- handed over every day, and 5.5% E.A. paid once a month and only in a month
+-- where at least 400,000 was spent on the card. One rate with one frequency
+-- cannot say that, and saying it wrong pays daily interest on money that
+-- arrives at the end of the month.
+--
+-- So a rate becomes a COMPONENT. An account earns the sum of whatever
+-- components are in force, and each one carries its own percentage, its own
+-- payout frequency and its own condition. A plain account has one component
+-- and behaves exactly as before.
+--
+-- Two consequences:
+--
+--   * \`payout\` moves from the account to the component. Uala is not a daily
+--     account or a monthly one; it is both at once.
+--   * a day belongs to a pocket AND a component, so \`yield_days\` is keyed by
+--     all three. The withholding threshold is measured per payment, and two
+--     components are two payments.
+--
+-- Also here: \`yield_excluded_balances\` is dropped. It described part of a
+-- balance as "not earning", and Jose's reading is the better one - money set
+-- aside is not a portion of the account that behaves differently, it is money
+-- that is somewhere else. What earns is what the account holds; what he moves
+-- in or out he records when he moves it.
+
+DROP INDEX IF EXISTS idx_yield_excluded_account;
+DROP TABLE IF EXISTS yield_excluded_balances;
+
+-- ---------------------------------------------------------------------------
+-- Rates become components
+-- ---------------------------------------------------------------------------
+--
+-- Rebuilt rather than altered: the uniqueness has to change, and SQLite cannot
+-- alter a table constraint. Nothing references yield_rates, so a
+-- rename-copy-drop is safe with foreign keys left on.
+
+-- The index follows the table through a rename, so it has to go first or the
+-- new one collides with it.
+DROP INDEX IF EXISTS idx_yield_rates_account;
+
+ALTER TABLE yield_rates RENAME TO yield_rates_old;
+
+CREATE TABLE yield_rates (
+  id                 INTEGER PRIMARY KEY,
+  account_id         INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+
+  -- What this part of the rate is called. Free text, because the bank's own
+  -- words are the ones that will be recognised on a statement.
+  component          TEXT    NOT NULL DEFAULT 'base',
+
+  valid_from         TEXT    NOT NULL CHECK (valid_from GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  annual_rate_scaled INTEGER NOT NULL CHECK (typeof(annual_rate_scaled) = 'integer' AND annual_rate_scaled >= 0),
+
+  -- When this component is handed over. A component that is not paid yet is
+  -- not in the account and is not earning.
+  payout             TEXT    NOT NULL DEFAULT 'daily' CHECK (payout IN ('daily', 'monthly')),
+
+  min_balance_minor  INTEGER NOT NULL DEFAULT 0 CHECK (typeof(min_balance_minor) = 'integer' AND min_balance_minor >= 0),
+  max_balance_minor  INTEGER CHECK (max_balance_minor IS NULL OR typeof(max_balance_minor) = 'integer'),
+
+  requires_monthly_spend_minor INTEGER,
+  fallback_annual_rate_scaled  INTEGER,
+
+  note               TEXT,
+  created_at         TEXT    NOT NULL,
+
+  CHECK (max_balance_minor IS NULL OR max_balance_minor > min_balance_minor),
+  UNIQUE (account_id, component, valid_from, min_balance_minor)
+);
+
+CREATE INDEX idx_yield_rates_account ON yield_rates(account_id, valid_from);
+
+-- Every rate so far was the whole rate, and paid however the account paid.
+INSERT INTO yield_rates (id, account_id, component, valid_from, annual_rate_scaled, payout,
+                         min_balance_minor, max_balance_minor,
+                         requires_monthly_spend_minor, fallback_annual_rate_scaled,
+                         note, created_at)
+SELECT r.id, r.account_id, 'base', r.valid_from, r.annual_rate_scaled,
+       COALESCE(y.payout, 'daily'),
+       r.min_balance_minor, r.max_balance_minor,
+       r.requires_monthly_spend_minor, r.fallback_annual_rate_scaled,
+       r.note, r.created_at
+FROM yield_rates_old r
+LEFT JOIN yield_accounts y ON y.account_id = r.account_id;
+
+DROP TABLE yield_rates_old;
+
+-- ---------------------------------------------------------------------------
+-- A day belongs to a component too
+-- ---------------------------------------------------------------------------
+
+DROP INDEX IF EXISTS idx_yield_days_account;
+
+ALTER TABLE yield_days RENAME TO yield_days_old;
+
+CREATE TABLE yield_days (
+  pocket_id          INTEGER NOT NULL REFERENCES yield_pockets(id) ON DELETE CASCADE,
+  account_id         INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  component          TEXT    NOT NULL DEFAULT 'base',
+  on_date            TEXT    NOT NULL CHECK (on_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+
+  balance_minor      INTEGER NOT NULL CHECK (typeof(balance_minor) = 'integer'),
+  annual_rate_scaled INTEGER NOT NULL CHECK (typeof(annual_rate_scaled) = 'integer' AND annual_rate_scaled >= 0),
+
+  -- Copied onto the day so a row explains itself without joining back to a
+  -- rate that may have been superseded since.
+  payout             TEXT    NOT NULL DEFAULT 'daily' CHECK (payout IN ('daily', 'monthly')),
+
+  gross_minor        INTEGER NOT NULL CHECK (typeof(gross_minor) = 'integer' AND gross_minor >= 0),
+  withholding_minor  INTEGER NOT NULL DEFAULT 0 CHECK (typeof(withholding_minor) = 'integer' AND withholding_minor >= 0),
+  net_minor          INTEGER NOT NULL CHECK (typeof(net_minor) = 'integer' AND net_minor >= 0),
+  actual_net_minor   INTEGER CHECK (actual_net_minor IS NULL OR typeof(actual_net_minor) = 'integer'),
+
+  withholding_unknown INTEGER NOT NULL DEFAULT 0 CHECK (withholding_unknown IN (0, 1)),
+
+  locked             INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+  computed_at        TEXT    NOT NULL,
+
+  PRIMARY KEY (pocket_id, component, on_date),
+  CHECK (net_minor = gross_minor - withholding_minor)
+);
+
+CREATE INDEX idx_yield_days_account ON yield_days(account_id, on_date);
+
+INSERT INTO yield_days (pocket_id, account_id, component, on_date, balance_minor,
+                        annual_rate_scaled, payout, gross_minor, withholding_minor,
+                        net_minor, actual_net_minor, withholding_unknown, locked, computed_at)
+SELECT d.pocket_id, d.account_id, 'base', d.on_date, d.balance_minor,
+       d.annual_rate_scaled, COALESCE(y.payout, 'daily'), d.gross_minor, d.withholding_minor,
+       d.net_minor, d.actual_net_minor, d.withholding_unknown, d.locked, d.computed_at
+FROM yield_days_old d
+LEFT JOIN yield_accounts y ON y.account_id = d.account_id;
+
+DROP TABLE yield_days_old;
+
+-- ---------------------------------------------------------------------------
+-- Uala, the reason this exists
+-- ---------------------------------------------------------------------------
+--
+-- The single 10.5% row becomes the daily 5%, and the conditional 5.5% is added
+-- beside it. Together they are the 10.5% the card advertises, but only in a
+-- month that meets the spending, and only the first half arrives daily.
+
+UPDATE yield_rates
+SET component = 'Diario', annual_rate_scaled = 50000, payout = 'daily',
+    requires_monthly_spend_minor = NULL, fallback_annual_rate_scaled = NULL,
+    note = 'Paid every day, no condition'
+WHERE account_id = (SELECT id FROM accounts WHERE name = 'Ualá')
+  AND valid_from = '2026-09-09';
+
+INSERT INTO yield_rates (account_id, component, valid_from, annual_rate_scaled, payout,
+                         min_balance_minor, requires_monthly_spend_minor,
+                         fallback_annual_rate_scaled, note, created_at)
+SELECT id, 'Mensual por gasto', '2026-09-09', 55000, 'monthly', 0, 40000000, 0,
+       'The other half of the 10.5%, only in a month with at least 400,000 spent',
+       '2026-09-11T00:00:00Z'
+FROM accounts WHERE name = 'Ualá';
+
+-- ---------------------------------------------------------------------------
+-- The account no longer decides the frequency
+-- ---------------------------------------------------------------------------
+--
+-- It lives on each component now. The column stays for one more moment so the
+-- copies above could read it, and is emptied of meaning here: nothing reads
+-- \`yield_accounts.payout\` after this migration.
+
+UPDATE yield_accounts SET payout = 'daily';
+`,
+  },
+  {
+    version: 12,
+    name: 'plata_balance',
+    file: '012_plata_balance.sql',
+    sql: `-- Migration 012 - Plata earns on the balance the bank shows
+--
+-- Plata's ledger says 200,000.00 because the yields it has been paid were
+-- never recorded as movements. The bank says 200,057.44, and that is what is
+-- earning. For every other account the ledger is close enough to the truth
+-- that following it is right; for this one it is not.
+--
+-- So Plata's pocket stops following the ledger and carries the figure Jose
+-- read off the app, dated the day he read it. Exactly like Dale's alcancias.
+--
+-- The opening cushion of 57.44 stays as it is: it is the record of what the
+-- account had earned, and from migration 011 onwards a record is all it is.
+-- It is not added to the base - which is the whole point of that change.
+
+UPDATE yield_pockets
+SET source = 'manual', updated_at = '2026-09-11T00:00:00Z'
+WHERE account_id = (SELECT id FROM accounts WHERE name = 'Plata');
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT id, '2026-09-09', 20005744, 'Read off the Plata app on 2026-09-09',
+       '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets
+WHERE account_id = (SELECT id FROM accounts WHERE name = 'Plata');
+`,
+  },
+  {
+    version: 13,
+    name: 'stated_balances',
+    file: '013_stated_balances.sql',
+    sql: `-- Migration 013 - every account earns on the figure Jose stated, and nothing else
+--
+-- The base has been derived from a sum for six migrations and it has been wrong
+-- in a different way each time: the ledger plus the cushion, minus a part that
+-- was "not earning", plus a proportion of something. Every one of those was an
+-- inference about what a number Jose gave actually meant, and every one was
+-- corrected by him afterwards.
+--
+-- So the sum goes away. Each pocket now carries the figure he stated, on the
+-- date he read it, and the engine adds only what the ledger says has MOVED
+-- since - which is what "new movements are added here too" means. Nothing else
+-- touches the base. The cushion is a record of what has been earned and stays
+-- out of it, as of migration 011.
+--
+-- The figures below are the ones from the list of 2026-09-09, dated that day,
+-- with two exceptions Jose corrected afterwards and which are already right:
+--
+--   * Dale keeps its two alcancias, 10,096,451.00 and 10,097,467.25, which he
+--     read off the bank on 2026-09-10 and which produce the 2,762.25 / 2,762.53
+--     the app shows him.
+--   * Plata keeps 200,057.44 from migration 012.
+--
+-- Rappi cuenta is the one still open: the list said 4,917,434.98 and he later
+-- wrote "el saldo inicial que te pasé de los 67 millones". This migration takes
+-- the list, because that is what he pointed at last - and the screen now shows
+-- what each account earns on, so a wrong one is one tap to fix.
+
+-- Nothing follows the ledger blindly any more.
+UPDATE yield_pockets SET source = 'manual', updated_at = '2026-09-11T00:00:00Z';
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', v.stated, 'Stated by Jose on 2026-09-09',
+       '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p
+JOIN accounts a ON a.id = p.account_id
+JOIN (SELECT 'Rappi cuenta' AS acct, 491743498 AS stated) v ON v.acct = a.name
+WHERE NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 111549946, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'Ualá' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 108017339, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'Pibank' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 5123061, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'Bold' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 1670116, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'Lulo' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 1690262, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'Nu' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 1590, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name = 'ARQ USD' AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+
+-- The four he stated as zero. Recorded rather than left absent: "this earns on
+-- nothing" is an answer, and an absent figure would silently fall back to the
+-- ledger the day someone changed the pocket back.
+INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+SELECT p.id, '2026-09-09', 0, 'Stated by Jose on 2026-09-09', '2026-09-11T00:00:00Z', '2026-09-11T00:00:00Z'
+FROM yield_pockets p JOIN accounts a ON a.id = p.account_id
+WHERE a.name IN ('Pibank para renta', 'Global66 COP', 'Global66 USD', 'ARQ EUR', 'Plenti')
+  AND NOT EXISTS (SELECT 1 FROM yield_pocket_balances b WHERE b.pocket_id = p.id);
+`,
+  },
+  {
+    version: 14,
+    name: 'rappi_stated_balance',
+    file: '014_rappi_stated_balance.sql',
+    sql: `-- Migration 014 - Rappi cuenta earns on 67,959,746.41
+--
+-- Stated by Jose, repeatedly, and taken here as given. Migration 013 seeded it
+-- with 4,917,434.98 because that was the figure in his list of 2026-09-09; it
+-- is the wrong one for this account and he has said so plainly.
+
+UPDATE yield_pocket_balances
+SET amount_minor = 6795974641,
+    note = 'Stated by Jose: this is what Rappi cuenta earns on',
+    updated_at = '2026-09-11T00:00:00Z'
+WHERE valid_from = '2026-09-09'
+  AND pocket_id IN (
+    SELECT p.id FROM yield_pockets p
+    JOIN accounts a ON a.id = p.account_id
+    WHERE a.name = 'Rappi cuenta'
+  );
+`,
+  },
+  {
+    version: 15,
+    name: 'rappi_correct_balance',
+    file: '015_rappi_correct_balance.sql',
+    sql: `-- Migration 015 - Rappi cuenta starts at 67,030,497.39
+--
+-- The figure Jose stated on 2026-09-09. Migration 014 used 67,959,746.41,
+-- which was the ledger balance, not what he said - the same mistake as 013,
+-- which used 4,917,434.98 from a list that turned out to hold a different kind
+-- of number for this account.
+--
+-- The mechanism is right: Plata was seeded with the figure he stated and comes
+-- out correct. What has been wrong is the figures seeded for the other
+-- thirteen accounts, which came from a list rather than from him saying "this
+-- account earns on this".
+
+UPDATE yield_pocket_balances
+SET amount_minor = 6703049739,
+    note = 'Stated by Jose on 2026-09-09',
+    updated_at = '2026-09-11T00:00:00Z'
+WHERE valid_from = '2026-09-09'
+  AND pocket_id IN (
+    SELECT p.id FROM yield_pockets p
+    JOIN accounts a ON a.id = p.account_id
+    WHERE a.name = 'Rappi cuenta'
+  );
+`,
+  },
+  {
+    version: 16,
+    name: 'rates_per_pocket',
+    file: '016_rates_per_pocket.sql',
+    sql: `-- Migration 016 - a rate can belong to one pocket
+--
+-- A bank can pay differently inside one account: a pocket called "cuenta
+-- ahorros" at one rate and one called "Principal" at another. Until now a rate
+-- belonged to the account and every pocket earned at all of them, which is
+-- right for the common case and wrong for that one.
+--
+-- So \`pocket_id\` becomes optional on a rate:
+--
+--   NULL   the rate applies to every pocket of the account. This is what every
+--          rate is today, and what a plain account will always want.
+--   set    the rate belongs to that pocket alone.
+--
+-- The rule between them is the simplest one that can be explained in a
+-- sentence: **a pocket with rates of its own uses only those; a pocket with
+-- none uses the account's.** No merging, no precedence table, nothing to work
+-- out on a screen at midnight.
+--
+-- Uniqueness needs care. It cannot be one constraint over a nullable column:
+-- SQLite treats NULLs as distinct, so two account-wide rates with the same
+-- component and date would both be allowed and nothing would ever supersede
+-- anything. Two partial indexes instead, one for each kind of row.
+
+DROP INDEX IF EXISTS idx_yield_rates_account;
+
+ALTER TABLE yield_rates RENAME TO yield_rates_old;
+
+CREATE TABLE yield_rates (
+  id                 INTEGER PRIMARY KEY,
+  account_id         INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+
+  -- Whose rate this is. NULL is the account's own, which every pocket uses
+  -- unless it has one of its own.
+  pocket_id          INTEGER REFERENCES yield_pockets(id) ON DELETE CASCADE,
+
+  component          TEXT    NOT NULL DEFAULT 'base',
+
+  valid_from         TEXT    NOT NULL CHECK (valid_from GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  annual_rate_scaled INTEGER NOT NULL CHECK (typeof(annual_rate_scaled) = 'integer' AND annual_rate_scaled >= 0),
+  payout             TEXT    NOT NULL DEFAULT 'daily' CHECK (payout IN ('daily', 'monthly')),
+
+  min_balance_minor  INTEGER NOT NULL DEFAULT 0 CHECK (typeof(min_balance_minor) = 'integer' AND min_balance_minor >= 0),
+  max_balance_minor  INTEGER CHECK (max_balance_minor IS NULL OR typeof(max_balance_minor) = 'integer'),
+
+  requires_monthly_spend_minor INTEGER,
+  fallback_annual_rate_scaled  INTEGER,
+
+  note               TEXT,
+  created_at         TEXT    NOT NULL,
+
+  CHECK (max_balance_minor IS NULL OR max_balance_minor > min_balance_minor)
+);
+
+CREATE INDEX idx_yield_rates_account ON yield_rates(account_id, valid_from);
+CREATE INDEX idx_yield_rates_pocket ON yield_rates(pocket_id, valid_from);
+
+-- One rate per component, per band, per start date - counted separately for
+-- the account's own rates and for each pocket's.
+CREATE UNIQUE INDEX idx_yield_rates_shared
+  ON yield_rates(account_id, component, valid_from, min_balance_minor)
+  WHERE pocket_id IS NULL;
+
+CREATE UNIQUE INDEX idx_yield_rates_own
+  ON yield_rates(pocket_id, component, valid_from, min_balance_minor)
+  WHERE pocket_id IS NOT NULL;
+
+INSERT INTO yield_rates (id, account_id, pocket_id, component, valid_from, annual_rate_scaled,
+                         payout, min_balance_minor, max_balance_minor,
+                         requires_monthly_spend_minor, fallback_annual_rate_scaled,
+                         note, created_at)
+SELECT id, account_id, NULL, component, valid_from, annual_rate_scaled,
+       payout, min_balance_minor, max_balance_minor,
+       requires_monthly_spend_minor, fallback_annual_rate_scaled,
+       note, created_at
+FROM yield_rates_old;
+
+DROP TABLE yield_rates_old;
+`,
+  },
+  {
+    version: 17,
+    name: 'rate_end_date',
+    file: '017_rate_end_date.sql',
+    sql: `-- Migration 017 - a rate can be given an end
+--
+-- Until now a rate ran until the next one for the same component replaced it,
+-- and that is still the ordinary case: the bank moves a rate, you record the
+-- new one, the old one ends by itself. The history cannot contradict itself
+-- because there is only one date on each row.
+--
+-- What that cannot say is "this ended and nothing replaced it". A promotional
+-- rate finishes and the product pays nothing until the bank announces
+-- something; a term deposit matures. Without an end date the app would go on
+-- paying the old rate forever, which is worse than paying zero: it is
+-- confidently wrong.
+--
+-- So \`valid_to\` is optional and means exactly what it says. Past it the
+-- component earns nothing - not the previous rate, which had already been
+-- superseded, and not the next one, which has not started. Zero, until a new
+-- rate says otherwise.
+
+ALTER TABLE yield_rates ADD COLUMN valid_to TEXT
+  CHECK (valid_to IS NULL OR valid_to GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+`,
+  },
 ];

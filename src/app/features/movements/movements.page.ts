@@ -7,7 +7,7 @@
  * and why it feels quick.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -35,6 +35,7 @@ import type { Grouping } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { outlined } from '../../core/icons/icon-catalog';
+import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 @Component({
   selector: 'app-movements',
@@ -111,6 +112,19 @@ export class MovementsPage {
    * identical otherwise, and the difference changes what every figure below
    * means.
    */
+  readonly customIcons = inject(CustomIconsService);
+
+  /**
+   * The image the selected account wears, when it wears one.
+   *
+   * An account can carry a real bank logo instead of a built-in icon, and
+   * this screen drew the built-in one regardless - so every account given
+   * a logo showed the wrong picture here while showing the right one on
+   * the accounts screen.
+   */
+  readonly accountImage = computed(() =>
+    this.customIcons.urlFor(this.store.selectedAccount()?.custom_icon_id));
+
   readonly accountIcon = computed(() =>
     this.store.selectedAccount()?.builtin_icon ?? 'albums-outline');
 
@@ -149,8 +163,101 @@ export class MovementsPage {
     // it was never given - which is exactly why the two main buttons rendered
     // as empty circles.
     addIcons(allIcons as unknown as Record<string, string>);
+
+    // The images accounts wear. Loaded here rather than left to whichever
+    // screen happens to have loaded them already: an account with a bank logo
+    // was drawing a built-in icon on this screen and the right logo on the
+    // accounts one, which is the kind of difference nobody reports as a bug -
+    // they just stop trusting the header.
+    effect(() => {
+      this.database.dataVersion();
+      if (this.database.status() === 'ready') void this.customIcons.load();
+    });
+
+    // A new question deserves a fresh budget: the pause this avoids is the
+    // one before the first rows appear, and that happens again every time
+    // the account, the period, the grouping or the search changes.
+    effect(() => {
+      this.filter.accountId();
+      this.filter.period();
+      this.filter.grouping();
+      this.filter.search();
+      this.filter.categoryFilter();
+      untracked(() => {
+        this.rowBudget.set(MovementsPage.ROW_BUDGET);
+        this.groupRows.set(new Map());
+      });
+    });
   }
 
+  /**
+   * How many rows the list is willing to draw at once.
+   *
+   * Neither the query nor the grouping is what makes a long list slow: eight
+   * hundred movements group in under a millisecond. What costs is building
+   * eight hundred Ionic components, each a custom element with its own shadow
+   * DOM - which is why a year of a credit card stuttered for a second or two
+   * before anything appeared.
+   *
+   * So the list draws whole groups until it has drawn about this many rows,
+   * and offers the rest. A budget rather than a page: cutting a group in half
+   * would put a heading on screen with a fraction of its movements under it,
+   * and the total beside that heading would stop matching what is below it.
+   */
+  private static readonly ROW_BUDGET = 150;
+
+  readonly rowBudget = signal(MovementsPage.ROW_BUDGET);
+
+  /** The groups actually drawn: whole ones, up to the budget. */
+  readonly shownGroups = computed(() => {
+    const groups = this.store.groups();
+    const budget = this.rowBudget();
+
+    // Headings are cheap and rows are not, so an open group is what counts
+    // against the budget. Closed ones cost a single row each.
+    const shown = [];
+    let rows = 0;
+    for (const group of groups) {
+      if (shown.length > 0 && rows >= budget) break;
+      shown.push(group);
+      rows += this.store.isCollapsed(group.key)
+        ? 1
+        : Math.min(group.movements.length, MovementsPage.GROUP_ROWS);
+    }
+    return shown;
+  });
+
+  /** Movements waiting behind the button, so it can say how many. */
+  readonly hiddenGroups = computed(() =>
+    this.store.groups().length - this.shownGroups().length);
+
+  showMore(): void {
+    this.rowBudget.update(budget => budget + MovementsPage.ROW_BUDGET * 2);
+  }
+
+  /**
+   * How much of each opened group is drawn.
+   *
+   * The outer budget counts whole groups, which is right until a single
+   * group is enormous - "everything, by category" puts four thousand
+   * movements under one heading, and drawing them to honour "at least one
+   * group" is the hang it was meant to prevent. A group is windowed too.
+   */
+  private static readonly GROUP_ROWS = 60;
+
+  private readonly groupRows = signal<ReadonlyMap<string, number>>(new Map());
+
+  rowsShownIn(key: string): number {
+    return this.groupRows().get(key) ?? MovementsPage.GROUP_ROWS;
+  }
+
+  showMoreIn(key: string): void {
+    this.groupRows.update(current => {
+      const next = new Map(current);
+      next.set(key, this.rowsShownIn(key) + MovementsPage.GROUP_ROWS * 3);
+      return next;
+    });
+  }
   setGrouping(grouping: Grouping): void {
     this.filter.setView(grouping);
   }

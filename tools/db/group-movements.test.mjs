@@ -326,3 +326,74 @@ test('a day heading carries its year unless it is this year', () => {
   const later = groupMovements(movements, 'date', 'date', 'es-CO', 'Todos', 'base', 2027);
   assert.equal(later[0].title, '8 de septiembre 2026');
 });
+
+// ---------------------------------------------------------------------------
+// The number beside a heading counts the group, not what is on screen
+//
+// The list draws a window of each group and offers the rest, and the badge has
+// to keep describing the whole thing: 4,512 with sixty drawn and "4,452 more"
+// underneath. The day someone optimises the badge to count what was rendered,
+// the heading and the button start disagreeing and the total beside them stops
+// matching either. Pinned here so that cannot happen quietly.
+// ---------------------------------------------------------------------------
+
+/** A month of a card, heavy enough that any list would window it. */
+function manyMovements(count) {
+  return Array.from({ length: count }, (_, i) => movement({
+    date: `2026-09-${String((i % 28) + 1).padStart(2, '0')}`,
+    label: 'Categoria ' + (i % 5),
+    amount: -(i * 137 + 500),
+    account: 'Tarjeta credito rappi',
+    accountType: 'credit',
+  }));
+}
+
+test('a group counts every movement in it, however few are drawn', () => {
+  const movements = manyMovements(500);
+
+  for (const grouping of ['date', 'category']) {
+    const groups = groupMovements(movements, grouping, 'date', 'es-CO', 'Todos', 'base');
+
+    for (const group of groups) {
+      assert.equal(group.count, group.movements.length,
+        `${grouping}: the badge and the rows behind it disagree`);
+    }
+
+    const counted = groups.reduce((sum, group) => sum + group.count, 0);
+    assert.equal(counted, movements.length, `${grouping}: movements went missing`);
+  }
+});
+
+test('a group total is over every movement in it, not the first few', () => {
+  const movements = manyMovements(500);
+  const groups = groupMovements(movements, 'category', 'date', 'es-CO', 'Todos', 'base');
+
+  for (const group of groups) {
+    const summed = group.movements.reduce(
+      (sum, item) => sum + item.transaction.amount_base_minor, 0);
+    assert.equal(group.totalBaseMinor, summed);
+  }
+
+  // And the group totals add back up to the whole, which is the claim the
+  // screen makes when it shows totals per category above a windowed list.
+  const total = groups.reduce((sum, group) => sum + group.totalBaseMinor, 0);
+  const expected = movements.reduce(
+    (sum, item) => sum + item.transaction.amount_base_minor, 0);
+  assert.equal(total, expected);
+});
+
+test('what is drawn plus what is offered is what the badge says', () => {
+  // The arithmetic the screen does: slice(0, shown) on the rows, and
+  // "length - shown" on the button. They have to close.
+  const movements = manyMovements(500);
+  const groups = groupMovements(movements, 'category', 'date', 'es-CO', 'Todos', 'base');
+
+  for (const shown of [1, 60, 99, 1000]) {
+    for (const group of groups) {
+      const drawn = group.movements.slice(0, shown).length;
+      const offered = Math.max(0, group.movements.length - shown);
+      assert.equal(drawn + offered, group.count,
+        `with ${shown} drawn, ${drawn} + ${offered} is not ${group.count}`);
+    }
+  }
+});

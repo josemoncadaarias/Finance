@@ -1,2 +1,35 @@
 // For information on how to create your own theme, please refer to:
 // https://ionicframework.com/docs/theming/
+
+/*
+ * The light palette, spelled out.
+ *
+ * Ionic only ships definitions for `--ion-text-color` and
+ * `--ion-background-color` inside its DARK palettes. In light there is no
+ * definition at all: Ionic's own components fall back to values baked into
+ * their shadow DOM, so they look right — but any rule this app writes that
+ * reads `var(--ion-text-color)` resolves to nothing, and `color` quietly falls
+ * back to whatever it inherits.
+ *
+ * That is why the account name in the toolbar came out invisible in light and
+ * fine in dark, and why the sticky group headings had no background to hide
+ * the rows sliding underneath them. It was never a colour that was wrong; it
+ * was a colour that did not exist.
+ *
+ * Defined on `:root`, which the dark palette overrides through the higher
+ * specificity of `:root.ion-palette-dark`.
+ */
+:root {
+  --ion-text-color: #000000;
+  --ion-text-color-rgb: 0, 0, 0;
+
+  --ion-background-color: #ffffff;
+  --ion-background-color-rgb: 255, 255, 255;
+
+  /* The surface a list sits on. Named separately from the page because a
+     sticky heading has to cover rows, and in light those rows are white on
+     a background that is also white — without this the heading is
+     transparent exactly where it most needs not to be. */
+  --ion-item-background: #ffffff;
+  --ion-card-background: #ffffff;
+}

@@ -26,13 +26,32 @@ export interface YieldAccount {
   opening_on: IsoDate;
   withholding: 0 | 1;
   enabled: 0 | 1;
+  /**
+   * When the bank actually hands the yield over.
+   *
+   * A yield that has not been paid is not in the account and is not
+   * earning. Most of these banks work it out daily and pay once a month;
+   * only a few pay every day. Treating a monthly payer as a daily one pays
+   * interest on money the bank has not handed over yet.
+   */
+  payout: 'daily' | 'monthly';
   note: string | null;
 }
 
 export interface YieldRate {
   id: number;
   account_id: number;
+  /** Whose rate it is. Null is the account's own, used by every pocket that
+   *  has none of its own. */
+  pocket_id: number | null;
+  /** Which part of the rate this is. An ordinary account has one, 'base'. */
+  component: string;
+  /** When this part is handed over. Not a property of the account: Uala pays
+   *  half of its rate daily and half at the end of the month. */
+  payout: 'daily' | 'monthly';
   valid_from: IsoDate;
+  /** When it stopped. Null while it is still running. */
+  valid_to: IsoDate | null;
   annual_rate_scaled: number;
   min_balance_minor: number;
   max_balance_minor: number | null;
@@ -42,14 +61,6 @@ export interface YieldRate {
   note: string | null;
 }
 
-/** The part of an account's balance that is not earning, from a date. */
-export interface ExcludedBalance {
-  id: number;
-  account_id: number;
-  valid_from: IsoDate;
-  amount_minor: number;
-  note: string | null;
-}
 
 /**
  * A pot of money inside one account that earns on its own.
@@ -71,6 +82,28 @@ export interface YieldPocket {
   note: string | null;
 }
 
+/**
+ * Money that landed in the cushion on a date, for a reason.
+ *
+ * `kind` is what it IS: `cashback` that arrived, a `correction` against what
+ * the bank actually paid, or something `other` the note explains. They are
+ * kept apart because their tax treatment is not the same - cashback is not
+ * withheld and interest is - and because a screen has to be able to say what
+ * a figure was.
+ *
+ * Signed: a correction can go either way.
+ */
+export interface CushionEntry {
+  id: number;
+  account_id: number;
+  source: 'yield' | 'cashback';
+  kind: 'correction' | 'cashback' | 'other';
+  pocket_id: number | null;
+  on_date: IsoDate;
+  amount_minor: number;
+  note: string | null;
+}
+
 /** What a manual pocket held, from a date. */
 export interface PocketBalance {
   id: number;
@@ -82,6 +115,8 @@ export interface PocketBalance {
 export interface YieldDay {
   pocket_id: number;
   account_id: number;
+  component: string;
+  payout: 'daily' | 'monthly';
   on_date: IsoDate;
   balance_minor: number;
   annual_rate_scaled: number;
@@ -102,17 +137,31 @@ export interface CushionBalance {
   adjusted_minor: number;
   withdrawn_minor: number;
   totalMinor: number;
+  /**
+   * Worked out but not handed over yet.
+   *
+   * A bank that pays once a month has not paid you anything for the month
+   * that is still running. The app knows what it will be, day by day, and
+   * it is not money you have: it is money you are owed. Reporting it as
+   * part of the cushion without saying so is what made Rappi cuenta look
+   * like it had already earned in September when September was not over.
+   */
+  pendingMinor: number;
+  /** The cushion less what is still owed: what could actually be moved. */
+  availableMinor: number;
+  /** Day the pending amount is handed over, or null when nothing is pending. */
+  paidOn: IsoDate | null;
   /** Days whose withholding could not be worked out for lack of parameters. */
   daysWithUnknownWithholding: number;
 }
 
 const ACCOUNT_COLUMNS =
-  'account_id, opening_cushion_minor, opening_on, withholding, enabled, note';
+  'account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note';
 const RATE_COLUMNS =
-  `id, account_id, valid_from, annual_rate_scaled, min_balance_minor,
+  `id, account_id, pocket_id, component, payout, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
    max_balance_minor, requires_monthly_spend_minor, fallback_annual_rate_scaled, note`;
 const DAY_COLUMNS =
-  `pocket_id, account_id, on_date, balance_minor, annual_rate_scaled, gross_minor,
+  `pocket_id, account_id, component, payout, on_date, balance_minor, annual_rate_scaled, gross_minor,
    withholding_minor, net_minor, actual_net_minor, withholding_unknown,
    locked, computed_at`;
 
@@ -153,18 +202,20 @@ export class YieldsRepository {
     opening_on: IsoDate;
     withholding?: boolean;
     enabled?: boolean;
+    payout?: 'daily' | 'monthly';
     note?: string | null;
   }): Promise<void> {
     const now = this.now();
     await this.db.run(
       `INSERT INTO yield_accounts
-         (account_id, opening_cushion_minor, opening_on, withholding, enabled, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         (account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET
          opening_cushion_minor = excluded.opening_cushion_minor,
          opening_on            = excluded.opening_on,
          withholding           = excluded.withholding,
          enabled               = excluded.enabled,
+         payout                = excluded.payout,
          note                  = excluded.note,
          updated_at            = excluded.updated_at`,
       [
@@ -173,6 +224,7 @@ export class YieldsRepository {
         input.opening_on,
         input.withholding === false ? 0 : 1,
         input.enabled === false ? 0 : 1,
+        input.payout ?? 'daily',
         input.note ?? null,
         now, now,
       ],
@@ -246,7 +298,11 @@ export class YieldsRepository {
   /** Records a rate from a date. A change is a new row, never an edit. */
   async setRate(input: {
     account_id: number;
+    pocket_id?: number | null;
+    component?: string;
+    payout?: 'daily' | 'monthly';
     valid_from: IsoDate;
+    valid_to?: IsoDate | null;
     annual_rate_scaled: number;
     min_balance_minor?: number;
     max_balance_minor?: number | null;
@@ -254,23 +310,44 @@ export class YieldsRepository {
     fallback_annual_rate_scaled?: number | null;
     note?: string | null;
   }): Promise<void> {
+    const component = input.component ?? 'base';
+    const band = input.min_balance_minor ?? 0;
+    const pocket = input.pocket_id ?? null;
+
+    const existing = await this.db.queryOne<{ id: number }>(
+      `SELECT id FROM yield_rates
+       WHERE account_id = ? AND component = ? AND valid_from = ? AND min_balance_minor = ?
+         AND ((pocket_id IS NULL AND ? IS NULL) OR pocket_id = ?)`,
+      [input.account_id, component, input.valid_from, band, pocket, pocket]);
+
+    if (existing) {
+      await this.correctRate(existing.id, {
+        annual_rate_scaled: input.annual_rate_scaled,
+        payout: input.payout ?? 'daily',
+        valid_to: input.valid_to ?? null,
+        max_balance_minor: input.max_balance_minor ?? null,
+        requires_monthly_spend_minor: input.requires_monthly_spend_minor ?? null,
+        fallback_annual_rate_scaled: input.fallback_annual_rate_scaled ?? null,
+        note: input.note ?? null,
+      });
+      return;
+    }
+
     await this.db.run(
       `INSERT INTO yield_rates
-         (account_id, valid_from, annual_rate_scaled, min_balance_minor,
-          max_balance_minor, requires_monthly_spend_minor,
+         (account_id, pocket_id, component, payout, valid_from, valid_to, annual_rate_scaled,
+          min_balance_minor, max_balance_minor, requires_monthly_spend_minor,
           fallback_annual_rate_scaled, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(account_id, valid_from, min_balance_minor) DO UPDATE SET
-         annual_rate_scaled           = excluded.annual_rate_scaled,
-         max_balance_minor            = excluded.max_balance_minor,
-         requires_monthly_spend_minor = excluded.requires_monthly_spend_minor,
-         fallback_annual_rate_scaled  = excluded.fallback_annual_rate_scaled,
-         note                         = excluded.note`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.account_id,
+        pocket,
+        component,
+        input.payout ?? 'daily',
         input.valid_from,
+        input.valid_to ?? null,
         input.annual_rate_scaled,
-        input.min_balance_minor ?? 0,
+        band,
         input.max_balance_minor ?? null,
         input.requires_monthly_spend_minor ?? null,
         input.fallback_annual_rate_scaled ?? null,
@@ -280,43 +357,44 @@ export class YieldsRepository {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // The part of the balance that is not earning
-  // -------------------------------------------------------------------------
+
+
 
   /**
-   * How much of an account is sitting in something that pays nothing.
+   * Corrects a rate that was recorded wrong.
    *
-   * These accounts hold several products inside one balance. The ledger knows
-   * the total; only the user knows how it is split, so it is recorded by hand
-   * and dated, because money moves between those products like anything else.
+   * Different from `setRate`, and the difference matters. A rate CHANGE is
+   * a new row from a date, because what was true last month stays true.
+   * A rate that was simply entered wrong was never true, so there is
+   * nothing to preserve: Plata advertises 11% and pays 11.047%, and the
+   * 11% was never the rate, it was a reading of the marketing.
+   *
+   * The caller works the days out again from `valid_from` afterwards.
    */
-  async excludedHistory(accountId: number): Promise<ExcludedBalance[]> {
-    return this.db.query<ExcludedBalance>(
-      `SELECT id, account_id, valid_from, amount_minor, note
-       FROM yield_excluded_balances WHERE account_id = ? ORDER BY valid_from, id`,
-      [accountId]);
-  }
-
-  async setExcluded(input: {
-    account_id: number;
-    valid_from: IsoDate;
-    amount_minor: number;
+  async correctRate(id: number, changes: {
+    component?: string;
+    payout?: 'daily' | 'monthly';
+    valid_from?: IsoDate;
+    valid_to?: IsoDate | null;
+    annual_rate_scaled?: number;
+    min_balance_minor?: number;
+    max_balance_minor?: number | null;
+    requires_monthly_spend_minor?: number | null;
+    fallback_annual_rate_scaled?: number | null;
     note?: string | null;
   }): Promise<void> {
-    const now = this.now();
-    await this.db.run(
-      `INSERT INTO yield_excluded_balances (account_id, valid_from, amount_minor, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(account_id, valid_from) DO UPDATE SET
-         amount_minor = excluded.amount_minor,
-         note         = excluded.note,
-         updated_at   = excluded.updated_at`,
-      [input.account_id, input.valid_from, input.amount_minor, input.note ?? null, now, now]);
-  }
+    const columns: string[] = [];
+    const values: unknown[] = [];
 
-  async removeExcluded(id: number): Promise<void> {
-    await this.db.run('DELETE FROM yield_excluded_balances WHERE id = ?', [id]);
+    for (const [column, value] of Object.entries(changes)) {
+      if (value === undefined) continue;
+      columns.push(`${column} = ?`);
+      values.push(value);
+    }
+    if (columns.length === 0) return;
+
+    values.push(id);
+    await this.db.run(`UPDATE yield_rates SET ${columns.join(', ')} WHERE id = ?`, values);
   }
 
   async removeRate(id: number): Promise<void> {
@@ -422,55 +500,6 @@ export class YieldsRepository {
     await this.db.run('DELETE FROM yield_pocket_balances WHERE id = ?', [id]);
   }
 
-  /**
-   * How far the pockets have drifted from what the account really holds.
-   *
-   * The trap here cost a false alarm on Dale, and it is worth spelling out:
-   * a pocket figure and a ledger balance are not the same kind of number.
-   * The figure typed for a pocket is what the BANK says, and a bank balance
-   * contains every yield it ever paid in. The ledger is what Monefy
-   * recorded, and it never recorded those yields - which is the entire
-   * reason the cushion exists as a separate figure. Comparing the two
-   * directly reports a difference of exactly the cushion, every time,
-   * forever, and tells the user to fix data that was never wrong.
-   *
-   * So both sides are put in the same terms, on the last day worked out:
-   *
-   *   what the account really holds  =  ledger + cushion
-   *   what the pockets say it holds  =  each base, plus what it earned
-   *
-   * A real difference then means what it should: a movement arrived that
-   * the pockets do not know about, because a movement never says which
-   * pocket it landed in.
-   *
-   * Null when there is nothing to compare - no pockets, no day worked out,
-   * or an account with a ledger pocket, which absorbs whatever is left and
-   * so agrees by construction.
-   */
-  async pocketDrift(accountId: number): Promise<number | null> {
-    const pockets = await this.pockets(accountId);
-    if (pockets.length === 0 || pockets.some(pocket => pocket.source === 'ledger')) return null;
-
-    const last = await this.lastAccruedDay(accountId);
-    if (last === null) return null;
-
-    const days = await this.days(accountId, last, last);
-    if (days.length !== pockets.length) return null;
-
-    const pocketsHold = days.reduce(
-      (sum, day) => sum + day.balance_minor + (day.actual_net_minor ?? day.net_minor), 0);
-
-    const ledger = await this.db.queryOne<{ total: number }>(
-      `SELECT a.opening_balance_minor + COALESCE(SUM(t.amount_minor), 0) AS total
-       FROM accounts a
-       LEFT JOIN transactions t ON t.account_id = a.id AND t.occurred_on <= ?
-       WHERE a.id = ?
-       GROUP BY a.id`,
-      [last, accountId]);
-
-    const cushion = await this.cushion(accountId, last);
-    return (ledger?.total ?? 0) + cushion.totalMinor - pocketsHold;
-  }
 
   // -------------------------------------------------------------------------
   // The days themselves
@@ -486,7 +515,7 @@ export class YieldsRepository {
     return this.db.query<YieldDay>(
       `SELECT ${DAY_COLUMNS} FROM yield_days
        WHERE ${where.join(' AND ')}
-       ORDER BY on_date, pocket_id`,
+       ORDER BY on_date, pocket_id, component`,
       values);
   }
 
@@ -523,17 +552,17 @@ export class YieldsRepository {
     actual_net_minor?: number | null;
   }): Promise<boolean> {
     const existing = await this.db.queryOne<{ locked: 0 | 1 }>(
-      'SELECT locked FROM yield_days WHERE pocket_id = ? AND on_date = ?',
-      [day.pocket_id, day.on_date]);
+      'SELECT locked FROM yield_days WHERE pocket_id = ? AND component = ? AND on_date = ?',
+      [day.pocket_id, day.component, day.on_date]);
     if (existing?.locked === 1) return false;
 
     await this.db.run(
       `INSERT INTO yield_days
-         (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled, gross_minor,
-          withholding_minor, net_minor, actual_net_minor, withholding_unknown,
+         (pocket_id, account_id, component, payout, on_date, balance_minor, annual_rate_scaled,
+          gross_minor, withholding_minor, net_minor, actual_net_minor, withholding_unknown,
           locked, computed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-       ON CONFLICT(pocket_id, on_date) DO UPDATE SET
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+       ON CONFLICT(pocket_id, component, on_date) DO UPDATE SET
          balance_minor       = excluded.balance_minor,
          annual_rate_scaled  = excluded.annual_rate_scaled,
          gross_minor         = excluded.gross_minor,
@@ -543,7 +572,8 @@ export class YieldsRepository {
          withholding_unknown = excluded.withholding_unknown,
          computed_at         = excluded.computed_at`,
       [
-        day.pocket_id, day.account_id, day.on_date, day.balance_minor, day.annual_rate_scaled,
+        day.pocket_id, day.account_id, day.component, day.payout, day.on_date,
+        day.balance_minor, day.annual_rate_scaled,
         day.gross_minor, day.withholding_minor, day.net_minor,
         day.actual_net_minor ?? null, day.withholding_unknown, this.now(),
       ],
@@ -594,25 +624,25 @@ export class YieldsRepository {
     account_id: number;
     on_date: IsoDate;
     amount_minor: number;
+    kind?: 'correction' | 'cashback' | 'other';
+    pocket_id?: number | null;
     source?: 'yield' | 'cashback';
     note?: string | null;
   }): Promise<number> {
     const now = this.now();
     const result = await this.db.run(
       `INSERT INTO cushion_adjustments
-         (account_id, source, on_date, amount_minor, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [input.account_id, input.source ?? 'yield', input.on_date,
+         (account_id, source, kind, pocket_id, on_date, amount_minor, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [input.account_id, input.source ?? 'yield', input.kind ?? 'correction',
+       input.pocket_id ?? null, input.on_date,
        input.amount_minor, input.note ?? null, now, now]);
     return result.lastId ?? 0;
   }
 
-  async adjustments(accountId: number): Promise<{
-    id: number; account_id: number; source: 'yield' | 'cashback';
-    on_date: IsoDate; amount_minor: number; note: string | null;
-  }[]> {
-    return this.db.query(
-      `SELECT id, account_id, source, on_date, amount_minor, note
+  async adjustments(accountId: number): Promise<CushionEntry[]> {
+    return this.db.query<CushionEntry>(
+      `SELECT id, account_id, source, kind, pocket_id, on_date, amount_minor, note
        FROM cushion_adjustments WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
@@ -689,6 +719,31 @@ export class YieldsRepository {
       'SELECT SUM(amount_minor) AS total FROM cushion_withdrawals WHERE account_id = ? AND on_date <= ?',
       [accountId, upTo]);
 
+    // What a monthly account has worked out this month is owed, not held.
+    // Any earlier month has already ended, so only the current one can be
+    // outstanding - and if `upTo` IS the last day of its month, that month
+    // has been paid too.
+    let pendingMinor = 0;
+    let paidOn: IsoDate | null = null;
+
+    // Which part of what has been worked out is still owed is a property of
+    // the days themselves: each one knows how its component is paid.
+    {
+      const day = asOf ?? new Date().toISOString().slice(0, 10);
+      const [year, month] = day.split('-').map(Number);
+      const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+
+      if (day < monthEnd) {
+        const owed = await this.db.queryOne<{ net: number | null }>(
+          `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net
+           FROM yield_days
+           WHERE account_id = ? AND payout = 'monthly' AND on_date >= ? AND on_date <= ?`,
+          [accountId, `${day.slice(0, 7)}-01`, day]);
+        pendingMinor = owed?.net ?? 0;
+        paidOn = pendingMinor > 0 ? monthEnd : null;
+      }
+    }
+
     const accruedMinor = accrued?.net ?? 0;
     const adjustedMinor = adjusted?.total ?? 0;
     const withdrawnMinor = withdrawn?.total ?? 0;
@@ -700,6 +755,9 @@ export class YieldsRepository {
       adjusted_minor: adjustedMinor,
       withdrawn_minor: withdrawnMinor,
       totalMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor,
+      pendingMinor,
+      availableMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor - pendingMinor,
+      paidOn,
       daysWithUnknownWithholding: accrued?.unknown ?? 0,
     };
   }

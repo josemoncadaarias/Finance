@@ -36,7 +36,7 @@
          would rewrite a year of them. -->
     @if (isNew()) {
       <ion-item>
-        <ion-select [label]="'categories.kind' | t" [value]="kind()" interface="action-sheet"
+        <ion-select [label]="'categories.kind' | t" [value]="kind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
                     (ionChange)="kind.set($any($event.detail).value)">
           @for (option of kinds; track option) {
             <ion-select-option [value]="option">{{ $any('categories.kind.' + option) | t }}</ion-select-option>

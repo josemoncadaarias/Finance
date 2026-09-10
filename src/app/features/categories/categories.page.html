@@ -28,15 +28,25 @@
       { kind: 'income', title: 'categories.incomes', rows: incomes() }
     ]; track side.kind) {
       <section class="side">
+        <!-- Two sections and nothing else, so both start open: closing them
+             by default would put the whole screen behind two taps. The heading
+             folds one away when the other is what is being worked on, which is
+             what the long list of expenses makes worth having. -->
         <div class="head">
-          <h2>{{ $any(side.title) | t }}</h2>
+          <button type="button" class="fold" (click)="toggle($any(side.kind))">
+            <ion-icon [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+            <h2>{{ $any(side.title) | t }}</h2>
+            <span class="count">{{ side.rows.length }}</span>
+          </button>
           <button type="button" (click)="add($any(side.kind))">
             <ion-icon name="add-outline"></ion-icon>
             {{ 'categories.new' | t }}
           </button>
         </div>
 
-        @if (side.rows.length === 0) {
+        @if (!isOpen($any(side.kind))) {
+          <!-- folded away -->
+        } @else if (side.rows.length === 0) {
           <p class="empty">{{ 'categories.empty' | t }}</p>
         } @else {
           <ion-list [inset]="true">

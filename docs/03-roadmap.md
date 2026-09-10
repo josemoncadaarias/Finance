@@ -181,62 +181,65 @@ Two settings this app needs that Monefy has no reason to:
 Left for later: refreshing on a schedule rather than on demand and at startup,
 and a screen showing the rate history.
 
-## Phase 5 — The cushion: yields and cashback
+## Phase 5 — Yields: interest and cashback, kept out of net worth
 
-Money earned but never counted on, kept out of net worth and out of the balance
-of the account that produced it, and moved in only on purpose.
+Money earned but never counted on. It accumulates outside the balance of the
+account that produced it and outside net worth, and becomes real money only
+when it is moved in on purpose.
 
-- **5.1 The model — done.** Migration 004: `yield_accounts`, `yield_rates`,
-  `yield_days`, `cashback_rules`, `cashback_entries`, `cushion_withdrawals`,
-  `tax_parameters`. The three placeholders from 001 were dropped; they had
-  never been written to and their shape did not fit. The daily-rate arithmetic
-  (`yield-math.ts`) is written and tested, withholding included.
-- **5.2 The engine - done.** `YieldsRepository`, `TaxParametersRepository` and
-  `AccrualEngine`: it walks the days from the opening date, earning on the
-  ledger balance plus the cushion, picking the band in force, skipping a day
-  corrected by hand, and flagging every day whose withholding it could not
-  work out. A recompute always restarts at the top of a month, because a
-  monthly condition can only be judged on a whole month. Migration 005 seeded
-  the real opening figures and rates, measured on 2026-09-09.
-- **5.2b** Not built: seeding a fresh install. Migration 005 matches accounts
-  by name, so on an empty database it inserts nothing and the cushions have to
-  be entered from the screen instead.
-- **5.3 The screen - done.** The cushion per account, the peso total kept
-  apart from the foreign ones, every figure taken into its four parts, the last
-  month of days with the rate and balance each was worked out from, and the
-  button that walks the days up to today.
-- **5.4 Adjusting and withdrawing - done.** An adjustment records the gap
-  against what the bank really paid without touching the daily history; a
-  withdrawal writes the income movement and the withdrawal row together, in one
-  transaction, so the money is never counted twice.
-- **5.5 Maintained from the app - done.** Rates, opening figures, the
-  withholding switch and what is not earning are all edited on the screen. A
-  rate change writes a new dated row and never edits the one before it, so what
-  was true last month stays explainable; only the days from that date are
-  worked out again. An account is added or paused from here too, which is what
-  keeps the brokers out without a list of names in code.
-- **5.6 Pockets - done.** An account can be several pots the bank pays
-  separately, which is what makes the withholding threshold come out right.
-- **5.7** Still to build: **cashback**. `cashback_rules` and
-  `cashback_entries` exist and hold their invariants, but nothing computes a
-  reward yet and there is no screen for the rules. The two real cases to
-  express are the Rappi card, whose percentage depends on Rappi cuenta holding
-  at least 500,000, and Plata, whose percentage depends on the category.
+**The model, as it settled.** It took several passes and every one of them was
+corrected by Jose against his own accounts, so the rules are written here in
+the form that survived:
 
-Still open, in order of how much it changes the numbers:
+- **What an account earns on is a figure he states**, on a date, per product.
+  Not a sum the app derives. Six versions of that sum existed — ledger plus
+  cushion, minus a part "not earning", plus a share of something — and each was
+  an inference about what one of his numbers meant. What the ledger adds is
+  only what has MOVED since the figure was stated.
+- **Money that arrives today earns from tomorrow.** A day's yield is worked out
+  on what was there when the day started. The stated figure, a deposit and a
+  cushion entry all follow that one rule.
+- **The cushion is a record, never a base.** What the app itself works out does
+  compound, because the balance does not know about it yet.
+- **An account can be several products** — alcancías, bolsillos, metas — that
+  the bank pays separately. The withholding threshold is measured per payment,
+  so adding them up first charges withholding that is not owed: 386.73 pesos a
+  day, on Dale alone.
+- **A rate is a set of components**, each with its own percentage, payout
+  frequency, spending condition and fallback. Uala is 5% E.A. daily plus 5.5%
+  E.A. monthly in a month with 400,000 spent. A component belongs to the
+  account or to one product; a product with rates of its own uses only those.
+- **A rate ends by being replaced, or by being given an end date.** Past an end
+  date the component earns zero — not the previous rate, which had already been
+  superseded.
 
-1. **The withholding rule**, seeded by 006 from Decreto 1625 de 2016
-   (articulos 1.2.4.2.87 and 1.2.4.2.5) and Resolucion DIAN 000238 de 2025.
-   Each figure carries its source and is one edit away from being changed.
-   To be confirmed with an accountant before a return leans on it.
-2. **Which accounts withhold.** 005 assumes every peso account does and no
-   foreign-currency one does — the second half because there is no Colombian
-   paying agent, not because the income is untaxed.
-3. **How much of each account is not earning.** Only Rappi cuenta is known to
-   have money in an internal product that pays nothing; the figure itself is
-   still to be entered.
-4. **Whether a banded rate applies to the whole balance** or tier by tier. None
-   of the accounts is banded today, so nothing depends on it yet.
+Built: the schema (004, 008, 009, 011, 016, 017), the arithmetic
+(`yield-math.ts`, `days.ts`), the engine (`accrual.ts`), and the screen —
+which lists what the bank actually pays, keeps the day-by-day working out
+underneath it, and lets rates, products, opening figures and cushion entries be
+maintained without a migration.
+
+**Cashback** is recorded by hand as a dated cushion entry with a reason, which
+is Jose's own reading of it and the better one: the conditions change without
+notice, so deriving it from rules would invent precision that does not exist.
+`cashback_rules` and `cashback_entries` are still in the schema, unused,
+for the day an automatic pass is worth it.
+
+### Still open
+
+1. **Correcting a whole payment.** A day can be corrected against a statement;
+   a monthly payment cannot yet. That is the figure the bank actually shows, so
+   it is the one worth being able to fix.
+2. **The withholding rule**, seeded by 006 from Decreto 1625 de 2016 (articulos
+   1.2.4.2.87 and 1.2.4.2.5) and Resolucion DIAN 000238 de 2025. Every figure
+   carries its source and is one edit away. **To confirm with an accountant
+   before a return leans on it.**
+3. **Which accounts withhold.** Every peso account does and no foreign-currency
+   one does — the second half because there is no Colombian paying agent, which
+   does not make the income untaxed.
+4. **Seeding a fresh install.** The migrations match accounts by name, so on an
+   empty database they insert nothing and the figures are entered from the
+   screen.
 
 ## Phase 6 — Income tax module
 

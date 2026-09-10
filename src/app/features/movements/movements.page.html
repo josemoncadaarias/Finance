@@ -8,8 +8,13 @@
     <!-- What you are looking at, said plainly: the account's own icon, its
          name, and what that selection includes. -->
     <button type="button" class="identity" (click)="showAccountSheet.set(true)">
-      <span class="badge" [class.all]="filter.allAccounts()">
-        <ion-icon [name]="outlined(accountIcon())"></ion-icon>
+      <span class="badge" [class.all]="filter.allAccounts()"
+            [class.image]="accountImage() !== undefined">
+        @if (accountImage(); as url) {
+          <img [src]="url" alt="">
+        } @else {
+          <ion-icon [name]="outlined(accountIcon())"></ion-icon>
+        }
       </span>
       <span class="who">
         <span class="name">
@@ -156,9 +161,18 @@
       @if (filter.grouping() !== 'largest') {
         <div class="list-controls">
           <span class="within-note">{{ withinNote() }}</span>
-          <button type="button" class="collapse" (click)="store.toggleAll()">
-            <ion-icon [name]="store.allCollapsed() ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-            {{ (store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
+          <!-- Two chevrons pulling apart to open, closing together to shut.
+               The shape says which way the list is about to go, so the words
+               are not needed - and a single chevron is not usable here, since
+               on a scrolling list "up" and "down" already mean something else.
+
+               The label stays for anyone who cannot see the shape, and as the
+               tooltip on a pointer. -->
+          <button type="button" class="collapse" (click)="store.toggleAll()"
+                  [attr.aria-expanded]="!store.allCollapsed()"
+                  [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+                  [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+            <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
           </button>
         </div>
       }
@@ -185,7 +199,13 @@
         </div>
       } @else {
         <ion-list>
-          @for (group of store.groups(); track group.key) {
+          <!-- Each group is wrapped, and that wrapper is what makes the
+               heading behave. A sticky element sticks within its containing
+               block, so with every heading a direct child of one long list they
+               all stopped at the top and stacked on top of each other. Inside
+               its own group, a heading is pushed out by the next one. -->
+          @for (group of shownGroups(); track group.key) {
+            <div class="group">
             @if (filter.grouping() !== 'largest') {
             <div class="group-head" (click)="store.toggleGroup(group.key)">
               <ion-icon class="chevron"
@@ -202,7 +222,7 @@
             @if (filter.grouping() === 'largest' || !store.isCollapsed(group.key)) {
               <div class="group-body" [class]="group.flow"
                    [class.flat]="filter.grouping() === 'largest'">
-              @for (movement of group.movements; track movement.transaction.id) {
+              @for (movement of group.movements.slice(0, rowsShownIn(group.key)); track movement.transaction.id) {
                 <ion-item lines="full" class="movement" button
                           (click)="edit(movement.transaction)">
                   <span class="dot" [class]="movement.flow" slot="start"></span>
@@ -230,8 +250,25 @@
                   </ion-note>
                 </ion-item>
               }
+              @if (group.movements.length > rowsShownIn(group.key)) {
+                <div class="more inner">
+                  <button type="button" (click)="showMoreIn(group.key)">
+                    {{ 'summary.showMore' | t:{
+                         count: group.movements.length - rowsShownIn(group.key) } }}
+                  </button>
+                </div>
+              }
               </div>
             }
+            </div>
+          }
+
+          @if (hiddenGroups() > 0) {
+            <div class="more">
+              <button type="button" (click)="showMore()">
+                {{ 'summary.showMoreGroups' | t:{ count: hiddenGroups() } }}
+              </button>
+            </div>
           }
         </ion-list>
       }

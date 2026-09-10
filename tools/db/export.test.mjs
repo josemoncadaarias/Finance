@@ -106,7 +106,7 @@ test('the backup carries every table, and says what it holds', async () => {
   const backup = await exportBackup(db);
 
   assert.equal(backup.app, 'finance');
-  assert.equal(backup.schemaVersion, 8, 'the schema it came from');
+  assert.equal(backup.schemaVersion, 17, 'the schema it came from');
   assert.ok(backup.tables.accounts.length === 2);
   assert.ok(backup.tables.transactions.length === 1);
 

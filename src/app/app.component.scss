@@ -16,8 +16,11 @@
 }
 
 /* The language, at the foot of the drawer where settings belong. */
+/* A settings block in the drawer: a rule above it, a small caption, and
+   room to breathe. Two of these stacked used to run into each other. */
 .language {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
+  padding-bottom: 0.5rem;
   border-top: 1px solid var(--ion-color-light-shade);
 
   .section {

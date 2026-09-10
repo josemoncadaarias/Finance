@@ -34,7 +34,16 @@
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+/*
+ * Dark by class, not by system.
+ *
+ * `dark.system.css` follows the phone and cannot be overridden, which means
+ * no app setting is possible. This one paints dark when `.ion-palette-dark`
+ * is on the root element, so the choice belongs to ThemeService - and
+ * "follow the phone" becomes a media query it listens to rather than a
+ * decision the stylesheet took away.
+ */
+@import '@ionic/angular/css/palettes/dark.class.css';
 
 /*
  * A phone-shaped column, whatever the window is.
@@ -79,4 +88,68 @@
    one edge of the sheet it opens in. */
 ion-datetime {
   margin-inline: auto;
+}
+
+/*
+ * The dialog a dropdown opens.
+ *
+ * Ionic's `action-sheet` interface slides the options up from the very bottom
+ * of the window, hard against the edge and far from whatever was tapped. On a
+ * tall screen the eye travels the whole way down and back. The `alert`
+ * interface puts them in the middle instead, which is where a question asked
+ * of the user belongs — and these dialogs ask a question.
+ *
+ * The rest is making that dialog worth looking at: rounder than Ionic's
+ * default, roomier options, and a title that reads as a title.
+ */
+ion-alert.select-alert {
+  --backdrop-opacity: 0.45;
+
+  .alert-wrapper {
+    border-radius: 16px;
+    /* Never wider than the phone column the whole app is held to. */
+    max-width: min(22rem, calc(100vw - 2.5rem));
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  }
+
+  .alert-head {
+    padding: 1.1rem 1.25rem 0.5rem;
+  }
+
+  .alert-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+  }
+
+  /* Ionic caps this low enough that four options already scroll. A dialog that
+     shows its options without scrolling is one less thing to work out. */
+  .alert-radio-group,
+  .alert-checkbox-group {
+    max-height: 60vh;
+    border: none;
+  }
+
+  .alert-radio-label,
+  .alert-checkbox-label {
+    padding-block: 0.85rem;
+    font-size: 0.95rem;
+    white-space: normal;
+  }
+
+  /* The one in use, said with weight and colour rather than a small dot the
+     eye has to hunt for. */
+  .alert-radio-button.alert-radio-button-checked .alert-radio-label {
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+
+  .alert-button-group {
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
+
+  .alert-button {
+    border-radius: 999px;
+    text-transform: none;
+    font-weight: 600;
+  }
 }

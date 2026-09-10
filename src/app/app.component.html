@@ -32,11 +32,16 @@
         }
       </ion-list>
 
-      <!-- The same control as the flag in the toolbar, spelled out. This is
-           where a setting is looked for; the flag is where it is noticed. -->
+      <!-- The same controls as the ones in the toolbars, spelled out. This is
+           where a setting is looked for; a toolbar is where it is noticed. -->
       <div class="language">
         <p class="section">{{ 'nav.language' | t }}</p>
         <app-language-button [wide]="true"></app-language-button>
+      </div>
+
+      <div class="language">
+        <p class="section">{{ 'nav.theme' | t }}</p>
+        <app-theme-button [wide]="true"></app-theme-button>
       </div>
     </ion-content>
   </ion-menu>

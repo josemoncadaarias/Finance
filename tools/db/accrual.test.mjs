@@ -53,16 +53,20 @@ async function setup() {
 }
 
 /**
- * The same walk, done independently: base = balance + cushion, compounding.
- * Written out rather than reusing the engine, so the test can disagree with it.
+ * The same walk, done independently, so the test can disagree with the engine.
+ *
+ * The base is the balance and what THIS app has worked out since - never the
+ * opening figure. That figure is the interest the account had already been
+ * paid, and it is already inside the balance; adding it would count the same
+ * money twice. It is part of the cushion total all the same.
  */
 function expectedCushion(balanceMinor, openingCushion, annualRateScaled, days) {
   const rate = dailyRate(annualRateScaled);
-  let cushion = openingCushion;
+  let earned = 0;
   for (let day = 0; day < days; day += 1) {
-    cushion += Math.round((balanceMinor + cushion) * rate);
+    earned += Math.round((balanceMinor + earned) * rate);
   }
-  return cushion;
+  return openingCushion + earned;
 }
 
 test('an account not enrolled is never accrued', async () => {
@@ -115,9 +119,14 @@ test('the cushion compounds on itself, and the parts add up', async () => {
   assert.equal(cushion.adjusted_minor, 0);
   assert.equal(cushion.withdrawn_minor, 0);
 
-  // Each day earns on the balance plus the cushion, so the base grows.
+  // The first day earns on the balance and nothing else: the opening figure
+  // is money the account was already holding, not money to add to it.
   const days = await yields.days(ids.rappi);
-  assert.equal(days[0].balance_minor, 1_000_000_000 + 491_743_498);
+  assert.equal(days[0].balance_minor, 1_000_000_000);
+
+  // From there the base grows by what the app itself worked out, which the
+  // balance genuinely does not know about yet.
+  assert.equal(days[1].balance_minor, 1_000_000_000 + days[0].net_minor);
   assert.ok(days[29].balance_minor > days[0].balance_minor);
 });
 
@@ -292,7 +301,7 @@ test('adjustments and withdrawals move the cushion, and the account does not', a
     account_id: ids.rappi, opening_cushion_minor: 491_743_498,
     opening_on: '2026-09-09', withholding: false,
   });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9), payout: 'monthly' });
   await engine.accrue(ids.rappi, '2026-09-30');
 
   const before = await yields.cushion(ids.rappi);
@@ -390,65 +399,8 @@ test('a band with no fallback still earns nothing when its condition is missed',
   assert.equal((await yields.days(ids.uala))[0].annual_rate_scaled, 0);
 });
 
-test('only the part of the balance that is earning earns', async () => {
-  const { engine, yields, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
-  });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  await engine.accrue(ids.rappi, '2026-09-10');
-  const whole = (await yields.days(ids.rappi))[0].gross_minor;
 
-  // Half of it is sitting in an internal product that pays nothing.
-  await yields.setExcluded({
-    account_id: ids.rappi, valid_from: '2026-09-09', amount_minor: 500_000_000,
-    note: 'In a product that pays nothing',
-  });
-  await yields.clearDays(ids.rappi);
-  const result = await engine.accrue(ids.rappi, '2026-09-10');
-
-  const day = (await yields.days(ids.rappi))[0];
-  assert.equal(day.balance_minor, 500_000_000, 'the base is what is actually earning');
-  assert.equal(result.excludedMinor, 500_000_000);
-  assert.ok(day.gross_minor < whole);
-});
-
-test('excluding more than the balance earns nothing, and never less than nothing', async () => {
-  const { engine, yields, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
-  });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
-  await yields.setExcluded({
-    account_id: ids.rappi, valid_from: '2026-09-09', amount_minor: 9_000_000_000,
-  });
-
-  const result = await engine.accrue(ids.rappi, '2026-09-15');
-  assert.equal(result.netMinor, 0);
-  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 0);
-});
-
-test('what is not earning can change from a date', async () => {
-  const { engine, yields, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
-  });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
-  await yields.setExcluded({ account_id: ids.rappi, valid_from: '2026-09-09', amount_minor: 500_000_000 });
-  await yields.setExcluded({ account_id: ids.rappi, valid_from: '2026-09-15', amount_minor: 0 });
-
-  await engine.accrue(ids.rappi, '2026-09-20');
-  const days = await yields.days(ids.rappi);
-  const on = date => days.find(d => d.on_date === date);
-
-  // Half the account is out until the 15th, and back in from it. The base
-  // jumps by that half, plus the small amount the cushion grew in a day.
-  const jump = on('2026-09-15').balance_minor - on('2026-09-14').balance_minor;
-  assert.ok(jump > 500_000_000, `the money came back to a product that pays, jump was ${jump}`);
-  // Plus one day of yield on the part that was earning, and nothing else.
-  assert.ok(jump < 500_500_000, 'and nothing else moved');
-});
 
 test('a foreign-currency cushion stays in its own currency', async () => {
   const { engine, yields, accounts, ids } = await setup();
@@ -570,50 +522,7 @@ test('an account keeps one pocket unless someone splits it', async () => {
   assert.equal((await yields.pockets(ids.rappi)).length, 1);
 });
 
-test('a ledger pocket holds whatever the manual ones did not take', async () => {
-  const { yields, engine, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
-  });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  // 10,000,000.00 in the account; 3,000,000.00 of it put into a named pocket.
-  const named = await yields.addPocket({
-    account_id: ids.rappi, name: 'Meta viaje', source: 'manual', sort_order: 1,
-  });
-  await yields.setPocketBalance({
-    pocket_id: named, valid_from: '2026-09-09', amount_minor: 300_000_000,
-  });
-
-  await engine.accrue(ids.rappi, '2026-09-10');
-  const days = await yields.days(ids.rappi, '2026-09-10', '2026-09-10');
-  const bases = days.map(day => day.balance_minor).sort((a, b) => a - b);
-
-  assert.deepEqual(bases, [300_000_000, 700_000_000],
-    'the rest of the account is what the ledger pocket earns on');
-});
-
-test('a pocket that took more than the account holds leaves nothing behind', async () => {
-  const { yields, engine, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
-  });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
-
-  const named = await yields.addPocket({
-    account_id: ids.rappi, name: 'Demasiado', source: 'manual', sort_order: 1,
-  });
-  await yields.setPocketBalance({
-    pocket_id: named, valid_from: '2026-09-09', amount_minor: 5_000_000_000,
-  });
-
-  await engine.accrue(ids.rappi, '2026-09-10');
-  const days = await yields.days(ids.rappi, '2026-09-10', '2026-09-10');
-  const ledgerDay = days.find(day => day.balance_minor === 0);
-
-  assert.ok(ledgerDay, 'the ledger pocket earns on nothing rather than on a debt');
-  assert.equal(ledgerDay.gross_minor, 0);
-});
 
 test('removing a pocket takes its days with it', async () => {
   const { yields, engine, ids } = await setup();
@@ -689,7 +598,7 @@ test('a figure typed for a pocket is the bank figure, cushion included', async (
     [1_009_645_100 + 276225, 1_009_746_725 + 276253]);
 });
 
-test('with a ledger pocket the cushion still earns, as it always did', async () => {
+test('the opening figure is a record, and never joins the base', async () => {
   const { yields, engine, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_cushion_minor: 491_743_498,
@@ -700,9 +609,14 @@ test('with a ledger pocket the cushion still earns, as it always did', async () 
   await engine.accrue(ids.rappi, '2026-09-10');
   const day = (await yields.days(ids.rappi))[0];
 
-  // The ledger knows nothing about those yields - that is the whole reason the
-  // cushion is a separate figure - so they are real money that is earning.
-  assert.equal(day.balance_minor, 1_000_000_000 + 491_743_498);
+  // Rappi cuenta holds 67.9 million and the app had it earning on 72.8, which
+  // is the balance plus a figure that was already inside the balance. The
+  // account earns on what the account holds.
+  assert.equal(day.balance_minor, 1_000_000_000);
+
+  // And the figure is still there, because it is still money that was earned
+  // and can be moved into net worth.
+  assert.equal((await yields.cushion(ids.rappi)).opening_minor, 491_743_498);
 });
 
 test('a pocket earning nothing is not a pocket losing the cushion', async () => {
@@ -768,62 +682,510 @@ async function daleWithPockets({ accounts, yields, db }) {
   return dale;
 }
 
-test('pockets that agree with the account report no drift', async () => {
-  const { db, accounts, yields, tax, engine } = await setup();
-  await withRealisticWithholding(tax);
-  const dale = await daleWithPockets({ accounts, yields, db });
 
-  await engine.accrue(dale, '2026-09-10');
 
-  // The pockets add up to the ledger plus the cushion, which is what the bank
-  // actually holds. Nothing is wrong, so nothing is reported.
-  assert.equal(await yields.pocketDrift(dale), 0);
-});
 
-test('drift survives the days compounding', async () => {
-  const { db, accounts, yields, tax, engine } = await setup();
-  await withRealisticWithholding(tax);
-  const dale = await daleWithPockets({ accounts, yields, db });
 
-  // Both sides grow by the same yields, so a week later they still agree.
-  await engine.accrue(dale, '2026-09-17');
-  assert.equal(await yields.pocketDrift(dale), 0);
-});
+// ---------------------------------------------------------------------------
+// Money landing in the cushion mid-week
+//
+// Jose's scenario, and the bug it uncovered: the app accrues day after day,
+// and on the Wednesday 10,000 arrives as cashback. Every day from Thursday on
+// has to earn on the larger balance, because a daily yield is always worked
+// out on what was there the day before. The total was right and every day
+// after the entry was quietly too small.
+// ---------------------------------------------------------------------------
 
-test('a movement the pockets do not know about is what drift is for', async () => {
-  const { db, accounts, transactions, yields, tax, engine, ids } = await setup();
-  await withRealisticWithholding(tax);
-  const dale = await daleWithPockets({ accounts, yields, db });
-  await engine.accrue(dale, '2026-09-10');
-
-  // 2,000,000.00 arrives. It landed in one of the alcancias, but a movement
-  // never says which, so the app cannot place it - only report it.
-  await transactions.create({
-    account_id: dale, category_id: ids.gastos, occurred_on: '2026-09-11',
-    amount_minor: 200_000_000, source: 'manual',
-  });
-  await engine.accrue(dale, '2026-09-11');
-
-  assert.equal(await yields.pocketDrift(dale), 200_000_000);
-});
-
-test('an account whose pocket follows the ledger can never drift', async () => {
+test('cashback arriving mid-week compounds into the days after it', async () => {
   const { yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  // A week with nothing added, kept for comparison.
+  await engine.accrue(ids.rappi, '2026-09-16');
+  const plain = (await yields.days(ids.rappi)).map(day => day.gross_minor);
+
+  // Now 100,000.00 of cashback lands on the Wednesday.
+  await yields.adjust({
+    account_id: ids.rappi, on_date: '2026-09-12', amount_minor: 10_000_000,
+    kind: 'cashback', note: 'Cashback Rappi card',
+  });
+  await yields.clearDays(ids.rappi);
+  await engine.accrue(ids.rappi, '2026-09-16');
+  const after = await yields.days(ids.rappi);
+
+  const on = date => after.find(day => day.on_date === date);
+
+  // Up to and including the day it arrived, nothing changes: a figure recorded
+  // on a day already covers that day.
+  assert.equal(on('2026-09-11').gross_minor, plain[1]);
+  assert.equal(on('2026-09-12').gross_minor, plain[2], 'the day it landed is unchanged');
+
+  // From the next day on, every one of them earns more.
+  assert.ok(on('2026-09-13').gross_minor > plain[3], 'the day after has to earn more');
+  assert.ok(on('2026-09-16').gross_minor > plain[6]);
+
+  // And by what 100,000.00 earns at that rate, within the cent that rounding
+  // owns: each day is rounded on its own whole base, and the difference of two
+  // rounded figures is not the rounded difference. A cent either way here is
+  // the arithmetic being right, not being sloppy.
+  const expected = Math.round(10_000_000 * dailyRate(pct(9)));
+  assert.ok(Math.abs((on('2026-09-13').gross_minor - plain[3]) - expected) <= 1,
+    `grew by ${on('2026-09-13').gross_minor - plain[3]}, expected about ${expected}`);
+
+  // The base itself says so, which is what makes the figure explainable.
+  assert.equal(on('2026-09-13').balance_minor - on('2026-09-12').balance_minor,
+    10_000_000 + on('2026-09-12').net_minor);
+});
+
+test('an entry keeps what it is, so it can be told apart later', async () => {
+  const { yields, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+
+  await yields.adjust({
+    account_id: ids.rappi, on_date: '2026-09-12', amount_minor: 10_000_000,
+    kind: 'cashback', note: 'Cashback Rappi card',
+  });
+  await yields.adjust({
+    account_id: ids.rappi, on_date: '2026-09-30', amount_minor: -100_000,
+    kind: 'correction', note: 'El depósito llegó corto',
+  });
+
+  const entries = await yields.adjustments(ids.rappi);
+  assert.deepEqual(entries.map(entry => entry.kind), ['cashback', 'correction']);
+  assert.equal(entries[0].note, 'Cashback Rappi card');
+
+  // Cashback is not withheld and interest is, so the tax module will need this
+  // apart. An entry with no kind would be a figure nobody can classify.
+  assert.equal(entries[1].amount_minor, -100_000, 'a correction can go either way');
+});
+
+test('taking money out mid-week takes it out of the compounding too', async () => {
+  const { yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 50_000_000,
+    opening_on: '2026-09-09', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  await engine.accrue(ids.rappi, '2026-09-16');
+  const plain = (await yields.days(ids.rappi)).map(day => day.gross_minor);
+
+  await yields.withdraw({
+    account_id: ids.rappi, on_date: '2026-09-12', amount_minor: 50_000_000,
+    note: 'Ajuste rendimientos',
+  });
+  await yields.clearDays(ids.rappi);
+  await engine.accrue(ids.rappi, '2026-09-16');
+  const after = await yields.days(ids.rappi);
+  const on = date => after.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-12').gross_minor, plain[2], 'the day it left is unchanged');
+  assert.ok(on('2026-09-13').gross_minor < plain[3], 'money that left stops earning');
+
+  const expected = Math.round(50_000_000 * dailyRate(pct(9)));
+  assert.ok(Math.abs((plain[3] - on('2026-09-13').gross_minor) - expected) <= 1,
+    `fell by ${plain[3] - on('2026-09-13').gross_minor}, expected about ${expected}`);
+});
+
+
+// ---------------------------------------------------------------------------
+// When the bank actually pays
+//
+// Only four of Jose's accounts hand the yield over every day: Uala, Dale,
+// Plata and ARQ in dollars. The rest work it out daily and pay once a month.
+// A yield that has not been paid is not in the account and is not earning.
+// ---------------------------------------------------------------------------
+
+test('a monthly account does not compound until it is paid', async () => {
+  const { yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-08-31',
+    withholding: false,
+  });
+  await yields.setRate({
+    account_id: ids.rappi, valid_from: '2026-08-31', annual_rate_scaled: pct(9), payout: 'monthly',
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-30');
+  const days = await yields.days(ids.rappi);
+
+  // Every day of September earns on exactly the same base, because nothing
+  // was handed over in between.
+  const bases = new Set(days.map(day => day.balance_minor));
+  assert.equal(bases.size, 1, 'the base moved during a month that pays nothing');
+  assert.equal([...bases][0], 1_000_000_000);
+
+  // The money is still earned - it is in the cushion, just not in the account.
+  const cushion = await yields.cushion(ids.rappi);
+  assert.equal(cushion.totalMinor, days.reduce((sum, day) => sum + day.net_minor, 0));
+  assert.ok(cushion.totalMinor > 0);
+});
+
+test('and starts compounding the day after payday', async () => {
+  const { yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-08-31',
+    withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-08-31', annual_rate_scaled: pct(9), payout: 'monthly' });
+
+  await engine.accrue(ids.rappi, '2026-10-02');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  const september = days
+    .filter(day => day.on_date.startsWith('2026-09'))
+    .reduce((sum, day) => sum + day.net_minor, 0);
+
+  assert.equal(on('2026-09-30').balance_minor, 1_000_000_000, 'payday itself earns on the old base');
+  assert.equal(on('2026-10-01').balance_minor, 1_000_000_000 + september,
+    'the whole month lands at once');
+  assert.ok(on('2026-10-01').gross_minor > on('2026-09-30').gross_minor);
+});
+
+test('a daily account compounds every day, as before', async () => {
+  const { yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31',
+    withholding: false,
+  });
+  await yields.setRate({ account_id: ids.uala, valid_from: '2026-08-31', annual_rate_scaled: pct(10.5), payout: 'daily' });
+
+  await engine.accrue(ids.uala, '2026-09-05');
+  const days = await yields.days(ids.uala);
+
+  for (let i = 1; i < days.length; i += 1) {
+    assert.equal(days[i].balance_minor, days[i - 1].balance_minor + days[i - 1].net_minor,
+      `${days[i].on_date} did not build on the day before it`);
+  }
+});
+
+test('over a year, paying monthly earns less than paying daily', async () => {
+  const { yields, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2025-12-31',
+    withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2025-12-31', annual_rate_scaled: pct(12), payout: 'monthly' });
+  await engine.accrue(ids.rappi, '2026-12-31');
+  const monthly = (await yields.cushion(ids.rappi)).totalMinor;
+
+  await yields.enrol({
+    account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2025-12-31',
+    withholding: false,
+  });
+  await yields.setRate({ account_id: ids.uala, valid_from: '2025-12-31', annual_rate_scaled: pct(12), payout: 'daily' });
+  await engine.accrue(ids.uala, '2026-12-31');
+  const daily = (await yields.cushion(ids.uala)).totalMinor;
+
+  // Same balance, same rate, same year. Holding the money back costs
+  // something real, and calling a monthly account daily would have quietly
+  // credited that difference.
+  assert.ok(daily > monthly, `daily ${daily} should beat monthly ${monthly}`);
+  assert.ok(daily - monthly > 0 && daily - monthly < daily * 0.01,
+    'and the gap is small but not nothing');
+
+  // A daily account at 12% E.A. returns 12% over the year, by construction.
+  assert.ok(Math.abs(daily - 120_000_000) < 100, `${daily} is not 12% of 10,000,000.00`);
+});
+
+// ---------------------------------------------------------------------------
+// The base is stated, not derived
+//
+// Six migrations worked the base out as a sum - ledger plus cushion, minus a
+// part that was "not earning" - and each version was wrong in its own way,
+// because each was an inference about what a figure Jose gave actually meant.
+// The figure he states IS the base. What the ledger contributes is only the
+// change since he stated it.
+// ---------------------------------------------------------------------------
+
+test('an account earns on the figure stated for it, and nothing else', async () => {
+  const { db, yields, engine, ids } = await setup();
+
+  // The account holds 10,000,000.00 as far as the ledger knows, and a cushion
+  // of 4,917,434.98 was recorded. Neither belongs in the base.
   await yields.enrol({
     account_id: ids.rappi, opening_cushion_minor: 491_743_498,
     opening_on: '2026-09-09', withholding: false,
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
-  await engine.accrue(ids.rappi, '2026-09-20');
 
-  // There is nothing to compare: the ledger pocket holds whatever is left.
-  assert.equal(await yields.pocketDrift(ids.rappi), null);
+  const [pocket] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
+  await yields.setPocketBalance({
+    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 6_795_974_641,
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-10');
+  const day = (await yields.days(ids.rappi))[0];
+
+  assert.equal(day.balance_minor, 6_795_974_641, 'the stated figure, to the peso');
 });
 
-test('nothing worked out yet means nothing to compare', async () => {
-  const { db, accounts, yields, tax } = await setup();
-  await withRealisticWithholding(tax);
-  const dale = await daleWithPockets({ accounts, yields, db });
+test('a movement after the figure was stated is added on top', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  assert.equal(await yields.pocketDrift(dale), null, 'no days, no claim');
+  const [pocket] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
+  await yields.setPocketBalance({
+    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  });
+
+  // 500,000.00 arrives on the 11th, recorded like any other movement.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
+    amount_minor: 50_000_000, source: 'manual',
+  });
+  await engine.accrue(ids.rappi, '2026-09-12');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-10').balance_minor, 100_000_000, 'before it arrived');
+  assert.equal(on('2026-09-12').balance_minor,
+    150_000_000 + on('2026-09-10').net_minor + on('2026-09-11').net_minor,
+    'the stated figure, plus what moved, plus what it earned');
+});
+
+test('a movement BEFORE the figure was stated is already inside it', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  // Money that moved a week earlier is part of what the bank showed him.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-02',
+    amount_minor: 50_000_000, source: 'manual',
+  });
+
+  const [pocket] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
+  await yields.setPocketBalance({
+    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-10');
+  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 100_000_000,
+    'counting it again would be counting it twice');
+});
+
+test('a second pocket does not take the movements as well', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  const [first] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setPocketBalance({
+    pocket_id: first.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  });
+  const second = await yields.addPocket({
+    account_id: ids.rappi, name: 'Segunda', source: 'manual', sort_order: 1,
+  });
+  await yields.setPocketBalance({
+    pocket_id: second, valid_from: '2026-09-09', amount_minor: 200_000_000,
+  });
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: 50_000_000, source: 'manual',
+  });
+  await engine.accrue(ids.rappi, '2026-09-11');
+
+  // A movement never says which pocket it landed in. It goes to the first, once
+  // - putting it in both would count the same deposit twice.
+  const firstDay = (await yields.pocketDays(first.id, '2026-09-11', '2026-09-11'))[0];
+  const secondDay = (await yields.pocketDays(second, '2026-09-11', '2026-09-11'))[0];
+
+  assert.ok(firstDay.balance_minor > 150_000_000);
+  assert.ok(secondDay.balance_minor < 201_000_000, 'the second pocket did not see it');
+});
+
+// ---------------------------------------------------------------------------
+// A deposit made today earns from tomorrow
+//
+// The question to have settled before checking the figures against the banks:
+// money put into an account on a Thursday has to show up in Friday's yield,
+// and not in Thursday's. A day's yield is worked out on what was there when
+// the day started - the same rule the stated figure and a cushion entry both
+// follow.
+// ---------------------------------------------------------------------------
+
+async function statedAccount({ db, yields }, accountId, statedMinor) {
+  await yields.enrol({
+    account_id: accountId, opening_cushion_minor: 0,
+    opening_on: '2026-09-09', withholding: false,
+  });
+  const [pocket] = await yields.pockets(accountId);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
+  await yields.setPocketBalance({
+    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: statedMinor,
+  });
+  return pocket.id;
+}
+
+test('money put in today is in tomorrow\'s yield, not today\'s', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await statedAccount({ db, yields }, ids.rappi, 100_000_000);
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  // 5,000,000.00 goes in on Thursday the 10th.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: 500_000_000, source: 'manual',
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-12');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-10').balance_minor, 100_000_000,
+    'Thursday earns on what was there when Thursday started');
+
+  assert.equal(on('2026-09-11').balance_minor,
+    600_000_000 + on('2026-09-10').net_minor,
+    'Friday earns on the deposit, plus what Thursday earned');
+
+  assert.ok(on('2026-09-11').gross_minor > on('2026-09-10').gross_minor * 5);
+});
+
+test('money taken out today stops earning tomorrow', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await statedAccount({ db, yields }, ids.rappi, 600_000_000);
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -500_000_000, source: 'manual',
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-12');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-10').balance_minor, 600_000_000);
+  assert.equal(on('2026-09-11').balance_minor, 100_000_000 + on('2026-09-10').net_minor);
+});
+
+test('a rate that has not started yet earns nothing, and does not replace one that has', async () => {
+  const { db, yields, engine, ids } = await setup();
+  await statedAccount({ db, yields }, ids.rappi, 100_000_000);
+
+  // Plata's real shape: 6.5% now, 5% announced for November.
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-08', annual_rate_scaled: pct(6.5) });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-11-09', annual_rate_scaled: pct(5) });
+
+  await engine.accrue(ids.rappi, '2026-11-10');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-15').annual_rate_scaled, pct(6.5), 'the one that started is the one that applies');
+  assert.equal(on('2026-11-08').annual_rate_scaled, pct(6.5), 'right up to the day before');
+  assert.equal(on('2026-11-09').annual_rate_scaled, pct(5), 'and then the other one takes over');
+});
+
+test('a rate given an end stops, and nothing takes its place', async () => {
+  const { db, yields, engine, ids } = await setup();
+  await statedAccount({ db, yields }, ids.rappi, 100_000_000);
+
+  await yields.setRate({
+    account_id: ids.rappi, valid_from: '2026-09-09',
+    valid_to: '2026-09-15', annual_rate_scaled: pct(9),
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-20');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+
+  assert.equal(on('2026-09-15').annual_rate_scaled, pct(9), 'the last day it applied');
+  assert.equal(on('2026-09-16'), undefined, 'and after that there is nothing to work out');
+});
+
+// ---------------------------------------------------------------------------
+// A rate of the account does not end a rate of a product
+//
+// Plata's shape on 2026-09-11: an account-wide rate from the 9th, and 6.5% set
+// on the "cuenta ahorros" product from the 8th to 8 November. The screen read
+// that as "from 8 Sept to 8 Sept" - the account rate appearing to end it - and
+// the question underneath is whether the product was still earning 6.5% at
+// all, or had silently been taken over.
+// ---------------------------------------------------------------------------
+
+test('a product keeps its own rate however many the account has', async () => {
+  const { db, yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-07', withholding: false,
+  });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-07', amount_minor: 100_000_000,
+  });
+
+  // The account's own rate, and the product's, both named 'base'.
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(11) });
+  await yields.setRate({
+    account_id: ids.rappi, pocket_id: savings.id,
+    valid_from: '2026-09-08', valid_to: '2026-11-08', annual_rate_scaled: pct(6.5),
+  });
+
+  await engine.accrue(ids.rappi, '2026-11-10');
+  const days = await yields.pocketDays(savings.id);
+  const on = date => days.find(day => day.on_date === date);
+
+  // The product uses its own rate, and goes on using it well past the day the
+  // account rate started.
+  assert.equal(on('2026-09-08').annual_rate_scaled, pct(6.5));
+  assert.equal(on('2026-09-30').annual_rate_scaled, pct(6.5), 'three weeks after the account rate began');
+  assert.equal(on('2026-11-08').annual_rate_scaled, pct(6.5), 'right up to the day it ends');
+
+  // And once it ends, nothing takes over - not the account rate, which was
+  // never this product's, and not the previous one, which there is none of.
+  assert.equal(on('2026-11-09'), undefined);
+});
+
+test('a product with no rate of its own uses the account rate', async () => {
+  const { db, yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-08', withholding: false,
+  });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(11) });
+
+  const [first] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setPocketBalance({
+    pocket_id: first.id, valid_from: '2026-09-08', amount_minor: 100_000_000,
+  });
+
+  const other = await yields.addPocket({
+    account_id: ids.rappi, name: 'Cuenta de ahorros', source: 'manual', sort_order: 1,
+  });
+  await yields.setPocketBalance({
+    pocket_id: other, valid_from: '2026-09-08', amount_minor: 100_000_000,
+  });
+  await yields.setRate({
+    account_id: ids.rappi, pocket_id: other,
+    valid_from: '2026-09-08', annual_rate_scaled: pct(6.5),
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-20');
+
+  assert.equal((await yields.pocketDays(first.id, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
+    pct(11), 'no rate of its own, so the account rate applies');
+  assert.equal((await yields.pocketDays(other, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
+    pct(6.5), 'and the one with its own keeps it');
 });

@@ -36,13 +36,16 @@ import { CategoriesRepository } from '../../core/database/repositories/categorie
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
-  YieldsRepository, type CushionBalance, type YieldDay, type YieldPocket, type YieldRate,
+  YieldsRepository, type CushionBalance, type CushionEntry, type YieldDay,
+  type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
 import { AccrualEngine } from '../../core/yields/accrual';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
+import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseAmountToMinor } from '../../core/database/money';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
+import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 /** One row of the list: an enrolled account and what its cushion is worth. */
 interface CushionLine {
@@ -50,22 +53,32 @@ interface CushionLine {
   cushion: CushionBalance;
   /** The rate in force today, for the subtitle. Null when none is recorded. */
   rate: YieldRate | null;
-  notEarningMinor: number;
   /** False when the account is paused: kept, shown, not accrued. */
   enabled: boolean;
   /** The pots this account is split into. Always at least one. */
   pockets: YieldPocket[];
-  /**
-   * What the pockets say the account holds, against what the ledger says.
-   *
-   * They can disagree: a movement never says which pocket it landed in, so a
-   * hand-entered figure goes stale as money comes and goes. Null when there is
-   * nothing to compare - an account whose only pocket follows the ledger can
-   * never drift.
-   */
-  driftMinor: number | null;
   /** What this account earned on the most recent day worked out, all pockets. */
   lastDayMinor: number;
+  /**
+   * What the account is actually earning on.
+   *
+   * The one figure someone checks against their bank, and the screen did
+   * not show it anywhere: it was only derivable by opening a day. Zero
+   * when nothing has been worked out yet.
+   */
+  earnsOnMinor: number;
+}
+
+/** One thing the bank actually hands over: a day, or a whole month. */
+interface Payment {
+  key: string;
+  component: string;
+  payout: 'daily' | 'monthly';
+  on: IsoDate;
+  netMinor: number;
+  withheldMinor: number;
+  pending: boolean;
+  days: number;
 }
 
 @Component({
@@ -82,6 +95,7 @@ interface CushionLine {
 export class CushionPage {
   readonly database = inject(DatabaseService);
   private readonly i18n = inject(I18nService);
+  readonly customIcons = inject(CustomIconsService);
   readonly status = this.database.status;
 
   readonly lines = signal<CushionLine[]>([]);
@@ -110,11 +124,17 @@ export class CushionPage {
   readonly openingAmount = signal('');
   readonly openingDate = signal<IsoDate>(today());
   readonly withholds = signal(true);
+  readonly payout = signal<'daily' | 'monthly'>('daily');
   private editingEnabled = true;
-  readonly notEarning = signal('');
-  readonly notEarningFrom = signal<IsoDate>(today());
   readonly rates = signal<YieldRate[]>([]);
   readonly editablePockets = signal<YieldPocket[]>([]);
+
+  /** What kind of money an entry is, and where it landed. */
+  readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
+  readonly entryPocket = signal<number | null>(null);
+
+  /** Everything that has landed in the open account's cushion by hand. */
+  readonly entries = signal<CushionEntry[]>([]);
 
   /** The pocket form. */
   readonly editingPocket = signal<YieldPocket | null>(null);
@@ -124,6 +144,24 @@ export class CushionPage {
   readonly pocketFrom = signal<IsoDate>(today());
 
   /** The rate form. */
+  /**
+   * Whether a new rate replaces one that is running or joins it.
+   *
+   * The engine decides this by the component name - same name supersedes,
+   * different name adds up - and that rule was invisible: the only way to
+   * get a second rate running alongside was to guess that the free-text
+   * name was load-bearing. Uala's two rates exist because a migration
+   * named them apart, which nobody could have worked out from the screen.
+   */
+  readonly rateMode = signal<'replace' | 'add'>('replace');
+  readonly ratePocket = signal<number | null>(null);
+  readonly rateUntil = signal<IsoDate | ''>('');
+
+  /** Armed once, acted on twice: a destructive button should ask first. */
+  readonly confirmingStop = signal(false);
+  readonly editingRate = signal<YieldRate | null>(null);
+  readonly rateComponent = signal('base');
+  readonly ratePayout = signal<'daily' | 'monthly'>('daily');
   readonly ratePercent = signal('');
   readonly rateFrom = signal<IsoDate>(today());
   readonly rateSpend = signal('');
@@ -262,9 +300,6 @@ export class CushionPage {
         if (last && (newest === null || last > newest)) newest = last;
 
         const bands = await yields.bandsInForce(entry.account_id, today());
-        const excluded = await yields.excludedHistory(entry.account_id);
-        const inForce = excluded.filter(row => row.valid_from <= today()).at(-1);
-
         const pockets = await yields.pockets(entry.account_id);
         const daysOfLast = last ? await yields.days(entry.account_id, last, last) : [];
 
@@ -272,11 +307,14 @@ export class CushionPage {
           account,
           cushion: await yields.cushion(entry.account_id),
           rate: bands[0] ?? null,
-          notEarningMinor: inForce?.amount_minor ?? 0,
           enabled: entry.enabled !== 0,
           pockets,
-          driftMinor: await yields.pocketDrift(entry.account_id),
           lastDayMinor: daysOfLast.reduce((sum, day) => sum + netOf(day), 0),
+          // One figure per POCKET, not per row. A day of an account with two
+          // rate components is two rows carrying the same base, and adding
+          // them showed Uala earning on twice what it holds.
+          earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
+            .reduce((sum, day) => sum + day.balance_minor, 0),
         });
       }
 
@@ -284,6 +322,7 @@ export class CushionPage {
       this.lines.set(lines);
       this.lastAccrued.set(newest);
       this.incomeCategories.set(await categories.list({ kind: 'income' }));
+      await this.customIcons.load();
 
       // What could still be added. An archived account is history and is
       // never offered; anything else can be added, deliberately, by name.
@@ -293,6 +332,127 @@ export class CushionPage {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * What the bank actually hands over, which is not the same as what the app
+   * works out day by day.
+   *
+   * A daily component pays every day, so a day IS a payment. A monthly one
+   * works out a figure every day and pays the lot at the end of the month,
+   * so a month is one payment and the days inside it are only how it got
+   * there. Showing the daily figures as though they were payments is what
+   * made a monthly account look like it had already been paid in the middle
+   * of September.
+   *
+   * This is the list to hold beside the bank app: same date, same rate, same
+   * figure - or a difference worth chasing.
+   */
+  readonly payments = computed(() => {
+    const out = new Map<string, Payment>();
+
+    const todayIso = today();
+
+    for (const day of this.openDays()) {
+      const monthly = day.payout === 'monthly';
+      const on = monthly ? endOfMonth(day.on_date) : day.on_date;
+      const key = `${day.component}|${on}`;
+
+      const payment = out.get(key) ?? {
+        key, component: day.component, payout: day.payout, on,
+        netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0,
+      };
+      payment.netMinor += netOf(day);
+      payment.withheldMinor += day.withholding_minor;
+      payment.days += 1;
+      out.set(key, payment);
+    }
+
+    return [...out.values()].sort((a, b) => b.on.localeCompare(a.on));
+  });
+
+  /** Payments grouped by month, so a year of daily ones stays readable. */
+  readonly paymentsByMonth = computed(() => {
+    const months = new Map<string, {
+      key: string; payments: Payment[]; netMinor: number;
+    }>();
+
+    for (const payment of this.payments()) {
+      const key = payment.on.slice(0, 7);
+      const month = months.get(key) ?? { key, payments: [], netMinor: 0 };
+      month.payments.push(payment);
+      month.netMinor += payment.netMinor;
+      months.set(key, month);
+    }
+    return [...months.values()];
+  });
+
+  /** Months of the working-out that the user has opened. */
+  readonly openWorkings = signal<ReadonlySet<string>>(new Set());
+
+  isWorkingOpen(key: string): boolean {
+    return this.openWorkings().has(key);
+  }
+
+  toggleWorking(key: string): void {
+    this.openWorkings.update(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+  /** Months the user has opened in the day list. */
+  readonly openMonths = signal<ReadonlySet<string>>(new Set());
+
+  /**
+   * The days gathered by month, newest first.
+   *
+   * A year of an account with two pockets is seven hundred rows, and they
+   * are all the same shape. Nobody scrolls that. The month is the unit a
+   * bank statement uses and the unit a monthly payer is paid in, so it is
+   * the one worth opening.
+   */
+  readonly daysByMonth = computed(() => {
+    const months = new Map<string, {
+      key: string; days: YieldDay[]; netMinor: number; dayCount: number;
+    }>();
+
+    for (const day of this.openDays()) {
+      const key = day.on_date.slice(0, 7);
+      const month = months.get(key) ?? { key, days: [], netMinor: 0, dayCount: 0 };
+      month.days.push(day);
+      month.netMinor += netOf(day);
+      months.set(key, month);
+    }
+
+    // Days, not rows. One day of an account with two rate components is two
+    // rows, and the header said "2 days" for a single Wednesday.
+    for (const month of months.values()) {
+      month.dayCount = new Set(month.days.map(day => day.on_date)).size;
+    }
+    return [...months.values()];
+  });
+
+  isMonthOpen(key: string): boolean {
+    return this.openMonths().has(key);
+  }
+
+  toggleMonth(key: string): void {
+    this.openMonths.update(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  /** `2026-09` as a month someone reads, in their own language. */
+  monthText(key: string): string {
+    const [year, month] = key.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(
+      this.i18n.language() === 'en' ? 'en-GB' : 'es-CO',
+      { month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
 
   /** The pocket a day belongs to, for a list that mixes several. */
@@ -311,7 +471,12 @@ export class CushionPage {
     const { yields } = this.repos();
     // Newest first: the day someone came here to check is almost always a
     // recent one, and the list can run to thousands.
-    this.openDays.set((await yields.days(line.account.id)).reverse());
+    const days = (await yields.days(line.account.id)).reverse();
+    this.openDays.set(days);
+    // The month someone came here to look at is almost always this one.
+    this.openMonths.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
+    this.openWorkings.set(new Set());
+    this.entries.set((await yields.adjustments(line.account.id)).reverse());
   }
 
   closeDetail(): void {
@@ -363,15 +528,11 @@ export class CushionPage {
 
     const { yields } = this.repos();
     const entry = await yields.account(line.account.id);
-    const excluded = await yields.excludedHistory(line.account.id);
-    const current = excluded.filter(row => row.valid_from <= today()).at(-1);
-
     this.openingAmount.set(decimalOf(entry?.opening_cushion_minor ?? 0));
     this.openingDate.set(entry?.opening_on ?? today());
     this.withholds.set(entry?.withholding !== 0);
+    this.payout.set(entry?.payout ?? 'daily');
     this.editingEnabled = entry?.enabled !== 0;
-    this.notEarning.set(decimalOf(current?.amount_minor ?? 0));
-    this.notEarningFrom.set(today());
     this.rates.set(await yields.rateHistory(line.account.id));
     this.editablePockets.set(await yields.pockets(line.account.id));
     this.form.set('settings');
@@ -389,8 +550,7 @@ export class CushionPage {
     if (!line) return;
 
     const opening = parseOrNull(this.openingAmount());
-    const excluded = parseOrNull(this.notEarning());
-    if (opening === null || opening < 0 || excluded === null || excluded < 0) {
+    if (opening === null || opening < 0) {
       this.error.set(this.i18n.t('cushion.error.amount'));
       return;
     }
@@ -404,20 +564,15 @@ export class CushionPage {
           opening_cushion_minor: opening,
           opening_on: this.openingDate(),
           withholding: this.withholds(),
+          payout: this.payout(),
           // Saving settings must not quietly restart an account that was paused.
           enabled: this.editingEnabled,
-        });
-        await yields.setExcluded({
-          account_id: line.account.id,
-          valid_from: this.notEarningFrom(),
-          amount_minor: excluded,
         });
         await yields.clearDays(line.account.id);
       });
 
       await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
-      this.database.dataChanged();
-      this.closeDetail();
+      await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -430,12 +585,16 @@ export class CushionPage {
     const line = this.openLine();
     if (!line) return;
 
+    // Two taps, not one. Stopping an account is easy to hit by accident and
+    // silent when it happens: the figures simply stop moving.
+    if (!this.confirmingStop()) { this.confirmingStop.set(true); return; }
+    this.confirmingStop.set(false);
+
     this.saving.set(true);
     try {
       const { yields } = this.repos();
       await yields.setEnabled(line.account.id, false);
-      this.database.dataChanged();
-      this.closeDetail();
+      await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -452,8 +611,7 @@ export class CushionPage {
     try {
       const { yields } = this.repos();
       await yields.setEnabled(line.account.id, true);
-      this.database.dataChanged();
-      this.closeDetail();
+      await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -542,8 +700,7 @@ export class CushionPage {
       });
 
       await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
-      this.database.dataChanged();
-      await this.openSettings();
+      await this.reopen(line, true);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -579,11 +736,34 @@ export class CushionPage {
     }
   }
 
-  startRateForm(): void {
-    this.ratePercent.set('');
-    this.rateFrom.set(today());
-    this.rateSpend.set('');
-    this.rateFallback.set('');
+  /**
+   * The components an account already has, each with the rate in force.
+   *
+   * What a new rate can replace, and what it would sit beside.
+   */
+  readonly components = computed(() => {
+    const newest = new Map<string, YieldRate>();
+    for (const rate of this.rates()) {
+      if ((rate.pocket_id ?? null) !== this.ratePocket()) continue;
+      const current = newest.get(rate.component);
+      if (!current || rate.valid_from > current.valid_from) newest.set(rate.component, rate);
+    }
+    return [...newest.values()];
+  });
+
+  /** A new rate from a date, or an existing one opened to be corrected. */
+  startRateForm(rate: YieldRate | null = null): void {
+    this.editingRate.set(rate);
+    this.rateMode.set(this.components().length > 0 ? 'replace' : 'add');
+    this.ratePocket.set(rate?.pocket_id ?? null);
+    this.rateUntil.set(rate?.valid_to ?? '');
+    this.rateComponent.set(rate?.component ?? this.components()[0]?.component ?? 'base');
+    this.ratePayout.set(rate?.payout ?? 'daily');
+    this.ratePercent.set(rate ? scaledPercentToString(rate.annual_rate_scaled) : '');
+    this.rateFrom.set(rate?.valid_from ?? today());
+    this.rateSpend.set(rate?.requires_monthly_spend_minor ? decimalOf(rate.requires_monthly_spend_minor) : '');
+    this.rateFallback.set(rate?.fallback_annual_rate_scaled != null
+      ? scaledPercentToString(rate.fallback_annual_rate_scaled) : '');
     this.form.set('rate');
   }
 
@@ -599,6 +779,18 @@ export class CushionPage {
   async saveRate(): Promise<void> {
     const line = this.openLine();
     if (!line) return;
+
+    const name = this.rateComponent().trim();
+    if (name.length === 0) {
+      this.error.set(this.i18n.t('cushion.error.name'));
+      return;
+    }
+    if (!this.editingRate() && this.rateMode() === 'add'
+        && this.components().some(rate => rate.component === name)) {
+      // Same name means "this replaces that one", which is the other button.
+      this.error.set(this.i18n.t('cushion.error.componentTaken'));
+      return;
+    }
 
     let scaled: number;
     let fallback: number | null = null;
@@ -622,22 +814,33 @@ export class CushionPage {
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
+      const existing = this.editingRate();
       await db.transaction(async () => {
-        await yields.setRate({
-          account_id: line.account.id,
+        const fields = {
+          component: name,
+          pocket_id: this.ratePocket(),
+          payout: this.ratePayout(),
           valid_from: this.rateFrom(),
+          valid_to: this.rateUntil() || null,
           annual_rate_scaled: scaled,
           requires_monthly_spend_minor: spend,
           fallback_annual_rate_scaled: fallback,
-        });
-        // Only from the day the new rate starts: earlier days were computed
-        // under a rate that has not changed.
-        await yields.clearDays(line.account.id, this.rateFrom());
+        };
+
+        // Correcting a rate that was wrong, or recording one that changed.
+        // The first rewrites history because that history was never true;
+        // the second leaves it alone and takes over from its own date.
+        if (existing) await yields.correctRate(existing.id, fields);
+        else await yields.setRate({ account_id: line.account.id, ...fields });
+        // From the earliest day either version of the rate touches. Moving
+        // a rate backwards has to redo the days it now covers as well.
+        const redoFrom = existing && existing.valid_from < this.rateFrom()
+          ? existing.valid_from : this.rateFrom();
+        await yields.clearDays(line.account.id, redoFrom);
       });
 
       await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
-      this.database.dataChanged();
-      this.closeDetail();
+      await this.reopen(line, true);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -676,6 +879,9 @@ export class CushionPage {
         opening_cushion_minor: 0,
         opening_on: today(),
         withholding: account.currency_code === 'COP',
+        // Most banks pay monthly. Claiming daily would credit interest on
+        // money the bank has not handed over.
+        payout: 'monthly',
       });
       this.picking.set(false);
       this.database.dataChanged();
@@ -687,6 +893,10 @@ export class CushionPage {
   }
 
   private resetForm(): void {
+    this.error.set('');
+    this.confirmingStop.set(false);
+    this.entryKind.set('cashback');
+    this.entryPocket.set(null);
     this.amount.set('');
     this.note.set('');
     this.onDate.set(today());
@@ -746,12 +956,59 @@ export class CushionPage {
     }
   }
 
-  /** Reloads the sheet in place, so a correction is visible immediately. */
-  private async reopen(line: CushionLine): Promise<void> {
-    await this.load();
+  /** Deletes an entry and works the days out again without it. */
+  async removeEntry(entry: CushionEntry): Promise<void> {
+    const line = this.openLine();
+    if (!line) return;
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+      await db.transaction(async () => {
+        await yields.removeAdjustment(entry.id);
+        await yields.clearDays(line.account.id, entry.on_date);
+      });
+      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      this.database.dataChanged();
+      await this.reopen(line);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /** The name of the pocket a rate belongs to, or the account itself. */
+  pocketNameById(id: number | null): string {
+    if (id === null) return this.i18n.t('cushion.rate.everyPocket');
+    return this.editablePockets().find(pocket => pocket.id === id)?.name ?? '';
+  }
+
+  /** What an entry is called on the screen. */
+  kindLabel(entry: CushionEntry): string {
+    if (entry.kind === 'cashback') return this.i18n.t('cushion.kind.cashback');
+    if (entry.kind === 'other') return this.i18n.t('cushion.kind.other');
+    return this.i18n.t('cushion.kind.correction');
+  }
+
+  /**
+   * Reloads the sheet in place, so a correction is visible immediately.
+   *
+   * `openLine` holds a snapshot taken when the sheet opened. Reloading the
+   * list underneath does not touch it, so going back from the settings still
+   * showed the figure from before the edit until the whole screen was left
+   * and re-entered.
+   */
+  private async reopen(line: CushionLine, keepForm = false): Promise<void> {
+    const form = this.form();
+    await this.refresh();
+
     const fresh = this.lines().find(row => row.account.id === line.account.id);
-    if (fresh) await this.open(fresh);
-    else this.closeDetail();
+    if (!fresh) { this.closeDetail(); return; }
+
+    await this.open(fresh);
+    if (keepForm) await this.openSettings();
+    else if (form === 'day') this.form.set('none');
   }
 
   /**
@@ -773,15 +1030,25 @@ export class CushionPage {
 
     this.saving.set(true);
     try {
-      const { yields } = this.repos();
-      await yields.adjust({
-        account_id: line.account.id,
-        on_date: this.onDate(),
-        amount_minor: minor,
-        note: this.note().trim() || null,
+      const { db, yields, tax } = this.repos();
+      await db.transaction(async () => {
+        await yields.adjust({
+          account_id: line.account.id,
+          on_date: this.onDate(),
+          amount_minor: minor,
+          kind: this.entryKind(),
+          pocket_id: this.entryPocket(),
+          note: this.note().trim() || null,
+        });
+
+        // Money that lands on a day changes what every day after it earns
+        // on, so those days are worked out again. Anything corrected by
+        // hand is left alone, as always.
+        await yields.clearDays(line.account.id, this.onDate());
       });
-      this.database.dataChanged();
-      this.closeDetail();
+
+      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -835,8 +1102,7 @@ export class CushionPage {
         });
       });
 
-      this.database.dataChanged();
-      this.closeDetail();
+      await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -877,7 +1143,7 @@ export class CushionPage {
     if (scaled === null || scaled === undefined) return '—';
     return `${new Intl.NumberFormat('es-CO', {
       minimumFractionDigits: 2, maximumFractionDigits: 4,
-    }).format((scaled / EA_SCALE) * 100)} %`;
+    }).format((scaled / EA_SCALE) * 100)} % E.A.`;
   }
 
   dayText(iso: IsoDate): string {
@@ -898,13 +1164,66 @@ export class CushionPage {
     return netOf(day);
   }
 
+  /** The image an account wears, when it wears one rather than an icon. */
+  imageOf(account: AccountRow): string | undefined {
+    return this.customIcons.urlFor(account.custom_icon_id);
+  }
+
   iconOf(account: AccountRow): string {
     return outlined(account.builtin_icon);
   }
 
-  percentOf(scaled: number): string {
-    return scaledPercentToString(scaled);
+  /**
+   * Where a rate stands today: running, not started, or over.
+   *
+   * The screen used to say "no longer applies" for anything with a rate
+   * dated after it, which is wrong whenever that next rate starts in the
+   * future: 6.5% from September with 5% announced for November is the rate
+   * in force, not an expired one. Three states, told apart by today.
+   */
+  rateStatus(rate: YieldRate): 'future' | 'current' | 'ended' {
+    const now = today();
+    if (rate.valid_from > now) return 'future';
+    if (rate.valid_to !== null && rate.valid_to < now) return 'ended';
+
+    const replaced = this.endedOn(rate);
+    return replaced !== null && replaced < now ? 'ended' : 'current';
   }
+
+  /** The day a rate stops, whether it was given an end or superseded. */
+  rateEndsOn(rate: YieldRate): IsoDate | null {
+    const superseded = this.endedOn(rate);
+    if (rate.valid_to === null) return superseded;
+    if (superseded === null) return rate.valid_to;
+    return rate.valid_to < superseded ? rate.valid_to : superseded;
+  }
+
+  /**
+   * When a rate stopped applying, or null while it still does.
+   *
+   * There is no end date stored, and deliberately: the next rate for the
+   * same component ends the previous one, so the history can never
+   * contradict itself. But a screen that does not say so leaves someone
+   * looking at a 7.5% that stopped yesterday wondering whether it still
+   * counts - which is exactly what happened with Lulo.
+   */
+  endedOn(rate: YieldRate): IsoDate | null {
+    const next = this.rates()
+      .filter(other => other.component === rate.component
+        // Same product, or both belonging to the account. A rate of the
+        // account does not end a rate of a product: they are different
+        // scopes, and the engine already keeps them apart — a product with
+        // rates of its own uses only those. Without this the 6.5% set on
+        // Plata's savings product read as "from 8 Sept to 8 Sept", ended by
+        // an account-wide rate that never applied to it.
+        && (other.pocket_id ?? null) === (rate.pocket_id ?? null)
+        && other.min_balance_minor === rate.min_balance_minor
+        && other.valid_from > rate.valid_from)
+      .sort((a, b) => a.valid_from.localeCompare(b.valid_from))[0];
+
+    return next ? addDays(next.valid_from, -1) : null;
+  }
+
 }
 
 /** An amount as typed, or null when it is not one. An empty field is zero. */

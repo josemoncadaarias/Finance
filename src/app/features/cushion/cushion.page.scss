@@ -61,6 +61,41 @@
   }
 }
 
+/* What the account is actually earning on, under what it has earned. The
+   two get confused constantly, so they sit together and are named. */
+.earnsOn {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+
+  strong {
+    color: var(--ion-text-color);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Money the bank has worked out and not handed over. Amber rather than red:
+   nothing is wrong, it just is not yours yet. */
+.pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ion-color-warning-shade);
+}
+
+/* A sentence under a field, explaining what the field is for. */
+.fieldHint {
+  display: block;
+  padding: 0.25rem 0 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
 /* Inside the detail sheet the figure carries the screen on its own. */
 .total.inner {
   padding: 1.25rem 1rem 0.5rem;
@@ -100,6 +135,55 @@ ion-modal ion-title {
 
 /* The pocket a day belongs to, beside the date rather than under it: the
    date is what you scan for, the pocket is what tells them apart. */
+/* The currency of the account, on every row including the peso ones. Leaving
+   it off the pesos made the list say nothing about the accounts it was mostly
+   made of, and the only clue that a row was in dollars was that it had been
+   listed further down. */
+.money {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0.02rem 0.3rem;
+  border-radius: 4px;
+  background: var(--ion-color-light);
+  color: var(--ion-color-medium-shade);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* The unit beside the headline figure: smaller, so the number still leads. */
+.unit {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+}
+
+/* Where a rate stands, as a word with a colour rather than a date to work
+   out. Green runs, blue waits, grey is over. */
+.is {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.is.on {
+  background: rgba(var(--ion-color-success-rgb), 0.16);
+  color: var(--ion-color-success-shade);
+}
+
+.is.soon {
+  background: rgba(var(--ion-color-primary-rgb), 0.14);
+  color: var(--ion-color-primary);
+}
+
+.is.off {
+  background: var(--ion-color-light);
+  color: var(--ion-color-medium);
+}
+
 .pocket {
   margin-left: 0.4rem;
   padding: 0.05rem 0.4rem;
@@ -169,6 +253,19 @@ ion-note[slot='end'] {
   .tag.corrected { color: var(--ion-color-primary); }
 }
 
+/* A month heading inside the day list: the row you open, not one of the days
+   inside it. */
+.month {
+  --background: rgba(var(--ion-color-primary-rgb), 0.06);
+
+  ion-icon[slot='start'] {
+    color: var(--ion-color-primary);
+    font-size: 1rem;
+  }
+
+  h3 { font-weight: 600; text-transform: capitalize; }
+}
+
 .sheet {
   h2 {
     margin: 1.5rem 1rem 0.35rem;
@@ -188,6 +285,30 @@ ion-note[slot='end'] {
     background: none;
     color: var(--ion-color-warning-shade);
   }
+}
+
+/* Saving is one thing, on its own, full width and with room above it. It
+   used to sit in a row with Cancel directly under "Add a rate" - three
+   buttons stacked, one of them doing something quite different. */
+.save {
+  padding: 1.25rem 1rem 0;
+
+  ion-button {
+    --border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+}
+
+/* Anything that cannot be undone by tapping again lives down here, behind a
+   rule and a gap, well away from the button someone came to press. */
+.danger {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--ion-color-light-shade);
+
+  .hint.warn { margin-top: 0.75rem; }
 }
 
 .actions {
@@ -210,4 +331,21 @@ ion-modal {
   --width: 100%;
   --max-width: 100%;
   --height: 100%;
+}
+
+/* A logo where an icon would be: same size, same circle, so a list mixing
+   the two still lines up. */
+.logo {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-inline-end: 0.9rem;
+  flex: none;
+}
+
+.who .logo {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-inline-end: 0;
 }

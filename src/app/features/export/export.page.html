@@ -83,5 +83,59 @@
     @if (!hasData()) {
       <p class="hint">{{ 'export.nothing' | t }}</p>
     }
+
+    <!-- Reading one back. A backup that has never been restored is an archive
+         with good intentions, and the day it matters is the day you find out. -->
+    <section class="option">
+      <h2>{{ 'restore.title' | t }}</h2>
+      <p>{{ 'restore.body' | t }}</p>
+
+      @if (restored()) {
+        <p class="done">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+          {{ restored() }}
+        </p>
+      }
+
+      @if (picked(); as file) {
+        <!-- What was found in it, before anything is replaced. Picking the
+             wrong file is the easy mistake and the one that cannot be undone. -->
+        <ion-list [inset]="true">
+          <ion-item lines="none">
+            <ion-icon slot="start" name="document-attach-outline"></ion-icon>
+            <ion-label>
+              <h3>{{ file.name }}</h3>
+              <p>{{ pickedSummary() }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+
+        <p class="hint warn">{{ 'restore.warning' | t }}</p>
+
+        <ion-button expand="block" fill="clear" [disabled]="working() !== null"
+                    (click)="picked.set(null)">
+          {{ 'restore.cancel' | t }}
+        </ion-button>
+        <ion-button expand="block" color="danger" [disabled]="working() !== null"
+                    (click)="restore()">
+          @if (working() === 'restore') {
+            <ion-spinner slot="start" name="dots"></ion-spinner>
+          } @else {
+            <ion-icon slot="start" name="alert-circle-outline"></ion-icon>
+          }
+          {{ 'restore.confirm' | t }}
+        </ion-button>
+      } @else {
+        <ion-button expand="block" fill="outline" [disabled]="working() !== null"
+                    (click)="fileInput.click()">
+          <ion-icon slot="start" name="document-attach-outline"></ion-icon>
+          {{ 'restore.pick' | t }}
+        </ion-button>
+        <input #fileInput type="file" accept="application/json,.json"
+               hidden (change)="pick($event)">
+
+        <p class="hint">{{ 'restore.old' | t }}</p>
+      }
+    </section>
   }
 </ion-content>

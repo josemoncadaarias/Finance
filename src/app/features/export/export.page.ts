@@ -25,6 +25,8 @@ import {
 } from '../../core/database/export/export-csv';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { exportBackup, backupSummary, toJson } from '../../core/database/export/export-backup';
+import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
+import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
 
 @Component({
   selector: 'app-export',
@@ -41,9 +43,14 @@ export class ExportPage {
   private readonly i18n = inject(I18nService);
   readonly status = this.database.status;
 
-  readonly working = signal<'csv' | 'backup' | null>(null);
+  readonly working = signal<'csv' | 'backup' | 'restore' | null>(null);
   readonly error = signal('');
   readonly lastFile = signal('');
+
+  /** The file picked to restore, held until it is confirmed. */
+  readonly picked = signal<File | null>(null);
+  readonly pickedSummary = signal('');
+  readonly restored = signal('');
 
   /** What the database holds, so the screen can say what is being saved. */
   readonly counts = signal<{ movements: number; accounts: number; categories: number }>({
@@ -154,4 +161,65 @@ export class ExportPage {
   async previewBackup(): Promise<{ table: string; rows: number }[]> {
     return backupSummary(await exportBackup(this.database.driver));
   }
+  /**
+   * Reads a file and says what is in it, without touching anything yet.
+   *
+   * Restoring replaces five years of history, so the file is parsed and
+   * described first and the user confirms against that description. Picking
+   * the wrong file is the easiest mistake here and the only one that cannot
+   * be undone.
+   */
+  async pick(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+
+    this.error.set('');
+    this.restored.set('');
+    this.picked.set(null);
+    if (!file) return;
+
+    try {
+      const backup = parseBackup(await file.text());
+      const counts = backupSummary(backup)
+        .slice(0, 3)
+        .map(entry => `${entry.rows} ${entry.table}`)
+        .join(', ');
+
+      this.pickedSummary.set(this.i18n.t('restore.picked', {
+        date: backup.exportedAt.slice(0, 10),
+        counts,
+      }));
+      this.picked.set(file);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    }
+  }
+
+  /** Replaces everything. Only reachable after the file has been described. */
+  async restore(): Promise<void> {
+    const file = this.picked();
+    if (!file) return;
+
+    this.working.set('restore');
+    this.error.set('');
+    try {
+      const backup = parseBackup(await file.text());
+      const result = await restoreBackup(this.database.driver, backup, MIGRATION_SOURCES);
+
+      const rows = result.restored.reduce((sum, entry) => sum + entry.rows, 0);
+      this.restored.set(this.i18n.t('restore.done', { rows, version: result.toVersion }));
+      this.picked.set(null);
+      this.database.dataChanged();
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.working.set(null);
+    }
+  }
+
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -5,7 +5,7 @@
  * which rows to fetch and what they mean lives here.
  */
 
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -94,6 +94,11 @@ export class MovementsStore {
   readonly currency = computed(() => this.selectedAccount()?.currency_code ?? 'COP');
 
   constructor() {
+    // Groups arrive closed. Reading `groups()` here is what makes this fire
+    // on a new question and not on someone opening one of them: the collapse
+    // set is written, never read, by this effect.
+    effect(() => this.closeNewGroups());
+
     effect(() => {
       // Reruns whenever the database opens, the data changes, or the filter
       // moves. Everything downstream is derived, so this is the only load.
@@ -105,6 +110,26 @@ export class MovementsStore {
 
       if (this.database.status() === 'ready') void this.load();
     });
+  }
+
+  /**
+   * What the collapse state was last set up for.
+   *
+   * Every new question - another account, another period, another way of
+   * grouping - starts closed. Landing on four hundred rows is not useful;
+   * landing on twelve categories with their totals is, and opening one is
+   * a tap. It also means the expensive part of a long list is never paid
+   * for until someone asks to see it.
+   */
+  private groupsFingerprint = '';
+
+  private closeNewGroups(): void {
+    const groups = this.groups();
+    const fingerprint = groups.map(group => group.key).join('|');
+    if (fingerprint === this.groupsFingerprint) return;
+
+    this.groupsFingerprint = fingerprint;
+    untracked(() => this.collapsed.set(new Set(groups.map(group => group.key))));
   }
 
   isCollapsed(key: string): boolean {

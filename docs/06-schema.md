@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 24 tables and how they relate. The authority is always
+The 23 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -88,18 +88,15 @@ erDiagram
     yield_rates {
         INTEGER id PK
         INTEGER account_id FK
+        INTEGER pocket_id FK
         TEXT valid_from
         INTEGER annual_rate_scaled
         INTEGER min_balance_minor
         INTEGER max_balance_minor
         INTEGER requires_monthly_spend_minor
         INTEGER fallback_annual_rate_scaled
-    }
-    yield_excluded_balances {
-        INTEGER id PK
-        INTEGER account_id FK
-        TEXT valid_from
-        INTEGER amount_minor
+        TEXT component UK
+        TEXT payout
     }
     yield_pockets {
         INTEGER id PK
@@ -117,6 +114,8 @@ erDiagram
     yield_days {
         INTEGER pocket_id PK, FK
         INTEGER account_id FK
+        TEXT component PK
+        TEXT payout
         TEXT on_date PK
         INTEGER balance_minor
         INTEGER annual_rate_scaled
@@ -153,7 +152,9 @@ erDiagram
     cushion_adjustments {
         INTEGER id PK
         INTEGER account_id FK
+        INTEGER pocket_id FK
         TEXT source
+        TEXT kind
         TEXT on_date
         INTEGER amount_minor
     }
@@ -219,9 +220,9 @@ erDiagram
     accounts       ||--o{ credit_limit_changes : "limit over time"
     accounts       ||--o| yield_accounts    : "earns a yield"
     accounts       ||--o{ yield_rates       : "at these rates"
-    accounts       ||--o{ yield_excluded_balances : "part of it not earning"
     accounts       ||--o{ yield_pockets     : "split into"
     yield_pockets  ||--o{ yield_pocket_balances : "held this much"
+    yield_pockets  ||--o{ yield_rates        : "earns at its own"
     yield_pockets  ||--o{ yield_days        : "day by day"
     accounts       ||--o{ yield_days        : "day by day"
     accounts       ||--o{ cashback_rules    : "rewards under"
@@ -231,6 +232,7 @@ erDiagram
     cashback_rules ||--o{ cashback_entries  : "worked out by"
     transactions   ||--o{ cashback_entries  : "produced"
     accounts       ||--o{ cushion_adjustments : "corrected by"
+    yield_pockets  ||--o{ cushion_adjustments : "landed in"
     accounts       ||--o{ cushion_withdrawals : "moved into"
     transactions   ||--o| cushion_withdrawals : "became"
     import_batches ||--o{ transactions      : "brought in"
@@ -291,8 +293,19 @@ optionally on one category, optionally requiring a minimum balance somewhere
 else. `cashback_entries.source_transaction_id` is the link Monefy never had:
 the reward knows which purchase produced it.
 
-`cushion_adjustments` is the gap between what the app accrued and what the
-bank actually paid. Most of these banks deposit once a month, so a daily
+`cushion_adjustments` is money that landed in the cushion on a date, and
+`kind` says what it was: `cashback` that arrived, a `correction` against what
+the bank actually paid, or something `other` the note explains. They are kept
+apart because their tax treatment is not the same — cashback is not withheld
+and interest is.
+
+An entry dated inside the range being worked out compounds into every day after
+it, which is the half of this that matters: a daily yield is always worked out
+on what was there the day before, so 10,000 arriving on a Wednesday has to make
+Thursday onwards earn more. It did not, once, and the total came out right while
+every day after the entry was quietly too small.
+
+The correction case is still the common one: Most of these banks deposit once a month, so a daily
 accrual is an estimate until the deposit lands; the difference is recorded here
 rather than by rewriting the daily history, which is the evidence of what was
 worked out and why. Signed, because the bank can pay more or less than expected.
@@ -363,10 +376,12 @@ outright:
 | `idx_yield_pocket_balances` | what a pocket held on a date |
 | `idx_yield_days_account` | every pocket's days for one account |
 | `idx_yield_rates_account` | finding the rate in force on a date |
-| `idx_yield_excluded_account` | how much of an account was not earning on a date |
+| `idx_yield_rates_pocket` | and the rates belonging to one pocket |
+| `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each pocket |
 | `idx_cashback_rules_account` | the rules in force for a card on a date |
 | `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
-| `idx_cushion_adjustments_account` | the corrections against what the bank paid |
+| `idx_cushion_adjustments_account` | what has landed in an account's cushion |
+| `idx_cushion_adjustments_pocket` | and which pocket it landed in |
 | `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
 | `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |

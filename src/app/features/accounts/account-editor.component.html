@@ -33,7 +33,7 @@
 
   <ion-list [inset]="true">
     <ion-item>
-      <ion-select [label]="'accounts.type' | t" [value]="type()" interface="action-sheet"
+      <ion-select [label]="'accounts.type' | t" [value]="type()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
                   (ionChange)="type.set($any($event.detail).value)">
         @for (option of types; track option) {
           <ion-select-option [value]="option">{{ $any('accounts.type.' + option) | t }}</ion-select-option>
@@ -45,7 +45,7 @@
          so it is shown but never editable. -->
     @if (isNew()) {
       <ion-item>
-        <ion-select [label]="'accounts.currency' | t" [value]="currency()" interface="action-sheet"
+        <ion-select [label]="'accounts.currency' | t" [value]="currency()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
                     (ionChange)="currency.set($any($event.detail).value)">
           @for (option of currencies(); track option.code) {
             <ion-select-option [value]="option.code">{{ option.code }} · {{ option.name }}</ion-select-option>

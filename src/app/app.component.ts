@@ -14,6 +14,8 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
+import { ThemeButtonComponent } from './core/theme/theme-button.component';
+import { ThemeService } from './core/theme/theme.service';
 
 
 import { DatabaseService } from './core/database/database.service';
@@ -33,7 +35,7 @@ interface Section {
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
   imports: [
-    RouterLink, TranslatePipe, LanguageButtonComponent,
+    RouterLink, TranslatePipe, LanguageButtonComponent, ThemeButtonComponent,
     IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
     IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge,
   ],
@@ -42,6 +44,14 @@ export class AppComponent {
   private readonly database = inject(DatabaseService);
   private readonly menu = inject(MenuController);
   private readonly router = inject(Router);
+
+  /**
+   * Injected for its side effect: the service paints the theme in an effect of
+   * its own, and nothing else asks for it at startup. Without this the app
+   * would open in whatever the stylesheet defaults to and correct itself only
+   * once the drawer was opened.
+   */
+  private readonly theme = inject(ThemeService);
 
   readonly sections: Section[] = [
     { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },

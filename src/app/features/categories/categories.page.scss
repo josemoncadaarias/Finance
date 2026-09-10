@@ -14,7 +14,32 @@
 .side {
   margin-top: 0.75rem;
 
-  .head {
+  /* The heading doubles as the control that folds its list. */
+.fold {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+
+  ion-icon { color: var(--ion-color-primary); font-size: 1rem; }
+
+  .count {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium-shade);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+}
+
+.head {
     display: flex;
     align-items: center;
     justify-content: space-between;

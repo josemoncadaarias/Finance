@@ -45,7 +45,6 @@ const TABLES = [
   'yield_pockets',
   'yield_pocket_balances',
   'yield_rates',
-  'yield_excluded_balances',
   'yield_days',
   'cashback_rules',
   'cashback_entries',
@@ -66,8 +65,15 @@ const BACKUP_VERSION = 1;
 export async function exportBackup(db: SqlDriver): Promise<Backup> {
   const version = await db.queryOne<{ user_version: number }>('PRAGMA user_version');
 
+  // Only what is actually there. The list above is today's schema, and a build
+  // running an older one has fewer of those tables — asking for one that does
+  // not exist yet would fail the whole export rather than write a smaller file.
+  const present = new Set((await db.query<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table'`)).map(row => row.name));
+
   const tables: Record<string, unknown[]> = {};
   for (const table of TABLES) {
+    if (!present.has(table)) continue;
     tables[table] = await db.query(`SELECT * FROM ${table}`);
   }
 

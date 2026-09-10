@@ -68,6 +68,28 @@ export class CategoriesPage {
     });
   }
 
+  /**
+   * Which of the two lists are open. Both, to begin with.
+   *
+   * There are only two, so hiding them by default would mean the screen
+   * opens showing nothing at all. Folding is for putting one aside while
+   * the other is being worked through.
+   */
+  readonly openSides = signal<ReadonlySet<string>>(new Set(['expense', 'income']));
+
+  isOpen(kind: string): boolean {
+    return this.openSides().has(kind);
+  }
+
+  toggle(kind: string): void {
+    this.openSides.update(current => {
+      const next = new Set(current);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }
+
   async load(): Promise<void> {
     if (this.database.status() !== 'ready') return;
     this.loading.set(true);

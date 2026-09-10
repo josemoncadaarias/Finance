@@ -6,5 +6,14 @@
   "005_opening_cushions.sql": "dd116a2c330f96474f0fd1a1814c8f085f9417133447d298228b2aadff5af0a5",
   "006_partial_and_fallback_rates.sql": "f40bcddb3b52c2d7624ed77b7344de71762497e033e00d2ffb3cf00cabaeb3da",
   "007_rappi_not_earning.sql": "02c24f14d02fd669ddb556543061f4918b7649a94a9b0e494dd970e68d88a01d",
-  "008_pockets.sql": "dbbd1202bbb027800e5c78e18e9d0ee089fc47bcffc045f03c0025a8c4f88435"
+  "008_pockets.sql": "dbbd1202bbb027800e5c78e18e9d0ee089fc47bcffc045f03c0025a8c4f88435",
+  "009_cushion_entries.sql": "61b9ee922cf39f374158ef5381551e77b1ca4dd09d123da905e008c3471ec3a8",
+  "010_payout_frequency.sql": "21ba326f244e7f786971503baeaa820e5d9314022c737006a52cfd057d8cd999",
+  "011_rate_components.sql": "bd58e3ff34276754cd1e2d73b38f4e62828b932bfa91ea7923a110b18c31f312",
+  "012_plata_balance.sql": "276db05cffa4e7150de7e0d301d5302062658a1961b2202d5a2e682e837ccfcb",
+  "013_stated_balances.sql": "d3aa0177a2a26e6049986cce611b1850746e0ea913b925cef5f6b6339b0882c5",
+  "014_rappi_stated_balance.sql": "2386a722b74c383e8ab6d1f825e2f7dc968976a000b66f021832b1f58f6e1047",
+  "015_rappi_correct_balance.sql": "a38c69e3725b37ea47f647ad154f968459a48e1300d84b90bd444e47e64ac8f8",
+  "016_rates_per_pocket.sql": "f1d2823d3ff1936e736666b9fcf0ac880c38935a4e0f457cefddffffeb6ffe08",
+  "017_rate_end_date.sql": "0b0218ac6193e8bc93712ba80fbfe7c5f1fd9e7a6a6d215c54aaa1f00acdfe7d"
 }
