@@ -372,25 +372,46 @@ ion-toolbar.stepper {
 }
 
 /* Bottom right, clear of the safe area, over the list rather than in it.
-   Ionic places a `slot="fixed"` child itself, so this only says where. */
-.fold-fab {
+   Ionic places a `slot="fixed"` child itself, so this only says where.
+
+   A column, because they come and go one at a time and a row would shift the
+   others sideways underneath the thumb as it did. */
+.jump {
   position: absolute;
   right: 1rem;
   bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
   z-index: 20;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 2.9rem;
-  height: 2.9rem;
-  border: none;
-  border-radius: 50%;
-  background: var(--ion-color-primary);
-  color: var(--ion-color-primary-contrast);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
-  cursor: pointer;
+  gap: 0.5rem;
 
-  ion-icon { font-size: 1.25rem; }
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: var(--ion-background-color);
+    color: var(--ion-color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+
+    ion-icon { font-size: 1.1rem; }
+  }
+
+  /* The one that changes the list rather than moving through it. */
+  button.fold {
+    width: 2.9rem;
+    height: 2.9rem;
+    background: var(--ion-color-primary);
+    color: var(--ion-color-primary-contrast);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+
+    ion-icon { font-size: 1.25rem; }
+  }
 }
 
 /* The category's icon on a row, when the day is what groups the list.

@@ -7,7 +7,7 @@
  * and why it feels quick.
  */
 
-import { Component, computed, inject, signal, effect, untracked } from '@angular/core';
+import { Component, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -131,17 +131,85 @@ export class MovementsPage {
     this.store.selectedAccount()?.builtin_icon ?? 'albums-outline');
 
   /**
-   * The floating fold control: on wherever folding means anything.
+   * Where in the list the reader is: hard against the top, hard against the
+   * bottom, or somewhere between.
    *
-   * It used to appear only past a scroll depth, which read well and worked
-   * badly: the button is wanted exactly when the list is long, and hiding it
-   * until you have scrolled makes it one more thing to go looking for. The
-   * groups count keeps it off a screen with nothing to fold.
+   * Both true at once is not a contradiction - it is a list that fits on the
+   * screen, and the honest answer there is to show no jump controls at all.
    */
-  readonly showFold = computed(() =>
+  private readonly atTop = signal(true);
+  private readonly atBottom = signal(true);
+
+  // Named, not just "the first ion-content": the two modals below carry one
+  // each, and a query by type would start matching whichever opened.
+  private readonly content = viewChild<IonContent>('list');
+
+  /**
+   * Re-reads the position.
+   *
+   * `ionScroll` fires on every frame of a drag, so this writes a signal only
+   * when one of the two answers actually changes - otherwise the whole list
+   * would redraw while it is moving, which is the one moment that has to stay
+   * cheap. Reading `scrollHeight` is a layout read, but on a windowed list
+   * that is a hundred and fifty rows, not four thousand.
+   *
+   * The 4px slack is for fractional device pixels: on a 2.75x screen the
+   * bottom of a scroller is rarely a whole number, and without it the "go
+   * down" button never quite goes away.
+   */
+  private async measure(): Promise<void> {
+    const content = this.content();
+    if (!content) return;
+
+    const element = await content.getScrollElement();
+    const top = element.scrollTop <= 4;
+    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
+
+    if (top !== this.atTop()) this.atTop.set(top);
+    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+  }
+
+  onScroll(): void {
+    void this.measure();
+  }
+
+  async toTop(): Promise<void> {
+    await this.content()?.scrollToTop(300);
+    await this.measure();
+  }
+
+  async toBottom(): Promise<void> {
+    await this.content()?.scrollToBottom(300);
+    await this.measure();
+  }
+
+  /**
+   * Folding changes how tall the list is, and no scroll event says so, so the
+   * position is re-read afterwards - otherwise closing everything while at the
+   * bottom leaves a "go down" button pointing at nothing.
+   */
+  foldAll(): void {
+    this.store.toggleAll();
+    setTimeout(() => void this.measure(), 0);
+  }
+
+  /** True when the list is long enough for any of this to be worth showing. */
+  private readonly scrollable = computed(() =>
     this.filter.showList()
     && this.filter.grouping() !== 'largest'
     && this.store.groups().length > 1);
+
+  /**
+   * The floating fold control.
+   *
+   * Absent at the top, because the list's own fold button is sitting there in
+   * plain sight and two controls for one job is one too many.
+   */
+  readonly showFold = computed(() => this.scrollable() && !this.atTop());
+
+  readonly showJumpUp = computed(() => this.scrollable() && !this.atTop());
+
+  readonly showJumpDown = computed(() => this.scrollable() && !this.atBottom());
 
   /** The image a category wears, for a group heading. */
   iconUrl(id: number | null): string | undefined {

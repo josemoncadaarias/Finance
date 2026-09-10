@@ -71,6 +71,8 @@ export const SPANISH = {
   'summary.within.category': 'Dentro de cada categoría, de mayor a menor',
   'summary.collapseAll': 'Colapsar todo',
   'summary.expandAll': 'Expandir todo',
+  'summary.toTop': 'Ir al principio',
+  'summary.toBottom': 'Ir al final',
   'summary.showMore': 'Ver {count} movimientos más',
   'summary.showMoreGroups': 'Ver {count} grupos más',
 
@@ -639,6 +641,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.within.category': 'Within each category, largest first',
   'summary.collapseAll': 'Collapse all',
   'summary.expandAll': 'Expand all',
+  'summary.toTop': 'Go to the top',
+  'summary.toBottom': 'Go to the end',
   'summary.showMore': 'Show {count} more movements',
   'summary.showMoreGroups': 'Show {count} more groups',
 

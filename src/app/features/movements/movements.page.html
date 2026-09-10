@@ -68,7 +68,8 @@
 </ion-header>
 
 
-<ion-content [fullscreen]="true" appSwipe (swiped)="onSwipe($event)">
+<ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()"
+             appSwipe (swiped)="onSwipe($event)">
 
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
@@ -301,25 +302,42 @@
     }
   }
 
-  <!-- The same control as the one at the top of the list, reachable from
-       wherever you have got to. Four thousand movements is a long way back up
-       to close what you opened, and the toolbar holding that button is at the
-       far end of it.
-     
-       `slot="fixed"` is what keeps it still: content in the default slot is
-       inside the scrolling box, and `position: fixed` there is measured
-       against whichever ancestor Ionic happens to be transforming during a
-       page transition - which is why the first attempt scrolled away with the
-       list. It is always on, rather than appearing past some scroll depth,
-       because a control you have to scroll to reveal is the problem it was
-       meant to solve. -->
-  @if (showFold()) {
-    <button type="button" class="fold-fab" slot="fixed" (click)="store.toggleAll()"
-            [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-            [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-      <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-    </button>
-  }
+  <!-- Getting around a long list, without the scrolling.
+
+       Each button is here only while it has something to do, so the cluster
+       says where you are as much as it moves you: at the top there is only a
+       way down, at the bottom only a way back, and on a list that fits on the
+       screen there is nothing at all. Folding is missing at the top on
+       purpose - the list's own fold control is right there.
+
+       `slot="fixed"` is what keeps them still: content in the default slot
+       is inside the scrolling box, and `position: fixed` there is measured
+       against whichever ancestor Ionic is transforming during a page
+       transition - which is why the first attempt scrolled away with the
+       list. -->
+  <div class="jump" slot="fixed">
+    @if (showJumpUp()) {
+      <button type="button" (click)="toTop()"
+              [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+      </button>
+    }
+
+    @if (showFold()) {
+      <button type="button" class="fold" (click)="foldAll()"
+              [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+              [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+        <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+      </button>
+    }
+
+    @if (showJumpDown()) {
+      <button type="button" (click)="toBottom()"
+              [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
+        <ion-icon name="arrow-down-outline"></ion-icon>
+      </button>
+    }
+  </div>
 
 </ion-content>
 
