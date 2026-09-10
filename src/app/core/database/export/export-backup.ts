@@ -47,6 +47,8 @@ const TABLES = [
   'cashbacks',
   'import_batches',
   'review_queue',
+  // Without these, restoring would bring back every movement deleted by hand.
+  'deleted_imports',
   'settings',
 ] as const;
 

@@ -150,7 +150,15 @@ the framework on a long-running project.
    sitting there as an approximation nobody was told about. Peso rows import
    silently: there the CSV figure is the real one. Decision by Jose, 2026-09-09.
 
-13. **Manual edits win over re-imports.** The Monefy CSV is re-exported
+13. **A deletion is a decision too.** Deleting an imported movement removes its
+   fingerprint, and the importer recognises stored rows by fingerprint — so
+   without help, the next import meets the row as new and puts it back. The
+   fingerprint now outlives the row in `deleted_imports`, and the importer
+   skips it. Jose hit this on 2026-09-09: an import reported 7 new movements
+   when only 1 was new, the other 6 being rows he had deleted. It can be undone
+   (`forgetDeletion`), so nothing is permanent by accident.
+
+14. **Manual edits win over re-imports.** The Monefy CSV is re-exported
    regularly, carrying the whole history again plus new rows, so the importer
    must be repeatable. Any record edited by hand inside Finance is flagged
    `locked` and a later re-import never overwrites it: a manual edit means Jose

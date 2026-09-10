@@ -221,8 +221,52 @@ export class TransactionsRepository {
     await this.db.run(`UPDATE transactions SET ${columns.join(', ')} WHERE id = ?`, values);
   }
 
+  /**
+   * Deletes a movement, and remembers that it was deleted.
+   *
+   * A row that came from an import carries a fingerprint, and the importer
+   * skips rows whose fingerprint it has already stored. Deleting the row takes
+   * the fingerprint with it, so the next import would meet the row as new and
+   * put it back — someone deletes a movement, re-imports, and it returns with
+   * nothing to explain why.
+   *
+   * The fingerprint outlives the row instead. A deletion is a decision, the
+   * same as an edit, and `locked` already protects the edited case.
+   */
   async delete(id: number): Promise<void> {
+    const row = await this.db.queryOne<{ import_fingerprint: string | null; import_seq: number | null }>(
+      'SELECT import_fingerprint, import_seq FROM transactions WHERE id = ?', [id]);
+
     await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
+
+    if (row?.import_fingerprint != null && row.import_seq != null) {
+      await this.db.run(
+        `INSERT INTO deleted_imports (import_fingerprint, import_seq, deleted_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(import_fingerprint, import_seq) DO NOTHING`,
+        [row.import_fingerprint, row.import_seq, this.now()],
+      );
+    }
+  }
+
+  /**
+   * Fingerprints of rows deleted by hand, so an import leaves them alone.
+   *
+   * Same shape as `importedFingerprints`, and used the same way.
+   */
+  async deletedFingerprints(): Promise<Map<string, number>> {
+    const rows = await this.db.query<{ import_fingerprint: string; max_seq: number }>(
+      `SELECT import_fingerprint, MAX(import_seq) AS max_seq
+       FROM deleted_imports GROUP BY import_fingerprint`,
+    );
+    return new Map(rows.map(row => [row.import_fingerprint, row.max_seq]));
+  }
+
+  /** Lets a deliberate deletion be undone, so nothing is permanent by accident. */
+  async forgetDeletion(fingerprint: string, seq: number): Promise<void> {
+    await this.db.run(
+      'DELETE FROM deleted_imports WHERE import_fingerprint = ? AND import_seq = ?',
+      [fingerprint, seq]);
   }
 
   /**

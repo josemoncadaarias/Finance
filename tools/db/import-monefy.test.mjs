@@ -469,3 +469,48 @@ test('a new movement in a foreign account arrives flagged, and old ones stay put
 
   await db.close();
 });
+
+test('a movement deleted by hand does not come back on the next import', async () => {
+  const db = await freshDb();
+
+  const rows = [
+    `21/08/2021,Bancolombia,Initial balance 'Bancolombia',"100,000",COP,"100,000",COP,`,
+    '22/08/2021,Bancolombia,Restaurante,"-50,000",COP,"-50,000",COP,Almuerzo',
+    '23/08/2021,Bancolombia,Taxi,"-12,000",COP,"-12,000",COP,Carrera',
+  ];
+  await run(db, csv(...rows));
+
+  const taxi = await db.queryOne("SELECT id FROM transactions WHERE description = 'Carrera'");
+  assert.ok(taxi, 'it was imported');
+
+  // Jose deletes it: it was a duplicate, or it never happened.
+  await new TransactionsRepository(db, NOW).delete(taxi.id);
+  assert.equal(
+    (await db.queryOne("SELECT COUNT(*) n FROM transactions WHERE description = 'Carrera'")).n, 0);
+
+  // The next export still carries it, as Monefy's exports always carry
+  // everything. It must not return.
+  const second = await run(db, csv(...rows,
+    '09/09/2026,Bancolombia,Comida,"-30,000",COP,"-30,000",COP,Mercado'));
+
+  assert.equal(
+    (await db.queryOne("SELECT COUNT(*) n FROM transactions WHERE description = 'Carrera'")).n, 0,
+    'the deleted movement stays deleted');
+
+  // And the genuinely new row did arrive: this protects a decision, it does
+  // not stop the import working.
+  assert.ok(await db.queryOne("SELECT id FROM transactions WHERE description = 'Mercado'"));
+  assert.equal(second.rowsInserted, 1, 'one new row, not two');
+
+  // The decision can be undone, so nothing is permanent by accident.
+  const transactions = new TransactionsRepository(db, NOW);
+  const tomb = await db.queryOne('SELECT import_fingerprint f, import_seq s FROM deleted_imports');
+  await transactions.forgetDeletion(tomb.f, tomb.s);
+
+  await run(db, csv(...rows));
+  assert.equal(
+    (await db.queryOne("SELECT COUNT(*) n FROM transactions WHERE description = 'Carrera'")).n, 1,
+    'forgetting the deletion lets it come back');
+
+  await db.close();
+});

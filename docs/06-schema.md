@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 15 tables and how they relate. The authority is always
+The 16 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -122,6 +122,11 @@ erDiagram
         INTEGER limit_minor
         TEXT effective_on
         TEXT source
+    }
+    deleted_imports {
+        TEXT import_fingerprint PK
+        INTEGER import_seq PK
+        TEXT deleted_at
     }
     settings {
         TEXT key PK

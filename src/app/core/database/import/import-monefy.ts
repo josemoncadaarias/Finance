@@ -116,6 +116,8 @@ class ImportWriter {
   private readonly categoryIds = new Map<string, number>();
   /** Fingerprints already in the database, and the highest sequence of each. */
   private seen = new Map<string, number>();
+  /** Fingerprints of rows deleted by hand, which must not come back. */
+  private deleted = new Map<string, number>();
   /** Accepted dollar rates by date, for estimating the rows that lack one. */
   private readonly knownRates: { on: string; rateScaled: number }[] = [];
 
@@ -164,6 +166,7 @@ class ImportWriter {
 
   async run(pairing: ReturnType<typeof pairTransfers>, options: ImportOptions): Promise<ImportSummary> {
     this.seen = await this.transactions.importedFingerprints();
+    this.deleted = await this.transactions.deletedFingerprints();
 
     await this.openBatch(options);
     await this.createGroups();
@@ -422,10 +425,19 @@ class ImportWriter {
     };
   }
 
-  /** True when this row is already stored from an earlier import. */
+  /**
+   * True when this row must not be written: already stored, or deliberately
+   * deleted once before.
+   *
+   * The second case is what stops a deleted movement from reappearing at the
+   * next import as though it were new.
+   */
   private alreadyStored(row: MonefyRow): boolean {
     const highest = this.seen.get(row.fingerprint);
-    return highest !== undefined && row.importSeq <= highest;
+    if (highest !== undefined && row.importSeq <= highest) return true;
+
+    const removed = this.deleted.get(row.fingerprint);
+    return removed !== undefined && row.importSeq <= removed;
   }
 
   private async writeTransaction(row: MonefyRow): Promise<void> {

@@ -282,9 +282,16 @@
 </ion-modal>
 
 <!-- Period and account, the way Monefy puts them in one drawer -->
-<ion-modal [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)"
-           [initialBreakpoint]="0.75" [breakpoints]="[0, 0.75, 1]">
+<ion-modal [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
   <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="showPeriodSheet.set(false)">{{ 'summary.close' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
     <ion-content class="sheet">
       <h2>{{ 'summary.period' | t }}</h2>
       <ion-radio-group [value]="filter.period().kind"
@@ -300,6 +307,12 @@
 
       @if (choosingRange()) {
         <div class="range">
+          <!-- The chosen range, above the calendars that set it, so it is
+               readable without scrolling past both of them. -->
+          @if (rangeLabel(); as range) {
+            <p class="range-so-far">{{ range }}</p>
+          }
+
           <div class="ends">
             <div class="end">
               <p>{{ 'summary.from' | t }}</p>
@@ -319,7 +332,6 @@
           <ion-button expand="block" (click)="applyRange()"
                       [disabled]="!rangeStart() || !rangeEnd()">
             {{ 'summary.apply' | t }}
-            @if (rangeLabel(); as range) { <span class="range-label">{{ range }}</span> }
           </ion-button>
         </div>
       }
