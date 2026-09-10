@@ -63,3 +63,18 @@ test('every language offered has a dictionary and a flag', () => {
   }
   assert.equal(LANGUAGES[0].code, 'es', 'Spanish comes first: it is the default');
 });
+
+test('a count of one picks the singular phrase where there is one', () => {
+  // The pairs that exist have to agree about their placeholders, or the
+  // singular would drop the number the plural shows.
+  for (const key of Object.keys(SPANISH)) {
+    if (!key.endsWith('.one')) continue;
+
+    const plural = key.slice(0, -'.one'.length);
+    assert.ok(plural in SPANISH, `${key} has no plural form to stand in for`);
+  }
+
+  // And the singular is what a Spanish reader expects.
+  assert.equal(SPANISH['accounts.currencies.used.one'], 'En 1 cuenta');
+  assert.equal(SPANISH['accounts.currencies.used'], 'En {count} cuentas');
+});

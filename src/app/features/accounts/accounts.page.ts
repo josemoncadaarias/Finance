@@ -24,6 +24,7 @@ import { LanguageButtonComponent } from '../../core/i18n/language-button.compone
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
 import { RatesRepository, RATE_SCALE } from '../../core/database/repositories/rates.repository';
+import { I18nService } from '../../core/i18n/i18n.service';
 import type { NetWorth } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from './account-editor.component';
 import type { AccountRow, GroupedBalance } from '../../core/database/types';
@@ -47,6 +48,7 @@ export class AccountsPage {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18nService);
 
   /** Non-null while the editor is open; its account is null when creating. */
   readonly editor = signal<{ account: AccountRow | null } | null>(null);
@@ -60,6 +62,21 @@ export class AccountsPage {
 
   /** Icon names arrive with or without their suffix; this settles it. */
   readonly outlined = outlined;
+
+  /**
+   * The currencies the app knows, and the form for adding one.
+   *
+   * On this screen rather than behind a settings menu: a currency exists to
+   * denominate an account, so this is where someone goes looking for it. It
+   * was reachable only from inside the new-account form before, which is to
+   * say not reachable at all unless you were already making an account.
+   */
+  readonly currencies = signal<{ code: string; name: string; symbol: string; used: number }[]>([]);
+  readonly addingCurrency = signal(false);
+  readonly newCode = signal('');
+  readonly newName = signal('');
+  readonly newSymbol = signal('');
+  readonly currencyError = signal('');
 
   /** The total, and every line that makes it. */
   readonly worth = signal<NetWorth | null>(null);
@@ -178,6 +195,56 @@ export class AccountsPage {
     await this.load();
   }
 
+  private async loadCurrencies(): Promise<void> {
+    // Counted so a currency nothing uses can be told apart from one that is
+    // holding money.
+    this.currencies.set(await this.database.driver.query<{
+      code: string; name: string; symbol: string; used: number;
+    }>(
+      `SELECT c.code, c.name, c.symbol,
+              (SELECT COUNT(*) FROM accounts a WHERE a.currency_code = c.code) AS used
+       FROM currencies c ORDER BY used DESC, c.code`,
+    ));
+  }
+
+  /**
+   * Adds a currency the app did not ship with.
+   *
+   * Minor units are fixed at two: every currency this app is likely to meet
+   * has cents and the money helpers assume it, so offering the choice would be
+   * offering a way to store amounts a hundred times off.
+   */
+  async saveCurrency(): Promise<void> {
+    const code = this.newCode().trim().toUpperCase();
+    const name = this.newName().trim();
+
+    if (!/^[A-Z]{3}$/.test(code)) {
+      this.currencyError.set(this.i18n.t('accounts.currency.badCode'));
+      return;
+    }
+    if (name === '') {
+      this.currencyError.set(this.i18n.t('accounts.currency.needName'));
+      return;
+    }
+
+    try {
+      await this.database.driver.run(
+        `INSERT INTO currencies (code, name, symbol, minor_units) VALUES (?, ?, ?, 2)
+         ON CONFLICT(code) DO UPDATE SET name = excluded.name, symbol = excluded.symbol`,
+        [code, name, this.newSymbol().trim() || code],
+      );
+
+      await this.loadCurrencies();
+      this.addingCurrency.set(false);
+      this.newCode.set('');
+      this.newName.set('');
+      this.newSymbol.set('');
+      this.currencyError.set('');
+    } catch (error) {
+      this.currencyError.set(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   setSort(by: 'amount' | 'name'): void {
     this.sortBy.set(by);
   }
@@ -206,6 +273,7 @@ export class AccountsPage {
     this.grouped.set(grouped);
     this.worth.set(worth);
     this.netWorthMinor.set(worth.totalMinor);
+    await this.loadCurrencies();
     await this.loadIcons();
   }
 

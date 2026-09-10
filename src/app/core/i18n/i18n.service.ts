@@ -57,9 +57,21 @@ export class I18nService {
    * An unknown key falls back to Spanish and then to the key itself: a screen
    * showing a Spanish word is a smaller failure than one showing
    * `summary.empty.title`.
+   *
+   * When `values.count` is exactly one and a `<key>.one` phrase exists, that
+   * one is used instead — so "En 1 cuentas" becomes "En 1 cuenta". Both
+   * languages this app speaks have the same rule (one versus everything else,
+   * zero included), so nothing more elaborate is warranted; a language with
+   * dual or paucal forms would need a real plural library, and saying so here
+   * is cheaper than pretending this generalises.
    */
   t(key: TranslationKey, values?: Record<string, string | number>): string {
-    const phrase = DICTIONARIES[this.language()]?.[key] ?? SPANISH[key] ?? key;
+    const singular = values?.['count'] === 1 ? (`${key}.one` as TranslationKey) : null;
+    const chosen = singular !== null && (DICTIONARIES[this.language()]?.[singular] ?? SPANISH[singular])
+      ? singular
+      : key;
+
+    const phrase = DICTIONARIES[this.language()]?.[chosen] ?? SPANISH[chosen] ?? key;
     if (!values) return phrase;
 
     return phrase.replace(/\{(\w+)\}/g, (whole, name: string) =>

@@ -227,6 +227,11 @@ export const SPANISH = {
   'accounts.type.cash': 'Efectivo',
   'accounts.type.investment': 'Inversión',
   'accounts.currency': 'Moneda',
+  'accounts.currencies.title': 'Monedas',
+  'accounts.currencies.used': 'En {count} cuentas',
+  'accounts.currencies.hint':
+    'Una moneda nueva queda disponible al crear una cuenta. Los decimales son ' +
+    'siempre dos, como en pesos y dólares.',
   'accounts.currency.add': 'Agregar una moneda',
   'accounts.currency.code': 'Código',
   'accounts.currency.codeHint': 'CAD, MXN, BRL…',
@@ -391,6 +396,21 @@ export const SPANISH = {
   'export.csv.hint':
     'Sirve para revisar o pasarle a alguien, pero NO sirve para restaurar: un CSV ' +
     'no puede guardar qué pata pertenece a cuál transferencia ni qué corregiste a mano.',
+
+  // Singular forms, picked automatically when count is 1.
+  'accounts.currencies.used.one': 'En 1 cuenta',
+  'categories.inUse.one': 'En 1 movimiento',
+  'entry.timesUsed.one': '1 vez',
+  'accounts.showArchived.one': 'Ver 1 cuenta archivada',
+  'accounts.hideArchived.one': 'Ocultar 1 cuenta archivada',
+  'categories.showArchived.one': 'Ver 1 archivada',
+  'categories.hideArchived.one': 'Ocultar 1 archivada',
+  'accounts.currencies.one': '1 moneda',
+  'summary.accountsCounted.one': '1 cuenta',
+  'import.rebuiltLegs.one': '1 con una pata reconstruida',
+  'review.markAllRead.one': 'Marcar 1 como visto',
+  'review.intro.title.one': '1 cosa por confirmar',
+  'summary.includeSetAside.hint.one': '1 cuenta que no cuenta para el patrimonio',
 
   // --- shared states ----------------------------------------------------
   'state.opening': 'Abriendo la base de datos…',
@@ -603,6 +623,11 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.type.cash': 'Cash',
   'accounts.type.investment': 'Investment',
   'accounts.currency': 'Currency',
+  'accounts.currencies.title': 'Currencies',
+  'accounts.currencies.used': 'In {count} accounts',
+  'accounts.currencies.hint':
+    'A new currency becomes available when creating an account. Decimals are ' +
+    'always two, as in pesos and dollars.',
   'accounts.currency.add': 'Add a currency',
   'accounts.currency.code': 'Code',
   'accounts.currency.codeHint': 'CAD, MXN, BRL…',
@@ -760,6 +785,20 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'export.csv.hint':
     'Good for checking or handing to someone, but NOT for restoring: a CSV cannot ' +
     'record which leg belongs to which transfer, or what you corrected by hand.',
+
+  'accounts.currencies.used.one': 'In 1 account',
+  'categories.inUse.one': 'In 1 movement',
+  'entry.timesUsed.one': 'once',
+  'accounts.showArchived.one': 'Show 1 archived account',
+  'accounts.hideArchived.one': 'Hide 1 archived account',
+  'categories.showArchived.one': 'Show 1 archived',
+  'categories.hideArchived.one': 'Hide 1 archived',
+  'accounts.currencies.one': '1 currency',
+  'summary.accountsCounted.one': '1 account',
+  'import.rebuiltLegs.one': '1 with a rebuilt leg',
+  'review.markAllRead.one': 'Mark 1 as seen',
+  'review.intro.title.one': '1 thing to confirm',
+  'summary.includeSetAside.hint.one': "1 account that doesn't count towards net worth",
 
   'state.opening': 'Opening the database…',
   'state.failed': 'The database could not be opened',
