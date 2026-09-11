@@ -207,6 +207,14 @@ export class CushionPage {
   readonly pocketSource = signal<'ledger' | 'manual'>('manual');
   readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
 
+  /**
+   * Where the product being edited was opened from: the account's own screen
+   * or its settings. Leaving the product goes back there - it always went to
+   * the settings, which read as being thrown somewhere else for someone who
+   * had tapped the product straight from the account.
+   */
+  readonly pocketOrigin = signal<'detail' | 'settings'>('settings');
+
   /** How a high-yield product is paid, as set on the product. */
   readonly pocketPayout = signal<'daily' | 'monthly'>('daily');
   readonly pocketMonths = signal('1');
@@ -628,17 +636,32 @@ export class CushionPage {
   /**
    * One step back rather than all the way out.
    *
-   * A rate and a pocket are opened from the settings, so back from either
-   * is the settings, not the account. Closing outright is the X's job, and
+   * Back from a rate is the product it belongs to; back from a product is
+   * wherever the product was opened from. Closing outright is the X's job, and
    * conflating the two is how someone loses a form they were filling in.
    */
   async back(): Promise<void> {
     const where = this.form();
-    if (where === 'rate' || where === 'pocket') {
-      await this.openSettings();
+    if (where === 'rate') {
+      await this.openPocket(this.editingPocket());
+    } else if (where === 'pocket') {
+      await this.closePocket();
     } else {
       this.form.set('none');
     }
+  }
+
+  /** Leaves a product without saving, for the screen it was opened from. */
+  async closePocket(): Promise<void> {
+    if (this.pocketOrigin() === 'detail') this.form.set('none');
+    else await this.openSettings();
+  }
+
+  /** After a product was saved or removed: its account read again, and back where it was opened from. */
+  private async returnFromPocket(line: CushionLine): Promise<void> {
+    const toSettings = this.pocketOrigin() === 'settings';
+    await this.reopen(line, toSettings);
+    if (!toSettings) this.form.set('none');
   }
 
   startForm(which: 'adjust' | 'withdraw'): void {
@@ -861,6 +884,10 @@ export class CushionPage {
     if (!line) return;
     const { yields, tax } = this.repos();
 
+    // Coming back from one of its rates keeps the origin the product had.
+    if (this.form() === 'none') this.pocketOrigin.set('detail');
+    else if (this.form() === 'settings') this.pocketOrigin.set('settings');
+
     this.editingPocket.set(pocket);
     this.confirmingPocketDelete.set(false);
     this.error.set('');
@@ -1045,7 +1072,7 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      await this.reopen(line, true);
+      await this.returnFromPocket(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1130,7 +1157,7 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      await this.reopen(line, true);
+      await this.returnFromPocket(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1182,7 +1209,7 @@ export class CushionPage {
       // The whole account again, not just the settings: the products' figures
       // on screen were read before the balance moved, and reopening only the
       // settings left the destination showing its old balance until a refresh.
-      await this.reopen(line, true);
+      await this.returnFromPocket(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1311,9 +1338,11 @@ export class CushionPage {
 
   /** Back to a product's form, with the account and its figures read again. */
   private async backToPocket(line: CushionLine, pocketId: number): Promise<void> {
+    const origin = this.pocketOrigin();
     await this.reopen(line, true);
     const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
     if (pocket) await this.openPocket(pocket);
+    this.pocketOrigin.set(origin);
   }
 
   /**
