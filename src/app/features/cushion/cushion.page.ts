@@ -42,6 +42,7 @@ import {
 } from '../../core/database/repositories/yields.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
 import { removePocketInto } from '../../core/yields/remove-pocket';
+import { accrueAllAndSettle, accrueAndSettle } from '../../core/yields/cdt';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
@@ -379,7 +380,7 @@ export class CushionPage {
     this.error.set('');
     try {
       const { db, yields, tax } = this.repos();
-      await new AccrualEngine(db, yields, tax).accrueAll(today());
+      await accrueAllAndSettle(db, yields, tax, today());
       await this.load();
     } catch (error) {
       this.error.set(messageOf(error));
@@ -400,7 +401,7 @@ export class CushionPage {
       for (const entry of await yields.accounts()) {
         await yields.clearDays(entry.account_id);
       }
-      await new AccrualEngine(db, yields, tax).accrueAll(today());
+      await accrueAllAndSettle(db, yields, tax, today());
       await this.load();
     } catch (error) {
       this.error.set(messageOf(error));
@@ -721,7 +722,7 @@ export class CushionPage {
         await yields.clearDays(line.account.id, this.onDate());
       });
 
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -795,7 +796,7 @@ export class CushionPage {
         await yields.clearDays(line.account.id);
       });
 
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -985,7 +986,7 @@ export class CushionPage {
         await yields.clearDays(line.account.id, redoFrom);
       });
 
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       await this.reopen(line, true);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -1198,7 +1199,7 @@ export class CushionPage {
         await yields.clearDays(line.account.id, redoFrom);
       });
 
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       await this.reopen(line, true);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -1218,7 +1219,7 @@ export class CushionPage {
         await yields.removeRate(rate.id);
         await yields.clearDays(line.account.id, rate.valid_from);
       });
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       this.database.dataChanged();
       await this.openSettings();
     } catch (error) {
@@ -1337,7 +1338,7 @@ export class CushionPage {
         await yields.removeAdjustment(entry.id);
         await yields.clearDays(line.account.id, entry.on_date);
       });
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       this.database.dataChanged();
       await this.reopen(line);
     } catch (error) {
@@ -1416,7 +1417,7 @@ export class CushionPage {
         await yields.clearDays(line.account.id, this.onDate());
       });
 
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
       await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));

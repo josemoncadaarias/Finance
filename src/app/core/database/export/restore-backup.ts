@@ -167,7 +167,11 @@ async function replaceWith(
       for (const table of insertOrder(Object.keys(backup.tables))) {
         const stored = backup.tables[table];
         if (!Array.isArray(stored) || stored.length === 0) continue;
-        const rows = table === 'categories' ? parentsFirst(stored) : stored;
+        // Rows that point at rows of their own table go in parents first: a
+        // category at its parent, a CDT at the product it matures into.
+        const rows = table === 'categories' ? parentsFirst(stored, 'parent_id')
+          : table === 'yield_pockets' ? parentsFirst(stored, 'matures_into_pocket_id')
+          : stored;
 
         // A migration may have seeded the table already — currencies and the
         // tax parameters both do. The backup is the authority.
@@ -235,7 +239,7 @@ function insertOrder(tables: string[]): string[] {
  * parents go in first. A row whose parent never appears is left for the end,
  * where the foreign key check names it.
  */
-function parentsFirst(rows: unknown[]): unknown[] {
+function parentsFirst(rows: unknown[], parentColumn: string): unknown[] {
   const pending = [...rows] as Record<string, unknown>[];
   const placed = new Set<unknown>();
   const ordered: Record<string, unknown>[] = [];
@@ -244,7 +248,8 @@ function parentsFirst(rows: unknown[]): unknown[] {
     const before = pending.length;
     for (let at = 0; at < pending.length;) {
       const row = pending[at];
-      if (row['parent_id'] === null || row['parent_id'] === undefined || placed.has(row['parent_id'])) {
+      const parent = row[parentColumn];
+      if (parent === null || parent === undefined || placed.has(parent)) {
         ordered.push(row);
         placed.add(row['id']);
         pending.splice(at, 1);

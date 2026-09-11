@@ -45,6 +45,20 @@ export function endOfMonth(day: IsoDate): IsoDate {
   return toIso(Date.UTC(year, month, 0));
 }
 
+/**
+ * The same day of the month, a number of months later.
+ *
+ * When the later month is shorter it stops at its last day: a CDT opened on
+ * January 31st for one month matures on February 28th - the 29th in a leap
+ * year - rather than spilling into March.
+ */
+export function addMonthsClamped(day: IsoDate, months: number): IsoDate {
+  const [year, month, date] = day.split('-').map(Number);
+  const target = new Date(Date.UTC(year, month - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return toIso(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), Math.min(date, lastDay)));
+}
+
 /** `2026-09-09` -> `2026-09`, the key a monthly condition is grouped by. */
 export function monthOf(day: IsoDate): string {
   return day.slice(0, 7);

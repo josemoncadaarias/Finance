@@ -109,6 +109,13 @@ erDiagram
         INTEGER account_id FK
         TEXT name UK
         TEXT source
+        TEXT kind
+        TEXT payout
+        INTEGER payout_months
+        TEXT opened_on
+        INTEGER term_months
+        INTEGER matures_into_pocket_id FK
+        INTEGER income_category_id FK
         INTEGER sort_order
     }
     yield_pocket_balances {
@@ -247,6 +254,8 @@ erDiagram
     yield_pockets  ||--o{ cushion_adjustments : "landed in"
     yield_pockets  ||--o{ transactions       : "money moved through"
     yield_pockets  ||--o{ cushion_withdrawals : "taken out of"
+    yield_pockets  ||--o{ yield_pockets     : "a CDT matures into"
+    categories     ||--o{ yield_pockets     : "a CDT's yield is recorded as"
     accounts       ||--o{ cushion_withdrawals : "moved into"
     transactions   ||--o| cushion_withdrawals : "became"
     import_batches ||--o{ transactions      : "brought in"

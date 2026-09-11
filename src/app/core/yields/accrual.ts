@@ -39,7 +39,7 @@ import type { TaxParametersRepository } from '../database/repositories/tax-param
 import {
   accrueDay, accruePayment, bandFor, rateWhenConditionMissed, ruleForProduct, type RateBand, type WithholdingRule,
 } from './yield-math';
-import { addDays, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
+import { addDays, addMonthsClamped, daysBetween, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
 
 export interface AccrualResult {
   account_id: number;
@@ -258,6 +258,11 @@ export class AccrualEngine {
           .filter(day => day.locked === 1)
           .map(day => [`${day.pocket_id}|${day.component}|${day.on_date}`, day]));
 
+      // Locked days that no rate in force reaches on its own still count, and
+      // still land: a closed CDT's payment, kept on the product it matured
+      // into under a name of its own.
+      const usedLocked = new Set<string>();
+
       // The rule can change from one day to the next, and asking the database
       // for it on every one of two thousand days would be the slow part.
       const rules = new Map<string, WithholdingRule | null>();
@@ -327,7 +332,9 @@ export class AccrualEngine {
       }
       for (const taken of takenOut) {
         if (taken.on_date < from || taken.on_date > upTo) continue;
-        land(taken.on_date, fallbackPocket, -taken.amount_minor);
+        // From the product it left, when it says - a CDT's yield paid into the
+        // product it matured into - and otherwise where unassigned money goes.
+        land(taken.on_date, pocketOf(taken.pocket_id ?? null), -taken.amount_minor);
       }
 
       for (const day of eachDay(from, upTo)) {
@@ -367,6 +374,7 @@ export class AccrualEngine {
             const lockedDay = locked.get(`${pocket.id}|${component}|${day}`);
 
             if (lockedDay) {
+              usedLocked.add(`${pocket.id}|${component}|${day}`);
               // Left exactly as it was, and still part of the cushion.
               const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
               creditTo(pocket.id, lockedDay.payout,
@@ -377,14 +385,14 @@ export class AccrualEngine {
 
             let band = bandFor(bands, base);
             if (band === null) continue;
-            // A CDT is never worked out day by day. Whatever its rate says, it is
-            // paid once a month, or once every so many months, and a day that is
-            // not its payday earns it nothing at all.
+            // A CDT is never worked out day by day: it pays once, on the day it
+            // matures, for its whole term. Every other day earns it nothing, and
+            // a CDT whose terms are not set earns nothing at all.
             const cdt = pocket.kind === 'cdt';
+            if (cdt && !(pocket.opened_on && pocket.term_months
+                && addMonthsClamped(pocket.opened_on, pocket.term_months) === day)) continue;
             const payout = cdt ? 'monthly' : band.payout;
-            const months = cdt && band.payout !== 'monthly' ? 1 : band.payoutMonths;
-            const paidOn = paidOnFor(payout, months, band.payoutFrom, day);
-            if (cdt && paidOn !== day) continue;
+            const paidOn = cdt ? day : paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
 
             if (band.requiresMonthlySpendMinor != null) {
               const spent = spendByMonth.get(monthOf(day)) ?? 0;
@@ -399,11 +407,11 @@ export class AccrualEngine {
 
             // The kind of product decides the withholding - a CDT has none of
             // the daily threshold a savings product has - and how the yield is
-            // worked out: a CDT's whole period at once, on its balance today.
+            // worked out: a CDT's whole term at once, on its balance the day it
+            // matures.
             const withholdingRule = ruleForProduct(pocket.kind, rule);
             const accrued = cdt
-              ? accruePayment(base, band, eachDay(periodStart(months, band.payoutFrom, day, firstEver), day).length,
-                  withholdingRule, enrolled.withholding === 1)
+              ? accruePayment(base, band, daysBetween(pocket.opened_on!, day), withholdingRule, enrolled.withholding === 1)
               : accrueDay(base, band, withholdingRule, enrolled.withholding === 1);
 
             await this.yields.putDay({
@@ -435,6 +443,12 @@ export class AccrualEngine {
         for (const pocket of pockets) {
           const landed = arriving.get(`${pocket.id}|${day}`);
           if (landed) cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + landed);
+        }
+
+        for (const [key, fixed] of locked) {
+          if (fixed.on_date !== day || usedLocked.has(key)) continue;
+          if (!pockets.some(pocket => pocket.id === fixed.pocket_id)) continue;
+          creditTo(fixed.pocket_id, 'monthly', day, fixed.actual_net_minor ?? fixed.net_minor);
         }
 
         // Payday: everything worked out for a payment that falls today lands at
@@ -531,21 +545,6 @@ interface ConditionalBand extends RateBand {
   payoutMonths: number;
   /** Where those months are counted from: the day the rate started. */
   payoutFrom: IsoDate;
-}
-
-/**
- * The first day a CDT payment covers.
- *
- * The first day of the first month of its payment period - or the day the rate
- * or the account started, when that is later. A rate that begins in the middle
- * of a month pays for the days it ran, not for a month it did not.
- */
-function periodStart(months: number, rateFrom: IsoDate, payday: IsoDate, firstEver: IsoDate): IsoDate {
-  const every = Math.max(1, months);
-  const last = Number(payday.slice(0, 4)) * 12 + Number(payday.slice(5, 7)) - 1;
-  const first = last - every + 1;
-  const start = `${Math.floor(first / 12)}-${String((first % 12) + 1).padStart(2, '0')}-01`;
-  return [start, rateFrom, firstEver].reduce((latest, day) => (day > latest ? day : latest));
 }
 
 /**

@@ -88,6 +88,20 @@ export interface YieldPocket {
   source: 'ledger' | 'manual';
   /** Which withholding rule it follows: a savings product's, or a CDT's. */
   kind: ProductKind;
+  /**
+   * How a high-yield product is paid: every day, or at the end of every so
+   * many months. Copied onto its rates, which the engine reads; a rate with a
+   * spending condition is paid at the end of the month regardless.
+   */
+  payout: 'daily' | 'monthly';
+  payout_months: number;
+  /** A CDT's opening day and term in months. Null for any other product. */
+  opened_on: IsoDate | null;
+  term_months: number | null;
+  /** Where a CDT's capital and yield go when it matures. Null: the usual product. */
+  matures_into_pocket_id: number | null;
+  /** The income category a CDT's yield is recorded under when it pays. */
+  income_category_id: number | null;
   sort_order: number;
   /**
    * The product money lands in when nobody says otherwise. 1 or null.
@@ -456,7 +470,8 @@ export class YieldsRepository {
   /** The pockets of an account, in the order they are shown. */
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, kind, sort_order, is_default, note
+      `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
@@ -464,7 +479,8 @@ export class YieldsRepository {
   /** Every pocket of every enrolled account, for one pass over them all. */
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, kind, sort_order, is_default, note
+      `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
 
@@ -475,13 +491,23 @@ export class YieldsRepository {
     kind?: ProductKind;
     sort_order?: number;
     note?: string | null;
+    payout?: 'daily' | 'monthly';
+    payout_months?: number;
+    opened_on?: IsoDate | null;
+    term_months?: number | null;
+    matures_into_pocket_id?: number | null;
+    income_category_id?: number | null;
   }): Promise<number> {
     const now = this.now();
     const result = await this.db.run(
-      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note,
+                                  payout, payout_months, opened_on, term_months,
+                                  matures_into_pocket_id, income_category_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.name, input.source ?? 'manual', input.kind ?? 'high_yield',
-       input.sort_order ?? 0, input.note ?? null, now, now]);
+       input.sort_order ?? 0, input.note ?? null,
+       input.payout ?? 'daily', input.payout_months ?? 1, input.opened_on ?? null, input.term_months ?? null,
+       input.matures_into_pocket_id ?? null, input.income_category_id ?? null, now, now]);
     return result.lastId ?? 0;
   }
 
@@ -495,6 +521,56 @@ export class YieldsRepository {
   async setPocketSource(id: number, source: 'ledger' | 'manual'): Promise<void> {
     await this.db.run('UPDATE yield_pockets SET source = ?, updated_at = ? WHERE id = ?',
       [source, this.now(), id]);
+  }
+
+  /**
+   * How a product is paid, onto the product and onto its rates.
+   *
+   * The engine reads the payout of each rate, so a product's setting is
+   * written to every rate of it without a spending condition. A rate with one
+   * is a bonus judged on the month and paid at its end, and keeps that.
+   */
+  async setPocketPayout(id: number, payout: 'daily' | 'monthly', months: number): Promise<void> {
+    const now = this.now();
+    await this.db.run('UPDATE yield_pockets SET payout = ?, payout_months = ?, updated_at = ? WHERE id = ?',
+      [payout, months, now, id]);
+    await this.db.run(
+      `UPDATE yield_rates SET payout = ?, payout_months = ?
+       WHERE pocket_id = ? AND requires_monthly_spend_minor IS NULL`,
+      [payout, months, id]);
+  }
+
+  /** A CDT's terms. Only the fields given are changed. */
+  async setCdtTerms(id: number, terms: {
+    opened_on?: IsoDate | null;
+    term_months?: number | null;
+    matures_into_pocket_id?: number | null;
+    income_category_id?: number | null;
+  }): Promise<void> {
+    const columns: string[] = [];
+    const values: unknown[] = [];
+    for (const [column, value] of Object.entries(terms)) {
+      if (value === undefined) continue;
+      columns.push(`${column} = ?`);
+      values.push(value);
+    }
+    if (columns.length === 0) return;
+    values.push(this.now(), id);
+    await this.db.run(`UPDATE yield_pockets SET ${columns.join(', ')}, updated_at = ? WHERE id = ?`, values);
+  }
+
+  /**
+   * Makes one day's figure permanent, under a name of its own.
+   *
+   * For a CDT's payment once the CDT is closed: the product it was worked out
+   * on is gone, so no recompute could ever produce it again. Locked, it is never
+   * rewritten; renamed, it shows in the payments list as what it was.
+   */
+  async fixPayment(pocketId: number, component: string, onDate: IsoDate, asComponent: string): Promise<void> {
+    await this.db.run(
+      `UPDATE yield_days SET locked = 1, component = ?
+       WHERE pocket_id = ? AND component = ? AND on_date = ?`,
+      [asComponent, pocketId, component, onDate]);
   }
 
   /** Changes which withholding rule a product follows. The caller works its days out again. */
@@ -900,22 +976,25 @@ export class YieldsRepository {
     transaction_id?: number | null;
     source?: 'yield' | 'cashback';
     note?: string | null;
+    /** The product it leaves from. Null: the one unassigned money uses. */
+    pocket_id?: number | null;
   }): Promise<number> {
     const result = await this.db.run(
       `INSERT INTO cushion_withdrawals
-         (account_id, source, on_date, amount_minor, transaction_id, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         (account_id, source, on_date, amount_minor, transaction_id, note, pocket_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.on_date,
-       input.amount_minor, input.transaction_id ?? null, input.note ?? null, this.now()]);
+       input.amount_minor, input.transaction_id ?? null, input.note ?? null, input.pocket_id ?? null, this.now()]);
     return result.lastId ?? 0;
   }
 
   async withdrawals(accountId: number): Promise<{
     id: number; account_id: number; source: 'yield' | 'cashback';
     on_date: IsoDate; amount_minor: number; transaction_id: number | null; note: string | null;
+    pocket_id: number | null;
   }[]> {
     return this.db.query(
-      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note
+      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, pocket_id
        FROM cushion_withdrawals WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
