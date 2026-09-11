@@ -18,8 +18,12 @@ import { Capacitor } from '@capacitor/core';
 
 import { BaseSqlDriver, SqlError, type SqlRunResult } from './sql-driver';
 import { sqlForPlugin } from './plugin-sql';
+import { recoverWebDatabase, scheduleWebCopy } from './web-store-guard';
 
 export const DATABASE_NAME = 'finance';
+
+/** The key jeep-sqlite stores a database under in IndexedDB. */
+const storeFileName = (databaseName: string) => `${databaseName}SQLite.db`;
 
 export class CapacitorSqlDriver extends BaseSqlDriver {
   private readonly connection: SQLiteConnection;
@@ -39,6 +43,9 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
     if (isWeb) {
       await connection.initWebStore();
+      // Before the plugin looks: finding nothing, it would start an empty
+      // database and save it. See web-store-guard.ts.
+      await recoverWebDatabase(storeFileName(databaseName));
     }
 
     // Reuse a connection left behind by a hot reload rather than failing.
@@ -136,6 +143,7 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
   private async saveNow(): Promise<void> {
     if (this.isWeb) {
       await CapacitorSQLite.saveToStore({ database: DATABASE_NAME });
+      scheduleWebCopy(storeFileName(DATABASE_NAME));
     }
   }
 }
