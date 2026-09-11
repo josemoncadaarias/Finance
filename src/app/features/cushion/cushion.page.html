@@ -581,17 +581,13 @@
                   {{ 'cushion.settings.withholding' | t }}
                 </ion-toggle>
               </ion-item>
-              <!-- Most banks work the yield out daily and pay once a month. A
-                   yield that has not been paid is not in the account and is
-                   not earning, so this changes the figures. -->
-              <ion-item>
-                <ion-select [label]="'cushion.settings.payout' | t" labelPlacement="stacked"
-                            [value]="payout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                            (ionChange)="payout.set($any($event.detail).value)">
-                  <ion-select-option value="daily">{{ 'cushion.payout.daily' | t }}</ion-select-option>
-                  <ion-select-option value="monthly">{{ 'cushion.payout.monthly' | t }}</ion-select-option>
-                </ion-select>
-              </ion-item>
+              <!-- How often the bank pays is asked once per rate and not here.
+                   It was asked in both places, and the engine read only the
+                   rate's answer - so the one on this screen changed nothing at
+                   all, which is worse than being wrong: it invited an answer
+                   and then ignored it. An account can pay one part daily and
+                   another monthly, as Ualá does, which is the reason the
+                   question belongs to the rate. -->
             </ion-list>
 
             <p class="section">{{ 'cushion.pockets' | t }}</p>

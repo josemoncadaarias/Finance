@@ -106,10 +106,36 @@ export class AccrualEngine {
     const balances = await this.dailyBalances(accountId, on);
 
     for (const [at, pocket] of pockets.entries()) {
-      held.set(pocket.id, pocket.source === 'manual'
-        ? statedOn(await this.yields.pocketBalances(pocket.id), on,
-                   await this.dailyBalances(accountId, on, pocket.id, at === 0), true)
-        : balanceOn(balances, on));
+      if (pocket.source !== 'manual') {
+        held.set(pocket.id, balanceOn(balances, on));
+        continue;
+      }
+
+      // Deliberately NOT `statedOn`, which is the earning base and stops a day
+      // short: money arriving today earns from tomorrow, so for that purpose
+      // today's movements do not count yet.
+      //
+      // This is a different question - how much is in it right now - and there
+      // today's movements are exactly what must count. Jose spent a peso from
+      // the savings product and watched the figure stay where it was, because
+      // the screen was showing him what the product would earn on rather than
+      // what it holds.
+      const history = await this.yields.pocketBalances(pocket.id);
+      const moved = await this.dailyBalances(accountId, on, pocket.id, at === 0);
+
+      let stated = 0;
+      let statedFrom: IsoDate | null = null;
+      for (const entry of history) {
+        if (entry.valid_from > on) break;
+        stated = entry.amount_minor;
+        statedFrom = entry.valid_from;
+      }
+
+      // Everything after the day the figure was read. That day's own movements
+      // are already inside it: it is what the bank showed at the end of it.
+      held.set(pocket.id, statedFrom === null
+        ? stated + balanceOn(moved, on)
+        : stated + (balanceOn(moved, on) - balanceOn(moved, statedFrom)));
     }
 
     return held;

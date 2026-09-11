@@ -731,12 +731,12 @@ export class EntryComponent implements OnInit {
     // reopening it to answer the obvious follow-up.
     const side = this.picking() === 'to' ? this.toPockets() : this.pockets();
     const account = this.picking() === 'to' ? this.toAccount() : this.account();
-    if (side.length > 1 && account) {
-      this.pickingPocket.set(account);
-      return;
-    }
-
     this.picking.set(null);
+
+    // Straight on to the product when the account has more than one, in a
+    // sheet of its own: the follow-up is obvious enough that making it be
+    // asked for is worse than asking it.
+    if (side.length > 1 && account) this.pickingPocket.set(account);
   }
 
   swapAccounts(): void {
@@ -839,7 +839,6 @@ export class EntryComponent implements OnInit {
     else this.pocketId.set(id);
 
     this.pickingPocket.set(null);
-    this.picking.set(null);
   }
 
   pickPocketTo(id: number): void {

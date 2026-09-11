@@ -247,3 +247,31 @@ ion-modal.entry-sheet {
      and comes from the room actually available. */
   align-items: center;
 }
+
+/*
+ * The products of one account: a sheet the size of what it holds.
+ *
+ * The same reasoning as the movement form above it. Three products do not
+ * need a whole screen, and the account sheet opening full height to show
+ * three lines was the part that read as out of proportion.
+ */
+ion-modal.pocket-sheet {
+  --height: auto;
+  --max-height: 100%;
+  --width: calc(100% - 2rem);
+  --max-width: 26rem;
+  --border-radius: 16px;
+
+  align-items: center;
+
+  .pocket-picker {
+    padding: 0.25rem 0 0.75rem;
+    background: var(--ion-background-color);
+
+    h2 {
+      margin: 0.9rem 1.5rem 0.4rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+  }
+}

@@ -1353,3 +1353,39 @@ test('moving between two products of one account leaves the account alone', asyn
 
   await db.close();
 });
+
+test('spending today shows up in the product today', async () => {
+  // Jose spent one peso from the savings product and the figure on screen did
+  // not move. The screen was asking `statedOn`, which is the EARNING base and
+  // deliberately stops a day short — money arriving today earns from tomorrow.
+  // "How much is in it right now" is a different question, and there today's
+  // movements are exactly what has to count.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 0 });
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
+    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+  });
+
+  const held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  assert.equal(held.get(savings.id), -100, 'a peso out is a peso less, today');
+
+  // The stated figure still owns its own day: it is what the bank showed at
+  // the end of it, so a movement on that date is already inside it.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -5000, pocket_id: savings.id, source: 'manual',
+  });
+  const again = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  assert.equal(again.get(savings.id), -100, 'the day it was read is not counted twice');
+
+  await db.close();
+});

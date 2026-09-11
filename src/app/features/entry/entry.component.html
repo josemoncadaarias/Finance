@@ -254,24 +254,6 @@
            one. Asked here rather than on the form because it is the same
            question narrowed, and because a form with a row of products on it
            looked like a setting that had been left lying around. -->
-      @if (pickingPocket(); as forAccount) {
-        <h2>{{ forAccount.name }}</h2>
-        <ion-list>
-          @for (pocket of (picking() === 'to' ? toPockets() : pockets()); track pocket.id) {
-            <ion-item button lines="full" (click)="choosePocket(pocket.id)"
-                      [class.selected]="(picking() === 'to' ? toPocketId() : pocketId()) === pocket.id">
-              <ion-label>
-                <h3>{{ pocket.name }}</h3>
-                @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
-              </ion-label>
-              @if ((picking() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
-                <ion-icon slot="end" class="tick" name="checkmark-circle"
-                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
-              }
-            </ion-item>
-          }
-        </ion-list>
-      } @else {
       <h2>{{ (picking() === 'to' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
       <ion-list>
         @for (option of accounts(); track option.id) {
@@ -293,8 +275,38 @@
           </ion-item>
         }
       </ion-list>
-      }
     </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- The products of one account, once the account is settled.
+     
+     A sheet of its own, sized to what it holds, rather than a second page
+     inside the account sheet: three products do not need a whole screen, and
+     the account sheet opening full height to show three lines was the part
+     that felt out of proportion. The title names the account, so it is never
+     a list of words with no owner. -->
+<ion-modal class="pocket-sheet" [isOpen]="pickingPocket() !== null"
+           (didDismiss)="pickingPocket.set(null)">
+  <ng-template>
+    <div class="pocket-picker">
+      <h2>{{ 'entry.pocket.ofAccount' | t:{ account: pickingPocket()?.name ?? '' } }}</h2>
+      <ion-list [inset]="true">
+        @for (pocket of (picking() === 'to' ? toPockets() : pockets()); track pocket.id) {
+          <ion-item button lines="full" (click)="choosePocket(pocket.id)"
+                    [class.selected]="(picking() === 'to' ? toPocketId() : pocketId()) === pocket.id">
+            <ion-label>
+              <h3>{{ pocket.name }}</h3>
+              @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
+            </ion-label>
+            @if ((picking() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
+              <ion-icon slot="end" class="tick" name="checkmark-circle"
+                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
+            }
+          </ion-item>
+        }
+      </ion-list>
+    </div>
   </ng-template>
 </ion-modal>
 
