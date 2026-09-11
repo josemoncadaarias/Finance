@@ -42,7 +42,7 @@ import {
 import { AccrualEngine } from '../../core/yields/accrual';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
-import { parseAmountToMinor } from '../../core/database/money';
+import { parseAmountToMinor, parseTypedAmountToMinor } from '../../core/database/money';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
@@ -647,15 +647,22 @@ export class CushionPage {
     this.editingPocket.set(pocket);
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
-    this.pocketFrom.set(today());
 
     if (pocket) {
       const { yields } = this.repos();
       const history = await yields.pocketBalances(pocket.id);
       const current = history.filter(row => row.valid_from <= today()).at(-1);
+
+      // Both halves of what was recorded, not just the figure. The date was
+      // reset to today every time this opened, so the screen said the balance
+      // had been read today whatever the truth was - and saving again wrote a
+      // fresh entry dated today, quietly moving a figure Jose had deliberately
+      // dated to the day he read it off the bank.
       this.pocketAmount.set(current ? decimalOf(current.amount_minor) : '');
+      this.pocketFrom.set(current?.valid_from ?? today());
     } else {
       this.pocketAmount.set('');
+      this.pocketFrom.set(today());
     }
     this.form.set('pocket');
   }
@@ -1246,11 +1253,22 @@ export class CushionPage {
 }
 
 /** An amount as typed, or null when it is not one. An empty field is zero. */
+/**
+   * An amount typed on this screen, or null when it is not one.
+   *
+   * Empty used to come back as zero, so a field left blank - or one whose
+   * contents had failed to load - saved a balance of nothing at all without a
+   * word. That is the worst possible default here: a product silently set to
+   * zero stops earning and takes its history with it.
+   *
+   * And the parsing is the tolerant one. The strict parser takes a plain
+   * decimal and nothing else, which meant the figure this app had just
+   * displayed - 4.917.434,98 - was rejected when typed back into its own form.
+   */
 function parseOrNull(raw: string): number | null {
-  const text = raw.trim();
-  if (text.length === 0) return 0;
+  if (raw.trim().length === 0) return null;
   try {
-    return parseAmountToMinor(text);
+    return parseTypedAmountToMinor(raw);
   } catch {
     return null;
   }

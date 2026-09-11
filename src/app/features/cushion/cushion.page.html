@@ -245,18 +245,21 @@
                 </p>
               }
 
-              <!-- Money that left one product for another is invisible to
-                   the app: a movement says it left the account, never which
-                   product it came out of. So the two figures are compared and
-                   the difference is said out loud, because the alternative is
-                   a product quietly earning on money it no longer holds. -->
-              @if (line.driftMinor !== 0) {
-                <p class="drift">
-                  <ion-icon name="alert-circle-outline"></ion-icon>
-                  {{ 'cushion.pockets.drift' | t:{
-                       amount: money(abs(line.driftMinor), line.account.currency_code) } }}
-                </p>
-              }
+              <!-- Off until the arithmetic behind it is right.
+                   
+                   The comparison was "what the products say they hold" against
+                   "what the account holds", and those two are not supposed to
+                   agree. A product's balance is read off the bank and so
+                   includes every yield the bank has already paid into it; the
+                   account's balance in this app deliberately does not, because
+                   the cushion is kept out of net worth. So the products are
+                   normally the larger of the two by exactly the cushion, and
+                   the check called that a fault every time.
+                   
+                   `drift()` and its tests stay, because the arithmetic they
+                   do is still needed - what is missing is subtracting the
+                   cushion before judging the remainder. Showing a warning that
+                   is wrong most of the time is worse than showing none. -->
 
               <!-- What the bank has not handed over yet is money you are owed,
                    not money you have. Saying so is the difference between a

@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  parseAmountToMinor,
+  parseAmountToMinor, parseTypedAmountToMinor,
   minorToDecimalString,
   formatMoney,
   parseRateToScaled,
@@ -95,4 +95,32 @@ test('a credit card reports what is left of its limit', () => {
 test('refuses amounts too large to stay exact', () => {
   assert.throws(() => parseAmountToMinor('99999999999999999'), MoneyError);
   assert.throws(() => convertToBaseMinor(Number.MAX_SAFE_INTEGER, 42140000), MoneyError);
+});
+
+test('an amount typed the way this app displays it is accepted', () => {
+  // The strict parser takes a plain decimal and nothing else, which is right
+  // for a file being imported: there, what a dot means depends on the file.
+  // It is wrong for a field a person types into — the figure being copied is
+  // the one this app just displayed, and typing it back was rejected, which
+  // is how a product balance ended up saved as zero.
+  assert.equal(parseTypedAmountToMinor('4.917.434,98'), 491743498, 'as Colombia writes it');
+  assert.equal(parseTypedAmountToMinor('4,917,434.98'), 491743498, 'and the other way round');
+  assert.equal(parseTypedAmountToMinor('4917434.98'), 491743498, 'no grouping at all');
+  assert.equal(parseTypedAmountToMinor('4917434,98'), 491743498);
+  assert.equal(parseTypedAmountToMinor(' 52.661.925,25 '), 5266192525, 'spaces trimmed');
+
+  // The one genuinely ambiguous case. Three digits after a lone separator is
+  // grouping: in a country whose smallest note is a thousand pesos, reading
+  // "300.000" as thirty thousand would be wrong far more often than right.
+  assert.equal(parseTypedAmountToMinor('300.000'), 30000000, 'three hundred thousand');
+  assert.equal(parseTypedAmountToMinor('300000'), 30000000, 'and the same without it');
+
+  // Fewer than three digits is a fraction, which is what it looks like.
+  assert.equal(parseTypedAmountToMinor('1.5'), 150);
+  assert.equal(parseTypedAmountToMinor('0'), 0);
+
+  // Empty is not zero. It used to be, and a field left blank quietly set a
+  // product's balance to nothing.
+  assert.throws(() => parseTypedAmountToMinor(''));
+  assert.throws(() => parseTypedAmountToMinor('   '));
 });

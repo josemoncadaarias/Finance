@@ -180,3 +180,49 @@ export function deriveRateScaled(baseMinor: number, foreignMinor: number): numbe
 export function availableCreditMinor(creditLimitMinor: number, balanceMinor: number): number {
   return creditLimitMinor - Math.abs(balanceMinor);
 }
+
+/**
+ * Parses an amount the way a person types one on a Colombian phone.
+ *
+ * `parseAmountToMinor` takes a plain decimal and nothing else, which is right
+ * for a file being imported: there, what a dot means depends on the file. It
+ * is wrong for a field a person types into, because the figure they are
+ * copying is the one this app just showed them — `4.917.434,98` — and typing
+ * it back was rejected. The strict parser stays as it is; this is the tolerant
+ * one, for screens.
+ *
+ * Both conventions are accepted, decided by which separator comes last:
+ *
+ *     4.917.434,98   ->  491743498     comma decimal, dots grouping
+ *     4,917,434.98   ->  491743498     the other way round
+ *     4917434.98     ->  491743498     no grouping at all
+ *     4917434,98     ->  491743498
+ *
+ * A lone separator with exactly three digits after it is grouping, not a
+ * decimal: `300.000` is three hundred thousand pesos and never thirty
+ * thousand. That is the one genuinely ambiguous case, and in a country whose
+ * smallest note is a thousand pesos, reading it as a decimal would be wrong
+ * far more often than right.
+ */
+export function parseTypedAmountToMinor(raw: string, minorUnits: number = DEFAULT_MINOR_UNITS): number {
+  const text = raw.trim().replace(/\s/g, '');
+  if (text.length === 0) throw new Error('Not a plain decimal amount: ""');
+
+  const lastDot = text.lastIndexOf('.');
+  const lastComma = text.lastIndexOf(',');
+
+  let plain: string;
+  if (lastDot === -1 && lastComma === -1) {
+    plain = text;
+  } else {
+    const at = Math.max(lastDot, lastComma);
+    const tail = text.slice(at + 1);
+    // Three digits after the only separator is grouping, not a fraction.
+    const grouping = tail.length === 3 && lastDot !== lastComma && Math.min(lastDot, lastComma) === -1;
+    plain = grouping
+      ? text.replace(/[.,]/g, '')
+      : text.slice(0, at).replace(/[.,]/g, '') + '.' + tail;
+  }
+
+  return parseAmountToMinor(plain, minorUnits);
+}
