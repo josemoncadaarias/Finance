@@ -327,6 +327,16 @@ ion-note[slot='end'] {
 
 /* Ionic's modal stops being full width past its md breakpoint and would sit as
    a fixed card inside the column this app caps itself to. */
+/* The available yield in the account settings. A figure to read, so it gets
+   the weight of the product balances beside it rather than the small grey of
+   a note - at note size it read as a footnote to the settings. */
+.settingsTotal {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ion-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Every sheet of this screen is full size - except the confirmation dialog,
    which is a small centred question. Without the exception this rule, being
    scoped to the component, outweighed `ion-modal.confirm-sheet` in global.scss
