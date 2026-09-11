@@ -409,7 +409,7 @@ export const SPANISH = {
   'csv.no': 'no',
 
   // --- the cushion: yields and cashback ---------------------------------
-  'cushion.title': 'Rendimientos',
+  'cushion.title': 'Productos y rendimientos',
   'cushion.total': 'Rendimiento acumulado',
   'cushion.total.hint': 'Rendimientos y cashback que todavía no son parte de tu patrimonio.',
   'cushion.earnedOn': 'Rindió el {date}:',
@@ -559,7 +559,7 @@ export const SPANISH = {
   'cushion.add.none': 'Ya están todas las cuentas.',
   'cushion.error.amount': 'Escribe un monto válido.',
   'cushion.error.tooMuch': 'No puedes pasar más de lo que hay en el colchón.',
-  'nav.cushion': 'Rendimientos',
+  'nav.cushion': 'Productos y rendimientos',
   'nav.cushion.hint': 'Rendimientos y cashback, aparte del patrimonio',
   'nav.tax': 'Renta',
   'nav.tax.hint': 'Simula la declaración del Formulario 210 de un año',
@@ -998,7 +998,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'csv.no': 'no',
 
   // --- the cushion: yields and cashback ---------------------------------
-  'cushion.title': 'Yields',
+  'cushion.title': 'Products and yields',
   'cushion.total': 'Accumulated yield',
   'cushion.total.hint': 'Interest and cashback that are not part of your net worth yet.',
   'cushion.earnedOn': 'Earned on {date}:',
@@ -1148,7 +1148,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cushion.add.none': 'Every account is already here.',
   'cushion.error.amount': 'Enter a valid amount.',
   'cushion.error.tooMuch': 'You cannot move more than the cushion holds.',
-  'nav.cushion': 'Yields',
+  'nav.cushion': 'Products and yields',
   'nav.cushion.hint': 'Interest and cashback, kept out of net worth',
   'nav.tax': 'Income tax',
   'nav.tax.hint': 'Simulate the Formulario 210 return for a year',
