@@ -1326,6 +1326,17 @@ export class CushionPage {
   totalHeld(line: CushionLine): number {
     return line.pockets.reduce((sum, pocket) => sum + this.heldIn(line, pocket.id), 0);
   }
+  /**
+   * The figure typed into the form right now, in minor units.
+   *
+   * Read from the field rather than from the database so the breakdown
+   * below it follows what is being typed: change the balance and the sum
+   * re-adds itself, which is how it can be checked against the bank while
+   * the correction is still being made.
+   */
+  statedNow(): number {
+    return parseOrNull(this.pocketAmount()) ?? 0;
+  }
   /** What one product holds today. Zero when nothing is known about it. */
   heldIn(line: CushionLine, pocketId: number): number {
     return line.heldByPocket.get(pocketId) ?? 0;

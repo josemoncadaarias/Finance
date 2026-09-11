@@ -777,12 +777,10 @@ export class EntryComponent implements OnInit {
       if (accountId === null) return { pockets: [] as YieldPocket[], chosen: null };
       const pockets = await yields.pockets(accountId);
       const known = pockets.some(pocket => pocket.id === storedId);
-      // The first product unless the movement already names another: an
-      // account's first product is the savings account it started as, which
-      // is where a salary lands and a card payment leaves from.
-      return { pockets, chosen: known ? storedId : pockets[0]?.id ?? null };
+      return { pockets, chosen: known ? storedId : defaultPocket(pockets, savingsName) };
     };
 
+    const savingsName = this.i18n.t('cushion.pocket.defaultName');
     const editing = this.request().editing;
     const storedFor = (accountId: number | null) =>
       editing && editing.account_id === accountId ? editing.pocket_id ?? null : null;
@@ -909,6 +907,25 @@ export class EntryComponent implements OnInit {
       this.saving.set(false);
     }
   }
+}
+
+/**
+   * Which product a movement lands in when nobody has said.
+   *
+   * The savings account, by name — not the first in the list. Sort order only
+   * records when each product was created, and Jose created the savings ones
+   * last, so "the first" picked whichever alcancía happened to predate them.
+   * The name is what carries the meaning: every account starts as one savings
+   * product, and that is where a salary lands and a card payment leaves from.
+   *
+   * It falls back to the first only when no product carries that name, which
+   * means somebody renamed it — in which case any answer is a guess and the
+   * first is as good as another.
+   */
+function defaultPocket(pockets: readonly YieldPocket[], savingsName: string): number | null {
+  const folded = savingsName.trim().toLowerCase();
+  const savings = pockets.find(pocket => pocket.name.trim().toLowerCase() === folded);
+  return (savings ?? pockets[0])?.id ?? null;
 }
 
 /** The order last chosen, or habit if there is none to read. */

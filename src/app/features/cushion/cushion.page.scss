@@ -448,3 +448,36 @@ ion-modal {
 
   &.owed { color: var(--ion-color-warning); }
 }
+
+/* Where today's figure comes from: what was typed, what has moved since, and
+   the sum. With only the answer on screen there is no telling which half is
+   wrong when the answer looks wrong. */
+.breakdown {
+  margin: 0.25rem 1.5rem 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  background: var(--ion-color-step-50, rgba(128, 128, 128, 0.08));
+  font-size: 0.8rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.15rem 0;
+    color: var(--ion-color-medium-shade);
+  }
+
+  strong {
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-text-color);
+
+    &.owed { color: var(--ion-color-warning); }
+  }
+
+  .sum {
+    margin-top: 0.3rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--ion-color-light-shade);
+    font-weight: 600;
+  }
+}

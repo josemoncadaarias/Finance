@@ -764,6 +764,30 @@
                 </ion-item>
               </ion-list>
               <p class="hint">{{ 'cushion.pocket.amountHint' | t }}</p>
+
+              <!-- Where today's figure comes from, spelled out. A product's
+                   balance is one thing typed on a date plus everything that
+                   has moved through it since, and with only the answer on
+                   screen there is no way to tell which half is wrong when it
+                   looks wrong. -->
+              @if (editingPocket(); as pocket) {
+                <div class="breakdown">
+                  <div>
+                    <span>{{ 'cushion.pocket.stated' | t:{ date: dayText(pocketFrom()) } }}</span>
+                    <strong>{{ money(statedNow(), line.account.currency_code) }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ 'cushion.pocket.movedSince' | t }}</span>
+                    <strong>{{ money(heldIn(line, pocket.id) - statedNow(), line.account.currency_code) }}</strong>
+                  </div>
+                  <div class="sum">
+                    <span>{{ 'cushion.pocket.today' | t }}</span>
+                    <strong [class.owed]="heldIn(line, pocket.id) < 0">
+                      {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                    </strong>
+                  </div>
+                </div>
+              }
             }
 
             <div class="actions">
