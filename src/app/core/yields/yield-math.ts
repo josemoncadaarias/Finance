@@ -196,6 +196,41 @@ export function accrueDay(
 }
 
 /**
+ * What a balance earns over a whole payment period, paid at once.
+ *
+ * How a CDT pays: nothing day by day, one payment on its payday, on the
+ * balance it holds that day. The rate for the period comes from the same E.A.
+ * as a daily one - `(1 + annual) ^ (days / 365) - 1` - so a CDT and a savings
+ * product quoted at the same E.A. are measured against the same year.
+ */
+export function periodYieldMinor(balanceMinor: number, annualRateScaled: number, days: number): number {
+  if (balanceMinor <= 0 || annualRateScaled <= 0 || days <= 0) return 0;
+  const rate = Math.expm1((Math.log1p(annualRateScaled / EA_SCALE) * days) / DAYS_IN_YEAR);
+  return Math.round(balanceMinor * rate);
+}
+
+/** One payment of a product paid per period, end to end, as it is written to `yield_days`. */
+export function accruePayment(
+  balanceMinor: number,
+  band: RateBand | null,
+  days: number,
+  rule: WithholdingRule | null,
+  withholds: boolean,
+): AccruedDay {
+  const rate = band?.annual_rate_scaled ?? 0;
+  const gross = periodYieldMinor(balanceMinor, rate, days);
+  const withheld = withholds ? withholdingMinor(gross, rule) : 0;
+  return {
+    balance_minor: balanceMinor,
+    annual_rate_scaled: rate,
+    gross_minor: gross,
+    withholding_minor: withheld ?? 0,
+    net_minor: gross - (withheld ?? 0),
+    withholding_unknown: withheld === null,
+  };
+}
+
+/**
  * A rate as a person types it, into the integer the app stores.
  *
  * `10,5` and `10.5` both mean 10.5% E.A., which is 0.105 as a fraction and

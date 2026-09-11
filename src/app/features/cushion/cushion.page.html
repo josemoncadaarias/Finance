@@ -415,7 +415,7 @@
                         <h3>{{ dayText(payment.on) }}</h3>
                         <p>
                           {{ payment.component }}
-                          @if (payment.payout === 'monthly') {
+                          @if (payment.payout === 'monthly' && payment.days > 1) {
                             · {{ 'cushion.payments.ofDays' | t:{ count: payment.days } }}
                           }
                         </p>
@@ -778,6 +778,9 @@
               </ion-item>
             </ion-list>
             <p class="hint">{{ 'cushion.pocket.kindHint' | t }}</p>
+            @if (pocketKind() === 'cdt') {
+              <p class="hint">{{ 'cushion.pocket.cdtHint' | t }}</p>
+            }
 
             @if (pocketSource() === 'manual') {
               <ion-list [inset]="true">

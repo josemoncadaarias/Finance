@@ -1767,28 +1767,67 @@ test('removing the usual product makes the destination the usual one', async () 
 // What kind of product it is
 // ---------------------------------------------------------------------------
 
-test('a CDT has 7% of every day withheld; a high-yield product only above the threshold', async () => {
-  const { db, yields, tax, engine, ids } = await setup();
-  await withRealisticWithholding(tax);
-  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: true });
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-08-31', annual_rate_scaled: pct(9) });
+// A CDT is never worked out day by day: it is paid once per period - every
+// month, or every so many months - on the balance it holds on its payday.
+
+async function withCdtProduct({ payout, payout_months, withholding, rateFrom = '2026-07-01' }) {
+  const context = await setup();
+  const { db, yields, tax, ids } = context;
+  if (withholding) await withRealisticWithholding(tax);
+  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-06-30', withholding });
 
   const [savings] = await yields.pockets(ids.rappi);
-  assert.equal(savings.kind, 'high_yield', 'every product starts as a high-yield one');
   await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-06-30', amount_minor: 500_000_000 });
   const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT', source: 'manual', kind: 'cdt', sort_order: 1 });
-  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-06-30', amount_minor: 500_000_000 });
+  await yields.setRate({ account_id: ids.rappi, valid_from: rateFrom, annual_rate_scaled: pct(9), payout, payout_months });
 
-  await engine.accrue(ids.rappi, '2026-09-01');
-  const days = await yields.days(ids.rappi, '2026-09-01', '2026-09-01');
-  const of = id => days.find(day => day.pocket_id === id);
+  return { ...context, savings: savings.id, cdt };
+}
 
-  // 5,000,000.00 at 9% E.A. earns about 1,181 pesos a day: under the 2,880.57
-  // that 0.055 UVT comes to.
-  assert.ok(of(savings.id).gross_minor < 288_057);
-  assert.equal(of(cdt).gross_minor, of(savings.id).gross_minor, 'same balance and rate, same yield');
-  assert.equal(of(savings.id).withholding_minor, 0, 'high yield: under the threshold, nothing withheld');
-  assert.equal(of(cdt).withholding_minor, Math.round(of(cdt).gross_minor * 0.07), 'CDT: 7% of all of it');
-  assert.equal((await yields.pockets(ids.rappi)).find(pocket => pocket.id === cdt).kind, 'cdt');
+/** 9% E.A. over a number of days, on a balance - worked out apart from the engine. */
+const periodYield = (balance, days) => Math.round(balance * Math.expm1(Math.log1p(0.09) * days / 365));
+
+test('a CDT is never worked out day by day: it is paid once, on its payday, on its balance', async () => {
+  // Its rate even says "every day" - a CDT is still paid by the month.
+  const { yields, engine, ids, savings, cdt } = await withCdtProduct({ payout: 'daily', withholding: false });
+  await engine.accrue(ids.rappi, '2026-09-10');
+  const days = await yields.days(ids.rappi);
+  const cdtDays = days.filter(day => day.pocket_id === cdt);
+
+  assert.equal((await yields.pockets(ids.rappi)).find(pocket => pocket.id === savings).kind, 'high_yield',
+    'every product starts as a high-yield one');
+  assert.deepEqual(cdtDays.map(day => day.on_date), ['2026-07-31', '2026-08-31'], 'one payment a month, nothing in between');
+
+  const [july, august] = cdtDays;
+  assert.equal(july.balance_minor, 500_000_000);
+  assert.equal(july.gross_minor, periodYield(500_000_000, 31), 'July, all 31 days at once');
+  assert.equal(august.balance_minor, 500_000_000 + july.net_minor, 'August is paid on what the product held on its payday');
+  assert.equal(august.gross_minor, periodYield(500_000_000 + july.net_minor, 31));
+
+  assert.equal(days.filter(day => day.pocket_id === savings).length, 72,
+    'the savings product beside it still earns every day');
+});
+
+test('a CDT paid every three months has 7% of the whole payment withheld, however small', async () => {
+  const { yields, engine, ids, cdt } = await withCdtProduct({ payout: 'monthly', payout_months: 3, withholding: true });
+  await engine.accrue(ids.rappi, '2026-10-05');
+  const payments = (await yields.days(ids.rappi)).filter(day => day.pocket_id === cdt);
+
+  assert.equal(payments.length, 1);
+  const [payment] = payments;
+  assert.equal(payment.on_date, '2026-09-30');
+  assert.equal(payment.paid_on, '2026-09-30');
+  assert.equal(payment.gross_minor, periodYield(500_000_000, 92), 'July to September, 92 days');
+  assert.equal(payment.withholding_minor, Math.round(payment.gross_minor * 0.07), 'CDT: 7% of all of it, no threshold');
+});
+
+test('a CDT whose rate starts in the middle of a month is paid for the days it ran', async () => {
+  const { yields, engine, ids, cdt } = await withCdtProduct({ payout: 'monthly', withholding: false, rateFrom: '2026-07-16' });
+  await engine.accrue(ids.rappi, '2026-08-05');
+  const [payment] = (await yields.days(ids.rappi)).filter(day => day.pocket_id === cdt);
+
+  assert.equal(payment.on_date, '2026-07-31');
+  assert.equal(payment.gross_minor, periodYield(500_000_000, 16), 'July 16th to 31st, not the whole month');
 });

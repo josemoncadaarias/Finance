@@ -195,7 +195,11 @@ the framework on a long-running project.
    - The rule is written against the **daily** interest even though most banks
      deposit monthly. That is why the module accrues by day.
 
-   **A CDT has no threshold**: 7% of every day's yield is withheld. Each
+   **A CDT is never accrued day by day and has no threshold.** It is paid
+   once per period - every month, or every N months per its rate, even if the
+   rate says daily - on the balance it holds on payday, at
+   `(1 + E.A.) ^ (days in the period / 365) - 1`, and 7% of each payment is
+   withheld. Each
    product carries a kind (`yield_pockets.kind`, migration 029): `high_yield`,
    which follows the threshold rule above and is what every product was
    before, or `cdt`. Stated by Jose 2026-09-11.
