@@ -775,7 +775,7 @@
                 <ion-item>
                   <ion-input [label]="'cushion.pocket.from' | t" labelPlacement="stacked"
                              type="date" [value]="pocketFrom()"
-                             (ionInput)="pocketFrom.set($any($event.target).value)"></ion-input>
+                             (ionInput)="setPocketFrom($any($event.target).value)"></ion-input>
                 </ion-item>
               </ion-list>
               <p class="hint">{{ 'cushion.pocket.amountHint' | t }}</p>
@@ -794,12 +794,12 @@
                   </div>
                   <div>
                     <span>{{ 'cushion.pocket.movedSince' | t }}</span>
-                    <strong>{{ money(heldIn(line, pocket.id) - statedNow(), line.account.currency_code) }}</strong>
+                    <strong>{{ money(pocketMoved(), line.account.currency_code) }}</strong>
                   </div>
                   <div class="sum">
                     <span>{{ 'cushion.pocket.today' | t }}</span>
-                    <strong [class.owed]="heldIn(line, pocket.id) < 0">
-                      {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                    <strong [class.owed]="statedNow() + pocketMoved() < 0">
+                      {{ money(statedNow() + pocketMoved(), line.account.currency_code) }}
                     </strong>
                   </div>
                 </div>

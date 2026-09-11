@@ -165,6 +165,33 @@ export class CushionPage {
   /** The date that balance had before it was edited, to redo the days between. */
   readonly editingBalanceFrom = signal<string | null>(null);
 
+  /**
+   * What has moved through this product since the date in the form.
+   *
+   * Read for the date being typed, not for today. The breakdown used to show
+   * the figure in the field against what the engine works out for today, and
+   * those two answer different questions: with a balance dated tomorrow the
+   * engine is still describing today, so "moved since that date" showed a
+   * payment made the day before the date it claimed to be counting from.
+   */
+  readonly pocketMoved = signal(0);
+
+  private async readPocketMoved(): Promise<void> {
+    const line = this.openLine();
+    const pocket = this.editingPocket();
+    if (!line || !pocket) { this.pocketMoved.set(0); return; }
+
+    const { yields } = this.repos();
+    this.pocketMoved.set(await yields.movedInPocketSince(
+      line.account.id, pocket.id, this.pocketFrom(), pocket.id === line.pockets[0]?.id));
+  }
+
+  /** The date field changed, so the figure under it has to follow. */
+  async setPocketFrom(date: string): Promise<void> {
+    this.pocketFrom.set(date);
+    await this.readPocketMoved();
+  }
+
   /** What kind of money an entry is, and where it landed. */
   readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
   readonly entryPocket = signal<number | null>(null);
@@ -811,11 +838,13 @@ export class CushionPage {
       this.pocketFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
+      await this.readPocketMoved();
     } else {
       this.pocketAmount.set('');
       this.pocketFrom.set(today());
       this.editingBalanceId.set(null);
       this.editingBalanceFrom.set(null);
+      this.pocketMoved.set(0);
     }
     this.form.set('pocket');
   }

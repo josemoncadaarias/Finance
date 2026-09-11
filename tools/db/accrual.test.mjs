@@ -1533,3 +1533,51 @@ test('a balance dated ahead is stored, and is the one an editor should show', as
 
   await db.close();
 });
+
+test('a balance dated tomorrow keeps today out of it', async () => {
+  // Jose's case exactly. He paid a credit card today from the savings product,
+  // that payment is already inside the figure he had defined, and so he dated
+  // the next balance to tomorrow to keep today out of it. The engine fell back
+  // to the enrolment date instead and counted the payment anyway — the
+  // opposite of what the date was for.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -95_649_327, pocket_id: savings.id, source: 'manual',
+  });
+
+  // Counting starts tomorrow, at zero.
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-10')).get(savings.id), 0,
+    'today is before the date counting starts, so nothing is counted');
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0,
+    'and the day itself starts from the figure, not from history');
+
+  // From then on it moves, and only with what happens from then on.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-12',
+    amount_minor: -1_000_00, pocket_id: savings.id, source: 'manual',
+  });
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-12')).get(savings.id), -1_000_00);
+
+  // A product with no balance at all is a different case: nobody has chosen a
+  // start date for it, so counting starts where this module started.
+  const alcancia = await yields.addPocket({
+    account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -2_000_00, pocket_id: alcancia, source: 'manual',
+  });
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-12')).get(alcancia), -2_000_00);
+
+  await db.close();
+});

@@ -138,11 +138,31 @@ export class AccrualEngine {
       const history = await this.yields.pocketBalances(pocket.id);
 
       let stated = 0;
-      let since = opening;
+      let since: IsoDate | null = null;
       for (const entry of history) {
         if (entry.valid_from > on) break;
         stated = entry.amount_minor;
         since = entry.valid_from;
+      }
+
+      if (since === null) {
+        // No balance describes this day yet. Two different situations, and the
+        // difference matters.
+        //
+        // A product whose balances all start later has had a start date chosen
+        // for it, and before that date there is nothing to say: it holds
+        // nothing and counts nothing. Jose dated a balance to tomorrow exactly
+        // so that today's card payment would fall outside it, and falling back
+        // to the enrolment date counted that payment anyway - which is the
+        // opposite of what the date was for.
+        //
+        // A product with no balance at all has had no start date chosen, so
+        // counting starts where this module started: the day the account was
+        // enrolled.
+        held.set(pocket.id, history.length > 0
+          ? 0
+          : await this.yields.movedInPocketSince(accountId, pocket.id, opening, at === 0));
+        continue;
       }
 
       held.set(pocket.id, stated + await this.yields.movedInPocketSince(
