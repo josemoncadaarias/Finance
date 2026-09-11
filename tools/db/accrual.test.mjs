@@ -441,6 +441,33 @@ test('correcting or deleting a cashed-in movement carries its other half with it
   await transactions.delete(cashed);
   await transactions.delete(spent);
   assert.equal(await balance(), before, 'and deleting takes both halves');
+});
+
+test('a new product opened with money from another one holds it, and earns on it, from that day', async () => {
+  const { engine, yields, transfers, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: false });
+  const [main] = await yields.pockets(ids.uala);
+  await yields.setPocketSource(main.id, 'manual');
+  await yields.setPocketBalance({ pocket_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+
+  // What the product form writes: the new product empty the day before, and a
+  // transfer carrying the money in.
+  const created = await yields.addPocket({ account_id: ids.uala, name: 'CDT', source: 'manual', sort_order: 1 });
+  await yields.setPocketBalance({ pocket_id: created, valid_from: '2026-09-04', amount_minor: 0 });
+  await transfers.create({
+    occurred_on: '2026-09-05', description: 'Saldo inicial de CDT',
+    from: { account_id: ids.uala, pocket_id: main.id, amount_minor: 300_000_000 },
+    to: { account_id: ids.uala, pocket_id: created, amount_minor: 300_000_000 },
+  });
+
+  const held = await engine.heldByPocket(ids.uala, '2026-09-10');
+  assert.equal(held.get(created), 300_000_000, 'the new product holds what came in');
+  assert.equal(held.get(main.id), 700_000_000, 'and the one it came from holds that much less');
+
+  await yields.setRate({ account_id: ids.uala, pocket_id: created, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
+  await engine.accrue(ids.uala, '2026-09-10');
+  const earning = (await yields.days(ids.uala)).find(day => day.pocket_id === created && day.on_date === '2026-09-06');
+  assert.equal(earning.balance_minor, 300_000_000, 'it earns on the money from the day after it arrived');
   assert.equal((await yields.withdrawals(ids.uala)).length, 0);
   assert.equal((await yields.adjustments(ids.uala)).length, 0);
 });

@@ -339,6 +339,19 @@ export class CushionPage {
   readonly pocketNewUsual = signal<number | null>(null);
   /** How many movements and earned days name the product being removed. */
   readonly pocketDeleteHistory = signal(0);
+
+  /**
+   * Where a new product's money comes from: out of another product, which is
+   * nearly always the truth now that products exist, or typed in by hand, as
+   * an adjustment. Out of another product it is recorded as a transfer, so
+   * both balances and the history agree.
+   */
+  readonly pocketFunding = signal<'pocket' | 'manual'>('pocket');
+  readonly pocketFundingFrom = signal<number | null>(null);
+
+  /** Only a new product with money in it has anything to ask; a CDT always has. */
+  readonly fundingAsked = computed(() =>
+    !this.editingPocket() && (this.pocketKind() === 'cdt' || (parseOrNull(this.pocketAmount()) ?? 0) > 0));
   /** Whether the product being edited has its yield withheld at all. */
   readonly pocketWithholds = signal(true);
   /** Yields landed in the product being edited since its balance was stated. */
@@ -436,6 +449,16 @@ export class CushionPage {
   private busy = false;
 
   constructor() {
+    // A message belongs to the form it was raised on. Leaving that form - or
+    // the account, or opening an entry screen - clears it; an error from the
+    // product form used to stay on every screen visited after it.
+    effect(() => {
+      this.form();
+      this.openLine();
+      this.cushionEntry();
+      untracked(() => this.error.set(''));
+    });
+
     effect(() => {
       // Read the two things that should re-run this, and nothing else.
       this.database.dataVersion();
@@ -1011,6 +1034,8 @@ export class CushionPage {
         (await yields.landedByPocket(line.account.id, today())).total.get(pocket?.id ?? -1) ?? 0);
     } else {
       this.pocketAmount.set('0');
+      this.pocketFunding.set('pocket');
+      this.pocketFundingFrom.set((line.pockets.find(other => other.is_default === 1) ?? line.pockets[0])?.id ?? null);
       this.pocketFrom.set(today());
       this.editingBalanceId.set(null);
       this.editingBalanceFrom.set(null);
@@ -1054,6 +1079,13 @@ export class CushionPage {
     const months = payout === 'monthly' ? Number(this.pocketMonths().trim()) : 1;
     if (!Number.isInteger(months) || months < 1) {
       this.error.set(this.i18n.t('cushion.error.months'));
+      return;
+    }
+
+    // A new product with money in it says where that money came from.
+    const funded = !this.editingPocket() && amount > 0 && this.pocketFunding() === 'pocket';
+    if (funded && this.pocketFundingFrom() === null) {
+      this.error.set(this.i18n.t('cushion.error.fundingFrom'));
       return;
     }
 
@@ -1113,6 +1145,8 @@ export class CushionPage {
           await yields.movePocketBalance(balanceId, {
             valid_from: this.pocketFrom(), amount_minor: amount,
           });
+        } else if (funded) {
+          await this.fundFromPocket(line, id, this.pocketFundingFrom()!, this.pocketFrom(), amount, name);
         } else {
           await yields.setPocketBalance({
             pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
@@ -1188,6 +1222,11 @@ export class CushionPage {
     }
     const opened = this.cdtOpenedOn();
     const into = this.cdtInto();
+    const funded = !this.editingPocket() && this.pocketFunding() === 'pocket';
+    if (funded && this.pocketFundingFrom() === null) {
+      this.error.set(this.i18n.t('cushion.error.fundingFrom'));
+      return;
+    }
 
     this.saving.set(true);
     try {
@@ -1221,7 +1260,11 @@ export class CushionPage {
           }
         }
 
-        await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
+        if (funded) {
+          await this.fundFromPocket(line, id, this.pocketFundingFrom()!, opened, capital, name);
+        } else {
+          await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
+        }
         await yields.setPocketWithholding(id, this.pocketWithholds());
         await yields.setRate({
           account_id: line.account.id, pocket_id: id, component: 'base',
@@ -1271,6 +1314,28 @@ export class CushionPage {
     this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0));
     this.pocketDeleteHistory.set(await yields.pocketHistoryCount(pocket.id));
     this.confirmingPocketDelete.set(true);
+  }
+
+  /**
+   * Opens a new product with money out of another one.
+   *
+   * The new product starts empty the day before, and a transfer carries the
+   * money in on the day itself: a balance counts movements from the day after
+   * it is stated when working out what a day earns, so this is what makes the
+   * money earn from its first day - and the other product's balance goes down
+   * by the same, with the transfer in both products' history.
+   */
+  private async fundFromPocket(
+    line: CushionLine, pocketId: number, fromId: number, on: IsoDate, amount: number, name: string,
+  ): Promise<void> {
+    const { yields, transfers } = this.repos();
+    await yields.setPocketBalance({ pocket_id: pocketId, valid_from: addDays(on, -1), amount_minor: 0 });
+    await transfers.create({
+      occurred_on: on,
+      description: this.i18n.t('cushion.pocket.fundedNote', { name }),
+      from: { account_id: line.account.id, pocket_id: fromId, amount_minor: amount },
+      to: { account_id: line.account.id, pocket_id: pocketId, amount_minor: amount },
+    });
   }
 
   /** Set while a removal was started from the settings list, not the product's form. */

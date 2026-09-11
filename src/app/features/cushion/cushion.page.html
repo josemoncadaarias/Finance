@@ -866,6 +866,33 @@
                              inputmode="decimal" [value]="pocketAmount()"
                              (ionInput)="pocketAmount.set(unsigned($event.target))"></ion-input>
                 </ion-item>
+              </ion-list>
+
+              <!-- A CDT's money came from somewhere: nearly always another
+                   product, recorded as a transfer; or typed in. -->
+              @if (fundingAsked()) {
+                <h3 class="field-heading">{{ 'cushion.pocket.fundingQuestion' | t }}</h3>
+                <div class="pocket-row">
+                  <button type="button" [class.on]="pocketFunding() === 'pocket'" (click)="pocketFunding.set('pocket')">
+                    {{ 'cushion.pocket.fundingPocket' | t }}
+                  </button>
+                  <button type="button" [class.on]="pocketFunding() === 'manual'" (click)="pocketFunding.set('manual')">
+                    {{ 'cushion.pocket.fundingManual' | t }}
+                  </button>
+                </div>
+                @if (pocketFunding() === 'pocket') {
+                  <div class="pocket-row">
+                    @for (other of line.pockets; track other.id) {
+                      <button type="button" [class.on]="pocketFundingFrom() === other.id" (click)="pocketFundingFrom.set(other.id)">
+                        {{ other.name }}
+                      </button>
+                    }
+                  </div>
+                }
+                <p class="hint">{{ (pocketFunding() === 'pocket' ? 'cushion.pocket.fundingPocketHint' : 'cushion.pocket.fundingManualHint') | t }}</p>
+              }
+
+              <ion-list [inset]="true">
                 <ion-item>
                   <ion-input [label]="'cushion.cdt.openedOn' | t" labelPlacement="stacked"
                              type="date" [value]="cdtOpenedOn()"
@@ -966,6 +993,29 @@
                                (ionInput)="setPocketFrom($any($event.target).value)"></ion-input>
                   </ion-item>
                 </ion-list>
+                <!-- Money in a new product came from somewhere: nearly always
+                     another product, recorded as a transfer; or typed in. -->
+                @if (fundingAsked()) {
+                  <h3 class="field-heading">{{ 'cushion.pocket.fundingQuestion' | t }}</h3>
+                  <div class="pocket-row">
+                    <button type="button" [class.on]="pocketFunding() === 'pocket'" (click)="pocketFunding.set('pocket')">
+                      {{ 'cushion.pocket.fundingPocket' | t }}
+                    </button>
+                    <button type="button" [class.on]="pocketFunding() === 'manual'" (click)="pocketFunding.set('manual')">
+                      {{ 'cushion.pocket.fundingManual' | t }}
+                    </button>
+                  </div>
+                  @if (pocketFunding() === 'pocket') {
+                    <div class="pocket-row">
+                      @for (other of line.pockets; track other.id) {
+                        <button type="button" [class.on]="pocketFundingFrom() === other.id" (click)="pocketFundingFrom.set(other.id)">
+                          {{ other.name }}
+                        </button>
+                      }
+                    </div>
+                  }
+                  <p class="hint">{{ (pocketFunding() === 'pocket' ? 'cushion.pocket.fundingPocketHint' : 'cushion.pocket.fundingManualHint') | t }}</p>
+                }
                 <p class="hint">{{ 'cushion.pocket.amountHint' | t }}</p>
                 <p class="hint">{{ 'cushion.pocket.fromHint' | t }}</p>
 
