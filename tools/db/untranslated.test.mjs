@@ -42,6 +42,8 @@ const ALLOWED = [
   'core/tax/tax-form.ts',
   // The year's tax parameters, each cited to the Spanish norm that set it.
   'core/tax/defaults.ts',
+  // A migration repair, carrying an account name verbatim from the Monefy backup.
+  'core/database/migrations/repairs.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */

@@ -42,8 +42,8 @@ import {
 } from '../../core/database/repositories/yields.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
 import { removePocketInto } from '../../core/yields/remove-pocket';
-import { accrueAllAndSettle, accrueAndSettle } from '../../core/yields/cdt';
-import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
+import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '../../core/yields/cdt';
+import { EA_SCALE, parsePercentToScaled, scaledPercentToString, type WithholdingRule } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
@@ -148,9 +148,6 @@ export class CushionPage {
   readonly openingDate = signal<IsoDate>(today());
   readonly withholds = signal(true);
   readonly payout = signal<'daily' | 'monthly'>('daily');
-
-  /** For a monthly rate, how many months each payment covers, as typed. */
-  readonly rateMonths = signal('1');
   private editingEnabled = true;
   readonly rates = signal<YieldRate[]>([]);
   readonly editablePockets = signal<YieldPocket[]>([]);
@@ -209,6 +206,51 @@ export class CushionPage {
   readonly pocketName = signal('');
   readonly pocketSource = signal<'ledger' | 'manual'>('manual');
   readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
+
+  /** How a high-yield product is paid, as set on the product. */
+  readonly pocketPayout = signal<'daily' | 'monthly'>('daily');
+  readonly pocketMonths = signal('1');
+  /** A new high-yield product's first rate, typed with it. */
+  readonly pocketRate = signal('');
+
+  /** A CDT's terms, as typed. Its amount is `pocketAmount`. */
+  readonly cdtOpenedOn = signal<IsoDate>(today());
+  readonly cdtTerm = signal('');
+  readonly cdtRate = signal('');
+  readonly cdtCategory = signal<number | null>(null);
+  readonly cdtInto = signal<number | null>(null);
+  /** The withholding rule in force, for the preview. */
+  readonly cdtRule = signal<WithholdingRule | null>(null);
+
+  /** The product being edited's own rate history, and its spending bonus if it has one. */
+  readonly pocketBaseRates = computed(() => this.rates().filter(rate =>
+    rate.pocket_id === this.editingPocket()?.id && rate.requires_monthly_spend_minor === null));
+  readonly pocketBonusRates = computed(() => this.rates().filter(rate =>
+    rate.pocket_id === this.editingPocket()?.id && rate.requires_monthly_spend_minor !== null));
+
+  /** The products a CDT can mature into: any other that is not itself a CDT. */
+  readonly cdtTargets = computed(() => this.editablePockets().filter(pocket =>
+    pocket.id !== this.editingPocket()?.id && pocket.kind !== 'cdt'));
+  readonly cdtTargetName = computed(() =>
+    this.cdtTargets().find(pocket => pocket.id === this.cdtInto())?.name ?? '');
+
+  /** What the CDT being typed will pay, or null until enough of it is typed. */
+  readonly cdtPreviewNow = computed(() => {
+    const capital = parseOrNull(this.pocketAmount());
+    const term = Number(this.cdtTerm().trim());
+    const opened = this.cdtOpenedOn();
+    if (capital === null || capital <= 0 || !Number.isInteger(term) || term < 1 || !opened) return null;
+    let rate: number;
+    try {
+      rate = parsePercentToScaled(this.cdtRate());
+    } catch {
+      return null;
+    }
+    return cdtPreview({
+      capitalMinor: capital, annualRateScaled: rate, openedOn: opened, termMonths: term,
+      rule: this.cdtRule(), withholds: this.withholds(),
+    });
+  });
   readonly pocketAmount = signal('');
   readonly pocketFrom = signal<IsoDate>(today());
 
@@ -225,66 +267,29 @@ export class CushionPage {
   readonly pocketDeleteTargetName = computed(() =>
     this.otherPockets().find(pocket => pocket.id === this.pocketDeleteTo())?.name ?? '');
 
-  /** The rate form. */
-  /**
-   * Whether a new rate replaces one that is running or joins it.
-   *
-   * The engine decides this by the component name - same name supersedes,
-   * different name adds up - and that rule was invisible: the only way to
-   * get a second rate running alongside was to guess that the free-text
-   * name was load-bearing. Uala's two rates exist because a migration
-   * named them apart, which nobody could have worked out from the screen.
-   */
-  readonly rateMode = signal<'replace' | 'add'>('replace');
-  /**
-   * Which products a rate applies to. Empty means all of them.
-   *
-   * One rate covering several products is the ordinary case, not a special
-   * one: Dale pays 10.5% on Principal and on Complemento but not on the
-   * savings account beside them. It used to be one product or all of them,
-   * which left "these two" unsayable — the rate had to be typed twice, and
-   * then corrected twice, and the second copy was the one that got forgotten.
-   *
-   * Stored as one row per product, which the schema already allowed. Rates
-   * that agree on everything but the product are shown and edited as one.
-   */
-  readonly ratePockets = signal<ReadonlySet<number>>(new Set());
-
-  toggleRatePocket(id: number): void {
-    this.ratePockets.update(current => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  isRatePocket(id: number): boolean {
-    return this.ratePockets().has(id);
-  }
+  /** The rate form: a rate of the product being edited, or its spending bonus. */
+  readonly rateIsBonus = signal(false);
   readonly rateUntil = signal<IsoDate | ''>('');
 
   /** Armed once, acted on twice: a destructive button should ask first. */
   readonly confirmingStop = signal(false);
   readonly editingRate = signal<YieldRate | null>(null);
-  readonly rateComponent = signal('base');
-  readonly ratePayout = signal<'daily' | 'monthly'>('daily');
   readonly ratePercent = signal('');
   readonly rateFrom = signal<IsoDate>(today());
   readonly rateSpend = signal('');
   readonly rateFallback = signal('');
 
   /**
-   * The next three paydays of a monthly rate, as dates.
+   * The next three paydays of a product paid every so many months, as dates.
    *
    * Worked out by the same rule the engine pays by, from what is typed in the
    * form, so "every 3 months from July" reads as "30 sep, 31 dic, 31 mar"
    * instead of a sentence about how months are counted.
    */
   readonly paydayPreview = computed(() => {
-    if (this.ratePayout() !== 'monthly') return '';
-    const months = Number(this.rateMonths().trim());
-    const from = this.rateFrom();
+    if (this.pocketPayout() !== 'monthly') return '';
+    const months = Number(this.pocketMonths().trim());
+    const from = this.pocketBaseRates().at(-1)?.valid_from ?? this.pocketFrom();
     if (!Number.isInteger(months) || months < 1 || !from) return '';
 
     const dates: string[] = [];
@@ -854,24 +859,45 @@ export class CushionPage {
   async openPocket(pocket: YieldPocket | null): Promise<void> {
     const line = this.openLine();
     if (!line) return;
+    const { yields, tax } = this.repos();
 
     this.editingPocket.set(pocket);
     this.confirmingPocketDelete.set(false);
+    this.error.set('');
 
-    // The account's products, fresh. Only the settings screen used to load
-    // them, so a product opened straight from the account's list never showed
-    // its delete button - the form believed the account had no other product.
-    this.editablePockets.set(await this.repos().yields.pockets(line.account.id));
+    // The account's products and rates, fresh. Only the settings screen used
+    // to load them, so a product opened straight from the account's list never
+    // showed its delete button - the form believed the account had no other
+    // product.
+    this.editablePockets.set(await yields.pockets(line.account.id));
+    this.rates.set(await yields.rateHistory(line.account.id));
+    this.withholds.set((await yields.account(line.account.id))?.withholding !== 0);
+
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
+    this.pocketPayout.set(pocket?.payout ?? 'daily');
+    this.pocketMonths.set(String(pocket?.payout_months ?? 1));
+    this.pocketRate.set('');
     // A brand new product is not the usual one unless the account has none.
     this.pocketIsDefault.set(pocket
       ? pocket.is_default === 1
       : line.pockets.every(other => other.is_default !== 1));
 
+    // A CDT's terms. It matures into the usual product unless it was told
+    // otherwise, and its yield is recorded under the first income category
+    // until another is chosen.
+    const targets = this.cdtTargets();
+    this.cdtOpenedOn.set(pocket?.opened_on ?? today());
+    this.cdtTerm.set(pocket?.term_months ? String(pocket.term_months) : '');
+    const cdtRate = pocket?.kind === 'cdt' ? this.rates().find(rate => rate.pocket_id === pocket.id) : undefined;
+    this.cdtRate.set(cdtRate ? scaledPercentToString(cdtRate.annual_rate_scaled) : '');
+    this.cdtCategory.set(pocket?.income_category_id ?? this.incomeCategories()[0]?.id ?? null);
+    this.cdtInto.set(pocket?.matures_into_pocket_id
+      ?? (targets.find(target => target.is_default === 1) ?? targets[0])?.id ?? null);
+    this.cdtRule.set(await tax.withholdingRule(today()));
+
     if (pocket) {
-      const { yields } = this.repos();
       const history = await yields.pocketBalances(pocket.id);
 
       // The last balance recorded, whatever date it carries - NOT the last one
@@ -900,11 +926,12 @@ export class CushionPage {
   }
 
   /**
-   * Saves a pocket and the figure it holds.
+   * Saves a product: a high-yield one with its balance and how it is paid, or
+   * a CDT with its terms.
    *
-   * The figure is what the bank says that pocket holds today, which already
-   * includes every yield the bank has paid into it. That is why it replaces
-   * the base rather than adding to it.
+   * A high-yield product's figure is what the bank says it holds today, which
+   * already includes every yield the bank has paid into it. That is why it
+   * replaces the base rather than adding to it.
    */
   async savePocket(): Promise<void> {
     const line = this.openLine();
@@ -915,12 +942,34 @@ export class CushionPage {
       this.error.set(this.i18n.t('cushion.error.name'));
       return;
     }
+    if (this.pocketKind() === 'cdt') {
+      await this.saveCdt(line, name);
+      return;
+    }
 
     const manual = this.pocketSource() === 'manual';
     const amount = manual ? parseOrNull(this.pocketAmount()) : 0;
     if (amount === null || amount < 0) {
       this.error.set(this.i18n.t('cushion.error.amount'));
       return;
+    }
+
+    const payout = this.pocketPayout();
+    const months = payout === 'monthly' ? Number(this.pocketMonths().trim()) : 1;
+    if (!Number.isInteger(months) || months < 1) {
+      this.error.set(this.i18n.t('cushion.error.months'));
+      return;
+    }
+
+    // A new product can be given its first rate in the same form.
+    let firstRate: number | null = null;
+    if (!this.editingPocket() && this.pocketRate().trim().length > 0) {
+      try {
+        firstRate = parsePercentToScaled(this.pocketRate());
+      } catch {
+        this.error.set(this.i18n.t('cushion.error.rate'));
+        return;
+      }
     }
 
     this.saving.set(true);
@@ -934,15 +983,24 @@ export class CushionPage {
               account_id: line.account.id,
               name,
               source: manual ? 'manual' : 'ledger',
-              kind: this.pocketKind(),
+              kind: 'high_yield',
               sort_order: line.pockets.length,
+              payout,
+              payout_months: months,
             });
 
         if (existing) {
           await yields.renamePocket(id, name);
           await yields.setPocketSource(id, manual ? 'manual' : 'ledger');
-          await yields.setPocketKind(id, this.pocketKind());
         }
+        await yields.setPocketPayout(id, payout, months);
+        if (firstRate !== null) {
+          await yields.setRate({
+            account_id: line.account.id, pocket_id: id, component: 'base',
+            payout, payout_months: months, valid_from: this.pocketFrom(), annual_rate_scaled: firstRate,
+          });
+        }
+
         if (manual) {
           // Correcting the balance on screen, or recording a new one. The
           // first moves the row that is being looked at, date included; the
@@ -975,14 +1033,99 @@ export class CushionPage {
         let redoFrom = wasFrom !== null && wasFrom < this.pocketFrom()
           ? wasFrom : this.pocketFrom();
 
-        // A different kind of product withholds differently on every day it
-        // has earned, so those days are worked out again from its first
-        // balance - or from the day the account started, if it has none.
-        if (existing && existing.kind !== this.pocketKind()) {
-          const first = (await yields.pocketBalances(id))[0]?.valid_from
+        // Being paid differently changes every day the product has earned, so
+        // those days are worked out again from its first rate - or from the day
+        // the account started, if it has none.
+        if (existing && (existing.payout !== payout || existing.payout_months !== months)) {
+          const first = this.pocketBaseRates()[0]?.valid_from
             ?? (await yields.account(line.account.id))?.opening_on;
           if (first && first < redoFrom) redoFrom = first;
         }
+        await yields.clearDays(line.account.id, redoFrom);
+      });
+
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
+      await this.reopen(line, true);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /**
+   * Saves a CDT: its amount from the day it opened, its one rate, and its terms.
+   *
+   * A CDT holds one figure at one rate for its whole term, so saving it again
+   * replaces both rather than adding a history. It is worked out again from the
+   * day it opened - or the day it used to open, if that was earlier - and, if
+   * that day has already come, it matures and closes straight away.
+   */
+  private async saveCdt(line: CushionLine, name: string): Promise<void> {
+    const capital = parseOrNull(this.pocketAmount());
+    if (capital === null || capital <= 0) {
+      this.error.set(this.i18n.t('cushion.error.amount'));
+      return;
+    }
+    const term = Number(this.cdtTerm().trim());
+    if (!Number.isInteger(term) || term < 1) {
+      this.error.set(this.i18n.t('cushion.error.months'));
+      return;
+    }
+    let rate: number;
+    try {
+      rate = parsePercentToScaled(this.cdtRate());
+    } catch {
+      this.error.set(this.i18n.t('cushion.error.rate'));
+      return;
+    }
+    const category = this.cdtCategory();
+    if (category === null) {
+      this.error.set(this.i18n.t('cushion.error.category'));
+      return;
+    }
+    const opened = this.cdtOpenedOn();
+    const into = this.cdtInto();
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+      const existing = this.editingPocket();
+      await db.transaction(async () => {
+        const id = existing
+          ? existing.id
+          : await yields.addPocket({
+              account_id: line.account.id,
+              name,
+              source: 'manual',
+              kind: 'cdt',
+              sort_order: line.pockets.length,
+              payout: 'monthly',
+              payout_months: term,
+              opened_on: opened,
+              term_months: term,
+              matures_into_pocket_id: into,
+              income_category_id: category,
+            });
+
+        if (existing) {
+          await yields.renamePocket(id, name);
+          await yields.setCdtTerms(id, {
+            opened_on: opened, term_months: term, matures_into_pocket_id: into, income_category_id: category,
+          });
+          for (const old of await yields.pocketBalances(id)) await yields.removePocketBalance(old.id);
+          for (const old of this.rates().filter(candidate => candidate.pocket_id === id)) {
+            await yields.removeRate(old.id);
+          }
+        }
+
+        await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
+        await yields.setRate({
+          account_id: line.account.id, pocket_id: id, component: 'base',
+          payout: 'monthly', payout_months: term, valid_from: opened, annual_rate_scaled: rate,
+        });
+
+        const redoFrom = existing?.opened_on && existing.opened_on < opened ? existing.opened_on : opened;
         await yields.clearDays(line.account.id, redoFrom);
       });
 
@@ -1048,56 +1191,18 @@ export class CushionPage {
   }
 
   /**
-   * The products carrying a rate identical to this one.
+   * Opens a rate of the product being edited: one to correct, a new one from a
+   * date, or - with `bonus` - a spending bonus.
    *
-   * Same component, same dates, same figures - that is one rate the bank pays
-   * on several products, written as several rows because the schema stores a
-   * rate against one product. Grouping them back together is what lets the
-   * screen show and correct it as the single thing it is.
+   * A rate belongs to its product and has no name to type. The product's own
+   * rates are one line, one after another in time; a spending bonus is a second
+   * line beside it, judged on each month and paid at its end.
    */
-  private pocketsSharingRows(rate: YieldRate): YieldRate[] {
-    return this.rates().filter(other =>
-      other.component === rate.component
-      && other.valid_from === rate.valid_from
-      && (other.valid_to ?? null) === (rate.valid_to ?? null)
-      && other.annual_rate_scaled === rate.annual_rate_scaled);
-  }
-
-  private pocketsSharing(rate: YieldRate): Set<number> {
-    const same = this.rates().filter(other =>
-      other.component === rate.component
-      && other.valid_from === rate.valid_from
-      && (other.valid_to ?? null) === (rate.valid_to ?? null)
-      && other.annual_rate_scaled === rate.annual_rate_scaled
-      && other.pocket_id !== null);
-
-    return new Set(same.map(other => other.pocket_id as number));
-  }
-
-  /**
-   * The components an account already has, each with the rate in force.
-   *
-   * What a new rate can replace, and what it would sit beside.
-   */
-  readonly components = computed(() => {
-    const newest = new Map<string, YieldRate>();
-    for (const rate of this.rates()) {
-      if (rate.pocket_id !== null && !this.ratePockets().has(rate.pocket_id)) continue;
-      const current = newest.get(rate.component);
-      if (!current || rate.valid_from > current.valid_from) newest.set(rate.component, rate);
-    }
-    return [...newest.values()];
-  });
-
-  /** A new rate from a date, or an existing one opened to be corrected. */
-  startRateForm(rate: YieldRate | null = null): void {
+  startRateForm(rate: YieldRate | null = null, bonus = false): void {
+    this.error.set('');
     this.editingRate.set(rate);
-    this.rateMode.set(this.components().length > 0 ? 'replace' : 'add');
-    this.ratePockets.set(rate ? this.pocketsSharing(rate) : new Set<number>());
+    this.rateIsBonus.set(rate ? rate.requires_monthly_spend_minor !== null : bonus);
     this.rateUntil.set(rate?.valid_to ?? '');
-    this.rateComponent.set(rate?.component ?? this.components()[0]?.component ?? 'base');
-    this.ratePayout.set(rate?.payout ?? 'daily');
-    this.rateMonths.set(String(rate?.payout_months ?? 1));
     this.ratePercent.set(rate ? scaledPercentToString(rate.annual_rate_scaled) : '');
     this.rateFrom.set(rate?.valid_from ?? today());
     this.rateSpend.set(rate?.requires_monthly_spend_minor ? decimalOf(rate.requires_monthly_spend_minor) : '');
@@ -1107,7 +1212,7 @@ export class CushionPage {
   }
 
   /**
-   * Records a rate from a date. A change is always a new row.
+   * Records a rate of the product being edited. A change is a new row from a date.
    *
    * Editing the old one would rewrite what was true last month, and the days
    * already computed under it would stop being explainable. The rate in force
@@ -1117,25 +1222,15 @@ export class CushionPage {
    */
   async saveRate(): Promise<void> {
     const line = this.openLine();
-    if (!line) return;
+    const pocket = this.editingPocket();
+    if (!line || !pocket) return;
 
-    const name = this.rateComponent().trim();
-    if (name.length === 0) {
-      this.error.set(this.i18n.t('cushion.error.name'));
-      return;
-    }
-    if (!this.editingRate() && this.rateMode() === 'add'
-        && this.components().some(rate => rate.component === name)) {
-      // Same name means "this replaces that one", which is the other button.
-      this.error.set(this.i18n.t('cushion.error.componentTaken'));
-      return;
-    }
-
+    const bonus = this.rateIsBonus();
     let scaled: number;
     let fallback: number | null = null;
     try {
       scaled = parsePercentToScaled(this.ratePercent());
-      if (this.rateFallback().trim().length > 0) {
+      if (bonus && this.rateFallback().trim().length > 0) {
         fallback = parsePercentToScaled(this.rateFallback());
       }
     } catch {
@@ -1143,55 +1238,39 @@ export class CushionPage {
       return;
     }
 
-    const typedSpend = this.rateSpend().trim();
-    const spend = typedSpend.length > 0 ? parseOrNull(typedSpend) : null;
-    if (typedSpend.length > 0 && (spend === null || spend <= 0)) {
+    const spend = bonus ? parseOrNull(this.rateSpend().trim()) : null;
+    if (bonus && (spend === null || spend <= 0)) {
       this.error.set(this.i18n.t('cushion.error.amount'));
       return;
     }
 
-    // Only a monthly rate has months to count; a daily one pays every day.
-    const months = this.ratePayout() === 'monthly' ? Number(this.rateMonths().trim()) : 1;
-    if (!Number.isInteger(months) || months < 1) {
-      this.error.set(this.i18n.t('cushion.error.months'));
-      return;
-    }
+    // Which line of the product this rate belongs to. Names already on record
+    // are kept, because the days of yield are filed under them.
+    const existing = this.editingRate();
+    const component = existing?.component
+      ?? (bonus
+        ? this.pocketBonusRates()[0]?.component ?? this.i18n.t('cushion.rate.bonusName')
+        : this.pocketBaseRates()[0]?.component ?? 'base');
 
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
-      const existing = this.editingRate();
       await db.transaction(async () => {
-        const common = {
-          component: name,
-          payout: this.ratePayout(),
-          payout_months: months,
+        if (existing) await yields.removeRate(existing.id);
+        await yields.setRate({
+          account_id: line.account.id,
+          pocket_id: pocket.id,
+          component,
+          // A bonus is judged on a month and paid at its end; the product's own
+          // rate is paid the way the product is.
+          payout: bonus ? 'monthly' : pocket.payout,
+          payout_months: bonus ? 1 : pocket.payout_months,
           valid_from: this.rateFrom(),
           valid_to: this.rateUntil() || null,
           annual_rate_scaled: scaled,
           requires_monthly_spend_minor: spend,
           fallback_annual_rate_scaled: fallback,
-        };
-
-        // One row per product the rate covers, or a single row covering the
-        // whole account when none is named. Correcting replaces the old set
-        // outright rather than editing it: which products a rate covers is
-        // part of what is being corrected, so the products dropped from it
-        // have to lose the rate, and the ones added have to gain it.
-        const chosen = [...this.ratePockets()];
-        const rows = chosen.length > 0
-          ? chosen.map(pocket_id => ({ ...common, pocket_id }))
-          : [{ ...common, pocket_id: null }];
-
-        if (existing) {
-          for (const other of this.pocketsSharingRows(existing)) {
-            await yields.removeRate(other.id);
-          }
-          if (this.pocketsSharing(existing).size === 0) await yields.removeRate(existing.id);
-        }
-        for (const row of rows) {
-          await yields.setRate({ account_id: line.account.id, ...row });
-        }
+        });
         // From the earliest day either version of the rate touches. Moving
         // a rate backwards has to redo the days it now covers as well.
         const redoFrom = existing && existing.valid_from < this.rateFrom()
@@ -1200,7 +1279,7 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      await this.reopen(line, true);
+      await this.backToPocket(line, pocket.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1221,12 +1300,43 @@ export class CushionPage {
       });
       await accrueAndSettle(db, yields, tax, line.account.id, today());
       this.database.dataChanged();
-      await this.openSettings();
+      if (rate.pocket_id !== null) await this.backToPocket(line, rate.pocket_id);
+      else await this.openSettings();
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Back to a product's form, with the account and its figures read again. */
+  private async backToPocket(line: CushionLine, pocketId: number): Promise<void> {
+    await this.reopen(line, true);
+    const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
+    if (pocket) await this.openPocket(pocket);
+  }
+
+  /**
+   * One line about a product, for the settings list: the rate it earns and how
+   * it is paid, or the day a CDT matures.
+   */
+  pocketSummary(pocket: YieldPocket): string {
+    if (pocket.kind === 'cdt') {
+      return pocket.opened_on && pocket.term_months
+        ? this.i18n.t('cushion.pocket.cdtMatures', {
+            date: this.longDayText(cdtMaturity(pocket.opened_on, pocket.term_months)),
+          })
+        : this.i18n.t('cushion.pocket.kind.cdt');
+    }
+
+    const current = this.rates().filter(rate =>
+      rate.pocket_id === pocket.id && rate.requires_monthly_spend_minor === null
+      && this.rateStatus(rate) === 'current').at(-1);
+    const rate = current ? this.rateText(current.annual_rate_scaled) : this.i18n.t('cushion.pocket.noRate');
+    const paid = pocket.payout === 'daily' ? this.i18n.t('cushion.payout.daily')
+      : pocket.payout_months === 1 ? this.i18n.t('cushion.payout.monthly')
+      : this.i18n.t('cushion.payout.everyMonths', { count: pocket.payout_months });
+    return `${rate} · ${paid}`;
   }
 
   /** How a rate is paid, in words: every day, every month, or every so many months. */

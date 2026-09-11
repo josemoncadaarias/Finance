@@ -24,6 +24,7 @@
 // also why the tests can drive it with a made-up broken migration.
 import type { SqlDriver } from '../sql-driver';
 import type { MigrationSource } from './statements.generated';
+import { REPAIRS } from './repairs';
 
 export interface MigrationResult {
   from: number;
@@ -104,6 +105,24 @@ export async function migrate(
       );
     }
     applied.push(migration);
+  }
+
+  // Migrations a plugin skipped while reporting success. Checked on every
+  // start, and cheap when there is nothing to do: one read per repair.
+  const version = await currentVersion(driver);
+  for (const repair of REPAIRS) {
+    if (repair.version > version || await repair.applied(driver)) continue;
+    const migration = sources.find(source => source.version === repair.version);
+    if (!migration) continue;
+
+    try {
+      await driver.transaction(async () => {
+        await driver.execute(repair.sql ?? migration.sql);
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new MigrationError(`Repairing migration ${migration.file} failed: ${reason}`, migration, error);
+    }
   }
 
   return { from, to: await currentVersion(driver), applied };

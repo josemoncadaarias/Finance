@@ -17,6 +17,7 @@ import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from '@cap
 import { Capacitor } from '@capacitor/core';
 
 import { BaseSqlDriver, SqlError, type SqlRunResult } from './sql-driver';
+import { sqlForPlugin } from './plugin-sql';
 
 export const DATABASE_NAME = 'finance';
 
@@ -62,7 +63,9 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
       // transaction lands inside it: "cannot start a transaction within a
       // transaction". Transaction control belongs to one layer, and that layer
       // is BaseSqlDriver, which the Node tests exercise.
-      await this.db.execute(sql, false);
+      // Rewritten first: the plugin mangles comments and line breaks in ways
+      // that made whole migrations silently do nothing. See plugin-sql.ts.
+      await this.db.execute(sqlForPlugin(sql), false);
       await this.persist();
     } catch (error) {
       throw new SqlError(messageOf(error), sql, error);
