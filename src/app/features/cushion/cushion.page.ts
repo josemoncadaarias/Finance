@@ -24,7 +24,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle,
+  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -115,7 +115,7 @@ interface Payment {
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle,
+    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge,
   ],
 })
 export class CushionPage {
@@ -211,6 +211,17 @@ export class CushionPage {
   readonly movementsPocket = signal<number | null>(null);
   /** A movement of the account being corrected on the movement screen. */
   readonly movementEdit = signal<EntryRequest | null>(null);
+  /** Groups closed by hand; every group starts open, as on the summary. */
+  readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
+  /** The two lists under the movements, closed until asked for. */
+  readonly showPayments = signal(false);
+  readonly showDays = signal(false);
+  /** The summary's three views, with its icons and words. */
+  readonly movementViews = [
+    { id: 'date', label: 'summary.view.date', icon: 'calendar-outline' },
+    { id: 'category', label: 'summary.view.category', icon: 'pie-chart-outline' },
+    { id: 'largest', label: 'summary.view.largest', icon: 'trending-down-outline' },
+  ] as const;
   /** A withdrawal left without its movement, being asked about. */
   readonly orphanWithdrawal = signal<{ id: number; on_date: IsoDate; amount_minor: number } | null>(null);
 
@@ -225,7 +236,7 @@ export class CushionPage {
     const items = this.shownMovements();
     if (view === 'largest') {
       return [{
-        key: 'all', title: '', totalMinor: 0,
+        key: 'all', title: '', totalMinor: 0, flow: 'moved' as const, icon: null, customIconId: null,
         items: [...items].sort((a, b) => Math.abs(b.amountMinor) - Math.abs(a.amountMinor)),
       }];
     }
@@ -240,7 +251,22 @@ export class CushionPage {
       if (movement.type !== 'transfer') group.totalMinor += movement.amountMinor;
       groups.set(key, group);
     }
-    const list = [...groups.values()];
+    const list = [...groups.values()].map(group => {
+      const first = group.items[0];
+      const categoryRow = view === 'category' && first.type === 'transaction' && first.transaction.transfer_id === null
+        ? first.transaction : null;
+      return {
+        ...group,
+        // The colour of the rule down the group, as on the summary.
+        flow: (group.totalMinor > 0 ? 'in' : group.totalMinor < 0 ? 'out' : 'moved') as 'in' | 'out' | 'moved',
+        icon: categoryRow?.category_icon ?? null,
+        customIconId: categoryRow?.category_custom_icon_id ?? null,
+        // Within a category, largest first; within a day, newest first.
+        items: view === 'category'
+          ? [...group.items].sort((a, b) => Math.abs(b.amountMinor) - Math.abs(a.amountMinor))
+          : group.items,
+      };
+    });
     // By category, what took the most out comes first.
     return view === 'category' ? list.sort((a, b) => a.totalMinor - b.totalMinor) : list;
   });
@@ -688,6 +714,9 @@ export class CushionPage {
       this.showMovements.set(false);
       this.movementsPocket.set(null);
       this.movements.set([]);
+      this.collapsedGroups.set(new Set());
+      this.showPayments.set(false);
+      this.showDays.set(false);
     }
     // The products list says each product's rate, so the rates are read here
     // too, not only when the settings open.
@@ -1553,6 +1582,36 @@ export class CushionPage {
   }
 
   /** What an entry is called on the screen. */
+  readonly allGroupsCollapsed = computed(() => {
+    const groups = this.movementGroups();
+    return groups.length > 0 && groups.every(group => this.collapsedGroups().has(group.key));
+  });
+
+  isGroupCollapsed(key: string): boolean {
+    return this.collapsedGroups().has(key);
+  }
+
+  toggleGroup(key: string): void {
+    this.collapsedGroups.update(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  toggleAllGroups(): void {
+    this.collapsedGroups.set(this.allGroupsCollapsed()
+      ? new Set()
+      : new Set(this.movementGroups().map(group => group.key)));
+  }
+
+  /** In, out, or only moved between products - the dot and colour of a row. */
+  movementFlow(movement: ProductMovement): 'in' | 'out' | 'moved' {
+    if (movement.type === 'transfer') return 'moved';
+    return movement.amountMinor < 0 ? 'out' : 'in';
+  }
+
   /** Opens or closes the account's movements, reading them when it opens. */
   async toggleMovements(line: CushionLine): Promise<void> {
     const open = !this.showMovements();

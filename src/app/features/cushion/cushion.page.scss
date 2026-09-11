@@ -512,77 +512,175 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
   padding-inline-end: 0.5rem;
 }
 
-/* How the movements are ordered and whose: each question on a line of its own. */
-.movement-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.25rem 0 0.25rem;
-}
+/*
+ * The account's movements, drawn the way the summary draws its own - copied
+ * from movements.page.scss and kept inside this wrapper so none of it leaks
+ * into the rest of the screen: the three views, the note with the fold button,
+ * and groups whose heading folds and whose rows hang off a coloured rule.
+ */
+.product-movements {
+  .pocket-filter { margin: 0 0 0.5rem; }
 
-.control-label {
-  margin: 0 1.25rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ion-color-medium);
-}
+  .views {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+    padding: 0 1rem 0.5rem;
 
-/* One control with three positions, not three loose chips. */
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-  margin: 0 1rem;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--ion-color-light);
+    button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.5rem 0.3rem;
+      border: 1px solid var(--ion-color-light-shade);
+      border-radius: 8px;
+      background: var(--ion-color-light);
+      color: var(--ion-color-medium);
+      font-size: 0.74rem;
+      line-height: 1.15;
+      text-align: center;
+      cursor: pointer;
 
-  button {
-    padding: 0.55rem 0.25rem;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ion-color-medium-shade);
-    font-size: 0.82rem;
-    cursor: pointer;
+      ion-icon { font-size: 1.05rem; }
 
-    &.on {
-      background: var(--ion-color-step-150, var(--ion-background-color));
-      color: var(--ion-text-color);
-      font-weight: 600;
+      &.on {
+        border-color: var(--ion-color-primary);
+        background: rgba(var(--ion-color-primary-rgb), 0.12);
+        color: var(--ion-color-primary);
+        font-weight: 600;
+      }
     }
   }
-}
 
-.pocket-filter {
-  margin-top: 0.35rem;
-  margin-bottom: 0.25rem;
-}
+  .list-controls {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem 0.5rem;
 
-/* A group of movements: its day or category, how many, and what they add up to. */
-.movement-group {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.9rem 1.25rem 0.1rem;
-  font-size: 0.8rem;
-  color: var(--ion-color-medium);
+    .within-note {
+      font-size: 0.72rem;
+      color: var(--ion-color-medium);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-  .title { flex: 1; font-weight: 600; color: var(--ion-text-color); }
-}
+    .collapse {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 2.15rem;
+      height: 2.15rem;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+      color: var(--ion-color-primary);
+      cursor: pointer;
 
-.movement-list ion-icon[slot='start'],
-.movement-list app-icon[slot='start'] {
-  color: var(--ion-color-medium);
-  margin-inline-end: 0.75rem;
-}
+      ion-icon { font-size: 1.15rem; }
+      &:active { background: rgba(var(--ion-color-primary-rgb), 0.22); }
+      &:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: 2px; }
+    }
+  }
 
-.movement-amount,
-.movement-group .total {
-  font-variant-numeric: tabular-nums;
+  .group { position: relative; }
 
-  &.in { color: var(--ion-color-success); }
-  &.out { color: var(--ion-color-danger); }
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem 0.4rem;
+    margin-top: 0.75rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    border-bottom: 1px solid var(--ion-color-light-shade);
+
+    .chevron { color: var(--ion-color-medium); font-size: 0.9rem; }
+    .cat { color: var(--ion-color-medium); flex: none; }
+
+    .title {
+      flex: 1;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ion-color-medium);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .total {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    ion-badge {
+      font-size: 0.68rem;
+      font-weight: 400;
+      --padding-start: 0.4rem;
+      --padding-end: 0.4rem;
+    }
+  }
+
+  .group-body {
+    margin-left: 1rem;
+    margin-right: 0.75rem;
+    border-left: 3px solid var(--ion-color-medium);
+    border-radius: 3px;
+    overflow: hidden;
+
+    &.out { border-left-color: var(--ion-color-danger); }
+    &.in { border-left-color: var(--ion-color-success); }
+    &.moved { border-left-color: var(--ion-color-medium); }
+
+    &.flat { margin: 0.5rem 0 0; border-left: none; border-radius: 0; }
+
+    ion-item.movement {
+      --padding-start: 0.75rem;
+      --background: var(--ion-color-light);
+      --inner-border-width: 0 0 1px 0;
+    }
+
+    ion-item.movement:last-child { --inner-border-width: 0; }
+  }
+
+  .movement {
+    .dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      margin-inline-end: 0.5rem;
+      flex: none;
+
+      &.in { background: var(--ion-color-success); }
+      &.out { background: var(--ion-color-danger); }
+      &.moved { background: var(--ion-color-medium); }
+    }
+
+    .row-cat {
+      margin-inline-end: 0.55rem;
+      color: var(--ion-color-medium);
+      opacity: 0.85;
+    }
+
+    h3 { font-size: 0.95rem; }
+    p { font-size: 0.8rem; }
+  }
+
+  ion-note[slot='end'],
+  .group-head .total {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+
+    &.in { color: var(--ion-color-success); }
+    &.out { color: var(--ion-color-danger); }
+  }
 }

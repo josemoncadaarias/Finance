@@ -433,22 +433,9 @@
             </div>
             @if (showMovements()) {
               <p class="hint">{{ 'cushion.movements.hint' | t }}</p>
-              <!-- Two questions, each on its own line with its own label: how
-                   to order them, and whose. Chips for both, side by side, read
-                   as one undifferentiated row. -->
-              <div class="movement-controls">
-                <p class="control-label">{{ 'cushion.movements.sortBy' | t }}</p>
-                <div class="segmented">
-                  <button type="button" [class.on]="movementsView() === 'date'" (click)="movementsView.set('date')">
-                    {{ 'cushion.movements.byDate' | t }}
-                  </button>
-                  <button type="button" [class.on]="movementsView() === 'category'" (click)="movementsView.set('category')">
-                    {{ 'cushion.movements.byCategory' | t }}
-                  </button>
-                  <button type="button" [class.on]="movementsView() === 'largest'" (click)="movementsView.set('largest')">
-                    {{ 'cushion.movements.largest' | t }}
-                  </button>
-                </div>
+              <!-- Drawn the way the summary draws its movements: the same three
+                   views, the same note and fold button, the same groups. -->
+              <div class="product-movements">
                 @if (line.pockets.length > 1) {
                   <ion-list [inset]="true" class="pocket-filter">
                     <ion-item lines="none">
@@ -464,49 +451,90 @@
                     </ion-item>
                   </ion-list>
                 }
+
+                <div class="views">
+                  @for (view of movementViews; track view.id) {
+                    <button type="button" [class.on]="movementsView() === view.id" (click)="movementsView.set(view.id)">
+                      <ion-icon [name]="view.icon"></ion-icon>
+                      <span>{{ view.label | t }}</span>
+                    </button>
+                  }
+                </div>
+
+                @if (movementsView() !== 'largest') {
+                  <div class="list-controls">
+                    <span class="within-note">
+                      {{ (movementsView() === 'category' ? 'summary.within.category' : 'summary.within.date') | t }}
+                    </span>
+                    <button type="button" class="collapse" (click)="toggleAllGroups()"
+                            [attr.aria-expanded]="!allGroupsCollapsed()"
+                            [attr.aria-label]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+                            [title]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+                      <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                    </button>
+                  </div>
+                }
               </div>
               @if (shownMovements().length === 0) {
                 <p class="hint">{{ 'cushion.movements.none' | t }}</p>
               } @else {
-                @for (group of movementGroups(); track group.key) {
-                  @if (group.title) {
-                    <div class="movement-group">
-                      <span class="title">{{ group.title }}</span>
-                      <span class="count">{{ group.items.length }}</span>
-                      <span class="total" [class.in]="group.totalMinor > 0" [class.out]="group.totalMinor < 0">
-                        {{ money(group.totalMinor, line.account.currency_code) }}
-                      </span>
+                <div class="product-movements">
+                  @for (group of movementGroups(); track group.key) {
+                    <div class="group">
+                      @if (movementsView() !== 'largest') {
+                        <div class="group-head" (click)="toggleGroup(group.key)">
+                          <ion-icon class="chevron"
+                                    [name]="isGroupCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+                          @if (group.icon !== null || group.customIconId !== null) {
+                            <app-icon class="cat" [builtin]="group.icon" [customId]="group.customIconId" size="1.05rem"></app-icon>
+                          }
+                          <span class="title">{{ group.title }}</span>
+                          <ion-badge>{{ group.items.length }}</ion-badge>
+                          <span class="total" [class]="group.flow">
+                            {{ money(group.totalMinor, line.account.currency_code) }}
+                          </span>
+                        </div>
+                      }
+
+                      @if (movementsView() === 'largest' || !isGroupCollapsed(group.key)) {
+                        <div class="group-body" [class]="group.flow" [class.flat]="movementsView() === 'largest'">
+                          @for (movement of group.items; track movement.key) {
+                            <ion-item lines="full" class="movement" button [detail]="false"
+                                      (click)="openMovement(line, movement)">
+                              <span class="dot" [class]="movementFlow(movement)" slot="start"></span>
+                              @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
+                                <app-icon slot="start" class="row-cat" [builtin]="movement.transaction.category_icon"
+                                          [customId]="movement.transaction.category_custom_icon_id" size="1.15rem"></app-icon>
+                              } @else {
+                                <ion-icon slot="start" class="row-cat" [name]="movementIcon(movement)"></ion-icon>
+                              }
+                              <ion-label>
+                                <h3>{{ movementTitle(line, movement) }}</h3>
+                                <p>{{ movementDetail(line, movement) }}</p>
+                              </ion-label>
+                              <ion-note slot="end" [class]="movementFlow(movement)">
+                                {{ money(movement.amountMinor, line.account.currency_code) }}
+                              </ion-note>
+                            </ion-item>
+                          }
+                        </div>
+                      }
                     </div>
                   }
-                  <ion-list [inset]="true" class="movement-list">
-                    @for (movement of group.items; track movement.key) {
-                      <ion-item button [detail]="false"
-                                (click)="openMovement(line, movement)">
-                        @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
-                          <app-icon slot="start" [builtin]="movement.transaction.category_icon"
-                                    [customId]="movement.transaction.category_custom_icon_id" size="1.15rem"></app-icon>
-                        } @else {
-                          <ion-icon slot="start" [name]="movementIcon(movement)"></ion-icon>
-                        }
-                        <ion-label>
-                          <h3>{{ movementTitle(line, movement) }}</h3>
-                          <p>{{ movementDetail(line, movement) }}</p>
-                        </ion-label>
-                        <ion-note slot="end" class="movement-amount"
-                                  [class.in]="movement.type !== 'transfer' && movement.amountMinor > 0"
-                                  [class.out]="movement.type !== 'transfer' && movement.amountMinor < 0">
-                          {{ money(movement.amountMinor, line.account.currency_code) }}
-                        </ion-note>
-                      </ion-item>
-                    }
-                  </ion-list>
-                }
+                </div>
               }
             }
 
             <!-- What the bank hands over. The list to hold beside the bank's
                  own app: same date, same rate, same figure. -->
-            <p class="section">{{ 'cushion.payments' | t }}</p>
+            <div class="movements-head">
+              <p class="section">{{ 'cushion.payments' | t }}</p>
+              <ion-button fill="clear" size="small" (click)="showPayments.set(!showPayments())">
+                <ion-icon slot="start" [name]="showPayments() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                {{ (showPayments() ? 'cushion.movements.hide' : 'cushion.section.show') | t }}
+              </ion-button>
+            </div>
+            @if (showPayments()) {
             @if (payments().length === 0) {
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
@@ -544,9 +572,17 @@
                 </ion-list>
               }
             }
+            }
 
             <!-- How each of those figures was reached. Detail, kept closed. -->
-            <p class="section">{{ 'cushion.days' | t }}</p>
+            <div class="movements-head">
+              <p class="section">{{ 'cushion.days' | t }}</p>
+              <ion-button fill="clear" size="small" (click)="showDays.set(!showDays())">
+                <ion-icon slot="start" [name]="showDays() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                {{ (showDays() ? 'cushion.movements.hide' : 'cushion.section.show') | t }}
+              </ion-button>
+            </div>
+            @if (showDays()) {
             @if (openDays().length === 0) {
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
@@ -597,6 +633,7 @@
                   }
                 </ion-list>
               }
+            }
             }
           }
 
