@@ -1106,6 +1106,45 @@ export class YieldsRepository {
     };
   }
 
+  /**
+   * The cushion split by product: what each has earned, had added or taken
+   * out. A row that names no product - the opening figure, an entry from
+   * before a product could be named - belongs to the product that follows the
+   * account balance, or else the first, the same rule the accrual follows.
+   * The parts add up to `cushion().totalMinor`.
+   */
+  async cushionByPocket(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
+    const upTo = asOf ?? '9999-12-31';
+    const pockets = await this.pockets(accountId);
+    const out = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
+    if (pockets.length === 0) return out;
+
+    const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
+    const add = (pocketId: number | null, amount: number | null) => {
+      const id = pocketId !== null && out.has(pocketId) ? pocketId : fallback;
+      out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
+    };
+    type Row = { pocket_id: number | null; total: number | null };
+
+    add(null, (await this.account(accountId))?.opening_cushion_minor ?? 0);
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, SUM(COALESCE(actual_net_minor, net_minor)) AS total
+       FROM yield_days WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
+      add(row.pocket_id, row.total);
+    }
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, SUM(amount_minor) AS total
+       FROM cushion_adjustments WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
+      add(row.pocket_id, row.total);
+    }
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, SUM(amount_minor) AS total
+       FROM cushion_withdrawals WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
+      add(row.pocket_id, -(row.total ?? 0));
+    }
+    return out;
+  }
+
   /** Every enrolled account's cushion, for the screen that lists them. */
   async allCushions(asOf?: IsoDate): Promise<CushionBalance[]> {
     const accounts = await this.accounts();

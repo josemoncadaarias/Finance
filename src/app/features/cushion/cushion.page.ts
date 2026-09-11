@@ -86,6 +86,8 @@ interface CushionLine {
    * — worth seeing rather than hiding, because the negative is the reminder.
    */
   heldByPocket: ReadonlyMap<number, number>;
+  /** What each product has earned and not moved out; apart from its balance. */
+  yieldByPocket: ReadonlyMap<number, number>;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -267,6 +269,17 @@ export class CushionPage {
   readonly confirmingPocketDelete = signal(false);
   readonly pocketDeleteTo = signal<number | null>(null);
   readonly pocketDeleteHeld = signal(0);
+  /** What the product being removed has earned and not moved out, either sign. */
+  readonly pocketDeleteYield = signal(0);
+
+  /** A new product earning nothing has no payday to ask about. */
+  readonly pocketRateAboveZero = computed(() => {
+    try {
+      return parsePercentToScaled(this.pocketRate()) > 0;
+    } catch {
+      return false;
+    }
+  });
 
   /** The products a removed one can hand its balance to. */
   readonly otherPockets = computed(() =>
@@ -465,6 +478,7 @@ export class CushionPage {
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
           heldByPocket: await engine.heldByPocket(entry.account_id, today()),
+          yieldByPocket: await yields.cushionByPocket(entry.account_id),
         });
       }
 
@@ -922,7 +936,8 @@ export class CushionPage {
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
     this.pocketPayout.set(pocket?.payout ?? 'daily');
     this.pocketMonths.set(String(pocket?.payout_months ?? 1));
-    this.pocketRate.set('');
+    // Zero until told otherwise: a product with no rate earns nothing.
+    this.pocketRate.set('0');
     // A brand new product is not the usual one unless the account has none.
     this.pocketIsDefault.set(pocket
       ? pocket.is_default === 1
@@ -960,7 +975,7 @@ export class CushionPage {
       this.editingBalanceFrom.set(current?.valid_from ?? null);
       await this.readPocketMoved();
     } else {
-      this.pocketAmount.set('');
+      this.pocketAmount.set('0');
       this.pocketFrom.set(today());
       this.editingBalanceId.set(null);
       this.editingBalanceFrom.set(null);
@@ -1038,7 +1053,8 @@ export class CushionPage {
           await yields.setPocketSource(id, manual ? 'manual' : 'ledger');
         }
         await yields.setPocketPayout(id, payout, months);
-        if (firstRate !== null) {
+        // A rate of zero is no rate: nothing is recorded for it.
+        if (firstRate !== null && firstRate > 0) {
           await yields.setRate({
             account_id: line.account.id, pocket_id: id, component: 'base',
             payout, payout_months: months, valid_from: this.pocketFrom(), annual_rate_scaled: firstRate,
@@ -1207,6 +1223,7 @@ export class CushionPage {
     const { db, yields, tax } = this.repos();
     const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
     this.pocketDeleteHeld.set(held.get(pocket.id) ?? 0);
+    this.pocketDeleteYield.set((await yields.cushionByPocket(line.account.id)).get(pocket.id) ?? 0);
     this.confirmingPocketDelete.set(true);
   }
 
@@ -1641,6 +1658,11 @@ export class CushionPage {
   /** What one product holds today. Zero when nothing is known about it. */
   heldIn(line: CushionLine, pocketId: number): number {
     return line.heldByPocket.get(pocketId) ?? 0;
+  }
+
+  /** The product's own yields, which income and expenses on the yields move. */
+  yieldIn(line: CushionLine, pocketId: number): number {
+    return line.yieldByPocket.get(pocketId) ?? 0;
   }
   /** The size of a difference, without its direction. */
   abs(value: number): number {

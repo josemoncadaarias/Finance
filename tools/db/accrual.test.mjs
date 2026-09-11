@@ -294,6 +294,29 @@ test('what was paid on a day leaves out what is only paid at the end of the mont
   assert.equal(paid.filter(day => day.component === 'daily').length, 1);
 });
 
+test('the cushion split by product adds up to the account, and follows each entry', async () => {
+  const { engine, yields, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 70_000, opening_on: '2026-08-31', withholding: false });
+  await yields.setRate({ account_id: ids.uala, component: 'daily', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(5) });
+  const [first] = await yields.pockets(ids.uala);
+  const second = await yields.addPocket({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
+
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 500_000, kind: 'other', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: -120_000, kind: 'correction', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 30_000, kind: 'cashback' });
+  await engine.accrue(ids.uala, '2026-09-10');
+
+  const split = await yields.cushionByPocket(ids.uala);
+  const total = (await yields.cushion(ids.uala)).totalMinor;
+  assert.equal([...split.values()].reduce((sum, part) => sum + part, 0), total, 'the parts are the whole');
+
+  const earnedBy = async id => (await yields.days(ids.uala))
+    .filter(day => day.pocket_id === id).reduce((sum, day) => sum + day.net_minor, 0);
+  assert.equal(split.get(second), 380_000 + await earnedBy(second), 'income minus the expense, plus what it earned');
+  assert.equal(split.get(first.id), 70_000 + 30_000 + await earnedBy(first.id),
+    'the opening figure and the entry naming no product stay on the first');
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({

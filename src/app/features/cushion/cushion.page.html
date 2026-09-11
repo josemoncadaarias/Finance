@@ -329,6 +329,9 @@
                         · {{ 'cushion.pocket.kind.cdt' | t }}
                       }
                     </p>
+                    @if (yieldIn(line, pocket.id) !== 0) {
+                      <p>{{ 'cushion.pockets.yield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
+                    }
                   </ion-label>
                   <ion-note slot="end" class="held"
                             [class.owed]="heldIn(line, pocket.id) < 0">
@@ -631,6 +634,9 @@
                       }
                       {{ pocketSummary(pocket) }}
                     </p>
+                    @if (yieldIn(line, pocket.id) !== 0) {
+                      <p>{{ 'cushion.pockets.yield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
+                    }
                   </ion-label>
                   <!-- What is in it, here as well as on the account's own
                        screen. This is where a balance gets corrected, and
@@ -865,34 +871,39 @@
                    what a person opens, and the rate is part of it. -->
               <p class="section">{{ 'cushion.pocket.rateSection' | t }}</p>
               <ion-list [inset]="true">
-                <ion-item>
-                  <ion-select [label]="'cushion.settings.payout' | t" labelPlacement="stacked"
-                              [value]="pocketPayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="pocketPayout.set($any($event.detail).value)">
-                    <ion-select-option value="daily">{{ 'cushion.payout.daily' | t }}</ion-select-option>
-                    <ion-select-option value="monthly">{{ 'cushion.payout.byMonths' | t }}</ion-select-option>
-                  </ion-select>
-                </ion-item>
-                @if (pocketPayout() === 'monthly') {
-                  <ion-item>
-                    <ion-input [label]="'cushion.payout.months' | t" labelPlacement="stacked"
-                               inputmode="numeric" [value]="pocketMonths()"
-                               (ionInput)="pocketMonths.set($any($event.target).value)"
-                               [helperText]="'cushion.payout.monthsHint' | t"></ion-input>
-                  </ion-item>
-                  @if (paydayPreview()) {
-                    <ion-item lines="none">
-                      <ion-label class="ion-text-wrap"><p>{{ paydayPreview() }}</p></ion-label>
-                    </ion-item>
-                  }
-                }
+                <!-- A new product's rate comes first, at 0%: how often the
+                     bank pays is only a question once there is something to
+                     pay. -->
                 @if (!editingPocket()) {
                   <ion-item>
                     <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
                                inputmode="decimal" [value]="pocketRate()"
                                (ionInput)="pocketRate.set($any($event.target).value)"
-                               placeholder="10,5"></ion-input>
+                               placeholder="0"></ion-input>
                   </ion-item>
+                }
+                @if (editingPocket() || pocketRateAboveZero()) {
+                  <ion-item>
+                    <ion-select [label]="'cushion.settings.payout' | t" labelPlacement="stacked"
+                                [value]="pocketPayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                (ionChange)="pocketPayout.set($any($event.detail).value)">
+                      <ion-select-option value="daily">{{ 'cushion.payout.daily' | t }}</ion-select-option>
+                      <ion-select-option value="monthly">{{ 'cushion.payout.byMonths' | t }}</ion-select-option>
+                    </ion-select>
+                  </ion-item>
+                  @if (pocketPayout() === 'monthly') {
+                    <ion-item>
+                      <ion-input [label]="'cushion.payout.months' | t" labelPlacement="stacked"
+                                 inputmode="numeric" [value]="pocketMonths()"
+                                 (ionInput)="pocketMonths.set($any($event.target).value)"
+                                 [helperText]="'cushion.payout.monthsHint' | t"></ion-input>
+                    </ion-item>
+                    @if (paydayPreview()) {
+                      <ion-item lines="none">
+                        <ion-label class="ion-text-wrap"><p>{{ paydayPreview() }}</p></ion-label>
+                      </ion-item>
+                    }
+                  }
                 }
               </ion-list>
 
@@ -1002,8 +1013,14 @@
                       <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
                       <h2>{{ 'cushion.pocket.deleteConfirm' | t:{ name: removing.name } }}</h2>
 
-                      @if (pocketDeleteHeld() !== 0) {
-                        <p>{{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
+                      @if (pocketDeleteHeld() !== 0 || pocketDeleteYield() !== 0) {
+                        @if (pocketDeleteHeld() !== 0) {
+                          <p>{{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
+                        }
+                        @if (pocketDeleteYield() !== 0) {
+                          <p>{{ (pocketDeleteHeld() !== 0 ? 'cushion.pocket.deleteYieldToo' : 'cushion.pocket.deleteYieldOnly') | t:{
+                                 amount: money(pocketDeleteYield(), line.account.currency_code) } }}</p>
+                        }
                         <ion-list>
                           <ion-item lines="none">
                             <ion-select [label]="'cushion.pocket.deleteTo' | t" labelPlacement="stacked"
@@ -1023,7 +1040,7 @@
                       <!-- Only when there is a balance to move: with nothing in
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
-                      @if (pocketDeleteHeld() !== 0) {
+                      @if (pocketDeleteHeld() !== 0 || pocketDeleteYield() !== 0) {
                         <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
                       }
                       @if (error()) {
