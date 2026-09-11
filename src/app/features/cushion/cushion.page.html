@@ -902,11 +902,14 @@
                             [value]="ratePayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
                             (ionChange)="ratePayout.set($any($event.detail).value)">
                   <ion-select-option value="daily">{{ 'cushion.payout.daily' | t }}</ion-select-option>
-                  <ion-select-option value="monthly">{{ 'cushion.payout.monthly' | t }}</ion-select-option>
+                  <ion-select-option value="monthly">{{ 'cushion.payout.byMonths' | t }}</ion-select-option>
                 </ion-select>
               </ion-item>
               <!-- A monthly rate can cover several months per payment: a CDT
-                   that pays every semester, a product that pays once a year. -->
+                   that pays every semester, a product that pays once a year.
+                   The next paydays are spelled out rather than explained -
+                   "counted from the month of the From date" read as a riddle
+                   next to an option that still said "once a month". -->
               @if (ratePayout() === 'monthly') {
                 <ion-item>
                   <ion-input [label]="'cushion.payout.months' | t" labelPlacement="stacked"
@@ -914,6 +917,11 @@
                              (ionInput)="rateMonths.set($any($event.target).value)"
                              [helperText]="'cushion.payout.monthsHint' | t"></ion-input>
                 </ion-item>
+                @if (paydayPreview()) {
+                  <ion-item lines="none">
+                    <ion-label class="ion-text-wrap"><p>{{ paydayPreview() }}</p></ion-label>
+                  </ion-item>
+                }
               }
               <ion-item>
                 <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"

@@ -40,7 +40,7 @@ import {
   YieldsRepository, type CushionBalance, type CushionEntry, type YieldDay,
   type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
-import { AccrualEngine } from '../../core/yields/accrual';
+import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
@@ -257,6 +257,28 @@ export class CushionPage {
   readonly rateFrom = signal<IsoDate>(today());
   readonly rateSpend = signal('');
   readonly rateFallback = signal('');
+
+  /**
+   * The next three paydays of a monthly rate, as dates.
+   *
+   * Worked out by the same rule the engine pays by, from what is typed in the
+   * form, so "every 3 months from July" reads as "30 sep, 31 dic, 31 mar"
+   * instead of a sentence about how months are counted.
+   */
+  readonly paydayPreview = computed(() => {
+    if (this.ratePayout() !== 'monthly') return '';
+    const months = Number(this.rateMonths().trim());
+    const from = this.rateFrom();
+    if (!Number.isInteger(months) || months < 1 || !from) return '';
+
+    const dates: string[] = [];
+    let payday = paidOnFor('monthly', months, from, from > today() ? from : today());
+    for (let count = 0; count < 3; count++) {
+      dates.push(this.dayText(payday));
+      payday = paidOnFor('monthly', months, from, addDays(payday, 1));
+    }
+    return this.i18n.t('cushion.payout.nextPaydays', { dates: dates.join(', ') });
+  });
 
   /** Accounts that could be enrolled but are not. */
   readonly candidates = signal<AccountRow[]>([]);
