@@ -853,7 +853,12 @@
                         </ion-list>
                       }
 
-                      <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
+                      <!-- Only when there is a balance to move: with nothing in
+                           it, a sentence about where the balance goes read as a
+                           question about money that is not there. -->
+                      @if (pocketDeleteHeld() !== 0) {
+                        <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
+                      }
                       @if (error()) {
                         <p class="error">{{ error() }}</p>
                       }
