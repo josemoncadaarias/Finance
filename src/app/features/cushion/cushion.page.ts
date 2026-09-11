@@ -41,6 +41,7 @@ import {
   type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
+import { removePocketInto } from '../../core/yields/remove-pocket';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
@@ -208,6 +209,19 @@ export class CushionPage {
   readonly pocketSource = signal<'ledger' | 'manual'>('manual');
   readonly pocketAmount = signal('');
   readonly pocketFrom = signal<IsoDate>(today());
+
+  /** Removing the product being edited, once asked for: where its balance goes, and how much it is. */
+  readonly confirmingPocketDelete = signal(false);
+  readonly pocketDeleteTo = signal<number | null>(null);
+  readonly pocketDeleteHeld = signal(0);
+
+  /** The products a removed one can hand its balance to. */
+  readonly otherPockets = computed(() =>
+    this.editablePockets().filter(pocket => pocket.id !== this.editingPocket()?.id));
+
+  /** The name of the product that receives it, for the confirmation. */
+  readonly pocketDeleteTargetName = computed(() =>
+    this.otherPockets().find(pocket => pocket.id === this.pocketDeleteTo())?.name ?? '');
 
   /** The rate form. */
   /**
@@ -840,6 +854,7 @@ export class CushionPage {
     if (!line) return;
 
     this.editingPocket.set(pocket);
+    this.confirmingPocketDelete.set(false);
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
     // A brand new product is not the usual one unless the account has none.
@@ -961,8 +976,15 @@ export class CushionPage {
     }
   }
 
-  /** Removes a pocket, and the days it earned with it. */
-  async deletePocket(): Promise<void> {
+  /**
+   * Asks before removing a product, and where its balance should go.
+   *
+   * It used to remove it on the first tap, taking every day it earned with it.
+   * The usual product is chosen by default - it is where unassigned money
+   * already lands - unless the one being removed is the usual one, and then
+   * the first of the others.
+   */
+  async startDeletePocket(): Promise<void> {
     const line = this.openLine();
     const pocket = this.editingPocket();
     if (!line || !pocket) return;
@@ -972,14 +994,28 @@ export class CushionPage {
       return;
     }
 
+    const others = this.otherPockets();
+    const usual = others.find(other => other.is_default === 1) ?? others[0];
+    this.pocketDeleteTo.set(usual?.id ?? null);
+
+    const { db, yields, tax } = this.repos();
+    const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
+    this.pocketDeleteHeld.set(held.get(pocket.id) ?? 0);
+    this.confirmingPocketDelete.set(true);
+  }
+
+  /** Removes the product, handing its balance, movements and earnings to the one chosen. */
+  async deletePocket(): Promise<void> {
+    const line = this.openLine();
+    const pocket = this.editingPocket();
+    const into = this.pocketDeleteTo();
+    if (!line || !pocket || into === null) return;
+
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
-      await db.transaction(async () => {
-        await yields.removePocket(pocket.id);
-        await yields.clearDays(line.account.id);
-      });
-      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today());
+      this.confirmingPocketDelete.set(false);
       this.database.dataChanged();
       await this.openSettings();
     } catch (error) {

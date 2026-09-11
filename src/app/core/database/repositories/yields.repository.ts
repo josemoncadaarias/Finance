@@ -516,6 +516,55 @@ export class YieldsRepository {
   }
 
   /**
+   * Hands everything one product carried to another product of the same account.
+   *
+   * The half of removing a product that keeps it from losing anything. The
+   * movements, cushion entries and withdrawals that named it name the other
+   * one. Every day it earned is added to the other one's day - summed where
+   * both earned on the same day, moved where only it did - so what the account
+   * earned, and what was withheld from it, stays exactly what it was, and the
+   * tax simulator reads the same year it read before.
+   */
+  async mergePocketInto(fromId: number, toId: number): Promise<void> {
+    // Written into the statements below rather than bound, because the same
+    // id appears in several subqueries. Being integers is what makes that safe.
+    if (!Number.isInteger(fromId) || !Number.isInteger(toId)) {
+      throw new Error('Product ids must be integers');
+    }
+
+    for (const table of ['transactions', 'cushion_adjustments', 'cushion_withdrawals']) {
+      await this.db.run(`UPDATE ${table} SET pocket_id = ? WHERE pocket_id = ?`, [toId, fromId]);
+    }
+
+    const theirs = (expression: string) =>
+      `(SELECT ${expression} FROM yield_days f WHERE f.pocket_id = ${fromId}
+          AND f.component = yield_days.component AND f.on_date = yield_days.on_date)`;
+
+    await this.db.run(
+      `UPDATE yield_days SET
+         balance_minor       = balance_minor + ${theirs('f.balance_minor')},
+         gross_minor         = gross_minor + ${theirs('f.gross_minor')},
+         withholding_minor   = withholding_minor + ${theirs('f.withholding_minor')},
+         net_minor           = net_minor + ${theirs('f.net_minor')},
+         actual_net_minor    = CASE
+           WHEN actual_net_minor IS NULL AND ${theirs('f.actual_net_minor')} IS NULL THEN NULL
+           ELSE COALESCE(actual_net_minor, net_minor) + ${theirs('COALESCE(f.actual_net_minor, f.net_minor)')}
+         END,
+         withholding_unknown = MAX(withholding_unknown, ${theirs('f.withholding_unknown')}),
+         locked              = MAX(locked, ${theirs('f.locked')})
+       WHERE pocket_id = ${toId} AND EXISTS ${theirs('1')}`);
+
+    await this.db.run(
+      `UPDATE yield_days SET pocket_id = ${toId}
+       WHERE pocket_id = ${fromId} AND NOT EXISTS (
+         SELECT 1 FROM yield_days t WHERE t.pocket_id = ${toId}
+           AND t.component = yield_days.component AND t.on_date = yield_days.on_date)`);
+
+    // What is left had a partner day on the other product and is in it now.
+    await this.db.run(`DELETE FROM yield_days WHERE pocket_id = ${fromId}`);
+  }
+
+  /**
    * Removes a pocket and every day it earned.
    *
    * The days go with it because they were worked out on a balance that no

@@ -815,13 +815,49 @@
               </ion-button>
             </div>
 
-            @if (editingPocket() && editablePockets().length > 1) {
-              <div class="actions">
-                <ion-button expand="block" fill="clear" color="danger"
-                            [disabled]="saving()" (click)="deletePocket()">
-                  {{ 'cushion.pocket.delete' | t }}
-                </ion-button>
-              </div>
+            @if (editingPocket(); as removing) {
+              @if (editablePockets().length > 1) {
+                @if (!confirmingPocketDelete()) {
+                  <div class="actions">
+                    <ion-button expand="block" fill="clear" color="danger"
+                                [disabled]="saving()" (click)="startDeletePocket()">
+                      {{ 'cushion.pocket.delete' | t }}
+                    </ion-button>
+                  </div>
+                } @else {
+                  <!-- Asked, not done. A product carries a balance and a
+                       history, and both go to a product the person chose. -->
+                  <h3>{{ 'cushion.pocket.deleteConfirm' | t:{ name: removing.name } }}</h3>
+                  @if (pocketDeleteHeld() !== 0) {
+                    <p class="hint">
+                      {{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}
+                    </p>
+                    <ion-list [inset]="true">
+                      <ion-item>
+                        <ion-select [label]="'cushion.pocket.deleteTo' | t" labelPlacement="stacked"
+                                    [value]="pocketDeleteTo()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                    (ionChange)="pocketDeleteTo.set($any($event.detail).value)">
+                          @for (other of otherPockets(); track other.id) {
+                            <ion-select-option [value]="other.id">
+                              {{ other.name }}@if (other.is_default === 1) { · {{ 'cushion.pocket.usual' | t }} }
+                            </ion-select-option>
+                          }
+                        </ion-select>
+                      </ion-item>
+                    </ion-list>
+                  }
+                  <p class="hint">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
+                  <div class="actions">
+                    <ion-button expand="block" fill="clear" (click)="confirmingPocketDelete.set(false)">
+                      {{ 'entry.cancel' | t }}
+                    </ion-button>
+                    <ion-button expand="block" color="danger" [disabled]="saving() || pocketDeleteTo() === null"
+                                (click)="deletePocket()">
+                      {{ 'cushion.pocket.deleteYes' | t }}
+                    </ion-button>
+                  </div>
+                }
+              }
             }
           }
 

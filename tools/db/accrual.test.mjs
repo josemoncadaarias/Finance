@@ -1697,3 +1697,68 @@ test('one month per payment is exactly the monthly rate it always was', async ()
   const rate = (await yields.rateHistory(ids.rappi))[0];
   assert.equal(rate.payout_months, 1, 'a rate saved without months pays every month');
 });
+
+// ---------------------------------------------------------------------------
+// Removing a product
+//
+// It used to delete the row on one tap: every day the product earned went with
+// it, and its movements fell into whichever product takes unassigned money.
+// Now everything it carried goes to a product the person chose.
+// ---------------------------------------------------------------------------
+
+async function withCdt() {
+  const context = await setup();
+  const { db, yields, ids } = context;
+  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-07-31', withholding: false });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-07-31', annual_rate_scaled: pct(9) });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-07-31', amount_minor: 600_000_000 });
+  const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-07-31', amount_minor: 400_000_000 });
+  await yields.setDefaultPocket(ids.rappi, savings.id);
+
+  // A movement filed against the CDT.
+  await db.run(
+    `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
+       pocket_id, created_at, updated_at)
+     VALUES (?, ?, '2026-08-20', -5000000, -5000000, 'manual', ?, ?, ?)`,
+    [ids.rappi, ids.gastos, cdt, NOW(), NOW()]);
+
+  return { ...context, savings: savings.id, cdt };
+}
+
+test('removing a product hands its balance, movements and earnings to the one chosen', async () => {
+  const { removePocketInto } = await import('../../src/app/core/yields/remove-pocket.ts');
+  const { db, yields, tax, engine, accounts, ids, savings, cdt } = await withCdt();
+  const TODAY = '2026-09-10';
+
+  await engine.accrue(ids.rappi, TODAY);
+  const held = await engine.heldByPocket(ids.rappi, TODAY);
+  const grossTo = async to => (await yields.days(ids.rappi, undefined, to)).reduce((sum, day) => sum + day.gross_minor, 0);
+  const august = await grossTo('2026-08-31');
+  const balance = async () => (await accounts.balances()).find(b => b.account.id === ids.rappi).balance_minor;
+  const accountBefore = await balance();
+
+  await removePocketInto(db, yields, tax, ids.rappi, cdt, savings, TODAY);
+
+  assert.deepEqual((await yields.pockets(ids.rappi)).map(pocket => pocket.id), [savings], 'the CDT is gone');
+  assert.equal((await engine.heldByPocket(ids.rappi, TODAY)).get(savings), held.get(savings) + held.get(cdt),
+    'its balance moved across, exactly');
+  assert.equal(await grossTo('2026-08-31'), august, 'nothing it earned in August was lost');
+  assert.equal((await db.queryOne('SELECT pocket_id FROM transactions WHERE amount_minor = -5000000')).pocket_id, savings,
+    'its movement names the product it went to');
+  assert.equal(await balance(), accountBefore, 'the account itself did not move');
+});
+
+test('removing the usual product makes the destination the usual one', async () => {
+  const { removePocketInto } = await import('../../src/app/core/yields/remove-pocket.ts');
+  const { db, yields, tax, ids, savings, cdt } = await withCdt();
+
+  await removePocketInto(db, yields, tax, ids.rappi, savings, cdt, '2026-09-10');
+
+  const [left] = await yields.pockets(ids.rappi);
+  assert.equal(left.id, cdt);
+  assert.equal(left.is_default, 1, 'unassigned money still has somewhere to land');
+});
