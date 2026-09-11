@@ -1,0 +1,379 @@
+/**
+ * Formulario 210, as a screen: every section, every box, in the order of the
+ * spreadsheet it replaces.
+ *
+ * This is the one file of the tax module that holds words, and they are
+ * Spanish only. The project's language rule says so outright - the Colombian
+ * tax module is not translated - and for a good reason: these are the DIAN's
+ * own terms, and an English "non-constitutive income" would be a phrase nobody
+ * could find on the form.
+ *
+ * The screen renders this and nothing else, so a line added to the form next
+ * year is a line added here. Each row says whether the person types it or the
+ * simulation works it out, and which box of the form it lands in.
+ */
+
+import type { EmploymentKind, TaxInputs, TaxResult } from './types';
+
+export type FieldFormat = 'money' | 'percent' | 'uvt' | 'count';
+
+type NumericKeys<T> = {
+  [K in keyof T]-?: T[K] extends number | undefined ? K : never;
+}[keyof T];
+
+export type InputKey = Exclude<NumericKeys<TaxInputs>, 'year'>;
+export type ResultKey = NumericKeys<TaxResult>;
+
+export type SpecialRow =
+  | 'employment'
+  | 'salaryPrefill'
+  | 'yieldsPrefill'
+  | 'rateTable'
+  | 'monthlyWithholding'
+  | 'extraWithholding';
+
+export type FormRow =
+  | { kind: 'input'; key: InputKey; label: string; box?: string; hint?: string; format: FieldFormat }
+  | {
+      kind: 'computed'; key: ResultKey; label: string; box?: string; hint?: string;
+      format: Exclude<FieldFormat, 'count'>; total?: boolean;
+    }
+  | { kind: 'note'; text: string }
+  | { kind: 'special'; which: SpecialRow };
+
+export interface FormSection {
+  id: string;
+  title: string;
+  subtitle?: string;
+  /** Folded when the screen opens. Only for what is rarely touched. */
+  collapsed?: boolean;
+  rows: FormRow[];
+}
+
+export const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+/** What each kind of work means, said the way a person would ask it. */
+export const EMPLOYMENT_TEXT: Record<EmploymentKind, { title: string; detail: string }> = {
+  ordinary: {
+    title: 'Salario ordinario',
+    detail: 'Cotizas sobre todo tu salario. Tú pagas 4% de salud y 4% de pensión; tu empleador paga el resto.',
+  },
+  integral: {
+    title: 'Salario integral',
+    detail: 'Desde 13 salarios mínimos. Cotizas sobre el 70% del salario (Ley 344 de 1996, art. 18). Tú pagas 4% y 4%.',
+  },
+  independent: {
+    title: 'Independiente',
+    detail: 'Por contrato o prestación de servicios. Cotizas sobre el 40% de lo que facturas (Ley 1955 de 2019, art. 244) y pagas todo: 12,5% de salud y 16% de pensión.',
+  },
+};
+
+export const TAX_TEXT = {
+  title: 'Simulador de renta',
+  legendTyped: 'Lo escribes tú',
+  legendComputed: 'Se calcula solo',
+  box: 'Csl.',
+
+  toPay: 'Saldo a pagar',
+  inFavour: 'Saldo a favor',
+  settled: 'Ni pagas ni te devuelven',
+  savePerMonth: 'Aparta {amount} cada mes para no tener sorpresas',
+  taxLine: 'Impuesto {tax} · retenciones {withheld}',
+
+  saving: 'Guardando…',
+  saved: 'Guardado',
+  previousYear: 'Año anterior',
+  nextYear: 'Año siguiente',
+  yearLabel: 'Año gravable {year}',
+
+  uvtMissing: 'Falta la UVT de {year}. Sin ella ningún tope se puede calcular: escríbela en Parámetros del año.',
+
+  salaryButton: 'Traer lo registrado como salario en {year}',
+  salaryHint: 'Tú registras lo que te llega a la cuenta, que es el neto. Aquí va el bruto: úsalo solo como punto de partida y corrígelo.',
+  salarySheetTitle: '¿En qué categoría registras tu salario?',
+  salaryEmpty: 'No hay ingresos registrados en {year}.',
+  salaryUsed: 'Se tomaron {total} de "{category}" repartidos en {months} meses. Es el NETO: cámbialo por el salario bruto de tu contrato.',
+
+  yieldsButton: 'Traer los rendimientos calculados de {year}',
+  yieldsHint: 'Los rendimientos van aquí, en rentas de capital, no en ganancias ocasionales. Lo que trae la app es aproximado: usa el certificado de cada banco.',
+  yieldsNone: 'No hay rendimientos calculados en {year}.',
+  yieldsUsed: 'Se tomaron {gross} de rendimientos brutos ({days} días calculados) y {withheld} de retención. Aproximado: compáralo con los certificados de los bancos.',
+  yieldsWithholdingLabel: 'Retención por rendimientos (aprox.)',
+
+  extraConcept: 'Concepto',
+  rateTableTitle: 'Tabla de tarifas (art. 241 E.T.)',
+  rateBand: 'Desde {from} UVT',
+  rateApplies: 'Tu renta cae aquí',
+
+  close: 'Cerrar',
+
+  disclaimer: 'Es una herramienta de apoyo personal. No reemplaza a un contador ni la declaración oficial ante la DIAN.',
+} as const;
+
+export const TAX_FORM: readonly FormSection[] = [
+  {
+    id: 'situation',
+    title: 'Tu situación',
+    rows: [
+      { kind: 'special', which: 'employment' },
+      {
+        kind: 'input', key: 'dependents', format: 'count',
+        label: 'Dependientes económicos',
+        hint: 'Hasta 4 cuentan (art. 336 E.T.).',
+      },
+    ],
+  },
+
+  {
+    id: 'parameters',
+    title: 'Parámetros del año',
+    subtitle: 'Cambian por ley cada año. Casi nunca se tocan.',
+    collapsed: true,
+    rows: [
+      {
+        kind: 'input', key: 'uvtMinor', format: 'money',
+        label: 'Valor de la UVT',
+        hint: 'Resolución DIAN de cada diciembre. 2026: $52.374 (Res. 000238 de 2025).',
+      },
+      {
+        kind: 'input', key: 'minimumWageMinor', format: 'money',
+        label: 'Salario mínimo mensual',
+        hint: 'Si lo escribes, el IBC queda entre 1 y 25 salarios mínimos y el fondo de solidaridad se calcula por escalones. En cero no se aplica nada de eso.',
+      },
+      { kind: 'input', key: 'labourExemptScaled', format: 'percent', label: '% renta exenta de trabajo', hint: 'Art. 206 num. 10 E.T.' },
+      { kind: 'input', key: 'labourExemptCapUvt', format: 'uvt', label: 'Tope renta exenta (UVT al año)', hint: 'Ley 2277 de 2022.' },
+      { kind: 'input', key: 'dependentMonthlyCapUvt', format: 'uvt', label: 'Tope deducción por dependiente (UVT al mes)', hint: 'Art. 387 E.T.' },
+      { kind: 'input', key: 'healthPolicyCapUvt', format: 'uvt', label: 'Tope deducción por salud (UVT al mes)', hint: 'Art. 387 E.T.' },
+      { kind: 'input', key: 'globalCapScaled', format: 'percent', label: '% límite global de exentas y deducciones', hint: 'Art. 336 num. 3 E.T.' },
+      { kind: 'input', key: 'globalCapUvt', format: 'uvt', label: 'Tope límite global (UVT al año)', hint: 'Art. 336 num. 3 E.T.' },
+      { kind: 'input', key: 'dependentUvt', format: 'uvt', label: 'UVT por dependiente al año', hint: 'Art. 336 E.T.' },
+      { kind: 'input', key: 'eInvoiceCapUvt', format: 'uvt', label: 'Tope deducción factura electrónica (UVT)', hint: 'Art. 336 num. 5 E.T.' },
+      { kind: 'input', key: 'voluntaryCapUvt', format: 'uvt', label: 'Tope aporte voluntario (UVT al año)', hint: 'Art. 126-1 E.T.' },
+      { kind: 'input', key: 'voluntaryIncomeShareScaled', format: 'percent', label: 'Tope aporte voluntario (% de ingresos)', hint: 'Art. 126-1 E.T.' },
+    ],
+  },
+
+  {
+    id: 'labour',
+    title: '1. Rentas de trabajo',
+    subtitle: 'Casillas 32 a 42',
+    rows: [
+      {
+        kind: 'input', key: 'monthlySalaryMinor', format: 'money',
+        label: 'Salario mensual bruto',
+        hint: 'El de tu contrato, antes de descuentos. Si cambia mes a mes, el promedio.',
+      },
+      { kind: 'special', which: 'salaryPrefill' },
+      { kind: 'input', key: 'monthsWorked', format: 'count', label: 'Meses trabajados en el año' },
+      {
+        kind: 'input', key: 'otherLabourIncomeMinor', format: 'money',
+        label: 'Otros ingresos laborales del año',
+        hint: 'Bonos, comisiones, primas extralegales.',
+      },
+      { kind: 'computed', key: 'grossLabourMinor', format: 'money', label: 'Total ingresos brutos de trabajo', box: '32', total: true },
+
+      { kind: 'note', text: 'Aportes obligatorios a seguridad social. Se restan como ingresos no constitutivos de renta.' },
+      {
+        kind: 'computed', key: 'monthlyBaseMinor', format: 'money',
+        label: 'Base de cotización mensual (IBC)',
+        hint: 'Todo el salario si es ordinario, 70% si es integral, 40% si eres independiente.',
+      },
+      { kind: 'input', key: 'healthScaled', format: 'percent', label: '% aporte a salud', hint: '4% como empleado, 12,5% como independiente.' },
+      { kind: 'input', key: 'pensionScaled', format: 'percent', label: '% aporte a pensión', hint: '4% como empleado, 16% como independiente.' },
+      {
+        kind: 'input', key: 'solidarityScaled', format: 'percent',
+        label: '% fondo de solidaridad pensional',
+        hint: 'Se usa este mientras no haya salario mínimo en Parámetros. Con él, se calcula solo: 1% desde 4 salarios mínimos y sube hasta 2% (Ley 797 de 2003).',
+      },
+      { kind: 'computed', key: 'solidarityRateScaled', format: 'percent', label: '% de solidaridad aplicado' },
+      { kind: 'computed', key: 'healthMinor', format: 'money', label: 'Aporte a salud en el año' },
+      { kind: 'computed', key: 'pensionMinor', format: 'money', label: 'Aporte a pensión en el año' },
+      { kind: 'computed', key: 'solidarityMinor', format: 'money', label: 'Aporte a fondo de solidaridad en el año' },
+      { kind: 'computed', key: 'contributionsMinor', format: 'money', label: 'Total aportes obligatorios', box: '33', total: true },
+      { kind: 'computed', key: 'labourNetMinor', format: 'money', label: 'Renta líquida de trabajo', box: '34', total: true },
+    ],
+  },
+
+  {
+    id: 'capital',
+    title: '2. Rentas de capital',
+    subtitle: 'Casillas 43 a 46',
+    rows: [
+      {
+        kind: 'input', key: 'capitalIncomeMinor', format: 'money', box: '43',
+        label: 'Ingresos brutos de capital',
+        hint: 'Intereses, rendimientos financieros, arriendos.',
+      },
+      { kind: 'special', which: 'yieldsPrefill' },
+      { kind: 'input', key: 'capitalCostsMinor', format: 'money', box: '45', label: 'Costos y deducciones de capital' },
+      { kind: 'computed', key: 'capitalNetMinor', format: 'money', label: 'Renta líquida de capital', box: '46', total: true },
+    ],
+  },
+
+  {
+    id: 'other',
+    title: '3. Rentas no laborales',
+    subtitle: 'Casillas 74 a 78',
+    rows: [
+      {
+        kind: 'input', key: 'otherIncomeMinor', format: 'money', box: '74',
+        label: 'Ingresos brutos no laborales',
+        hint: 'Negocios propios u otros ingresos que no son de trabajo ni de capital.',
+      },
+      { kind: 'input', key: 'otherCostsMinor', format: 'money', box: '76', label: 'Costos y gastos asociados' },
+      { kind: 'computed', key: 'otherNetMinor', format: 'money', label: 'Renta líquida no laboral', box: '78', total: true },
+    ],
+  },
+
+  {
+    id: 'inflation',
+    title: 'Componente inflacionario',
+    subtitle: 'Informativo, arts. 38 a 41 E.T.',
+    collapsed: true,
+    rows: [
+      { kind: 'note', text: 'La parte de tus rendimientos financieros que es solo inflación no constituye renta si no llevas contabilidad. Aquí se calcula como referencia: no se resta sola de ninguna casilla.' },
+      { kind: 'input', key: 'financialYieldMinor', format: 'money', label: 'Rendimientos financieros incluidos arriba' },
+      {
+        kind: 'input', key: 'inflationaryScaled', format: 'percent',
+        label: '% componente inflacionario del año',
+        hint: 'Año gravable 2025: 55,43% (Decreto 898 de 2026). Sale al año siguiente; mientras tanto, déjalo en cero o usa el del año anterior.',
+      },
+      {
+        kind: 'computed', key: 'inflationaryMinor', format: 'money',
+        label: 'Parte que no es renta',
+        hint: 'Si decides aplicarla, réstala tú de los ingresos de capital.',
+      },
+    ],
+  },
+
+  {
+    id: 'general',
+    title: 'Cédula general',
+    rows: [
+      {
+        kind: 'computed', key: 'generalNetMinor', format: 'money', box: '91', total: true,
+        label: 'Renta líquida cédula general',
+        hint: 'Trabajo más capital más no laboral.',
+      },
+    ],
+  },
+
+  {
+    id: 'capped',
+    title: '4. Rentas exentas y deducciones',
+    subtitle: 'Con límite del 40% o 1.340 UVT · Casillas 35 a 41',
+    rows: [
+      { kind: 'input', key: 'voluntaryPayrollMinor', format: 'money', label: 'Aportes voluntarios AFC, FVP o AVC por nómina', hint: 'Lo que tu empleador traslada directamente al fondo.' },
+      { kind: 'input', key: 'voluntaryOwnMinor', format: 'money', label: 'Aportes voluntarios propios', hint: 'Lo que tú aportas por fuera de la nómina.' },
+      { kind: 'computed', key: 'voluntaryMinor', format: 'money', label: 'Total aportes voluntarios', box: '35' },
+      { kind: 'input', key: 'housingInterestMinor', format: 'money', box: '38', label: 'Intereses de vivienda o ICETEX' },
+      { kind: 'computed', key: 'labourExemptMinor', format: 'money', box: '36', label: 'Renta exenta de trabajo', hint: '25% de la renta de trabajo, con tope de 790 UVT.' },
+      { kind: 'computed', key: 'dependentDeductionMinor', format: 'money', box: '39', label: 'Deducción por dependiente', hint: '10% de los ingresos de trabajo, con tope de 32 UVT al mes.' },
+      { kind: 'input', key: 'healthPolicyMinor', format: 'money', label: 'Pagos de medicina prepagada o pólizas de salud', hint: 'Solo lo que pagaste en el año, tuyo, de tu cónyuge o de tus hijos.' },
+      { kind: 'computed', key: 'healthPolicyMinor', format: 'money', box: '39', label: 'Deducción por salud', hint: 'Con tope de 16 UVT al mes.' },
+      { kind: 'input', key: 'otherDeductionsMinor', format: 'money', box: '39', label: 'Otras deducciones' },
+      { kind: 'computed', key: 'beforeCapMinor', format: 'money', label: 'Subtotal sin aplicar el límite' },
+      { kind: 'computed', key: 'capMinor', format: 'money', label: 'Límite aplicable', hint: 'El menor entre el 40% de la cédula general y 1.340 UVT.' },
+      { kind: 'computed', key: 'cappedMinor', format: 'money', box: '41', label: 'Rentas exentas y deducciones limitadas', total: true },
+    ],
+  },
+
+  {
+    id: 'uncapped',
+    title: '5. Deducciones sin límite',
+    subtitle: 'No compiten por el 40% ni por los 1.340 UVT',
+    rows: [
+      { kind: 'computed', key: 'dependentsMinor', format: 'money', box: '139', label: 'Deducción por dependientes económicos', hint: '72 UVT por cada uno, hasta 4.' },
+      { kind: 'input', key: 'eInvoicePurchasesMinor', format: 'money', label: 'Compras con factura electrónica', hint: 'Pagadas por medio electrónico y que no estén ya en otra casilla.' },
+      { kind: 'computed', key: 'eInvoiceMinor', format: 'money', box: '28', label: 'Deducción del 1% por factura electrónica', hint: 'Con tope de 240 UVT.' },
+      { kind: 'computed', key: 'deductionsMinor', format: 'money', box: '92', label: 'Total rentas exentas y deducciones', total: true },
+    ],
+  },
+
+  {
+    id: 'tax',
+    title: 'Impuesto',
+    rows: [
+      { kind: 'computed', key: 'taxableMinor', format: 'money', box: '93', label: 'Renta líquida ordinaria', total: true },
+      { kind: 'computed', key: 'taxableUvt', format: 'uvt', label: 'Renta líquida gravable en UVT' },
+      { kind: 'special', which: 'rateTable' },
+      {
+        kind: 'input', key: 'occasionalTaxMinor', format: 'money', box: '127',
+        label: 'Impuesto de ganancias ocasionales',
+        hint: 'Venta de activos que tuviste 2 años o más, premios, herencias. Los rendimientos no van aquí: son rentas de capital.',
+      },
+      { kind: 'computed', key: 'taxMinor', format: 'money', box: '126', label: 'Impuesto neto de renta', total: true },
+    ],
+  },
+
+  {
+    id: 'withholding',
+    title: 'Retenciones y anticipos',
+    subtitle: 'Casillas 130 a 132',
+    rows: [
+      { kind: 'note', text: 'Retención practicada en la nómina, mes a mes.' },
+      { kind: 'special', which: 'monthlyWithholding' },
+      { kind: 'computed', key: 'monthlyWithheldMinor', format: 'money', label: 'Subtotal retención de nómina' },
+      { kind: 'note', text: 'Retenciones por otros conceptos: rendimientos financieros, honorarios, venta de activos.' },
+      { kind: 'special', which: 'extraWithholding' },
+      { kind: 'computed', key: 'extraWithheldMinor', format: 'money', label: 'Subtotal retenciones adicionales' },
+      { kind: 'computed', key: 'withheldMinor', format: 'money', box: '132', label: 'Total retenciones del año', total: true },
+      { kind: 'input', key: 'creditFromLastYearMinor', format: 'money', box: '131', label: 'Saldo a favor del año anterior', hint: 'Sin solicitud de devolución o compensación.' },
+      { kind: 'input', key: 'advancePaidMinor', format: 'money', box: '130', label: 'Anticipo de renta del año anterior' },
+    ],
+  },
+
+  {
+    id: 'settle',
+    title: 'Liquidación final',
+    rows: [
+      { kind: 'computed', key: 'taxMinor', format: 'money', box: '129', label: 'Total impuesto a cargo' },
+      { kind: 'computed', key: 'creditedMinor', format: 'money', label: 'Retenciones, anticipos y saldo a favor' },
+      { kind: 'computed', key: 'toPayMinor', format: 'money', box: '134', label: 'Saldo a pagar', total: true },
+      { kind: 'computed', key: 'inFavourMinor', format: 'money', box: '137', label: 'Saldo a favor', total: true },
+    ],
+  },
+
+  {
+    id: 'planning',
+    title: 'Para planear tu año',
+    rows: [
+      { kind: 'computed', key: 'grossPerMonthMinor', format: 'money', label: 'Ingreso bruto mensual promedio' },
+      { kind: 'computed', key: 'contributionsPerMonthMinor', format: 'money', label: 'Aportes obligatorios al mes' },
+      { kind: 'computed', key: 'voluntaryPerMonthMinor', format: 'money', label: 'Aporte voluntario al mes' },
+      { kind: 'computed', key: 'withheldPerMonthMinor', format: 'money', label: 'Retención en la fuente al mes' },
+      { kind: 'computed', key: 'netPerMonthMinor', format: 'money', label: 'Salario neto mensual promedio', total: true },
+      { kind: 'computed', key: 'savePerMonthMinor', format: 'money', label: 'Ahorro mensual para el saldo a pagar', hint: 'Apártalo cada mes y el pago llega con la plata ya guardada.', total: true },
+    ],
+  },
+
+  {
+    id: 'voluntary',
+    title: 'Aporte voluntario óptimo',
+    subtitle: 'AFC, FVP o AVC',
+    rows: [
+      { kind: 'computed', key: 'roomMinor', format: 'money', label: 'Espacio libre dentro del límite', hint: 'Lo que el límite del 40% o 1.340 UVT aún deja sin usar.' },
+      { kind: 'computed', key: 'voluntaryCeilingMinor', format: 'money', label: 'Tope del aporte voluntario', hint: 'El menor entre 3.800 UVT y el 30% de tus ingresos.' },
+      { kind: 'computed', key: 'voluntaryOptimalMinor', format: 'money', label: 'Aporte voluntario recomendado', total: true },
+      { kind: 'computed', key: 'voluntaryMissingMinor', format: 'money', label: 'Lo que falta por trasladar' },
+      { kind: 'computed', key: 'voluntaryMissingPerMonthMinor', format: 'money', label: 'Lo que falta, repartido al mes' },
+    ],
+  },
+
+  {
+    id: 'notes',
+    title: 'Notas y supuestos',
+    collapsed: true,
+    rows: [
+      { kind: 'note', text: 'El IBC depende del tipo de contrato: todo el salario si es ordinario, 70% si es integral y 40% si eres independiente.' },
+      { kind: 'note', text: 'La deducción por dependientes y la del 1% por factura electrónica no compiten por el límite del 40% o 1.340 UVT (art. 336 num. 3 y 5 E.T.).' },
+      { kind: 'note', text: 'El límite del 40% o 1.340 UVT se calcula sobre la renta líquida de la cédula general (casilla 91).' },
+      { kind: 'note', text: 'Cubre la cédula general. No incluye las cédulas de pensiones ni de dividendos.' },
+      { kind: 'note', text: 'Revisa cada año la UVT y los topes: la ley puede cambiarlos.' },
+      { kind: 'note', text: 'Nada de esto está confirmado con un contador todavía.' },
+    ],
+  },
+];

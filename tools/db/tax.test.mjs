@@ -209,3 +209,85 @@ test('the employee share is only the employee share', () => {
   assert.equal(EMPLOYMENT_DEFAULTS.independent.healthScaled, 125_000);
   assert.equal(EMPLOYMENT_DEFAULTS.independent.pensionScaled, 160_000);
 });
+
+test('the monthly lines match the spreadsheet too', async () => {
+  // B132 to B134 and B147: the per-month figures the planning section shows.
+  const out = simulate(sheetInputs());
+  closeTo(out.contributionsPerMonthMinor, 1_433_991.19, 'B132 aportes obligatorios al mes');
+  closeTo(out.voluntaryPerMonthMinor, 0, 'B133 aporte voluntario al mes');
+  closeTo(out.withheldPerMonthMinor, 2_786_833.33, 'B134 retención al mes');
+  closeTo(out.voluntaryMissingPerMonthMinor, 354_698.67, 'B147 faltante mensual');
+});
+
+test('a simulation is kept per year, and survives the form growing', async () => {
+  const { NodeSqlDriver } = await import('./node-sql-driver.mjs');
+  const { migrate } = await import('../../src/app/core/database/migrations/migration-runner.ts');
+  const { MIGRATION_SOURCES } = await import('../../src/app/core/database/migrations/statements.generated.ts');
+  const { TaxSimulationsRepository } = await import(
+    '../../src/app/core/database/repositories/tax-simulations.repository.ts');
+  const { defaultInputs, withDefaults } = await import('../../src/app/core/tax/defaults.ts');
+
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const repo = new TaxSimulationsRepository(db, () => '2026-09-11T00:00:00Z');
+
+  assert.equal(await repo.get(2026), null, 'nothing until someone starts one');
+
+  const typed = { ...defaultInputs(2026), monthlySalaryMinor: pesos(22_761_765), employment: 'integral' };
+  await repo.save(2026, typed);
+  await repo.save(2025, { ...defaultInputs(2025), dependents: 3 });
+
+  const back = await repo.get(2026);
+  assert.equal(back.monthlySalaryMinor, pesos(22_761_765));
+  assert.equal(back.employment, 'integral');
+  assert.equal((await repo.get(2025)).dependents, 3, 'each year is its own');
+  assert.deepEqual(await repo.years(), [2026, 2025]);
+
+  // A simulation saved before a line existed still opens with that line, and
+  // the fixed-length lists come back at their length rather than short.
+  const old = withDefaults(2026, { monthlySalaryMinor: 5, monthlyWithholdingMinor: [1, 2] });
+  assert.equal(old.monthlyWithholdingMinor.length, 12);
+  assert.deepEqual(old.monthlyWithholdingMinor.slice(0, 3), [1, 2, 0]);
+  assert.equal(old.voluntaryCapUvt, 3800, 'a cap added later arrives with its default');
+
+  // The UVT is filled in only where a resolution is on record. Anywhere else a
+  // carried-over figure would be wrong in every line below it, silently.
+  assert.equal(defaultInputs(2026).uvtMinor, pesos(52_374));
+  assert.equal(defaultInputs(2027).uvtMinor, 0);
+
+  await db.close();
+});
+
+test('the yields of a year add up across every enrolled account', async () => {
+  const { NodeSqlDriver } = await import('./node-sql-driver.mjs');
+  const { migrate } = await import('../../src/app/core/database/migrations/migration-runner.ts');
+  const { MIGRATION_SOURCES } = await import('../../src/app/core/database/migrations/statements.generated.ts');
+  const { YieldsRepository } = await import('../../src/app/core/database/repositories/yields.repository.ts');
+  const { AccountsRepository } = await import('../../src/app/core/database/repositories/accounts.repository.ts');
+
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const now = () => '2026-09-11T00:00:00Z';
+  const yields = new YieldsRepository(db, now);
+  const account = await new AccountsRepository(db, now).create({
+    name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2021-07-01',
+  });
+  await yields.enrol({ account_id: account, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  const [pocket] = await yields.pockets(account);
+
+  const day = (on_date, gross, withheld) => db.run(
+    `INSERT INTO yield_days (pocket_id, account_id, component, on_date, balance_minor, annual_rate_scaled,
+       payout, gross_minor, withholding_minor, net_minor, computed_at)
+     VALUES (?, ?, 'base', ?, 0, 90000, 'daily', ?, ?, ?, ?)`,
+    [pocket.id, account, on_date, gross, withheld, gross - withheld, now()]);
+
+  await day('2025-12-31', 5_000, 0);     // the year before: not counted
+  await day('2026-01-01', 10_000, 700);
+  await day('2026-12-31', 20_000, 1_400);
+
+  const totals = await yields.yearTotals(2026);
+  assert.deepEqual(totals, { grossMinor: 30_000, withheldMinor: 2_100, days: 2 });
+  assert.deepEqual(await yields.yearTotals(2024), { grossMinor: 0, withheldMinor: 0, days: 0 });
+
+  await db.close();
+});

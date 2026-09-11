@@ -59,6 +59,7 @@ export class AppComponent {
     { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
     { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'alert-circle-outline' },
     { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'bed-outline' },
+    { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
     { path: '/import', label: 'nav.import', hint: 'nav.import.hint', icon: 'cloud-upload-outline' },
     { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'cloud-download-outline' },
   ];

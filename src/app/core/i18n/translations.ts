@@ -561,6 +561,8 @@ export const SPANISH = {
   'cushion.error.tooMuch': 'No puedes pasar más de lo que hay en el colchón.',
   'nav.cushion': 'Rendimientos',
   'nav.cushion.hint': 'Rendimientos y cashback, aparte del patrimonio',
+  'nav.tax': 'Renta',
+  'nav.tax.hint': 'Simula la declaración del Formulario 210 de un año',
 
   'restore.title': 'Restaurar un backup',
   'restore.body': 'Vuelve a poner la app exactamente como estaba cuando guardaste ese archivo. Sirve para un teléfono nuevo, o para deshacer algo que salió mal.',
@@ -1148,6 +1150,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cushion.error.tooMuch': 'You cannot move more than the cushion holds.',
   'nav.cushion': 'Yields',
   'nav.cushion.hint': 'Interest and cashback, kept out of net worth',
+  'nav.tax': 'Income tax',
+  'nav.tax.hint': 'Simulate the Formulario 210 return for a year',
 
   'restore.title': 'Restore a backup',
   'restore.body': 'Puts the app back exactly as it was when you saved that file. For a new phone, or to undo something that went wrong.',

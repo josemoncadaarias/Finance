@@ -1,0 +1,251 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ text.title }}</ion-title>
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+
+  <!-- The year, stepped like the period on the movements screen. A return is
+       one year and nothing else, so the whole form belongs to it. -->
+  <ion-toolbar class="stepper">
+    <ion-buttons slot="start">
+      <ion-button (click)="stepYear(-1)" [attr.aria-label]="text.previousYear">
+        <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <div class="year">
+      <strong>{{ fill(text.yearLabel, { year: year() }) }}</strong>
+      <span class="save" [class.on]="saveState() !== 'idle'">
+        @if (saveState() === 'saving') { {{ text.saving }} }
+        @if (saveState() === 'saved') { {{ text.saved }} }
+      </span>
+    </div>
+    <ion-buttons slot="end">
+      <ion-button (click)="stepYear(1)" [attr.aria-label]="text.nextYear">
+        <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (status() === 'opening') {
+    <div class="state"><ion-spinner></ion-spinner></div>
+  } @else {
+
+    <!-- The answer, always in view. Every box below exists to move this, and
+         watching it move while typing is how the form explains itself. -->
+    <section class="verdict" [class.owes]="owes()" [class.refund]="refund()">
+      <span class="tag">
+        @if (owes()) { {{ text.toPay }} }
+        @else if (refund()) { {{ text.inFavour }} }
+        @else { {{ text.settled }} }
+      </span>
+      <span class="figure">
+        {{ money(owes() ? result().toPayMinor : result().inFavourMinor) }}
+      </span>
+      @if (owes()) {
+        <span class="advice">{{ fill(text.savePerMonth, { amount: money(result().savePerMonthMinor) }) }}</span>
+      }
+      <span class="detail">
+        {{ fill(text.taxLine, { tax: money(result().taxMinor), withheld: money(result().withheldMinor) }) }}
+      </span>
+    </section>
+
+    @if (inputs().uvtMinor === 0) {
+      <p class="missing">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        {{ fill(text.uvtMissing, { year: year() }) }}
+      </p>
+    }
+
+    <!-- How to read every box below. Typed boxes look like fields; worked-out
+         ones look like figures on a printed form. -->
+    <div class="legend">
+      <span class="chip typed">{{ text.legendTyped }}</span>
+      <span class="chip computed">{{ text.legendComputed }}</span>
+    </div>
+
+    @for (section of sections; track section.id) {
+      <section class="card">
+        <button type="button" class="head" (click)="toggle(section.id)"
+                [attr.aria-expanded]="isOpen(section.id)">
+          <span class="titles">
+            <span class="title">{{ section.title }}</span>
+            @if (section.subtitle) { <span class="subtitle">{{ section.subtitle }}</span> }
+          </span>
+          <ion-icon [name]="isOpen(section.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+        </button>
+
+        @if (isOpen(section.id)) {
+          <div class="rows">
+            @for (row of section.rows; track $index) {
+              @switch (row.kind) {
+
+                @case ('input') {
+                  <label class="row typed">
+                    <span class="what">
+                      <span class="label">
+                        {{ $any(row).label }}
+                        @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
+                      </span>
+                      @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
+                    </span>
+                    <span class="field" [class.percent]="$any(row).format === 'percent'">
+                      @if ($any(row).format === 'money') { <span class="unit">$</span> }
+                      <input type="text"
+                             [attr.inputmode]="$any(row).format === 'money' || $any(row).format === 'percent' ? 'decimal' : 'numeric'"
+                             [value]="fieldText(row)"
+                             (input)="onField(row, $any($event.target).value)"
+                             (blur)="endDraft($any(row).key)">
+                      @if ($any(row).format === 'percent') { <span class="unit">%</span> }
+                      @if ($any(row).format === 'uvt') { <span class="unit">UVT</span> }
+                    </span>
+                  </label>
+                }
+
+                @case ('computed') {
+                  <div class="row computed" [class.total]="$any(row).total">
+                    <span class="what">
+                      <span class="label">
+                        {{ $any(row).label }}
+                        @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
+                      </span>
+                      @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
+                    </span>
+                    <span class="value">{{ computedText(row) }}</span>
+                  </div>
+                }
+
+                @case ('note') {
+                  <p class="note">{{ $any(row).text }}</p>
+                }
+
+                @case ('special') {
+                  @switch ($any(row).which) {
+
+                    @case ('employment') {
+                      <div class="employment">
+                        <div class="kinds" role="radiogroup">
+                          @for (kind of employmentKinds; track kind) {
+                            <button type="button" role="radio"
+                                    [class.on]="inputs().employment === kind"
+                                    [attr.aria-checked]="inputs().employment === kind"
+                                    (click)="setEmployment(kind)">
+                              {{ employmentText[kind].title }}
+                            </button>
+                          }
+                        </div>
+                        <p class="hint">{{ employmentText[inputs().employment].detail }}</p>
+                      </div>
+                    }
+
+                    @case ('salaryPrefill') {
+                      <div class="prefill">
+                        <button type="button" (click)="openSalary()">
+                          <ion-icon name="download-outline"></ion-icon>
+                          {{ fill(text.salaryButton, { year: year() }) }}
+                        </button>
+                        @if (salaryNotice()) {
+                          <p class="notice">{{ salaryNotice() }}</p>
+                        } @else {
+                          <p class="hint">{{ text.salaryHint }}</p>
+                        }
+                      </div>
+                    }
+
+                    @case ('yieldsPrefill') {
+                      <div class="prefill">
+                        <button type="button" (click)="useYields()">
+                          <ion-icon name="download-outline"></ion-icon>
+                          {{ fill(text.yieldsButton, { year: year() }) }}
+                        </button>
+                        @if (yieldsNotice()) {
+                          <p class="notice">{{ yieldsNotice() }}</p>
+                        } @else {
+                          <p class="hint">{{ text.yieldsHint }}</p>
+                        }
+                      </div>
+                    }
+
+                    @case ('rateTable') {
+                      <div class="bands">
+                        <span class="caption">{{ text.rateTableTitle }}</span>
+                        @for (band of bands; track band.fromUvt; let i = $index) {
+                          <div class="band" [class.on]="activeBand() === i">
+                            <span>{{ fill(text.rateBand, { from: band.fromUvt.toLocaleString('es-CO') }) }}</span>
+                            <strong>{{ band.rateScaled / 10000 }}%</strong>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    @case ('monthlyWithholding') {
+                      <div class="months">
+                        @for (name of months; track name; let i = $index) {
+                          <label class="month">
+                            <span>{{ name }}</span>
+                            <input type="text" inputmode="decimal"
+                                   [value]="monthText(i)"
+                                   (input)="onMonth(i, $any($event.target).value)"
+                                   (blur)="endDraft('month' + i)">
+                          </label>
+                        }
+                      </div>
+                    }
+
+                    @case ('extraWithholding') {
+                      <div class="extras">
+                        @for (slot of [0, 1, 2, 3]; track slot) {
+                          <div class="extra">
+                            <input type="text" class="concept" [placeholder]="text.extraConcept"
+                                   [value]="extraLabel(slot)"
+                                   (change)="onExtraLabel(slot, $any($event.target).value)">
+                            <input type="text" class="amount" inputmode="decimal"
+                                   [value]="extraText(slot)"
+                                   (input)="onExtra(slot, $any($event.target).value)"
+                                   (blur)="endDraft('extra' + slot)">
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
+                }
+              }
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <p class="disclaimer">{{ text.disclaimer }}</p>
+  }
+</ion-content>
+
+<!-- Which category the salary is recorded under. A small sheet, sized to its
+     list: the person says which one it is rather than the app guessing from a
+     name. -->
+<ion-modal class="pocket-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)">
+  <ng-template>
+    <div class="pocket-picker">
+      <h2>{{ text.salarySheetTitle }}</h2>
+      @if (salaryOptions().length === 0) {
+        <p class="empty">{{ fill(text.salaryEmpty, { year: year() }) }}</p>
+      } @else {
+        <ion-list [inset]="true">
+          @for (option of salaryOptions(); track option.id) {
+            <ion-item button lines="full" (click)="useSalary(option)">
+              <ion-label>{{ option.name }}</ion-label>
+              <ion-note slot="end">{{ money(option.totalMinor) }}</ion-note>
+            </ion-item>
+          }
+        </ion-list>
+      }
+      <ion-button expand="block" fill="clear" (click)="salarySheet.set(false)">{{ text.close }}</ion-button>
+    </div>
+  </ng-template>
+</ion-modal>

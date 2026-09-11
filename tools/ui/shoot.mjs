@@ -114,4 +114,13 @@ writeFileSync(out, Buffer.from(shot.data, 'base64'));
 console.log('wrote ' + out);
 
 socket.close();
-chrome.kill();
+
+// Chrome starts a family of helper processes, and on Windows killing the
+// parent leaves the rest running - holding the profile, so the next run cannot
+// open its debugging port, and eating memory on the machine until someone
+// notices. One session left eight behind. The whole tree goes.
+if (process.platform === 'win32') {
+  spawn('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' });
+} else {
+  chrome.kill();
+}

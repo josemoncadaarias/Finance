@@ -93,6 +93,8 @@ export interface TaxInputs {
   /** Twelve figures, one per month. */
   monthlyWithholdingMinor: readonly number[];
   extraWithholdingMinor: readonly number[];
+  /** What each extra withholding was for. Words for the person; ignored by the arithmetic. */
+  extraWithholdingLabels?: readonly string[];
   creditFromLastYearMinor: number;
   advancePaidMinor: number;
 
@@ -133,6 +135,10 @@ export interface TaxResult {
   toPayMinor: number;
   inFavourMinor: number;
   savePerMonthMinor: number;
+  contributionsPerMonthMinor: number;
+  voluntaryPerMonthMinor: number;
+  withheldPerMonthMinor: number;
+  voluntaryMissingPerMonthMinor: number;
   grossPerMonthMinor: number;
   netPerMonthMinor: number;
   roomMinor: number;

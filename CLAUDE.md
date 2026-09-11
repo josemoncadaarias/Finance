@@ -221,6 +221,31 @@ the framework on a long-running project.
    recorded by hand in `yield_excluded_balances`, dated, and taken off the
    accrual base. Both found by Jose against his real accounts, 2026-09-09.
 
+19. **The income-tax simulator is a form, and every figure in it is typed.**
+   One screen laid out like Formulario 210: boxes the person types into, boxes
+   that fill themselves in, the balance to pay always in view. Not a wizard -
+   changing one figure moves twenty others, and seeing them move is how the
+   form explains itself. One simulation per tax year, saved as the typing
+   stops. Its engine (`core/tax/cedula-general.ts`) is a line-for-line port
+   of Jose's `Simulador_Tributario_2026.xlsx`, and the tests compare it
+   against the values Excel stored in that file. Three corrections to the
+   sheet, all sourced and none yet confirmed with an accountant:
+   - **The contribution base depends on the kind of work.** The sheet's 70%
+     is the *salario integral* rule (Ley 344 de 1996 art. 18), not the general
+     one. Ordinary salary: the whole of it, 4% + 4%. Independent: 40% of what
+     is billed (Ley 1955 de 2019 art. 244), at the full 12.5% + 16%.
+   - **Floor, ceiling and solidarity steps need the year's minimum wage**
+     (1 to 25 SMMLV; FSP 1% from 4, up to 2% - Ley 797 de 2003). With none on
+     record, none is applied rather than invented.
+   - **Yields are rentas de capital (Casilla 43), not ganancias ocasionales.**
+   Every rate, cap and UVT is an input with a stated default; the UVT is
+   pre-filled only for a year whose resolution is on record. Figures brought in
+   from the app (salary by a category the user picks, yields for the year) are
+   labelled approximate: the ledger holds net salary and accrued yields, the
+   return needs gross salary and what the bank certifies. The tax module's
+   words are Spanish only, in `core/tax/tax-form.ts`. Decision by Jose,
+   2026-09-11.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**

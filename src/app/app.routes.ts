@@ -22,6 +22,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/cushion/cushion.page').then(m => m.CushionPage),
   },
   {
+    path: 'tax',
+    loadComponent: () => import('./features/tax/tax.page').then(m => m.TaxPage),
+  },
+  {
     path: 'export',
     loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
   },

@@ -643,6 +643,27 @@ export class YieldsRepository {
   }
 
   /** The last day already worked out, so a recompute knows where to resume. */
+  /**
+   * What every enrolled account worked out over one calendar year.
+   *
+   * For the tax simulator, as a starting point and never as the figure: these
+   * are yields accrued day by day, where the return counts what the bank
+   * actually paid, and the bank's own certificate is what belongs on the form.
+   * Cashback is not here - it lives in the cushion's entries, and it is not a
+   * yield.
+   */
+  async yearTotals(year: number): Promise<{ grossMinor: number; withheldMinor: number; days: number }> {
+    const row = await this.db.queryOne<{ gross: number | null; withheld: number | null; days: number }>(
+      `SELECT SUM(gross_minor) AS gross, SUM(withholding_minor) AS withheld, COUNT(*) AS days
+       FROM yield_days WHERE on_date >= ? AND on_date <= ?`,
+      [`${year}-01-01`, `${year}-12-31`]);
+    return {
+      grossMinor: row?.gross ?? 0,
+      withheldMinor: row?.withheld ?? 0,
+      days: row?.days ?? 0,
+    };
+  }
+
   async lastAccruedDay(accountId: number): Promise<IsoDate | null> {
     const row = await this.db.queryOne<{ on_date: IsoDate }>(
       'SELECT MAX(on_date) AS on_date FROM yield_days WHERE account_id = ?', [accountId]);
