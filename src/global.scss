@@ -275,3 +275,103 @@ ion-modal.pocket-sheet {
     }
   }
 }
+
+/*
+ * A question that has to be answered before something is removed.
+ *
+ * A dialog of its own, centred and the size of what it asks. The first version
+ * was a few lines of text appended under the form it belonged to, left-aligned
+ * and easy to scroll past - which is the opposite of how a question about
+ * deleting something should feel. Written here rather than in a component,
+ * because a modal's content is rendered outside the page that declares it.
+ */
+ion-modal.confirm-sheet {
+  --height: auto;
+  --max-height: 100%;
+  --width: calc(100% - 2.5rem);
+  --max-width: 22rem;
+  --border-radius: 20px;
+  // The page behind has to recede. On the dark theme the default backdrop left
+  // the form nearly as bright as the dialog, and the two read as one surface.
+  --backdrop-opacity: 0.6;
+  --box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  align-items: center;
+
+  .confirm-dialog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1.5rem 1.25rem 1.1rem;
+    background: var(--ion-background-color);
+    text-align: center;
+
+    .badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: rgba(var(--ion-color-danger-rgb), 0.14);
+      color: var(--ion-color-danger);
+
+      ion-icon { font-size: 1.4rem; }
+    }
+
+    h2 {
+      margin: 0.2rem 0 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: var(--ion-color-medium-shade);
+      overflow-wrap: break-word;
+    }
+
+    p.note {
+      font-size: 0.78rem;
+      color: var(--ion-color-medium);
+    }
+
+    p.error {
+      font-size: 0.8rem;
+      color: var(--ion-color-danger);
+    }
+
+    ion-list {
+      width: 100%;
+      margin: 0.15rem 0;
+      padding: 0;
+      background: transparent;
+    }
+
+    ion-item {
+      --background: var(--ion-color-step-50, var(--ion-color-light));
+      --border-radius: 12px;
+      text-align: left;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      width: 100%;
+      margin-top: 0.5rem;
+
+      ion-button {
+        margin: 0;
+        min-height: 2.75rem;
+        --border-radius: 12px;
+      }
+    }
+  }
+}

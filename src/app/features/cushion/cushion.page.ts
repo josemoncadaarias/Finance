@@ -855,6 +855,11 @@ export class CushionPage {
 
     this.editingPocket.set(pocket);
     this.confirmingPocketDelete.set(false);
+
+    // The account's products, fresh. Only the settings screen used to load
+    // them, so a product opened straight from the account's list never showed
+    // its delete button - the form believed the account had no other product.
+    this.editablePockets.set(await this.repos().yields.pockets(line.account.id));
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
     // A brand new product is not the usual one unless the account has none.
