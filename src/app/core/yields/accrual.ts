@@ -128,10 +128,12 @@ export class AccrualEngine {
 
       let stated = 0;
       let statedFrom: IsoDate | null = null;
+      let writtenAt: string | null = null;
       for (const entry of history) {
         if (entry.valid_from > on) break;
         stated = entry.amount_minor;
         statedFrom = entry.valid_from;
+        writtenAt = entry.created_at;
       }
 
       // Nothing here is derived from the history of the account. The figure
@@ -146,7 +148,19 @@ export class AccrualEngine {
       // everything before it is already inside whatever figures were typed.
       const from = statedFrom ?? opening;
 
-      held.set(pocket.id, stated + (balanceOn(moved, on) - balanceOn(moved, from)));
+      // Everything after the day the figure describes, plus whatever moved on
+      // that day AFTER it was written down. The second half is the commonest
+      // case there is: the balance is typed now and the day's spending is
+      // recorded through the rest of the day. Counting the whole of that day
+      // would count what the reading already contained; counting none of it
+      // loses everything done since - which is exactly what Jose saw when a
+      // peso spent after typing the balance left the figure where it was.
+      const sinceThen = balanceOn(moved, on) - balanceOn(moved, from);
+      const laterThatDay = writtenAt === null || statedFrom === null || statedFrom > on
+        ? 0
+        : await this.yields.movedOnDayAfter(pocket.id, statedFrom, writtenAt);
+
+      held.set(pocket.id, stated + sinceThen + laterThatDay);
     }
 
     return held;

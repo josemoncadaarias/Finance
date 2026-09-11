@@ -120,6 +120,16 @@ export interface PocketBalance {
   valid_from: IsoDate;
   amount_minor: number;
   note: string | null;
+  /**
+   * When the figure was written down, to the second.
+   *
+   * `valid_from` is the day it describes; this is the moment it was recorded.
+   * The two differ on the day that matters most - the day someone types
+   * today's balance and then goes on recording today's movements - and only
+   * the second can tell a movement that happened before the reading from one
+   * that happened after it.
+   */
+  created_at: string;
 }
 export interface YieldDay {
   pocket_id: number;
@@ -500,10 +510,27 @@ export class YieldsRepository {
     await this.db.run('DELETE FROM yield_pockets WHERE id = ?', [id]);
   }
 
+  /**
+   * What moved through a product on one day, after a given moment.
+   *
+   * The awkward, and commonest, case: the balance is typed at nine in the
+   * morning and the day's spending is recorded through the afternoon. Counting
+   * the whole day would count what the reading already contained; counting
+   * none of it loses the afternoon. The moment the figure was written down is
+   * what separates the two.
+   */
+  async movedOnDayAfter(pocketId: number, on: IsoDate, after: string): Promise<number> {
+    const row = await this.db.queryOne<{ total: number | null }>(
+      `SELECT SUM(amount_minor) AS total FROM transactions
+       WHERE pocket_id = ? AND occurred_on = ? AND created_at > ?`,
+      [pocketId, on, after]);
+    return row?.total ?? 0;
+  }
+
   /** Every balance a pocket has been given, oldest first. */
   async pocketBalances(pocketId: number): Promise<PocketBalance[]> {
     return this.db.query<PocketBalance>(
-      `SELECT id, pocket_id, valid_from, amount_minor, note
+      `SELECT id, pocket_id, valid_from, amount_minor, note, created_at
        FROM yield_pocket_balances WHERE pocket_id = ? ORDER BY valid_from, id`,
       [pocketId]);
   }

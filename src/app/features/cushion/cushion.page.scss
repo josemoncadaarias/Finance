@@ -446,7 +446,9 @@ ion-modal {
   font-weight: 600;
   color: var(--ion-text-color);
 
-  &.owed { color: var(--ion-color-warning); }
+  /* Red, the same as a negative balance anywhere else in the app. It is
+     not a warning about the app; it is money that is not there. */
+  &.owed { color: var(--ion-color-danger); }
 }
 
 /* Where today's figure comes from: what was typed, what has moved since, and
@@ -471,7 +473,7 @@ ion-modal {
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);
 
-    &.owed { color: var(--ion-color-warning); }
+    &.owed { color: var(--ion-color-danger); }
   }
 
   .sum {

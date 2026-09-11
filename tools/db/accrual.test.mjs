@@ -1441,3 +1441,59 @@ test('a product balance is the figure typed, never one derived from history', as
 
   await db.close();
 });
+
+test('a movement made after the balance was typed counts the same day', async () => {
+  // The commonest case there is, and the one that kept the figure frozen: the
+  // balance is typed now and the day's spending is recorded through the rest
+  // of the day. Counting the whole of that day would count what the reading
+  // already contained; counting none of it loses everything done since.
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+
+  // A clock that moves, because this is entirely about which came first.
+  let now = '2026-09-11T09:00:00Z';
+  const at = () => now;
+
+  const accounts = new AccountsRepository(db, at);
+  const categories = new CategoriesRepository(db, at);
+  const transactions = new TransactionsRepository(db, at);
+  const yields = new YieldsRepository(db, at);
+  const engine = new AccrualEngine(db, yields, new TaxParametersRepository(db, at));
+
+  const rappi = await accounts.create({
+    name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
+    opening_balance_minor: 0, opened_on: '2026-09-01',
+  });
+  const gastos = await categories.create({ name: 'Facturas', kind: 'expense', builtin_icon: 'receipt' });
+
+  await yields.enrol({ account_id: rappi, opening_cushion_minor: 0, opening_on: '2026-09-09' });
+  const [savings] = await yields.pockets(rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+
+  // Spent this morning, before the balance was read.
+  await transactions.create({
+    account_id: rappi, category_id: gastos, occurred_on: '2026-09-11',
+    amount_minor: -700_00, pocket_id: savings.id, source: 'manual',
+  });
+
+  // The balance is read at midday: zero. That reading already contains the
+  // morning's spending, whatever it was.
+  now = '2026-09-11T12:00:00Z';
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+
+  assert.equal((await engine.heldByPocket(rappi, '2026-09-11')).get(savings.id), 0,
+    'the morning is inside the figure, not on top of it');
+
+  // And one peso spent in the afternoon.
+  now = '2026-09-11T15:00:00Z';
+  await transactions.create({
+    account_id: rappi, category_id: gastos, occurred_on: '2026-09-11',
+    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+  });
+
+  assert.equal((await engine.heldByPocket(rappi, '2026-09-11')).get(savings.id), -100,
+    'a peso out after the reading is a peso less');
+
+  await db.close();
+});
