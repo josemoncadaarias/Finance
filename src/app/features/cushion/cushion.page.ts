@@ -206,7 +206,6 @@ export class CushionPage {
   /** The pocket form. */
   readonly editingPocket = signal<YieldPocket | null>(null);
   readonly pocketName = signal('');
-  readonly pocketSource = signal<'ledger' | 'manual'>('manual');
   readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
 
   /**
@@ -635,6 +634,9 @@ export class CushionPage {
     this.openLine.set(line);
     this.form.set('none');
     this.resetForm();
+    // The products list says each product's rate, so the rates are read here
+    // too, not only when the settings open.
+    this.rates.set(await this.repos().yields.rateHistory(line.account.id));
     const { yields } = this.repos();
     // Newest first: the day someone came here to check is almost always a
     // recent one, and the list can run to thousands.
@@ -859,7 +861,6 @@ export class CushionPage {
     this.withholds.set((await yields.account(line.account.id))?.withholding !== 0);
 
     this.pocketName.set(pocket?.name ?? '');
-    this.pocketSource.set(pocket?.source ?? 'manual');
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
     this.pocketPayout.set(pocket?.payout ?? 'daily');
     this.pocketMonths.set(String(pocket?.payout_months ?? 1));
@@ -896,7 +897,9 @@ export class CushionPage {
       // previous balance on reopening, and read exactly like a form that
       // ignores what is typed into it.
       const current = history.at(-1);
-      this.pocketAmount.set(current ? decimalOf(current.amount_minor) : '');
+      // A product that followed the account balance has no figure of its own
+      // yet: it starts from what it holds today, so saving keeps its balance.
+      this.pocketAmount.set(decimalOf(current ? current.amount_minor : Math.max(0, this.heldIn(line, pocket.id))));
       this.pocketFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
@@ -936,8 +939,9 @@ export class CushionPage {
       return;
     }
 
-    const manual = this.pocketSource() === 'manual';
-    const amount = manual ? parseOrNull(this.pocketAmount()) : 0;
+    // Every product holds the balance the person types in; income, expenses
+    // and transfers keep it square from there.
+    const amount = parseOrNull(this.pocketAmount());
     if (amount === null || amount < 0) {
       this.error.set(this.i18n.t('cushion.error.amount'));
       return;
@@ -971,7 +975,7 @@ export class CushionPage {
           : await yields.addPocket({
               account_id: line.account.id,
               name,
-              source: manual ? 'manual' : 'ledger',
+              source: 'manual',
               kind: 'high_yield',
               sort_order: line.pockets.length,
               payout,
@@ -980,7 +984,9 @@ export class CushionPage {
 
         if (existing) {
           await yields.renamePocket(id, name);
-          await yields.setPocketSource(id, manual ? 'manual' : 'ledger');
+          // A product that used to follow the account balance holds what was
+          // typed from now on.
+          await yields.setPocketSource(id, 'manual');
         }
         await yields.setPocketPayout(id, payout, months);
         // A rate of zero is no rate: nothing is recorded for it.
@@ -991,20 +997,18 @@ export class CushionPage {
           });
         }
 
-        if (manual) {
-          // Correcting the balance on screen, or recording a new one. The
-          // first moves the row that is being looked at, date included; the
-          // second adds one, which is what a balance read on a later day is.
-          const balanceId = this.editingBalanceId();
-          if (balanceId !== null) {
-            await yields.movePocketBalance(balanceId, {
-              valid_from: this.pocketFrom(), amount_minor: amount,
-            });
-          } else {
-            await yields.setPocketBalance({
-              pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
-            });
-          }
+        // Correcting the balance on screen, or recording a new one. The first
+        // moves the row that is being looked at, date included; the second
+        // adds one, which is what a balance read on a later day is.
+        const balanceId = this.editingBalanceId();
+        if (balanceId !== null) {
+          await yields.movePocketBalance(balanceId, {
+            valid_from: this.pocketFrom(), amount_minor: amount,
+          });
+        } else {
+          await yields.setPocketBalance({
+            pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
+          });
         }
 
         // Unticking is not a way to leave an account without one: every
@@ -1348,7 +1352,9 @@ export class CushionPage {
     const current = this.rates().filter(rate =>
       rate.pocket_id === pocket.id && rate.requires_monthly_spend_minor === null
       && this.rateStatus(rate) === 'current').at(-1);
-    const rate = current ? this.rateText(current.annual_rate_scaled) : this.i18n.t('cushion.pocket.noRate');
+    // With no rate there is nothing paid, so no payday to mention.
+    if (!current || current.annual_rate_scaled <= 0) return this.i18n.t('cushion.pocket.noRate');
+    const rate = this.rateText(current.annual_rate_scaled);
     const paid = pocket.payout === 'daily' ? this.i18n.t('cushion.payout.daily')
       : pocket.payout_months === 1 ? this.i18n.t('cushion.payout.monthly')
       : this.i18n.t('cushion.payout.everyMonths', { count: pocket.payout_months });
@@ -1368,7 +1374,7 @@ export class CushionPage {
   async enrol(account: AccountRow): Promise<void> {
     this.saving.set(true);
     try {
-      const { yields } = this.repos();
+      const { db, yields, tax } = this.repos();
       await yields.enrol({
         account_id: account.id,
         default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
@@ -1379,6 +1385,18 @@ export class CushionPage {
         // money the bank has not handed over.
         payout: 'monthly',
       });
+
+      // Every product holds a balance the person states. The one an account
+      // starts with begins at what the account holds today, to be corrected
+      // against the bank - not as a product that follows the account.
+      const [first] = await yields.pockets(account.id);
+      if (first && first.source === 'ledger') {
+        const held = (await new AccrualEngine(db, yields, tax).heldByPocket(account.id, today())).get(first.id) ?? 0;
+        await db.transaction(async () => {
+          await yields.setPocketSource(first.id, 'manual');
+          await yields.setPocketBalance({ pocket_id: first.id, valid_from: today(), amount_minor: Math.max(0, held) });
+        });
+      }
       this.picking.set(false);
       this.database.dataChanged();
 

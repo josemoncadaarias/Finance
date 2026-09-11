@@ -313,19 +313,17 @@
                  forgotten. The negative is the reminder. -->
             <p class="section">{{ 'cushion.pockets' | t }}</p>
             <ion-list [inset]="true">
+              <!-- The same list as the account's settings: one place to learn
+                   how a product reads, and the same actions from both. -->
               @for (pocket of line.pockets; track pocket.id) {
-                <ion-item button (click)="openPocket(pocket)">
+                <ion-item button detail="true" (click)="openPocket(pocket)">
                   <ion-label>
                     <h3>{{ pocket.name }}</h3>
                     <p>
-                      @if (pocket.source === 'ledger') {
-                        {{ 'cushion.pockets.ledger' | t }}
-                      } @else {
-                        {{ 'cushion.pockets.manual' | t }}
+                      @if (pocket.is_default === 1) {
+                        <span class="usual">{{ 'cushion.pockets.usual' | t }}</span> ·
                       }
-                      @if (pocket.kind === 'cdt') {
-                        · {{ 'cushion.pocket.kind.cdt' | t }}
-                      }
+                      {{ pocketSummary(pocket) }}
                     </p>
                     @if (yieldIn(line, pocket.id) !== 0) {
                       <p>{{ 'cushion.pockets.includesYield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
@@ -335,6 +333,13 @@
                             [class.owed]="balanceIn(line, pocket.id) < 0">
                     {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
                   </ion-note>
+                  @if (line.pockets.length > 1) {
+                    <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
+                                [attr.aria-label]="'cushion.pocket.delete' | t"
+                                (click)="$event.stopPropagation(); deleteFromList(pocket)">
+                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                    </ion-button>
+                  }
                 </ion-item>
               }
             </ion-list>
@@ -820,17 +825,10 @@
                     <p>{{ 'cushion.pocket.makeDefault.hint' | t }}</p>
                   </ion-label>
                 </ion-item>
-                <ion-item>
-                  <ion-select [label]="'cushion.pocket.source' | t" labelPlacement="stacked"
-                              [value]="pocketSource()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="pocketSource.set($any($event.detail).value)">
-                    <ion-select-option value="manual">{{ 'cushion.pocket.sourceManual' | t }}</ion-select-option>
-                    <ion-select-option value="ledger">{{ 'cushion.pocket.sourceLedger' | t }}</ion-select-option>
-                  </ion-select>
-                </ion-item>
               </ion-list>
 
-              @if (pocketSource() === 'manual') {
+              <!-- Every product's balance is the one the person types in, and
+                   income, expenses and transfers keep it square from there. -->
                 <ion-list [inset]="true">
                   <ion-item>
                     <ion-input [label]="'cushion.pocket.amount' | t" labelPlacement="stacked"
@@ -873,7 +871,6 @@
                     </div>
                   </div>
                 }
-              }
 
               <!-- The product's rate and how it is paid, here with the product
                    rather than in a list of the account's rates: a product is
