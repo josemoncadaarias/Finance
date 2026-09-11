@@ -681,3 +681,56 @@ test('the account goes even with nowhere to move its movements', async () => {
 
   await db.close();
 });
+
+test('the account goes whichever way its name happens to be stored', async () => {
+  // Three migrations did not remove it, and after the delete rule was found
+  // and fixed the only candidate left was the name. A string comparison can
+  // fail for reasons nothing on screen shows: a trailing space, an accent
+  // stored as a combining mark rather than as one character, a different case.
+  // SQLite's `lower()` does not touch accented letters, so folding is no help.
+  //
+  // Each of these renders as "Tarjeta crédito rappi" and none of them is the
+  // same string. All four have to go.
+  const names = [
+    'Tarjeta crédito rappi',
+    'Tarjeta cre\u0301dito rappi',   // the accent as a combining mark
+    'Tarjeta credito rappi ',        // a trailing space
+    'TARJETA CRÉDITO RAPPI',
+  ];
+
+  for (const name of names) {
+    const db = new NodeSqlDriver();
+    await migrate(db, MIGRATION_SOURCES.slice(0, 25));
+
+    const accounts = new AccountsRepository(db, NOW);
+    const card = await accounts.create({
+      name: 'Rappi Card', type: 'credit', currency_code: 'COP',
+      builtin_icon: 'card', credit_limit_minor: 110_000_000, opened_on: '2021-06-25',
+    });
+    const duplicate = await accounts.create({
+      name, type: 'credit', currency_code: 'COP',
+      builtin_icon: 'card', credit_limit_minor: 110_000_000, opened_on: '2021-08-21',
+    });
+
+    const comida = await new CategoriesRepository(db, NOW)
+      .create({ name: 'Comida', kind: 'expense', builtin_icon: 'cart' });
+    await new TransactionsRepository(db, NOW).create({
+      account_id: duplicate, category_id: comida, occurred_on: '2026-09-09',
+      amount_minor: -25_000, source: 'monefy',
+      import_fingerprint: 'f-dup', import_seq: 1,
+    });
+
+    await migrate(db, MIGRATION_SOURCES);
+
+    const left = await db.query('SELECT name FROM accounts');
+    assert.deepEqual(left.map(row => row.name), ['Rappi Card'],
+      `left standing for ${JSON.stringify(name)}`);
+
+    // And the movement went to the card rather than being thrown away.
+    const moved = await db.queryOne(
+      "SELECT account_id FROM transactions WHERE import_fingerprint = 'f-dup'");
+    assert.equal(moved.account_id, card);
+
+    await db.close();
+  }
+});
