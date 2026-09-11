@@ -197,6 +197,8 @@ export class CushionPage {
   /** What kind of money an entry is, and where it landed. */
   readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
   readonly entryPocket = signal<number | null>(null);
+  /** Money coming into a product's yields, or going out of them. */
+  readonly entryDirection = signal<'income' | 'expense'>('income');
 
   /** Everything that has landed in the open account's cushion by hand. */
   readonly entries = signal<CushionEntry[]>([]);
@@ -670,6 +672,11 @@ export class CushionPage {
 
   startForm(which: 'adjust' | 'withdraw'): void {
     this.resetForm();
+    if (which === 'adjust') {
+      // The usual product is where money goes unless told otherwise.
+      const pockets = this.openLine()?.pockets ?? [];
+      this.entryPocket.set((pockets.find(pocket => !!pocket.is_default) ?? pockets[0])?.id ?? null);
+    }
     this.form.set(which);
   }
 
@@ -1411,6 +1418,7 @@ export class CushionPage {
     this.confirmingStop.set(false);
     this.entryKind.set('cashback');
     this.entryPocket.set(null);
+    this.entryDirection.set('income');
     this.amount.set('');
     this.note.set('');
     this.onDate.set(today());
@@ -1526,21 +1534,24 @@ export class CushionPage {
   }
 
   /**
-   * Records the gap between what the app worked out and what the bank paid.
+   * Records money coming into or going out of one product's yields.
    *
-   * For when the difference belongs to no particular day — a monthly deposit
-   * that came in short, a condition nobody wrote down. The daily history is
-   * left as it is: it is the evidence of what was computed and why.
+   * Like a movement in an account - an income or an expense, on a product -
+   * except that it never touches the account's balance, so net worth does not
+   * move. For cashback, a monthly deposit that came in short, anything the
+   * daily history cannot explain; that history is left as it is, as the
+   * evidence of what was computed and why.
    */
   async saveAdjustment(): Promise<void> {
     const line = this.openLine();
     if (!line) return;
 
-    const minor = this.parsed();
-    if (minor === null || minor === 0) {
+    const typed = this.parsed();
+    if (typed === null || typed === 0) {
       this.error.set(this.i18n.t('cushion.error.amount'));
       return;
     }
+    const minor = this.entryDirection() === 'expense' ? -Math.abs(typed) : Math.abs(typed);
 
     this.saving.set(true);
     try {

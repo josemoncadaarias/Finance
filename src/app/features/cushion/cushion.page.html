@@ -1079,6 +1079,14 @@
             <h2>{{ 'cushion.entry' | t }}</h2>
             <p class="hint">{{ 'cushion.entry.hint' | t }}</p>
 
+            <h3 class="field-heading">{{ 'cushion.entry.direction' | t }}</h3>
+            <div class="pocket-row">
+              <button type="button" [class.on]="entryDirection() === 'income'"
+                      (click)="entryDirection.set('income')">{{ 'cushion.entry.income' | t }}</button>
+              <button type="button" [class.on]="entryDirection() === 'expense'"
+                      (click)="entryDirection.set('expense')">{{ 'cushion.entry.expense' | t }}</button>
+            </div>
+
             <ion-list [inset]="true">
               <!-- What it is, not just how much. Cashback is not withheld and
                    interest is, so a figure that does not say which is one the
@@ -1096,25 +1104,26 @@
                 <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
                            inputmode="decimal" [value]="amount()"
                            (ionInput)="amount.set($any($event.target).value)"
-                           placeholder="-1.500,00"></ion-input>
+                           placeholder="1.500,00"></ion-input>
               </ion-item>
               <ion-item>
                 <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
                            type="date" [value]="onDate()"
                            (ionInput)="onDate.set($any($event.target).value)"></ion-input>
               </ion-item>
-              @if (line.pockets.length > 1) {
-                <ion-item>
-                  <ion-select [label]="'cushion.entry.pocket' | t" labelPlacement="stacked"
-                              [value]="entryPocket()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="entryPocket.set($any($event.detail).value)">
-                    <ion-select-option [value]="null">{{ 'cushion.entry.pocketAny' | t }}</ion-select-option>
-                    @for (pocket of line.pockets; track pocket.id) {
-                      <ion-select-option [value]="pocket.id">{{ pocket.name }}</ion-select-option>
-                    }
-                  </ion-select>
-                </ion-item>
+            </ion-list>
+
+            <h3 class="field-heading">
+              {{ (entryDirection() === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
+            </h3>
+            <div class="pocket-row">
+              @for (pocket of line.pockets; track pocket.id) {
+                <button type="button" [class.on]="entryPocket() === pocket.id"
+                        (click)="entryPocket.set(pocket.id)">{{ pocket.name }}</button>
               }
+            </div>
+
+            <ion-list [inset]="true">
               <ion-item>
                 <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
                               [autoGrow]="true" rows="2" [value]="note()"
