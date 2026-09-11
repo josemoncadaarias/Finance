@@ -46,6 +46,7 @@ import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '..
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString, type WithholdingRule } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
+import { groupTypedAmount, typedAmountOf } from '../../core/database/typed-amount';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
@@ -1965,6 +1966,17 @@ export class CushionPage {
     return Math.max(0, Math.min(paid, this.balanceIn(line, pocketId)));
   }
 
+  /**
+   * A money field: what was typed, regrouped as it is typed - dots between
+   * thousands, a comma before the cents - so six million reads as six million.
+   */
+  amountTyped(target: unknown, allowNegative = false): string {
+    const input = target as { value?: string | number | null } | null;
+    const grouped = groupTypedAmount(String(input?.value ?? ''), { allowNegative });
+    if (input && String(input.value ?? '') !== grouped) input.value = grouped;
+    return grouped;
+  }
+
   /** What was typed, minus signs taken out: a rate or a balance is never negative. */
   unsigned(target: unknown): string {
     const input = target as { value?: string | number | null } | null;
@@ -2105,8 +2117,9 @@ function netOf(day: YieldDay | null): number {
   return day.actual_net_minor ?? day.net_minor;
 }
 
+/** A stored amount as a money field shows it: "6.000.000,50", not "6000000.50". */
 function decimalOf(minor: number): string {
-  return (minor / 100).toFixed(2);
+  return typedAmountOf(minor);
 }
 
 /** Today where the user is, never the UTC day. See `todayIso`. */

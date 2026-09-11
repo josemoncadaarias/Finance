@@ -24,6 +24,7 @@ import {
 import { DatabaseService } from '../../core/database/database.service';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
+import { groupTypedAmount } from '../../core/database/typed-amount';
 import { parsePercentToScaled } from '../../core/yields/yield-math';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
@@ -570,6 +571,18 @@ export class TaxPage {
    * keeps the symbol, since it is a result to read rather than a field to
    * edit.
    */
+  /**
+   * A money field regroups by thousands as it is typed, as the figures around
+   * it are shown; any other field is left as typed.
+   */
+  typed(target: EventTarget | null, format: FieldFormat): string {
+    const input = target as HTMLInputElement;
+    if (format !== 'money') return input.value;
+    const grouped = groupTypedAmount(input.value);
+    if (grouped !== input.value) input.value = grouped;
+    return grouped;
+  }
+
   private format(value: number, format: FieldFormat, computedValue = false): string {
     if (format === 'money') {
       if (computedValue) return formatMoney(value, 'COP');

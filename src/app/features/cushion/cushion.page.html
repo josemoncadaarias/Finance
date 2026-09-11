@@ -703,7 +703,7 @@
                 <ion-item>
                   <ion-input [label]="'cushion.day.actual' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="amount()"
-                             (ionInput)="amount.set($any($event.target).value)"></ion-input>
+                             (ionInput)="amount.set(amountTyped($event.target, true))"></ion-input>
                 </ion-item>
               </ion-list>
 
@@ -885,7 +885,7 @@
                 <ion-item>
                   <ion-input [label]="'cushion.cdt.amount' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="pocketAmount()"
-                             (ionInput)="pocketAmount.set(unsigned($event.target))"></ion-input>
+                             (ionInput)="pocketAmount.set(amountTyped($event.target))"></ion-input>
                 </ion-item>
               </ion-list>
 
@@ -1019,7 +1019,7 @@
                   <ion-item>
                     <ion-input [label]="'cushion.pocket.amount' | t" labelPlacement="stacked"
                                inputmode="decimal" [value]="pocketAmount()"
-                               (ionInput)="pocketAmount.set(unsigned($event.target))"></ion-input>
+                               (ionInput)="pocketAmount.set(amountTyped($event.target))"></ion-input>
                   </ion-item>
                   <ion-item>
                     <ion-input [label]="'cushion.pocket.from' | t" labelPlacement="stacked"
@@ -1342,7 +1342,7 @@
                 <ion-item>
                   <ion-input [label]="'cushion.rate.spend' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="rateSpend()"
-                             (ionInput)="rateSpend.set(unsigned($event.target))"
+                             (ionInput)="rateSpend.set(amountTyped($event.target))"
                              placeholder="400.000"></ion-input>
                 </ion-item>
                 <ion-item>

@@ -113,7 +113,7 @@
                       <input type="text"
                              [attr.inputmode]="$any(row).format === 'money' || $any(row).format === 'percent' ? 'decimal' : 'numeric'"
                              [value]="fieldText(row)"
-                             (input)="onField(row, $any($event.target).value)"
+                             (input)="onField(row, typed($event.target, $any(row).format))"
                              (blur)="endDraft($any(row).key)">
                       @if ($any(row).format === 'percent') { <span class="unit">%</span> }
                       @if ($any(row).format === 'uvt') { <span class="unit">UVT</span> }
@@ -246,7 +246,7 @@
                             <span>{{ name }}</span>
                             <input type="text" inputmode="decimal"
                                    [value]="monthText(i)"
-                                   (input)="onMonth(i, $any($event.target).value)"
+                                   (input)="onMonth(i, typed($event.target, 'money'))"
                                    (blur)="endDraft('month' + i)">
                           </label>
                         }
@@ -262,7 +262,7 @@
                                    (change)="onExtraLabel(slot, $any($event.target).value)">
                             <input type="text" class="amount" inputmode="decimal"
                                    [value]="extraText(slot)"
-                                   (input)="onExtra(slot, $any($event.target).value)"
+                                   (input)="onExtra(slot, typed($event.target, 'money'))"
                                    (blur)="endDraft('extra' + slot)">
                           </div>
                         }
