@@ -474,8 +474,30 @@ export class CushionPage {
    * yesterday's total is a screen showing a wrong total.
    */
   async refresh(): Promise<void> {
-    if (this.busy) return;
-    this.busy = true;
+    // A refresh asked for while one is running is not dropped: it waits, and
+    // one more runs afterwards. Dropping it is what left a deleted movement's
+    // product showing the old balance - the movement screen announced the
+    // change, which started a refresh, and the reopen that followed returned
+    // at once and read the figures from before the delete.
+    if (this.refreshing) {
+      this.refreshAgain = true;
+      return this.refreshing;
+    }
+    this.refreshing = (async () => {
+      do {
+        this.refreshAgain = false;
+        await this.refreshOnce();
+      } while (this.refreshAgain);
+    })().finally(() => {
+      this.refreshing = null;
+    });
+    return this.refreshing;
+  }
+
+  private refreshing: Promise<void> | null = null;
+  private refreshAgain = false;
+
+  private async refreshOnce(): Promise<void> {
     this.working.set(true);
     this.error.set('');
     try {
@@ -486,7 +508,6 @@ export class CushionPage {
       this.error.set(messageOf(error));
     } finally {
       this.working.set(false);
-      this.busy = false;
     }
   }
 
