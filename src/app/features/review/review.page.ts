@@ -138,15 +138,25 @@ export class ReviewPage {
     }
   }
 
+  /**
+   * Closes one item, and says so to the rest of the app.
+   *
+   * `load()` refreshes this screen and nothing else. The count on the drawer
+   * is derived from the same data and watches `dataVersion`, so without the
+   * announcement it kept showing the number it was built with - and the only
+   * way to correct it was to reload the page, which is the report Jose made.
+   */
   async resolve(item: ReviewItem): Promise<void> {
     await new ReviewRepository(this.database.driver).resolve(item.id);
     await this.load();
+    this.database.dataChanged();
   }
 
   async resolveAll(kind: string): Promise<void> {
     await new ReviewRepository(this.database.driver)
       .resolveKind(kind, this.i18n.t('review.closedInBatch'));
     await this.load();
+    this.database.dataChanged();
   }
 
   /**
