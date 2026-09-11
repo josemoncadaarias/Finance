@@ -503,3 +503,37 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
   color: var(--ion-color-primary);
   font-weight: 600;
 }
+
+/* The account's movements: the heading, and the button that opens them. */
+.movements-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline-end: 0.5rem;
+}
+
+/* A group of movements: its day or category, how many, and what they add up to. */
+.movement-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem 0.1rem;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+
+  .title { flex: 1; font-weight: 600; color: var(--ion-text-color); }
+}
+
+.movement-list ion-icon[slot='start'],
+.movement-list app-icon[slot='start'] {
+  color: var(--ion-color-medium);
+  margin-inline-end: 0.75rem;
+}
+
+.movement-amount,
+.movement-group .total {
+  font-variant-numeric: tabular-nums;
+
+  &.in { color: var(--ion-color-success); }
+  &.out { color: var(--ion-color-danger); }
+}

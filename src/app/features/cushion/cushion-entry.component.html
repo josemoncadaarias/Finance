@@ -95,6 +95,7 @@
       <!-- What the entry changes: the product alone, the product and net worth
            (an ordinary movement), or net worth alone - cashing in money the
            product already holds, or the reverse for an expense. -->
+      @if (!isEditing()) {
       <p class="scope-label">{{ 'cushion.entry.scope' | t }}</p>
       <div class="order scope">
         <button type="button" [class.on]="scope() === 'product'" (click)="scope.set('product')">
@@ -108,6 +109,7 @@
         </button>
       </div>
       <p class="scope-hint">{{ scopeHint() }}</p>
+      }
 
       @if (usesCategory()) {
         <div class="categories" [class.waiting]="categoryId() === null">
@@ -148,6 +150,14 @@
         </button>
       }
     </div>
+    @if (isEditing()) {
+      <div class="danger-zone">
+        <ion-button expand="block" fill="clear" color="danger" [disabled]="saving()" (click)="remove()">
+          <ion-icon slot="start" name="trash-outline"></ion-icon>
+          {{ 'entry.deleteMovement' | t }}
+        </ion-button>
+      </div>
+    }
   </div>
 </div>
 

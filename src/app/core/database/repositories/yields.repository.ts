@@ -136,6 +136,8 @@ export interface CushionEntry {
   on_date: IsoDate;
   amount_minor: number;
   note: string | null;
+  /** The movement this is the other half of, when it is half of a cash-in. */
+  transaction_id: number | null;
 }
 
 /** What a manual pocket held, from a date. */
@@ -979,27 +981,44 @@ export class YieldsRepository {
     pocket_id?: number | null;
     source?: 'yield' | 'cashback';
     note?: string | null;
+    /** The movement this is the other half of, when it is half of a cash-in. */
+    transaction_id?: number | null;
   }): Promise<number> {
     const now = this.now();
     const result = await this.db.run(
       `INSERT INTO cushion_adjustments
-         (account_id, source, kind, pocket_id, on_date, amount_minor, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (account_id, source, kind, pocket_id, on_date, amount_minor, note, transaction_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.kind ?? 'correction',
        input.pocket_id ?? null, input.on_date,
-       input.amount_minor, input.note ?? null, now, now]);
+       input.amount_minor, input.note ?? null, input.transaction_id ?? null, now, now]);
     return result.lastId ?? 0;
   }
 
   async adjustments(accountId: number): Promise<CushionEntry[]> {
     return this.db.query<CushionEntry>(
-      `SELECT id, account_id, source, kind, pocket_id, on_date, amount_minor, note
+      `SELECT id, account_id, source, kind, pocket_id, on_date, amount_minor, note, transaction_id
        FROM cushion_adjustments WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
 
   async removeAdjustment(id: number): Promise<void> {
     await this.db.run('DELETE FROM cushion_adjustments WHERE id = ?', [id]);
+  }
+
+  /** Corrects an entry on a product: its amount, day, kind, product or note. */
+  async updateAdjustment(id: number, changes: {
+    on_date: IsoDate;
+    amount_minor: number;
+    kind: 'correction' | 'cashback' | 'other';
+    pocket_id: number | null;
+    note: string | null;
+  }): Promise<void> {
+    await this.db.run(
+      `UPDATE cushion_adjustments
+       SET on_date = ?, amount_minor = ?, kind = ?, pocket_id = ?, note = ?, updated_at = ?
+       WHERE id = ?`,
+      [changes.on_date, changes.amount_minor, changes.kind, changes.pocket_id, changes.note, this.now(), id]);
   }
 
   /**
@@ -1249,6 +1268,24 @@ export class YieldsRepository {
       addEntry(row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
     }
     return { total, yields: paid };
+  }
+
+  /**
+   * The day from which each product's balance counts movements: the day its
+   * balance was last stated (on or before `today`), or the day the account
+   * started, for a product with no figure of its own. The same rule the
+   * balances follow, so a history shows exactly what they add up.
+   */
+  async pocketStartDays(accountId: number, today: IsoDate): Promise<Map<number, IsoDate>> {
+    const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
+    const out = new Map<number, IsoDate>();
+    for (const pocket of await this.pockets(accountId)) {
+      const stated = pocket.source === 'manual'
+        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)
+        : undefined;
+      out.set(pocket.id, stated?.valid_from ?? opening);
+    }
+    return out;
   }
 
   /** Every enrolled account's cushion, for the screen that lists them. */

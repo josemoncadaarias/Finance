@@ -248,6 +248,32 @@ export class TransactionsRepository {
     columns.push('locked = 1', 'updated_at = ?');
     values.push(this.now(), id);
     await this.db.run(`UPDATE transactions SET ${columns.join(', ')} WHERE id = ?`, values);
+
+    if (changes.amount_minor !== undefined || changes.occurred_on !== undefined || changes.pocket_id !== undefined) {
+      await this.followCashIn(id);
+    }
+  }
+
+  /**
+   * Keeps the other half of a cash-in in step with its movement.
+   *
+   * Cashing in is a movement plus the same amount out of what a product
+   * gathered (a withdrawal) - or, for an expense, back into it (an entry) - so
+   * that the product's balance does not move. Correcting the movement alone
+   * would leave the two halves disagreeing, and the product's balance moving
+   * by the difference.
+   */
+  private async followCashIn(id: number): Promise<void> {
+    const row = await this.findById(id);
+    if (!row) return;
+    await this.db.run(
+      `UPDATE cushion_withdrawals SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id)
+       WHERE transaction_id = ?`,
+      [Math.abs(row.amount_minor), row.occurred_on, row.pocket_id, id]);
+    await this.db.run(
+      `UPDATE cushion_adjustments SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id), updated_at = ?
+       WHERE transaction_id = ?`,
+      [-row.amount_minor, row.occurred_on, row.pocket_id, this.now(), id]);
   }
 
   /**
@@ -266,16 +292,23 @@ export class TransactionsRepository {
     const row = await this.db.queryOne<{ import_fingerprint: string | null; import_seq: number | null }>(
       'SELECT import_fingerprint, import_seq FROM transactions WHERE id = ?', [id]);
 
-    await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
+    await this.db.transaction(async () => {
+      // A cash-in is this movement plus the same amount out of, or into, what a
+      // product gathered. Left behind, that half would move the product's
+      // balance on its own, so it goes with the movement.
+      await this.db.run('DELETE FROM cushion_withdrawals WHERE transaction_id = ?', [id]);
+      await this.db.run('DELETE FROM cushion_adjustments WHERE transaction_id = ?', [id]);
+      await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
 
-    if (row?.import_fingerprint != null && row.import_seq != null) {
-      await this.db.run(
-        `INSERT INTO deleted_imports (import_fingerprint, import_seq, deleted_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(import_fingerprint, import_seq) DO NOTHING`,
-        [row.import_fingerprint, row.import_seq, this.now()],
-      );
-    }
+      if (row?.import_fingerprint != null && row.import_seq != null) {
+        await this.db.run(
+          `INSERT INTO deleted_imports (import_fingerprint, import_seq, deleted_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(import_fingerprint, import_seq) DO NOTHING`,
+          [row.import_fingerprint, row.import_seq, this.now()],
+        );
+      }
+    });
   }
 
   /**

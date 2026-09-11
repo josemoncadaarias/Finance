@@ -409,6 +409,42 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
   assert.equal(await cushion(), gathered - 200_000_000);
 });
 
+test('correcting or deleting a cashed-in movement carries its other half with it', async () => {
+  const { engine, yields, transactions, categories, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 600_000_000, opening_on: '2026-08-31', withholding: false });
+  const [product] = await yields.pockets(ids.uala);
+  const income = await categories.create({ name: 'Rendimientos', kind: 'income', builtin_icon: 'cash' });
+  const balance = async () => (await engine.heldByPocket(ids.uala, '2026-09-10')).get(product.id)
+    + (await yields.landedByPocket(ids.uala, '2026-09-10')).total.get(product.id);
+  const before = await balance();
+
+  const cashed = await transactions.create({
+    account_id: ids.uala, category_id: income, occurred_on: '2026-09-05', amount_minor: 300_000_000, source: 'manual',
+  });
+  await yields.withdraw({
+    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, pocket_id: product.id,
+  });
+  const spent = await transactions.create({
+    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-06', amount_minor: -100_000_000, source: 'manual',
+  });
+  await yields.adjust({
+    account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', pocket_id: product.id, transaction_id: spent,
+  });
+
+  await transactions.update(cashed, { amount_minor: 200_000_000, occurred_on: '2026-09-07' });
+  await transactions.update(spent, { amount_minor: -50_000_000 });
+  assert.equal(await balance(), before, 'the product still holds what it held');
+  const [taken] = await yields.withdrawals(ids.uala);
+  assert.deepEqual([taken.amount_minor, taken.on_date], [200_000_000, '2026-09-07']);
+  assert.equal((await yields.adjustments(ids.uala))[0].amount_minor, 50_000_000);
+
+  await transactions.delete(cashed);
+  await transactions.delete(spent);
+  assert.equal(await balance(), before, 'and deleting takes both halves');
+  assert.equal((await yields.withdrawals(ids.uala)).length, 0);
+  assert.equal((await yields.adjustments(ids.uala)).length, 0);
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({

@@ -171,6 +171,7 @@ erDiagram
         TEXT kind
         TEXT on_date
         INTEGER amount_minor
+        INTEGER transaction_id FK
     }
     cushion_withdrawals {
         INTEGER id PK
@@ -259,6 +260,7 @@ erDiagram
     categories     ||--o{ yield_pockets     : "a CDT's yield is recorded as"
     accounts       ||--o{ cushion_withdrawals : "moved into"
     transactions   ||--o| cushion_withdrawals : "became"
+    transactions   ||--o{ cushion_adjustments : "cashed in by"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
 ```
@@ -409,6 +411,7 @@ outright:
 | `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
 | `idx_cushion_adjustments_account` | what has landed in an account's cushion |
 | `idx_cushion_adjustments_pocket` | and which pocket it landed in |
+| `idx_cushion_adjustments_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
 | `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
 | `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |

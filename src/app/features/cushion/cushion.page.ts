@@ -52,6 +52,8 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { CushionEntryComponent, type CushionEntryRequest } from './cushion-entry.component';
+import { EntryComponent, type EntryRequest } from '../entry/entry.component';
+import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
 
 /** One row of the list: an enrolled account and what its cushion is worth. */
 interface CushionLine {
@@ -109,7 +111,7 @@ interface Payment {
   templateUrl: './cushion.page.html',
   styleUrls: ['./cushion.page.scss'],
   imports: [
-    IconComponent, CushionEntryComponent,
+    IconComponent, CushionEntryComponent, EntryComponent,
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
@@ -201,7 +203,45 @@ export class CushionPage {
   readonly cushionEntry = signal<CushionEntryRequest | null>(null);
 
   /** Everything that has landed in the open account's cushion by hand. */
-  readonly entries = signal<CushionEntry[]>([]);
+  /** The account's movements: collapsed until asked for, and read then. */
+  readonly showMovements = signal(false);
+  readonly movements = signal<ProductMovement[]>([]);
+  readonly movementsView = signal<'date' | 'category' | 'largest'>('date');
+  /** One product's movements only, or every product's when null. */
+  readonly movementsPocket = signal<number | null>(null);
+  /** A movement of the account being corrected on the movement screen. */
+  readonly movementEdit = signal<EntryRequest | null>(null);
+
+  readonly shownMovements = computed(() => {
+    const pocket = this.movementsPocket();
+    return pocket === null ? this.movements() : this.movements().filter(movement => movementTouches(movement, pocket));
+  });
+
+  /** Grouped as asked: by day, by category, or one list from the largest down. */
+  readonly movementGroups = computed(() => {
+    const view = this.movementsView();
+    const items = this.shownMovements();
+    if (view === 'largest') {
+      return [{
+        key: 'all', title: '', totalMinor: 0,
+        items: [...items].sort((a, b) => Math.abs(b.amountMinor) - Math.abs(a.amountMinor)),
+      }];
+    }
+    const groups = new Map<string, { key: string; title: string; totalMinor: number; items: ProductMovement[] }>();
+    for (const movement of items) {
+      const [key, title]: [string, string] = view === 'date'
+        ? [movement.on, this.longDayText(movement.on)]
+        : this.categoryOf(movement);
+      const group = groups.get(key) ?? { key, title, totalMinor: 0, items: [] };
+      group.items.push(movement);
+      // A transfer between two products takes nothing out of the account.
+      if (movement.type !== 'transfer') group.totalMinor += movement.amountMinor;
+      groups.set(key, group);
+    }
+    const list = [...groups.values()];
+    // By category, what took the most out comes first.
+    return view === 'category' ? list.sort((a, b) => a.totalMinor - b.totalMinor) : list;
+  });
 
   /** The pocket form. */
   readonly editingPocket = signal<YieldPocket | null>(null);
@@ -635,9 +675,16 @@ export class CushionPage {
   // ---------------------------------------------------------------------------
 
   async open(line: CushionLine): Promise<void> {
+    const sameAccount = this.openLine()?.account.id === line.account.id;
     this.openLine.set(line);
     this.form.set('none');
     this.resetForm();
+    if (!sameAccount) {
+      // Another account: its movements start collapsed, every product shown.
+      this.showMovements.set(false);
+      this.movementsPocket.set(null);
+      this.movements.set([]);
+    }
     // The products list says each product's rate, so the rates are read here
     // too, not only when the settings open.
     this.rates.set(await this.repos().yields.rateHistory(line.account.id));
@@ -649,7 +696,8 @@ export class CushionPage {
     // The month someone came here to look at is almost always this one.
     this.openMonths.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
     this.openWorkings.set(new Set());
-    this.entries.set((await yields.adjustments(line.account.id)).reverse());
+    // Open already, as after a correction: read again, so it shows the change.
+    if (this.showMovements()) await this.loadMovements(line);
   }
 
   closeDetail(): void {
@@ -1492,26 +1540,6 @@ export class CushionPage {
   }
 
   /** Deletes an entry and works the days out again without it. */
-  async removeEntry(entry: CushionEntry): Promise<void> {
-    const line = this.openLine();
-    if (!line) return;
-
-    this.saving.set(true);
-    try {
-      const { db, yields, tax } = this.repos();
-      await db.transaction(async () => {
-        await yields.removeAdjustment(entry.id);
-        await yields.clearDays(line.account.id, entry.on_date);
-      });
-      await accrueAndSettle(db, yields, tax, line.account.id, today());
-      this.database.dataChanged();
-      await this.reopen(line);
-    } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.saving.set(false);
-    }
-  }
 
   /** The name of the pocket a rate belongs to, or the account itself. */
   pocketNameById(id: number | null): string {
@@ -1520,6 +1548,124 @@ export class CushionPage {
   }
 
   /** What an entry is called on the screen. */
+  /** Opens or closes the account's movements, reading them when it opens. */
+  async toggleMovements(line: CushionLine): Promise<void> {
+    const open = !this.showMovements();
+    this.showMovements.set(open);
+    if (open) await this.loadMovements(line);
+  }
+
+  private async loadMovements(line: CushionLine): Promise<void> {
+    const { yields, transactions } = this.repos();
+    const rows = await transactions.listDetailed({ accountIds: [line.account.id] });
+    const entries = await yields.adjustments(line.account.id);
+    const withdrawals = await yields.withdrawals(line.account.id);
+    const startDays = await yields.pocketStartDays(line.account.id, today());
+    this.movements.set(productMovements({
+      accountId: line.account.id, pockets: line.pockets, startDays, transactions: rows, entries, withdrawals,
+    }));
+  }
+
+  /**
+   * Opens a movement where it can be seen, corrected or deleted: one of the
+   * account on the movement screen - the same the summary uses, products and
+   * all - and an entry on the product alone on its income or expense screen.
+   */
+  openMovement(line: CushionLine, movement: ProductMovement): void {
+    if (movement.type === 'entry') {
+      this.cushionEntry.set({
+        kind: movement.amountMinor < 0 ? 'expense' : 'income',
+        account: line.account, pockets: line.pockets, editing: movement.entry as CushionEntry,
+      });
+      return;
+    }
+    if (movement.type === 'withdrawal') return;
+    const row = movement.transaction;
+    this.movementEdit.set({
+      kind: row.transfer_id !== null ? 'transfer' : row.amount_minor < 0 ? 'expense' : 'income',
+      editing: row,
+    });
+  }
+
+  /** Corrected or deleted on the movement screen: the account is worked out again. */
+  async movementSaved(): Promise<void> {
+    this.movementEdit.set(null);
+    const line = this.openLine();
+    if (!line) return;
+    // A correction can move a movement to any day, so every day is redone;
+    // days corrected by hand stay, as always.
+    const { db, yields, tax } = this.repos();
+    await yields.clearDays(line.account.id);
+    await accrueAndSettle(db, yields, tax, line.account.id, today());
+    this.database.dataChanged();
+    await this.reopen(line);
+  }
+
+  movementTitle(line: CushionLine, movement: ProductMovement): string {
+    switch (movement.type) {
+      case 'transfer':
+        return `${this.pocketLabel(line, movement.fromPocketId)} → ${this.pocketLabel(line, movement.toPocketId)}`;
+      case 'entry':
+        return this.kindLabel(movement.entry as CushionEntry);
+      case 'withdrawal':
+        return this.i18n.t('cushion.movements.withdrawal');
+      default: {
+        const row = movement.transaction;
+        if (row.transfer_id !== null) {
+          return this.i18n.t(row.amount_minor < 0 ? 'cushion.movements.transferTo' : 'cushion.movements.transferFrom',
+            { account: row.other_account_name ?? '' });
+        }
+        return row.category_name ?? this.i18n.t('cushion.movements.noCategory');
+      }
+    }
+  }
+
+  /** The line under a movement: its day, its product, how it was made, its note. */
+  movementDetail(line: CushionLine, movement: ProductMovement): string {
+    const parts: string[] = [];
+    if (this.movementsView() !== 'date') parts.push(this.dayText(movement.on));
+    if (movement.type === 'transfer') {
+      parts.push(this.i18n.t('cushion.movements.betweenProducts'));
+    } else {
+      if (line.pockets.length > 1) parts.push(this.pocketLabel(line, movement.pocketId));
+      if (movement.type === 'entry') parts.push(this.i18n.t('cushion.entry.scope.product'));
+      if (movement.type === 'transaction' && movement.cashIn) {
+        parts.push(this.i18n.t(movement.amountMinor < 0
+          ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome'));
+      }
+    }
+    const note = movement.type === 'entry' ? movement.entry.note
+      : movement.type === 'withdrawal' ? movement.withdrawal.note
+      : movement.transaction.description;
+    if (note) parts.push(note);
+    return parts.join(' · ');
+  }
+
+  movementIcon(movement: ProductMovement): string {
+    if (movement.type === 'entry') {
+      return movement.entry.kind === 'cashback' ? 'pricetag-outline'
+        : movement.entry.kind === 'correction' ? 'build-outline' : 'ellipsis-horizontal-circle-outline';
+    }
+    return movement.type === 'withdrawal' ? 'arrow-forward-outline' : 'swap-horizontal-outline';
+  }
+
+  private categoryOf(movement: ProductMovement): [string, string] {
+    switch (movement.type) {
+      case 'transfer': return ['between', this.i18n.t('cushion.movements.betweenProducts')];
+      case 'entry': return [`kind:${movement.entry.kind}`, this.kindLabel(movement.entry as CushionEntry)];
+      case 'withdrawal': return ['withdrawal', this.i18n.t('cushion.movements.withdrawal')];
+      default: {
+        const row = movement.transaction;
+        if (row.transfer_id !== null) return [`account:${row.other_account_id}`, row.other_account_name ?? ''];
+        return [`category:${row.category_id ?? 'none'}`, row.category_name ?? this.i18n.t('cushion.movements.noCategory')];
+      }
+    }
+  }
+
+  private pocketLabel(line: CushionLine, pocketId: number): string {
+    return line.pockets.find(pocket => pocket.id === pocketId)?.name ?? '';
+  }
+
   kindLabel(entry: CushionEntry): string {
     if (entry.kind === 'cashback') return this.i18n.t('cushion.kind.cashback');
     if (entry.kind === 'other') return this.i18n.t('cushion.kind.other');

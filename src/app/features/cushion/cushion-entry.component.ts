@@ -37,7 +37,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
-import { YieldsRepository, type YieldPocket } from '../../core/database/repositories/yields.repository';
+import { YieldsRepository, type CushionEntry, type YieldPocket } from '../../core/database/repositories/yields.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
@@ -53,6 +53,8 @@ export interface CushionEntryRequest {
   kind: 'income' | 'expense' | 'transfer';
   account: AccountRow;
   pockets: readonly YieldPocket[];
+  /** An entry on the product alone, being corrected. */
+  editing?: CushionEntry;
 }
 
 type EntryKind = 'cashback' | 'correction' | 'other';
@@ -144,9 +146,11 @@ export class CushionEntryComponent implements OnInit {
   ];
 
   readonly isTransfer = computed(() => this.request().kind === 'transfer');
+  readonly isEditing = computed(() => this.request().editing !== undefined);
 
   readonly title = computed(() => {
     const kind = this.request().kind;
+    if (this.isEditing()) return this.i18n.t(kind === 'expense' ? 'cushion.entry.editExpense' : 'cushion.entry.editIncome');
     if (kind === 'transfer') return this.i18n.t('cushion.move.title');
     return this.i18n.t(kind === 'expense' ? 'cushion.entry.newExpense' : 'cushion.entry.newIncome');
   });
@@ -205,6 +209,16 @@ export class CushionEntryComponent implements OnInit {
     this.pocketId.set(usual);
     if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
     else void this.loadCategories();
+
+    // Correcting an entry: the screen opens on what it says.
+    const editing = this.request().editing;
+    if (editing) {
+      this.amount.set(AmountBuffer.from(Math.abs(editing.amount_minor)));
+      this.kind.set(editing.kind);
+      if (pockets.some(pocket => pocket.id === editing.pocket_id)) this.pocketId.set(editing.pocket_id);
+      this.onDate.set(editing.on_date);
+      this.note.set(editing.note ?? '');
+    }
   }
 
   private async loadCategories(): Promise<void> {
@@ -303,6 +317,31 @@ export class CushionEntryComponent implements OnInit {
     return this.request().pockets.find(pocket => pocket.id !== id)?.id ?? null;
   }
 
+  /** Deletes the entry being corrected, and works its days out again. */
+  async remove(): Promise<void> {
+    const editing = this.request().editing;
+    if (!editing || this.saving()) return;
+    this.saving.set(true);
+    this.error.set('');
+    try {
+      const db = this.database.driver;
+      const yields = new YieldsRepository(db);
+      const tax = new TaxParametersRepository(db);
+      const accountId = this.request().account.id;
+      await db.transaction(async () => {
+        await yields.removeAdjustment(editing.id);
+        await yields.clearDays(accountId, editing.on_date);
+      });
+      await accrueAndSettle(db, yields, tax, accountId, todayIso());
+      this.database.dataChanged();
+      this.saved.emit();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   /** Digits, comma, backspace, Enter and Escape from a physical keyboard. */
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
@@ -334,7 +373,7 @@ export class CushionEntryComponent implements OnInit {
       const db = this.database.driver;
       const yields = new YieldsRepository(db);
       const tax = new TaxParametersRepository(db);
-      const { account, kind, pockets } = this.request();
+      const { account, kind, pockets, editing } = this.request();
       const minor = this.amount().minor;
       // The sign comes from the button pressed, never from what was typed.
       const signed = kind === 'expense' ? -minor : minor;
@@ -375,9 +414,18 @@ export class CushionEntryComponent implements OnInit {
               await yields.adjust({
                 account_id: account.id, on_date: this.onDate(), amount_minor: minor,
                 kind: 'other', pocket_id: this.pocketId(), note: this.note().trim() || null,
+                transaction_id: transactionId,
               });
             }
           }
+        } else if (editing) {
+          await yields.updateAdjustment(editing.id, {
+            on_date: this.onDate(),
+            amount_minor: signed,
+            kind: this.kind(),
+            pocket_id: this.pocketId(),
+            note: this.note().trim() || null,
+          });
         } else {
           await yields.adjust({
             account_id: account.id,
@@ -389,8 +437,10 @@ export class CushionEntryComponent implements OnInit {
           });
         }
         // What lands or leaves on a day changes what every day after it earns
-        // on, so those days are worked out again. Days corrected by hand stay.
-        await yields.clearDays(account.id, this.onDate());
+        // on, so those days are worked out again - from the earlier of the two
+        // dates when a correction moved it. Days corrected by hand stay.
+        const from = editing && editing.on_date < this.onDate() ? editing.on_date : this.onDate();
+        await yields.clearDays(account.id, from);
       });
 
       await accrueAndSettle(db, yields, tax, account.id, todayIso());

@@ -173,6 +173,16 @@
 
   <!-- The detail. Full height rather than a draggable sheet, because the day
        list has to scroll from the moment it opens. -->
+  <!-- A movement of the account, corrected or deleted on the same screen the
+       summary uses. -->
+  <ion-modal class="entry-sheet" [isOpen]="movementEdit() !== null" (didDismiss)="movementEdit.set(null)">
+    <ng-template>
+      @if (movementEdit(); as request) {
+        <app-entry [request]="request" (saved)="movementSaved()" (cancelled)="movementEdit.set(null)"></app-entry>
+      }
+    </ng-template>
+  </ion-modal>
+
   <ion-modal class="entry-sheet" [isOpen]="cushionEntry() !== null" (didDismiss)="cushionEntry.set(null)">
     <ng-template>
       @if (cushionEntry(); as request) {
@@ -385,28 +395,78 @@
               </ion-item>
             </ion-list>
 
-            @if (entries().length > 0) {
-              <p class="section">{{ 'cushion.entries' | t }}</p>
-              <ion-list [inset]="true">
-                @for (entry of entries(); track entry.id) {
-                  <ion-item>
-                    <ion-label>
-                      <h3>{{ kindLabel(entry) }}</h3>
-                      <p>
-                        {{ dayText(entry.on_date) }}
-                        @if (entry.note) { · {{ entry.note }} }
-                      </p>
-                    </ion-label>
-                    <ion-note slot="end">
-                      <span class="net">{{ money(entry.amount_minor, line.account.currency_code) }}</span>
-                    </ion-note>
-                    <ion-button slot="end" fill="clear" color="medium"
-                                [disabled]="saving()" (click)="removeEntry(entry)">
-                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                    </ion-button>
-                  </ion-item>
+            <!-- Every movement of this account's products, as one history: to
+                 look back, and to correct or delete one. Collapsed until asked
+                 for, like the list behind the donut on the summary. -->
+            <div class="movements-head">
+              <p class="section">{{ 'cushion.movements' | t }}</p>
+              <ion-button fill="clear" size="small" (click)="toggleMovements(line)">
+                <ion-icon slot="start" [name]="showMovements() ? 'chevron-up-outline' : 'list-outline'"></ion-icon>
+                {{ (showMovements() ? 'cushion.movements.hide' : 'cushion.movements.show') | t }}
+              </ion-button>
+            </div>
+            @if (showMovements()) {
+              <p class="hint">{{ 'cushion.movements.hint' | t }}</p>
+              <div class="pocket-row">
+                <button type="button" [class.on]="movementsView() === 'date'" (click)="movementsView.set('date')">
+                  {{ 'cushion.movements.byDate' | t }}
+                </button>
+                <button type="button" [class.on]="movementsView() === 'category'" (click)="movementsView.set('category')">
+                  {{ 'cushion.movements.byCategory' | t }}
+                </button>
+                <button type="button" [class.on]="movementsView() === 'largest'" (click)="movementsView.set('largest')">
+                  {{ 'cushion.movements.largest' | t }}
+                </button>
+              </div>
+              @if (line.pockets.length > 1) {
+                <div class="pocket-row">
+                  <button type="button" [class.on]="movementsPocket() === null" (click)="movementsPocket.set(null)">
+                    {{ 'cushion.movements.allProducts' | t }}
+                  </button>
+                  @for (pocket of line.pockets; track pocket.id) {
+                    <button type="button" [class.on]="movementsPocket() === pocket.id" (click)="movementsPocket.set(pocket.id)">
+                      {{ pocket.name }}
+                    </button>
+                  }
+                </div>
+              }
+              @if (shownMovements().length === 0) {
+                <p class="hint">{{ 'cushion.movements.none' | t }}</p>
+              } @else {
+                @for (group of movementGroups(); track group.key) {
+                  @if (group.title) {
+                    <div class="movement-group">
+                      <span class="title">{{ group.title }}</span>
+                      <span class="count">{{ group.items.length }}</span>
+                      <span class="total" [class.in]="group.totalMinor > 0" [class.out]="group.totalMinor < 0">
+                        {{ money(group.totalMinor, line.account.currency_code) }}
+                      </span>
+                    </div>
+                  }
+                  <ion-list [inset]="true" class="movement-list">
+                    @for (movement of group.items; track movement.key) {
+                      <ion-item [button]="movement.type !== 'withdrawal'" [detail]="false"
+                                (click)="openMovement(line, movement)">
+                        @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
+                          <app-icon slot="start" [builtin]="movement.transaction.category_icon"
+                                    [customId]="movement.transaction.category_custom_icon_id" size="1.15rem"></app-icon>
+                        } @else {
+                          <ion-icon slot="start" [name]="movementIcon(movement)"></ion-icon>
+                        }
+                        <ion-label>
+                          <h3>{{ movementTitle(line, movement) }}</h3>
+                          <p>{{ movementDetail(line, movement) }}</p>
+                        </ion-label>
+                        <ion-note slot="end" class="movement-amount"
+                                  [class.in]="movement.type !== 'transfer' && movement.amountMinor > 0"
+                                  [class.out]="movement.type !== 'transfer' && movement.amountMinor < 0">
+                          {{ money(movement.amountMinor, line.account.currency_code) }}
+                        </ion-note>
+                      </ion-item>
+                    }
+                  </ion-list>
                 }
-              </ion-list>
+              }
             }
 
             <!-- What the bank hands over. The list to hold beside the bank's
