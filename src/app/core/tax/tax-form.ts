@@ -21,7 +21,7 @@ type NumericKeys<T> = {
   [K in keyof T]-?: T[K] extends number | undefined ? K : never;
 }[keyof T];
 
-export type InputKey = Exclude<NumericKeys<TaxInputs>, 'year'>;
+export type InputKey = Exclude<NumericKeys<TaxInputs>, 'year' | 'formRevision'>;
 export type ResultKey = NumericKeys<TaxResult>;
 
 export type SpecialRow =
@@ -32,7 +32,8 @@ export type SpecialRow =
   | 'yieldsPrefill'
   | 'rateTable'
   | 'monthlyWithholding'
-  | 'extraWithholding';
+  | 'extraWithholding'
+  | 'sources';
 
 export type FormRow =
   | { kind: 'input'; key: InputKey; label: string; box?: string; hint?: string; format: FieldFormat }
@@ -73,6 +74,25 @@ export const EMPLOYMENT_TEXT: Record<EmploymentKind, { title: string; detail: st
   },
 };
 
+/**
+ * What the tax rules on this screen were looked up in.
+ *
+ * Shown in "Notas y supuestos" so it is plain that no figure or box here is a
+ * guess: each came from a place anyone can open and check.
+ */
+export const TAX_SOURCES: readonly { label: string; url: string }[] = [
+  { label: 'DIAN - Formulario 210, año gravable 2025', url: 'https://www.dian.gov.co/atencionciudadano/formulariosinstructivos/Formularios/2025/Formulario_210_2025.pdf' },
+  { label: 'Siempre al Día - Ingresos en el formulario 210: casillas y cédulas', url: 'https://siemprealdia.co/colombia/impuestos/ingresos-en-el-formulario-210/' },
+  { label: 'Actualícese - Quiénes usan las casillas 43 a 57 del formulario 210', url: 'https://actualicese.com/que-personas-naturales-deberan-utilizar-las-casillas-43-a-57-del-formulario-210/' },
+  { label: 'CONCP - Rentas no laborales en el formulario 210', url: 'https://concp.co/rentas-no-laborales-en-el-formulario-210/' },
+  { label: 'Siempre al Día - Componente inflacionario en la declaración de renta', url: 'https://siemprealdia.co/colombia/impuestos/componente-inflacionario-en-la-declaracion-de-renta/' },
+  { label: 'INCP - IPC anual de 6,24% en agosto de 2026 (DANE)', url: 'https://incp.org.co/publicaciones/infoincp-publicaciones/informacion-para-empresas/2026/09/dane-reporto-variacion-anual-del-ipc-de-624-en-agosto-de-2026/' },
+  { label: 'La República - DTF', url: 'https://www.larepublica.co/indicadores-economicos/bancos/dtf' },
+  { label: 'Holland & Knight - Salario mínimo y auxilio de transporte 2026', url: 'https://www.hklaw.com/en/insights/publications/2025/12/colombia-decreta-aumento-del-salario-minimo-y-auxilio-de-transporte' },
+  { label: 'Alegra - Salario mínimo en Colombia 2026', url: 'https://blog.alegra.com/colombia/salario-minimo-en-colombia-2026/' },
+  { label: 'Ámbito Jurídico - Auxilio de transporte 2026', url: 'https://www.ambitojuridico.com/noticias/laboral/249095-valor-del-auxilio-de-transporte-para-el-2026-aumenta-245-respecto-al-2025' },
+];
+
 export const TAX_TEXT = {
   title: 'Simulador de renta',
   legendTyped: 'Casilla que escribes',
@@ -107,10 +127,12 @@ export const TAX_TEXT = {
   salaryEmpty: 'No hay ingresos registrados en {year}.',
   salaryUsed: 'Se tomaron {total} de "{category}" repartidos en {months} meses. Es el NETO: cámbialo por el salario bruto de tu contrato.',
 
-  yieldsButton: 'Traer los rendimientos calculados de {year}',
-  yieldsHint: 'Los rendimientos van aquí, en rentas de capital, no en ganancias ocasionales. Lo que trae la app es aproximado: usa el certificado de cada banco.',
-  yieldsNone: 'No hay rendimientos calculados en {year}.',
-  yieldsUsed: 'Se tomaron {gross} de rendimientos brutos ({days} días calculados) y {withheld} de retención. Aproximado: compáralo con los certificados de los bancos.',
+  yieldsButton: 'Traer rendimientos y cashback de {year}',
+  yieldsHint: 'Los rendimientos y el cashback van aquí, en rentas de capital, no en ganancias ocasionales. Lo que trae la app es aproximado: usa el certificado de cada banco.',
+  yieldsNone: 'No hay rendimientos ni cashback registrados en {year}.',
+  yieldsUsed: 'Se tomaron {gross} de rendimientos brutos ({days} días calculados), {cashback} de cashback y {withheld} de retención. Aproximado: compáralo con los certificados de los bancos.',
+
+  sourcesTitle: 'Fuentes consultadas',
   yieldsWithholdingLabel: 'Retención por rendimientos (aprox.)',
 
   extraConcept: 'Concepto',
@@ -211,16 +233,36 @@ export const TAX_FORM: readonly FormSection[] = [
   {
     id: 'capital',
     title: '2. Rentas de capital',
-    subtitle: 'Casillas 43 a 46',
+    subtitle: 'Casillas 58 a 61',
     rows: [
       {
-        kind: 'input', key: 'capitalIncomeMinor', format: 'money', box: '43',
-        label: 'Ingresos brutos de capital',
-        hint: 'Intereses, rendimientos financieros, arriendos.',
+        kind: 'input', key: 'capitalIncomeMinor', format: 'money', box: '58',
+        label: 'Ingresos brutos por rentas de capital',
+        hint: 'Intereses y rendimientos financieros de todas tus cuentas, cashback, arriendos y regalías.',
       },
       { kind: 'special', which: 'yieldsPrefill' },
-      { kind: 'input', key: 'capitalCostsMinor', format: 'money', box: '45', label: 'Costos y deducciones de capital' },
-      { kind: 'computed', key: 'capitalNetMinor', format: 'money', label: 'Renta líquida de capital', box: '46', total: true },
+      {
+        kind: 'input', key: 'financialYieldMinor', format: 'money',
+        label: 'De ellos, rendimientos financieros',
+        hint: 'Intereses de cuentas, CDT y fondos. Solo a estos se les aplica el componente inflacionario: el cashback y los arriendos no lo tienen.',
+      },
+      {
+        kind: 'input', key: 'inflationaryScaled', format: 'percent',
+        label: '% componente inflacionario del año',
+        hint: 'Inflación del DANE dividida por la tasa de captación de la Superfinanciera (art. 40-1 E.T.). Sale al año siguiente.',
+      },
+      { kind: 'special', which: 'inflationReference' },
+      {
+        kind: 'computed', key: 'capitalNonTaxableMinor', format: 'money', box: '59',
+        label: 'Ingresos no constitutivos de renta',
+        hint: 'El componente inflacionario de los rendimientos financieros (arts. 38 a 41 E.T.).',
+      },
+      { kind: 'input', key: 'capitalCostsMinor', format: 'money', box: '60', label: 'Costos y deducciones procedentes' },
+      {
+        kind: 'computed', key: 'capitalNetMinor', format: 'money', box: '61', total: true,
+        label: 'Renta líquida de capital',
+        hint: 'Casilla 58 menos 59 menos 60. Nunca queda negativa.',
+      },
     ],
   },
 
@@ -231,33 +273,11 @@ export const TAX_FORM: readonly FormSection[] = [
     rows: [
       {
         kind: 'input', key: 'otherIncomeMinor', format: 'money', box: '74',
-        label: 'Ingresos brutos no laborales',
-        hint: 'Negocios propios u otros ingresos que no son de trabajo ni de capital.',
+        label: 'Ingresos brutos por rentas no laborales',
+        hint: 'Ventas, operaciones con criptoactivos, venta de activos fijos que tuviste menos de dos años. Los rendimientos y el cashback no van aquí.',
       },
-      { kind: 'input', key: 'otherCostsMinor', format: 'money', box: '76', label: 'Costos y gastos asociados' },
+      { kind: 'input', key: 'otherCostsMinor', format: 'money', box: '77', label: 'Costos y deducciones procedentes' },
       { kind: 'computed', key: 'otherNetMinor', format: 'money', label: 'Renta líquida no laboral', box: '78', total: true },
-    ],
-  },
-
-  {
-    id: 'inflation',
-    title: 'Componente inflacionario',
-    subtitle: 'Informativo, arts. 38 a 41 E.T.',
-    collapsed: true,
-    rows: [
-      { kind: 'note', text: 'La parte de tus rendimientos financieros que es solo inflación no constituye renta si no llevas contabilidad. Aquí se calcula como referencia: no se resta sola de ninguna casilla.' },
-      { kind: 'input', key: 'financialYieldMinor', format: 'money', label: 'Rendimientos financieros incluidos arriba' },
-      {
-        kind: 'input', key: 'inflationaryScaled', format: 'percent',
-        label: '% componente inflacionario del año',
-        hint: 'Inflación del DANE dividida por la tasa de captación de la Superfinanciera (art. 40-1 E.T.). Sale al año siguiente.',
-      },
-      { kind: 'special', which: 'inflationReference' },
-      {
-        kind: 'computed', key: 'inflationaryMinor', format: 'money',
-        label: 'Parte que no es renta',
-        hint: 'Si decides aplicarla, réstala tú de los ingresos de capital.',
-      },
     ],
   },
 
@@ -385,7 +405,11 @@ export const TAX_FORM: readonly FormSection[] = [
       { kind: 'note', text: 'El límite del 40% o 1.340 UVT se calcula sobre la renta líquida de la cédula general (casilla 91).' },
       { kind: 'note', text: 'Cubre la cédula general. No incluye las cédulas de pensiones ni de dividendos.' },
       { kind: 'note', text: 'Revisa cada año la UVT y los topes: la ley puede cambiarlos.' },
+      { kind: 'note', text: 'Los rendimientos financieros van en rentas de capital (casilla 58). Su componente inflacionario es ingreso no constitutivo de renta (casilla 59) y la renta líquida de capital queda en la casilla 61.' },
+      { kind: 'note', text: 'El cashback se suma a rentas de capital sin componente inflacionario. No encontramos un concepto de la DIAN sobre el cashback: es un supuesto que hay que confirmar con un contador.' },
+      { kind: 'note', text: 'Las casillas 43 a 57 son para honorarios de independientes que restan costos y gastos en lugar de la renta exenta del 25%. Este simulador aún no tiene esa sección: aquí un independiente va en rentas de trabajo (casilla 32).' },
       { kind: 'note', text: 'Nada de esto está confirmado con un contador todavía.' },
+      { kind: 'special', which: 'sources' },
     ],
   },
 ];

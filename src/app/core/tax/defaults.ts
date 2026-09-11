@@ -180,11 +180,15 @@ export function parametersFor(year: number, today: Date = new Date()): {
   };
 }
 
+/** The layout of the form. 2: yields in rentas de capital, casillas 58 to 61. */
+export const FORM_REVISION = 2;
+
 export function defaultInputs(year: number, today: Date = new Date()): TaxInputs {
   const parameters = parametersFor(year, today);
 
   return {
     year,
+    formRevision: FORM_REVISION,
     uvtMinor: parameters.uvt.value,
     minimumWageMinor: parameters.minimumWage.value,
 
@@ -263,8 +267,12 @@ export const SPREADSHEET_2026: Partial<TaxInputs> = {
   dependents: 2,
   monthlySalaryMinor: 2_276_176_500,
   monthsWorked: 12,
-  otherIncomeMinor: 1_000_000_000,
-  otherCostsMinor: 500_000_000,
+  // The spreadsheet's "ingresos no laborales" of 10.000.000 were never that:
+  // they are the yields expected this year, casilla 58. Its 5.000.000 of
+  // "costos" was a guess at the componente inflacionario on them, casilla 59,
+  // which the form now works out from the year's percentage instead.
+  capitalIncomeMinor: 1_000_000_000,
+  financialYieldMinor: 1_000_000_000,
   healthPolicyMinor: 443_770_000,
   monthlyWithholdingMinor: [
     286_100_000, 286_100_000, 273_700_000, 273_700_000, 273_700_000, 273_700_000,
@@ -302,6 +310,30 @@ export function fillGaps(inputs: TaxInputs, references: Partial<TaxInputs>): Tax
 }
 
 /**
+ * Moves what revision 1 of the form put in the wrong boxes.
+ *
+ * Revision 1 laid the spreadsheet's 10.000.000 and 5.000.000 into rentas no
+ * laborales. Only a 2026 simulation still holding exactly those two figures,
+ * with nothing in rentas de capital, is touched: that is the fill and nothing
+ * anyone typed. A simulation saved under revision 2 or later is never touched.
+ */
+function upgrade(year: number, stored: Partial<TaxInputs>): Partial<TaxInputs> {
+  if (stored.formRevision !== undefined) return stored;
+  if (year !== 2026
+    || stored.otherIncomeMinor !== 1_000_000_000
+    || stored.otherCostsMinor !== 500_000_000
+    || (stored.capitalIncomeMinor ?? 0) !== 0) return stored;
+
+  return {
+    ...stored,
+    otherIncomeMinor: 0,
+    otherCostsMinor: 0,
+    capitalIncomeMinor: 1_000_000_000,
+    financialYieldMinor: stored.financialYieldMinor || 1_000_000_000,
+  };
+}
+
+/**
  * A stored simulation, with anything added to the form since it was saved.
  *
  * The form will grow - a new line, a new cap - and a simulation saved before
@@ -310,7 +342,7 @@ export function fillGaps(inputs: TaxInputs, references: Partial<TaxInputs>): Tax
  */
 export function withDefaults(year: number, stored: Partial<TaxInputs>): TaxInputs {
   const base = defaultInputs(year);
-  const merged: TaxInputs = { ...base, ...stored, year };
+  const merged: TaxInputs = { ...base, ...upgrade(year, stored), year };
 
   const pad = (list: readonly number[] | undefined, length: number) =>
     Array.from({ length }, (_, at) => list?.[at] ?? 0);

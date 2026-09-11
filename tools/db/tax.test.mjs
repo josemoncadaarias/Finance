@@ -285,9 +285,14 @@ test('the yields of a year add up across every enrolled account', async () => {
   await day('2026-01-01', 10_000, 700);
   await day('2026-12-31', 20_000, 1_400);
 
+  // Cashback counts apart: rentas de capital too, but not a financial yield.
+  await yields.adjust({ account_id: account, on_date: '2026-03-10', amount_minor: 4_000, kind: 'cashback', source: 'cashback' });
+  await yields.adjust({ account_id: account, on_date: '2026-03-11', amount_minor: 900 });   // a correction: not cashback
+  await yields.adjust({ account_id: account, on_date: '2025-03-10', amount_minor: 7_000, kind: 'cashback', source: 'cashback' });
+
   const totals = await yields.yearTotals(2026);
-  assert.deepEqual(totals, { grossMinor: 30_000, withheldMinor: 2_100, days: 2 });
-  assert.deepEqual(await yields.yearTotals(2024), { grossMinor: 0, withheldMinor: 0, days: 0 });
+  assert.deepEqual(totals, { grossMinor: 30_000, withheldMinor: 2_100, days: 2, cashbackMinor: 4_000 });
+  assert.deepEqual(await yields.yearTotals(2024), { grossMinor: 0, withheldMinor: 0, days: 0, cashbackMinor: 0 });
 
   await db.close();
 });
@@ -400,4 +405,55 @@ test('with no salary there is no contribution base, minimum wage or not', async 
   const blank = simulate(defaultInputs(2026));
   assert.equal(blank.generalNetMinor, 0);
   assert.equal(blank.toPayMinor, 0);
+});
+
+test('rentas de capital: casilla 59 is the componente inflacionario of the yields, and 61 never goes negative', async () => {
+  const { defaultInputs } = await import('../../src/app/core/tax/defaults.ts');
+  const base = { ...defaultInputs(2026), inflationaryScaled: 554_300 };   // 55,43%
+
+  // 8 million of yields plus 2 million of cashback: only the yields carry it.
+  const mixed = simulate({ ...base, capitalIncomeMinor: pesos(10_000_000), financialYieldMinor: pesos(8_000_000) });
+  assert.equal(mixed.capitalNonTaxableMinor, pesos(4_434_400), 'casilla 59: 55,43% of 8.000.000');
+  assert.equal(mixed.capitalNetMinor, pesos(10_000_000) - pesos(4_434_400), 'casilla 61');
+  assert.equal(mixed.generalNetMinor, mixed.capitalNetMinor, 'and it is what reaches the cédula general');
+
+  // Never more than the gross it is part of, and 61 is the positive result.
+  const odd = simulate({ ...base, capitalIncomeMinor: pesos(1_000), financialYieldMinor: pesos(5_000), capitalCostsMinor: pesos(500) });
+  assert.equal(odd.capitalNonTaxableMinor, pesos(1_000));
+  assert.equal(odd.capitalNetMinor, 0);
+});
+
+test('a 2026 simulation saved with the yields in rentas no laborales is moved to rentas de capital', async () => {
+  const { NodeSqlDriver } = await import('./node-sql-driver.mjs');
+  const { migrate } = await import('../../src/app/core/database/migrations/migration-runner.ts');
+  const { MIGRATION_SOURCES } = await import('../../src/app/core/database/migrations/statements.generated.ts');
+  const { TaxSimulationsRepository } = await import(
+    '../../src/app/core/database/repositories/tax-simulations.repository.ts');
+
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const put = (year, doc) => db.run(
+    "INSERT INTO tax_simulations (year, inputs, created_at, updated_at) VALUES (?, ?, 'x', 'x')",
+    [year, JSON.stringify(doc)]);
+  const repo = new TaxSimulationsRepository(db, () => '2026-09-11T00:00:00Z');
+
+  // What revision 1 of the fill stored.
+  await put(2026, { otherIncomeMinor: pesos(10_000_000), otherCostsMinor: pesos(5_000_000) });
+  const moved = await repo.get(2026);
+  assert.equal(moved.otherIncomeMinor, 0);
+  assert.equal(moved.otherCostsMinor, 0);
+  assert.equal(moved.capitalIncomeMinor, pesos(10_000_000), 'casilla 58');
+  assert.equal(moved.financialYieldMinor, pesos(10_000_000));
+  assert.equal(moved.formRevision, 2);
+
+  // Saved again, it is revision 2 and stays exactly as it is.
+  await repo.save(2026, { ...moved, otherIncomeMinor: pesos(10_000_000), otherCostsMinor: pesos(5_000_000), capitalIncomeMinor: 0 });
+  const kept = await repo.get(2026);
+  assert.equal(kept.otherIncomeMinor, pesos(10_000_000), 'typed under revision 2: theirs');
+
+  // Other figures, or another year, are never moved.
+  await put(2025, { otherIncomeMinor: pesos(10_000_000), otherCostsMinor: pesos(5_000_000) });
+  assert.equal((await repo.get(2025)).otherIncomeMinor, pesos(10_000_000));
+
+  await db.close();
 });

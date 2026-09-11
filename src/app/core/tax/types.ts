@@ -37,6 +37,12 @@ export interface UvtBand {
 
 export interface TaxInputs {
   year: number;
+  /**
+   * Which layout of the form this simulation was saved under. Absent on
+   * anything saved before revision 2, which placed the expected yields in
+   * rentas no laborales - see `withDefaults`.
+   */
+  formRevision?: number;
   /** The UVT of the tax year, in minor units. A DIAN resolution each December. */
   uvtMinor: number;
   /**
@@ -63,12 +69,20 @@ export interface TaxInputs {
   /** Used only when there is no minimum wage to work the steps out from. */
   solidarityScaled: number;
 
+  /** Casilla 58: interest and financial yields of every account, cashback, rents, royalties. */
   capitalIncomeMinor: number;
+  /** Casilla 60. */
   capitalCostsMinor: number;
+  /** Casilla 74: sales, crypto-assets, fixed assets held under two years... never yields. */
   otherIncomeMinor: number;
+  /** Casilla 77. */
   otherCostsMinor: number;
 
-  /** Informative: the part of a yield that is inflation (E.T. arts. 38-41). */
+  /**
+   * The part of casilla 58 that is financial yields, which is all the
+   * componente inflacionario applies to (E.T. arts. 38-41). Cashback and rents
+   * carry none.
+   */
   financialYieldMinor: number;
   inflationaryScaled: number;
 
@@ -113,7 +127,7 @@ export interface TaxResult {
   labourNetMinor: number;
   capitalNetMinor: number;
   otherNetMinor: number;
-  inflationaryMinor: number;
+  capitalNonTaxableMinor: number;
   generalNetMinor: number;
   voluntaryMinor: number;
   labourExemptMinor: number;

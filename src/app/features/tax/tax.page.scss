@@ -401,6 +401,34 @@ ion-toolbar.stepper {
   .notice { color: var(--ion-color-warning-shade); font-weight: 600; }
 }
 
+/* Where the rules were looked up: plain links, one per line. */
+.sources {
+  padding: 0.35rem 1rem 0.8rem;
+
+  .caption {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--ion-color-medium);
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+    padding-left: 1rem;
+  }
+
+  a {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--ion-color-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
 /* The table of art. 241, with the band the income falls in lit. */
 .bands {
   padding: 0.6rem 1rem;

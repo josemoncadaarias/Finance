@@ -175,16 +175,27 @@ export function simulate(input: TaxInputs): TaxResult {
   const contributionsMinor = healthMinor + pensionMinor + solidarityMinor;
   const labourNetMinor = grossLabourMinor - contributionsMinor;
 
-  // ---- 2 and 3. Capital and non-labour ------------------------------------
+  // ---- 2. Rentas de capital (casillas 58 to 61) ----------------------------
 
-  const capitalNetMinor = input.capitalIncomeMinor - input.capitalCostsMinor;
+  // Casilla 59: the componente inflacionario of the financial yields is not
+  // income (E.T. arts. 38-41). The spreadsheet left it as a note to subtract by
+  // hand and carried a guess of it as costs of rentas no laborales; on the real
+  // return it is its own box, and Jose's 2025 return has it there. Only the
+  // financial yields carry it - cashback and rents do not - and it can never
+  // exceed the gross income it is part of.
+  const capitalNonTaxableMinor = Math.min(
+    applyRate(input.financialYieldMinor, input.inflationaryScaled),
+    input.capitalIncomeMinor,
+  );
+
+  // Casilla 61 is "the positive result" of 58 - 59 - 60, per the DIAN's
+  // instructions for the form.
+  const capitalNetMinor = Math.max(
+    input.capitalIncomeMinor - capitalNonTaxableMinor - input.capitalCostsMinor, 0);
+
+  // ---- 3. Rentas no laborales (casillas 74 to 78) --------------------------
+
   const otherNetMinor = input.otherIncomeMinor - input.otherCostsMinor;
-
-  // Informative only, exactly as in the spreadsheet: the part of a financial
-  // yield that is inflation rather than income (E.T. arts. 38-41). It is not
-  // subtracted anywhere, because deciding it belongs to a given figure is a
-  // judgement the person makes, not one this can make for them.
-  const inflationaryMinor = applyRate(input.financialYieldMinor, input.inflationaryScaled);
 
   const generalNetMinor = labourNetMinor + capitalNetMinor + otherNetMinor;
 
@@ -271,7 +282,7 @@ export function simulate(input: TaxInputs): TaxResult {
     labourNetMinor,
     capitalNetMinor,
     otherNetMinor,
-    inflationaryMinor,
+    capitalNonTaxableMinor,
     generalNetMinor,
     voluntaryMinor,
     labourExemptMinor,

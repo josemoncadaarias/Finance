@@ -178,6 +178,17 @@
                       </div>
                     }
 
+                    @case ('sources') {
+                      <div class="sources">
+                        <span class="caption">{{ text.sourcesTitle }}</span>
+                        <ul>
+                          @for (source of sources; track source.url) {
+                            <li><a [href]="source.url" target="_blank" rel="noopener">{{ source.label }}</a></li>
+                          }
+                        </ul>
+                      </div>
+                    }
+
                     @case ('salaryPrefill') {
                       <div class="prefill">
                         <button type="button" (click)="openSalary()">

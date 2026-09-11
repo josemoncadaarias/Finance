@@ -237,9 +237,16 @@ the framework on a long-running project.
    - **Floor, ceiling and solidarity steps need the year's minimum wage**
      (1 to 25 SMMLV; FSP 1% from 4, up to 2% - Ley 797 de 2003). With none on
      record, none is applied rather than invented.
-   - **Yields are rentas de capital (Casilla 43), not ganancias ocasionales.**
-   Every rate, cap and UVT is an input with a stated default; the UVT is
-   pre-filled only for a year whose resolution is on record. Figures brought in
+   - **Yields and cashback are rentas de capital (casilla 58), not ganancias
+     ocasionales.** The componente inflacionario of the financial yields is
+     casilla 59, worked out by the form; cashback carries none (an assumption:
+     no DIAN ruling on cashback was found). Renta líquida de capital is casilla
+     61. Casilla 43 is honorarios reported with costs, a different thing. The
+     spreadsheet's 10M "no laborales" and 5M "costos" were really casillas 58
+     and 59. Corrected by Jose from his own 2025 return, 2026-09-11.
+   Every rate, cap and UVT is an input with a stated default; every parameter
+   falls back to the best reference available, labelled official, borrowed from
+   an earlier year or estimated, with its source. Figures brought in
    from the app (salary by a category the user picks, yields for the year) are
    labelled approximate: the ledger holds net salary and accrued yields, the
    return needs gross salary and what the bank certifies. The tax module's

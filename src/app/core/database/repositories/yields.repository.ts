@@ -649,18 +649,27 @@ export class YieldsRepository {
    * For the tax simulator, as a starting point and never as the figure: these
    * are yields accrued day by day, where the return counts what the bank
    * actually paid, and the bank's own certificate is what belongs on the form.
-   * Cashback is not here - it lives in the cushion's entries, and it is not a
-   * yield.
+   * Cashback is reported apart from the yields: it goes to rentas de capital
+   * too, but it is not a financial yield, so it carries no componente
+   * inflacionario and no withholding.
    */
-  async yearTotals(year: number): Promise<{ grossMinor: number; withheldMinor: number; days: number }> {
+  async yearTotals(year: number): Promise<{
+    grossMinor: number; withheldMinor: number; days: number; cashbackMinor: number;
+  }> {
+    const range = [`${year}-01-01`, `${year}-12-31`];
     const row = await this.db.queryOne<{ gross: number | null; withheld: number | null; days: number }>(
       `SELECT SUM(gross_minor) AS gross, SUM(withholding_minor) AS withheld, COUNT(*) AS days
        FROM yield_days WHERE on_date >= ? AND on_date <= ?`,
-      [`${year}-01-01`, `${year}-12-31`]);
+      range);
+    const cashback = await this.db.queryOne<{ total: number | null }>(
+      `SELECT SUM(amount_minor) AS total FROM cushion_adjustments
+       WHERE kind = 'cashback' AND on_date >= ? AND on_date <= ?`,
+      range);
     return {
       grossMinor: row?.gross ?? 0,
       withheldMinor: row?.withheld ?? 0,
       days: row?.days ?? 0,
+      cashbackMinor: cashback?.total ?? 0,
     };
   }
 

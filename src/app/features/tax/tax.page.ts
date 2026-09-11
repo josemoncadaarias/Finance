@@ -35,7 +35,7 @@ import {
   defaultInputs, fillGaps, parametersFor, type Sourced,
 } from '../../core/tax/defaults';
 import {
-  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_TEXT,
+  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT,
   type FieldFormat, type FormRow, type InputKey, type ResultKey,
 } from '../../core/tax/tax-form';
 import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
@@ -63,6 +63,7 @@ export class TaxPage {
   readonly status = this.database.status;
 
   readonly text = TAX_TEXT;
+  readonly sources = TAX_SOURCES;
   readonly sections = TAX_FORM;
   readonly bands = RATE_BANDS;
   readonly months = MONTH_NAMES;
@@ -403,7 +404,10 @@ export class TaxPage {
   }
 
   /**
-   * The yields this app worked out for the year, into rentas de capital.
+   * The yields this app worked out for the year, and the cashback recorded in
+   * it, into rentas de capital (casilla 58). Only the yields count as
+   * financial yields, which is what the componente inflacionario of casilla 59
+   * is applied to: cashback carries none.
    *
    * Capital, not ganancias ocasionales: interest and financial yields are
    * rentas de capital for a natural person, and a ganancia ocasional is a
@@ -416,7 +420,7 @@ export class TaxPage {
    */
   async useYields(): Promise<void> {
     const totals = await new YieldsRepository(this.database.driver).yearTotals(this.year());
-    if (totals.days === 0) {
+    if (totals.days === 0 && totals.cashbackMinor === 0) {
       this.yieldsNotice.set(fill(this.text.yieldsNone, { year: this.year() }));
       return;
     }
@@ -435,7 +439,7 @@ export class TaxPage {
 
       return {
         ...inputs,
-        capitalIncomeMinor: totals.grossMinor,
+        capitalIncomeMinor: totals.grossMinor + totals.cashbackMinor,
         financialYieldMinor: totals.grossMinor,
         extraWithholdingMinor: extra,
         extraWithholdingLabels: labels,
@@ -447,6 +451,7 @@ export class TaxPage {
 
     this.yieldsNotice.set(fill(this.text.yieldsUsed, {
       gross: this.money(totals.grossMinor),
+      cashback: this.money(totals.cashbackMinor),
       withheld: this.money(totals.withheldMinor),
       days: totals.days,
     }));
