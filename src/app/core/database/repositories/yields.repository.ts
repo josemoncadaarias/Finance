@@ -1146,9 +1146,10 @@ export class YieldsRepository {
   }
 
   /**
-   * The yields that have landed IN each product's balance since that balance
-   * was last stated: days already paid, and income or expenses entered on
-   * the yields. This is what makes a product's balance read as its bank shows
+   * What has landed IN each product's balance since that balance was last
+   * stated: days the bank already paid, and income or expenses entered on the
+   * product. `total` is all of it; `yields` is only what the bank paid, since
+   * an income or expense someone enters is not a yield. This is what makes a product's balance read as its bank shows
    * it, and it moves no net worth - the account's own balance is untouched.
    *
    * Only what comes after the balance was stated: a figure read off the bank
@@ -1157,10 +1158,13 @@ export class YieldsRepository {
    * day the account started accruing. Rows naming no product belong where the
    * accrual puts them.
    */
-  async yieldsInBalanceByPocket(accountId: number, today: IsoDate): Promise<Map<number, number>> {
+  async landedByPocket(
+    accountId: number, today: IsoDate,
+  ): Promise<{ total: Map<number, number>; yields: Map<number, number> }> {
     const pockets = await this.pockets(accountId);
-    const out = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
-    if (pockets.length === 0) return out;
+    const total = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
+    const paid = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
+    if (pockets.length === 0) return { total, yields: paid };
 
     const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
     // Where each product's balance was last stated, and when it was typed in.
@@ -1175,13 +1179,17 @@ export class YieldsRepository {
     }
 
     const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-    const idOf = (pocketId: number | null) => pocketId !== null && out.has(pocketId) ? pocketId : fallback;
-    const credit = (id: number, amount: number | null) => out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
+    const idOf = (pocketId: number | null) => pocketId !== null && total.has(pocketId) ? pocketId : fallback;
+    const credit = (into: Map<number, number>, id: number, amount: number | null) =>
+      into.set(id, (into.get(id) ?? 0) + (amount ?? 0));
 
     // A day paid on the day the balance was read is already in that figure.
     const addPaid = (pocketId: number | null, day: IsoDate, amount: number | null) => {
       const id = idOf(pocketId);
-      if (day > since.get(id)!.day) credit(id, amount);
+      if (day > since.get(id)!.day) {
+        credit(total, id, amount);
+        credit(paid, id, amount);
+      }
     };
     // An entry on that same day counts when it was recorded after the balance
     // was: a product created today and given an income today holds it. Without
@@ -1190,7 +1198,7 @@ export class YieldsRepository {
       const id = idOf(pocketId);
       const base = since.get(id)!;
       if (day > base.day || (day === base.day && (base.typedAt === null || createdAt >= base.typedAt))) {
-        credit(id, amount);
+        credit(total, id, amount);
       }
     };
     type Row = { pocket_id: number | null; day: IsoDate; created_at: string; total: number | null };
@@ -1215,7 +1223,7 @@ export class YieldsRepository {
        FROM cushion_withdrawals WHERE account_id = ?`, [accountId])) {
       addEntry(row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
     }
-    return out;
+    return { total, yields: paid };
   }
 
   /** Every enrolled account's cushion, for the screen that lists them. */

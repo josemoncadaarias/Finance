@@ -1022,13 +1022,9 @@
                       <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
                       <h2>{{ 'cushion.pocket.deleteConfirm' | t:{ name: removing.name } }}</h2>
 
-                      @if (pocketDeleteHeld() !== 0 || pocketDeleteYield() !== 0) {
+                      @if (pocketDeleteHeld() !== 0) {
                         @if (pocketDeleteHeld() !== 0) {
                           <p>{{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
-                        }
-                        @if (pocketDeleteHeld() === 0 && pocketDeleteYield() !== 0) {
-                          <p>{{ 'cushion.pocket.deleteYieldOnly' | t:{
-                                 amount: money(pocketDeleteYield(), line.account.currency_code) } }}</p>
                         }
                         <ion-list>
                           <ion-item lines="none">
@@ -1049,7 +1045,7 @@
                       <!-- Only when there is a balance to move: with nothing in
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
-                      @if (pocketDeleteHeld() !== 0 || pocketDeleteYield() !== 0) {
+                      @if (pocketDeleteHeld() !== 0) {
                         <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
                       }
                       @if (error()) {

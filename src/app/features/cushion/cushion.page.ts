@@ -86,8 +86,10 @@ interface CushionLine {
    * — worth seeing rather than hiding, because the negative is the reminder.
    */
   heldByPocket: ReadonlyMap<number, number>;
-  /** Yields that landed in each product since its balance was last stated. */
-  yieldInBalanceByPocket: ReadonlyMap<number, number>;
+  /** What landed in each product's balance since it was stated: paid yields, income, expenses. */
+  landedByPocket: ReadonlyMap<number, number>;
+  /** Of that, only what the bank paid. */
+  paidYieldByPocket: ReadonlyMap<number, number>;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -266,8 +268,6 @@ export class CushionPage {
   readonly confirmingPocketDelete = signal(false);
   readonly pocketDeleteTo = signal<number | null>(null);
   readonly pocketDeleteHeld = signal(0);
-  /** What the product being removed has earned and not moved out, either sign. */
-  readonly pocketDeleteYield = signal(0);
   /** Yields landed in the product being edited since its balance was stated. */
   readonly pocketYieldIn = signal(0);
 
@@ -463,6 +463,7 @@ export class CushionPage {
         // What was actually handed over that day. A product paid at the end of
         // the month earns every day too, but nothing of it arrives until then.
         const paidThatDay = last ? await yields.paidOn(entry.account_id, last) : [];
+        const landed = await yields.landedByPocket(entry.account_id, today());
 
         lines.push({
           account,
@@ -477,7 +478,8 @@ export class CushionPage {
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
           heldByPocket: await engine.heldByPocket(entry.account_id, today()),
-          yieldInBalanceByPocket: await yields.yieldsInBalanceByPocket(entry.account_id, today()),
+          landedByPocket: landed.total,
+          paidYieldByPocket: landed.yields,
         });
       }
 
@@ -900,7 +902,7 @@ export class CushionPage {
       this.editingBalanceFrom.set(current?.valid_from ?? null);
       await this.readPocketMoved();
       this.pocketYieldIn.set(
-        (await yields.yieldsInBalanceByPocket(line.account.id, today())).get(pocket?.id ?? -1) ?? 0);
+        (await yields.landedByPocket(line.account.id, today())).total.get(pocket?.id ?? -1) ?? 0);
     } else {
       this.pocketAmount.set('0');
       this.pocketFrom.set(today());
@@ -1150,10 +1152,9 @@ export class CushionPage {
 
     const { db, yields, tax } = this.repos();
     const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
-    const landed = await yields.yieldsInBalanceByPocket(line.account.id, today());
-    // The balance as the product shows it, the yields paid into it included.
-    this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.get(pocket.id) ?? 0));
-    this.pocketDeleteYield.set((await yields.cushionByPocket(line.account.id)).get(pocket.id) ?? 0);
+    const landed = await yields.landedByPocket(line.account.id, today());
+    // The balance as the product shows it: that is what has to go somewhere.
+    this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0));
     this.confirmingPocketDelete.set(true);
   }
 
@@ -1611,9 +1612,14 @@ export class CushionPage {
     return line.heldByPocket.get(pocketId) ?? 0;
   }
 
-  /** Yields that landed in the product, income and expenses on them included. */
+  /**
+   * How much of the product's balance is yield the bank paid, for the line
+   * under it. An income or expense someone enters is not a yield. Never more
+   * than the balance: money moved out takes its share with it.
+   */
   yieldIn(line: CushionLine, pocketId: number): number {
-    return line.yieldInBalanceByPocket.get(pocketId) ?? 0;
+    const paid = line.paidYieldByPocket.get(pocketId) ?? 0;
+    return Math.max(0, Math.min(paid, this.balanceIn(line, pocketId)));
   }
 
   /** What was typed, minus signs taken out: a rate or a balance is never negative. */
@@ -1626,7 +1632,7 @@ export class CushionPage {
 
   /** The product's balance as its bank shows it: what it holds plus the yields paid into it. */
   balanceIn(line: CushionLine, pocketId: number): number {
-    return this.heldIn(line, pocketId) + this.yieldIn(line, pocketId);
+    return this.heldIn(line, pocketId) + (line.landedByPocket.get(pocketId) ?? 0);
   }
   /** The size of a difference, without its direction. */
   abs(value: number): number {
