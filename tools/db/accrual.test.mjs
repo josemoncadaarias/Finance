@@ -1354,41 +1354,6 @@ test('moving between two products of one account leaves the account alone', asyn
   await db.close();
 });
 
-test('spending today shows up in the product today', async () => {
-  // Jose spent one peso from the savings product and the figure on screen did
-  // not move. The screen was asking `statedOn`, which is the EARNING base and
-  // deliberately stops a day short — money arriving today earns from tomorrow.
-  // "How much is in it right now" is a different question, and there today's
-  // movements are exactly what has to count.
-  const { db, yields, transactions, engine, ids } = await setup();
-
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
-  });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 0 });
-
-  await transactions.create({
-    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
-    amount_minor: -100, pocket_id: savings.id, source: 'manual',
-  });
-
-  const held = await engine.heldByPocket(ids.rappi, '2026-09-11');
-  assert.equal(held.get(savings.id), -100, 'a peso out is a peso less, today');
-
-  // The stated figure still owns its own day: it is what the bank showed at
-  // the end of it, so a movement on that date is already inside it.
-  await transactions.create({
-    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
-    amount_minor: -5000, pocket_id: savings.id, source: 'manual',
-  });
-  const again = await engine.heldByPocket(ids.rappi, '2026-09-11');
-  assert.equal(again.get(savings.id), -100, 'the day it was read is not counted twice');
-
-  await db.close();
-});
 
 test('a product balance is the figure typed, never one derived from history', async () => {
   // The mistake worth remembering: every movement ever made had been filed
@@ -1442,58 +1407,49 @@ test('a product balance is the figure typed, never one derived from history', as
   await db.close();
 });
 
-test('a movement made after the balance was typed counts the same day', async () => {
-  // The commonest case there is, and the one that kept the figure frozen: the
-  // balance is typed now and the day's spending is recorded through the rest
-  // of the day. Counting the whole of that day would count what the reading
-  // already contained; counting none of it loses everything done since.
-  const db = new NodeSqlDriver();
-  await migrate(db, MIGRATION_SOURCES);
+test('a product counts every movement from the day its balance was set', async () => {
+  // The rule Jose asked for, in the words he used: movements before that date
+  // do not touch the balance, and everything from it on does. Nothing about
+  // clock times, and no upper bound — a movement dated next week has been
+  // recorded, and the account's own balance counts it, so a product that did
+  // not would disagree with the account it lives in.
+  const { db, yields, transactions, engine, ids } = await setup();
 
-  // A clock that moves, because this is entirely about which came first.
-  let now = '2026-09-11T09:00:00Z';
-  const at = () => now;
-
-  const accounts = new AccountsRepository(db, at);
-  const categories = new CategoriesRepository(db, at);
-  const transactions = new TransactionsRepository(db, at);
-  const yields = new YieldsRepository(db, at);
-  const engine = new AccrualEngine(db, yields, new TaxParametersRepository(db, at));
-
-  const rappi = await accounts.create({
-    name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
-    opening_balance_minor: 0, opened_on: '2026-09-01',
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
   });
-  const gastos = await categories.create({ name: 'Facturas', kind: 'expense', builtin_icon: 'receipt' });
-
-  await yields.enrol({ account_id: rappi, opening_cushion_minor: 0, opening_on: '2026-09-09' });
-  const [savings] = await yields.pockets(rappi);
+  const [savings] = await yields.pockets(ids.rappi);
   await yields.setPocketSource(savings.id, 'manual');
-
-  // Spent this morning, before the balance was read.
-  await transactions.create({
-    account_id: rappi, category_id: gastos, occurred_on: '2026-09-11',
-    amount_minor: -700_00, pocket_id: savings.id, source: 'manual',
-  });
-
-  // The balance is read at midday: zero. That reading already contains the
-  // morning's spending, whatever it was.
-  now = '2026-09-11T12:00:00Z';
   await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 0 });
 
-  assert.equal((await engine.heldByPocket(rappi, '2026-09-11')).get(savings.id), 0,
-    'the morning is inside the figure, not on top of it');
-
-  // And one peso spent in the afternoon.
-  now = '2026-09-11T15:00:00Z';
+  // Before the date: inside the figure already, so it changes nothing.
   await transactions.create({
-    account_id: rappi, category_id: gastos, occurred_on: '2026-09-11',
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-08',
+    amount_minor: -900_00, pocket_id: savings.id, source: 'manual',
+  });
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0);
+
+  // On the date, and after it.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+  });
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
     amount_minor: -100, pocket_id: savings.id, source: 'manual',
   });
 
-  assert.equal((await engine.heldByPocket(rappi, '2026-09-11')).get(savings.id), -100,
-    'a peso out after the reading is a peso less');
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), -200);
+
+  // Dated ahead of today, which is how Jose tests it. Recorded is recorded.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-15',
+    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+  });
+
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), -300,
+    'a movement dated ahead still counts, as it does for the account');
 
   await db.close();
 });

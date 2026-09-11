@@ -511,19 +511,36 @@ export class YieldsRepository {
   }
 
   /**
-   * What moved through a product on one day, after a given moment.
+   * What has moved through a product since a date, that date included.
    *
-   * The awkward, and commonest, case: the balance is typed at nine in the
-   * morning and the day's spending is recorded through the afternoon. Counting
-   * the whole day would count what the reading already contained; counting
-   * none of it loses the afternoon. The moment the figure was written down is
-   * what separates the two.
+   * One rule, and the one Jose stated: movements before the date a product's
+   * balance was set do not touch it, and everything from that date on does.
+   * An earlier attempt split the day the balance was set by the clock-time it
+   * was written at, which was more precise and less predictable - and being
+   * able to say what the screen will show matters more here than a few hours
+   * of exactness.
+   *
+   * There is no upper bound. A movement dated next week has been recorded, and
+   * the account's own balance counts it, so a product that did not would be
+   * disagreeing with the account it lives in.
+   *
+   * `takesUnassigned` is for the first product, which is where a movement that
+   * names no product has always gone.
    */
-  async movedOnDayAfter(pocketId: number, on: IsoDate, after: string): Promise<number> {
+  async movedInPocketSince(
+    accountId: number,
+    pocketId: number,
+    since: IsoDate,
+    takesUnassigned: boolean,
+  ): Promise<number> {
+    const which = takesUnassigned
+      ? '(pocket_id IS NULL OR pocket_id = ?)'
+      : 'pocket_id = ?';
+
     const row = await this.db.queryOne<{ total: number | null }>(
       `SELECT SUM(amount_minor) AS total FROM transactions
-       WHERE pocket_id = ? AND occurred_on = ? AND created_at > ?`,
-      [pocketId, on, after]);
+       WHERE account_id = ? AND ${which} AND occurred_on >= ?`,
+      [accountId, pocketId, since]);
     return row?.total ?? 0;
   }
 

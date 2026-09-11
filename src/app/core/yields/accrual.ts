@@ -123,44 +123,30 @@ export class AccrualEngine {
       // the savings product and watched the figure stay where it was, because
       // the screen was showing him what the product would earn on rather than
       // what it holds.
+      // One rule, and the one Jose stated: the figure he typed IS the balance,
+      // movements before the date it was set do not touch it, and everything
+      // from that date on does.
+      //
+      // A product with no figure of its own starts from the day the account
+      // was enrolled rather than from the beginning of time. Without that, a
+      // product Jose knows to be empty was adding up sixty-six million of
+      // history - every movement ever made had been filed against it.
+      //
+      // No upper bound either. A movement dated next week has been recorded,
+      // and the account's own balance counts it, so a product that did not
+      // would be disagreeing with the account it lives in.
       const history = await this.yields.pocketBalances(pocket.id);
-      const moved = await this.dailyBalances(accountId, on, pocket.id, at === 0);
 
       let stated = 0;
-      let statedFrom: IsoDate | null = null;
-      let writtenAt: string | null = null;
+      let since = opening;
       for (const entry of history) {
         if (entry.valid_from > on) break;
         stated = entry.amount_minor;
-        statedFrom = entry.valid_from;
-        writtenAt = entry.created_at;
+        since = entry.valid_from;
       }
 
-      // Nothing here is derived from the history of the account. The figure
-      // Jose typed IS the balance, and only what has moved SINCE changes it.
-      //
-      // A product with no figure of its own starts from the day the account
-      // was enrolled, not from the beginning of time. That distinction is the
-      // whole of a bug worth remembering: every movement ever made had just
-      // been filed against the savings product, so a product Jose knows to be
-      // empty was adding up sixty-six million of history and reporting it as
-      // a balance. The enrolment date is when this module started counting;
-      // everything before it is already inside whatever figures were typed.
-      const from = statedFrom ?? opening;
-
-      // Everything after the day the figure describes, plus whatever moved on
-      // that day AFTER it was written down. The second half is the commonest
-      // case there is: the balance is typed now and the day's spending is
-      // recorded through the rest of the day. Counting the whole of that day
-      // would count what the reading already contained; counting none of it
-      // loses everything done since - which is exactly what Jose saw when a
-      // peso spent after typing the balance left the figure where it was.
-      const sinceThen = balanceOn(moved, on) - balanceOn(moved, from);
-      const laterThatDay = writtenAt === null || statedFrom === null || statedFrom > on
-        ? 0
-        : await this.yields.movedOnDayAfter(pocket.id, statedFrom, writtenAt);
-
-      held.set(pocket.id, stated + sinceThen + laterThatDay);
+      held.set(pocket.id, stated + await this.yields.movedInPocketSince(
+        accountId, pocket.id, since, at === 0));
     }
 
     return held;
