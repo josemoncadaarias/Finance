@@ -560,7 +560,7 @@ export const SPANISH = {
   'cushion.error.amount': 'Escribe un monto válido.',
   'cushion.error.tooMuch': 'No puedes pasar más de lo que hay en el colchón.',
   'nav.cushion': 'Productos y rendimientos',
-  'nav.cushion.hint': 'Rendimientos y cashback, aparte del patrimonio',
+  'nav.cushion.hint': 'Productos de tus cuentas, rendimientos y cashback',
   'nav.tax': 'Renta',
   'nav.tax.hint': 'Simula la declaración del Formulario 210 de un año',
 
@@ -1149,7 +1149,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cushion.error.amount': 'Enter a valid amount.',
   'cushion.error.tooMuch': 'You cannot move more than the cushion holds.',
   'nav.cushion': 'Products and yields',
-  'nav.cushion.hint': 'Interest and cashback, kept out of net worth',
+  'nav.cushion.hint': 'Account products, interest and cashback',
   'nav.tax': 'Income tax',
   'nav.tax.hint': 'Simulate the Formulario 210 return for a year',
 
