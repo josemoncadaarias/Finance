@@ -730,20 +730,26 @@ export class YieldsRepository {
    * one, being later, goes on winning. Which is exactly what it looked like
    * from outside: editing the date appeared to do nothing at all.
    *
-   * Any other balance already on the target date is removed first. One date
-   * carries one balance; the alternative is a unique-constraint failure in
-   * front of someone who only changed a date.
+   * Any other balance of the product dated on or after the new date is
+   * removed first. The latest balance is the one that governs, so one left
+   * standing after the new date went on winning: Jose's products each had a
+   * balance on the 9th and another on the 10th, the form edited the 10th's,
+   * and moving it back to the 1st put the 9th's in charge again - the save
+   * looked like it had undone itself. One on the same date would also be a
+   * unique-constraint failure in front of someone who only changed a date.
    */
   async movePocketBalance(
     id: number,
     input: { valid_from: IsoDate; amount_minor: number },
   ): Promise<void> {
     const now = this.now();
+    const row = await this.db.queryOne<{ pocket_id: number }>(
+      'SELECT pocket_id FROM yield_pocket_balances WHERE id = ?', [id]);
+    if (!row) return;
     await this.db.run(
       `DELETE FROM yield_pocket_balances
-       WHERE valid_from = ? AND id <> ?
-         AND pocket_id = (SELECT pocket_id FROM yield_pocket_balances WHERE id = ?)`,
-      [input.valid_from, id, id]);
+       WHERE pocket_id = ? AND valid_from >= ? AND id <> ?`,
+      [row.pocket_id, input.valid_from, id]);
 
     await this.db.run(
       `UPDATE yield_pocket_balances

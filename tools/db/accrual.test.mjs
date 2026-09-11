@@ -1722,6 +1722,17 @@ test('changing the date a balance counts from moves it, rather than adding anoth
   assert.equal(after.length, 1);
   assert.equal(after[0].amount_minor, 100_000_00);
 
+  // Jose's case: a balance on the 9th and another on the 10th. The form edits
+  // the latest, and moving it back to the 1st must leave it in charge - not
+  // the 9th's, which would make the save look undone.
+  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 90_000_00 });
+  const latest = (await yields.pocketBalances(savings.id)).at(-1);
+  await yields.movePocketBalance(latest.id, { valid_from: '2026-09-01', amount_minor: 80_000_00 });
+  const moved = await yields.pocketBalances(savings.id);
+  assert.deepEqual(moved.map(entry => [entry.valid_from, entry.amount_minor]), [['2026-09-01', 80_000_00]]);
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 75_000_00,
+    'the moved balance, with the expense of the 8th on top of it');
+
   await db.close();
 });
 
