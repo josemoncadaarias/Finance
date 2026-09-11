@@ -86,12 +86,10 @@
               }
             </p>
           </ion-label>
+          <!-- Only what the bank has paid: what is still owed is not money yet. -->
           <ion-note slot="end">
-            <span class="net">{{ money(line.cushion.totalMinor) }}</span>
-            @if (line.cushion.pendingMinor > 0) {
-              <span class="tag">{{ 'cushion.pending.short' | t:{
-                amount: money(line.cushion.pendingMinor) } }}</span>
-            } @else if (line.lastDayMinor > 0) {
+            <span class="net">{{ money(line.cushion.availableMinor) }}</span>
+            @if (line.lastDayMinor > 0) {
               <span class="perDay">+{{ money(line.lastDayMinor) }}</span>
             }
           </ion-note>
@@ -119,7 +117,7 @@
               </p>
             </ion-label>
             <ion-note slot="end">
-              <span class="net">{{ money(line.cushion.totalMinor, line.account.currency_code) }}</span>
+              <span class="net">{{ money(line.cushion.availableMinor, line.account.currency_code) }}</span>
               @if (line.lastDayMinor > 0) {
                 <span class="perDay">+{{ money(line.lastDayMinor, line.account.currency_code) }}</span>
               }
@@ -645,6 +643,13 @@
                             [class.owed]="balanceIn(line, pocket.id) < 0">
                     {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
                   </ion-note>
+                  @if (editablePockets().length > 1) {
+                    <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
+                                [attr.aria-label]="'cushion.pocket.delete' | t"
+                                (click)="$event.stopPropagation(); deleteFromList(pocket)">
+                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                    </ion-button>
+                  }
                 </ion-item>
               }
             </ion-list>
@@ -729,7 +734,7 @@
                 <ion-item>
                   <ion-input [label]="'cushion.cdt.amount' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="pocketAmount()"
-                             (ionInput)="pocketAmount.set($any($event.target).value)"></ion-input>
+                             (ionInput)="pocketAmount.set(unsigned($event.target))"></ion-input>
                 </ion-item>
                 <ion-item>
                   <ion-input [label]="'cushion.cdt.openedOn' | t" labelPlacement="stacked"
@@ -739,12 +744,12 @@
                 <ion-item>
                   <ion-input [label]="'cushion.cdt.term' | t" labelPlacement="stacked"
                              inputmode="numeric" [value]="cdtTerm()"
-                             (ionInput)="cdtTerm.set($any($event.target).value)"></ion-input>
+                             (ionInput)="cdtTerm.set(unsigned($event.target))"></ion-input>
                 </ion-item>
                 <ion-item>
                   <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="cdtRate()"
-                             (ionInput)="cdtRate.set($any($event.target).value)"
+                             (ionInput)="cdtRate.set(unsigned($event.target))"
                              placeholder="10,5"></ion-input>
                 </ion-item>
                 <ion-item>
@@ -830,7 +835,7 @@
                   <ion-item>
                     <ion-input [label]="'cushion.pocket.amount' | t" labelPlacement="stacked"
                                inputmode="decimal" [value]="pocketAmount()"
-                               (ionInput)="pocketAmount.set($any($event.target).value)"></ion-input>
+                               (ionInput)="pocketAmount.set(unsigned($event.target))"></ion-input>
                   </ion-item>
                   <ion-item>
                     <ion-input [label]="'cushion.pocket.from' | t" labelPlacement="stacked"
@@ -882,7 +887,7 @@
                   <ion-item>
                     <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
                                inputmode="decimal" [value]="pocketRate()"
-                               (ionInput)="pocketRate.set($any($event.target).value)"
+                               (ionInput)="pocketRate.set(unsigned($event.target))"
                                placeholder="0"></ion-input>
                   </ion-item>
                 }
@@ -899,7 +904,7 @@
                     <ion-item>
                       <ion-input [label]="'cushion.payout.months' | t" labelPlacement="stacked"
                                  inputmode="numeric" [value]="pocketMonths()"
-                                 (ionInput)="pocketMonths.set($any($event.target).value)"
+                                 (ionInput)="pocketMonths.set(unsigned($event.target))"
                                  [helperText]="'cushion.payout.monthsHint' | t"></ion-input>
                     </ion-item>
                     @if (paydayPreview()) {
@@ -1011,7 +1016,7 @@
                      chose - a question like that should not read as a footnote
                      under the form. -->
                 <ion-modal class="confirm-sheet" [isOpen]="confirmingPocketDelete()"
-                           (didDismiss)="confirmingPocketDelete.set(false)">
+                           (didDismiss)="pocketDeleteClosed()">
                   <ng-template>
                     <div class="confirm-dialog">
                       <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
@@ -1081,7 +1086,7 @@
               <ion-item>
                 <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
                            inputmode="decimal" [value]="ratePercent()"
-                           (ionInput)="ratePercent.set($any($event.target).value)"
+                           (ionInput)="ratePercent.set(unsigned($event.target))"
                            placeholder="10,5"></ion-input>
               </ion-item>
               <ion-item>
@@ -1098,13 +1103,13 @@
                 <ion-item>
                   <ion-input [label]="'cushion.rate.spend' | t" labelPlacement="stacked"
                              inputmode="decimal" [value]="rateSpend()"
-                             (ionInput)="rateSpend.set($any($event.target).value)"
+                             (ionInput)="rateSpend.set(unsigned($event.target))"
                              placeholder="400.000"></ion-input>
                 </ion-item>
                 <ion-item>
                   <ion-input [label]="'cushion.rate.bonusMonths' | t" labelPlacement="stacked"
                              inputmode="numeric" [value]="rateMonths()"
-                             (ionInput)="rateMonths.set($any($event.target).value)"
+                             (ionInput)="rateMonths.set(unsigned($event.target))"
                              [helperText]="'cushion.rate.bonusMonthsHint' | t"></ion-input>
                 </ion-item>
               }

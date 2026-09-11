@@ -1163,20 +1163,37 @@ export class YieldsRepository {
     if (pockets.length === 0) return out;
 
     const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
-    const since = new Map<number, IsoDate>();
+    // Where each product's balance was last stated, and when it was typed in.
+    const since = new Map<number, { day: IsoDate; typedAt: string | null }>();
     for (const pocket of pockets) {
       const stated = pocket.source === 'manual'
-        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)?.valid_from
+        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)
         : undefined;
-      since.set(pocket.id, stated ?? opening);
+      since.set(pocket.id, stated
+        ? { day: stated.valid_from, typedAt: stated.created_at ?? null }
+        : { day: opening, typedAt: null });
     }
 
     const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-    const add = (pocketId: number | null, on: IsoDate, amount: number | null) => {
-      const id = pocketId !== null && out.has(pocketId) ? pocketId : fallback;
-      if (on > since.get(id)!) out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
+    const idOf = (pocketId: number | null) => pocketId !== null && out.has(pocketId) ? pocketId : fallback;
+    const credit = (id: number, amount: number | null) => out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
+
+    // A day paid on the day the balance was read is already in that figure.
+    const addPaid = (pocketId: number | null, day: IsoDate, amount: number | null) => {
+      const id = idOf(pocketId);
+      if (day > since.get(id)!.day) credit(id, amount);
     };
-    type Row = { pocket_id: number | null; day: IsoDate; total: number | null };
+    // An entry on that same day counts when it was recorded after the balance
+    // was: a product created today and given an income today holds it. Without
+    // this the income showed in the account's yields and never in the product.
+    const addEntry = (pocketId: number | null, day: IsoDate, createdAt: string, amount: number | null) => {
+      const id = idOf(pocketId);
+      const base = since.get(id)!;
+      if (day > base.day || (day === base.day && (base.typedAt === null || createdAt >= base.typedAt))) {
+        credit(id, amount);
+      }
+    };
+    type Row = { pocket_id: number | null; day: IsoDate; created_at: string; total: number | null };
 
     // A day's yield is in the product once it is paid, not while it is owed.
     for (const row of await this.db.query<Row>(
@@ -1186,17 +1203,17 @@ export class YieldsRepository {
                                        ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) AS paid
          FROM yield_days WHERE account_id = ?)
        WHERE paid <= ? GROUP BY pocket_id, paid`, [accountId, today])) {
-      add(row.pocket_id, row.day,row.total);
+      addPaid(row.pocket_id, row.day, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, on_date AS day,SUM(amount_minor) AS total
-       FROM cushion_adjustments WHERE account_id = ? GROUP BY pocket_id, on_date`, [accountId])) {
-      add(row.pocket_id, row.day,row.total);
+      `SELECT pocket_id, on_date AS day, created_at, amount_minor AS total
+       FROM cushion_adjustments WHERE account_id = ?`, [accountId])) {
+      addEntry(row.pocket_id, row.day, row.created_at, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, on_date AS day,SUM(amount_minor) AS total
-       FROM cushion_withdrawals WHERE account_id = ? GROUP BY pocket_id, on_date`, [accountId])) {
-      add(row.pocket_id, row.day,-(row.total ?? 0));
+      `SELECT pocket_id, on_date AS day, created_at, amount_minor AS total
+       FROM cushion_withdrawals WHERE account_id = ?`, [accountId])) {
+      addEntry(row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
     }
     return out;
   }

@@ -335,7 +335,7 @@ export class CushionPage {
    * listed on their own instead — the same rule net worth follows.
    */
   readonly copTotalMinor = computed(() => this.copLines()
-    .reduce((sum, line) => sum + line.cushion.totalMinor, 0));
+    .reduce((sum, line) => sum + line.cushion.availableMinor, 0));
 
   /** What every peso account earned on the last day worked out. */
   readonly earnedLastDayMinor = computed(() => this.copLines()
@@ -1157,6 +1157,25 @@ export class CushionPage {
     this.confirmingPocketDelete.set(true);
   }
 
+  /** Set while a removal was started from the settings list, not the product's form. */
+  private deletingFromList = false;
+
+  /** Removal straight from the settings list, asking the same question. */
+  async deleteFromList(pocket: YieldPocket): Promise<void> {
+    await this.openPocket(pocket);
+    this.deletingFromList = true;
+    await this.startDeletePocket();
+    if (!this.confirmingPocketDelete()) this.deletingFromList = false;
+  }
+
+  /** The question closed. Cancelled after starting from the list, it goes back to the list. */
+  pocketDeleteClosed(): void {
+    this.confirmingPocketDelete.set(false);
+    if (!this.deletingFromList) return;
+    this.deletingFromList = false;
+    if (this.form() === 'pocket') void this.closePocket();
+  }
+
   /** Removes the product, handing its balance, movements and earnings to the one chosen. */
   async deletePocket(): Promise<void> {
     const line = this.openLine();
@@ -1168,6 +1187,8 @@ export class CushionPage {
     try {
       const { db, yields, tax } = this.repos();
       await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today());
+      // Done, not cancelled: the screen it returns to is decided below.
+      this.deletingFromList = false;
       this.confirmingPocketDelete.set(false);
       this.database.dataChanged();
       // The whole account again, not just the settings: the products' figures
@@ -1593,6 +1614,14 @@ export class CushionPage {
   /** Yields that landed in the product, income and expenses on them included. */
   yieldIn(line: CushionLine, pocketId: number): number {
     return line.yieldInBalanceByPocket.get(pocketId) ?? 0;
+  }
+
+  /** What was typed, minus signs taken out: a rate or a balance is never negative. */
+  unsigned(target: unknown): string {
+    const input = target as { value?: string | number | null } | null;
+    const clean = String(input?.value ?? '').replace(/-/g, '');
+    if (input && String(input.value ?? '') !== clean) input.value = clean;
+    return clean;
   }
 
   /** The product's balance as its bank shows it: what it holds plus the yields paid into it. */

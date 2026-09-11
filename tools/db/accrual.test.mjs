@@ -338,8 +338,15 @@ test('a product balance counts the yields that landed in it after it was stated,
   assert.ok(paidAfter > 0);
 
   const landed = await yields.yieldsInBalanceByPocket(ids.uala, '2026-09-10');
-  assert.equal(landed.get(second), 150_000 + paidAfter,
-    'the income and expense after the stated day, and the days paid after it; the stated figure holds the rest');
+  assert.equal(landed.get(second), 400_000 + 150_000 + paidAfter,
+    'what was entered after the balance - its own day included - and the days paid after it; the stated figure holds the rest');
+
+  // Jose's test: a product created today, its balance 0 as of today, and an
+  // income of 1 entered today. It is in the product, not only in the yields.
+  const fresh = await yields.addPocket({ account_id: ids.uala, name: 'test', source: 'manual', sort_order: 2 });
+  await yields.setPocketBalance({ pocket_id: fresh, valid_from: '2026-09-10', amount_minor: 0 });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-10', amount_minor: 100, kind: 'other', pocket_id: fresh });
+  assert.equal((await yields.yieldsInBalanceByPocket(ids.uala, '2026-09-10')).get(fresh), 100);
 });
 
 test('a future rate takes over on its day, without being remembered', async () => {
