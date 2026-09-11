@@ -164,9 +164,10 @@ async function replaceWith(
   await db.execute('PRAGMA foreign_keys = OFF');
   try {
     await db.transaction(async () => {
-      for (const table of Object.keys(backup.tables)) {
-        const rows = backup.tables[table];
-        if (!Array.isArray(rows) || rows.length === 0) continue;
+      for (const table of insertOrder(Object.keys(backup.tables))) {
+        const stored = backup.tables[table];
+        if (!Array.isArray(stored) || stored.length === 0) continue;
+        const rows = table === 'categories' ? parentsFirst(stored) : stored;
 
         // A migration may have seeded the table already — currencies and the
         // tax parameters both do. The backup is the authority.
@@ -208,6 +209,55 @@ async function replaceWith(
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The order rows go in: parents before children, whatever order the file
+ * lists its tables in.
+ *
+ * Turning foreign keys off for the load is not enough on its own. In the
+ * browser the plugin ignores that pragma, so Jose's backup - written by a
+ * build that listed transactions before import_batches - still failed with
+ * foreign keys fully enforced. The order has to be right by construction:
+ * this build's own table list, which is kept in dependency order, and then
+ * anything it does not know, which can only be a table an older schema had.
+ */
+function insertOrder(tables: string[]): string[] {
+  const known: readonly string[] = TABLES;
+  return [
+    ...known.filter(table => tables.includes(table)),
+    ...tables.filter(table => !known.includes(table)),
+  ];
+}
+
+/**
+ * Categories nest, and a parent can have a higher id than its child, so
+ * parents go in first. A row whose parent never appears is left for the end,
+ * where the foreign key check names it.
+ */
+function parentsFirst(rows: unknown[]): unknown[] {
+  const pending = [...rows] as Record<string, unknown>[];
+  const placed = new Set<unknown>();
+  const ordered: Record<string, unknown>[] = [];
+
+  while (pending.length > 0) {
+    const before = pending.length;
+    for (let at = 0; at < pending.length;) {
+      const row = pending[at];
+      if (row['parent_id'] === null || row['parent_id'] === undefined || placed.has(row['parent_id'])) {
+        ordered.push(row);
+        placed.add(row['id']);
+        pending.splice(at, 1);
+      } else {
+        at += 1;
+      }
+    }
+    if (pending.length === before) {
+      ordered.push(...pending);
+      break;
+    }
+  }
+  return ordered;
 }
 
 /**

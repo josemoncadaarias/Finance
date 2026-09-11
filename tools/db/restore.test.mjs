@@ -285,3 +285,49 @@ test('the tax simulation and the account aliases come back from a backup', async
   const aliases = await target.query('SELECT source_name FROM account_aliases WHERE account_id = ?', [source.ids.rappi]);
   assert.deepEqual(aliases.map(row => row.source_name), ['Rappi']);
 });
+
+test('a backup comes back even where foreign keys cannot be turned off, whatever order its tables are in', async () => {
+  const { YieldsRepository } = await import('../../src/app/core/database/repositories/yields.repository.ts');
+
+  // The browser's SQLite ignores PRAGMA foreign_keys, so every row is checked
+  // as it goes in. This driver behaves the same way, and the backup lists its
+  // tables backwards - the worst order an old file could have.
+  class BrowserLikeDriver extends NodeSqlDriver {
+    async execute(sql) {
+      // Only the statement itself: migration 001 mentions the pragma in a comment.
+      if (/^\s*PRAGMA\s+foreign_keys\s*=/i.test(sql)) return;
+      return super.execute(sql);
+    }
+  }
+
+  const source = await seeded();
+  const db = source.db;
+  await db.run("INSERT INTO import_batches (file_name, file_hash, imported_at) VALUES ('monefy.csv', 'hash', ?)", [NOW()]);
+  const batch = (await db.queryOne('SELECT MAX(id) AS id FROM import_batches')).id;
+  const yields = new YieldsRepository(db, NOW);
+  await yields.enrol({ account_id: source.ids.rappi, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  const [pocket] = await yields.pockets(source.ids.rappi);
+  const categories = new CategoriesRepository(db, NOW);
+  const child = await categories.create({ name: 'Almuerzos', kind: 'expense', builtin_icon: 'restaurant' });
+  const parent = await categories.create({ name: 'Comida afuera', kind: 'expense', builtin_icon: 'restaurant' });
+  await db.run('UPDATE categories SET parent_id = ? WHERE id = ?', [parent, child]);
+  await db.run(
+    `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
+       import_fingerprint, import_seq, import_batch_id, pocket_id, created_at, updated_at)
+     VALUES (?, ?, '2026-09-01', -250000, -250000, 'monefy', 'fingerprint', 1, ?, ?, ?, ?)`,
+    [source.ids.rappi, child, batch, pocket.id, NOW(), NOW()]);
+
+  const backup = parseBackup(toJson(await exportBackup(db)));
+  backup.tables = Object.fromEntries(Object.entries(backup.tables).reverse());
+
+  const target = new BrowserLikeDriver();
+  await migrate(target, MIGRATION_SOURCES);
+  await restoreBackup(target, backup, MIGRATION_SOURCES);
+
+  for (const table of ['accounts', 'categories', 'transactions', 'import_batches', 'yield_pockets']) {
+    assert.equal(
+      (await target.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n,
+      (await db.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n,
+      `${table} came back whole`);
+  }
+});
