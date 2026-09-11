@@ -15,6 +15,7 @@ import { migrate } from '../../src/app/core/database/migrations/migration-runner
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
 import { importMonefy } from '../../src/app/core/database/import/import-monefy.ts';
 import { YieldsRepository } from '../../src/app/core/database/repositories/yields.repository.ts';
+import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
@@ -581,6 +582,64 @@ test('a renamed account is still recognised by the name the backup uses', async 
   // And the new row went to it.
   const row = await db.queryOne("SELECT account_id FROM transactions WHERE description = 'Cena'");
   assert.equal(row.account_id, banco.id);
+
+  await db.close();
+});
+
+test('the duplicate credit card is merged into the real one and removed', async () => {
+  // Migration 023 found the surviving account by matching its name against
+  // 'rappi card', which is a guess about spelling and did not hold. 024 does
+  // not guess: the duplicate is the account the BACKUP names — a fact, since
+  // it is the name in the file — and what it merges into is the other
+  // credit-card account with the most movements. The account Jose has used for
+  // years has thousands of rows; the one created by accident has one.
+  // Built up to the migration BEFORE this one, so the duplicate exists when it
+  // runs. `freshDb` applies everything, which would have 024 tidying an empty
+  // database and finding nothing to do.
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES.slice(0, 23));
+
+  const accounts = new AccountsRepository(db, NOW);
+  const card = await accounts.create({
+    name: 'Rappi Card', type: 'credit', currency_code: 'COP',
+    builtin_icon: 'card', credit_limit_minor: 110_000_000, opened_on: '2021-06-25',
+  });
+  const duplicate = await accounts.create({
+    name: 'Tarjeta crédito rappi', type: 'credit', currency_code: 'COP',
+    builtin_icon: 'card', credit_limit_minor: 110_000_000, opened_on: '2021-06-25',
+  });
+
+  const categories = new CategoriesRepository(db, NOW);
+  const comida = await categories.create({ name: 'Comida', kind: 'expense', builtin_icon: 'cart' });
+  const transactions = new TransactionsRepository(db, NOW);
+
+  // The real card has history; the duplicate has the one row the import made.
+  for (const day of ['2026-08-01', '2026-08-02', '2026-08-03']) {
+    await transactions.create({
+      account_id: card, category_id: comida, occurred_on: day,
+      amount_minor: -10_000, source: 'monefy', import_fingerprint: `f-${day}`, import_seq: 1,
+    });
+  }
+  await transactions.create({
+    account_id: duplicate, category_id: comida, occurred_on: '2026-09-09',
+    amount_minor: -25_000, source: 'monefy', import_fingerprint: 'f-new', import_seq: 1,
+  });
+
+  await migrate(db, MIGRATION_SOURCES);
+
+  const left = await db.query("SELECT name FROM accounts WHERE type = 'credit'");
+  assert.deepEqual(left.map(row => row.name), ['Rappi Card'], 'the duplicate is gone');
+
+  // Moved, not deleted: deleting would take its fingerprint with it, and the
+  // next import would meet the row as new and make the account all over again.
+  const moved = await db.queryOne(
+    "SELECT account_id FROM transactions WHERE import_fingerprint = 'f-new'");
+  assert.equal(moved.account_id, card);
+
+  // And the backup's name now points at the account that survived.
+  const alias = await db.queryOne(
+    "SELECT account_id FROM account_aliases WHERE source_name LIKE 'Tarjeta cr%dito rappi'");
+  assert.equal(alias.account_id, card);
 
   await db.close();
 });
