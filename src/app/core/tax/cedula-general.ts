@@ -99,13 +99,10 @@ export function solidarityRateScaled(
   if (minimumWageMinor <= 0) return typedScaled;
 
   const wages = monthlyBaseMinor / minimumWageMinor;
-  if (wages < 4) return 0;
-  if (wages < 16) return 10_000;
-  if (wages < 17) return 12_000;
-  if (wages < 18) return 14_000;
-  if (wages < 19) return 16_000;
-  if (wages < 20) return 18_000;
-  return 20_000;
+  for (const step of SOLIDARITY_STEPS) {
+    if (wages < step.belowWages) return step.rateScaled;
+  }
+  return SOLIDARITY_TOP_RATE_SCALED;
 }
 
 /**
@@ -127,8 +124,42 @@ export function contributionBase(
   if (monthlyIncomeMinor <= 0) return 0;
   const share = applyRate(monthlyIncomeMinor, shareScaled);
   if (minimumWageMinor <= 0) return share;
-  return Math.min(Math.max(share, minimumWageMinor), minimumWageMinor * 25);
+  return Math.min(Math.max(share, minimumWageMinor), minimumWageMinor * CONTRIBUTION_CEILING_WAGES);
 }
+
+/*
+ * The fixed figures of the law the simulation leans on, named once.
+ *
+ * The exported spreadsheet writes its formulas from these same constants, so
+ * the file and the screen cannot drift apart by one of them being edited and
+ * the other not.
+ */
+
+/**
+ * The solidarity-fund steps, Ley 797 de 2003 art. 8: below each number of
+ * minimum wages, the rate that applies. At or above the last, the top rate.
+ */
+export const SOLIDARITY_STEPS: readonly { belowWages: number; rateScaled: number }[] = [
+  { belowWages: 4, rateScaled: 0 },
+  { belowWages: 16, rateScaled: 10_000 },
+  { belowWages: 17, rateScaled: 12_000 },
+  { belowWages: 18, rateScaled: 14_000 },
+  { belowWages: 19, rateScaled: 16_000 },
+  { belowWages: 20, rateScaled: 18_000 },
+];
+export const SOLIDARITY_TOP_RATE_SCALED = 20_000;
+
+/** A contribution base never goes above twenty-five minimum wages. */
+export const CONTRIBUTION_CEILING_WAGES = 25;
+
+/** The deduction for a dependent: 10% of gross labour income, art. 387 E.T. */
+export const DEPENDENT_DEDUCTION_SHARE_SCALED = 100_000;
+
+/** 1% of purchases backed by an electronic invoice, art. 336 num. 5 E.T. */
+export const E_INVOICE_SHARE_SCALED = 10_000;
+
+/** Dependents counted for the 72 UVT deduction, art. 336 E.T. */
+export const MAX_DEPENDENTS = 4;
 
 /** The tax owed on a base expressed in UVT, by the table of art. 241. */
 export function taxInUvt(baseUvt: number): number {
@@ -208,7 +239,7 @@ export function simulate(input: TaxInputs): TaxResult {
     input.labourExemptCapUvt * uvt,
   );
   const dependentDeductionMinor = Math.min(
-    applyRate(grossLabourMinor, 100_000),
+    applyRate(grossLabourMinor, DEPENDENT_DEDUCTION_SHARE_SCALED),
     input.dependentMonthlyCapUvt * uvt * 12,
   );
   const healthPolicyMinor = Math.min(
@@ -226,9 +257,9 @@ export function simulate(input: TaxInputs): TaxResult {
 
   // ---- 5. Deductions that do not compete for that cap ----------------------
 
-  const dependentsMinor = Math.min(input.dependents, 4) * input.dependentUvt * uvt;
+  const dependentsMinor = Math.min(input.dependents, MAX_DEPENDENTS) * input.dependentUvt * uvt;
   const eInvoiceMinor = Math.min(
-    applyRate(input.eInvoicePurchasesMinor, 10_000),
+    applyRate(input.eInvoicePurchasesMinor, E_INVOICE_SHARE_SCALED),
     input.eInvoiceCapUvt * uvt,
   );
 

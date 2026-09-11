@@ -121,6 +121,40 @@ ion-toolbar.stepper {
   .sample.computed { background: var(--ion-color-light-shade); }
 }
 
+/* The spreadsheet download: the same quiet dashed button as bringing figures
+   in, centred under the key since it is about the whole form. */
+.excel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem 0;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px dashed var(--ion-color-primary);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { flex: none; }
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--ion-color-medium);
+  }
+}
+
 .card {
   margin: 0.75rem;
   border-radius: 14px;

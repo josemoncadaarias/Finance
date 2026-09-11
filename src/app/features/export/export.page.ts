@@ -27,6 +27,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { exportBackup, backupSummary, toJson } from '../../core/database/export/export-backup';
 import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
+import { saveFile } from '../../core/files/save-file';
 
 @Component({
   selector: 'app-export',
@@ -134,20 +135,7 @@ export class ExportPage {
       const parts = file.bom ? ['﻿', file.text] : [file.text];
       const blob = new Blob(parts, { type: file.type });
 
-      // A link clicked from code: the browser saves it wherever the user's
-      // downloads go, and on Android the same call hands it to the system's
-      // save dialog.
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      // Revoked on the next tick: revoking immediately cancels the download in
-      // some browsers before it has started.
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      saveFile(blob, file.name);
 
       this.lastFile.set(file.name);
     } catch (error) {

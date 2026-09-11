@@ -250,7 +250,12 @@ the framework on a long-running project.
    from the app (salary by a category the user picks, yields for the year) are
    labelled approximate: the ledger holds net salary and accrued yields, the
    return needs gross salary and what the bank certifies. The tax module's
-   words are Spanish only, in `core/tax/tax-form.ts`. Decision by Jose,
+   words are Spanish only, in `core/tax/tax-form.ts`. The simulation
+   exports to an .xlsx shaped like that spreadsheet (same palette, yellow for
+   typed boxes, locked formula cells on a sheet protected without a password),
+   written by `core/xlsx/xlsx-writer.ts` with no library; every calculated box
+   is a live formula built from the engine's own constants, and the tests
+   evaluate each one against `simulate` for several inputs. Decision by Jose,
    2026-09-11.
 
 ### Real limits that must not be promised away

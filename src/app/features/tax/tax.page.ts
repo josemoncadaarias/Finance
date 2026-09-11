@@ -39,6 +39,8 @@ import {
   type FieldFormat, type FormRow, type InputKey, type ResultKey,
 } from '../../core/tax/tax-form';
 import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
+import { taxWorkbook, XLSX_MIME } from '../../core/tax/tax-workbook';
+import { saveFile } from '../../core/files/save-file';
 
 /** A category the salary could be recorded under, with what it holds this year. */
 interface SalaryOption {
@@ -105,6 +107,7 @@ export class TaxPage {
   readonly salaryOptions = signal<SalaryOption[]>([]);
   readonly salaryNotice = signal('');
   readonly yieldsNotice = signal('');
+  readonly excelNotice = signal('');
 
   /**
    * What is being typed into a field, while it is being typed.
@@ -522,6 +525,22 @@ export class TaxPage {
   // ---------------------------------------------------------------------------
   // Formatting
   // ---------------------------------------------------------------------------
+
+  /**
+   * The simulation as a spreadsheet shaped like the one it replaced.
+   *
+   * Formulas, not only figures: a yellow box changed in Excel moves everything
+   * that depends on it, which is what made the original worth keeping.
+   */
+  downloadExcel(): void {
+    const name = fill(this.text.excelFile, { year: this.year() });
+    try {
+      saveFile(new Blob([taxWorkbook(this.inputs())], { type: XLSX_MIME }), name);
+      this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
+    } catch (error) {
+      this.excelNotice.set(error instanceof Error ? error.message : String(error));
+    }
+  }
 
   money(minor: number): string {
     return formatMoney(minor, 'COP');

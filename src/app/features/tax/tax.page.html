@@ -73,6 +73,16 @@
       <span class="key"><span class="sample computed"></span>{{ text.legendComputed }}</span>
     </p>
 
+    <!-- The whole simulation as a spreadsheet, shaped like the one Jose kept
+         before this screen existed. -->
+    <div class="excel">
+      <button type="button" (click)="downloadExcel()">
+        <ion-icon name="download-outline"></ion-icon>
+        {{ text.excelButton }}
+      </button>
+      <p class="hint">{{ excelNotice() || text.excelHint }}</p>
+    </div>
+
     @for (section of sections; track section.id) {
       <section class="card">
         <button type="button" class="head" (click)="toggle(section.id)"
