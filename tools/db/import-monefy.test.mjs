@@ -550,3 +550,37 @@ test('an imported movement lands in the account usual product', async () => {
 
   await db.close();
 });
+
+test('a renamed account is still recognised by the name the backup uses', async () => {
+  // Jose renamed "Tarjeta credito rappi" to "Rappi Card", and the next import
+  // did not recognise it — the importer matches the exact name the file
+  // carries — so it created a second account under the old name and put one
+  // movement in it.
+  //
+  // Renaming is a normal thing to do, so this was a hole rather than a
+  // mistake. Remembering the old name is what makes it survivable, and the
+  // rename itself is what records it: nothing has to be remembered by hand.
+  const db = await freshDb();
+  await run(db, csv('26/06/2021,Bancolombia,Restaurante,"-50,200",COP,"-50,200",COP,Rappi'));
+
+  const accounts = new AccountsRepository(db, NOW);
+  const banco = await accounts.findByName('Bancolombia');
+  await accounts.update(banco.id, { name: 'Banco de Colombia' });
+
+  const summary = await run(db, csv(
+    '26/06/2021,Bancolombia,Restaurante,"-50,200",COP,"-50,200",COP,Rappi',
+    '27/06/2021,Bancolombia,Restaurante,"-12,000",COP,"-12,000",COP,Cena',
+  ));
+
+  assert.equal(summary.accountsCreated, 0, 'no second account under the old name');
+
+  const all = await db.query("SELECT name FROM accounts WHERE name LIKE '%olombia%'");
+  assert.equal(all.length, 1, 'still one account');
+  assert.equal(all[0].name, 'Banco de Colombia');
+
+  // And the new row went to it.
+  const row = await db.queryOne("SELECT account_id FROM transactions WHERE description = 'Cena'");
+  assert.equal(row.account_id, banco.id);
+
+  await db.close();
+});

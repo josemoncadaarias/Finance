@@ -20,5 +20,6 @@
   "019_fix_recategorise.sql": "e7ac805b35c207c6dcfe2f5e53013b980d95761aede627683d48257c16adf0ff",
   "020_movement_pocket.sql": "68dfb7bad0f60ad45cf5b057332bfbce1114c8c61f0363729dd9b60db6a58a7d",
   "021_existing_movements_to_savings.sql": "f2f803f6ad00dc5e509466705862fdd10921d5cf2456c9491d9c6784b9a5407e",
-  "022_default_pocket.sql": "0fab2279a37fd9750648be35e49559cbc9d10286600a1d51b8f4dea354e58bb2"
+  "022_default_pocket.sql": "0fab2279a37fd9750648be35e49559cbc9d10286600a1d51b8f4dea354e58bb2",
+  "023_account_aliases.sql": "57079c9bbc4466eb05ee0779ec728571d17bbbb29c3d56022eda40cf09317997"
 }

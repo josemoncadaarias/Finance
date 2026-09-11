@@ -264,7 +264,12 @@ class ImportWriter {
   }
 
   private async ensureAccount(account: PlannedAccount, groupIds: Map<string, number>): Promise<number> {
-    const existing = await this.accounts.findByName(account.name);
+    // By its own name, or by a name it used to have. The second is what makes
+    // renaming an account survivable: without it the next import does not
+    // recognise the account and makes another one under the old name, which
+    // is what happened to "Tarjeta credito rappi" after it became "Rappi Card".
+    const existing = await this.accounts.findByName(account.name)
+      ?? await this.accounts.findBySourceName(account.name);
     if (existing) {
       // Whether an account counts towards net worth is something Jose states,
       // never something the backup carries — Monefy exports eight columns and

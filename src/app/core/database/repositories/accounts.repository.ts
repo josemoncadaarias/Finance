@@ -63,6 +63,39 @@ const COLUMNS = `id, name, type, currency_code, group_id, builtin_icon, custom_i
   archived, sort_order, created_at, updated_at`;
 
 export class AccountsRepository {
+  /**
+   * The account a backup calls by this name, when it is not called that here.
+   *
+   * The importer matches on the exact name the file carries, so renaming an
+   * account inside the app made the next import stop recognising it and
+   * create a second one. Renaming is a normal thing to do; remembering the
+   * old name is what makes it survivable.
+   */
+  async findBySourceName(name: string): Promise<AccountRow | null> {
+    return this.db.queryOne<AccountRow>(
+      `SELECT a.* FROM accounts a
+       JOIN account_aliases alias ON alias.account_id = a.id
+       WHERE lower(alias.source_name) = lower(?)`,
+      [name]);
+  }
+
+  /**
+   * Records that a backup still calls this account something else.
+   *
+   * Called when a name changes, so the alias is a by-product of renaming
+   * rather than something to remember to do. Ignored when the name is already
+   * the account's own, and when another account already claims it - an alias
+   * is a name pointing at one account and nothing good comes of two.
+   */
+  async rememberSourceName(accountId: number, name: string): Promise<void> {
+    const now = this.now();
+    await this.db.run(
+      `INSERT INTO account_aliases (source_name, account_id, note, created_at, updated_at)
+       VALUES (?, ?, NULL, ?, ?)
+       ON CONFLICT(source_name) DO NOTHING`,
+      [name, accountId, now, now]);
+  }
+
   private readonly db: SqlDriver;
   private readonly now: () => string;
 
@@ -115,6 +148,17 @@ export class AccountsRepository {
   }
 
   async update(id: number, changes: AccountUpdate): Promise<void> {
+    // A rename keeps the old name as an alias, so the next import still knows
+    // where this account's history goes. Done here rather than at the call
+    // site because there is more than one way to rename an account and only
+    // one of them has to be remembered - all of them come through here.
+    if (changes.name !== undefined) {
+      const before = await this.findById(id);
+      if (before && before.name !== changes.name) {
+        await this.rememberSourceName(id, before.name);
+      }
+    }
+
     const columns: string[] = [];
     const values: unknown[] = [];
 

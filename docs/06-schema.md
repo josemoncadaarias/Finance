@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 23 tables and how they relate. The authority is always
+The 24 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -98,6 +98,11 @@ erDiagram
         INTEGER fallback_annual_rate_scaled
         TEXT component UK
         TEXT payout
+    }
+    account_aliases {
+        TEXT source_name PK
+        INTEGER account_id FK
+        TEXT note
     }
     yield_pockets {
         INTEGER id PK
@@ -222,6 +227,7 @@ erDiagram
     accounts       ||--o{ credit_limit_changes : "limit over time"
     accounts       ||--o| yield_accounts    : "earns a yield"
     accounts       ||--o{ yield_rates       : "at these rates"
+    accounts       ||--o{ account_aliases    : "is also called"
     accounts       ||--o{ yield_pockets     : "split into"
     yield_pockets  ||--o{ yield_pocket_balances : "held this much"
     yield_pockets  ||--o{ yield_rates        : "earns at its own"
@@ -378,6 +384,7 @@ outright:
 | `idx_accounts_group_currency` | unique; one currency per group |
 | `idx_categories_name_kind` | unique; the importer matches categories this way |
 | `idx_yield_pockets_account` | the pockets of an account, in order |
+| `idx_account_aliases_account` | the names a backup uses for one account |
 | `idx_yield_pockets_default` | the product money lands in by default; **partial**, so an account has at most one |
 | `idx_yield_pocket_balances` | what a pocket held on a date |
 | `idx_yield_days_account` | every pocket's days for one account |

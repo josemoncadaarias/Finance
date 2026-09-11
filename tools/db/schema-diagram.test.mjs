@@ -57,7 +57,13 @@ test('every table in the schema appears in the diagram', () => {
   const block = diagram.slice(diagram.indexOf('erDiagram'), diagram.indexOf('```', diagram.indexOf('erDiagram')));
   const missing = schema.tables.filter(table => !new RegExp(`\\b${table}\\b`).test(block));
   assert.deepEqual(missing, [], 'tables missing from the diagram');
-  assert.equal(schema.tables.length, 23, 'the count in the prose says 23');
+  // The prose opens with a count, and a diagram that has quietly fallen a
+  // table behind is the kind of document people stop trusting. Read from the
+  // page rather than written here, so adding a table means updating the page
+  // and nothing else.
+  const said = Number(/^The (\d+) tables/m.exec(diagram)?.[1]);
+  assert.equal(schema.tables.length, said,
+    `the prose says ${said} tables and the schema has ${schema.tables.length}`);
 });
 
 test('the diagram invents no table', () => {
