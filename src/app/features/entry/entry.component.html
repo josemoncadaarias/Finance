@@ -238,7 +238,11 @@
   </div>
 </ion-footer>
 
-<ion-modal [isOpen]="picking() !== null" (didDismiss)="closeAccountSheet()">
+<!-- `didDismiss` clears only its own state. It used to call the same handler
+     as Cancel, which also clears the product sheet - and choosing an account
+     dismisses this modal, so the product sheet was being closed by the very
+     act that opened it. -->
+<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
   <ng-template>
     <ion-header>
       <ion-toolbar>

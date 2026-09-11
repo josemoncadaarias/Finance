@@ -1389,3 +1389,55 @@ test('spending today shows up in the product today', async () => {
 
   await db.close();
 });
+
+test('a product balance is the figure typed, never one derived from history', async () => {
+  // The mistake worth remembering: every movement ever made had been filed
+  // against the savings product, and the balance was being worked out as
+  // "nothing, plus everything that ever moved" — so a product Jose knows to be
+  // empty reported sixty-six million of history as its balance.
+  //
+  // The figure typed IS the balance. Only what has moved since changes it, and
+  // a product with no figure of its own starts from the day the account was
+  // enrolled, because everything before that is already inside the figures
+  // that were typed.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  // Years of history, the way a real account has.
+  for (const [on, amount] of [['2024-03-01', -500_000_00], ['2025-07-15', -120_000_00]]) {
+    await transactions.create({
+      account_id: ids.rappi, category_id: ids.gastos, occurred_on: on,
+      amount_minor: amount, source: 'manual',
+    });
+  }
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+
+  // Migration 021 files the whole history against the savings product.
+  await db.run('UPDATE transactions SET pocket_id = ? WHERE account_id = ?',
+    [savings.id, ids.rappi]);
+
+  let held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  assert.equal(held.get(savings.id), 0,
+    'empty is empty: none of that history is its balance');
+
+  // A figure typed on a date, and only what moves after it.
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 50_000_00 });
+
+  held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  assert.equal(held.get(savings.id), 50_000_00, 'exactly what was typed');
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
+    amount_minor: -1_000_00, pocket_id: savings.id, source: 'manual',
+  });
+
+  held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  assert.equal(held.get(savings.id), 49_000_00, 'and what has moved since');
+
+  await db.close();
+});

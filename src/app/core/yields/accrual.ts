@@ -103,6 +103,9 @@ export class AccrualEngine {
     const held = new Map<number, number>();
     if (pockets.length === 0) return held;
 
+    const enrolled = await this.yields.account(accountId);
+    const opening = enrolled?.opening_on ?? on;
+
     const balances = await this.dailyBalances(accountId, on);
 
     for (const [at, pocket] of pockets.entries()) {
@@ -131,11 +134,19 @@ export class AccrualEngine {
         statedFrom = entry.valid_from;
       }
 
-      // Everything after the day the figure was read. That day's own movements
-      // are already inside it: it is what the bank showed at the end of it.
-      held.set(pocket.id, statedFrom === null
-        ? stated + balanceOn(moved, on)
-        : stated + (balanceOn(moved, on) - balanceOn(moved, statedFrom)));
+      // Nothing here is derived from the history of the account. The figure
+      // Jose typed IS the balance, and only what has moved SINCE changes it.
+      //
+      // A product with no figure of its own starts from the day the account
+      // was enrolled, not from the beginning of time. That distinction is the
+      // whole of a bug worth remembering: every movement ever made had just
+      // been filed against the savings product, so a product Jose knows to be
+      // empty was adding up sixty-six million of history and reporting it as
+      // a balance. The enrolment date is when this module started counting;
+      // everything before it is already inside whatever figures were typed.
+      const from = statedFrom ?? opening;
+
+      held.set(pocket.id, stated + (balanceOn(moved, on) - balanceOn(moved, from)));
     }
 
     return held;
