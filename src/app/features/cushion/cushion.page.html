@@ -343,6 +343,15 @@
                    amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
+            <!-- A product can be added from here, without going through the
+                 account's settings first. -->
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="openPocket(null)">
+                <ion-icon slot="start" name="add-outline"></ion-icon>
+                {{ 'cushion.pockets.add' | t }}
+              </ion-button>
+            </div>
+
             <!-- Income or an expense on a product's yields, on the movement
                  screen. It never touches the account balance. -->
             <div class="actions">

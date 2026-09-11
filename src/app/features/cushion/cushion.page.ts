@@ -1412,6 +1412,15 @@ export class CushionPage {
       });
       this.picking.set(false);
       this.database.dataChanged();
+
+      // Straight into the new account's settings, where its products are
+      // added: an account just started has only the one it began with.
+      await this.refresh();
+      const fresh = this.lines().find(row => row.account.id === account.id);
+      if (fresh) {
+        await this.open(fresh);
+        await this.openSettings();
+      }
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
