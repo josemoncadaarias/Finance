@@ -211,6 +211,8 @@ export class CushionPage {
   readonly movementsPocket = signal<number | null>(null);
   /** A movement of the account being corrected on the movement screen. */
   readonly movementEdit = signal<EntryRequest | null>(null);
+  /** A withdrawal left without its movement, being asked about. */
+  readonly orphanWithdrawal = signal<{ id: number; on_date: IsoDate; amount_minor: number } | null>(null);
 
   readonly shownMovements = computed(() => {
     const pocket = this.movementsPocket();
@@ -309,6 +311,8 @@ export class CushionPage {
   readonly pocketDeleteHeld = signal(0);
   /** Which product becomes the usual one when the usual one is removed. */
   readonly pocketNewUsual = signal<number | null>(null);
+  /** How many movements and earned days name the product being removed. */
+  readonly pocketDeleteHistory = signal(0);
   /** Whether the product being edited has its yield withheld at all. */
   readonly pocketWithholds = signal(true);
   /** Yields landed in the product being edited since its balance was stated. */
@@ -1215,6 +1219,7 @@ export class CushionPage {
     const landed = await yields.landedByPocket(line.account.id, today());
     // The balance as the product shows it: that is what has to go somewhere.
     this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0));
+    this.pocketDeleteHistory.set(await yields.pocketHistoryCount(pocket.id));
     this.confirmingPocketDelete.set(true);
   }
 
@@ -1579,12 +1584,50 @@ export class CushionPage {
       });
       return;
     }
-    if (movement.type === 'withdrawal') return;
+    if (movement.type === 'withdrawal') {
+      // Nothing to correct on a movement screen: its movement is gone.
+      this.orphanWithdrawal.set(movement.withdrawal);
+      return;
+    }
     const row = movement.transaction;
     this.movementEdit.set({
       kind: row.transfer_id !== null ? 'transfer' : row.amount_minor < 0 ? 'expense' : 'income',
       editing: row,
     });
+  }
+
+  /**
+   * Deletes a withdrawal whose movement was deleted.
+   *
+   * A cash-in is a movement plus a withdrawal. Before the two were deleted
+   * together, deleting the movement from the summary left the withdrawal
+   * behind, still taking its amount off the product's balance.
+   */
+  async removeOrphanWithdrawal(): Promise<void> {
+    const line = this.openLine();
+    const withdrawal = this.orphanWithdrawal();
+    if (!line || !withdrawal) return;
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+      await db.transaction(async () => {
+        await yields.removeWithdrawal(withdrawal.id);
+        await yields.clearDays(line.account.id, withdrawal.on_date);
+      });
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
+      this.orphanWithdrawal.set(null);
+      this.database.dataChanged();
+      await this.reopen(line);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /** Movements shown for one product, or every product's for 0. */
+  setMovementsPocket(value: number): void {
+    this.movementsPocket.set(value > 0 ? value : null);
   }
 
   /** Corrected or deleted on the movement screen: the account is worked out again. */

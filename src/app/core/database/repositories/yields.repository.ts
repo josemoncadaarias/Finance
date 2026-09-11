@@ -1006,6 +1006,25 @@ export class YieldsRepository {
     await this.db.run('DELETE FROM cushion_adjustments WHERE id = ?', [id]);
   }
 
+  async removeWithdrawal(id: number): Promise<void> {
+    await this.db.run('DELETE FROM cushion_withdrawals WHERE id = ?', [id]);
+  }
+
+  /**
+   * How many rows name a product: movements, entries, withdrawals and days it
+   * earned. Removing a product with any of them has to say where they go, even
+   * when its balance is zero - otherwise its history is left pointing nowhere.
+   */
+  async pocketHistoryCount(pocketId: number): Promise<number> {
+    const row = await this.db.queryOne<{ n: number }>(
+      `SELECT (SELECT COUNT(*) FROM transactions WHERE pocket_id = ?)
+            + (SELECT COUNT(*) FROM cushion_adjustments WHERE pocket_id = ?)
+            + (SELECT COUNT(*) FROM cushion_withdrawals WHERE pocket_id = ?)
+            + (SELECT COUNT(*) FROM yield_days WHERE pocket_id = ?) AS n`,
+      [pocketId, pocketId, pocketId, pocketId]);
+    return row?.n ?? 0;
+  }
+
   /** Corrects an entry on a product: its amount, day, kind, product or note. */
   async updateAdjustment(id: number, changes: {
     on_date: IsoDate;

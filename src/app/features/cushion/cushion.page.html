@@ -173,6 +173,32 @@
 
   <!-- The detail. Full height rather than a draggable sheet, because the day
        list has to scroll from the moment it opens. -->
+  <!-- A withdrawal whose movement was deleted: said plainly, and deletable. -->
+  <ion-modal class="confirm-sheet" [isOpen]="orphanWithdrawal() !== null" (didDismiss)="orphanWithdrawal.set(null)">
+    <ng-template>
+      @if (orphanWithdrawal(); as withdrawal) {
+        <div class="confirm-dialog">
+          <span class="badge"><ion-icon name="unlink-outline"></ion-icon></span>
+          <h2>{{ 'cushion.movements.orphanTitle' | t }}</h2>
+          <p>{{ 'cushion.movements.orphanBody' | t:{
+                 amount: money(withdrawal.amount_minor, openLine()?.account?.currency_code ?? 'COP'),
+                 date: longDayText(withdrawal.on_date) } }}</p>
+          @if (error()) {
+            <p class="error">{{ error() }}</p>
+          }
+          <div class="buttons">
+            <ion-button fill="outline" color="medium" (click)="orphanWithdrawal.set(null)">
+              {{ 'entry.cancel' | t }}
+            </ion-button>
+            <ion-button color="danger" [disabled]="saving()" (click)="removeOrphanWithdrawal()">
+              {{ 'cushion.movements.orphanDelete' | t }}
+            </ion-button>
+          </div>
+        </div>
+      }
+    </ng-template>
+  </ion-modal>
+
   <!-- A movement of the account, corrected or deleted on the same screen the
        summary uses. -->
   <ion-modal class="entry-sheet" [isOpen]="movementEdit() !== null" (didDismiss)="movementEdit.set(null)">
@@ -407,29 +433,38 @@
             </div>
             @if (showMovements()) {
               <p class="hint">{{ 'cushion.movements.hint' | t }}</p>
-              <div class="pocket-row">
-                <button type="button" [class.on]="movementsView() === 'date'" (click)="movementsView.set('date')">
-                  {{ 'cushion.movements.byDate' | t }}
-                </button>
-                <button type="button" [class.on]="movementsView() === 'category'" (click)="movementsView.set('category')">
-                  {{ 'cushion.movements.byCategory' | t }}
-                </button>
-                <button type="button" [class.on]="movementsView() === 'largest'" (click)="movementsView.set('largest')">
-                  {{ 'cushion.movements.largest' | t }}
-                </button>
-              </div>
-              @if (line.pockets.length > 1) {
-                <div class="pocket-row">
-                  <button type="button" [class.on]="movementsPocket() === null" (click)="movementsPocket.set(null)">
-                    {{ 'cushion.movements.allProducts' | t }}
+              <!-- Two questions, each on its own line with its own label: how
+                   to order them, and whose. Chips for both, side by side, read
+                   as one undifferentiated row. -->
+              <div class="movement-controls">
+                <p class="control-label">{{ 'cushion.movements.sortBy' | t }}</p>
+                <div class="segmented">
+                  <button type="button" [class.on]="movementsView() === 'date'" (click)="movementsView.set('date')">
+                    {{ 'cushion.movements.byDate' | t }}
                   </button>
-                  @for (pocket of line.pockets; track pocket.id) {
-                    <button type="button" [class.on]="movementsPocket() === pocket.id" (click)="movementsPocket.set(pocket.id)">
-                      {{ pocket.name }}
-                    </button>
-                  }
+                  <button type="button" [class.on]="movementsView() === 'category'" (click)="movementsView.set('category')">
+                    {{ 'cushion.movements.byCategory' | t }}
+                  </button>
+                  <button type="button" [class.on]="movementsView() === 'largest'" (click)="movementsView.set('largest')">
+                    {{ 'cushion.movements.largest' | t }}
+                  </button>
                 </div>
-              }
+                @if (line.pockets.length > 1) {
+                  <ion-list [inset]="true" class="pocket-filter">
+                    <ion-item lines="none">
+                      <ion-select [label]="'cushion.movements.product' | t" labelPlacement="start"
+                                  [value]="movementsPocket() ?? 0" interface="alert"
+                                  [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                  (ionChange)="setMovementsPocket($any($event.detail).value)">
+                        <ion-select-option [value]="0">{{ 'cushion.movements.allProducts' | t }}</ion-select-option>
+                        @for (pocket of line.pockets; track pocket.id) {
+                          <ion-select-option [value]="pocket.id">{{ pocket.name }}</ion-select-option>
+                        }
+                      </ion-select>
+                    </ion-item>
+                  </ion-list>
+                }
+              </div>
               @if (shownMovements().length === 0) {
                 <p class="hint">{{ 'cushion.movements.none' | t }}</p>
               } @else {
@@ -445,7 +480,7 @@
                   }
                   <ion-list [inset]="true" class="movement-list">
                     @for (movement of group.items; track movement.key) {
-                      <ion-item [button]="movement.type !== 'withdrawal'" [detail]="false"
+                      <ion-item button [detail]="false"
                                 (click)="openMovement(line, movement)">
                         @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
                           <app-icon slot="start" [builtin]="movement.transaction.category_icon"
@@ -1072,9 +1107,14 @@
                       <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
                       <h2>{{ 'cushion.pocket.deleteConfirm' | t:{ name: removing.name } }}</h2>
 
-                      @if (pocketDeleteHeld() !== 0) {
+                      <!-- Asked when there is a balance OR a history: with no
+                           balance, a product's movements and earned days still
+                           have to go somewhere, or they point at nothing. -->
+                      @if (pocketDeleteHeld() !== 0 || pocketDeleteHistory() > 0) {
                         @if (pocketDeleteHeld() !== 0) {
                           <p>{{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
+                        } @else {
+                          <p>{{ 'cushion.pocket.deleteHistory' | t:{ count: pocketDeleteHistory() } }}</p>
                         }
                         <ion-list>
                           <ion-item lines="none">
@@ -1114,7 +1154,7 @@
                       <!-- Only when there is a balance to move: with nothing in
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
-                      @if (pocketDeleteHeld() !== 0) {
+                      @if (pocketDeleteHeld() !== 0 || pocketDeleteHistory() > 0) {
                         <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
                       }
                       @if (error()) {
