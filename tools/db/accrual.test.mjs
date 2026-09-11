@@ -250,6 +250,50 @@ test('a rate that needs a monthly spend pays nothing in a month that missed it',
   assert.ok((await yields.cushion(ids.uala)).totalMinor > 111_549_946);
 });
 
+test('a bonus judged every two months counts the spending of both', async () => {
+  const { engine, yields, transactions, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-06-30', withholding: false });
+  await yields.setRate({
+    account_id: ids.uala, component: 'bonus', payout: 'monthly', payout_months: 2,
+    valid_from: '2026-07-01', annual_rate_scaled: pct(5.5), requires_monthly_spend_minor: 40_000_000,
+  });
+
+  // 250,000 in July: short of 400,000, and August has not happened yet.
+  await transactions.create({
+    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-07-10', amount_minor: -25_000_000, source: 'manual',
+  });
+  let result = await engine.accrue(ids.uala, '2026-07-31');
+  assert.equal(result.daysConditionNotMet, 31);
+  assert.equal(result.netMinor, 0, 'a bonus not earned pays nothing');
+
+  // 200,000 in August. Neither month reaches it alone; the two months do.
+  await transactions.create({
+    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-08-12', amount_minor: -20_000_000, source: 'manual',
+  });
+  result = await engine.accrue(ids.uala, '2026-08-31');
+  assert.equal(result.from, '2026-07-01', 'a recompute restarts where the two months start');
+  assert.equal(result.daysConditionNotMet, 0);
+  assert.ok(result.netMinor > 0);
+  const days = await yields.days(ids.uala);
+  assert.ok(days.every(day => day.paid_on === '2026-08-31'), 'all of it paid at the end of the two months');
+});
+
+test('what was paid on a day leaves out what is only paid at the end of the month', async () => {
+  const { engine, yields, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 100_000_000, opening_on: '2026-08-31', withholding: false });
+  await yields.setRate({ account_id: ids.uala, component: 'daily', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(5) });
+  await yields.setRate({ account_id: ids.uala, component: 'monthly', payout: 'monthly', valid_from: '2026-08-31', annual_rate_scaled: pct(9) });
+
+  await engine.accrue(ids.uala, '2026-09-15');
+  let paid = await yields.paidOn(ids.uala, '2026-09-15');
+  assert.deepEqual(paid.map(day => day.component), ['daily'], 'mid-month only the daily part arrives');
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  paid = await yields.paidOn(ids.uala, '2026-09-30');
+  assert.equal(paid.filter(day => day.component === 'monthly').length, 30, 'on payday the whole month arrives');
+  assert.equal(paid.filter(day => day.component === 'daily').length, 1);
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({

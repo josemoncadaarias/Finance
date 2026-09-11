@@ -766,6 +766,21 @@ export class YieldsRepository {
   // -------------------------------------------------------------------------
 
   /** Every pocket's days for an account, oldest first. */
+  /**
+   * The days whose yield is handed over ON `day`, whenever they were earned:
+   * what a daily product paid that day, plus a whole period when `day` is
+   * its payday. Rows from before `paid_on` existed keep their old rule.
+   */
+  async paidOn(accountId: number, day: IsoDate): Promise<YieldDay[]> {
+    return this.db.query<YieldDay>(
+      `SELECT ${DAY_COLUMNS} FROM yield_days
+       WHERE account_id = ?
+         AND COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
+                                    ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) = ?
+       ORDER BY on_date, pocket_id, component`,
+      [accountId, day]);
+  }
+
   async days(accountId: number, from?: IsoDate, to?: IsoDate): Promise<YieldDay[]> {
     const where = ['account_id = ?'];
     const values: unknown[] = [accountId];

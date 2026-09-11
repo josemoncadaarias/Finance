@@ -11,12 +11,13 @@
  *     includes them. Leaving them out would under-pay, more so every year.
  *
  *   * **The rate** is the band in force on that day whose range the balance
- *     falls into. A rate that carries a monthly-spend condition (Uala asks for
- *     400,000 spent in the month) applies only in a month that met it; the
- *     spend of the whole calendar month is what decides, so a month still
- *     running turns the rate on as soon as the threshold is passed and the
- *     earlier days fill in on the next pass. That is why a recompute always
- *     restarts at the beginning of a month.
+ *     falls into. A rate that carries a spend condition (Uala asks for
+ *     400,000 spent in the month) applies only in a period that met it: the
+ *     month for a rate paid monthly or daily, the N months of a rate paid
+ *     every N. The spend of the whole period is what decides, so a period
+ *     still running turns the rate on as soon as the threshold is passed and
+ *     the earlier days fill in on the next pass. That is why a recompute
+ *     restarts at the beginning of the period.
  *
  *   * **The withholding** comes from `tax_parameters`, and is null until every
  *     part of the rule is entered and confirmed. A day it could not decide is
@@ -206,18 +207,27 @@ export class AccrualEngine {
     // early return below is exactly the path that used to leave one behind.
     await this.yields.clearFutureDays(accountId, upTo);
 
-    // Where to resume. A month already partly accrued is redone from its first
-    // day, because a monthly condition can only be judged on the whole month.
+    // Where to resume. A period already partly accrued is redone from its first
+    // day, because a spend condition can only be judged on the whole period:
+    // the month, or the N months of a bonus paid every N.
     const last = await this.yields.lastAccruedDay(accountId);
     const firstEver = nextDay(enrolled.opening_on);
-    const from = last === null ? firstEver : startOfMonth(last) < firstEver ? firstEver : startOfMonth(last);
+    const rates = await this.yields.rateHistory(accountId);
+    let resume = last === null ? firstEver : startOfMonth(last);
+    if (last !== null) {
+      for (const rate of rates) {
+        if (rate.requires_monthly_spend_minor === null || rate.valid_from > last) continue;
+        const period = spendPeriodFor(rate.payout, rate.payout_months ?? 1, rate.valid_from, last);
+        if (period.from < resume) resume = period.from;
+      }
+    }
+    const from = resume < firstEver ? firstEver : resume;
     if (from > upTo) return nothing;
 
     return this.db.transaction(async () => {
       await this.yields.clearDays(accountId, from);
 
       const balances = await this.dailyBalances(accountId, upTo);
-      const rates = await this.yields.rateHistory(accountId);
 
       // An account always has at least one pocket. Without one there is
       // nothing to accrue on, and saying so beats writing zeroes.
@@ -241,7 +251,7 @@ export class AccrualEngine {
       for (const pocket of pockets) {
         balancesOf.set(pocket.id, await this.yields.pocketBalances(pocket.id));
       }
-      const spendByMonth = await this.monthlySpend(accountId, upTo);
+      const spentBetween = await this.spendCounter(accountId, upTo);
       // Anything that lands in the cushion inside the range being worked
       // out has to be part of it from that day on. The starting figure
       // above only covers what happened BEFORE the range, so without this
@@ -395,11 +405,11 @@ export class AccrualEngine {
             const paidOn = cdt ? day : paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
 
             if (band.requiresMonthlySpendMinor != null) {
-              const spent = spendByMonth.get(monthOf(day)) ?? 0;
-              if (spent < band.requiresMonthlySpendMinor) {
-                // Missing the condition is not the same as earning nothing:
-                // a band can fall back to a lower rate. One with no fallback
-                // does pay nothing, and says so with a rate of zero.
+              const period = spendPeriodFor(band.payout, band.payoutMonths, band.payoutFrom, day);
+              if (spentBetween(period.from, period.to) < band.requiresMonthlySpendMinor) {
+                // A spending bonus that was not earned pays nothing, and says
+                // so with a rate of zero. Rates recorded before the bonus
+                // was its own line may still name a fallback rate.
                 band = { ...band, annual_rate_scaled: rateWhenConditionMissed(band.fallbackAnnualRateScaled) };
                 result.daysConditionNotMet += 1;
               }
@@ -517,21 +527,31 @@ export class AccrualEngine {
   }
 
   /**
-   * How much was spent on the account in each calendar month.
+   * How much was spent on the account between two days, both included.
    *
    * Expenses only, as a positive figure: a condition asks "did you spend
    * 400,000 this month", and money coming in is not spending. Transfer legs
    * are left out — moving your own money between your own accounts is not
    * spending either, and counting it would meet the condition for free.
+   * Read once; each period is added up once and remembered.
    */
-  private async monthlySpend(accountId: number, upTo: IsoDate): Promise<Map<string, number>> {
-    const rows = await this.db.query<{ month: string; spent: number }>(
-      `SELECT substr(occurred_on, 1, 7) AS month, -SUM(amount_minor) AS spent
+  private async spendCounter(accountId: number, upTo: IsoDate): Promise<(from: IsoDate, to: IsoDate) => number> {
+    const rows = await this.db.query<{ day: IsoDate; spent: number }>(
+      `SELECT occurred_on AS day, -SUM(amount_minor) AS spent
        FROM transactions
        WHERE account_id = ? AND occurred_on <= ? AND amount_minor < 0 AND transfer_id IS NULL
-       GROUP BY month`,
+       GROUP BY occurred_on`,
       [accountId, upTo]);
-    return new Map(rows.map(row => [row.month, row.spent]));
+    const totals = new Map<string, number>();
+    return (from, to) => {
+      const key = `${from}|${to}`;
+      let total = totals.get(key);
+      if (total === undefined) {
+        total = rows.reduce((sum, row) => row.day >= from && row.day <= to ? sum + row.spent : sum, 0);
+        totals.set(key, total);
+      }
+      return total;
+    };
   }
 }
 
@@ -566,6 +586,23 @@ export function paidOnFor(payout: 'daily' | 'monthly', months: number, rateFrom:
   const year = Math.floor(last / 12);
   const month = (last % 12) + 1;
   return endOfMonth(`${year}-${String(month).padStart(2, '0')}-01`);
+}
+
+/**
+ * The days whose spending decides a conditional rate on `day`.
+ *
+ * The payment period for a rate paid every N months - a bonus judged on two
+ * months is judged on both. The calendar month otherwise, which is what a
+ * daily rate with a condition always meant: 400,000 spent in the month.
+ */
+export function spendPeriodFor(
+  payout: 'daily' | 'monthly', months: number, rateFrom: IsoDate, day: IsoDate,
+): { from: IsoDate; to: IsoDate } {
+  if (payout === 'daily') return { from: startOfMonth(day), to: endOfMonth(day) };
+  const every = Math.max(1, months);
+  const to = paidOnFor('monthly', every, rateFrom, day);
+  const first = Number(to.slice(0, 4)) * 12 + Number(to.slice(5, 7)) - 1 - (every - 1);
+  return { from: `${Math.floor(first / 12)}-${String((first % 12) + 1).padStart(2, '0')}-01`, to };
 }
 
 /**

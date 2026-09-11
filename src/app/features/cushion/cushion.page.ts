@@ -285,7 +285,8 @@ export class CushionPage {
   readonly ratePercent = signal('');
   readonly rateFrom = signal<IsoDate>(today());
   readonly rateSpend = signal('');
-  readonly rateFallback = signal('');
+  /** Months of spending a bonus is judged on, and paid at the end of. */
+  readonly rateMonths = signal('1');
 
   /**
    * The next three paydays of a product paid every so many months, as dates.
@@ -446,6 +447,9 @@ export class CushionPage {
         const bands = await yields.bandsInForce(entry.account_id, today());
         const pockets = await yields.pockets(entry.account_id);
         const daysOfLast = last ? await yields.days(entry.account_id, last, last) : [];
+        // What was actually handed over that day. A product paid at the end of
+        // the month earns every day too, but nothing of it arrives until then.
+        const paidThatDay = last ? await yields.paidOn(entry.account_id, last) : [];
 
         lines.push({
           account,
@@ -453,7 +457,7 @@ export class CushionPage {
           rate: bands[0] ?? null,
           enabled: entry.enabled !== 0,
           pockets,
-          lastDayMinor: daysOfLast.reduce((sum, day) => sum + netOf(day), 0),
+          lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
           // One figure per POCKET, not per row. A day of an account with two
           // rate components is two rows carrying the same base, and adding
           // them showed Uala earning on twice what it holds.
@@ -1233,8 +1237,7 @@ export class CushionPage {
     this.ratePercent.set(rate ? scaledPercentToString(rate.annual_rate_scaled) : '');
     this.rateFrom.set(rate?.valid_from ?? today());
     this.rateSpend.set(rate?.requires_monthly_spend_minor ? decimalOf(rate.requires_monthly_spend_minor) : '');
-    this.rateFallback.set(rate?.fallback_annual_rate_scaled != null
-      ? scaledPercentToString(rate.fallback_annual_rate_scaled) : '');
+    this.rateMonths.set(String(rate?.payout_months ?? 1));
     this.form.set('rate');
   }
 
@@ -1254,12 +1257,8 @@ export class CushionPage {
 
     const bonus = this.rateIsBonus();
     let scaled: number;
-    let fallback: number | null = null;
     try {
       scaled = parsePercentToScaled(this.ratePercent());
-      if (bonus && this.rateFallback().trim().length > 0) {
-        fallback = parsePercentToScaled(this.rateFallback());
-      }
     } catch {
       this.error.set(this.i18n.t('cushion.error.rate'));
       return;
@@ -1268,6 +1267,11 @@ export class CushionPage {
     const spend = bonus ? parseOrNull(this.rateSpend().trim()) : null;
     if (bonus && (spend === null || spend <= 0)) {
       this.error.set(this.i18n.t('cushion.error.amount'));
+      return;
+    }
+    const bonusMonths = Number(this.rateMonths().trim());
+    if (bonus && (!Number.isInteger(bonusMonths) || bonusMonths < 1)) {
+      this.error.set(this.i18n.t('cushion.error.months'));
       return;
     }
 
@@ -1288,15 +1292,16 @@ export class CushionPage {
           account_id: line.account.id,
           pocket_id: pocket.id,
           component,
-          // A bonus is judged on a month and paid at its end; the product's own
-          // rate is paid the way the product is.
+          // A bonus is judged on the spending of its period and paid at its
+          // end, or not at all; the product's own rate is paid the way the
+          // product is.
           payout: bonus ? 'monthly' : pocket.payout,
-          payout_months: bonus ? 1 : pocket.payout_months,
+          payout_months: bonus ? bonusMonths : pocket.payout_months,
           valid_from: this.rateFrom(),
           valid_to: this.rateUntil() || null,
           annual_rate_scaled: scaled,
           requires_monthly_spend_minor: spend,
-          fallback_annual_rate_scaled: fallback,
+          fallback_annual_rate_scaled: null,
         });
         // From the earliest day either version of the rate touches. Moving
         // a rate backwards has to redo the days it now covers as well.

@@ -922,9 +922,12 @@
                               @case ('future') { <span class="is soon">{{ 'cushion.rates.future' | t }}</span> }
                               @default { <span class="is off">{{ 'cushion.rates.ended' | t }}</span> }
                             }
-                            {{ 'cushion.rate.condition' | t:{
-                                 amount: money(rate.requires_monthly_spend_minor ?? 0),
-                                 rate: rateText(rate.fallback_annual_rate_scaled ?? 0) } }}
+                            @if ((rate.payout_months ?? 1) > 1) {
+                              {{ 'cushion.rate.conditionMonths' | t:{
+                                   amount: money(rate.requires_monthly_spend_minor ?? 0), count: rate.payout_months } }}
+                            } @else {
+                              {{ 'cushion.rate.condition' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0) } }}
+                            }
                           </p>
                         </ion-label>
                         <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
@@ -1053,10 +1056,10 @@
                              placeholder="400.000"></ion-input>
                 </ion-item>
                 <ion-item>
-                  <ion-input [label]="'cushion.rate.fallback' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="rateFallback()"
-                             (ionInput)="rateFallback.set($any($event.target).value)"
-                             placeholder="0"></ion-input>
+                  <ion-input [label]="'cushion.rate.bonusMonths' | t" labelPlacement="stacked"
+                             inputmode="numeric" [value]="rateMonths()"
+                             (ionInput)="rateMonths.set($any($event.target).value)"
+                             [helperText]="'cushion.rate.bonusMonthsHint' | t"></ion-input>
                 </ion-item>
               }
             </ion-list>
