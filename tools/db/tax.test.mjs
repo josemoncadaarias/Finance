@@ -250,10 +250,10 @@ test('a simulation is kept per year, and survives the form growing', async () =>
   assert.deepEqual(old.monthlyWithholdingMinor.slice(0, 3), [1, 2, 0]);
   assert.equal(old.voluntaryCapUvt, 3800, 'a cap added later arrives with its default');
 
-  // The UVT is filled in only where a resolution is on record. Anywhere else a
-  // carried-over figure would be wrong in every line below it, silently.
+  // Never zero where a reasonable figure exists: a year with no resolution yet
+  // borrows the latest one, and the screen labels it as borrowed.
   assert.equal(defaultInputs(2026).uvtMinor, pesos(52_374));
-  assert.equal(defaultInputs(2027).uvtMinor, 0);
+  assert.equal(defaultInputs(2027).uvtMinor, pesos(52_374), 'borrowed from 2026');
 
   await db.close();
 });
@@ -290,4 +290,114 @@ test('the yields of a year add up across every enrolled account', async () => {
   assert.deepEqual(await yields.yearTotals(2024), { grossMinor: 0, withheldMinor: 0, days: 0 });
 
   await db.close();
+});
+
+test('each parameter says whether it is official, borrowed or estimated', async () => {
+  const { uvtFor, minimumWageFor, inflationaryFor } = await import('../../src/app/core/tax/defaults.ts');
+
+  // The minimum wage WITHOUT the transport allowance, which is not salary and
+  // is no part of any contribution base. Decreto 1469 de 2025.
+  const wage2026 = minimumWageFor(2026);
+  assert.equal(wage2026.value, pesos(1_750_905));
+  assert.equal(wage2026.standing, 'official');
+
+  // A year with nothing published borrows the latest one, and says so.
+  const wage2027 = minimumWageFor(2027);
+  assert.equal(wage2027.value, pesos(1_750_905));
+  assert.equal(wage2027.standing, 'reference');
+  assert.equal(wage2027.fromYear, 2026);
+  assert.equal(uvtFor(2027).standing, 'reference');
+
+  // The inflationary component. Published the year after, so for the year in
+  // progress there are two answers, depending on how much of it has passed.
+  const official = inflationaryFor(2025);
+  assert.equal(official.value, 554_300, '5,10% / 9,20%, Decreto 898 de 2026');
+  assert.equal(official.standing, 'official');
+
+  // Early in the year: last year's figure, borrowed.
+  const march = inflationaryFor(2026, new Date(2026, 2, 15));
+  assert.equal(march.standing, 'reference');
+  assert.equal(march.value, 554_300);
+  assert.equal(march.fromYear, 2025);
+
+  // Past the first half: this year's own data. 6,24% / 10,05%.
+  const september = inflationaryFor(2026, new Date(2026, 8, 11));
+  assert.equal(september.standing, 'estimate');
+  assert.equal(september.value, Math.round((6.24 / 10.05) * 1_000_000));
+  assert.ok(Math.abs(september.value / 10_000 - 62.09) < 0.01, 'about 62,09%');
+
+  // July is the turn - six months have passed.
+  assert.equal(inflationaryFor(2026, new Date(2026, 5, 30)).standing, 'reference', 'June is still the first half');
+  assert.equal(inflationaryFor(2026, new Date(2026, 6, 1)).standing, 'estimate');
+});
+
+test('filling the gaps never replaces a figure someone typed', async () => {
+  const { defaultInputs, fillGaps, SPREADSHEET_2026 } = await import('../../src/app/core/tax/defaults.ts');
+
+  const typed = {
+    ...defaultInputs(2026),
+    monthlySalaryMinor: pesos(15_000_000),               // typed: stays
+    monthlyWithholdingMinor: [pesos(100), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pesos(200)],
+  };
+
+  const filled = fillGaps(typed, SPREADSHEET_2026);
+
+  assert.equal(filled.monthlySalaryMinor, pesos(15_000_000), 'what was typed is theirs');
+  assert.equal(filled.dependents, 2, 'an untouched zero is a gap');
+  assert.equal(filled.healthPolicyMinor, pesos(4_437_700));
+  assert.equal(filled.employment, 'integral', 'the starting kind was never a choice');
+
+  // Month by month: the two typed months kept, the ten empty ones filled.
+  assert.equal(filled.monthlyWithholdingMinor[0], pesos(100));
+  assert.equal(filled.monthlyWithholdingMinor[1], pesos(2_861_000));
+  assert.equal(filled.monthlyWithholdingMinor[11], pesos(200));
+
+  // A kind of work chosen on purpose is not a gap.
+  const chosen = fillGaps({ ...defaultInputs(2026), employment: 'independent' }, SPREADSHEET_2026);
+  assert.equal(chosen.employment, 'independent');
+
+  // And filled from the spreadsheet, the simulation lands where it does.
+  const sheet = simulate(fillGaps(defaultInputs(2026), SPREADSHEET_2026));
+  closeTo(sheet.grossLabourMinor, 273_141_180, 'B16 from the filled simulation');
+});
+
+test('the fill is remembered per year, and only lands on the owner database', async () => {
+  const { NodeSqlDriver } = await import('./node-sql-driver.mjs');
+  const { migrate } = await import('../../src/app/core/database/migrations/migration-runner.ts');
+  const { MIGRATION_SOURCES } = await import('../../src/app/core/database/migrations/statements.generated.ts');
+  const { TaxSimulationsRepository } = await import(
+    '../../src/app/core/database/repositories/tax-simulations.repository.ts');
+  const { AccountsRepository } = await import('../../src/app/core/database/repositories/accounts.repository.ts');
+
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const now = () => '2026-09-11T00:00:00Z';
+  const repo = new TaxSimulationsRepository(db, now);
+
+  assert.equal(await repo.gapsFilled(2026), false);
+  await repo.markGapsFilled(2026);
+  assert.equal(await repo.gapsFilled(2026), true);
+  assert.equal(await repo.gapsFilled(2025), false, 'each year on its own');
+
+  assert.equal(await repo.hasAccountNamed('Rappi cuenta'), false, 'a fresh database is nobody\'s');
+  await new AccountsRepository(db, now).create({
+    name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2021-07-01',
+  });
+  assert.equal(await repo.hasAccountNamed('Rappi cuenta'), true);
+
+  await db.close();
+});
+
+test('with no salary there is no contribution base, minimum wage or not', async () => {
+  const { contributionBase } = await import('../../src/app/core/tax/cedula-general.ts');
+  const { defaultInputs } = await import('../../src/app/core/tax/defaults.ts');
+
+  assert.equal(contributionBase(0, 1_000_000, pesos(1_750_905)), 0);
+  assert.equal(contributionBase(pesos(1_000_000), 1_000_000, pesos(1_750_905)), pesos(1_750_905), 'the floor still holds');
+
+  // An untouched form, now that the minimum wage is filled in, owes nothing
+  // and shows no negative income.
+  const blank = simulate(defaultInputs(2026));
+  assert.equal(blank.generalNetMinor, 0);
+  assert.equal(blank.toPayMinor, 0);
 });

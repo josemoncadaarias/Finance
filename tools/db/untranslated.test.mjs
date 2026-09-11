@@ -40,6 +40,8 @@ const ALLOWED = [
   'core/database/export/export-csv.ts',
   // Formulario 210 as a screen: the DIAN's own terms, not translated by rule.
   'core/tax/tax-form.ts',
+  // The year's tax parameters, each cited to the Spanish norm that set it.
+  'core/tax/defaults.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */

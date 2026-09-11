@@ -52,6 +52,36 @@ export class TaxSimulationsRepository {
       [year, JSON.stringify({ ...inputs, year }), now, now]);
   }
 
+  /**
+   * Whether a year's empty boxes have already been filled with references.
+   *
+   * The fill happens once per year and is remembered, because after it runs
+   * a zero is no longer a gap: it is something the person set on purpose, and
+   * filling it again would undo them. Kept in `settings` rather than in the
+   * simulation, since it is a fact about the app's history with the document
+   * and not part of the document.
+   */
+  async gapsFilled(year: number): Promise<boolean> {
+    const row = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [`tax.gapsFilled.${year}`]);
+    return !!row;
+  }
+
+  async markGapsFilled(year: number): Promise<void> {
+    const now = this.now();
+    await this.db.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, '1', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [`tax.gapsFilled.${year}`, now]);
+  }
+
+  /** Whether an account by this exact name exists. */
+  async hasAccountNamed(name: string): Promise<boolean> {
+    const row = await this.db.queryOne<{ found: number }>(
+      'SELECT 1 AS found FROM accounts WHERE name = ? LIMIT 1', [name]);
+    return !!row;
+  }
+
   /** Every year with a simulation, newest first. */
   async years(): Promise<number[]> {
     const rows = await this.db.query<{ year: number }>(

@@ -25,6 +25,8 @@ export type InputKey = Exclude<NumericKeys<TaxInputs>, 'year'>;
 export type ResultKey = NumericKeys<TaxResult>;
 
 export type SpecialRow =
+  | 'references'
+  | 'inflationReference'
   | 'employment'
   | 'salaryPrefill'
   | 'yieldsPrefill'
@@ -73,8 +75,8 @@ export const EMPLOYMENT_TEXT: Record<EmploymentKind, { title: string; detail: st
 
 export const TAX_TEXT = {
   title: 'Simulador de renta',
-  legendTyped: 'Lo escribes tú',
-  legendComputed: 'Se calcula solo',
+  legendTyped: 'Casilla que escribes',
+  legendComputed: 'Casilla que se calcula sola',
   box: 'Csl.',
 
   toPay: 'Saldo a pagar',
@@ -90,6 +92,14 @@ export const TAX_TEXT = {
   yearLabel: 'Año gravable {year}',
 
   uvtMissing: 'Falta la UVT de {year}. Sin ella ningún tope se puede calcular: escríbela en Parámetros del año.',
+
+  referencesIntro: 'De dónde salen los parámetros de este año. Si alguno aún no es oficial, se usa la mejor referencia disponible en vez de dejarlo en cero.',
+  standingOfficial: 'Oficial',
+  standingReference: 'Referencia {year}',
+  standingEstimate: 'Estimado',
+  refUvt: 'UVT',
+  refMinimumWage: 'Salario mínimo, sin auxilio de transporte',
+  refInflationary: 'Componente inflacionario',
 
   salaryButton: 'Traer lo registrado como salario en {year}',
   salaryHint: 'Tú registras lo que te llega a la cuenta, que es el neto. Aquí va el bruto: úsalo solo como punto de partida y corrígelo.',
@@ -133,6 +143,7 @@ export const TAX_FORM: readonly FormSection[] = [
     subtitle: 'Cambian por ley cada año. Casi nunca se tocan.',
     collapsed: true,
     rows: [
+      { kind: 'special', which: 'references' },
       {
         kind: 'input', key: 'uvtMinor', format: 'money',
         label: 'Valor de la UVT',
@@ -141,7 +152,7 @@ export const TAX_FORM: readonly FormSection[] = [
       {
         kind: 'input', key: 'minimumWageMinor', format: 'money',
         label: 'Salario mínimo mensual',
-        hint: 'Si lo escribes, el IBC queda entre 1 y 25 salarios mínimos y el fondo de solidaridad se calcula por escalones. En cero no se aplica nada de eso.',
+        hint: 'Sin el auxilio de transporte, que no es salario. Pone el IBC entre 1 y 25 salarios mínimos y calcula por escalones el fondo de solidaridad.',
       },
       { kind: 'input', key: 'labourExemptScaled', format: 'percent', label: '% renta exenta de trabajo', hint: 'Art. 206 num. 10 E.T.' },
       { kind: 'input', key: 'labourExemptCapUvt', format: 'uvt', label: 'Tope renta exenta (UVT al año)', hint: 'Ley 2277 de 2022.' },
@@ -239,8 +250,9 @@ export const TAX_FORM: readonly FormSection[] = [
       {
         kind: 'input', key: 'inflationaryScaled', format: 'percent',
         label: '% componente inflacionario del año',
-        hint: 'Año gravable 2025: 55,43% (Decreto 898 de 2026). Sale al año siguiente; mientras tanto, déjalo en cero o usa el del año anterior.',
+        hint: 'Inflación del DANE dividida por la tasa de captación de la Superfinanciera (art. 40-1 E.T.). Sale al año siguiente.',
       },
+      { kind: 'special', which: 'inflationReference' },
       {
         kind: 'computed', key: 'inflationaryMinor', format: 'money',
         label: 'Parte que no es renta',

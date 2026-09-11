@@ -90,29 +90,35 @@ ion-toolbar.stepper {
   ion-icon { flex: none; font-size: 1.05rem; margin-top: 0.05rem; }
 }
 
-/* The two looks every row below takes, named once at the top. */
+/* A key to the rows below, not controls: a sample of each look beside what
+   it means. Plain text weight and no pill shape, so nothing here invites a
+   tap. */
 .legend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.35rem 1.1rem;
+  margin: 0;
   padding: 0.75rem 1rem 0.25rem;
+  font-size: 0.72rem;
+  color: var(--ion-color-medium);
 
-  .chip {
-    padding: 0.2rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
-  .typed {
-    border: 1px solid var(--ion-color-primary);
-    color: var(--ion-color-primary);
+  .sample {
+    display: inline-block;
+    flex: none;
+    width: 1.6rem;
+    height: 0.85rem;
+    border-radius: 3px;
   }
 
-  .computed {
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium-shade);
-  }
+  .sample.typed { border: 1.5px solid var(--ion-color-primary); }
+  .sample.computed { background: var(--ion-color-light-shade); }
 }
 
 .card {
@@ -140,10 +146,11 @@ ion-toolbar.stepper {
     flex-direction: column;
     flex: 1;
     min-width: 0;
+    gap: 0.25rem;
   }
 
-  .title { font-size: 0.95rem; font-weight: 700; }
-  .subtitle { font-size: 0.72rem; color: var(--ion-color-medium); }
+  .title { font-size: 0.95rem; font-weight: 700; line-height: 1.25; }
+  .subtitle { font-size: 0.72rem; line-height: 1.35; color: var(--ion-color-medium); }
 
   ion-icon { flex: none; color: var(--ion-color-medium); }
 }
@@ -166,7 +173,7 @@ ion-toolbar.stepper {
     flex-direction: column;
     flex: 1;
     min-width: 0;
-    gap: 0.1rem;
+    gap: 0.25rem;
   }
 
   .label {
@@ -265,6 +272,63 @@ ion-toolbar.stepper {
   font-size: 0.74rem;
   line-height: 1.4;
   color: var(--ion-color-medium);
+}
+
+/* Where a parameter came from. A badge that says how far to trust it -
+   green for official, amber for borrowed or estimated - and the source under
+   the figure, so a reference is never mistaken for the law. */
+.references {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--ion-color-step-100, var(--ion-color-light));
+
+  .hint {
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--ion-color-medium);
+  }
+
+  .reference {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+
+  .standing {
+    flex: none;
+    margin-top: 0.1rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    white-space: nowrap;
+
+    &.official { background: rgba(var(--ion-color-success-rgb), 0.16); color: var(--ion-color-success); }
+    &.reference, &.estimate {
+      background: rgba(var(--ion-color-warning-rgb), 0.16);
+      color: var(--ion-color-warning-shade);
+    }
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--ion-text-color);
+  }
+
+  .source {
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: var(--ion-color-medium);
+    overflow-wrap: break-word;
+  }
 }
 
 /* The kind of work: three choices side by side, the chosen one filled in,

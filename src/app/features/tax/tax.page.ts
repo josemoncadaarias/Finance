@@ -30,7 +30,10 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
 import { TaxSimulationsRepository } from '../../core/database/repositories/tax-simulations.repository';
 import { EMPLOYMENT_DEFAULTS, RATE_BANDS, simulate } from '../../core/tax/cedula-general';
-import { defaultInputs } from '../../core/tax/defaults';
+import {
+  SPREADSHEET_2026, SPREADSHEET_2026_OWNER_ACCOUNT,
+  defaultInputs, fillGaps, parametersFor, type Sourced,
+} from '../../core/tax/defaults';
 import {
   EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_TEXT,
   type FieldFormat, type FormRow, type InputKey, type ResultKey,
@@ -68,6 +71,19 @@ export class TaxPage {
 
   readonly year = signal(new Date().getFullYear());
   readonly inputs = signal<TaxInputs>(defaultInputs(new Date().getFullYear()));
+
+  /** The year's UVT, minimum wage and inflationary component, with their standing. */
+  readonly parameters = computed(() => parametersFor(this.year()));
+
+  /** The same three, ready to print: what each is, its figure, and where it came from. */
+  readonly references = computed(() => {
+    const p = this.parameters();
+    return [
+      { label: this.text.refUvt, shown: '$ ' + this.format(p.uvt.value, 'money'), sourced: p.uvt },
+      { label: this.text.refMinimumWage, shown: '$ ' + this.format(p.minimumWage.value, 'money'), sourced: p.minimumWage },
+      { label: this.text.refInflationary, shown: this.percent(p.inflationary.value), sourced: p.inflationary },
+    ];
+  });
 
   /** The whole form, worked out again on every keystroke. It is cheap. */
   readonly result = computed(() => simulate(this.inputs()));
@@ -120,9 +136,39 @@ export class TaxPage {
     return new TaxSimulationsRepository(this.database.driver);
   }
 
+  /**
+   * Opens a year, filling its empty boxes the first time it is opened.
+   *
+   * Never zero where a reasonable figure exists - Jose's rule for this module.
+   * The year's parameters go into any that are empty: official where
+   * published, borrowed from last year or estimated where not. And for 2026,
+   * on his own database only, the figures of the spreadsheet he has been
+   * keeping.
+   *
+   * Only boxes still at zero are touched, and only once per year, so nothing
+   * typed is ever replaced and a zero set on purpose afterwards stays zero.
+   */
   private async load(year: number): Promise<void> {
-    const stored = await this.simulations().get(year);
-    this.inputs.set(stored ?? defaultInputs(year));
+    const repo = this.simulations();
+    let inputs = (await repo.get(year)) ?? defaultInputs(year);
+
+    if (!(await repo.gapsFilled(year))) {
+      const p = parametersFor(year);
+      const references: Partial<TaxInputs> = {
+        uvtMinor: p.uvt.value,
+        minimumWageMinor: p.minimumWage.value,
+        inflationaryScaled: p.inflationary.value,
+      };
+      if (year === 2026 && await repo.hasAccountNamed(SPREADSHEET_2026_OWNER_ACCOUNT)) {
+        Object.assign(references, SPREADSHEET_2026);
+      }
+
+      inputs = fillGaps(inputs, references);
+      await repo.save(year, inputs);
+      await repo.markGapsFilled(year);
+    }
+
+    this.inputs.set(inputs);
     this.drafts.set(new Map());
     this.salaryNotice.set('');
     this.yieldsNotice.set('');
@@ -413,6 +459,18 @@ export class TaxPage {
 
   money(minor: number): string {
     return formatMoney(minor, 'COP');
+  }
+
+  /** A reference percentage, to two decimals: "62,09%", the way it is published. */
+  percent(scaled: number): string {
+    return `${(scaled / 10_000).toFixed(2).replace('.', ',')}%`;
+  }
+
+  /** "Oficial", "Referencia 2025" or "Estimado", for the badge beside a parameter. */
+  standingLabel(sourced: Sourced): string {
+    if (sourced.standing === 'official') return this.text.standingOfficial;
+    if (sourced.standing === 'estimate') return this.text.standingEstimate;
+    return fill(this.text.standingReference, { year: sourced.fromYear });
   }
 
   fill(template: string, values: Record<string, string | number>): string {

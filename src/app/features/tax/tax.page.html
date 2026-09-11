@@ -63,12 +63,15 @@
       </p>
     }
 
-    <!-- How to read every box below. Typed boxes look like fields; worked-out
-         ones look like figures on a printed form. -->
-    <div class="legend">
-      <span class="chip typed">{{ text.legendTyped }}</span>
-      <span class="chip computed">{{ text.legendComputed }}</span>
-    </div>
+    <!-- How to read every box below: a key, not controls. It was two pills,
+         and pills read as tabs - Jose tapped them and nothing happened, which
+         is what a tab that does nothing looks like. So each look is shown as
+         a small sample of itself beside what it means, and nothing here is
+         shaped like something to press. -->
+    <p class="legend">
+      <span class="key"><span class="sample typed"></span>{{ text.legendTyped }}</span>
+      <span class="key"><span class="sample computed"></span>{{ text.legendComputed }}</span>
+    </p>
 
     @for (section of sections; track section.id) {
       <section class="card">
@@ -127,6 +130,37 @@
 
                 @case ('special') {
                   @switch ($any(row).which) {
+
+                    @case ('references') {
+                      <!-- Where this year's parameters come from, and how far
+                           each can be trusted. Borrowed and estimated figures
+                           are labelled rather than hidden: a figure that says
+                           it is an estimate beats a zero that looks exact. -->
+                      <div class="references">
+                        <p class="hint">{{ text.referencesIntro }}</p>
+                        @for (ref of references(); track ref.label) {
+                          <div class="reference">
+                            <span class="standing" [class]="ref.sourced.standing">{{ standingLabel(ref.sourced) }}</span>
+                            <span class="body">
+                              <span>{{ ref.label }}: <strong>{{ ref.shown }}</strong></span>
+                              <span class="source">{{ ref.sourced.source }}</span>
+                            </span>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    @case ('inflationReference') {
+                      <div class="references">
+                        <div class="reference">
+                          <span class="standing" [class]="parameters().inflationary.standing">{{ standingLabel(parameters().inflationary) }}</span>
+                          <span class="body">
+                            <span><strong>{{ percent(parameters().inflationary.value) }}</strong></span>
+                            <span class="source">{{ parameters().inflationary.source }}</span>
+                          </span>
+                        </div>
+                      </div>
+                    }
 
                     @case ('employment') {
                       <div class="employment">

@@ -121,6 +121,10 @@ export function contributionBase(
   shareScaled: number,
   minimumWageMinor: number,
 ): number {
+  // No income, no contributions. The floor is for a salary below the minimum,
+  // not for the absence of one - applied to zero it charged health and pension
+  // on money never earned and pushed the renta líquida below zero.
+  if (monthlyIncomeMinor <= 0) return 0;
   const share = applyRate(monthlyIncomeMinor, shareScaled);
   if (minimumWageMinor <= 0) return share;
   return Math.min(Math.max(share, minimumWageMinor), minimumWageMinor * 25);

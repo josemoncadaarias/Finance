@@ -72,7 +72,9 @@ await send('Emulation.setDeviceMetricsOverride', {
   deviceScaleFactor: 1, mobile: true,
 });
 
-await send('Page.navigate', { url: 'http://localhost:8100/' });
+// SHOOT_PATH opens a screen by its route; SHOOT_SCROLL brings an element into
+// view after the click, for what sits further down a long form.
+await send('Page.navigate', { url: 'http://localhost:8100' + (process.env.SHOOT_PATH ?? '/') });
 await wait(6000);
 
 if (click) {
@@ -87,6 +89,13 @@ if (click) {
   });
   console.log(result.result?.value ?? result.exceptionDetails?.text);
   await wait(2500);
+}
+
+if (process.env.SHOOT_SCROLL) {
+  await send('Runtime.evaluate', {
+    expression: `document.querySelector(${JSON.stringify(process.env.SHOOT_SCROLL)})?.scrollIntoView({ block: 'center' })`,
+  });
+  await wait(800);
 }
 
 // What the layout actually measures, alongside the picture.
