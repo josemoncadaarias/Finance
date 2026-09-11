@@ -153,6 +153,18 @@ export class CushionPage {
   /** Whether the product being edited is the account's usual one. */
   readonly pocketIsDefault = signal(false);
 
+  /**
+   * The balance row on screen, when one is being corrected rather than added.
+   *
+   * Without it a changed date wrote a second balance beside the first, and the
+   * first went on winning - so the field looked like it was ignoring what was
+   * typed into it.
+   */
+  readonly editingBalanceId = signal<number | null>(null);
+
+  /** The date that balance had before it was edited, to redo the days between. */
+  readonly editingBalanceFrom = signal<string | null>(null);
+
   /** What kind of money an entry is, and where it landed. */
   readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
   readonly entryPocket = signal<number | null>(null);
@@ -793,9 +805,13 @@ export class CushionPage {
       // dated to the day he read it off the bank.
       this.pocketAmount.set(current ? decimalOf(current.amount_minor) : '');
       this.pocketFrom.set(current?.valid_from ?? today());
+      this.editingBalanceId.set(current?.id ?? null);
+      this.editingBalanceFrom.set(current?.valid_from ?? null);
     } else {
       this.pocketAmount.set('');
       this.pocketFrom.set(today());
+      this.editingBalanceId.set(null);
+      this.editingBalanceFrom.set(null);
     }
     this.form.set('pocket');
   }
@@ -843,9 +859,19 @@ export class CushionPage {
           await yields.setPocketSource(id, manual ? 'manual' : 'ledger');
         }
         if (manual) {
-          await yields.setPocketBalance({
-            pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
-          });
+          // Correcting the balance on screen, or recording a new one. The
+          // first moves the row that is being looked at, date included; the
+          // second adds one, which is what a balance read on a later day is.
+          const balanceId = this.editingBalanceId();
+          if (balanceId !== null) {
+            await yields.movePocketBalance(balanceId, {
+              valid_from: this.pocketFrom(), amount_minor: amount,
+            });
+          } else {
+            await yields.setPocketBalance({
+              pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
+            });
+          }
         }
 
         // Unticking is not a way to leave an account without one: every
@@ -856,7 +882,14 @@ export class CushionPage {
 
         // Every pocket of the account is worked out again from that date: a
         // figure moving between pockets changes what the others earn on too.
-        await yields.clearDays(line.account.id, this.pocketFrom());
+        //
+        // From the EARLIER of the two dates when one is being moved. Moving a
+        // balance forward leaves the days between the old date and the new one
+        // standing on a figure that no longer applies to them.
+        const wasFrom = this.editingBalanceFrom();
+        const redoFrom = wasFrom !== null && wasFrom < this.pocketFrom()
+          ? wasFrom : this.pocketFrom();
+        await yields.clearDays(line.account.id, redoFrom);
       });
 
       await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());

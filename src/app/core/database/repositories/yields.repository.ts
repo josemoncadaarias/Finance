@@ -544,6 +544,35 @@ export class YieldsRepository {
     return row?.total ?? 0;
   }
 
+  /**
+   * Moves a balance that is already recorded to another date or figure.
+   *
+   * `setPocketBalance` is keyed on the date, so changing the date through it
+   * writes a SECOND balance and leaves the first one standing - and the first
+   * one, being later, goes on winning. Which is exactly what it looked like
+   * from outside: editing the date appeared to do nothing at all.
+   *
+   * Any other balance already on the target date is removed first. One date
+   * carries one balance; the alternative is a unique-constraint failure in
+   * front of someone who only changed a date.
+   */
+  async movePocketBalance(
+    id: number,
+    input: { valid_from: IsoDate; amount_minor: number },
+  ): Promise<void> {
+    const now = this.now();
+    await this.db.run(
+      `DELETE FROM yield_pocket_balances
+       WHERE valid_from = ? AND id <> ?
+         AND pocket_id = (SELECT pocket_id FROM yield_pocket_balances WHERE id = ?)`,
+      [input.valid_from, id, id]);
+
+    await this.db.run(
+      `UPDATE yield_pocket_balances
+       SET valid_from = ?, amount_minor = ?, updated_at = ? WHERE id = ?`,
+      [input.valid_from, input.amount_minor, now, id]);
+  }
+
   /** Every balance a pocket has been given, oldest first. */
   async pocketBalances(pocketId: number): Promise<PocketBalance[]> {
     return this.db.query<PocketBalance>(

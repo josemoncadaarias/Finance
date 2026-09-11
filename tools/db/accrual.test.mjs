@@ -1453,3 +1453,52 @@ test('a product counts every movement from the day its balance was set', async (
 
   await db.close();
 });
+
+test('changing the date a balance counts from moves it, rather than adding another', async () => {
+  // How it looked from outside: edit the date, save, reopen, and the old date
+  // is back. `setPocketBalance` is keyed on the date, so changing the date
+  // through it wrote a SECOND balance and left the first standing — and the
+  // first, being the later of the two, went on winning.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 100_000_00 });
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-08',
+    amount_minor: -5_000_00, pocket_id: savings.id, source: 'manual',
+  });
+
+  // Counting from the 10th, the 8th is inside the figure.
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 100_000_00);
+
+  const [row] = await yields.pocketBalances(savings.id);
+  await yields.movePocketBalance(row.id, {
+    valid_from: '2026-09-05', amount_minor: 100_000_00 });
+
+  const history = await yields.pocketBalances(savings.id);
+  assert.equal(history.length, 1, 'moved, not duplicated');
+  assert.equal(history[0].valid_from, '2026-09-05');
+
+  // And counting from the 5th, the 8th is now on top of it.
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 95_000_00);
+
+  // A balance already sitting on the target date gives way: one date, one
+  // balance, rather than a constraint failure in front of someone who only
+  // changed a date.
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-09', amount_minor: 7_000_00 });
+  await yields.movePocketBalance(history[0].id, {
+    valid_from: '2026-09-09', amount_minor: 100_000_00 });
+
+  const after = await yields.pocketBalances(savings.id);
+  assert.equal(after.length, 1);
+  assert.equal(after[0].amount_minor, 100_000_00);
+
+  await db.close();
+});
