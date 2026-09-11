@@ -92,6 +92,13 @@ interface CushionLine {
   landedByPocket: ReadonlyMap<number, number>;
   /** Of that, only what the bank paid. */
   paidYieldByPocket: ReadonlyMap<number, number>;
+  /**
+   * The available yield: everything the products hold, paid yields included,
+   * minus what the account itself says it holds on the summary. What sits in
+   * the products that the account has not counted yet, and can be cashed in.
+   * The one figure shown for the account everywhere on this screen.
+   */
+  availableMinor: number;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -421,7 +428,7 @@ export class CushionPage {
    * listed on their own instead — the same rule net worth follows.
    */
   readonly copTotalMinor = computed(() => this.copLines()
-    .reduce((sum, line) => sum + line.cushion.availableMinor, 0));
+    .reduce((sum, line) => sum + line.availableMinor, 0));
 
   /** What every peso account earned on the last day worked out. */
   readonly earnedLastDayMinor = computed(() => this.copLines()
@@ -581,6 +588,12 @@ export class CushionPage {
         // the month earns every day too, but nothing of it arrives until then.
         const paidThatDay = last ? await yields.paidOn(entry.account_id, last) : [];
         const landed = await yields.landedByPocket(entry.account_id, today());
+        const held = await engine.heldByPocket(entry.account_id, today());
+        // Every movement counts on both sides - the products' balances and the
+        // account's - so the difference is only what the products hold beyond it.
+        const productsMinor = pockets.reduce(
+          (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
+        const accountMinor = (await accounts.balance(entry.account_id))?.balance_minor ?? 0;
 
         lines.push({
           account,
@@ -594,13 +607,14 @@ export class CushionPage {
           // them showed Uala earning on twice what it holds.
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
-          heldByPocket: await engine.heldByPocket(entry.account_id, today()),
+          heldByPocket: held,
+          availableMinor: productsMinor - accountMinor,
           landedByPocket: landed.total,
           paidYieldByPocket: landed.yields,
         });
       }
 
-      lines.sort((a, b) => b.cushion.totalMinor - a.cushion.totalMinor);
+      lines.sort((a, b) => b.availableMinor - a.availableMinor);
       this.lines.set(lines);
       this.lastAccrued.set(newest);
       this.incomeCategories.set(await categories.list({ kind: 'income' }));

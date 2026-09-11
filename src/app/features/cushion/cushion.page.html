@@ -88,7 +88,7 @@
           </ion-label>
           <!-- Only what the bank has paid: what is still owed is not money yet. -->
           <ion-note slot="end">
-            <span class="net">{{ money(line.cushion.availableMinor) }}</span>
+            <span class="net">{{ money(line.availableMinor) }}</span>
             @if (line.lastDayMinor > 0) {
               <span class="perDay">+{{ money(line.lastDayMinor) }}</span>
             }
@@ -117,7 +117,7 @@
               </p>
             </ion-label>
             <ion-note slot="end">
-              <span class="net">{{ money(line.cushion.availableMinor, line.account.currency_code) }}</span>
+              <span class="net">{{ money(line.availableMinor, line.account.currency_code) }}</span>
               @if (line.lastDayMinor > 0) {
                 <span class="perDay">+{{ money(line.lastDayMinor, line.account.currency_code) }}</span>
               }
@@ -274,7 +274,7 @@
 
           @if (form() === 'none') {
             <section class="total inner">
-              <p class="amount">{{ money(line.cushion.totalMinor, line.account.currency_code) }}</p>
+              <p class="amount">{{ money(line.availableMinor, line.account.currency_code) }}</p>
               <p class="caption">{{ 'cushion.detail.total' | t }}</p>
 
               <!-- The figure someone came here to check against the bank. It
@@ -722,7 +722,7 @@
               <ion-item>
                 <ion-label>{{ 'cushion.detail.total' | t }}</ion-label>
                 <ion-note slot="end" class="settingsTotal">
-                  {{ money(line.cushion.totalMinor, line.account.currency_code) }}
+                  {{ money(line.availableMinor, line.account.currency_code) }}
                 </ion-note>
               </ion-item>
               <!-- How often the bank pays is asked once per rate and not here.
