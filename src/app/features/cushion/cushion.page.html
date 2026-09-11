@@ -175,6 +175,14 @@
 
   <!-- The detail. Full height rather than a draggable sheet, because the day
        list has to scroll from the moment it opens. -->
+  <ion-modal class="entry-sheet" [isOpen]="cushionEntry() !== null" (didDismiss)="cushionEntry.set(null)">
+    <ng-template>
+      @if (cushionEntry(); as request) {
+        <app-cushion-entry [request]="request" (saved)="entrySaved()" (cancelled)="cushionEntry.set(null)"></app-cushion-entry>
+      }
+    </ng-template>
+  </ion-modal>
+
   <ion-modal [isOpen]="openLine() !== null" (didDismiss)="closeDetail()">
     <ng-template>
       @if (openLine(); as line) {
@@ -335,11 +343,19 @@
                    amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
+            <!-- Income or an expense on a product's yields, on the movement
+                 screen. It never touches the account balance. -->
             <div class="actions">
-              <ion-button expand="block" fill="outline" (click)="startForm('adjust')">
+              <ion-button expand="block" fill="outline" color="success" (click)="openEntry(line, 'income')">
                 <ion-icon slot="start" name="add-outline"></ion-icon>
-                {{ 'cushion.entry' | t }}
+                {{ 'cushion.entry.income' | t }}
               </ion-button>
+              <ion-button expand="block" fill="outline" color="danger" (click)="openEntry(line, 'expense')">
+                <ion-icon slot="start" name="remove-outline"></ion-icon>
+                {{ 'cushion.entry.expense' | t }}
+              </ion-button>
+            </div>
+            <div class="actions">
               <ion-button expand="block" [disabled]="line.cushion.totalMinor <= 0"
                           (click)="startForm('withdraw')">
                 <ion-icon slot="start" name="arrow-forward-outline"></ion-icon>
@@ -1074,72 +1090,6 @@
             </div>
           }
 
-          <!-- Correcting against what the bank really paid -->
-          @if (form() === 'adjust') {
-            <h2>{{ 'cushion.entry' | t }}</h2>
-            <p class="hint">{{ 'cushion.entry.hint' | t }}</p>
-
-            <h3 class="field-heading">{{ 'cushion.entry.direction' | t }}</h3>
-            <div class="pocket-row">
-              <button type="button" [class.on]="entryDirection() === 'income'"
-                      (click)="entryDirection.set('income')">{{ 'cushion.entry.income' | t }}</button>
-              <button type="button" [class.on]="entryDirection() === 'expense'"
-                      (click)="entryDirection.set('expense')">{{ 'cushion.entry.expense' | t }}</button>
-            </div>
-
-            <ion-list [inset]="true">
-              <!-- What it is, not just how much. Cashback is not withheld and
-                   interest is, so a figure that does not say which is one the
-                   tax module cannot classify later. -->
-              <ion-item>
-                <ion-select [label]="'cushion.entry.kind' | t" labelPlacement="stacked"
-                            [value]="entryKind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                            (ionChange)="entryKind.set($any($event.detail).value)">
-                  <ion-select-option value="cashback">{{ 'cushion.kind.cashback' | t }}</ion-select-option>
-                  <ion-select-option value="correction">{{ 'cushion.kind.correction' | t }}</ion-select-option>
-                  <ion-select-option value="other">{{ 'cushion.kind.other' | t }}</ion-select-option>
-                </ion-select>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
-                           inputmode="decimal" [value]="amount()"
-                           (ionInput)="amount.set($any($event.target).value)"
-                           placeholder="1.500,00"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
-                           type="date" [value]="onDate()"
-                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
-              </ion-item>
-            </ion-list>
-
-            <h3 class="field-heading">
-              {{ (entryDirection() === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
-            </h3>
-            <div class="pocket-row">
-              @for (pocket of line.pockets; track pocket.id) {
-                <button type="button" [class.on]="entryPocket() === pocket.id"
-                        (click)="entryPocket.set(pocket.id)">{{ pocket.name }}</button>
-              }
-            </div>
-
-            <ion-list [inset]="true">
-              <ion-item>
-                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
-                              [autoGrow]="true" rows="2" [value]="note()"
-                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
-              </ion-item>
-            </ion-list>
-
-            <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="form.set('none')">
-                {{ 'entry.cancel' | t }}
-              </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveAdjustment()">
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-          }
 
           <!-- Moving it into the account, which is what the module is for -->
           @if (form() === 'move') {

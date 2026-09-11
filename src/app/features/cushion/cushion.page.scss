@@ -341,7 +341,7 @@ ion-note[slot='end'] {
    which is a small centred question. Without the exception this rule, being
    scoped to the component, outweighed `ion-modal.confirm-sheet` in global.scss
    and stretched the dialog over the whole screen with its content at the top. */
-ion-modal:not(.confirm-sheet) {
+ion-modal:not(.confirm-sheet):not(.entry-sheet) {
   --width: 100%;
   --max-width: 100%;
   --height: 100%;

@@ -51,6 +51,7 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
+import { CushionEntryComponent, type CushionEntryRequest } from './cushion-entry.component';
 
 /** One row of the list: an enrolled account and what its cushion is worth. */
 interface CushionLine {
@@ -104,7 +105,7 @@ interface Payment {
   templateUrl: './cushion.page.html',
   styleUrls: ['./cushion.page.scss'],
   imports: [
-    IconComponent,
+    IconComponent, CushionEntryComponent,
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
@@ -130,7 +131,7 @@ export class CushionPage {
   readonly openDays = signal<YieldDay[]>([]);
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'adjust' | 'withdraw' | 'move' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'withdraw' |'move' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
 
   /** Where money is being moved from and to, inside one account. */
   readonly moveFrom = signal<number | null>(null);
@@ -195,10 +196,8 @@ export class CushionPage {
   }
 
   /** What kind of money an entry is, and where it landed. */
-  readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
-  readonly entryPocket = signal<number | null>(null);
-  /** Money coming into a product's yields, or going out of them. */
-  readonly entryDirection = signal<'income' | 'expense'>('income');
+  /** The income or expense screen for a product's yields, while it is open. */
+  readonly cushionEntry = signal<CushionEntryRequest | null>(null);
 
   /** Everything that has landed in the open account's cushion by hand. */
   readonly entries = signal<CushionEntry[]>([]);
@@ -670,14 +669,21 @@ export class CushionPage {
     if (!toSettings) this.form.set('none');
   }
 
-  startForm(which: 'adjust' | 'withdraw'): void {
+  startForm(which: 'withdraw'): void {
     this.resetForm();
-    if (which === 'adjust') {
-      // The usual product is where money goes unless told otherwise.
-      const pockets = this.openLine()?.pockets ?? [];
-      this.entryPocket.set((pockets.find(pocket => !!pocket.is_default) ?? pockets[0])?.id ?? null);
-    }
     this.form.set(which);
+  }
+
+  /** Opens the income or expense screen for the yields of the account on screen. */
+  openEntry(line: CushionLine, kind: 'income' | 'expense'): void {
+    this.cushionEntry.set({ kind, account: line.account, pockets: line.pockets });
+  }
+
+  /** Saved and worked out again; the account shows the new figures. */
+  async entrySaved(): Promise<void> {
+    this.cushionEntry.set(null);
+    const line = this.openLine();
+    if (line) await this.reopen(line);
   }
 
   /**
@@ -1416,9 +1422,6 @@ export class CushionPage {
   private resetForm(): void {
     this.error.set('');
     this.confirmingStop.set(false);
-    this.entryKind.set('cashback');
-    this.entryPocket.set(null);
-    this.entryDirection.set('income');
     this.amount.set('');
     this.note.set('');
     this.onDate.set(today());
@@ -1531,54 +1534,6 @@ export class CushionPage {
     await this.open(fresh);
     if (keepForm) await this.openSettings();
     else if (form === 'day') this.form.set('none');
-  }
-
-  /**
-   * Records money coming into or going out of one product's yields.
-   *
-   * Like a movement in an account - an income or an expense, on a product -
-   * except that it never touches the account's balance, so net worth does not
-   * move. For cashback, a monthly deposit that came in short, anything the
-   * daily history cannot explain; that history is left as it is, as the
-   * evidence of what was computed and why.
-   */
-  async saveAdjustment(): Promise<void> {
-    const line = this.openLine();
-    if (!line) return;
-
-    const typed = this.parsed();
-    if (typed === null || typed === 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
-      return;
-    }
-    const minor = this.entryDirection() === 'expense' ? -Math.abs(typed) : Math.abs(typed);
-
-    this.saving.set(true);
-    try {
-      const { db, yields, tax } = this.repos();
-      await db.transaction(async () => {
-        await yields.adjust({
-          account_id: line.account.id,
-          on_date: this.onDate(),
-          amount_minor: minor,
-          kind: this.entryKind(),
-          pocket_id: this.entryPocket(),
-          note: this.note().trim() || null,
-        });
-
-        // Money that lands on a day changes what every day after it earns
-        // on, so those days are worked out again. Anything corrected by
-        // hand is left alone, as always.
-        await yields.clearDays(line.account.id, this.onDate());
-      });
-
-      await accrueAndSettle(db, yields, tax, line.account.id, today());
-      await this.reopen(line);
-    } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.saving.set(false);
-    }
   }
 
   /**
