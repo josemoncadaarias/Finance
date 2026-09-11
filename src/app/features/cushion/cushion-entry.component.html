@@ -92,16 +92,24 @@
         </button>
       </div>
 
-      <!-- Optional: an ordinary movement of the account, which does change
-           net worth. What "move it to the account" used to be for. -->
-      <div class="net-worth">
-        <ion-toggle [checked]="affectsNetWorth()" (ionChange)="affectsNetWorth.set($any($event.detail).checked)">
-          {{ 'cushion.entry.netWorth' | t }}
-        </ion-toggle>
+      <!-- What the entry changes: the product alone, the product and net worth
+           (an ordinary movement), or net worth alone - cashing in money the
+           product already holds, or the reverse for an expense. -->
+      <p class="scope-label">{{ 'cushion.entry.scope' | t }}</p>
+      <div class="order scope">
+        <button type="button" [class.on]="scope() === 'product'" (click)="scope.set('product')">
+          {{ 'cushion.entry.scope.product' | t }}
+        </button>
+        <button type="button" [class.on]="scope() === 'both'" (click)="scope.set('both')">
+          {{ 'cushion.entry.scope.both' | t }}
+        </button>
+        <button type="button" [class.on]="scope() === 'netWorth'" (click)="scope.set('netWorth')">
+          {{ (request().kind === 'expense' ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome') | t }}
+        </button>
       </div>
-      <p class="pending">{{ (affectsNetWorth() ? 'cushion.entry.netWorthHint' : 'cushion.entry.noNetWorth') | t }}</p>
+      <p class="scope-hint">{{ scopeHint() }}</p>
 
-      @if (affectsNetWorth()) {
+      @if (usesCategory()) {
         <div class="categories" [class.waiting]="categoryId() === null">
           @for (category of shortlist(); track category.id) {
             <button type="button" class="category" [class.on]="categoryId() === category.id"

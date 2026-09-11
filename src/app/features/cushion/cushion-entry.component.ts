@@ -7,20 +7,27 @@
  * already the one people know. Every question is about a product, never an
  * account: the account is the one on screen.
  *
- * An income or expense changes the product's balance and, by default, nothing
- * else: it writes a `cushion_adjustments` row, saying what it is (cashback, a
- * correction, something else), and net worth stays where it was. With "also
- * change my net worth" on it is an ordinary movement of the account instead,
- * with a category and the product, exactly as the movements screen writes one
- * - which is what "move it to the account" used to be for. A transfer is two
- * legs of one transfer inside the account: its balance is what it was, and
- * only which product holds the money changes.
+ * An income or expense says what it changes:
+ *
+ *   * **The product only** - a `cushion_adjustments` row saying what it is
+ *     (cashback, a correction, something else). Net worth stays put.
+ *   * **The product and net worth** - an ordinary movement of the account,
+ *     with a category and the product, exactly as the movements screen writes
+ *     one.
+ *   * **Net worth only** - cashing in money the product already holds and the
+ *     account never counted: Rappi's product shows 66 million, the account 60,
+ *     and 3 of the 6 in between become net worth. The movement is written as
+ *     above, and the same amount comes out of what the product gathered, so
+ *     its balance stays exactly where it was. An expense is the reverse.
+ *
+ * A transfer is two legs of one transfer inside the account: its balance is
+ * what it was, and only which product holds the money changes.
  */
 
 import { Component, HostListener, computed, inject, input, output, signal, type OnInit } from '@angular/core';
 import {
   IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-  IonList, IonItem, IonLabel, IonFooter, IonContent, IonToggle, IonSearchbar,
+  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -55,12 +62,25 @@ type EntryKind = 'cashback' | 'correction' | 'other';
   imports: [
     TranslatePipe, IconComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-    IonList, IonItem, IonLabel, IonFooter, IonContent, IonToggle, IonSearchbar,
+    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar,
   ],
   templateUrl: './cushion-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
   styleUrls: ['../entry/entry.component.scss'],
-  styles: ['.net-worth { display: block; padding: 0 1rem 0.4rem; } .net-worth ion-toggle { width: 100%; }'],
+  styles: [`
+    .scope-label {
+      margin: 0; padding: 0 1rem 0.35rem; text-align: center;
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ion-color-medium);
+    }
+    .order.scope { justify-content: center; flex-wrap: wrap; padding: 0 1rem 0.5rem; }
+    /* Room below it: the category grid waiting for a pick draws its outline
+       outside itself, and without this the outline ran across the sentence. */
+    .scope-hint {
+      margin: 0; padding: 0 1rem 1rem; text-align: center;
+      font-size: 0.8rem; line-height: 1.35; color: var(--ion-color-medium);
+    }
+  `],
 })
 export class CushionEntryComponent implements OnInit {
   private readonly database = inject(DatabaseService);
@@ -85,8 +105,19 @@ export class CushionEntryComponent implements OnInit {
   readonly pickingPocket = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
 
-  /** On: an ordinary movement of the account, which changes net worth. */
-  readonly affectsNetWorth = signal(false);
+  /** What the entry changes: the product, the product and net worth, or net worth alone. */
+  readonly scope = signal<'product' | 'both' | 'netWorth'>('product');
+  /** Anything that reaches net worth is a movement of the account, with a category. */
+  readonly usesCategory = computed(() => this.scope() !== 'product');
+
+  readonly scopeHint = computed(() => {
+    const expense = this.request().kind === 'expense';
+    switch (this.scope()) {
+      case 'product': return this.i18n.t('cushion.entry.noNetWorth');
+      case 'both': return this.i18n.t('cushion.entry.netWorthHint');
+      default: return this.i18n.t(expense ? 'cushion.entry.scope.netWorthExpenseHint' : 'cushion.entry.scope.netWorthIncomeHint');
+    }
+  });
   readonly categoryId = signal<number | null>(null);
   /** Categories of this kind, most used first. */
   readonly categories = signal<UsedCategory[]>([]);
@@ -154,7 +185,7 @@ export class CushionEntryComponent implements OnInit {
     if (this.isTransfer() && (this.toPocketId() === null || this.toPocketId() === this.pocketId())) {
       return this.i18n.t('cushion.move.samePocket');
     }
-    if (!this.isTransfer() && this.affectsNetWorth() && this.categoryId() === null) {
+    if (!this.isTransfer() && this.usesCategory() && this.categoryId() === null) {
       return this.i18n.t('entry.need.category');
     }
     return null;
@@ -317,10 +348,10 @@ export class CushionEntryComponent implements OnInit {
             from: { account_id: account.id, pocket_id: this.pocketId(), amount_minor: minor },
             to: { account_id: account.id, pocket_id: this.toPocketId(), amount_minor: minor },
           });
-        } else if (this.affectsNetWorth()) {
+        } else if (this.scope() !== 'product') {
           // An ordinary movement, written the way the movements screen writes
           // one: it shows there with its category and product.
-          await new TransactionsRepository(db).create({
+          const transactionId = await new TransactionsRepository(db).create({
             account_id: account.id,
             category_id: this.categoryId(),
             // Null on an account with one product, as the movements screen does.
@@ -330,6 +361,23 @@ export class CushionEntryComponent implements OnInit {
             description: this.note().trim() || null,
             source: 'manual',
           });
+
+          if (this.scope() === 'netWorth') {
+            // The movement put the money in the product; it was already there.
+            // So the same amount leaves what the product had gathered - or, for
+            // an expense, goes back into it - and its balance does not move.
+            if (kind === 'income') {
+              await yields.withdraw({
+                account_id: account.id, on_date: this.onDate(), amount_minor: minor,
+                transaction_id: transactionId, pocket_id: this.pocketId(), note: this.note().trim() || null,
+              });
+            } else {
+              await yields.adjust({
+                account_id: account.id, on_date: this.onDate(), amount_minor: minor,
+                kind: 'other', pocket_id: this.pocketId(), note: this.note().trim() || null,
+              });
+            }
+          }
         } else {
           await yields.adjust({
             account_id: account.id,

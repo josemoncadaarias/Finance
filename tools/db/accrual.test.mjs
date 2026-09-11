@@ -379,6 +379,36 @@ test('a product that is not withheld has nothing taken, beside one in the same a
     'nothing at all is taken from the product that is not withheld');
 });
 
+test('cashing in, or the reverse, moves the account and leaves the product balance where it was', async () => {
+  const { engine, yields, transactions, categories, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 600_000_000, opening_on: '2026-08-31', withholding: false });
+  const [product] = await yields.pockets(ids.uala);
+  const income = await categories.create({ name: 'Rendimientos', kind: 'income', builtin_icon: 'cash' });
+  const balance = async () => (await engine.heldByPocket(ids.uala, '2026-09-10')).get(product.id)
+    + (await yields.landedByPocket(ids.uala, '2026-09-10')).total.get(product.id);
+  const before = await balance();
+  const cushion = async () => (await yields.cushion(ids.uala)).totalMinor;
+  const gathered = await cushion();
+
+  // Cashing in 3 million, written the way the income screen writes it.
+  const cashed = await transactions.create({
+    account_id: ids.uala, category_id: income, occurred_on: '2026-09-05', amount_minor: 300_000_000, source: 'manual',
+  });
+  await yields.withdraw({
+    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, pocket_id: product.id,
+  });
+  assert.equal(await balance(), before, 'the product holds what it held');
+  assert.equal(await cushion(), gathered - 300_000_000, 'what it had gathered is 3 million less');
+
+  // And the reverse, as an expense of 1 million.
+  await transactions.create({
+    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-06', amount_minor: -100_000_000, source: 'manual',
+  });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', pocket_id: product.id });
+  assert.equal(await balance(), before);
+  assert.equal(await cushion(), gathered - 200_000_000);
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({
