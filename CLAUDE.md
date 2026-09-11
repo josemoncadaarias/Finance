@@ -195,6 +195,11 @@ the framework on a long-running project.
    - The rule is written against the **daily** interest even though most banks
      deposit monthly. That is why the module accrues by day.
 
+   **A CDT has no threshold**: 7% of every day's yield is withheld. Each
+   product carries a kind (`yield_pockets.kind`, migration 029): `high_yield`,
+   which follows the threshold rule above and is what every product was
+   before, or `cdt`. Stated by Jose 2026-09-11.
+
    Cashback is not withheld. Foreign-currency accounts are not withheld either:
    retencion en la fuente is a Colombian withholding by a Colombian paying
    agent — which does **not** mean the income is untaxed, since a resident

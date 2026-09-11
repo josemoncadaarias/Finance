@@ -105,6 +105,26 @@ export interface WithholdingRule {
   base: 'all' | 'excess';
 }
 
+/** What kind of product a pocket is. It decides how its yield is withheld. */
+export type ProductKind = 'high_yield' | 'cdt';
+
+/**
+ * The withholding rule as it applies to a kind of product.
+ *
+ * A high-yield savings product withholds only on a day whose interest reaches
+ * the threshold (Decreto 1625 art. 1.2.4.2.87, written for savings deposits),
+ * so it gets the rule as configured. A CDT has no threshold: the 7% applies to
+ * every peso of its yield - stated by Jose on 2026-09-11, still to be confirmed
+ * with an accountant. Same rate, same UVT; only the threshold goes.
+ *
+ * Missing parameters stay missing for both: `null` in, `null` out, so a day
+ * is flagged as unknown rather than written with a silent zero.
+ */
+export function ruleForProduct(kind: ProductKind, rule: WithholdingRule | null): WithholdingRule | null {
+  if (rule === null || kind !== 'cdt') return rule;
+  return { ...rule, thresholdUvt: 0, base: 'all' };
+}
+
 /**
  * The withholding on one day's yield.
  *

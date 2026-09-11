@@ -317,6 +317,9 @@
                       } @else {
                         {{ 'cushion.pockets.manual' | t }}
                       }
+                      @if (pocket.kind === 'cdt') {
+                        · {{ 'cushion.pocket.kind.cdt' | t }}
+                      }
                     </p>
                   </ion-label>
                   <ion-note slot="end" class="held"
@@ -606,6 +609,9 @@
                       } @else {
                         {{ 'cushion.pockets.manual' | t }}
                       }
+                      @if (pocket.kind === 'cdt') {
+                        · {{ 'cushion.pocket.kind.cdt' | t }}
+                      }
                     </p>
                   </ion-label>
                   <!-- What is in it, here as well as on the account's own
@@ -762,7 +768,16 @@
                   <ion-select-option value="ledger">{{ 'cushion.pocket.sourceLedger' | t }}</ion-select-option>
                 </ion-select>
               </ion-item>
+              <ion-item>
+                <ion-select [label]="'cushion.pocket.kind' | t" labelPlacement="stacked"
+                            [value]="pocketKind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                            (ionChange)="pocketKind.set($any($event.detail).value)">
+                  <ion-select-option value="high_yield">{{ 'cushion.pocket.kind.high_yield' | t }}</ion-select-option>
+                  <ion-select-option value="cdt">{{ 'cushion.pocket.kind.cdt' | t }}</ion-select-option>
+                </ion-select>
+              </ion-item>
             </ion-list>
+            <p class="hint">{{ 'cushion.pocket.kindHint' | t }}</p>
 
             @if (pocketSource() === 'manual') {
               <ion-list [inset]="true">

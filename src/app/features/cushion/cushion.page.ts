@@ -207,6 +207,7 @@ export class CushionPage {
   readonly editingPocket = signal<YieldPocket | null>(null);
   readonly pocketName = signal('');
   readonly pocketSource = signal<'ledger' | 'manual'>('manual');
+  readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
   readonly pocketAmount = signal('');
   readonly pocketFrom = signal<IsoDate>(today());
 
@@ -862,6 +863,7 @@ export class CushionPage {
     this.editablePockets.set(await this.repos().yields.pockets(line.account.id));
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
+    this.pocketKind.set(pocket?.kind ?? 'high_yield');
     // A brand new product is not the usual one unless the account has none.
     this.pocketIsDefault.set(pocket
       ? pocket.is_default === 1
@@ -931,12 +933,14 @@ export class CushionPage {
               account_id: line.account.id,
               name,
               source: manual ? 'manual' : 'ledger',
+              kind: this.pocketKind(),
               sort_order: line.pockets.length,
             });
 
         if (existing) {
           await yields.renamePocket(id, name);
           await yields.setPocketSource(id, manual ? 'manual' : 'ledger');
+          await yields.setPocketKind(id, this.pocketKind());
         }
         if (manual) {
           // Correcting the balance on screen, or recording a new one. The
@@ -967,8 +971,17 @@ export class CushionPage {
         // balance forward leaves the days between the old date and the new one
         // standing on a figure that no longer applies to them.
         const wasFrom = this.editingBalanceFrom();
-        const redoFrom = wasFrom !== null && wasFrom < this.pocketFrom()
+        let redoFrom = wasFrom !== null && wasFrom < this.pocketFrom()
           ? wasFrom : this.pocketFrom();
+
+        // A different kind of product withholds differently on every day it
+        // has earned, so those days are worked out again from its first
+        // balance - or from the day the account started, if it has none.
+        if (existing && existing.kind !== this.pocketKind()) {
+          const first = (await yields.pocketBalances(id))[0]?.valid_from
+            ?? (await yields.account(line.account.id))?.opening_on;
+          if (first && first < redoFrom) redoFrom = first;
+        }
         await yields.clearDays(line.account.id, redoFrom);
       });
 

@@ -1762,3 +1762,33 @@ test('removing the usual product makes the destination the usual one', async () 
   assert.equal(left.id, cdt);
   assert.equal(left.is_default, 1, 'unassigned money still has somewhere to land');
 });
+
+// ---------------------------------------------------------------------------
+// What kind of product it is
+// ---------------------------------------------------------------------------
+
+test('a CDT has 7% of every day withheld; a high-yield product only above the threshold', async () => {
+  const { db, yields, tax, engine, ids } = await setup();
+  await withRealisticWithholding(tax);
+  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: true });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-08-31', annual_rate_scaled: pct(9) });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  assert.equal(savings.kind, 'high_yield', 'every product starts as a high-yield one');
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+  const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT', source: 'manual', kind: 'cdt', sort_order: 1 });
+  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+
+  await engine.accrue(ids.rappi, '2026-09-01');
+  const days = await yields.days(ids.rappi, '2026-09-01', '2026-09-01');
+  const of = id => days.find(day => day.pocket_id === id);
+
+  // 5,000,000.00 at 9% E.A. earns about 1,181 pesos a day: under the 2,880.57
+  // that 0.055 UVT comes to.
+  assert.ok(of(savings.id).gross_minor < 288_057);
+  assert.equal(of(cdt).gross_minor, of(savings.id).gross_minor, 'same balance and rate, same yield');
+  assert.equal(of(savings.id).withholding_minor, 0, 'high yield: under the threshold, nothing withheld');
+  assert.equal(of(cdt).withholding_minor, Math.round(of(cdt).gross_minor * 0.07), 'CDT: 7% of all of it');
+  assert.equal((await yields.pockets(ids.rappi)).find(pocket => pocket.id === cdt).kind, 'cdt');
+});

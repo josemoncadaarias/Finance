@@ -19,6 +19,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { todayIso } from '../../yields/days';
+import type { ProductKind } from '../../yields/yield-math';
 
 /** An account enrolled for accrual. Not being here means never accrued. */
 export interface YieldAccount {
@@ -85,6 +86,8 @@ export interface YieldPocket {
   account_id: number;
   name: string;
   source: 'ledger' | 'manual';
+  /** Which withholding rule it follows: a savings product's, or a CDT's. */
+  kind: ProductKind;
   sort_order: number;
   /**
    * The product money lands in when nobody says otherwise. 1 or null.
@@ -453,7 +456,7 @@ export class YieldsRepository {
   /** The pockets of an account, in the order they are shown. */
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, sort_order, is_default, note
+      `SELECT id, account_id, name, source, kind, sort_order, is_default, note
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
@@ -461,7 +464,7 @@ export class YieldsRepository {
   /** Every pocket of every enrolled account, for one pass over them all. */
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, sort_order, is_default, note
+      `SELECT id, account_id, name, source, kind, sort_order, is_default, note
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
 
@@ -469,14 +472,15 @@ export class YieldsRepository {
     account_id: number;
     name: string;
     source?: 'ledger' | 'manual';
+    kind?: ProductKind;
     sort_order?: number;
     note?: string | null;
   }): Promise<number> {
     const now = this.now();
     const result = await this.db.run(
-      `INSERT INTO yield_pockets (account_id, name, source, sort_order, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [input.account_id, input.name, input.source ?? 'manual',
+      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [input.account_id, input.name, input.source ?? 'manual', input.kind ?? 'high_yield',
        input.sort_order ?? 0, input.note ?? null, now, now]);
     return result.lastId ?? 0;
   }
@@ -491,6 +495,12 @@ export class YieldsRepository {
   async setPocketSource(id: number, source: 'ledger' | 'manual'): Promise<void> {
     await this.db.run('UPDATE yield_pockets SET source = ?, updated_at = ? WHERE id = ?',
       [source, this.now(), id]);
+  }
+
+  /** Changes which withholding rule a product follows. The caller works its days out again. */
+  async setPocketKind(id: number, kind: ProductKind): Promise<void> {
+    await this.db.run('UPDATE yield_pockets SET kind = ?, updated_at = ? WHERE id = ?',
+      [kind, this.now(), id]);
   }
 
   /**

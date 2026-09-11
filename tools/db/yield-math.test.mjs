@@ -176,3 +176,14 @@ test('a stored rate goes back into the field it came from', () => {
   assert.equal(scaledPercentToString(105000), '10.5', 'no trailing zeros to edit around');
   assert.equal(scaledPercentToString(110000), '11');
 });
+
+test('a CDT has no threshold: 7% of every peso of yield', async () => {
+  const { ruleForProduct } = await import('../../src/app/core/yields/yield-math.ts');
+  const cdt = ruleForProduct('cdt', RULE);
+
+  assert.equal(withholdingMinor(9_999_999, cdt), Math.round(9_999_999 * 0.07),
+    'below the savings threshold, and still withheld');
+  assert.equal(withholdingMinor(9_999_999, ruleForProduct('high_yield', RULE)), 0,
+    'the savings rule is exactly what it was');
+  assert.equal(ruleForProduct('cdt', null), null, 'missing parameters are still unknown, not zero');
+});

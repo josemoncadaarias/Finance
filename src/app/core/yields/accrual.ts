@@ -36,7 +36,9 @@ import type {
   CushionEntry, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
-import { accrueDay, bandFor, rateWhenConditionMissed, type RateBand, type WithholdingRule } from './yield-math';
+import {
+  accrueDay, bandFor, rateWhenConditionMissed, ruleForProduct, type RateBand, type WithholdingRule,
+} from './yield-math';
 import { addDays, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
 
 export interface AccrualResult {
@@ -389,7 +391,9 @@ export class AccrualEngine {
               }
             }
 
-            const accrued = accrueDay(base, band, rule, enrolled.withholding === 1);
+            // The kind of product decides the withholding: a CDT has none of
+            // the daily threshold a savings product has.
+            const accrued = accrueDay(base, band, ruleForProduct(pocket.kind, rule), enrolled.withholding === 1);
 
             await this.yields.putDay({
               pocket_id: pocket.id,
