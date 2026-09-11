@@ -6,7 +6,7 @@
       </ion-button>
     </ion-buttons>
 
-    <h1 class="title">{{ (request().kind === 'expense' ? 'cushion.entry.newExpense' : 'cushion.entry.newIncome') | t }}</h1>
+    <h1 class="title">{{ title() }}</h1>
 
     <ion-buttons slot="end">
       <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
@@ -24,7 +24,7 @@
     }
 
     <section class="amount" [class]="request().kind">
-      <span class="sign">{{ request().kind === 'expense' ? '−' : '+' }}</span>
+      <span class="sign">{{ request().kind === 'expense' ? '−' : request().kind === 'income' ? '+' : '⇄' }}</span>
       <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
       <span class="currency">{{ request().account.currency_code }}</span>
 
@@ -42,34 +42,69 @@
       <p class="error">{{ error() }}</p>
     }
 
-    <!-- The product and the date. Only the product: the account is already
-         the one on screen, and this never touches its balance. -->
-    <div class="context">
-      <button type="button" class="with-part" (click)="pickingPocket.set(true)">
-        <ion-icon name="wallet-outline"></ion-icon>
-        <span class="stack">
-          <span>{{ pocketName() }}</span>
-          <span class="part">{{ request().account.name }}</span>
-        </span>
-      </button>
-      <button type="button" (click)="showDate.set(true)">
-        <ion-icon name="calendar-outline"></ion-icon>
-        <span>{{ dateLabel() }}</span>
-      </button>
-    </div>
-
-    <p class="pending">{{ 'cushion.entry.noNetWorth' | t }}</p>
-
-    <!-- What it is, in place of a category: the tax module needs to tell
-         cashback from yield. -->
-    <div class="categories">
-      @for (option of kinds; track option.value) {
-        <button type="button" class="category" [class.on]="kind() === option.value" (click)="kind.set(option.value)">
-          <ion-icon [name]="option.icon"></ion-icon>
-          <span>{{ option.label | t }}</span>
+    @if (isTransfer()) {
+      <!-- From and to, products only: both are inside the account on screen. -->
+      <div class="route">
+        <button type="button" class="leg" (click)="pickingPocket.set('from')">
+          <span class="lead">{{ 'cushion.move.from' | t }}</span>
+          <span class="who">
+            <ion-icon name="wallet-outline"></ion-icon>
+            <span class="name">{{ pocketName() }}</span>
+          </span>
         </button>
-      }
-    </div>
+
+        <button type="button" class="swap" (click)="swap()" [attr.aria-label]="'entry.swap' | t">
+          <ion-icon name="swap-horizontal-outline"></ion-icon>
+        </button>
+
+        <button type="button" class="leg" [class.needed]="toPocketId() === null || toPocketId() === pocketId()"
+                (click)="pickingPocket.set('to')">
+          <span class="lead">{{ 'cushion.move.to' | t }}</span>
+          <span class="who">
+            <ion-icon name="wallet-outline"></ion-icon>
+            <span class="name">{{ toPocketName() }}</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="context single">
+        <button type="button" (click)="showDate.set(true)">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>{{ dateLabel() }}</span>
+        </button>
+      </div>
+
+      <p class="pending">{{ 'cushion.move.hint' | t }}</p>
+    } @else {
+      <!-- The product and the date. Only the product: the account is already
+           the one on screen, and its balance does not move. -->
+      <div class="context">
+        <button type="button" class="with-part" (click)="pickingPocket.set('from')">
+          <ion-icon name="wallet-outline"></ion-icon>
+          <span class="stack">
+            <span>{{ pocketName() }}</span>
+            <span class="part">{{ request().account.name }}</span>
+          </span>
+        </button>
+        <button type="button" (click)="showDate.set(true)">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>{{ dateLabel() }}</span>
+        </button>
+      </div>
+
+      <p class="pending">{{ 'cushion.entry.noNetWorth' | t }}</p>
+
+      <!-- What it is, in place of a category: the tax module needs to tell
+           cashback from yield. -->
+      <div class="categories">
+        @for (option of kinds; track option.value) {
+          <button type="button" class="category" [class.on]="kind() === option.value" (click)="kind.set(option.value)">
+            <ion-icon [name]="option.icon"></ion-icon>
+            <span>{{ option.label | t }}</span>
+          </button>
+        }
+      </div>
+    }
 
     <div class="note">
       <ion-textarea [placeholder]="'entry.note' | t" [value]="note()" [autoGrow]="false" [rows]="2"
@@ -99,18 +134,27 @@
   </div>
 </ion-footer>
 
-<ion-modal class="pocket-sheet" [isOpen]="pickingPocket()" (didDismiss)="pickingPocket.set(false)">
+<ion-modal class="pocket-sheet" [isOpen]="pickingPocket() !== null" (didDismiss)="pickingPocket.set(null)">
   <ng-template>
     <div class="pocket-picker">
-      <h2>{{ (request().kind === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}</h2>
+      <h2>
+        @if (pickingPocket() === 'to') {
+          {{ 'cushion.move.to' | t }}
+        } @else if (isTransfer()) {
+          {{ 'cushion.move.from' | t }}
+        } @else {
+          {{ (request().kind === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
+        }
+      </h2>
       <ion-list [inset]="true">
         @for (pocket of request().pockets; track pocket.id) {
-          <ion-item button lines="full" (click)="choosePocket(pocket.id)" [class.selected]="pocketId() === pocket.id">
+          <ion-item button lines="full" (click)="choosePocket(pocket.id)"
+                    [class.selected]="(pickingPocket() === 'to' ? toPocketId() : pocketId()) === pocket.id">
             <ion-label>
               <h3>{{ pocket.name }}</h3>
               @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
             </ion-label>
-            @if (pocketId() === pocket.id) {
+            @if ((pickingPocket() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
               <ion-icon slot="end" class="tick" name="checkmark-circle" [attr.aria-label]="'entry.selected' | t"></ion-icon>
             }
           </ion-item>

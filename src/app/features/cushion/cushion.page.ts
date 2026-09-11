@@ -86,8 +86,8 @@ interface CushionLine {
    * — worth seeing rather than hiding, because the negative is the reminder.
    */
   heldByPocket: ReadonlyMap<number, number>;
-  /** What each product has earned and not moved out; apart from its balance. */
-  yieldByPocket: ReadonlyMap<number, number>;
+  /** Yields that landed in each product since its balance was last stated. */
+  yieldInBalanceByPocket: ReadonlyMap<number, number>;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -133,11 +133,8 @@ export class CushionPage {
   readonly openDays = signal<YieldDay[]>([]);
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'withdraw' |'move' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'withdraw' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
 
-  /** Where money is being moved from and to, inside one account. */
-  readonly moveFrom = signal<number | null>(null);
-  readonly moveTo = signal<number | null>(null);
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
   readonly note = signal('');
@@ -271,6 +268,8 @@ export class CushionPage {
   readonly pocketDeleteHeld = signal(0);
   /** What the product being removed has earned and not moved out, either sign. */
   readonly pocketDeleteYield = signal(0);
+  /** Yields landed in the product being edited since its balance was stated. */
+  readonly pocketYieldIn = signal(0);
 
   /** A new product earning nothing has no payday to ask about. */
   readonly pocketRateAboveZero = computed(() => {
@@ -478,7 +477,7 @@ export class CushionPage {
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
           heldByPocket: await engine.heldByPocket(entry.account_id, today()),
-          yieldByPocket: await yields.cushionByPocket(entry.account_id),
+          yieldInBalanceByPocket: await yields.yieldsInBalanceByPocket(entry.account_id, today()),
         });
       }
 
@@ -710,84 +709,10 @@ export class CushionPage {
    * differ only in the product, which sums to zero and leaves the balance
    * untouched while moving what each product earns on.
    */
-  startMove(): void {
-    const line = this.openLine();
-    if (!line || line.pockets.length < 2) return;
-
-    this.resetForm();
-    this.onDate.set(today());
-    this.moveFrom.set(line.pockets[0].id);
-    this.moveTo.set(line.pockets[1].id);
-    this.form.set('move');
-  }
-
-  pickMoveFrom(id: number): void {
-    this.moveFrom.set(id);
-    // Somewhere has to be the other end, and it cannot be this one.
-    if (this.moveTo() === id) {
-      const other = this.openLine()?.pockets.find(pocket => pocket.id !== id);
-      this.moveTo.set(other?.id ?? null);
-    }
-  }
-
-  pickMoveTo(id: number): void {
-    this.moveTo.set(id);
-    if (this.moveFrom() === id) {
-      const other = this.openLine()?.pockets.find(pocket => pocket.id !== id);
-      this.moveFrom.set(other?.id ?? null);
-    }
-  }
-
-  /**
-   * Writes the move as two legs of one transfer.
-   *
-   * Both legs sit in the same account, so the account's balance is exactly
-   * what it was - which is the truth of it. What changes is which product
-   * each figure belongs to, and therefore what each one earns on from the
-   * next day.
-   *
-   * No category: a category answers "what was this spent on", and nothing was
-   * spent. The movements list already hides a transfer whose two ends are both
-   * in view, so this does not clutter the account it happened in either.
-   */
-  async saveMove(): Promise<void> {
-    const line = this.openLine();
-    if (!line) return;
-
-    const minor = this.parsed();
-    if (minor === null || minor <= 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
-      return;
-    }
-
-    const from = this.moveFrom();
-    const to = this.moveTo();
-    if (from === null || to === null || from === to) {
-      this.error.set(this.i18n.t('cushion.error.movePockets'));
-      return;
-    }
-
-    this.saving.set(true);
-    try {
-      const { db, yields, tax, transfers } = this.repos();
-      await db.transaction(async () => {
-        await transfers.create({
-          occurred_on: this.onDate(),
-          description: this.note().trim() || null,
-          from: { account_id: line.account.id, pocket_id: from, amount_minor: minor },
-          to: { account_id: line.account.id, pocket_id: to, amount_minor: minor },
-        });
-        // Both products earn on something different from this date on.
-        await yields.clearDays(line.account.id, this.onDate());
-      });
-
-      await accrueAndSettle(db, yields, tax, line.account.id, today());
-      await this.reopen(line);
-    } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.saving.set(false);
-    }
+  /** Opens the transfer screen, between two products of the account on screen. */
+  openMove(line: CushionLine): void {
+    if (line.pockets.length < 2) return;
+    this.cushionEntry.set({ kind: 'transfer', account: line.account, pockets: line.pockets });
   }
 
   /** Opens one day so it can be checked against a statement and corrected. */
@@ -974,12 +899,15 @@ export class CushionPage {
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
       await this.readPocketMoved();
+      this.pocketYieldIn.set(
+        (await yields.yieldsInBalanceByPocket(line.account.id, today())).get(pocket?.id ?? -1) ?? 0);
     } else {
       this.pocketAmount.set('0');
       this.pocketFrom.set(today());
       this.editingBalanceId.set(null);
       this.editingBalanceFrom.set(null);
       this.pocketMoved.set(0);
+      this.pocketYieldIn.set(0);
     }
     this.form.set('pocket');
   }
@@ -1222,7 +1150,9 @@ export class CushionPage {
 
     const { db, yields, tax } = this.repos();
     const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
-    this.pocketDeleteHeld.set(held.get(pocket.id) ?? 0);
+    const landed = await yields.yieldsInBalanceByPocket(line.account.id, today());
+    // The balance as the product shows it, the yields paid into it included.
+    this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.get(pocket.id) ?? 0));
     this.pocketDeleteYield.set((await yields.cushionByPocket(line.account.id)).get(pocket.id) ?? 0);
     this.confirmingPocketDelete.set(true);
   }
@@ -1642,7 +1572,7 @@ export class CushionPage {
 
   /** Everything the products hold, which is the account plus its yields. */
   totalHeld(line: CushionLine): number {
-    return line.pockets.reduce((sum, pocket) => sum + this.heldIn(line, pocket.id), 0);
+    return line.pockets.reduce((sum, pocket) => sum + this.balanceIn(line, pocket.id), 0);
   }
   /**
    * The figure typed into the form right now, in minor units.
@@ -1660,9 +1590,14 @@ export class CushionPage {
     return line.heldByPocket.get(pocketId) ?? 0;
   }
 
-  /** The product's own yields, which income and expenses on the yields move. */
+  /** Yields that landed in the product, income and expenses on them included. */
   yieldIn(line: CushionLine, pocketId: number): number {
-    return line.yieldByPocket.get(pocketId) ?? 0;
+    return line.yieldInBalanceByPocket.get(pocketId) ?? 0;
+  }
+
+  /** The product's balance as its bank shows it: what it holds plus the yields paid into it. */
+  balanceIn(line: CushionLine, pocketId: number): number {
+    return this.heldIn(line, pocketId) + this.yieldIn(line, pocketId);
   }
   /** The size of a difference, without its direction. */
   abs(value: number): number {

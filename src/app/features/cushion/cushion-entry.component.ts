@@ -1,13 +1,18 @@
 /**
- * Money coming into or going out of one product's yields.
+ * Money coming into or going out of one product's yields, or moved between
+ * two products of the same account.
  *
- * The same screen as a movement in an account - amount on a keypad, a grid to
- * say what it is, the date, a note - because it is the same act, and the one
- * screen is already the one people know. Two things are different, and both
- * are the point of the yields module: what it is is cashback, a correction or
- * something else rather than a category, and the question is only which
- * product, never which account. It writes a `cushion_adjustments` row and
- * nothing else, so the account's balance and net worth do not move.
+ * The same screen as a movement or a transfer in an account - amount on a
+ * keypad, the date, a note - because it is the same act, and that screen is
+ * already the one people know. What differs is the point of the yields
+ * module: an income or expense says what it is (cashback, a correction,
+ * something else) rather than a category, and every question is about a
+ * product, never an account.
+ *
+ * An income or expense writes a `cushion_adjustments` row: the product's
+ * balance moves, the account's does not, and net worth stays where it was. A
+ * transfer is two legs of one transfer inside the account, so the account's
+ * balance is exactly what it was and only which product holds it changes.
  */
 
 import { Component, HostListener, computed, inject, input, output, signal, type OnInit } from '@angular/core';
@@ -25,6 +30,7 @@ import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
 import { YieldsRepository, type YieldPocket } from '../../core/database/repositories/yields.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
+import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import type { AccountRow } from '../../core/database/types';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
@@ -32,7 +38,7 @@ import { AmountBuffer } from '../entry/amount-buffer';
 import { apply, isOperator, operatorFromKey, type Operator, type Pending } from '../entry/calculator';
 
 export interface CushionEntryRequest {
-  kind: 'income' | 'expense';
+  kind: 'income' | 'expense' | 'transfer';
   account: AccountRow;
   pockets: readonly YieldPocket[];
 }
@@ -61,12 +67,16 @@ export class CushionEntryComponent implements OnInit {
   readonly amount = signal(new AmountBuffer());
   readonly pending = signal<Pending | null>(null);
   readonly kind = signal<EntryKind>('cashback');
+  /** The product the money touches; for a transfer, the one it leaves. */
   readonly pocketId = signal<number | null>(null);
+  /** For a transfer, the product it goes into. */
+  readonly toPocketId = signal<number | null>(null);
   readonly onDate = signal(todayIso());
   readonly note = signal('');
   readonly saving = signal(false);
   readonly error = signal('');
-  readonly pickingPocket = signal(false);
+  /** Which side's product the sheet is asking for, or null when it is closed. */
+  readonly pickingPocket = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
 
   /** What it is, in place of a category. Cashback is not withheld and yield is. */
@@ -87,8 +97,16 @@ export class CushionEntryComponent implements OnInit {
     ',', '0', '=', '÷',
   ];
 
-  readonly pocketName = computed(() =>
-    this.request().pockets.find(pocket => pocket.id === this.pocketId())?.name ?? '');
+  readonly isTransfer = computed(() => this.request().kind === 'transfer');
+
+  readonly title = computed(() => {
+    const kind = this.request().kind;
+    if (kind === 'transfer') return this.i18n.t('cushion.move.title');
+    return this.i18n.t(kind === 'expense' ? 'cushion.entry.newExpense' : 'cushion.entry.newIncome');
+  });
+
+  readonly pocketName = computed(() => this.nameOf(this.pocketId()));
+  readonly toPocketName = computed(() => this.nameOf(this.toPocketId()));
 
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
@@ -105,6 +123,9 @@ export class CushionEntryComponent implements OnInit {
   readonly missing = computed<string | null>(() => {
     if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
     if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
+    if (this.isTransfer() && (this.toPocketId() === null || this.toPocketId() === this.pocketId())) {
+      return this.i18n.t('cushion.move.samePocket');
+    }
     return null;
   });
 
@@ -115,9 +136,12 @@ export class CushionEntryComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // The usual product, as a movement in the account would start on.
+    // The usual product, as a movement in the account would start on; a
+    // transfer sends from it to the next one.
     const pockets = this.request().pockets;
-    this.pocketId.set((pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null);
+    const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
+    this.pocketId.set(usual);
+    if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
   }
 
   press(key: string): void {
@@ -136,8 +160,7 @@ export class CushionEntryComponent implements OnInit {
     const buffer = this.amount();
     const sum = this.pending();
     if (sum && !buffer.isEmpty) {
-      const result = apply(sum.leftMinor, sum.operator, buffer.minor);
-      this.pending.set({ leftMinor: result, operator });
+      this.pending.set({ leftMinor: apply(sum.leftMinor, sum.operator, buffer.minor), operator });
     } else if (!buffer.isEmpty) {
       this.pending.set({ leftMinor: buffer.minor, operator });
     } else if (sum) {
@@ -167,9 +190,22 @@ export class CushionEntryComponent implements OnInit {
     this.note.set('');
   }
 
+  /** Answers the sheet. The two ends of a transfer can never be the same product. */
   choosePocket(id: number): void {
-    this.pocketId.set(id);
-    this.pickingPocket.set(false);
+    if (this.pickingPocket() === 'to') {
+      this.toPocketId.set(id);
+      if (this.pocketId() === id) this.pocketId.set(this.otherThan(id));
+    } else {
+      this.pocketId.set(id);
+      if (this.isTransfer() && this.toPocketId() === id) this.toPocketId.set(this.otherThan(id));
+    }
+    this.pickingPocket.set(null);
+  }
+
+  swap(): void {
+    const from = this.pocketId();
+    this.pocketId.set(this.toPocketId());
+    this.toPocketId.set(from);
   }
 
   pickDate(value: string | null): void {
@@ -177,12 +213,20 @@ export class CushionEntryComponent implements OnInit {
     this.showDate.set(false);
   }
 
+  private nameOf(id: number | null): string {
+    return this.request().pockets.find(pocket => pocket.id === id)?.name ?? '';
+  }
+
+  private otherThan(id: number | null): number | null {
+    return this.request().pockets.find(pocket => pocket.id !== id)?.id ?? null;
+  }
+
   /** Digits, comma, backspace, Enter and Escape from a physical keyboard. */
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
     if (event.key === 'Escape') { event.preventDefault(); this.cancelled.emit(); return; }
-    if (this.pickingPocket() || this.showDate()) return;
+    if (this.pickingPocket() !== null || this.showDate()) return;
     if ((event.target as HTMLElement | null)?.closest('ion-textarea, input, textarea')) return;
 
     const operator = operatorFromKey(event.key);
@@ -209,20 +253,30 @@ export class CushionEntryComponent implements OnInit {
       const yields = new YieldsRepository(db);
       const tax = new TaxParametersRepository(db);
       const { account, kind } = this.request();
-      // The sign comes from the button pressed, never from what was typed.
-      const signed = kind === 'expense' ? -this.amount().minor : this.amount().minor;
+      const minor = this.amount().minor;
 
       await db.transaction(async () => {
-        await yields.adjust({
-          account_id: account.id,
-          on_date: this.onDate(),
-          amount_minor: signed,
-          kind: this.kind(),
-          pocket_id: this.pocketId(),
-          note: this.note().trim() || null,
-        });
-        // Money that lands on a day changes what every day after it earns on,
-        // so those days are worked out again. Days corrected by hand stay.
+        if (kind === 'transfer') {
+          // Two legs of one transfer, both in this account.
+          await new TransfersRepository(db).create({
+            occurred_on: this.onDate(),
+            description: this.note().trim() || null,
+            from: { account_id: account.id, pocket_id: this.pocketId(), amount_minor: minor },
+            to: { account_id: account.id, pocket_id: this.toPocketId(), amount_minor: minor },
+          });
+        } else {
+          await yields.adjust({
+            account_id: account.id,
+            on_date: this.onDate(),
+            // The sign comes from the button pressed, never from what was typed.
+            amount_minor: kind === 'expense' ? -minor : minor,
+            kind: this.kind(),
+            pocket_id: this.pocketId(),
+            note: this.note().trim() || null,
+          });
+        }
+        // What lands or leaves on a day changes what every day after it earns
+        // on, so those days are worked out again. Days corrected by hand stay.
         await yields.clearDays(account.id, this.onDate());
       });
 

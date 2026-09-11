@@ -1145,6 +1145,62 @@ export class YieldsRepository {
     return out;
   }
 
+  /**
+   * The yields that have landed IN each product's balance since that balance
+   * was last stated: days already paid, and income or expenses entered on
+   * the yields. This is what makes a product's balance read as its bank shows
+   * it, and it moves no net worth - the account's own balance is untouched.
+   *
+   * Only what comes after the balance was stated: a figure read off the bank
+   * already holds everything paid up to that day, so counting it again would
+   * double it. A product that follows the account balance counts from the
+   * day the account started accruing. Rows naming no product belong where the
+   * accrual puts them.
+   */
+  async yieldsInBalanceByPocket(accountId: number, today: IsoDate): Promise<Map<number, number>> {
+    const pockets = await this.pockets(accountId);
+    const out = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
+    if (pockets.length === 0) return out;
+
+    const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
+    const since = new Map<number, IsoDate>();
+    for (const pocket of pockets) {
+      const stated = pocket.source === 'manual'
+        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)?.valid_from
+        : undefined;
+      since.set(pocket.id, stated ?? opening);
+    }
+
+    const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
+    const add = (pocketId: number | null, on: IsoDate, amount: number | null) => {
+      const id = pocketId !== null && out.has(pocketId) ? pocketId : fallback;
+      if (on > since.get(id)!) out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
+    };
+    type Row = { pocket_id: number | null; day: IsoDate; total: number | null };
+
+    // A day's yield is in the product once it is paid, not while it is owed.
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, paid AS day,SUM(net) AS total FROM (
+         SELECT pocket_id, COALESCE(actual_net_minor, net_minor) AS net,
+                COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
+                                       ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) AS paid
+         FROM yield_days WHERE account_id = ?)
+       WHERE paid <= ? GROUP BY pocket_id, paid`, [accountId, today])) {
+      add(row.pocket_id, row.day,row.total);
+    }
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, on_date AS day,SUM(amount_minor) AS total
+       FROM cushion_adjustments WHERE account_id = ? GROUP BY pocket_id, on_date`, [accountId])) {
+      add(row.pocket_id, row.day,row.total);
+    }
+    for (const row of await this.db.query<Row>(
+      `SELECT pocket_id, on_date AS day,SUM(amount_minor) AS total
+       FROM cushion_withdrawals WHERE account_id = ? GROUP BY pocket_id, on_date`, [accountId])) {
+      add(row.pocket_id, row.day,-(row.total ?? 0));
+    }
+    return out;
+  }
+
   /** Every enrolled account's cushion, for the screen that lists them. */
   async allCushions(asOf?: IsoDate): Promise<CushionBalance[]> {
     const accounts = await this.accounts();

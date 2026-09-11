@@ -317,6 +317,31 @@ test('the cushion split by product adds up to the account, and follows each entr
     'the opening figure and the entry naming no product stay on the first');
 });
 
+test('a product balance counts the yields that landed in it after it was stated, and no earlier', async () => {
+  const { engine, yields, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: false });
+  const second = await yields.addPocket({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
+  await yields.setPocketBalance({ pocket_id: second, valid_from: '2026-09-05', amount_minor: 100_000_000 });
+  await yields.setRate({
+    account_id: ids.uala, pocket_id: second, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10),
+  });
+
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-03', amount_minor: 500_000, kind: 'other', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 400_000, kind: 'other', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-07', amount_minor: 200_000, kind: 'cashback', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-08', amount_minor: -50_000, kind: 'correction', pocket_id: second });
+  await engine.accrue(ids.uala, '2026-09-10');
+
+  const paidAfter = (await yields.days(ids.uala))
+    .filter(day => day.pocket_id === second && day.on_date > '2026-09-05')
+    .reduce((sum, day) => sum + day.net_minor, 0);
+  assert.ok(paidAfter > 0);
+
+  const landed = await yields.yieldsInBalanceByPocket(ids.uala, '2026-09-10');
+  assert.equal(landed.get(second), 150_000 + paidAfter,
+    'the income and expense after the stated day, and the days paid after it; the stated figure holds the rest');
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({

@@ -330,12 +330,12 @@
                       }
                     </p>
                     @if (yieldIn(line, pocket.id) !== 0) {
-                      <p>{{ 'cushion.pockets.yield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
+                      <p>{{ 'cushion.pockets.includesYield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
                     }
                   </ion-label>
                   <ion-note slot="end" class="held"
-                            [class.owed]="heldIn(line, pocket.id) < 0">
-                    {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                            [class.owed]="balanceIn(line, pocket.id) < 0">
+                    {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
                   </ion-note>
                 </ion-item>
               }
@@ -378,7 +378,7 @@
             <!-- Only where there is more than one product to move between. -->
             @if (line.pockets.length > 1) {
               <div class="actions">
-                <ion-button expand="block" fill="outline" (click)="startMove()">
+                <ion-button expand="block" fill="outline" (click)="openMove(line)">
                   <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
                   {{ 'cushion.move' | t }}
                 </ion-button>
@@ -635,15 +635,15 @@
                       {{ pocketSummary(pocket) }}
                     </p>
                     @if (yieldIn(line, pocket.id) !== 0) {
-                      <p>{{ 'cushion.pockets.yield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
+                      <p>{{ 'cushion.pockets.includesYield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
                     }
                   </ion-label>
                   <!-- What is in it, here as well as on the account's own
                        screen. This is where a balance gets corrected, and
                        correcting one without seeing it is guesswork. -->
                   <ion-note slot="end" class="held"
-                            [class.owed]="heldIn(line, pocket.id) < 0">
-                    {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                            [class.owed]="balanceIn(line, pocket.id) < 0">
+                    {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
                   </ion-note>
                 </ion-item>
               }
@@ -856,10 +856,14 @@
                       <span>{{ 'cushion.pocket.movedSince' | t }}</span>
                       <strong>{{ money(pocketMoved(), line.account.currency_code) }}</strong>
                     </div>
+                    <div>
+                      <span>{{ 'cushion.pocket.yieldSince' | t }}</span>
+                      <strong>{{ money(pocketYieldIn(), line.account.currency_code) }}</strong>
+                    </div>
                     <div class="sum">
                       <span>{{ 'cushion.pocket.today' | t }}</span>
-                      <strong [class.owed]="statedNow() + pocketMoved() < 0">
-                        {{ money(statedNow() + pocketMoved(), line.account.currency_code) }}
+                      <strong [class.owed]="statedNow() + pocketMoved() + pocketYieldIn() < 0">
+                        {{ money(statedNow() + pocketMoved() + pocketYieldIn(), line.account.currency_code) }}
                       </strong>
                     </div>
                   </div>
@@ -1017,8 +1021,8 @@
                         @if (pocketDeleteHeld() !== 0) {
                           <p>{{ 'cushion.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
                         }
-                        @if (pocketDeleteYield() !== 0) {
-                          <p>{{ (pocketDeleteHeld() !== 0 ? 'cushion.pocket.deleteYieldToo' : 'cushion.pocket.deleteYieldOnly') | t:{
+                        @if (pocketDeleteHeld() === 0 && pocketDeleteYield() !== 0) {
+                          <p>{{ 'cushion.pocket.deleteYieldOnly' | t:{
                                  amount: money(pocketDeleteYield(), line.account.currency_code) } }}</p>
                         }
                         <ion-list>
@@ -1118,54 +1122,6 @@
 
 
           <!-- Moving it into the account, which is what the module is for -->
-          @if (form() === 'move') {
-            <h2>{{ 'cushion.move.title' | t }}</h2>
-            <p class="hint">{{ 'cushion.move.hint' | t }}</p>
-
-            <h3 class="field-heading">{{ 'cushion.move.from' | t }}</h3>
-            <div class="pocket-row">
-              @for (pocket of line.pockets; track pocket.id) {
-                <button type="button" [class.on]="moveFrom() === pocket.id"
-                        (click)="pickMoveFrom(pocket.id)">{{ pocket.name }}</button>
-              }
-            </div>
-
-            <h3 class="field-heading">{{ 'cushion.move.to' | t }}</h3>
-            <div class="pocket-row">
-              @for (pocket of line.pockets; track pocket.id) {
-                <button type="button" [class.on]="moveTo() === pocket.id"
-                        (click)="pickMoveTo(pocket.id)">{{ pocket.name }}</button>
-              }
-            </div>
-
-            <ion-list [inset]="true">
-              <ion-item>
-                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
-                           inputmode="decimal" [value]="amount()"
-                           (ionInput)="amount.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
-                           type="date" [value]="onDate()"
-                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
-                              [autoGrow]="true" rows="2" [value]="note()"
-                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
-              </ion-item>
-            </ion-list>
-
-            <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="form.set('none')">
-                {{ 'entry.cancel' | t }}
-              </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveMove()">
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-          }
-
           @if (form() === 'withdraw') {
             <h2>{{ 'cushion.withdraw' | t }}</h2>
             <p class="hint">{{ 'cushion.withdraw.hint' | t }}</p>
