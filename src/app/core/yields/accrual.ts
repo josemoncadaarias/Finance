@@ -33,7 +33,7 @@
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type {
-  CushionEntry, PocketBalance, YieldRate, YieldsRepository,
+  CushionEntry, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import { accrueDay, bandFor, rateWhenConditionMissed, type RateBand, type WithholdingRule } from './yield-math';
@@ -56,6 +56,23 @@ export interface AccrualResult {
   pockets: number;
   /** Days that fell back to a lower rate because a monthly condition was missed. */
   daysConditionNotMet: number;
+}
+
+/**
+ * Which product takes a movement that names none.
+ *
+ * The usual one, marked by the user - not the first in the list. Sort order
+ * records only when each product was created, and Jose created his savings
+ * products last, so "the first" is whichever alcancía happened to predate
+ * them. Every row the Monefy importer writes names no product, so this is the
+ * rule that decides where a re-imported history lands.
+ *
+ * The first is the fallback for an account where nothing is marked, which the
+ * schema makes unlikely: every account had one set when the flag was added.
+ */
+function absorbsUnassigned(pockets: readonly YieldPocket[]): number | null {
+  const usual = pockets.find(pocket => pocket.is_default === 1);
+  return (usual ?? pockets[0])?.id ?? null;
 }
 
 /** Past any date a person will type. Used where an answer has no upper bound. */
@@ -108,6 +125,7 @@ export class AccrualEngine {
 
     const enrolled = await this.yields.account(accountId);
     const opening = enrolled?.opening_on ?? on;
+    const absorbs = absorbsUnassigned(pockets);
 
     // No upper bound: the account's own balance counts a movement dated next
     // week, so a product that did not would disagree with the account it is
@@ -160,12 +178,12 @@ export class AccrualEngine {
         // No balance at all means no start date has been chosen, so counting
         // starts where this module started: the day the account was enrolled.
         held.set(pocket.id, await this.yields.movedInPocketSince(
-          accountId, pocket.id, opening, at === 0));
+          accountId, pocket.id, opening, pocket.id === absorbs));
         continue;
       }
 
       held.set(pocket.id, stated + await this.yields.movedInPocketSince(
-        accountId, pocket.id, since, at === 0));
+        accountId, pocket.id, since, pocket.id === absorbs));
     }
 
     return held;
@@ -211,9 +229,10 @@ export class AccrualEngine {
       // that names no product is the first product's, which is the rule that
       // held for every account before one could be named at all.
       const movedInto = new Map<number, DayBalance[]>();
-      for (const [at, pocket] of pockets.entries()) {
+      const takesUnassigned = absorbsUnassigned(pockets);
+      for (const pocket of pockets) {
         movedInto.set(pocket.id, await this.dailyBalances(
-          accountId, upTo, pocket.id, at === 0));
+          accountId, upTo, pocket.id, pocket.id === takesUnassigned));
       }
 
       const balancesOf = new Map<number, PocketBalance[]>();

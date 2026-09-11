@@ -22,6 +22,7 @@ import { AccountGroupsRepository } from '../repositories/account-groups.reposito
 import { CategoriesRepository } from '../repositories/categories.repository';
 import { TransactionsRepository } from '../repositories/transactions.repository';
 import { TransfersRepository } from '../repositories/transfers.repository';
+import { YieldsRepository } from '../repositories/yields.repository';
 import { CreditLimitsRepository } from '../repositories/credit-limits.repository';
 
 
@@ -105,6 +106,7 @@ class ImportWriter {
   private readonly groups: AccountGroupsRepository;
   private readonly categories: CategoriesRepository;
   private readonly transactions: TransactionsRepository;
+  private readonly yields: YieldsRepository;
   private readonly transfers: TransfersRepository;
 
   /** Backup account name to the id of the row its history goes to. */
@@ -162,6 +164,7 @@ class ImportWriter {
     this.categories = new CategoriesRepository(db, now);
     this.transactions = new TransactionsRepository(db, now);
     this.transfers = new TransfersRepository(db, now);
+    this.yields = new YieldsRepository(db, now);
   }
 
   async run(pairing: ReturnType<typeof pairTransfers>, options: ImportOptions): Promise<ImportSummary> {
@@ -472,6 +475,13 @@ class ImportWriter {
     const id = await this.transactions.create({
       account_id: accountId,
       category_id: categoryId,
+      // Everything Monefy exports arrives in the account's usual product. The
+      // file has no idea an account is split into products - that is a thing
+      // this app knows and it does not - and the usual one is where money
+      // lands and leaves from by definition. Anything that really belongs to
+      // another is moved afterwards, which is one act on one movement rather
+      // than a question asked of every row in a file of twelve thousand.
+      pocket_id: await this.usualPocket(accountId),
       occurred_on: row.occurredOn,
       amount_minor: resolved.amountMinor,
       rate_scaled: resolved.rateScaled,
@@ -728,6 +738,25 @@ class ImportWriter {
    * and the queue would fill with noise instead of things to act on. Items the
    * user has resolved stay resolved and are not raised again either.
    */
+  /**
+   * The product an account's movements land in, looked up once per account.
+   *
+   * Null for an account with no products, which is every account not enrolled
+   * for yields - most of them - and the column stays empty there, as it should.
+   */
+  private readonly usualPockets = new Map<number, number | null>();
+
+  private async usualPocket(accountId: number): Promise<number | null> {
+    const known = this.usualPockets.get(accountId);
+    if (known !== undefined) return known;
+
+    const pockets = await this.yields.pockets(accountId);
+    const usual = pockets.find(pocket => pocket.is_default === 1) ?? pockets[0];
+    const id = usual?.id ?? null;
+    this.usualPockets.set(accountId, id);
+    return id;
+  }
+
   private async raiseReview(
     kind: string,
     reason: string,

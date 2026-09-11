@@ -14,6 +14,7 @@ import { NodeSqlDriver } from './node-sql-driver.mjs';
 import { migrate } from '../../src/app/core/database/migrations/migration-runner.ts';
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
 import { importMonefy } from '../../src/app/core/database/import/import-monefy.ts';
+import { YieldsRepository } from '../../src/app/core/database/repositories/yields.repository.ts';
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { formatMoney } from '../../src/app/core/database/money.ts';
@@ -511,6 +512,41 @@ test('a movement deleted by hand does not come back on the next import', async (
   assert.equal(
     (await db.queryOne("SELECT COUNT(*) n FROM transactions WHERE description = 'Carrera'")).n, 1,
     'forgetting the deletion lets it come back');
+
+  await db.close();
+});
+
+test('an imported movement lands in the account usual product', async () => {
+  // The Monefy file has no idea an account is split into products — that is a
+  // thing this app knows and the file does not — so every row arrives in the
+  // usual one, which is where money lands and leaves from by definition.
+  //
+  // The usual one is marked by the user, NOT the first in the list. Sort order
+  // records only when each product was created, and Jose created his savings
+  // products last, so "the first" is whichever alcancía happened to predate
+  // them — and a re-imported history would have gone there.
+  const db = await freshDb();
+  await run(db, csv('26/06/2021,Bancolombia,Restaurante,"-50,200",COP,"-50,200",COP,Rappi'));
+
+  const accounts = new AccountsRepository(db, NOW);
+  const banco = await accounts.findByName('Bancolombia');
+
+  const yields = new YieldsRepository(db, NOW);
+  await yields.enrol({
+    account_id: banco.id, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+  const alcancia = await yields.addPocket({
+    account_id: banco.id, name: 'Alcancía', source: 'manual', sort_order: 1 });
+  const savings = await yields.addPocket({
+    account_id: banco.id, name: 'Cuenta de ahorros', source: 'manual', sort_order: 2 });
+  await yields.setDefaultPocket(banco.id, savings);
+
+  await run(db, csv('27/06/2021,Bancolombia,Restaurante,"-12,000",COP,"-12,000",COP,Cena'));
+
+  const row = await db.queryOne(
+    "SELECT pocket_id FROM transactions WHERE description = 'Cena'");
+  assert.equal(row.pocket_id, savings, 'the usual one, not the first');
+  assert.notEqual(row.pocket_id, alcancia);
 
   await db.close();
 });
