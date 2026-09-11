@@ -352,6 +352,33 @@ test('a product balance counts the yields that landed in it after it was stated,
   assert.equal(freshLanded.yields.get(fresh), 0, 'and it is not a yield');
 });
 
+test('a product that is not withheld has nothing taken, beside one in the same account that is', async () => {
+  const { engine, yields, tax, ids } = await setup();
+  for (const [key, value] of [
+    [TAX_KEYS.uvtValue, '5000000'], [TAX_KEYS.threshold, '0.001'], [TAX_KEYS.percent, String(pct(7))], [TAX_KEYS.base, 'all'],
+  ]) {
+    await tax.set({ key, valid_from: '2026-01-01', value, source: 'test', confirmed: true });
+  }
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: true });
+  const withheld = await yields.addPocket({ account_id: ids.uala, name: 'Con retención', source: 'manual', sort_order: 1 });
+  const free = await yields.addPocket({ account_id: ids.uala, name: 'Sin retención', source: 'manual', sort_order: 2 });
+  assert.equal((await yields.pockets(ids.uala)).find(pocket => pocket.id === free).withholding, 1,
+    'a new product starts with its account\'s answer');
+  await yields.setPocketWithholding(free, false);
+
+  for (const id of [withheld, free]) {
+    await yields.setPocketBalance({ pocket_id: id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+  }
+  await yields.setRate({ account_id: ids.uala, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
+  await engine.accrue(ids.uala, '2026-09-05');
+
+  const days = await yields.days(ids.uala);
+  const of = id => days.filter(day => day.pocket_id === id);
+  assert.ok(of(withheld).length > 0 && of(withheld).every(day => day.withholding_minor > 0));
+  assert.ok(of(free).length > 0 && of(free).every(day => day.withholding_minor === 0 && day.net_minor === day.gross_minor),
+    'nothing at all is taken from the product that is not withheld');
+});
+
 test('a future rate takes over on its day, without being remembered', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({

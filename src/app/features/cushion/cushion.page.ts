@@ -135,7 +135,7 @@ export class CushionPage {
   readonly openDays = signal<YieldDay[]>([]);
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'withdraw' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
 
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
@@ -257,7 +257,7 @@ export class CushionPage {
     }
     return cdtPreview({
       capitalMinor: capital, annualRateScaled: rate, openedOn: opened, termMonths: term,
-      rule: this.cdtRule(), withholds: this.withholds(),
+      rule: this.cdtRule(), withholds: this.pocketWithholds(),
     });
   });
   readonly pocketAmount = signal('');
@@ -267,6 +267,10 @@ export class CushionPage {
   readonly confirmingPocketDelete = signal(false);
   readonly pocketDeleteTo = signal<number | null>(null);
   readonly pocketDeleteHeld = signal(0);
+  /** Which product becomes the usual one when the usual one is removed. */
+  readonly pocketNewUsual = signal<number | null>(null);
+  /** Whether the product being edited has its yield withheld at all. */
+  readonly pocketWithholds = signal(true);
   /** Yields landed in the product being edited since its balance was stated. */
   readonly pocketYieldIn = signal(0);
 
@@ -686,11 +690,6 @@ export class CushionPage {
     if (!toSettings) this.form.set('none');
   }
 
-  startForm(which: 'withdraw'): void {
-    this.resetForm();
-    this.form.set(which);
-  }
-
   /** Opens the income or expense screen for the yields of the account on screen. */
   openEntry(line: CushionLine, kind: 'income' | 'expense'): void {
     this.cushionEntry.set({ kind, account: line.account, pockets: line.pockets });
@@ -859,6 +858,8 @@ export class CushionPage {
     this.editablePockets.set(await yields.pockets(line.account.id));
     this.rates.set(await yields.rateHistory(line.account.id));
     this.withholds.set((await yields.account(line.account.id))?.withholding !== 0);
+    // A new product starts with the account's answer; an existing one has its own.
+    this.pocketWithholds.set(pocket ? pocket.withholding === 1 : this.withholds());
 
     this.pocketName.set(pocket?.name ?? '');
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
@@ -989,6 +990,11 @@ export class CushionPage {
           await yields.setPocketSource(id, 'manual');
         }
         await yields.setPocketPayout(id, payout, months);
+        if ((existing?.withholding ?? -1) !== (this.pocketWithholds() ? 1 : 0)) {
+          await yields.setPocketWithholding(id, this.pocketWithholds());
+          // Every day it earned is withheld differently now.
+          if (existing) await yields.clearDays(line.account.id);
+        }
         // A rate of zero is no rate: nothing is recorded for it.
         if (firstRate !== null && firstRate > 0) {
           await yields.setRate({
@@ -1114,6 +1120,7 @@ export class CushionPage {
         }
 
         await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
+        await yields.setPocketWithholding(id, this.pocketWithholds());
         await yields.setRate({
           account_id: line.account.id, pocket_id: id, component: 'base',
           payout: 'monthly', payout_months: term, valid_from: opened, annual_rate_scaled: rate,
@@ -1153,6 +1160,7 @@ export class CushionPage {
     const others = this.otherPockets();
     const usual = others.find(other => other.is_default === 1) ?? others[0];
     this.pocketDeleteTo.set(usual?.id ?? null);
+    this.pocketNewUsual.set(usual?.id ?? null);
 
     const { db, yields, tax } = this.repos();
     const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
@@ -1192,6 +1200,12 @@ export class CushionPage {
     try {
       const { db, yields, tax } = this.repos();
       await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today());
+      // Removing the usual product needs a new one: the one chosen, which is
+      // not necessarily where the balance went.
+      const usual = this.pocketNewUsual();
+      if (pocket.is_default === 1 && usual !== null && usual !== into) {
+        await yields.setDefaultPocket(line.account.id, usual);
+      }
       // Done, not cancelled: the screen it returns to is decided below.
       this.deletingFromList = false;
       this.confirmingPocketDelete.set(false);
@@ -1530,60 +1544,6 @@ export class CushionPage {
     await this.open(fresh);
     if (keepForm) await this.openSettings();
     else if (form === 'day') this.form.set('none');
-  }
-
-  /**
-   * Moves part of the cushion into the account, where it becomes real money.
-   *
-   * Two things are written together and neither makes sense alone: an income
-   * movement in the ledger, and the withdrawal that records the cushion going
-   * down. The withdrawal points at the movement, which is what stops the same
-   * money being counted twice — once as cushion and once as balance.
-   */
-  async saveWithdrawal(): Promise<void> {
-    const line = this.openLine();
-    if (!line) return;
-
-    const minor = this.parsed();
-    if (minor === null || minor <= 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
-      return;
-    }
-    if (minor > line.cushion.totalMinor) {
-      this.error.set(this.i18n.t('cushion.error.tooMuch'));
-      return;
-    }
-
-    this.saving.set(true);
-    try {
-      const { db, yields, transactions } = this.repos();
-      await db.transaction(async () => {
-        const transactionId = await transactions.create({
-          account_id: line.account.id,
-          category_id: this.categoryId(),
-          occurred_on: this.onDate(),
-          amount_minor: minor,
-          description: this.note().trim() || null,
-          source: 'manual',
-          // Typed by a person, so a re-import must never touch it.
-          locked: true,
-        });
-
-        await yields.withdraw({
-          account_id: line.account.id,
-          on_date: this.onDate(),
-          amount_minor: minor,
-          transaction_id: transactionId,
-          note: this.note().trim() || null,
-        });
-      });
-
-      await this.reopen(line);
-    } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.saving.set(false);
-    }
   }
 
   private parsed(): number | null {

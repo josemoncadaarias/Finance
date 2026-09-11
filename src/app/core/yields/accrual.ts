@@ -421,8 +421,8 @@ export class AccrualEngine {
             // matures.
             const withholdingRule = ruleForProduct(pocket.kind, rule);
             const accrued = cdt
-              ? accruePayment(base, band, daysBetween(pocket.opened_on!, day), withholdingRule, enrolled.withholding === 1)
-              : accrueDay(base, band, withholdingRule, enrolled.withholding === 1);
+              ? accruePayment(base, band, daysBetween(pocket.opened_on!, day), withholdingRule, pocket.withholding === 1)
+              : accrueDay(base, band, withholdingRule, pocket.withholding === 1);
 
             await this.yields.putDay({
               pocket_id: pocket.id,

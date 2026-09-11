@@ -204,6 +204,11 @@ the framework on a long-running project.
    which follows the threshold rule above and is what every product was
    before, or `cdt`. Stated by Jose 2026-09-11.
 
+   **Whether a product is withheld at all is the product's own switch**
+   (`yield_pockets.withholding`, migration 031): inside one account some
+   products are withheld and others are not, and a product that is not has
+   nothing taken from its yield. Decision by Jose, 2026-09-11.
+
    Cashback is not withheld. Foreign-currency accounts are not withheld either:
    retencion en la fuente is a Colombian withholding by a Colombian paying
    agent — which does **not** mean the income is untaxed, since a resident

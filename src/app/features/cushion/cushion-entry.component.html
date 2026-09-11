@@ -92,18 +92,43 @@
         </button>
       </div>
 
-      <p class="pending">{{ 'cushion.entry.noNetWorth' | t }}</p>
-
-      <!-- What it is, in place of a category: the tax module needs to tell
-           cashback from yield. -->
-      <div class="categories">
-        @for (option of kinds; track option.value) {
-          <button type="button" class="category" [class.on]="kind() === option.value" (click)="kind.set(option.value)">
-            <ion-icon [name]="option.icon"></ion-icon>
-            <span>{{ option.label | t }}</span>
-          </button>
-        }
+      <!-- Optional: an ordinary movement of the account, which does change
+           net worth. What "move it to the account" used to be for. -->
+      <div class="net-worth">
+        <ion-toggle [checked]="affectsNetWorth()" (ionChange)="affectsNetWorth.set($any($event.detail).checked)">
+          {{ 'cushion.entry.netWorth' | t }}
+        </ion-toggle>
       </div>
+      <p class="pending">{{ (affectsNetWorth() ? 'cushion.entry.netWorthHint' : 'cushion.entry.noNetWorth') | t }}</p>
+
+      @if (affectsNetWorth()) {
+        <div class="categories" [class.waiting]="categoryId() === null">
+          @for (category of shortlist(); track category.id) {
+            <button type="button" class="category" [class.on]="categoryId() === category.id"
+                    (click)="pickCategory(category.id)">
+              <app-icon [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" size="1.35rem"></app-icon>
+              <span>{{ category.name }}</span>
+            </button>
+          }
+          @if (categories().length > shortlistSize) {
+            <button type="button" class="category more" (click)="openCategories()">
+              <ion-icon name="search-outline"></ion-icon>
+              <span>{{ 'entry.allCategories' | t:{ count: categories().length } }}</span>
+            </button>
+          }
+        </div>
+      } @else {
+        <!-- What it is, in place of a category: the tax module needs to tell
+             cashback from yield. -->
+        <div class="categories">
+          @for (option of kinds; track option.value) {
+            <button type="button" class="category" [class.on]="kind() === option.value" (click)="kind.set(option.value)">
+              <ion-icon [name]="option.icon"></ion-icon>
+              <span>{{ option.label | t }}</span>
+            </button>
+          }
+        </div>
+      }
     }
 
     <div class="note">
@@ -161,6 +186,34 @@
         }
       </ion-list>
     </div>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="sheet">
+      <h2>{{ 'entry.pickCategory' | t }}</h2>
+      <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
+                     (ionInput)="categorySearch.set($any($event.target).value ?? '')" [debounce]="0"></ion-searchbar>
+      <ion-list>
+        @for (category of foundCategories(); track category.id) {
+          <ion-item button lines="full" (click)="pickCategory(category.id)" [class.selected]="categoryId() === category.id">
+            <app-icon slot="start" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"></app-icon>
+            <ion-label>{{ category.name }}</ion-label>
+            @if (categoryId() === category.id) {
+              <ion-icon slot="end" class="tick" name="checkmark-circle" [attr.aria-label]="'entry.selected' | t"></ion-icon>
+            }
+          </ion-item>
+        }
+      </ion-list>
+    </ion-content>
   </ng-template>
 </ion-modal>
 

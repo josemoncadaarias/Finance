@@ -102,6 +102,8 @@ export interface YieldPocket {
   matures_into_pocket_id: number | null;
   /** The income category a CDT's yield is recorded under when it pays. */
   income_category_id: number | null;
+  /** 1 when its yield is withheld; 0 when nothing at all is taken from it. */
+  withholding: 0 | 1;
   sort_order: number;
   /**
    * The product money lands in when nobody says otherwise. 1 or null.
@@ -256,6 +258,8 @@ export class YieldsRepository {
     default_pocket_name?: string;
   }): Promise<void> {
     const now = this.now();
+    const before = await this.db.queryOne<{ withholding: number }>(
+      'SELECT withholding FROM yield_accounts WHERE account_id = ?', [input.account_id]);
     await this.db.run(
       `INSERT INTO yield_accounts
          (account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note, created_at, updated_at)
@@ -279,6 +283,15 @@ export class YieldsRepository {
         now, now,
       ],
     );
+
+    // Withholding is each product's own switch. Changing the account's answer
+    // changes every product's; saving the same answer again leaves a product
+    // set apart exactly as it is.
+    const withholding = input.withholding === false ? 0 : 1;
+    if (before && before.withholding !== withholding) {
+      await this.db.run('UPDATE yield_pockets SET withholding = ?, updated_at = ? WHERE account_id = ?',
+        [withholding, now, input.account_id]);
+    }
 
     // An account with no pocket has nothing to accrue on, so enrolling one
     // gives it a pocket that simply holds the account's own balance. That is
@@ -471,7 +484,7 @@ export class YieldsRepository {
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
@@ -480,7 +493,7 @@ export class YieldsRepository {
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
 
@@ -508,7 +521,13 @@ export class YieldsRepository {
        input.sort_order ?? 0, input.note ?? null,
        input.payout ?? 'daily', input.payout_months ?? 1, input.opened_on ?? null, input.term_months ?? null,
        input.matures_into_pocket_id ?? null, input.income_category_id ?? null, now, now]);
-    return result.lastId ?? 0;
+    const id = result.lastId ?? 0;
+    // A new product starts with its account's answer on withholding.
+    await this.db.run(
+      `UPDATE yield_pockets SET withholding = COALESCE(
+         (SELECT withholding FROM yield_accounts WHERE account_id = ?), 1) WHERE id = ?`,
+      [input.account_id, id]);
+    return id;
   }
 
   /**
@@ -577,6 +596,12 @@ export class YieldsRepository {
   async setPocketKind(id: number, kind: ProductKind): Promise<void> {
     await this.db.run('UPDATE yield_pockets SET kind = ?, updated_at = ? WHERE id = ?',
       [kind, this.now(), id]);
+  }
+
+  /** Whether the product's yield is withheld. Off means nothing is taken from it. */
+  async setPocketWithholding(id: number, withholds: boolean): Promise<void> {
+    await this.db.run('UPDATE yield_pockets SET withholding = ?, updated_at = ? WHERE id = ?',
+      [withholds ? 1 : 0, this.now(), id]);
   }
 
   /**

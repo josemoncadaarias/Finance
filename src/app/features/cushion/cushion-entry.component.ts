@@ -1,24 +1,26 @@
 /**
- * Money coming into or going out of one product's yields, or moved between
- * two products of the same account.
+ * Money coming into or going out of one product, or moved between two
+ * products of the same account.
  *
  * The same screen as a movement or a transfer in an account - amount on a
  * keypad, the date, a note - because it is the same act, and that screen is
- * already the one people know. What differs is the point of the yields
- * module: an income or expense says what it is (cashback, a correction,
- * something else) rather than a category, and every question is about a
- * product, never an account.
+ * already the one people know. Every question is about a product, never an
+ * account: the account is the one on screen.
  *
- * An income or expense writes a `cushion_adjustments` row: the product's
- * balance moves, the account's does not, and net worth stays where it was. A
- * transfer is two legs of one transfer inside the account, so the account's
- * balance is exactly what it was and only which product holds it changes.
+ * An income or expense changes the product's balance and, by default, nothing
+ * else: it writes a `cushion_adjustments` row, saying what it is (cashback, a
+ * correction, something else), and net worth stays where it was. With "also
+ * change my net worth" on it is an ordinary movement of the account instead,
+ * with a category and the product, exactly as the movements screen writes one
+ * - which is what "move it to the account" used to be for. A transfer is two
+ * legs of one transfer inside the account: its balance is what it was, and
+ * only which product holds the money changes.
  */
 
 import { Component, HostListener, computed, inject, input, output, signal, type OnInit } from '@angular/core';
 import {
   IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-  IonList, IonItem, IonLabel, IonFooter, IonContent,
+  IonList, IonItem, IonLabel, IonFooter, IonContent, IonToggle, IonSearchbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -31,7 +33,10 @@ import { formatMoney } from '../../core/database/money';
 import { YieldsRepository, type YieldPocket } from '../../core/database/repositories/yields.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
+import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
+import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
 import type { AccountRow } from '../../core/database/types';
+import { IconComponent } from '../../core/icons/icon.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -48,13 +53,14 @@ type EntryKind = 'cashback' | 'correction' | 'other';
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe,
+    TranslatePipe, IconComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-    IonList, IonItem, IonLabel, IonFooter, IonContent,
+    IonList, IonItem, IonLabel, IonFooter, IonContent, IonToggle, IonSearchbar,
   ],
   templateUrl: './cushion-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
   styleUrls: ['../entry/entry.component.scss'],
+  styles: ['.net-worth { display: block; padding: 0 1rem 0.4rem; } .net-worth ion-toggle { width: 100%; }'],
 })
 export class CushionEntryComponent implements OnInit {
   private readonly database = inject(DatabaseService);
@@ -78,6 +84,15 @@ export class CushionEntryComponent implements OnInit {
   /** Which side's product the sheet is asking for, or null when it is closed. */
   readonly pickingPocket = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
+
+  /** On: an ordinary movement of the account, which changes net worth. */
+  readonly affectsNetWorth = signal(false);
+  readonly categoryId = signal<number | null>(null);
+  /** Categories of this kind, most used first. */
+  readonly categories = signal<UsedCategory[]>([]);
+  readonly browsingCategories = signal(false);
+  readonly categorySearch = signal('');
+  readonly shortlistSize = 8;
 
   /** What it is, in place of a category. Cashback is not withheld and yield is. */
   readonly kinds: readonly {
@@ -108,6 +123,19 @@ export class CushionEntryComponent implements OnInit {
   readonly pocketName = computed(() => this.nameOf(this.pocketId()));
   readonly toPocketName = computed(() => this.nameOf(this.toPocketId()));
 
+  /** The most used, plus the one chosen when it is not among them. */
+  readonly shortlist = computed(() => {
+    const all = this.categories();
+    const top = all.slice(0, this.shortlistSize);
+    const chosen = all.find(category => category.id === this.categoryId());
+    return chosen && !top.includes(chosen) ? [...top.slice(0, this.shortlistSize - 1), chosen] : top;
+  });
+
+  readonly foundCategories = computed(() => {
+    const term = fold(this.categorySearch());
+    return term === '' ? this.categories() : this.categories().filter(category => fold(category.name).includes(term));
+  });
+
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
     return sum ? `${formatMoney(sum.leftMinor, this.request().account.currency_code, { withSymbol: false })} ${sum.operator}` : '';
@@ -126,6 +154,9 @@ export class CushionEntryComponent implements OnInit {
     if (this.isTransfer() && (this.toPocketId() === null || this.toPocketId() === this.pocketId())) {
       return this.i18n.t('cushion.move.samePocket');
     }
+    if (!this.isTransfer() && this.affectsNetWorth() && this.categoryId() === null) {
+      return this.i18n.t('entry.need.category');
+    }
     return null;
   });
 
@@ -142,6 +173,15 @@ export class CushionEntryComponent implements OnInit {
     const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
     this.pocketId.set(usual);
     if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
+    else void this.loadCategories();
+  }
+
+  private async loadCategories(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    this.categories.set(await new CategoriesRepository(this.database.driver).listByUse({
+      kind: this.request().kind === 'expense' ? 'expense' : 'income',
+      since: aYearAgo(),
+    }));
   }
 
   press(key: string): void {
@@ -190,6 +230,17 @@ export class CushionEntryComponent implements OnInit {
     this.note.set('');
   }
 
+  pickCategory(id: number): void {
+    this.categoryId.set(id);
+    this.browsingCategories.set(false);
+    this.categorySearch.set('');
+  }
+
+  openCategories(): void {
+    this.categorySearch.set('');
+    this.browsingCategories.set(true);
+  }
+
   /** Answers the sheet. The two ends of a transfer can never be the same product. */
   choosePocket(id: number): void {
     if (this.pickingPocket() === 'to') {
@@ -226,8 +277,8 @@ export class CushionEntryComponent implements OnInit {
   onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
     if (event.key === 'Escape') { event.preventDefault(); this.cancelled.emit(); return; }
-    if (this.pickingPocket() !== null || this.showDate()) return;
-    if ((event.target as HTMLElement | null)?.closest('ion-textarea, input, textarea')) return;
+    if (this.pickingPocket() !== null || this.showDate() || this.browsingCategories()) return;
+    if ((event.target as HTMLElement | null)?.closest('ion-textarea, ion-searchbar, input, textarea')) return;
 
     const operator = operatorFromKey(event.key);
     if (operator) { event.preventDefault(); this.operate(operator); return; }
@@ -252,8 +303,10 @@ export class CushionEntryComponent implements OnInit {
       const db = this.database.driver;
       const yields = new YieldsRepository(db);
       const tax = new TaxParametersRepository(db);
-      const { account, kind } = this.request();
+      const { account, kind, pockets } = this.request();
       const minor = this.amount().minor;
+      // The sign comes from the button pressed, never from what was typed.
+      const signed = kind === 'expense' ? -minor : minor;
 
       await db.transaction(async () => {
         if (kind === 'transfer') {
@@ -264,12 +317,24 @@ export class CushionEntryComponent implements OnInit {
             from: { account_id: account.id, pocket_id: this.pocketId(), amount_minor: minor },
             to: { account_id: account.id, pocket_id: this.toPocketId(), amount_minor: minor },
           });
+        } else if (this.affectsNetWorth()) {
+          // An ordinary movement, written the way the movements screen writes
+          // one: it shows there with its category and product.
+          await new TransactionsRepository(db).create({
+            account_id: account.id,
+            category_id: this.categoryId(),
+            // Null on an account with one product, as the movements screen does.
+            pocket_id: pockets.length > 1 ? this.pocketId() : null,
+            occurred_on: this.onDate(),
+            amount_minor: signed,
+            description: this.note().trim() || null,
+            source: 'manual',
+          });
         } else {
           await yields.adjust({
             account_id: account.id,
             on_date: this.onDate(),
-            // The sign comes from the button pressed, never from what was typed.
-            amount_minor: kind === 'expense' ? -minor : minor,
+            amount_minor: signed,
             kind: this.kind(),
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
@@ -289,4 +354,15 @@ export class CushionEntryComponent implements OnInit {
       this.saving.set(false);
     }
   }
+}
+
+/** Today, one year back. Text dates compare in the same order as real ones. */
+function aYearAgo(): string {
+  const today = todayIso();
+  return `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
+}
+
+/** Lowercased and without accents, for searching. */
+function fold(text: string): string {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }

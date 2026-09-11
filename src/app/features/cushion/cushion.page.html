@@ -287,17 +287,9 @@
                 <ion-label>{{ 'cushion.part.opening' | t }}</ion-label>
                 <ion-note slot="end">{{ money(line.cushion.opening_minor, line.account.currency_code) }}</ion-note>
               </ion-item>
-              <ion-item lines="full">
+              <ion-item lines="none">
                 <ion-label>{{ 'cushion.part.accrued' | t }}</ion-label>
                 <ion-note slot="end">{{ money(line.cushion.accrued_minor, line.account.currency_code) }}</ion-note>
-              </ion-item>
-              <ion-item lines="full">
-                <ion-label>{{ 'cushion.part.adjusted' | t }}</ion-label>
-                <ion-note slot="end">{{ money(line.cushion.adjusted_minor, line.account.currency_code) }}</ion-note>
-              </ion-item>
-              <ion-item lines="none">
-                <ion-label>{{ 'cushion.part.withdrawn' | t }}</ion-label>
-                <ion-note slot="end">−{{ money(line.cushion.withdrawn_minor, line.account.currency_code) }}</ion-note>
               </ion-item>
             </ion-list>
 
@@ -368,13 +360,6 @@
               <ion-button expand="block" fill="outline" color="danger" (click)="openEntry(line, 'expense')">
                 <ion-icon slot="start" name="remove-outline"></ion-icon>
                 {{ 'cushion.entry.expense' | t }}
-              </ion-button>
-            </div>
-            <div class="actions">
-              <ion-button expand="block" [disabled]="line.cushion.totalMinor <= 0"
-                          (click)="startForm('withdraw')">
-                <ion-icon slot="start" name="arrow-forward-outline"></ion-icon>
-                {{ 'cushion.withdraw' | t }}
               </ion-button>
             </div>
 
@@ -608,12 +593,6 @@
                   {{ money(line.cushion.totalMinor, line.account.currency_code) }}
                 </ion-note>
               </ion-item>
-              <ion-item>
-                <ion-toggle [checked]="withholds()"
-                            (ionChange)="withholds.set($any($event.detail).checked)">
-                  {{ 'cushion.settings.withholding' | t }}
-                </ion-toggle>
-              </ion-item>
               <!-- How often the bank pays is asked once per rate and not here.
                    It was asked in both places, and the engine read only the
                    rate's answer - so the one on this screen changed nothing at
@@ -729,8 +708,22 @@
                     <ion-select-option value="cdt">{{ 'cushion.pocket.kind.cdt' | t }}</ion-select-option>
                   </ion-select>
                 </ion-item>
+              } @else {
+                <ion-item>
+                  <ion-label>{{ 'cushion.pocket.kind' | t }}</ion-label>
+                  <ion-note slot="end">{{ (pocketKind() === 'cdt' ? 'cushion.pocket.kind.cdt' : 'cushion.pocket.kind.high_yield') | t }}</ion-note>
+                </ion-item>
               }
+              <!-- Per product: inside one account some products are withheld
+                   and others are not. -->
+              <ion-item>
+                <ion-toggle [checked]="pocketWithholds()"
+                            (ionChange)="pocketWithholds.set($any($event.detail).checked)">
+                  {{ 'cushion.pocket.withholding' | t }}
+                </ion-toggle>
+              </ion-item>
             </ion-list>
+            <p class="hint">{{ (pocketWithholds() ? 'cushion.pocket.withholdingOn' : 'cushion.pocket.withholdingOff') | t }}</p>
 
             @if (pocketKind() === 'cdt') {
               <p class="hint">{{ 'cushion.pocket.cdtHint' | t }}</p>
@@ -1039,6 +1032,25 @@
                         </ion-list>
                       }
 
+                      <!-- The usual product is where money lands when nothing
+                           says otherwise, so removing it asks which one takes
+                           over - with a balance or without one. -->
+                      @if (removing.is_default === 1) {
+                        <p>{{ 'cushion.pocket.deleteUsual' | t }}</p>
+                        <ion-list>
+                          <ion-item lines="none">
+                            <ion-select [label]="'cushion.pocket.newUsual' | t" labelPlacement="stacked"
+                                        [value]="pocketNewUsual()" interface="alert"
+                                        [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                        (ionChange)="pocketNewUsual.set($any($event.detail).value)">
+                              @for (other of otherPockets(); track other.id) {
+                                <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
+                              }
+                            </ion-select>
+                          </ion-item>
+                        </ion-list>
+                      }
+
                       <!-- Only when there is a balance to move: with nothing in
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
@@ -1053,7 +1065,7 @@
                         <ion-button fill="outline" color="medium" (click)="confirmingPocketDelete.set(false)">
                           {{ 'entry.cancel' | t }}
                         </ion-button>
-                        <ion-button color="danger" [disabled]="saving() || pocketDeleteTo() === null"
+                        <ion-button color="danger" [disabled]="saving() || pocketDeleteTo() === null || (removing.is_default === 1 && pocketNewUsual() === null)"
                                     (click)="deletePocket()">
                           {{ 'cushion.pocket.deleteYes' | t }}
                         </ion-button>
@@ -1119,59 +1131,6 @@
           }
 
 
-          <!-- Moving it into the account, which is what the module is for -->
-          @if (form() === 'withdraw') {
-            <h2>{{ 'cushion.withdraw' | t }}</h2>
-            <p class="hint">{{ 'cushion.withdraw.hint' | t }}</p>
-
-            <ion-list [inset]="true">
-              <ion-item>
-                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
-                           inputmode="decimal" [value]="amount()"
-                           (ionInput)="amount.set($any($event.target).value)"
-                           [placeholder]="money(line.cushion.totalMinor, line.account.currency_code)"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
-                           type="date" [value]="onDate()"
-                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <!-- Chips rather than a select. An Ionic select opens an alert,
-                   and an alert is a radio list with no room for an icon in it -
-                   so every category Jose gave a real image to arrived here as
-                   a name and nothing else. There are only a handful of income
-                   categories, which is few enough to simply show. -->
-              <ion-item lines="none" class="pick-category">
-                <ion-label position="stacked">{{ 'cushion.field.category' | t }}</ion-label>
-                <div class="chips">
-                  @for (category of incomeCategories(); track category.id) {
-                    <button type="button" class="chip" [class.on]="categoryId() === category.id"
-                            (click)="categoryId.set(category.id)">
-                      <app-icon [builtin]="category.builtin_icon"
-                                [customId]="category.custom_icon_id" size="1.1rem"></app-icon>
-                      <span>{{ category.name }}</span>
-                    </button>
-                  }
-                </div>
-              </ion-item>
-              <ion-item>
-                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
-                              [autoGrow]="true" rows="2" [value]="note()"
-                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
-              </ion-item>
-            </ion-list>
-
-            <p class="hint warn">{{ 'cushion.withdraw.warning' | t }}</p>
-
-            <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="form.set('none')">
-                {{ 'entry.cancel' | t }}
-              </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveWithdrawal()">
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-          }
         </ion-content>
       }
     </ng-template>
