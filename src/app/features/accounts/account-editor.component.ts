@@ -69,6 +69,43 @@ export class AccountEditorComponent implements OnInit {
   readonly customIconId = signal<number | null>(null);
   readonly includeInNetWorth = signal(true);
   readonly archived = signal(false);
+
+  /**
+   * How many movements would go with the account, and whether the question
+   * has been asked yet.
+   *
+   * The count is read when the editor opens, because the warning has to say
+   * what will actually be lost rather than a general caution - "its 4,512
+   * movements" is a different sentence from "some movements".
+   */
+  readonly movements = signal(0);
+  readonly confirmingDelete = signal(false);
+
+  private async readMovementCount(id: number): Promise<void> {
+    this.movements.set(await new AccountsRepository(this.database.driver).movementCount(id));
+  }
+
+  /** Asks first. The second press is the one that does it. */
+  askToDelete(): void {
+    this.confirmingDelete.set(true);
+  }
+
+  async deleteAccount(): Promise<void> {
+    const account = this.editing();
+    if (!account) return;
+
+    this.saving.set(true);
+    try {
+      await new AccountsRepository(this.database.driver).deleteWithHistory(account.id);
+      this.database.dataChanged();
+      this.saved.emit();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.saving.set(false);
+      this.confirmingDelete.set(false);
+    }
+  }
   readonly openingBalance = signal(new AmountBuffer());
   readonly openedOn = signal(todayIso());
 
@@ -121,6 +158,8 @@ export class AccountEditorComponent implements OnInit {
 
     const account = this.editing();
     if (!account) return;
+
+    void this.readMovementCount(account.id);
 
     this.name.set(account.name);
     this.type.set(account.type);

@@ -160,6 +160,41 @@
       </section>
     }
   }
+
+  <!-- Deleting an account is the one act here that cannot be undone, so it
+       sits apart from everything else, says what it will take with it, and
+       asks before doing any of it. An account created by mistake - by an
+       import that did not recognise a renamed one, say - is otherwise
+       permanent, which is the situation this was built for. -->
+  @if (!isNew()) {
+    <section class="danger-zone">
+      @if (confirmingDelete()) {
+        <p class="warn strong">{{ 'accounts.delete.confirm' | t:{ account: name() } }}</p>
+        <p class="warn">{{ 'accounts.delete.confirmBody' | t }}</p>
+        <div class="actions">
+          <ion-button expand="block" fill="clear" (click)="confirmingDelete.set(false)">
+            {{ 'entry.cancel' | t }}
+          </ion-button>
+          <ion-button expand="block" color="danger" [disabled]="saving()"
+                      (click)="deleteAccount()">
+            {{ 'accounts.delete' | t }}
+          </ion-button>
+        </div>
+      } @else {
+        <ion-button expand="block" fill="clear" color="danger" (click)="askToDelete()">
+          <ion-icon slot="start" name="trash-outline"></ion-icon>
+          {{ 'accounts.delete' | t }}
+        </ion-button>
+        <p class="warn">
+          @if (movements() > 0) {
+            {{ 'accounts.delete.withMovements' | t:{ count: movements() } }}
+          } @else {
+            {{ 'accounts.delete.empty' | t }}
+          }
+        </p>
+      }
+    </section>
+  }
 </ion-content>
 
 <ion-footer class="pad">

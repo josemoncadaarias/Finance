@@ -95,3 +95,31 @@ ion-toggle .hint { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--ion-col
 .new-currency {
   --background: rgba(var(--ion-color-primary-rgb), 0.06);
 }
+
+/* The one act on this screen that cannot be undone, kept well away from Save
+   and behind a question. It says what it will take with it before it is
+   pressed, because "some movements" and "its 4,512 movements" are different
+   sentences and only one of them is an informed decision. */
+.danger-zone {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem 1.5rem;
+  border-top: 1px solid var(--ion-color-light-shade);
+
+  .warn {
+    margin: 0.25rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--ion-color-medium);
+
+    &.strong { color: var(--ion-color-danger); font-weight: 600; font-size: 0.9rem; }
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+
+    ion-button { flex: 1; --border-radius: 999px; text-transform: none; font-weight: 600; }
+  }
+}

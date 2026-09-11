@@ -868,3 +868,43 @@ test('a transfer carries the far account, icon included', async () => {
 
   await db.close();
 });
+
+test('an account can be deleted, and the import does not bring it back', async () => {
+  // `transactions.account_id` is ON DELETE RESTRICT, so an account with
+  // movements cannot be deleted at all — which is right, deleting an account
+  // must never quietly delete money, and it makes this a deliberate act with
+  // its own method and its own confirmation rather than a side effect.
+  const { db, accounts, transactions, transfers, ids } = await setup();
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.restaurante, occurred_on: '2026-09-09',
+    amount_minor: -25_000, source: 'monefy',
+    import_fingerprint: 'f-gone', import_seq: 1,
+  });
+
+  // A transfer is two legs in two accounts. Deleting one end would leave the
+  // other describing money that came from nowhere, so the whole thing goes.
+  await transfers.create({
+    occurred_on: '2026-09-09',
+    from: { account_id: ids.bancolombia, amount_minor: 10_000 },
+    to: { account_id: ids.rappi, amount_minor: 10_000 },
+  });
+
+  assert.equal(await accounts.movementCount(ids.rappi), 2);
+
+  await accounts.deleteWithHistory(ids.rappi);
+
+  assert.equal(await accounts.findById(ids.rappi), null);
+  assert.equal((await db.query('SELECT id FROM transfers')).length, 0, 'no half transfer');
+  assert.equal(
+    (await db.query('SELECT id FROM transactions WHERE account_id = ?', [ids.bancolombia])).length,
+    0, 'and no leg left behind in the other account');
+
+  // The fingerprint is remembered, so the next import of the same backup does
+  // not meet the row as new and build the account all over again.
+  const skipped = await db.queryOne(
+    "SELECT import_seq FROM deleted_imports WHERE import_fingerprint = 'f-gone'");
+  assert.equal(skipped.import_seq, 1);
+
+  await db.close();
+});

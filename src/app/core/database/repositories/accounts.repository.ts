@@ -147,6 +147,70 @@ export class AccountsRepository {
     return result.lastId!;
   }
 
+  /**
+   * Removes an account and everything that belonged to it.
+   *
+   * Every table that points at an account cascades except one:
+   * `transactions.account_id` is ON DELETE RESTRICT, so an account with
+   * movements cannot be deleted at all until they are gone. That rule is
+   * right — deleting an account must never quietly delete money — and it
+   * makes this a deliberate act rather than a side effect, which is why it
+   * lives in its own method and asks for confirmation before it is called.
+   *
+   * Three things have to happen before the account itself:
+   *
+   * A transfer is two legs in two accounts, and deleting one of them would
+   * leave the other describing money that came from nowhere. The whole
+   * transfer goes.
+   *
+   * Every fingerprint is recorded in `deleted_imports`, so the next import of
+   * the backup does not meet these rows as new and build the account all over
+   * again. That is the same rule a deleted movement already follows, and
+   * without it deleting an imported account is undone by the next import.
+   *
+   * Then the movements, then the account, and the cascades take the rest.
+   */
+  async deleteWithHistory(id: number): Promise<void> {
+    await this.db.transaction(async () => {
+      const now = this.now();
+
+      // Both ends of any transfer this account is one end of.
+      const transfers = await this.db.query<{ transfer_id: number }>(
+        'SELECT DISTINCT transfer_id FROM transactions WHERE account_id = ? AND transfer_id IS NOT NULL',
+        [id]);
+
+      for (const { transfer_id } of transfers) {
+        await this.db.run(
+          `INSERT INTO deleted_imports (import_fingerprint, import_seq, deleted_at)
+           SELECT import_fingerprint, import_seq, ?
+           FROM transactions
+           WHERE transfer_id = ? AND import_fingerprint IS NOT NULL
+           ON CONFLICT(import_fingerprint, import_seq) DO NOTHING`,
+          [now, transfer_id]);
+        await this.db.run('DELETE FROM transactions WHERE transfer_id = ?', [transfer_id]);
+        await this.db.run('DELETE FROM transfers WHERE id = ?', [transfer_id]);
+      }
+
+      await this.db.run(
+        `INSERT INTO deleted_imports (import_fingerprint, import_seq, deleted_at)
+         SELECT import_fingerprint, import_seq, ?
+         FROM transactions
+         WHERE account_id = ? AND import_fingerprint IS NOT NULL
+         ON CONFLICT(import_fingerprint, import_seq) DO NOTHING`,
+        [now, id]);
+
+      await this.db.run('DELETE FROM transactions WHERE account_id = ?', [id]);
+      await this.db.run('DELETE FROM accounts WHERE id = ?', [id]);
+    });
+  }
+
+  /** How much would be lost, for the question asked before deleting. */
+  async movementCount(id: number): Promise<number> {
+    const row = await this.db.queryOne<{ total: number }>(
+      'SELECT COUNT(*) AS total FROM transactions WHERE account_id = ?', [id]);
+    return row?.total ?? 0;
+  }
+
   async update(id: number, changes: AccountUpdate): Promise<void> {
     // A rename keeps the old name as an alias, so the next import still knows
     // where this account's history goes. Done here rather than at the call
