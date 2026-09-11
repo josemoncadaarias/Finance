@@ -123,6 +123,11 @@ export class AccrualEngine {
     const enrolled = await this.yields.account(accountId);
     if (!enrolled || enrolled.enabled === 0) return nothing;
 
+    // Before anything else, and outside the decision about where to resume:
+    // a day after today is wrong whatever the rest of this concludes, and the
+    // early return below is exactly the path that used to leave one behind.
+    await this.yields.clearFutureDays(accountId, upTo);
+
     // Where to resume. A month already partly accrued is redone from its first
     // day, because a monthly condition can only be judged on the whole month.
     const last = await this.yields.lastAccruedDay(accountId);

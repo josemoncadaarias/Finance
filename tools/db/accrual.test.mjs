@@ -1304,3 +1304,39 @@ test('a movement that names a product moves that product and no other', async ()
 
   await db.close();
 });
+
+test('a day in the future is removed, even when there is nothing to accrue', async () => {
+  // How one got there: "today" was read as the UTC day, which in Colombia is
+  // tomorrow every evening after seven. The engine wrote a day that had not
+  // happened, and then had no reason to revisit it — it resumes from the last
+  // day it wrote, and that day was already past the day it was being asked to
+  // reach, so it returned early without clearing anything. Fixing the clock
+  // stopped new ones appearing; this is what removes the ones already there.
+  const { db, yields, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+  await yields.setRate({
+    account_id: ids.rappi, component: 'base', payout: 'daily',
+    valid_from: '2026-09-09', annual_rate_scaled: 9 * 10_000,
+  });
+
+  // Accrued one day too far, the way the UTC reading did.
+  await engine.accrue(ids.rappi, '2026-09-11');
+  assert.equal(await yields.lastAccruedDay(ids.rappi), '2026-09-11');
+
+  // Asked again for the real today, which is behind what was already written.
+  await engine.accrue(ids.rappi, '2026-09-10');
+  assert.equal(await yields.lastAccruedDay(ids.rappi), '2026-09-10',
+    'the day that never happened is gone');
+
+  // And a locked day is no exception: locking means a statement disagreed with
+  // the arithmetic, which cannot be true of a day the bank has not reached.
+  await engine.accrue(ids.rappi, '2026-09-12');
+  await db.run('UPDATE yield_days SET locked = 1 WHERE on_date = ?', ['2026-09-12']);
+  await engine.accrue(ids.rappi, '2026-09-10');
+  assert.equal(await yields.lastAccruedDay(ids.rappi), '2026-09-10');
+
+  await db.close();
+});

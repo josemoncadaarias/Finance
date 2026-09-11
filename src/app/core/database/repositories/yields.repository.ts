@@ -613,6 +613,25 @@ export class YieldsRepository {
   }
 
   /** Throws away computed days so they can be worked out again. Locked days stay. */
+  /**
+   * Removes days that have not happened yet.
+   *
+   * A day after today is never right, whatever it says. These appeared because
+   * "today" was once read as the UTC day, which in Colombia is tomorrow every
+   * evening after seven - so the engine accrued a day in the future and then
+   * had no reason to revisit it: it resumes from the last day it wrote, and
+   * that day was already past the day it was being asked to reach, so it
+   * returned early without clearing anything.
+   *
+   * `locked` is ignored on purpose. Locking a day means a statement disagreed
+   * with the arithmetic and the statement won, which cannot be true of a day
+   * the bank has not reached either.
+   */
+  async clearFutureDays(accountId: number, after: IsoDate): Promise<void> {
+    await this.db.run(
+      'DELETE FROM yield_days WHERE account_id = ? AND on_date > ?', [accountId, after]);
+  }
+
   async clearDays(accountId: number, from?: IsoDate): Promise<void> {
     const values: unknown[] = [accountId];
     let sql = 'DELETE FROM yield_days WHERE account_id = ? AND locked = 0';
