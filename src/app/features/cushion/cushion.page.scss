@@ -398,3 +398,15 @@ ion-modal {
     }
   }
 }
+
+/* A heading over an inset list, matching the labels on the fields beside it.
+   The products a rate covers used to sit in a full-bleed grey strip, which
+   read as a different kind of thing from every other field in the form. */
+.field-heading {
+  margin: 0.9rem 2rem 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}

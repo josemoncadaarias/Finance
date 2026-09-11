@@ -37,6 +37,7 @@ import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
+import { todayIso } from '../../core/yields/days';
 
 @Component({
   selector: 'app-movements',
@@ -471,9 +472,4 @@ export class MovementsPage {
 }
 
 /** Today as an ISO day, in local time. */
-function todayIso(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
+

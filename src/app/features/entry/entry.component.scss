@@ -599,7 +599,13 @@ ion-item.selected ion-label h3 {
  * leaves the app mid-entry.
  *
  * `env(safe-area-inset-bottom)` is what the phone reports for that strip; the
- * floor is 24px, the height of an Android gesture bar. The measurements that
+ * floor is small now that the sheet is centred and normally nowhere near the
+ * bottom edge; env() is what still matters, for the one case that does touch
+ * it - a screen short enough that the sheet grows to the full height. The
+ * measurements behind it: a three-button navigation bar is 48dp, a gesture
+ * bar 24dp, an iPhone home indicator 34pt. The old text follows.
+ *
+ * The measurements that
  * matter: a three-button navigation bar is 48dp, a gesture bar 24dp, and an
  * iPhone home indicator 34pt. Each of those is reported through env() - the
  * page carries viewport-fit=cover, and an edge-to-edge Android activity and
@@ -614,6 +620,6 @@ ion-item.selected ion-label h3 {
  * reason.
  */
 ion-footer.pad {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1.5rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.4rem);
   background: var(--ion-background-color);
 }

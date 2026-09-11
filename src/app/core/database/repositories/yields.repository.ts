@@ -18,6 +18,7 @@
 
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
+import { todayIso } from '../../yields/days';
 
 /** An account enrolled for accrual. Not being here means never accrued. */
 export interface YieldAccount {
@@ -739,7 +740,7 @@ export class YieldsRepository {
     // Which part of what has been worked out is still owed is a property of
     // the days themselves: each one knows how its component is paid.
     {
-      const day = asOf ?? new Date().toISOString().slice(0, 10);
+      const day = asOf ?? todayIso();
       const [year, month] = day.split('-').map(Number);
       const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 

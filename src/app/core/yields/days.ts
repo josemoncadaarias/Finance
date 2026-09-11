@@ -56,3 +56,26 @@ export function eachDay(from: IsoDate, to: IsoDate): IsoDate[] {
   for (let day = from; day <= to; day = nextDay(day)) out.push(day);
   return out;
 }
+
+/**
+ * Today, where the user is standing.
+ *
+ * `new Date().toISOString().slice(0, 10)` is the obvious way to write this and
+ * it is wrong: it gives the UTC day. In Colombia, five hours behind, every
+ * evening after seven o'clock it answers with tomorrow — so the yields screen
+ * showed a day of interest for the 11th while it was still the 10th, and the
+ * accrual wrote a day that had not happened yet.
+ *
+ * The parts come from the local calendar instead. `getMonth` is zero-based;
+ * `getDate` is the day of the month, not `getDay`, which is the day of the
+ * week and is the other half of this mistake.
+ *
+ * Every screen asks this one function, so the next copy cannot be the wrong
+ * one — it was already written twice, once each way.
+ */
+export function todayIso(): IsoDate {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}

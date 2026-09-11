@@ -240,5 +240,10 @@ ion-modal.entry-sheet {
   --max-height: 100%;
   --border-radius: 18px 18px 0 0;
 
-  align-items: flex-end;
+  /* Centred rather than rested on the bottom. On the bottom it ended flush
+     against whatever the phone keeps down there — a gesture bar, three
+     buttons — and the clearance that would fix that is guesswork about
+     hardware the page cannot see. Centred, the gap above and below is equal
+     and comes from the room actually available. */
+  align-items: center;
 }
