@@ -71,15 +71,18 @@ interface CushionLine {
    */
   earnsOnMinor: number;
   /**
-   * What the products say they hold, minus what the account holds.
+   * What each product holds today, by product id.
    *
-   * Zero when they agree. A product's balance is a figure read off the bank
-   * and it stays that figure until another is entered, so moving money from
-   * one product to another leaves this non-zero until both are updated -
-   * which is the only warning there can be, since a movement never says which
-   * product inside an account it came from.
+   * An account's own figure is a summary of everything inside it, so it says
+   * nothing about how the parts are doing. This is the part-by-part answer:
+   * how much is in each one, what a move would be taking from, and what is
+   * left afterwards.
+   *
+   * A negative one is a product that had money taken out of the account
+   * against it and never had it moved in from the product that really held it
+   * — worth seeing rather than hiding, because the negative is the reminder.
    */
-  driftMinor: number;
+  heldByPocket: ReadonlyMap<number, number>;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -360,7 +363,7 @@ export class CushionPage {
           // them showed Uala earning on twice what it holds.
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
-          driftMinor: await engine.drift(entry.account_id, today()),
+          heldByPocket: await engine.heldByPocket(entry.account_id, today()),
         });
       }
 
@@ -1319,6 +1322,14 @@ export class CushionPage {
   // Colombian reads as 3.116,47.
   // ---------------------------------------------------------------------------
 
+  /** Everything the products hold, which is the account plus its yields. */
+  totalHeld(line: CushionLine): number {
+    return line.pockets.reduce((sum, pocket) => sum + this.heldIn(line, pocket.id), 0);
+  }
+  /** What one product holds today. Zero when nothing is known about it. */
+  heldIn(line: CushionLine, pocketId: number): number {
+    return line.heldByPocket.get(pocketId) ?? 0;
+  }
   /** The size of a difference, without its direction. */
   abs(value: number): number {
     return Math.abs(value);

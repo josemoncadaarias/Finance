@@ -1194,118 +1194,8 @@ test('a product with no rate of its own uses the account rate', async () => {
     pct(6.5), 'and the one with its own keeps it');
 });
 
-test('moving money from one product to another is reported until both are updated', async () => {
-  // Jose's scenario: close part of one product and open another with it. A
-  // movement records that money left the ACCOUNT; nothing records which
-  // product inside it the money came out of, so the only thing that can
-  // update a product's balance is Jose typing the new one. Until he does, the
-  // first product goes on earning on money it no longer holds — and the whole
-  // point of the check is that this is said out loud rather than compounded
-  // quietly.
-  const { db, yields, engine, ids } = await setup();
 
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
-  });
 
-  // Enrolling gives an account one pocket that follows the ledger. Splitting
-  // it into named products is a deliberate act, and it turns that first one
-  // into a product with a balance of its own.
-  const [general] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(general.id, 'manual');
-  await yields.renamePocket(general.id, 'Ahorro');
-  const savings = general.id;
-
-  const cdt = await yields.addPocket({
-    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
-
-  await yields.setPocketBalance({
-    pocket_id: savings, valid_from: '2026-09-01', amount_minor: 600_000_000 });
-  await yields.setPocketBalance({
-    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 400_000_000 });
-
-  assert.equal(await engine.drift(ids.rappi, '2026-09-01'), 0,
-    'they add up to the account, so nothing to report');
-
-  // 1,500,000.00 moves out of Ahorro and into the CDT. Inside one account,
-  // that writes no movement at all — the account still holds the same money.
-  await yields.setPocketBalance({
-    pocket_id: cdt, valid_from: '2026-09-10', amount_minor: 550_000_000 });
-
-  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 150_000_000,
-    'the products now claim more than the account holds');
-
-  // Jose updates the other half, which is what the warning asks for.
-  await yields.setPocketBalance({
-    pocket_id: savings, valid_from: '2026-09-10', amount_minor: 450_000_000 });
-
-  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
-
-  await db.close();
-});
-
-test('an account with one product that follows the ledger never drifts', async () => {
-  // The common case, and it must never cry wolf: a single ledger-backed
-  // product is the account by definition, so no amount of movement can put
-  // the two out of step.
-  const { db, yields, transactions, engine, ids } = await setup();
-
-  await yields.enrol({
-    account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-09-01',
-  });
-  // Enrolling already gave it exactly that pocket.
-  await transactions.create({
-    account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-05',
-    amount_minor: -25_000_000, source: 'manual',
-  });
-
-  assert.equal(await engine.drift(ids.uala, '2026-09-10'), 0);
-  await db.close();
-});
-
-test('a movement that names a product moves that product and no other', async () => {
-  // Before a movement could name one, the first product absorbed every
-  // movement of the account — so moving money between two products of the
-  // same account moved neither, and money arriving landed wherever the first
-  // product happened to be. This is the rule Jose asked for: the movement says
-  // where it went.
-  const { db, yields, transactions, engine, ids } = await setup();
-
-  await yields.enrol({
-    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
-  });
-
-  const [first] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(first.id, 'manual');
-  await yields.renamePocket(first.id, 'Cuenta de ahorros');
-  const cdt = await yields.addPocket({
-    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
-
-  await yields.setPocketBalance({
-    pocket_id: first.id, valid_from: '2026-09-01', amount_minor: 600_000_000 });
-  await yields.setPocketBalance({
-    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 400_000_000 });
-
-  // 200,000.00 arrives and is filed against the CDT.
-  await transactions.create({
-    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
-    amount_minor: 20_000_000, pocket_id: cdt, source: 'manual',
-  });
-
-  // The account gained it, and so the two still add up: nothing to report.
-  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
-
-  // And it went to the CDT, not to the product that happens to be first.
-  const balances = await db.query(
-    `SELECT pocket_id, SUM(amount_minor) AS total FROM transactions
-     WHERE account_id = ? GROUP BY pocket_id`, [ids.rappi]);
-  const toCdt = balances.find(row => row.pocket_id === cdt);
-  assert.equal(toCdt.total, 20_000_000);
-  assert.equal(balances.find(row => row.pocket_id === null), undefined,
-    'nothing was left unassigned');
-
-  await db.close();
-});
 
 test('a day in the future is removed, even when there is nothing to accrue', async () => {
   // How one got there: "today" was read as the UTC day, which in Colombia is
@@ -1343,12 +1233,11 @@ test('a day in the future is removed, even when there is nothing to accrue', asy
   await db.close();
 });
 
-test('moving money between two products of one account leaves the account alone', async () => {
-  // What the bank calls a withdrawal or a top-up between its own pots. From
-  // the account's point of view nothing happens — the same money is still
-  // there — so it is written as a transfer whose two legs are in the SAME
-  // account and differ only in the product. The two sum to zero.
-  const { db, yields, transfers, engine, ids } = await setup();
+test('each product holds its own figure plus what moved through it', async () => {
+  // The question Jose actually needs answered, and the one an account's own
+  // balance cannot: that figure is a summary of everything inside it and says
+  // nothing about how the parts are doing.
+  const { db, yields, transactions, engine, ids } = await setup();
 
   await yields.enrol({
     account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
@@ -1356,19 +1245,94 @@ test('moving money between two products of one account leaves the account alone'
 
   const [savings] = await yields.pockets(ids.rappi);
   await yields.setPocketSource(savings.id, 'manual');
-  const cdt = await yields.addPocket({
-    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+  const alcancia = await yields.addPocket({
+    account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
 
   await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 700_000_000 });
+    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 600_000_000 });
   await yields.setPocketBalance({
-    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 300_000_000 });
+    pocket_id: alcancia, valid_from: '2026-09-01', amount_minor: 400_000_000 });
+
+  let held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  assert.equal(held.get(savings.id), 600_000_000);
+  assert.equal(held.get(alcancia), 400_000_000);
+
+  // Money arriving, filed against the alcancía.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
+    amount_minor: 20_000_000, pocket_id: alcancia, source: 'manual',
+  });
+
+  held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  assert.equal(held.get(savings.id), 600_000_000, 'untouched');
+  assert.equal(held.get(alcancia), 420_000_000, 'and it went where it said');
+
+  await db.close();
+});
+
+test('a product goes negative when the money was never moved across', async () => {
+  // Jose's own example. The savings account is at zero, a transfer leaves
+  // from it, and the move from the alcancía beside it is forgotten. The
+  // product goes below zero and stays there until the move is recorded —
+  // which is the point: the negative is the reminder, so it is shown rather
+  // than clamped away.
+  const { db, yields, transactions, transfers, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  const alcancia = await yields.addPocket({
+    account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
+
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 0 });
+  await yields.setPocketBalance({
+    pocket_id: alcancia, valid_from: '2026-09-01', amount_minor: 500_000_000 });
+
+  // 1,000,000.00 leaves the savings account, which has nothing in it.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
+    amount_minor: -100_000_000, pocket_id: savings.id, source: 'manual',
+  });
+
+  let held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  assert.equal(held.get(savings.id), -100_000_000, 'visible, not hidden');
+
+  // Recording the move that was forgotten puts it right, and the account's
+  // own total never changed through any of it.
+  await transfers.create({
+    occurred_on: '2026-09-05',
+    from: { account_id: ids.rappi, pocket_id: alcancia, amount_minor: 100_000_000 },
+    to: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100_000_000 },
+  });
+
+  held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  assert.equal(held.get(savings.id), 0);
+  assert.equal(held.get(alcancia), 400_000_000);
+
+  await db.close();
+});
+
+test('moving between two products of one account leaves the account alone', async () => {
+  // From the account's point of view nothing happens: the same money is
+  // still there. Both legs sit in the same account and sum to zero.
+  const { db, yields, transfers, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  const cdt = await yields.addPocket({
+    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
 
   const before = await db.queryOne(
     'SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions WHERE account_id = ?',
     [ids.rappi]);
 
-  // 1,000,000.00 out of the savings account and into the CDT.
   await transfers.create({
     occurred_on: '2026-09-05',
     from: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100_000_000 },
@@ -1380,14 +1344,9 @@ test('moving money between two products of one account leaves the account alone'
     [ids.rappi]);
   assert.equal(after.total, before.total, 'the account holds exactly what it held');
 
-  // And the products moved: the two still add up to the account, so the
-  // check that compares them has nothing to report.
-  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
-
   const legs = await db.query(
     `SELECT pocket_id, amount_minor FROM transactions
      WHERE transfer_id IS NOT NULL AND account_id = ? ORDER BY amount_minor`, [ids.rappi]);
-  assert.equal(legs.length, 2);
   assert.deepEqual(
     legs.map(leg => [leg.pocket_id, leg.amount_minor]),
     [[savings.id, -100_000_000], [cdt, 100_000_000]]);

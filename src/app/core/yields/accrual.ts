@@ -80,37 +80,39 @@ export class AccrualEngine {
   }
 
   /**
-   * How far the products have drifted from the account they live in.
+   * What each product holds today.
    *
-   * A product's balance is a figure read off the bank on a date, and it stays
-   * that figure until another one is entered. So money that leaves one product
-   * to go into another - closing an alcancia to open a CDT, moving part of a
-   * savings pot - is invisible here unless both figures are updated by hand.
-   * Nothing else can update them: a movement records that money left the
-   * ACCOUNT, never which product inside it.
+   * The figure someone checks against the bank, product by product, and the
+   * one thing this module was missing: an account's own balance is a summary
+   * of everything inside it and says nothing about how the parts are doing.
    *
-   * Left alone, a product goes on earning on money it no longer holds. This is
-   * what makes that visible: what the products say they hold, against what the
-   * account actually holds, on the same day. Zero means they agree.
+   * It is the stated figure plus what has moved through THAT product since -
+   * the same rule the accrual earns on, so the two can never disagree about
+   * what a product holds.
    *
-   * The comparison is against the ledger rather than against another figure
-   * typed by hand, because the ledger is the half that cannot be forgotten.
+   * It can come out negative, and that is worth seeing rather than hiding. A
+   * product goes negative when money was taken out of the account against it
+   * and never moved in from the product that really had it: the savings
+   * account was at zero, a transfer left from it, and the move from the
+   * alcancia beside it was forgotten. The negative is the reminder. Earning
+   * still floors at zero — a product in the red earns nothing, it does not
+   * charge interest.
    */
-  async drift(accountId: number, on: IsoDate): Promise<number> {
+  async heldByPocket(accountId: number, on: IsoDate): Promise<Map<number, number>> {
     const pockets = await this.yields.pockets(accountId);
-    if (pockets.length === 0) return 0;
+    const held = new Map<number, number>();
+    if (pockets.length === 0) return held;
 
     const balances = await this.dailyBalances(accountId, on);
 
-    let held = 0;
     for (const [at, pocket] of pockets.entries()) {
-      held += pocket.source === 'manual'
+      held.set(pocket.id, pocket.source === 'manual'
         ? statedOn(await this.yields.pocketBalances(pocket.id), on,
                    await this.dailyBalances(accountId, on, pocket.id, at === 0), true)
-        : balanceOn(balances, on);
+        : balanceOn(balances, on));
     }
 
-    return held - balanceOn(balances, on);
+    return held;
   }
 
   async accrue(accountId: number, upTo: IsoDate): Promise<AccrualResult> {

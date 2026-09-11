@@ -113,7 +113,12 @@ export class EntryComponent implements OnInit {
   readonly pockets = signal<YieldPocket[]>([]);
   readonly pocketId = signal<number | null>(null);
 
+  /** The far side of a transfer has products of its own. */
+  readonly toPockets = signal<YieldPocket[]>([]);
+  readonly toPocketId = signal<number | null>(null);
+
   readonly splitAccount = computed(() => this.pockets().length > 1);
+  readonly splitTarget = computed(() => this.toPockets().length > 1);
 
   /** Open while the full list with its search box is showing. */
   readonly browsingCategories = signal(false);
@@ -316,6 +321,15 @@ export class EntryComponent implements OnInit {
   }
 
   private async load(): Promise<void> {
+    // The products belong to whichever accounts end up chosen, so they are
+    // read after that is settled. Reading them first was the whole of why the
+    // picker never appeared: the account was still null, so there were no
+    // products to show and the row decided there was nothing to ask.
+    await this.loadAccountsAndCategories();
+    await this.loadPockets();
+  }
+
+  private async loadAccountsAndCategories(): Promise<void> {
     if (this.database.status() !== 'ready') return;
     const driver = this.database.driver;
 
@@ -331,7 +345,6 @@ export class EntryComponent implements OnInit {
 
     this.categories.set(categories);
     this.accounts.set(accounts);
-    await this.loadPockets();
 
     const editing = this.request().editing;
     if (editing) {
@@ -378,6 +391,7 @@ export class EntryComponent implements OnInit {
 
     this.editingTransferId.set(transferId);
     this.accountId.set(found.from.account_id);
+    this.farLegPocketId = found.to.pocket_id ?? null;
     this.toAccountId.set(found.to.account_id);
     this.amount.set(AmountBuffer.from(found.from.amount_minor));
     this.targetAmount.set(AmountBuffer.from(found.to.amount_minor));
@@ -711,7 +725,7 @@ export class EntryComponent implements OnInit {
       }
     }
     this.picking.set(null);
-    if (this.accountId() !== wasAccount) await this.loadPockets();
+    if (this.accountId() !== wasAccount || this.isTransfer()) await this.loadPockets();
   }
 
   swapAccounts(): void {
@@ -756,25 +770,46 @@ export class EntryComponent implements OnInit {
    * a product belonging to somewhere else.
    */
   private async loadPockets(): Promise<void> {
-    const accountId = this.accountId();
-    if (accountId === null || this.isTransfer()) {
-      this.pockets.set([]);
-      this.pocketId.set(null);
-      return;
-    }
-
+    if (this.database.status() !== 'ready') return;
     const yields = new YieldsRepository(this.database.driver);
-    const pockets = await yields.pockets(accountId);
-    this.pockets.set(pockets);
+
+    const read = async (accountId: number | null, storedId: number | null) => {
+      if (accountId === null) return { pockets: [] as YieldPocket[], chosen: null };
+      const pockets = await yields.pockets(accountId);
+      const known = pockets.some(pocket => pocket.id === storedId);
+      // The first product unless the movement already names another: an
+      // account's first product is the savings account it started as, which
+      // is where a salary lands and a card payment leaves from.
+      return { pockets, chosen: known ? storedId : pockets[0]?.id ?? null };
+    };
 
     const editing = this.request().editing;
-    const stored = editing?.account_id === accountId ? editing.pocket_id ?? null : null;
-    const known = pockets.some(pocket => pocket.id === stored);
+    const storedFor = (accountId: number | null) =>
+      editing && editing.account_id === accountId ? editing.pocket_id ?? null : null;
 
-    // The first product unless the movement already names another: an
-    // account's first product is the savings account it started as, which is
-    // where a salary lands and a card payment leaves from.
-    this.pocketId.set(known ? stored : pockets[0]?.id ?? null);
+    const here = await read(this.accountId(), storedFor(this.accountId()));
+    this.pockets.set(here.pockets);
+    this.pocketId.set(here.chosen);
+
+    // A transfer moves between two products as much as between two accounts,
+    // and they are asked for separately because they are separate questions -
+    // the far account's savings pocket is not this one's.
+    const far = this.isTransfer()
+      ? await read(this.toAccountId(), this.farLegPocket())
+      : { pockets: [] as YieldPocket[], chosen: null };
+    this.toPockets.set(far.pockets);
+    this.toPocketId.set(far.chosen);
+  }
+
+  /** The product recorded on the far leg of the transfer being corrected. */
+  private farLegPocketId: number | null = null;
+
+  private farLegPocket(): number | null {
+    return this.farLegPocketId;
+  }
+
+  pickPocketTo(id: number): void {
+    this.toPocketId.set(id);
   }
 
   pickPocket(id: number): void {
@@ -826,9 +861,14 @@ export class EntryComponent implements OnInit {
     const transfer = {
       occurred_on: this.occurredOn(),
       description: this.note().trim() || null,
-      from: { account_id: this.accountId()!, amount_minor: out },
+      from: {
+        account_id: this.accountId()!,
+        pocket_id: this.splitAccount() ? this.pocketId() : null,
+        amount_minor: out,
+      },
       to: {
         account_id: this.toAccountId()!,
+        pocket_id: this.splitTarget() ? this.toPocketId() : null,
         amount_minor: into,
         rate_scaled: rateScaled,
         amount_base_minor: this.crossesCurrency() ? out : undefined,

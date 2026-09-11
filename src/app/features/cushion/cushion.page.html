@@ -295,24 +295,41 @@
               </ion-item>
             </ion-list>
 
+            <!-- How much is in each one, which the account's own figure
+                 cannot say: that figure is a summary of everything inside it.
+                 Shown even with a single product, because "how is this one
+                 doing" is a fair question about one product too.
+                 
+                 A negative figure is left visible and marked. It means money
+                 left the account against this product and was never moved in
+                 from the one that really had it - the savings account at zero,
+                 a transfer out of it, and the move from the alcancía beside it
+                 forgotten. The negative is the reminder. -->
+            <p class="section">{{ 'cushion.pockets' | t }}</p>
+            <ion-list [inset]="true">
+              @for (pocket of line.pockets; track pocket.id) {
+                <ion-item button (click)="openPocket(pocket)">
+                  <ion-label>
+                    <h3>{{ pocket.name }}</h3>
+                    <p>
+                      @if (pocket.source === 'ledger') {
+                        {{ 'cushion.pockets.ledger' | t }}
+                      } @else {
+                        {{ 'cushion.pockets.manual' | t }}
+                      }
+                    </p>
+                  </ion-label>
+                  <ion-note slot="end" class="held"
+                            [class.owed]="heldIn(line, pocket.id) < 0">
+                    {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                  </ion-note>
+                </ion-item>
+              }
+            </ion-list>
+
             @if (line.pockets.length > 1) {
-              <p class="section">{{ 'cushion.pockets' | t }}</p>
-              <ion-list [inset]="true">
-                @for (pocket of line.pockets; track pocket.id) {
-                  <ion-item>
-                    <ion-label>
-                      <h3>{{ pocket.name }}</h3>
-                      <p>
-                        @if (pocket.source === 'ledger') {
-                          {{ 'cushion.pockets.ledger' | t }}
-                        } @else {
-                          {{ 'cushion.pockets.manual' | t }}
-                        }
-                      </p>
-                    </ion-label>
-                  </ion-item>
-                }
-              </ion-list>
+              <p class="hint">{{ 'cushion.pockets.total' | t:{
+                   amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
             <div class="actions">

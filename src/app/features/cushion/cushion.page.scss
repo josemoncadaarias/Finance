@@ -437,3 +437,14 @@ ion-modal {
     }
   }
 }
+
+/* What a product holds today, beside its name. Tabular so a column of them
+   lines up, and a product in the red is coloured — it means money left the
+   account against it and was never moved in from the one that really had it. */
+.held {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ion-text-color);
+
+  &.owed { color: var(--ion-color-warning); }
+}

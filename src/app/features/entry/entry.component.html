@@ -137,8 +137,36 @@
          answer is nearly always the one already chosen - the savings account
          every account starts as. Nothing appears at all on an account with a
          single product, which is most of them: a question with one possible
-         answer is not a question. -->
-    @if (splitAccount()) {
+         answer is not a question.
+         
+         A transfer asks twice, once per end, because they are two separate
+         questions: the far account's savings pocket is not this one's. -->
+    @if (isTransfer() && (splitAccount() || splitTarget())) {
+      @if (splitAccount()) {
+        <div class="pockets">
+          <span class="lead">{{ 'entry.pocket.from' | t }}</span>
+          <div class="row">
+            @for (pocket of pockets(); track pocket.id) {
+              <button type="button" [class.on]="pocketId() === pocket.id"
+                      (click)="pickPocket(pocket.id)">{{ pocket.name }}</button>
+            }
+          </div>
+        </div>
+      }
+      @if (splitTarget()) {
+        <div class="pockets">
+          <span class="lead">{{ 'entry.pocket.into' | t }}</span>
+          <div class="row">
+            @for (pocket of toPockets(); track pocket.id) {
+              <button type="button" [class.on]="toPocketId() === pocket.id"
+                      (click)="pickPocketTo(pocket.id)">{{ pocket.name }}</button>
+            }
+          </div>
+        </div>
+      }
+    }
+
+    @if (!isTransfer() && splitAccount()) {
       <div class="pockets">
         <span class="lead">{{ (kind() === 'income' ? 'entry.pocket.into' : 'entry.pocket.from') | t }}</span>
         <div class="row">
