@@ -100,7 +100,13 @@ test('the day it matures, it pays its term with 7% withheld, hands everything ov
   await accrueAndSettle(db, yields, tax, account, '2026-10-10');
 
   assert.deepEqual((await yields.pockets(account)).map(pocket => pocket.id), [savings], 'the CDT closed itself');
-  assert.equal((await engine.heldByPocket(account, '2026-10-10')).get(savings),
+  // The capital arrives as a movement on the chosen product rather than by
+  // rewriting its stated balance; the net yield as a movement of the account.
+  const carried = (await yields.adjustments(account))
+    .filter(entry => entry.pocket_id === savings && entry.transaction_id === null)
+    .reduce((sum, entry) => sum + entry.amount_minor, 0);
+  assert.equal(carried, pesos(10_000_000), 'the capital, carried across as a movement');
+  assert.equal((await engine.heldByPocket(account, '2026-10-10')).get(savings) + carried,
     savingsBefore + pesos(10_000_000) + preview.netMinor, 'capital and net yield, into the chosen product');
   assert.equal(await balance(), accountBefore + preview.netMinor, 'the net yield is new money in the account');
 
@@ -111,8 +117,9 @@ test('the day it matures, it pays its term with 7% withheld, hands everything ov
   assert.equal(payment.withholding_minor, preview.withheldMinor);
   assert.equal(payment.locked, 1);
 
-  assert.equal((await yields.cushion(account, '2026-10-10')).totalMinor, 0,
-    'paid into the balance, not left as yield on top of it');
+  const gathered = await yields.cushion(account, '2026-10-10');
+  assert.equal(gathered.accrued_minor - gathered.withdrawn_minor, 0,
+    'the yield was paid into the balance, not left on top of it');
   const year = await yields.yearTotals(2026);
   assert.equal(year.withheldMinor, preview.withheldMinor, 'and the tax simulator reads what was withheld');
 });
@@ -128,7 +135,8 @@ test('a closed CDT\'s payment survives every recompute after it', async () => {
   const again = (await yields.days(account)).find(day => day.component === 'CDT Demo 1M');
   assert.deepEqual({ gross: again.gross_minor, withheld: again.withholding_minor, net: again.net_minor },
     { gross: kept.gross_minor, withheld: kept.withholding_minor, net: kept.net_minor });
-  assert.equal((await yields.cushion(account, '2026-10-25')).totalMinor, 0);
+  const gathered = await yields.cushion(account, '2026-10-25');
+  assert.equal(gathered.accrued_minor - gathered.withdrawn_minor, 0);
 });
 
 test('a rate that belonged to a whole account is copied onto each product that used it', async () => {

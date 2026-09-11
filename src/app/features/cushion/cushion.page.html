@@ -553,6 +553,9 @@
                       <ion-label>
                         <h3>{{ dayText(payment.on) }}</h3>
                         <p>
+                          @if (line.pockets.length > 1) {
+                            <strong>{{ pocketLabel(line, payment.pocketId) }}</strong> ·
+                          }
                           {{ payment.component }}
                           @if (payment.payout === 'monthly' && payment.days > 1) {
                             · {{ 'cushion.payments.ofDays' | t:{ count: payment.days } }}
@@ -1242,7 +1245,7 @@
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
                       @if (pocketDeleteHeld() !== 0 || pocketDeleteHistory() > 0) {
-                        <p class="note">{{ 'cushion.pocket.deleteKeeps' | t:{ target: pocketDeleteTargetName() } }}</p>
+                        <p class="note">{{ (removing.kind === 'cdt' ? 'cushion.pocket.deleteKeepsCdt' : 'cushion.pocket.deleteKeeps') | t:{ target: pocketDeleteTargetName() } }}</p>
                       }
                       @if (error()) {
                         <p class="error">{{ error() }}</p>

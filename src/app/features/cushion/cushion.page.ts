@@ -104,6 +104,8 @@ interface CushionLine {
 /** One thing the bank actually hands over: a day, or a whole month. */
 interface Payment {
   key: string;
+  /** Each product is its own payment, as the bank's app shows them. */
+  pocketId: number;
   component: string;
   payout: 'daily' | 'monthly';
   on: IsoDate;
@@ -654,10 +656,12 @@ export class CushionPage {
       // The day it is handed over, as written when the day was worked out.
       // Older days fall back to the rule they were computed under.
       const on = day.paid_on ?? (monthly ? endOfMonth(day.on_date) : day.on_date);
-      const key = `${day.component}|${on}`;
+      // Per product: the bank pays each one apart, and its app is read product
+      // by product. Adding them up gave a figure no screen of the bank shows.
+      const key = `${day.pocket_id}|${day.component}|${on}`;
 
       const payment = out.get(key) ?? {
-        key, component: day.component, payout: day.payout, on,
+        key, pocketId: day.pocket_id, component: day.component, payout: day.payout, on,
         netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0,
       };
       payment.netMinor += netOf(day);
@@ -666,7 +670,7 @@ export class CushionPage {
       out.set(key, payment);
     }
 
-    return [...out.values()].sort((a, b) => b.on.localeCompare(a.on));
+    return [...out.values()].sort((a, b) => b.on.localeCompare(a.on) || a.pocketId - b.pocketId);
   });
 
   /** Payments grouped by month, so a year of daily ones stays readable. */
@@ -1381,7 +1385,8 @@ export class CushionPage {
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
-      await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today());
+      await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today(),
+        this.i18n.t('cushion.pocket.removedNote', { name: pocket.name }));
       // Removing the usual product needs a new one: the one chosen, which is
       // not necessarily where the balance went.
       const usual = this.pocketNewUsual();
@@ -1864,7 +1869,7 @@ export class CushionPage {
     }
   }
 
-  private pocketLabel(line: CushionLine, pocketId: number): string {
+  pocketLabel(line: CushionLine, pocketId: number): string {
     return line.pockets.find(pocket => pocket.id === pocketId)?.name ?? '';
   }
 

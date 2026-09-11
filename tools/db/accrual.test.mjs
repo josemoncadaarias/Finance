@@ -1968,7 +1968,14 @@ test('removing a product hands its balance, movements and earnings to the one ch
   const TODAY = '2026-09-10';
 
   await engine.accrue(ids.rappi, TODAY);
-  const held = await engine.heldByPocket(ids.rappi, TODAY);
+  // What each product holds. The yield it earned travels with its own days and
+  // is worked out again afterwards, so it is not part of what is carried.
+  const shown = async () => {
+    const held = await engine.heldByPocket(ids.rappi, TODAY);
+    return id => held.get(id) ?? 0;
+  };
+  const before = await shown();
+  const statedBefore = (await yields.pocketBalances(savings)).map(entry => ({ ...entry }));
   const grossTo = async to => (await yields.days(ids.rappi, undefined, to)).reduce((sum, day) => sum + day.gross_minor, 0);
   const august = await grossTo('2026-08-31');
   const balance = async () => (await accounts.balances()).find(b => b.account.id === ids.rappi).balance_minor;
@@ -1977,8 +1984,14 @@ test('removing a product hands its balance, movements and earnings to the one ch
   await removePocketInto(db, yields, tax, ids.rappi, cdt, savings, TODAY);
 
   assert.deepEqual((await yields.pockets(ids.rappi)).map(pocket => pocket.id), [savings], 'the CDT is gone');
-  assert.equal((await engine.heldByPocket(ids.rappi, TODAY)).get(savings), held.get(savings) + held.get(cdt),
-    'its balance moved across, exactly');
+  const carried = (await yields.adjustments(ids.rappi))
+    .filter(entry => entry.pocket_id === savings && entry.on_date === TODAY)
+    .reduce((sum, entry) => sum + entry.amount_minor, 0);
+  assert.equal((await shown())(savings) + carried, before(savings) + before(cdt), 'its balance moved across, exactly');
+  assert.deepEqual((await yields.pocketBalances(savings)).map(entry => ({ ...entry })), statedBefore,
+    'the destination\'s own stated balance was not rewritten');
+  assert.ok((await yields.adjustments(ids.rappi)).some(entry => entry.pocket_id === savings && entry.on_date === TODAY),
+    'the balance arrived as a movement on the destination');
   assert.equal(await grossTo('2026-08-31'), august, 'nothing it earned in August was lost');
   assert.equal((await db.queryOne('SELECT pocket_id FROM transactions WHERE amount_minor = -5000000')).pocket_id, savings,
     'its movement names the product it went to');

@@ -9,17 +9,20 @@
  *
  * So removing a product hands all of it to another one, chosen by the person:
  *
- *   * **The balance.** The destination ends up holding exactly what it held
- *     plus what the removed product held - no more, no less.
  *   * **The history.** Movements, cushion entries, withdrawals and every day
  *     earned move across, summed where both products earned on the same day.
+ *   * **The balance.** Whatever the removed product held that did not come
+ *     with those movements - its own stated figure, mostly - arrives on the
+ *     destination as an entry dated today: a movement in its history, with the
+ *     removed product's name on it. The destination's own stated balance is
+ *     never rewritten; it used to be, which left no trace of where the money
+ *     came from and changed a figure read off the bank.
  *   * **Being the usual one.** If the removed product was where unassigned
  *     money lands, the destination takes that over.
  *
- * The account's own balance never changes: no movement is written or altered
- * beyond which product it names. The current month is worked out again
- * afterwards, as it is after any change to a product, now with the money where
- * it lives.
+ * The account's own balance never changes: no movement of the account is
+ * written or altered beyond which product it names. The current month is
+ * worked out again afterwards, now with the money where it lives.
  */
 
 import type { SqlDriver } from '../database/sql-driver';
@@ -36,6 +39,8 @@ export async function removePocketInto(
   pocketId: number,
   intoId: number,
   today: IsoDate,
+  /** The note on the entry that carries the balance across. */
+  note?: string,
 ): Promise<void> {
   const pockets = await yields.pockets(accountId);
   const removed = pockets.find(pocket => pocket.id === pocketId);
@@ -47,9 +52,18 @@ export async function removePocketInto(
 
   const engine = new AccrualEngine(db, yields, tax);
 
-  // Read before anything moves: this is the figure the destination must end on.
-  const before = await engine.heldByPocket(accountId, today);
-  const target = (before.get(intoId) ?? 0) + (before.get(pocketId) ?? 0);
+  // What each product holds. Only this is carried by the entry: the yield it
+  // earned travels with its own days, which the merge moves across, and those
+  // are worked out again afterwards on the new balance - counting them here
+  // too would carry them twice.
+  const held = async () => {
+    const byPocket = await engine.heldByPocket(accountId, today);
+    return (id: number) => byPocket.get(id) ?? 0;
+  };
+
+  // Read before anything moves: this is what the destination must end up holding.
+  const before = await held();
+  const target = before(intoId) + before(pocketId);
 
   await db.transaction(async () => {
     await yields.mergePocketInto(pocketId, intoId);
@@ -67,24 +81,21 @@ export async function removePocketInto(
     }
 
     // A product that follows the account's balance needs nothing written: its
-    // figure is the account's. A product with a figure of its own gets a new
-    // one, so that what it holds is exactly the target.
+    // figure is the account's.
     if (into.source !== 'manual') return;
 
-    const held = (await engine.heldByPocket(accountId, today)).get(intoId) ?? 0;
-    if (held === target) return;
+    const missing = target - (await held())(intoId);
+    if (missing === 0) return;
 
-    // Written on today, or on the destination's latest balance when that one
-    // is dated later - the latest balance is the one that governs, and a figure
-    // written before it would be ignored.
+    // Dated today, or on the destination's latest balance when that one is
+    // dated later - an entry before it would already be inside that figure.
     const latest = (await yields.pocketBalances(intoId)).at(-1);
     const on = latest && latest.valid_from > today ? latest.valid_from : today;
 
-    const remaining = await yields.pockets(accountId);
-    const usual = remaining.find(pocket => pocket.is_default === 1) ?? remaining[0];
-    const movedSince = await yields.movedInPocketSince(accountId, intoId, on, usual?.id === intoId);
-
-    await yields.setPocketBalance({ pocket_id: intoId, valid_from: on, amount_minor: target - movedSince });
+    await yields.adjust({
+      account_id: accountId, pocket_id: intoId, on_date: on, amount_minor: missing,
+      kind: 'other', note: note ?? removed.name,
+    });
   });
 
   await engine.accrue(accountId, today);
