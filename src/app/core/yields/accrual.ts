@@ -103,10 +103,10 @@ export class AccrualEngine {
     const balances = await this.dailyBalances(accountId, on);
 
     let held = 0;
-    for (const pocket of pockets) {
+    for (const [at, pocket] of pockets.entries()) {
       held += pocket.source === 'manual'
-        ? statedOn(await this.yields.pocketBalances(pocket.id), on, balances,
-                   pocket.id === pockets[0].id)
+        ? statedOn(await this.yields.pocketBalances(pocket.id), on,
+                   await this.dailyBalances(accountId, on, at === 0 ? null : pocket.id), true)
         : balanceOn(balances, on);
     }
 
@@ -143,6 +143,15 @@ export class AccrualEngine {
 
       const entries: CushionEntry[] = await this.yields.adjustments(accountId);
       const takenOut = await this.yields.withdrawals(accountId);
+
+      // What each product's own movements add up to, day by day. A movement
+      // that names no product is the first product's, which is the rule that
+      // held for every account before one could be named at all.
+      const movedInto = new Map<number, DayBalance[]>();
+      for (const [at, pocket] of pockets.entries()) {
+        movedInto.set(pocket.id, await this.dailyBalances(
+          accountId, upTo, at === 0 ? null : pocket.id));
+      }
 
       const balancesOf = new Map<number, PocketBalance[]>();
       for (const pocket of pockets) {
@@ -240,9 +249,14 @@ export class AccrualEngine {
           // once per pocket; the drift check is what surfaces a guess gone
           // stale. With one pocket - which is every account but Dale - there is
           // nothing to guess.
+          // A product that names a figure is that figure, plus whatever has
+          // moved through THAT product since - not whatever moved through the
+          // account. Before movements could name a product, the first one
+          // absorbed all of them, which is why a transfer between two products
+          // of one account moved neither.
           const held = pocket.source === 'manual'
-            ? statedOn(balancesOf.get(pocket.id) ?? [], day, balances,
-                       pocket.id === pockets[0].id)
+            ? statedOn(balancesOf.get(pocket.id) ?? [], day,
+                       movedInto.get(pocket.id) ?? [], true)
             : balanceOn(balances, day);
 
           const base = Math.max(0, held) + (cushionOf.get(pocket.id) ?? 0);
@@ -332,17 +346,34 @@ export class AccrualEngine {
    * Read as one row per day with a running total, so the walk above can find
    * any day's balance without another query.
    */
-  private async dailyBalances(accountId: number, upTo: IsoDate): Promise<DayBalance[]> {
-    const opening = await this.db.queryOne<{ opening_balance_minor: number }>(
-      'SELECT opening_balance_minor FROM accounts WHERE id = ?', [accountId]);
+  private async dailyBalances(
+    accountId: number,
+    upTo: IsoDate,
+    pocketId?: number | null,
+  ): Promise<DayBalance[]> {
+    // The opening balance belongs to the account, not to any one product, so
+    // a per-product walk starts from zero and counts only what moved.
+    const opening = pocketId === undefined
+      ? await this.db.queryOne<{ opening_balance_minor: number }>(
+          'SELECT opening_balance_minor FROM accounts WHERE id = ?', [accountId])
+      : { opening_balance_minor: 0 };
+
+    // `pocketId` undefined means the whole account. A number means only what
+    // was filed against that product, and null means only what named no
+    // product at all - which is what the first product absorbs.
+    const scope = pocketId === undefined ? ''
+      : pocketId === null ? 'AND pocket_id IS NULL'
+      : 'AND pocket_id = ?';
+    const values: unknown[] = [accountId, upTo];
+    if (typeof pocketId === 'number') values.push(pocketId);
 
     const moves = await this.db.query<{ on_date: IsoDate; total: number }>(
       `SELECT occurred_on AS on_date, SUM(amount_minor) AS total
        FROM transactions
-       WHERE account_id = ? AND occurred_on <= ?
+       WHERE account_id = ? AND occurred_on <= ? ${scope}
        GROUP BY occurred_on
        ORDER BY occurred_on`,
-      [accountId, upTo]);
+      values);
 
     let running = opening?.opening_balance_minor ?? 0;
     const out: DayBalance[] = [{ on_date: '0000-01-01', balance_minor: running }];

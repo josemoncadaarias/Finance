@@ -17,6 +17,14 @@ import { convertToBaseMinor } from '../money';
 export interface NewTransaction {
   account_id: number;
   category_id: number | null;
+  /**
+   * Which product inside the account the money went to or came from.
+   *
+   * Only ever asked when an account has more than one: with one there is
+   * nothing to choose, and the column stays empty - which is also every row
+   * that existed before a movement could say.
+   */
+  pocket_id?: number | null;
   occurred_on: IsoDate;
   amount_minor: number;
   /** Omit on a base-currency transaction. */
@@ -97,13 +105,13 @@ export interface DetailedFilter {
   excludeTransfers?: boolean;
 }
 
-const COLUMNS = `id, account_id, category_id, occurred_on, amount_minor, rate_scaled,
+const COLUMNS = `id, account_id, category_id, pocket_id, occurred_on, amount_minor, rate_scaled,
   amount_base_minor, rate_source, confidence, description, transfer_id, transfer_leg,
   source, import_fingerprint, import_seq, import_batch_id, locked, created_at, updated_at`;
 
 /** Fields a user can edit. Touching any of them locks the row. */
 const EDITABLE = [
-  'account_id', 'category_id', 'occurred_on', 'amount_minor', 'rate_scaled',
+  'account_id', 'category_id', 'pocket_id', 'occurred_on', 'amount_minor', 'rate_scaled',
   'amount_base_minor', 'rate_source', 'confidence', 'description',
 ] as const;
 
@@ -178,13 +186,14 @@ export class TransactionsRepository {
   async create(transaction: NewTransaction): Promise<number> {
     const timestamp = this.now();
     const result = await this.db.run(
-      `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, rate_scaled,
+      `INSERT INTO transactions (account_id, category_id, pocket_id, occurred_on, amount_minor, rate_scaled,
          amount_base_minor, rate_source, confidence, description, transfer_id, transfer_leg,
          source, import_fingerprint, import_seq, import_batch_id, locked, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transaction.account_id,
         transaction.category_id ?? null,
+        transaction.pocket_id ?? null,
         transaction.occurred_on,
         transaction.amount_minor,
         transaction.rate_scaled ?? null,

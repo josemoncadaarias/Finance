@@ -58,6 +58,7 @@ erDiagram
         INTEGER id PK
         INTEGER account_id FK
         INTEGER category_id FK
+        INTEGER pocket_id FK
         TEXT occurred_on
         INTEGER amount_minor
         INTEGER rate_scaled
@@ -161,6 +162,7 @@ erDiagram
     cushion_withdrawals {
         INTEGER id PK
         INTEGER account_id FK
+        INTEGER pocket_id FK
         TEXT source
         TEXT on_date
         INTEGER amount_minor
@@ -233,6 +235,8 @@ erDiagram
     transactions   ||--o{ cashback_entries  : "produced"
     accounts       ||--o{ cushion_adjustments : "corrected by"
     yield_pockets  ||--o{ cushion_adjustments : "landed in"
+    yield_pockets  ||--o{ transactions       : "money moved through"
+    yield_pockets  ||--o{ cushion_withdrawals : "taken out of"
     accounts       ||--o{ cushion_withdrawals : "moved into"
     transactions   ||--o| cushion_withdrawals : "became"
     import_batches ||--o{ transactions      : "brought in"
@@ -368,6 +372,7 @@ outright:
 | `idx_transactions_account_date` | an account's statement, and balances as of a date |
 | `idx_transactions_date` | the month view |
 | `idx_transactions_category` | reports by category |
+| `idx_transactions_pocket` | which product a movement went to; **partial**, since only a split account fills it |
 | `idx_transactions_transfer` | fetching both legs of a transfer |
 | `idx_accounts_name` | unique; the importer matches accounts by name |
 | `idx_accounts_group_currency` | unique; one currency per group |

@@ -204,6 +204,8 @@ export class YieldsRepository {
     enabled?: boolean;
     payout?: 'daily' | 'monthly';
     note?: string | null;
+    /** What to call the product every account starts with. */
+    default_pocket_name?: string;
   }): Promise<void> {
     const now = this.now();
     await this.db.run(
@@ -241,9 +243,17 @@ export class YieldsRepository {
       const account = await this.db.queryOne<{ name: string }>(
         'SELECT name FROM accounts WHERE id = ?', [input.account_id]);
 
+      // Named for what it is, not for the account it is in. Every bank
+      // account starts as one savings product, and naming it after the account
+      // read as a placeholder - which it was, until Jose started splitting
+      // accounts up and needed the parts to have real names.
+      //
+      // The name comes from the caller because it is the caller that knows
+      // which language the user reads. It is the user's data from the moment
+      // it is written - renameable, and never translated again afterwards.
       await this.addPocket({
         account_id: input.account_id,
-        name: account?.name ?? 'General',
+        name: input.default_pocket_name ?? 'Savings account',
         source: 'ledger',
         sort_order: 0,
       });

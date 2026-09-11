@@ -42,7 +42,7 @@ import {
 import { AccrualEngine } from '../../core/yields/accrual';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
-import { parseAmountToMinor, parseTypedAmountToMinor } from '../../core/database/money';
+import { parseTypedAmountToMinor } from '../../core/database/money';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
@@ -166,7 +166,32 @@ export class CushionPage {
    * named them apart, which nobody could have worked out from the screen.
    */
   readonly rateMode = signal<'replace' | 'add'>('replace');
-  readonly ratePocket = signal<number | null>(null);
+  /**
+   * Which products a rate applies to. Empty means all of them.
+   *
+   * One rate covering several products is the ordinary case, not a special
+   * one: Dale pays 10.5% on Principal and on Complemento but not on the
+   * savings account beside them. It used to be one product or all of them,
+   * which left "these two" unsayable — the rate had to be typed twice, and
+   * then corrected twice, and the second copy was the one that got forgotten.
+   *
+   * Stored as one row per product, which the schema already allowed. Rates
+   * that agree on everything but the product are shown and edited as one.
+   */
+  readonly ratePockets = signal<ReadonlySet<number>>(new Set());
+
+  toggleRatePocket(id: number): void {
+    this.ratePockets.update(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  isRatePocket(id: number): boolean {
+    return this.ratePockets().has(id);
+  }
   readonly rateUntil = signal<IsoDate | ''>('');
 
   /** Armed once, acted on twice: a destructive button should ask first. */
@@ -575,6 +600,7 @@ export class CushionPage {
       await db.transaction(async () => {
         await yields.enrol({
           account_id: line.account.id,
+          default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
           opening_cushion_minor: opening,
           opening_on: this.openingDate(),
           withholding: this.withholds(),
@@ -758,6 +784,33 @@ export class CushionPage {
   }
 
   /**
+   * The products carrying a rate identical to this one.
+   *
+   * Same component, same dates, same figures - that is one rate the bank pays
+   * on several products, written as several rows because the schema stores a
+   * rate against one product. Grouping them back together is what lets the
+   * screen show and correct it as the single thing it is.
+   */
+  private pocketsSharingRows(rate: YieldRate): YieldRate[] {
+    return this.rates().filter(other =>
+      other.component === rate.component
+      && other.valid_from === rate.valid_from
+      && (other.valid_to ?? null) === (rate.valid_to ?? null)
+      && other.annual_rate_scaled === rate.annual_rate_scaled);
+  }
+
+  private pocketsSharing(rate: YieldRate): Set<number> {
+    const same = this.rates().filter(other =>
+      other.component === rate.component
+      && other.valid_from === rate.valid_from
+      && (other.valid_to ?? null) === (rate.valid_to ?? null)
+      && other.annual_rate_scaled === rate.annual_rate_scaled
+      && other.pocket_id !== null);
+
+    return new Set(same.map(other => other.pocket_id as number));
+  }
+
+  /**
    * The components an account already has, each with the rate in force.
    *
    * What a new rate can replace, and what it would sit beside.
@@ -765,7 +818,7 @@ export class CushionPage {
   readonly components = computed(() => {
     const newest = new Map<string, YieldRate>();
     for (const rate of this.rates()) {
-      if ((rate.pocket_id ?? null) !== this.ratePocket()) continue;
+      if (rate.pocket_id !== null && !this.ratePockets().has(rate.pocket_id)) continue;
       const current = newest.get(rate.component);
       if (!current || rate.valid_from > current.valid_from) newest.set(rate.component, rate);
     }
@@ -776,7 +829,7 @@ export class CushionPage {
   startRateForm(rate: YieldRate | null = null): void {
     this.editingRate.set(rate);
     this.rateMode.set(this.components().length > 0 ? 'replace' : 'add');
-    this.ratePocket.set(rate?.pocket_id ?? null);
+    this.ratePockets.set(rate ? this.pocketsSharing(rate) : new Set<number>());
     this.rateUntil.set(rate?.valid_to ?? '');
     this.rateComponent.set(rate?.component ?? this.components()[0]?.component ?? 'base');
     this.ratePayout.set(rate?.payout ?? 'daily');
@@ -837,9 +890,8 @@ export class CushionPage {
       const { db, yields, tax } = this.repos();
       const existing = this.editingRate();
       await db.transaction(async () => {
-        const fields = {
+        const common = {
           component: name,
-          pocket_id: this.ratePocket(),
           payout: this.ratePayout(),
           valid_from: this.rateFrom(),
           valid_to: this.rateUntil() || null,
@@ -848,11 +900,25 @@ export class CushionPage {
           fallback_annual_rate_scaled: fallback,
         };
 
-        // Correcting a rate that was wrong, or recording one that changed.
-        // The first rewrites history because that history was never true;
-        // the second leaves it alone and takes over from its own date.
-        if (existing) await yields.correctRate(existing.id, fields);
-        else await yields.setRate({ account_id: line.account.id, ...fields });
+        // One row per product the rate covers, or a single row covering the
+        // whole account when none is named. Correcting replaces the old set
+        // outright rather than editing it: which products a rate covers is
+        // part of what is being corrected, so the products dropped from it
+        // have to lose the rate, and the ones added have to gain it.
+        const chosen = [...this.ratePockets()];
+        const rows = chosen.length > 0
+          ? chosen.map(pocket_id => ({ ...common, pocket_id }))
+          : [{ ...common, pocket_id: null }];
+
+        if (existing) {
+          for (const other of this.pocketsSharingRows(existing)) {
+            await yields.removeRate(other.id);
+          }
+          if (this.pocketsSharing(existing).size === 0) await yields.removeRate(existing.id);
+        }
+        for (const row of rows) {
+          await yields.setRate({ account_id: line.account.id, ...row });
+        }
         // From the earliest day either version of the rate touches. Moving
         // a rate backwards has to redo the days it now covers as well.
         const redoFrom = existing && existing.valid_from < this.rateFrom()
@@ -897,6 +963,7 @@ export class CushionPage {
       const { yields } = this.repos();
       await yields.enrol({
         account_id: account.id,
+        default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
         opening_cushion_minor: 0,
         opening_on: today(),
         withholding: account.currency_code === 'COP',
@@ -1137,7 +1204,10 @@ export class CushionPage {
     try {
       // An adjustment may be negative; the other two are checked above.
       const negative = raw.startsWith('-');
-      const minor = parseAmountToMinor(negative ? raw.slice(1) : raw);
+      // The tolerant parser, for the same reason the product editor uses it:
+      // the figure being typed is usually the one this app just displayed, in
+      // Colombian format, and the strict parser rejects its own output.
+      const minor = parseTypedAmountToMinor(negative ? raw.slice(1) : raw);
       return negative ? -minor : minor;
     } catch {
       return null;

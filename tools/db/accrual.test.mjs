@@ -513,7 +513,9 @@ test('an account keeps one pocket unless someone splits it', async () => {
   const pockets = await yields.pockets(ids.rappi);
   assert.equal(pockets.length, 1);
   assert.equal(pockets[0].source, 'ledger', 'it follows the account balance');
-  assert.equal(pockets[0].name, 'Rappi cuenta');
+  // Named for what it is. An account starts as one savings product, and the
+  // caller supplies the word so it arrives in the language the user reads.
+  assert.equal(pockets[0].name, 'Savings account');
 
   // Enrolling again must not pile up pockets.
   await yields.enrol({
@@ -1256,5 +1258,49 @@ test('an account with one product that follows the ledger never drifts', async (
   });
 
   assert.equal(await engine.drift(ids.uala, '2026-09-10'), 0);
+  await db.close();
+});
+
+test('a movement that names a product moves that product and no other', async () => {
+  // Before a movement could name one, the first product absorbed every
+  // movement of the account — so moving money between two products of the
+  // same account moved neither, and money arriving landed wherever the first
+  // product happened to be. This is the rule Jose asked for: the movement says
+  // where it went.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+
+  const [first] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(first.id, 'manual');
+  await yields.renamePocket(first.id, 'Cuenta de ahorros');
+  const cdt = await yields.addPocket({
+    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+
+  await yields.setPocketBalance({
+    pocket_id: first.id, valid_from: '2026-09-01', amount_minor: 600_000_000 });
+  await yields.setPocketBalance({
+    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 400_000_000 });
+
+  // 200,000.00 arrives and is filed against the CDT.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
+    amount_minor: 20_000_000, pocket_id: cdt, source: 'manual',
+  });
+
+  // The account gained it, and so the two still add up: nothing to report.
+  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
+
+  // And it went to the CDT, not to the product that happens to be first.
+  const balances = await db.query(
+    `SELECT pocket_id, SUM(amount_minor) AS total FROM transactions
+     WHERE account_id = ? GROUP BY pocket_id`, [ids.rappi]);
+  const toCdt = balances.find(row => row.pocket_id === cdt);
+  assert.equal(toCdt.total, 20_000_000);
+  assert.equal(balances.find(row => row.pocket_id === null), undefined,
+    'nothing was left unassigned');
+
   await db.close();
 });

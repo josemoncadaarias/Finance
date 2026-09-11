@@ -106,6 +106,8 @@ export interface TransactionRow {
   account_id: number;
   /** Null on a transfer leg: what it is, is the transfer. */
   category_id: number | null;
+  /** Which product inside the account, when the account has more than one. */
+  pocket_id: number | null;
   occurred_on: IsoDate;
   /** In the account's own currency. Negative out, positive in. */
   amount_minor: number;

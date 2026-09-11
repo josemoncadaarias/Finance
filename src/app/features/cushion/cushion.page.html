@@ -765,20 +765,31 @@
               {{ (editingRate() ? 'cushion.rate.fix.hint' : 'cushion.rates.hint') | t }}
             </p>
 
+            <!-- Several products at once, because that is the ordinary case:
+                 Dale pays 10.5% on Principal and on Complemento but not on the
+                 savings account beside them. A single-choice select left
+                 "these two" unsayable, so the rate had to be typed twice and
+                 corrected twice - and the second copy was the one forgotten. -->
             @if (line.pockets.length > 1) {
-              <ion-list [inset]="true">
-                <ion-item>
-                  <ion-select [label]="'cushion.rate.pocket' | t" labelPlacement="stacked"
-                              [value]="ratePocket()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="ratePocket.set($any($event.detail).value)">
-                    <ion-select-option [value]="null">{{ 'cushion.rate.everyPocket' | t }}</ion-select-option>
-                    @for (pocket of line.pockets; track pocket.id) {
-                      <ion-select-option [value]="pocket.id">{{ pocket.name }}</ion-select-option>
-                    }
-                  </ion-select>
-                </ion-item>
-              </ion-list>
-              <p class="hint">{{ 'cushion.rate.pocket.hint' | t }}</p>
+              <ion-item lines="none" class="pick-category">
+                <ion-label position="stacked">{{ 'cushion.rate.pocket' | t }}</ion-label>
+                <div class="chips">
+                  @for (pocket of line.pockets; track pocket.id) {
+                    <button type="button" class="chip" [class.on]="isRatePocket(pocket.id)"
+                            (click)="toggleRatePocket(pocket.id)">
+                      <ion-icon [name]="isRatePocket(pocket.id) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+                      <span>{{ pocket.name }}</span>
+                    </button>
+                  }
+                </div>
+              </ion-item>
+              <p class="hint">
+                @if (ratePockets().size === 0) {
+                  {{ 'cushion.rate.everyPocket' | t }}
+                } @else {
+                  {{ 'cushion.rate.pocket.hint' | t }}
+                }
+              </p>
             }
 
             @if (!editingRate() && components().length > 0) {
