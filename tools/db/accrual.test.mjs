@@ -1527,9 +1527,12 @@ test('a balance dated ahead is stored, and is the one an editor should show', as
   assert.equal(history.at(-1).valid_from, '2026-09-20', 'the last one recorded');
   assert.equal(history.at(-1).amount_minor, 0);
 
-  // And the engine still uses the one that describes the day being worked out.
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id),
-    100_000_00, 'a balance dated ahead does not describe today');
+  // And the balance shown follows it: what a product holds is a figure and a
+  // date it counts from, and today has nothing to do with either. The question
+  // that does depend on the day is what a product EARNS on, and that one is
+  // asked separately, day by day, inside `accrue`.
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0,
+    'the last balance recorded is the one that governs');
 
   await db.close();
 });
@@ -1578,6 +1581,45 @@ test('a balance dated tomorrow keeps today out of it', async () => {
     amount_minor: -2_000_00, pocket_id: alcancia, source: 'manual',
   });
   assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-12')).get(alcancia), -2_000_00);
+
+  await db.close();
+});
+
+test('a movement dated ahead of the start date counts, whatever today is', async () => {
+  // Jose's report, exactly: a balance of zero counting from the 11th, an
+  // expense of one peso on the 15th, and the product still reading zero. The
+  // answer was being bounded at today, so a start date in the future and a
+  // movement past it both fell outside — and neither of them has anything to
+  // do with today.
+  const { db, yields, transactions, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-15',
+    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+  });
+
+  // Asked on any day at all, the answer is the same, because the question is
+  // not about a day.
+  for (const day of ['2026-09-10', '2026-09-11', '2026-09-20']) {
+    assert.equal((await engine.heldByPocket(ids.rappi, day)).get(savings.id), -100,
+      `asked on ${day}`);
+  }
+
+  // What still falls outside is anything before the start date.
+  await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
+    amount_minor: -95_649_327, pocket_id: savings.id, source: 'manual',
+  });
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-20')).get(savings.id), -100,
+    'the card payment is before the date counting starts');
 
   await db.close();
 });

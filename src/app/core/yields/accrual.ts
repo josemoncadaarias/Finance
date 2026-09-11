@@ -58,6 +58,9 @@ export interface AccrualResult {
   daysConditionNotMet: number;
 }
 
+/** Past any date a person will type. Used where an answer has no upper bound. */
+const FAR_FUTURE = '9999-12-31';
+
 export class AccrualEngine {
   private readonly db: SqlDriver;
   private readonly yields: YieldsRepository;
@@ -106,7 +109,10 @@ export class AccrualEngine {
     const enrolled = await this.yields.account(accountId);
     const opening = enrolled?.opening_on ?? on;
 
-    const balances = await this.dailyBalances(accountId, on);
+    // No upper bound: the account's own balance counts a movement dated next
+    // week, so a product that did not would disagree with the account it is
+    // inside.
+    const balances = await this.dailyBalances(accountId, FAR_FUTURE);
 
     for (const [at, pocket] of pockets.entries()) {
       if (pocket.source !== 'manual') {
@@ -137,31 +143,24 @@ export class AccrualEngine {
       // would be disagreeing with the account it lives in.
       const history = await this.yields.pocketBalances(pocket.id);
 
-      let stated = 0;
-      let since: IsoDate | null = null;
-      for (const entry of history) {
-        if (entry.valid_from > on) break;
-        stated = entry.amount_minor;
-        since = entry.valid_from;
-      }
+      // The last balance recorded, whatever date it carries - not the last one
+      // in force today.
+      //
+      // Today has nothing to do with this. A balance is a figure and a date it
+      // starts counting from, and once one is recorded it governs, even if
+      // that date is tomorrow: Jose set a balance to start on the 11th and an
+      // expense on the 15th, and bounding the answer at today reported neither.
+      // The engine still asks the other question, day by day, through
+      // `statedOn`, and that one does depend on which day it is working out.
+      const latest = history.at(-1);
+      const stated = latest?.amount_minor ?? 0;
+      const since: IsoDate | null = latest?.valid_from ?? null;
 
       if (since === null) {
-        // No balance describes this day yet. Two different situations, and the
-        // difference matters.
-        //
-        // A product whose balances all start later has had a start date chosen
-        // for it, and before that date there is nothing to say: it holds
-        // nothing and counts nothing. Jose dated a balance to tomorrow exactly
-        // so that today's card payment would fall outside it, and falling back
-        // to the enrolment date counted that payment anyway - which is the
-        // opposite of what the date was for.
-        //
-        // A product with no balance at all has had no start date chosen, so
-        // counting starts where this module started: the day the account was
-        // enrolled.
-        held.set(pocket.id, history.length > 0
-          ? 0
-          : await this.yields.movedInPocketSince(accountId, pocket.id, opening, at === 0));
+        // No balance at all means no start date has been chosen, so counting
+        // starts where this module started: the day the account was enrolled.
+        held.set(pocket.id, await this.yields.movedInPocketSince(
+          accountId, pocket.id, opening, at === 0));
         continue;
       }
 
