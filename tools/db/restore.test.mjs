@@ -137,7 +137,7 @@ test('an older backup is brought forward, migrations and all', async () => {
   assert.equal(tables.length, 1, 'a table added after the backup was written');
 });
 
-test('a restore is all or nothing', async () => {
+test('a restore that fails leaves the data it found', async () => {
   const source = await seeded();
   const backup = parseBackup(toJson(await exportBackup(source.db)));
 
@@ -145,16 +145,67 @@ test('a restore is all or nothing', async () => {
   backup.tables.accounts.push({ ...backup.tables.accounts[0], id: 999 });
 
   const target = await seeded();
-  const before = (await new AccountsRepository(target.db, NOW).list()).length;
+  const accounts = new AccountsRepository(target.db, NOW);
+  await accounts.create({
+    name: 'Solo en el destino', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2026-01-01',
+  });
+  const before = (await accounts.list()).map(account => account.name).sort();
+  const balancesBefore = (await accounts.balances()).map(b => [b.account.name, b.balance_minor]);
 
-  await assert.rejects(() => restoreBackup(target.db, backup, MIGRATION_SOURCES));
+  await assert.rejects(() => restoreBackup(target.db, backup, MIGRATION_SOURCES), RestoreError);
 
-  // The rows are rolled back. The schema is not - the tables were dropped and
-  // rebuilt before the transaction opened - so what is left is an empty
-  // database at the right version, not a half-written one.
-  const after = await new AccountsRepository(target.db, NOW).list();
-  assert.equal(after.length, 0, `had ${before}, restore failed, left ${after.length}`);
-  assert.equal(await currentVersion(target.db), backup.schemaVersion);
+  // This test used to expect an empty database here. That was data loss
+  // written down as a rule: the tables were dropped before the rows were known
+  // to fit. Jose lost the browser copy of five years of history to exactly this
+  // on 2026-09-11. What was there before a failed restore is still there after.
+  const after = await new AccountsRepository(target.db, NOW);
+  assert.deepEqual((await after.list()).map(account => account.name).sort(), before);
+  assert.deepEqual((await after.balances()).map(b => [b.account.name, b.balance_minor]), balancesBefore);
+  assert.equal(await currentVersion(target.db), MIGRATION_SOURCES.length, 'and at today\'s schema');
+});
+
+test('a backup of imported movements, products and nested categories comes back whole', async () => {
+  const { YieldsRepository } = await import('../../src/app/core/database/repositories/yields.repository.ts');
+
+  // What a real database holds and the seeded one did not: movements that
+  // point at an import batch and at a product, both exported after the
+  // movements, and a category whose parent has a higher id than it does.
+  const source = await seeded();
+  const db = source.db;
+
+  await db.run("INSERT INTO import_batches (file_name, file_hash, imported_at) VALUES ('monefy.csv', 'hash', ?)", [NOW()]);
+  const batch = (await db.queryOne('SELECT MAX(id) AS id FROM import_batches')).id;
+
+  const yields = new YieldsRepository(db, NOW);
+  await yields.enrol({ account_id: source.ids.rappi, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  const [pocket] = await yields.pockets(source.ids.rappi);
+
+  const categories = new CategoriesRepository(db, NOW);
+  const child = await categories.create({ name: 'Almuerzos', kind: 'expense', builtin_icon: 'restaurant' });
+  const parent = await categories.create({ name: 'Comida afuera', kind: 'expense', builtin_icon: 'restaurant' });
+  await db.run('UPDATE categories SET parent_id = ? WHERE id = ?', [parent, child]);
+  assert.ok(parent > child, 'the parent comes after its child in id order');
+
+  await db.run(
+    `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
+       import_fingerprint, import_seq, import_batch_id, pocket_id, created_at, updated_at)
+     VALUES (?, ?, '2026-09-01', -250000, -250000, 'monefy', 'fingerprint', 1, ?, ?, ?, ?)`,
+    [source.ids.rappi, child, batch, pocket.id, NOW(), NOW()]);
+
+  const counts = async target => Object.fromEntries(await Promise.all(
+    ['accounts', 'categories', 'transactions', 'import_batches', 'yield_pockets'].map(async table =>
+      [table, (await target.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n])));
+  const expected = await counts(db);
+
+  const text = toJson(await exportBackup(db));
+  const target = await seeded();
+  await restoreBackup(target.db, parseBackup(text), MIGRATION_SOURCES);
+
+  assert.deepEqual(await counts(target.db), expected);
+  assert.deepEqual(await target.db.query('PRAGMA foreign_key_check'), [], 'every reference points somewhere');
+  const imported = await target.db.queryOne("SELECT import_batch_id, pocket_id FROM transactions WHERE source = 'monefy'");
+  assert.deepEqual({ ...imported }, { import_batch_id: batch, pocket_id: pocket.id });
+  assert.equal((await target.db.queryOne('PRAGMA foreign_keys')).foreign_keys, 1, 'foreign keys are back on');
 });
 
 test('anything that is not one of our backups is refused', async () => {

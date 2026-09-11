@@ -30,7 +30,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { MigrationSource } from '../migrations/statements.generated';
 import { migrate, targetVersion } from '../migrations/migration-runner';
-import { TABLES, type Backup } from './export-backup';
+import { TABLES, exportBackup, type Backup } from './export-backup';
 
 export interface RestoreResult {
   /** The schema the file was written at, before it was brought forward. */
@@ -89,6 +89,15 @@ export function parseBackup(text: string): Backup {
  * accounts cannot be reconciled row by row, and pretending otherwise would
  * produce a third that matches neither. This is "put it back the way it was",
  * and the caller is responsible for asking whether that is really wanted.
+ *
+ * **It never leaves less than it found.** Rebuilding the schema means dropping
+ * every table before the rows go in, and a drop cannot be rolled back. The
+ * first version of this trusted the rows to fit, and they did not: movements
+ * were inserted before the import batches they point at, every imported row
+ * broke a foreign key, the inserts rolled back - and the tables were already
+ * empty. Jose lost the browser copy of his history to it on 2026-09-11. So
+ * what is in the database is copied out first, and if the backup cannot be put
+ * in, the copy is put back before the error is reported.
  */
 export async function restoreBackup(
   db: SqlDriver,
@@ -103,6 +112,32 @@ export async function restoreBackup(
     );
   }
 
+  const current = await exportBackup(db);
+
+  try {
+    return await replaceWith(db, backup, sources);
+  } catch (error) {
+    try {
+      await replaceWith(db, current, sources);
+    } catch (fallback) {
+      throw new RestoreError(
+        `The backup could not be restored (${messageOf(error)}), and putting back what was ` +
+        `there failed too (${messageOf(fallback)}). The backup file itself is untouched.`,
+      );
+    }
+    throw new RestoreError(
+      `The backup could not be restored: ${messageOf(error)}. Nothing was changed - ` +
+      `the data is exactly as it was before.`,
+    );
+  }
+}
+
+/** Drops everything, rebuilds the schema the rows came from, and puts them in. */
+async function replaceWith(
+  db: SqlDriver,
+  backup: Backup,
+  sources: readonly MigrationSource[],
+): Promise<RestoreResult> {
   // Dropping runs outside a transaction and in reverse dependency order, so a
   // child is always gone before its parent. Foreign keys are on and cannot be
   // turned off inside a transaction, so the order is what keeps them happy.
@@ -120,35 +155,59 @@ export async function restoreBackup(
 
   const restored: { table: string; rows: number }[] = [];
 
-  await db.transaction(async () => {
-    for (const table of Object.keys(backup.tables)) {
-      const rows = backup.tables[table];
-      if (!Array.isArray(rows) || rows.length === 0) continue;
+  // Rows go in with foreign keys off, and every reference is checked before
+  // the commit instead. Order alone cannot be trusted: a category can point at
+  // a parent with a higher id, and a backup written by an older build lists
+  // its tables in whatever order that build had. The pragma only takes effect
+  // outside a transaction, which is why it wraps the transaction rather than
+  // sitting inside it.
+  await db.execute('PRAGMA foreign_keys = OFF');
+  try {
+    await db.transaction(async () => {
+      for (const table of Object.keys(backup.tables)) {
+        const rows = backup.tables[table];
+        if (!Array.isArray(rows) || rows.length === 0) continue;
 
-      // A migration may have seeded the table already — currencies and the
-      // tax parameters both do. The backup is the authority.
-      await db.run(`DELETE FROM "${table}"`);
+        // A migration may have seeded the table already — currencies and the
+        // tax parameters both do. The backup is the authority.
+        await db.run(`DELETE FROM "${table}"`);
 
-      for (const row of rows) {
-        const columns = Object.keys(row as Record<string, unknown>);
-        if (columns.length === 0) continue;
+        for (const row of rows) {
+          const columns = Object.keys(row as Record<string, unknown>);
+          if (columns.length === 0) continue;
 
-        const placeholders = columns.map(() => '?').join(', ');
-        const names = columns.map(column => `"${column}"`).join(', ');
-        await db.run(
-          `INSERT INTO "${table}" (${names}) VALUES (${placeholders})`,
-          columns.map(column => (row as Record<string, unknown>)[column]),
+          const placeholders = columns.map(() => '?').join(', ');
+          const names = columns.map(column => `"${column}"`).join(', ');
+          await db.run(
+            `INSERT INTO "${table}" (${names}) VALUES (${placeholders})`,
+            columns.map(column => (row as Record<string, unknown>)[column]),
+          );
+        }
+        restored.push({ table, rows: rows.length });
+      }
+
+      const broken = await db.query<{ table: string; rowid: number; parent: string }>('PRAGMA foreign_key_check');
+      if (broken.length > 0) {
+        const first = broken[0];
+        throw new RestoreError(
+          `${broken.length} rows point at rows the backup does not hold ` +
+          `(the first is row ${first.rowid} of ${first.table}, pointing at ${first.parent})`,
         );
       }
-      restored.push({ table, rows: rows.length });
-    }
-  });
+    });
+  } finally {
+    await db.execute('PRAGMA foreign_keys = ON');
+  }
 
   // And forward to today, applying every migration written since — including
   // the ones that carry data.
   const forward = await migrate(db, sources);
 
   return { fromVersion: backup.schemaVersion, toVersion: forward.to, restored };
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /**

@@ -41,13 +41,17 @@ export const TABLES = [
   // them the next import would bring the old name back as a new account.
   'account_aliases',
   'categories',
-  'transfers',
-  'transactions',
-  'exchange_rates',
+  // Before the movements: a movement points at the import batch it came from
+  // and at the product it went to. With these after it, restoring any
+  // imported history failed on its first row - see restore-backup.ts.
+  'import_batches',
   'yield_accounts',
   'yield_pockets',
   'yield_pocket_balances',
   'yield_rates',
+  'transfers',
+  'transactions',
+  'exchange_rates',
   'yield_days',
   'cashback_rules',
   'cashback_entries',
@@ -55,7 +59,6 @@ export const TABLES = [
   'cushion_withdrawals',
   'tax_parameters',
   'credit_limit_changes',
-  'import_batches',
   'review_queue',
   // Without these, restoring would bring back every movement deleted by hand.
   'deleted_imports',
