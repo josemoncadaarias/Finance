@@ -1502,3 +1502,34 @@ test('changing the date a balance counts from moves it, rather than adding anoth
 
   await db.close();
 });
+
+test('a balance dated ahead is stored, and is the one an editor should show', async () => {
+  // The editor was choosing "the last balance in force today", which hides a
+  // balance dated in the future — so setting a date ahead saved correctly,
+  // showed the previous balance on reopening, and read like a form ignoring
+  // what was typed into it. Filtering to today is right for the engine, which
+  // must not apply a balance that does not describe the day it is working out,
+  // and wrong for an editor, which has to show what is stored.
+  const { db, yields, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-05', amount_minor: 100_000_00 });
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-20', amount_minor: 0 });
+
+  const history = await yields.pocketBalances(savings.id);
+  assert.equal(history.at(-1).valid_from, '2026-09-20', 'the last one recorded');
+  assert.equal(history.at(-1).amount_minor, 0);
+
+  // And the engine still uses the one that describes the day being worked out.
+  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id),
+    100_000_00, 'a balance dated ahead does not describe today');
+
+  await db.close();
+});

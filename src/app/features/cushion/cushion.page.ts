@@ -796,13 +796,17 @@ export class CushionPage {
     if (pocket) {
       const { yields } = this.repos();
       const history = await yields.pocketBalances(pocket.id);
-      const current = history.filter(row => row.valid_from <= today()).at(-1);
 
-      // Both halves of what was recorded, not just the figure. The date was
-      // reset to today every time this opened, so the screen said the balance
-      // had been read today whatever the truth was - and saving again wrote a
-      // fresh entry dated today, quietly moving a figure Jose had deliberately
-      // dated to the day he read it off the bank.
+      // The last balance recorded, whatever date it carries - NOT the last one
+      // in force today.
+      //
+      // Filtering to today is what the engine does, and it is right there: a
+      // balance dated next week does not describe this week. It is wrong here.
+      // An editor has to show what is stored, and this one hid anything dated
+      // ahead - so setting a date in the future saved correctly, showed the
+      // previous balance on reopening, and read exactly like a form that
+      // ignores what is typed into it.
+      const current = history.at(-1);
       this.pocketAmount.set(current ? decimalOf(current.amount_minor) : '');
       this.pocketFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
