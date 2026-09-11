@@ -1022,7 +1022,10 @@ export class CushionPage {
       await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today());
       this.confirmingPocketDelete.set(false);
       this.database.dataChanged();
-      await this.openSettings();
+      // The whole account again, not just the settings: the products' figures
+      // on screen were read before the balance moved, and reopening only the
+      // settings left the destination showing its old balance until a refresh.
+      await this.reopen(line, true);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {

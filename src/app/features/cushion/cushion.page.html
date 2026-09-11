@@ -562,18 +562,17 @@
             <p class="hint">{{ 'cushion.settings.hint' | t }}</p>
 
             <ion-list [inset]="true">
+              <!-- What the account has earned and not yet moved, the same figure
+                   the account's own screen leads with. It replaces the opening
+                   figure the module needed once, before products carried their
+                   own balances: that value is still stored and still counted,
+                   and saving these settings keeps it exactly as it is - it is
+                   simply no longer something to type. -->
               <ion-item>
-                <ion-input [label]="'cushion.settings.opening' | t" labelPlacement="stacked"
-                           inputmode="decimal" [value]="openingAmount()"
-                           (ionInput)="openingAmount.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'cushion.settings.openingFrom' | t" labelPlacement="stacked"
-                           type="date" [value]="openingDate()"
-                           (ionInput)="openingDate.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <ion-item lines="none">
-                <ion-note class="fieldHint">{{ 'cushion.settings.openingHint' | t }}</ion-note>
+                <ion-label>{{ 'cushion.detail.total' | t }}</ion-label>
+                <ion-note slot="end" class="settingsTotal">
+                  {{ money(line.cushion.totalMinor, line.account.currency_code) }}
+                </ion-note>
               </ion-item>
               <ion-item>
                 <ion-toggle [checked]="withholds()"
