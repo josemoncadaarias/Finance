@@ -106,7 +106,7 @@ export class AccrualEngine {
     for (const [at, pocket] of pockets.entries()) {
       held += pocket.source === 'manual'
         ? statedOn(await this.yields.pocketBalances(pocket.id), on,
-                   await this.dailyBalances(accountId, on, at === 0 ? null : pocket.id), true)
+                   await this.dailyBalances(accountId, on, pocket.id, at === 0), true)
         : balanceOn(balances, on);
     }
 
@@ -155,7 +155,7 @@ export class AccrualEngine {
       const movedInto = new Map<number, DayBalance[]>();
       for (const [at, pocket] of pockets.entries()) {
         movedInto.set(pocket.id, await this.dailyBalances(
-          accountId, upTo, at === 0 ? null : pocket.id));
+          accountId, upTo, pocket.id, at === 0));
       }
 
       const balancesOf = new Map<number, PocketBalance[]>();
@@ -354,7 +354,8 @@ export class AccrualEngine {
   private async dailyBalances(
     accountId: number,
     upTo: IsoDate,
-    pocketId?: number | null,
+    pocketId?: number,
+    takesUnassigned = false,
   ): Promise<DayBalance[]> {
     // The opening balance belongs to the account, not to any one product, so
     // a per-product walk starts from zero and counts only what moved.
@@ -363,14 +364,19 @@ export class AccrualEngine {
           'SELECT opening_balance_minor FROM accounts WHERE id = ?', [accountId])
       : { opening_balance_minor: 0 };
 
-    // `pocketId` undefined means the whole account. A number means only what
-    // was filed against that product, and null means only what named no
-    // product at all - which is what the first product absorbs.
+    // `pocketId` undefined means the whole account. Otherwise it is one
+    // product's own movements - and for the first product, the movements that
+    // named no product at all as well, which is where they have always gone.
+    //
+    // Both halves matter for the first product. Taking only the unnamed ones
+    // lost every movement filed against it by name, so moving money out of
+    // the savings account into a CDT credited the CDT and left the savings
+    // account where it was.
     const scope = pocketId === undefined ? ''
-      : pocketId === null ? 'AND pocket_id IS NULL'
+      : takesUnassigned ? 'AND (pocket_id IS NULL OR pocket_id = ?)'
       : 'AND pocket_id = ?';
     const values: unknown[] = [accountId, upTo];
-    if (typeof pocketId === 'number') values.push(pocketId);
+    if (pocketId !== undefined) values.push(pocketId);
 
     const moves = await this.db.query<{ on_date: IsoDate; total: number }>(
       `SELECT occurred_on AS on_date, SUM(amount_minor) AS total

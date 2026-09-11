@@ -132,6 +132,24 @@
       }
     </p>
 
+    <!-- Which product of the account, on the accounts that have more than
+         one. A row of names, because there are two or three of them and the
+         answer is nearly always the one already chosen - the savings account
+         every account starts as. Nothing appears at all on an account with a
+         single product, which is most of them: a question with one possible
+         answer is not a question. -->
+    @if (splitAccount()) {
+      <div class="pockets">
+        <span class="lead">{{ (kind() === 'income' ? 'entry.pocket.into' : 'entry.pocket.from') | t }}</span>
+        <div class="row">
+          @for (pocket of pockets(); track pocket.id) {
+            <button type="button" [class.on]="pocketId() === pocket.id"
+                    (click)="pickPocket(pocket.id)">{{ pocket.name }}</button>
+          }
+        </div>
+      </div>
+    }
+
     <!-- The ones actually used, then a way to the rest. Offering all of them
          alphabetically buries Restaurante and Taxi under Automóvil. -->
     <div class="categories" [class.waiting]="categoryId() === null">

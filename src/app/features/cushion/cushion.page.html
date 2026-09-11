@@ -327,6 +327,16 @@
               </ion-button>
             </div>
 
+            <!-- Only where there is more than one product to move between. -->
+            @if (line.pockets.length > 1) {
+              <div class="actions">
+                <ion-button expand="block" fill="outline" (click)="startMove()">
+                  <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
+                  {{ 'cushion.move' | t }}
+                </ion-button>
+              </div>
+            }
+
             <!-- Spelled out. This was an unlabelled icon in the toolbar and
                  nobody found it, which is the same as not having built it. -->
             <ion-list [inset]="true">
@@ -937,6 +947,54 @@
           }
 
           <!-- Moving it into the account, which is what the module is for -->
+          @if (form() === 'move') {
+            <h2>{{ 'cushion.move.title' | t }}</h2>
+            <p class="hint">{{ 'cushion.move.hint' | t }}</p>
+
+            <h3 class="field-heading">{{ 'cushion.move.from' | t }}</h3>
+            <div class="pocket-row">
+              @for (pocket of line.pockets; track pocket.id) {
+                <button type="button" [class.on]="moveFrom() === pocket.id"
+                        (click)="pickMoveFrom(pocket.id)">{{ pocket.name }}</button>
+              }
+            </div>
+
+            <h3 class="field-heading">{{ 'cushion.move.to' | t }}</h3>
+            <div class="pocket-row">
+              @for (pocket of line.pockets; track pocket.id) {
+                <button type="button" [class.on]="moveTo() === pocket.id"
+                        (click)="pickMoveTo(pocket.id)">{{ pocket.name }}</button>
+              }
+            </div>
+
+            <ion-list [inset]="true">
+              <ion-item>
+                <ion-input [label]="'cushion.field.amount' | t" labelPlacement="stacked"
+                           inputmode="decimal" [value]="amount()"
+                           (ionInput)="amount.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input [label]="'cushion.field.date' | t" labelPlacement="stacked"
+                           type="date" [value]="onDate()"
+                           (ionInput)="onDate.set($any($event.target).value)"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-textarea [label]="'cushion.field.note' | t" labelPlacement="stacked"
+                              [autoGrow]="true" rows="2" [value]="note()"
+                              (ionInput)="note.set($any($event.target).value)"></ion-textarea>
+              </ion-item>
+            </ion-list>
+
+            <div class="actions">
+              <ion-button expand="block" fill="clear" (click)="form.set('none')">
+                {{ 'entry.cancel' | t }}
+              </ion-button>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveMove()">
+                {{ 'entry.save' | t }}
+              </ion-button>
+            </div>
+          }
+
           @if (form() === 'withdraw') {
             <h2>{{ 'cushion.withdraw' | t }}</h2>
             <p class="hint">{{ 'cushion.withdraw.hint' | t }}</p>

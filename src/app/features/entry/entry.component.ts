@@ -34,6 +34,8 @@ import {
   CategoriesRepository, type UsedCategory,
 } from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { YieldsRepository } from '../../core/database/repositories/yields.repository';
+import type { YieldPocket } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import type { AccountRow, CategoryRow, TransactionRow } from '../../core/database/types';
@@ -94,6 +96,24 @@ export class EntryComponent implements OnInit {
 
   /** Every category of this kind, ordered by how often it is used. */
   readonly categories = signal<UsedCategory[]>([]);
+
+  /**
+   * The products of the account in play, and which one the money touches.
+   *
+   * Only ever a question when an account has more than one. Money arriving has
+   * to land somewhere and money leaving has to come from somewhere, and until
+   * the movement said which, the yields module assumed the first product -
+   * so a deposit into a CDT earned at the savings rate and a withdrawal from
+   * one shrank the other.
+   *
+   * The first product is the answer nearly every time, so it is the one
+   * already chosen: an account's first product is the savings account it
+   * started as, which is where a salary lands and a card payment leaves from.
+   */
+  readonly pockets = signal<YieldPocket[]>([]);
+  readonly pocketId = signal<number | null>(null);
+
+  readonly splitAccount = computed(() => this.pockets().length > 1);
 
   /** Open while the full list with its search box is showing. */
   readonly browsingCategories = signal(false);
@@ -311,6 +331,7 @@ export class EntryComponent implements OnInit {
 
     this.categories.set(categories);
     this.accounts.set(accounts);
+    await this.loadPockets();
 
     const editing = this.request().editing;
     if (editing) {
@@ -678,6 +699,8 @@ export class EntryComponent implements OnInit {
   }
 
   async pickAccount(id: number): Promise<void> {
+    // The products belong to the account, so the question changes with it.
+    const wasAccount = this.accountId();
     if (this.picking() === 'to') {
       this.toAccountId.set(id);
     } else {
@@ -688,6 +711,7 @@ export class EntryComponent implements OnInit {
       }
     }
     this.picking.set(null);
+    if (this.accountId() !== wasAccount) await this.loadPockets();
   }
 
   swapAccounts(): void {
@@ -723,6 +747,40 @@ export class EntryComponent implements OnInit {
     }
   }
 
+  /**
+   * Reads the products of whichever account is in play.
+   *
+   * Called on load and whenever the account changes, because the answer is
+   * only ever about that account - switching from Dale to Nequi replaces the
+   * whole question, and keeping the old choice would file a movement against
+   * a product belonging to somewhere else.
+   */
+  private async loadPockets(): Promise<void> {
+    const accountId = this.accountId();
+    if (accountId === null || this.isTransfer()) {
+      this.pockets.set([]);
+      this.pocketId.set(null);
+      return;
+    }
+
+    const yields = new YieldsRepository(this.database.driver);
+    const pockets = await yields.pockets(accountId);
+    this.pockets.set(pockets);
+
+    const editing = this.request().editing;
+    const stored = editing?.account_id === accountId ? editing.pocket_id ?? null : null;
+    const known = pockets.some(pocket => pocket.id === stored);
+
+    // The first product unless the movement already names another: an
+    // account's first product is the savings account it started as, which is
+    // where a salary lands and a card payment leaves from.
+    this.pocketId.set(known ? stored : pockets[0]?.id ?? null);
+  }
+
+  pickPocket(id: number): void {
+    this.pocketId.set(id);
+  }
+
   private async saveMovement(): Promise<void> {
     const transactions = new TransactionsRepository(this.database.driver);
     // The sign comes from the button pressed, never from what was typed.
@@ -734,6 +792,7 @@ export class EntryComponent implements OnInit {
       await transactions.update(editing.id, {
         account_id: this.accountId()!,
         category_id: this.categoryId(),
+        pocket_id: this.splitAccount() ? this.pocketId() : null,
         occurred_on: this.occurredOn(),
         amount_minor: signed,
         description: this.note().trim() || null,
@@ -744,6 +803,9 @@ export class EntryComponent implements OnInit {
     await transactions.create({
       account_id: this.accountId()!,
       category_id: this.categoryId(),
+      // Null on an account with one product: there is nothing to choose, and
+      // a column filled in anyway would be a fact nobody stated.
+      pocket_id: this.splitAccount() ? this.pocketId() : null,
       occurred_on: this.occurredOn(),
       amount_minor: signed,
       description: this.note().trim() || null,

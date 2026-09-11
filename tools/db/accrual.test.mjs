@@ -14,6 +14,7 @@ import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statem
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
+import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { YieldsRepository } from '../../src/app/core/database/repositories/yields.repository.ts';
 import { TaxParametersRepository, TAX_KEYS } from '../../src/app/core/database/repositories/tax-parameters.repository.ts';
 import { AccrualEngine } from '../../src/app/core/yields/accrual.ts';
@@ -31,6 +32,7 @@ async function setup() {
   const transactions = new TransactionsRepository(db, NOW);
   const yields = new YieldsRepository(db, NOW);
   const tax = new TaxParametersRepository(db, NOW);
+  const transfers = new TransfersRepository(db, NOW);
   const engine = new AccrualEngine(db, yields, tax);
 
   // Rappi cuenta with its real balance, and Uala, whose rate has a condition.
@@ -48,7 +50,7 @@ async function setup() {
   });
   const gastos = await categories.create({ name: 'Facturas', kind: 'expense', builtin_icon: 'receipt' });
 
-  return { db, accounts, categories, transactions, yields, tax, engine,
+  return { db, accounts, categories, transactions, transfers, yields, tax, engine,
            ids: { rappi, uala, xtb, gastos } };
 }
 
@@ -1337,6 +1339,58 @@ test('a day in the future is removed, even when there is nothing to accrue', asy
   await db.run('UPDATE yield_days SET locked = 1 WHERE on_date = ?', ['2026-09-12']);
   await engine.accrue(ids.rappi, '2026-09-10');
   assert.equal(await yields.lastAccruedDay(ids.rappi), '2026-09-10');
+
+  await db.close();
+});
+
+test('moving money between two products of one account leaves the account alone', async () => {
+  // What the bank calls a withdrawal or a top-up between its own pots. From
+  // the account's point of view nothing happens — the same money is still
+  // there — so it is written as a transfer whose two legs are in the SAME
+  // account and differ only in the product. The two sum to zero.
+  const { db, yields, transfers, engine, ids } = await setup();
+
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01',
+  });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setPocketSource(savings.id, 'manual');
+  const cdt = await yields.addPocket({
+    account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 700_000_000 });
+  await yields.setPocketBalance({
+    pocket_id: cdt, valid_from: '2026-09-01', amount_minor: 300_000_000 });
+
+  const before = await db.queryOne(
+    'SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions WHERE account_id = ?',
+    [ids.rappi]);
+
+  // 1,000,000.00 out of the savings account and into the CDT.
+  await transfers.create({
+    occurred_on: '2026-09-05',
+    from: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100_000_000 },
+    to: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 100_000_000 },
+  });
+
+  const after = await db.queryOne(
+    'SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions WHERE account_id = ?',
+    [ids.rappi]);
+  assert.equal(after.total, before.total, 'the account holds exactly what it held');
+
+  // And the products moved: the two still add up to the account, so the
+  // check that compares them has nothing to report.
+  assert.equal(await engine.drift(ids.rappi, '2026-09-10'), 0);
+
+  const legs = await db.query(
+    `SELECT pocket_id, amount_minor FROM transactions
+     WHERE transfer_id IS NOT NULL AND account_id = ? ORDER BY amount_minor`, [ids.rappi]);
+  assert.equal(legs.length, 2);
+  assert.deepEqual(
+    legs.map(leg => [leg.pocket_id, leg.amount_minor]),
+    [[savings.id, -100_000_000], [cdt, 100_000_000]]);
 
   await db.close();
 });

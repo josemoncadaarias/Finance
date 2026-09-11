@@ -34,6 +34,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
+import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
   YieldsRepository, type CushionBalance, type CushionEntry, type YieldDay,
@@ -124,7 +125,11 @@ export class CushionPage {
   readonly openDays = signal<YieldDay[]>([]);
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'adjust' | 'withdraw' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'adjust' | 'withdraw' | 'move' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+
+  /** Where money is being moved from and to, inside one account. */
+  readonly moveFrom = signal<number | null>(null);
+  readonly moveTo = signal<number | null>(null);
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
   readonly note = signal('');
@@ -270,6 +275,7 @@ export class CushionPage {
       accounts: new AccountsRepository(db),
       categories: new CategoriesRepository(db),
       transactions: new TransactionsRepository(db),
+      transfers: new TransfersRepository(db),
       yields: new YieldsRepository(db),
       tax: new TaxParametersRepository(db),
     };
@@ -545,6 +551,96 @@ export class CushionPage {
   startForm(which: 'adjust' | 'withdraw'): void {
     this.resetForm();
     this.form.set(which);
+  }
+
+  /**
+   * Opens the form for moving money from one product to another.
+   *
+   * Emptying an alcancia into the savings account, opening a CDT with part of
+   * it: the bank calls these withdrawals and top-ups, and from the account's
+   * point of view nothing happens at all - the same money is still there. So
+   * it is written as a transfer whose two legs are in the same account and
+   * differ only in the product, which sums to zero and leaves the balance
+   * untouched while moving what each product earns on.
+   */
+  startMove(): void {
+    const line = this.openLine();
+    if (!line || line.pockets.length < 2) return;
+
+    this.resetForm();
+    this.onDate.set(today());
+    this.moveFrom.set(line.pockets[0].id);
+    this.moveTo.set(line.pockets[1].id);
+    this.form.set('move');
+  }
+
+  pickMoveFrom(id: number): void {
+    this.moveFrom.set(id);
+    // Somewhere has to be the other end, and it cannot be this one.
+    if (this.moveTo() === id) {
+      const other = this.openLine()?.pockets.find(pocket => pocket.id !== id);
+      this.moveTo.set(other?.id ?? null);
+    }
+  }
+
+  pickMoveTo(id: number): void {
+    this.moveTo.set(id);
+    if (this.moveFrom() === id) {
+      const other = this.openLine()?.pockets.find(pocket => pocket.id !== id);
+      this.moveFrom.set(other?.id ?? null);
+    }
+  }
+
+  /**
+   * Writes the move as two legs of one transfer.
+   *
+   * Both legs sit in the same account, so the account's balance is exactly
+   * what it was - which is the truth of it. What changes is which product
+   * each figure belongs to, and therefore what each one earns on from the
+   * next day.
+   *
+   * No category: a category answers "what was this spent on", and nothing was
+   * spent. The movements list already hides a transfer whose two ends are both
+   * in view, so this does not clutter the account it happened in either.
+   */
+  async saveMove(): Promise<void> {
+    const line = this.openLine();
+    if (!line) return;
+
+    const minor = this.parsed();
+    if (minor === null || minor <= 0) {
+      this.error.set(this.i18n.t('cushion.error.amount'));
+      return;
+    }
+
+    const from = this.moveFrom();
+    const to = this.moveTo();
+    if (from === null || to === null || from === to) {
+      this.error.set(this.i18n.t('cushion.error.movePockets'));
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax, transfers } = this.repos();
+      await db.transaction(async () => {
+        await transfers.create({
+          occurred_on: this.onDate(),
+          description: this.note().trim() || null,
+          from: { account_id: line.account.id, pocket_id: from, amount_minor: minor },
+          to: { account_id: line.account.id, pocket_id: to, amount_minor: minor },
+        });
+        // Both products earn on something different from this date on.
+        await yields.clearDays(line.account.id, this.onDate());
+      });
+
+      await new AccrualEngine(db, yields, tax).accrue(line.account.id, today());
+      await this.reopen(line);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   /** Opens one day so it can be checked against a statement and corrected. */

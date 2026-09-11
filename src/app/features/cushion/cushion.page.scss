@@ -410,3 +410,30 @@ ion-modal {
   text-transform: uppercase;
   color: var(--ion-color-medium);
 }
+
+/* One end of a move between products. Names in a row, the chosen one filled
+   in — the same shape as the product picker on the movement form, because it
+   is the same question asked in a different place. */
+.pocket-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1.5rem 0.5rem;
+
+  button {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium-shade);
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.14);
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+  }
+}

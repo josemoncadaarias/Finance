@@ -12,6 +12,16 @@ import { TransactionsRepository } from './transactions.repository';
 
 export interface TransferLegInput {
   account_id: number;
+  /**
+   * Which product of that account this end of the transfer touches.
+   *
+   * Both ends may be in the SAME account: moving money from one product to
+   * another is a real act the bank calls a withdrawal or a top-up, and from
+   * the account's point of view nothing happens - the two legs sum to zero
+   * and the balance is exactly what it was. What changes is which product
+   * each figure belongs to, and so what each one earns on.
+   */
+  pocket_id?: number | null;
   /** Positive; the sign is applied per leg. */
   amount_minor: number;
   rate_scaled?: number | null;
@@ -78,6 +88,7 @@ export class TransfersRepository {
       await this.transactions.create({
         ...common,
         account_id: transfer.from.account_id,
+        pocket_id: transfer.from.pocket_id ?? null,
         amount_minor: -transfer.from.amount_minor,
         rate_scaled: transfer.from.rate_scaled ?? null,
         amount_base_minor:
@@ -91,6 +102,7 @@ export class TransfersRepository {
       await this.transactions.create({
         ...common,
         account_id: transfer.to.account_id,
+        pocket_id: transfer.to.pocket_id ?? null,
         amount_minor: transfer.to.amount_minor,
         rate_scaled: transfer.to.rate_scaled ?? null,
         amount_base_minor:
@@ -185,6 +197,7 @@ export class TransfersRepository {
       await this.transactions.update(existing.from.id, {
         ...common,
         account_id: transfer.from.account_id,
+        pocket_id: transfer.from.pocket_id ?? null,
         amount_minor: -transfer.from.amount_minor,
         rate_scaled: transfer.from.rate_scaled ?? null,
         amount_base_minor:
@@ -197,6 +210,7 @@ export class TransfersRepository {
       await this.transactions.update(existing.to.id, {
         ...common,
         account_id: transfer.to.account_id,
+        pocket_id: transfer.to.pocket_id ?? null,
         amount_minor: transfer.to.amount_minor,
         rate_scaled: transfer.to.rate_scaled ?? null,
         amount_base_minor:
