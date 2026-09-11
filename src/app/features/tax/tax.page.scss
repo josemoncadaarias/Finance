@@ -511,8 +511,53 @@ ion-toolbar.stepper {
   font-weight: 600;
 }
 
+/* Bottom right, over the form rather than in it - the same cluster as the
+   movements list. Ionic places a `slot="fixed"` child itself. */
+.jump {
+  position: absolute;
+  right: 1rem;
+  bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .gone {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: var(--ion-background-color);
+    color: var(--ion-color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+
+    ion-icon { font-size: 1.1rem; }
+  }
+
+  button.fold {
+    width: 2.9rem;
+    height: 2.9rem;
+    background: var(--ion-color-primary);
+    color: var(--ion-color-primary-contrast);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+
+    ion-icon { font-size: 1.25rem; }
+  }
+}
+
+/* The last thing on the form, with room under it so the floating buttons
+   never sit on top of it. */
 .disclaimer {
-  margin: 0.5rem 1.5rem 2rem;
+  margin: 0.5rem 1.5rem 5rem;
   font-size: 0.7rem;
   line-height: 1.4;
   text-align: center;

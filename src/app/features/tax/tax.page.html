@@ -32,7 +32,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content #form [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else {
@@ -268,6 +268,29 @@
     }
 
     <p class="disclaimer">{{ text.disclaimer }}</p>
+
+    <!-- The movements list's floating controls, for a form that runs to
+         fifteen sections. `slot="fixed"` keeps them still while the form
+         scrolls; the fold button never hides, and an arrow with nothing to do
+         keeps its place so the others do not shift. -->
+    <div class="jump" slot="fixed">
+      <button type="button" [class.gone]="atTop()" (click)="toTop()"
+              [attr.aria-label]="text.toTop" [title]="text.toTop">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+      </button>
+
+      <button type="button" class="fold" (click)="toggleAll()"
+              [attr.aria-expanded]="!allCollapsed()"
+              [attr.aria-label]="allCollapsed() ? text.expandAll : text.collapseAll"
+              [title]="allCollapsed() ? text.expandAll : text.collapseAll">
+        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+      </button>
+
+      <button type="button" [class.gone]="atBottom()" (click)="toBottom()"
+              [attr.aria-label]="text.toBottom" [title]="text.toBottom">
+        <ion-icon name="arrow-down-outline"></ion-icon>
+      </button>
+    </div>
   }
 </ion-content>
 

@@ -141,6 +141,10 @@ export const TAX_TEXT = {
   rateApplies: 'Tu renta cae aquí',
 
   close: 'Cerrar',
+  toTop: 'Ir arriba del todo',
+  toBottom: 'Ir abajo del todo',
+  collapseAll: 'Plegar todas las secciones',
+  expandAll: 'Desplegar todas las secciones',
 
   disclaimer: 'Es una herramienta de apoyo personal. No reemplaza a un contador ni la declaración oficial ante la DIAN.',
 } as const;

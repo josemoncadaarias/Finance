@@ -15,7 +15,7 @@
  * rule says the tax module should.
  */
 
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonMenuButton, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonNote,
@@ -174,6 +174,7 @@ export class TaxPage {
     this.salaryNotice.set('');
     this.yieldsNotice.set('');
     this.saveState.set('idle');
+    this.remeasure();
   }
 
   /** Written a moment after the typing stops, for the year it was typed in. */
@@ -213,6 +214,66 @@ export class TaxPage {
       else next.add(id);
       return next;
     });
+    this.remeasure();
+  }
+
+  readonly allCollapsed = computed(() => this.closed().size === TAX_FORM.length);
+
+  /** Folds every section, or opens every one when they are all folded already. */
+  toggleAll(): void {
+    this.closed.set(this.allCollapsed()
+      ? new Set()
+      : new Set(TAX_FORM.map(section => section.id)));
+    this.remeasure();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Moving through a long form
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The same floating controls as the movements list: to the top, fold or
+   * open everything, to the bottom.
+   *
+   * Unlike the list, the fold control stays in view all the time - this form
+   * has no fold button of its own at the top to stand in for it, and Jose
+   * asked for it fixed. The arrows keep their place when they have nothing to
+   * do, so the button between them never moves under the thumb.
+   */
+  private readonly content = viewChild<IonContent>('form');
+  readonly atTop = signal(true);
+  readonly atBottom = signal(false);
+
+  /** Re-reads the position, writing a signal only when an answer changes. */
+  private async measure(): Promise<void> {
+    const content = this.content();
+    if (!content) return;
+
+    const element = await content.getScrollElement();
+    const top = element.scrollTop <= 4;
+    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
+
+    if (top !== this.atTop()) this.atTop.set(top);
+    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+  }
+
+  /** Folding changes how tall the form is, and no scroll event says so. */
+  private remeasure(): void {
+    setTimeout(() => void this.measure(), 0);
+  }
+
+  onScroll(): void {
+    void this.measure();
+  }
+
+  async toTop(): Promise<void> {
+    await this.content()?.scrollToTop(300);
+    await this.measure();
+  }
+
+  async toBottom(): Promise<void> {
+    await this.content()?.scrollToBottom(300);
+    await this.measure();
   }
 
   // ---------------------------------------------------------------------------
