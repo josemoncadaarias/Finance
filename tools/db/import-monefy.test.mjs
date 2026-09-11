@@ -643,3 +643,41 @@ test('the duplicate credit card is merged into the real one and removed', async 
 
   await db.close();
 });
+
+test('the account goes even with nowhere to move its movements', async () => {
+  // The case both earlier attempts left standing. Each only acted if another
+  // condition held — a name spelled a certain way, another credit account to
+  // move rows to — and when it did not, nothing happened and nothing said so.
+  //
+  // Here there is no other credit card at all, so there is nowhere to move
+  // the movement to. The account still goes, and the fingerprint of the row
+  // that goes with it is recorded as deleted, which is what stops the next
+  // import meeting that row as new and building the account all over again.
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES.slice(0, 24));
+
+  const accounts = new AccountsRepository(db, NOW);
+  const orphan = await accounts.create({
+    name: 'Tarjeta crédito rappi', type: 'credit', currency_code: 'COP',
+    builtin_icon: 'card', credit_limit_minor: 110_000_000, opened_on: '2021-06-25',
+  });
+  const categories = new CategoriesRepository(db, NOW);
+  const comida = await categories.create({ name: 'Comida', kind: 'expense', builtin_icon: 'cart' });
+  await new TransactionsRepository(db, NOW).create({
+    account_id: orphan, category_id: comida, occurred_on: '2026-09-09',
+    amount_minor: -25_000, source: 'monefy',
+    import_fingerprint: 'f-alone', import_seq: 1,
+  });
+
+  await migrate(db, MIGRATION_SOURCES);
+
+  assert.equal(
+    (await db.query("SELECT id FROM accounts WHERE name = 'Tarjeta crédito rappi'")).length, 0,
+    'gone, with no conditions attached');
+
+  const skipped = await db.queryOne(
+    "SELECT import_seq FROM deleted_imports WHERE import_fingerprint = 'f-alone'");
+  assert.equal(skipped.import_seq, 1, 'and the next import will not bring it back');
+
+  await db.close();
+});
