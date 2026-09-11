@@ -292,16 +292,30 @@ export class AccrualEngine {
       // over at the end of the month. Until then the money is not in the
       // account and is not earning: it waits here, keyed by pocket and
       // component, and joins the base on the day it is actually paid.
+      //
+      // Keyed by pocket and payday, so a component paid every six months and
+      // one paid every month can wait side by side.
       const waiting = new Map<string, number>();
 
-      const creditTo = (pocketId: number, component: string, payout: 'daily' | 'monthly', net: number) => {
+      const creditTo = (pocketId: number, payout: 'daily' | 'monthly', paidOn: IsoDate, net: number) => {
         if (payout === 'daily') {
           cushionOf.set(pocketId, (cushionOf.get(pocketId) ?? 0) + net);
           return;
         }
-        const key = `${pocketId}|${component}`;
+        const key = `${pocketId}|${paidOn}`;
         waiting.set(key, (waiting.get(key) ?? 0) + net);
       };
+
+      // A payment can span more than the stretch this walk redoes: a rate paid
+      // every three months, worked out again from the first of its second
+      // month, still owes what its first month earned. Those days sit before
+      // `from` and are not redone, so what they are owed is carried in here to
+      // land on the payday it belongs to.
+      for (const earlier of await this.yields.days(accountId, undefined, addDays(from, -1))) {
+        if (earlier.payout !== 'monthly' || earlier.paid_on === null || earlier.paid_on < from) continue;
+        const key = `${earlier.pocket_id}|${earlier.paid_on}`;
+        waiting.set(key, (waiting.get(key) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
+      }
       const pocketOf = (id: number | null) =>
         pockets.some(pocket => pocket.id === id) ? (id as number) : fallbackPocket;
 
@@ -353,7 +367,8 @@ export class AccrualEngine {
             if (lockedDay) {
               // Left exactly as it was, and still part of the cushion.
               const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
-              creditTo(pocket.id, component, lockedDay.payout, net);
+              creditTo(pocket.id, lockedDay.payout,
+                lockedDay.paid_on ?? (lockedDay.payout === 'daily' ? day : endOfMonth(day)), net);
               result.daysLocked += 1;
               continue;
             }
@@ -361,6 +376,7 @@ export class AccrualEngine {
             let band = bandFor(bands, base);
             if (band === null) continue;
             const payout = band.payout;
+            const paidOn = paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
 
             if (band.requiresMonthlySpendMinor != null) {
               const spent = spendByMonth.get(monthOf(day)) ?? 0;
@@ -381,6 +397,7 @@ export class AccrualEngine {
               component,
               payout,
               on_date: day,
+              paid_on: paidOn,
               balance_minor: accrued.balance_minor,
               annual_rate_scaled: accrued.annual_rate_scaled,
               gross_minor: accrued.gross_minor,
@@ -389,7 +406,7 @@ export class AccrualEngine {
               withholding_unknown: accrued.withholding_unknown ? 1 : 0,
             });
 
-            creditTo(pocket.id, component, payout, accrued.net_minor);
+            creditTo(pocket.id, payout, paidOn, accrued.net_minor);
             result.daysWritten += 1;
             result.netMinor += accrued.net_minor;
             result.withheldMinor += accrued.withholding_minor;
@@ -405,15 +422,13 @@ export class AccrualEngine {
           if (landed) cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + landed);
         }
 
-        // Payday: everything a monthly component has worked out since the
-        // last one lands at once, and starts earning tomorrow.
-        if (day === endOfMonth(day)) {
-          for (const [key, owed] of waiting) {
-            if (owed === 0) continue;
-            const pocketId = Number(key.split('|')[0]);
-            cushionOf.set(pocketId, (cushionOf.get(pocketId) ?? 0) + owed);
-            waiting.set(key, 0);
-          }
+        // Payday: everything worked out for a payment that falls today lands at
+        // once, and starts earning tomorrow.
+        for (const [key, owed] of waiting) {
+          const [pocket, paidOn] = key.split('|');
+          if (paidOn !== day) continue;
+          cushionOf.set(Number(pocket), (cushionOf.get(Number(pocket)) ?? 0) + owed);
+          waiting.delete(key);
         }
 
       }
@@ -497,6 +512,31 @@ interface ConditionalBand extends RateBand {
   fallbackAnnualRateScaled: number | null;
   component: string;
   payout: 'daily' | 'monthly';
+  /** Months each payment covers, for a monthly band. */
+  payoutMonths: number;
+  /** Where those months are counted from: the day the rate started. */
+  payoutFrom: IsoDate;
+}
+
+/**
+ * The day the yield of `day` is handed over.
+ *
+ * The same day for a daily component. For a monthly one, the last day of the
+ * payment period `day` falls in: periods of `months` months, counted from the
+ * month the rate starts in. With one month that is simply the end of the
+ * month, which is how every monthly rate was paid before a payment could cover
+ * more than one.
+ */
+export function paidOnFor(payout: 'daily' | 'monthly', months: number, rateFrom: IsoDate, day: IsoDate): IsoDate {
+  if (payout === 'daily') return day;
+  const every = Math.max(1, months);
+  const index = (iso: IsoDate) => Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
+  const start = index(rateFrom);
+  const offset = Math.max(0, index(day) - start);
+  const last = start + Math.floor(offset / every) * every + every - 1;
+  const year = Math.floor(last / 12);
+  const month = (last % 12) + 1;
+  return endOfMonth(`${year}-${String(month).padStart(2, '0')}-01`);
 }
 
 /**
@@ -600,6 +640,8 @@ function componentsInForce(rates: YieldRate[], day: IsoDate): Map<string, Condit
       fallbackAnnualRateScaled: rate.fallback_annual_rate_scaled,
       component: rate.component,
       payout: rate.payout,
+      payoutMonths: rate.payout_months ?? 1,
+      payoutFrom: rate.valid_from,
     });
     byComponent.set(rate.component, bands);
   }

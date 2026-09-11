@@ -146,6 +146,9 @@ export class CushionPage {
   readonly openingDate = signal<IsoDate>(today());
   readonly withholds = signal(true);
   readonly payout = signal<'daily' | 'monthly'>('daily');
+
+  /** For a monthly rate, how many months each payment covers, as typed. */
+  readonly rateMonths = signal('1');
   private editingEnabled = true;
   readonly rates = signal<YieldRate[]>([]);
   readonly editablePockets = signal<YieldPocket[]>([]);
@@ -446,7 +449,9 @@ export class CushionPage {
 
     for (const day of this.openDays()) {
       const monthly = day.payout === 'monthly';
-      const on = monthly ? endOfMonth(day.on_date) : day.on_date;
+      // The day it is handed over, as written when the day was worked out.
+      // Older days fall back to the rule they were computed under.
+      const on = day.paid_on ?? (monthly ? endOfMonth(day.on_date) : day.on_date);
       const key = `${day.component}|${on}`;
 
       const payment = out.get(key) ?? {
@@ -1012,6 +1017,7 @@ export class CushionPage {
     this.rateUntil.set(rate?.valid_to ?? '');
     this.rateComponent.set(rate?.component ?? this.components()[0]?.component ?? 'base');
     this.ratePayout.set(rate?.payout ?? 'daily');
+    this.rateMonths.set(String(rate?.payout_months ?? 1));
     this.ratePercent.set(rate ? scaledPercentToString(rate.annual_rate_scaled) : '');
     this.rateFrom.set(rate?.valid_from ?? today());
     this.rateSpend.set(rate?.requires_monthly_spend_minor ? decimalOf(rate.requires_monthly_spend_minor) : '');
@@ -1064,6 +1070,13 @@ export class CushionPage {
       return;
     }
 
+    // Only a monthly rate has months to count; a daily one pays every day.
+    const months = this.ratePayout() === 'monthly' ? Number(this.rateMonths().trim()) : 1;
+    if (!Number.isInteger(months) || months < 1) {
+      this.error.set(this.i18n.t('cushion.error.months'));
+      return;
+    }
+
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
@@ -1072,6 +1085,7 @@ export class CushionPage {
         const common = {
           component: name,
           payout: this.ratePayout(),
+          payout_months: months,
           valid_from: this.rateFrom(),
           valid_to: this.rateUntil() || null,
           annual_rate_scaled: scaled,
@@ -1133,6 +1147,15 @@ export class CushionPage {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** How a rate is paid, in words: every day, every month, or every so many months. */
+  payoutText(rate: YieldRate): string {
+    if (rate.payout === 'daily') return this.i18n.t('cushion.payout.daily');
+    const months = rate.payout_months ?? 1;
+    return months === 1
+      ? this.i18n.t('cushion.payout.monthly')
+      : this.i18n.t('cushion.payout.everyMonths', { count: months });
   }
 
   /** Adds an account to the module, with nothing accrued and no rate yet. */

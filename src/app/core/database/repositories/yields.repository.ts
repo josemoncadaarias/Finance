@@ -50,6 +50,12 @@ export interface YieldRate {
   /** When this part is handed over. Not a property of the account: Uala pays
    *  half of its rate daily and half at the end of the month. */
   payout: 'daily' | 'monthly';
+  /**
+   * For a monthly component, how many months each payment covers - 6 for a
+   * product that pays every semester. Counted from the month the rate starts
+   * in. Always 1 for a daily one.
+   */
+  payout_months: number;
   valid_from: IsoDate;
   /** When it stopped. Null while it is still running. */
   valid_to: IsoDate | null;
@@ -137,6 +143,12 @@ export interface YieldDay {
   component: string;
   payout: 'daily' | 'monthly';
   on_date: IsoDate;
+  /**
+   * The day this day's yield is handed over. Null on days worked out before it
+   * was recorded, which keep their old rule: the same day if daily, the end of
+   * the month if monthly.
+   */
+  paid_on: IsoDate | null;
   balance_minor: number;
   annual_rate_scaled: number;
   gross_minor: number;
@@ -177,10 +189,10 @@ export interface CushionBalance {
 const ACCOUNT_COLUMNS =
   'account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note';
 const RATE_COLUMNS =
-  `id, account_id, pocket_id, component, payout, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
+  `id, account_id, pocket_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
    max_balance_minor, requires_monthly_spend_minor, fallback_annual_rate_scaled, note`;
 const DAY_COLUMNS =
-  `pocket_id, account_id, component, payout, on_date, balance_minor, annual_rate_scaled, gross_minor,
+  `pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled, gross_minor,
    withholding_minor, net_minor, actual_net_minor, withholding_unknown,
    locked, computed_at`;
 
@@ -330,6 +342,7 @@ export class YieldsRepository {
     pocket_id?: number | null;
     component?: string;
     payout?: 'daily' | 'monthly';
+    payout_months?: number;
     valid_from: IsoDate;
     valid_to?: IsoDate | null;
     annual_rate_scaled: number;
@@ -353,6 +366,7 @@ export class YieldsRepository {
       await this.correctRate(existing.id, {
         annual_rate_scaled: input.annual_rate_scaled,
         payout: input.payout ?? 'daily',
+        payout_months: input.payout_months ?? 1,
         valid_to: input.valid_to ?? null,
         max_balance_minor: input.max_balance_minor ?? null,
         requires_monthly_spend_minor: input.requires_monthly_spend_minor ?? null,
@@ -364,15 +378,16 @@ export class YieldsRepository {
 
     await this.db.run(
       `INSERT INTO yield_rates
-         (account_id, pocket_id, component, payout, valid_from, valid_to, annual_rate_scaled,
+         (account_id, pocket_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled,
           min_balance_minor, max_balance_minor, requires_monthly_spend_minor,
           fallback_annual_rate_scaled, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.account_id,
         pocket,
         component,
         input.payout ?? 'daily',
+        input.payout_months ?? 1,
         input.valid_from,
         input.valid_to ?? null,
         input.annual_rate_scaled,
@@ -403,6 +418,7 @@ export class YieldsRepository {
   async correctRate(id: number, changes: {
     component?: string;
     payout?: 'daily' | 'monthly';
+    payout_months?: number;
     valid_from?: IsoDate;
     valid_to?: IsoDate | null;
     annual_rate_scaled?: number;
@@ -687,8 +703,9 @@ export class YieldsRepository {
    * whether the row was actually written, so a recompute can report what it
    * left alone.
    */
-  async putDay(day: Omit<YieldDay, 'actual_net_minor' | 'locked' | 'computed_at'> & {
+  async putDay(day: Omit<YieldDay, 'actual_net_minor' | 'locked' | 'computed_at' | 'paid_on'> & {
     actual_net_minor?: number | null;
+    paid_on?: IsoDate | null;
   }): Promise<boolean> {
     const existing = await this.db.queryOne<{ locked: 0 | 1 }>(
       'SELECT locked FROM yield_days WHERE pocket_id = ? AND component = ? AND on_date = ?',
@@ -697,10 +714,10 @@ export class YieldsRepository {
 
     await this.db.run(
       `INSERT INTO yield_days
-         (pocket_id, account_id, component, payout, on_date, balance_minor, annual_rate_scaled,
+         (pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled,
           gross_minor, withholding_minor, net_minor, actual_net_minor, withholding_unknown,
           locked, computed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
        ON CONFLICT(pocket_id, component, on_date) DO UPDATE SET
          balance_minor       = excluded.balance_minor,
          annual_rate_scaled  = excluded.annual_rate_scaled,
@@ -709,9 +726,10 @@ export class YieldsRepository {
          net_minor           = excluded.net_minor,
          actual_net_minor    = excluded.actual_net_minor,
          withholding_unknown = excluded.withholding_unknown,
+         paid_on             = excluded.paid_on,
          computed_at         = excluded.computed_at`,
       [
-        day.pocket_id, day.account_id, day.component, day.payout, day.on_date,
+        day.pocket_id, day.account_id, day.component, day.payout, day.on_date, day.paid_on ?? null,
         day.balance_minor, day.annual_rate_scaled,
         day.gross_minor, day.withholding_minor, day.net_minor,
         day.actual_net_minor ?? null, day.withholding_unknown, this.now(),
@@ -891,14 +909,29 @@ export class YieldsRepository {
       const [year, month] = day.split('-').map(Number);
       const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 
+      // A day written since `paid_on` existed says when it is handed over,
+      // which for a rate paid every several months can be months away.
+      const owed = await this.db.queryOne<{ net: number | null; paid: IsoDate | null }>(
+        `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net, MIN(paid_on) AS paid
+         FROM yield_days
+         WHERE account_id = ? AND paid_on IS NOT NULL AND on_date <= ? AND paid_on > ?`,
+        [accountId, day, day]);
+      pendingMinor = owed?.net ?? 0;
+      paidOn = pendingMinor > 0 ? owed?.paid ?? null : null;
+
+      // A day written before that keeps the rule it was worked out under: a
+      // monthly one is paid at the end of its own month.
       if (day < monthEnd) {
-        const owed = await this.db.queryOne<{ net: number | null }>(
+        const legacy = await this.db.queryOne<{ net: number | null }>(
           `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net
            FROM yield_days
-           WHERE account_id = ? AND payout = 'monthly' AND on_date >= ? AND on_date <= ?`,
+           WHERE account_id = ? AND payout = 'monthly' AND paid_on IS NULL AND on_date >= ? AND on_date <= ?`,
           [accountId, `${day.slice(0, 7)}-01`, day]);
-        pendingMinor = owed?.net ?? 0;
-        paidOn = pendingMinor > 0 ? monthEnd : null;
+        const legacyMinor = legacy?.net ?? 0;
+        if (legacyMinor > 0) {
+          pendingMinor += legacyMinor;
+          paidOn = paidOn === null || monthEnd < paidOn ? monthEnd : paidOn;
+        }
       }
     }
 

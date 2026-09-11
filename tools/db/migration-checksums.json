@@ -25,5 +25,6 @@
   "024_remove_duplicate_card.sql": "de691cbbd0a48a8bf67d8ffa4e64df038ff655379ce75f1969193dd02b2a0f9e",
   "025_delete_that_account.sql": "3102893cf4b3af60867be063838135618e025e8b77d81ae7d11585b9d7ea33fc",
   "026_delete_it_for_real.sql": "5d0eb1ba188215b48c4026d5e2965566f1a27390402aeba2b043d6b542d1ee10",
-  "027_tax_simulations.sql": "c553b80091f587334cb65e0e07e11e5694f99eebf7232d26f93a352126e75092"
+  "027_tax_simulations.sql": "c553b80091f587334cb65e0e07e11e5694f99eebf7232d26f93a352126e75092",
+  "028_payout_every_months.sql": "9e2c0f1a042afd10b9cca57da7efaa0a96d417b59a8395f3e6015192c3a95f74"
 }

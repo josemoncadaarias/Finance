@@ -643,7 +643,7 @@
                         @if (rate.pocket_id !== null) {
                           <span class="pocket">{{ pocketNameById(rate.pocket_id) }}</span>
                         }
-                        <span class="pocket">{{ (rate.payout === 'daily' ? 'cushion.payout.daily' : 'cushion.payout.monthly') | t }}</span>
+                        <span class="pocket">{{ payoutText(rate) }}</span>
                       </h3>
                       <p>
                         <!-- Where it stands comes first, because that is the
@@ -905,6 +905,16 @@
                   <ion-select-option value="monthly">{{ 'cushion.payout.monthly' | t }}</ion-select-option>
                 </ion-select>
               </ion-item>
+              <!-- A monthly rate can cover several months per payment: a CDT
+                   that pays every semester, a product that pays once a year. -->
+              @if (ratePayout() === 'monthly') {
+                <ion-item>
+                  <ion-input [label]="'cushion.payout.months' | t" labelPlacement="stacked"
+                             inputmode="numeric" [value]="rateMonths()"
+                             (ionInput)="rateMonths.set($any($event.target).value)"
+                             [helperText]="'cushion.payout.monthsHint' | t"></ion-input>
+                </ion-item>
+              }
               <ion-item>
                 <ion-input [label]="'cushion.rate.percent' | t" labelPlacement="stacked"
                            inputmode="decimal" [value]="ratePercent()"

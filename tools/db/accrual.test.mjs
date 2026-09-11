@@ -1623,3 +1623,77 @@ test('a movement dated ahead of the start date counts, whatever today is', async
 
   await db.close();
 });
+
+// ---------------------------------------------------------------------------
+// Paid every several months
+//
+// Some products hand the yield over every two, six, twelve or twenty-four
+// months. The months are counted from the month the rate starts in, and a
+// payment lands on the last day of its final month.
+// ---------------------------------------------------------------------------
+
+async function quarterly(upTo) {
+  const context = await setup();
+  const { yields, engine, ids } = context;
+  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-06-30', withholding: false });
+  await yields.setRate({
+    account_id: ids.rappi, valid_from: '2026-07-01', annual_rate_scaled: pct(9), payout: 'monthly', payout_months: 3,
+  });
+  for (const day of upTo) await engine.accrue(ids.rappi, day);
+  return context;
+}
+
+test('a rate paid every three months holds the yield until the end of the third month', async () => {
+  const { yields, ids } = await quarterly(['2026-10-02']);
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+  const inQuarter = days.filter(day => day.on_date <= '2026-09-30');
+  const quarter = inQuarter.reduce((sum, day) => sum + day.net_minor, 0);
+
+  assert.equal(on('2026-07-01').paid_on, '2026-09-30');
+  assert.equal(on('2026-08-15').paid_on, '2026-09-30');
+  assert.equal(on('2026-10-01').paid_on, '2026-12-31', 'the next payment covers October to December');
+
+  assert.equal(new Set(inQuarter.map(day => day.balance_minor)).size, 1,
+    'nothing compounds at the end of July or August');
+  assert.equal(on('2026-10-01').balance_minor, 1_000_000_000 + quarter, 'the whole quarter lands at once');
+});
+
+test('what is owed in the middle of a period says when it will be paid', async () => {
+  const { yields, ids } = await quarterly(['2026-08-15']);
+  const owed = (await yields.days(ids.rappi)).reduce((sum, day) => sum + day.net_minor, 0);
+  const cushion = await yields.cushion(ids.rappi, '2026-08-15');
+
+  assert.equal(cushion.pendingMinor, owed, 'July and half of August are owed, not paid');
+  assert.equal(cushion.paidOn, '2026-09-30');
+  assert.equal(cushion.availableMinor, cushion.totalMinor - owed);
+});
+
+test('working it out again from the middle of a period still pays the months before', async () => {
+  const once = await quarterly(['2026-10-02']);
+  const twice = await quarterly(['2026-08-15', '2026-10-02']);
+
+  const october = async ({ yields, ids }) =>
+    (await yields.days(ids.rappi)).find(day => day.on_date === '2026-10-01').balance_minor;
+
+  assert.equal(await october(twice), await october(once),
+    'the second pass started on August 1st and still carried July into the payment');
+});
+
+test('one month per payment is exactly the monthly rate it always was', async () => {
+  const { yields, engine, ids } = await setup();
+  for (const account_id of [ids.rappi, ids.uala]) {
+    await yields.enrol({ account_id, opening_cushion_minor: 0, opening_on: '2026-06-30', withholding: false });
+  }
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-07-01', annual_rate_scaled: pct(9), payout: 'monthly' });
+  await yields.setRate({
+    account_id: ids.uala, valid_from: '2026-07-01', annual_rate_scaled: pct(9), payout: 'monthly', payout_months: 1,
+  });
+  await engine.accrue(ids.rappi, '2026-11-02');
+  await engine.accrue(ids.uala, '2026-11-02');
+
+  const shape = async account => (await yields.days(account)).map(day => [day.on_date, day.balance_minor, day.net_minor, day.paid_on]);
+  assert.deepEqual(await shape(ids.uala), await shape(ids.rappi));
+  const rate = (await yields.rateHistory(ids.rappi))[0];
+  assert.equal(rate.payout_months, 1, 'a rate saved without months pays every month');
+});
