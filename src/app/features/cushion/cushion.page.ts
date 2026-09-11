@@ -113,6 +113,10 @@ interface Payment {
   withheldMinor: number;
   pending: boolean;
   days: number;
+  /** The last day the payment covers, and its rate and balance - what the day list reads. */
+  lastOn: IsoDate;
+  rateScaled: number;
+  balanceMinor: number;
 }
 
 @Component({
@@ -663,10 +667,17 @@ export class CushionPage {
       const payment = out.get(key) ?? {
         key, pocketId: day.pocket_id, component: day.component, payout: day.payout, on,
         netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0,
+        lastOn: day.on_date, rateScaled: day.annual_rate_scaled, balanceMinor: day.balance_minor,
       };
       payment.netMinor += netOf(day);
       payment.withheldMinor += day.withholding_minor;
       payment.days += 1;
+      // The rate and balance of the last day it covers, as the day list shows them.
+      if (day.on_date >= payment.lastOn) {
+        payment.lastOn = day.on_date;
+        payment.rateScaled = day.annual_rate_scaled;
+        payment.balanceMinor = day.balance_minor;
+      }
       out.set(key, payment);
     }
 
@@ -790,7 +801,8 @@ export class CushionPage {
     this.openDays.set(days);
     // The month someone came here to look at is almost always this one.
     this.openMonths.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
-    this.openWorkings.set(new Set());
+    // The payments open on their latest month, as the day list does.
+    this.openWorkings.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
     // Open already, as after a correction: read again, so it shows the change.
     if (this.showMovements()) await this.loadMovements(line);
   }

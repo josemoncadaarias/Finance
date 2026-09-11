@@ -540,37 +540,55 @@
             } @else {
               <p class="hint">{{ 'cushion.payments.hint' | t }}</p>
               @for (month of paymentsByMonth(); track month.key) {
+                <!-- Laid out as the day list below: a month that folds, how many
+                     payments it holds, and each one with its product, rate and
+                     the balance it was paid on. -->
                 <ion-list [inset]="true">
-                  <ion-item class="month" lines="full">
-                    <ion-label><h3>{{ monthText(month.key) }}</h3></ion-label>
+                  <ion-item button detail="false" class="month" (click)="toggleWorking(month.key)"
+                            [attr.aria-expanded]="isWorkingOpen(month.key)">
+                    <ion-icon slot="start"
+                              [name]="isWorkingOpen(month.key) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+                    <ion-label>
+                      <h3>{{ monthText(month.key) }}</h3>
+                      <p>{{ 'cushion.payments.count' | t:{ count: month.payments.length } }}</p>
+                    </ion-label>
                     <ion-note slot="end">
                       <span class="net">{{ money(month.netMinor, line.account.currency_code) }}</span>
                     </ion-note>
                   </ion-item>
 
-                  @for (payment of month.payments; track payment.key) {
-                    <ion-item>
-                      <ion-label>
-                        <h3>{{ dayText(payment.on) }}</h3>
-                        <p>
-                          @if (line.pockets.length > 1) {
-                            <strong>{{ pocketLabel(line, payment.pocketId) }}</strong> ·
+                  @if (isWorkingOpen(month.key)) {
+                    @for (payment of month.payments; track payment.key) {
+                      <ion-item>
+                        <ion-label>
+                          <h3>
+                            {{ dayText(payment.on) }}
+                            @if (line.pockets.length > 1) {
+                              <span class="pocket">{{ pocketLabel(line, payment.pocketId) }}</span>
+                            }
+                          </h3>
+                          <p>
+                            {{ rateText(payment.rateScaled) }}
+                            {{ 'cushion.on' | t }}
+                            {{ money(payment.balanceMinor, line.account.currency_code) }}
+                            @if (payment.payout === 'monthly' && payment.days > 1) {
+                              · {{ 'cushion.payments.ofDays' | t:{ count: payment.days } }}
+                            }
+                            @if (payment.component !== 'base') {
+                              · {{ payment.component }}
+                            }
+                          </p>
+                        </ion-label>
+                        <ion-note slot="end">
+                          <span class="net">{{ money(payment.netMinor, line.account.currency_code) }}</span>
+                          @if (payment.pending) {
+                            <span class="tag unknown">{{ 'cushion.payments.pending' | t }}</span>
+                          } @else if (payment.withheldMinor > 0) {
+                            <span class="tag">−{{ money(payment.withheldMinor, line.account.currency_code) }}</span>
                           }
-                          {{ payment.component }}
-                          @if (payment.payout === 'monthly' && payment.days > 1) {
-                            · {{ 'cushion.payments.ofDays' | t:{ count: payment.days } }}
-                          }
-                        </p>
-                      </ion-label>
-                      <ion-note slot="end">
-                        <span class="net">{{ money(payment.netMinor, line.account.currency_code) }}</span>
-                        @if (payment.pending) {
-                          <span class="tag unknown">{{ 'cushion.payments.pending' | t }}</span>
-                        } @else if (payment.withheldMinor > 0) {
-                          <span class="tag">−{{ money(payment.withheldMinor, line.account.currency_code) }}</span>
-                        }
-                      </ion-note>
-                    </ion-item>
+                        </ion-note>
+                      </ion-item>
+                    }
                   }
                 </ion-list>
               }
