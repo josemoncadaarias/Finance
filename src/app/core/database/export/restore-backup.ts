@@ -30,7 +30,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { MigrationSource } from '../migrations/statements.generated';
 import { migrate, targetVersion } from '../migrations/migration-runner';
-import type { Backup } from './export-backup';
+import { TABLES, type Backup } from './export-backup';
 
 export interface RestoreResult {
   /** The schema the file was written at, before it was brought forward. */
@@ -159,14 +159,9 @@ export async function restoreBackup(
  * this build has never heard of cannot be a parent of one it has.
  */
 function dropOrder(tables: string[]): string[] {
-  const known = [
-    'currencies', 'custom_icons', 'account_groups', 'accounts', 'categories',
-    'transfers', 'transactions', 'exchange_rates', 'yield_accounts',
-    'yield_pockets', 'yield_pocket_balances', 'yield_rates', 'yield_days',
-    'cashback_rules', 'cashback_entries', 'cushion_adjustments',
-    'cushion_withdrawals', 'tax_parameters', 'credit_limit_changes',
-    'import_batches', 'review_queue', 'deleted_imports', 'settings',
-  ];
+  // The export's own list, not a copy of it: two lists kept by hand drift, and
+  // they had.
+  const known: readonly string[] = TABLES;
 
   const unknown = tables.filter(table => !known.includes(table));
   const inOrder = known.filter(table => tables.includes(table)).reverse();

@@ -32,11 +32,14 @@ export interface Backup {
  * transactions, transfers before the legs that point at them. A restore that
  * inserted them the other way round would trip every foreign key.
  */
-const TABLES = [
+export const TABLES = [
   'currencies',
   'custom_icons',
   'account_groups',
   'accounts',
+  // The names an account was imported under before it was renamed. Without
+  // them the next import would bring the old name back as a new account.
+  'account_aliases',
   'categories',
   'transfers',
   'transactions',
@@ -56,6 +59,11 @@ const TABLES = [
   'review_queue',
   // Without these, restoring would bring back every movement deleted by hand.
   'deleted_imports',
+  // The income-tax simulation of every year. It was missing for a day, and a
+  // restore would have brought every account back and every return typed in
+  // gone - while the settings table, which was carried, said its empty boxes
+  // had already been filled.
+  'tax_simulations',
   'settings',
 ] as const;
 

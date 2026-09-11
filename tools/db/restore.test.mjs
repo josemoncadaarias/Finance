@@ -192,3 +192,45 @@ test('restoring twice lands in the same place', async () => {
     twice.map(balance => [balance.account.name, balance.balance_minor]),
     once.map(balance => [balance.account.name, balance.balance_minor]));
 });
+
+test('every table the migrations create is carried by the backup', async () => {
+  const { TABLES } = await import('../../src/app/core/database/export/export-backup.ts');
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+
+  // A table added by a migration and forgotten here is data a restore silently
+  // throws away. It happened: the tax simulations and the account aliases.
+  const tables = (await db.query(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"))
+    .map(row => row.name);
+  const missing = tables.filter(name => !TABLES.includes(name));
+  assert.deepEqual(missing, [], `not in the backup: ${missing.join(', ')}`);
+  await db.close();
+});
+
+test('the tax simulation and the account aliases come back from a backup', async () => {
+  const { TaxSimulationsRepository } = await import(
+    '../../src/app/core/database/repositories/tax-simulations.repository.ts');
+  const { defaultInputs } = await import('../../src/app/core/tax/defaults.ts');
+
+  const source = await seeded();
+  const simulations = new TaxSimulationsRepository(source.db, () => NOW());
+  await simulations.save(2026, { ...defaultInputs(2026), monthlySalaryMinor: 2_276_176_500, dependents: 2 });
+  await simulations.markGapsFilled(2026);
+  await source.db.run(
+    'INSERT INTO account_aliases (source_name, account_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    ['Rappi', source.ids.rappi, NOW(), NOW()]);
+
+  const text = toJson(await exportBackup(source.db));
+  const target = new NodeSqlDriver();
+  await migrate(target, MIGRATION_SOURCES);
+  await restoreBackup(target, parseBackup(text), MIGRATION_SOURCES);
+
+  const restored = await new TaxSimulationsRepository(target, () => NOW()).get(2026);
+  assert.equal(restored.monthlySalaryMinor, 2_276_176_500);
+  assert.equal(restored.dependents, 2);
+  assert.equal(await new TaxSimulationsRepository(target, () => NOW()).gapsFilled(2026), true);
+
+  const aliases = await target.query('SELECT source_name FROM account_aliases WHERE account_id = ?', [source.ids.rappi]);
+  assert.deepEqual(aliases.map(row => row.source_name), ['Rappi']);
+});
