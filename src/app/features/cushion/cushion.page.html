@@ -603,6 +603,9 @@
                   <ion-label>
                     <h3>{{ pocket.name }}</h3>
                     <p>
+                      @if (pocket.is_default === 1) {
+                        <span class="usual">{{ 'cushion.pockets.usual' | t }}</span> ·
+                      }
                       @if (pocket.source === 'ledger') {
                         {{ 'cushion.pockets.ledger' | t }}
                       } @else {
@@ -610,6 +613,13 @@
                       }
                     </p>
                   </ion-label>
+                  <!-- What is in it, here as well as on the account's own
+                       screen. This is where a balance gets corrected, and
+                       correcting one without seeing it is guesswork. -->
+                  <ion-note slot="end" class="held"
+                            [class.owed]="heldIn(line, pocket.id) < 0">
+                    {{ money(heldIn(line, pocket.id), line.account.currency_code) }}
+                  </ion-note>
                 </ion-item>
               }
             </ion-list>
@@ -739,6 +749,15 @@
                            [value]="pocketName()"
                            (ionInput)="pocketName.set($any($event.target).value)"
                            [placeholder]="'cushion.pocket.namePlaceholder' | t"></ion-input>
+              </ion-item>
+              <ion-item lines="full">
+                <ion-checkbox slot="start" [checked]="pocketIsDefault()"
+                              (ionChange)="pocketIsDefault.set($any($event.detail).checked)">
+                </ion-checkbox>
+                <ion-label>
+                  <h3>{{ 'cushion.pocket.makeDefault' | t }}</h3>
+                  <p>{{ 'cushion.pocket.makeDefault.hint' | t }}</p>
+                </ion-label>
               </ion-item>
               <ion-item>
                 <ion-select [label]="'cushion.pocket.source' | t" labelPlacement="stacked"

@@ -665,3 +665,35 @@ ion-footer.pad {
     }
   }
 }
+
+/* The product, written under the account it belongs to.
+   
+   It used to be a row of chips of its own, floating between the category
+   heading and the category grid, qualifying neither — which read as a setting
+   somebody had left lying around. Under the account it reads as what it is:
+   "Rappi cuenta, the savings one". And it costs no width, so ten products are
+   a list to scroll in the sheet rather than a wall of chips on the form. */
+.context .with-part {
+  align-items: center;
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    line-height: 1.2;
+  }
+}
+
+.part {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--ion-color-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.route .leg .part { margin-top: 0.1rem; }

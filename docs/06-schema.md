@@ -378,6 +378,7 @@ outright:
 | `idx_accounts_group_currency` | unique; one currency per group |
 | `idx_categories_name_kind` | unique; the importer matches categories this way |
 | `idx_yield_pockets_account` | the pockets of an account, in order |
+| `idx_yield_pockets_default` | the product money lands in by default; **partial**, so an account has at most one |
 | `idx_yield_pocket_balances` | what a pocket held on a date |
 | `idx_yield_days_account` | every pocket's days for one account |
 | `idx_yield_rates_account` | finding the rate in force on a date |

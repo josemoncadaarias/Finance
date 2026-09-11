@@ -150,6 +150,9 @@ export class CushionPage {
   readonly rates = signal<YieldRate[]>([]);
   readonly editablePockets = signal<YieldPocket[]>([]);
 
+  /** Whether the product being edited is the account's usual one. */
+  readonly pocketIsDefault = signal(false);
+
   /** What kind of money an entry is, and where it landed. */
   readonly entryKind = signal<'cashback' | 'correction' | 'other'>('cashback');
   readonly entryPocket = signal<number | null>(null);
@@ -773,6 +776,10 @@ export class CushionPage {
     this.editingPocket.set(pocket);
     this.pocketName.set(pocket?.name ?? '');
     this.pocketSource.set(pocket?.source ?? 'manual');
+    // A brand new product is not the usual one unless the account has none.
+    this.pocketIsDefault.set(pocket
+      ? pocket.is_default === 1
+      : line.pockets.every(other => other.is_default !== 1));
 
     if (pocket) {
       const { yields } = this.repos();
@@ -839,6 +846,12 @@ export class CushionPage {
           await yields.setPocketBalance({
             pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
           });
+        }
+
+        // Unticking is not a way to leave an account without one: every
+        // account needs somewhere for money to land.
+        if (this.pocketIsDefault()) {
+          await yields.setDefaultPocket(line.account.id, id);
         }
 
         // Every pocket of the account is worked out again from that date: a

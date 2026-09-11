@@ -724,8 +724,19 @@ export class EntryComponent implements OnInit {
         this.toAccountId.set(await this.counterpart(this.accounts(), id, 'from'));
       }
     }
+    await this.loadPockets();
+
+    // Straight on to the product, when the account has more than one. The
+    // sheet stays open and changes what it is asking; anything else means
+    // reopening it to answer the obvious follow-up.
+    const side = this.picking() === 'to' ? this.toPockets() : this.pockets();
+    const account = this.picking() === 'to' ? this.toAccount() : this.account();
+    if (side.length > 1 && account) {
+      this.pickingPocket.set(account);
+      return;
+    }
+
     this.picking.set(null);
-    if (this.accountId() !== wasAccount || this.isTransfer()) await this.loadPockets();
   }
 
   swapAccounts(): void {
@@ -777,10 +788,9 @@ export class EntryComponent implements OnInit {
       if (accountId === null) return { pockets: [] as YieldPocket[], chosen: null };
       const pockets = await yields.pockets(accountId);
       const known = pockets.some(pocket => pocket.id === storedId);
-      return { pockets, chosen: known ? storedId : defaultPocket(pockets, savingsName) };
+      return { pockets, chosen: known ? storedId : defaultPocket(pockets) };
     };
 
-    const savingsName = this.i18n.t('cushion.pocket.defaultName');
     const editing = this.request().editing;
     const storedFor = (accountId: number | null) =>
       editing && editing.account_id === accountId ? editing.pocket_id ?? null : null;
@@ -806,12 +816,50 @@ export class EntryComponent implements OnInit {
     return this.farLegPocketId;
   }
 
+  /**
+   * The account whose products the sheet is asking about, or null while it is
+   * still asking which account.
+   *
+   * Two steps in one sheet rather than a second control on the form: the
+   * product is the same question narrowed, and a row of products sitting on
+   * the form looked like a setting someone had left lying around. It also
+   * scales - ten products are a list to scroll, where ten chips in a row are
+   * a wall.
+   */
+  readonly pickingPocket = signal<AccountRow | null>(null);
+
+  /** The product's own name, for the line under the account. */
+  pocketName(pockets: readonly YieldPocket[], id: number | null): string {
+    return pockets.find(pocket => pocket.id === id)?.name ?? '';
+  }
+
+  /** Answers the second step and closes the sheet. */
+  choosePocket(id: number): void {
+    if (this.picking() === 'to') this.toPocketId.set(id);
+    else this.pocketId.set(id);
+
+    this.pickingPocket.set(null);
+    this.picking.set(null);
+  }
+
   pickPocketTo(id: number): void {
     this.toPocketId.set(id);
   }
 
   pickPocket(id: number): void {
     this.pocketId.set(id);
+  }
+
+  /** Closing it drops the second step too, so it reopens at the account. */
+  closeAccountSheet(): void {
+    this.pickingPocket.set(null);
+    this.picking.set(null);
+  }
+
+  /** Opening the sheet always starts at the account. */
+  openAccountSheet(which: 'from' | 'to'): void {
+    this.pickingPocket.set(null);
+    this.picking.set(which);
   }
 
   private async saveMovement(): Promise<void> {
@@ -910,22 +958,18 @@ export class EntryComponent implements OnInit {
 }
 
 /**
-   * Which product a movement lands in when nobody has said.
-   *
-   * The savings account, by name — not the first in the list. Sort order only
-   * records when each product was created, and Jose created the savings ones
-   * last, so "the first" picked whichever alcancía happened to predate them.
-   * The name is what carries the meaning: every account starts as one savings
-   * product, and that is where a salary lands and a card payment leaves from.
-   *
-   * It falls back to the first only when no product carries that name, which
-   * means somebody renamed it — in which case any answer is a guess and the
-   * first is as good as another.
-   */
-function defaultPocket(pockets: readonly YieldPocket[], savingsName: string): number | null {
-  const folded = savingsName.trim().toLowerCase();
-  const savings = pockets.find(pocket => pocket.name.trim().toLowerCase() === folded);
-  return (savings ?? pockets[0])?.id ?? null;
+ * Which product a movement lands in when nobody has said.
+ *
+ * The one the user marked as usual. It was matched by name for one commit,
+ * against "Cuenta de ahorros", which works until somebody renames one - and
+ * which writes into the code a decision belonging to the person using it.
+ *
+ * It falls back to the first only if no product is marked, which the schema
+ * makes unlikely: every account had one set when the flag was added.
+ */
+function defaultPocket(pockets: readonly YieldPocket[]): number | null {
+  const usual = pockets.find(pocket => pocket.is_default === 1);
+  return (usual ?? pockets[0])?.id ?? null;
 }
 
 /** The order last chosen, or habit if there is none to read. */

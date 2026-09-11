@@ -80,6 +80,14 @@ export interface YieldPocket {
   name: string;
   source: 'ledger' | 'manual';
   sort_order: number;
+  /**
+   * The product money lands in when nobody says otherwise. 1 or null.
+   *
+   * Null rather than 0 because the index that keeps it to one per account is
+   * partial, and SQLite treats NULLs as distinct - a column of zeroes would
+   * collide with itself.
+   */
+  is_default: 1 | null;
   note: string | null;
 }
 
@@ -419,7 +427,7 @@ export class YieldsRepository {
   /** The pockets of an account, in the order they are shown. */
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, sort_order, note
+      `SELECT id, account_id, name, source, sort_order, is_default, note
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
@@ -427,7 +435,7 @@ export class YieldsRepository {
   /** Every pocket of every enrolled account, for one pass over them all. */
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
-      `SELECT id, account_id, name, source, sort_order, note
+      `SELECT id, account_id, name, source, sort_order, is_default, note
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
 
@@ -457,6 +465,23 @@ export class YieldsRepository {
   async setPocketSource(id: number, source: 'ledger' | 'manual'): Promise<void> {
     await this.db.run('UPDATE yield_pockets SET source = ?, updated_at = ? WHERE id = ?',
       [source, this.now(), id]);
+  }
+
+  /**
+   * Makes one product the account's usual one, and the others not.
+   *
+   * Both halves in one call, because the index allows at most one per account
+   * and clearing the old one afterwards would leave a moment where two are
+   * marked - which is a moment long enough for the write to fail.
+   */
+  async setDefaultPocket(accountId: number, pocketId: number): Promise<void> {
+    const now = this.now();
+    await this.db.run(
+      'UPDATE yield_pockets SET is_default = NULL, updated_at = ? WHERE account_id = ?',
+      [now, accountId]);
+    await this.db.run(
+      'UPDATE yield_pockets SET is_default = 1, updated_at = ? WHERE id = ?',
+      [now, pocketId]);
   }
 
   async renamePocket(id: number, name: string): Promise<void> {

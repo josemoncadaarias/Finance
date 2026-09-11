@@ -76,13 +76,20 @@
   <!-- Accounts and date -->
   @if (isTransfer()) {
     <div class="route">
-      <button type="button" class="leg" (click)="picking.set('from')">
+      <button type="button" class="leg" (click)="openAccountSheet('from')">
         <span class="lead">{{ 'entry.from' | t }}</span>
         <span class="who">
           <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
                     fallback="wallet"></app-icon>
           <span class="name">{{ account()?.name ?? ('entry.pick' | t) }}</span>
         </span>
+        <!-- The product belongs to the account, so it is written under it
+             rather than as a row of its own. It only appears on an account
+             with more than one, and tapping opens the same sheet, which asks
+             for the product once the account is settled. -->
+        @if (splitAccount()) {
+          <span class="part">{{ pocketName(pockets(), pocketId()) }}</span>
+        }
       </button>
 
       <button type="button" class="swap" (click)="swapAccounts()" [attr.aria-label]="'entry.swap' | t">
@@ -90,48 +97,19 @@
       </button>
 
       <button type="button" class="leg" [class.needed]="toAccountId() === null"
-              (click)="picking.set('to')">
+              (click)="openAccountSheet('to')">
         <span class="lead">{{ 'entry.to' | t }}</span>
         <span class="who">
           <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
                     fallback="wallet"></app-icon>
           <span class="name">{{ toAccount()?.name ?? ('entry.pick' | t) }}</span>
         </span>
+        @if (splitTarget()) {
+          <span class="part">{{ pocketName(toPockets(), toPocketId()) }}</span>
+        }
       </button>
     </div>
 
-    @if (splitAccount()) {
-      <!-- Which product of the account. A row of names under the account it
-           belongs to, because that is what it qualifies: "Rappi cuenta, the
-           savings one". Nothing is drawn at all on an account with a single
-           product, which is most of them - a question with one possible
-           answer is not a question. -->
-      <div class="pockets">
-        <span class="lead">{{ 'entry.pocket.from' | t }}</span>
-        <div class="row">
-          @for (pocket of pockets(); track pocket.id) {
-            <button type="button" [class.on]="pocketId() === pocket.id"
-                    (click)="pickPocket(pocket.id)">{{ pocket.name }}</button>
-          }
-        </div>
-      </div>
-    }
-    @if (splitTarget()) {
-      <!-- Which product of the account. A row of names under the account it
-           belongs to, because that is what it qualifies: "Rappi cuenta, the
-           savings one". Nothing is drawn at all on an account with a single
-           product, which is most of them - a question with one possible
-           answer is not a question. -->
-      <div class="pockets">
-        <span class="lead">{{ 'entry.pocket.into' | t }}</span>
-        <div class="row">
-          @for (pocket of toPockets(); track pocket.id) {
-            <button type="button" [class.on]="toPocketId() === pocket.id"
-                    (click)="pickPocketTo(pocket.id)">{{ pocket.name }}</button>
-          }
-        </div>
-      </div>
-    }
 
     <div class="context single">
       <button type="button" (click)="showDate.set(true)">
@@ -141,10 +119,15 @@
     </div>
   } @else {
     <div class="context">
-      <button type="button" (click)="picking.set('from')">
+      <button type="button" class="with-part" (click)="openAccountSheet('from')">
         <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
                   fallback="wallet"></app-icon>
-        <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
+        <span class="stack">
+          <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
+          @if (splitAccount()) {
+            <span class="part">{{ pocketName(pockets(), pocketId()) }}</span>
+          }
+        </span>
       </button>
       <button type="button" (click)="showDate.set(true)">
         <ion-icon name="calendar-outline"></ion-icon>
@@ -152,22 +135,6 @@
       </button>
     </div>
 
-    @if (splitAccount()) {
-      <!-- Which product of the account. A row of names under the account it
-           belongs to, because that is what it qualifies: "Rappi cuenta, the
-           savings one". Nothing is drawn at all on an account with a single
-           product, which is most of them - a question with one possible
-           answer is not a question. -->
-      <div class="pockets">
-        <span class="lead">{{ (kind() === 'income' ? 'entry.pocket.into' : 'entry.pocket.from') | t }}</span>
-        <div class="row">
-          @for (pocket of pockets(); track pocket.id) {
-            <button type="button" [class.on]="pocketId() === pocket.id"
-                    (click)="pickPocket(pocket.id)">{{ pocket.name }}</button>
-          }
-        </div>
-      </div>
-    }
 
     <!-- Says what is still needed, instead of leaving a dead button to explain
          itself -->
@@ -271,17 +238,40 @@
   </div>
 </ion-footer>
 
-<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
+<ion-modal [isOpen]="picking() !== null" (didDismiss)="closeAccountSheet()">
   <ng-template>
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="picking.set(null)">{{ 'entry.cancel' | t }}</ion-button>
+          <ion-button (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="sheet">
+      <!-- Two steps in one sheet: the account, then which of its products -
+           and the second step only exists for an account that has more than
+           one. Asked here rather than on the form because it is the same
+           question narrowed, and because a form with a row of products on it
+           looked like a setting that had been left lying around. -->
+      @if (pickingPocket(); as forAccount) {
+        <h2>{{ forAccount.name }}</h2>
+        <ion-list>
+          @for (pocket of (picking() === 'to' ? toPockets() : pockets()); track pocket.id) {
+            <ion-item button lines="full" (click)="choosePocket(pocket.id)"
+                      [class.selected]="(picking() === 'to' ? toPocketId() : pocketId()) === pocket.id">
+              <ion-label>
+                <h3>{{ pocket.name }}</h3>
+                @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
+              </ion-label>
+              @if ((picking() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
+                <ion-icon slot="end" class="tick" name="checkmark-circle"
+                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      } @else {
       <h2>{{ (picking() === 'to' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
       <ion-list>
         @for (option of accounts(); track option.id) {
@@ -303,6 +293,7 @@
           </ion-item>
         }
       </ion-list>
+      }
     </ion-content>
   </ng-template>
 </ion-modal>

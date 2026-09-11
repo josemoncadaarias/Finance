@@ -481,3 +481,9 @@ ion-modal {
     font-weight: 600;
   }
 }
+
+/* The product money lands in by default, marked in its own row. */
+.usual {
+  color: var(--ion-color-primary);
+  font-weight: 600;
+}
