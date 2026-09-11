@@ -892,25 +892,38 @@
               <!-- A CDT's money came from somewhere: nearly always another
                    product, recorded as a transfer; or typed in. -->
               @if (fundingAsked()) {
-                <h3 class="field-heading">{{ 'cushion.pocket.fundingQuestion' | t }}</h3>
-                <div class="pocket-row">
-                  <button type="button" [class.on]="pocketFunding() === 'pocket'" (click)="pocketFunding.set('pocket')">
-                    {{ 'cushion.pocket.fundingPocket' | t }}
-                  </button>
-                  <button type="button" [class.on]="pocketFunding() === 'manual'" (click)="pocketFunding.set('manual')">
-                    {{ 'cushion.pocket.fundingManual' | t }}
-                  </button>
-                </div>
-                @if (pocketFunding() === 'pocket') {
-                  <div class="pocket-row">
-                    @for (other of line.pockets; track other.id) {
-                      <button type="button" [class.on]="pocketFundingFrom() === other.id" (click)="pocketFundingFrom.set(other.id)">
-                        {{ other.name }}
-                      </button>
-                    }
-                  </div>
-                }
-                <p class="hint">{{ (pocketFunding() === 'pocket' ? 'cushion.pocket.fundingPocketHint' : 'cushion.pocket.fundingManualHint') | t }}</p>
+                <p class="section">{{ 'cushion.pocket.fundingQuestion' | t }}</p>
+                <ion-list [inset]="true" class="funding">
+                  <ion-radio-group [value]="pocketFunding()" (ionChange)="pocketFunding.set($any($event.detail).value)">
+                    <ion-item>
+                      <ion-radio value="pocket" labelPlacement="end" justify="start">
+                        <span class="choice">
+                          <strong>{{ 'cushion.pocket.fundingPocket' | t }}</strong>
+                          <small>{{ 'cushion.pocket.fundingPocketHint' | t }}</small>
+                        </span>
+                      </ion-radio>
+                    </ion-item>
+                    <ion-item [lines]="pocketFunding() === 'pocket' ? 'full' : 'none'">
+                      <ion-radio value="manual" labelPlacement="end" justify="start">
+                        <span class="choice">
+                          <strong>{{ 'cushion.pocket.fundingManual' | t }}</strong>
+                          <small>{{ 'cushion.pocket.fundingManualHint' | t }}</small>
+                        </span>
+                      </ion-radio>
+                    </ion-item>
+                  </ion-radio-group>
+                  @if (pocketFunding() === 'pocket') {
+                    <ion-item lines="none">
+                      <ion-select [label]="'cushion.move.from' | t" [value]="pocketFundingFrom()"
+                                  interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                  (ionChange)="pocketFundingFrom.set($any($event.detail).value)">
+                        @for (other of line.pockets; track other.id) {
+                          <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
+                        }
+                      </ion-select>
+                    </ion-item>
+                  }
+                </ion-list>
               }
 
               <ion-list [inset]="true">
@@ -1017,25 +1030,38 @@
                 <!-- Money in a new product came from somewhere: nearly always
                      another product, recorded as a transfer; or typed in. -->
                 @if (fundingAsked()) {
-                  <h3 class="field-heading">{{ 'cushion.pocket.fundingQuestion' | t }}</h3>
-                  <div class="pocket-row">
-                    <button type="button" [class.on]="pocketFunding() === 'pocket'" (click)="pocketFunding.set('pocket')">
-                      {{ 'cushion.pocket.fundingPocket' | t }}
-                    </button>
-                    <button type="button" [class.on]="pocketFunding() === 'manual'" (click)="pocketFunding.set('manual')">
-                      {{ 'cushion.pocket.fundingManual' | t }}
-                    </button>
-                  </div>
-                  @if (pocketFunding() === 'pocket') {
-                    <div class="pocket-row">
-                      @for (other of line.pockets; track other.id) {
-                        <button type="button" [class.on]="pocketFundingFrom() === other.id" (click)="pocketFundingFrom.set(other.id)">
-                          {{ other.name }}
-                        </button>
-                      }
-                    </div>
-                  }
-                  <p class="hint">{{ (pocketFunding() === 'pocket' ? 'cushion.pocket.fundingPocketHint' : 'cushion.pocket.fundingManualHint') | t }}</p>
+                  <p class="section">{{ 'cushion.pocket.fundingQuestion' | t }}</p>
+                  <ion-list [inset]="true" class="funding">
+                    <ion-radio-group [value]="pocketFunding()" (ionChange)="pocketFunding.set($any($event.detail).value)">
+                      <ion-item>
+                        <ion-radio value="pocket" labelPlacement="end" justify="start">
+                          <span class="choice">
+                            <strong>{{ 'cushion.pocket.fundingPocket' | t }}</strong>
+                            <small>{{ 'cushion.pocket.fundingPocketHint' | t }}</small>
+                          </span>
+                        </ion-radio>
+                      </ion-item>
+                      <ion-item [lines]="pocketFunding() === 'pocket' ? 'full' : 'none'">
+                        <ion-radio value="manual" labelPlacement="end" justify="start">
+                          <span class="choice">
+                            <strong>{{ 'cushion.pocket.fundingManual' | t }}</strong>
+                            <small>{{ 'cushion.pocket.fundingManualHint' | t }}</small>
+                          </span>
+                        </ion-radio>
+                      </ion-item>
+                    </ion-radio-group>
+                    @if (pocketFunding() === 'pocket') {
+                      <ion-item lines="none">
+                        <ion-select [label]="'cushion.move.from' | t" [value]="pocketFundingFrom()"
+                                    interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                    (ionChange)="pocketFundingFrom.set($any($event.detail).value)">
+                          @for (other of line.pockets; track other.id) {
+                            <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
+                          }
+                        </ion-select>
+                      </ion-item>
+                    }
+                  </ion-list>
                 }
                 <p class="hint">{{ 'cushion.pocket.amountHint' | t }}</p>
                 <p class="hint">{{ 'cushion.pocket.fromHint' | t }}</p>

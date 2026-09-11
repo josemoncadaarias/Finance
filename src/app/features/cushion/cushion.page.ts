@@ -24,7 +24,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge,
+  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -128,7 +128,7 @@ interface Payment {
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge,
+    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup,
   ],
 })
 export class CushionPage {
