@@ -504,6 +504,25 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
   font-weight: 600;
 }
 
+/* Two dates for a range, under the period choices. */
+.period-sheet .range {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0 2rem;
+
+  p {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    color: var(--ion-color-medium);
+  }
+
+  .range-label {
+    font-weight: 600;
+    color: var(--ion-text-color);
+  }
+}
+
 /* Where a new product's money comes from: two answers, each saying what it does. */
 .funding {
   ion-radio {
@@ -542,6 +561,23 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
  */
 .product-movements {
   .pocket-filter { margin: 0 0 0.5rem; }
+
+  /* The period: back, the period itself to open the choices, forward. */
+  .period-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.5rem 0.5rem;
+
+    .period-button {
+      flex: 1;
+      text-transform: none;
+      font-weight: 600;
+      --color: var(--ion-color-primary);
+
+      .label { margin-inline-end: 0.4rem; }
+    }
+  }
 
   .views {
     display: grid;

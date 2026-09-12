@@ -173,6 +173,54 @@
 
   <!-- The detail. Full height rather than a draggable sheet, because the day
        list has to scroll from the moment it opens. -->
+  <!-- The period of the products' movements: the summary's own choices. -->
+  <ion-modal [isOpen]="showMovementsPeriodSheet()" (didDismiss)="showMovementsPeriodSheet.set(false)">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button (click)="showMovementsPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="sheet period-sheet">
+        <h2>{{ 'summary.period' | t }}</h2>
+        <ion-radio-group [value]="choosingMovementsRange() ? 'range' : movementsPeriod().kind"
+                         (ionChange)="chooseMovementsPeriod($any($event.detail).value)">
+          @for (option of periodKinds; track option.kind) {
+            <ion-item lines="full">
+              <ion-radio [value]="option.kind" justify="start" labelPlacement="end">
+                {{ $any(option.label) | t }}
+              </ion-radio>
+            </ion-item>
+          }
+        </ion-radio-group>
+
+        @if (choosingMovementsRange()) {
+          <div class="range">
+            @if (movementsRangeLabel(); as range) {
+              <p class="range-label">{{ range }}</p>
+            }
+            <p>{{ 'summary.from' | t }}</p>
+            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                          [value]="movementsRangeStart()" [max]="todayDay"
+                          (ionChange)="movementsRangeStart.set($any($event.detail).value)"></ion-datetime>
+            <p>{{ 'summary.to' | t }}</p>
+            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                          [value]="movementsRangeEnd()" [max]="todayDay"
+                          (ionChange)="movementsRangeEnd.set($any($event.detail).value)"></ion-datetime>
+            <ion-button expand="block" (click)="applyMovementsRange()"
+                        [disabled]="!movementsRangeStart() || !movementsRangeEnd()">
+              {{ 'summary.apply' | t }}
+            </ion-button>
+          </div>
+        }
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
   <!-- A withdrawal whose movement was deleted: said plainly, and deletable. -->
   <ion-modal class="confirm-sheet" [isOpen]="orphanWithdrawal() !== null" (didDismiss)="orphanWithdrawal.set(null)">
     <ng-template>
@@ -436,6 +484,23 @@
               <!-- Drawn the way the summary draws its movements: the same three
                    views, the same note and fold button, the same groups. -->
               <div class="product-movements">
+                <!-- Which stretch of time, stepped and chosen as on the summary. -->
+                <div class="period-stepper">
+                  <ion-button fill="clear" (click)="stepMovementsPeriod(-1)" [disabled]="!movementsCanStep()"
+                              [attr.aria-label]="'summary.previousPeriod' | t">
+                    <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" class="period-button" (click)="showMovementsPeriodSheet.set(true)">
+                    <span class="label">{{ movementsPeriodLabel() }}</span>
+                    <ion-icon name="calendar-outline"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" (click)="stepMovementsPeriod(1)"
+                              [disabled]="!movementsCanStep() || movementsAtNewest()"
+                              [attr.aria-label]="'summary.nextPeriod' | t">
+                    <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+                  </ion-button>
+                </div>
+
                 @if (line.pockets.length > 1) {
                   <ion-list [inset]="true" class="pocket-filter">
                     <ion-item lines="none">
@@ -476,7 +541,7 @@
                 }
               </div>
               @if (shownMovements().length === 0) {
-                <p class="hint">{{ 'cushion.movements.none' | t }}</p>
+                <p class="hint">{{ 'cushion.movements.noneInPeriod' | t:{ period: movementsPeriodLabel() } }}</p>
               } @else {
                 <div class="product-movements">
                   @for (group of movementGroups(); track group.key) {

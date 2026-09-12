@@ -24,7 +24,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup,
+  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -55,6 +55,9 @@ import { todayIso } from '../../core/yields/days';
 import { CushionEntryComponent, type CushionEntryRequest } from './cushion-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
 import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
+import {
+  PERIOD_KINDS, currentPeriod, includesToday, periodLabel, rangePeriod, shiftPeriod, type Period, type PeriodKind,
+} from '../../core/filters/period';
 
 /** One row of the list: an enrolled account and what its cushion is worth. */
 interface CushionLine {
@@ -129,7 +132,7 @@ interface Payment {
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup,
+    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
   ],
 })
 export class CushionPage {
@@ -239,9 +242,33 @@ export class CushionPage {
   /** A withdrawal left without its movement, being asked about. */
   readonly orphanWithdrawal = signal<{ id: number; on_date: IsoDate; amount_minor: number } | null>(null);
 
+  /** Which stretch of time the movements cover, chosen the way the summary chooses it. */
+  readonly movementsPeriod = signal<Period>(currentPeriod('month'));
+  readonly periodKinds = PERIOD_KINDS;
+  readonly showMovementsPeriodSheet = signal(false);
+  readonly choosingMovementsRange = signal(false);
+  readonly movementsRangeStart = signal<string | null>(null);
+  readonly movementsRangeEnd = signal<string | null>(null);
+  /** Today, so a date picker opens somewhere useful. */
+  readonly todayDay = today();
+  /** The date pickers' language, following the app's. */
+  readonly dateLocale = computed(() => this.i18n.dateLocale());
+
+  readonly movementsPeriodLabel = computed(() =>
+    periodLabel(this.movementsPeriod(), this.i18n.dateLocale(), this.i18n.t('period.all')));
+  readonly movementsAtNewest = computed(() => includesToday(this.movementsPeriod()));
+  readonly movementsCanStep = computed(() => {
+    const kind = this.movementsPeriod().kind;
+    return kind !== 'all' && kind !== 'range';
+  });
+
   readonly shownMovements = computed(() => {
     const pocket = this.movementsPocket();
-    return pocket === null ? this.movements() : this.movements().filter(movement => movementTouches(movement, pocket));
+    const { from, to } = this.movementsPeriod();
+    return this.movements().filter(movement =>
+      (from === null || movement.on >= from)
+      && (to === null || movement.on <= to)
+      && (pocket === null || movementTouches(movement, pocket)));
   });
 
   /** Grouped as asked: by day, by category, or one list from the largest down. */
@@ -787,6 +814,9 @@ export class CushionPage {
       // Another account: its movements start collapsed, every product shown.
       this.showMovements.set(false);
       this.movementsPocket.set(null);
+      this.movementsPeriod.set(currentPeriod('month'));
+      this.movementsRangeStart.set(null);
+      this.movementsRangeEnd.set(null);
       this.movements.set([]);
       this.collapsedGroups.set(new Set());
       this.showPayments.set(false);
@@ -1728,6 +1758,44 @@ export class CushionPage {
   movementFlow(movement: ProductMovement): 'in' | 'out' | 'moved' {
     if (movement.type === 'transfer') return 'moved';
     return movement.amountMinor < 0 ? 'out' : 'in';
+  }
+
+  stepMovementsPeriod(steps: number): void {
+    this.movementsPeriod.update(period => shiftPeriod(period, steps));
+  }
+
+  chooseMovementsPeriod(kind: string): void {
+    if (kind === 'range') {
+      // The sheet stays open: a range needs two dates, and starts from the
+      // period on screen, as on the summary.
+      const current = this.movementsPeriod();
+      this.movementsRangeStart.set(this.movementsRangeStart() ?? current.from ?? this.todayDay);
+      this.movementsRangeEnd.set(this.movementsRangeEnd() ?? current.to ?? this.todayDay);
+      this.choosingMovementsRange.set(true);
+      return;
+    }
+    this.choosingMovementsRange.set(false);
+    this.movementsPeriod.set(currentPeriod(kind as PeriodKind));
+    this.showMovementsPeriodSheet.set(false);
+  }
+
+  applyMovementsRange(): void {
+    const from = this.movementsRangeStart();
+    const to = this.movementsRangeEnd();
+    if (!from || !to) return;
+    // Picked back to front is swapped rather than refused.
+    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
+    this.movementsPeriod.set(rangePeriod(start, end));
+    this.choosingMovementsRange.set(false);
+    this.showMovementsPeriodSheet.set(false);
+  }
+
+  movementsRangeLabel(): string {
+    const from = this.movementsRangeStart();
+    const to = this.movementsRangeEnd();
+    if (!from || !to) return '';
+    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
+    return `${this.longDayText(start)} – ${this.longDayText(end)}`;
   }
 
   /** Opens or closes the account's movements, reading them when it opens. */
