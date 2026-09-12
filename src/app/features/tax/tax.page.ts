@@ -533,11 +533,11 @@ export class TaxPage {
    * Formulas, not only figures: a yellow box changed in Excel moves everything
    * that depends on it, which is what made the original worth keeping.
    */
-  downloadExcel(): void {
+  async downloadExcel(): Promise<void> {
     const name = fill(this.text.excelFile, { year: this.year() });
     try {
-      saveFile(new Blob([taxWorkbook(this.inputs())], { type: XLSX_MIME }), name);
-      this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
+      const saved = await saveFile(new Blob([taxWorkbook(this.inputs())], { type: XLSX_MIME }), name);
+      if (saved) this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
     } catch (error) {
       this.excelNotice.set(error instanceof Error ? error.message : String(error));
     }

@@ -135,9 +135,8 @@ export class ExportPage {
       const parts = file.bom ? ['﻿', file.text] : [file.text];
       const blob = new Blob(parts, { type: file.type });
 
-      saveFile(blob, file.name);
-
-      this.lastFile.set(file.name);
+      // On the phone the share sheet can be closed without choosing anywhere.
+      if (await saveFile(blob, file.name)) this.lastFile.set(file.name);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
