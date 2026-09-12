@@ -443,6 +443,39 @@ test('correcting or deleting a cashed-in movement carries its other half with it
   assert.equal(await balance(), before, 'and deleting takes both halves');
 });
 
+test('a month worked out on its own comes to the same as one walk from the start', async () => {
+  const { engine, yields, ids } = await setup();
+  await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: false });
+  const [main] = await yields.pockets(ids.uala);
+  await yields.setPocketSource(main.id, 'manual');
+  await yields.setPocketBalance({ pocket_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+  const monthly = await yields.addPocket({
+    account_id: ids.uala, name: 'Mensual', source: 'manual', sort_order: 1, payout: 'monthly', payout_months: 1,
+  });
+  await yields.setPocketBalance({ pocket_id: monthly, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+  await yields.setRate({ account_id: ids.uala, pocket_id: main.id, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
+  await yields.setRate({ account_id: ids.uala, pocket_id: monthly, component: 'base', payout: 'monthly', payout_months: 1, valid_from: '2026-08-31', annual_rate_scaled: pct(12) });
+  // One entry on the day the account started, one in September.
+  await yields.adjust({ account_id: ids.uala, pocket_id: main.id, on_date: '2026-08-31', amount_minor: 20_000_000, kind: 'other' });
+  await yields.adjust({ account_id: ids.uala, pocket_id: main.id, on_date: '2026-09-15', amount_minor: 30_000_000, kind: 'cashback' });
+
+  const snapshot = async () => (await yields.days(ids.uala))
+    .map(day => [day.pocket_id, day.component, day.on_date, day.balance_minor, day.net_minor]);
+
+  // Month by month: the second pass starts again on the 1st of October, with
+  // September's paid yield and both entries already behind it.
+  await engine.accrue(ids.uala, '2026-10-05');
+  await engine.accrue(ids.uala, '2026-10-20');
+  const monthByMonth = await snapshot();
+
+  await yields.clearDays(ids.uala);
+  await engine.accrue(ids.uala, '2026-10-20');
+  assert.deepEqual(monthByMonth, await snapshot(), 'the same days, the same balances, the same yield');
+
+  const october = monthByMonth.find(day => day[0] === main.id && day[2] === '2026-10-02');
+  assert.ok(october[3] > 1_050_000_000, 'October earns on the balance, both entries and September\'s yield');
+});
+
 test('a new product opened with money from another one holds it, and earns on it, from that day', async () => {
   const { engine, yields, transfers, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding: false });

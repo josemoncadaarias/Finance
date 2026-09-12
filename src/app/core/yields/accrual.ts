@@ -336,6 +336,31 @@ export class AccrualEngine {
       const pocketOf = (id: number | null) =>
         pockets.some(pocket => pocket.id === id) ? (id as number) : fallbackPocket;
 
+      // What landed before this stretch still earns in it. Every product used
+      // to start the walk at zero, which was right only while the stretch began
+      // on the first day ever: from the second month on, the yield already paid
+      // and every entry made before the 1st fell out of the base, and the month
+      // was worked out on less than the product held. An entry made on the day
+      // the account started lands that night, so it earns from the first day.
+      const before = from > firstEver ? await this.yields.days(accountId, firstEver, addDays(from, -1)) : [];
+      for (const earlier of before) {
+        const paid = earlier.paid_on ?? (earlier.payout === 'monthly' ? endOfMonth(earlier.on_date) : earlier.on_date);
+        // Still owed on `from`: carried into `waiting` above instead.
+        if (paid >= from) continue;
+        cushionOf.set(earlier.pocket_id,
+          (cushionOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
+      }
+      for (const entry of entries) {
+        if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
+        const id = pocketOf(entry.pocket_id);
+        cushionOf.set(id, (cushionOf.get(id) ?? 0) + entry.amount_minor);
+      }
+      for (const taken of takenOut) {
+        if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
+        const id = pocketOf(taken.pocket_id ?? null);
+        cushionOf.set(id, (cushionOf.get(id) ?? 0) - taken.amount_minor);
+      }
+
       for (const entry of entries) {
         if (entry.on_date < from || entry.on_date > upTo) continue;
         land(entry.on_date, pocketOf(entry.pocket_id), entry.amount_minor);
