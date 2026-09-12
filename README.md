@@ -23,9 +23,10 @@ Angular + Ionic + Capacitor + local SQLite.
 
 ## Status
 
-Phase 3 in progress. The database layer is done and tested (114 tests), the
-Monefy importer works end to end, and the Ionic app is up with three screens:
-accounts, the month view, and CSV import.
+Phase 3 in progress. The database layer is done and tested, and the Ionic app
+covers the summary, accounts, categories, yields, the income-tax simulator and
+import/export of backups. Movements are entered by hand; the Monefy importer was
+removed on 2026-09-12.
 
 ```
 npm install

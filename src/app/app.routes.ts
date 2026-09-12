@@ -14,10 +14,6 @@ export const routes: Routes = [
     loadComponent: () => import('./features/categories/categories.page').then(m => m.CategoriesPage),
   },
   {
-    path: 'review',
-    loadComponent: () => import('./features/review/review.page').then(m => m.ReviewPage),
-  },
-  {
     path: 'cushion',
     loadComponent: () => import('./features/cushion/cushion.page').then(m => m.CushionPage),
   },
@@ -28,10 +24,6 @@ export const routes: Routes = [
   {
     path: 'export',
     loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
-  },
-  {
-    path: 'import',
-    loadComponent: () => import('./features/import/import.page').then(m => m.ImportPage),
   },
   { path: '', redirectTo: 'movements', pathMatch: 'full' },
 ];

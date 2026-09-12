@@ -25,17 +25,12 @@ const APP = join(HERE, '..', '..', 'src', 'app');
 /**
  * Files whose Spanish is data or domain, not the app talking.
  *
- * The importer reads a Spanish CSV and matches Spanish text in it; the
- * translations file is where Spanish is supposed to live; the tax module's
+ * The translations file is where Spanish is supposed to live; the tax module's
  * form holds the DIAN's own terms, which the project rule says stay Spanish.
  */
 const ALLOWED = [
   'core/i18n/translations.ts',
   'core/database/category-icons.ts',
-  'core/database/import/account-plan.ts',
-  'core/database/import/extract-usd.ts',
-  'core/database/import/monefy-csv.ts',
-  'core/database/import/import-monefy.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
   // Formulario 210 as a screen: the DIAN's own terms, not translated by rule.

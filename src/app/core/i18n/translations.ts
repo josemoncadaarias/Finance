@@ -33,7 +33,6 @@ export const SPANISH = {
   'nav.accounts': 'Cuentas',
   'nav.accounts.hint': 'Saldos y patrimonio',
   'nav.import': 'Importar',
-  'nav.import.hint': 'Traer el backup de Monefy',
   'nav.language': 'Idioma',
   'nav.theme': 'Apariencia',
   'theme.system': 'Automático',
@@ -206,43 +205,15 @@ export const SPANISH = {
     'Importa tu backup de Monefy desde el menú y aparecerán aquí con sus saldos.',
 
   // --- import -----------------------------------------------------------
-  'import.title': 'Importar',
-  'import.intro.title': 'Trae tu backup de Monefy',
   'import.intro.body':
     'Exporta el CSV desde Monefy y escógelo aquí. Puedes hacerlo cuantas veces ' +
     'quieras: lo que ya está guardado se reconoce y se salta, y lo que hayas ' +
     'corregido a mano no se toca.',
-  'import.notReady': 'La base de datos todavía no está lista.',
-  'import.choose': 'Escoger archivo CSV',
-  'import.reading': 'Importando {file}…',
-  'import.failed': 'No se importó nada',
-  'import.failed.hint': 'La base quedó como estaba: la importación es todo o nada.',
-  'import.done': 'Listo',
-  'import.rowsRead': 'Filas leídas',
-  'import.rowsInserted': 'Movimientos nuevos',
-  'import.rowsSkipped': 'Ya estaban guardados',
-  'import.accountsCreated': 'Cuentas creadas',
-  'import.categoriesCreated': 'Categorías creadas',
-  'import.transfers': 'Transferencias',
-  'import.rebuiltLegs': '{count} con una pata reconstruida',
-  'import.usdAmounts': 'Montos en dólares',
-  'import.usdDetail': '{read} leídos de la descripción, {estimated} estimados',
-  'import.reviews.title': 'Pendientes de que los mires',
   'import.reviews.body':
     'Nada de esto se escribió a la brava: son las cosas que el importador no ' +
     'pudo resolver solo.',
 
   // --- what the importer flags for review -------------------------------
-  'review.reconstructed_transfer': 'Transferencias con una pata reconstruida',
-  'review.foreign_new_movement': 'Movimientos nuevos en cuentas en otra moneda',
-  'review.estimated_amount': 'Montos en dólares estimados',
-  'review.assumed_account': 'Cuentas cuya moneda se dedujo',
-  'review.deleted_account': 'Cuentas borradas de Monefy, recreadas',
-  'review.multi_currency_split': 'Reparto de cuentas multimoneda',
-  'review.ambiguous_category': 'Categorías usadas como ingreso y gasto',
-  'review.credit_limit_change': 'Aumentos de cupo, fuera del saldo',
-  'review.credit_limit_mismatch': 'El cupo no coincide con el archivo',
-  'review.near_date_transfer': 'Transferencias emparejadas con días de diferencia',
 
   // --- editing an account -----------------------------------------------
   'accounts.new': 'Nueva cuenta',
@@ -335,22 +306,10 @@ export const SPANISH = {
 
   // --- reviewing what the importer assumed -------------------------------
   'nav.review': 'Revisar',
-  'nav.review.hint': 'Lo que el importador tuvo que suponer',
-  'review.title': 'Por revisar',
-  'review.intro.title': '{count} cosas por confirmar',
   'review.intro.body':
     'Cada vez que el importador no pudo estar seguro, lo anotó en vez de ' +
     'decidirlo en silencio. Confirma o corrige: lo que corrijas queda protegido ' +
     'y no se pisa al volver a importar.',
-  'review.clear.title': 'Todo revisado',
-  'review.clear.body': 'No queda ninguna suposición sin confirmar.',
-  'review.fix': 'Corregir',
-  'review.itIsRight': 'Está bien',
-  'review.markAllRead': 'Marcar los {count} como vistos',
-  'review.informational': 'Esto el importador lo resolvió bien; solo te está avisando.',
-  'review.closedInBatch': 'Visto en grupo, sin revisar uno por uno',
-  'review.noSubject': 'Sobre la importación',
-  'review.gone': 'Eso ya no existe; márcalo como visto',
 
   // What each kind means, and what to do about it. The reason on each row is
   // the importer's own technical note; this is the plain-language version.
@@ -388,8 +347,8 @@ export const SPANISH = {
     'Transferencias emparejadas aunque las dos patas tienen fechas distintas. ' +
     'Revisa que de verdad sean el mismo movimiento.',
 
-  'nav.export': 'Exportar',
-  'nav.export.hint': 'Copia de seguridad y CSV',
+  'nav.export': 'Importar y exportar',
+  'nav.export.hint': 'Guardar o restaurar la copia de seguridad, y CSV',
   'csv.date': 'fecha',
   'csv.account': 'cuenta',
   'csv.currency': 'moneda',
@@ -666,7 +625,7 @@ export const SPANISH = {
   'restore.warning': 'Esto BORRA todo lo que hay hoy en la app y lo reemplaza por lo del archivo. No se mezclan: lo que no esté en el backup se pierde. Exporta uno nuevo antes, por si acaso.',
   'restore.done': 'Restauradas {rows} filas. La base quedó en la versión {version}.',
   'restore.old': 'Si el backup es de una versión vieja de la app, se actualiza solo al restaurarlo.',
-  'export.title': 'Exportar',
+  'export.title': 'Importar y exportar',
   'export.movements': 'Movimientos',
   'export.saved': 'Se guardó {file}',
   'export.nothing': 'Todavía no hay nada que exportar.',
@@ -700,9 +659,6 @@ export const SPANISH = {
   'categories.hideArchived.one': 'Ocultar 1 archivada',
   'accounts.currencies.one': '1 moneda',
   'summary.accountsCounted.one': '1 cuenta',
-  'import.rebuiltLegs.one': '1 con una pata reconstruida',
-  'review.markAllRead.one': 'Marcar 1 como visto',
-  'review.intro.title.one': '1 cosa por confirmar',
   'summary.includeSetAside.hint.one': '1 cuenta que no cuenta para el patrimonio',
   'summary.includeSetAside.products.one': '1 producto fuera del patrimonio',
 
@@ -730,7 +686,6 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'nav.accounts': 'Accounts',
   'nav.accounts.hint': 'Balances and net worth',
   'nav.import': 'Import',
-  'nav.import.hint': 'Bring in the Monefy backup',
   'nav.language': 'Language',
   'nav.theme': 'Appearance',
   'theme.system': 'Automatic',
@@ -898,42 +853,14 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.empty.body':
     'Import your Monefy backup from the menu and they will show up here with their balances.',
 
-  'import.title': 'Import',
-  'import.intro.title': 'Bring in your Monefy backup',
   'import.intro.body':
     'Export the CSV from Monefy and choose it here. Do it as often as you like: ' +
     'what is already stored is recognised and skipped, and anything you corrected ' +
     'by hand is left alone.',
-  'import.notReady': 'The database is not ready yet.',
-  'import.choose': 'Choose a CSV file',
-  'import.reading': 'Importing {file}…',
-  'import.failed': 'Nothing was imported',
-  'import.failed.hint': 'The database is as it was: an import is all or nothing.',
-  'import.done': 'Done',
-  'import.rowsRead': 'Rows read',
-  'import.rowsInserted': 'New movements',
-  'import.rowsSkipped': 'Already stored',
-  'import.accountsCreated': 'Accounts created',
-  'import.categoriesCreated': 'Categories created',
-  'import.transfers': 'Transfers',
-  'import.rebuiltLegs': '{count} with a rebuilt leg',
-  'import.usdAmounts': 'Dollar amounts',
-  'import.usdDetail': '{read} read from the description, {estimated} estimated',
-  'import.reviews.title': 'Waiting for you to look',
   'import.reviews.body':
     'None of this was written blind: these are the things the importer could not ' +
     'settle on its own.',
 
-  'review.reconstructed_transfer': 'Transfers with one leg rebuilt',
-  'review.foreign_new_movement': 'New movements in foreign-currency accounts',
-  'review.estimated_amount': 'Estimated dollar amounts',
-  'review.assumed_account': 'Accounts whose currency was inferred',
-  'review.deleted_account': 'Accounts deleted in Monefy, recreated',
-  'review.multi_currency_split': 'Multi-currency accounts split',
-  'review.ambiguous_category': 'Categories used as both income and expense',
-  'review.credit_limit_change': 'Limit increases, kept out of the balance',
-  'review.credit_limit_mismatch': 'The limit disagrees with the file',
-  'review.near_date_transfer': 'Transfers paired across a few days',
 
   'accounts.new': 'New account',
   'accounts.edit': 'Edit account',
@@ -1022,22 +949,10 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'icons.living': 'Living',
 
   'nav.review': 'Review',
-  'nav.review.hint': 'What the importer had to assume',
-  'review.title': 'To review',
-  'review.intro.title': '{count} things to confirm',
   'review.intro.body':
     'Every time the importer could not be sure, it wrote it down instead of ' +
     'deciding quietly. Confirm or correct: what you correct is protected and ' +
     'a later import will not overwrite it.',
-  'review.clear.title': 'All reviewed',
-  'review.clear.body': 'No assumption is left unconfirmed.',
-  'review.fix': 'Correct',
-  'review.itIsRight': "It's right",
-  'review.markAllRead': 'Mark all {count} as seen',
-  'review.informational': 'The importer got these right; it is only telling you.',
-  'review.closedInBatch': 'Seen as a batch, not one by one',
-  'review.noSubject': 'About the import',
-  'review.gone': 'That no longer exists; mark it as seen',
 
   'review.help.foreign_new_movement':
     'Monefy only stored pesos, so the dollar or euro amount of a new movement is ' +
@@ -1071,8 +986,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
     'Transfers paired even though the two legs carry different dates. Check they ' +
     'really are the same movement.',
 
-  'nav.export': 'Export',
-  'nav.export.hint': 'Backup and CSV',
+  'nav.export': 'Import and export',
+  'nav.export.hint': 'Save or restore the backup, and CSV',
   'csv.date': 'date',
   'csv.account': 'account',
   'csv.currency': 'currency',
@@ -1349,7 +1264,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'restore.warning': 'This DELETES everything in the app today and replaces it with the file. Nothing is merged: whatever is not in the backup is lost. Export a fresh one first, just in case.',
   'restore.done': '{rows} rows restored. The database is now at version {version}.',
   'restore.old': 'If the backup came from an older version of the app, restoring brings it up to date by itself.',
-  'export.title': 'Export',
+  'export.title': 'Import and export',
   'export.movements': 'Movements',
   'export.saved': '{file} was saved',
   'export.nothing': 'There is nothing to export yet.',
@@ -1382,9 +1297,6 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'categories.hideArchived.one': 'Hide 1 archived',
   'accounts.currencies.one': '1 currency',
   'summary.accountsCounted.one': '1 account',
-  'import.rebuiltLegs.one': '1 with a rebuilt leg',
-  'review.markAllRead.one': 'Mark 1 as seen',
-  'review.intro.title.one': '1 thing to confirm',
   'summary.includeSetAside.hint.one': "1 account that doesn't count towards net worth",
   'summary.includeSetAside.products.one': '1 product outside net worth',
 

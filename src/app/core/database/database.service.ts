@@ -10,7 +10,6 @@ import { Injectable, signal } from '@angular/core';
 
 import { CapacitorSqlDriver } from './capacitor-sql-driver';
 import { prepareWebSqlite } from './web-sqlite';
-import { applyAccountSettings } from './account-settings';
 import { applyCategoryIcons } from './category-icons';
 import type { SqlDriver } from './sql-driver';
 import { migrate, targetVersion, type MigrationResult } from './migrations/migration-runner';
@@ -110,12 +109,6 @@ export class DatabaseService {
     const result = await migrate(driver, MIGRATION_SOURCES);
     this.lastMigration.set(result);
 
-    // Configuration converges on every start, so a change to it reaches a
-    // database that already exists instead of waiting for the next import.
-    const applied = await applyAccountSettings(driver);
-    if (applied.changed.length > 0) {
-      console.info('Corrected the net-worth flag on:', applied.changed.map(c => c.name).join(', '));
-    }
     await applyCategoryIcons(driver);
 
     return driver;

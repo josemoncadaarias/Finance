@@ -309,12 +309,20 @@ layer: Angular 22, Ionic 9, Capacitor 8, standalone components.
 ```
 npm start          ionic serve, in the browser
 npm run db:test    the database tests
-npm run db:import  import the newest export into build/finance.db
+npm run android    build and copy the web app into the Android project
 ```
 
-Three screens so far — accounts with balances, the month view of movements, and
-the CSV import. The importer runs in the app itself, which is how the history
-gets onto the phone, where there is no command line.
+**The Monefy importer is gone** (2026-09-12). Jose enters every movement by
+hand from now on, after imports kept putting his corrections at risk. The
+import screen, the review screen that listed what the importer assumed, the
+CSV parser and its tools were removed. What the imports left in the data stays
+untouched: `source = 'monefy'`, `locked`, fingerprints, `deleted_imports` and
+`review_queue` are still tables and columns, carried by the backup, and never
+dropped - migrations are history. Rules 12 to 14 describe that history.
+
+Data moves between the browser and the phone as a backup: "Importar y
+exportar" saves one and restores one. The Android project lives in `android/`
+(Capacitor 8).
 
 **Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
 to mount and `initWebStore()` to succeed, and that only happens at runtime.

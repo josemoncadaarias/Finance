@@ -4,11 +4,11 @@
  * See `app.component.html` for why navigation is a drawer and not a tab bar.
  */
 
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-  IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge, MenuController,
+  IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -16,10 +16,6 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
 import { ThemeButtonComponent } from './core/theme/theme-button.component';
 import { ThemeService } from './core/theme/theme.service';
-
-
-import { DatabaseService } from './core/database/database.service';
-import { ReviewRepository } from './core/database/repositories/review.repository';
 
 interface Section {
   path: string;
@@ -37,11 +33,10 @@ interface Section {
   imports: [
     RouterLink, TranslatePipe, LanguageButtonComponent, ThemeButtonComponent,
     IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-    IonContent, IonList, IonItem, IonIcon, IonLabel, IonBadge,
+    IonContent, IonList, IonItem, IonIcon, IonLabel,
   ],
 })
 export class AppComponent {
-  private readonly database = inject(DatabaseService);
   private readonly menu = inject(MenuController);
   private readonly router = inject(Router);
 
@@ -53,38 +48,21 @@ export class AppComponent {
    */
   private readonly theme = inject(ThemeService);
 
+  // No Monefy import and no screen reviewing what it assumed: since
+  // 2026-09-12 everything is entered by hand, and a backup is the way data
+  // moves between the browser and the phone.
   readonly sections: Section[] = [
     { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
     { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
     { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
-    { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'alert-circle-outline' },
     { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'bed-outline' },
     { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
-    { path: '/import', label: 'nav.import', hint: 'nav.import.hint', icon: 'cloud-upload-outline' },
-    { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'cloud-download-outline' },
+    { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'swap-vertical-outline' },
   ];
-
-  /**
-   * How many assumptions are still unreviewed.
-   *
-   * On the drawer rather than only on its own screen: an assumption nobody
-   * knows about is the one that quietly makes a total wrong, so the app says
-   * out loud that it is waiting for an answer.
-   */
-  readonly pending = signal(0);
 
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.
     addIcons(allIcons as unknown as Record<string, string>);
-
-    effect(() => {
-      this.database.dataVersion();
-      if (this.database.status() === 'ready') void this.countPending();
-    });
-  }
-
-  private async countPending(): Promise<void> {
-    this.pending.set(await new ReviewRepository(this.database.driver).openCount());
   }
 
   isCurrent(path: string): boolean {
