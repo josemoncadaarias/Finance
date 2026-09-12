@@ -2,10 +2,10 @@
  * `SqlDriver` backed by `@capacitor-community/sqlite`. This is the driver that
  * runs on the phone, and in the browser during `ionic serve`.
  *
- * UNVERIFIED: the plugin is not installed yet, so the calls below are written
- * from its documented API and have not been run. Everything above this file is
- * covered by tests against a real SQLite engine; this is the one file to
- * check first if the app misbehaves on device but the tests are green.
+ * Everything above this file is covered by tests against a real SQLite engine;
+ * this is the one file to check first if the app misbehaves on device but the
+ * tests are green. The device plugin binds and returns BLOBs differently from
+ * the browser one, which is what `paramForDevice` and `rowFromDevice` absorb.
  *
  * On the web there is no native SQLite. The plugin emulates it on top of
  * IndexedDB, which needs `initWebStore()` and the `jeep-sqlite` element on the
@@ -17,7 +17,7 @@ import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from '@cap
 import { Capacitor } from '@capacitor/core';
 
 import { BaseSqlDriver, SqlError, type SqlRunResult } from './sql-driver';
-import { sqlForPlugin } from './plugin-sql';
+import { paramForDevice, rowFromDevice, sqlForPlugin } from './plugin-sql';
 import { recoverWebDatabase, scheduleWebCopy } from './web-store-guard';
 
 export const DATABASE_NAME = 'finance';
@@ -81,7 +81,7 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   async run(sql: string, params: readonly unknown[] = []): Promise<SqlRunResult> {
     try {
-      const result = await this.db.run(sql, [...params], false);
+      const result = await this.db.run(sql, this.valuesFor(params), false);
       await this.persist();
       return {
         changes: result.changes?.changes ?? 0,
@@ -94,11 +94,17 @@ export class CapacitorSqlDriver extends BaseSqlDriver {
 
   async query<T>(sql: string, params: readonly unknown[] = []): Promise<T[]> {
     try {
-      const result = await this.db.query(sql, [...params]);
-      return (result.values ?? []) as T[];
+      const result = await this.db.query(sql, this.valuesFor(params));
+      const rows = (result.values ?? []) as T[];
+      return this.isWeb ? rows : rows.map(row => rowFromDevice(row));
     } catch (error) {
       throw new SqlError(messageOf(error), sql, error);
     }
+  }
+
+  /** The values in the shape this platform's plugin binds. */
+  private valuesFor(params: readonly unknown[]): unknown[] {
+    return this.isWeb ? [...params] : params.map(paramForDevice);
   }
 
   async close(): Promise<void> {

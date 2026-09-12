@@ -28,6 +28,36 @@ export function sqlForPlugin(sql: string): string {
   return out.join('');
 }
 
+/**
+ * A value as the device plugin will bind it.
+ *
+ * On Android the only object the plugin accepts among the values is a Node-style
+ * buffer, `{ type: 'Buffer', data: [...] }`; anything else it reads as an object
+ * without a `type` and fails with "No value for type". A `Uint8Array` - an icon
+ * image - crosses the bridge as exactly such an object, so the first restore of
+ * a backup on Jose's phone stopped at the first icon (2026-09-12). The browser
+ * plugin takes the `Uint8Array` as it is.
+ */
+export function paramForDevice(value: unknown): unknown {
+  return value instanceof Uint8Array ? { type: 'Buffer', data: Array.from(value) } : value;
+}
+
+/**
+ * A row as the device plugin returns it, with its BLOBs as bytes again.
+ *
+ * Android hands a BLOB back as an array of byte values. No other column comes
+ * back as an array - text is a string, numbers are numbers - so every array is
+ * a BLOB. Left as an array, a backup made on the phone would write it as a list
+ * of numbers and restore it as one, and the icon would be lost.
+ */
+export function rowFromDevice<T>(row: T): T {
+  const fields = row as Record<string, unknown>;
+  for (const [key, value] of Object.entries(fields)) {
+    if (Array.isArray(value)) fields[key] = Uint8Array.from(value as number[]);
+  }
+  return row;
+}
+
 /** A line without its `--` comment. A `--` inside a quoted string is left alone. */
 function withoutComment(line: string): string {
   let quoted = false;

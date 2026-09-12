@@ -76,3 +76,32 @@ test('a comment marker inside a quoted string is not a comment', () => {
   assert.equal(sqlForPlugin("INSERT INTO t VALUES ('a -- b'); -- gone\n"), "INSERT INTO t VALUES ('a -- b');\n");
   assert.equal(sqlForPlugin("SELECT 1\nFROM t;\n"), 'SELECT 1 \nFROM t;\n');
 });
+
+// ---------------------------------------------------------------------------
+// BLOBs on the device plugin. Android binds bytes only as { type: 'Buffer',
+// data } and returns them as an array of byte values; the first restore on
+// Jose's phone failed with "No value for type" at the first icon image.
+
+import { paramForDevice, rowFromDevice } from '../../src/app/core/database/plugin-sql.ts';
+
+test('bytes go to the device plugin as the one object it accepts', () => {
+  const image = Uint8Array.from([0, 1, 127, 128, 255]);
+  assert.deepEqual(paramForDevice(image), { type: 'Buffer', data: [0, 1, 127, 128, 255] });
+  for (const plain of [null, 42, 1.5, 'texto', '']) assert.equal(paramForDevice(plain), plain);
+});
+
+test('a BLOB read back from the device plugin is bytes again, and nothing else changes', () => {
+  const row = rowFromDevice({ id: 3, name: 'Pibank', mime_type: 'image/png', data: [0, 1, 127, 128, 255], note: null });
+  assert.ok(row.data instanceof Uint8Array);
+  assert.deepEqual([...row.data], [0, 1, 127, 128, 255]);
+  assert.equal(row.id, 3);
+  assert.equal(row.name, 'Pibank');
+  assert.equal(row.note, null);
+});
+
+test('an icon survives the trip to the device plugin and back', () => {
+  const image = Uint8Array.from({ length: 300 }, (_, i) => i % 256);
+  const bound = paramForDevice(image);
+  const row = rowFromDevice({ data: [...bound.data] });
+  assert.deepEqual(row.data, image);
+});
