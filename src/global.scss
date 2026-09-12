@@ -183,6 +183,36 @@ ion-note {
   overflow-wrap: break-word;
 }
 
+/*
+ * A switch, a checkbox or a radio says its whole sentence.
+ *
+ * Ionic sets the label of all three on one line and cuts it with an ellipsis.
+ * That suits a two-word label and nothing else: the hint under "Cuenta para el
+ * patrimonio" ("Apágalo para brókers o plata apartada...") read as half a
+ * sentence on a phone. The label wraps instead, onto as many lines as it needs.
+ */
+ion-toggle::part(label),
+ion-checkbox::part(label),
+ion-radio::part(label) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/*
+ * The same for a field's label sitting above it, where there is room below
+ * for a second line: "¿Cada cuántos meses se revisa el gasto?" and "Lo que
+ * realmente pagó el banco" were cut the same way. Only stacked labels - a
+ * label beside or inside its field has no second line to go to.
+ */
+ion-input.input-label-placement-stacked .label-text,
+ion-textarea.textarea-label-placement-stacked .label-text,
+ion-select.select-label-placement-stacked::part(label) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 /* An icon beside text keeps its size; it is the text that gives way. */
 ion-item > ion-icon[slot='start'],
 ion-item > ion-icon[slot='end'],
