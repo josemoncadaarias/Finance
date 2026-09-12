@@ -103,6 +103,13 @@ the framework on a long-running project.
    initial balance of 800,000 = the credit limit, mixing two concepts).
 
 5. **Accounts can be flagged as "excluded from net worth"**, same as Monefy.
+   **So can a product inside an account** (`yield_pockets.include_in_net_worth`,
+   migration 033): the tax CDTs live inside Pibank, not in an account of their
+   own. A product set aside has its movements left off the account's balance on
+   the summary and accounts screens and off net worth, and the transfer that
+   fed it reads as money leaving. The bank balance the yields screen compares
+   products against still counts everything. The usual product always counts,
+   since a movement naming no product lands in it. Decision by Jose, 2026-09-12.
 
 6. **Interest and cashback live separately.** They are not mixed into the
    balance of the account that produced them. Their own module, because their

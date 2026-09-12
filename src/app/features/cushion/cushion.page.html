@@ -399,6 +399,9 @@
                       @if (pocket.is_default === 1) {
                         <span class="usual">{{ 'cushion.pockets.usual' | t }}</span> ·
                       }
+                      @if (pocket.include_in_net_worth === 0) {
+                        <span class="usual">{{ 'cushion.pockets.setAside' | t }}</span> ·
+                      }
                       {{ pocketSummary(pocket) }}
                     </p>
                     @if (yieldIn(line, pocket.id) !== 0) {
@@ -832,6 +835,9 @@
                       @if (pocket.is_default === 1) {
                         <span class="usual">{{ 'cushion.pockets.usual' | t }}</span> ·
                       }
+                      @if (pocket.include_in_net_worth === 0) {
+                        <span class="usual">{{ 'cushion.pockets.setAside' | t }}</span> ·
+                      }
                       {{ pocketSummary(pocket) }}
                     </p>
                     @if (yieldIn(line, pocket.id) !== 0) {
@@ -940,8 +946,21 @@
                   {{ 'cushion.pocket.withholding' | t }}
                 </ion-toggle>
               </ion-item>
+              <!-- The usual product always counts: every movement that names no
+                   product lands in it. -->
+              @if (!pocketIsDefault()) {
+                <ion-item>
+                  <ion-toggle [checked]="pocketCounts()"
+                              (ionChange)="pocketCounts.set($any($event.detail).checked)">
+                    {{ 'cushion.pocket.netWorth' | t }}
+                  </ion-toggle>
+                </ion-item>
+              }
             </ion-list>
             <p class="hint">{{ (pocketWithholds() ? 'cushion.pocket.withholdingOn' : 'cushion.pocket.withholdingOff') | t }}</p>
+            @if (!pocketIsDefault()) {
+              <p class="hint">{{ (pocketCounts() ? 'cushion.pocket.netWorthOn' : 'cushion.pocket.netWorthOff') | t }}</p>
+            }
 
             @if (pocketKind() === 'cdt') {
               <p class="hint">{{ 'cushion.pocket.cdtHint' | t }}</p>

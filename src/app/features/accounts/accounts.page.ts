@@ -297,7 +297,8 @@ export class AccountsPage {
 
     const accounts = new AccountsRepository(this.database.driver);
     const [grouped, worth] = await Promise.all([
-      accounts.balancesByGroup({ includeArchived: true }),
+      // A product set outside net worth - the tax CDTs - is not the account's to spend.
+      accounts.balancesByGroup({ includeArchived: true, leaveOutSetAside: true }),
       accounts.netWorth(),
     ]);
     this.grouped.set(grouped);

@@ -104,6 +104,11 @@ export interface YieldPocket {
   income_category_id: number | null;
   /** 1 when its yield is withheld; 0 when nothing at all is taken from it. */
   withholding: 0 | 1;
+  /**
+   * 0 when the product sits outside net worth: its movements are left off the
+   * account's balance and off net worth. The usual product is always 1.
+   */
+  include_in_net_worth: 0 | 1;
   sort_order: number;
   /**
    * The product money lands in when nobody says otherwise. 1 or null.
@@ -486,7 +491,8 @@ export class YieldsRepository {
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding,
+              include_in_net_worth
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
@@ -495,7 +501,8 @@ export class YieldsRepository {
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding
+              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding,
+              include_in_net_worth
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
 
@@ -607,6 +614,21 @@ export class YieldsRepository {
   }
 
   /**
+   * Puts a product inside net worth or leaves it out. The usual product cannot
+   * be left out: every movement that names no product lands in it, so leaving
+   * it out would take those off the account too.
+   */
+  async setPocketNetWorth(id: number, counts: boolean): Promise<void> {
+    if (!counts) {
+      const pocket = await this.db.queryOne<{ is_default: number | null }>(
+        'SELECT is_default FROM yield_pockets WHERE id = ?', [id]);
+      if (pocket?.is_default === 1) throw new Error('The usual product always counts towards net worth.');
+    }
+    await this.db.run('UPDATE yield_pockets SET include_in_net_worth = ?, updated_at = ? WHERE id = ?',
+      [counts ? 1 : 0, this.now(), id]);
+  }
+
+  /**
    * Makes one product the account's usual one, and the others not.
    *
    * Both halves in one call, because the index allows at most one per account
@@ -618,8 +640,9 @@ export class YieldsRepository {
     await this.db.run(
       'UPDATE yield_pockets SET is_default = NULL, updated_at = ? WHERE account_id = ?',
       [now, accountId]);
+    // The usual product holds every movement that names none, so it counts.
     await this.db.run(
-      'UPDATE yield_pockets SET is_default = 1, updated_at = ? WHERE id = ?',
+      'UPDATE yield_pockets SET is_default = 1, include_in_net_worth = 1, updated_at = ? WHERE id = ?',
       [now, pocketId]);
   }
 

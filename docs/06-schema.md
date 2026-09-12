@@ -117,6 +117,7 @@ erDiagram
         INTEGER matures_into_pocket_id FK
         INTEGER income_category_id FK
         INTEGER withholding
+        INTEGER include_in_net_worth
         INTEGER sort_order
     }
     yield_pocket_balances {

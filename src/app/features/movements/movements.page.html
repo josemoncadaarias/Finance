@@ -445,13 +445,20 @@
         </div>
       }
 
-      @if (filter.allAccounts() && store.hiddenCount() > 0) {
+      <!-- Products set aside (the tax CDTs inside Pibank) hide inside a single
+           account too, so the switch is offered there as well. -->
+      @if ((filter.allAccounts() && store.hiddenCount() > 0) || store.setAsideProducts() > 0) {
         <ion-item lines="none" class="include">
           <ion-toggle [checked]="filter.includeExcluded()"
                       (ionChange)="filter.includeExcluded.set($any($event.detail).checked)">
             <div>
               <p class="strong">{{ 'summary.includeSetAside' | t }}</p>
-              <p class="hint">{{ 'summary.includeSetAside.hint' | t:{ count: store.hiddenCount() } }}</p>
+              @if (filter.allAccounts() && store.hiddenCount() > 0) {
+                <p class="hint">{{ 'summary.includeSetAside.hint' | t:{ count: store.hiddenCount() } }}</p>
+              }
+              @if (store.setAsideProducts() > 0) {
+                <p class="hint">{{ 'summary.includeSetAside.products' | t:{ count: store.setAsideProducts() } }}</p>
+              }
             </div>
           </ion-toggle>
         </ion-item>

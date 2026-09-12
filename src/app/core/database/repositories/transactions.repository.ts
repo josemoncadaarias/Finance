@@ -94,6 +94,11 @@ export interface DetailedTransaction extends TransactionRow {
   other_account_custom_icon_id: number | null;
   /** The far account's id, so a caller can tell inside a scope from outside. */
   other_account_id: number | null;
+  /** 1 when this movement's product sits outside net worth. */
+  pocket_set_aside: 0 | 1;
+  /** The product on the other side of a transfer, and whether it sits outside net worth. */
+  other_pocket_name: string | null;
+  other_pocket_set_aside: 0 | 1;
 }
 
 export interface DetailedFilter {
@@ -378,13 +383,18 @@ export class TransactionsRepository {
               other.name AS other_account_name,
               other.builtin_icon AS other_account_builtin_icon,
               other.custom_icon_id AS other_account_custom_icon_id,
-              other.id AS other_account_id
+              other.id AS other_account_id,
+              CASE WHEN own_pocket.include_in_net_worth = 0 THEN 1 ELSE 0 END AS pocket_set_aside,
+              other_pocket.name AS other_pocket_name,
+              CASE WHEN other_pocket.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_pocket_set_aside
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id
        LEFT JOIN transactions sibling
               ON sibling.transfer_id = t.transfer_id AND sibling.id <> t.id
        LEFT JOIN accounts other ON other.id = sibling.account_id
+       LEFT JOIN yield_pockets own_pocket ON own_pocket.id = t.pocket_id
+       LEFT JOIN yield_pockets other_pocket ON other_pocket.id = sibling.pocket_id
        ${where}
        ORDER BY t.occurred_on DESC, t.id DESC`,
       values,

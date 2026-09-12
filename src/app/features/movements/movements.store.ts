@@ -57,6 +57,9 @@ export class MovementsStore {
     this.accounts().filter(a => !a.archived && a.include_in_net_worth === 0).length,
   );
 
+  /** Products set outside net worth in the accounts being looked at. */
+  readonly setAsideProducts = signal(0);
+
   /** After the search box and any category picked from the donut. */
   readonly visible = computed(() => {
     const search = this.filter.search();
@@ -247,7 +250,9 @@ export class MovementsStore {
       return;
     }
 
-    const balance = await accounts.balance(selected);
+    // What a product set aside holds is not the account's to spend, unless
+    // the switch to include what is set aside is on.
+    const balance = await accounts.balance(selected, { leaveOutSetAside: !this.filter.includeExcluded() });
     if (balance === null) {
       this.standing.set(null);
       return;
@@ -306,11 +311,25 @@ export class MovementsStore {
       // changes nothing. Moving it to an account outside the scope - eToro,
       // Pibank para renta, an archived one - really is money leaving, and
       // hiding it would lose it.
+      //
+      // A product set outside net worth is outside the scope in the same way,
+      // even inside the same account: its own movements are hidden, and the
+      // transfer that fed it - Pibank's savings into a tax CDT - is money gone.
       const inScope = new Set(scope);
-      const visible = detailed.filter(row =>
-        row.transfer_id === null ||
-        row.other_account_id === null ||
-        !inScope.has(row.other_account_id));
+      const leaveOut = !this.filter.includeExcluded();
+      const setAside = await driver.queryOne<{ total: number }>(
+        `SELECT COUNT(*) AS total FROM yield_pockets
+         WHERE include_in_net_worth = 0 AND account_id IN (${scope.map(() => '?').join(', ') || 'NULL'})`,
+        [...scope]);
+      this.setAsideProducts.set(setAside?.total ?? 0);
+
+      const visible = detailed.filter(row => {
+        if (leaveOut && row.pocket_set_aside === 1) return false;
+        return row.transfer_id === null ||
+          row.other_account_id === null ||
+          !inScope.has(row.other_account_id) ||
+          (leaveOut && row.other_pocket_set_aside === 1);
+      });
 
       this.rows.set(visible.map(row => toMovement(row, this.i18n)));
     } finally {
@@ -329,7 +348,12 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
   const isTransfer = row.transfer_id !== null;
   // The account's own name is data and stays as it was typed; only the "to"
   // and "from" around it are the app speaking.
-  const other = row.other_account_name ?? i18n.t('movement.otherAccount');
+  // Money moved into a product set aside is named by that product: "a Pibank"
+  // says nothing when both ends are Pibank.
+  const setAsideProduct = row.other_pocket_set_aside === 1 ? row.other_pocket_name : null;
+  const other = setAsideProduct !== null
+    ? (row.other_account_id === row.account_id ? setAsideProduct : `${row.other_account_name} · ${setAsideProduct}`)
+    : row.other_account_name ?? i18n.t('movement.otherAccount');
 
   return {
     transaction: row,

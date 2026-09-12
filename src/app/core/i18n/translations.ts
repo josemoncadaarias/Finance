@@ -99,8 +99,9 @@ export const SPANISH = {
   'summary.from': 'Desde',
   'summary.to': 'Hasta',
   'summary.apply': 'Aplicar',
-  'summary.includeSetAside': 'Incluir las cuentas apartadas',
+  'summary.includeSetAside': 'Incluir lo apartado del patrimonio',
   'summary.includeSetAside.hint': '{count} cuentas que no cuentan para el patrimonio',
+  'summary.includeSetAside.products': '{count} productos fuera del patrimonio',
 
   // --- periods ----------------------------------------------------------
   'period.day': 'Día',
@@ -501,6 +502,7 @@ export const SPANISH = {
   'cushion.pockets': 'Productos',
   'cushion.pockets.count': '{count} productos',
   'cushion.pockets.usual': 'El habitual',
+  'cushion.pockets.setAside': 'Fuera del patrimonio',
   'cushion.pockets.total': 'Entre todos los productos: {amount}',
   'cushion.pockets.add': 'Agregar un producto',
   'cushion.pockets.hint': 'Si el banco parte la cuenta en varios productos — cuenta de ahorros, alcancía, bolsillo, meta — agrégalos aquí: el banco le paga a cada uno por aparte y la retefuente se mide sobre cada uno, no sobre la suma.',
@@ -573,6 +575,9 @@ export const SPANISH = {
   'cushion.pocket.withholding': 'Le aplican retefuente',
   'cushion.pocket.withholdingOn': 'A lo que rinde este producto se le descuenta la retención en la fuente, según la regla de su tipo.',
   'cushion.pocket.withholdingOff': 'A lo que rinde este producto no se le descuenta retención ni ningún otro impuesto.',
+  'cushion.pocket.netWorth': 'Cuenta en el patrimonio',
+  'cushion.pocket.netWorthOn': 'Sus movimientos cuentan en el saldo de la cuenta y en tu patrimonio.',
+  'cushion.pocket.netWorthOff': 'Plata apartada: sus movimientos no cuentan en el saldo de la cuenta en Resumen y Cuentas, ni en tu patrimonio. Lo que le pases desde otro producto se ve como una salida.',
   'cushion.pocket.deleteUsual': 'Es tu producto habitual. ¿Cuál será el habitual ahora?',
   'cushion.pocket.newUsual': 'Nuevo producto habitual',
   'cushion.pocket.deleteYes': 'Sí, eliminar',
@@ -699,6 +704,7 @@ export const SPANISH = {
   'review.markAllRead.one': 'Marcar 1 como visto',
   'review.intro.title.one': '1 cosa por confirmar',
   'summary.includeSetAside.hint.one': '1 cuenta que no cuenta para el patrimonio',
+  'summary.includeSetAside.products.one': '1 producto fuera del patrimonio',
 
   // --- shared states ----------------------------------------------------
   'state.opening': 'Abriendo la base de datos…',
@@ -789,8 +795,9 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.from': 'From',
   'summary.to': 'To',
   'summary.apply': 'Apply',
-  'summary.includeSetAside': 'Include the accounts set aside',
+  'summary.includeSetAside': 'Include what is set aside from net worth',
   'summary.includeSetAside.hint': "{count} accounts that don't count towards net worth",
+  'summary.includeSetAside.products': '{count} products outside net worth',
 
   'period.day': 'Day',
   'period.week': 'Week',
@@ -1178,6 +1185,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cushion.pockets': 'Products',
   'cushion.pockets.count': '{count} products',
   'cushion.pockets.usual': 'The usual one',
+  'cushion.pockets.setAside': 'Outside net worth',
   'cushion.pockets.total': 'Across every product: {amount}',
   'cushion.pockets.add': 'Add a product',
   'cushion.pockets.hint': 'If the bank splits the account into several products — savings account, pocket, goal — add them here: it pays each one separately, and the withholding is measured on each rather than on the total.',
@@ -1250,6 +1258,9 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cushion.pocket.withholding': 'Withholding tax applies',
   'cushion.pocket.withholdingOn': 'Withholding tax is taken from what this product earns, following the rule for its kind.',
   'cushion.pocket.withholdingOff': 'Nothing is taken from what this product earns: no withholding and no other tax.',
+  'cushion.pocket.netWorth': 'Counts towards net worth',
+  'cushion.pocket.netWorthOn': 'Its movements count in the account balance and in your net worth.',
+  'cushion.pocket.netWorthOff': 'Money set aside: its movements count neither in the account balance on the summary and accounts screens nor in your net worth. What you move into it from another product shows as money going out.',
   'cushion.pocket.deleteUsual': 'This is your usual product. Which one is the usual one now?',
   'cushion.pocket.newUsual': 'New usual product',
   'cushion.pocket.deleteYes': 'Yes, remove',
@@ -1375,6 +1386,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'review.markAllRead.one': 'Mark 1 as seen',
   'review.intro.title.one': '1 thing to confirm',
   'summary.includeSetAside.hint.one': "1 account that doesn't count towards net worth",
+  'summary.includeSetAside.products.one': '1 product outside net worth',
 
   'state.opening': 'Opening the database…',
   'state.failed': 'The database could not be opened',

@@ -58,6 +58,23 @@ export interface NewAccount {
 
 export type AccountUpdate = Partial<Omit<NewAccount, 'currency_code'>> & { archived?: boolean };
 
+/**
+ * A movement that counts as the account's own money: it names no product, or a
+ * product that has not been set outside net worth. Written against `t`.
+ */
+const COUNTED_MOVEMENT = `(t.pocket_id IS NULL OR t.pocket_id NOT IN
+  (SELECT id FROM yield_pockets WHERE include_in_net_worth = 0))`;
+
+/** How a balance treats the products set outside net worth. */
+export interface SetAsideOption {
+  /**
+   * True: their movements are left off, the balance a summary shows. False or
+   * absent: every movement counts, the balance the bank shows - which is what
+   * the yields screen compares its products against.
+   */
+  leaveOutSetAside?: boolean;
+}
+
 const COLUMNS = `id, name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
   credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
   archived, sort_order, created_at, updated_at`;
@@ -273,8 +290,8 @@ export class AccountsRepository {
     await this.update(id, { archived: true });
   }
 
-  async balance(id: number): Promise<AccountBalance | null> {
-    const balances = await this.balances({ accountId: id, includeArchived: true });
+  async balance(id: number, options: SetAsideOption = {}): Promise<AccountBalance | null> {
+    const balances = await this.balances({ ...options, accountId: id, includeArchived: true });
     return balances.length > 0 ? balances[0] : null;
   }
 
@@ -283,7 +300,9 @@ export class AccountsRepository {
    * `asOf` gives the balance as it stood at the end of that day, which is what
    * a report for a past month needs.
    */
-  async balances(options: { accountId?: number; asOf?: IsoDate; includeArchived?: boolean } = {}): Promise<AccountBalance[]> {
+  async balances(
+    options: { accountId?: number; asOf?: IsoDate; includeArchived?: boolean } & SetAsideOption = {},
+  ): Promise<AccountBalance[]> {
     const conditions: string[] = [];
     const values: unknown[] = [];
 
@@ -303,12 +322,13 @@ export class AccountsRepository {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const dateFilter = options.asOf ? 'AND t.occurred_on <= ?' : '';
+    const setAsideFilter = options.leaveOutSetAside ? `AND ${COUNTED_MOVEMENT}` : '';
 
     const rows = await this.db.query<AccountRow & { balance_minor: number }>(
       `SELECT ${COLUMNS.split(',').map(c => `a.${c.trim()}`).join(', ')},
               a.opening_balance_minor + COALESCE(SUM(t.amount_minor), 0) AS balance_minor
        FROM accounts a
-       LEFT JOIN transactions t ON t.account_id = a.id ${dateFilter}
+       LEFT JOIN transactions t ON t.account_id = a.id ${dateFilter} ${setAsideFilter}
        ${where}
        GROUP BY a.id
        ORDER BY a.sort_order, a.name`,
@@ -338,7 +358,9 @@ export class AccountsRepository {
    * There is no total per group on purpose: 500 USD and 300 EUR do not add up
    * without choosing a rate, and choosing it is the caller's decision.
    */
-  async balancesByGroup(options: { asOf?: IsoDate; includeArchived?: boolean } = {}): Promise<GroupedBalance[]> {
+  async balancesByGroup(
+    options: { asOf?: IsoDate; includeArchived?: boolean } & SetAsideOption = {},
+  ): Promise<GroupedBalance[]> {
     const balances = await this.balances(options);
     const groups = await this.db.query<AccountGroupRow>(
       `SELECT id, name, builtin_icon, custom_icon_id, color, sort_order, created_at, updated_at
@@ -389,6 +411,9 @@ export class AccountsRepository {
    * A currency with no rate on record is **not** guessed at. Its accounts are
    * left out of the total and reported separately, so a missing rate shows up
    * as a question rather than as a wrong number.
+   *
+   * A product set outside net worth - a CDT holding the tax money - is left
+   * out with its movements, so the transfer that fed it reads as money gone.
    */
   async netWorth(options: { asOf?: IsoDate } = {}): Promise<NetWorth> {
     const asOf = options.asOf ?? todayIso();
@@ -405,7 +430,7 @@ export class AccountsRepository {
        LEFT JOIN (
          SELECT t.account_id, SUM(t.amount_minor) AS total
          FROM transactions t
-         WHERE t.occurred_on <= ?
+         WHERE t.occurred_on <= ? AND ${COUNTED_MOVEMENT}
          GROUP BY t.account_id
        ) own ON own.account_id = a.id
        WHERE a.include_in_net_worth = 1 AND a.archived = 0`,

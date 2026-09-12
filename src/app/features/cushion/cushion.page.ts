@@ -395,6 +395,8 @@ export class CushionPage {
     !this.editingPocket() && (this.pocketKind() === 'cdt' || (parseOrNull(this.pocketAmount()) ?? 0) > 0));
   /** Whether the product being edited has its yield withheld at all. */
   readonly pocketWithholds = signal(true);
+  /** Whether the product being edited counts towards the account's balance and net worth. */
+  readonly pocketCounts = signal(true);
   /** Yields landed in the product being edited since its balance was stated. */
   readonly pocketYieldIn = signal(0);
 
@@ -1046,6 +1048,7 @@ export class CushionPage {
     this.withholds.set((await yields.account(line.account.id))?.withholding !== 0);
     // A new product starts with the account's answer; an existing one has its own.
     this.pocketWithholds.set(pocket ? pocket.withholding === 1 : this.withholds());
+    this.pocketCounts.set(pocket ? pocket.include_in_net_worth !== 0 : true);
 
     this.pocketName.set(pocket?.name ?? '');
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
@@ -1219,6 +1222,7 @@ export class CushionPage {
         if (this.pocketIsDefault()) {
           await yields.setDefaultPocket(line.account.id, id);
         }
+        await this.saveNetWorthSwitch(yields, existing, id);
 
         // Every pocket of the account is worked out again from that date: a
         // figure moving between pockets changes what the others earn on too.
@@ -1242,11 +1246,24 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // The summary and the accounts screen show the account without what is set aside.
+      this.database.dataChanged();
       await this.returnFromPocket(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  /**
+   * Records whether the product counts towards net worth, when that changed.
+   * The usual product always does, whatever the switch said.
+   */
+  private async saveNetWorthSwitch(yields: YieldsRepository, existing: YieldPocket | null, id: number): Promise<void> {
+    const counts = this.pocketIsDefault() || existing?.is_default === 1 || this.pocketCounts();
+    if ((existing?.include_in_net_worth ?? 1) !== (counts ? 1 : 0)) {
+      await yields.setPocketNetWorth(id, counts);
     }
   }
 
@@ -1327,6 +1344,7 @@ export class CushionPage {
           await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
         }
         await yields.setPocketWithholding(id, this.pocketWithholds());
+        await this.saveNetWorthSwitch(yields, existing, id);
         await yields.setRate({
           account_id: line.account.id, pocket_id: id, component: 'base',
           payout: 'monthly', payout_months: term, valid_from: opened, annual_rate_scaled: rate,
@@ -1337,6 +1355,7 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      this.database.dataChanged();
       await this.returnFromPocket(line);
     } catch (error) {
       this.error.set(messageOf(error));
