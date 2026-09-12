@@ -18,7 +18,7 @@
 
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
-import { todayIso } from '../../yields/days';
+import { addDays, todayIso } from '../../yields/days';
 import type { ProductKind } from '../../yields/yield-math';
 
 /** An account enrolled for accrual. Not being here means never accrued. */
@@ -793,6 +793,37 @@ export class YieldsRepository {
     return this.db.query<PocketBalance>(
       `SELECT id, pocket_id, valid_from, amount_minor, note
        FROM yield_pocket_balances ORDER BY pocket_id, valid_from, id`);
+  }
+
+  /**
+   * Money moved into a CDT while it runs - the transfer that opened it, when
+   * it was funded from another product. A CDT takes no deposits once open, so
+   * every entry from the day before it opened to the day it matures is that.
+   */
+  async cdtFunding(pocketId: number, openedOn: IsoDate, maturesOn: IsoDate): Promise<number> {
+    const row = await this.db.queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions
+       WHERE pocket_id = ? AND amount_minor > 0 AND occurred_on >= ? AND occurred_on < ?`,
+      [pocketId, addDays(openedOn, -1), maturesOn]);
+    return row?.total ?? 0;
+  }
+
+  /**
+   * States a CDT's capital again: what it holds the day it opens.
+   *
+   * The transfer that funded it already puts money in, so the figure stated
+   * the day before is the capital minus that transfer. Writing the whole
+   * capital on the opening day, as saving the form did, counted the transfer
+   * twice: Jose's 1.000.000 CDT read 2.000.000 on 2026-09-12.
+   */
+  async setCdtCapital(pocketId: number, input: { opened_on: IsoDate; matures_on: IsoDate; capital_minor: number }): Promise<void> {
+    for (const old of await this.pocketBalances(pocketId)) await this.removePocketBalance(old.id);
+    const funded = await this.cdtFunding(pocketId, input.opened_on, input.matures_on);
+    await this.setPocketBalance({
+      pocket_id: pocketId,
+      valid_from: addDays(input.opened_on, -1),
+      amount_minor: Math.max(0, input.capital_minor - funded),
+    });
   }
 
   async setPocketBalance(input: {

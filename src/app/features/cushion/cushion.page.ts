@@ -1089,7 +1089,12 @@ export class CushionPage {
       const current = history.at(-1);
       // A product that followed the account balance has no figure of its own
       // yet: it starts from what it holds today, so saving keeps its balance.
-      this.pocketAmount.set(decimalOf(current ? current.amount_minor : Math.max(0, this.heldIn(line, pocket.id))));
+      // A CDT's amount is its capital: the figure stated plus the transfer that
+      // funded it, which is how its balance reads the day it opens.
+      const funding = pocket.kind === 'cdt' && pocket.opened_on && pocket.term_months
+        ? await yields.cdtFunding(pocket.id, pocket.opened_on, cdtMaturity(pocket.opened_on, pocket.term_months))
+        : 0;
+      this.pocketAmount.set(decimalOf(current ? current.amount_minor + funding : Math.max(0, this.heldIn(line, pocket.id))));
       this.pocketFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
@@ -1332,7 +1337,6 @@ export class CushionPage {
           await yields.setCdtTerms(id, {
             opened_on: opened, term_months: term, matures_into_pocket_id: into, income_category_id: category,
           });
-          for (const old of await yields.pocketBalances(id)) await yields.removePocketBalance(old.id);
           for (const old of this.rates().filter(candidate => candidate.pocket_id === id)) {
             await yields.removeRate(old.id);
           }
@@ -1341,7 +1345,10 @@ export class CushionPage {
         if (funded) {
           await this.fundFromPocket(line, id, this.pocketFundingFrom()!, opened, capital, name);
         } else {
-          await yields.setPocketBalance({ pocket_id: id, valid_from: opened, amount_minor: capital });
+          // Minus the transfer that funded it, if one did: that money is already in.
+          await yields.setCdtCapital(id, {
+            opened_on: opened, matures_on: cdtMaturity(opened, term), capital_minor: capital,
+          });
         }
         await yields.setPocketWithholding(id, this.pocketWithholds());
         await this.saveNetWorthSwitch(yields, existing, id);
