@@ -808,3 +808,109 @@ ion-footer[hidden] { display: none; }
     cursor: pointer;
   }
 }
+
+/*
+ * A transfer reads down the screen.
+ *
+ * Side by side, each account had a third of the width and its name was cut
+ * after a word and a half - and which way the money was going had to be read
+ * off a small arrow between them. One above the other, each name has the whole
+ * width and the arrow between them points the way it goes.
+ */
+.route {
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+
+  .swap {
+    position: relative;
+    justify-self: center;
+    width: 2.6rem;
+    height: 1.9rem;
+
+    /* The arrow says which way; the swap icon underneath it is the offer to
+       turn it around, and only shows on the press. */
+    .turn { display: none; }
+    &:active {
+      ion-icon:not(.turn) { display: none; }
+      .turn { display: block; color: var(--ion-color-primary); }
+    }
+  }
+}
+
+/*
+ * Where an income or an expense lands, and when.
+ *
+ * The account is the question - a movement filed against the wrong one is the
+ * mistake that costs an evening - so it takes the width. The date is nearly
+ * always today, so it says so in a chip underneath rather than as half the row.
+ */
+.context.stacked {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+
+  .account {
+    justify-content: flex-start;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.95rem;
+  }
+
+  button:not(.account) {
+    justify-self: center;
+    flex: 0 0 auto;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+  }
+}
+
+/*
+ * Saving, within reach of a thumb.
+ *
+ * The toolbar's save button is at the far end of the screen from where a hand
+ * holds a phone, and recording a movement ends with a reach across it every
+ * time. This one sits above the keypad, in the colour of what is being
+ * recorded, and it finishes a running sum on the way.
+ */
+.entry-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0.6rem;
+
+  .do-save {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 3rem;
+    border: none;
+    border-radius: 12px;
+    background: var(--ion-color-medium);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    ion-icon { font-size: 1.15rem; }
+
+    &[disabled] { opacity: 0.45; cursor: default; }
+  }
+
+  &.expense .do-save { background: var(--ion-color-danger); }
+  &.income .do-save { background: var(--ion-color-success); }
+
+  /* Only while a sum is being added up, which is the only time it means
+     anything. */
+  .equals {
+    flex: 0 0 3.4rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 12px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+}

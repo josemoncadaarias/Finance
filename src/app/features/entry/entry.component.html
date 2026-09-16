@@ -96,8 +96,12 @@
         }
       </button>
 
+      <!-- Down the screen rather than across it: two accounts side by side
+           left each name a third of the width, and the money plainly travels
+           from the one above to the one below. -->
       <button type="button" class="swap" (click)="swapAccounts()" [attr.aria-label]="'entry.swap' | t">
-        <ion-icon name="swap-horizontal-outline"></ion-icon>
+        <ion-icon name="arrow-down-outline"></ion-icon>
+        <ion-icon class="turn" name="swap-vertical-outline"></ion-icon>
       </button>
 
       <button type="button" class="leg" [class.needed]="toAccountId() === null"
@@ -126,8 +130,8 @@
       </button>
     </div>
   } @else {
-    <div class="context">
-      <button type="button" class="with-part" (click)="openAccountSheet('from')">
+    <div class="context stacked">
+      <button type="button" class="with-part account" (click)="openAccountSheet('from')">
         <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
                   fallback="wallet"></app-icon>
         <span class="stack">
@@ -242,6 +246,20 @@
   @if (missing(); as hint) {
     <p class="missing">{{ hint }}</p>
   }
+
+  <!-- Saving, at the bottom.
+       The one in the toolbar stays for when the keypad is away - writing a
+       note - but a thumb on a phone rests here, not at the top of the screen. -->
+  <div class="entry-actions" [class]="kind()">
+    @if (midSum()) {
+      <button type="button" class="equals" (click)="press('=')"
+              [attr.aria-label]="'entry.equals' | t">=</button>
+    }
+    <button type="button" class="do-save" [disabled]="!canSave() || saving()" (click)="save()">
+      <ion-icon name="checkmark-outline"></ion-icon>
+      {{ 'entry.save' | t }}
+    </button>
+  </div>
 
   <!-- Four columns: the digits, and the arithmetic anyone does at a counter -->
   <div class="keypad">

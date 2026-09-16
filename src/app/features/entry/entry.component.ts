@@ -157,11 +157,20 @@ export class EntryComponent implements OnInit, OnDestroy {
    * where Monefy puts it too - and it is the right place: it acts on what is
    * shown there.
    */
+  /**
+   * The keys, as they are laid out: three columns of digits and one of
+   * arithmetic.
+   *
+   * Backspace sits where '=' used to. Correcting a digit is something that
+   * happens on nearly every amount, and it was only reachable at the top of
+   * the screen beside the figure - while '=' is only needed when a sum is
+   * being added up, which is when it appears beside the save button instead.
+   */
   readonly keys = [
     '1', '2', '3', '+',
     '4', '5', '6', '-',
     '7', '8', '9', '×',
-    ',', '0', '=', '÷',
+    ',', '0', '<', '÷',
   ];
 
   /** Set when the screen is editing an existing transfer rather than a movement. */
@@ -359,7 +368,6 @@ export class EntryComponent implements OnInit, OnDestroy {
    * explaining itself.
    */
   readonly missing = computed<string | null>(() => {
-    if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
     if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
 
@@ -871,6 +879,9 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   async save(): Promise<void> {
+    // A sum still being added up is finished by saving it, rather than the
+    // form refusing until '=' is pressed. Enter has always done this.
+    if (this.pending() !== null) this.equals();
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
