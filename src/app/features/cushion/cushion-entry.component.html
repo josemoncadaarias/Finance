@@ -18,7 +18,7 @@
 </ion-header>
 
 <div class="entry-scroll">
-  <div class="entry-body">
+  <div class="entry-body" [class.writing-note]="writingNote()">
     @if (pendingLabel(); as sum) {
       <p class="pending">{{ sum }}</p>
     }
@@ -141,8 +141,9 @@
       }
     }
 
-    <div class="note">
+    <div class="note" #noteBox>
       <ion-textarea [placeholder]="'entry.note' | t" [value]="note()" [autoGrow]="false" [rows]="2"
+                    (ionFocus)="startNote()" (ionBlur)="endNote()"
                     (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
       @if (note() !== '') {
         <button type="button" class="clear-note" (click)="clearNote()" [attr.aria-label]="'entry.clearNote' | t">
@@ -150,6 +151,12 @@
         </button>
       }
     </div>
+
+    @if (writingNote()) {
+      <div class="note-done">
+        <button type="button" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button>
+      </div>
+    }
 
     <!-- Notes repeat; these are the ones already written that match. -->
     @if (noteSuggestions().length > 0) {
@@ -173,7 +180,7 @@
   </div>
 </div>
 
-<ion-footer class="pad">
+<ion-footer class="pad" [hidden]="writingNote()">
   @if (missing(); as hint) {
     <p class="missing">{{ hint }}</p>
   }
