@@ -51,8 +51,7 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
 import type { AccountRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
-import { IconPickerComponent } from '../../core/icons/icon-picker.component';
-import { CATEGORY_ICONS_CATALOG } from '../../core/icons/icon-catalog';
+import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -69,7 +68,7 @@ export interface CushionEntryRequest {
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent, IconPickerComponent,
+    TranslatePipe, IconComponent, ProductKindEditorComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
   ],
@@ -224,11 +223,8 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly kindName = signal('');
   readonly kindIcon = signal<{ builtin_icon: string | null; custom_icon_id: number | null }>(
     { builtin_icon: 'pricetag-outline', custom_icon_id: null });
-  readonly kindCountsAs = signal<'yield' | 'cashback'>('yield');
   readonly kindError = signal('');
 
-  /** The pictures on offer for a kind: the ones a category chooses from. */
-  readonly categoryIcons = CATEGORY_ICONS_CATALOG;
 
   private kindsRepo(): ProductKindsRepository {
     return new ProductKindsRepository(this.database.driver);
@@ -252,48 +248,14 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       builtin_icon: kind?.builtin_icon ?? 'pricetag-outline',
       custom_icon_id: kind?.custom_icon_id ?? null,
     });
-    this.kindCountsAs.set(kind?.counts_as ?? 'yield');
     this.managingKinds.set(true);
   }
 
-  async saveKind(): Promise<void> {
-    const name = this.kindName().trim();
-    if (name === '') {
-      this.kindError.set(this.i18n.t('cushion.kinds.needName'));
-      return;
-    }
-
-    try {
-      const existing = this.editingKind();
-      const changes = {
-        name,
-        builtin_icon: this.kindIcon().builtin_icon,
-        custom_icon_id: this.kindIcon().custom_icon_id,
-        counts_as: this.kindCountsAs(),
-      };
-      if (existing) await this.kindsRepo().update(existing.id, changes);
-      else this.productKindId.set(await this.kindsRepo().create(changes));
-
-      await this.loadKinds();
-      this.database.dataChanged();
-      this.managingKinds.set(false);
-    } catch (error) {
-      this.kindError.set(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  /** Removes one, unless entries are filed under it - then it says so. */
-  async removeKind(): Promise<void> {
-    const existing = this.editingKind();
-    if (!existing) return;
-    try {
-      await this.kindsRepo().delete(existing.id);
-      await this.loadKinds();
-      this.database.dataChanged();
-      this.managingKinds.set(false);
-    } catch (error) {
-      this.kindError.set(error instanceof Error ? error.message : String(error));
-    }
+  /** Saved or removed: the list is read again and the new one chosen. */
+  async kindSaved(id: number): Promise<void> {
+    this.managingKinds.set(false);
+    await this.loadKinds();
+    if (this.kinds().some(kind => kind.id === id)) this.productKindId.set(id);
   }
 
   /** The chosen kind, for the line that offers to edit it. */
@@ -503,13 +465,14 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The coarse word the column has carried since before these were rows.
+   * The coarse word the column has carried since before these were categories
+   * of their own: three fixed values, one of which every entry still gets.
    *
-   * Never rewritten and never dropped: an entry written today still reads
-   * correctly to anything that has not been taught about the kinds table.
+   * Never rewritten and never dropped, so an entry written today still reads
+   * correctly to anything that has not been taught about the new table.
    */
   private legacyKind(): 'correction' | 'cashback' | 'other' {
-    return this.chosenKind()?.counts_as === 'cashback' ? 'cashback' : 'other';
+    return 'other';
   }
 
   clearNote(): void {
@@ -701,9 +664,6 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             amount_minor: signed,
             kind: this.legacyKind(),
             product_kind_id: this.productKindId(),
-            // Cashback and interest are not taxed the same, and this is where
-            // that is recorded.
-            source: this.chosenKind()?.counts_as === 'cashback' ? 'cashback' : 'yield',
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
           });

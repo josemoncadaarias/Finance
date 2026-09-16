@@ -26,6 +26,8 @@ import { CustomIconsRepository, iconDataUrl } from '../../core/database/reposito
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { CategoryEditorComponent } from './category-editor.component';
+import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
+import { ProductKindEditorComponent } from './product-kind-editor.component';
 import type { CategoryKind, CategoryRow } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
 import { IconComponent } from '../../core/icons/icon.component';
@@ -37,7 +39,7 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
   styleUrls: ['./categories.page.scss'],
   imports: [
     IconComponent,
-    TranslatePipe, LanguageButtonComponent, CategoryEditorComponent,
+    TranslatePipe, LanguageButtonComponent, CategoryEditorComponent, ProductKindEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
   ],
@@ -49,6 +51,24 @@ export class CategoriesPage {
   readonly expenses = signal<UsedCategory[]>([]);
   readonly incomes = signal<UsedCategory[]>([]);
   readonly archived = signal<CategoryRow[]>([]);
+
+  /**
+   * The categories of a product's own movement.
+   *
+   * They live in a table of their own because a movement that only touches
+   * what a product gathered is not a movement of the account - it has no
+   * amount in the ledger to classify. They are kept here all the same: this is
+   * the screen someone opens looking for a list of categories.
+   */
+  readonly productKinds = signal<ProductKind[]>([]);
+  readonly kindEditor = signal<{ kind: ProductKind | null } | null>(null);
+
+  /**
+   * The name of the third list, as a field rather than a literal in the
+   * template: a quoted word inside a bound attribute reads as an icon name
+   * to the test that checks every icon in a template exists.
+   */
+  readonly productsSide = 'products';
   readonly showArchived = signal(false);
 
   /** Icon names arrive with or without their suffix; this settles it. */
@@ -93,6 +113,12 @@ export class CategoriesPage {
     });
   }
 
+  /** The product categories were changed: read them again and close the sheet. */
+  async kindSaved(): Promise<void> {
+    this.kindEditor.set(null);
+    await this.load();
+  }
+
   async load(): Promise<void> {
     if (this.database.status() !== 'ready') return;
     this.loading.set(true);
@@ -103,14 +129,16 @@ export class CategoriesPage {
       // Counted over the whole history here, not the last year: this screen is
       // about what exists, and a category used heavily years ago is still a
       // category with a past worth seeing before archiving it.
-      const [expenses, incomes, all] = await Promise.all([
+      const [expenses, incomes, all, kinds] = await Promise.all([
         categories.listByUse({ kind: 'expense' }),
         categories.listByUse({ kind: 'income' }),
         categories.list({ includeArchived: true }),
+        new ProductKindsRepository(this.database.driver).list(),
       ]);
 
       this.expenses.set(expenses);
       this.incomes.set(incomes);
+      this.productKinds.set(kinds);
       this.archived.set(all.filter(category => category.archived === 1));
       await this.loadIcons();
     } finally {

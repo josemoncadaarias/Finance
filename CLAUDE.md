@@ -235,10 +235,13 @@ the framework on a long-running project.
    migration 034). Cashback, a correction against the bank and "other" were
    three words fixed in the schema; they are rows now, renameable, with an
    icon of their own and as many more as Jose wants. Each carries `counts_as`
-   - `yield` or `cashback` - because that is not cosmetic: cashback is not
-   withheld and interest is, and the entry's `source` is written from it. The
-   old `kind` column stays and is still written, so an entry remains readable
-   to anything that has not been taught about the table. Decision by Jose,
+   They are categories, and nothing more: a name and an icon, kept on the
+   categories screen beside the other two lists and editable from the
+   product's own form. The `counts_as` column exists and is unused - it was
+   a switch asking whether a category was cashback, which Jose had not asked
+   for and which put a tax question inside a name-and-picture editor. The old
+   `kind` column stays and is still written, so an entry remains readable to
+   anything that has not been taught about the table. Decision by Jose,
    2026-09-16.
 
 17. **An account can be several pockets, and the tax is per pocket.** Dale is

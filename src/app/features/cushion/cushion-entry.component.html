@@ -244,50 +244,13 @@
   </ng-template>
 </ion-modal>
 
-<!-- Adding a kind, renaming one, giving it another picture, or taking it away.
-     One sheet for all four: they are the same question asked of a list the
-     user owns. -->
+<!-- The categories of a product's own movement are kept here and on the
+     categories screen, with the same editor. -->
 <ion-modal class="confirm-sheet" [isOpen]="managingKinds()" (didDismiss)="managingKinds.set(false)">
   <ng-template>
-    <div class="confirm-dialog kind-editor">
-      <h2>{{ (editingKind() ? 'cushion.kinds.editTitle' : 'cushion.kinds.newTitle') | t }}</h2>
-
-      <ion-list [inset]="true">
-        <ion-item>
-          <ion-input [label]="'cushion.kinds.name' | t" labelPlacement="stacked"
-                     [value]="kindName()"
-                     (ionInput)="kindName.set($any($event.target).value ?? '')"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-toggle [checked]="kindCountsAs() === 'cashback'"
-                      (ionChange)="kindCountsAs.set($any($event.detail).checked ? 'cashback' : 'yield')">
-            {{ 'cushion.kinds.isCashback' | t }}
-          </ion-toggle>
-        </ion-item>
-      </ion-list>
-      <p class="note">
-        {{ (kindCountsAs() === 'cashback' ? 'cushion.kinds.isCashbackOn' : 'cushion.kinds.isCashbackOff') | t }}
-      </p>
-
-      <app-icon-picker [catalog]="categoryIcons" [builtin]="kindIcon().builtin_icon" [custom]="kindIcon().custom_icon_id"
-                       (chosen)="kindIcon.set($event)"></app-icon-picker>
-
-      @if (kindError()) { <p class="error">{{ kindError() }}</p> }
-
-      <div class="buttons">
-        <ion-button fill="clear" color="medium" (click)="managingKinds.set(false)">
-          {{ 'entry.cancel' | t }}
-        </ion-button>
-        <ion-button (click)="saveKind()">{{ 'entry.save' | t }}</ion-button>
-      </div>
-
-      @if (editingKind()) {
-        <ion-button expand="block" fill="clear" color="danger" (click)="removeKind()">
-          <ion-icon slot="start" name="trash-outline"></ion-icon>
-          {{ 'cushion.kinds.delete' | t }}
-        </ion-button>
-      }
-    </div>
+    <app-product-kind-editor [kind]="editingKind()"
+                             (saved)="kindSaved($event)"
+                             (cancelled)="managingKinds.set(false)"></app-product-kind-editor>
   </ng-template>
 </ion-modal>
 
