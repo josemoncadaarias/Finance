@@ -38,6 +38,7 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import type { SqlDriver } from '../../core/database/sql-driver';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
@@ -179,6 +180,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 
   /** What the entry changes: the product, the product and net worth, or net worth alone. */
   readonly scope = signal<'product' | 'both' | 'netWorth'>('product');
+
+  /**
+   * What the entry being corrected already is.
+   *
+   * An entry with no movement behind it only ever touched what the product
+   * gathered; one with a movement is the other half of a cash-in. Changing the
+   * answer rewrites it into the other shape.
+   */
+  private scopeWhenOpened: 'product' | 'both' | 'netWorth' = 'product';
   /** Anything that reaches net worth is a movement of the account, with a category. */
   readonly usesCategory = computed(() => this.scope() !== 'product');
 
@@ -295,7 +305,24 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       if (pockets.some(pocket => pocket.id === editing.pocket_id)) this.pocketId.set(editing.pocket_id);
       this.onDate.set(editing.on_date);
       this.note.set(editing.note ?? '');
+
+      // What it already is: an entry with a movement behind it is half of a
+      // cash-in, one without is only the product's. The answer can be
+      // changed, and saving then rewrites it into the other shape.
+      this.scopeWhenOpened = editing.transaction_id === null ? 'product' : 'netWorth';
+      this.scope.set(this.scopeWhenOpened);
+
+      // And on the category its movement carries, so correcting it does not
+      // quietly refile it under something else.
+      if (editing.transaction_id !== null) void this.loadEditedCategory(editing.transaction_id);
     }
+  }
+
+  /** The category of the movement behind the entry being corrected. */
+  private async loadEditedCategory(transactionId: number): Promise<void> {
+    const row = await this.database.driver.queryOne<{ category_id: number | null }>(
+      'SELECT category_id FROM transactions WHERE id = ?', [transactionId]);
+    if (row?.category_id != null) this.categoryId.set(row.category_id);
   }
 
   private async loadCategories(): Promise<void> {
@@ -423,6 +450,21 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   }
 
   /** Deletes the entry being corrected, and works its days out again. */
+  /**
+   * Unwrites an entry, whatever shape it had.
+   *
+   * An entry that is half of a cash-in is deleted through its movement, which
+   * takes both halves with it - left alone, the half that stayed would move the
+   * product's balance on its own.
+   */
+  private async removeWhatItWas(db: SqlDriver, yields: YieldsRepository, editing: CushionEntry): Promise<void> {
+    if (editing.transaction_id !== null) {
+      await new TransactionsRepository(db).delete(editing.transaction_id);
+      return;
+    }
+    await yields.removeAdjustment(editing.id);
+  }
+
   async remove(): Promise<void> {
     const editing = this.request().editing;
     if (!editing || this.saving()) return;
@@ -434,7 +476,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       const tax = new TaxParametersRepository(db);
       const accountId = this.request().account.id;
       await db.transaction(async () => {
-        await yields.removeAdjustment(editing.id);
+        await this.removeWhatItWas(db, yields, editing);
         await yields.clearDays(accountId, editing.on_date);
       });
       await accrueAndSettle(db, yields, tax, accountId, todayIso());
@@ -493,6 +535,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             to: { account_id: account.id, pocket_id: this.toPocketId(), amount_minor: minor },
           });
         } else if (this.scope() !== 'product') {
+          // Correcting one that already was a movement: it is written again
+          // from scratch rather than patched, because what changes may be its
+          // shape - a movement with a product half, or without one.
+          if (editing) await this.removeWhatItWas(db, yields, editing);
+
           // An ordinary movement, written the way the movements screen writes
           // one: it shows there with its category and product.
           const transactionId = await new TransactionsRepository(db).create({
@@ -523,7 +570,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
               });
             }
           }
-        } else if (editing) {
+        } else if (editing && this.scopeWhenOpened === 'product') {
           await yields.updateAdjustment(editing.id, {
             on_date: this.onDate(),
             amount_minor: signed,
@@ -532,6 +579,10 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             note: this.note().trim() || null,
           });
         } else {
+          // It was a movement and is now only the product's: the movement goes,
+          // and with it the half that kept the product's balance where it was.
+          if (editing) await this.removeWhatItWas(db, yields, editing);
+
           await yields.adjust({
             account_id: account.id,
             on_date: this.onDate(),
