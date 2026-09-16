@@ -28,7 +28,7 @@ export const LANGUAGES: { code: Language; name: string; flag: string }[] = [
 
 export const SPANISH = {
   // --- navigation -------------------------------------------------------
-  'nav.summary': 'Resumen',
+  'nav.summary': 'Inicio',
   'nav.summary.hint': 'Gastos, ingresos y saldo',
   'nav.accounts': 'Cuentas',
   'nav.accounts.hint': 'Saldos y patrimonio',
@@ -550,7 +550,7 @@ export const SPANISH = {
   'cushion.pocket.withholdingOff': 'A lo que rinde este producto no se le descuenta retención ni ningún otro impuesto.',
   'cushion.pocket.netWorth': 'Cuenta en el patrimonio',
   'cushion.pocket.netWorthOn': 'Sus movimientos cuentan en el saldo de la cuenta y en tu patrimonio.',
-  'cushion.pocket.netWorthOff': 'Plata apartada: sus movimientos no cuentan en el saldo de la cuenta en Resumen y Cuentas, ni en tu patrimonio. Lo que le pases desde otro producto se ve como una salida.',
+  'cushion.pocket.netWorthOff': 'Plata apartada: sus movimientos no cuentan en el saldo de la cuenta en Inicio y Cuentas, ni en tu patrimonio. Lo que le pases desde otro producto se ve como una salida.',
   'cushion.pocket.deleteUsual': 'Es tu producto habitual. ¿Cuál será el habitual ahora?',
   'cushion.pocket.newUsual': 'Nuevo producto habitual',
   'cushion.pocket.deleteYes': 'Sí, eliminar',
@@ -705,7 +705,7 @@ export const SPANISH = {
 export type TranslationKey = keyof typeof SPANISH;
 
 export const ENGLISH: Record<TranslationKey, string> = {
-  'nav.summary': 'Summary',
+  'nav.summary': 'Home',
   'nav.summary.hint': 'Spending, income and balance',
   'nav.accounts': 'Accounts',
   'nav.accounts.hint': 'Balances and net worth',
