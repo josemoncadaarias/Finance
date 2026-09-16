@@ -734,6 +734,36 @@
               }
             }
             }
+            <!-- Stopping the account, well away from anything else: it is
+                 silent when it happens - the figures simply stop moving. -->
+            <div class="danger">
+              @if (line.enabled) {
+                @if (confirmingStop()) {
+                  <p class="hint warn">{{ 'cushion.settings.stop.sure' | t }}</p>
+                  <div class="actions">
+                    <ion-button expand="block" fill="clear"
+                                (click)="confirmingStop.set(false)">
+                      {{ 'entry.cancel' | t }}
+                    </ion-button>
+                    <ion-button expand="block" color="danger"
+                                [disabled]="saving()" (click)="stopAccruing()">
+                      {{ 'cushion.settings.stop.confirm' | t }}
+                    </ion-button>
+                  </div>
+                } @else {
+                  <ion-button expand="block" fill="clear" color="danger"
+                              [disabled]="saving()" (click)="stopAccruing()">
+                    {{ 'cushion.settings.stop' | t }}
+                  </ion-button>
+                }
+              } @else {
+                <ion-button expand="block" fill="clear"
+                            [disabled]="saving()" (click)="resumeAccruing()">
+                  {{ 'cushion.settings.resume' | t }}
+                </ion-button>
+              }
+            </div>
+
           }
 
           <!-- One day, opened to be checked against a statement -->
@@ -805,37 +835,6 @@
               </div>
             }
           }
-
-          <!-- Everything that decides what this account earns -->
-            <!-- Stopping the account, well away from anything else: it is
-                 silent when it happens - the figures simply stop moving. -->
-            <div class="danger">
-              @if (line.enabled) {
-                @if (confirmingStop()) {
-                  <p class="hint warn">{{ 'cushion.settings.stop.sure' | t }}</p>
-                  <div class="actions">
-                    <ion-button expand="block" fill="clear"
-                                (click)="confirmingStop.set(false)">
-                      {{ 'entry.cancel' | t }}
-                    </ion-button>
-                    <ion-button expand="block" color="danger"
-                                [disabled]="saving()" (click)="stopAccruing()">
-                      {{ 'cushion.settings.stop.confirm' | t }}
-                    </ion-button>
-                  </div>
-                } @else {
-                  <ion-button expand="block" fill="clear" color="danger"
-                              [disabled]="saving()" (click)="stopAccruing()">
-                    {{ 'cushion.settings.stop' | t }}
-                  </ion-button>
-                }
-              } @else {
-                <ion-button expand="block" fill="clear"
-                            [disabled]="saving()" (click)="resumeAccruing()">
-                  {{ 'cushion.settings.resume' | t }}
-                </ion-button>
-              }
-            </div>
 
           <!-- One pocket: its name, where its balance comes from, and how
                much it holds. -->
