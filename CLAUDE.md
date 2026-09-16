@@ -184,6 +184,15 @@ the framework on a long-running project.
    market's - XTB, eToro, Fiducuenta, Multinversion - are never accrued: they
    already carry their own movements. Decision by Jose, 2026-09-09.
 
+   **A day in `yield_days` is the day the money is HANDED OVER, and it is
+   worked out on the balance the day before closed with.** That is how these
+   banks do it - interest on the closing balance, paid the next day - and it
+   is why the figures match what Jose's banks actually paid, which he
+   checked against his statements on 2026-09-16. So money put in today does
+   earn for today; that earning is the row dated tomorrow, because tomorrow
+   is when it lands. Do not "fix" this by moving the base forward a day: it
+   would double-count the edges and stop matching the bank.
+
 16. **Withholding figures are configuration, each carrying its source.** They
    live in `tax_parameters`, dated, and are unusable until marked confirmed
    with a source; until then the accrual runs without withholding and flags
