@@ -333,6 +333,10 @@
                   {{ 'cushion.earnsOn' | t }}
                   <strong>{{ money(line.earnsOnMinor, line.account.currency_code) }}</strong>
                 </p>
+                <!-- Said out loud: a movement registered today does not
+                     change this figure until tomorrow, which read as the
+                     screen having missed it. -->
+                <p class="earnsOn-hint">{{ 'cushion.earnsOn.hint' | t }}</p>
               }
 
               <!-- Off until the arithmetic behind it is right.

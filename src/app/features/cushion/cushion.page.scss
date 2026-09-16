@@ -742,3 +742,11 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
     &.out { color: var(--ion-color-danger); }
   }
 }
+
+/* Why the figure above does not move when a movement is registered today. */
+.earnsOn-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--ion-color-medium);
+}
