@@ -1021,3 +1021,36 @@ ion-footer[hidden] { display: none; }
 
   ion-icon { font-size: 0.8rem; }
 }
+
+/*
+ * The product and the day, on one line.
+ *
+ * Each was taking a row of its own under the account, and on a phone those two
+ * rows came out of the note: Jose could see "Nota (opcional)" and nothing of
+ * what he was writing. They are two short answers and they sit side by side.
+ */
+.context.stacked .chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.context .day-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 999px;
+  background: var(--ion-color-light);
+  color: var(--ion-text-color);
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  ion-icon { font-size: 0.85rem; color: var(--ion-color-medium); flex: none; }
+}
+
+.context.stacked .pocket-chip { justify-self: auto; }

@@ -141,7 +141,7 @@
 
 
     <div class="context single">
-      <button type="button" (click)="showDate.set(true)">
+      <button type="button" class="day-chip" (click)="showDate.set(true)">
         <ion-icon name="calendar-outline"></ion-icon>
         <span>{{ dateLabel() }}</span>
       </button>
@@ -156,17 +156,20 @@
         </span>
       </button>
 
-      <!-- The product of the account, asked for on its own. -->
-      @if (splitAccount()) {
-        <button type="button" class="pocket-chip" (click)="openPocketSheet('from')">
-          {{ pocketName(pockets(), pocketId()) }}
-          <ion-icon name="chevron-down-outline"></ion-icon>
+      <!-- The product and the day on one line: two short answers, and the
+           room a second row costs is room the note and the categories want. -->
+      <div class="chips">
+        @if (splitAccount()) {
+          <button type="button" class="pocket-chip" (click)="openPocketSheet('from')">
+            {{ pocketName(pockets(), pocketId()) }}
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
+        }
+        <button type="button" class="day-chip" (click)="showDate.set(true)">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>{{ dateLabel() }}</span>
         </button>
-      }
-      <button type="button" (click)="showDate.set(true)">
-        <ion-icon name="calendar-outline"></ion-icon>
-        <span>{{ dateLabel() }}</span>
-      </button>
+      </div>
     </div>
 
 
