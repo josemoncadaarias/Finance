@@ -526,14 +526,17 @@ export class CushionPage {
 
     effect(() => {
       // Read the two things that should re-run this, and nothing else.
-      this.database.dataVersion();
+      const version = this.database.dataVersion();
       const ready = this.database.status() === 'ready';
 
       // Everything inside runs outside the tracking context: refresh() writes
       // signals, and any of them read on its way in would become a dependency
       // of this effect and start it again as soon as it finished.
       untracked(() => {
-        if (ready) void this.refresh();
+        // A change this screen made itself has already been taken care of, on
+        // the one account it touched. Reading the other twelve again is what
+        // made moving money between two products take seconds on the phone.
+        if (ready && version !== this.selfVersion) void this.refresh();
       });
     });
   }
@@ -581,6 +584,15 @@ export class CushionPage {
     });
     return this.refreshing;
   }
+
+  /**
+   * The data version this screen wrote itself.
+   *
+   * Its own edits already refresh the account they touched, so the effect
+   * watching the database has nothing to do about them - and what it would do
+   * is read every other account for no reason.
+   */
+  private selfVersion = 0;
 
   private refreshing: Promise<void> | null = null;
   private refreshAgain = false;
@@ -649,6 +661,60 @@ export class CushionPage {
       percent,
     });
     await new Promise(resolve => setTimeout(resolve));
+  }
+
+  /**
+   * Rebuilds one account's line, in place.
+   *
+   * Everything on this screen was read again whenever anything changed - all
+   * thirteen accounts, two hundred and forty-five questions - because moving
+   * money between two products of ONE account is a change like any other as
+   * far as a screen watching the database can tell. It is not: the other
+   * twelve are exactly as they were, and asking after them is what made a
+   * transfer between products take seconds to show on the phone.
+   */
+  private async refreshOne(accountId: number): Promise<void> {
+    const { db, accounts, yields, tax } = this.repos();
+    const engine = new AccrualEngine(db, yields, tax);
+
+    const entry = (await yields.accounts()).find(row => row.account_id === accountId);
+    const account = (await accounts.balance(accountId))?.account;
+    if (!entry || !account) { await this.refresh(); return; }
+
+    const pockets = await yields.pockets(accountId);
+    const last = await yields.lastAccruedDay(accountId);
+    const bands = await yields.bandsInForce(accountId, today());
+    const daysOfLast = last ? await yields.days(accountId, last, last) : [];
+    const paidThatDay = last ? await yields.paidOn(accountId, last) : [];
+    const landed = await yields.landedByPocket(accountId, today(), pockets);
+    const held = await engine.heldByPocket(accountId, today(), pockets);
+    const productsMinor = pockets.reduce(
+      (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
+    const accountMinor = (await accounts.balance(accountId))?.balance_minor ?? 0;
+
+    const line: CushionLine = {
+      account,
+      cushion: await yields.cushion(accountId),
+      rate: bands[0] ?? null,
+      enabled: entry.enabled !== 0,
+      pockets,
+      lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
+      earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
+        .reduce((sum, day) => sum + day.balance_minor, 0),
+      heldByPocket: held,
+      earnsNextMinor: productsMinor,
+      availableMinor: productsMinor - accountMinor,
+      landedByPocket: landed.total,
+      paidYieldByPocket: landed.yields,
+    };
+
+    this.lines.update(lines => lines
+      .map(row => (row.account.id === accountId ? line : row))
+      .sort((a, b) => b.availableMinor - a.availableMinor));
+    if (last && (this.lastAccrued() === null || last > this.lastAccrued()!)) this.lastAccrued.set(last);
+
+    // The sheet is showing this account: it shows the line just rebuilt.
+    if (this.openLine()?.account.id === accountId) await this.open(line);
   }
 
   private async load(): Promise<void> {
@@ -939,7 +1005,7 @@ export class CushionPage {
 
   /** After a product was saved or removed: its account read again, and shown. */
   private async returnFromPocket(line: CushionLine): Promise<void> {
-    await this.reopen(line);
+    await this.afterOwnChange(line.account.id);
     this.form.set('none');
   }
 
@@ -952,7 +1018,17 @@ export class CushionPage {
   async entrySaved(): Promise<void> {
     this.cushionEntry.set(null);
     const line = this.openLine();
-    if (line) await this.reopen(line);
+    if (!line) return;
+    await this.afterOwnChange(line.account.id);
+  }
+
+  /**
+   * One account changed, by something this screen did: only that account is
+   * read again, and the effect watching the database is told to stand down.
+   */
+  private async afterOwnChange(accountId: number): Promise<void> {
+    this.selfVersion = this.database.dataVersion();
+    await this.refreshOne(accountId);
   }
 
   /**
@@ -1011,7 +1087,7 @@ export class CushionPage {
     try {
       const { yields } = this.repos();
       await yields.setEnabled(line.account.id, false);
-      await this.reopen(line);
+      await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1028,7 +1104,7 @@ export class CushionPage {
     try {
       const { yields } = this.repos();
       await yields.setEnabled(line.account.id, true);
-      await this.reopen(line);
+      await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1616,7 +1692,7 @@ export class CushionPage {
       await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
       if (rate.pocket_id !== null) await this.backToPocket(line, rate.pocket_id);
-      else await this.reopen(line);
+      else await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1626,7 +1702,8 @@ export class CushionPage {
 
   /** Back to a product's form, with the account and its figures read again. */
   private async backToPocket(line: CushionLine, pocketId: number): Promise<void> {
-    await this.reopen(line, true);
+    await this.afterOwnChange(line.account.id);
+    await this.readAccount();
     const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
     if (pocket) await this.openPocket(pocket);
   }
@@ -1742,7 +1819,7 @@ export class CushionPage {
       const { yields } = this.repos();
       await yields.correctDay(day.pocket_id, day.on_date, minor);
       this.database.dataChanged();
-      await this.reopen(line);
+      await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1761,7 +1838,7 @@ export class CushionPage {
       const { yields } = this.repos();
       await yields.unlockDay(day.pocket_id, day.on_date);
       this.database.dataChanged();
-      await this.reopen(line);
+      await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1914,7 +1991,7 @@ export class CushionPage {
       await yields.markAccrued(today(), { onlyIfKnown: true });
       this.orphanWithdrawal.set(null);
       this.database.dataChanged();
-      await this.reopen(line);
+      await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1940,7 +2017,7 @@ export class CushionPage {
     await accrueAndSettle(db, yields, tax, line.account.id, today());
     await yields.markAccrued(today(), { onlyIfKnown: true });
     this.database.dataChanged();
-    await this.reopen(line);
+    await this.afterOwnChange(line.account.id);
   }
 
   movementTitle(line: CushionLine, movement: ProductMovement): string {
@@ -2045,18 +2122,6 @@ export class CushionPage {
    * showed the figure from before the edit until the whole screen was left
    * and re-entered.
    */
-  private async reopen(line: CushionLine, keepForm = false): Promise<void> {
-    const form = this.form();
-    await this.refresh();
-
-    const fresh = this.lines().find(row => row.account.id === line.account.id);
-    if (!fresh) { this.closeDetail(); return; }
-
-    await this.open(fresh);
-    if (keepForm) await this.readAccount();
-    else if (form === 'day') this.form.set('none');
-  }
-
   private parsed(): number | null {
     const raw = this.amount().trim();
     if (raw.length === 0) return null;
