@@ -24,6 +24,7 @@
  */
 
 import type { SqlDriver } from '../database/sql-driver';
+import type { OnProgress } from '../database/export/progress';
 import type { IsoDate } from '../database/types';
 import type { YieldsRepository } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
@@ -165,10 +166,17 @@ export async function accrueAllAndSettle(
   yields: YieldsRepository,
   tax: TaxParametersRepository,
   today: IsoDate,
+  onProgress?: OnProgress,
 ): Promise<AccrualResult[]> {
-  const results = await new AccrualEngine(db, yields, tax).accrueAll(today);
-  for (const account of await yields.accounts()) {
-    await settleMaturedCdts(db, yields, tax, account.account_id, today);
-  }
-  return results;
+  // One transaction for the lot. Every write outside one is saved to the
+  // browser store on its own - the whole database, six megabytes of it, a
+  // hundred and fifty times over just to open the screen - and on the phone
+  // each one is a crossing into the native side. This is one commit.
+  return db.transaction(async () => {
+    const results = await new AccrualEngine(db, yields, tax).accrueAll(today, onProgress);
+    for (const account of await yields.accounts()) {
+      await settleMaturedCdts(db, yields, tax, account.account_id, today);
+    }
+    return results;
+  });
 }

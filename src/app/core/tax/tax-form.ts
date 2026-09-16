@@ -136,6 +136,7 @@ export const TAX_TEXT = {
 
   excelButton: 'Descargar en Excel',
   excelHint: 'Un archivo como tu simulador de Excel: lo amarillo lo escribes tú y lo demás se recalcula solo.',
+  excelWriting: 'Armando la hoja de cálculo',
   excelSaved: 'Se descargó {file}. Lo amarillo se puede cambiar y todo lo demás se recalcula.',
   excelFile: 'simulador-renta-{year}.xlsx',
 

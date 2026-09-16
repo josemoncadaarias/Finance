@@ -27,6 +27,7 @@ import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -43,6 +44,7 @@ const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
   selector: 'app-account-editor',
   imports: [
     FormsModule, TranslatePipe, IconPickerComponent,
+    BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
     IonInput, IonLabel, IonSelect, IonSelectOption, IonToggle, IonList, IonNote,
     IonFooter, IonModal, IonDatetime,
@@ -96,6 +98,9 @@ export class AccountEditorComponent implements OnInit {
 
     this.saving.set(true);
     try {
+      // Five years of movements go with it, one delete at a time underneath.
+      this.busyLabel.set(this.i18n.t('busy.deleting'));
+      await new Promise(resolve => setTimeout(resolve));
       await new AccountsRepository(this.database.driver).deleteWithHistory(account.id);
       this.database.dataChanged();
       this.saved.emit();
@@ -121,6 +126,9 @@ export class AccountEditorComponent implements OnInit {
   readonly newName = signal('');
   readonly newSymbol = signal('');
   readonly saving = signal(false);
+
+  /** Set while the account and its history are being removed. */
+  readonly busyLabel = signal('');
   readonly error = signal('');
   readonly showDate = signal<'opened' | 'limit' | null>(null);
 
@@ -320,6 +328,7 @@ export class AccountEditorComponent implements OnInit {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
+      this.busyLabel.set('');
     }
   }
 

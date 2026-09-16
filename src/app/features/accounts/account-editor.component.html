@@ -216,3 +216,8 @@
     </ion-content>
   </ng-template>
 </ion-modal>
+
+<!-- Removing an account takes its whole history with it, which is a wait. -->
+@if (busyLabel()) {
+  <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
+}

@@ -186,6 +186,12 @@ export interface YieldDay {
   computed_at: string;
 }
 
+/** A day of yield on its way into the database, before it is stamped and stored. */
+export type NewYieldDay = Omit<YieldDay, 'actual_net_minor' | 'locked' | 'computed_at' | 'paid_on'> & {
+  actual_net_minor?: number | null;
+  paid_on?: IsoDate | null;
+};
+
 /** What an account's cushion is made of, so a total can be explained. */
 export interface CushionBalance {
   account_id: number;
@@ -940,39 +946,70 @@ export class YieldsRepository {
    * whether the row was actually written, so a recompute can report what it
    * left alone.
    */
-  async putDay(day: Omit<YieldDay, 'actual_net_minor' | 'locked' | 'computed_at' | 'paid_on'> & {
-    actual_net_minor?: number | null;
-    paid_on?: IsoDate | null;
-  }): Promise<boolean> {
-    const existing = await this.db.queryOne<{ locked: 0 | 1 }>(
-      'SELECT locked FROM yield_days WHERE pocket_id = ? AND component = ? AND on_date = ?',
-      [day.pocket_id, day.component, day.on_date]);
-    if (existing?.locked === 1) return false;
+  async putDay(day: NewYieldDay): Promise<boolean> {
+    return (await this.putDays([day])) === 1;
+  }
 
-    await this.db.run(
-      `INSERT INTO yield_days
-         (pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled,
-          gross_minor, withholding_minor, net_minor, actual_net_minor, withholding_unknown,
-          locked, computed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-       ON CONFLICT(pocket_id, component, on_date) DO UPDATE SET
-         balance_minor       = excluded.balance_minor,
-         annual_rate_scaled  = excluded.annual_rate_scaled,
-         gross_minor         = excluded.gross_minor,
-         withholding_minor   = excluded.withholding_minor,
-         net_minor           = excluded.net_minor,
-         actual_net_minor    = excluded.actual_net_minor,
-         withholding_unknown = excluded.withholding_unknown,
-         paid_on             = excluded.paid_on,
-         computed_at         = excluded.computed_at`,
-      [
-        day.pocket_id, day.account_id, day.component, day.payout, day.on_date, day.paid_on ?? null,
-        day.balance_minor, day.annual_rate_scaled,
-        day.gross_minor, day.withholding_minor, day.net_minor,
-        day.actual_net_minor ?? null, day.withholding_unknown, this.now(),
-      ],
-    );
-    return true;
+  /**
+   * Writes a whole walk's worth of days at once.
+   *
+   * One day at a time was two calls each - is it locked, then write it - and
+   * opening the yields screen wrote a couple of hundred of them. That is
+   * nothing for SQLite and everything for the phone: each call crosses into
+   * the native side, and the crossing is the cost. Jose's screen took seconds
+   * to open because of it.
+   *
+   * A day corrected by hand is still never overwritten; they are all asked
+   * for in one question instead of one each.
+   */
+  async putDays(days: readonly NewYieldDay[]): Promise<number> {
+    if (days.length === 0) return 0;
+
+    const accountIds = [...new Set(days.map(day => day.account_id))];
+    const lockedRows = await this.db.query<{ pocket_id: number; component: string; on_date: IsoDate }>(
+      `SELECT pocket_id, component, on_date FROM yield_days
+       WHERE locked = 1 AND account_id IN (${accountIds.map(() => '?').join(', ')})`,
+      accountIds);
+    const locked = new Set(lockedRows.map(row => `${row.pocket_id}|${row.component}|${row.on_date}`));
+
+    const wanted = days.filter(day => !locked.has(`${day.pocket_id}|${day.component}|${day.on_date}`));
+    if (wanted.length === 0) return 0;
+
+    // SQLite on Android binds at most 999 values in one statement, so the
+    // rows go in batches that stay well under it.
+    const PER_ROW = 14;
+    const perStatement = Math.floor(900 / PER_ROW);
+    const now = this.now();
+
+    for (let at = 0; at < wanted.length; at += perStatement) {
+      const batch = wanted.slice(at, at + perStatement);
+      const rows = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)').join(', ');
+      await this.db.run(
+        `INSERT INTO yield_days
+           (pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled,
+            gross_minor, withholding_minor, net_minor, actual_net_minor, withholding_unknown,
+            locked, computed_at)
+         VALUES ${rows}
+         ON CONFLICT(pocket_id, component, on_date) DO UPDATE SET
+           balance_minor       = excluded.balance_minor,
+           annual_rate_scaled  = excluded.annual_rate_scaled,
+           gross_minor         = excluded.gross_minor,
+           withholding_minor   = excluded.withholding_minor,
+           net_minor           = excluded.net_minor,
+           actual_net_minor    = excluded.actual_net_minor,
+           withholding_unknown = excluded.withholding_unknown,
+           paid_on             = excluded.paid_on,
+           computed_at         = excluded.computed_at`,
+        batch.flatMap(day => [
+          day.pocket_id, day.account_id, day.component, day.payout, day.on_date, day.paid_on ?? null,
+          day.balance_minor, day.annual_rate_scaled,
+          day.gross_minor, day.withholding_minor, day.net_minor,
+          day.actual_net_minor ?? null, day.withholding_unknown, now,
+        ]),
+      );
+    }
+
+    return wanted.length;
   }
 
   /**
@@ -1151,82 +1188,164 @@ export class YieldsRepository {
    * A day corrected by hand counts as what the bank paid, not as what the app
    * worked out — that is what `actual_net_minor` is for.
    */
+  /**
+   * Whether anything an accrual depends on has changed since the last one.
+   *
+   * Opening the yields screen worked the whole thing out again every time,
+   * which on a phone is hundreds of crossings into the native side for an
+   * answer that is usually the one already stored. So the state of everything
+   * the accrual reads is reduced to one short string - how many rows each
+   * table holds, its highest id, and the latest time any of them was touched -
+   * and kept beside the day it was worked out for.
+   *
+   * It errs towards working: anything it cannot tell apart, and any error
+   * reading it, means yes.
+   */
+  async needsAccrual(today: IsoDate): Promise<boolean> {
+    const stored = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [ACCRUAL_MARK]);
+    if (!stored) return true;
+    return stored.value !== await this.accrualMark(today);
+  }
+
+  /** Records that today's accrual is done, against the data it was done on. */
+  async markAccrued(today: IsoDate): Promise<void> {
+    const now = this.now();
+    await this.db.run(
+      'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+      [ACCRUAL_MARK, await this.accrualMark(today), now]);
+  }
+
+  /**
+   * One string standing for the state of everything an accrual reads.
+   *
+   * Counts as well as timestamps, because a deleted row leaves the latest
+   * timestamp exactly where it was. The day is in it too: tomorrow is a day
+   * more to work out even if nothing else moved.
+   */
+  private async accrualMark(today: IsoDate): Promise<string> {
+    const part = (table: string, stamp: string | null) =>
+      `(SELECT COUNT(*) || ':' || COALESCE(MAX(rowid), 0)${stamp ? ` || ':' || COALESCE(MAX(${stamp}), '')` : ''} FROM ${table})`;
+
+    const row = await this.db.queryOne<{ mark: string }>(
+      `SELECT ${[
+        part('transactions', 'updated_at'),
+        part('yield_accounts', 'updated_at'),
+        part('yield_pockets', 'updated_at'),
+        part('yield_pocket_balances', 'updated_at'),
+        part('yield_rates', 'created_at'),
+        part('cushion_adjustments', 'updated_at'),
+        part('cushion_withdrawals', 'created_at'),
+        part('tax_parameters', 'updated_at'),
+        part('yield_days', 'computed_at'),
+      ].join(" || '|' || ")} AS mark`);
+
+    return `${today}|${row?.mark ?? ''}`;
+  }
+
   async cushion(accountId: number, asOf?: IsoDate): Promise<CushionBalance> {
+    return (await this.cushions(asOf)).get(accountId) ?? emptyCushion(accountId);
+  }
+
+  /**
+   * The same, for every account at once.
+   *
+   * Ten questions per account, asked one account at a time, is what the yields
+   * screen opened with - and on a phone every question crosses into the native
+   * side, which is where the seconds went. These are the same sums, grouped by
+   * account: six questions however many accounts there are.
+   */
+  async cushions(asOf?: IsoDate): Promise<Map<number, CushionBalance>> {
     const upTo = asOf ?? '9999-12-31';
+    const day = asOf ?? todayIso();
+    const [year, month] = day.split('-').map(Number);
+    const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 
-    const account = await this.account(accountId);
-    const opening = account?.opening_cushion_minor ?? 0;
+    const accounts = await this.accounts();
 
-    const accrued = await this.db.queryOne<{ net: number | null; unknown: number }>(
-      `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net,
+    const accrued = await this.db.query<{ account_id: number; net: number | null; unknown: number }>(
+      `SELECT account_id,
+              SUM(COALESCE(actual_net_minor, net_minor)) AS net,
               SUM(withholding_unknown) AS unknown
-       FROM yield_days WHERE account_id = ? AND on_date <= ?`,
-      [accountId, upTo]);
+       FROM yield_days WHERE on_date <= ? GROUP BY account_id`, [upTo]);
 
-    const adjusted = await this.db.queryOne<{ total: number | null }>(
-      'SELECT SUM(amount_minor) AS total FROM cushion_adjustments WHERE account_id = ? AND on_date <= ?',
-      [accountId, upTo]);
+    const adjusted = await this.db.query<{ account_id: number; total: number | null }>(
+      'SELECT account_id, SUM(amount_minor) AS total FROM cushion_adjustments WHERE on_date <= ? GROUP BY account_id',
+      [upTo]);
 
-    const withdrawn = await this.db.queryOne<{ total: number | null }>(
-      'SELECT SUM(amount_minor) AS total FROM cushion_withdrawals WHERE account_id = ? AND on_date <= ?',
-      [accountId, upTo]);
+    const withdrawn = await this.db.query<{ account_id: number; total: number | null }>(
+      'SELECT account_id, SUM(amount_minor) AS total FROM cushion_withdrawals WHERE on_date <= ? GROUP BY account_id',
+      [upTo]);
 
-    // What a monthly account has worked out this month is owed, not held.
-    // Any earlier month has already ended, so only the current one can be
-    // outstanding - and if `upTo` IS the last day of its month, that month
-    // has been paid too.
-    let pendingMinor = 0;
-    let paidOn: IsoDate | null = null;
+    // What a monthly account has worked out this month is owed, not held. A
+    // day written since `paid_on` existed says when it is handed over, which
+    // for a rate paid every several months can be months away.
+    const owed = await this.db.query<{ account_id: number; net: number | null; paid: IsoDate | null }>(
+      `SELECT account_id, SUM(COALESCE(actual_net_minor, net_minor)) AS net, MIN(paid_on) AS paid
+       FROM yield_days
+       WHERE paid_on IS NOT NULL AND on_date <= ? AND paid_on > ?
+       GROUP BY account_id`, [day, day]);
 
-    // Which part of what has been worked out is still owed is a property of
-    // the days themselves: each one knows how its component is paid.
-    {
-      const day = asOf ?? todayIso();
-      const [year, month] = day.split('-').map(Number);
-      const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-
-      // A day written since `paid_on` existed says when it is handed over,
-      // which for a rate paid every several months can be months away.
-      const owed = await this.db.queryOne<{ net: number | null; paid: IsoDate | null }>(
-        `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net, MIN(paid_on) AS paid
-         FROM yield_days
-         WHERE account_id = ? AND paid_on IS NOT NULL AND on_date <= ? AND paid_on > ?`,
-        [accountId, day, day]);
-      pendingMinor = owed?.net ?? 0;
-      paidOn = pendingMinor > 0 ? owed?.paid ?? null : null;
-
-      // A day written before that keeps the rule it was worked out under: a
-      // monthly one is paid at the end of its own month.
-      if (day < monthEnd) {
-        const legacy = await this.db.queryOne<{ net: number | null }>(
-          `SELECT SUM(COALESCE(actual_net_minor, net_minor)) AS net
+    // A day written before that keeps the rule it was worked out under: a
+    // monthly one is paid at the end of its own month.
+    const legacy = day < monthEnd
+      ? await this.db.query<{ account_id: number; net: number | null }>(
+          `SELECT account_id, SUM(COALESCE(actual_net_minor, net_minor)) AS net
            FROM yield_days
-           WHERE account_id = ? AND payout = 'monthly' AND paid_on IS NULL AND on_date >= ? AND on_date <= ?`,
-          [accountId, `${day.slice(0, 7)}-01`, day]);
-        const legacyMinor = legacy?.net ?? 0;
-        if (legacyMinor > 0) {
-          pendingMinor += legacyMinor;
-          paidOn = paidOn === null || monthEnd < paidOn ? monthEnd : paidOn;
-        }
+           WHERE payout = 'monthly' AND paid_on IS NULL AND on_date >= ? AND on_date <= ?
+           GROUP BY account_id`, [`${day.slice(0, 7)}-01`, day])
+      : [];
+
+    const by = <T extends { account_id: number }>(rows: readonly T[]) =>
+      new Map(rows.map(row => [row.account_id, row]));
+    const accruedBy = by(accrued);
+    const adjustedBy = by(adjusted);
+    const withdrawnBy = by(withdrawn);
+    const owedBy = by(owed);
+    const legacyBy = by(legacy);
+
+    // Every account that has a figure of any kind, not only the enrolled ones:
+    // an account can carry days from before it was paused.
+    const ids = new Set<number>([
+      ...accounts.map(account => account.account_id),
+      ...accrued.map(row => row.account_id),
+      ...adjusted.map(row => row.account_id),
+      ...withdrawn.map(row => row.account_id),
+    ]);
+
+    const openingBy = new Map(accounts.map(account => [account.account_id, account.opening_cushion_minor]));
+    const out = new Map<number, CushionBalance>();
+
+    for (const accountId of ids) {
+      const opening = openingBy.get(accountId) ?? 0;
+      const accruedMinor = accruedBy.get(accountId)?.net ?? 0;
+      const adjustedMinor = adjustedBy.get(accountId)?.total ?? 0;
+      const withdrawnMinor = withdrawnBy.get(accountId)?.total ?? 0;
+
+      let pendingMinor = owedBy.get(accountId)?.net ?? 0;
+      let paidOn = pendingMinor > 0 ? owedBy.get(accountId)?.paid ?? null : null;
+
+      const legacyMinor = legacyBy.get(accountId)?.net ?? 0;
+      if (legacyMinor > 0) {
+        pendingMinor += legacyMinor;
+        paidOn = paidOn === null || monthEnd < paidOn ? monthEnd : paidOn;
       }
+
+      out.set(accountId, {
+        account_id: accountId,
+        opening_minor: opening,
+        accrued_minor: accruedMinor,
+        adjusted_minor: adjustedMinor,
+        withdrawn_minor: withdrawnMinor,
+        totalMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor,
+        pendingMinor,
+        availableMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor - pendingMinor,
+        paidOn,
+        daysWithUnknownWithholding: accruedBy.get(accountId)?.unknown ?? 0,
+      });
     }
 
-    const accruedMinor = accrued?.net ?? 0;
-    const adjustedMinor = adjusted?.total ?? 0;
-    const withdrawnMinor = withdrawn?.total ?? 0;
-
-    return {
-      account_id: accountId,
-      opening_minor: opening,
-      accrued_minor: accruedMinor,
-      adjusted_minor: adjustedMinor,
-      withdrawn_minor: withdrawnMinor,
-      totalMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor,
-      pendingMinor,
-      availableMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor - pendingMinor,
-      paidOn,
-      daysWithUnknownWithholding: accrued?.unknown ?? 0,
-    };
+    return out;
   }
 
   /**
@@ -1376,4 +1495,23 @@ export class YieldsRepository {
     }
     return out;
   }
+}
+
+/** Where the fingerprint of the last accrual is kept. */
+const ACCRUAL_MARK = 'yields.accrual.mark';
+
+/** An account with no cushion at all: nothing earned, nothing owed. */
+function emptyCushion(accountId: number): CushionBalance {
+  return {
+    account_id: accountId,
+    opening_minor: 0,
+    accrued_minor: 0,
+    adjusted_minor: 0,
+    withdrawn_minor: 0,
+    totalMinor: 0,
+    pendingMinor: 0,
+    availableMinor: 0,
+    paidOn: null,
+    daysWithUnknownWithholding: 0,
+  };
 }

@@ -42,6 +42,7 @@ import {
 import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
 import { taxWorkbook, XLSX_MIME } from '../../core/tax/tax-workbook';
 import { saveFile } from '../../core/files/save-file';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 
 /** A category the salary could be recorded under, with what it holds this year. */
 interface SalaryOption {
@@ -56,7 +57,7 @@ interface SalaryOption {
   templateUrl: './tax.page.html',
   styleUrls: ['./tax.page.scss'],
   imports: [
-    LanguageButtonComponent,
+    LanguageButtonComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonMenuButton, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonNote,
   ],
@@ -109,6 +110,9 @@ export class TaxPage {
   readonly salaryNotice = signal('');
   readonly yieldsNotice = signal('');
   readonly excelNotice = signal('');
+
+  /** Set while the spreadsheet is being written, which holds the screen. */
+  readonly busyLabel = signal('');
 
   /**
    * What is being typed into a field, while it is being typed.
@@ -535,11 +539,17 @@ export class TaxPage {
    */
   async downloadExcel(): Promise<void> {
     const name = fill(this.text.excelFile, { year: this.year() });
+    // Every box of the form becomes a live formula, which is a second or two
+    // of a screen that would otherwise look stuck.
+    this.busyLabel.set(this.text.excelWriting);
+    await new Promise(resolve => setTimeout(resolve));
     try {
       const saved = await saveFile(new Blob([taxWorkbook(this.inputs())], { type: XLSX_MIME }), name);
       if (saved) this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
     } catch (error) {
       this.excelNotice.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.busyLabel.set('');
     }
   }
 

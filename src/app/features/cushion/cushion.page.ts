@@ -29,6 +29,8 @@ import {
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import type { Progress } from '../../core/database/export/progress';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -128,6 +130,7 @@ interface Payment {
   templateUrl: './cushion.page.html',
   styleUrls: ['./cushion.page.scss'],
   imports: [
+    BusyOverlayComponent,
     IconComponent, CushionEntryComponent, EntryComponent,
     TranslatePipe, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
@@ -144,6 +147,14 @@ export class CushionPage {
   readonly lines = signal<CushionLine[]>([]);
   readonly loading = signal(false);
   readonly working = signal(false);
+
+  /**
+   * What is happening while the screen cannot be used, for the overlay.
+   *
+   * Working five years of yields out again takes seconds on a phone, and a
+   * screen that says nothing for seconds reads as one that has crashed.
+   */
+  readonly busyState = signal<{ label: string; detail: string; percent: number | null } | null>(null);
   readonly error = signal('');
 
   /** The last day the accrual reached, across every account. */
@@ -568,12 +579,21 @@ export class CushionPage {
     this.error.set('');
     try {
       const { db, yields, tax } = this.repos();
-      await accrueAllAndSettle(db, yields, tax, today());
+
+      // Only when something it depends on has changed. Opening this screen
+      // worked five years of yields out again every time, which is what made
+      // it take seconds on the phone - for an answer already in the database.
+      if (await yields.needsAccrual(today())) {
+        await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress));
+        await yields.markAccrued(today());
+      }
+      await this.report('busy.reading');
       await this.load();
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
       this.working.set(false);
+      this.busyState.set(null);
     }
   }
 
@@ -588,14 +608,36 @@ export class CushionPage {
       for (const entry of await yields.accounts()) {
         await yields.clearDays(entry.account_id);
       }
-      await accrueAllAndSettle(db, yields, tax, today());
+      await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress));
+      await yields.markAccrued(today());
+      await this.report('busy.reading');
       await this.load();
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
       this.working.set(false);
+      this.busyState.set(null);
       this.busy = false;
     }
+  }
+
+  /**
+   * Says how far along it is, and hands the screen back long enough to draw
+   * it. Without the pause the bar would appear only once the work had
+   * finished, which is the one moment it is of no use.
+   */
+  private async report(label: string, progress?: Progress): Promise<void> {
+    const percent = progress && progress.total > 0
+      ? Math.min(100, Math.round((progress.done / progress.total) * 100))
+      : null;
+    this.busyState.set({
+      label: this.i18n.t(label as never),
+      detail: progress && progress.total > 0
+        ? this.i18n.t('busy.steps', { done: progress.done, total: progress.total })
+        : '',
+      percent,
+    });
+    await new Promise(resolve => setTimeout(resolve));
   }
 
   private async load(): Promise<void> {
@@ -606,6 +648,17 @@ export class CushionPage {
       const enrolled = await yields.accounts();
       const all = await accounts.list({ includeArchived: true });
       const byId = new Map(all.map(account => [account.id, account]));
+
+      // Asked once for every account rather than once per account: on a
+      // phone each question crosses into the native side, and thirteen
+      // accounts asking ten questions each is what made this screen slow.
+      const cushions = await yields.cushions();
+      const balances = new Map((await accounts.balances({ includeArchived: true }))
+        .map(entry => [entry.account.id, entry.balance_minor]));
+      const pocketsOf = new Map<number, YieldPocket[]>();
+      for (const pocket of await yields.allPockets()) {
+        pocketsOf.set(pocket.account_id, [...(pocketsOf.get(pocket.account_id) ?? []), pocket]);
+      }
 
       const lines: CushionLine[] = [];
       let newest: IsoDate | null = null;
@@ -618,7 +671,7 @@ export class CushionPage {
         if (last && (newest === null || last > newest)) newest = last;
 
         const bands = await yields.bandsInForce(entry.account_id, today());
-        const pockets = await yields.pockets(entry.account_id);
+        const pockets = pocketsOf.get(entry.account_id) ?? [];
         const daysOfLast = last ? await yields.days(entry.account_id, last, last) : [];
         // What was actually handed over that day. A product paid at the end of
         // the month earns every day too, but nothing of it arrives until then.
@@ -629,11 +682,11 @@ export class CushionPage {
         // account's - so the difference is only what the products hold beyond it.
         const productsMinor = pockets.reduce(
           (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
-        const accountMinor = (await accounts.balance(entry.account_id))?.balance_minor ?? 0;
+        const accountMinor = balances.get(entry.account_id) ?? 0;
 
         lines.push({
           account,
-          cushion: await yields.cushion(entry.account_id),
+          cushion: cushions.get(entry.account_id) ?? await yields.cushion(entry.account_id),
           rate: bands[0] ?? null,
           enabled: entry.enabled !== 0,
           pockets,

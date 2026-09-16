@@ -34,9 +34,10 @@
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type {
-  CushionEntry, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
+  CushionEntry, NewYieldDay, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
+import type { OnProgress } from '../database/export/progress';
 import {
   accrueDay, accruePayment, bandFor, rateWhenConditionMissed, ruleForProduct, type RateBand, type WithholdingRule,
 } from './yield-math';
@@ -86,6 +87,16 @@ export class AccrualEngine {
   private readonly yields: YieldsRepository;
   private readonly tax: TaxParametersRepository;
 
+  /**
+   * The withholding rule per month, for as long as this engine lives. The
+   * figures are dated configuration and do not change while a screen is being
+   * drawn, and every account was asking for the same months over again.
+   */
+  private readonly rules = new Map<string, WithholdingRule | null>();
+
+  /** True while a whole pass is running, so the months are asked for once for all of it. */
+  private sharingRules = false;
+
   constructor(db: SqlDriver, yields: YieldsRepository, tax: TaxParametersRepository) {
     this.db = db;
     this.yields = yields;
@@ -93,11 +104,24 @@ export class AccrualEngine {
   }
 
   /** Every enrolled account, up to the same day. */
-  async accrueAll(upTo: IsoDate): Promise<AccrualResult[]> {
+  async accrueAll(upTo: IsoDate, onProgress?: OnProgress): Promise<AccrualResult[]> {
+    // Asked once for the whole pass rather than once per account. Cleared
+    // first: a parameter confirmed since the last pass has to be seen.
+    this.rules.clear();
+    this.sharingRules = true;
+    try {
+      return await this.accrueEach(upTo, onProgress);
+    } finally {
+      this.sharingRules = false;
+    }
+  }
+
+  private async accrueEach(upTo: IsoDate, onProgress?: OnProgress): Promise<AccrualResult[]> {
     const accounts = await this.yields.accounts();
     const out: AccrualResult[] = [];
     for (const account of accounts) {
       out.push(await this.accrue(account.account_id, upTo));
+      await onProgress?.({ done: out.length, total: accounts.length });
     }
     return out;
   }
@@ -193,6 +217,10 @@ export class AccrualEngine {
   }
 
   async accrue(accountId: number, upTo: IsoDate): Promise<AccrualResult> {
+    // On its own, the rule is read again: a tax parameter may have been
+    // confirmed since the last time this engine was asked. Inside a whole
+    // pass it is read once, in accrueAll.
+    if (!this.sharingRules) this.rules.clear();
     const nothing: AccrualResult = {
       account_id: accountId, from: null, to: null, daysWritten: 0, daysLocked: 0,
       netMinor: 0, withheldMinor: 0, daysWithUnknownWithholding: 0,
@@ -274,13 +302,18 @@ export class AccrualEngine {
       const usedLocked = new Set<string>();
 
       // The rule can change from one day to the next, and asking the database
-      // for it on every one of two thousand days would be the slow part.
-      const rules = new Map<string, WithholdingRule | null>();
+      // for it on every one of two thousand days would be the slow part. Kept
+      // on the engine rather than on the walk: every account asks the same
+      // question of the same months, and thirteen accounts asked it again each.
       const ruleFor = async (day: IsoDate): Promise<WithholdingRule | null> => {
         const key = monthOf(day);
-        if (!rules.has(key)) rules.set(key, await this.tax.withholdingRule(day));
-        return rules.get(key) ?? null;
+        if (!this.rules.has(key)) this.rules.set(key, await this.tax.withholdingRule(day));
+        return this.rules.get(key) ?? null;
       };
+
+      // Every day the walk works out, written in one go at the end of it. One
+      // call per day is what made opening the screen slow on the phone.
+      const written: NewYieldDay[] = [];
 
       const result: AccrualResult = { ...nothing, from, to: upTo, pockets: pockets.length };
 
@@ -449,7 +482,7 @@ export class AccrualEngine {
               ? accruePayment(base, band, daysBetween(pocket.opened_on!, day), withholdingRule, pocket.withholding === 1)
               : accrueDay(base, band, withholdingRule, pocket.withholding === 1);
 
-            await this.yields.putDay({
+            written.push({
               pocket_id: pocket.id,
               account_id: accountId,
               component,
@@ -497,6 +530,7 @@ export class AccrualEngine {
 
       }
 
+      await this.yields.putDays(written);
       return result;
     });
   }

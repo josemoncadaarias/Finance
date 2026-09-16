@@ -327,3 +327,8 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<!-- Writing the spreadsheet holds the screen; it says so. -->
+@if (busyLabel()) {
+  <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
+}

@@ -1454,3 +1454,10 @@
     </ng-template>
   </ion-modal>
 </ion-content>
+
+<!-- While the yields are being worked out the screen is out of reach, and says
+     so rather than looking frozen. -->
+@if (busyState(); as state) {
+  <app-busy-overlay [label]="state.label" [detail]="state.detail"
+                    [percent]="state.percent"></app-busy-overlay>
+}
