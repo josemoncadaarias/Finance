@@ -787,6 +787,62 @@ export class YieldsRepository {
   }
 
   /** Every balance a pocket has been given, oldest first. */
+  /**
+   * The stated balances of every product of one account, in one question.
+   *
+   * Asked per product it was one call each, and the yields screen asks twice
+   * per product on every open - which on a phone is where its seconds went.
+   */
+  async pocketBalancesOf(accountId: number): Promise<Map<number, PocketBalance[]>> {
+    const rows = await this.db.query<PocketBalance>(
+      `SELECT b.id, b.pocket_id, b.valid_from, b.amount_minor, b.note, b.created_at
+       FROM yield_pocket_balances b
+       JOIN yield_pockets p ON p.id = b.pocket_id
+       WHERE p.account_id = ?
+       ORDER BY b.valid_from, b.id`,
+      [accountId]);
+
+    const out = new Map<number, PocketBalance[]>();
+    for (const row of rows) out.set(row.pocket_id, [...(out.get(row.pocket_id) ?? []), row]);
+    return out;
+  }
+
+  /**
+   * What has moved through each product of an account since its own day.
+   *
+   * The same sum as `movedInPocketSince`, asked once for all of them: the
+   * movements are read once, grouped by product and day, and each product's
+   * own starting day picks out its share. A movement naming no product
+   * belongs to the usual one, the rule the balances follow.
+   */
+  async movedInPocketsSince(
+    accountId: number,
+    since: ReadonlyMap<number, IsoDate>,
+    absorbs: number | null,
+  ): Promise<Map<number, number>> {
+    const out = new Map<number, number>();
+    if (since.size === 0) return out;
+
+    const earliest = [...since.values()].sort()[0];
+    const rows = await this.db.query<{ pocket_id: number | null; on_date: IsoDate; total: number }>(
+      `SELECT pocket_id, occurred_on AS on_date, SUM(amount_minor) AS total
+       FROM transactions
+       WHERE account_id = ? AND occurred_on >= ?
+       GROUP BY pocket_id, occurred_on`,
+      [accountId, earliest]);
+
+    for (const [pocketId, from] of since) {
+      let total = 0;
+      for (const row of rows) {
+        if (row.on_date < from) continue;
+        const belongs = row.pocket_id === pocketId || (row.pocket_id === null && pocketId === absorbs);
+        if (belongs) total += row.total;
+      }
+      out.set(pocketId, total);
+    }
+    return out;
+  }
+
   async pocketBalances(pocketId: number): Promise<PocketBalance[]> {
     return this.db.query<PocketBalance>(
       `SELECT id, pocket_id, valid_from, amount_minor, note, created_at
@@ -1401,9 +1457,9 @@ export class YieldsRepository {
    * accrual puts them.
    */
   async landedByPocket(
-    accountId: number, today: IsoDate,
+    accountId: number, today: IsoDate, known?: readonly YieldPocket[],
   ): Promise<{ total: Map<number, number>; yields: Map<number, number> }> {
-    const pockets = await this.pockets(accountId);
+    const pockets = known ?? await this.pockets(accountId);
     const total = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
     const paid = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
     if (pockets.length === 0) return { total, yields: paid };
@@ -1411,9 +1467,10 @@ export class YieldsRepository {
     const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
     // Where each product's balance was last stated, and when it was typed in.
     const since = new Map<number, { day: IsoDate; typedAt: string | null }>();
+    const histories = await this.pocketBalancesOf(accountId);
     for (const pocket of pockets) {
       const stated = pocket.source === 'manual'
-        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)
+        ? (histories.get(pocket.id) ?? []).filter(entry => entry.valid_from <= today).at(-1)
         : undefined;
       since.set(pocket.id, stated
         ? { day: stated.valid_from, typedAt: stated.created_at ?? null }

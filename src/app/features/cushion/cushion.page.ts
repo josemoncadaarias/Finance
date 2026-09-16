@@ -686,8 +686,8 @@ export class CushionPage {
         // What was actually handed over that day. A product paid at the end of
         // the month earns every day too, but nothing of it arrives until then.
         const paidThatDay = last ? await yields.paidOn(entry.account_id, last) : [];
-        const landed = await yields.landedByPocket(entry.account_id, today());
-        const held = await engine.heldByPocket(entry.account_id, today());
+        const landed = await yields.landedByPocket(entry.account_id, today(), pockets);
+        const held = await engine.heldByPocket(entry.account_id, today(), pockets);
         // Every movement counts on both sides - the products' balances and the
         // account's - so the difference is only what the products hold beyond it.
         const productsMinor = pockets.reduce(

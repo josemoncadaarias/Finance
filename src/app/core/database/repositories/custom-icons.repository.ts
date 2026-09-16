@@ -45,6 +45,19 @@ export class CustomIconsRepository {
     );
   }
 
+  /**
+   * Every icon, images and all, in one question.
+   *
+   * Read one at a time it was one call per icon, and on a phone each call
+   * crosses into the native side carrying its image with it - which is why
+   * every account wore the generic wallet for a second or two before its own
+   * logo arrived.
+   */
+  async all(): Promise<CustomIconWithData[]> {
+    return this.db.query<CustomIconWithData>(
+      'SELECT id, name, mime_type, data, created_at FROM custom_icons ORDER BY id');
+  }
+
   async findById(id: number): Promise<CustomIconWithData | null> {
     return this.db.queryOne<CustomIconWithData>(
       'SELECT id, name, mime_type, data, created_at FROM custom_icons WHERE id = ?',

@@ -33,6 +33,12 @@ import { outlined } from './icon-catalog';
     @if (url(); as src) {
       <img [src]="src" alt="" class="image"
            [style.width]="size()" [style.height]="size()">
+    } @else if (coming()) {
+      <!-- Its own image exists and has not been read yet. A shape holding the
+           place beats the generic icon, which on a phone stayed long enough to
+           look like the wrong one had been chosen. -->
+      <span class="coming" [style.width]="size()" [style.height]="size()"
+            [attr.aria-hidden]="true"></span>
     } @else {
       <ion-icon [name]="name()" [style.fontSize]="size()"></ion-icon>
     }
@@ -46,6 +52,24 @@ import { outlined } from './icon-catalog';
       border-radius: 4px;
       object-fit: cover;
       flex: none;
+    }
+
+    /* The image on its way: the same shape, breathing quietly. */
+    .coming {
+      display: inline-block;
+      flex: none;
+      border-radius: 4px;
+      background: var(--ion-color-step-150, rgba(128, 128, 128, 0.25));
+      animation: icon-coming 1.1s ease-in-out infinite;
+    }
+
+    @keyframes icon-coming {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 0.75; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .coming { animation: none; }
     }
   `],
 })
@@ -68,6 +92,11 @@ export class IconComponent {
   readonly size = input('1.25rem');
 
   readonly url = computed(() => this.customIcons.urlFor(this.customId()));
+
+  /** An image of its own, not read yet. */
+  readonly coming = computed(() =>
+    this.customId() !== null && this.customId() !== undefined
+    && this.url() === undefined && this.customIcons.loading());
 
   readonly name = computed(() => outlined(this.builtin() ?? this.fallback()));
 }

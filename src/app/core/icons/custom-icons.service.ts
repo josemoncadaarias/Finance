@@ -25,6 +25,18 @@ export class CustomIconsService {
   /** Data URLs by icon id. A signal, so a screen redraws when one arrives. */
   private readonly urls = signal<Map<number, string>>(new Map());
 
+  /**
+   * True until the images are in memory.
+   *
+   * A screen drawing an account whose icon has not arrived yet should say
+   * "coming" rather than draw the generic wallet and then swap it: on a phone
+   * that swap is slow enough to look like the wrong icon was chosen.
+   */
+  readonly loading = signal(true);
+
+  /** Set once the first read finishes, so later calls are free. */
+  private read = false;
+
   /** The image for an icon, or nothing — in which case draw the built-in one. */
   urlFor(id: number | null | undefined): string | undefined {
     return id === null || id === undefined ? undefined : this.urls().get(id);
@@ -42,21 +54,29 @@ export class CustomIconsService {
 
     const repository = new CustomIconsRepository(this.database.driver);
     const known = this.urls();
-    const listed = await repository.list();
 
-    const missing = listed.filter(icon => !known.has(icon.id));
-    if (missing.length === 0) return;
+    // Every image in one call rather than one call each. Fifty icons were
+    // fifty crossings into the native side, each carrying an image.
+    const all = await repository.all();
+    this.read = true;
 
-    const urls = new Map(known);
-    for (const icon of missing) {
-      const full = await repository.findById(icon.id);
-      if (full) urls.set(icon.id, iconDataUrl(full));
+    const missing = all.filter(icon => !known.has(icon.id));
+    if (missing.length > 0) {
+      const urls = new Map(known);
+      for (const icon of missing) urls.set(icon.id, iconDataUrl(icon));
+      this.urls.set(urls);
     }
-    this.urls.set(urls);
+    this.loading.set(false);
+  }
+
+  /** Whether an icon that exists simply has not been read yet. */
+  stillReading(): boolean {
+    return !this.read;
   }
 
   /** Drops an image that has been replaced, so the next load fetches it again. */
   forget(id: number): void {
+    this.read = false;
     this.urls.update(current => {
       const next = new Map(current);
       next.delete(id);

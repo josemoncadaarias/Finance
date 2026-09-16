@@ -145,8 +145,10 @@ export class AccrualEngine {
    * still floors at zero — a product in the red earns nothing, it does not
    * charge interest.
    */
-  async heldByPocket(accountId: number, on: IsoDate): Promise<Map<number, number>> {
-    const pockets = await this.yields.pockets(accountId);
+  async heldByPocket(accountId: number, on: IsoDate, known?: readonly YieldPocket[]): Promise<Map<number, number>> {
+    // The caller usually has the products in hand already; asking for them
+    // again is a call a phone pays for.
+    const pockets = known ?? await this.yields.pockets(accountId);
     const held = new Map<number, number>();
     if (pockets.length === 0) return held;
 
@@ -158,6 +160,18 @@ export class AccrualEngine {
     // week, so a product that did not would disagree with the account it is
     // inside.
     const balances = await this.dailyBalances(accountId, FAR_FUTURE);
+
+    // Every product's stated balances, and what has moved through each of
+    // them, in one question each rather than two per product.
+    const histories = await this.yields.pocketBalancesOf(accountId);
+    const since = new Map<number, IsoDate>();
+    for (const pocket of pockets) {
+      if (pocket.source !== 'manual') continue;
+      // No balance at all means no start date has been chosen, so counting
+      // starts where this module started: the day the account was enrolled.
+      since.set(pocket.id, (histories.get(pocket.id) ?? []).at(-1)?.valid_from ?? opening);
+    }
+    const moved = await this.yields.movedInPocketsSince(accountId, since, absorbs);
 
     for (const [at, pocket] of pockets.entries()) {
       if (pocket.source !== 'manual') {
@@ -186,7 +200,7 @@ export class AccrualEngine {
       // No upper bound either. A movement dated next week has been recorded,
       // and the account's own balance counts it, so a product that did not
       // would be disagreeing with the account it lives in.
-      const history = await this.yields.pocketBalances(pocket.id);
+      const history = histories.get(pocket.id) ?? [];
 
       // The last balance recorded, whatever date it carries - not the last one
       // in force today.
@@ -199,18 +213,14 @@ export class AccrualEngine {
       // `statedOn`, and that one does depend on which day it is working out.
       const latest = history.at(-1);
       const stated = latest?.amount_minor ?? 0;
-      const since: IsoDate | null = latest?.valid_from ?? null;
+      const statedFrom: IsoDate | null = latest?.valid_from ?? null;
 
-      if (since === null) {
-        // No balance at all means no start date has been chosen, so counting
-        // starts where this module started: the day the account was enrolled.
-        held.set(pocket.id, await this.yields.movedInPocketSince(
-          accountId, pocket.id, opening, pocket.id === absorbs));
+      if (statedFrom === null) {
+        held.set(pocket.id, moved.get(pocket.id) ?? 0);
         continue;
       }
 
-      held.set(pocket.id, stated + await this.yields.movedInPocketSince(
-        accountId, pocket.id, since, pocket.id === absorbs));
+      held.set(pocket.id, stated + (moved.get(pocket.id) ?? 0));
     }
 
     return held;

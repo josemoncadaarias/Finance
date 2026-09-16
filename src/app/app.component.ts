@@ -4,7 +4,7 @@
  * See `app.component.html` for why navigation is a drawer and not a tab bar.
  */
 
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
@@ -16,6 +16,8 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
 import { ThemeButtonComponent } from './core/theme/theme-button.component';
 import { ThemeService } from './core/theme/theme.service';
+import { DatabaseService } from './core/database/database.service';
+import { CustomIconsService } from './core/icons/custom-icons.service';
 
 interface Section {
   path: string;
@@ -39,6 +41,15 @@ interface Section {
 export class AppComponent {
   private readonly menu = inject(MenuController);
   private readonly router = inject(Router);
+  private readonly database = inject(DatabaseService);
+
+  /**
+   * The images accounts and categories wear, read as soon as there is a
+   * database to read them from rather than when a screen first needs one. On
+   * a phone that wait was visible, and what showed meanwhile was a generic
+   * icon rather than the bank own logo.
+   */
+  private readonly customIcons = inject(CustomIconsService);
 
   /**
    * Injected for its side effect: the service paints the theme in an effect of
@@ -63,6 +74,11 @@ export class AppComponent {
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.
     addIcons(allIcons as unknown as Record<string, string>);
+
+    effect(() => {
+      this.database.dataVersion();
+      if (this.database.status() === 'ready') void this.customIcons.load();
+    });
   }
 
   isCurrent(path: string): boolean {
