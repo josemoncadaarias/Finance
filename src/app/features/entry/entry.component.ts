@@ -120,6 +120,15 @@ export class EntryComponent implements OnInit {
   readonly splitAccount = computed(() => this.pockets().length > 1);
   readonly splitTarget = computed(() => this.toPockets().length > 1);
 
+  /**
+   * True when both legs sit on one account: money moving between two of its
+   * products, which is a different act from moving it between accounts. The
+   * screen then talks about products - they are what changes - and names the
+   * account underneath.
+   */
+  readonly betweenProducts = computed(() =>
+    this.isTransfer() && this.accountId() !== null && this.toAccountId() === this.accountId());
+
   /** Open while the full list with its search box is showing. */
   readonly browsingCategories = signal(false);
   readonly categorySearch = signal('');
@@ -176,6 +185,9 @@ export class EntryComponent implements OnInit {
     this.editingTarget() ? this.targetAmount() : this.amount());
 
   readonly title = computed(() => {
+    if (this.betweenProducts()) {
+      return this.i18n.t(this.isEditing() ? 'entry.editProductTransfer' : 'entry.productTransfer');
+    }
     if (this.isEditing()) return this.i18n.t(this.isTransfer() ? 'entry.editTransfer' : 'entry.editMovement');
     if (this.isTransfer()) return this.i18n.t('entry.transfer');
     return this.i18n.t(this.kind() === 'expense' ? 'entry.newExpense' : 'entry.newIncome');
@@ -892,10 +904,22 @@ export class EntryComponent implements OnInit {
     this.picking.set(null);
   }
 
-  /** Opening the sheet always starts at the account. */
+  /**
+   * Opening the sheet starts at the account - except on a transfer between two
+   * products of one account, where the account is not the question being
+   * asked. There it opens on the products, and keeps a way back to the
+   * accounts for the day the money really is going somewhere else.
+   */
   openAccountSheet(which: 'from' | 'to'): void {
-    this.pickingPocket.set(null);
     this.picking.set(which);
+    const side = which === 'to' ? this.toAccount() : this.account();
+    const pockets = which === 'to' ? this.toPockets() : this.pockets();
+    this.pickingPocket.set(this.betweenProducts() && side && pockets.length > 1 ? side : null);
+  }
+
+  /** From the products back to the accounts, for the side being chosen. */
+  chooseAnotherAccount(): void {
+    this.pickingPocket.set(null);
   }
 
   private async saveMovement(): Promise<void> {

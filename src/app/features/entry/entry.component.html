@@ -81,13 +81,17 @@
         <span class="who">
           <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
                     fallback="wallet"></app-icon>
-          <span class="name">{{ account()?.name ?? ('entry.pick' | t) }}</span>
+          <!-- Between two products of one account the product is what is being
+               chosen, so it is the name on the button and the account is the
+               line underneath. Between accounts it is the other way round: the
+               product belongs to the account and is written under it. -->
+          <span class="name">
+            {{ betweenProducts() ? pocketName(pockets(), pocketId()) : (account()?.name ?? ('entry.pick' | t)) }}
+          </span>
         </span>
-        <!-- The product belongs to the account, so it is written under it
-             rather than as a row of its own. It only appears on an account
-             with more than one, and tapping opens the same sheet, which asks
-             for the product once the account is settled. -->
-        @if (splitAccount()) {
+        @if (betweenProducts()) {
+          <span class="part">{{ account()?.name ?? '' }}</span>
+        } @else if (splitAccount()) {
           <span class="part">{{ pocketName(pockets(), pocketId()) }}</span>
         }
       </button>
@@ -102,9 +106,13 @@
         <span class="who">
           <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
                     fallback="wallet"></app-icon>
-          <span class="name">{{ toAccount()?.name ?? ('entry.pick' | t) }}</span>
+          <span class="name">
+            {{ betweenProducts() ? pocketName(toPockets(), toPocketId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
+          </span>
         </span>
-        @if (splitTarget()) {
+        @if (betweenProducts()) {
+          <span class="part">{{ toAccount()?.name ?? '' }}</span>
+        } @else if (splitTarget()) {
           <span class="part">{{ pocketName(toPockets(), toPocketId()) }}</span>
         }
       </button>
@@ -207,7 +215,9 @@
         <ion-icon slot="start" name="trash-outline"></ion-icon>
         {{ (isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t }}
       </ion-button>
-      @if (isTransfer()) {
+      @if (betweenProducts()) {
+        <p class="warn">{{ 'entry.deleteTransfer.hintProducts' | t:{ account: account()?.name ?? '' } }}</p>
+      } @else if (isTransfer()) {
         <p class="warn">{{ 'entry.deleteTransfer.hint' | t:{ from: account()?.name ?? '', to: toAccount()?.name ?? '' } }}</p>
       }
     </div>
@@ -310,6 +320,13 @@
           </ion-item>
         }
       </ion-list>
+      <!-- The way out of a transfer between products: this time the money
+           really is going to another account. -->
+      @if (isTransfer()) {
+        <ion-button expand="block" fill="clear" (click)="chooseAnotherAccount()">
+          {{ 'entry.pocket.otherAccount' | t }}
+        </ion-button>
+      }
     </div>
   </ng-template>
 </ion-modal>
