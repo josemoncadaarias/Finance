@@ -317,3 +317,26 @@ test('the file is a sound zip of well-formed parts, in the original\'s colours',
   }
   assert.ok(styles.includes('<protection locked="0"/>'), 'the typed boxes are unlocked');
 });
+
+
+// ---------------------------------------------------------------------------
+// The spreadsheet follows the way casilla 59 was answered: the rows of the
+// other way are not on the form, so they are not on the sheet either.
+
+test('a typed casilla 59 exports as a box to type in, not as a percentage', () => {
+  const inputs = { ...jose(), capitalNonTaxableTyped: true, capitalNonTaxableTypedMinor: pesos(3_000_000) };
+  const sheet = taxSheet(inputs, TODAY);
+
+  assert.ok(sheet.inputCells.capitalNonTaxableTypedMinor, 'the typed figure has a cell');
+  assert.equal(sheet.inputCells.financialYieldMinor, undefined, 'the yields row is not on this form');
+  assert.equal(sheet.inputCells.inflationaryScaled, undefined, 'nor the percentage');
+
+  assertFormulasMatch(sheet, simulate(inputs), new Map(), 'casilla 59 typed');
+});
+
+test('worked out, the sheet keeps the percentage and not the typed box', () => {
+  const sheet = taxSheet(jose(), TODAY);
+  assert.ok(sheet.inputCells.financialYieldMinor);
+  assert.ok(sheet.inputCells.inflationaryScaled);
+  assert.equal(sheet.inputCells.capitalNonTaxableTypedMinor, undefined);
+});

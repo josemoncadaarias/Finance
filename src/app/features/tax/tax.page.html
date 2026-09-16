@@ -97,6 +97,7 @@
         @if (isOpen(section.id)) {
           <div class="rows">
             @for (row of section.rows; track $index) {
+              @if (shows(row)) {
               @switch (row.kind) {
 
                 @case ('input') {
@@ -169,6 +170,32 @@
                             <span class="source">{{ parameters().inflationary.source }}</span>
                           </span>
                         </div>
+                      </div>
+                    }
+
+                    @case ('inflationaryMode') {
+                      <!-- Two ways to answer one box: work it out from the
+                           yields, or write down what the certificate says. -->
+                      <div class="employment">
+                        <span class="caption">{{ text.inflationaryModeTitle }}</span>
+                        <div class="kinds" role="radiogroup">
+                          <button type="button" role="radio"
+                                  [class.on]="inputs().capitalNonTaxableTyped !== true"
+                                  [attr.aria-checked]="inputs().capitalNonTaxableTyped !== true"
+                                  (click)="setInflationaryTyped(false)">
+                            {{ text.inflationaryModeWorked }}
+                          </button>
+                          <button type="button" role="radio"
+                                  [class.on]="inputs().capitalNonTaxableTyped === true"
+                                  [attr.aria-checked]="inputs().capitalNonTaxableTyped === true"
+                                  (click)="setInflationaryTyped(true)">
+                            {{ text.inflationaryModeTyped }}
+                          </button>
+                        </div>
+                        <p class="hint">
+                          {{ inputs().capitalNonTaxableTyped === true
+                             ? text.inflationaryModeTypedHint : text.inflationaryModeWorkedHint }}
+                        </p>
                       </div>
                     }
 
@@ -270,6 +297,7 @@
                     }
                   }
                 }
+              }
               }
             }
           </div>

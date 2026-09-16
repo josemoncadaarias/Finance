@@ -258,6 +258,12 @@ the framework on a long-running project.
    - **Floor, ceiling and solidarity steps need the year's minimum wage**
      (1 to 25 SMMLV; FSP 1% from 4, up to 2% - Ley 797 de 2003). With none on
      record, none is applied rather than invented.
+   **Casilla 59 is asked two ways** (Jose, 2026-09-15): worked out from the
+   part of casilla 58 that is financial yields times the year percentage, or
+   typed as the bank certificate states it - that percentage is published
+   months after the year ends. The rows of the way not chosen leave the form
+   and the exported spreadsheet, and a typed figure is still capped at
+   casilla 58.
    - **Yields and cashback are rentas de capital (casilla 58), not ganancias
      ocasionales.** The componente inflacionario of the financial yields is
      casilla 59, worked out by the form; cashback carries none (an assumption:

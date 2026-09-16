@@ -457,3 +457,50 @@ test('a 2026 simulation saved with the yields in rentas no laborales is moved to
 
   await db.close();
 });
+
+
+// ---------------------------------------------------------------------------
+// Casilla 59 the other way round. The componente inflacionario is a figure a
+// bank certificate often states outright, and the percentage it is worked out
+// from is published months after the year ends, so Jose asked (2026-09-15) to
+// be able to write the box down instead of reaching it through a percentage.
+
+test('casilla 59 can be typed instead of worked out', () => {
+  const worked = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(10_000_000),
+    financialYieldMinor: pesos(8_000_000),
+    inflationaryScaled: 554_300,
+  }));
+  assert.equal(worked.capitalNonTaxableMinor, pesos(8_000_000) * 0.5543,
+    '55.43% of the financial yields');
+
+  const typed = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(10_000_000),
+    financialYieldMinor: pesos(8_000_000),
+    inflationaryScaled: 554_300,
+    capitalNonTaxableTyped: true,
+    capitalNonTaxableTypedMinor: pesos(3_000_000),
+  }));
+  assert.equal(typed.capitalNonTaxableMinor, pesos(3_000_000), 'the certificate wins');
+  assert.equal(typed.capitalNetMinor, pesos(7_000_000), 'casilla 61 follows it');
+
+  // The yields and the percentage are left alone, so switching back finds them.
+  const back = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(10_000_000),
+    financialYieldMinor: pesos(8_000_000),
+    inflationaryScaled: 554_300,
+    capitalNonTaxableTyped: false,
+    capitalNonTaxableTypedMinor: pesos(3_000_000),
+  }));
+  assert.equal(back.capitalNonTaxableMinor, worked.capitalNonTaxableMinor);
+});
+
+test('a typed casilla 59 still cannot exceed the income it comes out of', () => {
+  const result = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(2_000_000),
+    capitalNonTaxableTyped: true,
+    capitalNonTaxableTypedMinor: pesos(9_000_000),
+  }));
+  assert.equal(result.capitalNonTaxableMinor, pesos(2_000_000));
+  assert.equal(result.capitalNetMinor, 0, 'casilla 61 is never negative');
+});

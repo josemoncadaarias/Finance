@@ -86,6 +86,18 @@ export interface TaxInputs {
   financialYieldMinor: number;
   inflationaryScaled: number;
 
+  /**
+   * True when casilla 59 is typed in rather than worked out.
+   *
+   * The componente inflacionario is a figure a bank certificate often states
+   * outright, and the percentage it is worked out from is published months
+   * after the year ends. Someone holding the real figure should be able to
+   * write it down instead of reaching it through a percentage - Jose, 2026-09-15.
+   */
+  capitalNonTaxableTyped?: boolean;
+  /** Casilla 59 as typed, used only when the box above is ticked. */
+  capitalNonTaxableTypedMinor: number;
+
   voluntaryPayrollMinor: number;
   voluntaryOwnMinor: number;
   housingInterestMinor: number;

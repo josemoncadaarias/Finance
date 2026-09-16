@@ -27,6 +27,7 @@ export type ResultKey = NumericKeys<TaxResult>;
 export type SpecialRow =
   | 'references'
   | 'inflationReference'
+  | 'inflationaryMode'
   | 'employment'
   | 'salaryPrefill'
   | 'yieldsPrefill'
@@ -35,14 +36,30 @@ export type SpecialRow =
   | 'extraWithholding'
   | 'sources';
 
+/**
+ * When a row belongs on the form at all.
+ *
+ * Casilla 59 is asked two ways - worked out from the yields, or typed as the
+ * certificate states it - and the rows of the way not chosen are not "greyed
+ * out", they are simply not part of the form that person is filling in. The
+ * spreadsheet leaves them out for the same reason.
+ */
+export type RowWhen = 'inflationary.worked' | 'inflationary.typed';
+
 export type FormRow =
-  | { kind: 'input'; key: InputKey; label: string; box?: string; hint?: string; format: FieldFormat }
+  | { kind: 'input'; key: InputKey; label: string; box?: string; hint?: string; format: FieldFormat; when?: RowWhen }
   | {
       kind: 'computed'; key: ResultKey; label: string; box?: string; hint?: string;
-      format: Exclude<FieldFormat, 'count'>; total?: boolean;
+      format: Exclude<FieldFormat, 'count'>; total?: boolean; when?: RowWhen;
     }
-  | { kind: 'note'; text: string }
-  | { kind: 'special'; which: SpecialRow };
+  | { kind: 'note'; text: string; when?: RowWhen }
+  | { kind: 'special'; which: SpecialRow; when?: RowWhen };
+
+/** Whether a row belongs on the form these inputs describe. */
+export function rowApplies(when: RowWhen | undefined, typed: boolean): boolean {
+  if (!when) return true;
+  return when === 'inflationary.typed' ? typed : !typed;
+}
 
 export interface FormSection {
   id: string;
@@ -120,6 +137,12 @@ export const TAX_TEXT = {
   refUvt: 'UVT',
   refMinimumWage: 'Salario mínimo, sin auxilio de transporte',
   refInflationary: 'Componente inflacionario',
+  inflationaryModeTitle: 'Cómo sale la casilla 59',
+  inflationaryModeWorked: 'Calcularlo',
+  inflationaryModeTyped: 'Escribirlo',
+  inflationaryModeWorkedHint: 'La app lo calcula: qué parte de la casilla 58 son rendimientos financieros, por el porcentaje del año.',
+  inflationaryModeTypedHint: 'Escribes la cifra que ya conoces, por ejemplo la del certificado del banco.',
+  sheetInflationaryMode: 'Casilla 59',
 
   salaryButton: 'Traer lo registrado como salario en {year}',
   salaryHint: 'Tú registras lo que te llega a la cuenta, que es el neto. Aquí va el bruto: úsalo solo como punto de partida y corrígelo.',
@@ -270,17 +293,23 @@ export const TAX_FORM: readonly FormSection[] = [
         hint: 'Intereses y rendimientos financieros de todas tus cuentas, cashback, arriendos y regalías.',
       },
       { kind: 'special', which: 'yieldsPrefill' },
+      { kind: 'special', which: 'inflationaryMode' },
       {
-        kind: 'input', key: 'financialYieldMinor', format: 'money',
+        kind: 'input', key: 'financialYieldMinor', format: 'money', when: 'inflationary.worked',
         label: 'De ellos, rendimientos financieros',
         hint: 'Intereses de cuentas, CDT y fondos. Solo a estos se les aplica el componente inflacionario: el cashback y los arriendos no lo tienen.',
       },
       {
-        kind: 'input', key: 'inflationaryScaled', format: 'percent',
+        kind: 'input', key: 'inflationaryScaled', format: 'percent', when: 'inflationary.worked',
         label: '% componente inflacionario del año',
         hint: 'Inflación del DANE dividida por la tasa de captación de la Superfinanciera (art. 40-1 E.T.). Sale al año siguiente.',
       },
-      { kind: 'special', which: 'inflationReference' },
+      { kind: 'special', which: 'inflationReference', when: 'inflationary.worked' },
+      {
+        kind: 'input', key: 'capitalNonTaxableTypedMinor', format: 'money', when: 'inflationary.typed',
+        label: 'Componente inflacionario, como lo certifican',
+        hint: 'La cifra que dice el certificado del banco. Se usa tal cual, sin recalcularla, y solo se recorta si supera la casilla 58.',
+      },
       {
         kind: 'computed', key: 'capitalNonTaxableMinor', format: 'money', box: '59',
         label: 'Ingresos no constitutivos de renta',

@@ -36,7 +36,7 @@ import {
   defaultInputs, fillGaps, parametersFor, type Sourced,
 } from '../../core/tax/defaults';
 import {
-  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT,
+  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
   type FieldFormat, type FormRow, type InputKey, type ResultKey,
 } from '../../core/tax/tax-form';
 import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
@@ -352,6 +352,23 @@ export class TaxPage {
    * switch to a salary, where the person pays 4%: the rates follow the kind of
    * work unless someone types them again.
    */
+  /**
+   * Which way casilla 59 is answered: worked out from the yields, or typed.
+   *
+   * The rows of the other way leave the form rather than being greyed out, and
+   * whatever was typed into them stays where it is - switching back finds it
+   * as it was left.
+   */
+  setInflationaryTyped(typed: boolean): void {
+    this.inputs.update(inputs => ({ ...inputs, capitalNonTaxableTyped: typed }));
+    this.schedule();
+  }
+
+  /** Whether a row belongs on the form as it is being filled in. */
+  shows(row: FormRow): boolean {
+    return rowApplies(row.when, this.inputs().capitalNonTaxableTyped === true);
+  }
+
   setEmployment(kind: EmploymentKind): void {
     this.inputs.update(inputs => ({
       ...inputs,

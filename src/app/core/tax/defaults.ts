@@ -209,6 +209,7 @@ export function defaultInputs(year: number, today: Date = new Date()): TaxInputs
     otherCostsMinor: 0,
 
     financialYieldMinor: 0,
+    capitalNonTaxableTypedMinor: 0,
     inflationaryScaled: parameters.inflationary.value,
 
     voluntaryPayrollMinor: 0,

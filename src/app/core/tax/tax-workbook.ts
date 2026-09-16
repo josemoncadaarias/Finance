@@ -29,7 +29,7 @@ import {
 } from './cedula-general';
 import { parametersFor, type Sourced } from './defaults';
 import {
-  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT,
+  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
   type FieldFormat, type InputKey, type ResultKey,
 } from './tax-form';
 import type { TaxInputs } from './types';
@@ -139,7 +139,7 @@ function solidarityFormula(ratio: string): string {
  * line. Typed as a record over every result key, so a figure added to the
  * engine without a formula here does not compile.
  */
-const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: Ranges) => string> = {
+const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: Ranges, inputs: TaxInputs) => string> = {
   grossLabourMinor: i => `${i('monthlySalaryMinor')}*${i('monthsWorked')}+${i('otherLabourIncomeMinor')}`,
   monthlyBaseMinor: i => {
     const share = cents(`${i('monthlySalaryMinor')}*${i('baseShareScaled')}`);
@@ -156,8 +156,12 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
   contributionsMinor: (_, o) => `${o('healthMinor')}+${o('pensionMinor')}+${o('solidarityMinor')}`,
   labourNetMinor: (_, o) => `${o('grossLabourMinor')}-${o('contributionsMinor')}`,
 
-  capitalNonTaxableMinor: i =>
-    `MIN(${cents(`${i('financialYieldMinor')}*${i('inflationaryScaled')}`)},${i('capitalIncomeMinor')})`,
+  // Either way of answering casilla 59 is a different formula over different
+  // cells, and only the cells of the way chosen are on the sheet.
+  capitalNonTaxableMinor: (i, _o, _ranges, inputs) =>
+    inputs.capitalNonTaxableTyped
+      ? `MIN(${i('capitalNonTaxableTypedMinor')},${i('capitalIncomeMinor')})`
+      : `MIN(${cents(`${i('financialYieldMinor')}*${i('inflationaryScaled')}`)},${i('capitalIncomeMinor')})`,
   capitalNetMinor: (i, o) =>
     `MAX(${i('capitalIncomeMinor')}-${o('capitalNonTaxableMinor')}-${i('capitalCostsMinor')},0)`,
   otherNetMinor: i => `${i('otherIncomeMinor')}-${i('otherCostsMinor')}`,
@@ -334,6 +338,10 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
     band('section', section.title.toUpperCase() + (section.subtitle ? `  ·  ${section.subtitle}` : ''), 20);
 
     for (const formRow of section.rows) {
+      // The rows of the way casilla 59 was not answered are not part of this
+      // person's form, so they are not part of their spreadsheet either.
+      if (!rowApplies(formRow.when, inputs.capitalNonTaxableTyped === true)) continue;
+
       switch (formRow.kind) {
         case 'input':
           input(formRow.key, formRow.format, formRow.label, formRow.box, formRow.hint);
@@ -355,7 +363,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
             formulas.push({ cell, build: () => first, cached });
           } else {
             resultCells[key] = { ref: cellRef(at, VALUE), format: formRow.format };
-            formulas.push({ cell, build: () => FORMULAS[key](i, o, ranges), cached });
+            formulas.push({ cell, build: () => FORMULAS[key](i, o, ranges, inputs), cached });
           }
           break;
         }
@@ -375,6 +383,11 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
               ] as const) {
                 band('info', referenceLine(label, shown, sourced));
               }
+              break;
+
+            case 'inflationaryMode':
+              band('info', `${TAX_TEXT.sheetInflationaryMode}: ${inputs.capitalNonTaxableTyped
+                ? TAX_TEXT.inflationaryModeTyped : TAX_TEXT.inflationaryModeWorked}`);
               break;
 
             case 'inflationReference':

@@ -214,8 +214,13 @@ export function simulate(input: TaxInputs): TaxResult {
   // return it is its own box, and Jose's 2025 return has it there. Only the
   // financial yields carry it - cashback and rents do not - and it can never
   // exceed the gross income it is part of.
+  // Either worked out from the yields and the year's percentage, or written
+  // down as the certificate states it. Either way it can never exceed the
+  // gross income it is part of.
   const capitalNonTaxableMinor = Math.min(
-    applyRate(input.financialYieldMinor, input.inflationaryScaled),
+    input.capitalNonTaxableTyped
+      ? input.capitalNonTaxableTypedMinor
+      : applyRate(input.financialYieldMinor, input.inflationaryScaled),
     input.capitalIncomeMinor,
   );
 
