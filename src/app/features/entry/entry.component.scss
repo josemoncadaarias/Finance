@@ -914,3 +914,43 @@ ion-footer[hidden] { display: none; }
     cursor: pointer;
   }
 }
+
+/*
+ * The chip that keeps the list of kinds, and the line that edits the one
+ * chosen. They sit with the categories because that is what they are - the
+ * categories of a movement that only touches a product.
+ */
+.category.manage {
+  border-style: dashed;
+  color: var(--ion-color-primary);
+
+  ion-icon { color: var(--ion-color-primary); }
+}
+
+.edit-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.15rem 1rem 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ion-color-primary);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+/* The sheet that keeps them: a dialog, so it is sized to what it asks. */
+.kind-editor {
+  align-items: stretch;
+  text-align: left;
+
+  h2 { text-align: center; }
+
+  .note {
+    margin: 0.1rem 0.25rem 0;
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+}

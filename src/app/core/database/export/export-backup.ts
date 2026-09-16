@@ -56,6 +56,8 @@ export const TABLES = [
   'yield_days',
   'cashback_rules',
   'cashback_entries',
+  // Before the entries, which point at them.
+  'product_kinds',
   'cushion_adjustments',
   'cushion_withdrawals',
   'tax_parameters',

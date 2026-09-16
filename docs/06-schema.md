@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 25 tables and how they relate. The authority is always
+The 26 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -164,12 +164,22 @@ erDiagram
         INTEGER actual_minor
         INTEGER locked
     }
+    product_kinds {
+        INTEGER id PK
+        TEXT name UK
+        TEXT builtin_icon
+        INTEGER custom_icon_id FK
+        TEXT counts_as
+        INTEGER archived
+        INTEGER sort_order
+    }
     cushion_adjustments {
         INTEGER id PK
         INTEGER account_id FK
         INTEGER pocket_id FK
         TEXT source
         TEXT kind
+        INTEGER product_kind_id FK
         TEXT on_date
         INTEGER amount_minor
         INTEGER transaction_id FK
@@ -262,6 +272,8 @@ erDiagram
     accounts       ||--o{ cushion_withdrawals : "moved into"
     transactions   ||--o| cushion_withdrawals : "became"
     transactions   ||--o{ cushion_adjustments : "cashed in by"
+    product_kinds  ||--o{ cushion_adjustments : "is a"
+    custom_icons   ||--o{ product_kinds       : "wears"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
 ```
@@ -412,6 +424,8 @@ outright:
 | `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
 | `idx_cushion_adjustments_account` | what has landed in an account's cushion |
 | `idx_cushion_adjustments_pocket` | and which pocket it landed in |
+| `idx_cushion_adjustments_kind` | and which kind it was filed under |
+| `idx_product_kinds_name` | a kind is named once |
 | `idx_cushion_adjustments_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
 | `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
 | `idx_tax_parameters_key` | the parameter in force on a date |

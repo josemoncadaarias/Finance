@@ -231,6 +231,16 @@ the framework on a long-running project.
    declares worldwide income. **Still to be confirmed with an accountant before
    a return leans on it.**
 
+   **What a product's own movement IS belongs to the user** (`product_kinds`,
+   migration 034). Cashback, a correction against the bank and "other" were
+   three words fixed in the schema; they are rows now, renameable, with an
+   icon of their own and as many more as Jose wants. Each carries `counts_as`
+   - `yield` or `cashback` - because that is not cosmetic: cashback is not
+   withheld and interest is, and the entry's `source` is written from it. The
+   old `kind` column stays and is still written, so an entry remains readable
+   to anything that has not been taught about the table. Decision by Jose,
+   2026-09-16.
+
 17. **An account can be several pockets, and the tax is per pocket.** Dale is
    two "alcancias" and the bank pays each separately, so each is its own pago o
    abono en cuenta and the 0.055 UVT threshold is measured on each. Adding them

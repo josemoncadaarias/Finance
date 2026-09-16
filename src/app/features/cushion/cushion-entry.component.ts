@@ -32,7 +32,7 @@ import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import {
   IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar,
+  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -44,12 +44,15 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
 import { YieldsRepository, type CushionEntry, type YieldPocket } from '../../core/database/repositories/yields.repository';
+import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
 import type { AccountRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
+import { IconPickerComponent } from '../../core/icons/icon-picker.component';
+import { CATEGORY_ICONS_CATALOG } from '../../core/icons/icon-catalog';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -63,14 +66,12 @@ export interface CushionEntryRequest {
   editing?: CushionEntry;
 }
 
-type EntryKind = 'cashback' | 'correction' | 'other';
-
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent,
+    TranslatePipe, IconComponent, IconPickerComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar,
+    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
   ],
   templateUrl: './cushion-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -100,7 +101,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 
   readonly amount = signal(new AmountBuffer());
   readonly pending = signal<Pending | null>(null);
-  readonly kind = signal<EntryKind>('cashback');
+
   /** The product the money touches; for a transfer, the one it leaves. */
   readonly pocketId = signal<number | null>(null);
   /** For a transfer, the product it goes into. */
@@ -207,16 +208,103 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly categorySearch = signal('');
   readonly shortlistSize = 8;
 
-  /** What it is, in place of a category. Cashback is not withheld and yield is. */
-  readonly kinds: readonly {
-    value: EntryKind;
-    label: 'cushion.kind.cashback' | 'cushion.kind.correction' | 'cushion.kind.other';
-    icon: string;
-  }[] = [
-    { value: 'cashback', label: 'cushion.kind.cashback', icon: 'pricetag-outline' },
-    { value: 'correction', label: 'cushion.kind.correction', icon: 'build-outline' },
-    { value: 'other', label: 'cushion.kind.other', icon: 'ellipsis-horizontal-circle-outline' },
-  ];
+  /**
+   * What it is, in place of a category: the user's own list, kept in the
+   * database. Cashback and interest are taxed differently, which is why each
+   * kind says which of the two it behaves like.
+   */
+  readonly kinds = signal<ProductKind[]>([]);
+
+  /** The one chosen, by id. */
+  readonly productKindId = signal<number | null>(null);
+
+  /** The sheet where the list itself is kept: add, rename, re-icon, remove. */
+  readonly managingKinds = signal(false);
+  readonly editingKind = signal<ProductKind | null>(null);
+  readonly kindName = signal('');
+  readonly kindIcon = signal<{ builtin_icon: string | null; custom_icon_id: number | null }>(
+    { builtin_icon: 'pricetag-outline', custom_icon_id: null });
+  readonly kindCountsAs = signal<'yield' | 'cashback'>('yield');
+  readonly kindError = signal('');
+
+  /** The pictures on offer for a kind: the ones a category chooses from. */
+  readonly categoryIcons = CATEGORY_ICONS_CATALOG;
+
+  private kindsRepo(): ProductKindsRepository {
+    return new ProductKindsRepository(this.database.driver);
+  }
+
+  private async loadKinds(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    const kinds = await this.kindsRepo().list();
+    this.kinds.set(kinds);
+    if (!kinds.some(kind => kind.id === this.productKindId())) {
+      this.productKindId.set(kinds[0]?.id ?? null);
+    }
+  }
+
+  /** The list itself, opened from the chip at the end of the row. */
+  openKinds(kind: ProductKind | null): void {
+    this.kindError.set('');
+    this.editingKind.set(kind);
+    this.kindName.set(kind?.name ?? '');
+    this.kindIcon.set({
+      builtin_icon: kind?.builtin_icon ?? 'pricetag-outline',
+      custom_icon_id: kind?.custom_icon_id ?? null,
+    });
+    this.kindCountsAs.set(kind?.counts_as ?? 'yield');
+    this.managingKinds.set(true);
+  }
+
+  async saveKind(): Promise<void> {
+    const name = this.kindName().trim();
+    if (name === '') {
+      this.kindError.set(this.i18n.t('cushion.kinds.needName'));
+      return;
+    }
+
+    try {
+      const existing = this.editingKind();
+      const changes = {
+        name,
+        builtin_icon: this.kindIcon().builtin_icon,
+        custom_icon_id: this.kindIcon().custom_icon_id,
+        counts_as: this.kindCountsAs(),
+      };
+      if (existing) await this.kindsRepo().update(existing.id, changes);
+      else this.productKindId.set(await this.kindsRepo().create(changes));
+
+      await this.loadKinds();
+      this.database.dataChanged();
+      this.managingKinds.set(false);
+    } catch (error) {
+      this.kindError.set(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /** Removes one, unless entries are filed under it - then it says so. */
+  async removeKind(): Promise<void> {
+    const existing = this.editingKind();
+    if (!existing) return;
+    try {
+      await this.kindsRepo().delete(existing.id);
+      await this.loadKinds();
+      this.database.dataChanged();
+      this.managingKinds.set(false);
+    } catch (error) {
+      this.kindError.set(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /** The chosen kind, for the line that offers to edit it. */
+  chosenKindShown(): ProductKind | null {
+    return this.chosenKind();
+  }
+
+  /** What the chosen kind is, for the figures that follow it. */
+  private chosenKind(): ProductKind | null {
+    return this.kinds().find(kind => kind.id === this.productKindId()) ?? null;
+  }
 
   readonly keys = [
     '1', '2', '3', '+',
@@ -281,7 +369,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     addIcons(allIcons as unknown as Record<string, string>);
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     // However the keyboard is closed - the Android back button included,
     // which leaves the focus where it was - the note is finished.
     if (Capacitor.isNativePlatform()) {
@@ -297,6 +385,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
     else void this.loadCategories();
 
+    // The kinds a product movement can be, which are the user's own.
+    await this.loadKinds();
+
     // A gasto on a product is money leaving: it left the account and it left
     // the net worth, and saying so is nearly always the right answer. An
     // ingreso is usually the bank paying into the product, which is not net
@@ -307,7 +398,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     const editing = this.request().editing;
     if (editing) {
       this.amount.set(AmountBuffer.from(Math.abs(editing.amount_minor)));
-      this.kind.set(editing.kind);
+      // The kind it was filed under. An entry written before the kinds were
+      // rows has none, so the coarse word it carries picks the closest one.
+      this.productKindId.set(editing.product_kind_id
+        ?? this.kinds().find(kind => kind.counts_as === (editing.kind === 'cashback' ? 'cashback' : 'yield'))?.id
+        ?? this.productKindId());
       if (pockets.some(pocket => pocket.id === editing.pocket_id)) this.pocketId.set(editing.pocket_id);
       this.onDate.set(editing.on_date);
       this.note.set(editing.note ?? '');
@@ -405,6 +500,16 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     this.noteQuery++;
     // The tap blurred the note; the person is still writing it.
     this.startNote();
+  }
+
+  /**
+   * The coarse word the column has carried since before these were rows.
+   *
+   * Never rewritten and never dropped: an entry written today still reads
+   * correctly to anything that has not been taught about the kinds table.
+   */
+  private legacyKind(): 'correction' | 'cashback' | 'other' {
+    return this.chosenKind()?.counts_as === 'cashback' ? 'cashback' : 'other';
   }
 
   clearNote(): void {
@@ -580,7 +685,8 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
           await yields.updateAdjustment(editing.id, {
             on_date: this.onDate(),
             amount_minor: signed,
-            kind: this.kind(),
+            kind: this.legacyKind(),
+            product_kind_id: this.productKindId(),
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
           });
@@ -593,7 +699,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             account_id: account.id,
             on_date: this.onDate(),
             amount_minor: signed,
-            kind: this.kind(),
+            kind: this.legacyKind(),
+            product_kind_id: this.productKindId(),
+            // Cashback and interest are not taxed the same, and this is where
+            // that is recorded.
+            source: this.chosenKind()?.counts_as === 'cashback' ? 'cashback' : 'yield',
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
           });

@@ -42,6 +42,7 @@ import {
   YieldsRepository, type CushionBalance, type CushionEntry, type YieldDay,
   type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
+import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
 import { removePocketInto } from '../../core/yields/remove-pocket';
 import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '../../core/yields/cdt';
@@ -721,6 +722,8 @@ export class CushionPage {
       this.lines.set(lines);
       this.lastAccrued.set(newest);
       this.incomeCategories.set(await categories.list({ kind: 'income' }));
+      // The kinds a product's own movement can be, which the user keeps.
+      this.productKinds.set(await new ProductKindsRepository(db).list({ includeArchived: true }));
       await this.customIcons.load();
 
       // What could still be added. An archived account is history and is
@@ -2024,6 +2027,9 @@ export class CushionPage {
 
   movementIcon(movement: ProductMovement): string {
     if (movement.type === 'entry') {
+      const kind = this.kindsById().get(movement.entry.product_kind_id ?? -1);
+      if (kind?.builtin_icon) return kind.builtin_icon;
+      if (kind) return 'pricetag-outline';
       return movement.entry.kind === 'cashback' ? 'pricetag-outline'
         : movement.entry.kind === 'correction' ? 'build-outline' : 'ellipsis-horizontal-circle-outline';
     }
@@ -2033,7 +2039,10 @@ export class CushionPage {
   private categoryOf(movement: ProductMovement): [string, string] {
     switch (movement.type) {
       case 'transfer': return ['between', this.i18n.t('cushion.movements.betweenProducts')];
-      case 'entry': return [`kind:${movement.entry.kind}`, this.kindLabel(movement.entry as CushionEntry)];
+      case 'entry': return [
+        `kind:${movement.entry.product_kind_id ?? movement.entry.kind}`,
+        this.kindLabel(movement.entry as CushionEntry),
+      ];
       case 'withdrawal': return ['withdrawal', this.i18n.t('cushion.movements.withdrawal')];
       default: {
         const row = movement.transaction;
@@ -2047,10 +2056,27 @@ export class CushionPage {
     return line.pockets.find(pocket => pocket.id === pocketId)?.name ?? '';
   }
 
+  /**
+   * What an entry is called: the kind it was filed under, by name.
+   *
+   * An entry written before the kinds were rows of their own has none, and
+   * falls back to the coarse word its column has always carried.
+   */
   kindLabel(entry: CushionEntry): string {
+    const kind = this.kindsById().get(entry.product_kind_id ?? -1);
+    if (kind) return kind.name;
     if (entry.kind === 'cashback') return this.i18n.t('cushion.kind.cashback');
     if (entry.kind === 'other') return this.i18n.t('cushion.kind.other');
     return this.i18n.t('cushion.kind.correction');
+  }
+
+  /** The kinds themselves, for the name and the picture on a row. */
+  readonly productKinds = signal<ProductKind[]>([]);
+  readonly kindsById = computed(() => new Map(this.productKinds().map(kind => [kind.id, kind])));
+
+  /** The image a kind wears, when it wears one of the user's own. */
+  kindIconId(entry: CushionEntry): number | null {
+    return this.kindsById().get(entry.product_kind_id ?? -1)?.custom_icon_id ?? null;
   }
 
   /**

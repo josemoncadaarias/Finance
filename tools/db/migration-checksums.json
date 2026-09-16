@@ -31,5 +31,6 @@
   "030_product_first.sql": "8f6927382ca2708572dcc5f9a3a9b89e68f3f7667e28e427c85ec7b6fe05c89a",
   "031_pocket_withholding.sql": "00f462127eb88fe60014e6d837db191a4e7acb36232732d05931cb3205cbf13a",
   "032_adjustment_transaction.sql": "bb18b19b658c56a0d60c40072df0c44a8b7071dc33996bc05a407afbce6af167",
-  "033_pocket_net_worth.sql": "ca033a524425dbbe3c44a55b5197f9825b535e9973d026a259b6699e89bed8fc"
+  "033_pocket_net_worth.sql": "ca033a524425dbbe3c44a55b5197f9825b535e9973d026a259b6699e89bed8fc",
+  "034_product_kinds.sql": "bed69d95d07f59603eb4d909357d08ecfade2872cc9e3b93560beea254c36f89"
 }
