@@ -603,3 +603,67 @@ ion-toolbar.stepper {
   font-size: 0.85rem;
   color: var(--ion-color-medium);
 }
+
+/*
+ * One question with two answers, where the answer changes which boxes the
+ * form asks for - how casilla 59 is reached.
+ *
+ * A segmented control rather than two buttons in a row of three, which is what
+ * it borrowed at first: the buttons came out cramped against each other and
+ * the question above them was set larger than the field labels around it, so
+ * it read as a heading of its own rather than as one more thing being asked.
+ */
+.mode {
+  padding: 0.85rem 1rem 0.9rem;
+  border-bottom: 1px solid var(--ion-color-step-100, var(--ion-color-light));
+
+  .caption {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ion-text-color);
+  }
+
+  /* The track the two answers sit in, so they read as two halves of one
+     control instead of two separate buttons that happen to be adjacent. */
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem;
+    padding: 0.25rem;
+    border-radius: 12px;
+    background: var(--ion-color-step-100, var(--ion-color-light));
+  }
+
+  button {
+    padding: 0.55rem 0.4rem;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background 0.15s ease-out, color 0.15s ease-out;
+
+    &.on {
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button { transition: none; }
+  }
+
+  .hint {
+    margin: 0.55rem 0 0;
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+}

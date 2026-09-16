@@ -175,10 +175,14 @@
 
                     @case ('inflationaryMode') {
                       <!-- Two ways to answer one box: work it out from the
-                           yields, or write down what the certificate says. -->
-                      <div class="employment">
+                           yields, or write down what the certificate says.
+                           A segmented control rather than two buttons side by
+                           side: it reads as one question with two answers, and
+                           the chosen one is plainly the chosen one. -->
+                      <div class="mode">
                         <span class="caption">{{ text.inflationaryModeTitle }}</span>
-                        <div class="kinds" role="radiogroup">
+                        <div class="options" role="radiogroup"
+                             [attr.aria-label]="text.inflationaryModeTitle">
                           <button type="button" role="radio"
                                   [class.on]="inputs().capitalNonTaxableTyped !== true"
                                   [attr.aria-checked]="inputs().capitalNonTaxableTyped !== true"

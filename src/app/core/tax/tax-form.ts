@@ -140,7 +140,7 @@ export const TAX_TEXT = {
   inflationaryModeTitle: 'Cómo sale la casilla 59',
   inflationaryModeWorked: 'Calcularlo',
   inflationaryModeTyped: 'Escribirlo',
-  inflationaryModeWorkedHint: 'La app lo calcula: qué parte de la casilla 58 son rendimientos financieros, por el porcentaje del año.',
+  inflationaryModeWorkedHint: 'La app lo calcula: la parte de la casilla 58 que son rendimientos financieros, por el porcentaje del año.',
   inflationaryModeTypedHint: 'Escribes la cifra que ya conoces, por ejemplo la del certificado del banco.',
   sheetInflationaryMode: 'Casilla 59',
 
@@ -307,8 +307,8 @@ export const TAX_FORM: readonly FormSection[] = [
       { kind: 'special', which: 'inflationReference', when: 'inflationary.worked' },
       {
         kind: 'input', key: 'capitalNonTaxableTypedMinor', format: 'money', when: 'inflationary.typed',
-        label: 'Componente inflacionario, como lo certifican',
-        hint: 'La cifra que dice el certificado del banco. Se usa tal cual, sin recalcularla, y solo se recorta si supera la casilla 58.',
+        label: 'Componente inflacionario certificado',
+        hint: 'La cifra del certificado del banco. Se usa tal cual; solo se recorta si supera la casilla 58.',
       },
       {
         kind: 'computed', key: 'capitalNonTaxableMinor', format: 'money', box: '59',
