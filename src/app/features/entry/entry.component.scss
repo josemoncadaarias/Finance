@@ -697,3 +697,44 @@ ion-footer.pad {
 }
 
 .route .leg .part { margin-top: 0.1rem; }
+
+/*
+ * Writing the note, on a phone.
+ *
+ * The system keyboard takes the bottom half of the screen, which is where the
+ * note and the suggestions under it are drawn - Jose could see a line of what
+ * he was typing and none of the suggestions. The app's own keypad goes away
+ * for the duration (it cannot type a note), and on a screen too short for the
+ * rest, so does everything between the amount and the note.
+ *
+ * Height, not width: what decides this is how much room is left once the
+ * keyboard is up, and that is exactly what a height query asks.
+ */
+.entry-body.writing-note {
+  .note { margin-top: 0.35rem; }
+
+  @media (max-height: 720px) {
+    .route,
+    .context,
+    .prompt,
+    .categories,
+    .danger-zone,
+    .pending {
+      display: none;
+    }
+
+    /* The amount stays - it is what is being recorded - but it stops taking
+       the room of a headline. */
+    .amount {
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+
+      .figure { font-size: 1.6rem; }
+      .side .figure { font-size: 1.25rem; }
+    }
+  }
+}
+
+/* Ionic gives the footer a display of its own, which outranks the hidden
+   attribute the template sets while a note is being written. */
+ion-footer[hidden] { display: none; }

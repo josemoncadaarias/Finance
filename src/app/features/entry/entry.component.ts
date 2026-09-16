@@ -15,7 +15,7 @@
  */
 
 import {
-  Component, HostListener, computed, inject, input, output, signal, type OnInit,
+  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild, type OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -165,6 +165,46 @@ export class EntryComponent implements OnInit {
   readonly editingTransferId = signal<number | null>(null);
   /** Notes used before that match what is being typed. */
   readonly noteSuggestions = signal<string[]>([]);
+
+  /**
+   * True while the note is being written, which on a phone means the system
+   * keyboard is up and has taken the bottom half of the screen - exactly where
+   * the note and the suggestions under it were being drawn.
+   *
+   * While it is on, the app's own keypad goes away (it cannot help type a
+   * note) and, on a screen too short for the rest, so does everything above
+   * the note. What is left is the amount, the note, and the notes already
+   * written that match it.
+   */
+  readonly writingNote = signal(false);
+
+  /** The note's box, so it can be brought into view when it is tapped. */
+  private readonly noteBox = viewChild<ElementRef<HTMLElement>>('noteBox');
+
+  /** Tapping a suggestion blurs the note for a moment; this rides that out. */
+  private noteBlurTimer: ReturnType<typeof setTimeout> | null = null;
+
+  startNote(): void {
+    if (this.noteBlurTimer !== null) {
+      clearTimeout(this.noteBlurTimer);
+      this.noteBlurTimer = null;
+    }
+    this.writingNote.set(true);
+    // After the keypad has gone and the keyboard has come up.
+    setTimeout(() => this.noteBox()?.nativeElement.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+  }
+
+  /**
+   * Leaving the note - unless the focus is coming straight back, which is what
+   * tapping one of the suggestions does.
+   */
+  endNote(): void {
+    if (this.noteBlurTimer !== null) clearTimeout(this.noteBlurTimer);
+    this.noteBlurTimer = setTimeout(() => {
+      this.writingNote.set(false);
+      this.noteBlurTimer = null;
+    }, 250);
+  }
 
   readonly kind = computed(() => this.request().kind);
   readonly isEditing = computed(() => this.request().editing !== undefined);
@@ -574,6 +614,8 @@ export class EntryComponent implements OnInit {
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;
+    // The tap blurred the note; the person is still writing it.
+    this.startNote();
   }
 
   /**

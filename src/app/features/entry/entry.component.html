@@ -24,7 +24,7 @@
   <!-- Everything above the keypad is one column, so that on a tall screen the
        spare height becomes space between the sections instead of a hole. On a
        short one the column overflows and scrolls exactly as before. -->
-  <div class="entry-body">
+  <div class="entry-body" [class.writing-note]="writingNote()">
   <!-- The sum in progress, when there is one -->
   @if (pendingLabel(); as sum) {
     <p class="pending">{{ sum }}</p>
@@ -185,9 +185,10 @@
        note often is - "Almuerzo ejecutivo de pechuga de caseritos mas
        impuesto 4x1000" is one line only because there was nowhere else for it
        to go. -->
-  <div class="note">
+  <div class="note" #noteBox>
     <ion-textarea [placeholder]="'entry.note' | t" [value]="note()"
                   [autoGrow]="false" [rows]="2"
+                  (ionFocus)="startNote()" (ionBlur)="endNote()"
                   (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
     @if (note() !== '') {
       <button type="button" class="clear-note" (click)="clearNote()"
@@ -225,7 +226,10 @@
   </div>
 </div>
 
-<ion-footer class="pad">
+<!-- The keypad is for an amount, and while a note is being written the phone's
+     own keyboard is up in its place. Keeping it there only pushed the note and
+     its suggestions off the screen. -->
+<ion-footer class="pad" [hidden]="writingNote()">
   <!-- What is missing, then the keypad -->
   @if (missing(); as hint) {
     <p class="missing">{{ hint }}</p>
