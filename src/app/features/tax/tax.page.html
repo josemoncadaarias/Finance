@@ -149,9 +149,19 @@
                            it is an estimate beats a zero that looks exact. -->
                       <div class="references">
                         <p class="hint">{{ text.referencesIntro }}</p>
+                        <!-- A figure from a later year is not an approximation,
+                             it is the wrong figure - said loudly rather than as
+                             one more grey caption. -->
+                        @if (anyFromLater()) {
+                          <p class="later-warning">
+                            <ion-icon name="warning-outline"></ion-icon>
+                            {{ text.laterWarning }}
+                          </p>
+                        }
                         @for (ref of references(); track ref.label) {
                           <div class="reference">
-                            <span class="standing" [class]="ref.sourced.standing">{{ standingLabel(ref.sourced) }}</span>
+                            <span class="standing" [class]="ref.sourced.standing"
+                                  [class.later]="fromLater(ref.sourced)">{{ standingLabel(ref.sourced) }}</span>
                             <span class="body">
                               <span>{{ ref.label }}: <strong>{{ ref.shown }}</strong></span>
                               <span class="source">{{ ref.sourced.source }}</span>
@@ -164,7 +174,8 @@
                     @case ('inflationReference') {
                       <div class="references">
                         <div class="reference">
-                          <span class="standing" [class]="parameters().inflationary.standing">{{ standingLabel(parameters().inflationary) }}</span>
+                          <span class="standing" [class]="parameters().inflationary.standing"
+                                [class.later]="fromLater(parameters().inflationary)">{{ standingLabel(parameters().inflationary) }}</span>
                           <span class="body">
                             <span><strong>{{ percent(parameters().inflationary.value) }}</strong></span>
                             <span class="source">{{ parameters().inflationary.source }}</span>

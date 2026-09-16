@@ -345,6 +345,13 @@ ion-toolbar.stepper {
       background: rgba(var(--ion-color-warning-rgb), 0.16);
       color: var(--ion-color-warning-shade);
     }
+
+    /* Borrowed from a year that had not happened yet: not an approximation,
+       simply the wrong figure until someone types the right one. */
+    &.later {
+      background: rgba(var(--ion-color-danger-rgb), 0.16);
+      color: var(--ion-color-danger);
+    }
   }
 
   .body {
@@ -362,6 +369,21 @@ ion-toolbar.stepper {
     line-height: 1.35;
     color: var(--ion-color-medium);
     overflow-wrap: break-word;
+  }
+
+  .later-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0.35rem 0 0.15rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 10px;
+    background: rgba(var(--ion-color-warning-rgb), 0.14);
+    color: var(--ion-color-warning-shade);
+    font-size: 0.74rem;
+    line-height: 1.45;
+
+    ion-icon { flex: none; font-size: 0.95rem; margin-top: 0.1rem; }
   }
 }
 

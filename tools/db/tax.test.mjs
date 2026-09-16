@@ -504,3 +504,50 @@ test('a typed casilla 59 still cannot exceed the income it comes out of', () => 
   assert.equal(result.capitalNonTaxableMinor, pesos(2_000_000));
   assert.equal(result.capitalNetMinor, 0, 'casilla 61 is never negative');
 });
+
+// ---------------------------------------------------------------------------
+// A year gets its own figures. Only 2026 was on record, so opening 2023 filled
+// the form with 2026's UVT and minimum wage - a return filed on those is wrong
+// rather than approximate, and Jose caught it on 2026-09-16.
+
+import { borrowedFromLater, parametersFor, uvtFor, minimumWageFor } from '../../src/app/core/tax/defaults.ts';
+
+test('each tax year uses its own UVT and its own minimum wage', () => {
+  const uvt = {
+    2022: 38_004, 2023: 42_412, 2024: 47_065, 2025: 49_799, 2026: 52_374,
+  };
+  for (const [year, value] of Object.entries(uvt)) {
+    const found = uvtFor(Number(year));
+    assert.equal(found.value, pesos(value), `UVT ${year}`);
+    assert.equal(found.standing, 'official', `UVT ${year} is the year's own`);
+    assert.equal(found.fromYear, Number(year));
+  }
+
+  const wage = {
+    2022: 1_000_000, 2023: 1_160_000, 2024: 1_300_000, 2025: 1_423_500, 2026: 1_750_905,
+  };
+  for (const [year, value] of Object.entries(wage)) {
+    const found = minimumWageFor(Number(year));
+    assert.equal(found.value, pesos(value), `salario mínimo ${year}`);
+    assert.equal(found.standing, 'official');
+  }
+});
+
+test('a figure standing in for a year it cannot describe says so', () => {
+  // Older than anything on record: the earliest is borrowed, and it is later
+  // than the year asked for - which is the case worth warning about.
+  const old = parametersFor(2015);
+  assert.equal(old.uvt.standing, 'reference');
+  assert.equal(borrowedFromLater(old.uvt, 2015), true);
+
+  // A year that has its own figure borrows nothing.
+  const known = parametersFor(2024);
+  assert.equal(borrowedFromLater(known.uvt, 2024), false);
+  assert.equal(borrowedFromLater(known.minimumWage, 2024), false);
+
+  // The inflationary component is published the year after, so a recent year
+  // borrows or estimates it - and that is a reference from the past or an
+  // estimate, never a figure from a year still to come.
+  const thisYear = parametersFor(2025);
+  assert.equal(borrowedFromLater(thisYear.inflationary, 2025), false);
+});

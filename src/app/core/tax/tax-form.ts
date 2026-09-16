@@ -134,6 +134,8 @@ export const TAX_TEXT = {
   standingOfficial: 'Oficial',
   standingReference: 'Referencia {year}',
   standingEstimate: 'Estimado',
+  standingLater: 'De {year}, posterior',
+  laterWarning: 'Algunas cifras de este año no están en la app y se está usando la de un año posterior, que no le corresponde. Escríbelas a mano donde aparecen abajo: la UVT y el salario mínimo del año que estás declarando.',
   refUvt: 'UVT',
   refMinimumWage: 'Salario mínimo, sin auxilio de transporte',
   refInflationary: 'Componente inflacionario',
@@ -221,7 +223,7 @@ export const TAX_FORM: readonly FormSection[] = [
       {
         kind: 'input', key: 'uvtMinor', format: 'money',
         label: 'Valor de la UVT',
-        hint: 'Resolución DIAN de cada diciembre. 2026: $52.374 (Res. 000238 de 2025).',
+        hint: 'La DIAN la fija por resolución cada diciembre, para el año siguiente.',
       },
       {
         kind: 'input', key: 'minimumWageMinor', format: 'money',

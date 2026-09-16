@@ -33,7 +33,7 @@ import { TaxSimulationsRepository } from '../../core/database/repositories/tax-s
 import { EMPLOYMENT_DEFAULTS, RATE_BANDS, simulate } from '../../core/tax/cedula-general';
 import {
   SPREADSHEET_2026, SPREADSHEET_2026_OWNER_ACCOUNT,
-  defaultInputs, fillGaps, parametersFor, type Sourced,
+  borrowedFromLater, defaultInputs, fillGaps, parametersFor, type Sourced,
 } from '../../core/tax/defaults';
 import {
   EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
@@ -583,8 +583,22 @@ export class TaxPage {
   standingLabel(sourced: Sourced): string {
     if (sourced.standing === 'official') return this.text.standingOfficial;
     if (sourced.standing === 'estimate') return this.text.standingEstimate;
+    if (borrowedFromLater(sourced, this.year())) {
+      return fill(this.text.standingLater, { year: sourced.fromYear });
+    }
     return fill(this.text.standingReference, { year: sourced.fromYear });
   }
+
+  /** True when a figure from a later year is standing in for this one. */
+  fromLater(sourced: Sourced): boolean {
+    return borrowedFromLater(sourced, this.year());
+  }
+
+  /** The same question about the whole year, for the warning above the list. */
+  readonly anyFromLater = computed(() => {
+    const p = this.parameters();
+    return [p.uvt, p.minimumWage, p.inflationary].some(one => borrowedFromLater(one, this.year()));
+  });
 
   fill(template: string, values: Record<string, string | number>): string {
     return fill(template, values);

@@ -41,6 +41,13 @@ export interface Sourced {
  * figure the withholding module uses.
  */
 const UVT: Readonly<Record<number, { minor: number; source: string }>> = {
+  2019: { minor: 3_427_000, source: 'UVT 2019 (Resolución DIAN de noviembre de 2018)' },
+  2020: { minor: 3_560_700, source: 'UVT 2020 (Resolución DIAN de octubre de 2019)' },
+  2021: { minor: 3_630_800, source: 'UVT 2021 (Resolución DIAN de diciembre de 2020)' },
+  2022: { minor: 3_800_400, source: 'UVT 2022 (Resolución DIAN de noviembre de 2021)' },
+  2023: { minor: 4_241_200, source: 'UVT 2023 (Resolución DIAN 001264 de 2022)' },
+  2024: { minor: 4_706_500, source: 'UVT 2024 (Resolución DIAN 000187 de 2023)' },
+  2025: { minor: 4_979_900, source: 'UVT 2025 (Resolución DIAN 000193 de 2024)' },
   2026: { minor: 5_237_400, source: 'Resolución DIAN 000238 de 2025' },
 };
 
@@ -58,6 +65,12 @@ const UVT: Readonly<Record<number, { minor: number; source: string }>> = {
  * citation nobody verified is worse than none.
  */
 const MINIMUM_WAGE: Readonly<Record<number, { minor: number; source: string }>> = {
+  2019: { minor: 82_811_600, source: 'Salario mínimo 2019' },
+  2020: { minor: 87_780_300, source: 'Salario mínimo 2020' },
+  2021: { minor: 90_852_600, source: 'Salario mínimo 2021' },
+  2022: { minor: 100_000_000, source: 'Salario mínimo 2022' },
+  2023: { minor: 116_000_000, source: 'Salario mínimo 2023' },
+  2024: { minor: 130_000_000, source: 'Salario mínimo 2024' },
   2025: { minor: 142_350_000, source: 'Salario mínimo 2025 (base del aumento de 2026)' },
   2026: { minor: 175_090_500, source: 'Decreto 1469 de 2025' },
 };
@@ -117,6 +130,18 @@ export function uvtFor(year: number): Sourced {
     fromYear,
     source: entry.source,
   };
+}
+
+/**
+ * Whether a figure is standing in for a year it cannot describe.
+ *
+ * Borrowing last year's while this year's is still unpublished is reasonable.
+ * Borrowing a LATER year's - which is what a 2023 return did while only 2026
+ * was on record - is not: the figure is known, it is simply not here, and a
+ * return filed on it would be wrong rather than approximate.
+ */
+export function borrowedFromLater(parameter: Sourced, year: number): boolean {
+  return parameter.standing !== 'official' && parameter.fromYear > year;
 }
 
 export function minimumWageFor(year: number): Sourced {
