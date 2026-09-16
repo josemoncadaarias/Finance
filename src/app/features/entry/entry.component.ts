@@ -285,6 +285,13 @@ export class EntryComponent implements OnInit, OnDestroy {
    * one row" - on a short screen the extra rows are simply scrolled to, and
    * the ordering puts what is actually used at the top either way.
    */
+  /**
+   * Four across, two down: the grid never takes a third row.
+   *
+   * The way in to the rest of them is one of those eight tiles, not an extra
+   * one below - a ninth tile alone on a row of its own cost a whole row of the
+   * screen, which on a phone is a row the note wanted.
+   */
   private static readonly SHORTLIST = 8;
 
   /**
@@ -296,13 +303,17 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly shortlist = computed<UsedCategory[]>(() => {
     const all = this.categories();
-    const top = all.slice(0, EntryComponent.SHORTLIST);
+    // One of the eight goes to "see them all" when there are more.
+    const room = all.length > EntryComponent.SHORTLIST
+      ? EntryComponent.SHORTLIST - 1
+      : EntryComponent.SHORTLIST;
+    const top = all.slice(0, room);
 
     const chosen = this.categoryId();
     if (chosen === null || top.some(category => category.id === chosen)) return top;
 
     const missing = all.find(category => category.id === chosen);
-    return missing ? [...top.slice(0, EntryComponent.SHORTLIST - 1), missing] : top;
+    return missing ? [...top.slice(0, room - 1), missing] : top;
   });
 
   /** True when there is more than the grid is showing. */

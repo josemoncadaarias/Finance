@@ -1054,3 +1054,15 @@ ion-footer[hidden] { display: none; }
 }
 
 .context.stacked .pocket-chip { justify-self: auto; }
+
+/*
+ * Four columns, whatever the width.
+ *
+ * The grid filled itself with as many columns as fitted, so how many rows the
+ * eight tiles took depended on the screen - and with a ninth tile for "see
+ * them all" it could run to three rows, the last of them holding one tile.
+ * Four columns and eight tiles are two rows, everywhere.
+ */
+.categories {
+  grid-template-columns: repeat(4, 1fr);
+}

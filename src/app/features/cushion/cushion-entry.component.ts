@@ -216,6 +216,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly categories = signal<UsedCategory[]>([]);
   readonly browsingCategories = signal(false);
   readonly categorySearch = signal('');
+  /** Four across and two down, the way the movement screen does it. */
   readonly shortlistSize = 8;
 
   /**
@@ -291,9 +292,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   /** The most used, plus the one chosen when it is not among them. */
   readonly shortlist = computed(() => {
     const all = this.categories();
-    const top = all.slice(0, this.shortlistSize);
+    // One of the eight is the way to the rest, when there are more.
+    const room = all.length > this.shortlistSize ? this.shortlistSize - 1 : this.shortlistSize;
+    const top = all.slice(0, room);
     const chosen = all.find(category => category.id === this.categoryId());
-    return chosen && !top.includes(chosen) ? [...top.slice(0, this.shortlistSize - 1), chosen] : top;
+    return chosen && !top.includes(chosen) ? [...top.slice(0, room - 1), chosen] : top;
   });
 
   readonly foundCategories = computed(() => {
