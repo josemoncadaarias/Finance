@@ -341,7 +341,7 @@ ion-note[slot='end'] {
    which is a small centred question. Without the exception this rule, being
    scoped to the component, outweighed `ion-modal.confirm-sheet` in global.scss
    and stretched the dialog over the whole screen with its content at the top. */
-ion-modal:not(.confirm-sheet):not(.entry-sheet) {
+ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
   --width: 100%;
   --max-width: 100%;
   --height: 100%;
@@ -504,24 +504,10 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet) {
   font-weight: 600;
 }
 
-/* Two dates for a range, under the period choices. */
-.period-sheet .range {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.75rem 0 2rem;
-
-  p {
-    margin: 0.5rem 0 0;
-    font-size: 0.85rem;
-    color: var(--ion-color-medium);
-  }
-
-  .range-label {
-    font-weight: 600;
-    color: var(--ion-text-color);
-  }
-}
+/* The period sheet is the summary's, drawn by global.scss: same size, same
+   pair of chips, same single calendar. This screen only has to stay out of
+   its way - the rule above, which makes every other sheet here full size,
+   is scoped to the component and would otherwise outweigh it. */
 
 /* Where a new product's money comes from: two answers, each saying what it does. */
 .funding {
