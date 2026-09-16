@@ -108,7 +108,7 @@ const INCOME = '#2f9e6e';
         @for (row of legend(); track row.slice.label) {
           <li (click)="sliceTapped.emit(row.slice.label)"
               (keydown.enter)="sliceTapped.emit(row.slice.label)" tabindex="0"
-              [class.income]="row.slice.flow === 'in'">
+              [class.income]="row.slice.flow === 'in' || row.slice.flow === 'received'">
             @if (iconUrl(row.slice.customIconId); as url) {
               <img [src]="url" alt="" class="legend-image">
             } @else {
@@ -116,7 +116,9 @@ const INCOME = '#2f9e6e';
                         [style.color]="row.colour"></ion-icon>
             }
             <span class="name">{{ row.slice.label }}</span>
-            <span class="percent">{{ row.slice.flow === 'in' ? '' : row.slice.percent + '%' }}</span>
+            <span class="percent">
+              {{ row.slice.flow === 'in' || row.slice.flow === 'received' ? '' : row.slice.percent + '%' }}
+            </span>
             <span class="amount">{{ money(row.slice.amountMinor) }}</span>
           </li>
         }
@@ -253,9 +255,13 @@ export class DonutComponent {
   readonly size = SIZE;
   readonly centre = CENTRE;
 
-  /** Only spending is drawn: a ring mixing what came in with what went out
-   * answers nothing. Income lives in the legend. */
-  readonly spentSlices = computed(() => this.slices().filter(s => s.flow !== 'in'));
+  /**
+   * Only what left is drawn: a ring mixing what came in with what went out
+   * answers nothing. Income lives in the legend, and so does money that
+   * arrived from another of the user's own accounts - it left nothing.
+   */
+  readonly spentSlices = computed(() =>
+    this.slices().filter(s => s.flow !== 'in' && s.flow !== 'received'));
 
   readonly segments = computed<Segment[]>(() => {
     const slices = this.spentSlices();

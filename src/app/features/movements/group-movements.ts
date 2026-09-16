@@ -40,8 +40,20 @@ export type Flow =
   | 'in'
   /** Money left: an expense. */
   | 'out'
-  /** Money moved between the user's own accounts. Neither earned nor spent. */
+  /**
+   * Money moved OUT of the account being looked at, to another of the user's
+   * own. Not spending - it is still theirs - but it did leave, which is why
+   * the ring draws it beside what was spent.
+   */
   | 'moved'
+  /**
+   * Money that arrived from another of the user's own accounts.
+   *
+   * It did not leave anything and it was not earned, so it belongs with income
+   * rather than in the ring: a month where fifteen million moved from savings
+   * to the card is not a month where fifteen million was spent twice.
+   */
+  | 'received'
   /**
    * Money that came back on a credit card: a refund, a reversed charge, a fee
    * corrected. It reduces what was spent rather than adding to what was
@@ -109,6 +121,11 @@ export interface Totals {
    * transfer is invisible, because nothing entered or left.
    */
   movedMinor: number;
+  /**
+   * Money that arrived from another of the user's own accounts, as a positive
+   * figure. Shown beside income, and never part of the ring.
+   */
+  receivedMinor: number;
 }
 
 /**
@@ -120,7 +137,11 @@ export interface Totals {
  * somewhere else.
  */
 export function flowOf(transaction: TransactionRow, accountType = 'debit'): Flow {
-  if (transaction.transfer_id !== null) return 'moved';
+  // Which way it went decides what it means: out of here is money gone from
+  // this account, into here is money that arrived.
+  if (transaction.transfer_id !== null) {
+    return transaction.amount_minor < 0 ? 'moved' : 'received';
+  }
   if (transaction.amount_minor < 0) return 'out';
 
   // A credit card holds the bank's money, not yours. Money arriving on it did
@@ -166,6 +187,7 @@ export function totalsOf(movements: readonly Movement[], basis: AmountBasis = 'b
   let inMinor = 0;
   let outMinor = 0;
   let movedMinor = 0;
+  let receivedMinor = 0;
   let refundedMinor = 0;
 
   for (const movement of movements) {
@@ -173,11 +195,12 @@ export function totalsOf(movements: readonly Movement[], basis: AmountBasis = 'b
     if (movement.flow === 'in') inMinor += amount;
     else if (movement.flow === 'out') outMinor += amount;
     else if (movement.flow === 'refund') refundedMinor += amount;
+    else if (movement.flow === 'received') receivedMinor += amount;
     else movedMinor += amount;
   }
 
   // Refunds come off what was spent rather than adding to what was earned.
-  return { inMinor, outMinor: outMinor - refundedMinor, refundedMinor, movedMinor };
+  return { inMinor, outMinor: outMinor - refundedMinor, refundedMinor, movedMinor, receivedMinor };
 }
 
 /**
@@ -360,21 +383,24 @@ export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'b
 
   const slices = [...byLabel.values()].filter(slice => slice.amountMinor !== 0);
 
-  // Percentages are shares of spending, since that is what the ring draws.
-  // Income has no share of it and shows none.
+  // Percentages are shares of what left, since that is what the ring draws.
+  // What arrived has no share of it and shows none - income, and money that
+  // came in from another of the user's own accounts.
+  const arrived = (slice: Slice) => slice.flow === 'in' || slice.flow === 'received';
+
   const spent = slices
-    .filter(slice => slice.flow !== 'in')
+    .filter(slice => !arrived(slice))
     .reduce((sum, slice) => sum + Math.max(slice.amountMinor, 0), 0);
 
   for (const slice of slices) {
-    slice.percent = slice.flow === 'in' || spent === 0
+    slice.percent = arrived(slice) || spent === 0
       ? 0
       : Math.round((Math.max(slice.amountMinor, 0) / spent) * 100);
   }
 
-  // Income first, then spending largest first - the same order as the list.
+  // What arrived first, then what left, largest first - the same order as the list.
   return slices.sort((a, b) => {
-    const rank = (slice: Slice) => (slice.flow === 'in' ? 0 : 1);
+    const rank = (slice: Slice) => (arrived(slice) ? 0 : 1);
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
     return Math.abs(b.amountMinor) - Math.abs(a.amountMinor);
   });

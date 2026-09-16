@@ -30,9 +30,12 @@ function movement({ date, label, amount, base = amount, transfer = null, account
   };
 }
 
-test('a transfer is moved, not spent', () => {
+test('a transfer that leaves is moved; one that arrives is received', () => {
+  // Which way it went is what it means: out of here is money gone from this
+  // account and belongs in the ring; into here arrived and belongs beside
+  // income. Jose, 2026-09-16.
   assert.equal(flowOf({ amount_minor: -100, transfer_id: 7 }), 'moved');
-  assert.equal(flowOf({ amount_minor: 100, transfer_id: 7 }), 'moved');
+  assert.equal(flowOf({ amount_minor: 100, transfer_id: 7 }), 'received');
   assert.equal(flowOf({ amount_minor: -100, transfer_id: null }), 'out');
   assert.equal(flowOf({ amount_minor: 100, transfer_id: null }), 'in');
 });
@@ -172,7 +175,7 @@ test('a transfer gets a slice but stays marked as moved', () => {
 
 test('an empty period produces no slices and no division by zero', () => {
   assert.deepEqual(slicesOf([]), []);
-  assert.deepEqual(totalsOf([]), { inMinor: 0, outMinor: 0, refundedMinor: 0, movedMinor: 0 });
+  assert.deepEqual(totalsOf([]), { inMinor: 0, outMinor: 0, refundedMinor: 0, movedMinor: 0, receivedMinor: 0 });
   assert.deepEqual(groupMovements([], 'date'), []);
 });
 
@@ -396,4 +399,39 @@ test('what is drawn plus what is offered is what the badge says', () => {
         `with ${shown} drawn, ${drawn} + ${offered} is not ${group.count}`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// The ring answers "where did my money go", so what arrived does not belong in
+// it. Jose, 2026-09-16: a transfer received into an account is money that came
+// in, and showing it as a slice made a month of moving savings around read as
+// a month of enormous spending.
+
+test('money received from another account is beside income, not in the ring', () => {
+  const rows = [
+    movement({ date: '2026-09-01', label: 'Restaurante', amount: -50_000 }),
+    movement({ date: '2026-09-02', label: 'Arriendo', amount: -150_000 }),
+    // Out of this account, to another of mine: it left, so it is drawn.
+    movement({ date: '2026-09-03', label: 'A Ualá', amount: -200_000, transfer: 3 }),
+    // And into this one from another of mine: it arrived.
+    movement({ date: '2026-09-04', label: 'De Rappi', amount: 800_000, transfer: 4 }),
+    movement({ date: '2026-09-05', label: 'Sueldo', amount: 300_000 }),
+  ];
+
+  const totals = totalsOf(rows);
+  assert.equal(totals.outMinor, 200_000, 'only what was really spent');
+  assert.equal(totals.movedMinor, 200_000, 'what left towards another account');
+  assert.equal(totals.receivedMinor, 800_000, 'and what arrived from one, apart');
+  assert.equal(totals.inMinor, 300_000);
+
+  const slices = slicesOf(rows);
+  const received = slices.find(slice => slice.flow === 'received');
+  assert.ok(received, 'it is still listed');
+  assert.equal(received.percent, 0, 'with no share of what was spent');
+
+  // The percentages are shares of what left: 50 + 150 + 200 = 400.
+  const share = label => slices.find(slice => slice.label === label).percent;
+  assert.equal(share('Restaurante'), 13);
+  assert.equal(share('Arriendo'), 38);
+  assert.equal(slices.find(slice => slice.flow === 'moved').percent, 50);
 });

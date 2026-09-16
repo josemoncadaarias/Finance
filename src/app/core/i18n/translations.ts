@@ -60,6 +60,7 @@ export const SPANISH = {
   'summary.in': 'Entró',
   'summary.out': 'Salió',
   'summary.moved': 'Movido',
+  'summary.received': 'Recibido',
 
   'summary.seeMovements': 'Ver movimientos',
   'summary.movements': 'Movimientos',
@@ -738,6 +739,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.in': 'In',
   'summary.out': 'Out',
   'summary.moved': 'Moved',
+  'summary.received': 'Received',
 
   'summary.seeMovements': 'See movements',
   'summary.movements': 'Movements',

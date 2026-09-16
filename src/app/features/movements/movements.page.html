@@ -128,6 +128,14 @@
           <span class="value moved">{{ store.totals().movedMinor | money:store.currency() }}</span>
         </div>
       }
+      <!-- What arrived from another of your own accounts. Beside income, not
+           in the ring: it was not spent and it was not earned. -->
+      @if (store.totals().receivedMinor > 0) {
+        <div>
+          <span class="tag">{{ 'summary.received' | t }}</span>
+          <span class="value moved">{{ store.totals().receivedMinor | money:store.currency() }}</span>
+        </div>
+      }
     </section>
 
     <!-- Balance pill, flanked by the control that swaps donut and list -->
