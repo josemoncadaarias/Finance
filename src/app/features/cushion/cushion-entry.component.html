@@ -244,6 +244,12 @@
   </ng-template>
 </ion-modal>
 
+<!-- While the yields are being worked out again the sheet is out of reach,
+     and says so rather than looking frozen. -->
+@if (busyLabel()) {
+  <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
+}
+
 <!-- The categories of a product's own movement are kept here and on the
      categories screen, with the same editor. -->
 <ion-modal class="editor-sheet" [isOpen]="managingKinds()" (didDismiss)="managingKinds.set(false)">

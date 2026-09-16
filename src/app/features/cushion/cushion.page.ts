@@ -1042,6 +1042,12 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -1321,6 +1327,12 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       // The summary and the accounts screen show the account without what is set aside.
       this.database.dataChanged();
       await this.returnFromPocket(line);
@@ -1432,6 +1444,12 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
       await this.returnFromPocket(line);
     } catch (error) {
@@ -1637,6 +1655,12 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       await this.backToPocket(line, pocket.id);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -1657,6 +1681,12 @@ export class CushionPage {
         await yields.clearDays(line.account.id, rate.valid_from);
       });
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
       if (rate.pocket_id !== null) await this.backToPocket(line, rate.pocket_id);
       else await this.openSettings();
@@ -1951,11 +1981,18 @@ export class CushionPage {
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
+      await this.report('busy.deletingMovement');
       await db.transaction(async () => {
         await yields.removeWithdrawal(withdrawal.id);
         await yields.clearDays(line.account.id, withdrawal.on_date);
       });
       await accrueAndSettle(db, yields, tax, line.account.id, today());
+      // Only this account changed and it has just been worked out, so the
+      // screen opening afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      // Only this account changed and it has just been worked out, so opening
+      // the screen afterwards has nothing left to do.
+      await yields.markAccrued(today(), { onlyIfKnown: true });
       this.orphanWithdrawal.set(null);
       this.database.dataChanged();
       await this.reopen(line);
@@ -1973,6 +2010,7 @@ export class CushionPage {
 
   /** Corrected or deleted on the movement screen: the account is worked out again. */
   async movementSaved(): Promise<void> {
+    await this.report('busy.yields');
     this.movementEdit.set(null);
     const line = this.openLine();
     if (!line) return;
@@ -1981,6 +2019,7 @@ export class CushionPage {
     const { db, yields, tax } = this.repos();
     await yields.clearDays(line.account.id);
     await accrueAndSettle(db, yields, tax, line.account.id, today());
+    await yields.markAccrued(today(), { onlyIfKnown: true });
     this.database.dataChanged();
     await this.reopen(line);
   }

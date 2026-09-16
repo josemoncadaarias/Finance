@@ -52,6 +52,7 @@ import { CategoriesRepository, type UsedCategory } from '../../core/database/rep
 import type { AccountRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -68,7 +69,7 @@ export interface CushionEntryRequest {
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent, ProductKindEditorComponent,
+    TranslatePipe, IconComponent, ProductKindEditorComponent, BusyOverlayComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
   ],
@@ -173,6 +174,16 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
   }
   readonly saving = signal(false);
+
+  /**
+   * What is happening while the sheet cannot be used.
+   *
+   * Saving or deleting a product's movement works the yields out again from
+   * the day it happened, which on a phone is seconds of a screen that looked
+   * frozen - Jose deleted one, saw nothing, and wondered whether it had
+   * worked.
+   */
+  readonly busyLabel = signal('');
   readonly error = signal('');
   /** Which side's product the sheet is asking for, or null when it is closed. */
   readonly pickingPocket = signal<'from' | 'to' | null>(null);
@@ -464,6 +475,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     return 'other';
   }
 
+  /**
+   * Puts the overlay up and hands the screen back long enough to draw it:
+   * everything after this holds the thread until it is done.
+   */
+  private async sayBusy(label: string): Promise<void> {
+    this.busyLabel.set(this.i18n.t(label as never));
+    await new Promise(resolve => setTimeout(resolve));
+  }
+
   clearNote(): void {
     this.note.set('');
     this.noteSuggestions.set([]);
@@ -533,6 +553,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (!editing || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
+    await this.sayBusy('busy.deletingMovement');
     try {
       const db = this.database.driver;
       const yields = new YieldsRepository(db);
@@ -543,12 +564,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
         await yields.clearDays(accountId, editing.on_date);
       });
       await accrueAndSettle(db, yields, tax, accountId, todayIso());
+      // The account that changed has just been worked out.
+      await yields.markAccrued(todayIso(), { onlyIfKnown: true });
       this.database.dataChanged();
       this.saved.emit();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
+      this.busyLabel.set('');
     }
   }
 
@@ -578,6 +602,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
+    await this.sayBusy('busy.saving');
 
     try {
       const db = this.database.driver;
@@ -665,12 +690,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       });
 
       await accrueAndSettle(db, yields, tax, account.id, todayIso());
+      // The account that changed has just been worked out.
+      await yields.markAccrued(todayIso(), { onlyIfKnown: true });
       this.database.dataChanged();
       this.saved.emit();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
+      this.busyLabel.set('');
     }
   }
 }

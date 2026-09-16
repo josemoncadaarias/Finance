@@ -1278,8 +1278,22 @@ export class YieldsRepository {
     return stored.value !== await this.accrualMark(today);
   }
 
-  /** Records that today's accrual is done, against the data it was done on. */
-  async markAccrued(today: IsoDate): Promise<void> {
+  /**
+   * Records that today's accrual is done, against the data it was done on.
+   *
+   * `onlyIfKnown` is for the screens that accrue ONE account after changing
+   * it: they may re-mark only if a mark is already there, because a mark
+   * standing means every other account was up to date a moment ago and the
+   * one that changed has just been worked out. With no mark at all, nothing
+   * is claimed - a whole pass has never run, and the next open owes one.
+   */
+  async markAccrued(today: IsoDate, options: { onlyIfKnown?: boolean } = {}): Promise<void> {
+    if (options.onlyIfKnown) {
+      const stored = await this.db.queryOne<{ value: string }>(
+        'SELECT value FROM settings WHERE key = ?', [ACCRUAL_MARK]);
+      if (!stored) return;
+    }
+
     const now = this.now();
     await this.db.run(
       'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
