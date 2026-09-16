@@ -220,11 +220,6 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   /** The sheet where the list itself is kept: add, rename, re-icon, remove. */
   readonly managingKinds = signal(false);
   readonly editingKind = signal<ProductKind | null>(null);
-  readonly kindName = signal('');
-  readonly kindIcon = signal<{ builtin_icon: string | null; custom_icon_id: number | null }>(
-    { builtin_icon: 'pricetag-outline', custom_icon_id: null });
-  readonly kindError = signal('');
-
 
   private kindsRepo(): ProductKindsRepository {
     return new ProductKindsRepository(this.database.driver);
@@ -239,15 +234,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** The list itself, opened from the chip at the end of the row. */
+  /** The editor, on one of them or on a new one. */
   openKinds(kind: ProductKind | null): void {
-    this.kindError.set('');
     this.editingKind.set(kind);
-    this.kindName.set(kind?.name ?? '');
-    this.kindIcon.set({
-      builtin_icon: kind?.builtin_icon ?? 'pricetag-outline',
-      custom_icon_id: kind?.custom_icon_id ?? null,
-    });
     this.managingKinds.set(true);
   }
 

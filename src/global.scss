@@ -506,3 +506,27 @@ ion-modal.period-sheet {
     }
   }
 }
+
+/*
+ * Editing one thing: a sheet the size of what it asks.
+ *
+ * A category - or a product's own category - is a name, a picture and two
+ * switches. That was opening a whole screen with its content at the top and
+ * nothing under it, which is the shape of a page, not of a question.
+ */
+ion-modal.editor-sheet {
+  --height: auto;
+  --max-height: 92%;
+  --width: calc(100% - 2rem);
+  --max-width: 26rem;
+  --border-radius: 18px;
+
+  align-items: center;
+
+  .editor-body {
+    max-height: 78vh;
+    overflow-y: auto;
+    padding-bottom: 0.75rem;
+    background: var(--ion-background-color);
+  }
+}

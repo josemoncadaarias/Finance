@@ -1,18 +1,26 @@
 /**
- * A product's own category: a name and a picture, nothing else.
+ * A product's own category: a name and a picture.
  *
  * These are the categories of a movement that touches only what a product
  * gathered - a cashback the bank paid in, a correction against what it says.
  * They were three words fixed in the schema until 2026-09-16 and are rows now,
- * so they are edited the way any other category is.
+ * so they are edited the way any other category is: the same screen, the same
+ * order of questions, the same words.
  *
- * One editor, used from the two places they are met: the product's own
- * movement form, and the categories screen, where someone goes looking for a
- * list of categories to keep.
+ * Two differences from the category editor next door, both because of what
+ * these are. There is no side to choose - a product's movement is not filed as
+ * spending or income - and a category with movements under it is archived
+ * rather than deleted, so what was already recorded keeps its name.
+ *
+ * One editor, used from the two places these are met: the product's own
+ * movement form, and the categories screen.
  */
 
-import { Component, effect, inject, input, output, signal } from '@angular/core';
-import { IonButton, IonIcon, IonInput, IonItem, IonList } from '@ionic/angular';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import {
+  IonButton, IonButtons, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonList, IonNote, IonToggle,
+  IonToolbar,
+} from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -26,115 +34,101 @@ import {
 @Component({
   selector: 'app-product-kind-editor',
   standalone: true,
-  imports: [TranslatePipe, IconPickerComponent, IonButton, IonIcon, IonInput, IonItem, IonList],
-  template: `
-    <div class="confirm-dialog kind-editor">
-      <h2>{{ (kind() ? 'cushion.kinds.editTitle' : 'cushion.kinds.newTitle') | t }}</h2>
-
-      <ion-list [inset]="true">
-        <ion-item>
-          <ion-input [label]="'cushion.kinds.name' | t" labelPlacement="stacked"
-                     [value]="name()" (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
-        </ion-item>
-      </ion-list>
-
-      <app-icon-picker [catalog]="catalog" [builtin]="icon().builtin_icon"
-                       [custom]="icon().custom_icon_id" (chosen)="icon.set($event)"></app-icon-picker>
-
-      @if (error()) { <p class="error">{{ error() }}</p> }
-
-      <div class="buttons">
-        <ion-button fill="clear" color="medium" (click)="cancelled.emit()">
-          {{ 'entry.cancel' | t }}
-        </ion-button>
-        <ion-button [disabled]="working()" (click)="save()">{{ 'entry.save' | t }}</ion-button>
-      </div>
-
-      @if (kind()) {
-        <ion-button expand="block" fill="clear" color="danger" [disabled]="working()" (click)="remove()">
-          <ion-icon slot="start" name="trash-outline"></ion-icon>
-          {{ 'cushion.kinds.delete' | t }}
-        </ion-button>
-      }
-    </div>
-  `,
+  imports: [
+    TranslatePipe, IconPickerComponent,
+    IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem, IonLabel,
+    IonInput, IonList, IonNote, IonToggle,
+  ],
+  templateUrl: './product-kind-editor.component.html',
+  // The category editor's own styles: these are categories, and a screen that
+  // looks like a different thing says they are a different thing.
+  styleUrls: ['./category-editor.component.scss'],
 })
 export class ProductKindEditorComponent {
   private readonly database = inject(DatabaseService);
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
 
-  /** The one being edited, or null while one is being made. */
-  readonly kind = input<ProductKind | null>(null);
+  /** The one being corrected, or null while one is being made. */
+  readonly editing = input<ProductKind | null>(null);
 
-  /** Saved, with the id, so a caller can select what was just made. */
+  /** Saved, with its id, so a caller can select what was just made. */
   readonly saved = output<number>();
   readonly cancelled = output<void>();
 
   readonly catalog = CATEGORY_ICONS_CATALOG;
+
   readonly name = signal('');
-  readonly icon = signal<{ builtin_icon: string | null; custom_icon_id: number | null }>(
-    { builtin_icon: 'pricetag-outline', custom_icon_id: null });
+  readonly builtinIcon = signal<string | null>('pricetag');
+  readonly customIconId = signal<number | null>(null);
+  readonly archived = signal(false);
+
+  /** How many movements are filed under it, so archiving is an informed act. */
+  readonly usedBy = signal(0);
+  readonly saving = signal(false);
   readonly error = signal('');
-  readonly working = signal(false);
+
+  readonly isNew = computed(() => this.editing() === null);
+
+  readonly title = computed(() =>
+    this.i18n.t(this.isNew() ? 'categories.new' : 'categories.edit'));
+
+  readonly missing = computed<string | null>(() =>
+    this.name().trim() === '' ? this.i18n.t('categories.need.name') : null);
+
+  readonly canSave = computed(() => this.missing() === null);
 
   constructor() {
-    // Opens on what it is editing, and starts clean for a new one.
     effect(() => {
-      const kind = this.kind();
+      const kind = this.editing();
       this.error.set('');
       this.name.set(kind?.name ?? '');
-      this.icon.set({
-        builtin_icon: kind?.builtin_icon ?? 'pricetag-outline',
-        custom_icon_id: kind?.custom_icon_id ?? null,
-      });
+      this.builtinIcon.set(kind?.builtin_icon ?? 'pricetag');
+      this.customIconId.set(kind?.custom_icon_id ?? null);
+      this.archived.set(kind?.archived === 1);
+      this.usedBy.set(0);
+      if (kind) void this.countUses(kind.id);
     });
   }
 
-  async save(): Promise<void> {
-    const name = this.name().trim();
-    if (name === '') {
-      this.error.set(this.i18n.t('cushion.kinds.needName'));
-      return;
-    }
+  private async countUses(id: number): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    this.usedBy.set(await new ProductKindsRepository(this.database.driver).timesUsed(id));
+  }
 
-    this.working.set(true);
+  onIcon(choice: { builtin_icon: string | null; custom_icon_id: number | null }): void {
+    this.builtinIcon.set(choice.builtin_icon);
+    this.customIconId.set(choice.custom_icon_id);
+  }
+
+  async save(): Promise<void> {
+    if (!this.canSave() || this.saving()) return;
+    this.saving.set(true);
+    this.error.set('');
+
     try {
       const repository = new ProductKindsRepository(this.database.driver);
-      const existing = this.kind();
       const changes = {
-        name,
-        builtin_icon: this.icon().builtin_icon,
-        custom_icon_id: this.icon().custom_icon_id,
+        name: this.name().trim(),
+        builtin_icon: this.builtinIcon(),
+        custom_icon_id: this.customIconId(),
+        archived: this.archived(),
       };
 
-      const id = existing ? (await repository.update(existing.id, changes), existing.id)
-        : await repository.create(changes);
+      const existing = this.editing();
+      let id: number;
+      if (existing) {
+        await repository.update(existing.id, changes);
+        id = existing.id;
+      } else {
+        id = await repository.create(changes);
+      }
+
       this.database.dataChanged();
       this.saved.emit(id);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
-      this.working.set(false);
-    }
-  }
-
-  /**
-   * Removes it, unless movements are filed under it - then it says how many,
-   * and the repository offers archiving instead of losing their category.
-   */
-  async remove(): Promise<void> {
-    const existing = this.kind();
-    if (!existing) return;
-
-    this.working.set(true);
-    try {
-      await new ProductKindsRepository(this.database.driver).delete(existing.id);
-      this.database.dataChanged();
-      this.saved.emit(existing.id);
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : String(error));
-    } finally {
-      this.working.set(false);
+      this.saving.set(false);
     }
   }
 }

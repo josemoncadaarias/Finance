@@ -17,9 +17,6 @@
   </ion-toolbar>
 </ion-header>
 
-<!-- A plain scroller, not an ion-content: this is presented as a sheet the
-     size of what it holds, and ion-content expands to fill whatever it is
-     given - which is the very height this editor should not be claiming. -->
 <div class="editor-body">
   @if (error()) {
     <p class="error">{{ error() }}</p>
@@ -33,35 +30,16 @@
                (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
   </section>
 
-  <ion-list [inset]="true">
-    <!-- Which side it belongs to. Locked once it exists: every movement filed
-         under it was filed as spending or as income, and flipping the label
-         would rewrite a year of them. -->
-    @if (isNew()) {
-      <ion-item>
-        <ion-select [label]="'categories.kind' | t" [value]="kind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                    (ionChange)="kind.set($any($event.detail).value)">
-          @for (option of kinds; track option) {
-            <ion-select-option [value]="option">{{ $any('categories.kind.' + option) | t }}</ion-select-option>
-          }
-        </ion-select>
-      </ion-item>
-    } @else {
-      <ion-item lines="full">
-        <ion-label>
-          <h3>{{ 'categories.kind' | t }}</h3>
-          <p>{{ 'categories.kind.locked' | t }}</p>
-        </ion-label>
-        <ion-note slot="end">{{ $any('categories.kind.' + kind()) | t }}</ion-note>
-      </ion-item>
-    }
-
-    @if (!isNew()) {
+  <!-- No side to choose: a movement of a product alone is not filed as
+       spending or as income. -->
+  @if (!isNew()) {
+    <ion-list [inset]="true">
       <ion-item lines="full">
         <ion-label>{{ 'categories.usedIn' | t }}</ion-label>
         <ion-note slot="end">{{ 'categories.inUse' | t:{ count: usedBy() } }}</ion-note>
       </ion-item>
 
+      <!-- Archived, never deleted: what was recorded under it keeps its name. -->
       <ion-item>
         <ion-toggle [checked]="archived()"
                     (ionChange)="archived.set($any($event.detail).checked)">
@@ -71,8 +49,8 @@
           </div>
         </ion-toggle>
       </ion-item>
-    }
-  </ion-list>
+    </ion-list>
+  }
 
   @if (missing(); as hint) {
     <p class="missing">{{ hint }}</p>

@@ -6,9 +6,10 @@
  * his, on 2026-09-16 - renamed, given an icon, added to, the way the
  * categories of an ordinary movement already are.
  *
- * `counts_as` is the half that is not cosmetic: interest is withheld and
- * cashback is not, so a kind someone adds has to say which of the two it
- * behaves like. Everything else about it is a name and a picture.
+ * A name and a picture, and nothing else the user has to think about. The
+ * `counts_as` column is carried from the day this table was added and is not
+ * asked for anywhere: it was a tax question inside a category editor, which
+ * is not where a tax question belongs.
  */
 
 import type { SqlDriver } from '../sql-driver';
@@ -52,6 +53,13 @@ export class ProductKindsRepository {
 
   async findById(id: number): Promise<ProductKind | null> {
     return this.db.queryOne<ProductKind>(`SELECT ${COLUMNS} FROM product_kinds WHERE id = ?`, [id]);
+  }
+
+  /** How many entries are filed under it, so archiving is an informed act. */
+  async timesUsed(id: number): Promise<number> {
+    const row = await this.db.queryOne<{ total: number }>(
+      'SELECT COUNT(*) AS total FROM cushion_adjustments WHERE product_kind_id = ?', [id]);
+    return row?.total ?? 0;
   }
 
   async create(kind: NewProductKind): Promise<number> {

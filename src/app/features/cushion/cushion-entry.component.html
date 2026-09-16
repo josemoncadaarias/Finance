@@ -246,9 +246,9 @@
 
 <!-- The categories of a product's own movement are kept here and on the
      categories screen, with the same editor. -->
-<ion-modal class="confirm-sheet" [isOpen]="managingKinds()" (didDismiss)="managingKinds.set(false)">
+<ion-modal class="editor-sheet" [isOpen]="managingKinds()" (didDismiss)="managingKinds.set(false)">
   <ng-template>
-    <app-product-kind-editor [kind]="editingKind()"
+    <app-product-kind-editor [editing]="editingKind()"
                              (saved)="kindSaved($event)"
                              (cancelled)="managingKinds.set(false)"></app-product-kind-editor>
   </ng-template>

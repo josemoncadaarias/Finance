@@ -124,7 +124,7 @@
   }
 </ion-content>
 
-<ion-modal [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
+<ion-modal class="editor-sheet" [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
   <ng-template>
     @if (editor(); as request) {
       <app-category-editor [editing]="request.category" [startKind]="request.kind"
@@ -134,10 +134,10 @@
 </ion-modal>
 
 <!-- The same editor the product's own movement form opens. -->
-<ion-modal class="confirm-sheet" [isOpen]="kindEditor() !== null" (didDismiss)="kindEditor.set(null)">
+<ion-modal class="editor-sheet" [isOpen]="kindEditor() !== null" (didDismiss)="kindEditor.set(null)">
   <ng-template>
     @if (kindEditor(); as open) {
-      <app-product-kind-editor [kind]="open.kind"
+      <app-product-kind-editor [editing]="open.kind"
                                (saved)="kindSaved()"
                                (cancelled)="kindEditor.set(null)"></app-product-kind-editor>
     }

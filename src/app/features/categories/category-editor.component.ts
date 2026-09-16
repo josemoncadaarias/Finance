@@ -13,8 +13,8 @@ import {
   Component, HostListener, computed, inject, input, output, signal, type OnInit,
 } from '@angular/core';
 import {
-  IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-  IonInput, IonLabel, IonList, IonNote, IonToggle, IonFooter, IonSelect, IonSelectOption,
+  IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
+  IonInput, IonLabel, IonList, IonNote, IonToggle, IonSelect, IonSelectOption,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -31,8 +31,8 @@ import type { CategoryKind, CategoryRow } from '../../core/database/types';
   selector: 'app-category-editor',
   imports: [
     TranslatePipe, IconPickerComponent,
-    IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-    IonInput, IonLabel, IonList, IonNote, IonToggle, IonFooter, IonSelect, IonSelectOption,
+    IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
+    IonInput, IonLabel, IonList, IonNote, IonToggle, IonSelect, IonSelectOption,
   ],
   templateUrl: './category-editor.component.html',
   styleUrls: ['./category-editor.component.scss'],
