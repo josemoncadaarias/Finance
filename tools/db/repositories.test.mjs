@@ -836,3 +836,48 @@ test('an account can be deleted, and the import does not bring it back', async (
 
   await db.close();
 });
+
+// ---------------------------------------------------------------------------
+// A transfer between two products of one account. The yields screen writes one
+// whenever a CDT is funded out of the savings beside it, and Jose could not
+// edit it (2026-09-15): the entry screen moved the far account away as soon as
+// the near one was chosen, and refused to save two legs on one account.
+
+import { YieldsRepository } from '../../src/app/core/database/repositories/yields.repository.ts';
+
+test('a transfer between two products of one account can be edited without leaving it', async () => {
+  const { db, accounts, transfers, transactions, ids } = await setup();
+  const yields = new YieldsRepository(db, NOW);
+  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-01-01', withholding: true });
+  const [savings] = await yields.pockets(ids.rappi);
+  await yields.setDefaultPocket(ids.rappi, savings.id);
+  const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT renta', kind: 'cdt', sort_order: 1 });
+
+  const before = (await accounts.balance(ids.rappi)).balance_minor;
+  const id = await transfers.create({
+    occurred_on: '2026-09-01',
+    from: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100000000 },
+    to: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 100000000 },
+  });
+
+  // Corrected the day after: the other way round, and for less.
+  await transfers.update(id, {
+    occurred_on: '2026-09-02',
+    from: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 40000000 },
+    to: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 40000000 },
+  });
+
+  const after = await transfers.findById(id);
+  assert.equal(after.from.account_id, ids.rappi);
+  assert.equal(after.to.account_id, ids.rappi);
+  assert.equal(after.from.pocket_id, cdt);
+  assert.equal(after.to.pocket_id, savings.id);
+  assert.equal(after.from.amount_minor, -40000000);
+  assert.equal(after.to.amount_minor, 40000000);
+  assert.equal(after.transfer.occurred_on, '2026-09-02');
+
+  // Money never left the account, so its balance is what it always was.
+  assert.equal((await accounts.balance(ids.rappi)).balance_minor, before);
+  assert.equal((await transactions.list({})).filter(t => t.transfer_id === id).length, 2);
+  await db.close();
+});

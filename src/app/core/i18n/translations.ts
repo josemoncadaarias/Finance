@@ -161,6 +161,7 @@ export const SPANISH = {
   'entry.need.account': 'Escoge la cuenta',
   'entry.need.destination': 'Escoge la cuenta de destino',
   'entry.need.differentAccounts': 'Las dos cuentas no pueden ser la misma',
+  'entry.need.differentProducts': 'Escoge dos productos distintos',
   'entry.need.arrived': 'Escribe cuánto llegó en {currency}',
   'entry.need.category': 'Escoge una categoría',
 
@@ -811,6 +812,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'entry.need.account': 'Pick the account',
   'entry.need.destination': 'Pick where it goes',
   'entry.need.differentAccounts': 'The two accounts cannot be the same',
+  'entry.need.differentProducts': 'Pick two different products',
   'entry.need.arrived': 'Type how much arrived in {currency}',
   'entry.need.category': 'Pick a category',
 

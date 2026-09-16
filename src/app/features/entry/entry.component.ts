@@ -290,7 +290,15 @@ export class EntryComponent implements OnInit {
 
     if (this.isTransfer()) {
       if (this.toAccountId() === null) return this.i18n.t('entry.need.destination');
-      if (this.toAccountId() === this.accountId()) return this.i18n.t('entry.need.differentAccounts');
+      // One account on both sides is a transfer between two of its products -
+      // how a CDT is funded out of the savings beside it. It needs two
+      // products to move between, and they have to be different ones.
+      if (this.toAccountId() === this.accountId()) {
+        if (!this.splitAccount()) return this.i18n.t('entry.need.differentAccounts');
+        if (this.pocketId() === null || this.pocketId() === this.toPocketId()) {
+          return this.i18n.t('entry.need.differentProducts');
+        }
+      }
       if (this.crossesCurrency() && this.targetAmount().minor <= 0) {
         return this.i18n.t('entry.need.arrived', { currency: this.targetCurrency() });
       }
@@ -391,6 +399,7 @@ export class EntryComponent implements OnInit {
 
     this.editingTransferId.set(transferId);
     this.accountId.set(found.from.account_id);
+    this.nearLegPocketId = found.from.pocket_id ?? null;
     this.farLegPocketId = found.to.pocket_id ?? null;
     this.toAccountId.set(found.to.account_id);
     this.amount.set(AmountBuffer.from(found.from.amount_minor));
@@ -443,7 +452,7 @@ export class EntryComponent implements OnInit {
        FROM transactions t
        JOIN transactions other
          ON other.transfer_id = t.transfer_id AND other.id <> t.id
-       WHERE t.account_id = ? AND t.transfer_leg = ?
+       WHERE t.account_id = ? AND t.transfer_leg = ? AND other.account_id <> t.account_id
        GROUP BY other.account_id
        ORDER BY times DESC
        LIMIT 1`,
@@ -714,17 +723,23 @@ export class EntryComponent implements OnInit {
 
   async pickAccount(id: number): Promise<void> {
     // The products belong to the account, so the question changes with it.
-    const wasAccount = this.accountId();
-    if (this.picking() === 'to') {
-      this.toAccountId.set(id);
-    } else {
-      this.accountId.set(id);
-      // Changing where the money leaves from changes where it usually goes.
-      if (this.isTransfer() && this.toAccountId() === id) {
-        this.toAccountId.set(await this.counterpart(this.accounts(), id, 'from'));
-      }
-    }
+    const toSide = this.picking() === 'to';
+    if (toSide) this.toAccountId.set(id);
+    else this.accountId.set(id);
     await this.loadPockets();
+
+    // Landing on the same account on both sides is a transfer between two of
+    // its products, which is a real thing to want. Only an account with a
+    // single product cannot do it, and there the other side moves to wherever
+    // this one usually sends. Moving it in every case was what made editing a
+    // transfer between products impossible: choosing the account it comes out
+    // of changed the account it goes to.
+    if (this.isTransfer() && this.toAccountId() === this.accountId() && this.pockets().length < 2) {
+      const other = await this.counterpart(this.accounts(), id, toSide ? 'to' : 'from');
+      if (toSide) this.accountId.set(other);
+      else this.toAccountId.set(other);
+      await this.loadPockets();
+    }
 
     // Straight on to the product, when the account has more than one. The
     // sheet stays open and changes what it is asking; anything else means
@@ -743,6 +758,16 @@ export class EntryComponent implements OnInit {
     const from = this.accountId();
     this.accountId.set(this.toAccountId());
     this.toAccountId.set(from);
+
+    // The products swap with them: on one account they are the whole of what
+    // the two sides are, and leaving them put would turn the transfer around
+    // without turning it around.
+    const fromPocket = this.pocketId();
+    const fromPockets = this.pockets();
+    this.pocketId.set(this.toPocketId());
+    this.pockets.set(this.toPockets());
+    this.toPocketId.set(fromPocket);
+    this.toPockets.set(fromPockets);
   }
 
   pickDate(value: string | null): void {
@@ -795,7 +820,13 @@ export class EntryComponent implements OnInit {
     const storedFor = (accountId: number | null) =>
       editing && editing.account_id === accountId ? editing.pocket_id ?? null : null;
 
-    const here = await read(this.accountId(), storedFor(this.accountId()));
+    // A transfer between two products of one account has the same account on
+    // both legs, so which leg a stored product belongs to cannot be told from
+    // the account alone: each leg's product is remembered as it was read.
+    const nearStored = this.editingTransferId() !== null
+      ? this.nearLegPocketId
+      : storedFor(this.accountId());
+    const here = await read(this.accountId(), nearStored);
     this.pockets.set(here.pockets);
     this.pocketId.set(here.chosen);
 
@@ -805,11 +836,17 @@ export class EntryComponent implements OnInit {
     const far = this.isTransfer()
       ? await read(this.toAccountId(), this.farLegPocket())
       : { pockets: [] as YieldPocket[], chosen: null };
+    // Both sides on one account: the far side starts on a different product,
+    // because money does not move from a product to itself.
+    const farChosen = this.toAccountId() === this.accountId() && far.chosen === here.chosen
+      ? far.pockets.find(pocket => pocket.id !== here.chosen)?.id ?? far.chosen
+      : far.chosen;
     this.toPockets.set(far.pockets);
-    this.toPocketId.set(far.chosen);
+    this.toPocketId.set(farChosen);
   }
 
-  /** The product recorded on the far leg of the transfer being corrected. */
+  /** The products recorded on each leg of the transfer being corrected. */
+  private nearLegPocketId: number | null = null;
   private farLegPocketId: number | null = null;
 
   private farLegPocket(): number | null {
