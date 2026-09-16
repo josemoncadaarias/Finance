@@ -412,3 +412,97 @@ ion-modal.confirm-sheet {
     }
   }
 }
+
+/*
+ * Choosing a period: a sheet the size of the question.
+ *
+ * Six choices were opening a full-height screen with the options at the top
+ * and nothing under them - and picking a range put two calendars down a page
+ * nobody could see the end of. This sizes itself to what it holds, grows when
+ * a range is being set, and scrolls only if it runs out of screen.
+ */
+ion-modal.period-sheet {
+  --height: auto;
+  --max-height: 92%;
+  --width: calc(100% - 2rem);
+  --max-width: 24rem;
+  --border-radius: 18px;
+
+  align-items: center;
+
+  .period-picker {
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 0.35rem 0 0.9rem;
+    background: var(--ion-background-color);
+
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem 0.25rem 1.25rem;
+
+      h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      button {
+        display: inline-flex;
+        padding: 0.35rem;
+        border: 0;
+        border-radius: 999px;
+        background: none;
+        color: var(--ion-color-medium);
+        font-size: 1.25rem;
+        cursor: pointer;
+      }
+    }
+
+    ion-item { --padding-start: 1.25rem; }
+
+    .range {
+      padding: 0.5rem 1rem 0;
+
+      /* The two ends, as a pair of chips: which one the calendar is setting,
+         and what each says so far. */
+      .ends {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+
+        button {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+          padding: 0.45rem 0.6rem;
+          border: 1px solid var(--ion-color-step-150, var(--ion-color-light-shade));
+          border-radius: 10px;
+          background: var(--ion-color-step-50, transparent);
+          color: var(--ion-text-color);
+          text-align: left;
+          cursor: pointer;
+
+          .lead {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ion-color-medium);
+          }
+
+          .day { font-size: 0.85rem; font-weight: 600; }
+
+          &.on {
+            border-color: var(--ion-color-primary);
+            background: rgba(var(--ion-color-primary-rgb), 0.12);
+          }
+        }
+      }
+
+      ion-datetime { margin-inline: auto; }
+    }
+  }
+}

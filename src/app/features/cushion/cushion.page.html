@@ -174,19 +174,18 @@
   <!-- The detail. Full height rather than a draggable sheet, because the day
        list has to scroll from the moment it opens. -->
   <!-- The period of the products' movements: the summary's own choices. -->
-  <ion-modal [isOpen]="showMovementsPeriodSheet()" (didDismiss)="showMovementsPeriodSheet.set(false)">
+  <ion-modal class="period-sheet" [isOpen]="showMovementsPeriodSheet()"
+             (didDismiss)="showMovementsPeriodSheet.set(false)">
     <ng-template>
-      <ion-header>
-        <ion-toolbar>
-          <ion-buttons slot="start">
-            <ion-button (click)="showMovementsPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
-              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-            </ion-button>
-          </ion-buttons>
-        </ion-toolbar>
-      </ion-header>
-      <ion-content class="sheet period-sheet">
-        <h2>{{ 'summary.period' | t }}</h2>
+      <!-- The same small sheet the summary uses. -->
+      <div class="period-picker">
+        <div class="head">
+          <h2>{{ 'summary.period' | t }}</h2>
+          <button type="button" (click)="showMovementsPeriodSheet.set(false)"
+                  [attr.aria-label]="'summary.close' | t">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
         <ion-radio-group [value]="choosingMovementsRange() ? 'range' : movementsPeriod().kind"
                          (ionChange)="chooseMovementsPeriod($any($event.detail).value)">
           @for (option of periodKinds; track option.kind) {
@@ -200,24 +199,36 @@
 
         @if (choosingMovementsRange()) {
           <div class="range">
-            @if (movementsRangeLabel(); as range) {
-              <p class="range-label">{{ range }}</p>
+            <div class="ends">
+              <button type="button" [class.on]="movementsRangeSide() === 'from'"
+                      (click)="movementsRangeSide.set('from')">
+                <span class="lead">{{ 'summary.from' | t }}</span>
+                <span class="day">{{ dayShown(movementsRangeStart()) }}</span>
+              </button>
+              <button type="button" [class.on]="movementsRangeSide() === 'to'"
+                      (click)="movementsRangeSide.set('to')">
+                <span class="lead">{{ 'summary.to' | t }}</span>
+                <span class="day">{{ dayShown(movementsRangeEnd()) }}</span>
+              </button>
+            </div>
+
+            @if (movementsRangeSide() === 'from') {
+              <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                            [value]="movementsRangeStart()" [max]="todayDay"
+                            (ionChange)="movementsRangeStart.set($any($event.detail).value); movementsRangeSide.set('to')"></ion-datetime>
+            } @else {
+              <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                            [value]="movementsRangeEnd()" [max]="todayDay"
+                            (ionChange)="movementsRangeEnd.set($any($event.detail).value)"></ion-datetime>
             }
-            <p>{{ 'summary.from' | t }}</p>
-            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
-                          [value]="movementsRangeStart()" [max]="todayDay"
-                          (ionChange)="movementsRangeStart.set($any($event.detail).value)"></ion-datetime>
-            <p>{{ 'summary.to' | t }}</p>
-            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
-                          [value]="movementsRangeEnd()" [max]="todayDay"
-                          (ionChange)="movementsRangeEnd.set($any($event.detail).value)"></ion-datetime>
+
             <ion-button expand="block" (click)="applyMovementsRange()"
                         [disabled]="!movementsRangeStart() || !movementsRangeEnd()">
               {{ 'summary.apply' | t }}
             </ion-button>
           </div>
         }
-      </ion-content>
+      </div>
     </ng-template>
   </ion-modal>
 

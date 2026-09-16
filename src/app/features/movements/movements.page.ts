@@ -90,6 +90,9 @@ export class MovementsPage {
    */
   readonly choosingRange = signal(false);
 
+  /** Which end of the range the calendar is setting. One at a time. */
+  readonly rangeSide = signal<'from' | 'to'>('from');
+
   readonly rangeStart = signal<string | null>(null);
   readonly rangeEnd = signal<string | null>(null);
 
@@ -402,6 +405,11 @@ export class MovementsPage {
     this.filter.period.set(rangePeriod(start, end));
     this.choosingRange.set(false);
     this.showPeriodSheet.set(false);
+  }
+
+  /** One end of the range, as it reads on its button. */
+  dayShown(iso: string | null): string {
+    return iso ? this.dayLabel(iso.slice(0, 10)) : '—';
   }
 
   /** The range as it currently stands, for the button that applies it. */

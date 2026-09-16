@@ -268,6 +268,9 @@ export class CushionPage {
   readonly periodKinds = PERIOD_KINDS;
   readonly showMovementsPeriodSheet = signal(false);
   readonly choosingMovementsRange = signal(false);
+
+  /** Which end of the range the calendar is setting. One at a time. */
+  readonly movementsRangeSide = signal<'from' | 'to'>('from');
   readonly movementsRangeStart = signal<string | null>(null);
   readonly movementsRangeEnd = signal<string | null>(null);
   /** Today, so a date picker opens somewhere useful. */
@@ -2165,6 +2168,11 @@ export class CushionPage {
     return `${new Intl.NumberFormat('es-CO', {
       minimumFractionDigits: 2, maximumFractionDigits: 4,
     }).format((scaled / EA_SCALE) * 100)} % E.A.`;
+  }
+
+  /** One end of a range, as it reads on its button. */
+  dayShown(iso: string | null): string {
+    return iso ? this.longDayText(iso.slice(0, 10) as IsoDate) : '—';
   }
 
   dayText(iso: IsoDate): string {

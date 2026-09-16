@@ -389,20 +389,18 @@
 </ion-modal>
 
 <!-- Period and account, the way Monefy puts them in one drawer -->
-<ion-modal [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
+<ion-modal class="period-sheet" [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
   <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="showPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
-            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="sheet">
-      <h2>{{ 'summary.period' | t }}</h2>
+    <!-- Six choices do not need a screen. A sheet the size of what it holds,
+         which grows when a range is being picked and shows one calendar at a
+         time rather than two stacked down a page. -->
+    <div class="period-picker">
+      <div class="head">
+        <h2>{{ 'summary.period' | t }}</h2>
+        <button type="button" (click)="showPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
       <ion-radio-group [value]="filter.period().kind"
                        (ionChange)="choosePeriod($any($event.detail).value)">
         @for (option of periodKinds; track option.kind) {
@@ -416,27 +414,29 @@
 
       @if (choosingRange()) {
         <div class="range">
-          <!-- The chosen range, above the calendars that set it, so it is
-               readable without scrolling past both of them. -->
-          @if (rangeLabel(); as range) {
-            <p class="range-so-far">{{ range }}</p>
-          }
-
+          <!-- Which end is being set, and what it says so far. One calendar at
+               a time: two of them stacked made a sheet nobody could see the
+               bottom of. -->
           <div class="ends">
-            <div class="end">
-              <p>{{ 'summary.from' | t }}</p>
-              <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
-                            [value]="rangeStart()" [max]="today"
-                            (ionChange)="rangeStart.set($any($event.detail).value)"></ion-datetime>
-            </div>
-
-            <div class="end">
-              <p>{{ 'summary.to' | t }}</p>
-              <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
-                            [value]="rangeEnd()" [max]="today"
-                            (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
-            </div>
+            <button type="button" [class.on]="rangeSide() === 'from'" (click)="rangeSide.set('from')">
+              <span class="lead">{{ 'summary.from' | t }}</span>
+              <span class="day">{{ dayShown(rangeStart()) }}</span>
+            </button>
+            <button type="button" [class.on]="rangeSide() === 'to'" (click)="rangeSide.set('to')">
+              <span class="lead">{{ 'summary.to' | t }}</span>
+              <span class="day">{{ dayShown(rangeEnd()) }}</span>
+            </button>
           </div>
+
+          @if (rangeSide() === 'from') {
+            <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                          [value]="rangeStart()" [max]="today"
+                          (ionChange)="rangeStart.set($any($event.detail).value); rangeSide.set('to')"></ion-datetime>
+          } @else {
+            <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                          [value]="rangeEnd()" [max]="today"
+                          (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
+          }
 
           <ion-button expand="block" (click)="applyRange()"
                       [disabled]="!rangeStart() || !rangeEnd()">
@@ -463,7 +463,7 @@
           </ion-toggle>
         </ion-item>
       }
-    </ion-content>
+    </div>
   </ng-template>
 </ion-modal>
 
