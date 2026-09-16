@@ -374,9 +374,17 @@ ion-button.save {
      * 945px tall that made every key 90px, so a 360px keypad was squeezed
      * into a 570px modal and the form grew its own scrollbar.
      */
-    height: 2.9rem;
+    /*
+     * Sized against the screen, which the form now fills - so a height query
+     * measures the room the keys actually have. It was a flat 2.9rem from
+     * the days when this was a short sheet inside a tall window.
+     */
+    height: 3.3rem;
     padding: 0;
-    font-size: 1.35rem;
+    font-size: 1.45rem;
+
+    @media (min-height: 700px) { height: 3.9rem; font-size: 1.55rem; }
+    @media (min-height: 820px) { height: 4.4rem; font-size: 1.65rem; }
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);
     cursor: pointer;
@@ -755,13 +763,24 @@ ion-footer[hidden] { display: none; }
   min-height: 100%;
 }
 
+/*
+ * The note does not take the room the keys need.
+ *
+ * Full height, the spare space was handed to the note, and a form for an
+ * amount ended up mostly an empty writing area with a cramped keypad under
+ * it - Jose, 2026-09-16. It is two lines tall until it is being written,
+ * and the height goes to the keys instead, which are what a thumb aims at.
+ */
 .entry-body .note {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  max-height: 6.5rem;
 }
 
-/* While the note is being written it is the screen, so it gets more of it. */
+/* While it is being written it IS the screen, so it takes what it needs. */
 .entry-body.writing-note .note {
+  flex: 1 1 auto;
   min-height: 7rem;
+  max-height: none;
 }
 
 /*
