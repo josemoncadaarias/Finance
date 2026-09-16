@@ -24,6 +24,7 @@ import {
 } from '../database/repositories/custom-icons.repository';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { I18nService } from '../i18n/i18n.service';
+import { CustomIconsService } from './custom-icons.service';
 import { bareIcon, outlined, type IconGroup } from './icon-catalog';
 
 /** What the picker hands back: exactly one of the two is set. */
@@ -344,6 +345,8 @@ export interface IconChoice {
 })
 export class IconPickerComponent implements OnInit {
   private readonly database = inject(DatabaseService);
+  /** The one place the user's own images live, read once for the whole app. */
+  private readonly icons = inject(CustomIconsService);
   private readonly i18n = inject(I18nService);
 
   /** The catalog to offer: accounts and categories want different icons. */
@@ -358,7 +361,16 @@ export class IconPickerComponent implements OnInit {
   readonly bareIcon = bareIcon;
 
   readonly open = signal(false);
-  readonly customIcons = signal<CustomIcon[]>([]);
+
+  /**
+   * The user's own images, from the one place that holds them.
+   *
+   * This read its own copy, one icon at a time, every time an account was
+   * opened for editing - fifty crossings into the native side on a phone,
+   * which is why the account's own logo took a moment to appear: it was
+   * queued behind a gallery nobody had asked for yet.
+   */
+  readonly customIcons = this.icons.icons;
   readonly uploading = signal(false);
 
   /**
@@ -392,12 +404,9 @@ export class IconPickerComponent implements OnInit {
   }
   readonly error = signal('');
 
-  /** Data URLs, built once per icon: base64 on every render would be felt. */
-  private readonly urls = signal<Map<number, string>>(new Map());
-
   readonly customUrl = computed(() => {
     const id = this.custom();
-    return id === null ? null : this.urls().get(id) ?? null;
+    return id === null ? null : this.icons.urlFor(id) ?? null;
   });
 
   constructor() {
@@ -409,23 +418,11 @@ export class IconPickerComponent implements OnInit {
   }
 
   urlFor(id: number): string | undefined {
-    return this.urls().get(id);
+    return this.icons.urlFor(id);
   }
 
   private async loadCustom(): Promise<void> {
-    if (this.database.status() !== 'ready') return;
-
-    const repository = new CustomIconsRepository(this.database.driver);
-    const icons = await repository.list();
-    this.customIcons.set(icons);
-
-    const urls = new Map(this.urls());
-    for (const icon of icons) {
-      if (urls.has(icon.id)) continue;
-      const full = await repository.findById(icon.id);
-      if (full) urls.set(icon.id, iconDataUrl(full));
-    }
-    this.urls.set(urls);
+    await this.icons.load();
   }
 
   chooseBuiltin(name: string): void {
@@ -465,7 +462,7 @@ export class IconPickerComponent implements OnInit {
         data: bytes,
       });
 
-      await this.loadCustom();
+      await this.icons.refresh();
       this.chooseCustom(id);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));

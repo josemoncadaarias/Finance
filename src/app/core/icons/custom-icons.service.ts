@@ -16,7 +16,9 @@
 import { Injectable, inject, signal } from '@angular/core';
 
 import { DatabaseService } from '../database/database.service';
-import { CustomIconsRepository, iconDataUrl } from '../database/repositories/custom-icons.repository';
+import {
+  CustomIconsRepository, iconDataUrl, type CustomIcon,
+} from '../database/repositories/custom-icons.repository';
 
 @Injectable({ providedIn: 'root' })
 export class CustomIconsService {
@@ -36,6 +38,9 @@ export class CustomIconsService {
 
   /** Set once the first read finishes, so later calls are free. */
   private read = false;
+
+  /** The icons themselves, without their images: enough to list them. */
+  readonly icons = signal<CustomIcon[]>([]);
 
   /** The image for an icon, or nothing — in which case draw the built-in one. */
   urlFor(id: number | null | undefined): string | undefined {
@@ -59,6 +64,7 @@ export class CustomIconsService {
     // fifty crossings into the native side, each carrying an image.
     const all = await repository.all();
     this.read = true;
+    this.icons.set(all.map(({ data: _data, ...icon }) => icon));
 
     const missing = all.filter(icon => !known.has(icon.id));
     if (missing.length > 0) {
@@ -67,6 +73,12 @@ export class CustomIconsService {
       this.urls.set(urls);
     }
     this.loading.set(false);
+  }
+
+  /** Reads them again, for after one has been added or replaced. */
+  async refresh(): Promise<void> {
+    this.read = false;
+    await this.load();
   }
 
   /** Whether an icon that exists simply has not been read yet. */
