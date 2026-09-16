@@ -18,6 +18,8 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
+import type { OnProgress } from '../database/export/progress';
+
 /**
  * Bytes written per call on the phone. The backup runs to tens of megabytes and
  * crosses to the native side as base64 text, so it goes in pieces. A multiple of
@@ -25,7 +27,7 @@ import { Share } from '@capacitor/share';
  */
 const CHUNK_BYTES = 3 * 512 * 1024;
 
-export async function saveFile(blob: Blob, name: string): Promise<boolean> {
+export async function saveFile(blob: Blob, name: string, onProgress?: OnProgress): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     download(blob, name);
     return true;
@@ -42,6 +44,7 @@ export async function saveFile(blob: Blob, name: string): Promise<boolean> {
       await Filesystem.appendFile({ path: name, data, directory: Directory.Cache });
     }
     at += CHUNK_BYTES;
+    await onProgress?.({ done: Math.min(at, bytes.length), total: bytes.length });
   } while (at < bytes.length);
 
   try {

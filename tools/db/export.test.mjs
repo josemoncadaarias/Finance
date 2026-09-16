@@ -158,3 +158,20 @@ test('the file name sorts by date and does not collide within a day', () => {
     exportFileName(new Date(2026, 8, 9, 9, 5), 'csv'),
     exportFileName(new Date(2026, 8, 9, 17, 48), 'csv'));
 });
+
+
+// ---------------------------------------------------------------------------
+// The same for writing one: a step per table, so a screen can draw a bar.
+
+test('a backup says which table it is on, ending at the last one', async () => {
+  const { db } = await setup();
+
+  const seen = [];
+  const backup = await exportBackup(db, step => { seen.push(step); });
+
+  assert.ok(seen.length > 0, 'it reports at all');
+  assert.equal(seen.length, seen.at(-1).total, 'one report per table');
+  assert.equal(seen.at(-1).done, seen.at(-1).total, 'it ends on the last table');
+  assert.ok(Object.keys(backup.tables).length > 0);
+  await db.close();
+});

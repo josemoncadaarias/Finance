@@ -28,13 +28,15 @@ import { exportBackup, backupSummary, toJson } from '../../core/database/export/
 import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
 import { saveFile } from '../../core/files/save-file';
+import type { Progress } from '../../core/database/export/progress';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 
 @Component({
   selector: 'app-export',
   templateUrl: './export.page.html',
   styleUrls: ['./export.page.scss'],
   imports: [
-    TranslatePipe, LanguageButtonComponent,
+    TranslatePipe, LanguageButtonComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton,
   ],
@@ -45,6 +47,15 @@ export class ExportPage {
   readonly status = this.database.status;
 
   readonly working = signal<'csv' | 'backup' | 'restore' | null>(null);
+
+  /**
+   * What is happening while the screen cannot be used.
+   *
+   * Reading five years of history, or writing it back, runs for seconds on a
+   * phone - Jose watched a minute of a screen that said nothing while a backup
+   * restored. Null when nothing is running.
+   */
+  readonly busy = signal<{ label: string; detail: string; percent: number | null } | null>(null);
   readonly error = signal('');
   readonly lastFile = signal('');
 
@@ -79,8 +90,31 @@ export class ExportPage {
     if (row) this.counts.set(row);
   }
 
+  /**
+   * Says how far along the work is, and hands the screen back long enough to
+   * draw it. Without the pause the bar would only appear once everything had
+   * finished, which is the one moment it is of no use.
+   */
+  private async report(label: string, progress?: Progress): Promise<void> {
+    const percent = progress && progress.total > 0
+      ? Math.min(100, Math.round((progress.done / progress.total) * 100))
+      : null;
+    this.busy.set({
+      label: this.i18n.t(label as never),
+      detail: progress && progress.total > 0
+        ? this.i18n.t('busy.steps', {
+            done: progress.done.toLocaleString('es-CO'),
+            total: progress.total.toLocaleString('es-CO'),
+          })
+        : '',
+      percent,
+    });
+    await new Promise(resolve => setTimeout(resolve));
+  }
+
   async downloadCsv(): Promise<void> {
     await this.produce('csv', async () => {
+      await this.report('busy.reading');
       const rows = await exportMovements(this.database.driver);
       return {
         text: toCsv(rows, this.csvWords()),
@@ -112,7 +146,8 @@ export class ExportPage {
 
   async downloadBackup(): Promise<void> {
     await this.produce('backup', async () => {
-      const backup = await exportBackup(this.database.driver);
+      const backup = await exportBackup(
+        this.database.driver, progress => this.report('busy.reading', progress));
       return {
         text: toJson(backup),
         bom: false,
@@ -132,15 +167,23 @@ export class ExportPage {
 
     try {
       const file = await build();
+
+      // Turning it into text is one call that holds the thread; there is
+      // nothing to measure inside it, so the bar says so by moving.
+      await this.report('busy.building');
       const parts = file.bom ? ['﻿', file.text] : [file.text];
       const blob = new Blob(parts, { type: file.type });
 
-      // On the phone the share sheet can be closed without choosing anywhere.
-      if (await saveFile(blob, file.name)) this.lastFile.set(file.name);
+      await this.report('busy.saving');
+      // On the phone the share sheet can be closed without choosing anywhere,
+      // and writing it there goes in pieces, which is what the bar counts.
+      const saved = await saveFile(blob, file.name, progress => this.report('busy.saving', progress));
+      if (saved) this.lastFile.set(file.name);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.working.set(null);
+      this.busy.set(null);
     }
   }
 
@@ -167,6 +210,8 @@ export class ExportPage {
     if (!file) return;
 
     try {
+      // Reading twenty-odd megabytes of JSON is itself a wait worth showing.
+      await this.report('busy.opening');
       const backup = parseBackup(await file.text());
       const counts = backupSummary(backup)
         .slice(0, 3)
@@ -180,6 +225,8 @@ export class ExportPage {
       this.picked.set(file);
     } catch (error) {
       this.error.set(messageOf(error));
+    } finally {
+      this.busy.set(null);
     }
   }
 
@@ -191,8 +238,11 @@ export class ExportPage {
     this.working.set('restore');
     this.error.set('');
     try {
+      await this.report('busy.opening');
       const backup = parseBackup(await file.text());
-      const result = await restoreBackup(this.database.driver, backup, MIGRATION_SOURCES);
+      const result = await restoreBackup(
+        this.database.driver, backup, MIGRATION_SOURCES,
+        progress => this.report('busy.restoring', progress));
 
       const rows = result.restored.reduce((sum, entry) => sum + entry.rows, 0);
       this.restored.set(this.i18n.t('restore.done', { rows, version: result.toVersion }));
@@ -202,6 +252,7 @@ export class ExportPage {
       this.error.set(messageOf(error));
     } finally {
       this.working.set(null);
+      this.busy.set(null);
     }
   }
 

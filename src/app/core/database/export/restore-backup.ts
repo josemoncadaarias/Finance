@@ -31,6 +31,7 @@ import type { SqlDriver } from '../sql-driver';
 import type { MigrationSource } from '../migrations/statements.generated';
 import { migrate, targetVersion } from '../migrations/migration-runner';
 import { TABLES, exportBackup, type Backup } from './export-backup';
+import type { OnProgress } from './progress';
 
 export interface RestoreResult {
   /** The schema the file was written at, before it was brought forward. */
@@ -103,6 +104,7 @@ export async function restoreBackup(
   db: SqlDriver,
   backup: Backup,
   sources: readonly MigrationSource[],
+  onProgress?: OnProgress,
 ): Promise<RestoreResult> {
   const latest = targetVersion(sources);
   if (backup.schemaVersion > latest) {
@@ -115,7 +117,7 @@ export async function restoreBackup(
   const current = await exportBackup(db);
 
   try {
-    return await replaceWith(db, backup, sources);
+    return await replaceWith(db, backup, sources, onProgress);
   } catch (error) {
     try {
       await replaceWith(db, current, sources);
@@ -137,6 +139,7 @@ async function replaceWith(
   db: SqlDriver,
   backup: Backup,
   sources: readonly MigrationSource[],
+  onProgress?: OnProgress,
 ): Promise<RestoreResult> {
   // Dropping runs outside a transaction and in reverse dependency order, so a
   // child is always gone before its parent. Foreign keys are on and cannot be
@@ -154,6 +157,15 @@ async function replaceWith(
   await migrate(db, sources.filter(source => source.version <= backup.schemaVersion));
 
   const restored: { table: string; rows: number }[] = [];
+
+  // Rows are the unit here: one table holds five years of movements and the
+  // rest hold a handful, so counting tables would sit at 90% for a minute.
+  // Reported every so often rather than on every row - the report costs more
+  // than the insert it follows, since it hands the screen the thread back.
+  const totalRows = Object.values(backup.tables)
+    .reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0);
+  const REPORT_EVERY = 200;
+  let written = 0;
 
   // Rows go in with foreign keys off, and every reference is checked before
   // the commit instead. Order alone cannot be trusted: a category can point at
@@ -187,8 +199,10 @@ async function replaceWith(
             `INSERT INTO "${table}" (${names}) VALUES (${placeholders})`,
             columns.map(column => (row as Record<string, unknown>)[column]),
           );
+          if (++written % REPORT_EVERY === 0) await onProgress?.({ done: written, total: totalRows });
         }
         restored.push({ table, rows: rows.length });
+        await onProgress?.({ done: written, total: totalRows });
       }
 
       const broken = await db.query<{ table: string; rowid: number; parent: string }>('PRAGMA foreign_key_check');

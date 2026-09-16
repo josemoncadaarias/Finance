@@ -14,6 +14,7 @@
  */
 
 import type { SqlDriver } from '../sql-driver';
+import type { OnProgress } from './progress';
 
 export interface Backup {
   /** What produced it, so an old file is recognisable. */
@@ -73,7 +74,7 @@ export const TABLES = [
 /** The format of the file itself, so a future reader knows what it is holding. */
 const BACKUP_VERSION = 1;
 
-export async function exportBackup(db: SqlDriver): Promise<Backup> {
+export async function exportBackup(db: SqlDriver, onProgress?: OnProgress): Promise<Backup> {
   const version = await db.queryOne<{ user_version: number }>('PRAGMA user_version');
 
   // Only what is actually there. The list above is today's schema, and a build
@@ -82,10 +83,15 @@ export async function exportBackup(db: SqlDriver): Promise<Backup> {
   const present = new Set((await db.query<{ name: string }>(
     `SELECT name FROM sqlite_master WHERE type = 'table'`)).map(row => row.name));
 
+  // One step per table, so a screen can say how far along it is. The row
+  // counts are wildly uneven - transactions is most of the file - but the
+  // steps are what is known before the work starts.
+  const wanted = TABLES.filter(table => present.has(table));
   const tables: Record<string, unknown[]> = {};
-  for (const table of TABLES) {
-    if (!present.has(table)) continue;
+  let done = 0;
+  for (const table of wanted) {
     tables[table] = await db.query(`SELECT * FROM ${table}`);
+    await onProgress?.({ done: ++done, total: wanted.length });
   }
 
   return {

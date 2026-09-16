@@ -139,3 +139,10 @@
     </section>
   }
 </ion-content>
+
+<!-- While the database is being read or written the page is out of reach, and
+     says so rather than looking frozen. -->
+@if (busy(); as state) {
+  <app-busy-overlay [label]="state.label" [detail]="state.detail" [percent]="state.percent"
+                    [warning]="'busy.wait' | t"></app-busy-overlay>
+}

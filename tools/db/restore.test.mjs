@@ -331,3 +331,35 @@ test('a backup comes back even where foreign keys cannot be turned off, whatever
       `${table} came back whole`);
   }
 });
+
+
+// ---------------------------------------------------------------------------
+// Telling the screen how far along it is. Restoring Jose's history on his phone
+// ran for minutes behind a screen that said nothing, which reads as a crash.
+
+test('a restore says how far along it is, in rows, ending at the total', async () => {
+  const source = await seeded();
+  const backup = await exportBackup(source.db);
+  const rows = Object.values(backup.tables).reduce((sum, table) => sum + table.length, 0);
+
+  const target = await seeded();
+  const seen = [];
+  await restoreBackup(target.db, backup, MIGRATION_SOURCES, step => { seen.push(step); });
+
+  assert.ok(seen.length > 0, 'it reports at all');
+  assert.ok(seen.every(step => step.total === rows), 'every report counts the same total');
+  assert.deepEqual(
+    seen.map(step => step.done),
+    [...seen.map(step => step.done)].sort((a, b) => a - b),
+    'it never goes backwards');
+  assert.equal(seen.at(-1).done, rows, 'and it ends at all of them');
+
+  // Reporting is optional: leaving it out restores exactly the same.
+  const plain = await seeded();
+  const result = await restoreBackup(plain.db, backup, MIGRATION_SOURCES);
+  assert.equal(result.restored.reduce((sum, entry) => sum + entry.rows, 0), rows);
+
+  await source.db.close();
+  await target.db.close();
+  await plain.db.close();
+});
