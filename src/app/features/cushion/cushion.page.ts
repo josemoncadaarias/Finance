@@ -176,7 +176,7 @@ export class CushionPage {
   readonly openDays = signal<YieldDay[]>([]);
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'day' | 'settings' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'day' | 'rate' | 'pocket'>('none');
 
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
@@ -187,10 +187,7 @@ export class CushionPage {
   readonly saving = signal(false);
 
   /** The settings form, filled from the account being edited. */
-  readonly openingAmount = signal('');
-  readonly openingDate = signal<IsoDate>(today());
   readonly withholds = signal(true);
-  readonly payout = signal<'daily' | 'monthly'>('daily');
   private editingEnabled = true;
   readonly rates = signal<YieldRate[]>([]);
   readonly editablePockets = signal<YieldPocket[]>([]);
@@ -348,7 +345,7 @@ export class CushionPage {
    * the settings, which read as being thrown somewhere else for someone who
    * had tapped the product straight from the account.
    */
-  readonly pocketOrigin = signal<'detail' | 'settings'>('settings');
+
 
   /** How a high-yield product is paid, as set on the product. */
   readonly pocketPayout = signal<'daily' | 'monthly'>('daily');
@@ -935,17 +932,15 @@ export class CushionPage {
     }
   }
 
-  /** Leaves a product without saving, for the screen it was opened from. */
+  /** Leaves a product without saving, back to the account it belongs to. */
   async closePocket(): Promise<void> {
-    if (this.pocketOrigin() === 'detail') this.form.set('none');
-    else await this.openSettings();
+    this.form.set('none');
   }
 
-  /** After a product was saved or removed: its account read again, and back where it was opened from. */
+  /** After a product was saved or removed: its account read again, and shown. */
   private async returnFromPocket(line: CushionLine): Promise<void> {
-    const toSettings = this.pocketOrigin() === 'settings';
-    await this.reopen(line, toSettings);
-    if (!toSettings) this.form.set('none');
+    await this.reopen(line);
+    this.form.set('none');
   }
 
   /** Opens the income or expense screen for the yields of the account on screen. */
@@ -985,78 +980,24 @@ export class CushionPage {
   }
 
   /**
-   * Opens the settings of the account, filled with what is stored.
+   * Reads the account's own figures again - its rates, its products, whether
+   * it is still earning - for the sheet that shows them.
    *
-   * Everything here was written by a migration until now, which meant every
-   * rate change went through a developer. A bank changes its rate by email on
-   * a Tuesday; this is the screen that has to keep up with that.
+   * This was a screen of its own, "Ajustes de la cuenta", which by the end
+   * showed only figures the account's sheet already showed and products that
+   * are edited from it. Jose, 2026-09-16: there is nothing left in it.
    */
-  async openSettings(): Promise<void> {
+  async readAccount(): Promise<void> {
     const line = this.openLine();
     if (!line) return;
 
     const { yields } = this.repos();
     const entry = await yields.account(line.account.id);
-    this.openingAmount.set(decimalOf(entry?.opening_cushion_minor ?? 0));
-    this.openingDate.set(entry?.opening_on ?? today());
-    this.withholds.set(entry?.withholding !== 0);
-    this.payout.set(entry?.payout ?? 'daily');
     this.editingEnabled = entry?.enabled !== 0;
     this.rates.set(await yields.rateHistory(line.account.id));
     this.editablePockets.set(await yields.pockets(line.account.id));
-    this.form.set('settings');
   }
 
-  /**
-   * Saves the opening figure, the withholding switch and what is not earning.
-   *
-   * Changing any of them changes every day computed since, so the days are
-   * thrown away and worked out again - except the ones corrected by hand,
-   * which are a statement's word against a formula's and always win.
-   */
-  async saveSettings(): Promise<void> {
-    const line = this.openLine();
-    if (!line) return;
-
-    const opening = parseOrNull(this.openingAmount());
-    if (opening === null || opening < 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
-      return;
-    }
-
-    this.saving.set(true);
-    try {
-      const { db, yields, tax } = this.repos();
-      await db.transaction(async () => {
-        await yields.enrol({
-          account_id: line.account.id,
-          default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
-          opening_cushion_minor: opening,
-          opening_on: this.openingDate(),
-          withholding: this.withholds(),
-          payout: this.payout(),
-          // Saving settings must not quietly restart an account that was paused.
-          enabled: this.editingEnabled,
-        });
-        await yields.clearDays(line.account.id);
-      });
-
-      await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
-      // Only this account changed and it has just been worked out, so opening
-      // the screen afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
-      await this.reopen(line);
-    } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.saving.set(false);
-    }
-  }
-
-  /** Stops accruing an account, keeping everything already worked out. */
   async stopAccruing(): Promise<void> {
     const line = this.openLine();
     if (!line) return;
@@ -1108,8 +1049,6 @@ export class CushionPage {
     const { yields, tax } = this.repos();
 
     // Coming back from one of its rates keeps the origin the product had.
-    if (this.form() === 'none') this.pocketOrigin.set('detail');
-    else if (this.form() === 'settings') this.pocketOrigin.set('settings');
 
     this.editingPocket.set(pocket);
     this.confirmingPocketDelete.set(false);
@@ -1327,9 +1266,6 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
@@ -1444,9 +1380,6 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
@@ -1655,9 +1588,6 @@ export class CushionPage {
       });
 
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
@@ -1681,15 +1611,12 @@ export class CushionPage {
         await yields.clearDays(line.account.id, rate.valid_from);
       });
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
       if (rate.pocket_id !== null) await this.backToPocket(line, rate.pocket_id);
-      else await this.openSettings();
+      else await this.reopen(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1699,11 +1626,9 @@ export class CushionPage {
 
   /** Back to a product's form, with the account and its figures read again. */
   private async backToPocket(line: CushionLine, pocketId: number): Promise<void> {
-    const origin = this.pocketOrigin();
     await this.reopen(line, true);
     const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
     if (pocket) await this.openPocket(pocket);
-    this.pocketOrigin.set(origin);
   }
 
   /**
@@ -1774,10 +1699,7 @@ export class CushionPage {
       // added: an account just started has only the one it began with.
       await this.refresh();
       const fresh = this.lines().find(row => row.account.id === account.id);
-      if (fresh) {
-        await this.open(fresh);
-        await this.openSettings();
-      }
+      if (fresh) await this.open(fresh);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1987,9 +1909,6 @@ export class CushionPage {
         await yields.clearDays(line.account.id, withdrawal.on_date);
       });
       await accrueAndSettle(db, yields, tax, line.account.id, today());
-      // Only this account changed and it has just been worked out, so the
-      // screen opening afterwards has nothing left to do.
-      await yields.markAccrued(today(), { onlyIfKnown: true });
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
@@ -2134,7 +2053,7 @@ export class CushionPage {
     if (!fresh) { this.closeDetail(); return; }
 
     await this.open(fresh);
-    if (keepForm) await this.openSettings();
+    if (keepForm) await this.readAccount();
     else if (form === 'day') this.form.set('none');
   }
 

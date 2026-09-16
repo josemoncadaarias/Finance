@@ -482,18 +482,6 @@
               </div>
             }
 
-            <!-- Spelled out. This was an unlabelled icon in the toolbar and
-                 nobody found it, which is the same as not having built it. -->
-            <ion-list [inset]="true">
-              <ion-item button detail="true" (click)="openSettings()">
-                <ion-icon slot="start" name="options-outline"></ion-icon>
-                <ion-label>
-                  <h3>{{ 'cushion.settings' | t }}</h3>
-                  <p>{{ 'cushion.settings.what' | t }}</p>
-                </ion-label>
-              </ion-item>
-            </ion-list>
-
             <!-- Every movement of this account's products, as one history: to
                  look back, and to correct or delete one. Collapsed until asked
                  for, like the list behind the donut on the summary. -->
@@ -819,88 +807,8 @@
           }
 
           <!-- Everything that decides what this account earns -->
-          @if (form() === 'settings') {
-            <h2>{{ 'cushion.settings' | t }}</h2>
-            <p class="hint">{{ 'cushion.settings.hint' | t }}</p>
-
-            <ion-list [inset]="true">
-              <!-- What the account has earned and not yet moved, the same figure
-                   the account's own screen leads with. It replaces the opening
-                   figure the module needed once, before products carried their
-                   own balances: that value is still stored and still counted,
-                   and saving these settings keeps it exactly as it is - it is
-                   simply no longer something to type. -->
-              <ion-item>
-                <ion-label>{{ 'cushion.detail.total' | t }}</ion-label>
-                <ion-note slot="end" class="settingsTotal">
-                  {{ money(line.availableMinor, line.account.currency_code) }}
-                </ion-note>
-              </ion-item>
-              <!-- How often the bank pays is asked once per rate and not here.
-                   It was asked in both places, and the engine read only the
-                   rate's answer - so the one on this screen changed nothing at
-                   all, which is worse than being wrong: it invited an answer
-                   and then ignored it. An account can pay one part daily and
-                   another monthly, as Ualá does, which is the reason the
-                   question belongs to the rate. -->
-            </ion-list>
-
-            <p class="section">{{ 'cushion.pockets' | t }}</p>
-            <p class="hint">{{ 'cushion.pockets.hint' | t }}</p>
-
-            <ion-list [inset]="true">
-              @for (pocket of editablePockets(); track pocket.id) {
-                <ion-item button detail="true" (click)="openPocket(pocket)">
-                  <ion-label>
-                    <h3>{{ pocket.name }}</h3>
-                    <p>
-                      @if (pocket.is_default === 1) {
-                        <span class="usual">{{ 'cushion.pockets.usual' | t }}</span> ·
-                      }
-                      @if (pocket.include_in_net_worth === 0) {
-                        <span class="usual">{{ 'cushion.pockets.setAside' | t }}</span> ·
-                      }
-                      {{ pocketSummary(pocket) }}
-                    </p>
-                    @if (yieldIn(line, pocket.id) !== 0) {
-                      <p>{{ 'cushion.pockets.includesYield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
-                    }
-                  </ion-label>
-                  <!-- What is in it, here as well as on the account's own
-                       screen. This is where a balance gets corrected, and
-                       correcting one without seeing it is guesswork. -->
-                  <ion-note slot="end" class="held"
-                            [class.owed]="balanceIn(line, pocket.id) < 0">
-                    {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
-                  </ion-note>
-                  @if (editablePockets().length > 1) {
-                    <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
-                                [attr.aria-label]="'cushion.pocket.delete' | t"
-                                (click)="$event.stopPropagation(); deleteFromList(pocket)">
-                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                    </ion-button>
-                  }
-                </ion-item>
-              }
-            </ion-list>
-
-            <div class="actions">
-              <ion-button expand="block" fill="outline" (click)="openPocket(null)">
-                <ion-icon slot="start" name="add-outline"></ion-icon>
-                {{ 'cushion.pockets.add' | t }}
-              </ion-button>
-            </div>
-
-            <div class="save">
-              <ion-button expand="block" [disabled]="saving()" (click)="saveSettings()">
-                <ion-icon slot="start" name="checkmark-outline"></ion-icon>
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-
-            <!-- Well away from Save, behind a rule: stopping an account is one
-                 tap from the button someone came to press, and silent when it
-                 happens - the figures simply stop moving. -->
+            <!-- Stopping the account, well away from anything else: it is
+                 silent when it happens - the figures simply stop moving. -->
             <div class="danger">
               @if (line.enabled) {
                 @if (confirmingStop()) {
@@ -928,7 +836,6 @@
                 </ion-button>
               }
             </div>
-          }
 
           <!-- One pocket: its name, where its balance comes from, and how
                much it holds. -->
