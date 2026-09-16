@@ -101,6 +101,22 @@ export class CushionEntryComponent implements OnInit {
   readonly toPocketId = signal<number | null>(null);
   readonly onDate = signal(todayIso());
   readonly note = signal('');
+
+  /**
+   * Notes already written that match what is being typed, the same way the
+   * movement screen offers them. A note repeats - "Traslado para el CDT de la
+   * renta" is typed again every quarter - and typing it out each time is work
+   * the app can save. They come from every movement, whichever screen wrote
+   * it, so moving money between products is offered what was written on the
+   * last one.
+   */
+  readonly noteSuggestions = signal<string[]>([]);
+
+  /** Three letters: fewer matches half the history and helps nobody. */
+  private static readonly NOTE_HINT_AT = 3;
+
+  /** Rises with every keystroke, so a slow query cannot overwrite a newer one. */
+  private noteQuery = 0;
   readonly saving = signal(false);
   readonly error = signal('');
   /** Which side's product the sheet is asking for, or null when it is closed. */
@@ -271,8 +287,34 @@ export class CushionEntryComponent implements OnInit {
     this.amount.set(new AmountBuffer());
   }
 
+  async onNoteInput(value: string): Promise<void> {
+    this.note.set(value);
+
+    const typed = value.trim();
+    const mine = ++this.noteQuery;
+
+    if (typed.length < CushionEntryComponent.NOTE_HINT_AT || this.database.status() !== 'ready') {
+      this.noteSuggestions.set([]);
+      return;
+    }
+
+    const found = await new TransactionsRepository(this.database.driver).suggestNotes(typed);
+    if (mine !== this.noteQuery) return;
+
+    // Not the note already written: offering back what is on screen is noise.
+    this.noteSuggestions.set(found.filter(note => note !== value));
+  }
+
+  useNote(note: string): void {
+    this.note.set(note);
+    this.noteSuggestions.set([]);
+    this.noteQuery++;
+  }
+
   clearNote(): void {
     this.note.set('');
+    this.noteSuggestions.set([]);
+    this.noteQuery++;
   }
 
   pickCategory(id: number): void {

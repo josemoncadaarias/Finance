@@ -143,13 +143,25 @@
 
     <div class="note">
       <ion-textarea [placeholder]="'entry.note' | t" [value]="note()" [autoGrow]="false" [rows]="2"
-                    (ionInput)="note.set($any($event.target).value ?? '')"></ion-textarea>
+                    (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
       @if (note() !== '') {
         <button type="button" class="clear-note" (click)="clearNote()" [attr.aria-label]="'entry.clearNote' | t">
           <ion-icon name="close-circle"></ion-icon>
         </button>
       }
     </div>
+
+    <!-- Notes repeat; these are the ones already written that match. -->
+    @if (noteSuggestions().length > 0) {
+      <div class="note-hints">
+        @for (hint of noteSuggestions(); track hint) {
+          <button type="button" (click)="useNote(hint)">
+            <ion-icon name="time-outline"></ion-icon>
+            <span>{{ hint }}</span>
+          </button>
+        }
+      </div>
+    }
     @if (isEditing()) {
       <div class="danger-zone">
         <ion-button expand="block" fill="clear" color="danger" [disabled]="saving()" (click)="remove()">
