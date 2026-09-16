@@ -80,7 +80,17 @@ interface CushionLine {
    * not show it anywhere: it was only derivable by opening a day. Zero
    * when nothing has been worked out yet.
    */
+  /**
+   * What the last day worked out was earned on: what the products held when
+   * the day before it closed.
+   */
   earnsOnMinor: number;
+  /**
+   * What they hold now, which is what the next day will earn on - and what
+   * the bank's own app shows. This is the figure of the two that answers
+   * "how much of my money is earning".
+   */
+  earnsNextMinor: number;
   /**
    * What each product holds today, by product id.
    *
@@ -697,6 +707,7 @@ export class CushionPage {
           earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
           heldByPocket: held,
+          earnsNextMinor: productsMinor,
           availableMinor: productsMinor - accountMinor,
           landedByPocket: landed.total,
           paidYieldByPocket: landed.yields,

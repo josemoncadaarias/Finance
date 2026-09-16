@@ -328,15 +328,22 @@
               <!-- The figure someone came here to check against the bank. It
                    was derivable only by opening a day, which is the same as
                    not showing it. -->
-              @if (line.earnsOnMinor > 0) {
+              @if (line.earnsNextMinor > 0) {
                 <p class="earnsOn">
                   {{ 'cushion.earnsOn' | t }}
-                  <strong>{{ money(line.earnsOnMinor, line.account.currency_code) }}</strong>
+                  <strong>{{ money(line.earnsNextMinor, line.account.currency_code) }}</strong>
                 </p>
-                <!-- Said out loud: a movement registered today does not
-                     change this figure until tomorrow, which read as the
-                     screen having missed it. -->
-                <p class="earnsOn-hint">{{ 'cushion.earnsOn.hint' | t }}</p>
+                <!-- Only on a day when money moved: the figure above is what
+                     is earning from here on, and today's own yield was worked
+                     out on what was there when yesterday closed. Saying that
+                     every day would be noise; saying it on the day it applies
+                     is the difference between a screen that looks wrong and
+                     one that explains itself. -->
+                @if (line.earnsOnMinor > 0 && line.earnsOnMinor !== line.earnsNextMinor) {
+                  <p class="earnsOn-hint">
+                    {{ 'cushion.earnsOn.today' | t:{ amount: money(line.earnsOnMinor, line.account.currency_code) } }}
+                  </p>
+                }
               }
 
               <!-- Off until the arithmetic behind it is right.
