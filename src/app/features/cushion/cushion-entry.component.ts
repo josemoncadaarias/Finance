@@ -24,7 +24,12 @@
  * what it was, and only which product holds the money changes.
  */
 
-import { Component, HostListener, computed, inject, input, output, signal, type OnInit } from '@angular/core';
+import {
+  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild,
+  type OnDestroy, type OnInit,
+} from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import {
   IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
   IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar,
@@ -84,7 +89,7 @@ type EntryKind = 'cashback' | 'correction' | 'other';
     }
   `],
 })
-export class CushionEntryComponent implements OnInit {
+export class CushionEntryComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
   readonly i18n = inject(I18nService);
 
@@ -117,6 +122,55 @@ export class CushionEntryComponent implements OnInit {
 
   /** Rises with every keystroke, so a slow query cannot overwrite a newer one. */
   private noteQuery = 0;
+
+  /**
+   * True while the note is being written: the phone's keyboard is up, where
+   * this form's own keypad was, and the note and its suggestions need the room.
+   * The same treatment the movement screen got.
+   */
+  readonly writingNote = signal(false);
+
+  /** The note's box, so it can be brought into view and let go of. */
+  private readonly noteBox = viewChild<ElementRef<HTMLElement>>('noteBox');
+
+  /** Tapping a suggestion blurs the note for a moment; this rides that out. */
+  private noteBlurTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Undoes the keyboard listener when the form closes. */
+  private keyboardClosed: { remove: () => Promise<void> } | null = null;
+
+  ngOnDestroy(): void {
+    void this.keyboardClosed?.remove();
+  }
+
+  startNote(): void {
+    if (this.noteBlurTimer !== null) {
+      clearTimeout(this.noteBlurTimer);
+      this.noteBlurTimer = null;
+    }
+    this.writingNote.set(true);
+    setTimeout(() => this.noteBox()?.nativeElement.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+  }
+
+  /** Leaving it - unless the focus is coming straight back, as a suggestion does. */
+  endNote(): void {
+    if (this.noteBlurTimer !== null) clearTimeout(this.noteBlurTimer);
+    this.noteBlurTimer = setTimeout(() => {
+      this.writingNote.set(false);
+      this.noteBlurTimer = null;
+    }, 250);
+  }
+
+  /** Done: keyboard down, focus off, the keypad back. */
+  finishNote(): void {
+    if (this.noteBlurTimer !== null) {
+      clearTimeout(this.noteBlurTimer);
+      this.noteBlurTimer = null;
+    }
+    this.writingNote.set(false);
+    this.noteBox()?.nativeElement.querySelector('textarea')?.blur();
+    if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
+  }
   readonly saving = signal(false);
   readonly error = signal('');
   /** Which side's product the sheet is asking for, or null when it is closed. */
@@ -218,6 +272,13 @@ export class CushionEntryComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // However the keyboard is closed - the Android back button included,
+    // which leaves the focus where it was - the note is finished.
+    if (Capacitor.isNativePlatform()) {
+      void Keyboard.addListener('keyboardDidHide', () => {
+        if (this.writingNote()) this.finishNote();
+      }).then(handle => { this.keyboardClosed = handle; });
+    }
     // The usual product, as a movement in the account would start on; a
     // transfer sends from it to the next one.
     const pockets = this.request().pockets;
@@ -309,6 +370,8 @@ export class CushionEntryComponent implements OnInit {
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;
+    // The tap blurred the note; the person is still writing it.
+    this.startNote();
   }
 
   clearNote(): void {

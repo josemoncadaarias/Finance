@@ -265,17 +265,24 @@ button, input, select, textarea {
  * expands to fill whatever it is given, which is the very thing being avoided
  * - so the form's body is a plain scrolling div instead.
  */
+/*
+ * Recording a movement is the screen this app is opened for, and since
+ * 2026-09-16 it takes the whole of it.
+ *
+ * It was a sheet the height of its contents, which read well until the phone's
+ * keyboard came up to write a note: what was left was a strip too short to
+ * show the note being written or the notes offered under it. Full height, the
+ * form has room for its own keyboard at the bottom, the note above it, and the
+ * spare height goes to the note rather than to a hole - and when the system
+ * keyboard takes half the screen there is still a screen's worth above it.
+ */
 ion-modal.entry-sheet {
-  --height: auto;
+  --height: 100%;
   --max-height: 100%;
-  --border-radius: 18px 18px 0 0;
+  --width: 100%;
+  --border-radius: 0;
 
-  /* Centred rather than rested on the bottom. On the bottom it ended flush
-     against whatever the phone keeps down there — a gesture bar, three
-     buttons — and the clearance that would fix that is guesswork about
-     hardware the page cannot see. Centred, the gap above and below is equal
-     and comes from the room actually available. */
-  align-items: center;
+  align-items: stretch;
 }
 
 /*

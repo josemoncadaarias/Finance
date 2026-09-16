@@ -198,6 +198,14 @@
     }
   </div>
 
+  <!-- Said out loud, because the way out of a keyboard is not obvious and the
+       Android back button leaves the focus where it was. -->
+  @if (writingNote()) {
+    <div class="note-done">
+      <button type="button" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button>
+    </div>
+  }
+
   <!-- Notes repeat; these are the ones already written that match -->
   @if (noteSuggestions().length > 0) {
     <div class="note-hints">

@@ -15,9 +15,12 @@
  */
 
 import {
-  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild, type OnInit,
+  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild,
+  type OnDestroy, type OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
@@ -73,7 +76,7 @@ export interface EntryRequest {
   templateUrl: './entry.component.html',
   styleUrls: ['./entry.component.scss'],
 })
-export class EntryComponent implements OnInit {
+export class EntryComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
   readonly i18n = inject(I18nService);
 
@@ -183,6 +186,26 @@ export class EntryComponent implements OnInit {
 
   /** Tapping a suggestion blurs the note for a moment; this rides that out. */
   private noteBlurTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Leaves the note for good: the keyboard down, the focus off the field, and
+   * the app's own keypad back.
+   *
+   * On Android the back button closes the keyboard and leaves the focus where
+   * it was, so nothing told the form the note was finished and the keypad
+   * stayed away until something else was tapped. The keyboard plugin reports
+   * the close, and this is what it calls.
+   */
+  finishNote(): void {
+    if (this.noteBlurTimer !== null) {
+      clearTimeout(this.noteBlurTimer);
+      this.noteBlurTimer = null;
+    }
+    this.writingNote.set(false);
+    const field = this.noteBox()?.nativeElement.querySelector('textarea');
+    field?.blur();
+    if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
+  }
 
   startNote(): void {
     if (this.noteBlurTimer !== null) {
@@ -370,7 +393,21 @@ export class EntryComponent implements OnInit {
     addIcons(allIcons as unknown as Record<string, string>);
   }
 
+  /** Undoes the keyboard listener when the form closes. */
+  private keyboardClosed: { remove: () => Promise<void> } | null = null;
+
+  ngOnDestroy(): void {
+    void this.keyboardClosed?.remove();
+  }
+
   ngOnInit(): void {
+    // The phone's keyboard closing is the end of writing a note, however it
+    // was closed - the back button included, which does not blur the field.
+    if (Capacitor.isNativePlatform()) {
+      void Keyboard.addListener('keyboardDidHide', () => {
+        if (this.writingNote()) this.finishNote();
+      }).then(handle => { this.keyboardClosed = handle; });
+    }
     // Not the constructor: a required input has no value there yet, and load()
     // reads one. Angular says so with NG0950 rather than a blank screen.
     void this.load();
