@@ -954,3 +954,70 @@ ion-footer[hidden] { display: none; }
     color: var(--ion-color-medium);
   }
 }
+
+/*
+ * A side of a transfer is two questions, so it is two buttons.
+ *
+ * Changing only the product meant picking its account again so the sheet would
+ * follow with the products - answering a question nobody had asked, every
+ * time. The product line is its own button, and it opens the products.
+ */
+.route .leg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 8px;
+  background: var(--ion-color-light);
+  text-align: left;
+  min-width: 0;
+
+  &.needed { border-color: var(--ion-color-warning); }
+
+  .face {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .part {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 0.1rem 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+    color: var(--ion-color-primary);
+    font-size: 0.72rem;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.75rem; flex: none; }
+  }
+}
+
+/* The same, under the account of an income or an expense. */
+.context.stacked .pocket-chip {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(var(--ion-color-primary-rgb), 0.12);
+  color: var(--ion-color-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  ion-icon { font-size: 0.8rem; }
+}

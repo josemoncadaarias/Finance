@@ -76,25 +76,35 @@
   <!-- Accounts and date -->
   @if (isTransfer()) {
     <div class="route">
-      <button type="button" class="leg" (click)="openAccountSheet('from')">
-        <span class="lead">{{ 'entry.from' | t }}</span>
-        <span class="who">
-          <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
-                    fallback="wallet"></app-icon>
-          <!-- Between two products of one account the product is what is being
-               chosen, so it is the name on the button and the account is the
-               line underneath. Between accounts it is the other way round: the
-               product belongs to the account and is written under it. -->
-          <span class="name">
-            {{ betweenProducts() ? pocketName(pockets(), pocketId()) : (account()?.name ?? ('entry.pick' | t)) }}
+      <div class="leg">
+        <button type="button" class="face" (click)="openAccountSheet('from')">
+          <span class="lead">{{ 'entry.from' | t }}</span>
+          <span class="who">
+            <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
+                      fallback="wallet"></app-icon>
+            <!-- Between two products of one account the product is what is being
+                 chosen, so it is the name on the button and the account is the
+                 line underneath. Between accounts it is the other way round: the
+                 product belongs to the account and is written under it. -->
+            <span class="name">
+              {{ betweenProducts() ? pocketName(pockets(), pocketId()) : (account()?.name ?? ('entry.pick' | t)) }}
+            </span>
           </span>
-        </span>
+        </button>
+
+        <!-- The product, on its own: changing it should not mean choosing the
+             account again. -->
         @if (betweenProducts()) {
-          <span class="part">{{ account()?.name ?? '' }}</span>
+          <button type="button" class="part" (click)="openAccountSheet('from')">
+            {{ account()?.name ?? '' }}
+          </button>
         } @else if (splitAccount()) {
-          <span class="part">{{ pocketName(pockets(), pocketId()) }}</span>
+          <button type="button" class="part" (click)="openPocketSheet('from')">
+            {{ pocketName(pockets(), pocketId()) }}
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
         }
-      </button>
+      </div>
 
       <!-- Down the screen rather than across it: two accounts side by side
            left each name a third of the width, and the money plainly travels
@@ -104,22 +114,29 @@
         <ion-icon class="turn" name="swap-vertical-outline"></ion-icon>
       </button>
 
-      <button type="button" class="leg" [class.needed]="toAccountId() === null"
-              (click)="openAccountSheet('to')">
-        <span class="lead">{{ 'entry.to' | t }}</span>
-        <span class="who">
-          <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
-                    fallback="wallet"></app-icon>
-          <span class="name">
-            {{ betweenProducts() ? pocketName(toPockets(), toPocketId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
+      <div class="leg" [class.needed]="toAccountId() === null">
+        <button type="button" class="face" (click)="openAccountSheet('to')">
+          <span class="lead">{{ 'entry.to' | t }}</span>
+          <span class="who">
+            <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
+                      fallback="wallet"></app-icon>
+            <span class="name">
+              {{ betweenProducts() ? pocketName(toPockets(), toPocketId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
+            </span>
           </span>
-        </span>
+        </button>
+
         @if (betweenProducts()) {
-          <span class="part">{{ toAccount()?.name ?? '' }}</span>
+          <button type="button" class="part" (click)="openAccountSheet('to')">
+            {{ toAccount()?.name ?? '' }}
+          </button>
         } @else if (splitTarget()) {
-          <span class="part">{{ pocketName(toPockets(), toPocketId()) }}</span>
+          <button type="button" class="part" (click)="openPocketSheet('to')">
+            {{ pocketName(toPockets(), toPocketId()) }}
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
         }
-      </button>
+      </div>
     </div>
 
 
@@ -136,11 +153,16 @@
                   fallback="wallet"></app-icon>
         <span class="stack">
           <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
-          @if (splitAccount()) {
-            <span class="part">{{ pocketName(pockets(), pocketId()) }}</span>
-          }
         </span>
       </button>
+
+      <!-- The product of the account, asked for on its own. -->
+      @if (splitAccount()) {
+        <button type="button" class="pocket-chip" (click)="openPocketSheet('from')">
+          {{ pocketName(pockets(), pocketId()) }}
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+      }
       <button type="button" (click)="showDate.set(true)">
         <ion-icon name="calendar-outline"></ion-icon>
         <span>{{ dateLabel() }}</span>

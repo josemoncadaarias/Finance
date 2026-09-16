@@ -1012,6 +1012,20 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.pickingPocket.set(null);
   }
 
+  /**
+   * The products of one side, without asking about the account again.
+   *
+   * Changing only the product meant picking the account a second time so the
+   * sheet would follow with its products - a step that answered a question
+   * nobody had asked. The product line is its own button now.
+   */
+  openPocketSheet(which: 'from' | 'to'): void {
+    const side = which === 'to' ? this.toAccount() : this.account();
+    if (!side) return;
+    this.picking.set(which);
+    this.pickingPocket.set(side);
+  }
+
   private async saveMovement(): Promise<void> {
     const transactions = new TransactionsRepository(this.database.driver);
     // The sign comes from the button pressed, never from what was typed.
