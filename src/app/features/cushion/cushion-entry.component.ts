@@ -297,6 +297,12 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
     else void this.loadCategories();
 
+    // A gasto on a product is money leaving: it left the account and it left
+    // the net worth, and saying so is nearly always the right answer. An
+    // ingreso is usually the bank paying into the product, which is not net
+    // worth until it is cashed in. Either can be changed before saving.
+    if (this.request().kind === 'expense') this.scope.set('both');
+
     // Correcting an entry: the screen opens on what it says.
     const editing = this.request().editing;
     if (editing) {
