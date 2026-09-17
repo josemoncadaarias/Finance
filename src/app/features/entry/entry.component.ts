@@ -136,6 +136,45 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly browsingCategories = signal(false);
   readonly categorySearch = signal('');
   readonly accounts = signal<AccountRow[]>([]);
+
+  /**
+   * How the account picker is ordered: by name, or by how much each is used.
+   *
+   * By name to begin with, because a list you can predict is faster to read
+   * than one that is merely short - which is the opposite of the categories,
+   * where the everyday handful is the whole point and the rest is a tail.
+   *
+   * Kept in localStorage beside the category order, for the same reason: a
+   * picker has to open at once, and a database read is a round trip the
+   * moment of opening cannot afford.
+   */
+  readonly accountOrder = signal<'use' | 'name'>(readAccountOrder());
+
+  setAccountOrder(order: 'use' | 'name'): void {
+    this.accountOrder.set(order);
+    try {
+      localStorage.setItem('finance.accountOrder', order);
+    } catch {
+      // A browser with site data blocked still gets the order for this visit.
+    }
+  }
+
+  /** How many movements each account carries, for the "most used" order. */
+  private readonly useCounts = signal<Map<number, number>>(new Map());
+
+  readonly orderedAccounts = computed(() => {
+    const all = this.accounts();
+    if (this.accountOrder() === 'name') {
+      // `localeCompare` so "Éxito" files under E and not after Z.
+      return [...all].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    }
+
+    const times = this.useCounts();
+    return [...all].sort((a, b) => {
+      const byUse = (times.get(b.id) ?? 0) - (times.get(a.id) ?? 0);
+      return byUse !== 0 ? byUse : a.name.localeCompare(b.name, 'es');
+    });
+  });
   /** Which picker is open: the source account, the destination, or neither. */
   readonly picking = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
@@ -468,6 +507,8 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     this.categories.set(categories);
     this.accounts.set(accounts);
+    void new AccountsRepository(this.database.driver).timesUsed()
+      .then(counts => this.useCounts.set(counts));
 
     const editing = this.request().editing;
     if (editing) {
@@ -1191,6 +1232,15 @@ function readOrder(): 'use' | 'name' {
     return localStorage.getItem('finance.categoryOrder') === 'name' ? 'name' : 'use';
   } catch {
     return 'use';
+  }
+}
+
+/** The account picker's order, remembered beside the category one. */
+function readAccountOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.accountOrder') === 'use' ? 'use' : 'name';
+  } catch {
+    return 'name';
   }
 }
 

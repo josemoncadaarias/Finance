@@ -49,7 +49,10 @@
           <button type="button" class="face" (click)="pickingPocket.set('from')">
             <span class="lead">{{ 'cushion.move.from' | t }}</span>
             <span class="who">
-              <ion-icon name="wallet-outline"></ion-icon>
+              <!-- A product has no logo of its own, so it wears its account's:
+                   both sides of this transfer are inside that one account. -->
+              <app-icon [builtin]="request().account.builtin_icon"
+                        [customId]="request().account.custom_icon_id" fallback="wallet"></app-icon>
               <span class="name">{{ pocketName() }}</span>
             </span>
           </button>
@@ -67,7 +70,8 @@
           <button type="button" class="face" (click)="pickingPocket.set('to')">
             <span class="lead">{{ 'cushion.move.to' | t }}</span>
             <span class="who">
-              <ion-icon name="wallet-outline"></ion-icon>
+              <app-icon [builtin]="request().account.builtin_icon"
+                        [customId]="request().account.custom_icon_id" fallback="wallet"></app-icon>
               <span class="name">{{ toPocketName() }}</span>
             </span>
           </button>
@@ -88,7 +92,8 @@
            the one on screen, and its balance does not move. -->
       <div class="context stacked">
         <button type="button" class="with-part account" (click)="pickingPocket.set('from')">
-          <ion-icon name="wallet-outline"></ion-icon>
+          <app-icon [builtin]="request().account.builtin_icon"
+                    [customId]="request().account.custom_icon_id" fallback="wallet"></app-icon>
           <span class="stack">
             <span>{{ pocketName() }}</span>
           </span>

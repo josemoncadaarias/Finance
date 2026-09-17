@@ -1165,3 +1165,16 @@ ion-footer[hidden] { display: none; }
 
 /* The account is shown, not chosen: it should not look pressable. */
 .route .leg span.part { cursor: default; }
+
+/*
+ * The product sits on the account's line, not in the middle of the leg.
+ *
+ * Centred against the whole leg it landed between "DESDE" and the name, level
+ * with neither - and it belongs to the name. The row lines its items up by
+ * their bottom edge, which is the line the name is written on.
+ */
+.route .leg {
+  align-items: flex-end;
+
+  .part { align-self: flex-end; }
+}

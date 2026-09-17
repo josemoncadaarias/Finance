@@ -128,6 +128,19 @@ export class AccountsRepository {
     );
   }
 
+  /**
+   * How many movements each account carries, for ordering a picker by use.
+   *
+   * One query rather than one per account: on the phone each call crosses
+   * into the native side, and a picker has to open at once.
+   */
+  async timesUsed(): Promise<Map<number, number>> {
+    const rows = await this.db.query<{ account_id: number; times: number }>(
+      'SELECT account_id, COUNT(*) AS times FROM transactions GROUP BY account_id',
+    );
+    return new Map(rows.map(row => [row.account_id, row.times]));
+  }
+
   async findById(id: number): Promise<AccountRow | null> {
     return this.db.queryOne<AccountRow>(`SELECT ${COLUMNS} FROM accounts WHERE id = ?`, [id]);
   }
