@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance — finanzas personales, en tu propio celular</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #17202a;
+    --muted: #5b6672;
+    --line: #e2e6ea;
+    --paper: #ffffff;
+    --ground: #f6f7f9;
+    --accent: #2f6df6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8ecf1;
+      --muted: #9aa5b1;
+      --line: #2a313a;
+      --paper: #161b22;
+      --ground: #0d1117;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  main {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 4rem;
+  }
+
+  header { margin-bottom: 2.5rem; }
+
+  h1 {
+    margin: 0 0 .5rem;
+    font-size: 2rem;
+    letter-spacing: -.02em;
+  }
+
+  .lead {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 34rem;
+  }
+
+  section {
+    margin-top: 1rem;
+    padding: 1.25rem 1.4rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  h2 {
+    margin: 0 0 .6rem;
+    font-size: 1rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  ul { margin: 0; padding-left: 1.1rem; }
+  li { margin: .35rem 0; }
+  p { margin: 0 0 .6rem; }
+  p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent); }
+
+  footer {
+    margin-top: 2rem;
+    font-size: .88rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Finance</h1>
+    <p class="lead">
+      Una aplicación de finanzas personales para Android. Los datos viven en el
+      celular, no en un servidor, y su objetivo de fondo es saber durante todo
+      el año cuánto impuesto de renta se va a deber.
+    </p>
+  </header>
+
+  <section>
+    <h2>Qué hace</h2>
+    <ul>
+      <li>Registra ingresos, gastos y transferencias entre cuentas y productos.</li>
+      <li>Lleva los rendimientos de cada cuenta día por día, con su tasa y su retención.</li>
+      <li>Simula la declaración de renta sobre el Formulario 210 de la DIAN.</li>
+      <li>Funciona sin internet. Siempre.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Dónde quedan los datos</h2>
+    <p>
+      En el celular. La aplicación no tiene servidores y no envía la información
+      a ninguna parte.
+    </p>
+    <p>
+      Quien quiera guardar una copia fuera del celular puede conectar su cuenta
+      de Google: la copia queda en una carpeta privada de <strong>su propio
+      Google Drive</strong>, que solo esta aplicación puede leer. Es opcional y
+      la aplicación funciona igual sin ello.
+    </p>
+  </section>
+
+  <section>
+    <h2>Privacidad</h2>
+    <p>
+      La política de privacidad está en
+      <a href="privacy.html">esta página</a>.
+    </p>
+  </section>
+
+  <footer>
+    Hecho por Jose Moncada Arias ·
+    <a href="mailto:josemoncadaarias@gmail.com">josemoncadaarias@gmail.com</a>
+  </footer>
+</main>
+</body>
+</html>
