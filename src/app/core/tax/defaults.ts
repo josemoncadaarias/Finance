@@ -205,6 +205,43 @@ export function parametersFor(year: number, today: Date = new Date()): {
   };
 }
 
+/**
+ * Puts a year's own UVT and minimum wage back, when what is stored is another
+ * year's.
+ *
+ * These two are not figures anybody types: they are looked up, and the form
+ * fills them in. Before the module knew one year from another it filled every
+ * year with the current one's, so simulations saved then carry them - Jose
+ * opened tax year 2024, saw "Oficial: UVT $47.065" stated above the box and
+ * $52.374 inside it.
+ *
+ * Only a figure that is exactly some OTHER year's table entry is replaced.
+ * That is the signature of a fill, and it is the one thing that cannot be a
+ * decision: nobody types 52.374 into a 2024 return by hand. Anything else -
+ * a figure off the tables, a correction against a resolution this app has not
+ * been taught - is left exactly as it is, because it can only have been
+ * chosen.
+ */
+export function useThisYearsParameters(inputs: TaxInputs, today: Date = new Date()): TaxInputs {
+  const year = inputs.year;
+  const mine = parametersFor(year, today);
+
+  const anotherYears = (table: Readonly<Record<number, number>>, value: number): boolean =>
+    Object.entries(table).some(([from, known]) => Number(from) !== year && known === value);
+
+  const uvts = Object.fromEntries(Object.entries(UVT).map(([at, one]) => [at, one.minor]));
+  const wages = Object.fromEntries(Object.entries(MINIMUM_WAGE).map(([at, one]) => [at, one.minor]));
+
+  const next = { ...inputs };
+  if (next.uvtMinor !== mine.uvt.value && anotherYears(uvts, next.uvtMinor)) {
+    next.uvtMinor = mine.uvt.value;
+  }
+  if (next.minimumWageMinor !== mine.minimumWage.value && anotherYears(wages, next.minimumWageMinor)) {
+    next.minimumWageMinor = mine.minimumWage.value;
+  }
+  return next;
+}
+
 /** The layout of the form. 2: yields in rentas de capital, casillas 58 to 61. */
 export const FORM_REVISION = 2;
 

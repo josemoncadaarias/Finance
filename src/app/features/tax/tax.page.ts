@@ -33,7 +33,7 @@ import { TaxSimulationsRepository } from '../../core/database/repositories/tax-s
 import { EMPLOYMENT_DEFAULTS, RATE_BANDS, simulate } from '../../core/tax/cedula-general';
 import {
   SPREADSHEET_2026, SPREADSHEET_2026_OWNER_ACCOUNT,
-  borrowedFromLater, defaultInputs, fillGaps, parametersFor, type Sourced,
+  borrowedFromLater, defaultInputs, fillGaps, parametersFor, useThisYearsParameters, type Sourced,
 } from '../../core/tax/defaults';
 import {
   EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
@@ -175,6 +175,16 @@ export class TaxPage {
       inputs = fillGaps(inputs, references);
       await repo.save(year, inputs);
       await repo.markGapsFilled(year);
+    }
+
+    // A year opened before the module knew one year from another was filled
+    // with the current year's UVT and minimum wage. Its own go back in.
+    const corrected = useThisYearsParameters(inputs);
+    if (corrected !== inputs
+        && (corrected.uvtMinor !== inputs.uvtMinor
+            || corrected.minimumWageMinor !== inputs.minimumWageMinor)) {
+      inputs = corrected;
+      await repo.save(year, inputs);
     }
 
     this.inputs.set(inputs);

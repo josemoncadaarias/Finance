@@ -366,6 +366,34 @@ test('filling the gaps never replaces a figure someone typed', async () => {
   closeTo(sheet.grossLabourMinor, 273_141_180, 'B16 from the filled simulation');
 });
 
+test('a year opened long ago gets its own UVT back, and a typed one is left alone', async () => {
+  const { defaultInputs, useThisYearsParameters } = await import('../../src/app/core/tax/defaults.ts');
+
+  // What Jose actually had: tax year 2024 saved when the module used the
+  // current year's figures for every year. The screen said "Oficial: UVT
+  // $47.065" and the box said 52.374.
+  const stale = {
+    ...defaultInputs(2024),
+    uvtMinor: pesos(52_374),            // 2026's
+    minimumWageMinor: pesos(1_423_500), // 2025's
+    monthlySalaryMinor: pesos(9_000_000),
+  };
+
+  const fixed = useThisYearsParameters(stale);
+
+  assert.equal(fixed.uvtMinor, pesos(47_065), "2024's own UVT");
+  assert.equal(fixed.minimumWageMinor, pesos(1_300_000), "2024's own minimum wage");
+  assert.equal(fixed.monthlySalaryMinor, pesos(9_000_000), 'nothing else is touched');
+
+  // A figure off the tables can only have been chosen, so it stays.
+  const chosen = useThisYearsParameters({ ...defaultInputs(2024), uvtMinor: pesos(47_100) });
+  assert.equal(chosen.uvtMinor, pesos(47_100), 'a hand-corrected figure is a decision');
+
+  // And a year already holding its own is left exactly as it is.
+  const right = defaultInputs(2025);
+  assert.deepEqual(useThisYearsParameters(right), right);
+});
+
 test('the fill is remembered per year, and only lands on the owner database', async () => {
   const { NodeSqlDriver } = await import('./node-sql-driver.mjs');
   const { migrate } = await import('../../src/app/core/database/migrations/migration-runner.ts');
