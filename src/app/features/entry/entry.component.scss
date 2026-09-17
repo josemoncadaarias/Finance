@@ -1186,3 +1186,79 @@ ion-footer[hidden] { display: none; }
 
   .part { align-self: flex-end; }
 }
+
+/*
+ * A question answered on one line, asked in a sheet.
+ *
+ * "What does this change" stood open on the form as three buttons and two
+ * lines of explanation - a lot of height for something answered once. The
+ * line states the answer; tapping it asks again, with each answer carrying
+ * the sentence that explains it.
+ */
+.picked {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: calc(100% - 2rem);
+  margin: 0 1rem 0.6rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 10px;
+  background: var(--ion-color-light);
+  color: var(--ion-text-color);
+  cursor: pointer;
+  text-align: left;
+
+  .lead {
+    flex: none;
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .what {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  ion-icon { flex: none; font-size: 0.9rem; color: var(--ion-color-medium); }
+}
+
+.which-scope {
+  padding: 1.25rem 1.25rem 1.5rem;
+
+  h2 { margin: 0 0 1rem; font-size: 1.05rem; text-align: center; }
+
+  button {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 12px;
+    background: var(--ion-color-light);
+    color: var(--ion-text-color);
+    text-align: left;
+    cursor: pointer;
+
+    .name { font-size: 0.95rem; font-weight: 600; }
+    .detail { font-size: 0.78rem; line-height: 1.35; color: var(--ion-color-medium); }
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+      .name { color: var(--ion-color-primary); }
+    }
+
+    &:last-child { margin-bottom: 0; }
+  }
+}

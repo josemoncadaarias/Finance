@@ -116,21 +116,14 @@
       <!-- Asked while correcting as well: whether a movement should have
            touched the account and the net worth, or only what the product
            gathered, is exactly the kind of thing that is noticed afterwards. -->
-      @if (true) {
-      <p class="scope-label">{{ 'cushion.entry.scope' | t }}</p>
-      <div class="order scope">
-        <button type="button" [class.on]="scope() === 'product'" (click)="scope.set('product')">
-          {{ 'cushion.entry.scope.product' | t }}
-        </button>
-        <button type="button" [class.on]="scope() === 'both'" (click)="scope.set('both')">
-          {{ 'cushion.entry.scope.both' | t }}
-        </button>
-        <button type="button" [class.on]="scope() === 'netWorth'" (click)="scope.set('netWorth')">
-          {{ (request().kind === 'expense' ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome') | t }}
-        </button>
-      </div>
-      <p class="scope-hint">{{ scopeHint() }}</p>
-      }
+      <!-- One line that states the answer and opens the question. Three
+           buttons and two lines of explanation took the height the note and
+           the keyboard wanted, to say something that changes rarely. -->
+      <button type="button" class="picked" (click)="choosingScope.set(true)">
+        <span class="lead">{{ 'cushion.entry.scope' | t }}</span>
+        <span class="what">{{ scopeName() }}</span>
+        <ion-icon name="chevron-down-outline"></ion-icon>
+      </button>
 
       @if (usesCategory()) {
         <div class="categories" [class.waiting]="categoryId() === null">
@@ -257,6 +250,24 @@
     }
   </div>
 </ion-footer>
+
+<!-- What the entry changes: the product alone, the product and net worth (an
+     ordinary movement), or net worth alone - cashing in money the product
+     already holds, or the reverse for an expense. Each says what it does, so
+     the choice is read rather than remembered. -->
+<ion-modal class="editor-sheet" [isOpen]="choosingScope()" (didDismiss)="choosingScope.set(false)">
+  <ng-template>
+    <div class="which-scope">
+      <h2>{{ 'cushion.entry.scope' | t }}</h2>
+      @for (option of scopeOptions(); track option.id) {
+        <button type="button" [class.on]="scope() === option.id" (click)="chooseScope(option.id)">
+          <span class="name">{{ option.name }}</span>
+          <span class="detail">{{ option.detail }}</span>
+        </button>
+      }
+    </div>
+  </ng-template>
+</ion-modal>
 
 <ion-modal class="pocket-sheet" [isOpen]="pickingPocket() !== null" (didDismiss)="pickingPocket.set(null)">
   <ng-template>

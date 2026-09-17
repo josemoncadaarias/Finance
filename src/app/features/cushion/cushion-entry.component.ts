@@ -221,6 +221,34 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly categoryId = signal<number | null>(null);
   /** Categories of this kind, most used first. */
   readonly categories = signal<UsedCategory[]>([]);
+  /** Open while the "what does this change" sheet is asking. */
+  readonly choosingScope = signal(false);
+
+  /** The three answers, each with the sentence that explains it. */
+  readonly scopeOptions = computed(() => {
+    const expense = this.request().kind === 'expense';
+    return ([
+      ['product', 'cushion.entry.scope.product', 'cushion.entry.scope.product.hint'],
+      ['both', 'cushion.entry.scope.both', 'cushion.entry.scope.both.hint'],
+      ['netWorth',
+       expense ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome',
+       expense ? 'cushion.entry.scope.netWorthExpense.hint' : 'cushion.entry.scope.netWorthIncome.hint'],
+    ] as const).map(([id, name, detail]) => ({
+      id: id as 'product' | 'both' | 'netWorth',
+      name: this.i18n.t(name),
+      detail: this.i18n.t(detail),
+    }));
+  });
+
+  /** What the line on the form says. */
+  readonly scopeName = computed(() =>
+    this.scopeOptions().find(option => option.id === this.scope())?.name ?? '');
+
+  chooseScope(id: 'product' | 'both' | 'netWorth'): void {
+    this.scope.set(id);
+    this.choosingScope.set(false);
+  }
+
   readonly browsingCategories = signal(false);
   readonly categorySearch = signal('');
   /** Four across and two down, the way the movement screen does it. */
