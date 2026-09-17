@@ -14,6 +14,8 @@
  */
 
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 import { DatabaseService } from '../database/database.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
@@ -72,8 +74,14 @@ export class CloudBackupService {
    *
    * Entering five movements is five changes and one copy worth making, so the
    * clock restarts on every change and only a quiet stretch actually uploads.
+   *
+   * Long on purpose. Making the copy means reading the whole database out and
+   * turning it into 25 MB of text, and that work happens on the same thread
+   * that draws the screen - do it while someone is typing and they feel it.
+   * The usual moment to save is not this timer at all but the one below: the
+   * app being put away. This is the fallback for a screen left open.
    */
-  private static readonly QUIET_MS = 20_000;
+  private static readonly QUIET_MS = 90_000;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   /** The upload in flight, so a newer change can give up on it. */
@@ -83,6 +91,15 @@ export class CloudBackupService {
   private savedVersion = -1;
 
   constructor() {
+    // The right moment to spend a second reading out the database is the
+    // moment nobody is looking at the screen. Leaving the app is exactly that
+    // moment, and it is also when a copy is most worth having.
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) this.saveIfBehind();
+      });
+    }
+
     effect(() => {
       const version = this.database.dataVersion();
       const ready = this.database.status() === 'ready';
@@ -110,6 +127,21 @@ export class CloudBackupService {
       this.timer = null;
       void this.save();
     }, CloudBackupService.QUIET_MS);
+  }
+
+  /**
+   * Saves now, if anything has changed since the copy in Drive was made.
+   *
+   * Called as the app goes away. It may not finish - Android can stop a
+   * backgrounded app - and that is fine: the copy only counts as made when the
+   * upload returns, so an interrupted one leaves the database looking unsaved
+   * and the next attempt does it again.
+   */
+  private saveIfBehind(): void {
+    if (!this.auto() || !this.canSave()) return;
+    if (this.database.dataVersion() === this.savedVersion) return;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    void this.save();
   }
 
   private stopWaiting(): void {
