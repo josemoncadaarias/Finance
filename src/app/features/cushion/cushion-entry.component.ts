@@ -159,6 +159,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (this.noteBlurTimer !== null) clearTimeout(this.noteBlurTimer);
     this.noteBlurTimer = setTimeout(() => {
       this.writingNote.set(false);
+    // Nothing of the search stays behind it: the list under the note was
+    // still there once the note was written, pushing the form down.
+    this.noteSuggestions.set([]);
       this.noteBlurTimer = null;
     }, 250);
   }
@@ -170,6 +173,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       this.noteBlurTimer = null;
     }
     this.writingNote.set(false);
+    // Nothing of the search stays behind it: the list under the note was
+    // still there once the note was written, pushing the form down.
+    this.noteSuggestions.set([]);
     this.noteBox()?.nativeElement.querySelector('textarea')?.blur();
     if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
   }

@@ -209,7 +209,14 @@ ion-button.save {
   padding: 0 1rem 0.75rem;
   border-radius: 10px;
 
-  &.waiting { outline: 1px dashed var(--ion-color-warning); outline-offset: 0.35rem; }
+  /* The ring that says a category is still missing is drawn OUTSIDE the grid,
+     so it needs room of its own - without it, it crossed the note underneath
+     and, on the light theme, read as one box drawn over another. */
+  &.waiting {
+    outline: 1px dashed var(--ion-color-warning);
+    outline-offset: 0.35rem;
+    margin: 0.45rem 0 0.6rem;
+  }
 
   .category {
     display: flex;
@@ -783,31 +790,6 @@ ion-footer[hidden] { display: none; }
   max-height: none;
 }
 
-/*
- * The way out of writing a note, said out loud.
- *
- * On Android the back button closes the keyboard without taking the focus off
- * the field, so the form had no way of knowing the person had finished - the
- * keypad stayed away until something else was tapped. The keyboard plugin says
- * when it closes, and this button says it too, for anyone who would rather
- * tap than reach for the system's own control.
- */
-.note-done {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 1rem 0.5rem;
-
-  button {
-    padding: 0.4rem 0.9rem;
-    border: 0;
-    border-radius: 999px;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-}
 
 /*
  * A transfer reads down the screen.
@@ -1066,3 +1048,66 @@ ion-footer[hidden] { display: none; }
 .categories {
   grid-template-columns: repeat(4, 1fr);
 }
+
+/*
+ * The note and what it offers, as one block.
+ *
+ * They were three things loose in a column - a box, a right-aligned "Listo" on
+ * a row of its own, and a list - so the gaps between them changed with what
+ * was on screen and the way out sat in a band of nothing. Jose sent seven
+ * screenshots of it, and every one of them was a different shape.
+ */
+.note-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+
+  .note { margin-bottom: 0; }
+
+  .note-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 1rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ion-color-medium);
+
+    button {
+      padding: 0.2rem 0.75rem;
+      border: 0;
+      border-radius: 999px;
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      cursor: pointer;
+    }
+  }
+
+  /* Directly under the note, and never taller than a few rows: past that it
+     is a list to scroll, not a wall that hides what is being written. */
+  .note-hints {
+    margin: 0 1rem 0.5rem;
+    max-height: 9.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Being written, the note keeps its own size rather than stretching: what
+     is above it stays where it is and what is offered stays in view. */
+  &.writing .note {
+    flex: 0 0 auto;
+    min-height: 4.2rem;
+    max-height: 6rem;
+  }
+}
+
+/* A little air above the note, so the block below the categories starts
+   clear of whatever the grid is wearing. */
+.note-panel { margin-top: 0.15rem; }

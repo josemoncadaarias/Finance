@@ -208,44 +208,42 @@
     </div>
   }
 
-  <!-- The note is what the leftover height goes to, so it is drawn as a
-       field that size: a bordered area you write into, not a single line with
-       two hundred points of nothing under it. Several lines is also what a
-       note often is - "Almuerzo ejecutivo de pechuga de caseritos mas
-       impuesto 4x1000" is one line only because there was nowhere else for it
-       to go. -->
-  <div class="note" #noteBox>
-    <ion-textarea [placeholder]="'entry.note' | t" [value]="note()"
-                  [autoGrow]="false" [rows]="2"
-                  (ionFocus)="startNote()" (ionBlur)="endNote()"
-                  (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
-    @if (note() !== '') {
-      <button type="button" class="clear-note" (click)="clearNote()"
-              [attr.aria-label]="'entry.clearNote' | t">
-        <ion-icon name="close-circle"></ion-icon>
-      </button>
+  <!-- The note, and under it the notes already written that match.
+       One block: while it is being written the two belong together, and a
+       row of their own for the way out put a band of empty screen between
+       them. "Listo" sits on the line that names the field. -->
+  <div class="note-panel" [class.writing]="writingNote()" #noteBox>
+    @if (writingNote()) {
+      <div class="note-head">
+        <span>{{ 'entry.note' | t }}</span>
+        <button type="button" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button>
+      </div>
     }
-  </div>
 
-  <!-- Said out loud, because the way out of a keyboard is not obvious and the
-       Android back button leaves the focus where it was. -->
-  @if (writingNote()) {
-    <div class="note-done">
-      <button type="button" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button>
-    </div>
-  }
-
-  <!-- Notes repeat; these are the ones already written that match -->
-  @if (noteSuggestions().length > 0) {
-    <div class="note-hints">
-      @for (hint of noteSuggestions(); track hint) {
-        <button type="button" (click)="useNote(hint)">
-          <ion-icon name="time-outline"></ion-icon>
-          <span>{{ hint }}</span>
+    <div class="note">
+      <ion-textarea [placeholder]="'entry.note' | t" [value]="note()"
+                    [autoGrow]="false" [rows]="2"
+                    (ionFocus)="startNote()" (ionBlur)="endNote()"
+                    (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
+      @if (note() !== '') {
+        <button type="button" class="clear-note" (click)="clearNote()"
+                [attr.aria-label]="'entry.clearNote' | t">
+          <ion-icon name="close-circle"></ion-icon>
         </button>
       }
     </div>
-  }
+
+    @if (writingNote() && noteSuggestions().length > 0) {
+      <div class="note-hints">
+        @for (hint of noteSuggestions(); track hint) {
+          <button type="button" (click)="useNote(hint)">
+            <ion-icon name="time-outline"></ion-icon>
+            <span>{{ hint }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
 
   @if (isEditing()) {
     <div class="danger-zone">
