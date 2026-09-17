@@ -124,7 +124,8 @@
       } @else {
         <p class="unavailable">
           <ion-icon name="information-circle-outline"></ion-icon>
-          {{ 'cloud.unavailable' | t }}
+          {{ (google.unavailableBecause === 'browser'
+                ? 'cloud.unavailable.browser' : 'cloud.unavailable') | t }}
         </p>
       }
 

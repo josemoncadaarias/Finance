@@ -372,6 +372,7 @@ export const SPANISH = {
   'cloud.signIn': 'Continuar con Google',
   'cloud.signOut': 'Cerrar sesión',
   'cloud.unavailable': 'Falta configurar el proyecto de Google de esta app. Mientras tanto puedes guardar y restaurar archivos desde "Importar y exportar".',
+  'cloud.unavailable.browser': 'Esto funciona en la app del celular, no en el navegador. Y es a propósito: el navegador tiene su PROPIA base de datos, la de tus pruebas. Si se conectara desde aquí, subiría esa copia encima de la de tu celular, que es la de verdad. Para mover datos entre el navegador y el celular usa "Importar y exportar".',
 
   'cloud.copy': 'Copia en Drive',
   'cloud.none': 'Todavía no has guardado ninguna copia.',
@@ -1075,6 +1076,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cloud.signIn': 'Continue with Google',
   'cloud.signOut': 'Sign out',
   'cloud.unavailable': "This app's Google project has not been set up yet. Meanwhile you can save and restore files from \"Import and export\".",
+  'cloud.unavailable.browser': 'This works in the phone app, not in the browser - on purpose. The browser keeps its OWN database, the one things get tried out in. Signing in here would put that copy over the one made from the phone, and the phone\'s is the real one. To move data between the two, use "Import and export".',
 
   'cloud.copy': 'Copy in Drive',
   'cloud.none': 'You have not saved a copy yet.',

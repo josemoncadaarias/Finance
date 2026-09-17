@@ -46,13 +46,24 @@ export class GoogleAccountService {
   private started = false;
 
   /**
-   * True when signing in is possible at all.
+   * True when signing in is offered here.
    *
-   * It needs the native side and a client id. In the browser there is neither,
-   * and a button that cannot work is worse than a line explaining why.
+   * Deliberately not offered in the browser, and not because it could not be
+   * made to work - the plugin does support it. Because the browser holds a
+   * DIFFERENT database: `ionic serve` keeps its own copy in IndexedDB, which
+   * is where things get tried out. Signing in there and letting it save would
+   * put that copy over the one made from the phone, and the phone's is the
+   * real one. The screen says which of the two reasons applies rather than
+   * blaming a missing client id for both.
    */
   readonly available = Capacitor.isNativePlatform()
     && (environment.googleWebClientId ?? '') !== '';
+
+  /** Why it is not offered, for a screen that would rather explain than hide. */
+  readonly unavailableBecause: 'browser' | 'unconfigured' | null =
+    !Capacitor.isNativePlatform() ? 'browser'
+      : (environment.googleWebClientId ?? '') === '' ? 'unconfigured'
+        : null;
 
   /** Tells the plugin which Google project this app belongs to. Once. */
   private async start(): Promise<void> {
