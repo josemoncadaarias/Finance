@@ -3,14 +3,18 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false
-};
+  production: false,
 
-/*
- * For easier debugging in development mode, you can import the following file
- * to ignore zone related error stack frames such as `zone.run`, `zoneDelegate.invokeTask`.
- *
- * This import should be commented out in production mode because it will have a negative impact
- * on performance if an error is thrown.
- */
-// import 'zone.js/plugins/zone-error';  // Included with Angular CLI.
+  /**
+   * The Google project this app signs in to, for keeping a copy in Drive.
+   *
+   * Empty until Jose creates it: the sign-in screen says so plainly rather
+   * than offering a button that cannot work. It is the WEB client id even on
+   * Android - that is what Google's own sign-in expects, and the Android
+   * client id is registered beside it but never named here.
+   *
+   * A client id is not a secret. It identifies the app, it does not authorise
+   * anything, and it is visible in any app that ships one.
+   */
+  googleWebClientId: '',
+};

@@ -1,0 +1,253 @@
+/*
+ * The account screen.
+ *
+ * Signed out it is one page with one button, because there is one decision:
+ * whether to keep a copy off the phone. Signed in it becomes a small dashboard
+ * about that copy - who it belongs to, when it was last written, how big it is
+ * - and the two buttons that move it either way.
+ */
+
+.account {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --padding-top: 1rem;
+  --padding-bottom: 2rem;
+}
+
+/* ---------- signed out ---------- */
+
+.invite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+
+  .mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    margin-bottom: 1rem;
+    border-radius: 50%;
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+    color: var(--ion-color-primary);
+
+    ion-icon { font-size: 2.1rem; }
+  }
+
+  h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+
+  .lead {
+    margin: 0 0 1.5rem;
+    max-width: 30ch;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ion-color-medium);
+  }
+
+  /* Three short truths, not a feature list. */
+  .points {
+    width: 100%;
+    max-width: 30rem;
+    margin: 0 0 1.75rem;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      padding: 0.6rem 0.2rem;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: var(--ion-text-color);
+
+      ion-icon {
+        flex: none;
+        margin-top: 0.1rem;
+        font-size: 1.05rem;
+        color: var(--ion-color-primary);
+      }
+    }
+  }
+
+  /*
+   * Google's own button, as their brand rules ask for it: white, its own
+   * grey border, the wordmark's blue only on the G. It is deliberately not
+   * dressed in this app's colours - a sign-in button that looks invented is
+   * a sign-in button people do not trust with their account.
+   */
+  .google {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 22rem;
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border: 1px solid #dadce0;
+    border-radius: 999px;
+    background: #fff;
+    color: #3c4043;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    .g {
+      font-family: 'Product Sans', 'Segoe UI', system-ui, sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #4285f4;
+    }
+
+    ion-spinner { width: 1.1rem; height: 1.1rem; color: #4285f4; }
+
+    &:active { background: #f7f8f8; }
+    &[disabled] { opacity: 0.6; }
+  }
+
+  .unavailable {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    max-width: 32ch;
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+    text-align: left;
+
+    ion-icon { flex: none; margin-top: 0.15rem; font-size: 1rem; }
+  }
+}
+
+/* ---------- signed in ---------- */
+
+.who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0 1.5rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+
+  .face {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .face.letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    color: var(--ion-color-primary);
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0.7rem 0 0.15rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .email {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--ion-color-medium);
+  }
+}
+
+.copy {
+  padding-top: 1.25rem;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .looking { display: flex; justify-content: center; padding: 1rem; }
+
+  /* What is up there, as a fact rather than a row of a list. */
+  .held {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 12px;
+    background: var(--ion-color-light);
+
+    > ion-icon {
+      flex: none;
+      font-size: 1.6rem;
+      color: var(--ion-color-success);
+    }
+
+    .when { margin: 0; font-size: 0.92rem; font-weight: 600; }
+    .detail { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--ion-color-medium); }
+  }
+
+  .none {
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border: 1px dashed var(--ion-color-light-shade);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    color: var(--ion-color-medium);
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  /* Replacing everything on the phone is worth a sentence and a second tap. */
+  .warn {
+    margin-top: 0.85rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--ion-color-danger);
+    border-radius: 12px;
+    background: rgba(var(--ion-color-danger-rgb), 0.08);
+
+    p { margin: 0 0 0.5rem; font-size: 0.87rem; line-height: 1.45; }
+    .pair { display: flex; gap: 0.5rem; justify-content: flex-end; }
+  }
+
+  .good, .bad {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin: 0.85rem 0 0;
+    font-size: 0.87rem;
+    line-height: 1.4;
+
+    ion-icon { flex: none; margin-top: 0.1rem; font-size: 1rem; }
+  }
+
+  .good { color: var(--ion-color-success); }
+  .bad { color: var(--ion-color-danger); word-break: break-word; }
+
+  .hint {
+    margin: 1.5rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--ion-color-medium);
+  }
+}

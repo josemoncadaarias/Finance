@@ -25,5 +25,9 @@ export const routes: Routes = [
     path: 'export',
     loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
   },
+  {
+    path: 'account',
+    loadComponent: () => import('./features/account/account.page').then(m => m.AccountPage),
+  },
   { path: '', redirectTo: 'movements', pathMatch: 'full' },
 ];

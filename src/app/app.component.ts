@@ -17,6 +17,7 @@ import { LanguageButtonComponent } from './core/i18n/language-button.component';
 import { ThemeButtonComponent } from './core/theme/theme-button.component';
 import { ThemeService } from './core/theme/theme.service';
 import { DatabaseService } from './core/database/database.service';
+import { GoogleAccountService } from './core/cloud/google-account.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
 
 interface Section {
@@ -69,11 +70,19 @@ export class AppComponent {
     { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'bed-outline' },
     { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
     { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'swap-vertical-outline' },
+    { path: '/account', label: 'nav.account', hint: 'nav.account.hint', icon: 'person-circle-outline' },
   ];
+
+  private readonly google = inject(GoogleAccountService);
 
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.
     addIcons(allIcons as unknown as Record<string, string>);
+
+    // Signed in last time? Then signed in now, without being asked again.
+    // It fails quietly on purpose: signed out is the ordinary state of this
+    // app, not something to report on startup.
+    void this.google.restore();
 
     effect(() => {
       this.database.dataVersion();
