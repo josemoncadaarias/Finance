@@ -465,7 +465,8 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     this.noteSuggestions.set(found.filter(note => note !== value));
   }
 
-  useNote(note: string): void {
+  useNote(note: string, pressed?: Event): void {
+    pressed?.preventDefault();
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;
@@ -493,7 +494,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     await new Promise(resolve => setTimeout(resolve));
   }
 
-  clearNote(): void {
+  /** Taken on the press, for the reason the movement form explains. */
+  clearNote(pressed?: Event): void {
+    pressed?.preventDefault();
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;

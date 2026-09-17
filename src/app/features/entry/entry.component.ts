@@ -659,7 +659,20 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   /** Empties the note in one tap, rather than holding backspace down. */
-  clearNote(): void {
+  /**
+   * Taken on the way down, not on the click.
+   *
+   * A tap on either of these blurs the note first, which hides the keyboard,
+   * which moves everything on screen - so the finger comes up somewhere else
+   * and the click never happens. Jose's "x" did nothing at all for that
+   * reason. Answering the press instead, with the default prevented so the
+   * note never loses focus, keeps the screen still and the tap lands.
+   *
+   * The click handler stays for a keyboard or a mouse that sends no pointer
+   * event; both of these say the same thing twice without harm.
+   */
+  clearNote(pressed?: Event): void {
+    pressed?.preventDefault();
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;
@@ -672,7 +685,8 @@ export class EntryComponent implements OnInit, OnDestroy {
     else this.amount.set(new AmountBuffer());
   }
 
-  useNote(note: string): void {
+  useNote(note: string, pressed?: Event): void {
+    pressed?.preventDefault();
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;

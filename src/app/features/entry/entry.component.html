@@ -226,7 +226,8 @@
                     (ionFocus)="startNote()" (ionBlur)="endNote()"
                     (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
       @if (note() !== '') {
-        <button type="button" class="clear-note" (click)="clearNote()"
+        <button type="button" class="clear-note"
+                (pointerdown)="clearNote($event)" (click)="clearNote()"
                 [attr.aria-label]="'entry.clearNote' | t">
           <ion-icon name="close-circle"></ion-icon>
         </button>
@@ -236,7 +237,7 @@
     @if (writingNote() && noteSuggestions().length > 0) {
       <div class="note-hints">
         @for (hint of noteSuggestions(); track hint) {
-          <button type="button" (click)="useNote(hint)">
+          <button type="button" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
             <ion-icon name="time-outline"></ion-icon>
             <span>{{ hint }}</span>
           </button>
