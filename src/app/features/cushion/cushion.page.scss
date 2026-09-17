@@ -783,3 +783,47 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
     .fold, .title { color: var(--ion-color-primary); }
   }
 }
+
+/*
+ * Opening or closing every month of a list.
+ *
+ * It began as the movements' own controls row, which pairs a note with a bare
+ * chevron - but that row is styled inside the movements wrapper, so out here
+ * it arrived with no styling at all, jammed against the left edge, and its
+ * note repeated the count already on the heading's bubble. One button, named,
+ * on the side of the screen the thumb is on.
+ */
+.months-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.5rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.95rem; }
+  }
+}
+
+/* Room under the last thing on the sheet, so the arrows floating over it
+   never sit on top of a button. */
+ion-content.sheet { --padding-bottom: 4.5rem; }
+
+/* "Dejar de calcular esta cuenta" was cut to "esta cue...": Ionic keeps a
+   button's label on one line whatever its width. Here the label is a sentence,
+   so it wraps. */
+.danger ion-button {
+  --padding-top: 0.6rem;
+  --padding-bottom: 0.6rem;
+  white-space: normal;
+}

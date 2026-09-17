@@ -614,13 +614,11 @@
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
               <p class="hint">{{ (paysEveryDay() ? 'cushion.payments.daily' : 'cushion.payments.hint') | t }}</p>
-              <div class="list-controls">
-                <span class="within-note">{{ 'cushion.payments.count' | t:{ count: payments().length } }}</span>
-                <button type="button" class="collapse" (click)="togglePaymentMonths()"
-                        [attr.aria-expanded]="!allPaymentMonthsClosed()"
-                        [attr.aria-label]="(allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                        [title]="(allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+              <div class="months-controls">
+                <button type="button" (click)="togglePaymentMonths()"
+                        [attr.aria-expanded]="!allPaymentMonthsClosed()">
                   <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                  {{ (allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
                 </button>
               </div>
               @for (month of paymentsByMonth(); track month.key) {
@@ -698,13 +696,11 @@
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
               <p class="hint">{{ 'cushion.days.hint' | t }}</p>
-              <div class="list-controls">
-                <span class="within-note">{{ 'cushion.days.count' | t:{ count: openDays().length } }}</span>
-                <button type="button" class="collapse" (click)="toggleDayMonths()"
-                        [attr.aria-expanded]="!allDayMonthsClosed()"
-                        [attr.aria-label]="(allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                        [title]="(allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+              <div class="months-controls">
+                <button type="button" (click)="toggleDayMonths()"
+                        [attr.aria-expanded]="!allDayMonthsClosed()">
                   <ion-icon [name]="allDayMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                  {{ (allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
                 </button>
               </div>
               @for (month of daysByMonth(); track month.key) {
