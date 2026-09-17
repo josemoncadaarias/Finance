@@ -718,12 +718,20 @@ ion-footer.pad {
   .note { margin-top: 0.35rem; }
 
   @media (max-height: 720px) {
+    /* The last four belong to the product form only. This stylesheet dresses
+       both forms, and the list had been written from the movement form alone -
+       so on a product the scope buttons and their two lines of explanation
+       went on holding the room the note and its suggestions needed. */
     .route,
     .context,
     .prompt,
     .categories,
     .danger-zone,
-    .pending {
+    .pending,
+    .scope-label,
+    .order.scope,
+    .scope-hint,
+    .edit-kind {
       display: none;
     }
 
