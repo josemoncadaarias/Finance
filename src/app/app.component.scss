@@ -32,3 +32,19 @@
     color: var(--ion-color-medium);
   }
 }
+
+/*
+ * The drawer ends above the phone's own strip.
+ *
+ * Android 15 draws edge to edge, so the bottom of the screen belongs to the
+ * navigation bar and anything laid out there shares its area with a system
+ * button. The last row of the drawer - "Dark", once the account entry was
+ * added - sat exactly there: visible, and impossible to tap.
+ *
+ * The room below the list is also what gives the drawer something to scroll.
+ * A list that ends flush with the bottom edge is a list that fits, so there
+ * was nothing to scroll and the row simply stayed out of reach.
+ */
+ion-menu ion-content {
+  --padding-bottom: calc(1.5rem + var(--ion-safe-area-bottom, 0px));
+}
