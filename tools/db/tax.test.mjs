@@ -35,8 +35,14 @@ function sheetInputs(overrides = {}) {
     monthsWorked: 12,                 // B14
     otherLabourIncomeMinor: 0,        // B15
     solidarityScaled: 10_000,         // B21, 1%
+    // The sheet has no column for work billed rather than employed, nor for
+    // a controlled foreign entity. Zero keeps it the sheet it was.
+    feeIncomeMinor: 0,                // casilla 43
+    feeNonTaxableMinor: 0,            // casilla 44
+    feeCostsMinor: 0,                 // casilla 45
     capitalIncomeMinor: 0,            // B30
     capitalCostsMinor: 0,             // B31
+    passiveCapitalMinor: 0,           // casilla 62
     otherIncomeMinor: pesos(10_000_000),   // B35
     otherCostsMinor: pesos(5_000_000),     // B36
     financialYieldMinor: 0,           // B41
@@ -120,6 +126,68 @@ test('it reproduces the spreadsheet, line for line', () => {
   closeTo(out.voluntaryCeilingMinor, 84_942_354, 'B144 tope absoluto aporte voluntario');
   closeTo(out.voluntaryOptimalMinor, 4_256_384, 'B145 aporte voluntario óptimo');
   closeTo(out.voluntaryMissingMinor, 4_256_384, 'B146 faltante por trasladar');
+});
+
+// ---------------------------------------------------------------------------
+// Jose's own 2025 return, as the DIAN received it (form 2118750959688, filed
+// 2026-08-13). Four columns of the cedula general, not two - which is how the
+// missing casillas 43 to 46 and 62 were found.
+// ---------------------------------------------------------------------------
+
+test('the four columns of the cedula general add up the way the filed return does', () => {
+  const filed = simulate(sheetInputs({
+    // Rentas de trabajo sin relación laboral: 43 − 44 − 45 = 46.
+    feeIncomeMinor: pesos(284_000),
+    feeNonTaxableMinor: 0,
+    feeCostsMinor: 0,
+
+    // Rentas de capital: 58 − 59 − 60 = 61, with the inflationary component
+    // typed as the bank certified it rather than worked out.
+    capitalIncomeMinor: pesos(55_668_000),
+    capitalNonTaxableTyped: true,
+    capitalNonTaxableTypedMinor: pesos(26_135_000),
+    capitalCostsMinor: 0,
+    passiveCapitalMinor: 0,
+
+    otherIncomeMinor: 0,
+    otherCostsMinor: 0,
+  }));
+
+  assert.equal(filed.feeNetMinor, pesos(284_000), 'casilla 46');
+  assert.equal(filed.capitalNetMinor, pesos(29_533_000), 'casilla 61');
+
+  // And both columns reach the total: casilla 91 is 42 + 57 + 73 + 90.
+  const without = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(55_668_000),
+    capitalNonTaxableTyped: true,
+    capitalNonTaxableTypedMinor: pesos(26_135_000),
+    otherIncomeMinor: 0,
+    otherCostsMinor: 0,
+  }));
+  assert.equal(filed.generalNetMinor - without.generalNetMinor, pesos(284_000),
+    'the fee column is in the total, and only once');
+
+  // An ECE's passive income joins the capital column, peso for peso.
+  const withEce = simulate(sheetInputs({
+    capitalIncomeMinor: pesos(55_668_000),
+    capitalNonTaxableTyped: true,
+    capitalNonTaxableTypedMinor: pesos(26_135_000),
+    passiveCapitalMinor: pesos(1_000_000),
+    otherIncomeMinor: 0,
+    otherCostsMinor: 0,
+  }));
+  assert.equal(withEce.generalNetMinor - without.generalNetMinor, pesos(1_000_000), 'casilla 62');
+});
+
+test('a column of the cedula general never goes negative', () => {
+  // Costs larger than what they produced do not become a discount against the
+  // other columns: the DIAN's instruction for each of these boxes is "the
+  // positive result", and a loss belongs in the pérdida líquida box instead.
+  const overspent = simulate(sheetInputs({
+    feeIncomeMinor: pesos(1_000_000),
+    feeCostsMinor: pesos(4_000_000),
+  }));
+  assert.equal(overspent.feeNetMinor, 0, 'casilla 46 floors at zero');
 });
 
 test('the progressive table matches the article it comes from', () => {

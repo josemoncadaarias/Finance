@@ -285,9 +285,51 @@ export const TAX_FORM: readonly FormSection[] = [
   },
 
   {
+    id: 'fees',
+    title: '2. Rentas de trabajo sin relación laboral',
+    subtitle: 'Casillas 43 a 46',
+    rows: [
+      {
+        kind: 'note',
+        text: 'Trabajo tuyo por el que no te pagan como empleado: honorarios, comisiones, '
+            + 'servicios personales, emolumentos. El artículo 103 del E.T. dice que todo eso es '
+            + 'renta de trabajo, seas empleado o no. Tiene columna aparte porque aquí SÍ puedes '
+            + 'restar lo que te costó ganártelo: un empleado no tiene costos, alguien que factura '
+            + 'sus servicios sí. Si eres asalariado y nada más, esta sección va en ceros.',
+      },
+      {
+        kind: 'input', key: 'feeIncomeMinor', format: 'money', box: '43',
+        label: 'Ingresos brutos',
+        hint: 'Todo lo que facturaste en el año por honorarios, comisiones o servicios, antes de '
+            + 'restar nada. Si te practicaron retención, va el valor bruto, no el que te consignaron.',
+      },
+      {
+        kind: 'input', key: 'feeNonTaxableMinor', format: 'money', box: '44',
+        label: 'Ingresos no constitutivos de renta',
+        hint: 'La parte que la ley dice que no es renta. Lo más común: los aportes obligatorios a '
+            + 'salud y pensión que pagaste sobre estos ingresos (arts. 55 y 56 E.T.). Si no tienes '
+            + 'nada de esto, déjalo en cero.',
+      },
+      {
+        kind: 'input', key: 'feeCostsMinor', format: 'money', box: '45',
+        label: 'Costos y deducciones procedentes',
+        hint: 'Lo que gastaste para producir esos ingresos y puedes probar con soporte: insumos, '
+            + 'transporte del servicio, arriendo del local. Ojo: quien resta costos aquí NO puede '
+            + 'tomar además el 25% de renta exenta del art. 206 num. 10 sobre estos mismos '
+            + 'ingresos. Por confirmar con tu contador antes de usarlo en una declaración.',
+      },
+      {
+        kind: 'computed', key: 'feeNetMinor', format: 'money', box: '46', total: true,
+        label: 'Renta líquida',
+        hint: 'Casilla 43 menos 44 menos 45. Nunca queda negativa.',
+      },
+    ],
+  },
+
+  {
     id: 'capital',
-    title: '2. Rentas de capital',
-    subtitle: 'Casillas 58 a 61',
+    title: '3. Rentas de capital',
+    subtitle: 'Casillas 58 a 62',
     rows: [
       {
         kind: 'input', key: 'capitalIncomeMinor', format: 'money', box: '58',
@@ -323,12 +365,22 @@ export const TAX_FORM: readonly FormSection[] = [
         label: 'Renta líquida de capital',
         hint: 'Casilla 58 menos 59 menos 60. Nunca queda negativa.',
       },
+      {
+        kind: 'input', key: 'passiveCapitalMinor', format: 'money', box: '62',
+        label: 'Rentas líquidas pasivas - ECE',
+        hint: 'Solo si controlas una sociedad en el exterior (una ECE: entidad controlada del '
+            + 'exterior, arts. 882 a 893 E.T.). Sus rentas pasivas - intereses, dividendos, '
+            + 'regalías, arriendos - se declaran en el año en que la sociedad las gana, aunque no '
+            + 'te las haya girado. Va aquí porque esas rentas son de capital por naturaleza. '
+            + 'Tener una cuenta o acciones en el exterior NO es esto: esto es controlar la '
+            + 'sociedad. Si no es tu caso, déjalo en cero.',
+      },
     ],
   },
 
   {
     id: 'other',
-    title: '3. Rentas no laborales',
+    title: '4. Rentas no laborales',
     subtitle: 'Casillas 74 a 78',
     rows: [
       {
@@ -355,7 +407,7 @@ export const TAX_FORM: readonly FormSection[] = [
 
   {
     id: 'capped',
-    title: '4. Rentas exentas y deducciones',
+    title: '5. Rentas exentas y deducciones',
     subtitle: 'Con límite del 40% o 1.340 UVT · Casillas 35 a 41',
     rows: [
       { kind: 'input', key: 'voluntaryPayrollMinor', format: 'money', label: 'Aportes voluntarios AFC, FVP o AVC por nómina', hint: 'Lo que tu empleador traslada directamente al fondo.' },
@@ -375,7 +427,7 @@ export const TAX_FORM: readonly FormSection[] = [
 
   {
     id: 'uncapped',
-    title: '5. Deducciones sin límite',
+    title: '6. Deducciones sin límite',
     subtitle: 'No compiten por el 40% ni por los 1.340 UVT',
     rows: [
       { kind: 'computed', key: 'dependentsMinor', format: 'money', box: '139', label: 'Deducción por dependientes económicos', hint: '72 UVT por cada uno, hasta 4.' },

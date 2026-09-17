@@ -164,8 +164,12 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
       : `MIN(${cents(`${i('financialYieldMinor')}*${i('inflationaryScaled')}`)},${i('capitalIncomeMinor')})`,
   capitalNetMinor: (i, o) =>
     `MAX(${i('capitalIncomeMinor')}-${o('capitalNonTaxableMinor')}-${i('capitalCostsMinor')},0)`,
+  feeNetMinor: i =>
+    `MAX(${i('feeIncomeMinor')}-${i('feeNonTaxableMinor')}-${i('feeCostsMinor')},0)`,
   otherNetMinor: i => `${i('otherIncomeMinor')}-${i('otherCostsMinor')}`,
-  generalNetMinor: (_, o) => `${o('labourNetMinor')}+${o('capitalNetMinor')}+${o('otherNetMinor')}`,
+  generalNetMinor: (i, o) =>
+    `${o('labourNetMinor')}+${o('feeNetMinor')}+${o('capitalNetMinor')}`
+    + `+${i('passiveCapitalMinor')}+${o('otherNetMinor')}`,
 
   voluntaryMinor: i => `${i('voluntaryPayrollMinor')}+${i('voluntaryOwnMinor')}`,
   labourExemptMinor: (i, o) =>
@@ -203,7 +207,7 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
   withheldPerMonthMinor: (_, o) => cents(`${o('withheldMinor')}/12`),
   voluntaryMissingPerMonthMinor: (_, o) => cents(`MAX(${o('voluntaryOptimalMinor')}-${o('voluntaryMinor')},0)/12`),
   grossPerMonthMinor: (i, o) =>
-    cents(`(${o('grossLabourMinor')}+${i('capitalIncomeMinor')}+${i('otherIncomeMinor')})/12`),
+    cents(`(${o('grossLabourMinor')}+${i('feeIncomeMinor')}+${i('capitalIncomeMinor')}+${i('otherIncomeMinor')})/12`),
   netPerMonthMinor: (_, o) =>
     `${o('grossPerMonthMinor')}-${cents(`${o('contributionsMinor')}/12`)}`
     + `-${cents(`${o('voluntaryMinor')}/12`)}-${cents(`${o('withheldMinor')}/12`)}`,
@@ -213,7 +217,7 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
     + `+${o('healthPolicyMinor')}+${i('otherDeductionsMinor')}),0)`,
   voluntaryCeilingMinor: (i, o) =>
     `MIN(${i('voluntaryCapUvt')}*${i('uvtMinor')},`
-    + `${cents(`(${o('grossLabourMinor')}+${i('capitalIncomeMinor')}+${i('otherIncomeMinor')})*${i('voluntaryIncomeShareScaled')}`)})`,
+    + `${cents(`(${o('grossLabourMinor')}+${i('feeIncomeMinor')}+${i('capitalIncomeMinor')}+${i('otherIncomeMinor')})*${i('voluntaryIncomeShareScaled')}`)})`,
   voluntaryOptimalMinor: (_, o) => `MIN(${o('roomMinor')},${o('voluntaryCeilingMinor')})`,
   voluntaryMissingMinor: (_, o) => `MAX(${o('voluntaryOptimalMinor')}-${o('voluntaryMinor')},0)`,
 };

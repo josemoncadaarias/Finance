@@ -69,10 +69,34 @@ export interface TaxInputs {
   /** Used only when there is no minimum wage to work the steps out from. */
   solidarityScaled: number;
 
+  /**
+   * Casilla 43: work that is not an employment - fees, commissions, services.
+   *
+   * Articulo 103 E.T. calls all of it renta de trabajo, employed or not, and
+   * the form gives the part that is not an employment a column of its own so
+   * that its costs can be subtracted: an employee has none, someone billing
+   * for their work does.
+   */
+  feeIncomeMinor: number;
+  /** Casilla 44: the part of casilla 43 that is not taxable income. */
+  feeNonTaxableMinor: number;
+  /** Casilla 45: the costs and deductions of earning casilla 43. */
+  feeCostsMinor: number;
+
   /** Casilla 58: interest and financial yields of every account, cashback, rents, royalties. */
   capitalIncomeMinor: number;
   /** Casilla 60. */
   capitalCostsMinor: number;
+  /**
+   * Casilla 62: rentas liquidas pasivas - ECE.
+   *
+   * Income of a controlled foreign entity that the resident owning it declares
+   * as their own, in the year it is earned rather than the year it is
+   * distributed (articulos 882 to 893 E.T.). It sits in this column because
+   * the passive income articulo 884 lists is interest, dividends, royalties
+   * and rents - rentas de capital by nature.
+   */
+  passiveCapitalMinor: number;
   /** Casilla 74: sales, crypto-assets, fixed assets held under two years... never yields. */
   otherIncomeMinor: number;
   /** Casilla 77. */
@@ -137,6 +161,8 @@ export interface TaxResult {
   solidarityMinor: number;
   contributionsMinor: number;
   labourNetMinor: number;
+  /** Casilla 46. */
+  feeNetMinor: number;
   capitalNetMinor: number;
   otherNetMinor: number;
   capitalNonTaxableMinor: number;

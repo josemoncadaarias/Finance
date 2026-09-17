@@ -298,6 +298,17 @@ the framework on a long-running project.
    months after the year ends. The rows of the way not chosen leave the form
    and the exported spreadsheet, and a typed figure is still capped at
    casilla 58.
+   **The cédula general is FOUR columns, not two.** Read off Jose's own filed
+   2025 return (form 2118750959688, 2026-08-13) on 2026-09-17: rentas de
+   trabajo (32-42), rentas de trabajo que no provengan de una relación laboral
+   (43-57), rentas de capital (58-73) and rentas no laborales (74-90), and
+   casilla 91 adds the four. The second column is honorarios and services —
+   art. 103 E.T. calls that renta de trabajo too — and it exists so costs can
+   be subtracted, which an employee has none of. Casilla 44 is "ingresos no
+   constitutivos de renta", NOT devoluciones: on the form the devoluciones row
+   carries only casilla 75. Casilla 62 is rentas líquidas pasivas de una ECE
+   (arts. 882-893 E.T.) and joins the capital column.
+
    - **Yields and cashback are rentas de capital (casilla 58), not ganancias
      ocasionales.** The componente inflacionario of the financial yields is
      casilla 59, worked out by the form; cashback carries none (an assumption:

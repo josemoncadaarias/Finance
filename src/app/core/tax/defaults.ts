@@ -265,7 +265,12 @@ export function defaultInputs(year: number, today: Date = new Date()): TaxInputs
     // which with the table above is never. Kept at the spreadsheet's 1%.
     solidarityScaled: 10_000,
 
+    feeIncomeMinor: 0,
+    feeNonTaxableMinor: 0,
+    feeCostsMinor: 0,
+
     capitalIncomeMinor: 0,
+    passiveCapitalMinor: 0,
     capitalCostsMinor: 0,
     otherIncomeMinor: 0,
     otherCostsMinor: 0,

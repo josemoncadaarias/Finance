@@ -229,11 +229,22 @@ export function simulate(input: TaxInputs): TaxResult {
   const capitalNetMinor = Math.max(
     input.capitalIncomeMinor - capitalNonTaxableMinor - input.capitalCostsMinor, 0);
 
+  // ---- 2b. Rentas de trabajo sin relacion laboral (casillas 43 to 46) ------
+  //
+  // Casilla 46 is "the positive result" of 43 - 44 - 45, the same shape the
+  // DIAN's instructions give every other column of the cedula.
+  const feeNetMinor = Math.max(
+    input.feeIncomeMinor - input.feeNonTaxableMinor - input.feeCostsMinor, 0);
+
   // ---- 3. Rentas no laborales (casillas 74 to 78) --------------------------
 
   const otherNetMinor = input.otherIncomeMinor - input.otherCostsMinor;
 
-  const generalNetMinor = labourNetMinor + capitalNetMinor + otherNetMinor;
+  // The cedula general is the four columns added up: casilla 91 is 42 + 57 +
+  // 73 + 90. The ECE income of casilla 62 joins the capital column, which is
+  // where the form adds it.
+  const generalNetMinor = labourNetMinor + feeNetMinor
+    + capitalNetMinor + input.passiveCapitalMinor + otherNetMinor;
 
   // ---- 4. Exempt income and deductions, against the 40% / 1,340 UVT cap ----
 
@@ -289,7 +300,7 @@ export function simulate(input: TaxInputs): TaxResult {
   // ---- What it means for the year ahead ------------------------------------
 
   const grossPerMonthMinor = Math.round(
-    (grossLabourMinor + input.capitalIncomeMinor + input.otherIncomeMinor) / 12);
+    (grossLabourMinor + input.feeIncomeMinor + input.capitalIncomeMinor + input.otherIncomeMinor) / 12);
   const netPerMonthMinor = grossPerMonthMinor
     - Math.round(contributionsMinor / 12)
     - Math.round(voluntaryMinor / 12)
@@ -302,7 +313,7 @@ export function simulate(input: TaxInputs): TaxResult {
   const roomMinor = Math.max(capMinor - usedWithoutVoluntaryMinor, 0);
   const voluntaryCeilingMinor = Math.min(
     input.voluntaryCapUvt * uvt,
-    applyRate(grossLabourMinor + input.capitalIncomeMinor + input.otherIncomeMinor,
+    applyRate(grossLabourMinor + input.feeIncomeMinor + input.capitalIncomeMinor + input.otherIncomeMinor,
               input.voluntaryIncomeShareScaled),
   );
   const voluntaryOptimalMinor = Math.min(roomMinor, voluntaryCeilingMinor);
@@ -316,6 +327,7 @@ export function simulate(input: TaxInputs): TaxResult {
     solidarityMinor,
     contributionsMinor,
     labourNetMinor,
+    feeNetMinor,
     capitalNetMinor,
     otherNetMinor,
     capitalNonTaxableMinor,
