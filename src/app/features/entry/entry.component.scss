@@ -1420,3 +1420,31 @@ ion-footer[hidden] { display: none; }
     margin-bottom: 0.9rem;
   }
 }
+
+/*
+ * The note really does take the room that is left.
+ *
+ * A rule from 2026-09-16 capped it at 6.5rem, on the reasoning that a form
+ * for an amount should not become a writing area with a cramped keypad under
+ * it. The worry no longer applies: the keys live in the footer, outside this
+ * scroller, so whatever the note takes was never theirs. What the cap did
+ * instead was leave a band of dead screen and start a scrollbar inside a box
+ * three lines tall - Jose photographed exactly that on 2026-09-17.
+ *
+ * Being written it still keeps its own size, which is settled.
+ */
+.note-panel:not(.writing) .note {
+  flex: 1 1 auto;
+  max-height: none;
+  margin-bottom: 0.9rem;
+}
+
+/*
+ * A long category name shortens itself instead of pushing the edit button
+ * off the row.
+ *
+ * "Tecnología y Plataformas digitales" ellipsised correctly and the button
+ * beside it still disappeared: a flex item will not shrink below the width
+ * of its content unless it is told it may.
+ */
+.category-row .chosen { min-width: 0; }
