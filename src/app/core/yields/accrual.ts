@@ -251,22 +251,20 @@ export class AccrualEngine {
     const last = await this.yields.lastAccruedDay(accountId);
     const rates = await this.yields.rateHistory(accountId);
 
-    // Where the walk starts: the day after the earliest thing known about
-    // this account, which is its enrolment OR the first day any of its rates
-    // begins, whichever comes first.
+    // Where the walk starts.
     //
-    // It used to be the enrolment date alone, and that overruled the dates the
-    // products themselves carry. Jose put Plata's two products on rates
-    // starting the 7th and 8th of September and the screen began on the 10th,
-    // because the account had been enrolled on the 9th. Rates have been per
-    // product since migration 016, so a rate reaching further back is the
-    // better answer about when there was something to work out.
+    // The opening figure covers everything up to the day it was measured, so
+    // the first day this app can work out is the day after: starting earlier
+    // would work out days that figure already contains.
     //
-    // A day still needs the day before it to have closed - that is what the
-    // whole module is built on - so it is the day AFTER the earliest, never
-    // the earliest itself.
+    // A rate reaching further back cannot pull it back either, for the same
+    // reason - which is what made the first attempt at Jose's Plata report
+    // wrong twice over. An account with NO opening figure has nothing to
+    // overlap with, so there the rates decide, and Plata's products beginning
+    // on the 7th and the 8th are worked out from then.
     const earliestRate = rates.map(rate => rate.valid_from).sort()[0];
-    const earliest = earliestRate !== undefined && earliestRate < enrolled.opening_on
+    const earliest = enrolled.opening_cushion_minor === 0
+                     && earliestRate !== undefined && earliestRate < enrolled.opening_on
       ? earliestRate
       : enrolled.opening_on;
     const firstEver = nextDay(earliest);
@@ -413,18 +411,15 @@ export class AccrualEngine {
         cushionOf.set(earlier.pocket_id,
           (cushionOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
-      // No lower bound any more. It existed because the opening figure
-      // summarised everything before its date, so an entry back there would
-      // have been counted twice. There is no opening figure now - migration
-      // 035 turned each one into an entry of its own - so every entry counts,
-      // once, from its own date.
+      // The opening figure summarises everything before its date, so an entry
+      // back there would be counted twice.
       for (const entry of entries) {
-        if (entry.on_date >= from) continue;
+        if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
         const id = pocketOf(entry.pocket_id);
         cushionOf.set(id, (cushionOf.get(id) ?? 0) + entry.amount_minor);
       }
       for (const taken of takenOut) {
-        if (taken.on_date >= from) continue;
+        if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
         const id = pocketOf(taken.pocket_id ?? null);
         cushionOf.set(id, (cushionOf.get(id) ?? 0) - taken.amount_minor);
       }

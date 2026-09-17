@@ -193,6 +193,18 @@ the framework on a long-running project.
    is when it lands. Do not "fix" this by moving the base forward a day: it
    would double-count the edges and stop matching the bank.
 
+   **The opening figure is a RECORD, and is never added to the accrual base.**
+   It looks like money the base is missing — the bank shows more than the
+   ledger does — but every product carries a balance Jose typed after reading
+   it off the bank, and that figure ALREADY has the yields inside it.
+   Migration 035 turned each opening figure into an adjustment so that it
+   would earn; Uala's product states 4,584,082.13 and it began earning on
+   5,699,581.59. Migration 036 undid it the same night. The opening date is
+   that record's boundary, so nothing — not even a rate reaching further back
+   — pulls the walk earlier while the figure is non-zero. An account whose
+   opening figure is zero has no record to overlap with, and there the rates
+   decide. Found by Jose, 2026-09-17.
+
 16. **Withholding figures are configuration, each carrying its source.** They
    live in `tax_parameters`, dated, and are unusable until marked confirmed
    with a source; until then the accrual runs without withholding and flags
