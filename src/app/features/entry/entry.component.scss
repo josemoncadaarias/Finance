@@ -1448,3 +1448,29 @@ ion-footer[hidden] { display: none; }
  * of its content unless it is told it may.
  */
 .category-row .chosen { min-width: 0; }
+
+/*
+ * The note itself: a plain textarea that fills its box.
+ *
+ * ion-textarea was three attempts and three screenshots of the same three
+ * lines: it builds five levels of its own inside itself, and the height had
+ * to be handed down every one of them from a stylesheet outside the
+ * component. This element has no inside to fight.
+ */
+.note textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  padding: 0.6rem 2.4rem 0.6rem 0.85rem;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ion-text-color);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+
+  &::placeholder { color: var(--ion-color-medium); }
+}

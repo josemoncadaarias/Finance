@@ -167,10 +167,16 @@
       }
 
       <div class="note">
-        <ion-textarea #noteField [placeholder]="'entry.note' | t" [value]="note()"
-                      [autoGrow]="false" [rows]="2"
-                      (ionFocus)="startNote()" (ionBlur)="endNote()"
-                      (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
+        <!-- A plain textarea, not ion-textarea.
+             Ionic's builds its own five-deep structure inside itself, and making
+             the field fill a box that grows meant handing the height down every
+             one of those levels from outside the component. Three attempts, three
+             screenshots from Jose showing the same three lines with a scrollbar.
+             This element has no inside to fight: it IS the field. -->
+        <textarea #noteField [placeholder]="'entry.note' | t" [value]="note()"
+                  rows="2"
+                  (focus)="startNote()" (blur)="endNote()"
+                  (input)="onNoteInput($any($event.target).value ?? '')"></textarea>
         @if (note() !== '') {
           <button type="button" class="clear-note"
                   (pointerdown)="clearNote($event)" (click)="clearNote()"
