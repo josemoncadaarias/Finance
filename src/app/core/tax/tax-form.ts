@@ -135,7 +135,7 @@ export const TAX_TEXT = {
   standingReference: 'Referencia {year}',
   standingEstimate: 'Estimado',
   standingLater: 'De {year}, posterior',
-  laterWarning: 'Algunas cifras de este año no están en la app y se está usando la de un año posterior, que no le corresponde. Escríbelas a mano donde aparecen abajo: la UVT y el salario mínimo del año que estás declarando.',
+  laterWarning: 'De este año falta {what}, y se está usando la de un año posterior, que no le corresponde. Escríbela a mano abajo si la conoces.',
   refUvt: 'UVT',
   refMinimumWage: 'Salario mínimo, sin auxilio de transporte',
   refInflationary: 'Componente inflacionario',

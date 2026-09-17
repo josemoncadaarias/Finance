@@ -155,7 +155,7 @@
                         @if (anyFromLater()) {
                           <p class="later-warning">
                             <ion-icon name="warning-outline"></ion-icon>
-                            {{ text.laterWarning }}
+                            {{ laterWarning() }}
                           </p>
                         }
                         @for (ref of references(); track ref.label) {

@@ -604,6 +604,33 @@ export class TaxPage {
     return borrowedFromLater(sourced, this.year());
   }
 
+  /**
+   * The warning above the list, naming the figures it is actually about.
+   *
+   * It used to name the UVT and the minimum wage whichever figure was
+   * borrowed. On 2024 both of those are official - the screen says so, in
+   * green - and the borrowed one is the inflationary component, so the
+   * warning was telling Jose to correct by hand two boxes that were right.
+   */
+  readonly laterWarning = computed(() => {
+    const p = this.parameters();
+    const names = [
+      [p.uvt, this.text.refUvt],
+      [p.minimumWage, this.text.refMinimumWage],
+      [p.inflationary, this.text.refInflationary],
+    ] as const;
+
+    const missing = names
+      .filter(([sourced]) => borrowedFromLater(sourced, this.year()))
+      .map(([, name]) => String(name).toLocaleLowerCase('es'));
+
+    if (missing.length === 0) return '';
+
+    const what = missing.length === 1
+      ? missing[0]
+      : missing.slice(0, -1).join(', ') + ' y ' + missing[missing.length - 1];
+    return fill(this.text.laterWarning, { what });
+  });
   /** The same question about the whole year, for the warning above the list. */
   readonly anyFromLater = computed(() => {
     const p = this.parameters();
