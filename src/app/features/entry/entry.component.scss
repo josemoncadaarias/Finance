@@ -1111,3 +1111,18 @@ ion-footer[hidden] { display: none; }
 /* A little air above the note, so the block below the categories starts
    clear of whatever the grid is wearing. */
 .note-panel { margin-top: 0.15rem; }
+
+/*
+ * While the note is being written, what is offered sits ABOVE it.
+ *
+ * The note is the last thing on the form, so the keyboard comes up right
+ * under it - and the matches, drawn after it, landed behind the keyboard.
+ * Jose typed "didi" against 1,170 movements that carry it and saw nothing.
+ * The note stays where the keyboard put it and the list grows upwards, into
+ * the room the categories leave.
+ */
+.note-panel.writing {
+  .note-head  { order: 0; }
+  .note-hints { order: 1; margin: 0 1rem; }
+  .note       { order: 2; }
+}
