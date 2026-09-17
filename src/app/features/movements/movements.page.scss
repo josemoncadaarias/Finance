@@ -173,14 +173,32 @@ ion-toolbar.stepper {
   border-top: 1px solid var(--ion-color-light-shade);
 }
 
-/* Three figures with one meaning each: in, out, moved. */
+/*
+ * What happened during the period: in, out, moved, and what arrived from
+ * another of your own accounts.
+ *
+ * A row of four, spread across the screen, ran off the right edge on Jose's
+ * account - the fourth figure was cut in half and the third lost its last
+ * digits. Peso figures here reach eleven characters, and four of those do not
+ * fit across a phone however they are spaced.
+ *
+ * So they wrap: two to a line on a phone, four across where there is room.
+ * Each cell keeps its own edges, which is also what lets the figures line up
+ * under one another instead of drifting with the width of the words above.
+ */
 .totals {
-  display: flex;
-  justify-content: space-around;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem 0.75rem;
+  padding: 0.4rem 1rem 0.6rem;
 
-  div { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
+  div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    min-width: 0;
+  }
 
   .tag {
     font-size: 0.68rem;
@@ -189,52 +207,67 @@ ion-toolbar.stepper {
     color: var(--ion-color-medium);
   }
 
-  .value { font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .value {
+    font-size: 1.02rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .in { color: var(--ion-color-success); }
 .out { color: var(--ion-color-danger); }
 .moved { color: var(--ion-color-medium); }
 
+/*
+ * Chart or list, as one control with two halves.
+ *
+ * It was a pill flanked by the same icon twice, three buttons doing the one
+ * thing, and which of the two you were about to get had to be worked out from
+ * an icon that changed. Two halves, the one you are on lit: the same shape as
+ * the three views below it, which is the other control on this screen.
+ */
 .switcher {
   display: grid;
-  grid-template-columns: 3rem 1fr 3rem;
-  align-items: center;
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
   padding: 0.25rem 1rem 0.75rem;
 
-  .side {
-    background: none;
-    border: none;
-    color: var(--ion-color-medium);
-    font-size: 1.35rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-  }
-
-  .pill {
+  button {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-    border: none;
+    gap: 0.4rem;
+    padding: 0.6rem 0.5rem;
+    border: 1px solid var(--ion-color-light-shade);
     border-radius: 999px;
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+    background: var(--ion-color-light);
+    color: var(--ion-color-medium);
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
+    min-width: 0;
 
-    /* The count reads as part of the label, not as a badge stuck to it: a
-       paler pill inside a pill made the button look like two controls that
-       had collided. A thin rule separates them instead. */
-    .count {
-      padding-inline-start: 0.55rem;
-      border-inline-start: 1px solid rgba(255, 255, 255, 0.35);
-      font-variant-numeric: tabular-nums;
+    ion-icon { font-size: 1.05rem; flex: none; }
+    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
       font-weight: 600;
+    }
+
+    /* How many there are, as part of the label rather than a badge stuck on. */
+    .count {
+      flex: none;
+      padding-inline-start: 0.5rem;
+      border-inline-start: 1px solid currentColor;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
     }
   }
 }

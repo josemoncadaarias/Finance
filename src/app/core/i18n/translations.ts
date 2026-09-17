@@ -63,6 +63,7 @@ export const SPANISH = {
   'summary.received': 'Recibido',
 
   'summary.seeMovements': 'Ver movimientos',
+  'summary.chart': 'Gráfico',
   'summary.movements': 'Movimientos',
   'summary.seeChart': 'Ver la gráfica',
 
@@ -780,6 +781,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.received': 'Received',
 
   'summary.seeMovements': 'See movements',
+  'summary.chart': 'Chart',
   'summary.movements': 'Movements',
   'summary.seeChart': 'See the chart',
 

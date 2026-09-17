@@ -139,21 +139,23 @@
       }
     </section>
 
-    <!-- Balance pill, flanked by the control that swaps donut and list -->
+    <!-- Chart or list: two states, so two halves of one control. It used to be
+         three buttons - a pill with the same icon on either side of it - which
+         all did the same thing and none of which said which way it went. -->
     <div class="switcher">
-      <button type="button" class="side" (click)="filter.toggleList()"
-              [attr.aria-label]="(filter.showList() ? 'summary.seeChart' : 'summary.seeMovements') | t">
-        <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
+      <button type="button" [class.on]="!filter.showList()"
+              [attr.aria-pressed]="!filter.showList()"
+              (click)="filter.showList() && filter.toggleList()">
+        <ion-icon name="pie-chart-outline"></ion-icon>
+        <span>{{ 'summary.chart' | t }}</span>
       </button>
 
-      <button type="button" class="pill" (click)="filter.toggleList()">
-        <span class="tag">{{ (filter.showList() ? 'summary.movements' : 'summary.seeMovements') | t }}</span>
+      <button type="button" [class.on]="filter.showList()"
+              [attr.aria-pressed]="filter.showList()"
+              (click)="!filter.showList() && filter.toggleList()">
+        <ion-icon name="list-outline"></ion-icon>
+        <span>{{ 'summary.movements' | t }}</span>
         <span class="count">{{ store.visible().length }}</span>
-      </button>
-
-      <button type="button" class="side" (click)="filter.toggleList()"
-              [attr.aria-label]="(filter.showList() ? 'summary.seeChart' : 'summary.seeMovements') | t">
-        <ion-icon [name]="filter.showList() ? 'pie-chart-outline' : 'list-outline'"></ion-icon>
       </button>
     </div>
 
