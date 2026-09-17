@@ -186,6 +186,11 @@ export class CushionPage {
   readonly incomeCategories = signal<CategoryRow[]>([]);
   readonly saving = signal(false);
 
+  /** Open while the "already paid" figure is being corrected. */
+  readonly editingOpening = signal(false);
+  readonly openingAmount = signal('');
+  readonly openingOn = signal('');
+
   /** The settings form, filled from the account being edited. */
   readonly withholds = signal(true);
   private editingEnabled = true;
@@ -845,6 +850,20 @@ export class CushionPage {
     }
 
     return [...out.values()].sort((a, b) => b.on.localeCompare(a.on) || a.pocketId - b.pocketId);
+  });
+
+  /**
+   * True when this account hands every yield over the same day it earns it.
+   *
+   * Then "what the bank paid" and "how it was worked out" are the same list
+   * written twice - same date, same rate, same figure - and two sections that
+   * always agree are two chances to wonder which one to believe. The day list
+   * only has something of its own to say when a payment gathers several days
+   * into one, which is what a monthly rate does.
+   */
+  readonly paysEveryDay = computed(() => {
+    const all = this.payments();
+    return all.length > 0 && all.every(payment => payment.payout === 'daily' && payment.days === 1);
   });
 
   /** Payments grouped by month, so a year of daily ones stays readable. */
@@ -1740,6 +1759,75 @@ export class CushionPage {
     return months === 1
       ? this.i18n.t('cushion.payout.monthly')
       : this.i18n.t('cushion.payout.everyMonths', { count: months });
+  }
+
+  /**
+   * Correcting what the account had already earned, and when it was measured.
+   *
+   * Both halves matter and for different reasons: the figure is part of the
+   * cushion total, and its date is where the walk starts - the figure covers
+   * everything before it, so nothing can be worked out back there. An account
+   * that has no such figure has nothing to overlap with, and there each
+   * product's oldest rate decides instead.
+   */
+  /** Opens the figure with what it holds, so it is corrected and not retyped. */
+  async toggleOpening(line: CushionLine): Promise<void> {
+    if (this.editingOpening()) {
+      this.editingOpening.set(false);
+      return;
+    }
+    const enrolled = await this.repos().yields.account(line.account.id);
+    this.openingAmount.set(
+      enrolled && enrolled.opening_cushion_minor !== 0
+        ? decimalOf(enrolled.opening_cushion_minor)
+        : '');
+    this.openingOn.set(enrolled?.opening_on ?? today());
+    this.editingOpening.set(true);
+  }
+
+  async saveOpening(line: CushionLine): Promise<void> {
+    const typed = this.openingAmount().trim();
+    // The tolerant parser, for the same reason the rest of this screen uses
+    // it: the figure being corrected is the one the app just displayed, in
+    // Colombian format, and the strict parser rejects its own output.
+    let minor = 0;
+    if (typed.length > 0) {
+      try {
+        minor = parseTypedAmountToMinor(typed);
+      } catch {
+        return;
+      }
+    }
+    const on = this.openingOn() || today();
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+
+      // Enrolling is an upsert over the whole row, so every other setting is
+      // handed back exactly as it stands: saving this one must not quietly
+      // switch withholding on, resume a paused account or reset its payout.
+      const enrolled = await yields.account(line.account.id);
+      if (!enrolled) return;
+
+      await yields.enrol({
+        account_id: line.account.id,
+        opening_cushion_minor: minor,
+        opening_on: on,
+        withholding: enrolled.withholding === 1,
+        enabled: enrolled.enabled === 1,
+        payout: enrolled.payout,
+        note: enrolled.note,
+      });
+      // Where the walk starts may have moved, so everything it worked out is
+      // worked out again. Days corrected by hand are left as they are.
+      await yields.clearDays(line.account.id, '0000-01-01');
+      await accrueAllAndSettle(db, yields, tax, today());
+      this.editingOpening.set(false);
+      await this.afterOwnChange(line.account.id);
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   /** Adds an account to the module, with nothing accrued and no rate yet. */

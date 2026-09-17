@@ -481,13 +481,12 @@
             <!-- Every movement of this account's products, as one history: to
                  look back, and to correct or delete one. Collapsed until asked
                  for, like the list behind the donut on the summary. -->
-            <div class="movements-head">
-              <p class="section">{{ 'cushion.movements' | t }}</p>
-              <ion-button fill="clear" size="small" (click)="toggleMovements(line)">
-                <ion-icon slot="start" [name]="showMovements() ? 'chevron-up-outline' : 'list-outline'"></ion-icon>
-                {{ (showMovements() ? 'cushion.movements.hide' : 'cushion.movements.show') | t }}
-              </ion-button>
-            </div>
+            <button type="button" class="section-head" (click)="toggleMovements(line)"
+                    [class.open]="showMovements()" [attr.aria-expanded]="showMovements()">
+              <ion-icon class="fold"
+                        [name]="showMovements() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+              <span class="title">{{ 'cushion.movements' | t }}</span>
+            </button>
             @if (showMovements()) {
               <p class="hint">{{ 'cushion.movements.hint' | t }}</p>
               <!-- Drawn the way the summary draws its movements: the same three
@@ -601,18 +600,20 @@
 
             <!-- What the bank hands over. The list to hold beside the bank's
                  own app: same date, same rate, same figure. -->
-            <div class="movements-head">
-              <p class="section">{{ 'cushion.payments' | t }}</p>
-              <ion-button fill="clear" size="small" (click)="showPayments.set(!showPayments())">
-                <ion-icon slot="start" [name]="showPayments() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-                {{ (showPayments() ? 'cushion.movements.hide' : 'cushion.section.show') | t }}
-              </ion-button>
-            </div>
+            <button type="button" class="section-head" (click)="showPayments.set(!showPayments())"
+                    [class.open]="showPayments()" [attr.aria-expanded]="showPayments()">
+              <ion-icon class="fold"
+                        [name]="showPayments() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+              <span class="title">{{ 'cushion.payments' | t }}</span>
+              @if (payments().length > 0) {
+                <span class="count">{{ payments().length }}</span>
+              }
+            </button>
             @if (showPayments()) {
             @if (payments().length === 0) {
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
-              <p class="hint">{{ 'cushion.payments.hint' | t }}</p>
+              <p class="hint">{{ (paysEveryDay() ? 'cushion.payments.daily' : 'cushion.payments.hint') | t }}</p>
               @for (month of paymentsByMonth(); track month.key) {
                 <!-- Laid out as the day list below: a month that folds, how many
                      payments it holds, and each one with its product, rate and
@@ -669,15 +670,21 @@
             }
             }
 
-            <!-- How each of those figures was reached. Detail, kept closed. -->
-            <div class="movements-head">
-              <p class="section">{{ 'cushion.days' | t }}</p>
-              <ion-button fill="clear" size="small" (click)="showDays.set(!showDays())">
-                <ion-icon slot="start" [name]="showDays() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-                {{ (showDays() ? 'cushion.movements.hide' : 'cushion.section.show') | t }}
-              </ion-button>
-            </div>
-            @if (showDays()) {
+            <!-- How each of those figures was reached. Detail, kept closed -
+                 and not shown at all when it would only repeat the list above,
+                 which is every account whose bank pays daily. -->
+            @if (!paysEveryDay()) {
+            <button type="button" class="section-head" (click)="showDays.set(!showDays())"
+                    [class.open]="showDays()" [attr.aria-expanded]="showDays()">
+              <ion-icon class="fold"
+                        [name]="showDays() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+              <span class="title">{{ 'cushion.days' | t }}</span>
+              @if (openDays().length > 0) {
+                <span class="count">{{ openDays().length }}</span>
+              }
+            </button>
+            }
+            @if (showDays() && !paysEveryDay()) {
             @if (openDays().length === 0) {
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
@@ -730,6 +737,38 @@
               }
             }
             }
+            <!-- What the account had already earned before this app existed.
+                 It was taken off this screen on 2026-09-16 as redundant with a
+                 product income, and it is not: an income earns and this does
+                 not, and its date is where the walk starts. Taking it away left
+                 Jose unable to move the date his Plata products begin on. -->
+            <button type="button" class="section-head" (click)="toggleOpening(line)"
+                    [class.open]="editingOpening()" [attr.aria-expanded]="editingOpening()">
+              <ion-icon class="fold"
+                        [name]="editingOpening() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+              <span class="title">{{ 'cushion.alreadyPaid' | t }}</span>
+              <span class="count">{{ money(line.cushion.opening_minor, line.account.currency_code) }}</span>
+            </button>
+
+            @if (editingOpening()) {
+              <p class="hint">{{ 'cushion.alreadyPaid.hint' | t }}</p>
+              <ion-list [inset]="true">
+                <ion-item>
+                  <ion-input [label]="'cushion.alreadyPaid' | t" labelPlacement="stacked"
+                             inputmode="decimal" [value]="openingAmount()"
+                             (ionInput)="openingAmount.set(amountTyped($event.target))"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-input [label]="'cushion.alreadyPaid.on' | t" labelPlacement="stacked"
+                             type="date" [value]="openingOn()"
+                             (ionInput)="openingOn.set($any($event.target).value)"></ion-input>
+                </ion-item>
+              </ion-list>
+              <ion-button expand="block" [disabled]="saving()" (click)="saveOpening(line)">
+                {{ 'cushion.alreadyPaid.save' | t }}
+              </ion-button>
+            }
+
             <!-- Stopping the account, well away from anything else: it is
                  silent when it happens - the figures simply stop moving. -->
             <div class="danger">

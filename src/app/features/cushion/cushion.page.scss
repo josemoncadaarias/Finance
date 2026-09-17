@@ -532,13 +532,6 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
 }
 
 /* The account's movements: the heading, and the button that opens them. */
-.movements-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-inline-end: 0.5rem;
-}
-
 /*
  * The account's movements, drawn the way the summary draws its own - copied
  * from movements.page.scss and kept inside this wrapper so none of it leaks
@@ -735,4 +728,58 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
   font-size: 0.72rem;
   line-height: 1.45;
   color: var(--ion-color-medium);
+}
+
+/*
+ * A section of this screen, as one control.
+ *
+ * It used to be a grey label with a small button off to the right, which read
+ * as a caption that happened to have a link beside it - and the whole width in
+ * between did nothing. It is the shape the movement groups already use: the
+ * whole row is the button, the chevron says which way it is about to go.
+ */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 1.25rem 0 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 10px;
+  background: var(--ion-color-light);
+  color: var(--ion-text-color);
+  cursor: pointer;
+  text-align: left;
+
+  .fold {
+    flex: none;
+    font-size: 1rem;
+    color: var(--ion-color-medium);
+  }
+
+  .title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .count {
+    flex: none;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--ion-color-medium);
+    color: var(--ion-color-light);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &.open {
+    border-color: var(--ion-color-primary);
+    .fold, .title { color: var(--ion-color-primary); }
+  }
 }
