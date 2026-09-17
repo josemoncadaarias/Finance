@@ -312,9 +312,13 @@
               </span>
             </ion-title>
 
-            <!-- The flag goes wherever a screen can be read, and these sheets
-                 cover the whole screen. -->
+            <!-- The flag and the cloud go wherever a screen can be read, and
+                 these sheets cover the whole screen. This one is not a picker
+                 that closes in two seconds: it is where a product's rates and
+                 entries are corrected, so it is a place where a copy becomes
+                 worth making. -->
             <ion-buttons slot="end">
+              <app-cloud-button></app-cloud-button>
               <app-language-button></app-language-button>
             </ion-buttons>
 
