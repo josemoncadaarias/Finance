@@ -584,6 +584,27 @@ export class TaxPage {
     return formatMoney(minor, 'COP');
   }
 
+  /**
+   * A box that reads zero is an empty box: typing replaces it.
+   *
+   * Every box of the form starts at 0, which is the truth about it and is
+   * also what the DIAN form prints. But an input holding "0" treats the next
+   * keystroke as a digit after it, so typing 9.000.000 into an untouched box
+   * produced 90.000.000 - a mistake worth a fortune on a tax return, and one
+   * nobody would look twice at. Selecting what is there means the first
+   * keystroke replaces it, and a box someone genuinely wants to keep is left
+   * alone by not typing.
+   *
+   * Whatever the box holds is selected, not only a zero: a figure already
+   * entered is replaced in one go too, which is what a spreadsheet does and
+   * what the hand expects. Tapping again puts the caret where it was tapped,
+   * so editing one digit of a long figure is still there when it is wanted.
+   */
+  takeOver(target: unknown): void {
+    const input = target as { select?: () => void } | null;
+    input?.select?.();
+  }
+
   /** A reference percentage, to two decimals: "62,09%", the way it is published. */
   percent(scaled: number): string {
     return `${(scaled / 10_000).toFixed(2).replace('.', ',')}%`;

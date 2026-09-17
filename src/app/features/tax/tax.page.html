@@ -114,6 +114,7 @@
                       <input type="text"
                              [attr.inputmode]="$any(row).format === 'money' || $any(row).format === 'percent' ? 'decimal' : 'numeric'"
                              [value]="fieldText(row)"
+                             (focus)="takeOver($event.target)"
                              (input)="onField(row, typed($event.target, $any(row).format))"
                              (blur)="endDraft($any(row).key)">
                       @if ($any(row).format === 'percent') { <span class="unit">%</span> }
@@ -288,6 +289,7 @@
                             <span>{{ name }}</span>
                             <input type="text" inputmode="decimal"
                                    [value]="monthText(i)"
+                                   (focus)="takeOver($event.target)"
                                    (input)="onMonth(i, typed($event.target, 'money'))"
                                    (blur)="endDraft('month' + i)">
                           </label>
