@@ -135,13 +135,20 @@ ion-content {
  * being scrolled through - which is exactly when someone finds that what they
  * were looking for is not in it.
  */
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1rem;
-  background: var(--ion-background-color);
-  border-bottom: 1px solid var(--ion-color-light-shade);
+ion-toolbar.page-actions {
+  --min-height: 0;
+  --padding-top: 0.15rem;
+  --padding-bottom: 0.55rem;
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --border-width: 0;
+
+  /* Ionic's toolbar content area is a block, so the row is stated here. */
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
   button {
     display: inline-flex;

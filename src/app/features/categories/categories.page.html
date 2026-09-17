@@ -8,25 +8,31 @@
       <app-language-button></app-language-button>
     </ion-buttons>
   </ion-toolbar>
+
+  <!-- The two things that act on the whole screen, held still above it: adding
+       a category, and opening or closing every list. The three "new category"
+       buttons this replaces were the same button written three times, and each
+       one only reached the list it sat in - so the one you wanted was behind
+       however much scrolling that list needed.
+
+       A toolbar of the header, not an element between the header and the
+       content: ion-content covers the whole page, so anything left outside
+       both takes up room and is never seen. -->
+  <ion-toolbar class="page-actions">
+    <div class="bar">
+      <button type="button" class="new" (click)="startNew()">
+        <ion-icon name="add-outline"></ion-icon>
+        {{ 'categories.new' | t }}
+      </button>
+
+      <button type="button" class="fold" (click)="foldAll()"
+              [attr.aria-expanded]="!allCollapsed()">
+        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+        {{ (allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
+      </button>
+    </div>
+  </ion-toolbar>
 </ion-header>
-
-<!-- The two things that act on the whole screen, held still above it: adding
-     a category, and opening or closing every list. The three "new category"
-     buttons this replaces were the same button written three times, and each
-     one only reached the list it sat in - so the one you wanted was behind
-     however much scrolling that list needed. -->
-<div class="page-actions">
-  <button type="button" class="new" (click)="startNew()">
-    <ion-icon name="add-outline"></ion-icon>
-    {{ 'categories.new' | t }}
-  </button>
-
-  <button type="button" class="fold" (click)="foldAll()"
-          [attr.aria-expanded]="!allCollapsed()">
-    <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-    {{ (allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
-  </button>
-</div>
 
 <ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
   @if (status() === 'opening') {
