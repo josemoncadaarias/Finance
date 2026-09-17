@@ -585,3 +585,26 @@ ion-modal.editor-sheet {
     ion-icon { font-size: 1.25rem; }
   }
 }
+
+/*
+ * The note's field fills its box.
+ *
+ * The box grows with the form; the textarea inside it did not, so the note
+ * stayed three lines tall with a scrollbar of its own inside a tall empty
+ * frame - Jose photographed it twice on 2026-09-17.
+ *
+ * The rule has to live here rather than in the component's stylesheet.
+ * ion-textarea is scoped, not shadow: its wrapper and its real <textarea> are
+ * ordinary elements that Ionic creates, so they never carry the _ngcontent
+ * attribute Angular stamps on a component's own template, and a selector
+ * written in that component silently matches nothing.
+ */
+.entry-body .note ion-textarea,
+.entry-body .note ion-textarea .textarea-wrapper,
+.entry-body .note ion-textarea .native-wrapper,
+.entry-body .note ion-textarea textarea {
+  height: 100%;
+}
+
+/* Dragging the corner would fight the box that already sizes itself. */
+.entry-body .note ion-textarea textarea { resize: none; }
