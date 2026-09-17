@@ -116,3 +116,14 @@
 
   ion-item { opacity: 0.72; }
 }
+
+/*
+ * Room under the last section.
+ *
+ * The third heading sat on the very bottom edge, behind the phone's own
+ * navigation bar, which is where Jose lost it. The list ends clear of both
+ * that bar and the controls floating over it.
+ */
+ion-content {
+  --padding-bottom: 5rem;
+}

@@ -530,3 +530,58 @@ ion-modal.editor-sheet {
     background: var(--ion-background-color);
   }
 }
+
+/*
+ * The row of controls that sits over a long list: go up, fold it all away,
+ * go down.
+ *
+ * Shared, because it is the same control on more than one screen and two
+ * copies kept by hand drift. It lives here rather than in a component of its
+ * own because there is nothing to it but a shape - each screen keeps its own
+ * answer to what folding means.
+ *
+ * `slot="fixed"` is what keeps it still: content in the default slot is
+ * inside the scrolling box.
+ */
+.jump {
+  position: absolute;
+  right: 1rem;
+  bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  /* Its place is kept, so the buttons beside it never move. */
+  .gone {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: var(--ion-background-color);
+    color: var(--ion-color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+
+    ion-icon { font-size: 1.1rem; }
+  }
+
+  /* The one that changes the list rather than moving through it. */
+  button.fold {
+    width: 2.9rem;
+    height: 2.9rem;
+    background: var(--ion-color-primary);
+    color: var(--ion-color-primary-contrast);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+
+    ion-icon { font-size: 1.25rem; }
+  }
+}

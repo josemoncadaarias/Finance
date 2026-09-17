@@ -10,7 +10,7 @@
  * makes archiving an informed decision rather than a guess.
  */
 
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
@@ -92,13 +92,70 @@ export class CategoriesPage {
   }
 
   /**
-   * Which of the two lists are open. Both, to begin with.
+   * Which lists are open. None, to begin with.
    *
-   * There are only two, so hiding them by default would mean the screen
-   * opens showing nothing at all. Folding is for putting one aside while
-   * the other is being worked through.
+   * They started open, back when there were two of them and a closed screen
+   * would have shown nothing at all. There are three now and the expenses
+   * alone run past a screen and a half, which pushed the third heading off
+   * the bottom edge - Jose could not find it. Closed, the three headings and
+   * their counts are the whole screen, and opening one is a tap.
    */
-  readonly openSides = signal<ReadonlySet<string>>(new Set(['expense', 'income']));
+  readonly openSides = signal<ReadonlySet<string>>(new Set());
+
+  /** The three headings, in the order they are drawn. */
+  private readonly sides = ['expense', 'income', 'products'];
+
+  readonly allCollapsed = computed(() => this.openSides().size === 0);
+
+  /** Opens all three or closes all three, whichever the screen is not. */
+  foldAll(): void {
+    const open = this.allCollapsed();
+    this.openSides.set(new Set(open ? this.sides : []));
+    setTimeout(() => void this.measure(), 0);
+  }
+
+  private readonly content = viewChild<IonContent>('list');
+  private readonly atTop = signal(true);
+  private readonly atBottom = signal(true);
+
+  /** True when there is enough on screen for any of this to be worth showing. */
+  readonly scrollable = computed(() => !this.allCollapsed());
+
+  readonly showJumpUp = computed(() => this.scrollable() && !this.atTop());
+  readonly showJumpDown = computed(() => this.scrollable() && !this.atBottom());
+
+  /**
+   * Where the list is, read only when the answer changes.
+   *
+   * The 4px slack is for fractional device pixels: the bottom of a scroller
+   * is rarely a whole number, and without it the "go down" button never
+   * quite goes away.
+   */
+  private async measure(): Promise<void> {
+    const content = this.content();
+    if (!content) return;
+
+    const element = await content.getScrollElement();
+    const top = element.scrollTop <= 4;
+    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
+
+    if (top !== this.atTop()) this.atTop.set(top);
+    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+  }
+
+  onScroll(): void {
+    void this.measure();
+  }
+
+  async toTop(): Promise<void> {
+    await this.content()?.scrollToTop(300);
+    await this.measure();
+  }
+
+  async toBottom(): Promise<void> {
+    await this.content()?.scrollToBottom(300);
+    await this.measure();
+  }
 
   isOpen(kind: string): boolean {
     return this.openSides().has(kind);
@@ -111,6 +168,9 @@ export class CategoriesPage {
       else next.add(kind);
       return next;
     });
+    // Opening or closing one changes how tall the screen is, and no scroll
+    // event says so.
+    setTimeout(() => void this.measure(), 0);
   }
 
   /** The product categories were changed: read them again and close the sheet. */
