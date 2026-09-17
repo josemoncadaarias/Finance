@@ -143,17 +143,6 @@ ion-button.save {
   padding: 0 1rem 0.75rem;
 
   .leg {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.6rem 0.7rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 8px;
-    background: var(--ion-color-light);
-    cursor: pointer;
-    text-align: left;
-    min-width: 0;
-
     .lead { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ion-color-medium); }
     /* Name and icon travel together: an account is recognised by its icon
        before its name is read. */
@@ -168,8 +157,6 @@ ion-button.save {
       ion-icon { font-size: 1rem; color: var(--ion-color-medium); flex: none; }
       .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
-
-    &.needed { border-color: var(--ion-color-warning); }
   }
 
   .swap {
@@ -715,8 +702,6 @@ ion-footer.pad {
   max-width: 100%;
 }
 
-.route .leg .part { margin-top: 0.1rem; }
-
 /*
  * Writing the note, on a phone.
  *
@@ -1130,3 +1115,53 @@ ion-footer[hidden] { display: none; }
   .note-hints { order: 1; margin: 0 1rem; }
   .note       { order: 2; }
 }
+
+/*
+ * A leg of a transfer, with room to breathe.
+ *
+ * "DESDE" sat straight on top of the account name and the product sat
+ * straight under it: three lines touching, which reads as one blurred block
+ * rather than three answers. The label gets its own air, and the product goes
+ * to the RIGHT of the name when both fit on the line - "Rappi cuenta" leaves
+ * half the row empty - and drops underneath only when the name is long enough
+ * to need the whole width. Wrapping decides that, so it follows the real name
+ * rather than a guess at how long names are.
+ */
+.route .leg {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.6rem;
+  row-gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+
+  .face {
+    flex: 0 1 auto;
+    gap: 0.25rem;
+  }
+
+  .part {
+    margin-top: 0;
+    align-self: center;
+  }
+}
+
+/*
+ * The account a product belongs to, beside the day.
+ *
+ * It is not a choice - the account is the screen you came from - so it reads
+ * as a label rather than a button, next to the day the way the movement form
+ * puts the product next to the day.
+ */
+.context.stacked .owner-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--ion-color-light);
+  color: var(--ion-color-medium);
+  font-size: 0.78rem;
+}
+
+/* The account is shown, not chosen: it should not look pressable. */
+.route .leg span.part { cursor: default; }

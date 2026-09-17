@@ -45,30 +45,38 @@
     @if (isTransfer()) {
       <!-- From and to, products only: both are inside the account on screen. -->
       <div class="route">
-        <button type="button" class="leg" (click)="pickingPocket.set('from')">
-          <span class="lead">{{ 'cushion.move.from' | t }}</span>
-          <span class="who">
-            <ion-icon name="wallet-outline"></ion-icon>
-            <span class="name">{{ pocketName() }}</span>
-          </span>
-        </button>
+        <div class="leg">
+          <button type="button" class="face" (click)="pickingPocket.set('from')">
+            <span class="lead">{{ 'cushion.move.from' | t }}</span>
+            <span class="who">
+              <ion-icon name="wallet-outline"></ion-icon>
+              <span class="name">{{ pocketName() }}</span>
+            </span>
+          </button>
+          <span class="part">{{ request().account.name }}</span>
+        </div>
 
+        <!-- Down the screen, with the arrow pointing the way the money goes -
+             the movement form's layout, for the same reason. -->
         <button type="button" class="swap" (click)="swap()" [attr.aria-label]="'entry.swap' | t">
-          <ion-icon name="swap-horizontal-outline"></ion-icon>
+          <ion-icon name="arrow-down-outline"></ion-icon>
+          <ion-icon class="turn" name="swap-vertical-outline"></ion-icon>
         </button>
 
-        <button type="button" class="leg" [class.needed]="toPocketId() === null || toPocketId() === pocketId()"
-                (click)="pickingPocket.set('to')">
-          <span class="lead">{{ 'cushion.move.to' | t }}</span>
-          <span class="who">
-            <ion-icon name="wallet-outline"></ion-icon>
-            <span class="name">{{ toPocketName() }}</span>
-          </span>
-        </button>
+        <div class="leg" [class.needed]="toPocketId() === null || toPocketId() === pocketId()">
+          <button type="button" class="face" (click)="pickingPocket.set('to')">
+            <span class="lead">{{ 'cushion.move.to' | t }}</span>
+            <span class="who">
+              <ion-icon name="wallet-outline"></ion-icon>
+              <span class="name">{{ toPocketName() }}</span>
+            </span>
+          </button>
+          <span class="part">{{ request().account.name }}</span>
+        </div>
       </div>
 
       <div class="context single">
-        <button type="button" (click)="showDate.set(true)">
+        <button type="button" class="day-chip" (click)="showDate.set(true)">
           <ion-icon name="calendar-outline"></ion-icon>
           <span>{{ dateLabel() }}</span>
         </button>
@@ -78,18 +86,23 @@
     } @else {
       <!-- The product and the date. Only the product: the account is already
            the one on screen, and its balance does not move. -->
-      <div class="context">
-        <button type="button" class="with-part" (click)="pickingPocket.set('from')">
+      <div class="context stacked">
+        <button type="button" class="with-part account" (click)="pickingPocket.set('from')">
           <ion-icon name="wallet-outline"></ion-icon>
           <span class="stack">
             <span>{{ pocketName() }}</span>
-            <span class="part">{{ request().account.name }}</span>
           </span>
         </button>
-        <button type="button" (click)="showDate.set(true)">
-          <ion-icon name="calendar-outline"></ion-icon>
-          <span>{{ dateLabel() }}</span>
-        </button>
+
+        <!-- The account it belongs to and the day, side by side, the way the
+             movement form puts the product and the day. -->
+        <div class="chips">
+          <span class="owner-chip">{{ request().account.name }}</span>
+          <button type="button" class="day-chip" (click)="showDate.set(true)">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>{{ dateLabel() }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- What the entry changes: the product alone, the product and net worth
@@ -211,13 +224,30 @@
   @if (missing(); as hint) {
     <p class="missing">{{ hint }}</p>
   }
+  <!-- Saving, at the bottom, exactly as on the movement form: the one in the
+       toolbar stays for when the keypad is away, but a thumb rests here. -->
+  <div class="entry-actions" [class]="request().kind">
+    @if (midSum()) {
+      <button type="button" class="equals" (click)="press('=')"
+              [attr.aria-label]="'entry.equals' | t">=</button>
+    }
+    <button type="button" class="do-save" [disabled]="!canSave() || saving()" (click)="save()">
+      <ion-icon name="checkmark-outline"></ion-icon>
+      {{ 'entry.save' | t }}
+    </button>
+  </div>
+
   <div class="keypad">
     @for (key of keys; track key) {
       <button type="button" (click)="press(key)"
               [class.operator]="key === '+' || key === '-' || key === '×' || key === '÷'"
               [class.equals]="key === '='"
               [class.on]="pending()?.operator === key">
-        {{ key }}
+        @if (key === '<') {
+          <ion-icon name="backspace-outline"></ion-icon>
+        } @else {
+          {{ key }}
+        }
       </button>
     }
   </div>

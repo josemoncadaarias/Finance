@@ -276,12 +276,16 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     return this.kinds().find(kind => kind.id === this.productKindId()) ?? null;
   }
 
+  /** The movement form's keypad, key for key: backspace, and "=" on the bar. */
   readonly keys = [
     '1', '2', '3', '+',
     '4', '5', '6', '-',
     '7', '8', '9', '×',
-    ',', '0', '=', '÷',
+    ',', '0', '<', '÷',
   ];
+
+  /** True while an arithmetic operator is waiting for its second number. */
+  readonly midSum = computed(() => this.pending() !== null);
 
   readonly isTransfer = computed(() => this.request().kind === 'transfer');
   readonly isEditing = computed(() => this.request().editing !== undefined);
