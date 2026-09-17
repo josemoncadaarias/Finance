@@ -1262,3 +1262,104 @@ ion-footer[hidden] { display: none; }
     &:last-child { margin-bottom: 0; }
   }
 }
+
+/*
+ * The category, on one line.
+ *
+ * Eight tiles under a heading that named the chosen one took four rows of a
+ * phone to answer a question with a single answer - and said the answer twice.
+ * The line names it; tapping opens the whole list, where it can be searched
+ * and ordered and where a new one is made.
+ */
+.category-row {
+  margin: 0 1rem 0.6rem;
+
+  .chosen {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 10px;
+    background: var(--ion-color-light);
+    color: var(--ion-text-color);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .lead {
+    flex: none;
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  .what {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &.missing { color: var(--ion-color-warning); font-weight: 500; }
+  }
+
+  .more { flex: none; font-size: 0.9rem; color: var(--ion-color-medium); }
+
+  /* Still unanswered, and the form cannot be saved without it. */
+  &.waiting .chosen { border-color: var(--ion-color-warning); }
+}
+
+/* Correcting the chosen category, or making one, from the movement itself. */
+.category-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+
+  .edit {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 10px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 1.05rem;
+    cursor: pointer;
+  }
+}
+
+/* The heading of the category sheet, with the way to make one beside it. */
+.sheet .sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h2 { margin: 0; }
+
+  .add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: none;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.95rem; }
+  }
+}

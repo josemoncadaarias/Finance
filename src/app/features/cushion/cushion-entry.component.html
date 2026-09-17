@@ -126,20 +126,26 @@
       </button>
 
       @if (usesCategory()) {
-        <div class="categories" [class.waiting]="categoryId() === null">
-          @for (category of shortlist(); track category.id) {
-            <button type="button" class="category" [class.on]="categoryId() === category.id"
-                    (click)="pickCategory(category.id)">
-              <app-icon [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" size="1.35rem"></app-icon>
-              <span>{{ category.name }}</span>
-            </button>
-          }
-          @if (categories().length > shortlistSize) {
-            <button type="button" class="category more" (click)="openCategories()">
-              <ion-icon name="search-outline"></ion-icon>
-              <span>{{ 'entry.allCategories' | t:{ count: categories().length } }}</span>
-            </button>
-          }
+        <!-- The same line the movement form carries, for the same reason. -->
+        <div class="category-row" [class.waiting]="categoryId() === null">
+          <button type="button" class="chosen" (click)="openCategories()">
+            <span class="lead">{{ 'entry.category' | t }}</span>
+            @if (selectedCategory(); as category) {
+              <span class="what">
+                <app-icon [builtin]="category.builtin_icon"
+                          [customId]="category.custom_icon_id" size="1.15rem"></app-icon>
+                <span class="name">{{ category.name }}</span>
+              </span>
+            } @else {
+              <span class="what missing">{{ 'entry.need.category' | t }}</span>
+            }
+            <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+          </button>
+
+          <button type="button" class="edit" (click)="editChosenCategory()"
+                  [attr.aria-label]="(categoryId() === null ? 'entry.newCategory' : 'entry.editCategory') | t">
+            <ion-icon [name]="categoryId() === null ? 'add-outline' : 'create-outline'"></ion-icon>
+          </button>
         </div>
       }
     }
@@ -279,6 +285,19 @@
   <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
 }
 
+<!-- Making a category, or correcting the one chosen, without leaving the
+     movement: the same editor the categories screen uses. -->
+<ion-modal class="editor-sheet" [isOpen]="editingCategory() !== null"
+           (didDismiss)="editingCategory.set(null)">
+  <ng-template>
+    @if (editingCategory(); as open) {
+      <app-category-editor [editing]="open.category" [startKind]="open.kind"
+                           (saved)="categorySaved()"
+                           (cancelled)="editingCategory.set(null)"></app-category-editor>
+    }
+  </ng-template>
+</ion-modal>
+
 <ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>
     <ion-header>
@@ -289,7 +308,13 @@
       </ion-toolbar>
     </ion-header>
     <ion-content class="sheet">
-      <h2>{{ 'entry.pickCategory' | t }}</h2>
+      <div class="sheet-head">
+        <h2>{{ 'entry.pickCategory' | t }}</h2>
+        <button type="button" class="add" (click)="newCategory()">
+          <ion-icon name="add-outline"></ion-icon>
+          {{ 'entry.newCategory' | t }}
+        </button>
+      </div>
       <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
                      (ionInput)="categorySearch.set($any($event.target).value ?? '')" [debounce]="0"></ion-searchbar>
       <ion-list>

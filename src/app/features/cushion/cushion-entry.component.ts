@@ -49,8 +49,9 @@ import { TaxParametersRepository } from '../../core/database/repositories/tax-pa
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
-import type { AccountRow } from '../../core/database/types';
+import type { AccountRow, CategoryKind, CategoryRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
+import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
@@ -69,7 +70,7 @@ export interface CushionEntryRequest {
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent, ProductKindEditorComponent, BusyOverlayComponent,
+    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
   ],
@@ -333,6 +334,39 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly pocketName = computed(() => this.nameOf(this.pocketId()));
   readonly toPocketName = computed(() => this.nameOf(this.toPocketId()));
 
+
+  /**
+   * Open while a category is being made or corrected, from this form.
+   *
+   * Making one used to mean leaving the movement, going to the categories
+   * screen and starting again - so the category that was missing got filed
+   * under whichever old one was closest.
+   */
+  readonly editingCategory = signal<{ category: CategoryRow | null; kind: CategoryKind } | null>(null);
+
+  /** Corrects the one chosen; with none chosen, makes one. */
+  editChosenCategory(): void {
+    const chosen = this.selectedCategory();
+    this.editingCategory.set({
+      category: chosen ? ({ ...chosen } as unknown as CategoryRow) : null,
+      kind: this.request().kind === 'expense' ? 'expense' : 'income',
+    });
+  }
+
+  newCategory(): void {
+    this.editingCategory.set({ category: null, kind: this.request().kind === 'expense' ? 'expense' : 'income' });
+  }
+
+  /** Saved: the list is read again, so the new or corrected one is in it. */
+  async categorySaved(): Promise<void> {
+    this.editingCategory.set(null);
+    await this.loadCategories();
+  }
+
+  /** The category chosen, for the line that names it. */
+  readonly selectedCategory = computed(() =>
+    this.categories().find(category => category.id === this.categoryId()) ?? null);
+
   /** The most used, plus the one chosen when it is not among them. */
   readonly shortlist = computed(() => {
     const all = this.categories();
@@ -407,11 +441,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     const editing = this.request().editing;
     if (editing) {
       this.amount.set(AmountBuffer.from(Math.abs(editing.amount_minor)));
-      // The kind it was filed under. An entry written before the kinds were
-      // rows has none, so the coarse word it carries picks the closest one.
-      this.productKindId.set(editing.product_kind_id
-        ?? this.kinds().find(kind => kind.counts_as === (editing.kind === 'cashback' ? 'cashback' : 'yield'))?.id
-        ?? this.productKindId());
+      // The category it was filed under. An entry that only ever touched the
+      // product carries it on the entry itself; one that was also a movement
+      // carries it on the movement, and that is read further down.
+      //
+      // This was still reading the old product_kind_id, which nothing shows
+      // any more: correcting an income opened with no category chosen at all,
+      // while an expense looked right only because it defaults to the scope
+      // that reads the movement's.
+      if (editing.category_id !== null) this.categoryId.set(editing.category_id);
       if (pockets.some(pocket => pocket.id === editing.pocket_id)) this.pocketId.set(editing.pocket_id);
       this.onDate.set(editing.on_date);
       this.note.set(editing.note ?? '');

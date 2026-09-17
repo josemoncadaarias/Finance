@@ -41,7 +41,7 @@ import { YieldsRepository } from '../../core/database/repositories/yields.reposi
 import type { YieldPocket } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
-import type { AccountRow, CategoryRow, TransactionRow } from '../../core/database/types';
+import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
 import {
@@ -49,6 +49,7 @@ import {
 } from './calculator';
 import { outlined } from '../../core/icons/icon-catalog';
 import { IconComponent } from '../../core/icons/icon.component';
+import { CategoryEditorComponent } from '../categories/category-editor.component';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -70,6 +71,7 @@ export interface EntryRequest {
     IconComponent,
     CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
+    CategoryEditorComponent,
     IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
     IonSearchbar, IonNote,
   ],
@@ -698,6 +700,44 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     // Not the note already written: offering back what is on screen is noise.
     this.noteSuggestions.set(found.filter(note => note !== value));
+  }
+
+
+  /**
+   * Open while a category is being made or corrected, from this form.
+   *
+   * Making one used to mean leaving the movement, going to the categories
+   * screen and starting again - so the category that was missing got filed
+   * under whichever old one was closest.
+   */
+  readonly editingCategory = signal<{ category: CategoryRow | null; kind: CategoryKind } | null>(null);
+
+  /** Corrects the one chosen; with none chosen, makes one. */
+  editChosenCategory(): void {
+    const chosen = this.selectedCategory();
+    this.editingCategory.set({
+      category: chosen ? ({ ...chosen } as unknown as CategoryRow) : null,
+      kind: this.kind() === 'expense' ? 'expense' : 'income',
+    });
+  }
+
+  newCategory(): void {
+    this.editingCategory.set({ category: null, kind: this.kind() === 'expense' ? 'expense' : 'income' });
+  }
+
+  /** Saved: the list is read again, so the new or corrected one is in it. */
+  async categorySaved(): Promise<void> {
+    this.editingCategory.set(null);
+    await this.loadCategories();
+  }
+
+  /** The categories this movement can be filed under, read again. */
+  private async loadCategories(): Promise<void> {
+    if (this.database.status() !== 'ready' || this.isTransfer()) return;
+    this.categories.set(await new CategoriesRepository(this.database.driver).listByUse({
+      kind: this.kind() === 'expense' ? 'expense' : 'income',
+      since: aYearAgo(),
+    }));
   }
 
   /** Empties the note in one tap, rather than holding backspace down. */
