@@ -1363,3 +1363,38 @@ ion-footer[hidden] { display: none; }
     ion-icon { font-size: 0.95rem; }
   }
 }
+
+/*
+ * The category with nothing chosen yet.
+ *
+ * It read "CATEGORÍA" and then "Escoge una categoría" - the same word twice -
+ * and the invitation was wearing a solid warning panel it had picked up by
+ * accident: `.missing` is the bar that says the amount is still empty, and
+ * sharing the class shared the background. An invitation, not an alarm: the
+ * row asks once, in the colour that says "your turn", with a dashed edge
+ * rather than a filled block.
+ */
+.category-row .chosen {
+  .mark {
+    flex: none;
+    font-size: 1.1rem;
+    color: var(--ion-color-primary);
+  }
+
+  .invite {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ion-color-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.category-row.waiting .chosen {
+  border-style: dashed;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.55);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+}

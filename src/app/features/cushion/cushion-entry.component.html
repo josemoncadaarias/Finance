@@ -129,17 +129,21 @@
         <!-- The same line the movement form carries, for the same reason. -->
         <div class="category-row" [class.waiting]="categoryId() === null">
           <button type="button" class="chosen" (click)="openCategories()">
-            <span class="lead">{{ 'entry.category' | t }}</span>
             @if (selectedCategory(); as category) {
+              <span class="lead">{{ 'entry.category' | t }}</span>
               <span class="what">
                 <app-icon [builtin]="category.builtin_icon"
                           [customId]="category.custom_icon_id" size="1.15rem"></app-icon>
                 <span class="name">{{ category.name }}</span>
               </span>
+              <ion-icon class="more" name="chevron-down-outline"></ion-icon>
             } @else {
-              <span class="what missing">{{ 'entry.need.category' | t }}</span>
+              <!-- Nothing chosen: the invitation IS the label, so naming the field
+                   above it would only say the same word twice. -->
+              <ion-icon class="mark" name="pricetag-outline"></ion-icon>
+              <span class="invite">{{ 'entry.need.category' | t }}</span>
+              <ion-icon class="more" name="chevron-down-outline"></ion-icon>
             }
-            <ion-icon class="more" name="chevron-down-outline"></ion-icon>
           </button>
 
           <button type="button" class="edit" (click)="editChosenCategory()"
