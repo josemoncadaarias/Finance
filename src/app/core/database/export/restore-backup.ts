@@ -164,7 +164,6 @@ async function replaceWith(
   // than the insert it follows, since it hands the screen the thread back.
   const totalRows = Object.values(backup.tables)
     .reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0);
-  const REPORT_EVERY = 200;
   let written = 0;
 
   // Rows go in with foreign keys off, and every reference is checked before
@@ -189,17 +188,21 @@ async function replaceWith(
         // tax parameters both do. The backup is the authority.
         await db.run(`DELETE FROM "${table}"`);
 
-        for (const row of rows) {
-          const columns = Object.keys(row as Record<string, unknown>);
-          if (columns.length === 0) continue;
-
-          const placeholders = columns.map(() => '?').join(', ');
+        // Many rows to a statement, not one statement per row. On the phone
+        // every statement crosses into the native side and the crossing is the
+        // cost, so 16,389 rows were 16,389 crossings: Jose's real backup was
+        // restoring at about one percent every two minutes on the emulator.
+        // Batched, the same backup is a few hundred statements.
+        for (const batch of batches(rows)) {
+          const columns = Object.keys(batch[0]);
           const names = columns.map(column => `"${column}"`).join(', ');
+          const one = `(${columns.map(() => '?').join(', ')})`;
           await db.run(
-            `INSERT INTO "${table}" (${names}) VALUES (${placeholders})`,
-            columns.map(column => (row as Record<string, unknown>)[column]),
+            `INSERT INTO "${table}" (${names}) VALUES ${batch.map(() => one).join(', ')}`,
+            batch.flatMap(row => columns.map(column => row[column])),
           );
-          if (++written % REPORT_EVERY === 0) await onProgress?.({ done: written, total: totalRows });
+          written += batch.length;
+          await onProgress?.({ done: written, total: totalRows });
         }
         restored.push({ table, rows: rows.length });
         await onProgress?.({ done: written, total: totalRows });
@@ -223,6 +226,42 @@ async function replaceWith(
   const forward = await migrate(db, sources);
 
   return { fromVersion: backup.schemaVersion, toVersion: forward.to, restored };
+}
+
+/**
+ * Rows gathered into the statements they can share.
+ *
+ * Two rows go in the same INSERT when they name the same columns - which is
+ * every row of a table the export wrote, since it reads them with SELECT *.
+ * A backup from an older build can still hold a table whose rows disagree,
+ * so the run is cut wherever the columns change rather than assumed.
+ *
+ * SQLite on Android binds at most 999 values in one statement; the batches
+ * stay well under it, the same way the yields module's do.
+ */
+function* batches(rows: readonly unknown[]): Generator<Record<string, unknown>[]> {
+  const VALUES_PER_STATEMENT = 900;
+
+  let batch: Record<string, unknown>[] = [];
+  let shape = '';
+  let room = 0;
+
+  for (const value of rows) {
+    const row = value as Record<string, unknown>;
+    const columns = Object.keys(row);
+    if (columns.length === 0) continue;
+
+    const mine = columns.join(' ');
+    if (batch.length > 0 && (mine !== shape || batch.length >= room)) {
+      yield batch;
+      batch = [];
+    }
+    shape = mine;
+    room = Math.max(1, Math.floor(VALUES_PER_STATEMENT / columns.length));
+    batch.push(row);
+  }
+
+  if (batch.length > 0) yield batch;
 }
 
 function messageOf(error: unknown): string {
