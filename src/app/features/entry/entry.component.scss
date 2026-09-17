@@ -324,6 +324,10 @@ ion-button.save {
 
   .clear-note {
     position: absolute;
+    /* Above the field it sits on. The field fills the whole box, and a
+       stacking order left to chance is a button that is seen and not
+       pressed. */
+    z-index: 2;
     top: 0.35rem;
     inset-inline-end: 0.35rem;
     background: none;
