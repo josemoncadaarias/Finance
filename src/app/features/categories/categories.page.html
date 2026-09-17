@@ -10,6 +10,24 @@
   </ion-toolbar>
 </ion-header>
 
+<!-- The two things that act on the whole screen, held still above it: adding
+     a category, and opening or closing every list. The three "new category"
+     buttons this replaces were the same button written three times, and each
+     one only reached the list it sat in - so the one you wanted was behind
+     however much scrolling that list needed. -->
+<div class="page-actions">
+  <button type="button" class="new" (click)="startNew()">
+    <ion-icon name="add-outline"></ion-icon>
+    {{ 'categories.new' | t }}
+  </button>
+
+  <button type="button" class="fold" (click)="foldAll()"
+          [attr.aria-expanded]="!allCollapsed()">
+    <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+    {{ (allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
+  </button>
+</div>
+
 <ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
@@ -36,10 +54,6 @@
             <ion-icon [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
             <h2>{{ $any(side.title) | t }}</h2>
             <span class="count">{{ side.rows.length }}</span>
-          </button>
-          <button type="button" (click)="add($any(side.kind))">
-            <ion-icon name="add-outline"></ion-icon>
-            {{ 'categories.new' | t }}
           </button>
         </div>
 
@@ -72,10 +86,6 @@
           <ion-icon [name]="isOpen(productsSide) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
           <h2>{{ 'categories.products' | t }}</h2>
           <span class="count">{{ productKinds().length }}</span>
-        </button>
-        <button type="button" (click)="kindEditor.set({ kind: null })">
-          <ion-icon name="add-outline"></ion-icon>
-          {{ 'categories.new' | t }}
         </button>
       </div>
 
@@ -131,13 +141,6 @@
         <ion-icon name="arrow-up-outline"></ion-icon>
       </button>
 
-      <button type="button" class="fold" (click)="foldAll()"
-              [attr.aria-expanded]="!allCollapsed()"
-              [attr.aria-label]="(allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-              [title]="(allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-      </button>
-
       <button type="button" [class.gone]="!showJumpDown()" (click)="toBottom()"
               [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
         <ion-icon name="arrow-down-outline"></ion-icon>
@@ -145,6 +148,29 @@
     </div>
   }
 </ion-content>
+
+<!-- Which of the three, asked once, rather than three buttons asked for ever.
+     Creating a category is a rare act beside finding one, so it is the tap
+     that can afford to be spent. -->
+<ion-modal class="editor-sheet" [isOpen]="choosingList()" (didDismiss)="choosingList.set(false)">
+  <ng-template>
+    <div class="which-list">
+      <h2>{{ 'categories.new.where' | t }}</h2>
+      <button type="button" (click)="newIn('expense')">
+        <ion-icon name="trending-down-outline"></ion-icon>
+        <span>{{ 'categories.kind.expense' | t }}</span>
+      </button>
+      <button type="button" (click)="newIn('income')">
+        <ion-icon name="trending-up-outline"></ion-icon>
+        <span>{{ 'categories.kind.income' | t }}</span>
+      </button>
+      <button type="button" (click)="newIn(productsSide)">
+        <ion-icon name="wallet-outline"></ion-icon>
+        <span>{{ 'categories.products' | t }}</span>
+      </button>
+    </div>
+  </ng-template>
+</ion-modal>
 
 <ion-modal class="editor-sheet" [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
   <ng-template>

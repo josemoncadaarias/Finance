@@ -157,6 +157,29 @@ export class CategoriesPage {
     await this.measure();
   }
 
+  /** Open while the one "new category" button is asking which list. */
+  readonly choosingList = signal(false);
+
+  /**
+   * One way in, wherever the category belongs.
+   *
+   * Each list used to carry its own button, which meant the way to add a
+   * category was wherever that list happened to have scrolled to - and the
+   * products one, last of three, was off the bottom of the screen. This one
+   * is held above all of them and asks which list, which is a question with
+   * three short answers and is asked far less often than a category is
+   * looked for.
+   */
+  startNew(): void {
+    this.choosingList.set(true);
+  }
+
+  newIn(kind: string): void {
+    this.choosingList.set(false);
+    if (kind === this.productsSide) this.kindEditor.set({ kind: null });
+    else this.add(kind as CategoryKind);
+  }
+
   isOpen(kind: string): boolean {
     return this.openSides().has(kind);
   }
