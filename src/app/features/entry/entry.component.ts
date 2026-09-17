@@ -192,6 +192,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** The note's box, so it can be brought into view when it is tapped. */
   private readonly noteBox = viewChild<ElementRef<HTMLElement>>('noteBox');
+  private readonly noteField = viewChild<IonTextarea>('noteField');
 
   /** Tapping a suggestion blurs the note for a moment; this rides that out. */
   private noteBlurTimer: ReturnType<typeof setTimeout> | null = null;
@@ -676,7 +677,24 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;
+    void this.emptyTheField();
   }
+
+  /**
+   * Empties the note, in the signal and in the field.
+   *
+   * Writing the signal alone was not enough: `[value]` is a one-way binding
+   * into a web component that has been keeping its own copy since the first
+   * keystroke, and it went on showing the text that had been typed. The
+   * field is told directly, which is the only thing it is sure to believe.
+   */
+  private async emptyTheField(): Promise<void> {
+    const field = this.noteField();
+    if (!field) return;
+    field.value = '';
+    (await field.getInputElement()).value = '';
+  }
+
 
   /** Starts the amount over, sum and all. */
   clearAmount(): void {

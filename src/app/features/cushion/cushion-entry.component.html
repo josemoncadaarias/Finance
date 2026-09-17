@@ -172,7 +172,7 @@
       }
 
       <div class="note">
-        <ion-textarea [placeholder]="'entry.note' | t" [value]="note()"
+        <ion-textarea #noteField [placeholder]="'entry.note' | t" [value]="note()"
                       [autoGrow]="false" [rows]="2"
                       (ionFocus)="startNote()" (ionBlur)="endNote()"
                       (ionInput)="onNoteInput($any($event.target).value ?? '')"></ion-textarea>
