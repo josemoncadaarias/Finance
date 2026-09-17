@@ -320,7 +320,7 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="sheet">
+        <ion-content #sheet class="sheet" [scrollEvents]="true" (ionScroll)="onSheetScroll()">
           <!-- Inside the sheet, because the sheet covers the screen. This was
                being written to a paragraph on the page underneath, so a form
                that refused to save looked like a dead button. -->
@@ -614,6 +614,15 @@
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
               <p class="hint">{{ (paysEveryDay() ? 'cushion.payments.daily' : 'cushion.payments.hint') | t }}</p>
+              <div class="list-controls">
+                <span class="within-note">{{ 'cushion.payments.count' | t:{ count: payments().length } }}</span>
+                <button type="button" class="collapse" (click)="togglePaymentMonths()"
+                        [attr.aria-expanded]="!allPaymentMonthsClosed()"
+                        [attr.aria-label]="(allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+                        [title]="(allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+                  <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                </button>
+              </div>
               @for (month of paymentsByMonth(); track month.key) {
                 <!-- Laid out as the day list below: a month that folds, how many
                      payments it holds, and each one with its product, rate and
@@ -689,6 +698,15 @@
               <p class="hint">{{ 'cushion.days.none' | t }}</p>
             } @else {
               <p class="hint">{{ 'cushion.days.hint' | t }}</p>
+              <div class="list-controls">
+                <span class="within-note">{{ 'cushion.days.count' | t:{ count: openDays().length } }}</span>
+                <button type="button" class="collapse" (click)="toggleDayMonths()"
+                        [attr.aria-expanded]="!allDayMonthsClosed()"
+                        [attr.aria-label]="(allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+                        [title]="(allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+                  <ion-icon [name]="allDayMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                </button>
+              </div>
               @for (month of daysByMonth(); track month.key) {
                 <ion-list [inset]="true">
                   <ion-item button detail="false" class="month" (click)="toggleMonth(month.key)"
@@ -1412,6 +1430,21 @@
           }
 
 
+          <!-- Up and down, the row the movements and the categories carry. No
+               fold button here: each section has its own, and one that folded
+               "everything" would have to pick which everything. -->
+          @if (showSheetUp() || showSheetDown()) {
+            <div class="jump" slot="fixed">
+              <button type="button" [class.gone]="!showSheetUp()" (click)="sheetToTop()"
+                      [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
+                <ion-icon name="arrow-up-outline"></ion-icon>
+              </button>
+              <button type="button" [class.gone]="!showSheetDown()" (click)="sheetToBottom()"
+                      [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
+                <ion-icon name="arrow-down-outline"></ion-icon>
+              </button>
+            </div>
+          }
         </ion-content>
       }
     </ng-template>

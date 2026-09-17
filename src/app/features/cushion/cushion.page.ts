@@ -20,7 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
@@ -185,6 +185,46 @@ export class CushionPage {
   readonly categoryId = signal<number | null>(null);
   readonly incomeCategories = signal<CategoryRow[]>([]);
   readonly saving = signal(false);
+
+  private readonly sheet = viewChild<IonContent>('sheet');
+  private readonly sheetAtTop = signal(true);
+  private readonly sheetAtBottom = signal(true);
+
+  readonly showSheetUp = computed(() => !this.sheetAtTop());
+  readonly showSheetDown = computed(() => !this.sheetAtBottom());
+
+  /**
+   * Where the sheet is, read only when the answer changes.
+   *
+   * The 4px slack is for fractional device pixels: the bottom of a scroller
+   * is rarely a whole number, and without it the "go down" button never quite
+   * goes away.
+   */
+  private async measureSheet(): Promise<void> {
+    const content = this.sheet();
+    if (!content) return;
+
+    const element = await content.getScrollElement();
+    const top = element.scrollTop <= 4;
+    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
+
+    if (top !== this.sheetAtTop()) this.sheetAtTop.set(top);
+    if (bottom !== this.sheetAtBottom()) this.sheetAtBottom.set(bottom);
+  }
+
+  onSheetScroll(): void {
+    void this.measureSheet();
+  }
+
+  async sheetToTop(): Promise<void> {
+    await this.sheet()?.scrollToTop(300);
+    await this.measureSheet();
+  }
+
+  async sheetToBottom(): Promise<void> {
+    await this.sheet()?.scrollToBottom(300);
+    await this.measureSheet();
+  }
 
   /** Open while the "already paid" figure is being corrected. */
   readonly editingOpening = signal(false);
@@ -890,6 +930,7 @@ export class CushionPage {
   }
 
   toggleWorking(key: string): void {
+    setTimeout(() => void this.measureSheet(), 0);
     this.openWorkings.update(current => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -897,6 +938,24 @@ export class CushionPage {
       return next;
     });
   }
+  readonly allPaymentMonthsClosed = computed(() => this.openWorkings().size === 0);
+
+  /** Opens every month of the payments, or closes every one. */
+  togglePaymentMonths(): void {
+    this.openWorkings.set(new Set(
+      this.allPaymentMonthsClosed() ? this.paymentsByMonth().map(month => month.key) : []));
+    setTimeout(() => void this.measureSheet(), 0);
+  }
+
+  readonly allDayMonthsClosed = computed(() => this.openMonths().size === 0);
+
+  /** Opens every month of the day list, or closes every one. */
+  toggleDayMonths(): void {
+    this.openMonths.set(new Set(
+      this.allDayMonthsClosed() ? this.daysByMonth().map(month => month.key) : []));
+    setTimeout(() => void this.measureSheet(), 0);
+  }
+
   /** Months the user has opened in the day list. */
   readonly openMonths = signal<ReadonlySet<string>>(new Set());
 
@@ -934,6 +993,7 @@ export class CushionPage {
   }
 
   toggleMonth(key: string): void {
+    setTimeout(() => void this.measureSheet(), 0);
     this.openMonths.update(current => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -985,9 +1045,11 @@ export class CushionPage {
     const days = (await yields.days(line.account.id)).reverse();
     this.openDays.set(days);
     // The month someone came here to look at is almost always this one.
-    this.openMonths.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
-    // The payments open on their latest month, as the day list does.
-    this.openWorkings.set(new Set(days.length > 0 ? [days[0].on_date.slice(0, 7)] : []));
+    // Closed, both of them. They opened on their latest month, which is fine
+    // for one month and not for the two years these lists will hold: the
+    // months are the index, and an index that is already open is a wall.
+    this.openMonths.set(new Set());
+    this.openWorkings.set(new Set());
     // Open already, as after a correction: read again, so it shows the change.
     if (this.showMovements()) await this.loadMovements(line);
   }
