@@ -599,7 +599,11 @@ test('categories come back ordered by how often they are used', async () => {
 
   // Income categories are a different list, not mixed in.
   const income = await categories.listByUse({ kind: 'income' });
-  assert.deepEqual(income.map(c => c.name), ['Sueldo']);
+  // The three the product kinds became in migration 037 come along: a
+  // cashback the bank paid into a product is income like any other, and they
+  // sit in this list rather than in a second one of their own.
+  assert.deepEqual(income.map(c => c.name),
+    ['Cashback', 'Corrección del banco', 'Otro', 'Sueldo']);
 
   // Without a date, the whole history counts and the old one is not zero.
   const ever = await categories.listByUse({ kind: 'expense' });

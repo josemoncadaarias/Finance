@@ -31,6 +31,10 @@ function freshDb() {
     (2, 'Tarjeta credito rappi', 'credit', 'COP', 'card', 1, 0, 0, '2021-06-25', '${NOW}', '${NOW}'),
     (3, 'XTB', 'investment', 'USD', 'trending-up', 1, 0, 0, '2024-01-01', '${NOW}', '${NOW}')`);
   // "Ahorros" is the income category the real yield adjustments land in.
+  // Migration 037 turns the product kinds into income categories, so the
+  // table is no longer empty when the migrations finish. This fixture wants
+  // exactly the two below and nothing else.
+  db.exec('DELETE FROM cushion_adjustments; DELETE FROM categories;');
   db.exec(`INSERT INTO categories (id, name, kind, builtin_icon, created_at, updated_at) VALUES
     (1, 'Restaurante', 'expense', 'restaurant', '${NOW}', '${NOW}'),
     (2, 'Ahorros', 'income', 'wallet', '${NOW}', '${NOW}')`);

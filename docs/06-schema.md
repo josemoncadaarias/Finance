@@ -273,6 +273,7 @@ erDiagram
     transactions   ||--o| cushion_withdrawals : "became"
     transactions   ||--o{ cushion_adjustments : "cashed in by"
     product_kinds  ||--o{ cushion_adjustments : "is a"
+    categories     ||--o{ cushion_adjustments : "filed under"
     custom_icons   ||--o{ product_kinds       : "wears"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
@@ -425,6 +426,7 @@ outright:
 | `idx_cushion_adjustments_account` | what has landed in an account's cushion |
 | `idx_cushion_adjustments_pocket` | and which pocket it landed in |
 | `idx_cushion_adjustments_kind` | and which kind it was filed under |
+| `idx_cushion_adjustments_category` | and the income category it is filed under, since migration 037 |
 | `idx_product_kinds_name` | a kind is named once |
 | `idx_cushion_adjustments_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
 | `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
