@@ -18,6 +18,7 @@ import { ThemeButtonComponent } from './core/theme/theme-button.component';
 import { ThemeService } from './core/theme/theme.service';
 import { DatabaseService } from './core/database/database.service';
 import { GoogleAccountService } from './core/cloud/google-account.service';
+import { CloudBackupService } from './core/cloud/cloud-backup.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
 
 interface Section {
@@ -74,6 +75,15 @@ export class AppComponent {
   ];
 
   private readonly google = inject(GoogleAccountService);
+  /**
+   * Injected here and nowhere used: starting it is the point.
+   *
+   * It watches the database and listens for the app being put away, and it
+   * cannot do either until something asks for it. Left to the toolbar button
+   * that injects it, it would start whenever the first screen happened to
+   * draw - and stop existing on a screen that has no toolbar.
+   */
+  private readonly cloud = inject(CloudBackupService);
 
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.

@@ -27,6 +27,34 @@ export type SaveState = 'idle' | 'working' | 'done' | 'failed';
 /** Where the "save on its own" choice is remembered. */
 const AUTO_KEY = 'finance.cloud.auto';
 
+/**
+ * Whether the database has changed since the copy in Drive was made.
+ *
+ * In localStorage rather than in memory, and that is the whole point: the app
+ * being put away is the moment to save, and it is also the moment Android is
+ * free to freeze the page or kill the process outright. Then the save never
+ * finishes and nothing knows. A mark that outlives the process does: the next
+ * time the app opens, it sees the copy is behind and makes it.
+ */
+const DIRTY_KEY = 'finance.cloud.dirty';
+
+function readFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === 'yes';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, on: boolean): void {
+  try {
+    if (on) localStorage.setItem(key, 'yes');
+    else localStorage.removeItem(key);
+  } catch {
+    // Storage switched off: the mark holds for this run and no longer.
+  }
+}
+
 function readAuto(): boolean {
   try {
     return localStorage.getItem(AUTO_KEY) !== 'no';
@@ -91,14 +119,19 @@ export class CloudBackupService {
   private savedVersion = -1;
 
   constructor() {
-    // The right moment to spend a second reading out the database is the
-    // moment nobody is looking at the screen. Leaving the app is exactly that
-    // moment, and it is also when a copy is most worth having.
+    // Leaving the app is the moment nobody is looking at the screen, so it is
+    // the moment to spend a second reading the database out. It is also the
+    // moment Android is free to freeze the page or end the process, so this
+    // is an attempt and never a guarantee - which is what the mark below is
+    // for. Coming back is the other half: a copy that did not finish last
+    // time gets made now.
     if (Capacitor.isNativePlatform()) {
       void App.addListener('appStateChange', ({ isActive }) => {
         if (!isActive) this.saveIfBehind();
+        else this.catchUp();
       });
     }
+    this.catchUp();
 
     effect(() => {
       const version = this.database.dataVersion();
@@ -107,7 +140,12 @@ export class CloudBackupService {
       const auto = this.auto();
 
       untracked(() => {
-        if (!ready || !signedIn || !auto) return;
+        if (!ready) return;
+        // The database moved, whatever the account is doing: the mark is about
+        // the data, not about whether anyone is signed in to save it.
+        if (version !== this.savedVersion) writeFlag(DIRTY_KEY, true);
+
+        if (!signedIn || !auto) return;
         if (version === this.savedVersion) return;
         this.waitThenSave();
       });
@@ -130,6 +168,21 @@ export class CloudBackupService {
   }
 
   /**
+   * The copy Drive holds is behind and the app is running: make it.
+   *
+   * Waits a little first. Opening the app is its busiest second - migrations,
+   * the first screen, the icons - and reading the whole database out in the
+   * middle of that is exactly the stutter this is all meant to avoid.
+   */
+  private catchUp(): void {
+    if (!readFlag(DIRTY_KEY)) return;
+    setTimeout(() => {
+      if (!readFlag(DIRTY_KEY) || !this.auto() || !this.canSave()) return;
+      void this.save();
+    }, 8_000);
+  }
+
+  /**
    * Saves now, if anything has changed since the copy in Drive was made.
    *
    * Called as the app goes away. It may not finish - Android can stop a
@@ -139,7 +192,7 @@ export class CloudBackupService {
    */
   private saveIfBehind(): void {
     if (!this.auto() || !this.canSave()) return;
-    if (this.database.dataVersion() === this.savedVersion) return;
+    if (!readFlag(DIRTY_KEY) && this.database.dataVersion() === this.savedVersion) return;
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     void this.save();
   }
@@ -202,6 +255,8 @@ export class CloudBackupService {
       }, abort.signal));
 
       this.savedVersion = version;
+      // Only now: a copy counts as made when Drive has answered, never before.
+      if (this.database.dataVersion() === version) writeFlag(DIRTY_KEY, false);
       this.settle('done');
       return true;
     } catch (error) {
