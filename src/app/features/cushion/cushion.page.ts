@@ -636,8 +636,14 @@ export class CushionPage {
    * Its own edits already refresh the account they touched, so the effect
    * watching the database has nothing to do about them - and what it would do
    * is read every other account for no reason.
+   *
+   * Null until this screen has read anything, and that is the point: the
+   * database's version starts at 0 too, so a plain 0 here matched it and the
+   * screen skipped its very first load. Opening the products before anything
+   * else had written to the database showed nothing at all, and only the
+   * refresh button brought it back. Null is never equal to a number.
    */
-  private selfVersion = 0;
+  private selfVersion: number | null = null;
 
   private refreshing: Promise<void> | null = null;
   private refreshAgain = false;
