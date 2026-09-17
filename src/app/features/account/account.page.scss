@@ -251,3 +251,24 @@
     color: var(--ion-color-medium);
   }
 }
+
+/* Saving on its own: a switch and the sentence that says what it costs. */
+.auto {
+  margin-top: 1.25rem;
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .name { font-size: 0.95rem; font-weight: 600; }
+
+  .hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+}

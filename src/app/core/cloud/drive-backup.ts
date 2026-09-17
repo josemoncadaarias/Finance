@@ -106,6 +106,8 @@ export async function upload(
   token: string,
   json: string,
   about: { schemaVersion: number; rows: number },
+  /** Aborted when a newer copy is on its way: no point finishing a stale one. */
+  abort?: AbortSignal,
 ): Promise<CloudCopy> {
   const existing = await findCopy(token);
 
@@ -137,6 +139,7 @@ export async function upload(
       'Content-Type': `multipart/related; boundary=${boundary}`,
     },
     body,
+    signal: abort,
   }));
 
   const written = await response.json() as { id: string; modifiedTime: string; size?: string };

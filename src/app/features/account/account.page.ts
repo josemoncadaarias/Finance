@@ -17,7 +17,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton,
-  IonSpinner, IonIcon, IonButton,
+  IonSpinner, IonIcon, IonButton, IonToggle,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -40,7 +40,7 @@ import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
   imports: [
     TranslatePipe, LanguageButtonComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton,
-    IonSpinner, IonIcon, IonButton,
+    IonSpinner, IonIcon, IonButton, IonToggle,
   ],
 })
 export class AccountPage {
@@ -143,6 +143,18 @@ export class AccountPage {
     return at.toLocaleString(this.i18n.dateLocale(), {
       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
+  }
+
+  /**
+   * How big an upload is, said in the hint that warns about mobile data.
+   *
+   * Taken from the copy that is actually up there rather than stated as a
+   * number in the words: whoever reads this should see their own size, not
+   * mine.
+   */
+  autoSize(): string {
+    const held = this.copy();
+    return held ? this.size(held.size) : '25 MB';
   }
 
   size(bytes: number): string {

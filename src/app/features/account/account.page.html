@@ -52,6 +52,16 @@
         <p class="none">{{ 'cloud.none' | t }}</p>
       }
 
+      <!-- Saving on its own, and what it costs. -->
+      <div class="auto">
+        <label class="row">
+          <span class="name">{{ 'cloud.auto' | t }}</span>
+          <ion-toggle [checked]="cloud.auto()"
+                      (ionChange)="cloud.setAuto($any($event.detail).checked)"></ion-toggle>
+        </label>
+        <p class="hint">{{ 'cloud.auto.hint' | t:{ size: autoSize() } }}</p>
+      </div>
+
       <div class="actions">
         <ion-button expand="block" (click)="save()">
           <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
