@@ -249,8 +249,28 @@ export class AccrualEngine {
     // day, because a spend condition can only be judged on the whole period:
     // the month, or the N months of a bonus paid every N.
     const last = await this.yields.lastAccruedDay(accountId);
-    const firstEver = nextDay(enrolled.opening_on);
     const rates = await this.yields.rateHistory(accountId);
+
+    // Where the walk starts: the day after the earliest thing known about
+    // this account, which is its enrolment OR the first day any of its rates
+    // begins, whichever comes first.
+    //
+    // It used to be the enrolment date alone, and that overruled the dates the
+    // products themselves carry. Jose put Plata's two products on rates
+    // starting the 7th and 8th of September and the screen began on the 10th,
+    // because the account had been enrolled on the 9th. Rates have been per
+    // product since migration 016, so a rate reaching further back is the
+    // better answer about when there was something to work out.
+    //
+    // A day still needs the day before it to have closed - that is what the
+    // whole module is built on - so it is the day AFTER the earliest, never
+    // the earliest itself.
+    const earliestRate = rates.map(rate => rate.valid_from).sort()[0];
+    const earliest = earliestRate !== undefined && earliestRate < enrolled.opening_on
+      ? earliestRate
+      : enrolled.opening_on;
+    const firstEver = nextDay(earliest);
+
     let resume = last === null ? firstEver : startOfMonth(last);
     if (last !== null) {
       for (const rate of rates) {
@@ -393,13 +413,18 @@ export class AccrualEngine {
         cushionOf.set(earlier.pocket_id,
           (cushionOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
+      // No lower bound any more. It existed because the opening figure
+      // summarised everything before its date, so an entry back there would
+      // have been counted twice. There is no opening figure now - migration
+      // 035 turned each one into an entry of its own - so every entry counts,
+      // once, from its own date.
       for (const entry of entries) {
-        if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
+        if (entry.on_date >= from) continue;
         const id = pocketOf(entry.pocket_id);
         cushionOf.set(id, (cushionOf.get(id) ?? 0) + entry.amount_minor);
       }
       for (const taken of takenOut) {
-        if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
+        if (taken.on_date >= from) continue;
         const id = pocketOf(taken.pocket_id ?? null);
         cushionOf.set(id, (cushionOf.get(id) ?? 0) - taken.amount_minor);
       }

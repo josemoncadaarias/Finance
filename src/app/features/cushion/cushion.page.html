@@ -389,10 +389,6 @@
             <!-- Taken apart, because a total nobody can check is a total
                  nobody trusts. -->
             <ion-list [inset]="true">
-              <ion-item lines="full">
-                <ion-label>{{ 'cushion.part.opening' | t }}</ion-label>
-                <ion-note slot="end">{{ money(line.cushion.opening_minor, line.account.currency_code) }}</ion-note>
-              </ion-item>
               <ion-item lines="none">
                 <ion-label>{{ 'cushion.part.accrued' | t }}</ion-label>
                 <ion-note slot="end">{{ money(line.cushion.accrued_minor, line.account.currency_code) }}</ion-note>

@@ -1383,6 +1383,60 @@ test('a rate given an end stops, and nothing takes its place', async () => {
 // all, or had silently been taken over.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Jose, 2026-09-17: he put Plata's two products on rates starting the 7th and
+// the 8th of September and the yields screen began on the 10th. The account
+// had been enrolled on the 9th, and that one date overruled the dates the
+// products themselves carry - which is backwards. Rates have been per product
+// since migration 016; a rate reaching further back than the enrolment is the
+// better answer about when there was something to work out.
+// ---------------------------------------------------------------------------
+
+test('a rate older than the enrolment pulls the first day back to it', async () => {
+  const { db, yields, engine, ids } = await setup();
+  await yields.enrol({
+    account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-09', withholding: false,
+  });
+
+  const [savings] = await yields.pockets(ids.rappi);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
+  });
+
+  // The rate says the 7th; the enrolment says the 9th. The rate wins.
+  await yields.setRate({
+    account_id: ids.rappi, pocket_id: savings.id,
+    valid_from: '2026-09-07', annual_rate_scaled: pct(11),
+  });
+
+  await engine.accrue(ids.rappi, '2026-09-12');
+  const days = (await yields.pocketDays(savings.id)).map(day => day.on_date).sort();
+
+  assert.equal(days[0], '2026-09-08', 'the day after the rate begins, not after the enrolment');
+  assert.ok(days.includes('2026-09-09'), 'and it goes on from there');
+
+  // The enrolment still holds the floor when it is the earlier of the two:
+  // nothing can be worked out before there was anything to work it out on.
+  const later = await setup();
+  await later.yields.enrol({
+    account_id: later.ids.rappi, opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false,
+  });
+  const [other] = await later.yields.pockets(later.ids.rappi);
+  await later.db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [other.id]);
+  await later.yields.setPocketBalance({
+    pocket_id: other.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
+  });
+  await later.yields.setRate({
+    account_id: later.ids.rappi, pocket_id: other.id,
+    valid_from: '2026-09-05', annual_rate_scaled: pct(11),
+  });
+  await later.engine.accrue(later.ids.rappi, '2026-09-08');
+
+  const theirs = (await later.yields.pocketDays(other.id)).map(day => day.on_date).sort();
+  assert.equal(theirs[0], '2026-09-05', 'a rate that starts later starts on its own first day');
+});
+
 test('a product keeps its own rate however many the account has', async () => {
   const { db, yields, engine, ids } = await setup();
   await yields.enrol({
