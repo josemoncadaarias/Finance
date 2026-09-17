@@ -23,6 +23,7 @@ import {
 
 import { DatabaseService } from '../../core/database/database.service';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { groupTypedAmount } from '../../core/database/typed-amount';
 import { parsePercentToScaled } from '../../core/yields/yield-math';
@@ -57,7 +58,7 @@ interface SalaryOption {
   templateUrl: './tax.page.html',
   styleUrls: ['./tax.page.scss'],
   imports: [
-    LanguageButtonComponent, BusyOverlayComponent,
+    LanguageButtonComponent, CloudButtonComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonMenuButton, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonNote,
   ],

@@ -21,6 +21,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
 import { RatesRepository, RATE_SCALE } from '../../core/database/repositories/rates.repository';
@@ -41,7 +42,7 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
   styleUrls: ['./accounts.page.scss'],
   imports: [
     IconComponent,
-    CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent,
+    CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
     IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,

@@ -20,6 +20,7 @@ import {
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import {
   exportMovements, toCsv, exportFileName, type CsvWords,
 } from '../../core/database/export/export-csv';
@@ -36,7 +37,7 @@ import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
   templateUrl: './export.page.html',
   styleUrls: ['./export.page.scss'],
   imports: [
-    TranslatePipe, LanguageButtonComponent, BusyOverlayComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton,
   ],

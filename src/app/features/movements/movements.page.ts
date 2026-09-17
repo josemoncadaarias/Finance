@@ -22,6 +22,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { FilterService } from '../../core/filters/filter.service';
 import {
   PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName,
@@ -46,7 +47,7 @@ import { todayIso } from '../../core/yields/days';
   imports: [
     IconComponent,
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    TranslatePipe, LanguageButtonComponent, AccountEditorComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,

@@ -32,6 +32,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import type { Progress } from '../../core/database/export/progress';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
@@ -143,7 +144,7 @@ interface Payment {
   imports: [
     BusyOverlayComponent,
     IconComponent, CushionEntryComponent, EntryComponent,
-    TranslatePipe, LanguageButtonComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
     IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,

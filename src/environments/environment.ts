@@ -16,5 +16,5 @@ export const environment = {
    * A client id is not a secret. It identifies the app, it does not authorise
    * anything, and it is visible in any app that ships one.
    */
-  googleWebClientId: '',
+  googleWebClientId: '76504816542-p6s2f3akpfkoaker8fojjlpqluvsgtfu.apps.googleusercontent.com',
 };

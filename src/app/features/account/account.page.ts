@@ -24,8 +24,8 @@ import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { GoogleAccountService } from '../../core/cloud/google-account.service';
-import { DriveError, download, findCopy, upload, type CloudCopy } from '../../core/cloud/drive-backup';
-import { exportBackup, toJson } from '../../core/database/export/export-backup';
+import { CloudBackupService } from '../../core/cloud/cloud-backup.service';
+import { DriveError, download } from '../../core/cloud/drive-backup';
 import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -45,11 +45,13 @@ import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 })
 export class AccountPage {
   readonly google = inject(GoogleAccountService);
+  /** Saving lives in the service, because the toolbar button asks for it too. */
+  readonly cloud = inject(CloudBackupService);
   private readonly database = inject(DatabaseService);
   private readonly i18n = inject(I18nService);
 
-  /** What Drive holds, once it has been asked. Null means "none yet". */
-  readonly copy = signal<CloudCopy | null>(null);
+  /** What Drive holds. The service owns it, so both agree on one answer. */
+  readonly copy = this.cloud.copy;
   readonly looked = signal(false);
 
   readonly busy = signal('');
@@ -78,20 +80,15 @@ export class AccountPage {
   async signOut(): Promise<void> {
     this.clear();
     await this.google.signOut();
-    this.copy.set(null);
+    this.cloud.copy.set(null);
     this.looked.set(false);
   }
 
   /** What is in Drive right now. Quiet: it runs on entering the screen. */
   private async look(): Promise<void> {
-    try {
-      const token = await this.google.accessToken();
-      if (!token) return;
-      this.copy.set(await findCopy(token));
-      this.looked.set(true);
-    } catch (error) {
-      this.report(error);
-    }
+    await this.cloud.look();
+    if (this.cloud.failure()) this.failure.set(this.cloud.failure());
+    this.looked.set(true);
   }
 
   /** The phone's database, written over whatever Drive holds. */
@@ -99,23 +96,12 @@ export class AccountPage {
     this.clear();
     this.busy.set(this.i18n.t('cloud.saving'));
     try {
-      const token = await this.google.accessToken();
-      if (!token) throw new DriveError(this.i18n.t('cloud.error.signedOut'));
-
-      const backup = await exportBackup(this.database.driver, progress => {
-        this.busyDetail.set(`${progress.done} / ${progress.total}`);
-      });
-      const rows = Object.values(backup.tables)
-        .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
-
-      this.busyDetail.set(this.i18n.t('cloud.uploading'));
-      this.copy.set(await upload(token, toJson(backup), {
-        schemaVersion: backup.schemaVersion, rows,
-      }));
-      this.looked.set(true);
-      this.done.set(this.i18n.t('cloud.saved'));
-    } catch (error) {
-      this.report(error);
+      if (await this.cloud.save()) {
+        this.looked.set(true);
+        this.done.set(this.i18n.t('cloud.saved'));
+      } else {
+        this.failure.set(this.cloud.failure());
+      }
     } finally {
       this.busy.set('');
       this.busyDetail.set('');

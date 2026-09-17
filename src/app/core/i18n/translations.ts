@@ -386,6 +386,7 @@ export const SPANISH = {
   'cloud.downloading': 'Bajando de Drive',
   'cloud.saved': 'Copia guardada en tu Drive.',
   'cloud.restored': 'Listo: este celular quedó con la copia de Drive.',
+  'cloud.failed': 'No se pudo guardar la copia',
   'cloud.error.signedOut': 'Se cerró la sesión de Google. Entra otra vez.',
   'cloud.where': 'La copia es el mismo archivo que guarda "Importar y exportar". Puedes borrarla cuando quieras desde los permisos de tu cuenta de Google.',
 
@@ -1086,6 +1087,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cloud.downloading': 'Downloading from Drive',
   'cloud.saved': 'Copy saved to your Drive.',
   'cloud.restored': 'Done: this phone now holds the copy from Drive.',
+  'cloud.failed': 'The copy could not be saved',
   'cloud.error.signedOut': 'The Google session ended. Sign in again.',
   'cloud.where': 'The copy is the same file "Import and export" writes. You can delete it whenever you like from your Google account permissions.',
 

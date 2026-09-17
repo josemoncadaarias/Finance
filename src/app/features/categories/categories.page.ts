@@ -25,6 +25,7 @@ import {
 import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { CategoryEditorComponent } from './category-editor.component';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { ProductKindEditorComponent } from './product-kind-editor.component';
@@ -39,7 +40,7 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
   styleUrls: ['./categories.page.scss'],
   imports: [
     IconComponent,
-    TranslatePipe, LanguageButtonComponent, CategoryEditorComponent, ProductKindEditorComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, CategoryEditorComponent, ProductKindEditorComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
   ],
