@@ -208,7 +208,12 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
    */
   private scopeWhenOpened: 'product' | 'both' | 'netWorth' = 'product';
   /** Anything that reaches net worth is a movement of the account, with a category. */
-  readonly usesCategory = computed(() => this.scope() !== 'product');
+  /**
+   * Always. A cashback the bank paid into a product is income like any other,
+   * so it is filed under the income categories rather than a second list of
+   * its own - migration 037. Decision by Jose, 2026-09-17.
+   */
+  readonly usesCategory = computed(() => true);
 
   readonly scopeHint = computed(() => {
     const expense = this.request().kind === 'expense';
@@ -725,7 +730,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             on_date: this.onDate(),
             amount_minor: signed,
             kind: this.legacyKind(),
-            product_kind_id: this.productKindId(),
+            category_id: this.categoryId(),
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
           });
@@ -739,7 +744,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
             on_date: this.onDate(),
             amount_minor: signed,
             kind: this.legacyKind(),
-            product_kind_id: this.productKindId(),
+            category_id: this.categoryId(),
             pocket_id: this.pocketId(),
             note: this.note().trim() || null,
           });

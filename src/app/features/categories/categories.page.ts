@@ -103,7 +103,7 @@ export class CategoriesPage {
   readonly openSides = signal<ReadonlySet<string>>(new Set());
 
   /** The three headings, in the order they are drawn. */
-  private readonly sides = ['expense', 'income', 'products'];
+  private readonly sides = ['expense', 'income'];
 
   readonly allCollapsed = computed(() => this.openSides().size === 0);
 

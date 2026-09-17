@@ -141,32 +141,6 @@
             </button>
           }
         </div>
-      } @else {
-        <!-- What it is, in place of a category: the tax module needs to tell
-             cashback from yield. -->
-        <div class="categories">
-          @for (option of kinds(); track option.id) {
-            <button type="button" class="category" [class.on]="productKindId() === option.id"
-                    (click)="productKindId.set(option.id)">
-              <app-icon [builtin]="option.builtin_icon" [customId]="option.custom_icon_id"
-                        size="1.35rem"></app-icon>
-              <span>{{ option.name }}</span>
-            </button>
-          }
-
-          <!-- The list belongs to the user: this is where it is kept. -->
-          <button type="button" class="category manage" (click)="openKinds(null)">
-            <ion-icon name="add-circle-outline"></ion-icon>
-            <span>{{ 'cushion.kinds.manage' | t }}</span>
-          </button>
-        </div>
-
-        @if (chosenKindShown(); as chosen) {
-          <button type="button" class="edit-kind" (click)="openKinds(chosen)">
-            <ion-icon name="create-outline"></ion-icon>
-            {{ 'cushion.kinds.edit' | t:{ name: chosen.name } }}
-          </button>
-        }
       }
     }
 
@@ -304,16 +278,6 @@
 @if (busyLabel()) {
   <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
 }
-
-<!-- The categories of a product's own movement are kept here and on the
-     categories screen, with the same editor. -->
-<ion-modal class="editor-sheet" [isOpen]="managingKinds()" (didDismiss)="managingKinds.set(false)">
-  <ng-template>
-    <app-product-kind-editor [editing]="editingKind()"
-                             (saved)="kindSaved($event)"
-                             (cancelled)="managingKinds.set(false)"></app-product-kind-editor>
-  </ng-template>
-</ion-modal>
 
 <ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>

@@ -149,6 +149,8 @@ export interface CushionEntry {
    * still has `kind` to fall back on.
    */
   product_kind_id: number | null;
+  /** The ordinary income or expense category, since migration 037. */
+  category_id: number | null;
 }
 
 /** What a manual pocket held, from a date. */
@@ -1139,6 +1141,8 @@ export class YieldsRepository {
     kind?: 'correction' | 'cashback' | 'other';
     /** The user's own kind. `kind` above stays as the coarse one, for old readers. */
     product_kind_id?: number | null;
+    /** The ordinary income or expense category, since migration 037. */
+    category_id?: number | null;
     pocket_id?: number | null;
     source?: 'yield' | 'cashback';
     note?: string | null;
@@ -1148,11 +1152,11 @@ export class YieldsRepository {
     const now = this.now();
     const result = await this.db.run(
       `INSERT INTO cushion_adjustments
-         (account_id, source, kind, product_kind_id, pocket_id, on_date, amount_minor, note,
-          transaction_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
+          amount_minor, note, transaction_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.kind ?? 'correction',
-       input.product_kind_id ?? null,
+       input.product_kind_id ?? null, input.category_id ?? null,
        input.pocket_id ?? null, input.on_date,
        input.amount_minor, input.note ?? null, input.transaction_id ?? null, now, now]);
     return result.lastId ?? 0;
@@ -1160,8 +1164,8 @@ export class YieldsRepository {
 
   async adjustments(accountId: number): Promise<CushionEntry[]> {
     return this.db.query<CushionEntry>(
-      `SELECT id, account_id, source, kind, product_kind_id, pocket_id, on_date, amount_minor, note,
-              transaction_id
+      `SELECT id, account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
+              amount_minor, note, transaction_id
        FROM cushion_adjustments WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
@@ -1195,15 +1199,17 @@ export class YieldsRepository {
     amount_minor: number;
     kind: 'correction' | 'cashback' | 'other';
     product_kind_id?: number | null;
+    category_id?: number | null;
     pocket_id: number | null;
     note: string | null;
   }): Promise<void> {
     await this.db.run(
       `UPDATE cushion_adjustments
-       SET on_date = ?, amount_minor = ?, kind = ?, product_kind_id = ?, pocket_id = ?, note = ?,
+       SET on_date = ?, amount_minor = ?, kind = ?, product_kind_id = ?, category_id = ?, pocket_id = ?, note = ?,
            updated_at = ?
        WHERE id = ?`,
       [changes.on_date, changes.amount_minor, changes.kind, changes.product_kind_id ?? null,
+       changes.category_id ?? null,
        changes.pocket_id, changes.note, this.now(), id]);
   }
 

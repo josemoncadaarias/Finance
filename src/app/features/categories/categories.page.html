@@ -82,32 +82,6 @@
       </section>
     }
 
-    <!-- The categories of a product's own movement: a cashback the bank paid
-         in, a correction against what it says. They are kept here because this
-         is the screen someone opens looking for categories, and they are
-         edited from the product's own form too, with the same editor. -->
-    <section class="side">
-      <div class="head">
-        <button type="button" class="fold" (click)="toggle(productsSide)">
-          <ion-icon [name]="isOpen(productsSide) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-          <h2>{{ 'categories.products' | t }}</h2>
-          <span class="count">{{ productKinds().length }}</span>
-        </button>
-      </div>
-
-      @if (isOpen(productsSide)) {
-        <p class="hint">{{ 'categories.products.hint' | t }}</p>
-        <ion-list [inset]="true">
-          @for (kind of productKinds(); track kind.id) {
-            <ion-item button lines="full" [detail]="true" (click)="kindEditor.set({ kind })">
-              <app-icon slot="start" [builtin]="kind.builtin_icon" [customId]="kind.custom_icon_id"></app-icon>
-              <ion-label>{{ kind.name }}</ion-label>
-            </ion-item>
-          }
-        </ion-list>
-      }
-    </section>
-
     @if (archivedCount() > 0) {
       <div class="archived-toggle">
         <button type="button" (click)="toggleArchived()">
@@ -169,10 +143,6 @@
       <button type="button" (click)="newIn('income')">
         <ion-icon name="trending-up-outline"></ion-icon>
         <span>{{ 'categories.kind.income' | t }}</span>
-      </button>
-      <button type="button" (click)="newIn(productsSide)">
-        <ion-icon name="wallet-outline"></ion-icon>
-        <span>{{ 'categories.products' | t }}</span>
       </button>
     </div>
   </ng-template>
