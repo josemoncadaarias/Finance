@@ -383,7 +383,7 @@ export class YieldsRepository {
            WHERE account_id = r.account_id
              AND min_balance_minor = r.min_balance_minor
              AND valid_from <= ?)
-       ORDER BY r.min_balance_minor`,
+       ORDER BY r.min_balance_minor, r.id`,
       [accountId, asOf, asOf]);
   }
 
@@ -801,14 +801,17 @@ export class YieldsRepository {
    * Asked per product it was one call each, and the yields screen asks twice
    * per product on every open - which on a phone is where its seconds went.
    */
-  async pocketBalancesOf(accountId: number): Promise<Map<number, PocketBalance[]>> {
+  async pocketBalancesOf(accountId: number | readonly number[]): Promise<Map<number, PocketBalance[]>> {
+    // Several accounts at once for the yields screen, which draws them all.
+    // A product belongs to one account, so the answer has the same shape.
+    const ids = typeof accountId === 'number' ? [accountId] : accountId;
     const rows = await this.db.query<PocketBalance>(
       `SELECT b.id, b.pocket_id, b.valid_from, b.amount_minor, b.note, b.created_at
        FROM yield_pocket_balances b
        JOIN yield_pockets p ON p.id = b.pocket_id
-       WHERE p.account_id = ?
+       WHERE p.account_id IN ${placeholders(ids)}
        ORDER BY b.valid_from, b.id`,
-      [accountId]);
+      ids);
 
     const out = new Map<number, PocketBalance[]>();
     for (const row of rows) out.set(row.pocket_id, [...(out.get(row.pocket_id) ?? []), row]);
@@ -828,25 +831,44 @@ export class YieldsRepository {
     since: ReadonlyMap<number, IsoDate>,
     absorbs: number | null,
   ): Promise<Map<number, number>> {
+    return this.movedInPocketsOf(new Map([[accountId, { since, absorbs }]]));
+  }
+
+  /**
+   * The same for several accounts, in one question. Products belong to one
+   * account each, so the answer is keyed by product.
+   */
+  async movedInPocketsOf(
+    accounts: ReadonlyMap<number, { since: ReadonlyMap<number, IsoDate>; absorbs: number | null }>,
+  ): Promise<Map<number, number>> {
     const out = new Map<number, number>();
-    if (since.size === 0) return out;
+    const asked = [...accounts].filter(([, entry]) => entry.since.size > 0);
+    if (asked.length === 0) return out;
 
-    const earliest = [...since.values()].sort()[0];
-    const rows = await this.db.query<{ pocket_id: number | null; on_date: IsoDate; total: number }>(
-      `SELECT pocket_id, occurred_on AS on_date, SUM(amount_minor) AS total
+    const ids = asked.map(([accountId]) => accountId);
+    const earliest = asked.flatMap(([, entry]) => [...entry.since.values()]).sort()[0];
+    const rowsOf = new Map<number, { pocket_id: number | null; on_date: IsoDate; total: number }[]>();
+    for (const row of await this.db.query<{ account_id: number; pocket_id: number | null; on_date: IsoDate; total: number }>(
+      `SELECT account_id, pocket_id, occurred_on AS on_date, SUM(amount_minor) AS total
        FROM transactions
-       WHERE account_id = ? AND occurred_on >= ?
-       GROUP BY pocket_id, occurred_on`,
-      [accountId, earliest]);
+       WHERE account_id IN ${placeholders(ids)} AND occurred_on >= ?
+       GROUP BY account_id, pocket_id, occurred_on`,
+      [...ids, earliest])) {
+      const rows = rowsOf.get(row.account_id);
+      if (rows) rows.push(row); else rowsOf.set(row.account_id, [row]);
+    }
 
-    for (const [pocketId, from] of since) {
-      let total = 0;
-      for (const row of rows) {
-        if (row.on_date < from) continue;
-        const belongs = row.pocket_id === pocketId || (row.pocket_id === null && pocketId === absorbs);
-        if (belongs) total += row.total;
+    for (const [accountId, { since, absorbs }] of asked) {
+      const rows = rowsOf.get(accountId) ?? [];
+      for (const [pocketId, from] of since) {
+        let total = 0;
+        for (const row of rows) {
+          if (row.on_date < from) continue;
+          const belongs = row.pocket_id === pocketId || (row.pocket_id === null && pocketId === absorbs);
+          if (belongs) total += row.total;
+        }
+        out.set(pocketId, total);
       }
-      out.set(pocketId, total);
     }
     return out;
   }
@@ -1000,6 +1022,61 @@ export class YieldsRepository {
     const row = await this.db.queryOne<{ on_date: IsoDate }>(
       'SELECT MAX(on_date) AS on_date FROM yield_days WHERE account_id = ?', [accountId]);
     return row?.on_date ?? null;
+  }
+
+  /**
+   * What the yields screen shows about the last day worked out, for several
+   * accounts in four questions rather than four per account.
+   *
+   * Per account: that day, the bands in force today, the rows of that day,
+   * and the rows handed over on it - the same answers as `lastAccruedDay`,
+   * `bandsInForce`, `days(id, last, last)` and `paidOn(id, last)`.
+   */
+  async lastDaysOf(accountIds: readonly number[], asOf: IsoDate): Promise<Map<number, {
+    last: IsoDate | null; bands: YieldRate[]; daysOfLast: YieldDay[]; paidThatDay: YieldDay[];
+  }>> {
+    const out = new Map(accountIds.map(id => [id, {
+      last: null as IsoDate | null, bands: [] as YieldRate[], daysOfLast: [] as YieldDay[], paidThatDay: [] as YieldDay[],
+    }]));
+    if (accountIds.length === 0) return out;
+    const ids = placeholders(accountIds);
+
+    for (const row of await this.db.query<{ account_id: number; on_date: IsoDate | null }>(
+      `SELECT account_id, MAX(on_date) AS on_date FROM yield_days
+       WHERE account_id IN ${ids} GROUP BY account_id`, accountIds)) {
+      out.get(row.account_id)!.last = row.on_date ?? null;
+    }
+
+    for (const rate of await this.db.query<YieldRate>(
+      `SELECT ${RATE_COLUMNS} FROM yield_rates r
+       WHERE r.account_id IN ${ids} AND r.valid_from <= ?
+         AND r.valid_from = (
+           SELECT MAX(valid_from) FROM yield_rates
+           WHERE account_id = r.account_id
+             AND min_balance_minor = r.min_balance_minor
+             AND valid_from <= ?)
+       ORDER BY r.min_balance_minor, r.id`,
+      [...accountIds, asOf, asOf])) {
+      out.get(rate.account_id)!.bands.push(rate);
+    }
+
+    // Each account's own last day, found through the (account_id, on_date) index.
+    const lastOf = `(SELECT MAX(x.on_date) FROM yield_days x WHERE x.account_id = yield_days.account_id)`;
+    for (const day of await this.db.query<YieldDay>(
+      `SELECT ${DAY_COLUMNS} FROM yield_days
+       WHERE account_id IN ${ids} AND on_date = ${lastOf}
+       ORDER BY on_date, pocket_id, component`, accountIds)) {
+      out.get(day.account_id)!.daysOfLast.push(day);
+    }
+    for (const day of await this.db.query<YieldDay>(
+      `SELECT ${DAY_COLUMNS} FROM yield_days
+       WHERE account_id IN ${ids}
+         AND COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
+                                    ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) = ${lastOf}
+       ORDER BY on_date, pocket_id, component`, accountIds)) {
+      out.get(day.account_id)!.paidThatDay.push(day);
+    }
+    return out;
   }
 
   /**
@@ -1559,30 +1636,64 @@ export class YieldsRepository {
     accountId: number, today: IsoDate, known?: readonly YieldPocket[],
   ): Promise<{ total: Map<number, number>; yields: Map<number, number> }> {
     const pockets = known ?? await this.pockets(accountId);
-    const total = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
-    const paid = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
-    if (pockets.length === 0) return { total, yields: paid };
+    return (await this.landedByPockets(today, new Map([[accountId, pockets]]))).get(accountId)!;
+  }
 
-    const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
-    // Where each product's balance was last stated, and when it was typed in.
-    const since = new Map<number, { day: IsoDate; typedAt: string | null }>();
-    const histories = await this.pocketBalancesOf(accountId);
-    for (const pocket of pockets) {
-      const stated = pocket.source === 'manual'
-        ? (histories.get(pocket.id) ?? []).filter(entry => entry.valid_from <= today).at(-1)
-        : undefined;
-      since.set(pocket.id, stated
-        ? { day: stated.valid_from, typedAt: stated.created_at ?? null }
-        : { day: opening, typedAt: null });
+  /**
+   * The same, for several accounts in five questions however many there
+   * are: the yields screen draws every account, and asking five per account
+   * is what it used to spend its time on.
+   */
+  async landedByPockets(
+    today: IsoDate, pocketsOf: ReadonlyMap<number, readonly YieldPocket[]>,
+  ): Promise<Map<number, { total: Map<number, number>; yields: Map<number, number> }>> {
+    const out = new Map<number, { total: Map<number, number>; yields: Map<number, number> }>();
+    for (const [accountId, pockets] of pocketsOf) {
+      out.set(accountId, {
+        total: new Map<number, number>(pockets.map(pocket => [pocket.id, 0])),
+        yields: new Map<number, number>(pockets.map(pocket => [pocket.id, 0])),
+      });
+    }
+    const ids = [...pocketsOf].filter(([, pockets]) => pockets.length > 0).map(([id]) => id);
+    if (ids.length === 0) return out;
+
+    const openings = new Map((await this.db.query<{ account_id: number; opening_on: IsoDate }>(
+      `SELECT account_id, opening_on FROM yield_accounts WHERE account_id IN ${placeholders(ids)}`, ids))
+      .map(row => [row.account_id, row.opening_on]));
+    const histories = await this.pocketBalancesOf(ids);
+
+    // Per account, what each of its rows is weighed against.
+    const accountsOf = new Map<number, {
+      since: Map<number, { day: IsoDate; typedAt: string | null }>;
+      idOf: (pocketId: number | null) => number;
+      total: Map<number, number>;
+      paid: Map<number, number>;
+    }>();
+    for (const accountId of ids) {
+      const pockets = pocketsOf.get(accountId)!;
+      const { total, yields: paid } = out.get(accountId)!;
+      const opening = openings.get(accountId) ?? '0000-01-01';
+      // Where each product's balance was last stated, and when it was typed in.
+      const since = new Map<number, { day: IsoDate; typedAt: string | null }>();
+      for (const pocket of pockets) {
+        const stated = pocket.source === 'manual'
+          ? (histories.get(pocket.id) ?? []).filter(entry => entry.valid_from <= today).at(-1)
+          : undefined;
+        since.set(pocket.id, stated
+          ? { day: stated.valid_from, typedAt: stated.created_at ?? null }
+          : { day: opening, typedAt: null });
+      }
+      const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
+      const idOf = (pocketId: number | null) => pocketId !== null && total.has(pocketId) ? pocketId : fallback;
+      accountsOf.set(accountId, { since, idOf, total, paid });
     }
 
-    const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-    const idOf = (pocketId: number | null) => pocketId !== null && total.has(pocketId) ? pocketId : fallback;
     const credit = (into: Map<number, number>, id: number, amount: number | null) =>
       into.set(id, (into.get(id) ?? 0) + (amount ?? 0));
 
     // A day paid on the day the balance was read is already in that figure.
-    const addPaid = (pocketId: number | null, day: IsoDate, amount: number | null) => {
+    const addPaid = (accountId: number, pocketId: number | null, day: IsoDate, amount: number | null) => {
+      const { since, idOf, total, paid } = accountsOf.get(accountId)!;
       const id = idOf(pocketId);
       if (day > since.get(id)!.day) {
         credit(total, id, amount);
@@ -1592,36 +1703,38 @@ export class YieldsRepository {
     // An entry on that same day counts when it was recorded after the balance
     // was: a product created today and given an income today holds it. Without
     // this the income showed in the account's yields and never in the product.
-    const addEntry = (pocketId: number | null, day: IsoDate, createdAt: string, amount: number | null) => {
+    const addEntry = (accountId: number, pocketId: number | null, day: IsoDate, createdAt: string, amount: number | null) => {
+      const { since, idOf, total } = accountsOf.get(accountId)!;
       const id = idOf(pocketId);
       const base = since.get(id)!;
       if (day > base.day || (day === base.day && (base.typedAt === null || createdAt >= base.typedAt))) {
         credit(total, id, amount);
       }
     };
-    type Row = { pocket_id: number | null; day: IsoDate; created_at: string; total: number | null };
+    type Row = { account_id: number; pocket_id: number | null; day: IsoDate; created_at: string; total: number | null };
+    const inIds = `account_id IN ${placeholders(ids)}`;
 
     // A day's yield is in the product once it is paid, not while it is owed.
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, paid AS day,SUM(net) AS total FROM (
-         SELECT pocket_id, COALESCE(actual_net_minor, net_minor) AS net,
+      `SELECT account_id, pocket_id, paid AS day, SUM(net) AS total FROM (
+         SELECT account_id, pocket_id, COALESCE(actual_net_minor, net_minor) AS net,
                 COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
                                        ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) AS paid
-         FROM yield_days WHERE account_id = ?)
-       WHERE paid <= ? GROUP BY pocket_id, paid`, [accountId, today])) {
-      addPaid(row.pocket_id, row.day, row.total);
+         FROM yield_days WHERE ${inIds})
+       WHERE paid <= ? GROUP BY account_id, pocket_id, paid`, [...ids, today])) {
+      addPaid(row.account_id, row.pocket_id, row.day, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, on_date AS day, created_at, amount_minor AS total
-       FROM cushion_adjustments WHERE account_id = ?`, [accountId])) {
-      addEntry(row.pocket_id, row.day, row.created_at, row.total);
+      `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
+       FROM cushion_adjustments WHERE ${inIds}`, ids)) {
+      addEntry(row.account_id, row.pocket_id, row.day, row.created_at, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, on_date AS day, created_at, amount_minor AS total
-       FROM cushion_withdrawals WHERE account_id = ?`, [accountId])) {
-      addEntry(row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
+      `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
+       FROM cushion_withdrawals WHERE ${inIds}`, ids)) {
+      addEntry(row.account_id, row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
     }
-    return { total, yields: paid };
+    return out;
   }
 
   /**
@@ -1676,4 +1789,9 @@ function emptyCushion(accountId: number): CushionBalance {
     paidOn: null,
     daysWithUnknownWithholding: 0,
   };
+}
+
+/** `(?, ?, ?)` for an IN list of that many values. */
+function placeholders(values: readonly unknown[]): string {
+  return `(${values.map(() => '?').join(', ')})`;
 }

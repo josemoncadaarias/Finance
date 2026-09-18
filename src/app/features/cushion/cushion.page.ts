@@ -40,7 +40,7 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
-  YieldsRepository, type CushionBalance, type CushionEntry, type YieldDay,
+  YieldsRepository, type CushionBalance, type CushionEntry, type YieldAccount, type YieldDay,
   type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
@@ -728,54 +728,100 @@ export class CushionPage {
    * transfer between products take seconds to show on the phone.
    */
   private async refreshOne(accountId: number): Promise<void> {
-    const { db, accounts, yields, tax } = this.repos();
-    const engine = new AccrualEngine(db, yields, tax);
+    const { accounts, yields } = this.repos();
 
     const entry = (await yields.accounts()).find(row => row.account_id === accountId);
-    const account = (await accounts.balance(accountId))?.account;
-    if (!entry || !account) { await this.refresh(); return; }
+    const balance = await accounts.balance(accountId);
+    if (!entry || !balance) { await this.refresh(); return; }
 
-    const pockets = await yields.pockets(accountId);
-    const last = await yields.lastAccruedDay(accountId);
-    const bands = await yields.bandsInForce(accountId, today());
-    const daysOfLast = last ? await yields.days(accountId, last, last) : [];
-    const paidThatDay = last ? await yields.paidOn(accountId, last) : [];
-    const landed = await yields.landedByPocket(accountId, today(), pockets);
-    const held = await engine.heldByPocket(accountId, today(), pockets);
-    const productsMinor = pockets.reduce(
-      (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
-    const accountMinor = (await accounts.balance(accountId))?.balance_minor ?? 0;
-
-    const line: CushionLine = {
-      account,
-      cushion: await yields.cushion(accountId),
-      rate: bands[0] ?? null,
-      enabled: entry.enabled !== 0,
-      pockets,
-      lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
-      earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
-        .reduce((sum, day) => sum + day.balance_minor, 0),
-      heldByPocket: held,
-      earnsNextMinor: productsMinor,
-      availableMinor: productsMinor - accountMinor,
-      landedByPocket: landed.total,
-      paidYieldByPocket: landed.yields,
-    };
+    const [line] = await this.linesFor(
+      [entry],
+      new Map([[accountId, balance.account]]),
+      new Map([[accountId, balance.balance_minor]]),
+      new Map([[accountId, await yields.pockets(accountId)]]),
+      new Map([[accountId, await yields.cushion(accountId)]]),
+    );
+    if (!line) { await this.refresh(); return; }
 
     this.lines.update(lines => lines
-      .map(row => (row.account.id === accountId ? line : row))
+      .map(row => (row.account.id === accountId ? line.line : row))
       .sort((a, b) => b.availableMinor - a.availableMinor));
+    const last = line.last;
     if (last && (this.lastAccrued() === null || last > this.lastAccrued()!)) this.lastAccrued.set(last);
 
     // The sheet is showing this account: it shows the line just rebuilt.
-    if (this.openLine()?.account.id === accountId) await this.open(line);
+    if (this.openLine()?.account.id === accountId) await this.open(line.line);
+  }
+
+  /**
+   * The lines of the given accounts, each with the last day it worked out.
+   *
+   * One implementation for opening the screen, which draws every account,
+   * and for rebuilding the one account just changed. The questions are asked
+   * for all the accounts at once: on a phone each one crosses into the native
+   * side, and thirteen accounts asking fourteen questions each is what this
+   * screen spent its time on.
+   */
+  private async linesFor(
+    enrolled: readonly YieldAccount[],
+    accountOf: ReadonlyMap<number, AccountRow>,
+    balanceOf: ReadonlyMap<number, number>,
+    pocketsOf: ReadonlyMap<number, YieldPocket[]>,
+    cushionOf: ReadonlyMap<number, CushionBalance>,
+  ): Promise<{ line: CushionLine; last: IsoDate | null }[]> {
+    const { db, yields, tax } = this.repos();
+    const shown = enrolled.filter(entry => accountOf.has(entry.account_id));
+    const ids = shown.map(entry => entry.account_id);
+    const pocketsOfShown = new Map(ids.map(id => [id, pocketsOf.get(id) ?? []]));
+
+    const lastDays = await yields.lastDaysOf(ids, today());
+    const landedOf = await yields.landedByPockets(today(), pocketsOfShown);
+    const heldOf = await new AccrualEngine(db, yields, tax).heldByPockets(today(), pocketsOfShown);
+
+    const out: { line: CushionLine; last: IsoDate | null }[] = [];
+    for (const entry of shown) {
+      const id = entry.account_id;
+      const pockets = pocketsOfShown.get(id)!;
+      // What was actually handed over that day. A product paid at the end of
+      // the month earns every day too, but nothing of it arrives until then.
+      const { last, bands, daysOfLast, paidThatDay } = lastDays.get(id)!;
+      const landed = landedOf.get(id)!;
+      const held = heldOf.get(id)!;
+      // Every movement counts on both sides - the products' balances and the
+      // account's - so the difference is only what the products hold beyond it.
+      const productsMinor = pockets.reduce(
+        (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
+      const accountMinor = balanceOf.get(id) ?? 0;
+
+      out.push({
+        last,
+        line: {
+          account: accountOf.get(id)!,
+          cushion: cushionOf.get(id) ?? await yields.cushion(id),
+          rate: bands[0] ?? null,
+          enabled: entry.enabled !== 0,
+          pockets,
+          lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
+          // One figure per POCKET, not per row. A day of an account with two
+          // rate components is two rows carrying the same base, and adding
+          // them showed Uala earning on twice what it holds.
+          earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
+            .reduce((sum, day) => sum + day.balance_minor, 0),
+          heldByPocket: held,
+          earnsNextMinor: productsMinor,
+          availableMinor: productsMinor - accountMinor,
+          landedByPocket: landed.total,
+          paidYieldByPocket: landed.yields,
+        },
+      });
+    }
+    return out;
   }
 
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const { db, accounts, categories, yields, tax } = this.repos();
-      const engine = new AccrualEngine(db, yields, tax);
+      const { db, accounts, categories, yields } = this.repos();
       const enrolled = await yields.accounts();
       const all = await accounts.list({ includeArchived: true });
       const byId = new Map(all.map(account => [account.id, account]));
@@ -791,48 +837,11 @@ export class CushionPage {
         pocketsOf.set(pocket.account_id, [...(pocketsOf.get(pocket.account_id) ?? []), pocket]);
       }
 
-      const lines: CushionLine[] = [];
+      const built = await this.linesFor(enrolled, byId, balances, pocketsOf, cushions);
+      const lines = built.map(entry => entry.line);
       let newest: IsoDate | null = null;
-
-      for (const entry of enrolled) {
-        const account = byId.get(entry.account_id);
-        if (!account) continue;
-
-        const last = await yields.lastAccruedDay(entry.account_id);
+      for (const { last } of built) {
         if (last && (newest === null || last > newest)) newest = last;
-
-        const bands = await yields.bandsInForce(entry.account_id, today());
-        const pockets = pocketsOf.get(entry.account_id) ?? [];
-        const daysOfLast = last ? await yields.days(entry.account_id, last, last) : [];
-        // What was actually handed over that day. A product paid at the end of
-        // the month earns every day too, but nothing of it arrives until then.
-        const paidThatDay = last ? await yields.paidOn(entry.account_id, last) : [];
-        const landed = await yields.landedByPocket(entry.account_id, today(), pockets);
-        const held = await engine.heldByPocket(entry.account_id, today(), pockets);
-        // Every movement counts on both sides - the products' balances and the
-        // account's - so the difference is only what the products hold beyond it.
-        const productsMinor = pockets.reduce(
-          (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
-        const accountMinor = balances.get(entry.account_id) ?? 0;
-
-        lines.push({
-          account,
-          cushion: cushions.get(entry.account_id) ?? await yields.cushion(entry.account_id),
-          rate: bands[0] ?? null,
-          enabled: entry.enabled !== 0,
-          pockets,
-          lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
-          // One figure per POCKET, not per row. A day of an account with two
-          // rate components is two rows carrying the same base, and adding
-          // them showed Uala earning on twice what it holds.
-          earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
-            .reduce((sum, day) => sum + day.balance_minor, 0),
-          heldByPocket: held,
-          earnsNextMinor: productsMinor,
-          availableMinor: productsMinor - accountMinor,
-          landedByPocket: landed.total,
-          paidYieldByPocket: landed.yields,
-        });
       }
 
       lines.sort((a, b) => b.availableMinor - a.availableMinor);

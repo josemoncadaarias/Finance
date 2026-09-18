@@ -153,81 +153,59 @@ export class AccrualEngine {
     // The caller usually has the products in hand already; asking for them
     // again is a call a phone pays for.
     const pockets = known ?? await this.yields.pockets(accountId);
-    const held = new Map<number, number>();
-    if (pockets.length === 0) return held;
+    return (await this.heldByPockets(on, new Map([[accountId, pockets]]))).get(accountId)!;
+  }
 
-    const enrolled = await this.yields.account(accountId);
-    const opening = enrolled?.opening_on ?? on;
-    const absorbs = absorbsUnassigned(pockets);
+  /**
+   * The same, for several accounts in five questions however many there are.
+   * The yields screen draws every account, and five questions per account is
+   * what it used to spend its time on.
+   */
+  async heldByPockets(
+    on: IsoDate, pocketsOf: ReadonlyMap<number, readonly YieldPocket[]>,
+  ): Promise<Map<number, Map<number, number>>> {
+    const out = new Map<number, Map<number, number>>();
+    for (const accountId of pocketsOf.keys()) out.set(accountId, new Map());
+    const ids = [...pocketsOf].filter(([, pockets]) => pockets.length > 0).map(([id]) => id);
+    if (ids.length === 0) return out;
+    const list = `(${ids.map(() => '?').join(', ')})`;
 
-    // No upper bound: the account's own balance counts a movement dated next
-    // week, so a product that did not would disagree with the account it is
-    // inside.
-    const balances = await this.dailyBalances(accountId, FAR_FUTURE);
+    const openings = new Map((await this.db.query<{ account_id: number; opening_on: IsoDate }>(
+      `SELECT account_id, opening_on FROM yield_accounts WHERE account_id IN ${list}`, ids))
+      .map(row => [row.account_id, row.opening_on]));
+
+    // What the whole account holds at the end of `on`: its opening balance
+    // and every movement up to that day. The balance a product that follows
+    // the account shows.
+    const accountOn = new Map((await this.db.query<{ id: number; balance_minor: number }>(
+      `SELECT a.id, a.opening_balance_minor + COALESCE((
+                SELECT SUM(t.amount_minor) FROM transactions t
+                WHERE t.account_id = a.id AND t.occurred_on <= ?), 0) AS balance_minor
+       FROM accounts a WHERE a.id IN ${list}`, [on, ...ids]))
+      .map(row => [row.id, row.balance_minor]));
 
     // Every product's stated balances, and what has moved through each of
     // them, in one question each rather than two per product.
-    const histories = await this.yields.pocketBalancesOf(accountId);
-    const since = new Map<number, IsoDate>();
-    for (const pocket of pockets) {
-      if (pocket.source !== 'manual') continue;
-      // No balance at all means no start date has been chosen, so counting
-      // starts where this module started: the day the account was enrolled.
-      since.set(pocket.id, (histories.get(pocket.id) ?? []).at(-1)?.valid_from ?? opening);
-    }
-    const moved = await this.yields.movedInPocketsSince(accountId, since, absorbs);
-
-    for (const [at, pocket] of pockets.entries()) {
-      if (pocket.source !== 'manual') {
-        held.set(pocket.id, balanceOn(balances, on));
-        continue;
+    const histories = await this.yields.pocketBalancesOf(ids);
+    const asked = new Map<number, { since: Map<number, IsoDate>; absorbs: number | null }>();
+    for (const accountId of ids) {
+      const pockets = pocketsOf.get(accountId)!;
+      const opening = openings.get(accountId) ?? on;
+      const since = new Map<number, IsoDate>();
+      for (const pocket of pockets) {
+        if (pocket.source !== 'manual') continue;
+        // No balance at all means no start date has been chosen, so counting
+        // starts where this module started: the day the account was enrolled.
+        since.set(pocket.id, (histories.get(pocket.id) ?? []).at(-1)?.valid_from ?? opening);
       }
-
-      // Deliberately NOT `statedOn`, which is the earning base and stops a day
-      // short: money arriving today earns from tomorrow, so for that purpose
-      // today's movements do not count yet.
-      //
-      // This is a different question - how much is in it right now - and there
-      // today's movements are exactly what must count. Jose spent a peso from
-      // the savings product and watched the figure stay where it was, because
-      // the screen was showing him what the product would earn on rather than
-      // what it holds.
-      // One rule, and the one Jose stated: the figure he typed IS the balance,
-      // movements before the date it was set do not touch it, and everything
-      // from that date on does.
-      //
-      // A product with no figure of its own starts from the day the account
-      // was enrolled rather than from the beginning of time. Without that, a
-      // product Jose knows to be empty was adding up sixty-six million of
-      // history - every movement ever made had been filed against it.
-      //
-      // No upper bound either. A movement dated next week has been recorded,
-      // and the account's own balance counts it, so a product that did not
-      // would be disagreeing with the account it lives in.
-      const history = histories.get(pocket.id) ?? [];
-
-      // The last balance recorded, whatever date it carries - not the last one
-      // in force today.
-      //
-      // Today has nothing to do with this. A balance is a figure and a date it
-      // starts counting from, and once one is recorded it governs, even if
-      // that date is tomorrow: Jose set a balance to start on the 11th and an
-      // expense on the 15th, and bounding the answer at today reported neither.
-      // The engine still asks the other question, day by day, through
-      // `statedOn`, and that one does depend on which day it is working out.
-      const latest = history.at(-1);
-      const stated = latest?.amount_minor ?? 0;
-      const statedFrom: IsoDate | null = latest?.valid_from ?? null;
-
-      if (statedFrom === null) {
-        held.set(pocket.id, moved.get(pocket.id) ?? 0);
-        continue;
-      }
-
-      held.set(pocket.id, stated + (moved.get(pocket.id) ?? 0));
+      asked.set(accountId, { since, absorbs: absorbsUnassigned(pockets) });
     }
+    const moved = await this.yields.movedInPocketsOf(asked);
 
-    return held;
+    for (const accountId of ids) {
+      heldIn(pocketsOf.get(accountId)!, out.get(accountId)!, accountOn.get(accountId) ?? 0, histories, moved);
+    }
+    return out;
   }
 
   async accrue(accountId: number, upTo: IsoDate): Promise<AccrualResult> {
@@ -826,3 +804,61 @@ function balanceOn(balances: DayBalance[], day: IsoDate): number {
   return found;
 }
 
+/** Fills `held` with what each product of one account holds. See `heldByPocket`. */
+function heldIn(
+  pockets: readonly YieldPocket[],
+  held: Map<number, number>,
+  accountBalance: number,
+  histories: ReadonlyMap<number, PocketBalance[]>,
+  moved: ReadonlyMap<number, number>,
+): void {
+  for (const pocket of pockets) {
+    if (pocket.source !== 'manual') {
+      held.set(pocket.id, accountBalance);
+      continue;
+    }
+
+    // Deliberately NOT `statedOn`, which is the earning base and stops a day
+    // short: money arriving today earns from tomorrow, so for that purpose
+    // today's movements do not count yet.
+    //
+    // This is a different question - how much is in it right now - and there
+    // today's movements are exactly what must count. Jose spent a peso from
+    // the savings product and watched the figure stay where it was, because
+    // the screen was showing him what the product would earn on rather than
+    // what it holds.
+    // One rule, and the one Jose stated: the figure he typed IS the balance,
+    // movements before the date it was set do not touch it, and everything
+    // from that date on does.
+    //
+    // A product with no figure of its own starts from the day the account
+    // was enrolled rather than from the beginning of time. Without that, a
+    // product Jose knows to be empty was adding up sixty-six million of
+    // history - every movement ever made had been filed against it.
+    //
+    // No upper bound either. A movement dated next week has been recorded,
+    // and the account's own balance counts it, so a product that did not
+    // would be disagreeing with the account it lives in.
+    const history = histories.get(pocket.id) ?? [];
+
+    // The last balance recorded, whatever date it carries - not the last one
+    // in force today.
+    //
+    // Today has nothing to do with this. A balance is a figure and a date it
+    // starts counting from, and once one is recorded it governs, even if
+    // that date is tomorrow: Jose set a balance to start on the 11th and an
+    // expense on the 15th, and bounding the answer at today reported neither.
+    // The engine still asks the other question, day by day, through
+    // `statedOn`, and that one does depend on which day it is working out.
+    const latest = history.at(-1);
+    const stated = latest?.amount_minor ?? 0;
+    const statedFrom: IsoDate | null = latest?.valid_from ?? null;
+
+    if (statedFrom === null) {
+      held.set(pocket.id, moved.get(pocket.id) ?? 0);
+      continue;
+    }
+
+    held.set(pocket.id, stated + (moved.get(pocket.id) ?? 0));
+  }
+}
