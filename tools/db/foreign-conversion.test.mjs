@@ -69,7 +69,7 @@ test('a dollar movement is valued at the TRM of its own day', async () => {
     },
   });
 
-  assert.deepEqual(result, { converted: 1, pending: 0 });
+  assert.deepEqual(result, { converted: 1, onCachedRate: 0, pending: 0 });
   assert.deepEqual(asked, ['USD 2025-08-08'], 'its own day, not today');
 
   const fixed = await row(db, id);
@@ -108,30 +108,74 @@ test('the rate is kept, so the next movement that day needs no network', async (
     now: NOW,
     fetchRate: async () => { throw new Error('the network must not be asked'); },
   });
-  assert.deepEqual(result, { converted: 1, pending: 0 });
+  assert.deepEqual(result, { converted: 1, onCachedRate: 0, pending: 0 });
   assert.equal((await row(db, second)).amount_base_minor, -8_098_700);
 });
 
-test('with no rate to be had the movement is left alone and counted, never guessed', async () => {
+// Rule 1 of the project: a missing network value is replaced by the last one
+// cached, and flagged. Jose asked on 2026-09-18 why the donut could not at
+// least be drawn without a network - the first version left these out of it.
+test('offline, the last rate on record stands in, flagged, and the day\'s own replaces it later', async () => {
   const { db, ids, spend, rates } = await setup();
-  // A rate from months before is on record - a different rate, not this day's.
   await rates.set({ on_date: '2025-01-02', base_code: 'USD', quote_code: 'COP', rate_scaled: 43_000_000, source: 'trm' });
   const id = await spend(ids.usd, '2025-08-08', -3_000);
 
-  const result = await convertPendingForeign(db, { now: NOW, fetchRate: async () => null });
+  const offline = await convertPendingForeign(db, { now: NOW, fetchRate: async () => null });
+  assert.deepEqual(offline, { converted: 1, onCachedRate: 1, pending: 0 });
+  const standIn = await row(db, id);
+  assert.equal(standIn.amount_base_minor, -12_900_000, 'drawn in the donut at the last rate there is');
+  assert.equal(standIn.rate_source, 'cached', 'and it says so');
 
-  assert.deepEqual(result, { converted: 0, pending: 1 });
-  assert.equal((await row(db, id)).amount_base_minor, -3_000, 'untouched, still pending');
+  // The network comes back: the day's own rate takes over.
+  const online = await convertPendingForeign(db, {
+    now: NOW, fetchRate: async () => ({ rate_scaled: 40_493_500, source: 'trm' }),
+  });
+  assert.deepEqual(online, { converted: 1, onCachedRate: 0, pending: 0 });
+  const exact = await row(db, id);
+  assert.equal(exact.amount_base_minor, -12_148_050);
+  assert.equal(exact.rate_source, 'trm');
 });
 
-test('over a weekend the rate in force from the Friday is used when nothing else is', async () => {
+test('offline, the newest rate stands in even for a day before any the app has seen', async () => {
+  const { db, ids, spend, rates } = await setup();
+  // Only a recent rate on record, as on a phone that first opened this month.
+  await rates.set({ on_date: '2026-09-16', base_code: 'USD', quote_code: 'COP', rate_scaled: 31_004_500, source: 'trm' });
+  const id = await spend(ids.usd, '2025-04-01', 3_000);
+
+  const result = await convertPendingForeign(db, { now: NOW });
+  assert.deepEqual(result, { converted: 1, onCachedRate: 1, pending: 0 });
+  assert.equal((await row(db, id)).amount_base_minor, 9_301_350);
+});
+
+test('with no rate on record at all the movement is left alone and counted, never guessed', async () => {
+  const { db, ids, spend } = await setup();
+  const id = await spend(ids.eur, '2025-08-08', -2_610);
+
+  const result = await convertPendingForeign(db, { now: NOW, fetchRate: async () => null });
+
+  assert.deepEqual(result, { converted: 0, onCachedRate: 0, pending: 1 });
+  assert.equal((await row(db, id)).amount_base_minor, -2_610, 'untouched, still pending');
+});
+
+test('with no network to ask, movements already on a stand-in are not even read', async () => {
+  const { db, ids, spend, rates } = await setup();
+  await rates.set({ on_date: '2026-09-16', base_code: 'USD', quote_code: 'COP', rate_scaled: 31_004_500, source: 'trm' });
+  await spend(ids.usd, '2025-04-01', 3_000);
+  await convertPendingForeign(db, { now: NOW });      // now on a stand-in
+
+  // The pass after every save, offline: nothing for it to do.
+  const result = await convertPendingForeign(db, { now: NOW });
+  assert.deepEqual(result, { converted: 0, onCachedRate: 0, pending: 0 });
+});
+
+test('over a weekend, offline, the Friday rate stands in until the day\'s own is fetched', async () => {
   const { db, ids, spend, rates } = await setup();
   await rates.set({ on_date: '2025-08-08', base_code: 'USD', quote_code: 'COP', rate_scaled: 40_493_500, source: 'trm' });
   const sunday = await spend(ids.usd, '2025-08-10', -1_000);
 
   const result = await convertPendingForeign(db, { now: NOW });   // offline
 
-  assert.deepEqual(result, { converted: 1, pending: 0 });
+  assert.deepEqual(result, { converted: 1, onCachedRate: 1, pending: 0 });
   assert.equal((await row(db, sunday)).amount_base_minor, -4_049_350);
 });
 
@@ -149,7 +193,7 @@ test('peso movements and foreign ones already valued are never touched', async (
     fetchRate: async () => { throw new Error('nothing here needs a rate'); },
   });
 
-  assert.deepEqual(result, { converted: 0, pending: 0 });
+  assert.deepEqual(result, { converted: 0, onCachedRate: 0, pending: 0 });
   assert.equal((await row(db, pesos)).amount_base_minor, -5_000_000);
   assert.equal((await row(db, valued)).amount_base_minor, -12_300_000, 'its own rate, kept');
 });

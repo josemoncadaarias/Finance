@@ -105,8 +105,13 @@ the framework on a long-running project.
    official peso rate, takes the ECB's euro-dollar times the TRM - official on
    both sides, derived in between. Such a movement records `rate_source`
    `trm` or `derived` and `confidence` `low`: the official reference, not
-   what the bank charged. No rate to be had (offline) leaves it pending, and
-   the next pass values it; it is never guessed at.
+   what the bank charged. Offline, it takes the last rate the app has — rule
+   1 — marked `cached`, and the next pass with a network replaces it with the
+   day's own; only a currency with no rate on record at all is left out, and
+   counted. Today's dollar and euro are fetched once a day, a few seconds
+   after the app opens (the TRM used to refresh only from a button on the
+   accounts screen). None of it may be felt on the phone: after every save
+   the pass is one query over the foreign accounts' rows that finds nothing.
 
 4. **Credit cards as liabilities.** The balance represents the debt (negative
    or zero). The credit limit is a separate attribute. Available credit is
