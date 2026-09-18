@@ -340,3 +340,57 @@ test('worked out, the sheet keeps the percentage and not the typed box', () => {
   assert.ok(sheet.inputCells.inflationaryScaled);
   assert.equal(sheet.inputCells.capitalNonTaxableTypedMinor, undefined);
 });
+
+// ---------------------------------------------------------------------------
+// In English the sheet changes words and nothing else: the same cells, the
+// same styles, the same formulas. The only formula whose text differs is a
+// source's HYPERLINK, whose second argument is the words shown for the link.
+
+const withoutLinkText = formula => formula.replace(/^HYPERLINK\(("(?:[^"]|"")*"),"(?:[^"]|"")*"\)$/, 'HYPERLINK($1)');
+
+for (const [story, inputs] of Object.entries({
+  'casilla 59 worked out': () => jose(),
+  'casilla 59 typed': () => ({ ...jose(), capitalNonTaxableTyped: true, capitalNonTaxableTypedMinor: pesos(3_000_000) }),
+})) {
+  test(`the English sheet is the Spanish one in other words: ${story}`, () => {
+    const es = taxSheet(inputs(), TODAY, 'es');
+    const en = taxSheet(inputs(), TODAY, 'en');
+
+    assert.deepEqual(en.inputCells, es.inputCells);
+    assert.deepEqual(en.resultCells, es.resultCells);
+    assert.deepEqual(en.monthCells, es.monthCells);
+    assert.deepEqual(en.extraCells, es.extraCells);
+    assert.deepEqual(en.spec.merges, es.spec.merges);
+    assert.equal(en.spec.cells.length, es.spec.cells.length);
+
+    let formulas = 0;
+    es.spec.cells.forEach((cell, at) => {
+      const other = en.spec.cells[at];
+      const ref = `${columnName(cell.col)}${cell.row}`;
+      assert.equal(other.row, cell.row, ref);
+      assert.equal(other.col, cell.col, ref);
+      assert.equal(other.style, cell.style, `${ref} keeps its style`);
+      if (cell.content && 'formula' in cell.content) {
+        formulas++;
+        assert.equal(withoutLinkText(other.content.formula), withoutLinkText(cell.content.formula), `${ref} keeps its formula`);
+        if (typeof cell.content.cached === 'number') assert.equal(other.content.cached, cell.content.cached, `${ref} keeps its value`);
+      }
+      if (cell.content && 'number' in cell.content) assert.equal(other.content.number, cell.content.number, `${ref} keeps its figure`);
+    });
+    assert.ok(formulas > 40, 'the comparison saw the formulas');
+
+    assertFormulasMatch(en, simulate(inputs()), new Map(), `in English, ${story}`);
+  });
+}
+
+test('the English sheet speaks English and keeps the DIAN\'s terms', () => {
+  const sheet = taxSheet(jose(), TODAY, 'en');
+  const texts = sheet.spec.cells.map(cell => cell.content?.text).filter(Boolean);
+
+  assert.equal(sheet.spec.name, 'Income tax 2026');
+  assert.ok(texts.includes('Ingresos brutos por rentas de capital (gross capital income)'));
+  assert.ok(texts.includes('3. RENTAS DE CAPITAL (CAPITAL INCOME: INTEREST, YIELDS…)  ·  Casillas 58 to 62'));
+  assert.ok(texts.includes('Retención en la fuente (withholding tax) — January'));
+  assert.ok(texts.includes('Csl. 58'), 'a box keeps its number');
+  assert.ok(!texts.includes('Salario mensual bruto'), 'the app\'s own words are English');
+});

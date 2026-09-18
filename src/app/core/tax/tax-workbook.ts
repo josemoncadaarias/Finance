@@ -17,7 +17,10 @@
  * The sheet is protected without a password: the calculated cells cannot be
  * typed over by accident, and anyone who really means to can unprotect it.
  *
- * Its words live in `tax-form.ts`, in Spanish, like the rest of the module.
+ * Its words come from `tax-words.ts`, in the language the app is read in:
+ * Spanish by default, which is exactly the sheet as it always was. Only words
+ * change with the language - which rows exist, where they land and every
+ * formula are the same in both, and the tests compare the two.
  */
 
 import { formatMoney } from '../database/money';
@@ -27,11 +30,10 @@ import {
   EMPLOYMENT_DEFAULTS, MAX_DEPENDENTS, RATE_BANDS, RATE_SCALE, SOLIDARITY_STEPS,
   SOLIDARITY_TOP_RATE_SCALED, simulate,
 } from './cedula-general';
+import type { Language } from '../i18n/translations';
 import { parametersFor, type Sourced } from './defaults';
-import {
-  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
-  type FieldFormat, type InputKey, type ResultKey,
-} from './tax-form';
+import { rowApplies, type FieldFormat, type InputKey, type ResultKey, type TaxText } from './tax-form';
+import { sourceIn, taxWords, withGloss } from './tax-words';
 import type { TaxInputs } from './types';
 
 export { XLSX_MIME } from '../xlsx/xlsx-writer';
@@ -236,11 +238,15 @@ export interface TaxSheet {
   extraCells: string[];
 }
 
-export function taxWorkbook(inputs: TaxInputs, today: Date = new Date()): Uint8Array<ArrayBuffer> {
-  return writeXlsx(taxSheet(inputs, today).spec, TAX_SHEET_STYLES);
+export function taxWorkbook(
+  inputs: TaxInputs, today: Date = new Date(), language: Language = 'es',
+): Uint8Array<ArrayBuffer> {
+  return writeXlsx(taxSheet(inputs, today, language).spec, TAX_SHEET_STYLES);
 }
 
-export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet {
+export function taxSheet(inputs: TaxInputs, today: Date = new Date(), language: Language = 'es'): TaxSheet {
+  const words = taxWords(language);
+  const text = words.text;
   const result = simulate(inputs);
   const parameters = parametersFor(inputs.year, today);
 
@@ -285,7 +291,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
     put(at, LABEL, 'label', { text: label });
     const raw = value ?? (key ? effectiveInput(inputs, key) : 0);
     put(at, VALUE, `input${capitalise(format)}`, { number: sheetValue(raw, format) });
-    if (box) put(at, BOX, 'box', { text: fill(TAX_TEXT.sheetBox, { box }) });
+    if (box) put(at, BOX, 'box', { text: fill(text.sheetBox, { box }) });
     if (hint) put(at, HINT, 'hint', { text: hint });
 
     const ref = cellRef(at, VALUE);
@@ -306,9 +312,9 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 
   // ---- Title, legend, and the answer -------------------------------------
 
-  band('title', TAX_TEXT.sheetTitle, 26);
-  band('subtitle', fill(TAX_TEXT.sheetSubtitle, { year: inputs.year, date: isoDate(today) }));
-  band('subtitle', TAX_TEXT.sheetBoxColumn);
+  band('title', text.sheetTitle, 26);
+  band('subtitle', fill(text.sheetSubtitle, { year: inputs.year, date: isoDate(today) }));
+  band('subtitle', text.sheetBoxColumn);
   const frozenRows = row;
   blank();
 
@@ -318,16 +324,16 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
     put(at, VALUE, 'label', { text });
     merges.push(`B${at}:E${at}`);
   };
-  legend('legendTyped', TAX_TEXT.legendTyped, TAX_TEXT.sheetLegendTyped);
-  legend('legendComputed', TAX_TEXT.legendComputed, TAX_TEXT.sheetLegendComputed);
+  legend('legendTyped', text.legendTyped, text.sheetLegendTyped);
+  legend('legendComputed', text.legendComputed, text.sheetLegendComputed);
   blank();
 
   const summary: { label: string; key: ResultKey }[] = [
-    { label: TAX_TEXT.toPay, key: 'toPayMinor' },
-    { label: TAX_TEXT.inFavour, key: 'inFavourMinor' },
-    { label: TAX_TEXT.sheetSavePerMonth, key: 'savePerMonthMinor' },
+    { label: text.toPay, key: 'toPayMinor' },
+    { label: text.inFavour, key: 'inFavourMinor' },
+    { label: text.sheetSavePerMonth, key: 'savePerMonthMinor' },
   ];
-  band('section', TAX_TEXT.sheetSummary.toUpperCase(), 20);
+  band('section', text.sheetSummary.toUpperCase(), 20);
   for (const line of summary) {
     const at = next();
     put(at, LABEL, 'labelBold', { text: line.label });
@@ -337,9 +343,10 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 
   // ---- The form, section by section -------------------------------------
 
-  for (const section of TAX_FORM) {
+  for (const section of words.form) {
     blank();
-    band('section', section.title.toUpperCase() + (section.subtitle ? `  ·  ${section.subtitle}` : ''), 20);
+    band('section', withGloss(section.title, section.titleGloss).toUpperCase()
+      + (section.subtitle ? `  ·  ${section.subtitle}` : ''), 20);
 
     for (const formRow of section.rows) {
       // The rows of the way casilla 59 was not answered are not part of this
@@ -348,15 +355,15 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 
       switch (formRow.kind) {
         case 'input':
-          input(formRow.key, formRow.format, formRow.label, formRow.box, formRow.hint);
+          input(formRow.key, formRow.format, withGloss(formRow.label, formRow.gloss), formRow.box, formRow.hint);
           break;
 
         case 'computed': {
           const at = next();
-          put(at, LABEL, formRow.total ? 'labelBold' : 'label', { text: formRow.label });
+          put(at, LABEL, formRow.total ? 'labelBold' : 'label', { text: withGloss(formRow.label, formRow.gloss) });
           const style = `${formRow.total ? 'total' : 'computed'}${capitalise(formRow.format)}`;
           const cell = put(at, VALUE, style);
-          if (formRow.box) put(at, BOX, 'box', { text: fill(TAX_TEXT.sheetBox, { box: formRow.box }) });
+          if (formRow.box) put(at, BOX, 'box', { text: fill(text.sheetBox, { box: formRow.box }) });
           if (formRow.hint) put(at, HINT, 'hint', { text: formRow.hint });
 
           const key = formRow.key;
@@ -381,46 +388,48 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
           switch (formRow.which) {
             case 'references':
               for (const [label, shown, sourced] of [
-                [TAX_TEXT.refUvt, money(parameters.uvt.value), parameters.uvt],
-                [TAX_TEXT.refMinimumWage, money(parameters.minimumWage.value), parameters.minimumWage],
-                [TAX_TEXT.refInflationary, percent(parameters.inflationary.value), parameters.inflationary],
+                [text.refUvt, money(parameters.uvt.value), parameters.uvt],
+                [text.refMinimumWage, money(parameters.minimumWage.value), parameters.minimumWage],
+                [text.refInflationary, percent(parameters.inflationary.value), parameters.inflationary],
               ] as const) {
-                band('info', referenceLine(label, shown, sourced));
+                band('info', referenceLine(text, language, label, shown, sourced));
               }
               break;
 
             case 'inflationaryMode':
-              band('info', `${TAX_TEXT.sheetInflationaryMode}: ${inputs.capitalNonTaxableTyped
-                ? TAX_TEXT.inflationaryModeTyped : TAX_TEXT.inflationaryModeWorked}`);
+              band('info', `${text.sheetInflationaryMode}: ${inputs.capitalNonTaxableTyped
+                ? text.inflationaryModeTyped : text.inflationaryModeWorked}`);
               break;
 
             case 'inflationReference':
-              band('info', referenceLine(TAX_TEXT.refInflationary, percent(parameters.inflationary.value), parameters.inflationary));
+              band('info', referenceLine(
+                text, language, text.refInflationary,
+                percent(parameters.inflationary.value), parameters.inflationary));
               break;
 
             case 'employment': {
               const at = next();
-              put(at, LABEL, 'label', { text: TAX_TEXT.sheetEmployment });
-              put(at, VALUE, 'computedText', { text: EMPLOYMENT_TEXT[inputs.employment].title });
-              put(at, HINT, 'hint', { text: EMPLOYMENT_TEXT[inputs.employment].detail });
+              put(at, LABEL, 'label', { text: text.sheetEmployment });
+              put(at, VALUE, 'computedText', { text: words.employment[inputs.employment].title });
+              put(at, HINT, 'hint', { text: words.employment[inputs.employment].detail });
               // The kind of work is words; what the arithmetic uses is the
               // share of the salary contributed on, so that is the cell.
-              input('baseShareScaled', 'percent', TAX_TEXT.sheetBaseShare, undefined, TAX_TEXT.sheetBaseShareHint);
+              input('baseShareScaled', 'percent', text.sheetBaseShare, undefined, text.sheetBaseShareHint);
               break;
             }
 
             case 'rateTable': {
               const head = next();
-              put(head, LABEL, 'labelBold', { text: TAX_TEXT.sheetRateRange });
-              put(head, VALUE, 'labelBold', { text: TAX_TEXT.sheetRateMarginal });
-              put(head, BOX, 'labelBold', { text: TAX_TEXT.sheetRateFormula });
+              put(head, LABEL, 'labelBold', { text: text.sheetRateRange });
+              put(head, VALUE, 'labelBold', { text: text.sheetRateMarginal });
+              put(head, BOX, 'labelBold', { text: text.sheetRateFormula });
               merges.push(`C${head}:E${head}`);
               for (const bandRow of RATE_BANDS) {
                 const at = next();
-                put(at, LABEL, 'label', { text: fill(TAX_TEXT.rateBand, { from: bandRow.fromUvt.toLocaleString('es-CO') }) });
+                put(at, LABEL, 'label', { text: fill(text.rateBand, { from: bandRow.fromUvt.toLocaleString('es-CO') }) });
                 put(at, VALUE, 'bandRate', { number: bandRow.rateScaled / RATE_SCALE });
                 put(at, BOX, 'hint', {
-                  text: fill(TAX_TEXT.sheetRateRow, {
+                  text: fill(text.sheetRateRow, {
                     from: bandRow.fromUvt, rate: bandRow.rateScaled / 10_000, plus: bandRow.plusUvt,
                   }),
                 });
@@ -430,9 +439,9 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
             }
 
             case 'monthlyWithholding':
-              MONTH_NAMES.forEach((month, at) => {
+              words.months.forEach((month, at) => {
                 monthCells.push(input(
-                  null, 'money', fill(TAX_TEXT.sheetMonth, { month }), undefined, undefined,
+                  null, 'money', fill(text.sheetMonth, { month }), undefined, undefined,
                   inputs.monthlyWithholdingMinor[at] ?? 0));
               });
               break;
@@ -440,7 +449,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
             case 'extraWithholding':
               for (let at = 0; at < 4; at++) {
                 const concept = inputs.extraWithholdingLabels?.[at];
-                const label = fill(TAX_TEXT.sheetExtra, { n: at + 1 }) + (concept ? `: ${concept}` : '');
+                const label = fill(text.sheetExtra, { n: at + 1 }) + (concept ? `: ${concept}` : '');
                 extraCells.push(input(
                   null, 'money', label, undefined, undefined,
                   inputs.extraWithholdingMinor[at] ?? 0));
@@ -449,8 +458,8 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 
             case 'sources': {
               const caption = next();
-              put(caption, LABEL, 'labelBold', { text: TAX_TEXT.sourcesTitle });
-              for (const source of TAX_SOURCES) {
+              put(caption, LABEL, 'labelBold', { text: text.sourcesTitle });
+              for (const source of words.sources) {
                 const at = next();
                 const cell = put(at, LABEL, 'link');
                 for (let col = 1; col <= HINT; col++) put(at, col, 'link');
@@ -475,7 +484,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
   }
 
   blank();
-  band('note', TAX_TEXT.disclaimer);
+  band('note', text.disclaimer);
 
   const ranges: Ranges = {
     months: `${monthCells[0]}:${monthCells[monthCells.length - 1]}`,
@@ -488,7 +497,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 
   return {
     spec: {
-      name: fill(TAX_TEXT.sheetName, { year: inputs.year }),
+      name: fill(text.sheetName, { year: inputs.year }),
       columnWidths: [62, 20, 12, 2, 100],
       cells,
       merges,
@@ -507,11 +516,13 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date()): TaxSheet 
 // Small helpers
 // ---------------------------------------------------------------------------
 
-function referenceLine(label: string, shown: string, sourced: Sourced): string {
-  const standing = sourced.standing === 'official' ? TAX_TEXT.standingOfficial
-    : sourced.standing === 'estimate' ? TAX_TEXT.standingEstimate
-    : fill(TAX_TEXT.standingReference, { year: sourced.fromYear });
-  return `${label}: ${shown} · ${standing} · ${sourced.source}`;
+function referenceLine(
+  text: TaxText, language: Language, label: string, shown: string, sourced: Sourced,
+): string {
+  const standing = sourced.standing === 'official' ? text.standingOfficial
+    : sourced.standing === 'estimate' ? text.standingEstimate
+    : fill(text.standingReference, { year: sourced.fromYear });
+  return `${label}: ${shown} · ${standing} · ${sourceIn(sourced, language)}`;
 }
 
 function money(minor: number): string {

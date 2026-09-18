@@ -11,8 +11,9 @@
  * typing stops, per tax year, because this is a form filled in over months and
  * a figure lost to a forgotten tap is a figure typed twice.
  *
- * Words live in `core/tax/tax-form.ts`, in Spanish, as the project's language
- * rule says the tax module should.
+ * Words come from `core/tax/tax-words.ts`, in the language the app is read
+ * in: Spanish from `tax-form.ts`, English laid over it from `tax-form.en.ts`,
+ * with the DIAN's own terms kept in Spanish so they still match the form.
  */
 
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
@@ -22,6 +23,7 @@ import {
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
@@ -37,9 +39,10 @@ import {
   borrowedFromLater, defaultInputs, fillGaps, parametersFor, useThisYearsParameters, type Sourced,
 } from '../../core/tax/defaults';
 import {
-  EMPLOYMENT_TEXT, MONTH_NAMES, TAX_FORM, TAX_SOURCES, TAX_TEXT, rowApplies,
+  TAX_FORM, rowApplies,
   type FieldFormat, type FormRow, type InputKey, type ResultKey,
 } from '../../core/tax/tax-form';
+import { sourceIn, taxWords } from '../../core/tax/tax-words';
 import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
 import { taxWorkbook, XLSX_MIME } from '../../core/tax/tax-workbook';
 import { saveFile } from '../../core/files/save-file';
@@ -67,12 +70,23 @@ export class TaxPage {
   readonly database = inject(DatabaseService);
   readonly status = this.database.status;
 
-  readonly text = TAX_TEXT;
-  readonly sources = TAX_SOURCES;
-  readonly sections = TAX_FORM;
+  private readonly i18n = inject(I18nService);
+
+  /**
+   * The words of the screen, in the language it is being read in.
+   *
+   * Getters over the language signal rather than fields, so switching
+   * language redraws the form in place - and a computed that reads one of
+   * them follows the language too.
+   */
+  private get words() { return taxWords(this.i18n.language()); }
+  get text() { return this.words.text; }
+  get sources() { return this.words.sources; }
+  get sections() { return this.words.form; }
+  get months() { return this.words.months; }
+  get employmentText() { return this.words.employment; }
+
   readonly bands = RATE_BANDS;
-  readonly months = MONTH_NAMES;
-  readonly employmentText = EMPLOYMENT_TEXT;
   readonly employmentKinds: EmploymentKind[] = ['ordinary', 'integral', 'independent'];
 
   readonly year = signal(new Date().getFullYear());
@@ -523,11 +537,15 @@ export class TaxPage {
     }
 
     const label = this.text.yieldsWithholdingLabel;
+    // The line may have been written while the app was in the other language,
+    // and bringing the yields in again must land on it rather than on a
+    // second line that counts the same withholding twice.
+    const ours = new Set([taxWords('es').text.yieldsWithholdingLabel, taxWords('en').text.yieldsWithholdingLabel]);
     this.inputs.update(inputs => {
       const extra = [...inputs.extraWithholdingMinor];
       const labels = [...(inputs.extraWithholdingLabels ?? ['', '', '', ''])];
 
-      let slot = labels.indexOf(label);
+      let slot = labels.findIndex(one => ours.has(one));
       if (slot < 0) slot = extra.findIndex((value, at) => value === 0 && !labels[at]);
       if (slot >= 0 && totals.withheldMinor > 0) {
         extra[slot] = totals.withheldMinor;
@@ -572,7 +590,7 @@ export class TaxPage {
     this.busyLabel.set(this.text.excelWriting);
     await new Promise(resolve => setTimeout(resolve));
     try {
-      const saved = await saveFile(new Blob([taxWorkbook(this.inputs())], { type: XLSX_MIME }), name);
+      const saved = await saveFile(new Blob([taxWorkbook(this.inputs(), new Date(), this.i18n.language())], { type: XLSX_MIME }), name);
       if (saved) this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
     } catch (error) {
       this.excelNotice.set(error instanceof Error ? error.message : String(error));
@@ -621,6 +639,11 @@ export class TaxPage {
     return fill(this.text.standingReference, { year: sourced.fromYear });
   }
 
+  /** Where a parameter came from, in the language the screen is read in. */
+  sourceOf(sourced: Sourced): string {
+    return sourceIn(sourced, this.i18n.language());
+  }
+
   /** True when a figure from a later year is standing in for this one. */
   fromLater(sourced: Sourced): boolean {
     return borrowedFromLater(sourced, this.year());
@@ -644,15 +667,26 @@ export class TaxPage {
 
     const missing = names
       .filter(([sourced]) => borrowedFromLater(sourced, this.year()))
-      .map(([, name]) => String(name).toLocaleLowerCase('es'));
+      .map(([, name]) => this.inSentence(name));
 
     if (missing.length === 0) return '';
 
     const what = missing.length === 1
       ? missing[0]
-      : missing.slice(0, -1).join(', ') + ' y ' + missing[missing.length - 1];
+      : missing.slice(0, -1).join(', ') + ` ${this.text.and} ` + missing[missing.length - 1];
     return fill(this.text.laterWarning, { what });
   });
+  /**
+   * A name as it reads inside a sentence.
+   *
+   * Spanish lowercases it whole, as it always has. English lowercases only the
+   * first letter and leaves an acronym alone: "UVT" stays "UVT".
+   */
+  private inSentence(name: string): string {
+    if (this.i18n.language() === 'es') return name.toLocaleLowerCase('es');
+    return name === name.toUpperCase() ? name : name.charAt(0).toLowerCase() + name.slice(1);
+  }
+
   /** The same question about the whole year, for the warning above the list. */
   readonly anyFromLater = computed(() => {
     const p = this.parameters();

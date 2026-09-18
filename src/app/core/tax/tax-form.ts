@@ -2,15 +2,21 @@
  * Formulario 210, as a screen: every section, every box, in the order of the
  * spreadsheet it replaces.
  *
- * This is the one file of the tax module that holds words, and they are
- * Spanish only. The project's language rule says so outright - the Colombian
- * tax module is not translated - and for a good reason: these are the DIAN's
- * own terms, and an English "non-constitutive income" would be a phrase nobody
- * could find on the form.
+ * This is the Spanish of the tax module, and the source every other language
+ * is laid over: `tax-form.en.ts` holds the English, matched row by row, and
+ * `tax-words.ts` picks one. Spanish is what the DIAN's form speaks, so nothing
+ * here is ever reworded to suit a translation.
+ *
+ * In English the DIAN's own terms are not translated away. A row that lands in
+ * a box of the form keeps its Spanish label - the words printed beside that
+ * casilla - with an English `gloss` beside it: an English "non-constitutive
+ * income" on its own would be a phrase nobody could find on the form.
+ * Everything this app wrote in its own voice is simply English.
  *
  * The screen renders this and nothing else, so a line added to the form next
- * year is a line added here. Each row says whether the person types it or the
- * simulation works it out, and which box of the form it lands in.
+ * year is a line added here - and, the tests insist, in `tax-form.en.ts`.
+ * Each row says whether the person types it or the simulation works it out,
+ * and which box of the form it lands in.
  */
 
 import type { EmploymentKind, TaxInputs, TaxResult } from './types';
@@ -46,10 +52,17 @@ export type SpecialRow =
  */
 export type RowWhen = 'inflationary.worked' | 'inflationary.typed';
 
+/**
+ * `gloss` is only ever set by a translation: what the Spanish label of a box
+ * means, shown beside it in the reader's language. Spanish rows have none.
+ */
 export type FormRow =
-  | { kind: 'input'; key: InputKey; label: string; box?: string; hint?: string; format: FieldFormat; when?: RowWhen }
   | {
-      kind: 'computed'; key: ResultKey; label: string; box?: string; hint?: string;
+      kind: 'input'; key: InputKey; label: string; gloss?: string; box?: string; hint?: string;
+      format: FieldFormat; when?: RowWhen;
+    }
+  | {
+      kind: 'computed'; key: ResultKey; label: string; gloss?: string; box?: string; hint?: string;
       format: Exclude<FieldFormat, 'count'>; total?: boolean; when?: RowWhen;
     }
   | { kind: 'note'; text: string; when?: RowWhen }
@@ -64,6 +77,8 @@ export function rowApplies(when: RowWhen | undefined, typed: boolean): boolean {
 export interface FormSection {
   id: string;
   title: string;
+  /** What a section named after the DIAN's form means, set only by a translation. */
+  titleGloss?: string;
   subtitle?: string;
   /** Folded when the screen opens. Only for what is rarely touched. */
   collapsed?: boolean;
@@ -76,7 +91,9 @@ export const MONTH_NAMES = [
 ];
 
 /** What each kind of work means, said the way a person would ask it. */
-export const EMPLOYMENT_TEXT: Record<EmploymentKind, { title: string; detail: string }> = {
+export type EmploymentWords = Record<EmploymentKind, { title: string; detail: string }>;
+
+export const EMPLOYMENT_TEXT: EmploymentWords = {
   ordinary: {
     title: 'Salario ordinario',
     detail: 'Cotizas sobre todo tu salario. Tú pagas 4% de salud y 4% de pensión; tu empleador paga el resto.',
@@ -97,7 +114,7 @@ export const EMPLOYMENT_TEXT: Record<EmploymentKind, { title: string; detail: st
  * Shown in "Notas y supuestos" so it is plain that no figure or box here is a
  * guess: each came from a place anyone can open and check.
  */
-export const TAX_SOURCES: readonly { label: string; url: string }[] = [
+export const TAX_SOURCES: readonly TaxSource[] = [
   { label: 'DIAN - Formulario 210, año gravable 2025', url: 'https://www.dian.gov.co/atencionciudadano/formulariosinstructivos/Formularios/2025/Formulario_210_2025.pdf' },
   { label: 'Siempre al Día - Ingresos en el formulario 210: casillas y cédulas', url: 'https://siemprealdia.co/colombia/impuestos/ingresos-en-el-formulario-210/' },
   { label: 'Actualícese - Quiénes usan las casillas 43 a 57 del formulario 210', url: 'https://actualicese.com/que-personas-naturales-deberan-utilizar-las-casillas-43-a-57-del-formulario-210/' },
@@ -197,7 +214,16 @@ export const TAX_TEXT = {
   expandAll: 'Desplegar todas las secciones',
 
   disclaimer: 'Es una herramienta de apoyo personal. No reemplaza a un contador ni la declaración oficial ante la DIAN.',
+
+  /** Joins the last two names of a list: "la UVT y el salario mínimo". */
+  and: 'y',
 } as const;
+
+/** The module's own words in any language: the same keys as `TAX_TEXT`. */
+export type TaxText = Record<keyof typeof TAX_TEXT, string>;
+
+/** An external page a rule was looked up in. */
+export interface TaxSource { label: string; url: string }
 
 export const TAX_FORM: readonly FormSection[] = [
   {

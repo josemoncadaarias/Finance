@@ -7,9 +7,11 @@
  * whatever language they were entered in, because translating them would mean
  * inventing data that nobody wrote.
  *
- * The Colombian tax module (form 210, UVT, DIAN) will stay Spanish for the
- * same reason in reverse: its terms have no equivalent outside Colombia, so
- * translating them would produce words that name nothing.
+ * The Colombian tax module (form 210) keeps its words in `core/tax/`, not
+ * here: Spanish in `tax-form.ts`, English in `tax-form.en.ts`. It follows the
+ * app's language, but the DIAN's own terms stay Spanish with a gloss, because
+ * they have no equivalent outside Colombia and translating them away would
+ * produce words that name nothing on the real form.
  *
  * Keys are English, which is also what the rest of the repository is written
  * in. A missing key falls back to Spanish rather than showing the key itself:

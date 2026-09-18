@@ -89,7 +89,10 @@
         <button type="button" class="head" (click)="toggle(section.id)"
                 [attr.aria-expanded]="isOpen(section.id)">
           <span class="titles">
-            <span class="title">{{ section.title }}</span>
+            <span class="title">
+              {{ section.title }}
+              @if (section.titleGloss) { <span class="gloss">({{ section.titleGloss }})</span> }
+            </span>
             @if (section.subtitle) { <span class="subtitle">{{ section.subtitle }}</span> }
           </span>
           <ion-icon [name]="isOpen(section.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
@@ -106,6 +109,7 @@
                     <span class="what">
                       <span class="label">
                         {{ $any(row).label }}
+                        @if ($any(row).gloss) { <span class="gloss">({{ $any(row).gloss }})</span> }
                         @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
                       </span>
                       @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
@@ -129,6 +133,7 @@
                     <span class="what">
                       <span class="label">
                         {{ $any(row).label }}
+                        @if ($any(row).gloss) { <span class="gloss">({{ $any(row).gloss }})</span> }
                         @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
                       </span>
                       @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
@@ -166,7 +171,7 @@
                                   [class.later]="fromLater(ref.sourced)">{{ standingLabel(ref.sourced) }}</span>
                             <span class="body">
                               <span>{{ ref.label }}: <strong>{{ ref.shown }}</strong></span>
-                              <span class="source">{{ ref.sourced.source }}</span>
+                              <span class="source">{{ sourceOf(ref.sourced) }}</span>
                             </span>
                           </div>
                         }
@@ -180,7 +185,7 @@
                                 [class.later]="fromLater(parameters().inflationary)">{{ standingLabel(parameters().inflationary) }}</span>
                           <span class="body">
                             <span><strong>{{ percent(parameters().inflationary.value) }}</strong></span>
-                            <span class="source">{{ parameters().inflationary.source }}</span>
+                            <span class="source">{{ sourceOf(parameters().inflationary) }}</span>
                           </span>
                         </div>
                       </div>

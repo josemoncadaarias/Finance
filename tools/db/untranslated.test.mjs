@@ -25,17 +25,21 @@ const APP = join(HERE, '..', '..', 'src', 'app');
 /**
  * Files whose Spanish is data or domain, not the app talking.
  *
- * The translations file is where Spanish is supposed to live; the tax module's
- * form holds the DIAN's own terms, which the project rule says stay Spanish.
+ * The translations file is where Spanish is supposed to live. The tax module
+ * keeps its own: its Spanish, and an English that keeps the DIAN's terms.
  */
 const ALLOWED = [
   'core/i18n/translations.ts',
   'core/database/category-icons.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
-  // Formulario 210 as a screen: the DIAN's own terms, not translated by rule.
+  // Formulario 210's Spanish: the tax module's own translations file.
   'core/tax/tax-form.ts',
-  // The year's tax parameters, each cited to the Spanish norm that set it.
+  // Its English, which keeps the DIAN's terms in Spanish beside an English
+  // gloss by rule; tax-words.test.mjs checks it is complete.
+  'core/tax/tax-form.en.ts',
+  // The year's tax parameters, each cited to the Spanish norm that set it,
+  // with an English source beside each.
   'core/tax/defaults.ts',
   // A migration repair, carrying an account name verbatim from the Monefy backup.
   'core/database/migrations/repairs.ts',

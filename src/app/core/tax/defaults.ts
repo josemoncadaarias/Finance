@@ -31,7 +31,10 @@ export interface Sourced {
   standing: Standing;
   /** The year the figure belongs to, which differs from the one asked for when borrowed. */
   fromYear: number;
+  /** Where it came from, in Spanish; a norm is always named as it was published. */
   source: string;
+  /** The same in English, with the norm's own name left as it is. */
+  sourceEn: string;
 }
 
 /**
@@ -40,15 +43,15 @@ export interface Sourced {
  * 2026: Resolución DIAN 000238 del 15 de diciembre de 2025, $52.374 - the same
  * figure the withholding module uses.
  */
-const UVT: Readonly<Record<number, { minor: number; source: string }>> = {
-  2019: { minor: 3_427_000, source: 'UVT 2019 (Resolución DIAN de noviembre de 2018)' },
-  2020: { minor: 3_560_700, source: 'UVT 2020 (Resolución DIAN de octubre de 2019)' },
-  2021: { minor: 3_630_800, source: 'UVT 2021 (Resolución DIAN de diciembre de 2020)' },
-  2022: { minor: 3_800_400, source: 'UVT 2022 (Resolución DIAN de noviembre de 2021)' },
-  2023: { minor: 4_241_200, source: 'UVT 2023 (Resolución DIAN 001264 de 2022)' },
-  2024: { minor: 4_706_500, source: 'UVT 2024 (Resolución DIAN 000187 de 2023)' },
-  2025: { minor: 4_979_900, source: 'UVT 2025 (Resolución DIAN 000193 de 2024)' },
-  2026: { minor: 5_237_400, source: 'Resolución DIAN 000238 de 2025' },
+const UVT: Readonly<Record<number, { minor: number; source: string; sourceEn: string }>> = {
+  2019: { minor: 3_427_000, source: 'UVT 2019 (Resolución DIAN de noviembre de 2018)', sourceEn: 'UVT 2019 (DIAN resolution of November 2018)' },
+  2020: { minor: 3_560_700, source: 'UVT 2020 (Resolución DIAN de octubre de 2019)', sourceEn: 'UVT 2020 (DIAN resolution of October 2019)' },
+  2021: { minor: 3_630_800, source: 'UVT 2021 (Resolución DIAN de diciembre de 2020)', sourceEn: 'UVT 2021 (DIAN resolution of December 2020)' },
+  2022: { minor: 3_800_400, source: 'UVT 2022 (Resolución DIAN de noviembre de 2021)', sourceEn: 'UVT 2022 (DIAN resolution of November 2021)' },
+  2023: { minor: 4_241_200, source: 'UVT 2023 (Resolución DIAN 001264 de 2022)', sourceEn: 'UVT 2023 (Resolución DIAN 001264 de 2022)' },
+  2024: { minor: 4_706_500, source: 'UVT 2024 (Resolución DIAN 000187 de 2023)', sourceEn: 'UVT 2024 (Resolución DIAN 000187 de 2023)' },
+  2025: { minor: 4_979_900, source: 'UVT 2025 (Resolución DIAN 000193 de 2024)', sourceEn: 'UVT 2025 (Resolución DIAN 000193 de 2024)' },
+  2026: { minor: 5_237_400, source: 'Resolución DIAN 000238 de 2025', sourceEn: 'Resolución DIAN 000238 de 2025' },
 };
 
 /**
@@ -64,15 +67,15 @@ const UVT: Readonly<Record<number, { minor: number; source: string }>> = {
  * own decree number is not written here because it was not checked, and a
  * citation nobody verified is worse than none.
  */
-const MINIMUM_WAGE: Readonly<Record<number, { minor: number; source: string }>> = {
-  2019: { minor: 82_811_600, source: 'Salario mínimo 2019' },
-  2020: { minor: 87_780_300, source: 'Salario mínimo 2020' },
-  2021: { minor: 90_852_600, source: 'Salario mínimo 2021' },
-  2022: { minor: 100_000_000, source: 'Salario mínimo 2022' },
-  2023: { minor: 116_000_000, source: 'Salario mínimo 2023' },
-  2024: { minor: 130_000_000, source: 'Salario mínimo 2024' },
-  2025: { minor: 142_350_000, source: 'Salario mínimo 2025 (base del aumento de 2026)' },
-  2026: { minor: 175_090_500, source: 'Decreto 1469 de 2025' },
+const MINIMUM_WAGE: Readonly<Record<number, { minor: number; source: string; sourceEn: string }>> = {
+  2019: { minor: 82_811_600, source: 'Salario mínimo 2019', sourceEn: 'Minimum wage 2019' },
+  2020: { minor: 87_780_300, source: 'Salario mínimo 2020', sourceEn: 'Minimum wage 2020' },
+  2021: { minor: 90_852_600, source: 'Salario mínimo 2021', sourceEn: 'Minimum wage 2021' },
+  2022: { minor: 100_000_000, source: 'Salario mínimo 2022', sourceEn: 'Minimum wage 2022' },
+  2023: { minor: 116_000_000, source: 'Salario mínimo 2023', sourceEn: 'Minimum wage 2023' },
+  2024: { minor: 130_000_000, source: 'Salario mínimo 2024', sourceEn: 'Minimum wage 2024' },
+  2025: { minor: 142_350_000, source: 'Salario mínimo 2025 (base del aumento de 2026)', sourceEn: 'Minimum wage 2025 (base of the 2026 increase)' },
+  2026: { minor: 175_090_500, source: 'Decreto 1469 de 2025', sourceEn: 'Decreto 1469 de 2025' },
 };
 
 /**
@@ -83,8 +86,8 @@ const MINIMUM_WAGE: Readonly<Record<number, { minor: number; source: string }>> 
  * Financiera. 2025: 5,10% / 9,20% = 55,43%, Decreto 898 del 29 de julio de
  * 2026. It is published the year AFTER the tax year it applies to.
  */
-const INFLATIONARY_OFFICIAL: Readonly<Record<number, { scaled: number; source: string }>> = {
-  2025: { scaled: 554_300, source: 'Decreto 898 de 2026 (5,10% ÷ 9,20%)' },
+const INFLATIONARY_OFFICIAL: Readonly<Record<number, { scaled: number; source: string; sourceEn: string }>> = {
+  2025: { scaled: 554_300, source: 'Decreto 898 de 2026 (5,10% ÷ 9,20%)', sourceEn: 'Decreto 898 de 2026 (5,10% ÷ 9,20%)' },
 };
 
 /**
@@ -99,13 +102,14 @@ const INFLATIONARY_OFFICIAL: Readonly<Record<number, { scaled: number; source: s
  * will need a different rate on the bottom of the division.
  */
 const INFLATIONARY_ESTIMATE: Readonly<Record<number, {
-  inflationPct: number; ratePct: number; asOf: string; source: string;
+  inflationPct: number; ratePct: number; asOf: string; source: string; sourceEn: string;
 }>> = {
   2026: {
     inflationPct: 6.24,
     ratePct: 10.05,
     asOf: '2026-09-11',
     source: 'IPC 12 meses 6,24% (DANE, agosto 2026) ÷ DTF 10,05% (BanRep, 7 al 13 sep 2026)',
+    sourceEn: '12-month CPI (IPC) 6,24% (DANE, August 2026) ÷ DTF 10,05% (BanRep, 7 to 13 Sep 2026)',
   },
 };
 
@@ -129,6 +133,7 @@ export function uvtFor(year: number): Sourced {
     standing: fromYear === year ? 'official' : 'reference',
     fromYear,
     source: entry.source,
+    sourceEn: entry.sourceEn,
   };
 }
 
@@ -151,6 +156,7 @@ export function minimumWageFor(year: number): Sourced {
     standing: fromYear === year ? 'official' : 'reference',
     fromYear,
     source: entry.source,
+    sourceEn: entry.sourceEn,
   };
 }
 
@@ -170,7 +176,10 @@ export function minimumWageFor(year: number): Sourced {
 export function inflationaryFor(year: number, today: Date = new Date()): Sourced {
   const official = INFLATIONARY_OFFICIAL[year];
   if (official) {
-    return { value: official.scaled, standing: 'official', fromYear: year, source: official.source };
+    return {
+      value: official.scaled, standing: 'official', fromYear: year,
+      source: official.source, sourceEn: official.sourceEn,
+    };
   }
 
   const pastHalf = today.getFullYear() > year
@@ -182,6 +191,7 @@ export function inflationaryFor(year: number, today: Date = new Date()): Sourced
       standing: 'estimate',
       fromYear: year,
       source: estimate.source,
+      sourceEn: estimate.sourceEn,
     };
   }
 
@@ -191,6 +201,7 @@ export function inflationaryFor(year: number, today: Date = new Date()): Sourced
     standing: 'reference',
     fromYear: borrowed[0],
     source: borrowed[1].source,
+    sourceEn: borrowed[1].sourceEn,
   };
 }
 

@@ -19,8 +19,22 @@ Keep it up to date whenever we make new decisions.
   Its own words live in `src/app/core/i18n/translations.ts` under English keys;
   no user-facing string belongs in a template or a component. What is NOT
   translated: the user's data (account names, category names, notes on a
-  movement), the Monefy importer's pattern matching, and the Colombian tax
-  module. Decision by Jose, 2026-09-09.
+  movement) and the Monefy importer's pattern matching. Decision by Jose,
+  2026-09-09.
+- **The tax module is translated too, but the DIAN's terms are not.** Its
+  explanations, hints, titles and every word the app says in its own voice
+  follow the app's language, on the screen and in the exported spreadsheet.
+  The DIAN's official terms stay Spanish with a short gloss in the reader's
+  language, so they still match the real form:
+  "Ingresos brutos por rentas de capital (gross capital income) · Csl. 58".
+  Never translated: casilla, UVT, IBC, E.T., AFC/FVP/AVC, article numbers and
+  the names of norms. Spanish is `core/tax/tax-form.ts`, left exactly as it
+  was; English is `core/tax/tax-form.en.ts`, laid over it row by row by
+  `core/tax/tax-words.ts`; `tools/db/tax-words.test.mjs` fails on a row
+  without its English and on a box whose Spanish label was reworded. Only
+  words change with the language: the formulas and the engine do not.
+  Decision by Jose, 2026-09-18, replacing the 2026-09-09 rule that kept the
+  whole module in Spanish.
 
 ---
 
@@ -339,7 +353,8 @@ the framework on a long-running project.
    from the app (salary by a category the user picks, yields for the year) are
    labelled approximate: the ledger holds net salary and accrued yields, the
    return needs gross salary and what the bank certifies. The tax module's
-   words are Spanish only, in `core/tax/tax-form.ts`. The simulation
+   words follow the app's language, with the DIAN's terms kept in Spanish
+   (see the language rule at the top). The simulation
    exports to an .xlsx shaped like that spreadsheet (same palette, yellow for
    typed boxes, locked formula cells on a sheet protected without a password),
    written by `core/xlsx/xlsx-writer.ts` with no library; every calculated box
@@ -364,7 +379,7 @@ the framework on a long-running project.
 ## Current status
 
 The SQLite schema, the migration runner, the money helpers, the repository
-layer and the yields module are covered by 356 tests that run against a real
+layer and the yields module are covered by 364 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
