@@ -50,9 +50,19 @@ export class CustomIconsService {
   /**
    * Reads whatever is not in memory yet.
    *
-   * Icons are small and few, and they never change without the app knowing, so
-   * this only ever grows. Cheap to call on every screen load; it does nothing
-   * once the images are there.
+   * Called on nearly every screen, and by the app shell after every write to
+   * the database. It said it was cheap and it was not: it read every icon's
+   * image every time and only skipped turning the ones it already had into
+   * URLs. On Android a BLOB arrives as a JSON array with one number per byte,
+   * so each of those calls carried fifty-odd logos across the bridge as text -
+   * which is why screens took seconds on the phone and none in the browser.
+   *
+   * So the list of icons is read every time - ids and names, no images - and
+   * only the images of ids not yet in memory are read at all. Comparing ids is
+   * enough because an icon's bytes never change under its id: nothing updates
+   * `custom_icons`, and a new image is always a new row. Should that ever
+   * change, an edited image would be missed here and this must learn to
+   * compare something else.
    */
   async load(): Promise<void> {
     if (this.database.status() !== 'ready') return;
@@ -60,16 +70,15 @@ export class CustomIconsService {
     const repository = new CustomIconsRepository(this.database.driver);
     const known = this.urls();
 
-    // Every image in one call rather than one call each. Fifty icons were
-    // fifty crossings into the native side, each carrying an image.
-    const all = await repository.all();
+    // In id order, the order the icon picker has always shown them in.
+    const listed = (await repository.list()).sort((a, b) => a.id - b.id);
     this.read = true;
-    this.icons.set(all.map(({ data: _data, ...icon }) => icon));
+    this.icons.set(listed);
 
-    const missing = all.filter(icon => !known.has(icon.id));
+    const missing = listed.filter(icon => !known.has(icon.id)).map(icon => icon.id);
     if (missing.length > 0) {
       const urls = new Map(known);
-      for (const icon of missing) urls.set(icon.id, iconDataUrl(icon));
+      for (const icon of await repository.byIds(missing)) urls.set(icon.id, iconDataUrl(icon));
       this.urls.set(urls);
     }
     this.loading.set(false);
@@ -84,15 +93,5 @@ export class CustomIconsService {
   /** Whether an icon that exists simply has not been read yet. */
   stillReading(): boolean {
     return !this.read;
-  }
-
-  /** Drops an image that has been replaced, so the next load fetches it again. */
-  forget(id: number): void {
-    this.read = false;
-    this.urls.update(current => {
-      const next = new Map(current);
-      next.delete(id);
-      return next;
-    });
   }
 }

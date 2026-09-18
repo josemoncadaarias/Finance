@@ -774,6 +774,28 @@ test('a category wearing an image carries it into the movement list', async () =
   await db.close();
 });
 
+test('icon images are read only for the ids asked for', async () => {
+  const { db } = await setup();
+  const icons = new CustomIconsRepository(db, NOW);
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+
+  const a = await icons.create({ name: 'A', mime_type: 'image/png', data: png });
+  const b = await icons.create({ name: 'B', mime_type: 'image/png', data: png });
+  const c = await icons.create({ name: 'C', mime_type: 'image/png', data: png });
+
+  // The list says which icons exist and carries no image.
+  const listed = await icons.list();
+  assert.deepEqual(listed.map(icon => icon.id).sort(), [a, b, c].sort());
+  assert.ok(listed.every(icon => icon.data === undefined), 'no bytes in the list');
+
+  // Asking for two brings exactly those two, bytes and all.
+  const some = await icons.byIds([c, a]);
+  assert.deepEqual(some.map(icon => icon.id), [a, c]);
+  assert.deepEqual([...some[0].data], [...png]);
+
+  assert.deepEqual(await icons.byIds([]), [], 'nothing asked, nothing read');
+});
+
 test('a transfer carries the far account, icon included', async () => {
   // A transfer row used to draw a generic swap arrow, which says the one thing
   // the reader already knows: the amount is painted as moved and the label

@@ -58,6 +58,32 @@ export class CustomIconsRepository {
       'SELECT id, name, mime_type, data, created_at FROM custom_icons ORDER BY id');
   }
 
+  /**
+   * The images of these icons only.
+   *
+   * On Android a BLOB crosses into the page as a JSON array with one number
+   * per byte - a 50 kB logo is fifty thousand numbers of text - so the cost of
+   * an icon is paid every time its image is read, however cheap the query
+   * looks. This is how a caller that already holds most of them reads only
+   * the ones it lacks.
+   *
+   * In batches under the 999 values Android binds per statement, the way the
+   * rest of the repositories do it.
+   */
+  async byIds(ids: readonly number[]): Promise<CustomIconWithData[]> {
+    const PER_STATEMENT = 900;
+    const found: CustomIconWithData[] = [];
+    for (let at = 0; at < ids.length; at += PER_STATEMENT) {
+      const batch = ids.slice(at, at + PER_STATEMENT);
+      found.push(...await this.db.query<CustomIconWithData>(
+        `SELECT id, name, mime_type, data, created_at FROM custom_icons
+         WHERE id IN (${batch.map(() => '?').join(', ')}) ORDER BY id`,
+        batch,
+      ));
+    }
+    return found;
+  }
+
   async findById(id: number): Promise<CustomIconWithData | null> {
     return this.db.queryOne<CustomIconWithData>(
       'SELECT id, name, mime_type, data, created_at FROM custom_icons WHERE id = ?',
