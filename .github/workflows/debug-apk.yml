@@ -92,17 +92,53 @@ jobs:
               echo "which deletes the phone's data. Do not install it over the real app."
             } >> "$GITHUB_STEP_SUMMARY"
           else
-            mkdir -p "$HOME/.android"
-            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/debug.keystore"
+            echo "KEYSTORE=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
             echo "Signing with the debug keystore from the secret."
           fi
 
       # gradlew was committed from Windows, where there is no executable bit.
+      #
+      # The key is handed to Gradle by path. It used to be left in
+      # ~/.android/debug.keystore for Gradle to find, and Gradle looked
+      # somewhere else on the runner and made up a key of its own - every APK
+      # built here until 2026-09-18 carried a key created that same minute,
+      # and the phone refused each one as "a conflict with a package".
+      # The password and alias are the fixed ones every debug keystore has.
       - name: Build the debug APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          signing=()
+          if [ -n "${KEYSTORE:-}" ]; then
+            signing=(
+              -Pandroid.injected.signing.store.file="$KEYSTORE"
+              -Pandroid.injected.signing.store.password=android
+              -Pandroid.injected.signing.key.alias=androiddebugkey
+              -Pandroid.injected.signing.key.password=android
+            )
+          fi
+          ./gradlew assembleDebug --no-daemon --stacktrace "${signing[@]}"
+
+      # Checked, not assumed. The app on Jose's phone is signed with the debug
+      # key of the PC it was first built on; an APK with any other key cannot
+      # be installed over it, and uninstalling deletes every movement. So an
+      # APK built with the secret must carry exactly that key, or the run
+      # fails here and publishes nothing. The fingerprint is the certificate's
+      # SHA-1, which is also what the Google sign-in client is registered with.
+      - name: Check the APK carries the phone's key
+        if: env.KEYSTORE != ''
+        env:
+          EXPECTED_SHA1: '3E:94:DA:E8:3B:55:AE:94:FD:50:14:1D:94:18:91:1C:36:1E:CD:E5'
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          actual="$("$apksigner" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk \
+                    | sed -n 's/.*certificate SHA-1 digest: //p' | head -1 | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')"
+          echo "Signed with SHA-1 $actual"
+          if [ "$actual" != "$EXPECTED_SHA1" ]; then
+            echo "::error::The APK is signed with $actual, not the phone's key $EXPECTED_SHA1. Check the DEBUG_KEYSTORE_BASE64 secret."
+            exit 1
+          fi
 
       # Named the way the PC names them, plus the commit, so a download says
       # which code is inside it.
