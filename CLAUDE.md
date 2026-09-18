@@ -364,7 +364,7 @@ the framework on a long-running project.
 ## Current status
 
 The SQLite schema, the migration runner, the money helpers, the repository
-layer and the yields module are covered by 267 tests that run against a real
+layer and the yields module are covered by 356 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -396,13 +396,64 @@ exportar" saves one and restores one. The Android project lives in `android/`
 to mount and `initWebStore()` to succeed, and that only happens at runtime.
 Everything up to it — build, types, plugin API — is confirmed.
 
+**The yields screen works out only what changed** (2026-09-18). The accrual
+fingerprint is kept per account (`staleAccounts`), so a movement in an account
+that earns nothing works nothing out, and one in an earning account works out
+that account alone; a new day or a tax parameter still redoes all of them. The
+screen reads every account in one batch (`lastDaysOf`, `landedByPockets`,
+`heldByPockets`). On Jose's backup: 194 questions to open with nothing changed
+became 25. Not done, on purpose: accruing in the background on app start.
+`BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
+background write running while the user saves would pull that save into its
+transaction, and a rollback would lose it. That has to be fixed first.
+
+## Jose's two machines
+
+Jose works on this repository from two Windows PCs. Claude Code keeps its
+conversation history and memory per machine, so what is not written here or
+in the commits is not known on the other one.
+
+| | Corporate laptop | Personal PC |
+|---|---|---|
+| Used | Everything up to 2026-09-18 | From 2026-09-18 |
+| Node | 26.1.0, shared with client projects | 24 LTS |
+| JDK | Separate JDK 21 (`JAVA_HOME`) | Temurin 21 (`JAVA_HOME`) |
+| Android Studio / SDK | Installed | Not installed, deliberately |
+| Debug keystore | Yes: the key the phone's app is signed with | **No** |
+| APKs | Can build locally | **Only from GitHub Actions** |
+
+- On the corporate laptop, Node 26.1.0 is outside the range Angular declares
+  (^20.19 || ^22.12 || ^24) but works with a warning. DO NOT replace it: it
+  would break the client work environment. If the toolchain fails because of
+  the version, install fnm and isolate per project with `.node-version`.
+- Before working on either machine, `git pull`: the other one may have pushed.
+
+### Signing the APK
+
+The app on Jose's phone is signed with the corporate laptop's **debug**
+keystore, `%USERPROFILE%\.android\debug.keystore`, certificate SHA-1
+`3E:94:DA:E8:3B:55:AE:94:FD:50:14:1D:94:18:91:1C:36:1E:CD:E5`. Android refuses
+an update signed with any other key ("conflicto con un paquete"), and the only
+way past it is uninstalling, which deletes every movement on the phone. The
+Google sign-in client is registered against the same SHA-1.
+
+- GitHub Actions (`.github/workflows/debug-apk.yml`) signs with that keystore
+  from the `DEBUG_KEYSTORE_BASE64` secret, handed to Gradle by path, and FAILS
+  the run if the APK's SHA-1 is not the one above. Before 2026-09-18 it left
+  the file for Gradle to find, Gradle made up its own key instead, and no
+  GitHub APK could ever have updated the phone.
+- Never build an APK on the personal PC unless that same keystore has been
+  copied to `C:\Users\Admin\.android\debug.keystore`.
+- It is a debug key: fine for Jose's own phone, not for distribution. Handing
+  the app to other people means a release key, and changing keys means one
+  uninstall per phone (backup first, restore after), so it has to happen
+  before the app is shared, not after.
+
 ## Pending from Jose
 
-- Node 26.1.0 installed (shared with the client's Angular projects). It is
-  outside the range Angular declares (^20.19 || ^22.12 || ^24), but it works
-  with a warning. DO NOT replace it: it would break the work environment. If
-  the toolchain fails because of the version, install fnm and isolate per
-  project with `.node-version`.
+- [ ] Keep a copy of the corporate laptop's `debug.keystore` somewhere safe
+      (not in this repository). It exists in one file plus a GitHub secret
+      that cannot be read back; losing both means the uninstall above.
 
 - [x] `Plata` is COP only, ungrouped. New in the 2026-09-08 export.
 - [x] eToro, XTB and Plenti hold USD only. Balances on 2026-09-08:
