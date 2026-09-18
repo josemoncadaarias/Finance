@@ -103,21 +103,25 @@ export class AccrualEngine {
     this.tax = tax;
   }
 
-  /** Every enrolled account, up to the same day. */
-  async accrueAll(upTo: IsoDate, onProgress?: OnProgress): Promise<AccrualResult[]> {
+  /**
+   * Every enrolled account, up to the same day - or only the ones in `only`,
+   * which is how the yields screen works out just the accounts that changed.
+   */
+  async accrueAll(upTo: IsoDate, onProgress?: OnProgress, only?: readonly number[]): Promise<AccrualResult[]> {
     // Asked once for the whole pass rather than once per account. Cleared
     // first: a parameter confirmed since the last pass has to be seen.
     this.rules.clear();
     this.sharingRules = true;
     try {
-      return await this.accrueEach(upTo, onProgress);
+      return await this.accrueEach(upTo, onProgress, only);
     } finally {
       this.sharingRules = false;
     }
   }
 
-  private async accrueEach(upTo: IsoDate, onProgress?: OnProgress): Promise<AccrualResult[]> {
-    const accounts = await this.yields.accounts();
+  private async accrueEach(upTo: IsoDate, onProgress?: OnProgress, only?: readonly number[]): Promise<AccrualResult[]> {
+    const accounts = (await this.yields.accounts())
+      .filter(account => only === undefined || only.includes(account.account_id));
     const out: AccrualResult[] = [];
     for (const account of accounts) {
       out.push(await this.accrue(account.account_id, upTo));

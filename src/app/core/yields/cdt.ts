@@ -160,21 +160,23 @@ export async function accrueAndSettle(
   return result;
 }
 
-/** Every enrolled account, the same way. */
+/** Every enrolled account the same way, or only the accounts in `only`. */
 export async function accrueAllAndSettle(
   db: SqlDriver,
   yields: YieldsRepository,
   tax: TaxParametersRepository,
   today: IsoDate,
   onProgress?: OnProgress,
+  only?: readonly number[],
 ): Promise<AccrualResult[]> {
   // One transaction for the lot. Every write outside one is saved to the
   // browser store on its own - the whole database, six megabytes of it, a
   // hundred and fifty times over just to open the screen - and on the phone
   // each one is a crossing into the native side. This is one commit.
   return db.transaction(async () => {
-    const results = await new AccrualEngine(db, yields, tax).accrueAll(today, onProgress);
+    const results = await new AccrualEngine(db, yields, tax).accrueAll(today, onProgress, only);
     for (const account of await yields.accounts()) {
+      if (only !== undefined && !only.includes(account.account_id)) continue;
       await settleMaturedCdts(db, yields, tax, account.account_id, today);
     }
     return results;

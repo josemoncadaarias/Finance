@@ -655,11 +655,13 @@ export class CushionPage {
     try {
       const { db, yields, tax } = this.repos();
 
-      // Only when something it depends on has changed. Opening this screen
-      // worked five years of yields out again every time, which is what made
-      // it take seconds on the phone - for an answer already in the database.
-      if (await yields.needsAccrual(today())) {
-        await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress));
+      // Only when something it depends on has changed, and only for the
+      // accounts it changed in. Opening this screen worked five years of
+      // yields out again every time, and later every account again after any
+      // movement at all - a coffee on the credit card included.
+      const stale = await yields.staleAccounts(today());
+      if (stale.length > 0) {
+        await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress), stale);
         await yields.markAccrued(today());
       }
       await this.report('busy.reading');

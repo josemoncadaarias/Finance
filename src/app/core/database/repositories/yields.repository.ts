@@ -1278,10 +1278,40 @@ export class YieldsRepository {
    * reading it, means yes.
    */
   async needsAccrual(today: IsoDate): Promise<boolean> {
+    return (await this.staleAccounts(today)).length > 0;
+  }
+
+  /**
+   * The enrolled accounts whose yields are out of date on `today`.
+   *
+   * The state used to be one string for the whole database, so a coffee paid
+   * with the credit card - an account that earns nothing - made all thirteen
+   * accounts be worked out again the next time the yields screen opened. It is
+   * one string per account now, beside one for what every account shares: the
+   * day and the tax parameters. When the shared part moved, every account is
+   * stale; otherwise only the ones whose own string did.
+   *
+   * An account works out from its own rows only - its movements, products,
+   * balances, rates and cushion entries - so a change to one account can never
+   * make another one wrong. A transfer is two movements, one in each account,
+   * and marks both.
+   */
+  async staleAccounts(today: IsoDate): Promise<number[]> {
     const stored = await this.db.queryOne<{ value: string }>(
       'SELECT value FROM settings WHERE key = ?', [ACCRUAL_MARK]);
-    if (!stored) return true;
-    return stored.value !== await this.accrualMark(today);
+    const current = await this.accrualMarks(today);
+    const enrolled = Object.keys(current.accounts).map(Number);
+
+    // A mark written before marks were kept per account is a plain string,
+    // and says nothing about any one account.
+    let before: AccrualMarks | null = null;
+    try {
+      const parsed = stored ? JSON.parse(stored.value) : null;
+      if (parsed && typeof parsed.shared === 'string' && parsed.accounts) before = parsed;
+    } catch { /* an old mark: every account is worked out once */ }
+
+    if (!before || before.shared !== current.shared) return enrolled;
+    return enrolled.filter(id => before.accounts[id] !== current.accounts[id]);
   }
 
   /**
@@ -1303,34 +1333,69 @@ export class YieldsRepository {
     const now = this.now();
     await this.db.run(
       'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
-      [ACCRUAL_MARK, await this.accrualMark(today), now]);
+      [ACCRUAL_MARK, JSON.stringify(await this.accrualMarks(today)), now]);
   }
 
   /**
-   * One string standing for the state of everything an accrual reads.
+   * The state of everything an accrual reads, as one string per account and
+   * one for what they all share - asked in a single question.
    *
    * Counts as well as timestamps, because a deleted row leaves the latest
-   * timestamp exactly where it was. The day is in it too: tomorrow is a day
-   * more to work out even if nothing else moved.
+   * timestamp exactly where it was. The day is in the shared part: tomorrow
+   * is a day more to work out for every account even if nothing else moved.
+   *
+   * A rate is corrected in place and carries no time of change, so the rates
+   * are compared by what they say. So is the account's opening balance, which
+   * the walk starts from: the old single mark never looked at it, and only got
+   * away with that because any movement anywhere redid everything.
    */
-  private async accrualMark(today: IsoDate): Promise<string> {
-    const part = (table: string, stamp: string | null) =>
-      `(SELECT COUNT(*) || ':' || COALESCE(MAX(rowid), 0)${stamp ? ` || ':' || COALESCE(MAX(${stamp}), '')` : ''} FROM ${table})`;
+  private async accrualMarks(today: IsoDate): Promise<AccrualMarks> {
+    const enrolled = 'account_id IN (SELECT account_id FROM yield_accounts)';
+    const part = (tag: string, table: string, stamp: string) =>
+      `SELECT '${tag}' AS part, account_id,
+              COUNT(*) || ':' || COALESCE(MAX(rowid), 0) || ':' || COALESCE(MAX(${stamp}), '') AS sig
+       FROM ${table} WHERE ${enrolled} GROUP BY account_id`;
 
-    const row = await this.db.queryOne<{ mark: string }>(
-      `SELECT ${[
-        part('transactions', 'updated_at'),
-        part('yield_accounts', 'updated_at'),
-        part('yield_pockets', 'updated_at'),
-        part('yield_pocket_balances', 'updated_at'),
-        part('yield_rates', 'created_at'),
-        part('cushion_adjustments', 'updated_at'),
-        part('cushion_withdrawals', 'created_at'),
-        part('tax_parameters', 'updated_at'),
-        part('yield_days', 'computed_at'),
-      ].join(" || '|' || ")} AS mark`);
+    const rows = await this.db.query<{ part: string; account_id: number | null; sig: string | null }>(
+      [
+        `SELECT 'shared' AS part, NULL AS account_id,
+                (SELECT COUNT(*) || ':' || COALESCE(MAX(rowid), 0) || ':' || COALESCE(MAX(updated_at), '')
+                 FROM tax_parameters) AS sig`,
+        `SELECT 'enrolled' AS part, account_id,
+                enabled || ':' || opening_on || ':' || opening_cushion_minor || ':' || COALESCE(updated_at, '') AS sig
+         FROM yield_accounts`,
+        `SELECT 'account' AS part, id AS account_id,
+                opening_balance_minor || ':' || COALESCE(updated_at, '') AS sig
+         FROM accounts WHERE id IN (SELECT account_id FROM yield_accounts)`,
+        part('movements', 'transactions', 'updated_at'),
+        part('products', 'yield_pockets', 'updated_at'),
+        `SELECT 'balances' AS part, p.account_id,
+                COUNT(*) || ':' || COALESCE(MAX(b.rowid), 0) || ':' || COALESCE(MAX(b.updated_at), '') AS sig
+         FROM yield_pocket_balances b JOIN yield_pockets p ON p.id = b.pocket_id
+         WHERE p.${enrolled} GROUP BY p.account_id`,
+        `SELECT 'rates' AS part, account_id, group_concat(line, ';') AS sig FROM (
+           SELECT account_id, ${RATE_COLUMNS.split(',').map(column => `quote(${column.trim()})`).join(" || ',' || ")} AS line
+           FROM yield_rates WHERE ${enrolled} ORDER BY account_id, id)
+         GROUP BY account_id`,
+        part('entries', 'cushion_adjustments', 'updated_at'),
+        part('taken', 'cushion_withdrawals', 'created_at'),
+        part('days', 'yield_days', 'computed_at'),
+      ].join(' UNION ALL '));
 
-    return `${today}|${row?.mark ?? ''}`;
+    // Put together in a fixed order, so the string never depends on the order
+    // the database happened to hand the rows back in.
+    const marks: AccrualMarks = { shared: today, accounts: {} };
+    const parts = new Map<number, string[]>();
+    for (const row of rows) {
+      if (row.part === 'shared') marks.shared = `${today}|${row.sig ?? ''}`;
+      else if (row.account_id !== null) {
+        parts.set(row.account_id, [...(parts.get(row.account_id) ?? []), `${row.part}=${row.sig ?? ''}`]);
+      }
+    }
+    for (const [accountId, sigs] of parts) {
+      if (sigs.some(sig => sig.startsWith('enrolled='))) marks.accounts[accountId] = sigs.sort().join('|');
+    }
+    return marks;
   }
 
   async cushion(accountId: number, asOf?: IsoDate): Promise<CushionBalance> {
@@ -1590,6 +1655,12 @@ export class YieldsRepository {
 
 /** Where the fingerprint of the last accrual is kept. */
 const ACCRUAL_MARK = 'yields.accrual.mark';
+
+/** The fingerprint itself: what every account shares, and each account's own. */
+interface AccrualMarks {
+  shared: string;
+  accounts: Record<number, string>;
+}
 
 /** An account with no cushion at all: nothing earned, nothing owed. */
 function emptyCushion(accountId: number): CushionBalance {
