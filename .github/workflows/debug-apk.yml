@@ -1,0 +1,130 @@
+# Builds the debug APK on GitHub, on every push to main, and keeps it as a
+# download on the run's page.
+#
+# The local build - `npm run android` and then `gradlew assembleDebug` - still
+# works exactly as before. This is the same build done somewhere else, so an
+# APK can be had without the Android SDK, a JDK or this PC at hand.
+#
+# The one thing that must match the local build is the KEY it is signed with.
+# Android refuses to install an update signed with a different key than the
+# app already on the phone, and the only way past that refusal is to uninstall
+# - which deletes every movement on the phone. Google sign-in cares too: the
+# Android OAuth client is registered against one SHA-1, and an APK signed with
+# another key cannot sign in. So the runner is handed Jose's own debug keystore
+# from a secret instead of letting Gradle make up a fresh one.
+
+name: Debug APK
+
+on:
+  push:
+    branches: [main]
+    # Pages that change nothing inside the app are not worth ten minutes.
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**.md'
+  # And a button on the Actions tab, for a build on demand.
+  workflow_dispatch:
+
+# Pushes often come in bursts. A newer push makes the build still running for
+# the older one pointless, so it is cancelled rather than finished.
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24, not the 26 on Jose's PC: Angular 22 declares ^20.19, ^22.12
+      # and ^24, and a machine that exists only to build should be inside the
+      # range rather than on the edge of it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # JDK 21: Capacitor 8 compiles its own module and this app for Java 21
+      # (android/app/capacitor.build.gradle), and AGP 8.13 on Gradle 8.14.3 runs
+      # on it. Android Studio ships 25, which is too new for that Gradle - the
+      # same reason the PC points JAVA_HOME at a separate JDK 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No APK from code whose tests fail. These run against a real SQLite
+      # engine and are what guards the migrations, which reach real data.
+      - name: Database tests
+        run: node tools/db/run-tests.mjs
+
+      # The web app, built and copied into the Android project with its
+      # plugins: exactly what `npm run android` does on the PC.
+      - name: Build the web app and copy it into Android
+        run: npm run android
+
+      - name: Sign with the same debug key as the local builds
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            {
+              echo "::warning::DEBUG_KEYSTORE_BASE64 is not set. This APK is signed with a"
+              echo "::warning::key made up on the runner: it will NOT install over the app on"
+              echo "::warning::the phone, and Google sign-in will not work in it."
+            } >&2
+            {
+              echo "### ⚠️ Signed with a throwaway key"
+              echo
+              echo "The secret \`DEBUG_KEYSTORE_BASE64\` is missing, so this APK cannot update"
+              echo "the app already installed - installing it would mean uninstalling first,"
+              echo "which deletes the phone's data. Do not install it over the real app."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            mkdir -p "$HOME/.android"
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+            echo "Signing with the debug keystore from the secret."
+          fi
+
+      # gradlew was committed from Windows, where there is no executable bit.
+      - name: Build the debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      # Named the way the PC names them, plus the commit, so a download says
+      # which code is inside it.
+      - name: Name the APK
+        id: name
+        run: |
+          stamp="$(TZ=America/Bogota date +%Y-%m-%d-%H%M)"
+          short="$(git rev-parse --short HEAD)"
+          name="finance-${stamp}-${short}.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 📱 $name"
+            echo
+            echo "Download it from **Artifacts** at the bottom of this page."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.name.outputs.file }}
+          path: ${{ steps.name.outputs.file }}
+          # Two weeks is enough to install the latest one, and old ones count
+          # against the repository's storage.
+          retention-days: 14
+          if-no-files-found: error
