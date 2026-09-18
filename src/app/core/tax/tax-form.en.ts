@@ -501,7 +501,7 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
       'note.4': { text: 'Check the UVT and the caps every year: the law can change them.' },
       'note.5': { text: 'Financial yields go in rentas de capital (casilla 58). Their inflationary component is ingreso no constitutivo de renta, income that is not taxable (casilla 59), and the net capital income lands in casilla 61.' },
       'note.6': { text: 'Cashback is added to rentas de capital with no inflationary component. We found no DIAN ruling on cashback: it is an assumption to confirm with an accountant.' },
-      'note.7': { text: 'Casillas 43 to 57 are for fees of self-employed people who subtract costs and expenses instead of the 25% exempt income. This simulator does not have that section yet: here a self-employed person goes in rentas de trabajo (casilla 32).' },
+      'note.7': { text: 'Casillas 43 to 57 are for fees (honorarios) of self-employed people who subtract costs and expenses instead of the 25% exempt income. This simulator covers casillas 43 to 46 in section 2; the rest of that column (casillas 47 to 57) not yet. If you do not subtract costs, your fees go in rentas de trabajo (casilla 32), as self-employed.' },
       'note.8': { text: 'None of this has been confirmed with an accountant yet.' },
     },
   },

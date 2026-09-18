@@ -545,7 +545,7 @@ export const TAX_FORM: readonly FormSection[] = [
       { kind: 'note', text: 'Revisa cada año la UVT y los topes: la ley puede cambiarlos.' },
       { kind: 'note', text: 'Los rendimientos financieros van en rentas de capital (casilla 58). Su componente inflacionario es ingreso no constitutivo de renta (casilla 59) y la renta líquida de capital queda en la casilla 61.' },
       { kind: 'note', text: 'El cashback se suma a rentas de capital sin componente inflacionario. No encontramos un concepto de la DIAN sobre el cashback: es un supuesto que hay que confirmar con un contador.' },
-      { kind: 'note', text: 'Las casillas 43 a 57 son para honorarios de independientes que restan costos y gastos en lugar de la renta exenta del 25%. Este simulador aún no tiene esa sección: aquí un independiente va en rentas de trabajo (casilla 32).' },
+      { kind: 'note', text: 'Las casillas 43 a 57 son para honorarios de independientes que restan costos y gastos en lugar de la renta exenta del 25%. Este simulador cubre las casillas 43 a 46 en la sección 2; el resto de esa columna (casillas 47 a 57) aún no. Si no restas costos, tus honorarios van en rentas de trabajo (casilla 32), como independiente.' },
       { kind: 'note', text: 'Nada de esto está confirmado con un contador todavía.' },
       { kind: 'special', which: 'sources' },
     ],
