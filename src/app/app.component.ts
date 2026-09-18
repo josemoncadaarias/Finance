@@ -74,7 +74,8 @@ export class AppComponent {
     { path: '/account', label: 'nav.account', hint: 'nav.account.hint', icon: 'person-circle-outline' },
   ];
 
-  private readonly google = inject(GoogleAccountService);
+  /** Public so the drawer can show who is signed in. */
+  readonly google = inject(GoogleAccountService);
   /**
    * Injected here and nowhere used: starting it is the point.
    *
@@ -100,8 +101,16 @@ export class AppComponent {
     });
   }
 
+  /**
+   * Whether this is the screen on show.
+   *
+   * By whole path segment, not by prefix. "/accounts" begins with "/account",
+   * so a prefix test lit both "Cuentas" and "Cuenta" whenever the accounts
+   * screen was open - two sections apparently current at once.
+   */
   isCurrent(path: string): boolean {
-    return this.router.url.startsWith(path);
+    const url = this.router.url.split(/[?#]/)[0];
+    return url === path || url.startsWith(path + '/');
   }
 
   close(): void {

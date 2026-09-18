@@ -20,11 +20,27 @@
         @for (item of sections; track item.path) {
           <ion-item button [routerLink]="item.path" routerDirection="root"
                     [class.on]="isCurrent(item.path)" (click)="close()">
-            <ion-icon slot="start" [name]="item.icon"></ion-icon>
-            <ion-label>
-              <h3>{{ $any(item.label) | t }}</h3>
-              <p>{{ $any(item.hint) | t }}</p>
-            </ion-label>
+            <!-- Signed in, the account entry shows whose account it is: the
+                 photo where the generic person was, the name where the word
+                 "Cuenta" was. It is how anyone opening the drawer can tell at
+                 a glance that the app is connected, and to which account. -->
+            @if (item.path === '/account' && google.user(); as user) {
+              @if (user.photoUrl) {
+                <img slot="start" class="face" [src]="user.photoUrl" alt="">
+              } @else {
+                <span slot="start" class="face letter">{{ (user.name || user.email || '?').charAt(0) }}</span>
+              }
+              <ion-label>
+                <h3>{{ user.name || user.email }}</h3>
+                <p>{{ 'nav.account.signedIn' | t }}</p>
+              </ion-label>
+            } @else {
+              <ion-icon slot="start" [name]="item.icon"></ion-icon>
+              <ion-label>
+                <h3>{{ $any(item.label) | t }}</h3>
+                <p>{{ $any(item.hint) | t }}</p>
+              </ion-label>
+            }
           </ion-item>
         }
       </ion-list>

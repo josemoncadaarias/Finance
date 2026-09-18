@@ -48,3 +48,29 @@
 ion-menu ion-content {
   --padding-bottom: calc(1.5rem + var(--ion-safe-area-bottom, 0px));
 }
+
+/*
+ * The signed-in account's face, in the place the generic icon had.
+ *
+ * The same width as the icons it replaces, so the names of every section
+ * still start on one line.
+ */
+.nav ion-item .face {
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-inline-end: 1.1rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.nav ion-item .face.letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
+  color: var(--ion-color-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}

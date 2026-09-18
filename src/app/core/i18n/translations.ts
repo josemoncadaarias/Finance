@@ -32,7 +32,6 @@ export const SPANISH = {
   'nav.summary.hint': 'Gastos, ingresos y saldo',
   'nav.accounts': 'Cuentas',
   'nav.accounts.hint': 'Saldos y patrimonio',
-  'nav.import': 'Importar',
   'nav.language': 'Idioma',
   'nav.theme': 'Apariencia',
   'theme.system': 'Automático',
@@ -214,18 +213,8 @@ export const SPANISH = {
   'accounts.hideArchived': 'Ocultar {count} cuentas archivadas',
   'accounts.empty.title': 'Todavía no hay cuentas',
   'accounts.empty.body':
-    'Importa tu backup de Monefy desde el menú y aparecerán aquí con sus saldos.',
-
-  // --- import -----------------------------------------------------------
-  'import.intro.body':
-    'Exporta el CSV desde Monefy y escógelo aquí. Puedes hacerlo cuantas veces ' +
-    'quieras: lo que ya está guardado se reconoce y se salta, y lo que hayas ' +
-    'corregido a mano no se toca.',
-  'import.reviews.body':
-    'Nada de esto se escribió a la brava: son las cosas que el importador no ' +
-    'pudo resolver solo.',
-
-  // --- what the importer flags for review -------------------------------
+    'Crea tu primera cuenta con el botón de abajo. Si ya tienes datos guardados, ' +
+    'tráelos desde "Importar y exportar" o desde tu cuenta de Google en "Cuenta".',
 
   // --- editing an account -----------------------------------------------
   'accounts.new': 'Nueva cuenta',
@@ -260,7 +249,7 @@ export const SPANISH = {
   'accounts.delete.withMovements': 'Se borran también sus {count} movimientos, y no se pueden recuperar.',
   'accounts.delete.withMovements.one': 'Se borra también su movimiento, y no se puede recuperar.',
   'accounts.delete.confirm': '¿Eliminar {account}?',
-  'accounts.delete.confirmBody': 'Esto no se puede deshacer. Si la cuenta llegó de una importación, la próxima no la vuelve a crear.',
+  'accounts.delete.confirmBody': 'Esto no se puede deshacer.',
   'accounts.archive.hint': 'Se esconde de las listas, pero su historial se conserva',
   'accounts.creditLimit': 'Cupo total',
   'accounts.limitFrom': 'Vigente desde',
@@ -319,51 +308,11 @@ export const SPANISH = {
   'icons.moving': 'Transporte',
   'icons.living': 'Vida',
 
-  // --- reviewing what the importer assumed -------------------------------
-  'nav.review': 'Revisar',
-  'review.intro.body':
-    'Cada vez que el importador no pudo estar seguro, lo anotó en vez de ' +
-    'decidirlo en silencio. Confirma o corrige: lo que corrijas queda protegido ' +
-    'y no se pisa al volver a importar.',
 
-  // What each kind means, and what to do about it. The reason on each row is
-  // the importer's own technical note; this is the plain-language version.
-  'review.help.foreign_new_movement':
-    'Monefy solo guardaba pesos, así que el monto en dólares o euros de un ' +
-    'movimiento nuevo es una lectura o una estimación. Corrígelo aquí y queda ' +
-    'protegido: al volver a importar no se toca. Lo que ya habías corregido antes ' +
-    'tampoco se pisa.',
-  'review.help.estimated_amount':
-    'Monefy solo guardaba pesos. Cuando la descripción no decía el monto en ' +
-    'dólares, el importador lo estimó con la tasa más cercana que sí conocía. ' +
-    'Si sabes el valor real, corrígelo; si no, déjalo y ajusta el saldo de la cuenta.',
-  'review.help.assumed_account':
-    'El backup no dice en qué moneda está cada cuenta. El importador la dedujo ' +
-    'por los movimientos. Confirma que sea la correcta.',
-  'review.help.deleted_account':
-    'Estas cuentas ya no existían en Monefy, pero tenían movimientos. Se ' +
-    'recrearon para no perder el historial. Si ya no las usas, archívalas.',
-  'review.help.reconstructed_transfer':
-    'Monefy guardó solo un lado de estas transferencias. El importador armó el ' +
-    'otro para que la plata no aparezca de la nada. Revisa que la otra cuenta sea la correcta.',
-  'review.help.credit_limit_change':
-    'Aumentos de cupo que Monefy registró como si fuera plata que entró. Se ' +
-    'sacaron del saldo y hoy viven en el historial de cupos de la tarjeta.',
-  'review.help.multi_currency_split':
-    'Cuentas que manejan más de una moneda, separadas en una fila por moneda ' +
-    'para que los saldos no se sumen entre sí.',
-  'review.help.ambiguous_category':
-    'Categorías usadas como gasto y como ingreso. Quedaron como gasto; si alguna ' +
-    'debería ser de ingresos, cámbiala.',
-  'review.help.credit_limit_mismatch':
-    'El cupo configurado no coincide con lo que dice el archivo. Uno de los dos ' +
-    'está desactualizado.',
-  'review.help.near_date_transfer':
-    'Transferencias emparejadas aunque las dos patas tienen fechas distintas. ' +
-    'Revisa que de verdad sean el mismo movimiento.',
 
   'nav.account': 'Cuenta',
   'nav.account.hint': 'Entra con Google y guarda una copia',
+  'nav.account.signedIn': 'Conectada · tu copia se guarda en Drive',
 
   'cloud.title': 'Guarda una copia en tu Google Drive',
   'cloud.lead': 'Opcional. La app funciona igual sin conectarte: tus datos viven en este celular.',
@@ -751,7 +700,6 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'nav.summary.hint': 'Spending, income and balance',
   'nav.accounts': 'Accounts',
   'nav.accounts.hint': 'Balances and net worth',
-  'nav.import': 'Import',
   'nav.language': 'Language',
   'nav.theme': 'Appearance',
   'theme.system': 'Automatic',
@@ -929,15 +877,9 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.hideArchived': 'Hide {count} archived accounts',
   'accounts.empty.title': 'No accounts yet',
   'accounts.empty.body':
-    'Import your Monefy backup from the menu and they will show up here with their balances.',
+    'Create your first account with the button below. If you already have data saved, ' +
+    'bring it back from "Import and export", or from your Google account under "Account".',
 
-  'import.intro.body':
-    'Export the CSV from Monefy and choose it here. Do it as often as you like: ' +
-    'what is already stored is recognised and skipped, and anything you corrected ' +
-    'by hand is left alone.',
-  'import.reviews.body':
-    'None of this was written blind: these are the things the importer could not ' +
-    'settle on its own.',
 
 
   'accounts.new': 'New account',
@@ -972,7 +914,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.delete.withMovements': 'Its {count} movements go with it, and cannot be brought back.',
   'accounts.delete.withMovements.one': 'Its movement goes with it, and cannot be brought back.',
   'accounts.delete.confirm': 'Delete {account}?',
-  'accounts.delete.confirmBody': 'This cannot be undone. If the account came from an import, the next one will not create it again.',
+  'accounts.delete.confirmBody': 'This cannot be undone.',
   'accounts.archive.hint': 'Hidden from the lists, but its history is kept',
   'accounts.creditLimit': 'Credit limit',
   'accounts.limitFrom': 'In force from',
@@ -1029,46 +971,11 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'icons.moving': 'Getting around',
   'icons.living': 'Living',
 
-  'nav.review': 'Review',
-  'review.intro.body':
-    'Every time the importer could not be sure, it wrote it down instead of ' +
-    'deciding quietly. Confirm or correct: what you correct is protected and ' +
-    'a later import will not overwrite it.',
 
-  'review.help.foreign_new_movement':
-    'Monefy only stored pesos, so the dollar or euro amount of a new movement is ' +
-    'a reading or an estimate. Correct it here and it is protected: a later ' +
-    'import will not touch it, and neither will it touch what you corrected before.',
-  'review.help.estimated_amount':
-    'Monefy only stored pesos. Where the description did not say the dollar ' +
-    'amount, the importer estimated it from the nearest rate it did know. If you ' +
-    'know the real figure, correct it; if not, leave it and adjust the balance.',
-  'review.help.assumed_account':
-    'The backup does not say which currency an account is in. The importer ' +
-    'inferred it from the movements. Confirm it is right.',
-  'review.help.deleted_account':
-    'These accounts no longer existed in Monefy but still had movements. They ' +
-    'were recreated so the history is not lost. Archive them if you are done with them.',
-  'review.help.reconstructed_transfer':
-    'Monefy stored only one side of these transfers. The importer built the other ' +
-    'so money does not appear from nowhere. Check the other account is right.',
-  'review.help.credit_limit_change':
-    'Limit increases Monefy recorded as money arriving. They were taken out of the ' +
-    'balance and now live in the card\'s limit history.',
-  'review.help.multi_currency_split':
-    'Accounts holding more than one currency, split into a row per currency so ' +
-    'balances are never added across them.',
-  'review.help.ambiguous_category':
-    'Categories used both as spending and as income. They were kept as spending; ' +
-    'change any that should be income.',
-  'review.help.credit_limit_mismatch':
-    'The configured limit disagrees with the file. One of the two is out of date.',
-  'review.help.near_date_transfer':
-    'Transfers paired even though the two legs carry different dates. Check they ' +
-    'really are the same movement.',
 
   'nav.account': 'Account',
   'nav.account.hint': 'Sign in with Google and keep a copy',
+  'nav.account.signedIn': 'Connected · your copy is kept in Drive',
 
   'cloud.title': 'Keep a copy in your Google Drive',
   'cloud.lead': 'Optional. The app works the same signed out: your data live on this phone.',
