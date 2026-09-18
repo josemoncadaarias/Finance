@@ -96,6 +96,18 @@ the framework on a long-running project.
    changes. The official TRM (Superfinanciera, public API on datos.gov.co) is
    the anchor; the bank rate is derived or typed in.
 
+   **A foreign movement saved with no rate is valued by the app at the
+   official rate of its own day** (`core/rates/`), never left as its own
+   amount. The repository used to copy the amount into the peso figure when
+   no rate was given - right for a peso account, and 30 dollars stored as 30
+   pesos for any other: 60 of Jose's 283 foreign movements, found on
+   2026-09-18 as a sliver in the donut. USD takes the TRM; EUR, which has no
+   official peso rate, takes the ECB's euro-dollar times the TRM - official on
+   both sides, derived in between. Such a movement records `rate_source`
+   `trm` or `derived` and `confidence` `low`: the official reference, not
+   what the bank charged. No rate to be had (offline) leaves it pending, and
+   the next pass values it; it is never guessed at.
+
 4. **Credit cards as liabilities.** The balance represents the debt (negative
    or zero). The credit limit is a separate attribute. Available credit is
    computed: credit limit − debt. They do not count as an asset for net worth,

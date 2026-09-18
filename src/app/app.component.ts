@@ -19,6 +19,7 @@ import { ThemeService } from './core/theme/theme.service';
 import { DatabaseService } from './core/database/database.service';
 import { GoogleAccountService } from './core/cloud/google-account.service';
 import { CloudBackupService } from './core/cloud/cloud-backup.service';
+import { ForeignConversionService } from './core/rates/foreign-conversion.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
 
 interface Section {
@@ -85,6 +86,9 @@ export class AppComponent {
    * draw - and stop existing on a screen that has no toolbar.
    */
   private readonly cloud = inject(CloudBackupService);
+
+  /** Values foreign movements in pesos at their own day's rate. Same reason. */
+  private readonly foreign = inject(ForeignConversionService);
 
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.
