@@ -338,7 +338,11 @@ the framework on a long-running project.
    be subtracted, which an employee has none of. Casilla 44 is "ingresos no
    constitutivos de renta", NOT devoluciones: on the form the devoluciones row
    carries only casilla 75. Casilla 62 is rentas líquidas pasivas de una ECE
-   (arts. 882-893 E.T.) and joins the capital column.
+   (arts. 882-893 E.T.) and joins the capital column. Of the second column
+   the simulator works out casillas 43 to 46 (section 2: income, non-taxable
+   income, costs and the net, which joins casilla 91); casillas 47 to 57 are
+   not modelled yet, and the form's notes say so (corrected 2026-09-18 - the
+   note used to claim the whole section was missing).
 
    - **Yields and cashback are rentas de capital (casilla 58), not ganancias
      ocasionales.** The componente inflacionario of the financial yields is
@@ -360,7 +364,10 @@ the framework on a long-running project.
    written by `core/xlsx/xlsx-writer.ts` with no library; every calculated box
    is a live formula built from the engine's own constants, and the tests
    evaluate each one against `simulate` for several inputs. Decision by Jose,
-   2026-09-11.
+   2026-09-11. It is written in the app's language: `simulador-renta-{year}.xlsx`
+   in Spanish, `income-tax-simulator-{year}.xlsx` in English, with the same
+   cells and formulas in both, which the tests compare cell by cell
+   (2026-09-18).
 
 ### Real limits that must not be promised away
 
