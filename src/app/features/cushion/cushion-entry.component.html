@@ -61,10 +61,13 @@
 
         <!-- Down the screen, with the arrow pointing the way the money goes -
              the movement form's layout, for the same reason. -->
-        <button type="button" class="swap" (click)="swap()" [attr.aria-label]="'entry.swap' | t">
-          <ion-icon name="arrow-down-outline"></ion-icon>
-          <ion-icon class="turn" name="swap-vertical-outline"></ion-icon>
-        </button>
+        <div class="between">
+          <ion-icon class="way" name="arrow-down-outline"></ion-icon>
+          <button type="button" class="swap" (click)="swap()">
+            <ion-icon name="swap-vertical-outline"></ion-icon>
+            <span>{{ 'entry.swap' | t }}</span>
+          </button>
+        </div>
 
         <div class="leg" [class.needed]="toPocketId() === null || toPocketId() === pocketId()">
           <button type="button" class="face" (click)="pickingPocket.set('to')">

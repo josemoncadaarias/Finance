@@ -802,19 +802,36 @@ ion-footer[hidden] { display: none; }
   grid-template-columns: 1fr;
   gap: 0.35rem;
 
-  .swap {
-    position: relative;
-    justify-self: center;
-    width: 2.6rem;
-    height: 1.9rem;
+  /* The arrow sits in the middle, where the money travels; the button to turn
+     it around sits to its right, so the arrow stays centred between the two. */
+  .between {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: 1.9rem;
 
-    /* The arrow says which way; the swap icon underneath it is the offer to
-       turn it around, and only shows on the press. */
-    .turn { display: none; }
-    &:active {
-      ion-icon:not(.turn) { display: none; }
-      .turn { display: block; color: var(--ion-color-primary); }
+    .way {
+      grid-column: 2;
+      font-size: 1.2rem;
+      color: var(--ion-color-medium);
     }
+  }
+
+  .swap {
+    grid-column: 3;
+    justify-self: start;
+    width: auto;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.78rem;
+
+    ion-icon { font-size: 1rem; }
+    &:active { background: var(--ion-color-light-shade); }
   }
 }
 

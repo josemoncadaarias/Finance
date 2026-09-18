@@ -108,11 +108,16 @@
 
       <!-- Down the screen rather than across it: two accounts side by side
            left each name a third of the width, and the money plainly travels
-           from the one above to the one below. -->
-      <button type="button" class="swap" (click)="swapAccounts()" [attr.aria-label]="'entry.swap' | t">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-        <ion-icon class="turn" name="swap-vertical-outline"></ion-icon>
-      </button>
+           from the one above to the one below. The arrow only says which
+           way; turning it around is the button beside it, in plain sight -
+           the arrow itself used to be that button, and nobody could tell. -->
+      <div class="between">
+        <ion-icon class="way" name="arrow-down-outline"></ion-icon>
+        <button type="button" class="swap" (click)="swapAccounts()">
+          <ion-icon name="swap-vertical-outline"></ion-icon>
+          <span>{{ 'entry.swap' | t }}</span>
+        </button>
+      </div>
 
       <div class="leg" [class.needed]="toAccountId() === null">
         <button type="button" class="face" (click)="openAccountSheet('to')">

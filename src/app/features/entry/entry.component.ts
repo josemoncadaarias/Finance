@@ -1039,11 +1039,16 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (this.database.status() !== 'ready') return;
     const yields = new YieldsRepository(this.database.driver);
 
-    const read = async (accountId: number | null, storedId: number | null) => {
+    // The product already on screen wins when it still belongs to the account.
+    // Resetting both sides to the default on every account pick was what made
+    // the far side move by itself: choosing Plata again for "from" put "from"
+    // back on its first product and pushed "to" off it.
+    const read = async (accountId: number | null, currentId: number | null, storedId: number | null) => {
       if (accountId === null) return { pockets: [] as YieldPocket[], chosen: null };
       const pockets = await yields.pockets(accountId);
-      const known = pockets.some(pocket => pocket.id === storedId);
-      return { pockets, chosen: known ? storedId : defaultPocket(pockets) };
+      const known = (id: number | null) => id !== null && pockets.some(pocket => pocket.id === id);
+      const chosen = known(currentId) ? currentId : known(storedId) ? storedId : defaultPocket(pockets);
+      return { pockets, chosen };
     };
 
     const editing = this.request().editing;
@@ -1056,7 +1061,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const nearStored = this.editingTransferId() !== null
       ? this.nearLegPocketId
       : storedFor(this.accountId());
-    const here = await read(this.accountId(), nearStored);
+    const here = await read(this.accountId(), this.pocketId(), nearStored);
     this.pockets.set(here.pockets);
     this.pocketId.set(here.chosen);
 
@@ -1064,7 +1069,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // and they are asked for separately because they are separate questions -
     // the far account's savings pocket is not this one's.
     const far = this.isTransfer()
-      ? await read(this.toAccountId(), this.farLegPocket())
+      ? await read(this.toAccountId(), this.toPocketId(), this.farLegPocket())
       : { pockets: [] as YieldPocket[], chosen: null };
     // Both sides on one account: the far side starts on a different product,
     // because money does not move from a product to itself.
@@ -1102,8 +1107,22 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** Answers the second step and closes the sheet. */
   choosePocket(id: number): void {
-    if (this.picking() === 'to') this.toPocketId.set(id);
+    const toSide = this.picking() === 'to';
+    if (toSide) this.toPocketId.set(id);
     else this.pocketId.set(id);
+
+    // Between two products of one account the other side cannot be this same
+    // one, so it moves to another - with two products, the only other. The
+    // side just chosen is never the one that moves. The products' own form
+    // does the same.
+    if (this.betweenProducts()) {
+      const other = toSide ? this.pocketId() : this.toPocketId();
+      if (other === id) {
+        const next = this.pockets().find(pocket => pocket.id !== id)?.id ?? null;
+        if (toSide) this.pocketId.set(next);
+        else this.toPocketId.set(next);
+      }
+    }
 
     this.pickingPocket.set(null);
   }
