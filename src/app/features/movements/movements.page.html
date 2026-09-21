@@ -89,20 +89,30 @@
     <!-- How much there is, right now. Not the period's arithmetic: the
          question someone opens the app with. -->
     @if (store.standing(); as standing) {
+      <!-- What it says and what it is, on one line: the label used a whole
+           line of a phone to hold four small words, and the figure another.
+           They belong together and now read as one sentence. -->
       <section class="standing" [class]="standing.kind">
-        <span class="tag">{{ standing.label }}</span>
+        <span class="about">
+          <span class="tag">{{ standing.label }}</span>
+          @if (standing.detail) {
+            <span class="detail">{{ standing.detail }}</span>
+          }
+        </span>
+
         <span class="figure" [class.owed]="standing.amountMinor < 0">
           {{ standing.amountMinor | money:standing.currency }}
           @if (standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
         </span>
-        @if (standing.detail) {
-          <span class="detail">{{ standing.detail }}</span>
-        }
 
+        <!-- Editing the account this figure is about. Its own icon rather
+             than a pill with a word in it: the word cost a line of its own
+             for something used once in a while, and a pencil beside a balance
+             is not ambiguous. -->
         @if (store.selectedAccount(); as account) {
-          <button type="button" class="edit-here" (click)="editAccount(account)">
+          <button type="button" class="edit-here" (click)="editAccount(account)"
+                  [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
             <ion-icon name="create-outline"></ion-icon>
-            {{ 'summary.editAccount' | t }}
           </button>
         }
       </section>
@@ -113,12 +123,6 @@
          the summary is about: these dates, this account. It asks nothing when
          tapped - everything it would ask is already chosen above. -->
     <div class="period-tag">
-      <!-- Three columns, the outer two the same width, so the caption sits in
-           the middle of the screen exactly as it did before it had a button
-           beside it. Centring it inside what the button left over would have
-           moved it every time the wording changed length. -->
-      <span class="spacer"></span>
-
       <span class="what">
         {{ 'summary.inPeriod' | t:{ period: label() } }}
         @if (store.currency() !== 'COP') { · {{ store.currency() }} }
