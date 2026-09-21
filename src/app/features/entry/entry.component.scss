@@ -1183,11 +1183,32 @@ ion-footer[hidden] { display: none; }
 .context.stacked .owner-chip {
   display: inline-flex;
   align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
   padding: 0.3rem 0.7rem;
+  border: 1px solid transparent;
   border-radius: 999px;
   background: var(--ion-color-light);
   color: var(--ion-color-medium);
   font-size: 0.78rem;
+
+  /*
+   * On the products form the account can be changed, so it has to look
+   * pressable: the same chevron the other pickers wear, and an outline. A
+   * control that changes where the money lands must not look like a caption.
+   */
+  &.can-change {
+    border-color: var(--ion-color-light-shade);
+    color: var(--ion-color-primary);
+    cursor: pointer;
+
+    ion-icon { font-size: 0.7rem; flex: none; opacity: 0.7; }
+    ion-spinner { width: 0.75rem; height: 0.75rem; flex: none; }
+
+    .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    &[disabled] { opacity: 0.6; }
+  }
 }
 
 /* The account is shown, not chosen: it should not look pressable. */

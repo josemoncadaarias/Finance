@@ -32,7 +32,7 @@ import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import {
   IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
+  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -49,6 +49,7 @@ import { TaxParametersRepository } from '../../core/database/repositories/tax-pa
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
+import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import type { AccountRow, CategoryKind, CategoryRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
@@ -73,7 +74,7 @@ export interface CushionEntryRequest {
   imports: [
     TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
+    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
   ],
   templateUrl: './cushion-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -100,6 +101,33 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly request = input.required<CushionEntryRequest>();
   readonly saved = output<void>();
   readonly cancelled = output<void>();
+
+  /**
+   * The account this is about, and its products.
+   *
+   * Copies of what the request arrived with rather than the request itself,
+   * because they can change: the account is a button now, and picking
+   * another one loads its products in place. An income recorded on the wrong
+   * account used to mean closing the form, going back, opening the right
+   * account and starting again.
+   */
+  readonly account = signal<AccountRow | null>(null);
+  readonly pockets = signal<readonly YieldPocket[]>([]);
+
+  /** Open while another account is being chosen. */
+  readonly pickingAccount = signal(false);
+
+  /** Set while its products are being fetched, which is one query. */
+  readonly switching = signal(false);
+
+  /**
+   * The accounts worth offering: the ones that have products.
+   *
+   * This form records income and spending against a PRODUCT, so an account
+   * with none has nothing for it to land in. Archived accounts are left out
+   * for the same reason they are everywhere else.
+   */
+  readonly switchable = signal<AccountRow[]>([]);
 
   readonly amount = signal(new AmountBuffer());
   readonly pending = signal<Pending | null>(null);
@@ -146,6 +174,55 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     void this.keyboardClosed?.remove();
+  }
+
+  /** The account in force, and the bits of it the template asks for. */
+  readonly accountId = computed(() => this.account()?.id ?? this.request().account.id);
+  readonly currency = computed(() => this.account()?.currency_code ?? this.request().account.currency_code);
+  readonly accountName = computed(() => this.account()?.name ?? this.request().account.name);
+
+  /** Which accounts this form could be pointed at instead. */
+  private async loadSwitchable(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+
+    const driver = this.database.driver;
+    const all = await new AccountsRepository(driver).list();
+    const yields = new YieldsRepository(driver);
+
+    // An account with no product has nowhere for this to land, so it is not
+    // offered. One query each, over a list that is tens long, once.
+    const withProducts: AccountRow[] = [];
+    for (const account of all) {
+      if ((await yields.pockets(account.id)).length > 0) withProducts.push(account);
+    }
+
+    this.switchable.set(withProducts.sort((a, b) => a.name.localeCompare(b.name)));
+  }
+
+  /**
+   * Points the form at another account, and loads its products.
+   *
+   * The amount, the date and the note are kept: they are what was being
+   * written, and the account was the thing that was wrong. What cannot be
+   * kept is the product - it belonged to the old account - so the new
+   * account's usual one is chosen, the same one a fresh form would start on.
+   */
+  async switchAccount(account: AccountRow): Promise<void> {
+    this.pickingAccount.set(false);
+    if (account.id === this.accountId()) return;
+
+    this.switching.set(true);
+    try {
+      const pockets = await new YieldsRepository(this.database.driver).pockets(account.id);
+      this.account.set(account);
+      this.pockets.set(pockets);
+
+      const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
+      this.pocketId.set(usual);
+      this.toPocketId.set(this.isTransfer() ? this.otherThan(usual) : null);
+    } finally {
+      this.switching.set(false);
+    }
   }
 
   startNote(): void {
@@ -411,7 +488,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
-    return sum ? `${formatMoney(sum.leftMinor, this.request().account.currency_code, { withSymbol: false })} ${sum.operator}` : '';
+    return sum ? `${formatMoney(sum.leftMinor, this.currency(), { withSymbol: false })} ${sum.operator}` : '';
   });
 
   readonly dateLabel = computed(() => {
@@ -449,6 +526,10 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     }
     // The usual product, as a movement in the account would start on; a
     // transfer sends from it to the next one.
+    this.account.set(this.request().account);
+    this.pockets.set(this.request().pockets);
+    void this.loadSwitchable();
+
     const pockets = this.request().pockets;
     const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
     this.pocketId.set(usual);
@@ -655,11 +736,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   }
 
   private nameOf(id: number | null): string {
-    return this.request().pockets.find(pocket => pocket.id === id)?.name ?? '';
+    return this.pockets().find(pocket => pocket.id === id)?.name ?? '';
   }
 
   private otherThan(id: number | null): number | null {
-    return this.request().pockets.find(pocket => pocket.id !== id)?.id ?? null;
+    return this.pockets().find(pocket => pocket.id !== id)?.id ?? null;
   }
 
   /** Deletes the entry being corrected, and works its days out again. */
@@ -688,7 +769,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       const db = this.database.driver;
       const yields = new YieldsRepository(db);
       const tax = new TaxParametersRepository(db);
-      const accountId = this.request().account.id;
+      const accountId = this.accountId();
       await db.transaction(async () => {
         await this.removeWhatItWas(db, yields, editing);
         await yields.clearDays(accountId, editing.on_date);
@@ -738,7 +819,14 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       const db = this.database.driver;
       const yields = new YieldsRepository(db);
       const tax = new TaxParametersRepository(db);
-      const { account, kind, pockets, editing } = this.request();
+      const { kind, editing } = this.request();
+      // The LIVE account and its products, not the ones the form opened on:
+      // the account is a button now, and saving to the one it started from
+      // would put the money in the account the user had just corrected away
+      // from - silently, and in the one place that cannot be undone by
+      // closing the form.
+      const account = this.account() ?? this.request().account;
+      const pockets = this.pockets();
       const minor = this.amount().minor;
       // The sign comes from the button pressed, never from what was typed.
       const signed = kind === 'expense' ? -minor : minor;
