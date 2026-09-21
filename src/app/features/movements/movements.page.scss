@@ -134,16 +134,12 @@ ion-toolbar.stepper {
  * to edit the account is the pencil at the end of it.
  */
 .standing {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
+  padding: 0.9rem 1rem 0.75rem;
 
-  .about {
+  .line {
     display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    min-width: 0;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .tag {
@@ -151,14 +147,17 @@ ion-toolbar.stepper {
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ion-color-medium);
+    min-width: 0;
   }
 
+  /* The second sentence, on its own line and whole.
+     It used to sit under the label and be cut short - "Disponible 800.531,00
+     de 1.100.00..." - which is the half of it that matters least. */
   .detail {
-    font-size: 0.75rem;
+    margin: 0.3rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.3;
     color: var(--ion-color-medium);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .figure {
@@ -269,7 +268,9 @@ ion-toolbar.stepper {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem 0.75rem;
-  padding: 0.4rem 1rem 0.6rem;
+  /* Clear of the line above it, which now carries a button: at 0.4rem the
+     first figure sat right under "Resumen" and read as belonging to it. */
+  padding: 0.8rem 1rem 0.6rem;
 
   div {
     flex: 1 1 8rem;

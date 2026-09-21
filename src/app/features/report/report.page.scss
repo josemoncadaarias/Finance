@@ -6,6 +6,14 @@
  * this legible at arm's length is that a headline figure, a ranked list and a
  * before-and-after look nothing like each other, so the eye knows what kind of
  * answer it is getting before it reads a word.
+ *
+ * Every inner class is prefixed where it could collide with a block's own
+ * name. The first version put the block's kind on the SECTION - `class="block
+ * figures"` - so `.figures` and `.ranked` styled the section as well as the
+ * thing inside it: the figures grid laid out the heading and the card as two
+ * columns, and `.ranked`'s `padding: 0` stripped the section's gutter and put
+ * every row hard against the edge of the screen. The kind is not a class here
+ * at all now; the template asks `block.kind` directly.
  */
 
 .who {
@@ -39,42 +47,109 @@
   color: var(--ion-color-medium);
 }
 
+/* Opening or closing the lot, at the top where the reading starts. */
+.all {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.65rem 1rem 0.15rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.95rem; }
+  }
+}
+
 .block {
-  padding: 1rem 1rem 0.35rem;
+  padding: 0 1rem;
 
-  & + .block { border-top: 1px solid var(--ion-color-light-shade); }
+  .body { padding: 0.15rem 0 0.9rem; }
+}
 
-  h2 {
-    margin: 0 0 0.75rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
+/*
+ * A section's own heading, which is also how it opens.
+ *
+ * The same shape the summary and the products screens use for the groups they
+ * fold, so folding works the same way wherever it appears.
+ */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  margin: 0.45rem 0 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 10px;
+  background: var(--ion-color-light);
+  color: var(--ion-text-color);
+  text-align: left;
+  cursor: pointer;
+
+  .fold { flex: none; font-size: 1rem; color: var(--ion-color-medium); }
+
+  .what {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* How much is behind it, so a section can be chosen without opening it. */
+  .how-many {
+    flex: none;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--ion-background-color);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
     color: var(--ion-color-medium);
   }
+
+  &.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 }
 
 /* A caveat is the one place this screen argues with itself, so it is allowed
    to look like a remark rather than a heading. */
 .caveat {
-  margin: -0.35rem 0 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0.25rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(var(--ion-color-warning-rgb), 0.12);
   font-size: 0.75rem;
   line-height: 1.35;
-  color: var(--ion-color-warning);
+  color: var(--ion-color-warning-shade);
 }
 
 /* ---------------- figures ---------------- */
 
 /*
- * Two to a row on a phone, one when the figure is long.
+ * Two to a row, and one when the figure is too long to share.
  *
  * `auto-fit` with a floor rather than a fixed two: at 320px two columns of
  * eleven-digit pesos collide, and the grid drops to one by itself.
  */
 .figures {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.5rem;
+  margin-top: 0.6rem;
 }
 
 .figure {
@@ -87,14 +162,14 @@
   min-width: 0;
 
   .what {
-    font-size: 0.68rem;
+    font-size: 0.64rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     color: var(--ion-color-medium);
   }
 
   .value {
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);
@@ -103,22 +178,22 @@
   }
 
   .note {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     line-height: 1.3;
     color: var(--ion-color-medium);
   }
 
-  /* Colour says which way the money went, and the word above it says what the
-     figure is: neither alone has to carry the meaning. */
-  &.good .value { color: var(--ion-color-success); }
-  &.bad .value { color: var(--ion-color-danger); }
+  /* Colour says which way the money went; the word above it says what the
+     figure is. Neither has to carry the meaning alone. */
+  &.is-good .value { color: var(--ion-color-success); }
+  &.is-bad .value { color: var(--ion-color-danger); }
 }
 
 /* ---------------- a ranked list ---------------- */
 
 .ranked {
   list-style: none;
-  margin: 0;
+  margin: 0.4rem 0 0;
   padding: 0;
 
   li {
@@ -128,7 +203,7 @@
       'face name amount'
       'bar  bar  share';
     align-items: center;
-    gap: 0.15rem 0.6rem;
+    gap: 0.2rem 0.6rem;
     padding: 0.5rem 0;
 
     & + li { border-top: 1px solid var(--ion-color-light-shade); }
@@ -143,7 +218,7 @@
     min-width: 0;
 
     .text {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--ion-text-color);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -151,7 +226,7 @@
     }
 
     .note {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: var(--ion-color-medium);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -161,24 +236,23 @@
 
   .amount {
     grid-area: amount;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 
-    &.in, &.received { color: var(--ion-color-success); }
-    &.out, &.moved, &.refund { color: var(--ion-color-danger); }
+    &.is-in, &.is-received { color: var(--ion-color-success); }
+    &.is-out, &.is-moved, &.is-refund { color: var(--ion-color-danger); }
   }
 
   .share {
     grid-area: share;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-variant-numeric: tabular-nums;
+    text-align: right;
     color: var(--ion-color-medium);
   }
 
-  /* The share drawn rather than only printed: a column of percentages is read
-     one at a time, a row of bars is read all at once. */
   .bar {
     grid-area: bar;
     display: block;
@@ -196,18 +270,32 @@
   }
 }
 
+/*
+ * The line a list adds up to.
+ *
+ * Both ends against the same edges as the rows above it - the label where
+ * their names start, the figure where their amounts end - so it reads as the
+ * bottom of the column rather than as a separate remark.
+ */
 .total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: 0.6rem 0 0;
-  padding-top: 0.6rem;
+  margin: 0.5rem 0 0;
+  padding-top: 0.55rem;
   border-top: 2px solid var(--ion-color-light-shade);
-  font-size: 0.78rem;
-  color: var(--ion-color-medium);
+
+  .what {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    color: var(--ion-color-medium);
+  }
 
   strong {
+    flex: none;
     font-size: 0.95rem;
     font-variant-numeric: tabular-nums;
     color: var(--ion-text-color);
@@ -216,64 +304,97 @@
 
 /* ---------------- before and now ---------------- */
 
+/*
+ * One card per row, with both figures inside it under their own dates.
+ *
+ * It was a three-column table with the two months as headings at the top.
+ * On a phone that put the heading five rows away from the figure it named,
+ * in the quietest grey on the screen - Jose could not tell which column was
+ * August. Here every figure carries its own date, and neither can be read as
+ * the other.
+ */
 .compare {
-  display: flex;
-  flex-direction: column;
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
 
-  .head,
-  .row {
+  li {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
+    gap: 0.35rem 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 10px;
+    background: var(--ion-color-light);
+
+    & + li { margin-top: 0.4rem; }
   }
-
-  .head {
-    padding-top: 0;
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ion-color-medium);
-
-    span:not(:first-child) { text-align: right; }
-  }
-
-  .row + .row { border-top: 1px solid var(--ion-color-light-shade); }
 
   .name {
-    font-size: 0.85rem;
-    min-width: 0;
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  /* What it was is quieter than what it is: the earlier figure is context. */
-  .was {
-    font-size: 0.8rem;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    color: var(--ion-color-medium);
+  .pair {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
   }
 
-  .now {
+  .side {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    font-size: 0.88rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    min-width: 0;
 
     em {
       font-style: normal;
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
       color: var(--ion-color-medium);
-
-      &.worse { color: var(--ion-color-danger); }
-      &.better { color: var(--ion-color-success); }
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
+
+    b {
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+  }
+
+  /* What it was is context; what it is now is the answer. */
+  .was b { font-weight: 500; color: var(--ion-color-medium); }
+  .now b { font-weight: 600; color: var(--ion-text-color); }
+
+  .arrow { flex: none; font-size: 0.85rem; color: var(--ion-color-medium); }
+
+  /* The change reads on its own, with an arrow as well as a colour: a figure
+     that only colour distinguishes is a figure half the readers cannot use. */
+  .change {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: var(--ion-background-color);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-color-medium);
+    white-space: nowrap;
+
+    ion-icon { font-size: 0.8rem; }
+
+    &.worse { color: var(--ion-color-danger); }
+    &.better { color: var(--ion-color-success); }
   }
 }
 
@@ -282,16 +403,17 @@
 /*
  * Bars, scrolling sideways when there are more months than fit.
  *
- * Not a line chart: this is a comparison between separate months, and a line
- * between two of them implies the money moved smoothly from one to the other,
- * which is not a thing that happened.
+ * Not a line chart: this compares separate months, and a line between two of
+ * them implies the money moved smoothly from one to the other, which is not
+ * a thing that happened.
  */
 .trend {
   display: flex;
   align-items: flex-end;
-  gap: 0.45rem;
+  gap: 0.4rem;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  margin-top: 0.6rem;
   padding-bottom: 0.35rem;
 
   .point {
@@ -299,7 +421,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0.25rem;
-    flex: 1 0 3.1rem;
+    flex: 1 0 3.4rem;
 
     .bar {
       display: flex;
@@ -326,7 +448,7 @@
     }
 
     .much {
-      font-size: 0.6rem;
+      font-size: 0.58rem;
       font-variant-numeric: tabular-nums;
       color: var(--ion-color-medium);
       white-space: nowrap;
@@ -338,16 +460,16 @@
 
 .notes {
   list-style: none;
-  margin: 0;
+  margin: 0.5rem 0 0;
   padding: 0;
 
   li {
     display: flex;
     align-items: flex-start;
     gap: 0.55rem;
-    padding: 0.55rem 0.7rem;
+    padding: 0.6rem 0.7rem;
     border-radius: 10px;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     line-height: 1.4;
     background: var(--ion-color-light);
 
@@ -355,8 +477,11 @@
 
     ion-icon { flex: none; font-size: 1.05rem; margin-top: 0.1rem; }
 
-    &.warn ion-icon { color: var(--ion-color-warning); }
-    &.bad ion-icon { color: var(--ion-color-danger); }
-    &.good ion-icon { color: var(--ion-color-success); }
+    &.is-warn ion-icon { color: var(--ion-color-warning); }
+    &.is-bad ion-icon { color: var(--ion-color-danger); }
+    &.is-good ion-icon { color: var(--ion-color-success); }
   }
 }
+
+/* The jump controls float over the end of the list, so it needs room. */
+ion-content { --padding-bottom: 4.5rem; }

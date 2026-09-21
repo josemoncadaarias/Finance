@@ -11,7 +11,7 @@
  * to say twice what the app already knows.
  */
 
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import {
   IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonSpinner,
   IonBackButton, IonToast,
@@ -26,6 +26,7 @@ import { MoneyPipe } from '../../shared/money.pipe';
 import { formatMoney } from '../../core/database/money';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { ReportService } from '../../core/report/report.service';
 import { reportWorkbook, reportFileName } from '../../core/report/report-workbook';
 import type { Block, Value } from '../../core/report/blocks';
@@ -38,7 +39,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   templateUrl: './report.page.html',
   styleUrls: ['./report.page.scss'],
   imports: [
-    TranslatePipe, MoneyPipe, IconComponent, CloudButtonComponent,
+    TranslatePipe, MoneyPipe, IconComponent, CloudButtonComponent, LanguageButtonComponent,
     IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonSpinner,
     IonBackButton, IonToast,
   ],
@@ -80,6 +81,8 @@ export class ReportPage {
       const { data, blocks } = await this.report.build();
       this.data.set(data);
       this.blocks.set(blocks);
+      // Another period is another question, and it starts closed.
+      this.open.set(new Set());
     } finally {
       this.working.set(false);
     }
@@ -145,6 +148,17 @@ export class ReportPage {
     return growthIs === 'bad' ? change > 0 : change < 0;
   }
 
+  isBetter(change: number | null, growthIs: 'good' | 'bad'): boolean {
+    if (change === null || change === 0) return false;
+    return !this.isWorse(change, growthIs);
+  }
+
+  /** Which way it moved, said with a shape as well as a colour. */
+  changeIcon(change: number | null): string {
+    if (change === null || change === 0) return 'remove-outline';
+    return change > 0 ? 'arrow-up-outline' : 'arrow-down-outline';
+  }
+
   changeLabel(change: number | null): string {
     if (change === null) return '—';
     return `${change > 0 ? '+' : ''}${change}%`;
@@ -160,6 +174,89 @@ export class ReportPage {
     const peak = this.peakOf(block);
     if (peak <= 0 || value.kind !== 'money') return '2%';
     return `${Math.max(Math.round((Math.abs(value.minor) / peak) * 100), 2)}%`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Which sections are open, and getting about a long screen
+  // -------------------------------------------------------------------------
+
+  /**
+   * The sections the reader has opened.
+   *
+   * Closed to begin with, and closed again whenever the report is rebuilt for
+   * another period. The whole thing at once is several screens of reading,
+   * and which part is wanted is the reader's question rather than the app's.
+   */
+  private readonly open = signal<ReadonlySet<string>>(new Set());
+
+  isOpen(id: string): boolean {
+    return this.open().has(id);
+  }
+
+  readonly allClosed = computed(() => this.open().size === 0);
+
+  toggle(id: string): void {
+    this.open.update(current => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+    this.remeasure();
+  }
+
+  toggleAll(): void {
+    const closed = this.allClosed();
+    this.open.set(closed ? new Set(this.blocks().map(block => block.id)) : new Set());
+    this.remeasure();
+  }
+
+  /** How much is behind a closed section, so it can be chosen without opening. */
+  sizeOf(block: Block): string {
+    if (block.kind === 'figures') return String(block.figures.length);
+    if (block.kind === 'ranked') return String(block.rows.length);
+    if (block.kind === 'comparison') return String(block.rows.length);
+    if (block.kind === 'trend') return String(block.points.length);
+    return String(block.lines.length);
+  }
+
+  /** "Septiembre 2026" is three letters wide on a bar chart. */
+  shortMonth(label: string): string {
+    return label.split(' ')[0].slice(0, 3);
+  }
+
+  private readonly list = viewChild<IonContent>('list');
+  private readonly atTop = signal(true);
+  private readonly atBottom = signal(true);
+
+  readonly showUp = computed(() => !this.atTop());
+  readonly showDown = computed(() => !this.atBottom());
+
+  async onScroll(): Promise<void> {
+    const element = await this.list()?.getScrollElement();
+    if (!element) return;
+
+    const top = element.scrollTop <= 4;
+    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
+    if (top !== this.atTop()) this.atTop.set(top);
+    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+  }
+
+  /**
+   * Reads the position again after the page has changed height.
+   *
+   * Folding a section changes how tall the page is and no scroll event says
+   * so, which would leave a "go down" button pointing at nothing.
+   */
+  private remeasure(): void {
+    setTimeout(() => void this.onScroll(), 0);
+  }
+
+  toTop(): void {
+    void this.list()?.scrollToTop(300);
+  }
+
+  toBottom(): void {
+    void this.list()?.scrollToBottom(300);
   }
 
   /**

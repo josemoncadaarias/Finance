@@ -93,27 +93,33 @@
            line of a phone to hold four small words, and the figure another.
            They belong together and now read as one sentence. -->
       <section class="standing" [class]="standing.kind">
-        <span class="about">
+        <!-- The label and the figure are one sentence and sit on one line.
+             What a card still has room for is a different sentence, so it
+             goes underneath: stacked beside the label it read as if "debes
+             hoy" were followed immediately by "disponible", which is very
+             nearly the opposite of what it says. -->
+        <div class="line">
           <span class="tag">{{ standing.label }}</span>
-          @if (standing.detail) {
-            <span class="detail">{{ standing.detail }}</span>
+
+          <span class="figure" [class.owed]="standing.amountMinor < 0">
+            {{ standing.amountMinor | money:standing.currency }}
+            @if (standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+          </span>
+
+          <!-- Editing the account this figure is about. Its own icon rather
+               than a pill with a word in it: the word cost a line of its own
+               for something used once in a while, and a pencil beside a
+               balance is not ambiguous. -->
+          @if (store.selectedAccount(); as account) {
+            <button type="button" class="edit-here" (click)="editAccount(account)"
+                    [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
+              <ion-icon name="create-outline"></ion-icon>
+            </button>
           }
-        </span>
+        </div>
 
-        <span class="figure" [class.owed]="standing.amountMinor < 0">
-          {{ standing.amountMinor | money:standing.currency }}
-          @if (standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
-        </span>
-
-        <!-- Editing the account this figure is about. Its own icon rather
-             than a pill with a word in it: the word cost a line of its own
-             for something used once in a while, and a pencil beside a balance
-             is not ambiguous. -->
-        @if (store.selectedAccount(); as account) {
-          <button type="button" class="edit-here" (click)="editAccount(account)"
-                  [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
-            <ion-icon name="create-outline"></ion-icon>
-          </button>
+        @if (standing.detail) {
+          <p class="detail">{{ standing.detail }}</p>
         }
       </section>
     }
