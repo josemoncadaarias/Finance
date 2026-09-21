@@ -550,7 +550,44 @@ export class YieldsRepository {
       `UPDATE yield_pockets SET withholding = COALESCE(
          (SELECT withholding FROM yield_accounts WHERE account_id = ?), 1) WHERE id = ?`,
       [input.account_id, id]);
+
+    await this.nameTheProductOfLooseMovements(input.account_id, id);
     return id;
+  }
+
+  /**
+   * Writes the product a movement already belonged to, before a second one
+   * exists to argue about it.
+   *
+   * A movement in an account with one product names no product: there is
+   * nothing to choose, and the one product holds everything. That stays true
+   * until a second product is added - and from then on those movements follow
+   * whichever product is the usual one, because "no product named" is read as
+   * "the usual one". Change the usual and they move.
+   *
+   * Jose hit it on 2026-09-21: he made Cuenta Ahorros the usual product of
+   * Plata and 200,000 pesos moved out of Bolsillo. His question was the right
+   * one - the movement went to Bolsillo when it was saved, so it should say
+   * Bolsillo and stay there. Nothing had ever written it down.
+   *
+   * The moment to write it down is this one: a second product is being born,
+   * so every movement still unnamed belonged to the one product there was.
+   * Afterwards they are ordinary movements naming a product, which the person
+   * can change one at a time if any of them really belongs elsewhere.
+   */
+  private async nameTheProductOfLooseMovements(accountId: number, newPocketId: number): Promise<void> {
+    const others = await this.db.query<{ id: number }>(
+      'SELECT id FROM yield_pockets WHERE account_id = ? AND id <> ? ORDER BY sort_order, id',
+      [accountId, newPocketId]);
+    // Only when the new one is the SECOND: with three already there, whatever
+    // is still unnamed was left unnamed on purpose.
+    if (others.length !== 1) return;
+
+    for (const table of ['transactions', 'cushion_adjustments', 'cushion_withdrawals']) {
+      await this.db.run(
+        `UPDATE "${table}" SET pocket_id = ? WHERE account_id = ? AND pocket_id IS NULL`,
+        [others[0].id, accountId]);
+    }
   }
 
   /**
