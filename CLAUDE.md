@@ -50,12 +50,20 @@ Keep it up to date whenever we make new decisions.
 
 ## The real goal of the app
 
-It is not just expense tracking. The underlying goal is **tax predictability**:
-knowing, all year long, how much income tax will be owed, and therefore how
-much to save each month so it can be paid with money already set aside, with
-no surprises.
+**Giving the user control of their finances: seeing where the money goes,
+what changed against last month or last year, and deciding from that.**
 
-Everything else (categories, accounts, charts) exists to feed that.
+This is not what the app was started for, and the change is deliberate. It
+began as tax predictability - knowing all year how much income tax would be
+owed, so it could be paid with money already set aside - and everything else
+was there to feed that. Restated by Jose on 2026-09-21: the tax simulator is
+built, it works, it takes typed figures and exports its own spreadsheet, and
+that is the whole of what people want from it. **It is finished and it stands
+apart.** Do not wire new work into it, do not make another feature depend on
+it, and do not "improve" it as a side effect of something else.
+
+So the centre of gravity is now the everyday picture: movements, accounts,
+categories, products and what the app can tell the user about them.
 
 ---
 
@@ -397,6 +405,47 @@ backup restore against iOS's own SQLite backend.
    cells and formulas in both, which the tests compare cell by cell
    (2026-09-18).
 
+20. **The financial summary: one screen, and a spreadsheet of what it shows.**
+   Agreed with Jose on 2026-09-21, designed, **not yet built - he starts it on
+   his own word and not before.** The summary screen already answers "what did
+   I spend"; this answers "and what does that mean". One way in, an item in the
+   summary screen's menu, opening a report screen that **inherits the dates and
+   the account already chosen** and asks nothing again; exporting to .xlsx is a
+   button inside that screen, acting on what is on view. No new button loose on
+   a screen that already carries the donut, two pickers, the compose bar and
+   the scroll controls.
+
+   What it is built out of is already there, and that is the point:
+   `totalsOf` and `slicesOf` (`features/movements/group-movements.ts`) are pure
+   functions over a list of movements, so another period is the same two
+   functions over another list - **never a second query that computes the same
+   figures a second way**. Two answers that disagree by one peso would cost the
+   trust of both. `shiftPeriod` already gives the period before.
+   `core/xlsx/xlsx-writer.ts` already writes a styled sheet, and `saveFile`
+   already saves it on the phone and in the browser.
+
+   Settled:
+   - **Every figure in pesos at the rate of its own movement's day**, which is
+     what the summary screen does and what rule 3 requires.
+   - **"Saved" is income minus expenses and nothing more.** Not what was moved
+     into a CDT: a transfer is not a decision to save, and the yields live
+     outside the balance by rule 15.
+   - **Categories are compared by `category_id`, never by name**, or renaming
+     one splits its own history in two.
+   - **A part-finished period is never compared against a whole one.** On the
+     21st, this month against all of last month is a lie told to two decimals.
+     Either the same days on both sides, or a projection that says it is one.
+   - **No tax section.** Stated by Jose: the simulator covers it and stands
+     apart.
+   - **No budgets.** There is no such table and inventing one is its own
+     project, so "over budget" is not an indicator this report can carry.
+   - The order of work: the spreadsheet first (several sheets, which the
+     writer does not do yet - it has `sheet1` fixed in four places), then the
+     screen, then the analysis worth having, then a real Excel chart if it
+     earns its ~200 lines. A chart is the one part of the format where a
+     mistake makes Excel call the file corrupt; a table of percentages with
+     bars drawn as filled cells says the same thing for almost nothing.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
@@ -414,7 +463,7 @@ backup restore against iOS's own SQLite backend.
 ## Current status
 
 The SQLite schema, the migration runner, the money helpers, the repository
-layer and the yields module are covered by 364 tests that run against a real
+layer and the yields module are covered by 368 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -445,6 +494,27 @@ exportar" saves one and restores one. The Android project lives in `android/`
 **Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
 to mount and `initWebStore()` to succeed, and that only happens at runtime.
 Everything up to it — build, types, plugin API — is confirmed.
+
+**The app is used every day and shaped from the phone** (2026-09-21). What
+Jose reports is almost always a screen that reads wrong on a real phone rather
+than a wrong figure, and the answers keep coming back to one rule: **a control
+that appears on two screens has one definition, in `global.scss`.** Spending
+and income are that pair - `.compose` and `.compose-bar` live there, and both
+the summary screen and a product's sheet read them, in that order and that
+shape. The category picker's two orders (most-used, A-Z) share one
+`localStorage` key, `finance.categoryOrder`, for the same reason: it is one
+preference about one list. The product sheet shares the movement form's whole
+stylesheet by `styleUrls`, deliberately.
+
+A note's matches fall BELOW the note, like any list of matches. They were
+ordered above for a while because they had landed behind the keyboard; what
+actually fixed that is the rule that hides the rest of the form while the
+keyboard is up, leaving the panel ending above it. Asked for and pared back to
+exactly that by Jose on 2026-09-21: he had not asked for the query to change
+and it was not to change. **The search is `LIKE '%typed%'`, one full read of
+every note on record, run on every keystroke.** It is on the list of things to
+watch if the app ever feels slow while typing - it is not a licence to change
+it unasked.
 
 **The yields screen works out only what changed** (2026-09-18). The accrual
 fingerprint is kept per account (`staleAccounts`), so a movement in an account
