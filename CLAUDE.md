@@ -446,6 +446,51 @@ backup restore against iOS's own SQLite backend.
      mistake makes Excel call the file corrupt; a table of percentages with
      bars drawn as filled cells says the same thing for almost nothing.
 
+   **Its shape, decided before a line of it exists** (Jose, 2026-09-21, who
+   intends to keep adding to it for a long time). The report is not a screen
+   that works figures out and draws them - that shape makes the eleventh
+   analysis touch the screen, the spreadsheet and the ten already there.
+
+   **An analysis is a pure function, and the report is a list of them.**
+
+   ```ts
+   type Section = (data: ReportData) => Block | null;
+   ```
+
+   - **The data is loaded once.** `ReportData` carries this period's
+     movements, the previous period's, the accounts, the categories, the
+     currency. **No analysis queries the database itself** - twenty analyses
+     would be twenty round trips to SQLite and seconds of a blank screen on
+     the phone. An analysis needing something nobody loaded gets it added to
+     `ReportData`, in that one place.
+   - **An analysis returns data, never drawing.** A `Block`: a title, a kind,
+     its rows. No HTML, no spreadsheet cells.
+   - **Two readers, both generic.** The screen knows how to draw a `Block`;
+     the xlsx writer knows how to write one. Neither knows which analyses
+     exist. So a new analysis is a function plus a line in a list, and
+     nothing else changes.
+   - **It may return `null`**, and then it is simply not there. "The biggest
+     ten" over three movements is noise, and "against last month" with no last
+     month is a table of zeroes. This is what keeps a growing report from
+     filling with empty sections.
+   - Being pure functions, they are tested by `node tools/db/run-tests.mjs`
+     with no browser. Each new analysis arrives with its test.
+   - The list's order is the order on screen and in the spreadsheet.
+   - Letting the user choose which sections to see is then a list of ids in
+     `localStorage`, and needs no redesign. Not to be built until asked for.
+
+   **The kinds of block are a small closed set, each designed properly**:
+   headline figures, a ranked list with bars, a comparison (before, now, the
+   change), a trend over time, and an observation in words. A new analysis
+   picks one of those. Inventing a new *kind* is deliberately a bigger change:
+   it is what stops the report from looking like five apps glued together,
+   which is exactly how a generic renderer usually ends up and the one real
+   risk of this design.
+
+   **What is NOT to be built in advance**: hooks, options and settings for
+   needs that do not exist yet. The list of analyses and the five kinds are
+   enough; anything more waits for a real case.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
