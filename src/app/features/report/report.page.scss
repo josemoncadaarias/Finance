@@ -1,0 +1,362 @@
+/*
+ * The financial summary, read on a phone.
+ *
+ * Five kinds of block, each drawn its own way on purpose. One table shape for
+ * everything would be less work and would read as a database dump: what makes
+ * this legible at arm's length is that a headline figure, a ranked list and a
+ * before-and-after look nothing like each other, so the eye knows what kind of
+ * answer it is getting before it reads a word.
+ */
+
+.who {
+  padding-inline: 0.25rem;
+  min-width: 0;
+
+  h1 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+.block {
+  padding: 1rem 1rem 0.35rem;
+
+  & + .block { border-top: 1px solid var(--ion-color-light-shade); }
+
+  h2 {
+    margin: 0 0 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+}
+
+/* A caveat is the one place this screen argues with itself, so it is allowed
+   to look like a remark rather than a heading. */
+.caveat {
+  margin: -0.35rem 0 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ion-color-warning);
+}
+
+/* ---------------- figures ---------------- */
+
+/*
+ * Two to a row on a phone, one when the figure is long.
+ *
+ * `auto-fit` with a floor rather than a fixed two: at 320px two columns of
+ * eleven-digit pesos collide, and the grid drops to one by itself.
+ */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  background: var(--ion-color-light);
+  min-width: 0;
+
+  .what {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ion-color-medium);
+  }
+
+  .value {
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .note {
+    font-size: 0.68rem;
+    line-height: 1.3;
+    color: var(--ion-color-medium);
+  }
+
+  /* Colour says which way the money went, and the word above it says what the
+     figure is: neither alone has to carry the meaning. */
+  &.good .value { color: var(--ion-color-success); }
+  &.bad .value { color: var(--ion-color-danger); }
+}
+
+/* ---------------- a ranked list ---------------- */
+
+.ranked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'face name amount'
+      'bar  bar  share';
+    align-items: center;
+    gap: 0.15rem 0.6rem;
+    padding: 0.5rem 0;
+
+    & + li { border-top: 1px solid var(--ion-color-light-shade); }
+  }
+
+  .face { grid-area: face; color: var(--ion-color-medium); }
+
+  .name {
+    grid-area: name;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .text {
+      font-size: 0.9rem;
+      color: var(--ion-text-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .note {
+      font-size: 0.7rem;
+      color: var(--ion-color-medium);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .amount {
+    grid-area: amount;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+
+    &.in, &.received { color: var(--ion-color-success); }
+    &.out, &.moved, &.refund { color: var(--ion-color-danger); }
+  }
+
+  .share {
+    grid-area: share;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-color-medium);
+  }
+
+  /* The share drawn rather than only printed: a column of percentages is read
+     one at a time, a row of bars is read all at once. */
+  .bar {
+    grid-area: bar;
+    display: block;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--ion-color-light-shade);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--ion-color-primary);
+    }
+  }
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.6rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 2px solid var(--ion-color-light-shade);
+  font-size: 0.78rem;
+  color: var(--ion-color-medium);
+
+  strong {
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-text-color);
+  }
+}
+
+/* ---------------- before and now ---------------- */
+
+.compare {
+  display: flex;
+  flex-direction: column;
+
+  .head,
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .head {
+    padding-top: 0;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ion-color-medium);
+
+    span:not(:first-child) { text-align: right; }
+  }
+
+  .row + .row { border-top: 1px solid var(--ion-color-light-shade); }
+
+  .name {
+    font-size: 0.85rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* What it was is quieter than what it is: the earlier figure is context. */
+  .was {
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--ion-color-medium);
+  }
+
+  .now {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+
+    em {
+      font-style: normal;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--ion-color-medium);
+
+      &.worse { color: var(--ion-color-danger); }
+      &.better { color: var(--ion-color-success); }
+    }
+  }
+}
+
+/* ---------------- month by month ---------------- */
+
+/*
+ * Bars, scrolling sideways when there are more months than fit.
+ *
+ * Not a line chart: this is a comparison between separate months, and a line
+ * between two of them implies the money moved smoothly from one to the other,
+ * which is not a thing that happened.
+ */
+.trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 0.35rem;
+
+  .point {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1 0 3.1rem;
+
+    .bar {
+      display: flex;
+      align-items: flex-end;
+      width: 100%;
+      height: 5.5rem;
+
+      i {
+        display: block;
+        width: 100%;
+        min-height: 2px;
+        border-radius: 5px 5px 0 0;
+        background: var(--ion-color-primary);
+      }
+    }
+
+    /* A month above its own average is the point of the whole section. */
+    &.above i { background: var(--ion-color-danger); }
+
+    .when {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      color: var(--ion-color-medium);
+    }
+
+    .much {
+      font-size: 0.6rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--ion-color-medium);
+      white-space: nowrap;
+    }
+  }
+}
+
+/* ---------------- notes ---------------- */
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    background: var(--ion-color-light);
+
+    & + li { margin-top: 0.4rem; }
+
+    ion-icon { flex: none; font-size: 1.05rem; margin-top: 0.1rem; }
+
+    &.warn ion-icon { color: var(--ion-color-warning); }
+    &.bad ion-icon { color: var(--ion-color-danger); }
+    &.good ion-icon { color: var(--ion-color-success); }
+  }
+}

@@ -12,6 +12,7 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import {
   TransactionsRepository, type DetailedTransaction,
 } from '../../core/database/repositories/transactions.repository';
+import type { Period } from '../../core/filters/period';
 import { FilterService } from '../../core/filters/filter.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { AccountRow } from '../../core/database/types';
@@ -309,43 +310,60 @@ export class MovementsStore {
       await this.loadStanding(accountsRepo);
 
       const scope = this.filter.scopeFor(accounts);
-      const period = this.filter.period();
 
-      const detailed = await new TransactionsRepository(driver).listDetailed({
-        accountIds: scope,
-        from: period.from ?? undefined,
-        to: period.to ?? undefined,
-      });
-
-      // A transfer is only invisible when both of its ends are inside what is
-      // being looked at: moving money between two accounts you are counting
-      // changes nothing. Moving it to an account outside the scope - eToro,
-      // Pibank para renta, an archived one - really is money leaving, and
-      // hiding it would lose it.
-      //
-      // A product set outside net worth is outside the scope in the same way,
-      // even inside the same account: its own movements are hidden, and the
-      // transfer that fed it - Pibank's savings into a tax CDT - is money gone.
-      const inScope = new Set(scope);
-      const leaveOut = !this.filter.includeExcluded();
       const setAside = await driver.queryOne<{ total: number }>(
         `SELECT COUNT(*) AS total FROM yield_pockets
          WHERE include_in_net_worth = 0 AND account_id IN (${scope.map(() => '?').join(', ') || 'NULL'})`,
         [...scope]);
       this.setAsideProducts.set(setAside?.total ?? 0);
 
-      const visible = detailed.filter(row => {
-        if (leaveOut && row.pocket_set_aside === 1) return false;
-        return row.transfer_id === null ||
-          row.other_account_id === null ||
-          !inScope.has(row.other_account_id) ||
-          (leaveOut && row.other_pocket_set_aside === 1);
-      });
-
-      this.rows.set(visible.map(row => toMovement(row, this.i18n)));
+      this.rows.set(await this.movementsFor(this.filter.period(), accounts));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * The movements of any stretch of time, filtered exactly as this screen
+   * filters them.
+   *
+   * Shared with the financial summary, which needs an earlier period to
+   * compare against. It has to come through here and not through a query of
+   * its own: the rules below about transfers and products set aside are what
+   * decide the figures, and a comparison whose two sides were filtered
+   * differently would invent a change that never happened.
+   */
+  async movementsFor(period: Period, accounts?: readonly AccountRow[]): Promise<Movement[]> {
+    const driver = this.database.driver;
+    const scope = this.filter.scopeFor(accounts ?? this.accounts());
+
+    const detailed = await new TransactionsRepository(driver).listDetailed({
+      accountIds: scope,
+      from: period.from ?? undefined,
+      to: period.to ?? undefined,
+    });
+
+    // A transfer is only invisible when both of its ends are inside what is
+    // being looked at: moving money between two accounts you are counting
+    // changes nothing. Moving it to an account outside the scope - eToro,
+    // Pibank para renta, an archived one - really is money leaving, and
+    // hiding it would lose it.
+    //
+    // A product set outside net worth is outside the scope in the same way,
+    // even inside the same account: its own movements are hidden, and the
+    // transfer that fed it - Pibank's savings into a tax CDT - is money gone.
+    const inScope = new Set(scope);
+    const leaveOut = !this.filter.includeExcluded();
+
+    const visible = detailed.filter(row => {
+      if (leaveOut && row.pocket_set_aside === 1) return false;
+      return row.transfer_id === null ||
+        row.other_account_id === null ||
+        !inScope.has(row.other_account_id) ||
+        (leaveOut && row.other_pocket_set_aside === 1);
+    });
+
+    return visible.map(row => toMovement(row, this.i18n));
   }
 }
 

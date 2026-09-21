@@ -86,10 +86,38 @@ export const SPANISH = {
   'summary.search': 'Buscar',
   'summary.search.placeholder': 'Buscar movimiento',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
+  'report.open': 'Resumen',
   'report.export': 'Resumen en Excel',
+  'report.working': 'Analizando el periodo...',
   'report.exporting': 'Armando el resumen...',
   'report.saved': 'Resumen listo',
   'report.nothing': 'En este periodo no hay movimientos para resumir.',
+  'report.headline.inPerDay': 'Ingreso promedio por dia',
+
+  'report.versus': 'Comparado con antes',
+  'report.versus.sameDays': 'Los mismos {days} dias de cada periodo, para que la comparacion sea justa.',
+  'report.versus.categories': 'Categorias, antes y ahora',
+
+  'report.byMonth': 'Gasto mes a mes',
+  'report.byMonth.average': 'Promedio mensual',
+  'report.byMonth.above': 'Por encima del promedio: {months}.',
+
+  'report.recurring': 'Gastos que se repiten',
+  'report.recurring.months': 'Meses',
+  'report.recurring.each': 'En {months} de {of} meses · {average} al mes',
+  'report.recurring.total': 'Subtotal · {share}% del gasto · {average} al mes',
+  'report.recurring.what': 'Lo que ya estaba decidido antes de que empezara el mes.',
+
+  'report.repeated': 'Cobros que se repiten cada mes',
+  'report.repeated.row': 'Cobro',
+  'report.repeated.each': '{amount} cada vez',
+  'report.repeated.total': 'Suma por mes',
+
+  'report.jump': 'Lo que cambio',
+  'report.jump.grew': '{category} subio {percent}%. Lo mas grande ahi: {because}.',
+  'report.jump.noNote': 'un movimiento sin nota',
+  'report.jump.gone': 'En {category} no gastaste nada este periodo.',
+
   'report.title': 'Resumen financiero',
   'report.file': 'resumen-financiero-{period}.xlsx',
   'report.sheet.summary': 'Resumen',
@@ -809,10 +837,38 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.search': 'Search',
   'summary.search.placeholder': 'Search a movement',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
+  'report.open': 'Summary',
   'report.export': 'Summary in Excel',
+  'report.working': 'Reading the period...',
   'report.exporting': 'Putting the summary together...',
   'report.saved': 'Summary ready',
   'report.nothing': 'There are no movements to summarise in this period.',
+  'report.headline.inPerDay': 'Average income a day',
+
+  'report.versus': 'Against before',
+  'report.versus.sameDays': 'The same {days} days of each period, so the comparison is a fair one.',
+  'report.versus.categories': 'Categories, before and now',
+
+  'report.byMonth': 'Spending month by month',
+  'report.byMonth.average': 'Monthly average',
+  'report.byMonth.above': 'Above the average: {months}.',
+
+  'report.recurring': 'What comes back every month',
+  'report.recurring.months': 'Months',
+  'report.recurring.each': 'In {months} of {of} months · {average} a month',
+  'report.recurring.total': 'Subtotal · {share}% of spending · {average} a month',
+  'report.recurring.what': 'The part that was decided before the month began.',
+
+  'report.repeated': 'The same charge every month',
+  'report.repeated.row': 'Charge',
+  'report.repeated.each': '{amount} each time',
+  'report.repeated.total': 'A month, in all',
+
+  'report.jump': 'What changed',
+  'report.jump.grew': '{category} went up {percent}%. The biggest of it: {because}.',
+  'report.jump.noNote': 'a movement with no note',
+  'report.jump.gone': 'You spent nothing on {category} this period.',
+
   'report.title': 'Financial summary',
   'report.file': 'financial-summary-{period}.xlsx',
   'report.sheet.summary': 'Summary',

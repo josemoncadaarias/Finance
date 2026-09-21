@@ -6,6 +6,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/movements/movements.page').then(m => m.MovementsPage),
   },
   {
+    // Opened from the summary screen, which is where its period and account
+    // are chosen. It is not in the drawer for that reason: reached from the
+    // side it would have nothing to be about.
+    path: 'report',
+    loadComponent: () => import('./features/report/report.page').then(m => m.ReportPage),
+  },
+  {
     path: 'accounts',
     loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
   },

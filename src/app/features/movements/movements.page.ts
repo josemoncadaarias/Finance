@@ -10,6 +10,7 @@
 import { Component, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
@@ -39,11 +40,6 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
-import { reportWorkbook, reportFileName } from '../../core/report/report-workbook';
-import { reportWords } from '../../core/report/report-words';
-import type { ReportData } from '../../core/report/report-data';
-import { saveFile } from '../../core/files/save-file';
-import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
 
 @Component({
   selector: 'app-movements',
@@ -51,7 +47,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   styleUrls: ['./movements.page.scss'],
   imports: [
     IconComponent,
-    CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
+    CommonModule, FormsModule, RouterLink, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent, AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
@@ -431,63 +427,6 @@ export class MovementsPage {
   private dayLabel(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
     return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
-  }
-
-  // -------------------------------------------------------------------------
-  // The financial summary
-  // -------------------------------------------------------------------------
-
-  /** Set while the file is being written, which is a moment on a long period. */
-  readonly exporting = signal(false);
-  /** What happened, said once under the button rather than in an alert. */
-  readonly exportNotice = signal('');
-
-  /**
-   * The period on screen, as a spreadsheet.
-   *
-   * Everything it reports on is already here - the dates, the account, the
-   * movements the donut adds up - so it asks nothing. What it must NOT do is
-   * ask the database again: a second query would be a second way of getting
-   * the same figures, and the day the two disagreed by a peso neither would
-   * be believed.
-   */
-  async exportSummary(): Promise<void> {
-    const movements = this.store.inScope();
-    if (movements.length === 0) {
-      this.exportNotice.set(this.i18n.t('report.nothing'));
-      return;
-    }
-
-    this.exporting.set(true);
-    this.exportNotice.set('');
-    // One turn of the event loop, so the button shows it is working before
-    // the writing blocks it.
-    await new Promise(resolve => setTimeout(resolve));
-
-    try {
-      const data: ReportData = {
-        period: this.filter.period(),
-        periodLabel: this.label(),
-        account: this.store.selectedAccount(),
-        accounts: this.store.accounts(),
-        movements,
-        basis: this.store.basis(),
-        currency: this.store.currency(),
-        today: todayIso(),
-        words: reportWords(key => this.i18n.t(key)),
-      };
-
-      const name = reportFileName(data);
-      const saved = await saveFile(new Blob([reportWorkbook(data)], { type: XLSX_MIME }), name);
-      // Not the file's name: on the phone the share sheet has already shown
-      // it and asked where it should go, and repeating it afterwards was a
-      // line of filename across the screen saying nothing new.
-      if (saved) this.exportNotice.set(this.i18n.t('report.saved'));
-    } catch (error) {
-      this.exportNotice.set(error instanceof Error ? error.message : String(error));
-    } finally {
-      this.exporting.set(false);
-    }
   }
 
   editAccount(account: AccountRow): void {

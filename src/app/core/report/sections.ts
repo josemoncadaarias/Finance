@@ -17,12 +17,11 @@ import {
   type Block, type FiguresBlock, type RankedBlock, type Section, type Value,
 } from './blocks';
 import { daysElapsed, type ReportData } from './report-data';
+import { fill } from './report-words';
+import {
+  versusBefore, categoriesVersusBefore, recurringSpending, repeatedCharges, spendingByMonth, unusualJumps,
+} from './sections-over-time';
 
-/** `{placeholders}` in a phrase that already came out of the dictionary. */
-export function fill(phrase: string, values: Record<string, string | number>): string {
-  return phrase.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    (name in values ? String(values[name]) : whole));
-}
 
 /** What a movement is worth here, always positive. */
 function amount(movement: Movement, data: ReportData): number {
@@ -60,10 +59,18 @@ export const headlineFigures: Section<ReportData> = data => {
     },
   ];
 
-  // What was left of what came in. Only where something came in: with no
-  // income the fraction has nothing to divide by, and "spent 400% of your
-  // income" is a number that means nothing to the person reading it.
-  if (totals.inMinor > 0) {
+  /*
+   * What was left of what came in.
+   *
+   * Only when something came in AND something was left. With no income the
+   * fraction has nothing to divide by; with a negative balance it produces
+   * figures like -1,565%, which is what Jose's September really works out to
+   * - a month whose income landed in another account - and which reads as a
+   * broken number rather than as a fact. The balance above is already red and
+   * already says he spent more than he received, which is the same news said
+   * in a way that can be believed.
+   */
+  if (totals.inMinor > 0 && balance >= 0) {
     figures.push({
       label: words['report.headline.saved'],
       value: percent(Math.round((balance / totals.inMinor) * 100)),
@@ -94,6 +101,16 @@ export const headlineFigures: Section<ReportData> = data => {
     figures.push({
       label: words['report.headline.perDay'],
       value: money(Math.round(totals.outMinor / days), data.currency),
+      note: whole ? undefined : fill(words['report.headline.perDayNote'], { days }),
+    });
+  }
+
+  // What came in a day, beside what went out. Both or neither: one alone
+  // invites the reader to compare it against a total instead of its opposite.
+  if (days > 0 && totals.inMinor > 0) {
+    figures.push({
+      label: words['report.headline.inPerDay'],
+      value: money(Math.round(totals.inMinor / days), data.currency),
       note: whole ? undefined : fill(words['report.headline.perDayNote'], { days }),
     });
   }
@@ -293,8 +310,15 @@ export const spendingByAccount: Section<ReportData> = data => {
  * not the screen, not the spreadsheet.
  */
 export const SECTIONS: readonly Section<ReportData>[] = [
+  // What happened, then whether that is normal, then what is behind it.
   headlineFigures,
+  versusBefore,
+  unusualJumps,
   categoryBreakdown,
+  categoriesVersusBefore,
+  recurringSpending,
+  repeatedCharges,
+  spendingByMonth,
   spendingByAccount,
   biggestMovements,
 ];

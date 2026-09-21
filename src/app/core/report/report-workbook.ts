@@ -17,7 +17,8 @@ import {
 } from '../xlsx/xlsx-writer';
 import type { Movement } from '../../features/movements/group-movements';
 import { type Block, type Value } from './blocks';
-import { buildReport, fill } from './sections';
+import { buildReport } from './sections';
+import { fill } from './report-words';
 import { daysElapsed, daysBetween, type ReportData } from './report-data';
 
 /**
@@ -153,7 +154,8 @@ function writeRanked(sheet: Sheet, block: Extract<Block, { kind: 'ranked' }>, wo
   sheet.text(0, 'head', block.rowsAre);
   sheet.text(1, 'headRight', words['report.column.amount']);
   sheet.text(2, 'headRight', words['report.column.share']);
-  sheet.text(3, 'headRight', words['report.column.count']);
+  // Recurring spending counts months, not movements: the column says which.
+  sheet.text(3, 'headRight', block.countsAre ?? words['report.column.count']);
   sheet.row += 1;
 
   for (const row of block.rows) {
@@ -214,7 +216,7 @@ function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison
   sheet.blank();
 }
 
-function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>): void {
+function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, words: ReportData['words']): void {
   sheet.text(0, 'section', block.title);
   sheet.row += 2;
 
@@ -229,6 +231,15 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>): voi
     sheet.text(0, 'totalLabel', block.averageLabel);
     const number = asNumber(block.average);
     if (number !== null) sheet.number(1, 'total', number);
+    sheet.row += 1;
+  }
+
+  // Which of them stand above that line, named rather than left to be found
+  // by running an eye down a column of figures.
+  if (block.aboveAverage && block.aboveAverage.length > 0) {
+    sheet.text(0, 'note', fill(words['report.byMonth.above'], {
+      months: block.aboveAverage.join(', '),
+    }));
     sheet.row += 1;
   }
 
@@ -277,7 +288,7 @@ function summarySheet(data: ReportData, blocks: readonly Block[]): SheetSpec {
     if (block.kind === 'figures') writeFigures(sheet, block);
     else if (block.kind === 'ranked') writeRanked(sheet, block, words);
     else if (block.kind === 'comparison') writeComparison(sheet, block);
-    else if (block.kind === 'trend') writeTrend(sheet, block);
+    else if (block.kind === 'trend') writeTrend(sheet, block, words);
     else writeNote(sheet, block);
   }
 

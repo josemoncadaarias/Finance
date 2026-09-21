@@ -12,10 +12,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  headlineFigures, categoryBreakdown, biggestMovements, spendingByAccount, buildReport, fill,
+  headlineFigures, categoryBreakdown, biggestMovements, spendingByAccount, buildReport,
 } from '../../src/app/core/report/sections.ts';
 import { daysBetween, daysElapsed } from '../../src/app/core/report/report-data.ts';
-import { TEST_WORDS } from '../../src/app/core/report/report-words.ts';
+import { TEST_WORDS, fill } from '../../src/app/core/report/report-words.ts';
 import { reportWorkbook, reportFileName } from '../../src/app/core/report/report-workbook.ts';
 import { totalsOf } from '../../src/app/features/movements/group-movements.ts';
 
@@ -62,7 +62,11 @@ function data(movements, extra = {}) {
     movements,
     basis: 'own',
     currency: 'COP',
+    // Nothing to compare against: these tests are about one period on its own.
+    // The ones that compare live in report-over-time.test.mjs.
+    before: null,
     today: '2026-09-30',
+    locale: 'es-CO',
     words: TEST_WORDS,
     ...extra,
   };

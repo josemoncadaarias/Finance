@@ -40,6 +40,31 @@ export const REPORT_KEYS = [
   'report.headline.biggest',
   'report.headline.topCategory',
   'report.headline.overspent',
+  'report.headline.inPerDay',
+
+  'report.versus',
+  'report.versus.sameDays',
+  'report.versus.categories',
+
+  'report.byMonth',
+  'report.byMonth.average',
+  'report.byMonth.above',
+
+  'report.recurring',
+  'report.recurring.months',
+  'report.recurring.each',
+  'report.recurring.total',
+  'report.recurring.what',
+
+  'report.repeated',
+  'report.repeated.row',
+  'report.repeated.each',
+  'report.repeated.total',
+
+  'report.jump',
+  'report.jump.grew',
+  'report.jump.noNote',
+  'report.jump.gone',
 
   'report.categories',
   'report.categories.row',
@@ -93,3 +118,15 @@ export function reportWords(translate: (key: ReportWordKey) => string): ReportWo
  * improving a phrase breaks nothing.
  */
 export const TEST_WORDS: ReportWords = reportWords(key => SPANISH[key]);
+
+/**
+ * `{placeholders}` in a phrase that already came out of the dictionary.
+ *
+ * Here rather than beside the analyses: they are split across two files now,
+ * and having one import it from the other made a cycle - the list of analyses
+ * ran before the file holding half of them had finished loading.
+ */
+export function fill(phrase: string, values: Record<string, string | number>): string {
+  return phrase.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    (name in values ? String(values[name]) : whole));
+}

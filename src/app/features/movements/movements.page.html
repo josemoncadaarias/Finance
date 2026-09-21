@@ -128,20 +128,14 @@
         @if (store.currency() !== 'COP') { · {{ store.currency() }} }
       </span>
 
-      <button type="button" class="to-report" [disabled]="exporting()" (click)="exportSummary()">
-        @if (exporting()) {
-          <ion-spinner name="crescent"></ion-spinner>
-        } @else {
-          <ion-icon name="document-text-outline"></ion-icon>
-        }
-        <span class="say">{{ (exporting() ? 'report.exporting' : 'report.export') | t }}</span>
+      <!-- The way to the summary of what this line names. It opens the report
+           rather than writing a file: reading it is the usual thing to want,
+           and the spreadsheet is a button inside it for when it is not. -->
+      <button type="button" class="to-report" routerLink="/report">
+        <ion-icon name="stats-chart-outline"></ion-icon>
+        <span class="say">{{ 'report.open' | t }}</span>
       </button>
     </div>
-
-    <!-- What came of it floats over the screen for a moment and leaves, rather
-         than pushing everything down to make room for a line of text. -->
-    <ion-toast [isOpen]="exportNotice() !== ''" [message]="exportNotice()" [duration]="2600"
-               position="bottom" (didDismiss)="exportNotice.set('')"></ion-toast>
 
     <section class="totals">
       <div>

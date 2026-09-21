@@ -68,6 +68,8 @@ export interface RankedBlock {
   title: string;
   /** What the rows are, for the column header: "Categoría", "Cuenta". */
   rowsAre: string;
+  /** What the count column counts, when it is not movements. */
+  countsAre?: string;
   rows: {
     label: string;
     value: Value;
@@ -126,6 +128,8 @@ export interface TrendBlock {
   /** The line drawn across it, when there is one worth drawing. */
   averageLabel?: string;
   average?: Value;
+  /** The points standing above that average, named rather than eyeballed. */
+  aboveAverage?: readonly string[];
 }
 
 /** Something worth saying in words, with the figures inside the sentence. */

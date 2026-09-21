@@ -1,0 +1,161 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/movements" [text]="''"></ion-back-button>
+    </ion-buttons>
+
+    <!-- The title says what this is; the line under it says what it is about,
+         so nothing below has to repeat the dates or the account. -->
+    <div class="who">
+      <h1>{{ 'report.title' | t }}</h1>
+      <p>{{ about() }}</p>
+    </div>
+
+    <ion-buttons slot="end">
+      <ion-button [disabled]="exporting() || working()" (click)="exportExcel()"
+                  [attr.aria-label]="'report.export' | t" [title]="'report.export' | t">
+        @if (exporting()) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon slot="icon-only" name="document-text-outline"></ion-icon>
+        }
+      </ion-button>
+      <app-cloud-button></app-cloud-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (working()) {
+    <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
+  } @else if (blocks().length === 0) {
+    <div class="state"><p>{{ 'report.nothing' | t }}</p></div>
+  } @else {
+
+    @for (block of blocks(); track block.id) {
+      <section class="block" [class]="block.kind">
+
+        <!-- ---------------- the headline figures ---------------- -->
+        @if (block.kind === 'figures') {
+          <h2>{{ block.title }}</h2>
+          <div class="figures">
+            @for (figure of block.figures; track figure.label) {
+              <div class="figure" [class]="figure.tone ?? 'plain'">
+                <span class="what">{{ figure.label }}</span>
+                <span class="value">{{ show(figure.value) }}</span>
+                @if (figure.note) { <span class="note">{{ figure.note }}</span> }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ---------------- a list in order of size ---------------- -->
+        @if (block.kind === 'ranked') {
+          <h2>{{ block.title }}</h2>
+          <ul class="ranked">
+            @for (row of block.rows; track row.label) {
+              <li>
+                <app-icon class="face" [builtin]="row.icon ?? null"
+                          [customId]="row.customIconId ?? null" size="1.1rem"></app-icon>
+
+                <span class="name">
+                  <span class="text">{{ row.label }}</span>
+                  @if (row.note) { <span class="note">{{ row.note }}</span> }
+                </span>
+
+                <span class="amount" [class]="row.flow ?? 'out'">{{ show(row.value) }}</span>
+
+                <!-- The bar is the share, drawn under the row rather than in a
+                     column of its own: a column of percentages is read one at
+                     a time, and a bar is read all at once. -->
+                @if (row.share !== undefined) {
+                  <span class="share">{{ row.share }}%</span>
+                  <span class="bar"><i [style.width]="barWidth(row.share)"></i></span>
+                }
+              </li>
+            }
+          </ul>
+
+          @if (block.total && block.totalLabel) {
+            <p class="total">
+              <span>{{ block.totalLabel }}</span>
+              <strong>{{ show(block.total) }}</strong>
+            </p>
+          }
+        }
+
+        <!-- ---------------- before and now ---------------- -->
+        @if (block.kind === 'comparison') {
+          <h2>{{ block.title }}</h2>
+          @if (block.caveat) { <p class="caveat">{{ block.caveat }}</p> }
+
+          <div class="compare">
+            <div class="head">
+              <span></span>
+              <span>{{ block.beforeLabel }}</span>
+              <span>{{ block.nowLabel }}</span>
+            </div>
+            @for (row of block.rows; track row.label) {
+              <div class="row">
+                <span class="name">{{ row.label }}</span>
+                <span class="was">{{ show(row.before) }}</span>
+                <span class="now">
+                  {{ show(row.now) }}
+                  <em [class.worse]="isWorse(row.changePercent, row.growthIs)"
+                      [class.better]="row.changePercent !== null && row.changePercent !== 0
+                                      && !isWorse(row.changePercent, row.growthIs)">
+                    {{ changeLabel(row.changePercent) }}
+                  </em>
+                </span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ---------------- month by month ---------------- -->
+        @if (block.kind === 'trend') {
+          <h2>{{ block.title }}</h2>
+
+          <div class="trend">
+            @for (point of block.points; track point.label) {
+              <div class="point" [class.above]="isAbove(block, point.label)">
+                <span class="bar"><i [style.height]="heightOf(block, point.value)"></i></span>
+                <span class="when">{{ point.label.split(' ')[0].slice(0, 3) }}</span>
+                <span class="much">{{ show(point.value) }}</span>
+              </div>
+            }
+          </div>
+
+          @if (block.average && block.averageLabel) {
+            <p class="total">
+              <span>{{ block.averageLabel }}</span>
+              <strong>{{ show(block.average) }}</strong>
+            </p>
+          }
+          @if (block.aboveAverage && block.aboveAverage.length > 0) {
+            <p class="caveat">
+              {{ 'report.byMonth.above' | t:{ months: block.aboveAverage.join(', ') } }}
+            </p>
+          }
+        }
+
+        <!-- ---------------- something worth saying ---------------- -->
+        @if (block.kind === 'note') {
+          <h2>{{ block.title }}</h2>
+          <ul class="notes">
+            @for (line of block.lines; track line.text) {
+              <li [class]="line.tone ?? 'plain'">
+                <ion-icon [name]="noteIcon(line.tone)"></ion-icon>
+                <span>{{ line.text }}</span>
+              </li>
+            }
+          </ul>
+        }
+
+      </section>
+    }
+  }
+
+  <ion-toast [isOpen]="notice() !== ''" [message]="notice()" [duration]="2600"
+             position="bottom" (didDismiss)="notice.set('')"></ion-toast>
+</ion-content>
