@@ -108,11 +108,30 @@
       </section>
     }
 
-    <!-- And what happened during the period being looked at -->
-    <p class="period-tag">
-      {{ 'summary.inPeriod' | t:{ period: label() } }}
-      @if (store.currency() !== 'COP') { · {{ store.currency() }} }
-    </p>
+    <!-- And what happened during the period being looked at.
+         The way to the summary sits on this line because this line is what
+         the summary is about: these dates, this account. It asks nothing when
+         tapped - everything it would ask is already chosen above. -->
+    <div class="period-tag">
+      <span class="what">
+        {{ 'summary.inPeriod' | t:{ period: label() } }}
+        @if (store.currency() !== 'COP') { · {{ store.currency() }} }
+      </span>
+
+      <button type="button" class="to-report" [disabled]="exporting()" (click)="exportSummary()">
+        @if (exporting()) {
+          <ion-spinner name="crescent"></ion-spinner>
+          {{ 'report.exporting' | t }}
+        } @else {
+          <ion-icon name="document-text-outline"></ion-icon>
+          {{ 'report.export' | t }}
+        }
+      </button>
+    </div>
+
+    @if (exportNotice(); as notice) {
+      <p class="report-notice">{{ notice }}</p>
+    }
 
     <section class="totals">
       <div>

@@ -162,15 +162,60 @@ ion-toolbar.stepper {
 }
 
 /* Separates what is true now from what happened during the period. */
+/*
+ * Which period is being read, and the way to its summary.
+ *
+ * It was a centred caption. It is now a row, because it gained a second job:
+ * the button beside it exports exactly what this line names. Left and right
+ * against the same 1rem gutter as everything else on the screen, so the two
+ * ends line up with the totals below and the toolbar above.
+ */
 .period-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin: 0.2rem 0 0;
   padding: 0.6rem 1rem 0;
-  text-align: center;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ion-color-medium);
   border-top: 1px solid var(--ion-color-light-shade);
+
+  .what {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+  }
+
+  /* The same small pill the products screen uses to add a product: one shape
+     for "a way out of this section", wherever it appears. */
+  .to-report {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: none;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.95rem; }
+    ion-spinner { width: 0.85rem; height: 0.85rem; }
+
+    &[disabled] { opacity: 0.6; }
+  }
+}
+
+/* What came of it, where the button is rather than in an alert over the app. */
+.report-notice {
+  margin: 0.4rem 1rem 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: right;
+  color: var(--ion-color-medium);
 }
 
 /*

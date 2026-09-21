@@ -60,6 +60,17 @@ export class MovementsStore {
   /** Products set outside net worth in the accounts being looked at. */
   readonly setAsideProducts = signal(0);
 
+  /**
+   * The period and the accounts chosen, and nothing else applied.
+   *
+   * What the donut adds up, and what the financial summary reports on. A word
+   * typed in the search box or a slice tapped on the ring narrows what is
+   * LISTED - they are ways of looking through the period, not a smaller
+   * period - and a report of "September" that quietly left out everything not
+   * matching "didi" would be wrong without looking wrong.
+   */
+  readonly inScope = computed<readonly Movement[]>(() => this.rows());
+
   /** After the search box and any category picked from the donut. */
   readonly visible = computed(() => {
     const search = this.filter.search();

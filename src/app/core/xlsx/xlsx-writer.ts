@@ -77,19 +77,33 @@ export function cellRef(row: number, col: number): string {
   return `${columnName(col)}${row}`;
 }
 
-/** The finished file. */
-export function writeXlsx(sheet: SheetSpec, styles: Record<string, CellStyle>): Uint8Array<ArrayBuffer> {
+/**
+ * The finished file, from one sheet or several.
+ *
+ * Several because a report is two questions - what the period added up to,
+ * and every movement behind it - and one sheet holding both is a sheet nobody
+ * can sort. The styles are shared across all of them: one palette, and a name
+ * used on two sheets means the same thing on both.
+ */
+export function writeXlsx(
+  sheets: SheetSpec | readonly SheetSpec[],
+  styles: Record<string, CellStyle>,
+): Uint8Array<ArrayBuffer> {
+  const all = Array.isArray(sheets) ? sheets : [sheets as SheetSpec];
+  if (all.length === 0) throw new Error('A workbook needs at least one sheet');
+
   const styleIndex = new Map<string, number>();
   const stylesPart = stylesXml(styles, styleIndex);
 
   const encoder = new TextEncoder();
   return zip([
-    ['[Content_Types].xml', CONTENT_TYPES],
+    ['[Content_Types].xml', contentTypes(all.length)],
     ['_rels/.rels', ROOT_RELS],
-    ['xl/workbook.xml', workbookXml(sheet.name)],
-    ['xl/_rels/workbook.xml.rels', WORKBOOK_RELS],
+    ['xl/workbook.xml', workbookXml(all.map(sheet => sheet.name))],
+    ['xl/_rels/workbook.xml.rels', workbookRels(all.length)],
     ['xl/styles.xml', stylesPart],
-    ['xl/worksheets/sheet1.xml', sheetXml(sheet, styleIndex)],
+    ...all.map((sheet, at): [string, string] =>
+      [`xl/worksheets/sheet${at + 1}.xml`, sheetXml(sheet, styleIndex)]),
   ].map(([name, text]) => ({ name, data: encoder.encode(text) })));
 }
 
@@ -101,33 +115,55 @@ const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const RELS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
-const CONTENT_TYPES = HEADER
-  + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-  + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-  + '<Default Extension="xml" ContentType="application/xml"/>'
-  + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-  + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-  + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-  + '</Types>';
+/** Every part of the file has to be declared here, each sheet included. */
+function contentTypes(sheets: number): string {
+  return HEADER
+    + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    + range(sheets).map(at =>
+      `<Override PartName="/xl/worksheets/sheet${at + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')
+    + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    + '</Types>';
+}
+
+function range(count: number): number[] {
+  return Array.from({ length: count }, (_, at) => at);
+}
 
 const ROOT_RELS = HEADER
   + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
   + `<Relationship Id="rId1" Type="${RELS}/officeDocument" Target="xl/workbook.xml"/>`
   + '</Relationships>';
 
-const WORKBOOK_RELS = HEADER
-  + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-  + `<Relationship Id="rId1" Type="${RELS}/worksheet" Target="worksheets/sheet1.xml"/>`
-  + `<Relationship Id="rId2" Type="${RELS}/styles" Target="styles.xml"/>`
-  + '</Relationships>';
+/** The sheets take rId1 upwards, and the styles the one after them. */
+function workbookRels(sheets: number): string {
+  return HEADER
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + range(sheets).map(at =>
+      `<Relationship Id="rId${at + 1}" Type="${RELS}/worksheet" Target="worksheets/sheet${at + 1}.xml"/>`).join('')
+    + `<Relationship Id="rId${sheets + 1}" Type="${RELS}/styles" Target="styles.xml"/>`
+    + '</Relationships>';
+}
 
-function workbookXml(name: string): string {
-  // Excel refuses a sheet name longer than 31 characters or holding any of these.
-  const safe = name.replace(/[[\]:*?/\\]/g, ' ').slice(0, 31) || 'Sheet1';
+function workbookXml(names: readonly string[]): string {
+  const taken = new Set<string>();
+
+  const sheets = names.map((name, at) => {
+    // Excel refuses a sheet name longer than 31 characters or holding any of
+    // these, and refuses to open the file at all if two sheets share a name.
+    let safe = name.replace(/[[\]:*?/\\]/g, ' ').slice(0, 31).trim() || `Sheet${at + 1}`;
+    for (let n = 2; taken.has(safe.toLowerCase()); n++) safe = `${safe.slice(0, 28)} ${n}`;
+    taken.add(safe.toLowerCase());
+
+    return `<sheet name="${escape(safe)}" sheetId="${at + 1}" r:id="rId${at + 1}"/>`;
+  });
+
   return HEADER
     + `<workbook xmlns="${MAIN}" xmlns:r="${RELS}">`
     + '<bookViews><workbookView/></bookViews>'
-    + `<sheets><sheet name="${escape(safe)}" sheetId="1" r:id="rId1"/></sheets>`
+    + `<sheets>${sheets.join('')}</sheets>`
     // Recalculated on open, so what Excel shows is always its own arithmetic.
     + '<calcPr calcId="191029" fullCalcOnLoad="1"/>'
     + '</workbook>';
