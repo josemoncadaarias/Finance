@@ -54,6 +54,7 @@ import { IconComponent } from '../../core/icons/icon.component';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import { InfoHintComponent } from '../../shared/info-hint.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -70,7 +71,7 @@ export interface CushionEntryRequest {
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent,
+    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle,
   ],

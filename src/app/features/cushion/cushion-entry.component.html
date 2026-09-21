@@ -82,14 +82,17 @@
         </div>
       </div>
 
+      <!-- The day, and beside it what moving between products means. It was
+           three lines of the screen above the note, which had to be scrolled
+           to. -->
       <div class="context single">
         <button type="button" class="day-chip" (click)="showDate.set(true)">
           <ion-icon name="calendar-outline"></ion-icon>
           <span>{{ dateLabel() }}</span>
         </button>
+        <app-info-hint [text]="'cushion.move.hint' | t"
+                       [label]="'entry.whatThisMeans' | t"></app-info-hint>
       </div>
-
-      <p class="pending">{{ 'cushion.move.hint' | t }}</p>
     } @else {
       <!-- The product and the date. Only the product: the account is already
            the one on screen, and its balance does not move. -->

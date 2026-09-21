@@ -585,3 +585,22 @@ ion-modal.editor-sheet {
     ion-icon { font-size: 1.25rem; }
   }
 }
+
+/*
+ * The text inside an explanation mark's bubble.
+ *
+ * Styled here because a popover's contents are moved to the end of the page,
+ * outside the component that wrote them, where that component's styles no
+ * longer reach.
+ */
+ion-popover.info-hint-popover {
+  --max-width: 19rem;
+
+  .info-hint-body {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: var(--ion-text-color);
+  }
+}
