@@ -77,6 +77,34 @@ experience: as of today it has open Android issues (safe areas that leave the
 UI unusable on .NET 10, startup crashes on the emulator). Not worth fighting
 the framework on a long-running project.
 
+### iOS: possible, deliberately not done
+
+Looked into on 2026-09-21 and deferred by Jose. Nothing here blocks it — every
+plugin in `package.json` is an official Capacitor one with iOS support, and
+`npx cap add ios` would be the whole technical step. What stops it is Apple:
+
+- An app cannot be installed from a file the way an APK can. Every install
+  needs Apple's own certificate and a profile naming the device.
+- A free Apple ID signs an app for **7 days** and needs a physical Mac to
+  re-sign it. That is not a way to carry an app.
+- The Apple Developer Program (**$99/year**, from memory - confirm before
+  paying) is what makes it work, and it is the *same* subscription that
+  publishing to the App Store needs. One payment covers both, plus TestFlight,
+  which updates the phone by itself the way Jose wanted.
+- A GitHub Action can build it on a macOS runner, signing from secrets the way
+  `debug-apk.yml` does. macOS minutes bill at 10x, so the free tier is roughly
+  20 builds a month.
+- The same rule as Android decides an update from a reinstall: same bundle id
+  plus same signing identity keeps the data, a different identity forces an
+  uninstall.
+
+Jose has no Mac and no iPhone as of this date, and is not paying for now. The
+eventual goal, when it happens, is the App Store. **So: write nothing that
+assumes Android** - no fixed file paths, no Android-only plugin. Two things
+would be left to do on the day: a separate Google OAuth client for iOS (the
+one on record is tied to the Android keystore's SHA-1) and testing a real
+backup restore against iOS's own SQLite backend.
+
 ### Non-negotiable business rules
 
 1. **Offline-first.** The app never breaks without internet. If a network
