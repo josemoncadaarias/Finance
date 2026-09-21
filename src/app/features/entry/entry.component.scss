@@ -1129,18 +1129,18 @@ ion-footer[hidden] { display: none; }
 .note-panel { margin-top: 0.15rem; }
 
 /*
- * While the note is being written, what is offered sits ABOVE it.
+ * While the note is being written, what is offered drops DOWN from it.
  *
- * The note is the last thing on the form, so the keyboard comes up right
- * under it - and the matches, drawn after it, landed behind the keyboard.
- * Jose typed "didi" against 1,170 movements that carry it and saw nothing.
- * The note stays where the keyboard put it and the list grows upwards, into
- * the room the categories leave.
+ * It was ordered above for a while: the note is the last thing on the form,
+ * the keyboard comes up under it, and the matches drawn after it went behind
+ * the keyboard - Jose typed "didi" against 1,170 movements and saw nothing.
+ * What actually fixed that is the rule further up, which hides the rest of
+ * the form while the keyboard is up and leaves the panel ending above it. The
+ * reordering rode along, and cost the list the shape a list of matches has
+ * everywhere else: falling from the field it belongs to.
  */
 .note-panel.writing {
-  .note-head  { order: 0; }
-  .note-hints { order: 1; margin: 0 1rem; }
-  .note       { order: 2; }
+  .note-hints { margin: 0 1rem; }
 }
 
 /*
