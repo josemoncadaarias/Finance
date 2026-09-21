@@ -424,6 +424,12 @@ export class TransactionsRepository {
    * list of suggestions, and no separate table has to be kept in step with it.
    * Ordered by how often each note was written and then by how recently, so
    * the everyday one wins over something typed once two years ago.
+   *
+   * The history is all three places a note can be written, not only the
+   * movements. A product's own income - a cashback the bank paid in - is a
+   * row of `cushion_adjustments` and never a movement, so its note was
+   * offered to nobody: Jose wrote "Cashback RappiCard" on one on 2026-09-21
+   * and the next one did not suggest it back.
    */
   async suggestNotes(fragment: string, limit = 6): Promise<string[]> {
     const needle = fragment.trim();
@@ -432,21 +438,23 @@ export class TransactionsRepository {
     // `%` and `_` are wildcards in LIKE. Someone typing them means the
     // characters themselves.
     const escaped = needle.replace(/[\\%_]/g, character => `\\${character}`);
+    const like = `%${escaped}%`;
 
-    const rows = await this.db.query<{ description: string }>(
-      `SELECT description,
-              COUNT(*) AS times,
-              MAX(occurred_on) AS last_used
-       FROM transactions
-       WHERE description IS NOT NULL
-         AND TRIM(description) <> ''
-         AND description LIKE ? ESCAPE '\\'
-       GROUP BY description COLLATE NOCASE
+    const rows = await this.db.query<{ note: string }>(
+      `SELECT note, COUNT(*) AS times, MAX(on_date) AS last_used FROM (
+         SELECT description AS note, occurred_on AS on_date FROM transactions
+         UNION ALL
+         SELECT note, on_date FROM cushion_adjustments
+         UNION ALL
+         SELECT note, on_date FROM cushion_withdrawals
+       )
+       WHERE note IS NOT NULL AND TRIM(note) <> '' AND note LIKE ? ESCAPE '\\'
+       GROUP BY note COLLATE NOCASE
        ORDER BY times DESC, last_used DESC
        LIMIT ?`,
-      [`%${escaped}%`, limit],
+      [like, limit],
     );
-    return rows.map(row => row.description);
+    return rows.map(row => row.note);
   }
 
   /** Totals per category over a period, for reports. Transfer legs are left out. */

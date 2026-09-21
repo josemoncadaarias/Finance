@@ -848,6 +848,7 @@ export class CushionPage {
       this.lines.set(lines);
       this.lastAccrued.set(newest);
       this.incomeCategories.set(await categories.list({ kind: 'income' }));
+      this.allCategories.set(await categories.list());
       // The kinds a product's own movement can be, which the user keeps.
       this.productKinds.set(await new ProductKindsRepository(db).list({ includeArchived: true }));
       await this.customIcons.load();
@@ -2230,6 +2231,12 @@ export class CushionPage {
 
   movementIcon(movement: ProductMovement): string {
     if (movement.type === 'entry') {
+      // The category it was filed under, which is where an entry has been
+      // filed since migration 037. Before that it named one of the kinds the
+      // products kept for themselves, and before THAT only a coarse word.
+      const category = this.categoriesById().get(movement.entry.category_id ?? -1);
+      if (category) return category.custom_icon_id ? 'pricetag-outline' : (category.builtin_icon ?? 'pricetag-outline');
+
       const kind = this.kindsById().get(movement.entry.product_kind_id ?? -1);
       if (kind?.builtin_icon) return kind.builtin_icon;
       if (kind) return 'pricetag-outline';
@@ -2243,7 +2250,9 @@ export class CushionPage {
     switch (movement.type) {
       case 'transfer': return ['between', this.i18n.t('cushion.movements.betweenProducts')];
       case 'entry': return [
-        `kind:${movement.entry.product_kind_id ?? movement.entry.kind}`,
+        movement.entry.category_id !== null && movement.entry.category_id !== undefined
+          ? `category:${movement.entry.category_id}`
+          : `kind:${movement.entry.product_kind_id ?? movement.entry.kind}`,
         this.kindLabel(movement.entry as CushionEntry),
       ];
       case 'withdrawal': return ['withdrawal', this.i18n.t('cushion.movements.withdrawal')];
@@ -2266,6 +2275,9 @@ export class CushionPage {
    * falls back to the coarse word its column has always carried.
    */
   kindLabel(entry: CushionEntry): string {
+    const category = this.categoriesById().get(entry.category_id ?? -1);
+    if (category) return category.name;
+
     const kind = this.kindsById().get(entry.product_kind_id ?? -1);
     if (kind) return kind.name;
     if (entry.kind === 'cashback') return this.i18n.t('cushion.kind.cashback');
@@ -2277,10 +2289,22 @@ export class CushionPage {
   readonly productKinds = signal<ProductKind[]>([]);
   readonly kindsById = computed(() => new Map(this.productKinds().map(kind => [kind.id, kind])));
 
-  /** The image a kind wears, when it wears one of the user's own. */
+  /** The image an entry's category wears, when it wears one of the user's own. */
   kindIconId(entry: CushionEntry): number | null {
-    return this.kindsById().get(entry.product_kind_id ?? -1)?.custom_icon_id ?? null;
+    return this.categoriesById().get(entry.category_id ?? -1)?.custom_icon_id
+      ?? this.kindsById().get(entry.product_kind_id ?? -1)?.custom_icon_id
+      ?? null;
   }
+
+  /**
+   * Every category, for naming and drawing a product's own entries.
+   *
+   * Income and expense both: a product has entries of each. `incomeCategories`
+   * beside it is a different list for a different job - the one a CDT's
+   * payment is filed under.
+   */
+  readonly allCategories = signal<CategoryRow[]>([]);
+  readonly categoriesById = computed(() => new Map(this.allCategories().map(c => [c.id, c])));
 
   /**
    * Reloads the sheet in place, so a correction is visible immediately.

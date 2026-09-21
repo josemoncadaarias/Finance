@@ -774,6 +774,38 @@ test('a category wearing an image carries it into the movement list', async () =
   await db.close();
 });
 
+test('a note written on a product\'s own income is suggested back', async () => {
+  const { db, accounts, categories, ids } = await setup();
+  const transactions = new TransactionsRepository(db, NOW);
+  const yields = new YieldsRepository(db, NOW);
+
+  // Migration 037 turned the product kinds into income categories, so this
+  // one is already there.
+  const cashback = (await categories.list({ kind: 'income' }))
+    .find(category => category.name === 'Cashback').id;
+
+  // An ordinary movement: its note has always been suggested.
+  await transactions.create({
+    account_id: ids.rappi, category_id: cashback, occurred_on: '2026-09-20',
+    amount_minor: 1_000, description: 'Cashback de la tienda', source: 'manual',
+  });
+
+  // A product's own income is not a movement at all - it is an entry on the
+  // cushion - so its note used to be offered to nobody. Jose, 2026-09-21.
+  await yields.enrol({
+    account_id: ids.rappi, default_pocket_name: 'Cuenta de ahorros',
+    opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false,
+  });
+  await yields.adjust({
+    account_id: ids.rappi, on_date: '2026-09-21', amount_minor: 5_000,
+    category_id: cashback, note: 'Cashback RappiCard',
+  });
+
+  const suggested = await transactions.suggestNotes('cashback');
+  assert.ok(suggested.includes('Cashback RappiCard'), 'the one written on the product');
+  assert.ok(suggested.includes('Cashback de la tienda'), 'and the ones on movements');
+});
+
 test('icon images are read only for the ids asked for', async () => {
   const { db } = await setup();
   const icons = new CustomIconsRepository(db, NOW);

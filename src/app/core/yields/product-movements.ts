@@ -31,8 +31,10 @@ export interface MovementEntry {
   on_date: IsoDate;
   amount_minor: number;
   kind: 'cashback' | 'correction' | 'other';
-  /** The kind it was filed under, of the ones the user keeps. */
+  /** The kind it was filed under, before kinds became ordinary categories. */
   product_kind_id?: number | null;
+  /** The ordinary category it is filed under, since migration 037. */
+  category_id?: number | null;
   pocket_id: number | null;
   note: string | null;
   transaction_id: number | null;
