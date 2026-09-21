@@ -1448,6 +1448,19 @@
                       [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
                 <ion-icon name="arrow-up-outline"></ion-icon>
               </button>
+
+              <!-- Closing the groups from wherever the list has got to. Its
+                   other button is at the head of the section, which is a long
+                   way up once there is enough list to want it closed. -->
+              @if (foldableGroups()) {
+                <button type="button" class="fold" (click)="foldAllGroups()"
+                        [attr.aria-expanded]="!allGroupsCollapsed()"
+                        [attr.aria-label]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
+                        [title]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+                  <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                </button>
+              }
+
               <button type="button" [class.gone]="!showSheetDown()" (click)="sheetToBottom()"
                       [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
                 <ion-icon name="arrow-down-outline"></ion-icon>

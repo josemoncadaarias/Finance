@@ -217,6 +217,25 @@ export class CushionPage {
     void this.measureSheet();
   }
 
+  /**
+   * True while there are movement groups worth folding.
+   *
+   * "Los más grandes" is one flat list with no groups in it, and a section
+   * that is closed has nothing on screen to fold.
+   */
+  readonly foldableGroups = computed(() =>
+    this.showMovements() && this.movementsView() !== 'largest' && this.movementGroups().length > 1);
+
+  /**
+   * Folds them, and reads the sheet's position again: folding changes how
+   * tall it is and no scroll event says so, which would leave a "go down"
+   * button pointing at nothing.
+   */
+  foldAllGroups(): void {
+    this.toggleAllGroups();
+    setTimeout(() => void this.measureSheet(), 0);
+  }
+
   async sheetToTop(): Promise<void> {
     await this.sheet()?.scrollToTop(300);
     await this.measureSheet();
