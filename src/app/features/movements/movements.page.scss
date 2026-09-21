@@ -171,15 +171,19 @@ ion-toolbar.stepper {
  * ends line up with the totals below and the toolbar above.
  */
 .period-tag {
-  display: flex;
+  /* The outer two columns are the same width whatever they hold, which is
+     what keeps the caption between them centred on the screen rather than
+     centred on what the button left over. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem;
   margin: 0.2rem 0 0;
   padding: 0.6rem 1rem 0;
   border-top: 1px solid var(--ion-color-light-shade);
 
   .what {
+    text-align: center;
     font-size: 0.7rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -189,10 +193,11 @@ ion-toolbar.stepper {
   /* The same small pill the products screen uses to add a product: one shape
      for "a way out of this section", wherever it appears. */
   .to-report {
+    justify-self: end;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    flex: none;
+    min-width: 0;
     padding: 0.3rem 0.75rem;
     border: 1px solid var(--ion-color-light-shade);
     border-radius: 999px;
@@ -202,20 +207,16 @@ ion-toolbar.stepper {
     font-weight: 600;
     cursor: pointer;
 
-    ion-icon { font-size: 0.95rem; }
-    ion-spinner { width: 0.85rem; height: 0.85rem; }
+    ion-icon { font-size: 0.95rem; flex: none; }
+    ion-spinner { width: 0.85rem; height: 0.85rem; flex: none; }
+
+    /* On a narrow phone the words go and the icon stays: a pill that wraps
+       onto two lines, or one that pushes the caption off centre, is worse
+       than one that is only its icon. */
+    .say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     &[disabled] { opacity: 0.6; }
   }
-}
-
-/* What came of it, where the button is rather than in an alert over the app. */
-.report-notice {
-  margin: 0.4rem 1rem 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  text-align: right;
-  color: var(--ion-color-medium);
 }
 
 /*

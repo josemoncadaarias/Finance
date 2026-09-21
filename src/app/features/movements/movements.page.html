@@ -113,6 +113,12 @@
          the summary is about: these dates, this account. It asks nothing when
          tapped - everything it would ask is already chosen above. -->
     <div class="period-tag">
+      <!-- Three columns, the outer two the same width, so the caption sits in
+           the middle of the screen exactly as it did before it had a button
+           beside it. Centring it inside what the button left over would have
+           moved it every time the wording changed length. -->
+      <span class="spacer"></span>
+
       <span class="what">
         {{ 'summary.inPeriod' | t:{ period: label() } }}
         @if (store.currency() !== 'COP') { · {{ store.currency() }} }
@@ -121,17 +127,17 @@
       <button type="button" class="to-report" [disabled]="exporting()" (click)="exportSummary()">
         @if (exporting()) {
           <ion-spinner name="crescent"></ion-spinner>
-          {{ 'report.exporting' | t }}
         } @else {
           <ion-icon name="document-text-outline"></ion-icon>
-          {{ 'report.export' | t }}
         }
+        <span class="say">{{ (exporting() ? 'report.exporting' : 'report.export') | t }}</span>
       </button>
     </div>
 
-    @if (exportNotice(); as notice) {
-      <p class="report-notice">{{ notice }}</p>
-    }
+    <!-- What came of it floats over the screen for a moment and leaves, rather
+         than pushing everything down to make room for a line of text. -->
+    <ion-toast [isOpen]="exportNotice() !== ''" [message]="exportNotice()" [duration]="2600"
+               position="bottom" (didDismiss)="exportNotice.set('')"></ion-toast>
 
     <section class="totals">
       <div>

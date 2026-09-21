@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
+  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
   IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -54,7 +54,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
     CommonModule, FormsModule, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent, AccountEditorComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
+    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
     IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
   ],
 })
@@ -479,7 +479,10 @@ export class MovementsPage {
 
       const name = reportFileName(data);
       const saved = await saveFile(new Blob([reportWorkbook(data)], { type: XLSX_MIME }), name);
-      if (saved) this.exportNotice.set(this.i18n.t('report.saved', { file: name }));
+      // Not the file's name: on the phone the share sheet has already shown
+      // it and asked where it should go, and repeating it afterwards was a
+      // line of filename across the screen saying nothing new.
+      if (saved) this.exportNotice.set(this.i18n.t('report.saved'));
     } catch (error) {
       this.exportNotice.set(error instanceof Error ? error.message : String(error));
     } finally {

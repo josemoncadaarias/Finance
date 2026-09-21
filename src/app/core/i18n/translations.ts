@@ -88,7 +88,7 @@ export const SPANISH = {
   // ---- The financial summary of a period, and the spreadsheet it exports ----
   'report.export': 'Resumen en Excel',
   'report.exporting': 'Armando el resumen...',
-  'report.saved': 'Se guardo {file}',
+  'report.saved': 'Resumen listo',
   'report.nothing': 'En este periodo no hay movimientos para resumir.',
   'report.title': 'Resumen financiero',
   'report.file': 'resumen-financiero-{period}.xlsx',
@@ -811,7 +811,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   // ---- The financial summary of a period, and the spreadsheet it exports ----
   'report.export': 'Summary in Excel',
   'report.exporting': 'Putting the summary together...',
-  'report.saved': '{file} saved',
+  'report.saved': 'Summary ready',
   'report.nothing': 'There are no movements to summarise in this period.',
   'report.title': 'Financial summary',
   'report.file': 'financial-summary-{period}.xlsx',
