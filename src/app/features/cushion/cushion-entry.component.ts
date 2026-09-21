@@ -378,9 +378,35 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     return chosen && !top.includes(chosen) ? [...top.slice(0, room - 1), chosen] : top;
   });
 
+  /**
+   * Which order the category list is in, shared with the movement form.
+   *
+   * The same key, so choosing A-Z while recording a movement leaves the
+   * product's own list in A-Z too: it is one preference about one list, and
+   * two of them would mean answering the same question twice.
+   */
+  readonly categoryOrder = signal<'use' | 'name'>(readCategoryOrder());
+
+  setCategoryOrder(order: 'use' | 'name'): void {
+    this.categoryOrder.set(order);
+    try {
+      localStorage.setItem('finance.categoryOrder', order);
+    } catch {
+      // A browser with site data blocked still gets the order for this visit.
+    }
+  }
+
   readonly foundCategories = computed(() => {
     const term = fold(this.categorySearch());
-    return term === '' ? this.categories() : this.categories().filter(category => fold(category.name).includes(term));
+    const found = term === ''
+      ? this.categories()
+      : this.categories().filter(category => fold(category.name).includes(term));
+
+    // The repository already hands them over most-used first.
+    if (this.categoryOrder() === 'use') return found;
+
+    // `localeCompare` so "Éxito" files under E and not after Z.
+    return [...found].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   });
 
   readonly pendingLabel = computed(() => {
@@ -811,6 +837,15 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 function aYearAgo(): string {
   const today = todayIso();
   return `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
+}
+
+/** The category list's order, read from the movement form's own key. */
+function readCategoryOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.categoryOrder') === 'name' ? 'name' : 'use';
+  } catch {
+    return 'use';
+  }
 }
 
 /** Lowercased and without accents, for searching. */

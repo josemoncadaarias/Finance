@@ -410,7 +410,15 @@
                  from the one that really had it - the savings account at zero,
                  a transfer out of it, and the move from the alcancía beside it
                  forgotten. The negative is the reminder. -->
-            <p class="section">{{ 'cushion.pockets' | t }}</p>
+            <!-- The way in beside the list it adds to, rather than a row of
+                 its own: one less band on a screen that has many. -->
+            <div class="section-row">
+              <p class="section">{{ 'cushion.pockets' | t }}</p>
+              <button type="button" class="add" (click)="openPocket(null)">
+                <ion-icon name="add-outline"></ion-icon>
+                {{ 'cushion.pockets.add' | t }}
+              </button>
+            </div>
             <ion-list [inset]="true">
               <!-- The same list as the account's settings: one place to learn
                    how a product reads, and the same actions from both. -->
@@ -451,26 +459,21 @@
                    amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
-            <!-- A product can be added from here, without going through the
-                 account's settings first. -->
             <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="openPocket(null)">
-                <ion-icon slot="start" name="add-outline"></ion-icon>
-                {{ 'cushion.pockets.add' | t }}
-              </ion-button>
             </div>
 
-            <!-- Income or an expense on a product's yields, on the movement
-                 screen. It never touches the account balance. -->
-            <div class="actions">
-              <ion-button expand="block" fill="outline" color="success" (click)="openEntry(line, 'income')">
-                <ion-icon slot="start" name="add-outline"></ion-icon>
-                {{ 'cushion.entry.income' | t }}
-              </ion-button>
-              <ion-button expand="block" fill="outline" color="danger" (click)="openEntry(line, 'expense')">
-                <ion-icon slot="start" name="remove-outline"></ion-icon>
-                {{ 'cushion.entry.expense' | t }}
-              </ion-button>
+            <!-- Income or an expense on a product's yields. The summary
+                 screen's own two buttons, in its order and its shape:
+                 spending on the left, where the hand already expects it. -->
+            <div class="compose">
+              <button type="button" class="big expense" (click)="openEntry(line, 'expense')">
+                <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
+                <span class="what">{{ 'summary.expense' | t }}</span>
+              </button>
+              <button type="button" class="big income" (click)="openEntry(line, 'income')">
+                <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
+                <span class="what">{{ 'summary.income' | t }}</span>
+              </button>
             </div>
 
             <!-- Only where there is more than one product to move between. -->

@@ -333,6 +333,17 @@
       </div>
       <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
                      (ionInput)="categorySearch.set($any($event.target).value ?? '')" [debounce]="0"></ion-searchbar>
+
+      <!-- The movement form's own control, said the same way and remembering
+           the same choice: what you reach for most, or where a name sits when
+           you know it. -->
+      <div class="order">
+        <button type="button" [class.on]="categoryOrder() === 'use'"
+                (click)="setCategoryOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="categoryOrder() === 'name'"
+                (click)="setCategoryOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
+
       <ion-list>
         @for (category of foundCategories(); track category.id) {
           <ion-item button lines="full" (click)="pickCategory(category.id)" [class.selected]="categoryId() === category.id">

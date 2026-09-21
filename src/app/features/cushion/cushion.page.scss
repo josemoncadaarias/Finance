@@ -827,3 +827,38 @@ ion-content.sheet { --padding-bottom: 4.5rem; }
   --padding-bottom: 0.6rem;
   white-space: normal;
 }
+
+/*
+ * A section's heading with its own way in beside it.
+ *
+ * "Agregar un producto" was a row of its own, which on a phone is a band of
+ * screen spent on a button pressed once or twice in the life of an account.
+ */
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  .section { margin: 0; }
+
+  .add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: none;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.95rem; }
+  }
+}
+
+/* The two buttons come from global.scss; inside a sheet they need no gutter. */
+.compose { padding-left: 0; padding-right: 0; }
