@@ -177,6 +177,54 @@ export class ReportPage {
     return `${change > 0 ? '+' : ''}${change}%`;
   }
 
+  /**
+   * A ring of the shares a ranked list carries.
+   *
+   * The list already says the figures; the ring says the SHAPE of them - that
+   * two categories are most of the month, or that a dozen are all much the
+   * same - which is the thing a column of percentages is worst at. Drawn from
+   * the same palette as the summary screen's donut, so the same spending
+   * wears the same colour on both screens.
+   *
+   * Only where a share means something: a list of the biggest movements has
+   * none, and a ring of one slice is a circle.
+   */
+  ringOf(block: Extract<Block, { kind: 'ranked' }>): { path: string; colour: string; label: string }[] {
+    const shares = block.rows.filter(row => (row.share ?? 0) > 0);
+    if (shares.length < 2) return [];
+
+    const total = shares.reduce((sum, row) => sum + (row.share ?? 0), 0);
+    if (total <= 0) return [];
+
+    let at = -Math.PI / 2;
+    return shares.map((row, index) => {
+      const sweep = ((row.share ?? 0) / total) * Math.PI * 2;
+      const path = arc(at, at + sweep);
+      at += sweep;
+      return { path, colour: SPENT[index % SPENT.length], label: row.label };
+    });
+  }
+
+  /**
+   * Which bar of a trend has been tapped, and so which figure is being read.
+   *
+   * The amounts used to sit above every bar. At eleven digits each they were
+   * what made the chart wider than the phone, and the sideways scroll that
+   * left behind was one Jose could not find - so the months ran out at June
+   * with the rest of the year off the edge. Every month fits now, and the one
+   * figure anyone wants at a time is the one they point at.
+   */
+  readonly picked = signal<string | null>(null);
+
+  pick(label: string): void {
+    this.picked.update(current => (current === label ? null : label));
+  }
+
+  pickedPoint(block: Extract<Block, { kind: 'trend' }>): { label: string; value: Value } | null {
+    const label = this.picked();
+    return block.points.find(point => point.label === label) ?? null;
+  }
+
   /** The tallest point of a trend, so the bars have something to scale to. */
   peakOf(block: Extract<Block, { kind: 'trend' }>): number {
     return block.points.reduce((most, point) =>
@@ -287,4 +335,35 @@ export class ReportPage {
   isAbove(block: Extract<Block, { kind: 'trend' }>, label: string): boolean {
     return block.aboveAverage?.includes(label) ?? false;
   }
+}
+
+/*
+ * The ring's geometry.
+ *
+ * The summary screen's own palette, so a category that is amber in the donut
+ * is amber here. Shared by value rather than imported from that component:
+ * the donut draws `Slice`s and this draws block rows, and giving one of them
+ * the other's shape to satisfy an import would be the tail wagging the dog.
+ */
+const SPENT = ['#c8553d', '#e0913f', '#b5457a', '#7f5aa6', '#a8603c', '#d16b8a', '#6b5b95', '#c9a227'];
+
+const RING = 60;
+const OUTER = 26;
+const INNER = 16;
+
+/** One slice of the ring, between two angles. */
+function arc(from: number, to: number): string {
+  // A full circle cannot be drawn as one arc - its two ends are the same
+  // point and the path collapses - so it is drawn as two halves.
+  if (to - from >= Math.PI * 2 - 0.0001) {
+    const half = from + Math.PI;
+    return `${arc(from, half)} ${arc(half, from + Math.PI * 2)}`;
+  }
+
+  const big = to - from > Math.PI ? 1 : 0;
+  const on = (radius: number, angle: number) =>
+    `${(RING / 2 + Math.cos(angle) * radius).toFixed(2)} ${(RING / 2 + Math.sin(angle) * radius).toFixed(2)}`;
+
+  return `M ${on(OUTER, from)} A ${OUTER} ${OUTER} 0 ${big} 1 ${on(OUTER, to)}`
+    + ` L ${on(INNER, to)} A ${INNER} ${INNER} 0 ${big} 0 ${on(INNER, from)} Z`;
 }

@@ -103,6 +103,7 @@ export const SPANISH = {
   'report.byMonth': 'Gasto mes a mes',
   'report.byMonth.average': 'Promedio mensual',
   'report.byMonth.above': 'Por encima del promedio: {months}.',
+  'report.byMonth.tap': 'Toca una barra para ver su valor.',
 
   'report.recurring': 'Gastos que se repiten',
   'report.recurring.months': 'Meses',
@@ -856,6 +857,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'report.byMonth': 'Spending month by month',
   'report.byMonth.average': 'Monthly average',
   'report.byMonth.above': 'Above the average: {months}.',
+  'report.byMonth.tap': 'Tap a bar to read its figure.',
 
   'report.recurring': 'What comes back every month',
   'report.recurring.months': 'Months',

@@ -92,6 +92,29 @@
 
             <!-- ---------------- a list in order of size ---------------- -->
             @if (block.kind === 'ranked') {
+              <!-- The shape of the shares, which a column of percentages is
+                   worst at saying: that two categories are most of the month,
+                   or that a dozen are all much the same. -->
+              @if (ringOf(block); as ring) {
+                @if (ring.length > 0) {
+                  <div class="ring">
+                    <svg viewBox="0 0 60 60" role="img" [attr.aria-label]="block.title">
+                      @for (slice of ring; track slice.label) {
+                        <path [attr.d]="slice.path" [attr.fill]="slice.colour"></path>
+                      }
+                    </svg>
+                    <ul class="key">
+                      @for (slice of ring.slice(0, 4); track slice.label) {
+                        <li>
+                          <i [style.background]="slice.colour"></i>
+                          <span>{{ slice.label }}</span>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+              }
+
               <ul class="ranked">
                 @for (row of block.rows; track row.label) {
                   <li>
@@ -167,15 +190,32 @@
 
             <!-- ---------------- month by month ---------------- -->
             @if (block.kind === 'trend') {
+              <!-- Every month fits, and the amounts are not printed over the
+                   bars: at eleven digits each they were what forced the chart
+                   wider than the screen, and the way out of that was a
+                   sideways scroll nobody found. Tapping a bar says its
+                   figure underneath. -->
               <div class="trend">
                 @for (point of block.points; track point.label) {
-                  <div class="point" [class.above]="isAbove(block, point.label)">
-                    <span class="much">{{ show(point.value) }}</span>
+                  <button type="button" class="point"
+                          [class.above]="isAbove(block, point.label)"
+                          [class.picked]="picked() === point.label"
+                          (click)="pick(point.label)"
+                          [attr.aria-label]="point.label + ': ' + show(point.value)">
                     <span class="bar"><i [style.height]="heightOf(block, point.value)"></i></span>
                     <span class="when">{{ shortMonth(point.label) }}</span>
-                  </div>
+                  </button>
                 }
               </div>
+
+              <p class="reading">
+                @if (pickedPoint(block); as point) {
+                  <span class="when">{{ point.label }}</span>
+                  <strong>{{ show(point.value) }}</strong>
+                } @else {
+                  <span class="hint">{{ 'report.byMonth.tap' | t }}</span>
+                }
+              </p>
 
               @if (block.average && block.averageLabel) {
                 <p class="total">
