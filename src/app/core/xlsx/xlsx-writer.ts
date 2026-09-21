@@ -49,6 +49,28 @@ export interface SheetCell {
   content?: CellContent;
 }
 
+/**
+ * A chart drawn on a sheet, reading cells that are already on it.
+ *
+ * It points at ranges rather than carrying its own copy of the numbers, so
+ * the chart is live: change a figure in the sheet and the chart follows, and
+ * there is only ever one version of each number in the file.
+ *
+ * Two kinds, which is what this report needs and no more. A chart is the one
+ * part of the format where a mistake makes Excel call the whole file corrupt,
+ * so the surface is kept small enough to be read in one sitting.
+ */
+export interface ChartSpec {
+  kind: 'bar' | 'doughnut';
+  title: string;
+  /** Where the labels are, as a range on this sheet: `{ from, to }` in cells. */
+  categories: { fromRow: number; toRow: number; col: number };
+  /** One series per column of figures, each with the heading it goes by. */
+  series: { name: string; col: number }[];
+  /** The box it sits in, in cells: column and row, both zero-based. */
+  at: { col: number; row: number; width: number; height: number };
+}
+
 export interface SheetSpec {
   name: string;
   /** Widths in characters, from column A. */
@@ -60,6 +82,8 @@ export interface SheetSpec {
   /** Rows kept in view while scrolling. */
   frozenRows?: number;
   protect?: boolean;
+  /** Charts drawn over it, reading its own cells. */
+  charts?: ChartSpec[];
 }
 
 export function columnName(col: number): string {
@@ -97,13 +121,14 @@ export function writeXlsx(
 
   const encoder = new TextEncoder();
   return zip([
-    ['[Content_Types].xml', contentTypes(all.length)],
+    ['[Content_Types].xml', contentTypes(all.length, drawnSheets(all))],
     ['_rels/.rels', ROOT_RELS],
     ['xl/workbook.xml', workbookXml(all.map(sheet => sheet.name))],
     ['xl/_rels/workbook.xml.rels', workbookRels(all.length)],
     ['xl/styles.xml', stylesPart],
     ...all.map((sheet, at): [string, string] =>
       [`xl/worksheets/sheet${at + 1}.xml`, sheetXml(sheet, styleIndex)]),
+    ...chartParts(all),
   ].map(([name, text]) => ({ name, data: encoder.encode(text) })));
 }
 
@@ -116,7 +141,7 @@ const RELS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationship
 const HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 /** Every part of the file has to be declared here, each sheet included. */
-function contentTypes(sheets: number): string {
+function contentTypes(sheets: number, drawn: readonly { sheet: number; charts: number[] }[] = []): string {
   return HEADER
     + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
     + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -125,6 +150,13 @@ function contentTypes(sheets: number): string {
     + range(sheets).map(at =>
       `<Override PartName="/xl/worksheets/sheet${at + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')
     + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    + drawn.map(one =>
+      `<Override PartName="/xl/drawings/drawing${one.sheet}.xml"`
+      + ' ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+      + one.charts.map(at =>
+        `<Override PartName="/xl/charts/chart${at}.xml"`
+        + ' ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>').join(''),
+    ).join('')
     + '</Types>';
 }
 
@@ -280,6 +312,10 @@ function sheetXml(sheet: SheetSpec, styleIndex: Map<string, number>): string {
       ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
       : '')
     + '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>'
+    // The drawing comes after the margins and before the end. A worksheet's
+    // elements have a fixed order in the schema, and Excel does not read one
+    // that is out of it - it reports the whole file as corrupt.
+    + (sheet.charts?.length ? '<drawing r:id="rId1"/>' : '')
     + '</worksheet>';
 }
 
@@ -402,4 +438,162 @@ function zip(files: { name: string; data: Uint8Array }[]): Uint8Array<ArrayBuffe
   view.setUint16(at + 20, 0, true);
 
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Charts
+// ---------------------------------------------------------------------------
+
+/*
+ * A chart is five parts, not one.
+ *
+ * The chart itself; a drawing that says where on the sheet it sits; a
+ * relationship from the sheet to that drawing and another from the drawing to
+ * the chart; and an entry in [Content_Types] for each new part. Miss any of
+ * them and Excel does not draw a wrong chart - it refuses to open the file
+ * and calls it corrupt. That is why this is the last thing in the writer and
+ * why its surface is two kinds of chart and nothing else.
+ */
+
+const CHART_NS = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+const DRAW_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const SHEET_DRAW_NS = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+
+/** A range as a chart has to name it: sheet, quoted, and absolute cells. */
+function rangeRef(sheet: string, col: number, fromRow: number, toRow: number): string {
+  // A quote inside a sheet name is doubled, as in a formula.
+  const name = sheet.replace(/'/g, "''");
+  return `'${name}'!$${columnName(col)}$${fromRow}:$${columnName(col)}$${toRow}`;
+}
+
+function chartXml(chart: ChartSpec, sheetName: string): string {
+  const { fromRow, toRow } = chart.categories;
+  const cats = `<c:cat><c:strRef><c:f>${escape(rangeRef(sheetName, chart.categories.col, fromRow, toRow))}</c:f></c:strRef></c:cat>`;
+
+  const series = chart.series.map((one, at) =>
+    '<c:ser>'
+    + `<c:idx val="${at}"/><c:order val="${at}"/>`
+    + `<c:tx><c:v>${escape(one.name)}</c:v></c:tx>`
+    + cats
+    + `<c:val><c:numRef><c:f>${escape(rangeRef(sheetName, one.col, fromRow, toRow))}</c:f></c:numRef></c:val>`
+    + '</c:ser>').join('');
+
+  // Two arbitrary but stable ids: a chart's axes refer to each other by them.
+  const catAxis = 111111111;
+  const valAxis = 222222222;
+
+  const plot = chart.kind === 'doughnut'
+    ? '<c:doughnutChart>'
+      + '<c:varyColors val="1"/>'
+      + series
+      + '<c:firstSliceAng val="0"/><c:holeSize val="55"/>'
+      + '</c:doughnutChart>'
+    : '<c:barChart>'
+      + '<c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>'
+      + series
+      + '<c:gapWidth val="60"/>'
+      + `<c:axId val="${catAxis}"/><c:axId val="${valAxis}"/>`
+      + '</c:barChart>'
+      + `<c:catAx><c:axId val="${catAxis}"/><c:scaling><c:orientation val="minMax"/></c:scaling>`
+      + `<c:delete val="0"/><c:axPos val="b"/><c:crossAx val="${valAxis}"/></c:catAx>`
+      + `<c:valAx><c:axId val="${valAxis}"/><c:scaling><c:orientation val="minMax"/></c:scaling>`
+      + `<c:delete val="0"/><c:axPos val="l"/><c:crossAx val="${catAxis}"/></c:valAx>`;
+
+  return HEADER
+    + `<c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="${DRAW_NS}" xmlns:r="${RELS}">`
+    + '<c:chart>'
+    + '<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r>'
+    + `<a:t>${escape(chart.title)}</a:t>`
+    + '</a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
+    + '<c:autoTitleDeleted val="0"/>'
+    + `<c:plotArea><c:layout/>${plot}</c:plotArea>`
+    // A single series names itself in the title, so its legend is noise; a
+    // doughnut's legend is the only thing naming its slices.
+    + (chart.kind === 'doughnut' || chart.series.length > 1
+      ? '<c:legend><c:legendPos val="r"/><c:overlay val="0"/></c:legend>'
+      : '')
+    + '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/>'
+    + '</c:chart></c:chartSpace>';
+}
+
+/** Where on the sheet each chart sits, as a box between two cells. */
+function drawingXml(charts: readonly ChartSpec[]): string {
+  const anchors = charts.map((chart, at) => {
+    const cell = (col: number, row: number) =>
+      `<xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff>`
+      + `<xdr:row>${row}</xdr:row><xdr:rowOff>0</xdr:rowOff>`;
+
+    return '<xdr:twoCellAnchor>'
+      + `<xdr:from>${cell(chart.at.col, chart.at.row)}</xdr:from>`
+      + `<xdr:to>${cell(chart.at.col + chart.at.width, chart.at.row + chart.at.height)}</xdr:to>`
+      + '<xdr:graphicFrame macro="">'
+      + '<xdr:nvGraphicFramePr>'
+      + `<xdr:cNvPr id="${at + 2}" name="Chart ${at + 1}"/>`
+      + '<xdr:cNvGraphicFramePr/>'
+      + '</xdr:nvGraphicFramePr>'
+      + '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>'
+      + `<a:graphic><a:graphicData uri="${CHART_NS}">`
+      + `<c:chart xmlns:c="${CHART_NS}" xmlns:r="${RELS}" r:id="rId${at + 1}"/>`
+      + '</a:graphicData></a:graphic>'
+      + '</xdr:graphicFrame>'
+      + '<xdr:clientData/>'
+      + '</xdr:twoCellAnchor>';
+  }).join('');
+
+  return HEADER
+    + `<xdr:wsDr xmlns:xdr="${SHEET_DRAW_NS}" xmlns:a="${DRAW_NS}">${anchors}</xdr:wsDr>`;
+}
+
+/**
+ * Which sheets carry charts, and which chart numbers are theirs.
+ *
+ * Charts are numbered across the whole file - chart1, chart2 - while drawings
+ * are numbered by the sheet they belong to. Both numbers are decided here,
+ * once, so the parts, the relationships and the content types cannot disagree
+ * about them, which is the one way this goes wrong that Excel reports only as
+ * "the file is corrupt".
+ */
+function drawnSheets(sheets: readonly SheetSpec[]): { sheet: number; charts: number[] }[] {
+  const drawn: { sheet: number; charts: number[] }[] = [];
+  let next = 1;
+
+  sheets.forEach((sheet, at) => {
+    const charts = sheet.charts ?? [];
+    if (charts.length === 0) return;
+    drawn.push({ sheet: at + 1, charts: charts.map(() => next++) });
+  });
+
+  return drawn;
+}
+
+/** The drawing and chart parts, and the relationships that tie them on. */
+function chartParts(sheets: readonly SheetSpec[]): [string, string][] {
+  const parts: [string, string][] = [];
+
+  for (const one of drawnSheets(sheets)) {
+    const sheet = sheets[one.sheet - 1];
+    const charts = sheet.charts ?? [];
+
+    // The sheet points at its drawing...
+    parts.push([`xl/worksheets/_rels/sheet${one.sheet}.xml.rels`, HEADER
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + `<Relationship Id="rId1" Type="${RELS}/drawing" Target="../drawings/drawing${one.sheet}.xml"/>`
+      + '</Relationships>']);
+
+    // ...the drawing says where each chart sits...
+    parts.push([`xl/drawings/drawing${one.sheet}.xml`, drawingXml(charts)]);
+
+    // ...and points at the charts themselves.
+    parts.push([`xl/drawings/_rels/drawing${one.sheet}.xml.rels`, HEADER
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + one.charts.map((number, at) =>
+        `<Relationship Id="rId${at + 1}" Type="${RELS}/chart" Target="../charts/chart${number}.xml"/>`).join('')
+      + '</Relationships>']);
+
+    one.charts.forEach((number, at) => {
+      parts.push([`xl/charts/chart${number}.xml`, chartXml(charts[at], sheet.name)]);
+    });
+  }
+
+  return parts;
 }

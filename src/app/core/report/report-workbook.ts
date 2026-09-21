@@ -13,7 +13,7 @@
  */
 
 import {
-  writeXlsx, type CellStyle, type SheetCell, type SheetSpec,
+  writeXlsx, type CellStyle, type ChartSpec, type SheetCell, type SheetSpec,
 } from '../xlsx/xlsx-writer';
 import type { Movement } from '../../features/movements/group-movements';
 import { type Block, type Value } from './blocks';
@@ -83,6 +83,9 @@ const STYLES: Record<string, CellStyle> = {
 class Sheet {
   readonly cells: SheetCell[] = [];
   readonly merges: string[] = [];
+  /** Charts collected as the sheet is written, since only then are the
+      ranges they read known. */
+  readonly charts: ChartSpec[] = [];
   row = 1;
 
   put(col: number, style: string, content?: SheetCell['content']): void {
@@ -109,6 +112,26 @@ function asNumber(value: Value): number | null {
   if (value.kind === 'percent') return value.value / 100;
   if (value.kind === 'count') return value.value;
   return null;
+}
+
+/**
+ * The longest unbroken run of consecutive rows in a list of row numbers.
+ *
+ * A chart reads a RANGE, so the rows it draws have to be next to each other.
+ * Anything outside the run is left out rather than dragged in by a range that
+ * happens to span it.
+ */
+function longestRun(rows: readonly number[]): number[] {
+  let best: number[] = [];
+  let current: number[] = [];
+
+  for (const row of rows) {
+    if (current.length > 0 && row !== current[current.length - 1] + 1) current = [];
+    current.push(row);
+    if (current.length > best.length) best = [...current];
+  }
+
+  return best;
 }
 
 /** Which money style a value wears, by what it means. */
@@ -158,12 +181,24 @@ function writeRanked(sheet: Sheet, block: Extract<Block, { kind: 'ranked' }>, wo
   sheet.text(3, 'headRight', block.countsAre ?? words['report.column.count']);
   sheet.row += 1;
 
+  /*
+   * Which rows a chart may read.
+   *
+   * Not simply "the first eight". A categories block lists what came IN
+   * first, and those rows carry no share of the spending - a doughnut drawn
+   * over the top of the list would have been four slices of salary and one
+   * of the groceries. Only the run of rows that are shares of one thing can
+   * be drawn, and that run is found rather than assumed.
+   */
+  const shared: number[] = [];
+
   for (const row of block.rows) {
     sheet.text(0, 'label', row.note ? `${row.label} — ${row.note}` : row.label);
 
     const number = asNumber(row.value);
     if (number !== null && row.value.kind === 'money') {
       sheet.number(1, moneyStyle(row.value.minor, row.flow), number);
+      if ((row.share ?? 0) > 0) shared.push(sheet.row);
     }
 
     // A share that is absent is left EMPTY, not written as zero: income has no
@@ -171,6 +206,27 @@ function writeRanked(sheet: Sheet, block: Extract<Block, { kind: 'ranked' }>, wo
     if (row.share !== undefined) sheet.number(2, 'share', row.share / 100);
     if (row.behind !== undefined) sheet.number(3, 'number', row.behind);
     sheet.row += 1;
+  }
+
+  /*
+   * A ring of those shares, beside the list.
+   *
+   * Only where there are enough of them to have a shape: a doughnut of two
+   * slices says less than the two figures beside it, and one of forty is a
+   * colour wheel. Eight at most, and they are the largest eight because the
+   * rows arrive in order of size.
+   */
+  const run = longestRun(shared);
+  if (run.length >= 3) {
+    const from = run[0];
+    const to = run[Math.min(run.length, 8) - 1];
+    sheet.charts.push({
+      kind: 'doughnut',
+      title: block.title,
+      categories: { col: 0, fromRow: from, toRow: to },
+      series: [{ name: block.title, col: 1 }],
+      at: { col: 5, row: from - 1, width: 6, height: Math.max(to - from + 2, 12) },
+    });
   }
 
   if (block.total && block.totalLabel) {
@@ -200,8 +256,10 @@ function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison
   sheet.text(3, 'headRight', '%');
   sheet.row += 1;
 
+  const moneyRows: number[] = [];
   for (const row of block.rows) {
     sheet.text(0, 'label', row.label);
+    if (row.before.kind === 'money' && row.now.kind === 'money') moneyRows.push(sheet.row);
     for (const [col, value] of [[1, row.before], [2, row.now]] as const) {
       const number = asNumber(value);
       if (number !== null) sheet.number(col, 'money', number);
@@ -213,6 +271,29 @@ function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison
     sheet.row += 1;
   }
 
+  /*
+   * The two stretches as paired columns - which is what a pair of bars is for.
+   *
+   * Only the rows that are money. The comparison ends with a count of
+   * movements, and 1,145 of them drawn on an axis that reaches a hundred
+   * million is a bar nobody can see, on a chart that now has two meanings.
+   */
+  const money = longestRun(moneyRows);
+  if (money.length >= 2) {
+    const from = money[0];
+    const to = money[money.length - 1];
+    sheet.charts.push({
+      kind: 'bar',
+      title: block.title,
+      categories: { col: 0, fromRow: from, toRow: to },
+      series: [
+        { name: block.beforeLabel, col: 1 },
+        { name: block.nowLabel, col: 2 },
+      ],
+      at: { col: 5, row: from - 1, width: 8, height: Math.max(money.length + 2, 14) },
+    });
+  }
+
   sheet.blank();
 }
 
@@ -220,11 +301,23 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
   sheet.text(0, 'section', block.title);
   sheet.row += 2;
 
+  const firstRow = sheet.row;
   for (const point of block.points) {
     sheet.text(0, 'label', point.label);
     const number = asNumber(point.value);
     if (number !== null) sheet.number(1, 'money', number);
     sheet.row += 1;
+  }
+
+  // Months side by side, which is the whole reason for reading them together.
+  if (block.points.length >= 2) {
+    sheet.charts.push({
+      kind: 'bar',
+      title: block.title,
+      categories: { col: 0, fromRow: firstRow, toRow: sheet.row - 1 },
+      series: [{ name: block.title, col: 1 }],
+      at: { col: 5, row: firstRow - 1, width: 8, height: Math.max(block.points.length + 2, 14) },
+    });
   }
 
   if (block.average && block.averageLabel) {
@@ -294,9 +387,11 @@ function summarySheet(data: ReportData, blocks: readonly Block[]): SheetSpec {
 
   return {
     name: words['report.sheet.summary'],
-    columnWidths: [42, 16, 13, 13, 30],
+    // Room to the right of the figures for the charts to sit in.
+    columnWidths: [42, 16, 13, 13, 4, 12, 12, 12, 12, 12, 12, 12, 12],
     cells: sheet.cells,
     merges: sheet.merges,
+    charts: sheet.charts,
   };
 }
 

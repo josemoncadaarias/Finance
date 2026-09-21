@@ -340,3 +340,68 @@ test('money reaches the sheet as a number, not as text', () => {
   const xml = new TextDecoder().decode(bytes);
   assert.ok(xml.includes('<v>-12345.67</v>'), 'the amount as a number');
 });
+
+// ---------------------------------------------------------------------------
+// Charts
+// ---------------------------------------------------------------------------
+
+test('a chart brings every part it needs, or Excel calls the file corrupt', () => {
+  // A chart is five things: the chart, a drawing saying where it sits, a
+  // relationship from the sheet to the drawing and another from the drawing
+  // to the chart, and a content type for each. Miss one and Excel does not
+  // draw a wrong chart - it refuses to open the file at all.
+  const movements = [];
+  for (const month of ['01', '02', '03', '04', '05', '06']) {
+    movements.push(movement({ amount: -100_000_00, on: `2026-${month}-10`, label: 'Mercado' }));
+    movements.push(movement({ amount: -50_000_00, on: `2026-${month}-11`, label: 'Casa' }));
+    movements.push(movement({ amount: -20_000_00, on: `2026-${month}-12`, label: 'Salud' }));
+  }
+
+  const bytes = reportWorkbook(data(movements, {
+    period: { kind: 'year', from: '2026-01-01', to: '2026-12-31' },
+    today: '2026-12-31',
+  }));
+
+  const parts = partsOf(bytes);
+  const charts = parts.filter(name => name.startsWith('xl/charts/chart'));
+  assert.ok(charts.length > 0, 'something was worth drawing');
+
+  assert.ok(parts.includes('xl/drawings/drawing1.xml'), 'where they sit');
+  assert.ok(parts.includes('xl/worksheets/_rels/sheet1.xml.rels'), 'the sheet points at the drawing');
+  assert.ok(parts.includes('xl/drawings/_rels/drawing1.xml.rels'), 'the drawing points at the charts');
+
+  const xml = new TextDecoder().decode(bytes);
+  for (const chart of charts) {
+    assert.ok(xml.includes(`PartName="/${chart}"`), `${chart} is declared in [Content_Types]`);
+  }
+  assert.ok(xml.includes('PartName="/xl/drawings/drawing1.xml"'), 'and so is the drawing');
+});
+
+test('a sheet with no charts brings no chart parts', () => {
+  const bytes = reportWorkbook(data([movement({ amount: -10_000_00 })]));
+  const parts = partsOf(bytes);
+
+  assert.equal(parts.some(name => name.startsWith('xl/charts/')), false);
+  assert.equal(parts.some(name => name.startsWith('xl/drawings/')), false);
+  // And nothing points at a drawing that is not there.
+  assert.equal(new TextDecoder().decode(bytes).includes('<drawing r:id'), false);
+});
+
+test('a chart reads a range of the sheet, quoted and absolute', () => {
+  const movements = [];
+  for (const month of ['01', '02', '03', '04']) {
+    movements.push(movement({ amount: -100_000_00, on: `2026-${month}-10`, label: 'Mercado' }));
+    movements.push(movement({ amount: -50_000_00, on: `2026-${month}-11`, label: 'Casa' }));
+    movements.push(movement({ amount: -20_000_00, on: `2026-${month}-12`, label: 'Salud' }));
+  }
+
+  const xml = new TextDecoder().decode(reportWorkbook(data(movements, {
+    period: { kind: 'year', from: '2026-01-01', to: '2026-12-31' },
+    today: '2026-12-31',
+  })));
+
+  // Pointing at cells, not carrying its own copy of them: the chart is live,
+  // and there is one version of each number in the file.
+  assert.ok(/<c:f>'[^']+'!\$A\$\d+:\$A\$\d+<\/c:f>/.test(xml), 'the labels');
+  assert.ok(/<c:f>'[^']+'!\$B\$\d+:\$B\$\d+<\/c:f>/.test(xml), 'the figures');
+});
