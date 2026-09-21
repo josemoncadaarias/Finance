@@ -80,13 +80,21 @@ export class ScopeSheetsComponent {
   readonly accountLabel = computed(() =>
     this.store.selectedAccount()?.name ?? this.i18n.t('summary.allAccounts'));
 
-  /** Selectable accounts: everything, since a single pick ignores the flags. */
-  readonly selectable = computed(() =>
-    [...this.store.accounts()].sort((a, b) => {
-      if (a.archived !== b.archived) return a.archived - b.archived;
-      return a.name.localeCompare(b.name);
-    }),
-  );
+  /**
+   * The accounts worth offering.
+   *
+   * Archived ones are not: an account is archived precisely to say it is over,
+   * and a picker that keeps offering it is a list that grows for ever with
+   * things nobody will choose. The one exception is an archived account that
+   * is currently in force - it has to be in the list it is selected in, or
+   * the list is telling a different story from the screen behind it.
+   */
+  readonly selectable = computed(() => {
+    const chosen = this.filter.accountId();
+    return this.store.accounts()
+      .filter(account => account.archived === 0 || account.id === chosen)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
 
   /**
    * Brings the account in force into view when the picker opens.

@@ -1166,6 +1166,18 @@ export class CushionPage {
     this.cushionEntry.set({ kind: 'transfer', account: line.account, pockets: line.pockets });
   }
 
+  /**
+   * Moving money to another account, from the account it is leaving.
+   *
+   * The movement screen's own transfer form, opened on this account, so the
+   * one thing that varies is already answered. The two kinds of move sit
+   * beside each other because they are the same act at two scales: between
+   * this account's products, and between accounts.
+   */
+  openTransfer(line: CushionLine): void {
+    this.movementEdit.set({ kind: 'transfer', preferredAccountId: line.account.id });
+  }
+
   /** Opens one day so it can be checked against a statement and corrected. */
   openDayForm(day: YieldDay): void {
     this.resetForm();

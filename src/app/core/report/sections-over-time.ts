@@ -77,6 +77,25 @@ function spentByLabel(movements: readonly Movement[], data: ReportData): Map<str
   return totals;
 }
 
+/**
+ * The picture each category wears, from whichever movements carry it.
+ *
+ * A category is recognised by its icon before its name is read - that is why
+ * the summary screen gives every row one - so a comparison that shows only
+ * names is a comparison that has to be read word by word. Taken from this
+ * period first and from the one before only for a category that has since
+ * stopped, which still has a row and should still have a face.
+ */
+function facesOf(data: ReportData): Map<string, { icon: string | null; customIconId: number | null }> {
+  const faces = new Map<string, { icon: string | null; customIconId: number | null }>();
+
+  for (const movement of [...(data.before?.movements ?? []), ...data.movements]) {
+    faces.set(movement.label, { icon: movement.icon, customIconId: movement.customIconId });
+  }
+
+  return faces;
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -164,8 +183,12 @@ export const categoriesVersusBefore: Section<ReportData> = data => {
     .sort((a, b) => (now.get(b) ?? 0) - (now.get(a) ?? 0))
     .slice(0, COMPARED);
 
+  const faces = facesOf(data);
+
   const rows: ComparisonBlock['rows'] = labels.map(label => ({
     label,
+    icon: faces.get(label)?.icon ?? null,
+    customIconId: faces.get(label)?.customIconId ?? null,
     before: money(was.get(label) ?? 0, data.currency),
     now: money(now.get(label) ?? 0, data.currency),
     changePercent: tabledChange(was.get(label) ?? 0, now.get(label) ?? 0),

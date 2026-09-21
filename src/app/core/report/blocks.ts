@@ -110,6 +110,9 @@ export interface ComparisonBlock {
   caveat?: string;
   rows: {
     label: string;
+    /** So a category is recognised by its picture here too. */
+    icon?: string | null;
+    customIconId?: number | null;
     before: Value;
     now: Value;
     /** The change as a percentage. Null when there is nothing to divide by. */

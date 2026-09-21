@@ -332,12 +332,22 @@
 
   .name {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--ion-text-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+
+    .face { flex: none; color: var(--ion-color-medium); }
+
+    .text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .pair {

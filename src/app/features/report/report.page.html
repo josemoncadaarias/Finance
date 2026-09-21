@@ -159,7 +159,15 @@
               <ul class="compare">
                 @for (row of block.rows; track row.label) {
                   <li>
-                    <span class="name">{{ row.label }}</span>
+                    <span class="name">
+                      <!-- A category is recognised by its picture before its
+                           name is read, here as much as anywhere else. -->
+                      @if (row.icon !== undefined || row.customIconId !== undefined) {
+                        <app-icon class="face" [builtin]="row.icon ?? null"
+                                  [customId]="row.customIconId ?? null" size="1rem"></app-icon>
+                      }
+                      <span class="text">{{ row.label }}</span>
+                    </span>
 
                     <span class="pair">
                       <span class="side was">

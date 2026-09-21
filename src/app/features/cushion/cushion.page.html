@@ -463,15 +463,23 @@
                  the summary screen keeps them there and this screen is just
                  as long. -->
 
-            <!-- Only where there is more than one product to move between. -->
-            @if (line.pockets.length > 1) {
-              <div class="actions">
+            <!-- The two ways money moves without being spent: between this
+                 account's own products, and between accounts. They are the
+                 same kind of act and belong side by side - inside on the
+                 left, outside on the right. The first only appears where
+                 there is more than one product to move between. -->
+            <div class="actions">
+              @if (line.pockets.length > 1) {
                 <ion-button expand="block" fill="outline" (click)="openMove(line)">
                   <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
                   {{ 'cushion.move' | t }}
                 </ion-button>
-              </div>
-            }
+              }
+              <ion-button expand="block" fill="outline" (click)="openTransfer(line)">
+                <ion-icon slot="start" name="git-compare-outline"></ion-icon>
+                {{ 'summary.newTransfer' | t }}
+              </ion-button>
+            </div>
 
             <!-- Every movement of this account's products, as one history: to
                  look back, and to correct or delete one. Collapsed until asked
