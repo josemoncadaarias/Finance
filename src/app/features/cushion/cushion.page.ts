@@ -2289,6 +2289,23 @@ export class CushionPage {
   readonly productKinds = signal<ProductKind[]>([]);
   readonly kindsById = computed(() => new Map(this.productKinds().map(kind => [kind.id, kind])));
 
+  /**
+   * The app's own icon for an entry, when its category has no picture.
+   *
+   * Null rather than a stand-in when there is a picture: `app-icon` draws the
+   * picture then, and a name here would be what it fell back to.
+   */
+  entryIcon(entry: CushionEntry): string | null {
+    const category = this.categoriesById().get(entry.category_id ?? -1);
+    if (category) return category.custom_icon_id ? null : (category.builtin_icon ?? 'pricetag-outline');
+
+    const kind = this.kindsById().get(entry.product_kind_id ?? -1);
+    if (kind) return kind.custom_icon_id ? null : (kind.builtin_icon ?? 'pricetag-outline');
+
+    return entry.kind === 'cashback' ? 'pricetag-outline'
+      : entry.kind === 'correction' ? 'build-outline' : 'ellipsis-horizontal-circle-outline';
+  }
+
   /** The image an entry's category wears, when it wears one of the user's own. */
   kindIconId(entry: CushionEntry): number | null {
     return this.categoriesById().get(entry.category_id ?? -1)?.custom_icon_id

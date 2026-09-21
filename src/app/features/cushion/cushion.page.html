@@ -583,6 +583,14 @@
                               @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
                                 <app-icon slot="start" class="row-cat" [builtin]="movement.transaction.category_icon"
                                           [customId]="movement.transaction.category_custom_icon_id" size="1.15rem"></app-icon>
+                              } @else if (movement.type === 'entry') {
+                                <!-- A product's own income is filed under an ordinary category, so it
+                                     wears that category's picture - an image of Jose's own where
+                                     there is one. Drawn as a plain icon, a category with a real
+                                     logo came out as the generic tag. -->
+                                <app-icon slot="start" class="row-cat"
+                                          [builtin]="entryIcon($any(movement.entry))"
+                                          [customId]="kindIconId($any(movement.entry))" size="1.15rem"></app-icon>
                               } @else {
                                 <ion-icon slot="start" class="row-cat" [name]="movementIcon(movement)"></ion-icon>
                               }
