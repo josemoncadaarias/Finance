@@ -459,22 +459,9 @@
                    amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
-            <div class="actions">
-            </div>
-
-            <!-- Income or an expense on a product's yields. The summary
-                 screen's own two buttons, in its order and its shape:
-                 spending on the left, where the hand already expects it. -->
-            <div class="compose">
-              <button type="button" class="big expense" (click)="openEntry(line, 'expense')">
-                <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
-                <span class="what">{{ 'summary.expense' | t }}</span>
-              </button>
-              <button type="button" class="big income" (click)="openEntry(line, 'income')">
-                <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
-                <span class="what">{{ 'summary.income' | t }}</span>
-              </button>
-            </div>
+            <!-- Spending and income are in the footer, always within reach:
+                 the summary screen keeps them there and this screen is just
+                 as long. -->
 
             <!-- Only where there is more than one product to move between. -->
             @if (line.pockets.length > 1) {
@@ -1471,6 +1458,27 @@
             </div>
           }
         </ion-content>
+
+        <!-- The two buttons the screen is for, standing still at the bottom
+             the way the summary screen's do. Outside ion-content, so the
+             scroll ends above them and nothing is ever hidden behind them.
+             Only while the sheet is showing the account: a form of its own has
+             its own Save, and a second pair of buttons under it would ask the
+             user which one finishes the job. -->
+        @if (form() === 'none') {
+          <ion-footer class="compose-bar">
+            <div class="compose">
+              <button type="button" class="big expense" (click)="openEntry(line, 'expense')">
+                <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
+                <span class="what">{{ 'summary.expense' | t }}</span>
+              </button>
+              <button type="button" class="big income" (click)="openEntry(line, 'income')">
+                <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
+                <span class="what">{{ 'summary.income' | t }}</span>
+              </button>
+            </div>
+          </ion-footer>
+        }
       }
     </ng-template>
   </ion-modal>

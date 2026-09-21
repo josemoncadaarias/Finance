@@ -840,6 +840,12 @@ ion-content.sheet { --padding-bottom: 4.5rem; }
   justify-content: space-between;
   gap: 0.75rem;
 
+  /* The heading's own margins, moved up to the row: on the row they line the
+     title and the button up with the inset list below, which is where the eye
+     expects both edges. Left on the heading, the row stretched them to the
+     screen edges. */
+  margin: 1.25rem 1rem 0.4rem;
+
   .section { margin: 0; }
 
   .add {
@@ -859,6 +865,3 @@ ion-content.sheet { --padding-bottom: 4.5rem; }
     ion-icon { font-size: 0.95rem; }
   }
 }
-
-/* The two buttons come from global.scss; inside a sheet they need no gutter. */
-.compose { padding-left: 0; padding-right: 0; }
