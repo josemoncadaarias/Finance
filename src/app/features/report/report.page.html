@@ -24,6 +24,26 @@
       <app-language-button></app-language-button>
     </ion-buttons>
   </ion-toolbar>
+
+  <!-- The same two questions the summary screen asks, asked the same way and
+       answered by the same sheets: which account, and which dates. They used
+       to be settled before arriving here, which meant leaving to change one. -->
+  <ion-toolbar class="scope">
+    <button type="button" class="pick" (click)="scope.openAccounts()">
+      <app-icon [builtin]="scope.store.selectedAccount()?.builtin_icon"
+                [customId]="scope.store.selectedAccount()?.custom_icon_id"
+                [fallback]="scope.filter.allAccounts() ? 'albums' : 'wallet'"
+                size="1.05rem"></app-icon>
+      <span class="text">{{ scope.accountLabel() }}</span>
+      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+    </button>
+
+    <button type="button" class="pick" (click)="scope.openPeriod()">
+      <ion-icon name="calendar-outline"></ion-icon>
+      <span class="text">{{ data()?.periodLabel ?? '' }}</span>
+      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+    </button>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
@@ -210,3 +230,6 @@
   <ion-toast [isOpen]="notice() !== ''" [message]="notice()" [duration]="2600"
              position="bottom" (didDismiss)="notice.set('')"></ion-toast>
 </ion-content>
+
+<!-- The dates and the account, shared with the summary screen. -->
+<app-scope-sheets #scope></app-scope-sheets>

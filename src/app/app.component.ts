@@ -67,6 +67,7 @@ export class AppComponent {
   // moves between the browser and the phone.
   readonly sections: Section[] = [
     { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
+    { path: '/report', label: 'nav.report', hint: 'nav.report.hint', icon: 'stats-chart-outline' },
     { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
     { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
     { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'bed-outline' },

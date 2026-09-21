@@ -27,7 +27,9 @@ import { formatMoney } from '../../core/database/money';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
 import { ReportService } from '../../core/report/report.service';
+import { MovementsStore } from '../movements/movements.store';
 import { reportWorkbook, reportFileName } from '../../core/report/report-workbook';
 import type { Block, Value } from '../../core/report/blocks';
 import type { ReportData } from '../../core/report/report-data';
@@ -40,6 +42,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   styleUrls: ['./report.page.scss'],
   imports: [
     TranslatePipe, MoneyPipe, IconComponent, CloudButtonComponent, LanguageButtonComponent,
+    ScopeSheetsComponent,
     IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonSpinner,
     IonBackButton, IonToast,
   ],
@@ -47,6 +50,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
 export class ReportPage {
   private readonly report = inject(ReportService);
   private readonly database = inject(DatabaseService);
+  private readonly store = inject(MovementsStore);
   readonly i18n = inject(I18nService);
 
   readonly blocks = signal<Block[]>([]);
@@ -66,9 +70,18 @@ export class ReportPage {
   constructor() {
     addIcons(allIcons);
 
-    // Rebuilt whenever the question changes underneath: another period picked
-    // on the way in, a movement corrected, the language switched.
+    /*
+     * Rebuilt whenever the question changes: another period or account picked
+     * from the bar above, a movement corrected, the language switched.
+     *
+     * Reading the store's own list is what ties this to the pickers. They
+     * write to `FilterService`, the store reloads from that, and only then is
+     * there anything to analyse - so watching the filter directly would run
+     * this against the previous period's movements and then again against the
+     * right ones.
+     */
     effect(() => {
+      this.store.inScope();
       this.database.dataVersion();
       this.i18n.language();
       if (this.database.status() === 'ready') void this.build();

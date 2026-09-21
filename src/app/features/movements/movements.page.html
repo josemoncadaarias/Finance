@@ -7,7 +7,7 @@
 
     <!-- What you are looking at, said plainly: the account's own icon, its
          name, and what that selection includes. -->
-    <button type="button" class="identity" (click)="showAccountSheet.set(true)">
+    <button type="button" class="identity" (click)="scope.openAccounts()">
       <span class="badge" [class.all]="filter.allAccounts()"
             [class.image]="accountImage() !== undefined">
         @if (accountImage(); as url) {
@@ -59,7 +59,7 @@
       </ion-button>
     </ion-buttons>
 
-    <ion-button fill="clear" class="period-button" (click)="showPeriodSheet.set(true)">
+    <ion-button fill="clear" class="period-button" (click)="scope.openPeriod()">
       <span class="label">{{ label() }}</span>
       <ion-icon name="calendar-outline"></ion-icon>
     </ion-button>
@@ -111,7 +111,7 @@
                for something used once in a while, and a pencil beside a
                balance is not ambiguous. -->
           @if (store.selectedAccount(); as account) {
-            <button type="button" class="edit-here" (click)="editAccount(account)"
+            <button type="button" class="edit-here" (click)="scope.editAccount(account)"
                     [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
               <ion-icon name="create-outline"></ion-icon>
             </button>
@@ -411,15 +411,9 @@
   </div>
 </ion-footer>
 
-<ion-modal [isOpen]="editingAccount() !== null" (didDismiss)="editingAccount.set(null)">
-  <ng-template>
-    @if (editingAccount(); as account) {
-      <app-account-editor [editing]="account" (saved)="onAccountSaved()"
-                          (cancelled)="editingAccount.set(null)"></app-account-editor>
-    }
-  </ng-template>
-</ion-modal>
 
+<!-- Recording or correcting a movement: this screen's own, not part of the
+     shared scope sheets. -->
 <ion-modal class="entry-sheet" [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
   <ng-template>
     @if (entry(); as request) {
@@ -428,164 +422,6 @@
   </ng-template>
 </ion-modal>
 
-<!-- Period and account, the way Monefy puts them in one drawer -->
-<ion-modal class="period-sheet" [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
-  <ng-template>
-    <!-- Six choices do not need a screen. A sheet the size of what it holds,
-         which grows when a range is being picked and shows one calendar at a
-         time rather than two stacked down a page. -->
-    <div class="period-picker">
-      <div class="head">
-        <h2>{{ 'summary.period' | t }}</h2>
-        <button type="button" (click)="showPeriodSheet.set(false)" [attr.aria-label]="'summary.close' | t">
-          <ion-icon name="close-outline"></ion-icon>
-        </button>
-      </div>
-      <ion-radio-group [value]="filter.period().kind"
-                       (ionChange)="choosePeriod($any($event.detail).value)">
-        @for (option of periodKinds; track option.kind) {
-          <ion-item lines="full">
-            <ion-radio [value]="option.kind" justify="start" labelPlacement="end">
-              {{ $any(option.label) | t }}
-            </ion-radio>
-          </ion-item>
-        }
-      </ion-radio-group>
-
-      @if (choosingRange()) {
-        <div class="range">
-          <!-- Which end is being set, and what it says so far. One calendar at
-               a time: two of them stacked made a sheet nobody could see the
-               bottom of. -->
-          <div class="ends">
-            <button type="button" [class.on]="rangeSide() === 'from'" (click)="rangeSide.set('from')">
-              <span class="lead">{{ 'summary.from' | t }}</span>
-              <span class="day">{{ dayShown(rangeStart()) }}</span>
-            </button>
-            <button type="button" [class.on]="rangeSide() === 'to'" (click)="rangeSide.set('to')">
-              <span class="lead">{{ 'summary.to' | t }}</span>
-              <span class="day">{{ dayShown(rangeEnd()) }}</span>
-            </button>
-          </div>
-
-          @if (rangeSide() === 'from') {
-            <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
-                          [value]="rangeStart()" [max]="today"
-                          (ionChange)="rangeStart.set($any($event.detail).value); rangeSide.set('to')"></ion-datetime>
-          } @else {
-            <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
-                          [value]="rangeEnd()" [max]="today"
-                          (ionChange)="rangeEnd.set($any($event.detail).value)"></ion-datetime>
-          }
-
-          <ion-button expand="block" (click)="applyRange()"
-                      [disabled]="!rangeStart() || !rangeEnd()">
-            {{ 'summary.apply' | t }}
-          </ion-button>
-        </div>
-      }
-
-      <!-- Products set aside (the tax CDTs inside Pibank) hide inside a single
-           account too, so the switch is offered there as well. -->
-      @if ((filter.allAccounts() && store.hiddenCount() > 0) || store.setAsideProducts() > 0) {
-        <ion-item lines="none" class="include">
-          <ion-toggle [checked]="filter.includeExcluded()"
-                      (ionChange)="filter.includeExcluded.set($any($event.detail).checked)">
-            <div>
-              <p class="strong">{{ 'summary.includeSetAside' | t }}</p>
-              @if (filter.allAccounts() && store.hiddenCount() > 0) {
-                <p class="hint">{{ 'summary.includeSetAside.hint' | t:{ count: store.hiddenCount() } }}</p>
-              }
-              @if (store.setAsideProducts() > 0) {
-                <p class="hint">{{ 'summary.includeSetAside.products' | t:{ count: store.setAsideProducts() } }}</p>
-              }
-            </div>
-          </ion-toggle>
-        </ion-item>
-      }
-    </div>
-  </ng-template>
-</ion-modal>
-
-<ion-modal [isOpen]="showAccountSheet()" (didPresent)="revealSelectedAccount()"
-            (didDismiss)="showAccountSheet.set(false)">
-  <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="showAccountSheet.set(false)" [attr.aria-label]="'summary.close' | t">
-            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="sheet">
-      <h2>{{ 'summary.account' | t }}</h2>
-
-      <!-- What is being looked at, in full and before the alternatives.
-           The toolbar has to cut a long name off at the width it is given,
-           and the natural way to read the rest of it is to tap the name -
-           which opens this. Arriving at a list of everything, with the
-           answer somewhere down it, is not an answer. -->
-      <div class="current">
-        <app-icon [builtin]="store.selectedAccount()?.builtin_icon"
-                  [customId]="store.selectedAccount()?.custom_icon_id"
-                  [fallback]="filter.allAccounts() ? 'albums' : 'wallet'"
-                  size="1.5rem"></app-icon>
-        <span class="what">
-          <span class="lead">{{ 'summary.viewing' | t }}</span>
-          <span class="name">{{ accountLabel() }}</span>
-        </span>
-      </div>
-
-      <ion-list>
-        <ion-item button lines="full" id="account-option-all" (click)="pickAccount(null)"
-                  [class.selected]="filter.accountId() === null">
-          <ion-icon slot="start" name="wallet-outline"></ion-icon>
-          <ion-label>
-            <h3>{{ 'summary.allAccounts' | t }}</h3>
-            <p>{{ 'summary.allAccounts.hint' | t }}</p>
-          </ion-label>
-          @if (filter.accountId() === null) {
-            <ion-icon slot="end" class="tick" name="checkmark-circle"
-                      [attr.aria-label]="'summary.selected' | t"></ion-icon>
-          }
-        </ion-item>
-
-        @for (account of selectable(); track account.id) {
-          <ion-item button lines="full" [id]="'account-option-' + account.id"
-                    (click)="pickAccount(account.id)"
-                    [class.selected]="filter.accountId() === account.id">
-            <app-icon slot="start" [builtin]="account.builtin_icon"
-                      [customId]="account.custom_icon_id" fallback="wallet"></app-icon>
-            <ion-label>
-              <h3>
-                {{ account.name }}
-                @if (account.archived) { <ion-badge color="medium">{{ 'summary.archived' | t }}</ion-badge> }
-                @if (!account.include_in_net_worth) { <ion-badge color="medium">{{ 'summary.setAside' | t }}</ion-badge> }
-              </h3>
-              <p>{{ account.currency_code }}</p>
-            </ion-label>
-
-            <!-- A tick, not only a tinted row. The tint is a shade apart
-                 from the others and disappears entirely against a dark
-                 palette; a mark either is there or is not. -->
-            @if (filter.accountId() === account.id) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'summary.selected' | t"></ion-icon>
-            }
-
-            <!-- Editing an account from where it is being looked at, rather
-                 than only from the accounts screen. -->
-            <button type="button" slot="end" class="edit-account"
-                    (click)="$event.stopPropagation(); editAccount(account)"
-                    [attr.aria-label]="'accounts.edit.action' | t">
-              <ion-icon name="create-outline"></ion-icon>
-            </button>
-          </ion-item>
-        }
-      </ion-list>
-    </ion-content>
-  </ng-template>
-</ion-modal>
+<!-- The dates, the account, and the account editor: one definition, shared
+     with the financial summary. -->
+<app-scope-sheets #scope></app-scope-sheets>

@@ -86,6 +86,8 @@ export const SPANISH = {
   'summary.search': 'Buscar',
   'summary.search.placeholder': 'Buscar movimiento',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
+  'nav.report': 'Resumen financiero',
+  'nav.report.hint': 'Como te fue en el periodo y contra el anterior',
   'report.open': 'Resumen',
   'report.export': 'Resumen en Excel',
   'report.working': 'Analizando el periodo...',
@@ -837,6 +839,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.search': 'Search',
   'summary.search.placeholder': 'Search a movement',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
+  'nav.report': 'Financial summary',
+  'nav.report.hint': 'How the period went, and how it compares',
   'report.open': 'Summary',
   'report.export': 'Summary in Excel',
   'report.working': 'Reading the period...',

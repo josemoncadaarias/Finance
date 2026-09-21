@@ -13,8 +13,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
-  IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
+  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
+  IonBadge, IonFooter, IonMenuButton,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -35,7 +35,7 @@ import { SwipeDirective } from '../../shared/swipe.directive';
 import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entry.component';
 import type { Grouping } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
-import { AccountEditorComponent } from '../accounts/account-editor.component';
+import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
@@ -48,10 +48,10 @@ import { todayIso } from '../../core/yields/days';
   imports: [
     IconComponent,
     CommonModule, FormsModule, RouterLink, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, AccountEditorComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, ScopeSheetsComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar, IonToast,
-    IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonFooter, IonMenuButton,
+    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
+    IonBadge, IonFooter, IonMenuButton,
   ],
 })
 export class MovementsPage {
@@ -70,8 +70,6 @@ export class MovementsPage {
     { id: 'largest', label: 'summary.view.largest', icon: 'trending-down-outline' },
   ];
 
-  readonly showPeriodSheet = signal(false);
-  readonly showAccountSheet = signal(false);
   readonly showSearch = signal(false);
 
   /** Icon names arrive with or without their suffix; this settles it. */
@@ -79,24 +77,6 @@ export class MovementsPage {
 
   /** Non-null while the entry screen is open, describing what it is editing. */
   readonly entry = signal<EntryRequest | null>(null);
-
-  /** Non-null while an account is being edited from this screen. */
-  readonly editingAccount = signal<AccountRow | null>(null);
-  /**
-   * Whether the two date pickers are showing.
-   *
-   * Its own state, not read from the period. The period only becomes a range
-   * once both dates exist, so keying the pickers off `period().kind === 'range'`
-   * meant they appeared only after they had already been used — which is to
-   * say never. That was the bug: picking "entre dos fechas" did nothing at all.
-   */
-  readonly choosingRange = signal(false);
-
-  /** Which end of the range the calendar is setting. One at a time. */
-  readonly rangeSide = signal<'from' | 'to'>('from');
-
-  readonly rangeStart = signal<string | null>(null);
-  readonly rangeEnd = signal<string | null>(null);
 
   /** Today, so a picker opens somewhere useful rather than in 1970. */
   readonly today = todayIso();
@@ -217,20 +197,6 @@ export class MovementsPage {
 
   readonly showJumpDown = computed(() => this.scrollable() && !this.atBottom());
 
-  /**
-   * Opens the account sheet with the selected row already on screen.
-   *
-   * Marking it is not enough on its own: with twenty accounts the mark can be
-   * three screens down, and a list that has to be searched for the answer is
-   * the same problem as no answer. Waiting for `didPresent` matters - during
-   * the animation the row has no final position to scroll to.
-   */
-  revealSelectedAccount(): void {
-    const id = this.filter.accountId();
-    const row = document.getElementById(`account-option-${id ?? 'all'}`);
-    row?.scrollIntoView({ block: 'center' });
-  }
-
   /** The image a category wears, for a group heading. */
   iconUrl(id: number | null): string | undefined {
     return this.customIcons.urlFor(id);
@@ -256,14 +222,6 @@ export class MovementsPage {
       ? this.i18n.t('summary.accountsCounted', { count: counted })
       : this.i18n.t('summary.accountsWithHidden', { count: counted, hidden });
   });
-
-  /** Selectable accounts: everything, since a single pick ignores the flags. */
-  readonly selectable = computed(() =>
-    [...this.store.accounts()].sort((a, b) => {
-      if (a.archived !== b.archived) return a.archived - b.archived;
-      return a.name.localeCompare(b.name);
-    }),
-  );
 
   constructor() {
     // Account and category icons come from the user's data, so which names
@@ -377,70 +335,9 @@ export class MovementsPage {
       : 'summary.within.date');
   }
 
-  choosePeriod(kind: string): void {
-    if (kind === 'range') {
-      // The sheet stays open: a range needs two dates before it means
-      // anything, and closing would throw away the half-made choice. Seed the
-      // two pickers with the period on screen, so "between two dates" starts
-      // from what is already being looked at instead of from nothing.
-      const current = this.filter.period();
-      this.rangeStart.set(this.rangeStart() ?? current.from ?? this.today);
-      this.rangeEnd.set(this.rangeEnd() ?? current.to ?? this.today);
-      this.choosingRange.set(true);
-      return;
-    }
-
-    this.choosingRange.set(false);
-    this.filter.setPeriodKind(kind as never);
-    this.showPeriodSheet.set(false);
-  }
-
-  applyRange(): void {
-    const from = this.rangeStart();
-    const to = this.rangeEnd();
-    if (!from || !to) return;
-
-    // Picked back to front is a legitimate mistake, and swapping is friendlier
-    // than refusing: an empty range would just look broken.
-    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
-
-    this.filter.period.set(rangePeriod(start, end));
-    this.choosingRange.set(false);
-    this.showPeriodSheet.set(false);
-  }
-
-  /** One end of the range, as it reads on its button. */
-  dayShown(iso: string | null): string {
-    return iso ? this.dayLabel(iso.slice(0, 10)) : '—';
-  }
-
-  /** The range as it currently stands, for the button that applies it. */
-  rangeLabel(): string {
-    const from = this.rangeStart();
-    const to = this.rangeEnd();
-    if (!from || !to) return '';
-
-    const [start, end] = [from.slice(0, 10), to.slice(0, 10)].sort();
-    return `${this.dayLabel(start)} – ${this.dayLabel(end)}`;
-  }
-
   private dayLabel(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
     return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
-  }
-
-  editAccount(account: AccountRow): void {
-    this.showAccountSheet.set(false);
-    this.editingAccount.set(account);
-  }
-
-  onAccountSaved(): void {
-    this.editingAccount.set(null);
-  }
-
-  pickAccount(id: number | null): void {
-    this.filter.selectAccount(id);
-    this.showAccountSheet.set(false);
   }
 
   /** A flick left or right steps the period, when the period can step. */
