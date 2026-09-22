@@ -227,17 +227,29 @@ export class CushionPage {
   }
 
   /**
-   * Adds or removes one product.
+   * Picks a product, or adds and removes one once some are picked.
    *
-   * Turning the last one off means nothing is being read, which answers no
-   * question, so it goes back to all of them - the state it started in.
+   * The first tap from "all" means THAT product, on its own. It used to mean
+   * "all of them except this one" - the list started with everything ticked,
+   * so tapping the product you wanted removed it and ticked the other two.
+   * Jose read that as a bug and he was right to: nobody opens a filter to say
+   * what they do not want to see.
+   *
+   * After that it behaves as a list: tapping another adds it, tapping a
+   * ticked one takes it away, and taking the last one away goes back to all,
+   * because nothing chosen answers no question.
    */
   toggleProduct(id: number): void {
     const line = this.openLine();
     if (!line) return;
 
     const chosen = this.chosenProducts();
-    const next = new Set(chosen ?? line.pockets.map(pocket => pocket.id));
+    if (chosen === null) {
+      this.chosenProducts.set(new Set([id]));
+      return;
+    }
+
+    const next = new Set(chosen);
     if (!next.delete(id)) next.add(id);
 
     this.chosenProducts.set(
@@ -381,7 +393,6 @@ export class CushionPage {
   readonly movements = signal<ProductMovement[]>([]);
   readonly movementsView = signal<'date' | 'category' | 'largest'>('date');
   /** One product's movements only, or every product's when null. */
-  readonly movementsPocket = signal<number | null>(null);
   /** A movement of the account being corrected on the movement screen. */
   readonly movementEdit = signal<EntryRequest | null>(null);
   /** Groups closed by hand; every group starts open, as on the summary. */
@@ -422,12 +433,16 @@ export class CushionPage {
   });
 
   readonly shownMovements = computed(() => {
-    const pocket = this.movementsPocket();
+    // The same products the yields are being read for. One question asked
+    // once for the whole sheet: it was asked twice, in two different
+    // controls, and the two could disagree about the same account.
+    const chosen = this.chosenProducts();
     const { from, to } = this.movementsPeriod();
+
     return this.movements().filter(movement =>
       (from === null || movement.on >= from)
       && (to === null || movement.on <= to)
-      && (pocket === null || movementTouches(movement, pocket)));
+      && (chosen === null || [...chosen].some(id => movementTouches(movement, id))));
   });
 
   /** Grouped as asked: by day, by category, or one list from the largest down. */
@@ -1140,7 +1155,10 @@ export class CushionPage {
     if (!sameAccount) {
       // Another account: its movements start collapsed, every product shown.
       this.showMovements.set(false);
-      this.movementsPocket.set(null);
+      // The ids belong to the account that was open. Carried into another
+      // account they match nothing, and every list comes up empty for good -
+      // which is what Jose hit: "ya no vuelve a mostrar más movimientos".
+      this.chosenProducts.set(null);
       this.movementsPeriod.set(currentPeriod('month'));
       this.movementsRangeStart.set(null);
       this.movementsRangeEnd.set(null);
@@ -2272,11 +2290,6 @@ export class CushionPage {
     } finally {
       this.saving.set(false);
     }
-  }
-
-  /** Movements shown for one product, or every product's for 0. */
-  setMovementsPocket(value: number): void {
-    this.movementsPocket.set(value > 0 ? value : null);
   }
 
   /** Corrected or deleted on the movement screen: the account is worked out again. */

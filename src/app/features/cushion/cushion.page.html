@@ -512,20 +512,18 @@
                   </ion-button>
                 </div>
 
+                <!-- Which products these movements are about: the same
+                     control, the same sheet and the same answer the yields
+                     below use. It was a dropdown in a list of its own, which
+                     is a second way of asking one question. -->
                 @if (line.pockets.length > 1) {
-                  <ion-list [inset]="true" class="pocket-filter">
-                    <ion-item lines="none">
-                      <ion-select [label]="'cushion.movements.product' | t" labelPlacement="start"
-                                  [value]="movementsPocket() ?? 0" interface="alert"
-                                  [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                  (ionChange)="setMovementsPocket($any($event.detail).value)">
-                        <ion-select-option [value]="0">{{ 'cushion.movements.allProducts' | t }}</ion-select-option>
-                        @for (pocket of line.pockets; track pocket.id) {
-                          <ion-select-option [value]="pocket.id">{{ pocket.name }}</ion-select-option>
-                        }
-                      </ion-select>
-                    </ion-item>
-                  </ion-list>
+                  <div class="months-controls">
+                    <button type="button" class="which" (click)="pickingProducts.set(true)">
+                      <ion-icon name="funnel-outline"></ion-icon>
+                      <span class="text">{{ chosenProductsLabel() }}</span>
+                      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+                    </button>
+                  </div>
                 }
 
                 <div class="views">
