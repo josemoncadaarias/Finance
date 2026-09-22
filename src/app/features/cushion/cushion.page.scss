@@ -840,7 +840,9 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
 
 /* Room under the last thing on the sheet, so the arrows floating over it
    never sit on top of a button. */
-ion-content.sheet { --padding-bottom: 4.5rem; }
+/* Room for the floating jump buttons, and for the phone's own buttons
+   under them - this sheet loses its footer whenever a form is open. */
+ion-content.sheet { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px)); }
 
 /* "Dejar de calcular esta cuenta" was cut to "esta cue...": Ionic keeps a
    button's label on one line whatever its width. Here the label is a sentence,

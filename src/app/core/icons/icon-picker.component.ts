@@ -157,7 +157,7 @@ export interface IconChoice {
     .sheet {
       --padding-start: 1rem;
       --padding-end: 1rem;
-      --padding-bottom: 2rem;
+      --padding-bottom: calc(2rem + var(--ion-safe-area-bottom, 0px));
 
       section { margin-bottom: 1.25rem; }
 

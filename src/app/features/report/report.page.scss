@@ -505,7 +505,7 @@
 }
 
 /* The jump controls float over the end of the list, so it needs room. */
-ion-content { --padding-bottom: 4.5rem; }
+ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px)); }
 
 /*
  * Which account and which dates, the same two questions the summary asks.

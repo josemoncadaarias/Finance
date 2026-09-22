@@ -752,7 +752,7 @@ ion-content.account-sheet {
   --padding-start: 1rem;
   --padding-end: 1rem;
   --padding-top: 1rem;
-  --padding-bottom: 2rem;
+  --padding-bottom: calc(2rem + var(--ion-safe-area-bottom, 0px));
 
   h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
 
@@ -894,4 +894,24 @@ ion-content.account-sheet .order {
       color: var(--ion-color-primary-contrast);
     }
   }
+}
+
+/*
+ * Nothing ends underneath Android's own buttons.
+ *
+ * The app is drawn edge to edge - `viewport-fit=cover` in index.html - so the
+ * page really does extend behind the gesture bar or the three buttons at the
+ * bottom of the phone. A list that simply ends there ends under them: its last
+ * row cannot be read and cannot be tapped.
+ *
+ * Fixed here, once, rather than on the screen where it is noticed. It was
+ * found on the accounts screen, then on the products screen, and each time it
+ * was a patch on that screen alone - which left every other list, and every
+ * screen not written yet, with the same bug waiting.
+ *
+ * A screen that sets its own `--padding-bottom` overrides this, so those add
+ * the inset themselves; `safe-area.test.mjs` is what holds them to it.
+ */
+ion-content {
+  --padding-bottom: calc(0.5rem + var(--ion-safe-area-bottom, 0px));
 }

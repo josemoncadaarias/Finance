@@ -125,7 +125,7 @@
  * that bar and the controls floating over it.
  */
 ion-content {
-  --padding-bottom: 5rem;
+  --padding-bottom: calc(5rem + var(--ion-safe-area-bottom, 0px));
 }
 
 /*
