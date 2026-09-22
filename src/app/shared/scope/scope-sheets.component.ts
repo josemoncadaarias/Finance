@@ -27,6 +27,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FilterService } from '../../core/filters/filter.service';
 import { PERIOD_KINDS, monthName, rangePeriod } from '../../core/filters/period';
 import { MovementsStore } from '../../features/movements/movements.store';
+import { DatabaseService } from '../../core/database/database.service';
+import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from '../../features/accounts/account-editor.component';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
@@ -46,6 +48,7 @@ export class ScopeSheetsComponent {
   readonly filter = inject(FilterService);
   readonly store = inject(MovementsStore);
   readonly i18n = inject(I18nService);
+  private readonly database = inject(DatabaseService);
 
   readonly periodKinds = PERIOD_KINDS;
   readonly today = todayIso();
@@ -75,10 +78,38 @@ export class ScopeSheetsComponent {
 
   openAccounts(): void {
     this.showAccountSheet.set(true);
+
+    // Read when the sheet opens rather than kept in step: it is one query,
+    // and the answer only matters while this list is on screen.
+    if (this.useCounts().size === 0 && this.database.status() === 'ready') {
+      void new AccountsRepository(this.database.driver).timesUsed()
+        .then(counts => this.useCounts.set(counts));
+    }
   }
 
   readonly accountLabel = computed(() =>
     this.store.selectedAccount()?.name ?? this.i18n.t('summary.allAccounts'));
+
+  /**
+   * How the list is ordered: by name, or by how much each account is used.
+   *
+   * The same two the categories offer, remembered under the same key the
+   * movement form uses - it is one preference about one list, and answering
+   * it twice in two places is answering it twice.
+   */
+  readonly accountOrder = signal<'use' | 'name'>(readAccountOrder());
+
+  setAccountOrder(order: 'use' | 'name'): void {
+    this.accountOrder.set(order);
+    try {
+      localStorage.setItem('finance.accountOrder', order);
+    } catch {
+      // A browser with site data blocked still gets the order for this visit.
+    }
+  }
+
+  /** How many movements each account carries, for the "most used" order. */
+  private readonly useCounts = signal<Map<number, number>>(new Map());
 
   /**
    * The accounts worth offering.
@@ -91,9 +122,19 @@ export class ScopeSheetsComponent {
    */
   readonly selectable = computed(() => {
     const chosen = this.filter.accountId();
-    return this.store.accounts()
-      .filter(account => account.archived === 0 || account.id === chosen)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const offered = this.store.accounts()
+      .filter(account => account.archived === 0 || account.id === chosen);
+
+    // `localeCompare` so "Éxito" files under E and not after Z.
+    if (this.accountOrder() === 'name') {
+      return [...offered].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    }
+
+    const times = this.useCounts();
+    return [...offered].sort((a, b) => {
+      const byUse = (times.get(b.id) ?? 0) - (times.get(a.id) ?? 0);
+      return byUse !== 0 ? byUse : a.name.localeCompare(b.name, 'es');
+    });
   });
 
   /**
@@ -163,5 +204,14 @@ export class ScopeSheetsComponent {
   private dayLabel(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
     return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
+  }
+}
+
+/** The account list's order, the movement form's own key. */
+function readAccountOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.accountOrder') === 'use' ? 'use' : 'name';
+  } catch {
+    return 'name';
   }
 }

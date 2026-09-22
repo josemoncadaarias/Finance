@@ -282,15 +282,20 @@
 <ion-modal class="pocket-sheet" [isOpen]="pickingPocket() !== null" (didDismiss)="pickingPocket.set(null)">
   <ng-template>
     <div class="pocket-picker">
-      <h2>
-        @if (pickingPocket() === 'to') {
-          {{ 'cushion.move.to' | t }}
-        } @else if (isTransfer()) {
-          {{ 'cushion.move.from' | t }}
-        } @else {
-          {{ (request().kind === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
-        }
-      </h2>
+      <div class="head">
+        <h2>
+          @if (pickingPocket() === 'to') {
+            {{ 'cushion.move.to' | t }}
+          } @else if (isTransfer()) {
+            {{ 'cushion.move.from' | t }}
+          } @else {
+            {{ (request().kind === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
+          }
+        </h2>
+        <button type="button" (click)="pickingPocket.set(null)" [attr.aria-label]="'summary.close' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
       <ion-list [inset]="true">
         @for (pocket of pockets(); track pocket.id) {
           <ion-item button lines="full" (click)="choosePocket(pocket.id)"
@@ -386,15 +391,42 @@
   </ng-template>
 </ion-modal>
 
-<!-- Which account this is about. The same shape as the product picker beside
-     it, because it is the same kind of question one level up. -->
-<ion-modal class="pocket-sheet" [isOpen]="pickingAccount()" (didDismiss)="pickingAccount.set(false)">
+<!-- Which account this is about.
+
+     The summary screen's own account picker, not a second one: the same
+     sheet, the same rows, the same tick, the same styles out of global.scss.
+     Jose asked for exactly that, and two pickers for one question is how
+     they start looking different. -->
+<ion-modal [isOpen]="pickingAccount()" (didDismiss)="pickingAccount.set(false)">
   <ng-template>
-    <div class="pocket-picker">
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="pickingAccount.set(false)" [attr.aria-label]="'summary.close' | t">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="account-sheet">
       <h2>{{ 'cushion.entry.whichAccount' | t }}</h2>
-      <ion-list [inset]="true">
+
+      <!-- What it is on now, in full and before the alternatives. -->
+      <div class="current">
+        <app-icon [builtin]="account()?.builtin_icon ?? null"
+                  [customId]="account()?.custom_icon_id ?? null"
+                  fallback="wallet" size="1.5rem"></app-icon>
+        <span class="what">
+          <span class="lead">{{ 'summary.viewing' | t }}</span>
+          <span class="name">{{ accountName() }}</span>
+        </span>
+      </div>
+
+      <ion-list>
         @for (one of switchable(); track one.id) {
-          <ion-item button lines="full" (click)="switchAccount(one)"
+          <ion-item button lines="full" [id]="'product-account-' + one.id"
+                    (click)="switchAccount(one)"
                     [class.selected]="one.id === accountId()">
             <app-icon slot="start" [builtin]="one.builtin_icon"
                       [customId]="one.custom_icon_id" fallback="wallet"></app-icon>
@@ -409,6 +441,6 @@
           </ion-item>
         }
       </ion-list>
-    </div>
+    </ion-content>
   </ng-template>
 </ion-modal>

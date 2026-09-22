@@ -376,16 +376,21 @@
            (didDismiss)="pickingPocket.set(null)">
   <ng-template>
     <div class="pocket-picker">
-      <h2>{{ 'entry.pocket.ofAccount' | t:{ account: pickingPocket()?.name ?? '' } }}</h2>
+      <div class="head">
+        <h2>{{ 'entry.pocket.ofAccount' | t:{ account: pickingPocket()?.name ?? '' } }}</h2>
+        <button type="button" (click)="pickingPocket.set(null)" [attr.aria-label]="'summary.close' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
       <ion-list [inset]="true">
-        @for (pocket of (picking() === 'to' ? toPockets() : pockets()); track pocket.id) {
+        @for (pocket of (pocketSide() === 'to' ? toPockets() : pockets()); track pocket.id) {
           <ion-item button lines="full" (click)="choosePocket(pocket.id)"
-                    [class.selected]="(picking() === 'to' ? toPocketId() : pocketId()) === pocket.id">
+                    [class.selected]="(pocketSide() === 'to' ? toPocketId() : pocketId()) === pocket.id">
             <ion-label>
               <h3>{{ pocket.name }}</h3>
               @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
             </ion-label>
-            @if ((picking() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
+            @if ((pocketSide() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
               <ion-icon slot="end" class="tick" name="checkmark-circle"
                         [attr.aria-label]="'entry.selected' | t"></ion-icon>
             }

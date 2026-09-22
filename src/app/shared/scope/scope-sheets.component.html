@@ -104,7 +104,7 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="sheet">
+    <ion-content class="account-sheet">
       <h2>{{ 'summary.account' | t }}</h2>
 
       <!-- What is being looked at, in full and before the alternatives.
@@ -121,6 +121,16 @@
           <span class="lead">{{ 'summary.viewing' | t }}</span>
           <span class="name">{{ accountLabel() }}</span>
         </span>
+      </div>
+
+      <!-- The same two orders the categories offer, drawn the same way.
+           "Todas las cuentas" stays first whichever is chosen: it is not one
+           of the accounts being ordered, it is the way out of choosing one. -->
+      <div class="order">
+        <button type="button" [class.on]="accountOrder() === 'use'"
+                (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="accountOrder() === 'name'"
+                (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
       </div>
 
       <ion-list>

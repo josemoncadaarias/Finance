@@ -973,11 +973,22 @@ ion-footer[hidden] { display: none; }
 
   &.needed { border-color: var(--ion-color-warning); }
 
+  /*
+   * The whole box opens the picker, not just the words in it.
+   *
+   * The padding belonged to the box and the button sat inside it, so the
+   * border, the corners and the space around the name were dead to the
+   * thumb: Jose had to hit the name itself. The padding is the button's
+   * now, and the button fills the box.
+   */
+  padding: 0;
+
   .face {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    padding: 0;
+    width: 100%;
+    padding: 0.6rem 0.7rem;
     border: 0;
     background: none;
     text-align: left;
@@ -990,7 +1001,8 @@ ion-footer[hidden] { display: none; }
     align-items: center;
     gap: 0.2rem;
     align-self: flex-start;
-    max-width: 100%;
+    max-width: calc(100% - 1.4rem);
+    margin: -0.15rem 0.7rem 0.6rem;
     padding: 0.1rem 0.4rem;
     border: 0;
     border-radius: 999px;

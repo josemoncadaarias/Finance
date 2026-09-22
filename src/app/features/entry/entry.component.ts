@@ -973,6 +973,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // reopening it to answer the obvious follow-up.
     const side = this.picking() === 'to' ? this.toPockets() : this.pockets();
     const account = this.picking() === 'to' ? this.toAccount() : this.account();
+    this.pocketSide.set(this.picking());
     this.picking.set(null);
 
     // Straight on to the product when the account has more than one, in a
@@ -1100,6 +1101,17 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly pickingPocket = signal<AccountRow | null>(null);
 
+  /**
+   * Which side the PRODUCT sheet is asking about.
+   *
+   * Its own signal, not the one that opens the account sheet. That one means
+   * "the accounts are open", and the product sheet was reading it to know
+   * which side it was for - so opening the products straight from the form
+   * had to set it, and setting it opened the whole list of accounts behind
+   * them. Two questions were sharing one answer.
+   */
+  readonly pocketSide = signal<'from' | 'to' | null>(null);
+
   /** The product's own name, for the line under the account. */
   pocketName(pockets: readonly YieldPocket[], id: number | null): string {
     return pockets.find(pocket => pocket.id === id)?.name ?? '';
@@ -1107,7 +1119,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** Answers the second step and closes the sheet. */
   choosePocket(id: number): void {
-    const toSide = this.picking() === 'to';
+    const toSide = this.pocketSide() === 'to';
     if (toSide) this.toPocketId.set(id);
     else this.pocketId.set(id);
 
@@ -1149,6 +1161,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   openAccountSheet(which: 'from' | 'to'): void {
     this.picking.set(which);
+    this.pocketSide.set(which);
     const side = which === 'to' ? this.toAccount() : this.account();
     const pockets = which === 'to' ? this.toPockets() : this.pockets();
     this.pickingPocket.set(this.betweenProducts() && side && pockets.length > 1 ? side : null);
@@ -1156,6 +1169,8 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** From the products back to the accounts, for the side being chosen. */
   chooseAnotherAccount(): void {
+    // Back to the accounts, for the side the products were being chosen for.
+    this.picking.set(this.pocketSide());
     this.pickingPocket.set(null);
   }
 
@@ -1169,7 +1184,9 @@ export class EntryComponent implements OnInit, OnDestroy {
   openPocketSheet(which: 'from' | 'to'): void {
     const side = which === 'to' ? this.toAccount() : this.account();
     if (!side) return;
-    this.picking.set(which);
+    // The products alone. The account has its own button above them, and
+    // opening its sheet here only ever put it behind these.
+    this.pocketSide.set(which);
     this.pickingPocket.set(side);
   }
 

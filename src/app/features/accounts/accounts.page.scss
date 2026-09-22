@@ -72,10 +72,18 @@ ion-note[slot='end'] {
 
 ion-badge { margin-left: 0.4rem; font-weight: 400; }
 
+/*
+ * The last thing on the screen, and it has to clear the phone.
+ *
+ * Android keeps the bottom strip for its gesture bar or its three buttons,
+ * and a page that simply ends there ends underneath them: Jose could not see
+ * "ver cuentas archivadas" at all. The safe-area inset is what the phone says
+ * that strip is worth.
+ */
 .archived-toggle {
   display: flex;
   justify-content: center;
-  padding: 0.5rem 1rem 2rem;
+  padding: 0.5rem 1rem calc(2rem + var(--ion-safe-area-bottom, 0px));
 
   button {
     display: inline-flex;
@@ -294,4 +302,15 @@ ion-badge { margin-left: 0.4rem; font-weight: 400; }
     letter-spacing: 0;
     flex: none;
   }
+}
+
+/*
+ * The page ends above the phone's own buttons.
+ *
+ * Whatever is last - the archived toggle, or the archived list once it is
+ * open - has to clear the strip Android keeps for its gesture bar. Without
+ * this the last row sits under them and cannot be tapped at all.
+ */
+ion-content {
+  --padding-bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
 }

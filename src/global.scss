@@ -304,11 +304,59 @@ ion-modal.pocket-sheet {
   .pocket-picker {
     padding: 0.25rem 0 0.75rem;
     background: var(--ion-background-color);
+    /* A long list of accounts scrolls inside the sheet rather than growing
+       past the bottom of the screen, where the phone's own buttons are. */
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    min-height: 0;
+
+    /* The heading and the way out, on one line. These sheets open over a form
+       and their only way back was the phone's own gesture, which nothing on
+       screen says. */
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex: none;
+      margin: 0.9rem 1.5rem 0.4rem;
+
+      h2 {
+        margin: 0;
+        min-width: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        width: 2rem;
+        height: 2rem;
+        border: none;
+        border-radius: 50%;
+        background: none;
+        color: var(--ion-color-medium);
+        cursor: pointer;
+
+        ion-icon { font-size: 1.25rem; }
+        &:active { background: var(--ion-color-light); }
+      }
+    }
 
     h2 {
       margin: 0.9rem 1.5rem 0.4rem;
       font-size: 0.95rem;
       font-weight: 600;
+    }
+
+    ion-list {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      min-height: 0;
     }
   }
 }
@@ -666,4 +714,160 @@ ion-popover.info-hint-popover {
 
 @media (prefers-reduced-motion: reduce) {
   .compose .big:active { transform: none; }
+}
+
+/*
+ * Which account is being looked at, or recorded against.
+ *
+ * Asked by the summary screen and by the products form, so it is written
+ * once, here: a modal's content is rendered outside the component that
+ * declares it, and a picker copied into a second component is a picker that
+ * drifts from the first.
+ */
+ion-content.account-sheet {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --padding-top: 1rem;
+  --padding-bottom: 2rem;
+
+  h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
+
+  ion-item.selected {
+    --background: var(--ion-color-light);
+
+    /* The name of the one in force, said with weight rather than left to a
+       background a shade apart from the others. */
+    ion-label h3 { font-weight: 700; color: var(--ion-color-primary); }
+  }
+
+  .tick {
+    color: var(--ion-color-primary);
+    font-size: 1.25rem;
+    flex: none;
+  }
+
+  /* What is selected, above the alternatives: the full name, which is the
+     thing the toolbar could not fit and the reason for opening this. */
+  .current {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 1rem 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 12px;
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+
+    app-icon { color: var(--ion-color-primary); }
+
+    .what { display: flex; flex-direction: column; min-width: 0; }
+
+    .lead {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--ion-color-primary);
+    }
+
+    /* Wrapped rather than clipped. There is room here, and the whole point
+       of the panel is that this is where the long name can be read. */
+    .name {
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--ion-text-color);
+      overflow-wrap: break-word;
+    }
+  }
+
+  .range {
+    padding-top: 0.75rem;
+
+    /* Two calendars, one above the other, each labelled. Side by side they are
+       too narrow to tap a day on a phone. */
+    .ends { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* What is currently chosen, before either calendar is scrolled past. */
+    .range-so-far {
+      margin: 0 0 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+      color: var(--ion-color-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* Each end keeps its label attached to its own calendar when the
+       month-year picker expands one of them. */
+    .end {
+      border: 1px solid var(--ion-color-light-shade);
+      border-radius: 10px;
+      padding: 0.5rem;
+    }
+
+    .end p {
+      margin: 0 0 0.25rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ion-color-medium);
+    }
+
+    ion-datetime { width: 100%; }
+
+    ion-button {
+      margin-top: 0.75rem;
+      --border-radius: 999px;
+      text-transform: none;
+      letter-spacing: 0;
+      height: auto;
+      --padding-top: 0.6rem;
+      --padding-bottom: 0.6rem;
+    }
+
+    /* The dates chosen, on the button that applies them: confirming a range
+       without seeing it is a guess. */
+    .range-label {
+      display: block;
+      font-size: 0.72rem;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+  }
+
+  .include {
+    margin-top: 1rem;
+    --background: var(--ion-color-light);
+    border-radius: 8px;
+
+    .strong { margin: 0; font-size: 0.9rem; color: var(--ion-text-color); }
+    .hint { margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--ion-color-medium); }
+  }
+}
+
+/* The two orders a picker offers, inside the account sheet. The movement
+   form has the same control in its own stylesheet; this is the copy the
+   sheets use, since a modal's content leaves the component that declared it. */
+ion-content.account-sheet .order {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0 0.6rem;
+
+  button {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+    }
+  }
 }
