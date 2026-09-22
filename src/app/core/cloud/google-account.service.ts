@@ -79,13 +79,24 @@ export class GoogleAccountService {
    *
    * Called on startup. It must fail quietly: not being signed in is the normal
    * state of this app, not an error to report.
+   *
+   * It no longer asks `isLoggedIn` first, and that is the whole of why the
+   * account kept coming back disconnected. That call reads the ID token the
+   * plugin cached, which is a JWT that expires after an hour - and when it
+   * finds it expired it does not merely answer "no", it runs a full logout
+   * and throws the session away. Close the app for an hour, come back, signed
+   * out. Under an hour, still signed in. Which is exactly what Jose described.
+   *
+   * What apps that stay signed in actually do is ask the PHONE, every time.
+   * The grant lives in Google Play Services, not in the app, so an account
+   * that has already authorised this app can be handed back with no screen at
+   * all. That is what the three options below are for, and nothing else in
+   * this service was asking for them.
    */
   async restore(): Promise<void> {
     if (!this.available) return;
     try {
       await this.start();
-      const { isLoggedIn } = await SocialLogin.isLoggedIn({ provider: 'google' });
-      if (!isLoggedIn) return;
       await this.signIn({ silent: true });
     } catch {
       this.user.set(null);
@@ -98,9 +109,32 @@ export class GoogleAccountService {
     this.error.set('');
     try {
       await this.start();
+
+      /*
+       * Silently means silently.
+       *
+       * `filterByAuthorizedAccounts` limits the request to accounts that have
+       * already said yes to this app, and `autoSelectEnabled` takes the one
+       * when there is only one - together, Android answers without showing
+       * anything. Both are only honoured by the 'bottom' style, which is why
+       * it is asked for here and not elsewhere.
+       *
+       * When there is no such account it fails, and failing is the right
+       * answer: the caller is startup, which stays quiet, or the token
+       * refresh, which has a signed-in user to fall back on. Nothing appears
+       * on screen either way.
+       */
       const result = await SocialLogin.login({
         provider: 'google',
-        options: { scopes: [SCOPE], forceRefreshToken: true },
+        options: options.silent
+          ? {
+            scopes: [SCOPE],
+            forceRefreshToken: true,
+            style: 'bottom',
+            filterByAuthorizedAccounts: true,
+            autoSelectEnabled: true,
+          }
+          : { scopes: [SCOPE], forceRefreshToken: true },
       });
 
       const profile = (result.result ?? {}) as {
