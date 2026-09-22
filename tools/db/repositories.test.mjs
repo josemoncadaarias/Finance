@@ -794,7 +794,7 @@ test('a note written on a product\'s own income is suggested back', async () => 
   // cushion - so its note used to be offered to nobody. Jose, 2026-09-21.
   await yields.enrol({
     account_id: ids.rappi, default_pocket_name: 'Cuenta de ahorros',
-    opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false,
+    opening_on: '2026-09-01', withholding: false,
   });
   await yields.adjust({
     account_id: ids.rappi, on_date: '2026-09-21', amount_minor: 5_000,
@@ -906,7 +906,7 @@ import { YieldsRepository } from '../../src/app/core/database/repositories/yield
 test('a transfer between two products of one account can be edited without leaving it', async () => {
   const { db, accounts, transfers, transactions, ids } = await setup();
   const yields = new YieldsRepository(db, NOW);
-  await yields.enrol({ account_id: ids.rappi, opening_cushion_minor: 0, opening_on: '2026-01-01', withholding: true });
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-01-01', withholding: true });
   const [savings] = await yields.pockets(ids.rappi);
   await yields.setDefaultPocket(ids.rappi, savings.id);
   const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT renta', kind: 'cdt', sort_order: 1 });

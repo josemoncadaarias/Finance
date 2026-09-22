@@ -37,7 +37,7 @@ async function pibankWithCdt() {
     name: 'Pibank', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
     opened_on: '2026-01-01', opening_balance_minor: 0,
   });
-  await yields.enrol({ account_id: pibank, opening_cushion_minor: 0, opening_on: '2026-01-01', withholding: true });
+  await yields.enrol({ account_id: pibank, opening_on: '2026-01-01', withholding: true });
   const [savings] = await yields.pockets(pibank);
   await yields.setDefaultPocket(pibank, savings.id);
   const cdt = await yields.addPocket({

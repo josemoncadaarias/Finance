@@ -48,7 +48,7 @@ async function withCdt({ withholding = true } = {}) {
     }
   }
 
-  await yields.enrol({ account_id: account, opening_cushion_minor: 0, opening_on: '2026-08-31', withholding });
+  await yields.enrol({ account_id: account, opening_on: '2026-08-31', withholding });
   const [savings] = await yields.pockets(account);
   await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
   await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-08-31', amount_minor: pesos(5_000_000) });

@@ -340,7 +340,7 @@ test('the yields of a year add up across every enrolled account', async () => {
   const account = await new AccountsRepository(db, now).create({
     name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2021-07-01',
   });
-  await yields.enrol({ account_id: account, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  await yields.enrol({ account_id: account, opening_on: '2025-12-30' });
   const [pocket] = await yields.pockets(account);
 
   const day = (on_date, gross, withheld) => db.run(

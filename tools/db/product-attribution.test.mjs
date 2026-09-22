@@ -42,7 +42,7 @@ async function setup() {
 
   await yields.enrol({
     account_id: accountId, default_pocket_name: 'Bolsillo',
-    opening_cushion_minor: 0, opening_on: '2026-01-01', withholding: false,
+    opening_on: '2026-01-01', withholding: false,
   });
   const [only] = await yields.pockets(accountId);
 

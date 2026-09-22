@@ -118,6 +118,8 @@ interface CushionLine {
    * The one figure shown for the account everywhere on this screen.
    */
   availableMinor: number;
+  /** The day it starts earning from. Nothing before it is worked out. */
+  openingOn: IsoDate;
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
@@ -331,9 +333,8 @@ export class CushionPage {
     await this.measureSheet();
   }
 
-  /** Open while the "already paid" figure is being corrected. */
+  /** Open while the date the account starts earning from is being moved. */
   readonly editingOpening = signal(false);
-  readonly openingAmount = signal('');
   readonly openingOn = signal('');
 
   /** The settings form, filled from the account being edited. */
@@ -917,6 +918,7 @@ export class CushionPage {
           heldByPocket: held,
           earnsNextMinor: productsMinor,
           availableMinor: productsMinor - accountMinor,
+          openingOn: entry.opening_on,
           landedByPocket: landed.total,
           paidYieldByPocket: landed.yields,
         },
@@ -1985,42 +1987,25 @@ export class CushionPage {
   }
 
   /**
-   * Correcting what the account had already earned, and when it was measured.
+   * Moving the day the account starts earning from.
    *
-   * Both halves matter and for different reasons: the figure is part of the
-   * cushion total, and its date is where the walk starts - the figure covers
-   * everything before it, so nothing can be worked out back there. An account
-   * that has no such figure has nothing to overlap with, and there each
-   * product's oldest rate decides instead.
+   * Nothing before it is ever worked out, and a rate reaching further back
+   * does not change that while there is something on record as earned before
+   * that day. It is the only part of the old "colchon" that was real, and it
+   * stays because Jose needs it: it is how he tells the app when a product of
+   * his began.
    */
-  /** Opens the figure with what it holds, so it is corrected and not retyped. */
   async toggleOpening(line: CushionLine): Promise<void> {
     if (this.editingOpening()) {
       this.editingOpening.set(false);
       return;
     }
     const enrolled = await this.repos().yields.account(line.account.id);
-    this.openingAmount.set(
-      enrolled && enrolled.opening_cushion_minor !== 0
-        ? decimalOf(enrolled.opening_cushion_minor)
-        : '');
     this.openingOn.set(enrolled?.opening_on ?? today());
     this.editingOpening.set(true);
   }
 
   async saveOpening(line: CushionLine): Promise<void> {
-    const typed = this.openingAmount().trim();
-    // The tolerant parser, for the same reason the rest of this screen uses
-    // it: the figure being corrected is the one the app just displayed, in
-    // Colombian format, and the strict parser rejects its own output.
-    let minor = 0;
-    if (typed.length > 0) {
-      try {
-        minor = parseTypedAmountToMinor(typed);
-      } catch {
-        return;
-      }
-    }
     const on = this.openingOn() || today();
 
     this.saving.set(true);
@@ -2035,7 +2020,6 @@ export class CushionPage {
 
       await yields.enrol({
         account_id: line.account.id,
-        opening_cushion_minor: minor,
         opening_on: on,
         withholding: enrolled.withholding === 1,
         enabled: enrolled.enabled === 1,
@@ -2061,7 +2045,6 @@ export class CushionPage {
       await yields.enrol({
         account_id: account.id,
         default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
-        opening_cushion_minor: 0,
         opening_on: today(),
         withholding: account.currency_code === 'COP',
         // Most banks pay monthly. Claiming daily would credit interest on

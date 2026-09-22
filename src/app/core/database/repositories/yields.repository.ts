@@ -24,7 +24,7 @@ import type { ProductKind } from '../../yields/yield-math';
 /** An account enrolled for accrual. Not being here means never accrued. */
 export interface YieldAccount {
   account_id: number;
-  opening_cushion_minor: number;
+  /** The day the accrual starts from. Nothing before it is ever worked out. */
   opening_on: IsoDate;
   withholding: 0 | 1;
   enabled: 0 | 1;
@@ -200,10 +200,9 @@ export type NewYieldDay = Omit<YieldDay, 'actual_net_minor' | 'locked' | 'comput
   paid_on?: IsoDate | null;
 };
 
-/** What an account's cushion is made of, so a total can be explained. */
+/** What an account's accumulated yield is made of, so a total can be explained. */
 export interface CushionBalance {
   account_id: number;
-  opening_minor: number;
   accrued_minor: number;
   adjusted_minor: number;
   withdrawn_minor: number;
@@ -227,7 +226,7 @@ export interface CushionBalance {
 }
 
 const ACCOUNT_COLUMNS =
-  'account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note';
+  'account_id, opening_on, withholding, enabled, payout, note';
 const RATE_COLUMNS =
   `id, account_id, pocket_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
    max_balance_minor, requires_monthly_spend_minor, fallback_annual_rate_scaled, note`;
@@ -261,15 +260,13 @@ export class YieldsRepository {
   }
 
   /**
-   * Enrols an account, or corrects the opening figure of one already enrolled.
+   * Enrols an account, or moves the date one already enrolled starts from.
    *
-   * Changing the opening figure does not touch the days already accrued: it is
-   * a different question. The opening figure is what was there before the app
-   * started counting; the days are what it counted afterwards.
+   * Moving the date does not touch the days already worked out: that is a
+   * different question, and the next pass writes them again from the new date.
    */
   async enrol(input: {
     account_id: number;
-    opening_cushion_minor: number;
     opening_on: IsoDate;
     withholding?: boolean;
     enabled?: boolean;
@@ -283,10 +280,9 @@ export class YieldsRepository {
       'SELECT withholding FROM yield_accounts WHERE account_id = ?', [input.account_id]);
     await this.db.run(
       `INSERT INTO yield_accounts
-         (account_id, opening_cushion_minor, opening_on, withholding, enabled, payout, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (account_id, opening_on, withholding, enabled, payout, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET
-         opening_cushion_minor = excluded.opening_cushion_minor,
          opening_on            = excluded.opening_on,
          withholding           = excluded.withholding,
          enabled               = excluded.enabled,
@@ -295,7 +291,6 @@ export class YieldsRepository {
          updated_at            = excluded.updated_at`,
       [
         input.account_id,
-        input.opening_cushion_minor,
         input.opening_on,
         input.withholding === false ? 0 : 1,
         input.enabled === false ? 0 : 1,
@@ -1491,7 +1486,7 @@ export class YieldsRepository {
                 (SELECT COUNT(*) || ':' || COALESCE(MAX(rowid), 0) || ':' || COALESCE(MAX(updated_at), '')
                  FROM tax_parameters) AS sig`,
         `SELECT 'enrolled' AS part, account_id,
-                enabled || ':' || opening_on || ':' || opening_cushion_minor || ':' || COALESCE(updated_at, '') AS sig
+                enabled || ':' || opening_on || ':' || COALESCE(updated_at, '') AS sig
          FROM yield_accounts`,
         `SELECT 'account' AS part, id AS account_id,
                 opening_balance_minor || ':' || COALESCE(updated_at, '') AS sig
@@ -1597,11 +1592,9 @@ export class YieldsRepository {
       ...withdrawn.map(row => row.account_id),
     ]);
 
-    const openingBy = new Map(accounts.map(account => [account.account_id, account.opening_cushion_minor]));
     const out = new Map<number, CushionBalance>();
 
     for (const accountId of ids) {
-      const opening = openingBy.get(accountId) ?? 0;
       const accruedMinor = accruedBy.get(accountId)?.net ?? 0;
       const adjustedMinor = adjustedBy.get(accountId)?.total ?? 0;
       const withdrawnMinor = withdrawnBy.get(accountId)?.total ?? 0;
@@ -1617,13 +1610,12 @@ export class YieldsRepository {
 
       out.set(accountId, {
         account_id: accountId,
-        opening_minor: opening,
         accrued_minor: accruedMinor,
         adjusted_minor: adjustedMinor,
         withdrawn_minor: withdrawnMinor,
-        totalMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor,
+        totalMinor: accruedMinor + adjustedMinor - withdrawnMinor,
         pendingMinor,
-        availableMinor: opening + accruedMinor + adjustedMinor - withdrawnMinor - pendingMinor,
+        availableMinor: accruedMinor + adjustedMinor - withdrawnMinor - pendingMinor,
         paidOn,
         daysWithUnknownWithholding: accruedBy.get(accountId)?.unknown ?? 0,
       });
@@ -1633,11 +1625,10 @@ export class YieldsRepository {
   }
 
   /**
-   * The cushion split by product: what each has earned, had added or taken
-   * out. A row that names no product - the opening figure, an entry from
-   * before a product could be named - belongs to the product that follows the
-   * account balance, or else the first, the same rule the accrual follows.
-   * The parts add up to `cushion().totalMinor`.
+   * What each product has earned, had added or taken out. A row that names no
+   * product - an entry from before a product could be named - belongs to the
+   * product that follows the account balance, or else the first, the same rule
+   * the accrual follows. The parts add up to `cushion().totalMinor`.
    */
   async cushionByPocket(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
     const upTo = asOf ?? '9999-12-31';
@@ -1652,7 +1643,6 @@ export class YieldsRepository {
     };
     type Row = { pocket_id: number | null; total: number | null };
 
-    add(null, (await this.account(accountId))?.opening_cushion_minor ?? 0);
     for (const row of await this.db.query<Row>(
       `SELECT pocket_id, SUM(COALESCE(actual_net_minor, net_minor)) AS total
        FROM yield_days WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
@@ -1827,11 +1817,10 @@ interface AccrualMarks {
   accounts: Record<number, string>;
 }
 
-/** An account with no cushion at all: nothing earned, nothing owed. */
+/** An account that has earned nothing and owes nothing. */
 function emptyCushion(accountId: number): CushionBalance {
   return {
     account_id: accountId,
-    opening_minor: 0,
     accrued_minor: 0,
     adjusted_minor: 0,
     withdrawn_minor: 0,

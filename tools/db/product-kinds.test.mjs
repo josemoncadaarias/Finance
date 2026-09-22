@@ -28,7 +28,7 @@ async function bank() {
     opened_on: '2026-01-01', opening_balance_minor: 100_000_00,
   });
   await new YieldsRepository(db, NOW).enrol({
-    account_id: account, opening_cushion_minor: 0, opening_on: '2026-01-01', withholding: true,
+    account_id: account, opening_on: '2026-01-01', withholding: true,
   });
   return { db, account, kinds: new ProductKindsRepository(db, NOW), yields: new YieldsRepository(db, NOW) };
 }

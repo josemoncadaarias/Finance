@@ -37,7 +37,7 @@ async function bank() {
     name: 'Pibank', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
     opened_on: '2026-01-01', opening_balance_minor: pesos(10_000_000),
   });
-  await yields.enrol({ account_id: account, opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false });
+  await yields.enrol({ account_id: account, opening_on: '2026-09-01', withholding: false });
   const [savings] = await yields.pockets(account);
   await yields.setDefaultPocket(account, savings.id);
   await yields.setRate({
@@ -125,7 +125,7 @@ async function twoBanks() {
     name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
     opened_on: '2026-01-01', opening_balance_minor: pesos(4_000_000),
   });
-  await yields.enrol({ account_id: dale, opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false });
+  await yields.enrol({ account_id: dale, opening_on: '2026-09-01', withholding: false });
   const [alcancia] = await yields.pockets(dale);
   await yields.setDefaultPocket(dale, alcancia.id);
   await yields.setRate({

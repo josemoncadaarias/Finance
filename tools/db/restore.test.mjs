@@ -177,7 +177,7 @@ test('a backup of imported movements, products and nested categories comes back 
   const batch = (await db.queryOne('SELECT MAX(id) AS id FROM import_batches')).id;
 
   const yields = new YieldsRepository(db, NOW);
-  await yields.enrol({ account_id: source.ids.rappi, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  await yields.enrol({ account_id: source.ids.rappi, opening_on: '2025-12-30' });
   const [pocket] = await yields.pockets(source.ids.rappi);
 
   const categories = new CategoriesRepository(db, NOW);
@@ -305,7 +305,7 @@ test('a backup comes back even where foreign keys cannot be turned off, whatever
   await db.run("INSERT INTO import_batches (file_name, file_hash, imported_at) VALUES ('monefy.csv', 'hash', ?)", [NOW()]);
   const batch = (await db.queryOne('SELECT MAX(id) AS id FROM import_batches')).id;
   const yields = new YieldsRepository(db, NOW);
-  await yields.enrol({ account_id: source.ids.rappi, opening_cushion_minor: 0, opening_on: '2025-12-30' });
+  await yields.enrol({ account_id: source.ids.rappi, opening_on: '2025-12-30' });
   const [pocket] = await yields.pockets(source.ids.rappi);
   const categories = new CategoriesRepository(db, NOW);
   const child = await categories.create({ name: 'Almuerzos', kind: 'expense', builtin_icon: 'restaurant' });

@@ -787,35 +787,30 @@
               }
             }
             }
-            <!-- What the account had already earned before this app existed.
-                 It was taken off this screen on 2026-09-16 as redundant with a
-                 product income, and it is not: an income earns and this does
-                 not, and its date is where the walk starts. Taking it away left
-                 Jose unable to move the date his Plata products begin on. -->
+            <!-- The day the account starts earning from. It used to carry a
+                 figure beside it - what the bank had already paid - which was
+                 a mechanism of its own that nobody could use; migration 040
+                 turned every one of those into an ordinary income to the
+                 product that held it. The date was always the real half. -->
             <button type="button" class="section-head" (click)="toggleOpening(line)"
                     [class.open]="editingOpening()" [attr.aria-expanded]="editingOpening()">
               <ion-icon class="fold"
                         [name]="editingOpening() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-              <span class="title">{{ 'cushion.alreadyPaid' | t }}</span>
-              <span class="count">{{ money(line.cushion.opening_minor, line.account.currency_code) }}</span>
+              <span class="title">{{ 'cushion.earningSince' | t }}</span>
+              <span class="count">{{ dayText(line.openingOn) }}</span>
             </button>
 
             @if (editingOpening()) {
-              <p class="hint">{{ 'cushion.alreadyPaid.hint' | t }}</p>
+              <p class="hint">{{ 'cushion.earningSince.hint' | t }}</p>
               <ion-list [inset]="true">
                 <ion-item>
-                  <ion-input [label]="'cushion.alreadyPaid' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="openingAmount()"
-                             (ionInput)="openingAmount.set(amountTyped($event.target))"></ion-input>
-                </ion-item>
-                <ion-item>
-                  <ion-input [label]="'cushion.alreadyPaid.on' | t" labelPlacement="stacked"
+                  <ion-input [label]="'cushion.earningSince' | t" labelPlacement="stacked"
                              type="date" [value]="openingOn()"
                              (ionInput)="openingOn.set($any($event.target).value)"></ion-input>
                 </ion-item>
               </ion-list>
               <ion-button expand="block" [disabled]="saving()" (click)="saveOpening(line)">
-                {{ 'cushion.alreadyPaid.save' | t }}
+                {{ 'cushion.earningSince.save' | t }}
               </ion-button>
             }
 
