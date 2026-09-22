@@ -444,7 +444,28 @@ export class AccrualEngine {
                        movedInto.get(pocket.id) ?? [], true)
             : balanceOn(balances, day);
 
-          const base = Math.max(0, held) + (cushionOf.get(pocket.id) ?? 0);
+          /*
+           * The floor is on the WHOLE base, not on the ledger half of it.
+           *
+           * A pocket's ledger share goes negative when more has been moved
+           * out of it than the ledger ever put in - which is exactly what
+           * happens when the yields it had gathered are transferred out with
+           * the rest. Jose emptied Plata's savings product into its other
+           * product, and the transfer carried the 379.94 of yield with it,
+           * because that is the money the bank really had there.
+           *
+           * Clamping the ledger share to zero first threw that away and then
+           * added the cushion back on top, so the product went on earning
+           * 0.07 a day on 380.08 that had already left it. He read the screen
+           * and asked where the balance had come from; it had come from
+           * counting the same yield twice.
+           *
+           * Taking what was moved out off the cushion first leaves nothing,
+           * which is what the product holds. Where the ledger share is not
+           * negative - every other product in his data - both spellings give
+           * the same figure, because both halves are already positive.
+           */
+          const base = Math.max(0, held + (cushionOf.get(pocket.id) ?? 0));
 
           // Every component earns on the same base and is worked out apart:
           // each has its own rate, its own condition and its own payday, and

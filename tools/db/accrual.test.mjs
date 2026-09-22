@@ -2101,3 +2101,74 @@ test('removing the usual product makes the destination the usual one', async () 
 // ---------------------------------------------------------------------------
 
 // How a CDT is paid - once, on the day it matures - is tested in cdt.test.mjs.
+
+// ---------------------------------------------------------------------------
+// Yields moved out of a product leave it, instead of staying to earn
+//
+// Found on Jose's Plata on 2026-09-22. Its savings product had earned 379.94
+// over three weeks, and he moved the whole product into the other one - the
+// transfer carrying that 379.94 with it, because that is the money the bank
+// really had there. The next morning the emptied product showed a yield of
+// 0.07 worked out on 380.08, and he asked where that balance had come from.
+//
+// It had come from counting the same yield twice: the ledger share went to
+// -380.08, the engine clamped that to zero, and then added the cushion of
+// +380.08 back on top of it.
+// ---------------------------------------------------------------------------
+
+test('a product emptied of its yields stops earning on them', async () => {
+  const { db, accounts, transfers, yields, engine } = await setup();
+
+  const plata = await accounts.create({
+    name: 'Plata', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
+    opening_balance_minor: 0, opened_on: '2026-09-01',
+  });
+  await yields.enrol({
+    account_id: plata, opening_cushion_minor: 0, opening_on: '2026-09-01', withholding: false,
+  });
+  await yields.setRate({ account_id: plata, valid_from: '2026-09-01', annual_rate_scaled: pct(10) });
+
+  // Two products, both stated: the savings one holds the money, the other is
+  // empty. Neither follows the account, as Plata's do not.
+  const [savings] = await yields.pockets(plata);
+  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setPocketBalance({
+    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 100_000_00,
+  });
+  const other = await yields.addPocket({
+    account_id: plata, name: 'Bolsillo', source: 'manual', sort_order: 1,
+  });
+  await yields.setPocketBalance({ pocket_id: other, valid_from: '2026-09-01', amount_minor: 0 });
+
+  // A week of earning, all of it in the savings product.
+  await engine.accrue(plata, '2026-09-08');
+  const earned = (await yields.days(plata))
+    .filter(day => day.pocket_id === savings.id)
+    .reduce((sum, day) => sum + day.net_minor, 0);
+  assert.ok(earned > 0, 'the savings product earned something to move');
+
+  // Now the whole of it moves to the other product - the balance AND the
+  // yield it gathered, which is what the bank would really hand over.
+  await transfers.create({
+    occurred_on: '2026-09-08',
+    description: 'Recarga bolsillo',
+    from: { account_id: plata, pocket_id: savings.id, amount_minor: 100_000_00 + earned },
+    to: { account_id: plata, pocket_id: other, amount_minor: 100_000_00 + earned },
+  });
+
+  await yields.clearDays(plata);
+  await engine.accrue(plata, '2026-09-12');
+
+  const after = (await yields.days(plata)).filter(day => day.on_date > '2026-09-09');
+  const emptied = after.filter(day => day.pocket_id === savings.id);
+
+  assert.ok(emptied.length > 0, 'the emptied product still has days on record');
+  assert.deepEqual(emptied.map(day => day.balance_minor), emptied.map(() => 0),
+    'a product whose yields were moved out earns on nothing');
+  assert.deepEqual(emptied.map(day => day.net_minor), emptied.map(() => 0));
+
+  // And the product it went to earns on all of it, so nothing was lost.
+  const receiving = after.filter(day => day.pocket_id === other);
+  assert.ok(receiving.every(day => day.balance_minor >= 100_000_00 + earned),
+    'the money and its yield earn where they actually are');
+});
