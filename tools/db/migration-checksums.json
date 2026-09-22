@@ -36,5 +36,6 @@
   "035_opening_becomes_an_adjustment.sql": "22d650ddd9bb7bd5333cc54d7397226b189fbeaf9616f24459f7368339ba285f",
   "036_opening_was_not_an_adjustment.sql": "bb3d5aeadb915e0513c9dff797bb59cd302155fe9729357abc1f37564ede5454",
   "037_product_kinds_become_categories.sql": "a9eaec3832f7c7fa037565bc84f431138c39e90e0ec56e92075f45f54772b813",
-  "038_name_the_product_of_loose_movements.sql": "b9931869d374193e80299fd0df390f2263bad41fd8fcd711ff4d764813b53aeb"
+  "038_name_the_product_of_loose_movements.sql": "b9931869d374193e80299fd0df390f2263bad41fd8fcd711ff4d764813b53aeb",
+  "039_plata_money_was_always_in_the_bolsillo.sql": "fc8bd5e307a3025782ff598b4db79f25a5394f80984c30c6d569df9464c5cfe4"
 }
