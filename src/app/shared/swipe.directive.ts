@@ -1,7 +1,8 @@
 /**
  * A horizontal flick that steps the period.
  *
- * Most of why Monefy feels quick is that changing month costs a gesture rather
+ * Most of why a phone finance app feels quick is that changing month costs a
+ * gesture rather
  * than a tap on a small arrow. Built on Ionic's gesture controller so it plays
  * with the scroll container instead of fighting it.
  *

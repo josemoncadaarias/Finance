@@ -330,7 +330,7 @@ which pocket it landed in.
 
 `cashback_rules` holds the conditions as they stood on a date — a percentage,
 optionally on one category, optionally requiring a minimum balance somewhere
-else. `cashback_entries.source_transaction_id` is the link Monefy never had:
+else. `cashback_entries.source_transaction_id` is the link no off-the-shelf app had:
 the reward knows which purchase produced it.
 
 `cushion_adjustments` is money that landed in the cushion on a date, and

@@ -207,7 +207,7 @@ export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'All'):
   }
 }
 
-/** The period buttons, in the order Monefy lists them. Named by the screen. */
+/** The period buttons, in the order people expect them. Named by the screen. */
 export const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'day', label: 'period.day' },
   { kind: 'week', label: 'period.week' },

@@ -1,7 +1,8 @@
 /**
  * An icon for each of Jose's real categories.
  *
- * Monefy draws its donut with the category icons around the ring, and that is
+ * The app Jose used before drew its donut with the category icons around the
+ * ring, and that is
  * most of how it reads at a glance: you recognise the shape before you read the
  * word. The backup carries no icon, so the importer gave every category the
  * same wallet, which made the ring a row of identical placeholders.
@@ -16,7 +17,7 @@ import type { SqlDriver } from './sql-driver';
 export const DEFAULT_CATEGORY_ICON = 'pricetag-outline';
 
 /**
- * Keyed by the category name exactly as Monefy spells it, since that is what
+ * Keyed by the category name exactly as his own data spells it, since that is what
  * the importer matches on.
  */
 export const CATEGORY_ICONS: Readonly<Record<string, string>> = {

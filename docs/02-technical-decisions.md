@@ -27,7 +27,7 @@ insufficient for something concrete.
 ## Money as integers
 
 JavaScript has no decimal type. Every number is a float64, and adding floats
-accumulates error. The Monefy backup already shows it: `9421.2800000000007`.
+accumulates error. The data seeded into the app already shows it: `9421.2800000000007`.
 
 **Rule:** all amounts are stored as **integers in minor units**.
 
@@ -36,11 +36,10 @@ accumulates error. The Monefy backup already shows it: `9421.2800000000007`.
 
 COP was originally going to be stored as whole pesos, on the assumption that
 Colombia does not use cents in practice. The real data says otherwise:
-**2,313 of the 12,890 backup rows carry cents**, opening balances included
+**2,313 of the 12,890 rows carry cents**, opening balances included
 (`66,750,767.94` on Fiducuenta). Rounding them would introduce drift that makes
 balances impossible to reconcile against the bank, so COP keeps 2 minor units
-like every other currency, and is displayed with 2 decimals the same way
-Monefy displays it.
+like every other currency, and is displayed with 2 decimals.
 
 Every account knows its currency and therefore its decimal places. Formatting
 happens only in the presentation layer. Arithmetic is never done on a
@@ -59,14 +58,14 @@ A card's balance represents **what is owed**, not the available credit.
 - `credit_limit` is a separate attribute
 - available credit = `credit_limit − |balance|`
 
-**Why.** In Monefy the balance mixed credit limit and debt into a single
-number. And for income tax, debts subtract from net taxable worth, so the
+**Why.** In the app Jose used before, the balance mixed credit limit and debt
+into a single number. And for income tax, debts subtract from net taxable worth, so the
 liability has to be explicit.
 
 **How it looks to the user:** "I owe $X, I have $Y available", which is how
 people actually think about a card.
 
-**Migration:** debt = credit limit − the balance Monefy carried.
+**Migration:** debt = credit limit − the balance that app carried.
 
 ---
 
@@ -80,8 +79,9 @@ Every transaction on a foreign-currency account stores:
 - `rate_source` where it came from: manual, derived, official TRM, cached
 - `confidence` high / low, for the review queue
 
-**History is never recalculated** when the TRM changes. That is what Monefy
-gets wrong, and it is exactly what income tax reporting needs.
+**History is never recalculated** when the TRM changes. That is what an app
+without per-transaction rates gets wrong, and it is exactly what income tax
+reporting needs.
 
 Official TRM source: the public datos.gov.co API (Superfinanciera). Cached
 locally by date. With no internet, the last known value is used and flagged.
@@ -172,17 +172,17 @@ Bancolombia, Nequi and Plata are all COP and all ungrouped.
 ## When a credit-card purchase becomes an expense
 
 Decided 2026-09-09, after Jose noticed August totalled 16,605,769.76 here and
-18,868,506.92 in Monefy. Neither was wrong. The gap is entirely a difference in
+18,868,506.92 in the app he used before. Neither was wrong. The gap is entirely a difference in
 when a card purchase counts, and it reconciles to the peso:
 
 ```
   11,583,201.76   spending, excluding the credit card
 +  3,100,000.00   transfers to eToro and Pibank para renta
 +  4,185,305.16   payments made to the credit card
-= 18,868,506.92   Monefy's figure
+= 18,868,506.92   the other app's figure
 ```
 
-**Monefy does not treat the card as one of your accounts.** Buying with it is
+**That app did not treat the card as one of your accounts.** Buying with it is
 not spending — the money is the bank's. Paying the statement is, because that
 is when your own money leaves. Expense at payment.
 
@@ -196,13 +196,13 @@ Jose chose this one. Three reasons, the first of which is the whole point of
 the app:
 
 - **Tax is about when you spent.** Something bought on 28 December and paid on
-  15 January belongs to December. Monefy's reading moves it into the next
+  15 January belongs to December. The other reading moves it into the next
   year.
-- **Monefy cannot tell you what you owe.** With the card outside the accounts,
+- **That model cannot tell you what you owe.** With the card outside the accounts,
   the 956,492.27 of debt never appears in net worth. Here it subtracts.
-- **A month reads evenly.** Under Monefy's model a month in which two
+- **A month reads evenly.** Under that model a month in which two
   statements happened to fall looks expensive even if nothing was bought.
 
-The consequence to remember: **spending totals here will not match Monefy's,
-and that is correct.** The difference is always the card purchases of the
+The consequence to remember: **spending totals here will not match the old
+app's, and that is correct.** The difference is always the card purchases of the
 period, less the card payments made in it.

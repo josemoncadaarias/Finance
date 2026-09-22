@@ -171,7 +171,7 @@ export class TransfersRepository {
    * whole thing makes that impossible to express.
    *
    * Both legs are locked, like any hand edit, so a later re-import of the
-   * Monefy backup leaves the correction alone.
+   * later pass leaves the correction alone.
    */
   async update(id: number, transfer: NewTransfer): Promise<void> {
     if (transfer.from.amount_minor <= 0 || transfer.to.amount_minor <= 0) {

@@ -1,7 +1,7 @@
 /**
  * Recording a movement, correcting one, and moving money between accounts.
  *
- * The thing Monefy is genuinely good at is that adding an expense costs three
+ * The thing a good expense app gets right is that adding an expense costs three
  * steps: amount, category, save. Everything here is arranged around not being
  * slower than that — the keypad is ready, the category grid needs no scrolling
  * for the common ones, and account and date already hold the answer that is
@@ -11,7 +11,7 @@
  * accounts, because it is the same act: an amount, a where, a when.
  *
  * Editing saves through the repository, which locks the row, so a later
- * re-import of the Monefy backup leaves the correction alone.
+ * later pass over the data leaves the correction alone.
  */
 
 import {
@@ -196,7 +196,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * The pad, four columns wide.
    *
    * Backspace moved into the amount display to free this column, which is
-   * where Monefy puts it too - and it is the right place: it acts on what is
+   * where the app Jose used before puts it too - and it is the right place: it acts on what is
    * shown there.
    */
   /**

@@ -1,5 +1,5 @@
 /**
- * The keypad does arithmetic, the way Monefy's does.
+ * The keypad does arithmetic, the way a good expense app's does.
  *
  * "Split this bill three ways" and "the groceries plus the taxi" are the two
  * things anyone does standing at a counter, and doing them in another app and

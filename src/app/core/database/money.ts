@@ -5,7 +5,7 @@
  * integers scaled by 10,000. Nothing here ever puts a monetary value through a
  * float: `parseAmountToMinor` works on the digit strings themselves, because
  * `parseFloat('9421.28') * 100` is 942127.9999999999, and that rounding error
- * is exactly the garbage the Monefy backup is full of.
+ * is exactly the garbage the data seeded into this app is full of.
  *
  * Formatting is the only place a value becomes a decimal, and by then it is on
  * its way to the screen and never comes back.
@@ -104,7 +104,7 @@ function formatterFor(
 
 /**
  * Formats an amount for display. This is the only place decimals appear.
- * COP is shown with 2 decimals the way Monefy shows it, not rounded to pesos.
+ * COP is shown with 2 decimals, not rounded to whole pesos.
  */
 export function formatMoney(
   minor: number,

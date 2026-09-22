@@ -127,7 +127,8 @@ function escapeField(value: string): string {
 /**
  * A file name that sorts chronologically and never collides.
  *
- * Same shape as the Monefy exports in `data/`, and for the same reason: two
+ * The shape a spreadsheet reads without being told anything, and for this
+ * reason: two
  * exports on one day must not overwrite each other.
  */
 export function exportFileName(now: Date, extension: string): string {

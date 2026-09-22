@@ -1,5 +1,5 @@
 /**
- * The donut Monefy opens on: where the period's money went, at a glance.
+ * The donut the app opens on: where the period's money went, at a glance.
  *
  * Drawn as SVG arcs rather than with a charting library. The whole thing is one
  * ring of segments and a few labels; a library would be more code to configure

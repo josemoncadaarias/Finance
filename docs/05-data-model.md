@@ -97,8 +97,7 @@ account's own currency, and `opening_balance_base_minor` is the same figure in
 COP, frozen at opening day. A USD account's opening balance cannot be added
 into a COP total, and this bug was found by writing the net-worth query.
 
-**`categories`** — unique on (`name`, `kind`), which is how the importer
-matches them. Same icon rule as accounts. `parent_id` allows grouping later
+**`categories`** — unique on (`name`, `kind`). Same icon rule as accounts. `parent_id` allows grouping later
 without a migration.
 
 ### Core ledger
@@ -206,92 +205,12 @@ not decide.
 
 ### Infrastructure
 
-**`import_batches`** — one row per import run, with the file hash and counts.
+**`import_batches`** — another leftover of that seeding, for the same reason.
 
-**`review_queue`** — anything the importer could not resolve lands here instead
-of entering the ledger wrong. A row cannot be marked resolved without a
-timestamp.
+**`review_queue`** — a leftover of the one-off seeding, kept because migrations
+are history. Nothing writes to it any more.
 
 **`settings`** — key/value. Currently just `base_currency`.
-
----
-
-## Re-importable imports
-
-The Monefy CSV is re-exported regularly and carries the whole history again
-plus whatever is new, so the importer has to recognise what it has already
-seen. It does that with a fingerprint: five normalised fields joined by a
-separator.
-
-```
-2021-06-28 | Bancolombia | Comunicaciones | -5177409 | Claro datos
-```
-
-The first design hashed that with SHA-256. Storing the readable string instead
-turned out better on every axis: `crypto.subtle` in a browser is async and
-would have made every call site async for nothing, a readable fingerprint can
-be shown in the review queue and understood at a glance rather than being 64
-characters of hex, and equality becomes exact instead of merely very likely.
-The cost is about 80 bytes per row — roughly 1 MB across the whole backup,
-against a database already several MB in size.
-
-Normalising means decoding the file correctly, trimming, collapsing repeated
-spaces, and converting the amount to minor units *before* hashing, so
-`-51,774.09` and `-51774.09` agree. Case and accents are left alone: renaming
-an account in Monefy should be visible, not papered over.
-
-**Legitimate duplicates.** Six pairs of byte-identical rows exist in the real
-backup — two identical transfers on the same day, the same 2,600 bus fare
-twice. A fingerprint alone would collapse them, so `import_seq` numbers repeats
-in file order and the unique index covers the pair:
-
-```sql
-CREATE UNIQUE INDEX idx_transactions_import
-  ON transactions(import_fingerprint, import_seq)
-  WHERE import_fingerprint IS NOT NULL;
-```
-
-The index is partial, so the many hand-created rows with no fingerprint are not
-constrained by it.
-
-| Situation | What the importer does |
-|---|---|
-| In the file, not in the database | Insert |
-| In both | Skip |
-| In the database, not in the file | **Never deletes.** Flags it for review |
-
-**Known limitation.** Editing a row inside Monefy changes its fingerprint,
-which looks exactly like a delete plus an insert. There is no way to tell them
-apart, because the CSV carries no stable id. The importer surfaces both and
-lets the user decide.
-
-**Slot stability — what actually has to hold.** A row is recognised on
-re-import by its fingerprint *and* its `import_seq`, and `import_seq` counts
-its position **among rows sharing that fingerprint** — not its position in the
-file. So the requirement is narrower than "the file keeps its order".
-
-The first comparison (`monefy-2026-09-07.csv` against `monefy-2026-09-08.csv`)
-suggested the stronger property: 8 rows appended, the old file an exact prefix
-of the new. **That reading was too strong, and the next export disproved it.**
-Comparing `monefy-2026-09-08.csv` against `monefy-2026-09-08-1748.csv`, the
-single new row was *inserted* at position 12,893 rather than appended — Monefy
-keeps the file in date order, so a row added on a day that already has rows
-lands in the middle.
-
-The property that matters held anyway: all 12,898 existing rows kept the same
-fingerprint and sequence, and the re-import inserted exactly one row and
-rewrote nothing.
-
-**Residual risk, small but real.** A seq number shifts only when a new row
-shares a fingerprint with an existing one *and* sorts before it. That needs a
-new movement identical to an old one — same day, account, category, amount and
-description — added to a day that already holds its twin. `compare-exports.mjs`
-checks for exactly this and says `WARNING` when it happens, so run it on each
-new export.
-
-**Manual edits win.** Editing a transaction through the repository sets
-`locked = 1`, and a re-import skips locked rows. A hand correction is the true
-version by definition.
 
 ---
 
@@ -360,45 +279,10 @@ than quietly losing precision.
 
 ---
 
-## Comparing two exports
-
-Each Monefy export is kept as its own file and none is ever overwritten:
-
-```
-data/monefy-YYYY-MM-DD.csv          one export that day
-data/monefy-YYYY-MM-DD-HHMM.csv     a second one the same day
-```
-
-The 24-hour time is only added when a day holds more than one export. Monefy's
-own `Monefy.Data.8-9-2026.csv` gets renamed because `8-9` is ambiguous between
-August and September and sorts alphabetically rather than by date.
-
-**Do not sort these names as plain strings.** `-` sorts before `.`, so
-`monefy-2026-09-08-1748.csv` lands *before* `monefy-2026-09-08.csv` — the
-convention breaks exactly in the case it exists for. The importer got this
-wrong on its first run with two same-day exports and silently picked the older
-file. `exportOrder()` in `tools/db/import.mjs` parses the date and time
-instead, treating a missing time as the earliest that day, and
-`export-naming.test.mjs` pins the behaviour.
- Comparing consecutive exports is the only way to
-check the order-stability assumption, and it also shows what the importer will
-have to deal with on a re-run:
-
-```
-node --import ./tools/db/register-ts.mjs tools/db/compare-exports.mjs \
-  data/monefy-2026-09-07.csv data/monefy-2026-10-01.csv
-```
-
-It reports whether the old export is a prefix of the new one (order stable),
-which rows were added, which went missing — edited or deleted inside Monefy —
-and any new accounts or categories. Read-only: it touches no database.
-
----
-
 ## Running in the browser
 
 `ionic serve` is a real development environment, not a demo: the same schema,
-the same repositories, the same importer. Three things had to be right, and
+the same repositories. Three things had to be right, and
 each one failed at runtime while every build and type check stayed green.
 
 **`sql.js` is pinned to 1.11.0, exactly.** `jeep-sqlite` bundles the sql.js
@@ -435,7 +319,7 @@ Transaction control also differs by engine. The plugin manages its own, so the
 driver overrides `begin`/`commit`/`rollback` to call `beginTransaction()` and
 friends; a `BEGIN` sent as a statement does not survive to its `COMMIT`.
 
-Verified end to end in a real browser: the full 12,899-row export imports in
-about 3 seconds, producing the same 36 accounts, 25 categories and 2,712
-transfers as the command-line run, and the same balances — including the card
-at −956,492.27 with 143,507.73 free.
+Verified end to end in a real browser, on the whole of Jose's data: 12,899
+rows, 36 accounts, 25 categories and 2,712 transfers, with the same balances
+as the command-line run — including the card at −956,492.27 with 143,507.73
+free.

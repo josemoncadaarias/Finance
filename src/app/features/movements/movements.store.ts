@@ -37,7 +37,7 @@ export class MovementsStore {
    *
    * Deliberately not tied to the period. Looking at March does not change how
    * much money there is today, and "how much do I have" is the question
-   * someone opens a finance app with — Monefy answers it at the top of the
+   * someone opens a finance app with — the old app answered it at the top of the
    * screen and it is the one figure this app was still missing.
    */
   readonly standing = signal<Standing | null>(null);
@@ -246,7 +246,7 @@ export class MovementsStore {
    *
    * A credit card holds a debt rather than money, so it says what is owed and
    * how much room is left — the two numbers that matter about a card and that
-   * Monefy mixed into one.
+   * the old app mixed into one.
    */
   private async loadStanding(accounts: AccountsRepository): Promise<void> {
     const selected = this.filter.accountId();

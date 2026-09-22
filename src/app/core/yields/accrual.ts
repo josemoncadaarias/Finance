@@ -7,7 +7,7 @@
  *
  *   * **The balance it earns on** is the account's ledger balance plus the
  *     cushion accumulated so far. The bank did pay those yields in even though
- *     Monefy never recorded them, so the money earning interest tomorrow
+ *     The ledger never recorded them, so the money earning interest tomorrow
  *     includes them. Leaving them out would under-pay, more so every year.
  *
  *   * **The rate** is the band in force on that day whose range the balance
@@ -68,7 +68,7 @@ export interface AccrualResult {
  * The usual one, marked by the user - not the first in the list. Sort order
  * records only when each product was created, and Jose created his savings
  * products last, so "the first" is whichever alcancía happened to predate
- * them. Every row the Monefy importer writes names no product, so this is the
+ * them. Every row seeded into the app names no product, so this is the
  * rule that decides where a re-imported history lands.
  *
  * The first is the fallback for an account where nothing is marked, which the

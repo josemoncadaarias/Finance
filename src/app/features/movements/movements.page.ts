@@ -3,7 +3,8 @@
  * you are asking about.
  *
  * The donut and the list are two views of one thing, not two screens. The
- * control beside the balance swaps between them, which is how Monefy does it
+ * control beside the balance swaps between them, which is how the app Jose
+ * used before does it
  * and why it feels quick.
  */
 

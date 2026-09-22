@@ -132,7 +132,7 @@ export interface Totals {
  * Decides what a movement means.
  *
  * A transfer leg is `moved` rather than `out`, even though the money really did
- * leave the account. Monefy paints it red like any expense, and that is the
+ * leave the account. The old app painted it red like any expense, and that is the
  * confusion worth not inheriting: spending is money gone, a transfer is money
  * somewhere else.
  */
@@ -296,7 +296,7 @@ export function groupMovements(
       // What came in first, then everything that left, each largest first.
       //
       // The opposite order reads better as an answer to "where did the money
-      // go", and was what this did at first. Jose uses Monefy every day and
+      // go", and was what this did at first. Jose used such an app every day and
       // reads it the other way round, so it follows him: income is the
       // context you read the spending against.
       const rank = (group: MovementGroup) => (group.flow === 'in' ? 0 : 1);
@@ -351,7 +351,7 @@ export interface Slice {
   icon: string | null;
   customIconId: number | null;
   amountMinor: number;
-  /** Rounded to a whole number, the way Monefy shows it. */
+  /** Rounded to a whole number, the way these figures are read. */
   percent: number;
   flow: Flow;
 }

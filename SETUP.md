@@ -71,12 +71,9 @@ Finance/
   SETUP.md
   .gitignore
   docs/
-    01-monefy-backup-analysis.md
     02-technical-decisions.md
     03-roadmap.md
     04-stack-guide.md
-  data/
-    monefy-2026-09-07.csv
 ```
 
 ---

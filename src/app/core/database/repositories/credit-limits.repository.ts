@@ -4,7 +4,7 @@
  * A limit change is not a movement: no money changes hands, the debt stays
  * exactly where it was, and only the room left over moves. That is why it
  * lives here and never in `transactions` — recording it as a deposit is what
- * made Monefy report a card balance that was 300,000 off.
+ * made the old app report a card balance that was 300,000 off.
  *
  * `accounts.credit_limit_minor` stays the limit in force today, because that
  * is what available credit is computed from on every screen. This table is the

@@ -64,7 +64,7 @@ export class AppComponent {
    */
   private readonly theme = inject(ThemeService);
 
-  // No Monefy import and no screen reviewing what it assumed: since
+  // No import and no screen reviewing what one assumed: since
   // 2026-09-12 everything is entered by hand, and a backup is the way data
   // moves between the browser and the phone.
   readonly sections: Section[] = [

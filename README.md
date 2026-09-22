@@ -3,10 +3,10 @@
 Android personal finance app. Offline-first, with all data stored locally on
 the phone.
 
-It replaces Monefy and adds what Monefy is missing: foreign-currency accounts
-with the real rate of each transaction, interest and cashback kept separate
-from the account balance, and a module to estimate income tax and know how
-much to save each month.
+It replaces the off-the-shelf app Jose used before and adds what that one had
+no answer for: foreign-currency accounts with the real rate of each
+transaction, interest and cashback kept separate from the account balance, and
+a module to estimate income tax and know how much to save each month.
 
 ## Stack
 
@@ -25,8 +25,7 @@ Angular + Ionic + Capacitor + local SQLite.
 
 Phase 3 in progress. The database layer is done and tested, and the Ionic app
 covers the summary, accounts, categories, yields, the income-tax simulator and
-import/export of backups. Movements are entered by hand; the Monefy importer was
-removed on 2026-09-12.
+import/export of backups. Every movement is entered by hand.
 
 ```
 npm install
