@@ -157,3 +157,24 @@ test('an account or category icon is never drawn without its image', () => {
   assert.deepEqual(offenders, [],
     'draw these with <app-icon [builtin] [customId]> instead');
 });
+
+test('an icon the app draws is written the way addIcons takes them', () => {
+  // Every value Ionicons exports is a data URI. A raw `<svg>` string handed to
+  // `addIcons` is taken for a URL and fetched, the fetch fails, and nothing is
+  // drawn and nothing is said - which is exactly what happened to the piggy
+  // bank: Jose opened the drawer and the products entry had no icon at all.
+  const wrong = Object.entries(DRAWN_ICONS)
+    .filter(([, svg]) => !svg.startsWith('data:image/svg+xml'))
+    .map(([name]) => name);
+
+  assert.ok(Object.keys(DRAWN_ICONS).length > 0, 'there are icons to check');
+  assert.deepEqual(wrong, [], 'these would be fetched as a URL and draw nothing');
+
+  for (const [name, svg] of Object.entries(DRAWN_ICONS)) {
+    // A newline ends a URI, and a double quote ends the attribute the icon is
+    // written into.
+    assert.equal(svg.includes('\n'), false, `${name} has a line break in it`);
+    assert.equal(svg.includes('"'), false, `${name} has a double quote in it`);
+    assert.ok(svg.includes('<svg'), `${name} carries no drawing`);
+  }
+});
