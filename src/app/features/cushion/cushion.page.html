@@ -609,6 +609,21 @@
               }
             }
 
+            <!-- Which products the two lists below are about.
+                 The bank pays each product apart and its app shows each one
+                 apart, so a list with all of them mixed together is a list
+                 nobody can hold beside it. Only where there is more than one
+                 product to choose between. -->
+            @if (line.pockets.length > 1) {
+              <div class="which-products">
+                <button type="button" (click)="pickingProducts.set(true)">
+                  <ion-icon name="funnel-outline"></ion-icon>
+                  <span class="text">{{ chosenProductsLabel() }}</span>
+                  <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+                </button>
+              </div>
+            }
+
             <!-- What the bank hands over. The list to hold beside the bank's
                  own app: same date, same rate, same figure. -->
             <button type="button" class="section-head" (click)="showPayments.set(!showPayments())"
@@ -652,7 +667,12 @@
 
                   @if (isWorkingOpen(month.key)) {
                     @for (payment of month.payments; track payment.key) {
-                      <ion-item>
+                      <!-- A payment that is one day can be corrected against
+                           the bank, which for an account that pays daily is
+                           the only way in: its day list is hidden because it
+                           would say the same thing twice. -->
+                      <ion-item [button]="payment.day !== null" detail="false"
+                                (click)="payment.day && openDayForm(payment.day)">
                         <ion-label>
                           <h3>
                             {{ dayText(payment.on) }}
@@ -1498,3 +1518,49 @@
   <app-busy-overlay [label]="state.label" [detail]="state.detail"
                     [percent]="state.percent"></app-busy-overlay>
 }
+
+<!-- Which products the yields are read for. A short question, so a short
+     sheet: the products, each with a tick, and "all of them" above them. -->
+<ion-modal class="pocket-sheet" [isOpen]="pickingProducts()"
+           (didDismiss)="pickingProducts.set(false)">
+  <ng-template>
+    <div class="pocket-picker">
+      <div class="head">
+        <h2>{{ 'cushion.products.which' | t }}</h2>
+        <button type="button" (click)="pickingProducts.set(false)"
+                [attr.aria-label]="'summary.close' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
+
+      <p class="hint">{{ 'cushion.products.hint' | t }}</p>
+
+      @if (openLine(); as line) {
+        <ion-list [inset]="true">
+          <ion-item button lines="full" (click)="chooseAllProducts()"
+                    [class.selected]="allProductsChosen()">
+            <ion-label><h3>{{ 'cushion.products.all' | t }}</h3></ion-label>
+            @if (allProductsChosen()) {
+              <ion-icon slot="end" class="tick" name="checkmark-circle"
+                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
+            }
+          </ion-item>
+
+          @for (pocket of line.pockets; track pocket.id) {
+            <ion-item button lines="full" (click)="toggleProduct(pocket.id)"
+                      [class.selected]="!allProductsChosen() && isProductChosen(pocket.id)">
+              <ion-label>
+                <h3>{{ pocket.name }}</h3>
+                @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
+              </ion-label>
+              @if (!allProductsChosen() && isProductChosen(pocket.id)) {
+                <ion-icon slot="end" class="tick" name="checkmark-circle"
+                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      }
+    </div>
+  </ng-template>
+</ion-modal>

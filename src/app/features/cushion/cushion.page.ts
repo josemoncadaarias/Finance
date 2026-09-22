@@ -131,6 +131,17 @@ interface Payment {
   withheldMinor: number;
   pending: boolean;
   days: number;
+  /**
+   * The day behind it, when a payment covers exactly one.
+   *
+   * Which is every payment of an account that pays daily - and those accounts
+   * hide the day list entirely, because it would repeat this one. That left
+   * their yields as the only figures on the screen with no way to correct
+   * them against the bank. With the day in hand the row opens the same form
+   * the day list opens.
+   */
+  day: YieldDay | null;
+
   /** The last day the payment covers, and its rate and balance - what the day list reads. */
   lastOn: IsoDate;
   rateScaled: number;
@@ -174,7 +185,68 @@ export class CushionPage {
 
   /** The account whose detail sheet is open. */
   readonly openLine = signal<CushionLine | null>(null);
-  readonly openDays = signal<YieldDay[]>([]);
+  private readonly allDays = signal<YieldDay[]>([]);
+
+  /**
+   * Which products the yields are being read for, by id. Null is all of them.
+   *
+   * An account with four products showed four products' worth of days in one
+   * list, which is not a list anyone can hold beside the bank's own app: the
+   * bank pays each product apart and shows each one apart. Kept as a set so
+   * "these two" is as easy to ask as "this one".
+   */
+  readonly chosenProducts = signal<ReadonlySet<number> | null>(null);
+  readonly pickingProducts = signal(false);
+
+  readonly openDays = computed(() => {
+    const chosen = this.chosenProducts();
+    return chosen === null
+      ? this.allDays()
+      : this.allDays().filter(day => chosen.has(day.pocket_id));
+  });
+
+  /** True while the lists are showing everything they could. */
+  readonly allProductsChosen = computed(() => this.chosenProducts() === null);
+
+  /** What the button says: "todos" or how many are picked. */
+  readonly chosenProductsLabel = computed(() => {
+    const chosen = this.chosenProducts();
+    if (chosen === null) return this.i18n.t('cushion.products.all');
+
+    const line = this.openLine();
+    if (chosen.size === 1 && line) {
+      const only = line.pockets.find(pocket => chosen.has(pocket.id));
+      if (only) return only.name;
+    }
+    return this.i18n.t('cushion.products.some', { count: chosen.size });
+  });
+
+  isProductChosen(id: number): boolean {
+    const chosen = this.chosenProducts();
+    return chosen === null || chosen.has(id);
+  }
+
+  /**
+   * Adds or removes one product.
+   *
+   * Turning the last one off means nothing is being read, which answers no
+   * question, so it goes back to all of them - the state it started in.
+   */
+  toggleProduct(id: number): void {
+    const line = this.openLine();
+    if (!line) return;
+
+    const chosen = this.chosenProducts();
+    const next = new Set(chosen ?? line.pockets.map(pocket => pocket.id));
+    if (!next.delete(id)) next.add(id);
+
+    this.chosenProducts.set(
+      next.size === 0 || next.size === line.pockets.length ? null : next);
+  }
+
+  chooseAllProducts(): void {
+    this.chosenProducts.set(null);
+  }
 
   /** Which form is showing inside the detail sheet. */
   readonly form = signal<'none' | 'day' | 'rate' | 'pocket'>('none');
@@ -912,12 +984,15 @@ export class CushionPage {
 
       const payment = out.get(key) ?? {
         key, pocketId: day.pocket_id, component: day.component, payout: day.payout, on,
-        netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0,
+        netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0, day: null,
         lastOn: day.on_date, rateScaled: day.annual_rate_scaled, balanceMinor: day.balance_minor,
       };
       payment.netMinor += netOf(day);
       payment.withheldMinor += day.withholding_minor;
       payment.days += 1;
+      // Only where it is the whole payment: correcting one day of thirty
+      // would leave the other twenty-nine saying something else.
+      payment.day = payment.days === 1 ? day : null;
       // The rate and balance of the last day it covers, as the day list shows them.
       if (day.on_date >= payment.lastOn) {
         payment.lastOn = day.on_date;
@@ -1081,7 +1156,7 @@ export class CushionPage {
     // Newest first: the day someone came here to check is almost always a
     // recent one, and the list can run to thousands.
     const days = (await yields.days(line.account.id)).reverse();
-    this.openDays.set(days);
+    this.allDays.set(days);
     // The month someone came here to look at is almost always this one.
     // Closed, both of them. They opened on their latest month, which is fine
     // for one month and not for the two years these lists will hold: the
@@ -1094,7 +1169,7 @@ export class CushionPage {
 
   closeDetail(): void {
     this.openLine.set(null);
-    this.openDays.set([]);
+    this.allDays.set([]);
     this.openDay.set(null);
     this.form.set('none');
   }

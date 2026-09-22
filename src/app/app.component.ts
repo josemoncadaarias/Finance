@@ -11,6 +11,7 @@ import {
   IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { DRAWN_ICONS } from './core/icons/drawn-icons';
 import * as allIcons from 'ionicons/icons';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { LanguageButtonComponent } from './core/i18n/language-button.component';
@@ -70,7 +71,7 @@ export class AppComponent {
     { path: '/report', label: 'nav.report', hint: 'nav.report.hint', icon: 'stats-chart-outline' },
     { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
     { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
-    { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'bed-outline' },
+    { path: '/cushion', label: 'nav.cushion', hint: 'nav.cushion.hint', icon: 'piggy-bank' },
     { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
     { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'swap-vertical-outline' },
     { path: '/account', label: 'nav.account', hint: 'nav.account.hint', icon: 'person-circle-outline' },
@@ -94,6 +95,8 @@ export class AppComponent {
   constructor() {
     // Every icon, once, for the whole app: see the note above the class.
     addIcons(allIcons as unknown as Record<string, string>);
+    // The ones drawn here, because Ionicons has none like them.
+    addIcons(DRAWN_ICONS);
 
     // Signed in last time? Then signed in now, without being asked again.
     // It fails quietly on purpose: signed out is the ordinary state of this

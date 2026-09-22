@@ -865,3 +865,36 @@ ion-content.sheet { --padding-bottom: 4.5rem; }
     ion-icon { font-size: 0.95rem; }
   }
 }
+
+/*
+ * Which products the yields below are for.
+ *
+ * A quiet pill above the two lists rather than a row of switches: it answers
+ * a question that is asked once and then left alone, and the lists under it
+ * are what the screen is about.
+ */
+.which-products {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.6rem 1rem 0;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: var(--ion-color-light);
+    color: var(--ion-color-primary);
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 0.9rem; flex: none; }
+    .more { font-size: 0.7rem; opacity: 0.6; }
+
+    .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+}

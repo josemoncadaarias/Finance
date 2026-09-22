@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import * as ionicons from 'ionicons/icons';
+import { DRAWN_ICONS } from '../../src/app/core/icons/drawn-icons.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = join(HERE, '..', '..', 'src', 'app');
@@ -26,6 +27,17 @@ const SOURCE = join(HERE, '..', '..', 'src', 'app');
 /** `arrow-forward-outline` is exported as `arrowForwardOutline`. */
 function asExportName(name) {
   return name.replace(/-([a-z0-9])/g, (_, char) => char.toUpperCase());
+}
+
+/**
+ * Known to Ionicons, or drawn by the app itself.
+ *
+ * The app registers its own with `addIcons` at start-up - there is no piggy
+ * bank in Ionicons and the products screen is about one - so the names it
+ * draws are as real as theirs, and just as fatal to leave out.
+ */
+function exists(name) {
+  return asExportName(name) in ionicons || name in DRAWN_ICONS;
 }
 
 function everyTemplate(dir) {
@@ -53,7 +65,7 @@ test('every literal icon name in a template exists in ionicons', () => {
     const html = readFileSync(file, 'utf8');
     for (const match of html.matchAll(/<ion-icon\b[^>]*?\sname="([a-z0-9-]+)"/g)) {
       checked += 1;
-      if (!(asExportName(match[1]) in ionicons)) {
+      if (!exists(match[1])) {
         missing.push(`${relative(file)}: ${match[1]}`);
       }
     }
@@ -108,7 +120,7 @@ test('icon names written in component code exist too', () => {
     const source = readFileSync(file, 'utf8');
     for (const match of source.matchAll(/icon:\s*'([a-z0-9-]+)'/g)) {
       checked += 1;
-      if (!(asExportName(match[1]) in ionicons)) {
+      if (!exists(match[1])) {
         missing.push(`${relative(file)}: ${match[1]}`);
       }
     }
