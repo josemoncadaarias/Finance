@@ -62,8 +62,8 @@ export type AccountUpdate = Partial<Omit<NewAccount, 'currency_code'>> & { archi
  * A movement that counts as the account's own money: it names no product, or a
  * product that has not been set outside net worth. Written against `t`.
  */
-const COUNTED_MOVEMENT = `(t.pocket_id IS NULL OR t.pocket_id NOT IN
-  (SELECT id FROM yield_pockets WHERE include_in_net_worth = 0))`;
+const COUNTED_MOVEMENT = `(t.product_id IS NULL OR t.product_id NOT IN
+  (SELECT id FROM products WHERE include_in_net_worth = 0))`;
 
 /** How a balance treats the products set outside net worth. */
 export interface SetAsideOption {

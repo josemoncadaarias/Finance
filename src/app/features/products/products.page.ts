@@ -41,11 +41,11 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
   YieldsRepository, type EarnedBalance, type ProductEntry, type YieldAccount, type YieldDay,
-  type YieldPocket, type YieldRate,
+  type YieldProduct, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
-import { removePocketInto } from '../../core/yields/remove-pocket';
+import { removeProductInto } from '../../core/yields/remove-product';
 import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '../../core/yields/cdt';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString, type WithholdingRule } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
@@ -73,8 +73,8 @@ interface ProductLine {
   /** False when the account is paused: kept, shown, not accrued. */
   enabled: boolean;
   /** The pots this account is split into. Always at least one. */
-  pockets: YieldPocket[];
-  /** What this account earned on the most recent day worked out, all pockets. */
+  products: YieldProduct[];
+  /** What this account earned on the most recent day worked out, all products. */
   lastDayMinor: number;
   /**
    * What the account is actually earning on.
@@ -106,11 +106,11 @@ interface ProductLine {
    * against it and never had it moved in from the product that really held it
    * — worth seeing rather than hiding, because the negative is the reminder.
    */
-  heldByPocket: ReadonlyMap<number, number>;
+  heldByProduct: ReadonlyMap<number, number>;
   /** What landed in each product's balance since it was stated: paid yields, income, expenses. */
-  landedByPocket: ReadonlyMap<number, number>;
+  landedByProduct: ReadonlyMap<number, number>;
   /** Of that, only what the bank paid. */
-  paidYieldByPocket: ReadonlyMap<number, number>;
+  paidYieldByProduct: ReadonlyMap<number, number>;
   /**
    * The available yield: everything the products hold, paid yields included,
    * minus what the account itself says it holds on the summary. What sits in
@@ -126,7 +126,7 @@ interface ProductLine {
 interface Payment {
   key: string;
   /** Each product is its own payment, as the bank's app shows them. */
-  pocketId: number;
+  productId: number;
   component: string;
   payout: 'daily' | 'monthly';
   on: IsoDate;
@@ -205,7 +205,7 @@ export class ProductsPage {
     const chosen = this.chosenProducts();
     return chosen === null
       ? this.allDays()
-      : this.allDays().filter(day => chosen.has(day.pocket_id));
+      : this.allDays().filter(day => chosen.has(day.product_id));
   });
 
   /** True while the lists are showing everything they could. */
@@ -218,7 +218,7 @@ export class ProductsPage {
 
     const line = this.openLine();
     if (chosen.size === 1 && line) {
-      const only = line.pockets.find(pocket => chosen.has(pocket.id));
+      const only = line.products.find(product => chosen.has(product.id));
       if (only) return only.name;
     }
     return this.i18n.t('products.products.some', { count: chosen.size });
@@ -256,7 +256,7 @@ export class ProductsPage {
     if (!next.delete(id)) next.add(id);
 
     this.chosenProducts.set(
-      next.size === 0 || next.size === line.pockets.length ? null : next);
+      next.size === 0 || next.size === line.products.length ? null : next);
   }
 
   chooseAllProducts(): void {
@@ -264,7 +264,7 @@ export class ProductsPage {
   }
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'day' | 'rate' | 'pocket'>('none');
+  readonly form = signal<'none' | 'day' | 'rate' | 'product'>('none');
 
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
@@ -338,10 +338,10 @@ export class ProductsPage {
   readonly withholds = signal(true);
   private editingEnabled = true;
   readonly rates = signal<YieldRate[]>([]);
-  readonly editablePockets = signal<YieldPocket[]>([]);
+  readonly editableProducts = signal<YieldProduct[]>([]);
 
   /** Whether the product being edited is the account's usual one. */
-  readonly pocketIsDefault = signal(false);
+  readonly productIsDefault = signal(false);
 
   /**
    * The balance row on screen, when one is being corrected rather than added.
@@ -364,22 +364,22 @@ export class ProductsPage {
    * engine is still describing today, so "moved since that date" showed a
    * payment made the day before the date it claimed to be counting from.
    */
-  readonly pocketMoved = signal(0);
+  readonly productMoved = signal(0);
 
-  private async readPocketMoved(): Promise<void> {
+  private async readProductMoved(): Promise<void> {
     const line = this.openLine();
-    const pocket = this.editingPocket();
-    if (!line || !pocket) { this.pocketMoved.set(0); return; }
+    const product = this.editingProduct();
+    if (!line || !product) { this.productMoved.set(0); return; }
 
     const { yields } = this.repos();
-    this.pocketMoved.set(await yields.movedInPocketSince(
-      line.account.id, pocket.id, this.pocketFrom(), pocket.id === line.pockets[0]?.id));
+    this.productMoved.set(await yields.movedInProductSince(
+      line.account.id, product.id, this.productFrom(), product.id === line.products[0]?.id));
   }
 
   /** The date field changed, so the figure under it has to follow. */
-  async setPocketFrom(date: string): Promise<void> {
-    this.pocketFrom.set(date);
-    await this.readPocketMoved();
+  async setProductFrom(date: string): Promise<void> {
+    this.productFrom.set(date);
+    await this.readProductMoved();
   }
 
   /** What kind of money an entry is, and where it landed. */
@@ -485,12 +485,12 @@ export class ProductsPage {
     return view === 'category' ? list.sort((a, b) => a.totalMinor - b.totalMinor) : list;
   });
 
-  /** The pocket form. */
-  readonly editingPocket = signal<YieldPocket | null>(null);
-  readonly pocketName = signal('');
+  /** The product form. */
+  readonly editingProduct = signal<YieldProduct | null>(null);
+  readonly productName = signal('');
   /** The day this product starts earning. Nothing before it is worked out. */
-  readonly pocketEarnsFrom = signal('');
-  readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
+  readonly productEarnsFrom = signal('');
+  readonly productKind = signal<YieldProduct['kind']>('high_yield');
 
   /**
    * Where the product being edited was opened from: the account's own screen
@@ -501,12 +501,12 @@ export class ProductsPage {
 
 
   /** How a high-yield product is paid, as set on the product. */
-  readonly pocketPayout = signal<'daily' | 'monthly'>('daily');
-  readonly pocketMonths = signal('1');
+  readonly productPayout = signal<'daily' | 'monthly'>('daily');
+  readonly productMonths = signal('1');
   /** A new high-yield product's first rate, typed with it. */
-  readonly pocketRate = signal('');
+  readonly productRate = signal('');
 
-  /** A CDT's terms, as typed. Its amount is `pocketAmount`. */
+  /** A CDT's terms, as typed. Its amount is `productAmount`. */
   readonly cdtOpenedOn = signal<IsoDate>(today());
   readonly cdtTerm = signal('');
   readonly cdtRate = signal('');
@@ -516,20 +516,20 @@ export class ProductsPage {
   readonly cdtRule = signal<WithholdingRule | null>(null);
 
   /** The product being edited's own rate history, and its spending bonus if it has one. */
-  readonly pocketBaseRates = computed(() => this.rates().filter(rate =>
-    rate.pocket_id === this.editingPocket()?.id && rate.requires_monthly_spend_minor === null));
-  readonly pocketBonusRates = computed(() => this.rates().filter(rate =>
-    rate.pocket_id === this.editingPocket()?.id && rate.requires_monthly_spend_minor !== null));
+  readonly productBaseRates = computed(() => this.rates().filter(rate =>
+    rate.product_id === this.editingProduct()?.id && rate.requires_monthly_spend_minor === null));
+  readonly productBonusRates = computed(() => this.rates().filter(rate =>
+    rate.product_id === this.editingProduct()?.id && rate.requires_monthly_spend_minor !== null));
 
   /** The products a CDT can mature into: any other that is not itself a CDT. */
-  readonly cdtTargets = computed(() => this.editablePockets().filter(pocket =>
-    pocket.id !== this.editingPocket()?.id && pocket.kind !== 'cdt'));
+  readonly cdtTargets = computed(() => this.editableProducts().filter(product =>
+    product.id !== this.editingProduct()?.id && product.kind !== 'cdt'));
   readonly cdtTargetName = computed(() =>
-    this.cdtTargets().find(pocket => pocket.id === this.cdtInto())?.name ?? '');
+    this.cdtTargets().find(product => product.id === this.cdtInto())?.name ?? '');
 
   /** What the CDT being typed will pay, or null until enough of it is typed. */
   readonly cdtPreviewNow = computed(() => {
-    const capital = parseOrNull(this.pocketAmount());
+    const capital = parseOrNull(this.productAmount());
     const term = Number(this.cdtTerm().trim());
     const opened = this.cdtOpenedOn();
     if (capital === null || capital <= 0 || !Number.isInteger(term) || term < 1 || !opened) return null;
@@ -541,20 +541,20 @@ export class ProductsPage {
     }
     return cdtPreview({
       capitalMinor: capital, annualRateScaled: rate, openedOn: opened, termMonths: term,
-      rule: this.cdtRule(), withholds: this.pocketWithholds(),
+      rule: this.cdtRule(), withholds: this.productWithholds(),
     });
   });
-  readonly pocketAmount = signal('');
-  readonly pocketFrom = signal<IsoDate>(today());
+  readonly productAmount = signal('');
+  readonly productFrom = signal<IsoDate>(today());
 
   /** Removing the product being edited, once asked for: where its balance goes, and how much it is. */
-  readonly confirmingPocketDelete = signal(false);
-  readonly pocketDeleteTo = signal<number | null>(null);
-  readonly pocketDeleteHeld = signal(0);
+  readonly confirmingProductDelete = signal(false);
+  readonly productDeleteTo = signal<number | null>(null);
+  readonly productDeleteHeld = signal(0);
   /** Which product becomes the usual one when the usual one is removed. */
-  readonly pocketNewUsual = signal<number | null>(null);
+  readonly productNewUsual = signal<number | null>(null);
   /** How many movements and earned days name the product being removed. */
-  readonly pocketDeleteHistory = signal(0);
+  readonly productDeleteHistory = signal(0);
 
   /**
    * Where a new product's money comes from: out of another product, which is
@@ -562,35 +562,35 @@ export class ProductsPage {
    * an adjustment. Out of another product it is recorded as a transfer, so
    * both balances and the history agree.
    */
-  readonly pocketFunding = signal<'pocket' | 'manual'>('pocket');
-  readonly pocketFundingFrom = signal<number | null>(null);
+  readonly productFunding = signal<'product' | 'manual'>('product');
+  readonly productFundingFrom = signal<number | null>(null);
 
   /** Only a new product with money in it has anything to ask; a CDT always has. */
   readonly fundingAsked = computed(() =>
-    !this.editingPocket() && (this.pocketKind() === 'cdt' || (parseOrNull(this.pocketAmount()) ?? 0) > 0));
+    !this.editingProduct() && (this.productKind() === 'cdt' || (parseOrNull(this.productAmount()) ?? 0) > 0));
   /** Whether the product being edited has its yield withheld at all. */
-  readonly pocketWithholds = signal(true);
+  readonly productWithholds = signal(true);
   /** Whether the product being edited counts towards the account's balance and net worth. */
-  readonly pocketCounts = signal(true);
+  readonly productCounts = signal(true);
   /** Yields landed in the product being edited since its balance was stated. */
-  readonly pocketYieldIn = signal(0);
+  readonly productYieldIn = signal(0);
 
   /** A new product earning nothing has no payday to ask about. */
-  readonly pocketRateAboveZero = computed(() => {
+  readonly productRateAboveZero = computed(() => {
     try {
-      return parsePercentToScaled(this.pocketRate()) > 0;
+      return parsePercentToScaled(this.productRate()) > 0;
     } catch {
       return false;
     }
   });
 
   /** The products a removed one can hand its balance to. */
-  readonly otherPockets = computed(() =>
-    this.editablePockets().filter(pocket => pocket.id !== this.editingPocket()?.id));
+  readonly otherProducts = computed(() =>
+    this.editableProducts().filter(product => product.id !== this.editingProduct()?.id));
 
   /** The name of the product that receives it, for the confirmation. */
-  readonly pocketDeleteTargetName = computed(() =>
-    this.otherPockets().find(pocket => pocket.id === this.pocketDeleteTo())?.name ?? '');
+  readonly productDeleteTargetName = computed(() =>
+    this.otherProducts().find(product => product.id === this.productDeleteTo())?.name ?? '');
 
   /** The rate form: a rate of the product being edited, or its spending bonus. */
   readonly rateIsBonus = signal(false);
@@ -613,9 +613,9 @@ export class ProductsPage {
    * instead of a sentence about how months are counted.
    */
   readonly paydayPreview = computed(() => {
-    if (this.pocketPayout() !== 'monthly') return '';
-    const months = Number(this.pocketMonths().trim());
-    const from = this.pocketBaseRates().at(-1)?.valid_from ?? this.pocketFrom();
+    if (this.productPayout() !== 'monthly') return '';
+    const months = Number(this.productMonths().trim());
+    const from = this.productBaseRates().at(-1)?.valid_from ?? this.productFrom();
     if (!Number.isInteger(months) || months < 1 || !from) return '';
 
     const dates: string[] = [];
@@ -845,7 +845,7 @@ export class ProductsPage {
       [entry],
       new Map([[accountId, balance.account]]),
       new Map([[accountId, balance.balance_minor]]),
-      new Map([[accountId, await yields.pockets(accountId)]]),
+      new Map([[accountId, await yields.products(accountId)]]),
       new Map([[accountId, await yields.earned(accountId)]]),
     );
     if (!line) { await this.refresh(); return; }
@@ -873,22 +873,22 @@ export class ProductsPage {
     enrolled: readonly YieldAccount[],
     accountOf: ReadonlyMap<number, AccountRow>,
     balanceOf: ReadonlyMap<number, number>,
-    pocketsOf: ReadonlyMap<number, YieldPocket[]>,
+    productsOf: ReadonlyMap<number, YieldProduct[]>,
     earnedOf: ReadonlyMap<number, EarnedBalance>,
   ): Promise<{ line: ProductLine; last: IsoDate | null }[]> {
     const { db, yields, tax } = this.repos();
     const shown = enrolled.filter(entry => accountOf.has(entry.account_id));
     const ids = shown.map(entry => entry.account_id);
-    const pocketsOfShown = new Map(ids.map(id => [id, pocketsOf.get(id) ?? []]));
+    const productsOfShown = new Map(ids.map(id => [id, productsOf.get(id) ?? []]));
 
     const lastDays = await yields.lastDaysOf(ids, today());
-    const landedOf = await yields.landedByPockets(today(), pocketsOfShown);
-    const heldOf = await new AccrualEngine(db, yields, tax).heldByPockets(today(), pocketsOfShown);
+    const landedOf = await yields.landedByProducts(today(), productsOfShown);
+    const heldOf = await new AccrualEngine(db, yields, tax).heldByProducts(today(), productsOfShown);
 
     const out: { line: ProductLine; last: IsoDate | null }[] = [];
     for (const entry of shown) {
       const id = entry.account_id;
-      const pockets = pocketsOfShown.get(id)!;
+      const products = productsOfShown.get(id)!;
       // What was actually handed over that day. A product paid at the end of
       // the month earns every day too, but nothing of it arrives until then.
       const { last, bands, daysOfLast, paidThatDay } = lastDays.get(id)!;
@@ -896,8 +896,8 @@ export class ProductsPage {
       const held = heldOf.get(id)!;
       // Every movement counts on both sides - the products' balances and the
       // account's - so the difference is only what the products hold beyond it.
-      const productsMinor = pockets.reduce(
-        (sum, pocket) => sum + (held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0), 0);
+      const productsMinor = products.reduce(
+        (sum, product) => sum + (held.get(product.id) ?? 0) + (landed.total.get(product.id) ?? 0), 0);
       const accountMinor = balanceOf.get(id) ?? 0;
 
       out.push({
@@ -907,19 +907,19 @@ export class ProductsPage {
           earned: earnedOf.get(id) ?? await yields.earned(id),
           rate: bands[0] ?? null,
           enabled: entry.enabled !== 0,
-          pockets,
+          products,
           lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
-          // One figure per POCKET, not per row. A day of an account with two
+          // One figure per PRODUCT, not per row. A day of an account with two
           // rate components is two rows carrying the same base, and adding
           // them showed Uala earning on twice what it holds.
-          earnsOnMinor: [...new Map(daysOfLast.map(day => [day.pocket_id, day])).values()]
+          earnsOnMinor: [...new Map(daysOfLast.map(day => [day.product_id, day])).values()]
             .reduce((sum, day) => sum + day.balance_minor, 0),
-          heldByPocket: held,
+          heldByProduct: held,
           earnsNextMinor: productsMinor,
           availableMinor: productsMinor - accountMinor,
           openingOn: entry.opening_on,
-          landedByPocket: landed.total,
-          paidYieldByPocket: landed.yields,
+          landedByProduct: landed.total,
+          paidYieldByProduct: landed.yields,
         },
       });
     }
@@ -940,12 +940,12 @@ export class ProductsPage {
       const earned = await yields.earnedAll();
       const balances = new Map((await accounts.balances({ includeArchived: true }))
         .map(entry => [entry.account.id, entry.balance_minor]));
-      const pocketsOf = new Map<number, YieldPocket[]>();
-      for (const pocket of await yields.allPockets()) {
-        pocketsOf.set(pocket.account_id, [...(pocketsOf.get(pocket.account_id) ?? []), pocket]);
+      const productsOf = new Map<number, YieldProduct[]>();
+      for (const product of await yields.allProducts()) {
+        productsOf.set(product.account_id, [...(productsOf.get(product.account_id) ?? []), product]);
       }
 
-      const built = await this.linesFor(enrolled, byId, balances, pocketsOf, earned);
+      const built = await this.linesFor(enrolled, byId, balances, productsOf, earned);
       const lines = built.map(entry => entry.line);
       let newest: IsoDate | null = null;
       for (const { last } of built) {
@@ -997,10 +997,10 @@ export class ProductsPage {
       const on = day.paid_on ?? (monthly ? endOfMonth(day.on_date) : day.on_date);
       // Per product: the bank pays each one apart, and its app is read product
       // by product. Adding them up gave a figure no screen of the bank shows.
-      const key = `${day.pocket_id}|${day.component}|${on}`;
+      const key = `${day.product_id}|${day.component}|${on}`;
 
       const payment = out.get(key) ?? {
-        key, pocketId: day.pocket_id, component: day.component, payout: day.payout, on,
+        key, productId: day.product_id, component: day.component, payout: day.payout, on,
         netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0, day: null,
         lastOn: day.on_date, rateScaled: day.annual_rate_scaled, balanceMinor: day.balance_minor,
       };
@@ -1019,7 +1019,7 @@ export class ProductsPage {
       out.set(key, payment);
     }
 
-    return [...out.values()].sort((a, b) => b.on.localeCompare(a.on) || a.pocketId - b.pocketId);
+    return [...out.values()].sort((a, b) => b.on.localeCompare(a.on) || a.productId - b.productId);
   });
 
   /**
@@ -1092,7 +1092,7 @@ export class ProductsPage {
   /**
    * The days gathered by month, newest first.
    *
-   * A year of an account with two pockets is seven hundred rows, and they
+   * A year of an account with two products is seven hundred rows, and they
    * are all the same shape. Nobody scrolls that. The month is the unit a
    * bank statement uses and the unit a monthly payer is paid in, so it is
    * the one worth opening.
@@ -1140,9 +1140,9 @@ export class ProductsPage {
       { month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
 
-  /** The pocket a day belongs to, for a list that mixes several. */
-  pocketNameOf(line: ProductLine, day: YieldDay): string {
-    return line.pockets.find(pocket => pocket.id === day.pocket_id)?.name ?? '';
+  /** The product a day belongs to, for a list that mixes several. */
+  productNameOf(line: ProductLine, day: YieldDay): string {
+    return line.products.find(product => product.id === day.product_id)?.name ?? '';
   }
 
   // ---------------------------------------------------------------------------
@@ -1220,28 +1220,28 @@ export class ProductsPage {
   async back(): Promise<void> {
     const where = this.form();
     if (where === 'rate') {
-      await this.openPocket(this.editingPocket());
-    } else if (where === 'pocket') {
-      await this.closePocket();
+      await this.openProduct(this.editingProduct());
+    } else if (where === 'product') {
+      await this.closeProduct();
     } else {
       this.form.set('none');
     }
   }
 
   /** Leaves a product without saving, back to the account it belongs to. */
-  async closePocket(): Promise<void> {
+  async closeProduct(): Promise<void> {
     this.form.set('none');
   }
 
   /** After a product was saved or removed: its account read again, and shown. */
-  private async returnFromPocket(line: ProductLine): Promise<void> {
+  private async returnFromProduct(line: ProductLine): Promise<void> {
     await this.afterOwnChange(line.account.id);
     this.form.set('none');
   }
 
   /** Opens the income or expense screen for the yields of the account on screen. */
   openEntry(line: ProductLine, kind: 'income' | 'expense'): void {
-    this.productEntry.set({ kind, account: line.account, pockets: line.pockets });
+    this.productEntry.set({ kind, account: line.account, products: line.products });
   }
 
   /** Saved and worked out again; the account shows the new figures. */
@@ -1273,8 +1273,8 @@ export class ProductsPage {
    */
   /** Opens the transfer screen, between two products of the account on screen. */
   openMove(line: ProductLine): void {
-    if (line.pockets.length < 2) return;
-    this.productEntry.set({ kind: 'transfer', account: line.account, pockets: line.pockets });
+    if (line.products.length < 2) return;
+    this.productEntry.set({ kind: 'transfer', account: line.account, products: line.products });
   }
 
   /**
@@ -1313,7 +1313,7 @@ export class ProductsPage {
     const entry = await yields.account(line.account.id);
     this.editingEnabled = entry?.enabled !== 0;
     this.rates.set(await yields.rateHistory(line.account.id));
-    this.editablePockets.set(await yields.pockets(line.account.id));
+    this.editableProducts.set(await yields.products(line.account.id));
   }
 
   async stopAccruing(): Promise<void> {
@@ -1355,61 +1355,61 @@ export class ProductsPage {
   }
 
   /**
-   * Opens one pocket to be named, given a balance, or removed.
+   * Opens one product to be named, given a balance, or removed.
    *
    * The name is free text on purpose: every bank calls these something
    * different - alcancias, bolsillos, metas, espacios - and inventing one
    * word for all of them would only be right for one bank.
    */
-  async openPocket(pocket: YieldPocket | null): Promise<void> {
+  async openProduct(product: YieldProduct | null): Promise<void> {
     const line = this.openLine();
     if (!line) return;
     const { yields, tax } = this.repos();
 
     // Coming back from one of its rates keeps the origin the product had.
 
-    this.editingPocket.set(pocket);
-    this.confirmingPocketDelete.set(false);
+    this.editingProduct.set(product);
+    this.confirmingProductDelete.set(false);
     this.error.set('');
 
     // The account's products and rates, fresh. Only the settings screen used
     // to load them, so a product opened straight from the account's list never
     // showed its delete button - the form believed the account had no other
     // product.
-    this.editablePockets.set(await yields.pockets(line.account.id));
+    this.editableProducts.set(await yields.products(line.account.id));
     this.rates.set(await yields.rateHistory(line.account.id));
     this.withholds.set((await yields.account(line.account.id))?.withholding !== 0);
     // A new product starts with the account's answer; an existing one has its own.
-    this.pocketWithholds.set(pocket ? pocket.withholding === 1 : this.withholds());
-    this.pocketCounts.set(pocket ? pocket.include_in_net_worth !== 0 : true);
+    this.productWithholds.set(product ? product.withholding === 1 : this.withholds());
+    this.productCounts.set(product ? product.include_in_net_worth !== 0 : true);
 
-    this.pocketName.set(pocket?.name ?? '');
-    this.pocketEarnsFrom.set(pocket?.earns_from || today());
-    this.pocketKind.set(pocket?.kind ?? 'high_yield');
-    this.pocketPayout.set(pocket?.payout ?? 'daily');
-    this.pocketMonths.set(String(pocket?.payout_months ?? 1));
+    this.productName.set(product?.name ?? '');
+    this.productEarnsFrom.set(product?.earns_from || today());
+    this.productKind.set(product?.kind ?? 'high_yield');
+    this.productPayout.set(product?.payout ?? 'daily');
+    this.productMonths.set(String(product?.payout_months ?? 1));
     // Zero until told otherwise: a product with no rate earns nothing.
-    this.pocketRate.set('0');
+    this.productRate.set('0');
     // A brand new product is not the usual one unless the account has none.
-    this.pocketIsDefault.set(pocket
-      ? pocket.is_default === 1
-      : line.pockets.every(other => other.is_default !== 1));
+    this.productIsDefault.set(product
+      ? product.is_default === 1
+      : line.products.every(other => other.is_default !== 1));
 
     // A CDT's terms. It matures into the usual product unless it was told
     // otherwise, and its yield is recorded under the first income category
     // until another is chosen.
     const targets = this.cdtTargets();
-    this.cdtOpenedOn.set(pocket?.opened_on ?? today());
-    this.cdtTerm.set(pocket?.term_months ? String(pocket.term_months) : '');
-    const cdtRate = pocket?.kind === 'cdt' ? this.rates().find(rate => rate.pocket_id === pocket.id) : undefined;
+    this.cdtOpenedOn.set(product?.opened_on ?? today());
+    this.cdtTerm.set(product?.term_months ? String(product.term_months) : '');
+    const cdtRate = product?.kind === 'cdt' ? this.rates().find(rate => rate.product_id === product.id) : undefined;
     this.cdtRate.set(cdtRate ? scaledPercentToString(cdtRate.annual_rate_scaled) : '');
-    this.cdtCategory.set(pocket?.income_category_id ?? this.incomeCategories()[0]?.id ?? null);
-    this.cdtInto.set(pocket?.matures_into_pocket_id
+    this.cdtCategory.set(product?.income_category_id ?? this.incomeCategories()[0]?.id ?? null);
+    this.cdtInto.set(product?.matures_into_product_id
       ?? (targets.find(target => target.is_default === 1) ?? targets[0])?.id ?? null);
     this.cdtRule.set(await tax.withholdingRule(today()));
 
-    if (pocket) {
-      const history = await yields.pocketBalances(pocket.id);
+    if (product) {
+      const history = await yields.productBalances(product.id);
 
       // The last balance recorded, whatever date it carries - NOT the last one
       // in force today.
@@ -1425,27 +1425,27 @@ export class ProductsPage {
       // yet: it starts from what it holds today, so saving keeps its balance.
       // A CDT's amount is its capital: the figure stated plus the transfer that
       // funded it, which is how its balance reads the day it opens.
-      const funding = pocket.kind === 'cdt' && pocket.opened_on && pocket.term_months
-        ? await yields.cdtFunding(pocket.id, pocket.opened_on, cdtMaturity(pocket.opened_on, pocket.term_months))
+      const funding = product.kind === 'cdt' && product.opened_on && product.term_months
+        ? await yields.cdtFunding(product.id, product.opened_on, cdtMaturity(product.opened_on, product.term_months))
         : 0;
-      this.pocketAmount.set(decimalOf(current ? current.amount_minor + funding : Math.max(0, this.heldIn(line, pocket.id))));
-      this.pocketFrom.set(current?.valid_from ?? today());
+      this.productAmount.set(decimalOf(current ? current.amount_minor + funding : Math.max(0, this.heldIn(line, product.id))));
+      this.productFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
-      await this.readPocketMoved();
-      this.pocketYieldIn.set(
-        (await yields.landedByPocket(line.account.id, today())).total.get(pocket?.id ?? -1) ?? 0);
+      await this.readProductMoved();
+      this.productYieldIn.set(
+        (await yields.landedByProduct(line.account.id, today())).total.get(product?.id ?? -1) ?? 0);
     } else {
-      this.pocketAmount.set('0');
-      this.pocketFunding.set('pocket');
-      this.pocketFundingFrom.set((line.pockets.find(other => other.is_default === 1) ?? line.pockets[0])?.id ?? null);
-      this.pocketFrom.set(today());
+      this.productAmount.set('0');
+      this.productFunding.set('product');
+      this.productFundingFrom.set((line.products.find(other => other.is_default === 1) ?? line.products[0])?.id ?? null);
+      this.productFrom.set(today());
       this.editingBalanceId.set(null);
       this.editingBalanceFrom.set(null);
-      this.pocketMoved.set(0);
-      this.pocketYieldIn.set(0);
+      this.productMoved.set(0);
+      this.productYieldIn.set(0);
     }
-    this.form.set('pocket');
+    this.form.set('product');
   }
 
   /**
@@ -1456,47 +1456,47 @@ export class ProductsPage {
    * already includes every yield the bank has paid into it. That is why it
    * replaces the base rather than adding to it.
    */
-  async savePocket(): Promise<void> {
+  async saveProduct(): Promise<void> {
     const line = this.openLine();
     if (!line) return;
 
-    const name = this.pocketName().trim();
+    const name = this.productName().trim();
     if (name.length === 0) {
       this.error.set(this.i18n.t('products.error.name'));
       return;
     }
-    if (this.pocketKind() === 'cdt') {
+    if (this.productKind() === 'cdt') {
       await this.saveCdt(line, name);
       return;
     }
 
     // Every product holds the balance the person types in; income, expenses
     // and transfers keep it square from there.
-    const amount = parseOrNull(this.pocketAmount());
+    const amount = parseOrNull(this.productAmount());
     if (amount === null || amount < 0) {
       this.error.set(this.i18n.t('products.error.amount'));
       return;
     }
 
-    const payout = this.pocketPayout();
-    const months = payout === 'monthly' ? Number(this.pocketMonths().trim()) : 1;
+    const payout = this.productPayout();
+    const months = payout === 'monthly' ? Number(this.productMonths().trim()) : 1;
     if (!Number.isInteger(months) || months < 1) {
       this.error.set(this.i18n.t('products.error.months'));
       return;
     }
 
     // A new product with money in it says where that money came from.
-    const funded = !this.editingPocket() && amount > 0 && this.pocketFunding() === 'pocket';
-    if (funded && this.pocketFundingFrom() === null) {
+    const funded = !this.editingProduct() && amount > 0 && this.productFunding() === 'product';
+    if (funded && this.productFundingFrom() === null) {
       this.error.set(this.i18n.t('products.error.fundingFrom'));
       return;
     }
 
     // A new product can be given its first rate in the same form.
     let firstRate: number | null = null;
-    if (!this.editingPocket() && this.pocketRate().trim().length > 0) {
+    if (!this.editingProduct() && this.productRate().trim().length > 0) {
       try {
-        firstRate = parsePercentToScaled(this.pocketRate());
+        firstRate = parsePercentToScaled(this.productRate());
       } catch {
         this.error.set(this.i18n.t('products.error.rate'));
         return;
@@ -1507,46 +1507,46 @@ export class ProductsPage {
     try {
       const { db, yields, tax } = this.repos();
       await db.transaction(async () => {
-        const existing = this.editingPocket();
+        const existing = this.editingProduct();
         const id = existing
           ? existing.id
-          : await yields.addPocket({
+          : await yields.addProduct({
               account_id: line.account.id,
               name,
               source: 'manual',
               kind: 'high_yield',
-              sort_order: line.pockets.length,
+              sort_order: line.products.length,
               payout,
               payout_months: months,
-              earns_from: this.pocketEarnsFrom() || this.pocketFrom(),
+              earns_from: this.productEarnsFrom() || this.productFrom(),
             });
 
         if (existing) {
-          await yields.renamePocket(id, name);
+          await yields.renameProduct(id, name);
           // A product that used to follow the account balance holds what was
           // typed from now on.
-          await yields.setPocketSource(id, 'manual');
+          await yields.setProductSource(id, 'manual');
 
           // Moving the day it starts earning changes which days exist at all,
           // so its account is worked out again from the beginning. Days
           // corrected by hand are left alone, as everywhere else.
-          const moved = this.pocketEarnsFrom();
+          const moved = this.productEarnsFrom();
           if (moved && moved !== existing.earns_from) {
-            await yields.setPocketEarnsFrom(id, moved);
+            await yields.setProductEarnsFrom(id, moved);
             await yields.clearDays(line.account.id, '0000-01-01');
           }
         }
-        await yields.setPocketPayout(id, payout, months);
-        if ((existing?.withholding ?? -1) !== (this.pocketWithholds() ? 1 : 0)) {
-          await yields.setPocketWithholding(id, this.pocketWithholds());
+        await yields.setProductPayout(id, payout, months);
+        if ((existing?.withholding ?? -1) !== (this.productWithholds() ? 1 : 0)) {
+          await yields.setProductWithholding(id, this.productWithholds());
           // Every day it earned is withheld differently now.
           if (existing) await yields.clearDays(line.account.id);
         }
         // A rate of zero is no rate: nothing is recorded for it.
         if (firstRate !== null && firstRate > 0) {
           await yields.setRate({
-            account_id: line.account.id, pocket_id: id, component: 'base',
-            payout, payout_months: months, valid_from: this.pocketFrom(), annual_rate_scaled: firstRate,
+            account_id: line.account.id, product_id: id, component: 'base',
+            payout, payout_months: months, valid_from: this.productFrom(), annual_rate_scaled: firstRate,
           });
         }
 
@@ -1555,39 +1555,39 @@ export class ProductsPage {
         // adds one, which is what a balance read on a later day is.
         const balanceId = this.editingBalanceId();
         if (balanceId !== null) {
-          await yields.movePocketBalance(balanceId, {
-            valid_from: this.pocketFrom(), amount_minor: amount,
+          await yields.moveProductBalance(balanceId, {
+            valid_from: this.productFrom(), amount_minor: amount,
           });
         } else if (funded) {
-          await this.fundFromPocket(line, id, this.pocketFundingFrom()!, this.pocketFrom(), amount, name);
+          await this.fundFromProduct(line, id, this.productFundingFrom()!, this.productFrom(), amount, name);
         } else {
-          await yields.setPocketBalance({
-            pocket_id: id, valid_from: this.pocketFrom(), amount_minor: amount,
+          await yields.setProductBalance({
+            product_id: id, valid_from: this.productFrom(), amount_minor: amount,
           });
         }
 
         // Unticking is not a way to leave an account without one: every
         // account needs somewhere for money to land.
-        if (this.pocketIsDefault()) {
-          await yields.setDefaultPocket(line.account.id, id);
+        if (this.productIsDefault()) {
+          await yields.setDefaultProduct(line.account.id, id);
         }
         await this.saveNetWorthSwitch(yields, existing, id);
 
-        // Every pocket of the account is worked out again from that date: a
-        // figure moving between pockets changes what the others earn on too.
+        // Every product of the account is worked out again from that date: a
+        // figure moving between products changes what the others earn on too.
         //
         // From the EARLIER of the two dates when one is being moved. Moving a
         // balance forward leaves the days between the old date and the new one
         // standing on a figure that no longer applies to them.
         const wasFrom = this.editingBalanceFrom();
-        let redoFrom = wasFrom !== null && wasFrom < this.pocketFrom()
-          ? wasFrom : this.pocketFrom();
+        let redoFrom = wasFrom !== null && wasFrom < this.productFrom()
+          ? wasFrom : this.productFrom();
 
         // Being paid differently changes every day the product has earned, so
         // those days are worked out again from its first rate - or from the day
         // the account started, if it has none.
         if (existing && (existing.payout !== payout || existing.payout_months !== months)) {
-          const first = this.pocketBaseRates()[0]?.valid_from
+          const first = this.productBaseRates()[0]?.valid_from
             ?? (await yields.account(line.account.id))?.opening_on;
           if (first && first < redoFrom) redoFrom = first;
         }
@@ -1600,7 +1600,7 @@ export class ProductsPage {
       await yields.markAccrued(today(), { onlyIfKnown: true });
       // The summary and the accounts screen show the account without what is set aside.
       this.database.dataChanged();
-      await this.returnFromPocket(line);
+      await this.returnFromProduct(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1612,10 +1612,10 @@ export class ProductsPage {
    * Records whether the product counts towards net worth, when that changed.
    * The usual product always does, whatever the switch said.
    */
-  private async saveNetWorthSwitch(yields: YieldsRepository, existing: YieldPocket | null, id: number): Promise<void> {
-    const counts = this.pocketIsDefault() || existing?.is_default === 1 || this.pocketCounts();
+  private async saveNetWorthSwitch(yields: YieldsRepository, existing: YieldProduct | null, id: number): Promise<void> {
+    const counts = this.productIsDefault() || existing?.is_default === 1 || this.productCounts();
     if ((existing?.include_in_net_worth ?? 1) !== (counts ? 1 : 0)) {
-      await yields.setPocketNetWorth(id, counts);
+      await yields.setProductNetWorth(id, counts);
     }
   }
 
@@ -1628,7 +1628,7 @@ export class ProductsPage {
    * that day has already come, it matures and closes straight away.
    */
   private async saveCdt(line: ProductLine, name: string): Promise<void> {
-    const capital = parseOrNull(this.pocketAmount());
+    const capital = parseOrNull(this.productAmount());
     if (capital === null || capital <= 0) {
       this.error.set(this.i18n.t('products.error.amount'));
       return;
@@ -1652,8 +1652,8 @@ export class ProductsPage {
     }
     const opened = this.cdtOpenedOn();
     const into = this.cdtInto();
-    const funded = !this.editingPocket() && this.pocketFunding() === 'pocket';
-    if (funded && this.pocketFundingFrom() === null) {
+    const funded = !this.editingProduct() && this.productFunding() === 'product';
+    if (funded && this.productFundingFrom() === null) {
       this.error.set(this.i18n.t('products.error.fundingFrom'));
       return;
     }
@@ -1661,46 +1661,46 @@ export class ProductsPage {
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
-      const existing = this.editingPocket();
+      const existing = this.editingProduct();
       await db.transaction(async () => {
         const id = existing
           ? existing.id
-          : await yields.addPocket({
+          : await yields.addProduct({
               account_id: line.account.id,
               name,
               source: 'manual',
               kind: 'cdt',
-              sort_order: line.pockets.length,
+              sort_order: line.products.length,
               payout: 'monthly',
               payout_months: term,
               opened_on: opened,
               term_months: term,
-              matures_into_pocket_id: into,
+              matures_into_product_id: into,
               income_category_id: category,
             });
 
         if (existing) {
-          await yields.renamePocket(id, name);
+          await yields.renameProduct(id, name);
           await yields.setCdtTerms(id, {
-            opened_on: opened, term_months: term, matures_into_pocket_id: into, income_category_id: category,
+            opened_on: opened, term_months: term, matures_into_product_id: into, income_category_id: category,
           });
-          for (const old of this.rates().filter(candidate => candidate.pocket_id === id)) {
+          for (const old of this.rates().filter(candidate => candidate.product_id === id)) {
             await yields.removeRate(old.id);
           }
         }
 
         if (funded) {
-          await this.fundFromPocket(line, id, this.pocketFundingFrom()!, opened, capital, name);
+          await this.fundFromProduct(line, id, this.productFundingFrom()!, opened, capital, name);
         } else {
           // Minus the transfer that funded it, if one did: that money is already in.
           await yields.setCdtCapital(id, {
             opened_on: opened, matures_on: cdtMaturity(opened, term), capital_minor: capital,
           });
         }
-        await yields.setPocketWithholding(id, this.pocketWithholds());
+        await yields.setProductWithholding(id, this.productWithholds());
         await this.saveNetWorthSwitch(yields, existing, id);
         await yields.setRate({
-          account_id: line.account.id, pocket_id: id, component: 'base',
+          account_id: line.account.id, product_id: id, component: 'base',
           payout: 'monthly', payout_months: term, valid_from: opened, annual_rate_scaled: rate,
         });
 
@@ -1713,7 +1713,7 @@ export class ProductsPage {
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
-      await this.returnFromPocket(line);
+      await this.returnFromProduct(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1729,28 +1729,28 @@ export class ProductsPage {
    * already lands - unless the one being removed is the usual one, and then
    * the first of the others.
    */
-  async startDeletePocket(): Promise<void> {
+  async startDeleteProduct(): Promise<void> {
     const line = this.openLine();
-    const pocket = this.editingPocket();
-    if (!line || !pocket) return;
+    const product = this.editingProduct();
+    if (!line || !product) return;
 
-    if (line.pockets.length <= 1) {
-      this.error.set(this.i18n.t('products.error.lastPocket'));
+    if (line.products.length <= 1) {
+      this.error.set(this.i18n.t('products.error.lastProduct'));
       return;
     }
 
-    const others = this.otherPockets();
+    const others = this.otherProducts();
     const usual = others.find(other => other.is_default === 1) ?? others[0];
-    this.pocketDeleteTo.set(usual?.id ?? null);
-    this.pocketNewUsual.set(usual?.id ?? null);
+    this.productDeleteTo.set(usual?.id ?? null);
+    this.productNewUsual.set(usual?.id ?? null);
 
     const { db, yields, tax } = this.repos();
-    const held = await new AccrualEngine(db, yields, tax).heldByPocket(line.account.id, today());
-    const landed = await yields.landedByPocket(line.account.id, today());
+    const held = await new AccrualEngine(db, yields, tax).heldByProduct(line.account.id, today());
+    const landed = await yields.landedByProduct(line.account.id, today());
     // The balance as the product shows it: that is what has to go somewhere.
-    this.pocketDeleteHeld.set((held.get(pocket.id) ?? 0) + (landed.total.get(pocket.id) ?? 0));
-    this.pocketDeleteHistory.set(await yields.pocketHistoryCount(pocket.id));
-    this.confirmingPocketDelete.set(true);
+    this.productDeleteHeld.set((held.get(product.id) ?? 0) + (landed.total.get(product.id) ?? 0));
+    this.productDeleteHistory.set(await yields.productHistoryCount(product.id));
+    this.confirmingProductDelete.set(true);
   }
 
   /**
@@ -1762,16 +1762,16 @@ export class ProductsPage {
    * money earn from its first day - and the other product's balance goes down
    * by the same, with the transfer in both products' history.
    */
-  private async fundFromPocket(
-    line: ProductLine, pocketId: number, fromId: number, on: IsoDate, amount: number, name: string,
+  private async fundFromProduct(
+    line: ProductLine, productId: number, fromId: number, on: IsoDate, amount: number, name: string,
   ): Promise<void> {
     const { yields, transfers } = this.repos();
-    await yields.setPocketBalance({ pocket_id: pocketId, valid_from: addDays(on, -1), amount_minor: 0 });
+    await yields.setProductBalance({ product_id: productId, valid_from: addDays(on, -1), amount_minor: 0 });
     await transfers.create({
       occurred_on: on,
-      description: this.i18n.t('products.pocket.fundedNote', { name }),
-      from: { account_id: line.account.id, pocket_id: fromId, amount_minor: amount },
-      to: { account_id: line.account.id, pocket_id: pocketId, amount_minor: amount },
+      description: this.i18n.t('products.product.fundedNote', { name }),
+      from: { account_id: line.account.id, product_id: fromId, amount_minor: amount },
+      to: { account_id: line.account.id, product_id: productId, amount_minor: amount },
     });
   }
 
@@ -1779,47 +1779,47 @@ export class ProductsPage {
   private deletingFromList = false;
 
   /** Removal straight from the settings list, asking the same question. */
-  async deleteFromList(pocket: YieldPocket): Promise<void> {
-    await this.openPocket(pocket);
+  async deleteFromList(product: YieldProduct): Promise<void> {
+    await this.openProduct(product);
     this.deletingFromList = true;
-    await this.startDeletePocket();
-    if (!this.confirmingPocketDelete()) this.deletingFromList = false;
+    await this.startDeleteProduct();
+    if (!this.confirmingProductDelete()) this.deletingFromList = false;
   }
 
   /** The question closed. Cancelled after starting from the list, it goes back to the list. */
-  pocketDeleteClosed(): void {
-    this.confirmingPocketDelete.set(false);
+  productDeleteClosed(): void {
+    this.confirmingProductDelete.set(false);
     if (!this.deletingFromList) return;
     this.deletingFromList = false;
-    if (this.form() === 'pocket') void this.closePocket();
+    if (this.form() === 'product') void this.closeProduct();
   }
 
   /** Removes the product, handing its balance, movements and earnings to the one chosen. */
-  async deletePocket(): Promise<void> {
+  async deleteProduct(): Promise<void> {
     const line = this.openLine();
-    const pocket = this.editingPocket();
-    const into = this.pocketDeleteTo();
-    if (!line || !pocket || into === null) return;
+    const product = this.editingProduct();
+    const into = this.productDeleteTo();
+    if (!line || !product || into === null) return;
 
     this.saving.set(true);
     try {
       const { db, yields, tax } = this.repos();
-      await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today(),
-        this.i18n.t('products.pocket.removedNote', { name: pocket.name }));
+      await removeProductInto(db, yields, tax, line.account.id, product.id, into, today(),
+        this.i18n.t('products.product.removedNote', { name: product.name }));
       // Removing the usual product needs a new one: the one chosen, which is
       // not necessarily where the balance went.
-      const usual = this.pocketNewUsual();
-      if (pocket.is_default === 1 && usual !== null && usual !== into) {
-        await yields.setDefaultPocket(line.account.id, usual);
+      const usual = this.productNewUsual();
+      if (product.is_default === 1 && usual !== null && usual !== into) {
+        await yields.setDefaultProduct(line.account.id, usual);
       }
       // Done, not cancelled: the screen it returns to is decided below.
       this.deletingFromList = false;
-      this.confirmingPocketDelete.set(false);
+      this.confirmingProductDelete.set(false);
       this.database.dataChanged();
       // The whole account again, not just the settings: the products' figures
       // on screen were read before the balance moved, and reopening only the
       // settings left the destination showing its old balance until a refresh.
-      await this.returnFromPocket(line);
+      await this.returnFromProduct(line);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1858,8 +1858,8 @@ export class ProductsPage {
    */
   async saveRate(): Promise<void> {
     const line = this.openLine();
-    const pocket = this.editingPocket();
-    if (!line || !pocket) return;
+    const product = this.editingProduct();
+    if (!line || !product) return;
 
     const bonus = this.rateIsBonus();
     let scaled: number;
@@ -1886,8 +1886,8 @@ export class ProductsPage {
     const existing = this.editingRate();
     const component = existing?.component
       ?? (bonus
-        ? this.pocketBonusRates()[0]?.component ?? this.i18n.t('products.rate.bonusName')
-        : this.pocketBaseRates()[0]?.component ?? 'base');
+        ? this.productBonusRates()[0]?.component ?? this.i18n.t('products.rate.bonusName')
+        : this.productBaseRates()[0]?.component ?? 'base');
 
     this.saving.set(true);
     try {
@@ -1896,13 +1896,13 @@ export class ProductsPage {
         if (existing) await yields.removeRate(existing.id);
         await yields.setRate({
           account_id: line.account.id,
-          pocket_id: pocket.id,
+          product_id: product.id,
           component,
           // A bonus is judged on the spending of its period and paid at its
           // end, or not at all; the product's own rate is paid the way the
           // product is.
-          payout: bonus ? 'monthly' : pocket.payout,
-          payout_months: bonus ? bonusMonths : pocket.payout_months,
+          payout: bonus ? 'monthly' : product.payout,
+          payout_months: bonus ? bonusMonths : product.payout_months,
           valid_from: this.rateFrom(),
           valid_to: this.rateUntil() || null,
           annual_rate_scaled: scaled,
@@ -1920,7 +1920,7 @@ export class ProductsPage {
       // Only this account changed and it has just been worked out, so opening
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
-      await this.backToPocket(line, pocket.id);
+      await this.backToProduct(line, product.id);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -1944,7 +1944,7 @@ export class ProductsPage {
       // the screen afterwards has nothing left to do.
       await yields.markAccrued(today(), { onlyIfKnown: true });
       this.database.dataChanged();
-      if (rate.pocket_id !== null) await this.backToPocket(line, rate.pocket_id);
+      if (rate.product_id !== null) await this.backToProduct(line, rate.product_id);
       else await this.afterOwnChange(line.account.id);
     } catch (error) {
       this.error.set(messageOf(error));
@@ -1954,35 +1954,35 @@ export class ProductsPage {
   }
 
   /** Back to a product's form, with the account and its figures read again. */
-  private async backToPocket(line: ProductLine, pocketId: number): Promise<void> {
+  private async backToProduct(line: ProductLine, productId: number): Promise<void> {
     await this.afterOwnChange(line.account.id);
     await this.readAccount();
-    const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
-    if (pocket) await this.openPocket(pocket);
+    const product = this.editableProducts().find(candidate => candidate.id === productId);
+    if (product) await this.openProduct(product);
   }
 
   /**
    * One line about a product, for the settings list: the rate it earns and how
    * it is paid, or the day a CDT matures.
    */
-  pocketSummary(pocket: YieldPocket): string {
-    if (pocket.kind === 'cdt') {
-      return pocket.opened_on && pocket.term_months
-        ? this.i18n.t('products.pocket.cdtMatures', {
-            date: this.longDayText(cdtMaturity(pocket.opened_on, pocket.term_months)),
+  productSummary(product: YieldProduct): string {
+    if (product.kind === 'cdt') {
+      return product.opened_on && product.term_months
+        ? this.i18n.t('products.product.cdtMatures', {
+            date: this.longDayText(cdtMaturity(product.opened_on, product.term_months)),
           })
-        : this.i18n.t('products.pocket.kind.cdt');
+        : this.i18n.t('products.product.kind.cdt');
     }
 
     const current = this.rates().filter(rate =>
-      rate.pocket_id === pocket.id && rate.requires_monthly_spend_minor === null
+      rate.product_id === product.id && rate.requires_monthly_spend_minor === null
       && this.rateStatus(rate) === 'current').at(-1);
     // With no rate there is nothing paid, so no payday to mention.
-    if (!current || current.annual_rate_scaled <= 0) return this.i18n.t('products.pocket.noRate');
+    if (!current || current.annual_rate_scaled <= 0) return this.i18n.t('products.product.noRate');
     const rate = this.rateText(current.annual_rate_scaled);
-    const paid = pocket.payout === 'daily' ? this.i18n.t('products.payout.daily')
-      : pocket.payout_months === 1 ? this.i18n.t('products.payout.monthly')
-      : this.i18n.t('products.payout.everyMonths', { count: pocket.payout_months });
+    const paid = product.payout === 'daily' ? this.i18n.t('products.payout.daily')
+      : product.payout_months === 1 ? this.i18n.t('products.payout.monthly')
+      : this.i18n.t('products.payout.everyMonths', { count: product.payout_months });
     return `${rate} · ${paid}`;
   }
 
@@ -2002,7 +2002,7 @@ export class ProductsPage {
       const { db, yields, tax } = this.repos();
       await yields.enrol({
         account_id: account.id,
-        default_pocket_name: this.i18n.t('products.pocket.defaultName'),
+        default_product_name: this.i18n.t('products.product.defaultName'),
         opening_on: today(),
         withholding: account.currency_code === 'COP',
         // Most banks pay monthly. Claiming daily would credit interest on
@@ -2013,12 +2013,12 @@ export class ProductsPage {
       // Every product holds a balance the person states. The one an account
       // starts with begins at what the account holds today, to be corrected
       // against the bank - not as a product that follows the account.
-      const [first] = await yields.pockets(account.id);
+      const [first] = await yields.products(account.id);
       if (first && first.source === 'ledger') {
-        const held = (await new AccrualEngine(db, yields, tax).heldByPocket(account.id, today())).get(first.id) ?? 0;
+        const held = (await new AccrualEngine(db, yields, tax).heldByProduct(account.id, today())).get(first.id) ?? 0;
         await db.transaction(async () => {
-          await yields.setPocketSource(first.id, 'manual');
-          await yields.setPocketBalance({ pocket_id: first.id, valid_from: today(), amount_minor: Math.max(0, held) });
+          await yields.setProductSource(first.id, 'manual');
+          await yields.setProductBalance({ product_id: first.id, valid_from: today(), amount_minor: Math.max(0, held) });
         });
       }
       this.picking.set(false);
@@ -2076,7 +2076,7 @@ export class ProductsPage {
     this.saving.set(true);
     try {
       const { yields } = this.repos();
-      await yields.correctDay(day.pocket_id, day.on_date, 0);
+      await yields.correctDay(day.product_id, day.on_date, 0);
       this.database.dataChanged();
       await this.afterOwnChange(line.account.id);
       this.form.set('none');
@@ -2101,7 +2101,7 @@ export class ProductsPage {
     this.saving.set(true);
     try {
       const { yields } = this.repos();
-      await yields.correctDay(day.pocket_id, day.on_date, minor);
+      await yields.correctDay(day.product_id, day.on_date, minor);
       this.database.dataChanged();
       await this.afterOwnChange(line.account.id);
     } catch (error) {
@@ -2120,7 +2120,7 @@ export class ProductsPage {
     this.saving.set(true);
     try {
       const { yields } = this.repos();
-      await yields.unlockDay(day.pocket_id, day.on_date);
+      await yields.unlockDay(day.product_id, day.on_date);
       this.database.dataChanged();
       await this.afterOwnChange(line.account.id);
     } catch (error) {
@@ -2132,10 +2132,10 @@ export class ProductsPage {
 
   /** Deletes an entry and works the days out again without it. */
 
-  /** The name of the pocket a rate belongs to, or the account itself. */
-  pocketNameById(id: number | null): string {
-    if (id === null) return this.i18n.t('products.rate.everyPocket');
-    return this.editablePockets().find(pocket => pocket.id === id)?.name ?? '';
+  /** The name of the product a rate belongs to, or the account itself. */
+  productNameById(id: number | null): string {
+    if (id === null) return this.i18n.t('products.rate.everyProduct');
+    return this.editableProducts().find(product => product.id === id)?.name ?? '';
   }
 
   /** What an entry is called on the screen. */
@@ -2219,9 +2219,9 @@ export class ProductsPage {
     const rows = await transactions.listDetailed({ accountIds: [line.account.id] });
     const entries = await yields.adjustments(line.account.id);
     const withdrawals = await yields.withdrawals(line.account.id);
-    const startDays = await yields.pocketStartDays(line.account.id, today());
+    const startDays = await yields.productStartDays(line.account.id, today());
     this.movements.set(productMovements({
-      accountId: line.account.id, pockets: line.pockets, startDays, transactions: rows, entries, withdrawals,
+      accountId: line.account.id, products: line.products, startDays, transactions: rows, entries, withdrawals,
     }));
   }
 
@@ -2234,7 +2234,7 @@ export class ProductsPage {
     if (movement.type === 'entry') {
       this.productEntry.set({
         kind: movement.amountMinor < 0 ? 'expense' : 'income',
-        account: line.account, pockets: line.pockets, editing: movement.entry as ProductEntry,
+        account: line.account, products: line.products, editing: movement.entry as ProductEntry,
       });
       return;
     }
@@ -2302,7 +2302,7 @@ export class ProductsPage {
   movementTitle(line: ProductLine, movement: ProductMovement): string {
     switch (movement.type) {
       case 'transfer':
-        return `${this.pocketLabel(line, movement.fromPocketId)} → ${this.pocketLabel(line, movement.toPocketId)}`;
+        return `${this.productLabel(line, movement.fromProductId)} → ${this.productLabel(line, movement.toProductId)}`;
       case 'entry':
         return this.kindLabel(movement.entry as ProductEntry);
       case 'withdrawal':
@@ -2325,7 +2325,7 @@ export class ProductsPage {
     if (movement.type === 'transfer') {
       parts.push(this.i18n.t('products.movements.betweenProducts'));
     } else {
-      if (line.pockets.length > 1) parts.push(this.pocketLabel(line, movement.pocketId));
+      if (line.products.length > 1) parts.push(this.productLabel(line, movement.productId));
       if (movement.type === 'entry') parts.push(this.i18n.t('products.entry.scope.product'));
       if (movement.type === 'transaction' && movement.cashIn) {
         parts.push(this.i18n.t(movement.amountMinor < 0
@@ -2374,8 +2374,8 @@ export class ProductsPage {
     }
   }
 
-  pocketLabel(line: ProductLine, pocketId: number): string {
-    return line.pockets.find(pocket => pocket.id === pocketId)?.name ?? '';
+  productLabel(line: ProductLine, productId: number): string {
+    return line.products.find(product => product.id === productId)?.name ?? '';
   }
 
   /**
@@ -2467,7 +2467,7 @@ export class ProductsPage {
 
   /** Everything the products hold, which is the account plus its yields. */
   totalHeld(line: ProductLine): number {
-    return line.pockets.reduce((sum, pocket) => sum + this.balanceIn(line, pocket.id), 0);
+    return line.products.reduce((sum, product) => sum + this.balanceIn(line, product.id), 0);
   }
   /**
    * The figure typed into the form right now, in minor units.
@@ -2478,11 +2478,11 @@ export class ProductsPage {
    * the correction is still being made.
    */
   statedNow(): number {
-    return parseOrNull(this.pocketAmount()) ?? 0;
+    return parseOrNull(this.productAmount()) ?? 0;
   }
   /** What one product holds today. Zero when nothing is known about it. */
-  heldIn(line: ProductLine, pocketId: number): number {
-    return line.heldByPocket.get(pocketId) ?? 0;
+  heldIn(line: ProductLine, productId: number): number {
+    return line.heldByProduct.get(productId) ?? 0;
   }
 
   /**
@@ -2490,9 +2490,9 @@ export class ProductsPage {
    * under it. An income or expense someone enters is not a yield. Never more
    * than the balance: money moved out takes its share with it.
    */
-  yieldIn(line: ProductLine, pocketId: number): number {
-    const paid = line.paidYieldByPocket.get(pocketId) ?? 0;
-    return Math.max(0, Math.min(paid, this.balanceIn(line, pocketId)));
+  yieldIn(line: ProductLine, productId: number): number {
+    const paid = line.paidYieldByProduct.get(productId) ?? 0;
+    return Math.max(0, Math.min(paid, this.balanceIn(line, productId)));
   }
 
   /**
@@ -2515,8 +2515,8 @@ export class ProductsPage {
   }
 
   /** The product's balance as its bank shows it: what it holds plus the yields paid into it. */
-  balanceIn(line: ProductLine, pocketId: number): number {
-    return this.heldIn(line, pocketId) + (line.landedByPocket.get(pocketId) ?? 0);
+  balanceIn(line: ProductLine, productId: number): number {
+    return this.heldIn(line, productId) + (line.landedByProduct.get(productId) ?? 0);
   }
   /** The size of a difference, without its direction. */
   abs(value: number): number {
@@ -2613,7 +2613,7 @@ export class ProductsPage {
         // rates of its own uses only those. Without this the 6.5% set on
         // Plata's savings product read as "from 8 Sept to 8 Sept", ended by
         // an account-wide rate that never applied to it.
-        && (other.pocket_id ?? null) === (rate.pocket_id ?? null)
+        && (other.product_id ?? null) === (rate.product_id ?? null)
         && other.min_balance_minor === rate.min_balance_minor
         && other.valid_from > rate.valid_from)
       .sort((a, b) => a.valid_from.localeCompare(b.valid_from))[0];

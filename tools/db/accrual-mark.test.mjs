@@ -38,10 +38,10 @@ async function bank() {
     opened_on: '2026-01-01', opening_balance_minor: pesos(10_000_000),
   });
   await yields.enrol({ account_id: account, opening_on: '2026-09-01', withholding: false });
-  const [savings] = await yields.pockets(account);
-  await yields.setDefaultPocket(account, savings.id);
+  const [savings] = await yields.products(account);
+  await yields.setDefaultProduct(account, savings.id);
   await yields.setRate({
-    account_id: account, pocket_id: savings.id, component: 'base', payout: 'daily',
+    account_id: account, product_id: savings.id, component: 'base', payout: 'daily',
     valid_from: '2026-09-01', annual_rate_scaled: Math.round(0.11 * EA_SCALE),
   });
 
@@ -85,15 +85,15 @@ test('nothing to work out again until something it reads changes', async () => {
 test('a rate, a balance or a tax parameter is a change as well', async () => {
   for (const change of [
     async ({ yields, account }) => {
-      const [savings] = await yields.pockets(account);
+      const [savings] = await yields.products(account);
       await yields.setRate({
-        account_id: account, pocket_id: savings.id, component: 'base', payout: 'daily',
+        account_id: account, product_id: savings.id, component: 'base', payout: 'daily',
         valid_from: '2026-09-10', annual_rate_scaled: Math.round(0.13 * EA_SCALE),
       });
     },
     async ({ yields, account }) => {
-      const [savings] = await yields.pockets(account);
-      await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: pesos(1_000) });
+      const [savings] = await yields.products(account);
+      await yields.setProductBalance({ product_id: savings.id, valid_from: '2026-09-10', amount_minor: pesos(1_000) });
     },
     async ({ yields, account }) => {
       await yields.adjust({ account_id: account, on_date: '2026-09-10', amount_minor: pesos(500), kind: 'cashback' });
@@ -126,10 +126,10 @@ async function twoBanks() {
     opened_on: '2026-01-01', opening_balance_minor: pesos(4_000_000),
   });
   await yields.enrol({ account_id: dale, opening_on: '2026-09-01', withholding: false });
-  const [alcancia] = await yields.pockets(dale);
-  await yields.setDefaultPocket(dale, alcancia.id);
+  const [alcancia] = await yields.products(dale);
+  await yields.setDefaultProduct(dale, alcancia.id);
   await yields.setRate({
-    account_id: dale, pocket_id: alcancia.id, component: 'base', payout: 'daily',
+    account_id: dale, product_id: alcancia.id, component: 'base', payout: 'daily',
     valid_from: '2026-09-01', annual_rate_scaled: Math.round(0.09 * EA_SCALE),
   });
   const card = await accounts.create({
@@ -165,23 +165,23 @@ test('a change in one account marks that account and no other', async () => {
       await yields.correctRate(rate.id, { annual_rate_scaled: Math.round(0.12 * EA_SCALE) });
     }],
     ['a new rate', async ({ yields, pibank }) => {
-      const [savings] = await yields.pockets(pibank);
+      const [savings] = await yields.products(pibank);
       await yields.setRate({
-        account_id: pibank, pocket_id: savings.id, component: 'base', payout: 'daily',
+        account_id: pibank, product_id: savings.id, component: 'base', payout: 'daily',
         valid_from: '2026-09-10', annual_rate_scaled: Math.round(0.13 * EA_SCALE),
       });
     }],
     ['the opening balance', async ({ accounts, pibank }) => accounts.update(pibank, { opening_balance_minor: pesos(9_000_000) })],
     ['a product balance', async ({ yields, pibank }) => {
-      const [savings] = await yields.pockets(pibank);
-      await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: pesos(1_000) });
+      const [savings] = await yields.products(pibank);
+      await yields.setProductBalance({ product_id: savings.id, valid_from: '2026-09-10', amount_minor: pesos(1_000) });
     }],
-    ['a new product', async ({ yields, pibank }) => yields.addPocket({ account_id: pibank, name: 'Meta', source: 'manual' })],
+    ['a new product', async ({ yields, pibank }) => yields.addProduct({ account_id: pibank, name: 'Meta', source: 'manual' })],
     ['an entry on a product', async ({ yields, pibank }) =>
       yields.adjust({ account_id: pibank, on_date: '2026-09-10', amount_minor: pesos(500), kind: 'cashback' })],
     ['a day corrected by hand', async ({ yields, pibank }) => {
       const [day] = await yields.days(pibank, '2026-09-10', '2026-09-10');
-      await yields.correctDay(day.pocket_id, day.on_date, 1234);
+      await yields.correctDay(day.product_id, day.on_date, 1234);
     }],
   ];
   for (const [what, change] of changes) {
@@ -211,9 +211,9 @@ test('a mark kept the old way works every account out once', async () => {
 
 test('working out only the stale accounts leaves what working out all of them would', async () => {
   const dump = db => db.query(
-    `SELECT pocket_id, account_id, component, on_date, paid_on, balance_minor, annual_rate_scaled,
+    `SELECT product_id, account_id, component, on_date, paid_on, balance_minor, annual_rate_scaled,
             gross_minor, withholding_minor, net_minor
-     FROM yield_days ORDER BY account_id, pocket_id, component, on_date`);
+     FROM yield_days ORDER BY account_id, product_id, component, on_date`);
   const change = async ({ transactions, food, pibank }) => transactions.create({
     account_id: pibank, category_id: food, occurred_on: '2026-09-03', amount_minor: -pesos(3_000_000), source: 'manual',
   });

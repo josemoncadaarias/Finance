@@ -82,8 +82,8 @@
               @if (line.rate?.requires_monthly_spend_minor) {
                 · {{ 'products.conditional' | t }}
               }
-              @if (line.pockets.length > 1) {
-                · {{ 'products.pockets.count' | t:{ count: line.pockets.length } }}
+              @if (line.products.length > 1) {
+                · {{ 'products.products.count' | t:{ count: line.products.length } }}
               }
             </p>
           </ion-label>
@@ -413,40 +413,40 @@
             <!-- The way in beside the list it adds to, rather than a row of
                  its own: one less band on a screen that has many. -->
             <div class="section-row">
-              <p class="section">{{ 'products.pockets' | t }}</p>
-              <button type="button" class="add" (click)="openPocket(null)">
+              <p class="section">{{ 'products.products' | t }}</p>
+              <button type="button" class="add" (click)="openProduct(null)">
                 <ion-icon name="add-outline"></ion-icon>
-                {{ 'products.pockets.add' | t }}
+                {{ 'products.products.add' | t }}
               </button>
             </div>
             <ion-list [inset]="true">
               <!-- The same list as the account's settings: one place to learn
                    how a product reads, and the same actions from both. -->
-              @for (pocket of line.pockets; track pocket.id) {
-                <ion-item button detail="true" (click)="openPocket(pocket)">
+              @for (product of line.products; track product.id) {
+                <ion-item button detail="true" (click)="openProduct(product)">
                   <ion-label>
-                    <h3>{{ pocket.name }}</h3>
+                    <h3>{{ product.name }}</h3>
                     <p>
-                      @if (pocket.is_default === 1) {
-                        <span class="usual">{{ 'products.pockets.usual' | t }}</span> ·
+                      @if (product.is_default === 1) {
+                        <span class="usual">{{ 'products.products.usual' | t }}</span> ·
                       }
-                      @if (pocket.include_in_net_worth === 0) {
-                        <span class="usual">{{ 'products.pockets.setAside' | t }}</span> ·
+                      @if (product.include_in_net_worth === 0) {
+                        <span class="usual">{{ 'products.products.setAside' | t }}</span> ·
                       }
-                      {{ pocketSummary(pocket) }}
+                      {{ productSummary(product) }}
                     </p>
-                    @if (yieldIn(line, pocket.id) !== 0) {
-                      <p>{{ 'products.pockets.includesYield' | t:{ amount: money(yieldIn(line, pocket.id), line.account.currency_code) } }}</p>
+                    @if (yieldIn(line, product.id) !== 0) {
+                      <p>{{ 'products.products.includesYield' | t:{ amount: money(yieldIn(line, product.id), line.account.currency_code) } }}</p>
                     }
                   </ion-label>
                   <ion-note slot="end" class="held"
-                            [class.owed]="balanceIn(line, pocket.id) < 0">
-                    {{ money(balanceIn(line, pocket.id), line.account.currency_code) }}
+                            [class.owed]="balanceIn(line, product.id) < 0">
+                    {{ money(balanceIn(line, product.id), line.account.currency_code) }}
                   </ion-note>
-                  @if (line.pockets.length > 1) {
+                  @if (line.products.length > 1) {
                     <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
-                                [attr.aria-label]="'products.pocket.delete' | t"
-                                (click)="$event.stopPropagation(); deleteFromList(pocket)">
+                                [attr.aria-label]="'products.product.delete' | t"
+                                (click)="$event.stopPropagation(); deleteFromList(product)">
                       <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                     </ion-button>
                   }
@@ -454,8 +454,8 @@
               }
             </ion-list>
 
-            @if (line.pockets.length > 1) {
-              <p class="hint">{{ 'products.pockets.total' | t:{
+            @if (line.products.length > 1) {
+              <p class="hint">{{ 'products.products.total' | t:{
                    amount: money(totalHeld(line), line.account.currency_code) } }}</p>
             }
 
@@ -469,7 +469,7 @@
                  left, outside on the right. The first only appears where
                  there is more than one product to move between. -->
             <div class="actions">
-              @if (line.pockets.length > 1) {
+              @if (line.products.length > 1) {
                 <ion-button expand="block" fill="outline" (click)="openMove(line)">
                   <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
                   {{ 'products.move' | t }}
@@ -516,7 +516,7 @@
                      control, the same sheet and the same answer the yields
                      below use. It was a dropdown in a list of its own, which
                      is a second way of asking one question. -->
-                @if (line.pockets.length > 1) {
+                @if (line.products.length > 1) {
                   <div class="months-controls">
                     <button type="button" class="which" (click)="pickingProducts.set(true)">
                       <ion-icon name="funnel-outline"></ion-icon>
@@ -626,7 +626,7 @@
               <div class="months-controls">
                 <!-- Which products this list is about, beside the control
                      that opens it. -->
-                @if (line.pockets.length > 1) {
+                @if (line.products.length > 1) {
                   <button type="button" class="which" (click)="pickingProducts.set(true)">
                     <ion-icon name="funnel-outline"></ion-icon>
                     <span class="text">{{ chosenProductsLabel() }}</span>
@@ -670,8 +670,8 @@
                         <ion-label>
                           <h3>
                             {{ dayText(payment.on) }}
-                            @if (line.pockets.length > 1) {
-                              <span class="pocket">{{ pocketLabel(line, payment.pocketId) }}</span>
+                            @if (line.products.length > 1) {
+                              <span class="product">{{ productLabel(line, payment.productId) }}</span>
                             }
                           </h3>
                           <p>
@@ -724,7 +724,7 @@
               <div class="months-controls">
                 <!-- Which products this list is about, beside the control
                      that opens it. -->
-                @if (line.pockets.length > 1) {
+                @if (line.products.length > 1) {
                   <button type="button" class="which" (click)="pickingProducts.set(true)">
                     <ion-icon name="funnel-outline"></ion-icon>
                     <span class="text">{{ chosenProductsLabel() }}</span>
@@ -760,8 +760,8 @@
                     <ion-label>
                       <h3>
                         {{ dayText(day.on_date) }}
-                        @if (line.pockets.length > 1) {
-                          <span class="pocket">{{ pocketNameOf(line, day) }}</span>
+                        @if (line.products.length > 1) {
+                          <span class="product">{{ productNameOf(line, day) }}</span>
                         }
                       </h3>
                       <p>
@@ -825,8 +825,8 @@
             @if (openDay(); as day) {
               <h2>
                 {{ longDayText(day.on_date) }}
-                @if (line.pockets.length > 1) {
-                  <span class="pocket">{{ pocketNameOf(line, day) }}</span>
+                @if (line.products.length > 1) {
+                  <span class="product">{{ productNameOf(line, day) }}</span>
                 }
               </h2>
               <p class="hint">{{ 'products.day.hint' | t }}</p>
@@ -903,100 +903,100 @@
             }
           }
 
-          <!-- One pocket: its name, where its balance comes from, and how
+          <!-- One product: its name, where its balance comes from, and how
                much it holds. -->
-          @if (form() === 'pocket') {
-            <h2>{{ editingPocket()?.name ?? ('products.pockets.add' | t) }}</h2>
+          @if (form() === 'product') {
+            <h2>{{ editingProduct()?.name ?? ('products.products.add' | t) }}</h2>
 
             <ion-list [inset]="true">
               <ion-item>
-                <ion-input [label]="'products.pocket.name' | t" labelPlacement="stacked"
-                           [value]="pocketName()"
-                           (ionInput)="pocketName.set($any($event.target).value)"
-                           [placeholder]="'products.pocket.namePlaceholder' | t"></ion-input>
+                <ion-input [label]="'products.product.name' | t" labelPlacement="stacked"
+                           [value]="productName()"
+                           (ionInput)="productName.set($any($event.target).value)"
+                           [placeholder]="'products.product.namePlaceholder' | t"></ion-input>
               </ion-item>
               <!-- The kind is chosen once, when the product is created: a CDT
                    and a savings product are different things with different
                    forms, not one thing with a switch. -->
-              @if (!editingPocket()) {
+              @if (!editingProduct()) {
                 <ion-item>
-                  <ion-select [label]="'products.pocket.kind' | t" labelPlacement="stacked"
-                              [value]="pocketKind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="pocketKind.set($any($event.detail).value)">
-                    <ion-select-option value="high_yield">{{ 'products.pocket.kind.high_yield' | t }}</ion-select-option>
-                    <ion-select-option value="cdt">{{ 'products.pocket.kind.cdt' | t }}</ion-select-option>
+                  <ion-select [label]="'products.product.kind' | t" labelPlacement="stacked"
+                              [value]="productKind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                              (ionChange)="productKind.set($any($event.detail).value)">
+                    <ion-select-option value="high_yield">{{ 'products.product.kind.high_yield' | t }}</ion-select-option>
+                    <ion-select-option value="cdt">{{ 'products.product.kind.cdt' | t }}</ion-select-option>
                   </ion-select>
                 </ion-item>
               } @else {
                 <ion-item>
-                  <ion-label>{{ 'products.pocket.kind' | t }}</ion-label>
-                  <ion-note slot="end">{{ (pocketKind() === 'cdt' ? 'products.pocket.kind.cdt' : 'products.pocket.kind.high_yield') | t }}</ion-note>
+                  <ion-label>{{ 'products.product.kind' | t }}</ion-label>
+                  <ion-note slot="end">{{ (productKind() === 'cdt' ? 'products.product.kind.cdt' : 'products.product.kind.high_yield') | t }}</ion-note>
                 </ion-item>
               }
               <!-- Per product: inside one account some products are withheld
                    and others are not. -->
               <ion-item>
-                <ion-toggle [checked]="pocketWithholds()"
-                            (ionChange)="pocketWithholds.set($any($event.detail).checked)">
-                  {{ 'products.pocket.withholding' | t }}
+                <ion-toggle [checked]="productWithholds()"
+                            (ionChange)="productWithholds.set($any($event.detail).checked)">
+                  {{ 'products.product.withholding' | t }}
                 </ion-toggle>
               </ion-item>
               <!-- The usual product always counts: every movement that names no
                    product lands in it. -->
-              @if (!pocketIsDefault()) {
+              @if (!productIsDefault()) {
                 <ion-item>
-                  <ion-toggle [checked]="pocketCounts()"
-                              (ionChange)="pocketCounts.set($any($event.detail).checked)">
-                    {{ 'products.pocket.netWorth' | t }}
+                  <ion-toggle [checked]="productCounts()"
+                              (ionChange)="productCounts.set($any($event.detail).checked)">
+                    {{ 'products.product.netWorth' | t }}
                   </ion-toggle>
                 </ion-item>
               }
             </ion-list>
-            <p class="hint">{{ (pocketWithholds() ? 'products.pocket.withholdingOn' : 'products.pocket.withholdingOff') | t }}</p>
-            @if (!pocketIsDefault()) {
-              <p class="hint">{{ (pocketCounts() ? 'products.pocket.netWorthOn' : 'products.pocket.netWorthOff') | t }}</p>
+            <p class="hint">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</p>
+            @if (!productIsDefault()) {
+              <p class="hint">{{ (productCounts() ? 'products.product.netWorthOn' : 'products.product.netWorthOff') | t }}</p>
             }
 
-            @if (pocketKind() === 'cdt') {
-              <p class="hint">{{ 'products.pocket.cdtHint' | t }}</p>
+            @if (productKind() === 'cdt') {
+              <p class="hint">{{ 'products.product.cdtHint' | t }}</p>
 
               <ion-list [inset]="true">
                 <ion-item>
                   <ion-input [label]="'products.cdt.amount' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="pocketAmount()"
-                             (ionInput)="pocketAmount.set(amountTyped($event.target))"></ion-input>
+                             inputmode="decimal" [value]="productAmount()"
+                             (ionInput)="productAmount.set(amountTyped($event.target))"></ion-input>
                 </ion-item>
               </ion-list>
 
               <!-- A CDT's money came from somewhere: nearly always another
                    product, recorded as a transfer; or typed in. -->
               @if (fundingAsked()) {
-                <p class="section">{{ 'products.pocket.fundingQuestion' | t }}</p>
+                <p class="section">{{ 'products.product.fundingQuestion' | t }}</p>
                 <ion-list [inset]="true" class="funding">
-                  <ion-radio-group [value]="pocketFunding()" (ionChange)="pocketFunding.set($any($event.detail).value)">
+                  <ion-radio-group [value]="productFunding()" (ionChange)="productFunding.set($any($event.detail).value)">
                     <ion-item>
-                      <ion-radio value="pocket" labelPlacement="end" justify="start">
+                      <ion-radio value="product" labelPlacement="end" justify="start">
                         <span class="choice">
-                          <strong>{{ 'products.pocket.fundingPocket' | t }}</strong>
-                          <small>{{ 'products.pocket.fundingPocketHint' | t }}</small>
+                          <strong>{{ 'products.product.fundingProduct' | t }}</strong>
+                          <small>{{ 'products.product.fundingProductHint' | t }}</small>
                         </span>
                       </ion-radio>
                     </ion-item>
-                    <ion-item [lines]="pocketFunding() === 'pocket' ? 'full' : 'none'">
+                    <ion-item [lines]="productFunding() === 'product' ? 'full' : 'none'">
                       <ion-radio value="manual" labelPlacement="end" justify="start">
                         <span class="choice">
-                          <strong>{{ 'products.pocket.fundingManual' | t }}</strong>
-                          <small>{{ 'products.pocket.fundingManualHint' | t }}</small>
+                          <strong>{{ 'products.product.fundingManual' | t }}</strong>
+                          <small>{{ 'products.product.fundingManualHint' | t }}</small>
                         </span>
                       </ion-radio>
                     </ion-item>
                   </ion-radio-group>
-                  @if (pocketFunding() === 'pocket') {
+                  @if (productFunding() === 'product') {
                     <ion-item lines="none">
-                      <ion-select [label]="'products.move.from' | t" [value]="pocketFundingFrom()"
+                      <ion-select [label]="'products.move.from' | t" [value]="productFundingFrom()"
                                   interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                  (ionChange)="pocketFundingFrom.set($any($event.detail).value)">
-                        @for (other of line.pockets; track other.id) {
+                                  (ionChange)="productFundingFrom.set($any($event.detail).value)">
+                        @for (other of line.products; track other.id) {
                           <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
                         }
                       </ion-select>
@@ -1037,7 +1037,7 @@
                               (ionChange)="cdtInto.set($any($event.detail).value)">
                     @for (target of cdtTargets(); track target.id) {
                       <ion-select-option [value]="target.id">
-                        {{ target.name }}@if (target.is_default === 1) { · {{ 'products.pocket.usual' | t }} }
+                        {{ target.name }}@if (target.is_default === 1) { · {{ 'products.product.usual' | t }} }
                       </ion-select-option>
                     }
                   </ion-select>
@@ -1078,16 +1078,16 @@
                 <p class="hint">{{ 'products.cdt.closes' | t:{ target: cdtTargetName() } }}</p>
               }
             } @else {
-              <p class="hint">{{ 'products.pockets.hint' | t }}</p>
+              <p class="hint">{{ 'products.products.addHint' | t }}</p>
 
               <ion-list [inset]="true">
                 <ion-item lines="full">
-                  <ion-checkbox slot="start" [checked]="pocketIsDefault()"
-                                (ionChange)="pocketIsDefault.set($any($event.detail).checked)">
+                  <ion-checkbox slot="start" [checked]="productIsDefault()"
+                                (ionChange)="productIsDefault.set($any($event.detail).checked)">
                   </ion-checkbox>
                   <ion-label>
-                    <h3>{{ 'products.pocket.makeDefault' | t }}</h3>
-                    <p>{{ 'products.pocket.makeDefault.hint' | t }}</p>
+                    <h3>{{ 'products.product.makeDefault' | t }}</h3>
+                    <p>{{ 'products.product.makeDefault.hint' | t }}</p>
                   </ion-label>
                 </ion-item>
               </ion-list>
@@ -1096,54 +1096,54 @@
                    income, expenses and transfers keep it square from there. -->
                 <ion-list [inset]="true">
                   <ion-item>
-                    <ion-input [label]="'products.pocket.amount' | t" labelPlacement="stacked"
-                               inputmode="decimal" [value]="pocketAmount()"
-                               (ionInput)="pocketAmount.set(amountTyped($event.target))"></ion-input>
+                    <ion-input [label]="'products.product.amount' | t" labelPlacement="stacked"
+                               inputmode="decimal" [value]="productAmount()"
+                               (ionInput)="productAmount.set(amountTyped($event.target))"></ion-input>
                   </ion-item>
                   <ion-item>
-                    <ion-input [label]="'products.pocket.from' | t" labelPlacement="stacked"
-                               type="date" [value]="pocketFrom()"
-                               (ionInput)="setPocketFrom($any($event.target).value)"></ion-input>
+                    <ion-input [label]="'products.product.from' | t" labelPlacement="stacked"
+                               type="date" [value]="productFrom()"
+                               (ionInput)="setProductFrom($any($event.target).value)"></ion-input>
                   </ion-item>
                   <!-- The day this product starts earning. Its own, since what
                        earns is the product; it used to be one date per account
                        that overruled every product in it. -->
                   <ion-item>
-                    <ion-input [label]="'products.pocket.earnsFrom' | t" labelPlacement="stacked"
-                               type="date" [value]="pocketEarnsFrom()"
-                               (ionInput)="pocketEarnsFrom.set($any($event.target).value)"></ion-input>
+                    <ion-input [label]="'products.product.earnsFrom' | t" labelPlacement="stacked"
+                               type="date" [value]="productEarnsFrom()"
+                               (ionInput)="productEarnsFrom.set($any($event.target).value)"></ion-input>
                   </ion-item>
                 </ion-list>
-                <p class="hint">{{ 'products.pocket.earnsFrom.hint' | t }}</p>
+                <p class="hint">{{ 'products.product.earnsFrom.hint' | t }}</p>
                 <!-- Money in a new product came from somewhere: nearly always
                      another product, recorded as a transfer; or typed in. -->
                 @if (fundingAsked()) {
-                  <p class="section">{{ 'products.pocket.fundingQuestion' | t }}</p>
+                  <p class="section">{{ 'products.product.fundingQuestion' | t }}</p>
                   <ion-list [inset]="true" class="funding">
-                    <ion-radio-group [value]="pocketFunding()" (ionChange)="pocketFunding.set($any($event.detail).value)">
+                    <ion-radio-group [value]="productFunding()" (ionChange)="productFunding.set($any($event.detail).value)">
                       <ion-item>
-                        <ion-radio value="pocket" labelPlacement="end" justify="start">
+                        <ion-radio value="product" labelPlacement="end" justify="start">
                           <span class="choice">
-                            <strong>{{ 'products.pocket.fundingPocket' | t }}</strong>
-                            <small>{{ 'products.pocket.fundingPocketHint' | t }}</small>
+                            <strong>{{ 'products.product.fundingProduct' | t }}</strong>
+                            <small>{{ 'products.product.fundingProductHint' | t }}</small>
                           </span>
                         </ion-radio>
                       </ion-item>
-                      <ion-item [lines]="pocketFunding() === 'pocket' ? 'full' : 'none'">
+                      <ion-item [lines]="productFunding() === 'product' ? 'full' : 'none'">
                         <ion-radio value="manual" labelPlacement="end" justify="start">
                           <span class="choice">
-                            <strong>{{ 'products.pocket.fundingManual' | t }}</strong>
-                            <small>{{ 'products.pocket.fundingManualHint' | t }}</small>
+                            <strong>{{ 'products.product.fundingManual' | t }}</strong>
+                            <small>{{ 'products.product.fundingManualHint' | t }}</small>
                           </span>
                         </ion-radio>
                       </ion-item>
                     </ion-radio-group>
-                    @if (pocketFunding() === 'pocket') {
+                    @if (productFunding() === 'product') {
                       <ion-item lines="none">
-                        <ion-select [label]="'products.move.from' | t" [value]="pocketFundingFrom()"
+                        <ion-select [label]="'products.move.from' | t" [value]="productFundingFrom()"
                                     interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                    (ionChange)="pocketFundingFrom.set($any($event.detail).value)">
-                          @for (other of line.pockets; track other.id) {
+                                    (ionChange)="productFundingFrom.set($any($event.detail).value)">
+                          @for (other of line.products; track other.id) {
                             <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
                           }
                         </ion-select>
@@ -1151,32 +1151,32 @@
                     }
                   </ion-list>
                 }
-                <p class="hint">{{ 'products.pocket.amountHint' | t }}</p>
-                <p class="hint">{{ 'products.pocket.fromHint' | t }}</p>
+                <p class="hint">{{ 'products.product.amountHint' | t }}</p>
+                <p class="hint">{{ 'products.product.fromHint' | t }}</p>
 
                 <!-- Where today's figure comes from, spelled out. A product's
                      balance is one thing typed on a date plus everything that
                      has moved through it since, and with only the answer on
                      screen there is no way to tell which half is wrong when it
                      looks wrong. -->
-                @if (editingPocket(); as pocket) {
+                @if (editingProduct(); as product) {
                   <div class="breakdown">
                     <div>
-                      <span>{{ 'products.pocket.stated' | t:{ date: dayText(pocketFrom()) } }}</span>
+                      <span>{{ 'products.product.stated' | t:{ date: dayText(productFrom()) } }}</span>
                       <strong>{{ money(statedNow(), line.account.currency_code) }}</strong>
                     </div>
                     <div>
-                      <span>{{ 'products.pocket.movedSince' | t }}</span>
-                      <strong>{{ money(pocketMoved(), line.account.currency_code) }}</strong>
+                      <span>{{ 'products.product.movedSince' | t }}</span>
+                      <strong>{{ money(productMoved(), line.account.currency_code) }}</strong>
                     </div>
                     <div>
-                      <span>{{ 'products.pocket.yieldSince' | t }}</span>
-                      <strong>{{ money(pocketYieldIn(), line.account.currency_code) }}</strong>
+                      <span>{{ 'products.product.yieldSince' | t }}</span>
+                      <strong>{{ money(productYieldIn(), line.account.currency_code) }}</strong>
                     </div>
                     <div class="sum">
-                      <span>{{ 'products.pocket.today' | t }}</span>
-                      <strong [class.owed]="statedNow() + pocketMoved() + pocketYieldIn() < 0">
-                        {{ money(statedNow() + pocketMoved() + pocketYieldIn(), line.account.currency_code) }}
+                      <span>{{ 'products.product.today' | t }}</span>
+                      <strong [class.owed]="statedNow() + productMoved() + productYieldIn() < 0">
+                        {{ money(statedNow() + productMoved() + productYieldIn(), line.account.currency_code) }}
                       </strong>
                     </div>
                   </div>
@@ -1185,33 +1185,33 @@
               <!-- The product's rate and how it is paid, here with the product
                    rather than in a list of the account's rates: a product is
                    what a person opens, and the rate is part of it. -->
-              <p class="section">{{ 'products.pocket.rateSection' | t }}</p>
+              <p class="section">{{ 'products.product.rateSection' | t }}</p>
               <ion-list [inset]="true">
                 <!-- A new product's rate comes first, at 0%: how often the
                      bank pays is only a question once there is something to
                      pay. -->
-                @if (!editingPocket()) {
+                @if (!editingProduct()) {
                   <ion-item>
                     <ion-input [label]="'products.rate.percent' | t" labelPlacement="stacked"
-                               inputmode="decimal" [value]="pocketRate()"
-                               (ionInput)="pocketRate.set(unsigned($event.target))"
+                               inputmode="decimal" [value]="productRate()"
+                               (ionInput)="productRate.set(unsigned($event.target))"
                                placeholder="0"></ion-input>
                   </ion-item>
                 }
-                @if (editingPocket() || pocketRateAboveZero()) {
+                @if (editingProduct() || productRateAboveZero()) {
                   <ion-item>
                     <ion-select [label]="'products.settings.payout' | t" labelPlacement="stacked"
-                                [value]="pocketPayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                (ionChange)="pocketPayout.set($any($event.detail).value)">
+                                [value]="productPayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
+                                (ionChange)="productPayout.set($any($event.detail).value)">
                       <ion-select-option value="daily">{{ 'products.payout.daily' | t }}</ion-select-option>
                       <ion-select-option value="monthly">{{ 'products.payout.byMonths' | t }}</ion-select-option>
                     </ion-select>
                   </ion-item>
-                  @if (pocketPayout() === 'monthly') {
+                  @if (productPayout() === 'monthly') {
                     <ion-item>
                       <ion-input [label]="'products.payout.months' | t" labelPlacement="stacked"
-                                 inputmode="numeric" [value]="pocketMonths()"
-                                 (ionInput)="pocketMonths.set(unsigned($event.target))"
+                                 inputmode="numeric" [value]="productMonths()"
+                                 (ionInput)="productMonths.set(unsigned($event.target))"
                                  [helperText]="'products.payout.monthsHint' | t"></ion-input>
                     </ion-item>
                     @if (paydayPreview()) {
@@ -1223,12 +1223,12 @@
                 }
               </ion-list>
 
-              @if (editingPocket()) {
-                @if (pocketBaseRates().length === 0) {
-                  <p class="hint warn">{{ 'products.pocket.noRateHint' | t }}</p>
+              @if (editingProduct()) {
+                @if (productBaseRates().length === 0) {
+                  <p class="hint warn">{{ 'products.product.noRateHint' | t }}</p>
                 } @else {
                   <ion-list [inset]="true">
-                    @for (rate of pocketBaseRates(); track rate.id) {
+                    @for (rate of productBaseRates(); track rate.id) {
                       <ion-item button detail="true" (click)="startRateForm(rate)">
                         <ion-label>
                           <h3>{{ rateText(rate.annual_rate_scaled) }}</h3>
@@ -1256,15 +1256,15 @@
                 <div class="actions">
                   <ion-button expand="block" fill="outline" (click)="startRateForm(null)">
                     <ion-icon slot="start" name="add-outline"></ion-icon>
-                    {{ 'products.pocket.changeRate' | t }}
+                    {{ 'products.product.changeRate' | t }}
                   </ion-button>
                 </div>
 
-                <p class="section">{{ 'products.pocket.bonus' | t }}</p>
-                <p class="hint">{{ 'products.pocket.bonusHint' | t }}</p>
-                @if (pocketBonusRates().length > 0) {
+                <p class="section">{{ 'products.product.bonus' | t }}</p>
+                <p class="hint">{{ 'products.product.bonusHint' | t }}</p>
+                @if (productBonusRates().length > 0) {
                   <ion-list [inset]="true">
-                    @for (rate of pocketBonusRates(); track rate.id) {
+                    @for (rate of productBonusRates(); track rate.id) {
                       <ion-item button detail="true" (click)="startRateForm(rate)">
                         <ion-label>
                           <h3>{{ rateText(rate.annual_rate_scaled) }}</h3>
@@ -1293,28 +1293,28 @@
                 <div class="actions">
                   <ion-button expand="block" fill="outline" (click)="startRateForm(null, true)">
                     <ion-icon slot="start" name="add-outline"></ion-icon>
-                    {{ 'products.pocket.addBonus' | t }}
+                    {{ 'products.product.addBonus' | t }}
                   </ion-button>
                 </div>
               }
             }
 
             <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="closePocket()">
+              <ion-button expand="block" fill="clear" (click)="closeProduct()">
                 {{ 'entry.cancel' | t }}
               </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="savePocket()">
+              <ion-button expand="block" [disabled]="saving()" (click)="saveProduct()">
                 {{ 'entry.save' | t }}
               </ion-button>
             </div>
 
-            @if (editingPocket(); as removing) {
-              @if (editablePockets().length > 1) {
+            @if (editingProduct(); as removing) {
+              @if (editableProducts().length > 1) {
                 <div class="actions">
                   <ion-button expand="block" fill="clear" color="danger"
-                              [disabled]="saving()" (click)="startDeletePocket()">
+                              [disabled]="saving()" (click)="startDeleteProduct()">
                     <ion-icon slot="start" name="trash-outline"></ion-icon>
-                    {{ 'products.pocket.delete' | t }}
+                    {{ 'products.product.delete' | t }}
                   </ion-button>
                 </div>
 
@@ -1322,31 +1322,31 @@
                      balance and a history, and both go to a product the person
                      chose - a question like that should not read as a footnote
                      under the form. -->
-                <ion-modal class="confirm-sheet" [isOpen]="confirmingPocketDelete()"
-                           (didDismiss)="pocketDeleteClosed()">
+                <ion-modal class="confirm-sheet" [isOpen]="confirmingProductDelete()"
+                           (didDismiss)="productDeleteClosed()">
                   <ng-template>
                     <div class="confirm-dialog">
                       <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
-                      <h2>{{ 'products.pocket.deleteConfirm' | t:{ name: removing.name } }}</h2>
+                      <h2>{{ 'products.product.deleteConfirm' | t:{ name: removing.name } }}</h2>
 
                       <!-- Asked when there is a balance OR a history: with no
                            balance, a product's movements and earned days still
                            have to go somewhere, or they point at nothing. -->
-                      @if (pocketDeleteHeld() !== 0 || pocketDeleteHistory() > 0) {
-                        @if (pocketDeleteHeld() !== 0) {
-                          <p>{{ 'products.pocket.deleteBalance' | t:{ amount: money(pocketDeleteHeld(), line.account.currency_code) } }}</p>
+                      @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
+                        @if (productDeleteHeld() !== 0) {
+                          <p>{{ 'products.product.deleteBalance' | t:{ amount: money(productDeleteHeld(), line.account.currency_code) } }}</p>
                         } @else {
-                          <p>{{ 'products.pocket.deleteHistory' | t:{ count: pocketDeleteHistory() } }}</p>
+                          <p>{{ 'products.product.deleteHistory' | t:{ count: productDeleteHistory() } }}</p>
                         }
                         <ion-list>
                           <ion-item lines="none">
-                            <ion-select [label]="'products.pocket.deleteTo' | t" labelPlacement="stacked"
-                                        [value]="pocketDeleteTo()" interface="alert"
+                            <ion-select [label]="'products.product.deleteTo' | t" labelPlacement="stacked"
+                                        [value]="productDeleteTo()" interface="alert"
                                         [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                        (ionChange)="pocketDeleteTo.set($any($event.detail).value)">
-                              @for (other of otherPockets(); track other.id) {
+                                        (ionChange)="productDeleteTo.set($any($event.detail).value)">
+                              @for (other of otherProducts(); track other.id) {
                                 <ion-select-option [value]="other.id">
-                                  {{ other.name }}@if (other.is_default === 1) { · {{ 'products.pocket.usual' | t }} }
+                                  {{ other.name }}@if (other.is_default === 1) { · {{ 'products.product.usual' | t }} }
                                 </ion-select-option>
                               }
                             </ion-select>
@@ -1358,14 +1358,14 @@
                            says otherwise, so removing it asks which one takes
                            over - with a balance or without one. -->
                       @if (removing.is_default === 1) {
-                        <p>{{ 'products.pocket.deleteUsual' | t }}</p>
+                        <p>{{ 'products.product.deleteUsual' | t }}</p>
                         <ion-list>
                           <ion-item lines="none">
-                            <ion-select [label]="'products.pocket.newUsual' | t" labelPlacement="stacked"
-                                        [value]="pocketNewUsual()" interface="alert"
+                            <ion-select [label]="'products.product.newUsual' | t" labelPlacement="stacked"
+                                        [value]="productNewUsual()" interface="alert"
                                         [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                        (ionChange)="pocketNewUsual.set($any($event.detail).value)">
-                              @for (other of otherPockets(); track other.id) {
+                                        (ionChange)="productNewUsual.set($any($event.detail).value)">
+                              @for (other of otherProducts(); track other.id) {
                                 <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
                               }
                             </ion-select>
@@ -1376,20 +1376,20 @@
                       <!-- Only when there is a balance to move: with nothing in
                            it, a sentence about where the balance goes read as a
                            question about money that is not there. -->
-                      @if (pocketDeleteHeld() !== 0 || pocketDeleteHistory() > 0) {
-                        <p class="note">{{ (removing.kind === 'cdt' ? 'products.pocket.deleteKeepsCdt' : 'products.pocket.deleteKeeps') | t:{ target: pocketDeleteTargetName() } }}</p>
+                      @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
+                        <p class="note">{{ (removing.kind === 'cdt' ? 'products.product.deleteKeepsCdt' : 'products.product.deleteKeeps') | t:{ target: productDeleteTargetName() } }}</p>
                       }
                       @if (error()) {
                         <p class="error">{{ error() }}</p>
                       }
 
                       <div class="buttons">
-                        <ion-button fill="outline" color="medium" (click)="confirmingPocketDelete.set(false)">
+                        <ion-button fill="outline" color="medium" (click)="confirmingProductDelete.set(false)">
                           {{ 'entry.cancel' | t }}
                         </ion-button>
-                        <ion-button color="danger" [disabled]="saving() || pocketDeleteTo() === null || (removing.is_default === 1 && pocketNewUsual() === null)"
-                                    (click)="deletePocket()">
-                          {{ 'products.pocket.deleteYes' | t }}
+                        <ion-button color="danger" [disabled]="saving() || productDeleteTo() === null || (removing.is_default === 1 && productNewUsual() === null)"
+                                    (click)="deleteProduct()">
+                          {{ 'products.product.deleteYes' | t }}
                         </ion-button>
                       </div>
                     </div>
@@ -1404,7 +1404,7 @@
                rate that was typed wrong. No name and no list of products: the
                rate belongs to the product it was opened from. -->
           @if (form() === 'rate') {
-            <h2>{{ (editingRate() ? 'products.rate.fix' : (rateIsBonus() ? 'products.pocket.addBonus' : 'products.pocket.changeRate')) | t }}</h2>
+            <h2>{{ (editingRate() ? 'products.rate.fix' : (rateIsBonus() ? 'products.product.addBonus' : 'products.product.changeRate')) | t }}</h2>
             <p class="hint">
               {{ (editingRate() ? 'products.rate.fix.hint' : 'products.rates.hint') | t }}
             </p>
@@ -1443,7 +1443,7 @@
             </ion-list>
 
             <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="openPocket(editingPocket())">
+              <ion-button expand="block" fill="clear" (click)="openProduct(editingProduct())">
                 {{ 'entry.cancel' | t }}
               </ion-button>
               <ion-button expand="block" [disabled]="saving()" (click)="saveRate()">
@@ -1517,10 +1517,10 @@
 
 <!-- Which products the yields are read for. A short question, so a short
      sheet: the products, each with a tick, and "all of them" above them. -->
-<ion-modal class="pocket-sheet" [isOpen]="pickingProducts()"
+<ion-modal class="product-sheet" [isOpen]="pickingProducts()"
            (didDismiss)="pickingProducts.set(false)">
   <ng-template>
-    <div class="pocket-picker">
+    <div class="product-picker">
       <div class="head">
         <h2>{{ 'products.products.which' | t }}</h2>
         <button type="button" (click)="pickingProducts.set(false)"
@@ -1542,14 +1542,14 @@
             }
           </ion-item>
 
-          @for (pocket of line.pockets; track pocket.id) {
-            <ion-item button lines="full" (click)="toggleProduct(pocket.id)"
-                      [class.selected]="!allProductsChosen() && isProductChosen(pocket.id)">
+          @for (product of line.products; track product.id) {
+            <ion-item button lines="full" (click)="toggleProduct(product.id)"
+                      [class.selected]="!allProductsChosen() && isProductChosen(product.id)">
               <ion-label>
-                <h3>{{ pocket.name }}</h3>
-                @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
+                <h3>{{ product.name }}</h3>
+                @if (product.is_default === 1) { <p>{{ 'entry.product.usual' | t }}</p> }
               </ion-label>
-              @if (!allProductsChosen() && isProductChosen(pocket.id)) {
+              @if (!allProductsChosen() && isProductChosen(product.id)) {
                 <ion-icon slot="end" class="tick" name="checkmark-circle"
                           [attr.aria-label]="'entry.selected' | t"></ion-icon>
               }

@@ -67,7 +67,13 @@ FROM accounts WHERE lower(name) = 'rappi card';
     // each product is paid. Nothing in it can land twice - it only runs when
     // its first column is missing.
     version: 30,
-    applied: driver => hasColumn(driver, 'yield_pockets', 'payout'),
+    // Under either name. Repairs run after every migration, so by the time
+    // this is asked the table is `products` - migration 043 renamed it - and
+    // asking for `yield_pockets` alone answered "not there", which sent the
+    // repair off to run a migration written against a table that no longer
+    // exists. A repair must recognise what it is looking for at any age.
+    applied: async driver => await hasColumn(driver, 'products', 'payout')
+      || await hasColumn(driver, 'yield_pockets', 'payout'),
     sql: null,
   },
 ];

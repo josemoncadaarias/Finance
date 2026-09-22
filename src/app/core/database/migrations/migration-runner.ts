@@ -74,6 +74,13 @@ export async function migrate(
     );
   }
 
+  // Anything an older run skipped is put right BEFORE anything is built on
+  // top of it. Migration 043 renames a column migration 030 created, so on a
+  // database where 030 was skipped it found nothing to rename and the app
+  // stopped at the migration screen. A repair belongs in front of the
+  // migrations, not only behind them.
+  await runRepairs(driver, sources);
+
   const pending = sources.filter(m => m.version > from).sort((a, b) => a.version - b.version);
   const applied: MigrationSource[] = [];
 
@@ -107,8 +114,19 @@ export async function migrate(
     applied.push(migration);
   }
 
-  // Migrations a plugin skipped while reporting success. Checked on every
-  // start, and cheap when there is nothing to do: one read per repair.
+  // And again afterwards, for a migration this very run let through.
+  await runRepairs(driver, sources);
+
+  return { from, to: await currentVersion(driver), applied };
+}
+
+/**
+ * Migrations a plugin skipped while reporting success, put right.
+ *
+ * Checked on every start, and cheap when there is nothing to do: one read per
+ * repair. Runs before the pending migrations and again after them.
+ */
+async function runRepairs(driver: SqlDriver, sources: readonly MigrationSource[]): Promise<void> {
   const version = await currentVersion(driver);
   for (const repair of REPAIRS) {
     if (repair.version > version || await repair.applied(driver)) continue;
@@ -124,8 +142,6 @@ export async function migrate(
       throw new MigrationError(`Repairing migration ${migration.file} failed: ${reason}`, migration, error);
     }
   }
-
-  return { from, to: await currentVersion(driver), applied };
 }
 
 /** The opening of a statement: enough to recognise it, short enough to read. */

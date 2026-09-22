@@ -133,8 +133,8 @@ ion-modal ion-title {
   text-align: start;
 }
 
-/* The pocket a day belongs to, beside the date rather than under it: the
-   date is what you scan for, the pocket is what tells them apart. */
+/* The product a day belongs to, beside the date rather than under it: the
+   date is what you scan for, the product is what tells them apart. */
 /* The currency of the account, on every row including the peso ones. Leaving
    it off the pesos made the list say nothing about the accounts it was mostly
    made of, and the only clue that a row was in dollars was that it had been
@@ -184,7 +184,7 @@ ion-modal ion-title {
   color: var(--ion-color-medium);
 }
 
-.pocket {
+.product {
   margin-left: 0.4rem;
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
@@ -428,7 +428,7 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
 /* One end of a move between products. Names in a row, the chosen one filled
    in — the same shape as the product picker on the movement form, because it
    is the same question asked in a different place. */
-.pocket-row {
+.product-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
@@ -539,7 +539,7 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
  * and groups whose heading folds and whose rows hang off a coloured rule.
  */
 .product-movements {
-  .pocket-filter { margin: 0 0 0.5rem; }
+  .product-filter { margin: 0 0 0.5rem; }
 
   /* The period: back, the period itself to open the choices, forward. */
   .period-stepper {

@@ -38,11 +38,11 @@ async function pibankWithCdt() {
     opened_on: '2026-01-01', opening_balance_minor: 0,
   });
   await yields.enrol({ account_id: pibank, opening_on: '2026-01-01', withholding: true });
-  const [savings] = await yields.pockets(pibank);
-  await yields.setDefaultPocket(pibank, savings.id);
-  const cdt = await yields.addPocket({
+  const [savings] = await yields.products(pibank);
+  await yields.setDefaultProduct(pibank, savings.id);
+  const cdt = await yields.addProduct({
     account_id: pibank, name: 'CDT renta', kind: 'cdt', sort_order: 1,
-    opened_on: '2026-07-28', term_months: 12, matures_into_pocket_id: savings.id,
+    opened_on: '2026-07-28', term_months: 12, matures_into_product_id: savings.id,
   });
 
   // Into Pibank with no product named: it lands in the usual one.
@@ -54,14 +54,14 @@ async function pibankWithCdt() {
   // From Pibank's savings into the CDT, inside the one account.
   await transfers.create({
     occurred_on: '2026-07-28',
-    from: { account_id: pibank, pocket_id: savings.id, amount_minor: pesos(1_000_000) },
-    to: { account_id: pibank, pocket_id: cdt, amount_minor: pesos(1_000_000) },
+    from: { account_id: pibank, product_id: savings.id, amount_minor: pesos(1_000_000) },
+    to: { account_id: pibank, product_id: cdt, amount_minor: pesos(1_000_000) },
   });
   // And straight from Rappi into the CDT.
   await transfers.create({
     occurred_on: '2026-07-29',
     from: { account_id: rappi, amount_minor: pesos(500_000) },
-    to: { account_id: pibank, pocket_id: cdt, amount_minor: pesos(500_000) },
+    to: { account_id: pibank, product_id: cdt, amount_minor: pesos(500_000) },
   });
 
   return { db, accounts, yields, transactions: new TransactionsRepository(db, NOW), rappi, pibank, savings, cdt };
@@ -70,14 +70,14 @@ async function pibankWithCdt() {
 test('every product counts until one is set aside, so nothing moves on its own', async () => {
   const { accounts, yields, pibank, cdt } = await pibankWithCdt();
 
-  assert.equal((await yields.pockets(pibank)).find(p => p.id === cdt).include_in_net_worth, 1);
+  assert.equal((await yields.products(pibank)).find(p => p.id === cdt).include_in_net_worth, 1);
   assert.equal((await accounts.balance(pibank, { leaveOutSetAside: true })).balance_minor, pesos(10_500_000));
   assert.equal(await accounts.netWorthMinor('2026-09-12'), pesos(20_000_000));
 });
 
 test('a product set aside leaves the balance shown and net worth, not the bank balance', async () => {
   const { accounts, yields, rappi, pibank, cdt } = await pibankWithCdt();
-  await yields.setPocketNetWorth(cdt, false);
+  await yields.setProductNetWorth(cdt, false);
 
   assert.equal((await accounts.balance(pibank)).balance_minor, pesos(10_500_000),
     'the bank balance, which the yields screen compares products against, keeps everything');
@@ -93,7 +93,7 @@ test('a product set aside leaves the balance shown and net worth, not the bank b
 
 test('each movement says whether it, or the other end of its transfer, is set aside', async () => {
   const { yields, transactions, rappi, pibank, cdt } = await pibankWithCdt();
-  await yields.setPocketNetWorth(cdt, false);
+  await yields.setProductNetWorth(cdt, false);
   const rows = await transactions.listDetailed({ accountIds: [rappi, pibank] });
   const on = (day, account) => rows.filter(row => row.occurred_on === day && row.account_id === account);
 
@@ -101,23 +101,23 @@ test('each movement says whether it, or the other end of its transfer, is set as
     on('2026-07-28', pibank).find(row => row.amount_minor > 0),
     on('2026-07-28', pibank).find(row => row.amount_minor < 0),
   ];
-  assert.equal(intoCdt.pocket_set_aside, 1);
-  assert.equal(outOfSavings.pocket_set_aside, 0);
-  assert.equal(outOfSavings.other_pocket_set_aside, 1);
-  assert.equal(outOfSavings.other_pocket_name, 'CDT renta');
+  assert.equal(intoCdt.product_set_aside, 1);
+  assert.equal(outOfSavings.product_set_aside, 0);
+  assert.equal(outOfSavings.other_product_set_aside, 1);
+  assert.equal(outOfSavings.other_product_name, 'CDT renta');
 
   const [fromRappi] = on('2026-07-29', rappi);
-  assert.equal(fromRappi.other_pocket_set_aside, 1, 'money sent from another account into it is gone too');
-  assert.equal(on('2026-07-27', rappi)[0].other_pocket_set_aside, 0);
+  assert.equal(fromRappi.other_product_set_aside, 1, 'money sent from another account into it is gone too');
+  assert.equal(on('2026-07-27', rappi)[0].other_product_set_aside, 0);
 });
 
 test('the usual product always counts', async () => {
   const { yields, pibank, savings, cdt } = await pibankWithCdt();
 
-  await assert.rejects(() => yields.setPocketNetWorth(savings.id, false));
+  await assert.rejects(() => yields.setProductNetWorth(savings.id, false));
 
-  await yields.setPocketNetWorth(cdt, false);
-  await yields.setDefaultPocket(pibank, cdt);
-  assert.equal((await yields.pockets(pibank)).find(p => p.id === cdt).include_in_net_worth, 1,
+  await yields.setProductNetWorth(cdt, false);
+  await yields.setDefaultProduct(pibank, cdt);
+  assert.equal((await yields.products(pibank)).find(p => p.id === cdt).include_in_net_worth, 1,
     'becoming the usual product brings it back into net worth');
 });

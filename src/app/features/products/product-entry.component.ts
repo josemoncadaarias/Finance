@@ -43,7 +43,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
-import { YieldsRepository, type ProductEntry, type YieldPocket } from '../../core/database/repositories/yields.repository';
+import { YieldsRepository, type ProductEntry, type YieldProduct } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
@@ -65,7 +65,7 @@ import { apply, isOperator, operatorFromKey, type Operator, type Pending } from 
 export interface ProductEntryRequest {
   kind: 'income' | 'expense' | 'transfer';
   account: AccountRow;
-  pockets: readonly YieldPocket[];
+  products: readonly YieldProduct[];
   /** An entry on the product alone, being corrected. */
   editing?: ProductEntry;
 }
@@ -113,7 +113,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
    * account and starting again.
    */
   readonly account = signal<AccountRow | null>(null);
-  readonly pockets = signal<readonly YieldPocket[]>([]);
+  readonly products = signal<readonly YieldProduct[]>([]);
 
   /** Open while another account is being chosen. */
   readonly pickingAccount = signal(false);
@@ -170,9 +170,9 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly pending = signal<Pending | null>(null);
 
   /** The product the money touches; for a transfer, the one it leaves. */
-  readonly pocketId = signal<number | null>(null);
+  readonly productId = signal<number | null>(null);
   /** For a transfer, the product it goes into. */
-  readonly toPocketId = signal<number | null>(null);
+  readonly toProductId = signal<number | null>(null);
   readonly onDate = signal(todayIso());
   readonly note = signal('');
 
@@ -230,7 +230,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     // offered. One query each, over a list that is tens long, once.
     const withProducts: AccountRow[] = [];
     for (const account of all) {
-      if ((await yields.pockets(account.id)).length > 0) withProducts.push(account);
+      if ((await yields.products(account.id)).length > 0) withProducts.push(account);
     }
 
     this.withProducts.set(withProducts);
@@ -254,13 +254,13 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
     this.switching.set(true);
     try {
-      const pockets = await new YieldsRepository(this.database.driver).pockets(account.id);
+      const products = await new YieldsRepository(this.database.driver).products(account.id);
       this.account.set(account);
-      this.pockets.set(pockets);
+      this.products.set(products);
 
-      const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
-      this.pocketId.set(usual);
-      this.toPocketId.set(this.isTransfer() ? this.otherThan(usual) : null);
+      const usual = (products.find(product => product.is_default === 1) ?? products[0])?.id ?? null;
+      this.productId.set(usual);
+      this.toProductId.set(this.isTransfer() ? this.otherThan(usual) : null);
     } finally {
       this.switching.set(false);
     }
@@ -313,7 +313,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly busyLabel = signal('');
   readonly error = signal('');
   /** Which side's product the sheet is asking for, or null when it is closed. */
-  readonly pickingPocket = signal<'from' | 'to' | null>(null);
+  readonly pickingProduct = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
 
   /** What the entry changes: the product, the product and net worth, or net worth alone. */
@@ -450,8 +450,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return this.i18n.t(kind === 'expense' ? 'products.entry.newExpense' : 'products.entry.newIncome');
   });
 
-  readonly pocketName = computed(() => this.nameOf(this.pocketId()));
-  readonly toPocketName = computed(() => this.nameOf(this.toPocketId()));
+  readonly productName = computed(() => this.nameOf(this.productId()));
+  readonly toProductName = computed(() => this.nameOf(this.toProductId()));
 
 
   /**
@@ -542,8 +542,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly missing = computed<string | null>(() => {
     if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
     if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
-    if (this.isTransfer() && (this.toPocketId() === null || this.toPocketId() === this.pocketId())) {
-      return this.i18n.t('products.move.samePocket');
+    if (this.isTransfer() && (this.toProductId() === null || this.toProductId() === this.productId())) {
+      return this.i18n.t('products.move.sameProduct');
     }
     if (!this.isTransfer() && this.usesCategory() && this.categoryId() === null) {
       return this.i18n.t('entry.need.category');
@@ -551,7 +551,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return null;
   });
 
-  readonly canSave = computed(() => this.missing() === null && this.pocketId() !== null);
+  readonly canSave = computed(() => this.missing() === null && this.productId() !== null);
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
@@ -568,13 +568,13 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     // The usual product, as a movement in the account would start on; a
     // transfer sends from it to the next one.
     this.account.set(this.request().account);
-    this.pockets.set(this.request().pockets);
+    this.products.set(this.request().products);
     void this.loadSwitchable();
 
-    const pockets = this.request().pockets;
-    const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0])?.id ?? null;
-    this.pocketId.set(usual);
-    if (this.isTransfer()) this.toPocketId.set(this.otherThan(usual));
+    const products = this.request().products;
+    const usual = (products.find(product => product.is_default === 1) ?? products[0])?.id ?? null;
+    this.productId.set(usual);
+    if (this.isTransfer()) this.toProductId.set(this.otherThan(usual));
     else void this.loadCategories();
 
     // The kinds a product movement can be, which are the user's own.
@@ -599,7 +599,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       // while an expense looked right only because it defaults to the scope
       // that reads the movement's.
       if (editing.category_id !== null) this.categoryId.set(editing.category_id);
-      if (pockets.some(pocket => pocket.id === editing.pocket_id)) this.pocketId.set(editing.pocket_id);
+      if (products.some(product => product.id === editing.product_id)) this.productId.set(editing.product_id);
       this.onDate.set(editing.on_date);
       this.note.set(editing.note ?? '');
 
@@ -754,21 +754,21 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   /** Answers the sheet. The two ends of a transfer can never be the same product. */
-  choosePocket(id: number): void {
-    if (this.pickingPocket() === 'to') {
-      this.toPocketId.set(id);
-      if (this.pocketId() === id) this.pocketId.set(this.otherThan(id));
+  chooseProduct(id: number): void {
+    if (this.pickingProduct() === 'to') {
+      this.toProductId.set(id);
+      if (this.productId() === id) this.productId.set(this.otherThan(id));
     } else {
-      this.pocketId.set(id);
-      if (this.isTransfer() && this.toPocketId() === id) this.toPocketId.set(this.otherThan(id));
+      this.productId.set(id);
+      if (this.isTransfer() && this.toProductId() === id) this.toProductId.set(this.otherThan(id));
     }
-    this.pickingPocket.set(null);
+    this.pickingProduct.set(null);
   }
 
   swap(): void {
-    const from = this.pocketId();
-    this.pocketId.set(this.toPocketId());
-    this.toPocketId.set(from);
+    const from = this.productId();
+    this.productId.set(this.toProductId());
+    this.toProductId.set(from);
   }
 
   pickDate(value: string | null): void {
@@ -777,11 +777,11 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   private nameOf(id: number | null): string {
-    return this.pockets().find(pocket => pocket.id === id)?.name ?? '';
+    return this.products().find(product => product.id === id)?.name ?? '';
   }
 
   private otherThan(id: number | null): number | null {
-    return this.pockets().find(pocket => pocket.id !== id)?.id ?? null;
+    return this.products().find(product => product.id !== id)?.id ?? null;
   }
 
   /** Deletes the entry being corrected, and works its days out again. */
@@ -841,7 +841,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
     if (event.key === 'Escape') { event.preventDefault(); this.cancelled.emit(); return; }
-    if (this.pickingPocket() !== null || this.showDate() || this.browsingCategories()) return;
+    if (this.pickingProduct() !== null || this.showDate() || this.browsingCategories()) return;
     if ((event.target as HTMLElement | null)?.closest('ion-textarea, ion-searchbar, input, textarea')) return;
 
     const operator = operatorFromKey(event.key);
@@ -875,7 +875,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       // from - silently, and in the one place that cannot be undone by
       // closing the form.
       const account = this.account() ?? this.request().account;
-      const pockets = this.pockets();
+      const products = this.products();
       const minor = this.amount().minor;
       // The sign comes from the button pressed, never from what was typed.
       const signed = kind === 'expense' ? -minor : minor;
@@ -886,8 +886,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
           await new TransfersRepository(db).create({
             occurred_on: this.onDate(),
             description: this.note().trim() || null,
-            from: { account_id: account.id, pocket_id: this.pocketId(), amount_minor: minor },
-            to: { account_id: account.id, pocket_id: this.toPocketId(), amount_minor: minor },
+            from: { account_id: account.id, product_id: this.productId(), amount_minor: minor },
+            to: { account_id: account.id, product_id: this.toProductId(), amount_minor: minor },
           });
         } else if (this.scope() !== 'product') {
           // Correcting one that already was a movement: it is written again
@@ -901,7 +901,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             account_id: account.id,
             category_id: this.categoryId(),
             // Null on an account with one product, as the movements screen does.
-            pocket_id: pockets.length > 1 ? this.pocketId() : null,
+            product_id: products.length > 1 ? this.productId() : null,
             occurred_on: this.onDate(),
             amount_minor: signed,
             description: this.note().trim() || null,
@@ -915,12 +915,12 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             if (kind === 'income') {
               await yields.withdraw({
                 account_id: account.id, on_date: this.onDate(), amount_minor: minor,
-                transaction_id: transactionId, pocket_id: this.pocketId(), note: this.note().trim() || null,
+                transaction_id: transactionId, product_id: this.productId(), note: this.note().trim() || null,
               });
             } else {
               await yields.adjust({
                 account_id: account.id, on_date: this.onDate(), amount_minor: minor,
-                kind: 'other', pocket_id: this.pocketId(), note: this.note().trim() || null,
+                kind: 'other', product_id: this.productId(), note: this.note().trim() || null,
                 transaction_id: transactionId,
               });
             }
@@ -931,7 +931,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             amount_minor: signed,
             kind: this.legacyKind(),
             category_id: this.categoryId(),
-            pocket_id: this.pocketId(),
+            product_id: this.productId(),
             note: this.note().trim() || null,
           });
         } else {
@@ -945,7 +945,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             amount_minor: signed,
             kind: this.legacyKind(),
             category_id: this.categoryId(),
-            pocket_id: this.pocketId(),
+            product_id: this.productId(),
             note: this.note().trim() || null,
           });
         }

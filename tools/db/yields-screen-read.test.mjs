@@ -50,11 +50,11 @@ async function bank() {
       opened_on: '2026-01-01', opening_balance_minor: pesos(opening),
     });
     await yields.enrol({ account_id: account, opening_on: '2026-09-01', withholding: false });
-    const [usual] = await yields.pockets(account);
-    await yields.setDefaultPocket(account, usual.id);
+    const [usual] = await yields.products(account);
+    await yields.setDefaultProduct(account, usual.id);
     if (name !== 'Nu') {
       await yields.setRate({
-        account_id: account, pocket_id: null, component: 'base', payout,
+        account_id: account, product_id: null, component: 'base', payout,
         valid_from: '2026-09-01', annual_rate_scaled: Math.round(0.1 * EA_SCALE),
       });
     }
@@ -62,10 +62,10 @@ async function bank() {
   }
   const [pibank, dale] = ids;
 
-  const goal = await yields.addPocket({ account_id: pibank, name: 'Meta', source: 'manual' });
-  await yields.setPocketBalance({ pocket_id: goal, valid_from: '2026-09-05', amount_minor: pesos(2_000_000) });
+  const goal = await yields.addProduct({ account_id: pibank, name: 'Meta', source: 'manual' });
+  await yields.setProductBalance({ product_id: goal, valid_from: '2026-09-05', amount_minor: pesos(2_000_000) });
   await transactions.create({
-    account_id: pibank, category_id: food, pocket_id: goal, occurred_on: '2026-09-08',
+    account_id: pibank, category_id: food, product_id: goal, occurred_on: '2026-09-08',
     amount_minor: -pesos(300_000), source: 'manual',
   });
   await transactions.create({
@@ -96,23 +96,23 @@ test('the last day of every account at once is what each account gives alone', a
 
 test('what landed in, and what is held in, every product at once', async () => {
   const { db, yields, tax, ids } = await bank();
-  const pocketsOf = new Map();
-  for (const id of ids) pocketsOf.set(id, await yields.pockets(id));
+  const productsOf = new Map();
+  for (const id of ids) productsOf.set(id, await yields.products(id));
 
   const engine = new AccrualEngine(db, yields, tax);
-  const landed = await yields.landedByPockets(TODAY, pocketsOf);
-  const held = await engine.heldByPockets(TODAY, pocketsOf);
+  const landed = await yields.landedByProducts(TODAY, productsOf);
+  const held = await engine.heldByProducts(TODAY, productsOf);
 
   // Worked out by hand for Pibank's goal: 2,000,000 stated on the 5th, less
   // the 300,000 spent from it on the 8th.
-  const goal = pocketsOf.get(ids[0]).find(pocket => pocket.name === 'Meta');
+  const goal = productsOf.get(ids[0]).find(product => product.name === 'Meta');
   assert.equal(held.get(ids[0]).get(goal.id), pesos(1_700_000));
 
   for (const id of ids) {
-    const alone = await yields.landedByPocket(id, TODAY);
+    const alone = await yields.landedByProduct(id, TODAY);
     assert.deepEqual(plain(landed.get(id).total), plain(alone.total));
     assert.deepEqual(plain(landed.get(id).yields), plain(alone.yields));
-    assert.deepEqual(plain(held.get(id)), plain(await engine.heldByPocket(id, TODAY)));
+    assert.deepEqual(plain(held.get(id)), plain(await engine.heldByProduct(id, TODAY)));
   }
   await db.close();
 });
@@ -120,7 +120,7 @@ test('what landed in, and what is held in, every product at once', async () => {
 test('no accounts is no questions and no answers', async () => {
   const { db, yields, tax } = await bank();
   assert.equal((await yields.lastDaysOf([], TODAY)).size, 0);
-  assert.equal((await yields.landedByPockets(TODAY, new Map())).size, 0);
-  assert.equal((await new AccrualEngine(db, yields, tax).heldByPockets(TODAY, new Map())).size, 0);
+  assert.equal((await yields.landedByProducts(TODAY, new Map())).size, 0);
+  assert.equal((await new AccrualEngine(db, yields, tax).heldByProducts(TODAY, new Map())).size, 0);
   await db.close();
 });

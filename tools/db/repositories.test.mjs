@@ -793,7 +793,7 @@ test('a note written on a product\'s own income is suggested back', async () => 
   // A product's own income is not a movement at all - it is an entry on the
   // product - so its note used to be offered to nobody. Jose, 2026-09-21.
   await yields.enrol({
-    account_id: ids.rappi, default_pocket_name: 'Cuenta de ahorros',
+    account_id: ids.rappi, default_product_name: 'Cuenta de ahorros',
     opening_on: '2026-09-01', withholding: false,
   });
   await yields.adjust({
@@ -907,29 +907,29 @@ test('a transfer between two products of one account can be edited without leavi
   const { db, accounts, transfers, transactions, ids } = await setup();
   const yields = new YieldsRepository(db, NOW);
   await yields.enrol({ account_id: ids.rappi, opening_on: '2026-01-01', withholding: true });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setDefaultPocket(ids.rappi, savings.id);
-  const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT renta', kind: 'cdt', sort_order: 1 });
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setDefaultProduct(ids.rappi, savings.id);
+  const cdt = await yields.addProduct({ account_id: ids.rappi, name: 'CDT renta', kind: 'cdt', sort_order: 1 });
 
   const before = (await accounts.balance(ids.rappi)).balance_minor;
   const id = await transfers.create({
     occurred_on: '2026-09-01',
-    from: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100000000 },
-    to: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 100000000 },
+    from: { account_id: ids.rappi, product_id: savings.id, amount_minor: 100000000 },
+    to: { account_id: ids.rappi, product_id: cdt, amount_minor: 100000000 },
   });
 
   // Corrected the day after: the other way round, and for less.
   await transfers.update(id, {
     occurred_on: '2026-09-02',
-    from: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 40000000 },
-    to: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 40000000 },
+    from: { account_id: ids.rappi, product_id: cdt, amount_minor: 40000000 },
+    to: { account_id: ids.rappi, product_id: savings.id, amount_minor: 40000000 },
   });
 
   const after = await transfers.findById(id);
   assert.equal(after.from.account_id, ids.rappi);
   assert.equal(after.to.account_id, ids.rappi);
-  assert.equal(after.from.pocket_id, cdt);
-  assert.equal(after.to.pocket_id, savings.id);
+  assert.equal(after.from.product_id, cdt);
+  assert.equal(after.to.product_id, savings.id);
   assert.equal(after.from.amount_minor, -40000000);
   assert.equal(after.to.amount_minor, 40000000);
   assert.equal(after.transfer.occurred_on, '2026-09-02');

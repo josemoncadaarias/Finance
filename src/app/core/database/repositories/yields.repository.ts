@@ -43,9 +43,9 @@ export interface YieldAccount {
 export interface YieldRate {
   id: number;
   account_id: number;
-  /** Whose rate it is. Null is the account's own, used by every pocket that
+  /** Whose rate it is. Null is the account's own, used by every product that
    *  has none of its own. */
-  pocket_id: number | null;
+  product_id: number | null;
   /** Which part of the rate this is. An ordinary account has one, 'base'. */
   component: string;
   /** When this part is handed over. Not a property of the account: Uala pays
@@ -75,13 +75,13 @@ export interface YieldRate {
  *
  * Dale is two of them. The bank pays each separately, so each is its own
  * pago o abono en cuenta and the withholding threshold is measured per
- * pocket. Adding them up first would charge withholding that is not owed.
+ * product. Adding them up first would charge withholding that is not owed.
  *
  * `source` says where the balance comes from: `ledger` follows the account's
  * own balance, `manual` is a figure typed in and dated, because a movement
- * never says which pocket it landed in.
+ * never says which product it landed in.
  */
-export interface YieldPocket {
+export interface YieldProduct {
   id: number;
   account_id: number;
   name: string;
@@ -107,7 +107,7 @@ export interface YieldPocket {
   opened_on: IsoDate | null;
   term_months: number | null;
   /** Where a CDT's capital and yield go when it matures. Null: the usual product. */
-  matures_into_pocket_id: number | null;
+  matures_into_product_id: number | null;
   /** The income category a CDT's yield is recorded under when it pays. */
   income_category_id: number | null;
   /** 1 when its yield is withheld; 0 when nothing at all is taken from it. */
@@ -145,7 +145,7 @@ export interface ProductEntry {
   account_id: number;
   source: 'yield' | 'cashback';
   kind: 'correction' | 'cashback' | 'other';
-  pocket_id: number | null;
+  product_id: number | null;
   on_date: IsoDate;
   amount_minor: number;
   note: string | null;
@@ -161,10 +161,10 @@ export interface ProductEntry {
   category_id: number | null;
 }
 
-/** What a manual pocket held, from a date. */
-export interface PocketBalance {
+/** What a manual product held, from a date. */
+export interface ProductBalance {
   id: number;
-  pocket_id: number;
+  product_id: number;
   valid_from: IsoDate;
   amount_minor: number;
   note: string | null;
@@ -180,7 +180,7 @@ export interface PocketBalance {
   created_at: string;
 }
 export interface YieldDay {
-  pocket_id: number;
+  product_id: number;
   account_id: number;
   component: string;
   payout: 'daily' | 'monthly';
@@ -236,10 +236,10 @@ export interface EarnedBalance {
 const ACCOUNT_COLUMNS =
   'account_id, opening_on, withholding, enabled, payout, note';
 const RATE_COLUMNS =
-  `id, account_id, pocket_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
+  `id, account_id, product_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled, min_balance_minor,
    max_balance_minor, requires_monthly_spend_minor, fallback_annual_rate_scaled, note`;
 const DAY_COLUMNS =
-  `pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled, gross_minor,
+  `product_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled, gross_minor,
    withholding_minor, net_minor, actual_net_minor, withholding_unknown,
    locked, computed_at`;
 
@@ -281,7 +281,7 @@ export class YieldsRepository {
     payout?: 'daily' | 'monthly';
     note?: string | null;
     /** What to call the product every account starts with. */
-    default_pocket_name?: string;
+    default_product_name?: string;
   }): Promise<void> {
     const now = this.now();
     const before = await this.db.queryOne<{ withholding: number }>(
@@ -313,16 +313,16 @@ export class YieldsRepository {
     // set apart exactly as it is.
     const withholding = input.withholding === false ? 0 : 1;
     if (before && before.withholding !== withholding) {
-      await this.db.run('UPDATE yield_pockets SET withholding = ?, updated_at = ? WHERE account_id = ?',
+      await this.db.run('UPDATE products SET withholding = ?, updated_at = ? WHERE account_id = ?',
         [withholding, now, input.account_id]);
     }
 
-    // An account with no pocket has nothing to accrue on, so enrolling one
-    // gives it a pocket that simply holds the account's own balance. That is
-    // what every account had before pockets existed, and it stays the default:
+    // An account with no product has nothing to accrue on, so enrolling one
+    // gives it a product that simply holds the account's own balance. That is
+    // what every account had before products existed, and it stays the default:
     // splitting is something someone does on purpose.
     const existing = await this.db.queryOne<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM yield_pockets WHERE account_id = ?', [input.account_id]);
+      'SELECT COUNT(*) AS n FROM products WHERE account_id = ?', [input.account_id]);
 
     if ((existing?.n ?? 0) === 0) {
       const account = await this.db.queryOne<{ name: string }>(
@@ -336,9 +336,9 @@ export class YieldsRepository {
       // The name comes from the caller because it is the caller that knows
       // which language the user reads. It is the user's data from the moment
       // it is written - renameable, and never translated again afterwards.
-      await this.addPocket({
+      await this.addProduct({
         account_id: input.account_id,
-        name: input.default_pocket_name ?? 'Savings account',
+        name: input.default_product_name ?? 'Savings account',
         source: 'ledger',
         sort_order: 0,
       });
@@ -393,7 +393,7 @@ export class YieldsRepository {
   /** Records a rate from a date. A change is a new row, never an edit. */
   async setRate(input: {
     account_id: number;
-    pocket_id?: number | null;
+    product_id?: number | null;
     component?: string;
     payout?: 'daily' | 'monthly';
     payout_months?: number;
@@ -408,13 +408,13 @@ export class YieldsRepository {
   }): Promise<void> {
     const component = input.component ?? 'base';
     const band = input.min_balance_minor ?? 0;
-    const pocket = input.pocket_id ?? null;
+    const product = input.product_id ?? null;
 
     const existing = await this.db.queryOne<{ id: number }>(
       `SELECT id FROM yield_rates
        WHERE account_id = ? AND component = ? AND valid_from = ? AND min_balance_minor = ?
-         AND ((pocket_id IS NULL AND ? IS NULL) OR pocket_id = ?)`,
-      [input.account_id, component, input.valid_from, band, pocket, pocket]);
+         AND ((product_id IS NULL AND ? IS NULL) OR product_id = ?)`,
+      [input.account_id, component, input.valid_from, band, product, product]);
 
     if (existing) {
       await this.correctRate(existing.id, {
@@ -432,13 +432,13 @@ export class YieldsRepository {
 
     await this.db.run(
       `INSERT INTO yield_rates
-         (account_id, pocket_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled,
+         (account_id, product_id, component, payout, payout_months, valid_from, valid_to, annual_rate_scaled,
           min_balance_minor, max_balance_minor, requires_monthly_spend_minor,
           fallback_annual_rate_scaled, note, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.account_id,
-        pocket,
+        product,
         component,
         input.payout ?? 'daily',
         input.payout_months ?? 1,
@@ -501,31 +501,31 @@ export class YieldsRepository {
   }
 
   // -------------------------------------------------------------------------
-  // Pockets
+  // Products
   // -------------------------------------------------------------------------
 
-  /** The pockets of an account, in the order they are shown. */
-  async pockets(accountId: number): Promise<YieldPocket[]> {
-    return this.db.query<YieldPocket>(
+  /** The products of an account, in the order they are shown. */
+  async products(accountId: number): Promise<YieldProduct[]> {
+    return this.db.query<YieldProduct>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
               earns_from, payout, payout_months, opened_on, term_months,
-              matures_into_pocket_id, income_category_id, withholding,
+              matures_into_product_id, income_category_id, withholding,
               include_in_net_worth
-       FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
+       FROM products WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
   }
 
-  /** Every pocket of every enrolled account, for one pass over them all. */
-  async allPockets(): Promise<YieldPocket[]> {
-    return this.db.query<YieldPocket>(
+  /** Every product of every enrolled account, for one pass over them all. */
+  async allProducts(): Promise<YieldProduct[]> {
+    return this.db.query<YieldProduct>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
               earns_from, payout, payout_months, opened_on, term_months,
-              matures_into_pocket_id, income_category_id, withholding,
+              matures_into_product_id, income_category_id, withholding,
               include_in_net_worth
-       FROM yield_pockets ORDER BY account_id, sort_order, id`);
+       FROM products ORDER BY account_id, sort_order, id`);
   }
 
-  async addPocket(input: {
+  async addProduct(input: {
     account_id: number;
     name: string;
     source?: 'ledger' | 'manual';
@@ -538,7 +538,7 @@ export class YieldsRepository {
     payout_months?: number;
     opened_on?: IsoDate | null;
     term_months?: number | null;
-    matures_into_pocket_id?: number | null;
+    matures_into_product_id?: number | null;
     income_category_id?: number | null;
   }): Promise<number> {
     const now = this.now();
@@ -553,18 +553,18 @@ export class YieldsRepository {
             [input.account_id]))?.opening_on
       ?? todayIso();
     const result = await this.db.run(
-      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note, earns_from,
+      `INSERT INTO products (account_id, name, source, kind, sort_order, note, earns_from,
                                   payout, payout_months, opened_on, term_months,
-                                  matures_into_pocket_id, income_category_id, created_at, updated_at)
+                                  matures_into_product_id, income_category_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.name, input.source ?? 'manual', input.kind ?? 'high_yield',
        input.sort_order ?? 0, input.note ?? null, earnsFrom,
        input.payout ?? 'daily', input.payout_months ?? 1, input.opened_on ?? null, input.term_months ?? null,
-       input.matures_into_pocket_id ?? null, input.income_category_id ?? null, now, now]);
+       input.matures_into_product_id ?? null, input.income_category_id ?? null, now, now]);
     const id = result.lastId ?? 0;
     // A new product starts with its account's answer on withholding.
     await this.db.run(
-      `UPDATE yield_pockets SET withholding = COALESCE(
+      `UPDATE products SET withholding = COALESCE(
          (SELECT withholding FROM yield_accounts WHERE account_id = ?), 1) WHERE id = ?`,
       [input.account_id, id]);
 
@@ -592,30 +592,30 @@ export class YieldsRepository {
    * Afterwards they are ordinary movements naming a product, which the person
    * can change one at a time if any of them really belongs elsewhere.
    */
-  private async nameTheProductOfLooseMovements(accountId: number, newPocketId: number): Promise<void> {
+  private async nameTheProductOfLooseMovements(accountId: number, newProductId: number): Promise<void> {
     const others = await this.db.query<{ id: number }>(
-      'SELECT id FROM yield_pockets WHERE account_id = ? AND id <> ? ORDER BY sort_order, id',
-      [accountId, newPocketId]);
+      'SELECT id FROM products WHERE account_id = ? AND id <> ? ORDER BY sort_order, id',
+      [accountId, newProductId]);
     // Only when the new one is the SECOND: with three already there, whatever
     // is still unnamed was left unnamed on purpose.
     if (others.length !== 1) return;
 
     for (const table of ['transactions', 'product_entries', 'product_cashouts']) {
       await this.db.run(
-        `UPDATE "${table}" SET pocket_id = ? WHERE account_id = ? AND pocket_id IS NULL`,
+        `UPDATE "${table}" SET product_id = ? WHERE account_id = ? AND product_id IS NULL`,
         [others[0].id, accountId]);
     }
   }
 
   /**
-   * Changes where a pocket takes its balance from.
+   * Changes where a product takes its balance from.
    *
-   * Only one pocket of an account can follow the ledger; two of them would
+   * Only one product of an account can follow the ledger; two of them would
    * each claim the whole balance. The caller is what enforces that, because
    * SQLite has no partial unique constraint that would say it here.
    */
-  async setPocketSource(id: number, source: 'ledger' | 'manual'): Promise<void> {
-    await this.db.run('UPDATE yield_pockets SET source = ?, updated_at = ? WHERE id = ?',
+  async setProductSource(id: number, source: 'ledger' | 'manual'): Promise<void> {
+    await this.db.run('UPDATE products SET source = ?, updated_at = ? WHERE id = ?',
       [source, this.now(), id]);
   }
 
@@ -626,13 +626,13 @@ export class YieldsRepository {
    * written to every rate of it without a spending condition. A rate with one
    * is a bonus judged on the month and paid at its end, and keeps that.
    */
-  async setPocketPayout(id: number, payout: 'daily' | 'monthly', months: number): Promise<void> {
+  async setProductPayout(id: number, payout: 'daily' | 'monthly', months: number): Promise<void> {
     const now = this.now();
-    await this.db.run('UPDATE yield_pockets SET payout = ?, payout_months = ?, updated_at = ? WHERE id = ?',
+    await this.db.run('UPDATE products SET payout = ?, payout_months = ?, updated_at = ? WHERE id = ?',
       [payout, months, now, id]);
     await this.db.run(
       `UPDATE yield_rates SET payout = ?, payout_months = ?
-       WHERE pocket_id = ? AND requires_monthly_spend_minor IS NULL`,
+       WHERE product_id = ? AND requires_monthly_spend_minor IS NULL`,
       [payout, months, id]);
   }
 
@@ -640,7 +640,7 @@ export class YieldsRepository {
   async setCdtTerms(id: number, terms: {
     opened_on?: IsoDate | null;
     term_months?: number | null;
-    matures_into_pocket_id?: number | null;
+    matures_into_product_id?: number | null;
     income_category_id?: number | null;
   }): Promise<void> {
     const columns: string[] = [];
@@ -652,7 +652,7 @@ export class YieldsRepository {
     }
     if (columns.length === 0) return;
     values.push(this.now(), id);
-    await this.db.run(`UPDATE yield_pockets SET ${columns.join(', ')}, updated_at = ? WHERE id = ?`, values);
+    await this.db.run(`UPDATE products SET ${columns.join(', ')}, updated_at = ? WHERE id = ?`, values);
   }
 
   /**
@@ -662,22 +662,22 @@ export class YieldsRepository {
    * on is gone, so no recompute could ever produce it again. Locked, it is never
    * rewritten; renamed, it shows in the payments list as what it was.
    */
-  async fixPayment(pocketId: number, component: string, onDate: IsoDate, asComponent: string): Promise<void> {
+  async fixPayment(productId: number, component: string, onDate: IsoDate, asComponent: string): Promise<void> {
     await this.db.run(
       `UPDATE yield_days SET locked = 1, component = ?
-       WHERE pocket_id = ? AND component = ? AND on_date = ?`,
-      [asComponent, pocketId, component, onDate]);
+       WHERE product_id = ? AND component = ? AND on_date = ?`,
+      [asComponent, productId, component, onDate]);
   }
 
   /** Changes which withholding rule a product follows. The caller works its days out again. */
-  async setPocketKind(id: number, kind: ProductKind): Promise<void> {
-    await this.db.run('UPDATE yield_pockets SET kind = ?, updated_at = ? WHERE id = ?',
+  async setProductKind(id: number, kind: ProductKind): Promise<void> {
+    await this.db.run('UPDATE products SET kind = ?, updated_at = ? WHERE id = ?',
       [kind, this.now(), id]);
   }
 
   /** Whether the product's yield is withheld. Off means nothing is taken from it. */
-  async setPocketWithholding(id: number, withholds: boolean): Promise<void> {
-    await this.db.run('UPDATE yield_pockets SET withholding = ?, updated_at = ? WHERE id = ?',
+  async setProductWithholding(id: number, withholds: boolean): Promise<void> {
+    await this.db.run('UPDATE products SET withholding = ?, updated_at = ? WHERE id = ?',
       [withholds ? 1 : 0, this.now(), id]);
   }
 
@@ -686,13 +686,13 @@ export class YieldsRepository {
    * be left out: every movement that names no product lands in it, so leaving
    * it out would take those off the account too.
    */
-  async setPocketNetWorth(id: number, counts: boolean): Promise<void> {
+  async setProductNetWorth(id: number, counts: boolean): Promise<void> {
     if (!counts) {
-      const pocket = await this.db.queryOne<{ is_default: number | null }>(
-        'SELECT is_default FROM yield_pockets WHERE id = ?', [id]);
-      if (pocket?.is_default === 1) throw new Error('The usual product always counts towards net worth.');
+      const product = await this.db.queryOne<{ is_default: number | null }>(
+        'SELECT is_default FROM products WHERE id = ?', [id]);
+      if (product?.is_default === 1) throw new Error('The usual product always counts towards net worth.');
     }
-    await this.db.run('UPDATE yield_pockets SET include_in_net_worth = ?, updated_at = ? WHERE id = ?',
+    await this.db.run('UPDATE products SET include_in_net_worth = ?, updated_at = ? WHERE id = ?',
       [counts ? 1 : 0, this.now(), id]);
   }
 
@@ -703,15 +703,15 @@ export class YieldsRepository {
    * and clearing the old one afterwards would leave a moment where two are
    * marked - which is a moment long enough for the write to fail.
    */
-  async setDefaultPocket(accountId: number, pocketId: number): Promise<void> {
+  async setDefaultProduct(accountId: number, productId: number): Promise<void> {
     const now = this.now();
     await this.db.run(
-      'UPDATE yield_pockets SET is_default = NULL, updated_at = ? WHERE account_id = ?',
+      'UPDATE products SET is_default = NULL, updated_at = ? WHERE account_id = ?',
       [now, accountId]);
     // The usual product holds every movement that names none, so it counts.
     await this.db.run(
-      'UPDATE yield_pockets SET is_default = 1, include_in_net_worth = 1, updated_at = ? WHERE id = ?',
-      [now, pocketId]);
+      'UPDATE products SET is_default = 1, include_in_net_worth = 1, updated_at = ? WHERE id = ?',
+      [now, productId]);
   }
 
   /**
@@ -722,13 +722,13 @@ export class YieldsRepository {
    * never have been written. Days corrected by hand stay: `clearDays` leaves
    * them alone.
    */
-  async setPocketEarnsFrom(id: number, on: IsoDate): Promise<void> {
-    await this.db.run('UPDATE yield_pockets SET earns_from = ?, updated_at = ? WHERE id = ?',
+  async setProductEarnsFrom(id: number, on: IsoDate): Promise<void> {
+    await this.db.run('UPDATE products SET earns_from = ?, updated_at = ? WHERE id = ?',
       [on, this.now(), id]);
   }
 
-  async renamePocket(id: number, name: string): Promise<void> {
-    await this.db.run('UPDATE yield_pockets SET name = ?, updated_at = ? WHERE id = ?',
+  async renameProduct(id: number, name: string): Promise<void> {
+    await this.db.run('UPDATE products SET name = ?, updated_at = ? WHERE id = ?',
       [name, this.now(), id]);
   }
 
@@ -742,7 +742,7 @@ export class YieldsRepository {
    * earned, and what was withheld from it, stays exactly what it was, and the
    * tax simulator reads the same year it read before.
    */
-  async mergePocketInto(fromId: number, toId: number): Promise<void> {
+  async mergeProductInto(fromId: number, toId: number): Promise<void> {
     // Written into the statements below rather than bound, because the same
     // id appears in several subqueries. Being integers is what makes that safe.
     if (!Number.isInteger(fromId) || !Number.isInteger(toId)) {
@@ -750,11 +750,11 @@ export class YieldsRepository {
     }
 
     for (const table of ['transactions', 'product_entries', 'product_cashouts']) {
-      await this.db.run(`UPDATE ${table} SET pocket_id = ? WHERE pocket_id = ?`, [toId, fromId]);
+      await this.db.run(`UPDATE ${table} SET product_id = ? WHERE product_id = ?`, [toId, fromId]);
     }
 
     const theirs = (expression: string) =>
-      `(SELECT ${expression} FROM yield_days f WHERE f.pocket_id = ${fromId}
+      `(SELECT ${expression} FROM yield_days f WHERE f.product_id = ${fromId}
           AND f.component = yield_days.component AND f.on_date = yield_days.on_date)`;
 
     await this.db.run(
@@ -769,24 +769,24 @@ export class YieldsRepository {
          END,
          withholding_unknown = MAX(withholding_unknown, ${theirs('f.withholding_unknown')}),
          locked              = MAX(locked, ${theirs('f.locked')})
-       WHERE pocket_id = ${toId} AND EXISTS ${theirs('1')}`);
+       WHERE product_id = ${toId} AND EXISTS ${theirs('1')}`);
 
     await this.db.run(
-      `UPDATE yield_days SET pocket_id = ${toId}
-       WHERE pocket_id = ${fromId} AND NOT EXISTS (
-         SELECT 1 FROM yield_days t WHERE t.pocket_id = ${toId}
+      `UPDATE yield_days SET product_id = ${toId}
+       WHERE product_id = ${fromId} AND NOT EXISTS (
+         SELECT 1 FROM yield_days t WHERE t.product_id = ${toId}
            AND t.component = yield_days.component AND t.on_date = yield_days.on_date)`);
 
     // What is left had a partner day on the other product and is in it now.
-    await this.db.run(`DELETE FROM yield_days WHERE pocket_id = ${fromId}`);
+    await this.db.run(`DELETE FROM yield_days WHERE product_id = ${fromId}`);
   }
 
   /**
-   * Removes a pocket and every day it earned.
+   * Removes a product and every day it earned.
    *
    * The days go with it because they were worked out on a balance that no
    * longer exists; what they added is worked out again on the
-   * next pass, from whatever pockets are left.
+   * next pass, from whatever products are left.
    */
   /**
    * Whether anything is on record as earned before a date.
@@ -803,8 +803,8 @@ export class YieldsRepository {
     return (row?.total ?? 0) > 0;
   }
 
-  async removePocket(id: number): Promise<void> {
-    await this.db.run('DELETE FROM yield_pockets WHERE id = ?', [id]);
+  async removeProduct(id: number): Promise<void> {
+    await this.db.run('DELETE FROM products WHERE id = ?', [id]);
   }
 
   /**
@@ -824,27 +824,27 @@ export class YieldsRepository {
    * `takesUnassigned` is for the first product, which is where a movement that
    * names no product has always gone.
    */
-  async movedInPocketSince(
+  async movedInProductSince(
     accountId: number,
-    pocketId: number,
+    productId: number,
     since: IsoDate,
     takesUnassigned: boolean,
   ): Promise<number> {
     const which = takesUnassigned
-      ? '(pocket_id IS NULL OR pocket_id = ?)'
-      : 'pocket_id = ?';
+      ? '(product_id IS NULL OR product_id = ?)'
+      : 'product_id = ?';
 
     const row = await this.db.queryOne<{ total: number | null }>(
       `SELECT SUM(amount_minor) AS total FROM transactions
        WHERE account_id = ? AND ${which} AND occurred_on >= ?`,
-      [accountId, pocketId, since]);
+      [accountId, productId, since]);
     return row?.total ?? 0;
   }
 
   /**
    * Moves a balance that is already recorded to another date or figure.
    *
-   * `setPocketBalance` is keyed on the date, so changing the date through it
+   * `setProductBalance` is keyed on the date, so changing the date through it
    * writes a SECOND balance and leaves the first one standing - and the first
    * one, being later, goes on winning. Which is exactly what it looked like
    * from outside: editing the date appeared to do nothing at all.
@@ -857,70 +857,70 @@ export class YieldsRepository {
    * looked like it had undone itself. One on the same date would also be a
    * unique-constraint failure in front of someone who only changed a date.
    */
-  async movePocketBalance(
+  async moveProductBalance(
     id: number,
     input: { valid_from: IsoDate; amount_minor: number },
   ): Promise<void> {
     const now = this.now();
-    const row = await this.db.queryOne<{ pocket_id: number }>(
-      'SELECT pocket_id FROM yield_pocket_balances WHERE id = ?', [id]);
+    const row = await this.db.queryOne<{ product_id: number }>(
+      'SELECT product_id FROM product_balances WHERE id = ?', [id]);
     if (!row) return;
     await this.db.run(
-      `DELETE FROM yield_pocket_balances
-       WHERE pocket_id = ? AND valid_from >= ? AND id <> ?`,
-      [row.pocket_id, input.valid_from, id]);
+      `DELETE FROM product_balances
+       WHERE product_id = ? AND valid_from >= ? AND id <> ?`,
+      [row.product_id, input.valid_from, id]);
 
     await this.db.run(
-      `UPDATE yield_pocket_balances
+      `UPDATE product_balances
        SET valid_from = ?, amount_minor = ?, updated_at = ? WHERE id = ?`,
       [input.valid_from, input.amount_minor, now, id]);
   }
 
-  /** Every balance a pocket has been given, oldest first. */
+  /** Every balance a product has been given, oldest first. */
   /**
    * The stated balances of every product of one account, in one question.
    *
    * Asked per product it was one call each, and the yields screen asks twice
    * per product on every open - which on a phone is where its seconds went.
    */
-  async pocketBalancesOf(accountId: number | readonly number[]): Promise<Map<number, PocketBalance[]>> {
+  async productBalancesOf(accountId: number | readonly number[]): Promise<Map<number, ProductBalance[]>> {
     // Several accounts at once for the yields screen, which draws them all.
     // A product belongs to one account, so the answer has the same shape.
     const ids = typeof accountId === 'number' ? [accountId] : accountId;
-    const rows = await this.db.query<PocketBalance>(
-      `SELECT b.id, b.pocket_id, b.valid_from, b.amount_minor, b.note, b.created_at
-       FROM yield_pocket_balances b
-       JOIN yield_pockets p ON p.id = b.pocket_id
+    const rows = await this.db.query<ProductBalance>(
+      `SELECT b.id, b.product_id, b.valid_from, b.amount_minor, b.note, b.created_at
+       FROM product_balances b
+       JOIN products p ON p.id = b.product_id
        WHERE p.account_id IN ${placeholders(ids)}
        ORDER BY b.valid_from, b.id`,
       ids);
 
-    const out = new Map<number, PocketBalance[]>();
-    for (const row of rows) out.set(row.pocket_id, [...(out.get(row.pocket_id) ?? []), row]);
+    const out = new Map<number, ProductBalance[]>();
+    for (const row of rows) out.set(row.product_id, [...(out.get(row.product_id) ?? []), row]);
     return out;
   }
 
   /**
    * What has moved through each product of an account since its own day.
    *
-   * The same sum as `movedInPocketSince`, asked once for all of them: the
+   * The same sum as `movedInProductSince`, asked once for all of them: the
    * movements are read once, grouped by product and day, and each product's
    * own starting day picks out its share. A movement naming no product
    * belongs to the usual one, the rule the balances follow.
    */
-  async movedInPocketsSince(
+  async movedInProductsSince(
     accountId: number,
     since: ReadonlyMap<number, IsoDate>,
     absorbs: number | null,
   ): Promise<Map<number, number>> {
-    return this.movedInPocketsOf(new Map([[accountId, { since, absorbs }]]));
+    return this.movedInProductsOf(new Map([[accountId, { since, absorbs }]]));
   }
 
   /**
    * The same for several accounts, in one question. Products belong to one
    * account each, so the answer is keyed by product.
    */
-  async movedInPocketsOf(
+  async movedInProductsOf(
     accounts: ReadonlyMap<number, { since: ReadonlyMap<number, IsoDate>; absorbs: number | null }>,
   ): Promise<Map<number, number>> {
     const out = new Map<number, number>();
@@ -929,12 +929,12 @@ export class YieldsRepository {
 
     const ids = asked.map(([accountId]) => accountId);
     const earliest = asked.flatMap(([, entry]) => [...entry.since.values()]).sort()[0];
-    const rowsOf = new Map<number, { pocket_id: number | null; on_date: IsoDate; total: number }[]>();
-    for (const row of await this.db.query<{ account_id: number; pocket_id: number | null; on_date: IsoDate; total: number }>(
-      `SELECT account_id, pocket_id, occurred_on AS on_date, SUM(amount_minor) AS total
+    const rowsOf = new Map<number, { product_id: number | null; on_date: IsoDate; total: number }[]>();
+    for (const row of await this.db.query<{ account_id: number; product_id: number | null; on_date: IsoDate; total: number }>(
+      `SELECT account_id, product_id, occurred_on AS on_date, SUM(amount_minor) AS total
        FROM transactions
        WHERE account_id IN ${placeholders(ids)} AND occurred_on >= ?
-       GROUP BY account_id, pocket_id, occurred_on`,
+       GROUP BY account_id, product_id, occurred_on`,
       [...ids, earliest])) {
       const rows = rowsOf.get(row.account_id);
       if (rows) rows.push(row); else rowsOf.set(row.account_id, [row]);
@@ -942,31 +942,31 @@ export class YieldsRepository {
 
     for (const [accountId, { since, absorbs }] of asked) {
       const rows = rowsOf.get(accountId) ?? [];
-      for (const [pocketId, from] of since) {
+      for (const [productId, from] of since) {
         let total = 0;
         for (const row of rows) {
           if (row.on_date < from) continue;
-          const belongs = row.pocket_id === pocketId || (row.pocket_id === null && pocketId === absorbs);
+          const belongs = row.product_id === productId || (row.product_id === null && productId === absorbs);
           if (belongs) total += row.total;
         }
-        out.set(pocketId, total);
+        out.set(productId, total);
       }
     }
     return out;
   }
 
-  async pocketBalances(pocketId: number): Promise<PocketBalance[]> {
-    return this.db.query<PocketBalance>(
-      `SELECT id, pocket_id, valid_from, amount_minor, note, created_at
-       FROM yield_pocket_balances WHERE pocket_id = ? ORDER BY valid_from, id`,
-      [pocketId]);
+  async productBalances(productId: number): Promise<ProductBalance[]> {
+    return this.db.query<ProductBalance>(
+      `SELECT id, product_id, valid_from, amount_minor, note, created_at
+       FROM product_balances WHERE product_id = ? ORDER BY valid_from, id`,
+      [productId]);
   }
 
-  /** Every balance of every pocket, for the engine to walk in memory. */
-  async allPocketBalances(): Promise<PocketBalance[]> {
-    return this.db.query<PocketBalance>(
-      `SELECT id, pocket_id, valid_from, amount_minor, note
-       FROM yield_pocket_balances ORDER BY pocket_id, valid_from, id`);
+  /** Every balance of every product, for the engine to walk in memory. */
+  async allProductBalances(): Promise<ProductBalance[]> {
+    return this.db.query<ProductBalance>(
+      `SELECT id, product_id, valid_from, amount_minor, note
+       FROM product_balances ORDER BY product_id, valid_from, id`);
   }
 
   /**
@@ -974,11 +974,11 @@ export class YieldsRepository {
    * it was funded from another product. A CDT takes no deposits once open, so
    * every entry from the day before it opened to the day it matures is that.
    */
-  async cdtFunding(pocketId: number, openedOn: IsoDate, maturesOn: IsoDate): Promise<number> {
+  async cdtFunding(productId: number, openedOn: IsoDate, maturesOn: IsoDate): Promise<number> {
     const row = await this.db.queryOne<{ total: number }>(
       `SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions
-       WHERE pocket_id = ? AND amount_minor > 0 AND occurred_on >= ? AND occurred_on < ?`,
-      [pocketId, addDays(openedOn, -1), maturesOn]);
+       WHERE product_id = ? AND amount_minor > 0 AND occurred_on >= ? AND occurred_on < ?`,
+      [productId, addDays(openedOn, -1), maturesOn]);
     return row?.total ?? 0;
   }
 
@@ -990,35 +990,35 @@ export class YieldsRepository {
    * capital on the opening day, as saving the form did, counted the transfer
    * twice: Jose's 1.000.000 CDT read 2.000.000 on 2026-09-12.
    */
-  async setCdtCapital(pocketId: number, input: { opened_on: IsoDate; matures_on: IsoDate; capital_minor: number }): Promise<void> {
-    for (const old of await this.pocketBalances(pocketId)) await this.removePocketBalance(old.id);
-    const funded = await this.cdtFunding(pocketId, input.opened_on, input.matures_on);
-    await this.setPocketBalance({
-      pocket_id: pocketId,
+  async setCdtCapital(productId: number, input: { opened_on: IsoDate; matures_on: IsoDate; capital_minor: number }): Promise<void> {
+    for (const old of await this.productBalances(productId)) await this.removeProductBalance(old.id);
+    const funded = await this.cdtFunding(productId, input.opened_on, input.matures_on);
+    await this.setProductBalance({
+      product_id: productId,
       valid_from: addDays(input.opened_on, -1),
       amount_minor: Math.max(0, input.capital_minor - funded),
     });
   }
 
-  async setPocketBalance(input: {
-    pocket_id: number;
+  async setProductBalance(input: {
+    product_id: number;
     valid_from: IsoDate;
     amount_minor: number;
     note?: string | null;
   }): Promise<void> {
     const now = this.now();
     await this.db.run(
-      `INSERT INTO yield_pocket_balances (pocket_id, valid_from, amount_minor, note, created_at, updated_at)
+      `INSERT INTO product_balances (product_id, valid_from, amount_minor, note, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(pocket_id, valid_from) DO UPDATE SET
+       ON CONFLICT(product_id, valid_from) DO UPDATE SET
          amount_minor = excluded.amount_minor,
          note         = excluded.note,
          updated_at   = excluded.updated_at`,
-      [input.pocket_id, input.valid_from, input.amount_minor, input.note ?? null, now, now]);
+      [input.product_id, input.valid_from, input.amount_minor, input.note ?? null, now, now]);
   }
 
-  async removePocketBalance(id: number): Promise<void> {
-    await this.db.run('DELETE FROM yield_pocket_balances WHERE id = ?', [id]);
+  async removeProductBalance(id: number): Promise<void> {
+    await this.db.run('DELETE FROM product_balances WHERE id = ?', [id]);
   }
 
 
@@ -1026,7 +1026,7 @@ export class YieldsRepository {
   // The days themselves
   // -------------------------------------------------------------------------
 
-  /** Every pocket's days for an account, oldest first. */
+  /** Every product's days for an account, oldest first. */
   /**
    * The days whose yield is handed over ON `day`, whenever they were earned:
    * what a daily product paid that day, plus a whole period when `day` is
@@ -1038,7 +1038,7 @@ export class YieldsRepository {
        WHERE account_id = ?
          AND COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
                                     ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) = ?
-       ORDER BY on_date, pocket_id, component`,
+       ORDER BY on_date, product_id, component`,
       [accountId, day]);
   }
 
@@ -1051,14 +1051,14 @@ export class YieldsRepository {
     return this.db.query<YieldDay>(
       `SELECT ${DAY_COLUMNS} FROM yield_days
        WHERE ${where.join(' AND ')}
-       ORDER BY on_date, pocket_id, component`,
+       ORDER BY on_date, product_id, component`,
       values);
   }
 
-  /** One pocket, for the engine and for a detail that names the pocket. */
-  async pocketDays(pocketId: number, from?: IsoDate, to?: IsoDate): Promise<YieldDay[]> {
-    const where = ['pocket_id = ?'];
-    const values: unknown[] = [pocketId];
+  /** One product, for the engine and for a detail that names the product. */
+  async productDays(productId: number, from?: IsoDate, to?: IsoDate): Promise<YieldDay[]> {
+    const where = ['product_id = ?'];
+    const values: unknown[] = [productId];
     if (from) { where.push('on_date >= ?'); values.push(from); }
     if (to) { where.push('on_date <= ?'); values.push(to); }
 
@@ -1147,7 +1147,7 @@ export class YieldsRepository {
     for (const day of await this.db.query<YieldDay>(
       `SELECT ${DAY_COLUMNS} FROM yield_days
        WHERE account_id IN ${ids} AND on_date = ${lastOf}
-       ORDER BY on_date, pocket_id, component`, accountIds)) {
+       ORDER BY on_date, product_id, component`, accountIds)) {
       out.get(day.account_id)!.daysOfLast.push(day);
     }
     for (const day of await this.db.query<YieldDay>(
@@ -1155,7 +1155,7 @@ export class YieldsRepository {
        WHERE account_id IN ${ids}
          AND COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
                                     ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) = ${lastOf}
-       ORDER BY on_date, pocket_id, component`, accountIds)) {
+       ORDER BY on_date, product_id, component`, accountIds)) {
       out.get(day.account_id)!.paidThatDay.push(day);
     }
     return out;
@@ -1189,13 +1189,13 @@ export class YieldsRepository {
     if (days.length === 0) return 0;
 
     const accountIds = [...new Set(days.map(day => day.account_id))];
-    const lockedRows = await this.db.query<{ pocket_id: number; component: string; on_date: IsoDate }>(
-      `SELECT pocket_id, component, on_date FROM yield_days
+    const lockedRows = await this.db.query<{ product_id: number; component: string; on_date: IsoDate }>(
+      `SELECT product_id, component, on_date FROM yield_days
        WHERE locked = 1 AND account_id IN (${accountIds.map(() => '?').join(', ')})`,
       accountIds);
-    const locked = new Set(lockedRows.map(row => `${row.pocket_id}|${row.component}|${row.on_date}`));
+    const locked = new Set(lockedRows.map(row => `${row.product_id}|${row.component}|${row.on_date}`));
 
-    const wanted = days.filter(day => !locked.has(`${day.pocket_id}|${day.component}|${day.on_date}`));
+    const wanted = days.filter(day => !locked.has(`${day.product_id}|${day.component}|${day.on_date}`));
     if (wanted.length === 0) return 0;
 
     // SQLite on Android binds at most 999 values in one statement, so the
@@ -1209,11 +1209,11 @@ export class YieldsRepository {
       const rows = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)').join(', ');
       await this.db.run(
         `INSERT INTO yield_days
-           (pocket_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled,
+           (product_id, account_id, component, payout, on_date, paid_on, balance_minor, annual_rate_scaled,
             gross_minor, withholding_minor, net_minor, actual_net_minor, withholding_unknown,
             locked, computed_at)
          VALUES ${rows}
-         ON CONFLICT(pocket_id, component, on_date) DO UPDATE SET
+         ON CONFLICT(product_id, component, on_date) DO UPDATE SET
            balance_minor       = excluded.balance_minor,
            annual_rate_scaled  = excluded.annual_rate_scaled,
            gross_minor         = excluded.gross_minor,
@@ -1224,7 +1224,7 @@ export class YieldsRepository {
            paid_on             = excluded.paid_on,
            computed_at         = excluded.computed_at`,
         batch.flatMap(day => [
-          day.pocket_id, day.account_id, day.component, day.payout, day.on_date, day.paid_on ?? null,
+          day.product_id, day.account_id, day.component, day.payout, day.on_date, day.paid_on ?? null,
           day.balance_minor, day.annual_rate_scaled,
           day.gross_minor, day.withholding_minor, day.net_minor,
           day.actual_net_minor ?? null, day.withholding_unknown, now,
@@ -1241,18 +1241,18 @@ export class YieldsRepository {
    * What the app worked out stays in `gross_minor` and `net_minor`; the
    * correction goes to `actual_net_minor`, so the two can be compared later.
    */
-  async correctDay(pocketId: number, on: IsoDate, actualNetMinor: number): Promise<void> {
+  async correctDay(productId: number, on: IsoDate, actualNetMinor: number): Promise<void> {
     await this.db.run(
       `UPDATE yield_days
        SET actual_net_minor = ?, locked = 1, computed_at = ?
-       WHERE pocket_id = ? AND on_date = ?`,
-      [actualNetMinor, this.now(), pocketId, on]);
+       WHERE product_id = ? AND on_date = ?`,
+      [actualNetMinor, this.now(), productId, on]);
   }
 
-  async unlockDay(pocketId: number, on: IsoDate): Promise<void> {
+  async unlockDay(productId: number, on: IsoDate): Promise<void> {
     await this.db.run(
-      'UPDATE yield_days SET locked = 0 WHERE pocket_id = ? AND on_date = ?',
-      [pocketId, on]);
+      'UPDATE yield_days SET locked = 0 WHERE product_id = ? AND on_date = ?',
+      [productId, on]);
   }
 
   /** Throws away computed days so they can be worked out again. Locked days stay. */
@@ -1302,7 +1302,7 @@ export class YieldsRepository {
     product_kind_id?: number | null;
     /** The ordinary income or expense category, since migration 037. */
     category_id?: number | null;
-    pocket_id?: number | null;
+    product_id?: number | null;
     source?: 'yield' | 'cashback';
     note?: string | null;
     /** The movement this is the other half of, when it is half of a cash-in. */
@@ -1311,19 +1311,19 @@ export class YieldsRepository {
     const now = this.now();
     const result = await this.db.run(
       `INSERT INTO product_entries
-         (account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
+         (account_id, source, kind, product_kind_id, category_id, product_id, on_date,
           amount_minor, note, transaction_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.kind ?? 'correction',
        input.product_kind_id ?? null, input.category_id ?? null,
-       input.pocket_id ?? null, input.on_date,
+       input.product_id ?? null, input.on_date,
        input.amount_minor, input.note ?? null, input.transaction_id ?? null, now, now]);
     return result.lastId ?? 0;
   }
 
   async adjustments(accountId: number): Promise<ProductEntry[]> {
     return this.db.query<ProductEntry>(
-      `SELECT id, account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
+      `SELECT id, account_id, source, kind, product_kind_id, category_id, product_id, on_date,
               amount_minor, note, transaction_id
        FROM product_entries WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
@@ -1342,13 +1342,13 @@ export class YieldsRepository {
    * earned. Removing a product with any of them has to say where they go, even
    * when its balance is zero - otherwise its history is left pointing nowhere.
    */
-  async pocketHistoryCount(pocketId: number): Promise<number> {
+  async productHistoryCount(productId: number): Promise<number> {
     const row = await this.db.queryOne<{ n: number }>(
-      `SELECT (SELECT COUNT(*) FROM transactions WHERE pocket_id = ?)
-            + (SELECT COUNT(*) FROM product_entries WHERE pocket_id = ?)
-            + (SELECT COUNT(*) FROM product_cashouts WHERE pocket_id = ?)
-            + (SELECT COUNT(*) FROM yield_days WHERE pocket_id = ?) AS n`,
-      [pocketId, pocketId, pocketId, pocketId]);
+      `SELECT (SELECT COUNT(*) FROM transactions WHERE product_id = ?)
+            + (SELECT COUNT(*) FROM product_entries WHERE product_id = ?)
+            + (SELECT COUNT(*) FROM product_cashouts WHERE product_id = ?)
+            + (SELECT COUNT(*) FROM yield_days WHERE product_id = ?) AS n`,
+      [productId, productId, productId, productId]);
     return row?.n ?? 0;
   }
 
@@ -1359,17 +1359,17 @@ export class YieldsRepository {
     kind: 'correction' | 'cashback' | 'other';
     product_kind_id?: number | null;
     category_id?: number | null;
-    pocket_id: number | null;
+    product_id: number | null;
     note: string | null;
   }): Promise<void> {
     await this.db.run(
       `UPDATE product_entries
-       SET on_date = ?, amount_minor = ?, kind = ?, product_kind_id = ?, category_id = ?, pocket_id = ?, note = ?,
+       SET on_date = ?, amount_minor = ?, kind = ?, product_kind_id = ?, category_id = ?, product_id = ?, note = ?,
            updated_at = ?
        WHERE id = ?`,
       [changes.on_date, changes.amount_minor, changes.kind, changes.product_kind_id ?? null,
        changes.category_id ?? null,
-       changes.pocket_id, changes.note, this.now(), id]);
+       changes.product_id, changes.note, this.now(), id]);
   }
 
   /**
@@ -1387,24 +1387,24 @@ export class YieldsRepository {
     source?: 'yield' | 'cashback';
     note?: string | null;
     /** The product it leaves from. Null: the one unassigned money uses. */
-    pocket_id?: number | null;
+    product_id?: number | null;
   }): Promise<number> {
     const result = await this.db.run(
       `INSERT INTO product_cashouts
-         (account_id, source, on_date, amount_minor, transaction_id, note, pocket_id, created_at)
+         (account_id, source, on_date, amount_minor, transaction_id, note, product_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.on_date,
-       input.amount_minor, input.transaction_id ?? null, input.note ?? null, input.pocket_id ?? null, this.now()]);
+       input.amount_minor, input.transaction_id ?? null, input.note ?? null, input.product_id ?? null, this.now()]);
     return result.lastId ?? 0;
   }
 
   async withdrawals(accountId: number): Promise<{
     id: number; account_id: number; source: 'yield' | 'cashback';
     on_date: IsoDate; amount_minor: number; transaction_id: number | null; note: string | null;
-    pocket_id: number | null;
+    product_id: number | null;
   }[]> {
     return this.db.query(
-      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, pocket_id
+      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, product_id
        FROM product_cashouts WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
@@ -1527,10 +1527,10 @@ export class YieldsRepository {
                 opening_balance_minor || ':' || COALESCE(updated_at, '') AS sig
          FROM accounts WHERE id IN (SELECT account_id FROM yield_accounts)`,
         part('movements', 'transactions', 'updated_at'),
-        part('products', 'yield_pockets', 'updated_at'),
+        part('products', 'products', 'updated_at'),
         `SELECT 'balances' AS part, p.account_id,
                 COUNT(*) || ':' || COALESCE(MAX(b.rowid), 0) || ':' || COALESCE(MAX(b.updated_at), '') AS sig
-         FROM yield_pocket_balances b JOIN yield_pockets p ON p.id = b.pocket_id
+         FROM product_balances b JOIN products p ON p.id = b.product_id
          WHERE p.${enrolled} GROUP BY p.account_id`,
         `SELECT 'rates' AS part, account_id, group_concat(line, ';') AS sig FROM (
            SELECT account_id, ${RATE_COLUMNS.split(',').map(column => `quote(${column.trim()})`).join(" || ',' || ")} AS line
@@ -1665,33 +1665,33 @@ export class YieldsRepository {
    * product that follows the account balance, or else the first, the same rule
    * the accrual follows. The parts add up to `earned().totalMinor`.
    */
-  async earnedByPocket(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
+  async earnedByProduct(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
     const upTo = asOf ?? '9999-12-31';
-    const pockets = await this.pockets(accountId);
-    const out = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
-    if (pockets.length === 0) return out;
+    const products = await this.products(accountId);
+    const out = new Map<number, number>(products.map(product => [product.id, 0]));
+    if (products.length === 0) return out;
 
-    const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-    const add = (pocketId: number | null, amount: number | null) => {
-      const id = pocketId !== null && out.has(pocketId) ? pocketId : fallback;
+    const fallback = (products.find(product => product.source === 'ledger') ?? products[0]).id;
+    const add = (productId: number | null, amount: number | null) => {
+      const id = productId !== null && out.has(productId) ? productId : fallback;
       out.set(id, (out.get(id) ?? 0) + (amount ?? 0));
     };
-    type Row = { pocket_id: number | null; total: number | null };
+    type Row = { product_id: number | null; total: number | null };
 
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, SUM(COALESCE(actual_net_minor, net_minor)) AS total
-       FROM yield_days WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
-      add(row.pocket_id, row.total);
+      `SELECT product_id, SUM(COALESCE(actual_net_minor, net_minor)) AS total
+       FROM yield_days WHERE account_id = ? AND on_date <= ? GROUP BY product_id`, [accountId, upTo])) {
+      add(row.product_id, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, SUM(amount_minor) AS total
-       FROM product_entries WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
-      add(row.pocket_id, row.total);
+      `SELECT product_id, SUM(amount_minor) AS total
+       FROM product_entries WHERE account_id = ? AND on_date <= ? GROUP BY product_id`, [accountId, upTo])) {
+      add(row.product_id, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT pocket_id, SUM(amount_minor) AS total
-       FROM product_cashouts WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
-      add(row.pocket_id, -(row.total ?? 0));
+      `SELECT product_id, SUM(amount_minor) AS total
+       FROM product_cashouts WHERE account_id = ? AND on_date <= ? GROUP BY product_id`, [accountId, upTo])) {
+      add(row.product_id, -(row.total ?? 0));
     }
     return out;
   }
@@ -1709,11 +1709,11 @@ export class YieldsRepository {
    * day the account started accruing. Rows naming no product belong where the
    * accrual puts them.
    */
-  async landedByPocket(
-    accountId: number, today: IsoDate, known?: readonly YieldPocket[],
+  async landedByProduct(
+    accountId: number, today: IsoDate, known?: readonly YieldProduct[],
   ): Promise<{ total: Map<number, number>; yields: Map<number, number> }> {
-    const pockets = known ?? await this.pockets(accountId);
-    return (await this.landedByPockets(today, new Map([[accountId, pockets]]))).get(accountId)!;
+    const products = known ?? await this.products(accountId);
+    return (await this.landedByProducts(today, new Map([[accountId, products]]))).get(accountId)!;
   }
 
   /**
@@ -1721,47 +1721,47 @@ export class YieldsRepository {
    * are: the yields screen draws every account, and asking five per account
    * is what it used to spend its time on.
    */
-  async landedByPockets(
-    today: IsoDate, pocketsOf: ReadonlyMap<number, readonly YieldPocket[]>,
+  async landedByProducts(
+    today: IsoDate, productsOf: ReadonlyMap<number, readonly YieldProduct[]>,
   ): Promise<Map<number, { total: Map<number, number>; yields: Map<number, number> }>> {
     const out = new Map<number, { total: Map<number, number>; yields: Map<number, number> }>();
-    for (const [accountId, pockets] of pocketsOf) {
+    for (const [accountId, products] of productsOf) {
       out.set(accountId, {
-        total: new Map<number, number>(pockets.map(pocket => [pocket.id, 0])),
-        yields: new Map<number, number>(pockets.map(pocket => [pocket.id, 0])),
+        total: new Map<number, number>(products.map(product => [product.id, 0])),
+        yields: new Map<number, number>(products.map(product => [product.id, 0])),
       });
     }
-    const ids = [...pocketsOf].filter(([, pockets]) => pockets.length > 0).map(([id]) => id);
+    const ids = [...productsOf].filter(([, products]) => products.length > 0).map(([id]) => id);
     if (ids.length === 0) return out;
 
     const openings = new Map((await this.db.query<{ account_id: number; opening_on: IsoDate }>(
       `SELECT account_id, opening_on FROM yield_accounts WHERE account_id IN ${placeholders(ids)}`, ids))
       .map(row => [row.account_id, row.opening_on]));
-    const histories = await this.pocketBalancesOf(ids);
+    const histories = await this.productBalancesOf(ids);
 
     // Per account, what each of its rows is weighed against.
     const accountsOf = new Map<number, {
       since: Map<number, { day: IsoDate; typedAt: string | null }>;
-      idOf: (pocketId: number | null) => number;
+      idOf: (productId: number | null) => number;
       total: Map<number, number>;
       paid: Map<number, number>;
     }>();
     for (const accountId of ids) {
-      const pockets = pocketsOf.get(accountId)!;
+      const products = productsOf.get(accountId)!;
       const { total, yields: paid } = out.get(accountId)!;
       const opening = openings.get(accountId) ?? '0000-01-01';
       // Where each product's balance was last stated, and when it was typed in.
       const since = new Map<number, { day: IsoDate; typedAt: string | null }>();
-      for (const pocket of pockets) {
-        const stated = pocket.source === 'manual'
-          ? (histories.get(pocket.id) ?? []).filter(entry => entry.valid_from <= today).at(-1)
+      for (const product of products) {
+        const stated = product.source === 'manual'
+          ? (histories.get(product.id) ?? []).filter(entry => entry.valid_from <= today).at(-1)
           : undefined;
-        since.set(pocket.id, stated
+        since.set(product.id, stated
           ? { day: stated.valid_from, typedAt: stated.created_at ?? null }
           : { day: opening, typedAt: null });
       }
-      const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-      const idOf = (pocketId: number | null) => pocketId !== null && total.has(pocketId) ? pocketId : fallback;
+      const fallback = (products.find(product => product.source === 'ledger') ?? products[0]).id;
+      const idOf = (productId: number | null) => productId !== null && total.has(productId) ? productId : fallback;
       accountsOf.set(accountId, { since, idOf, total, paid });
     }
 
@@ -1769,9 +1769,9 @@ export class YieldsRepository {
       into.set(id, (into.get(id) ?? 0) + (amount ?? 0));
 
     // A day paid on the day the balance was read is already in that figure.
-    const addPaid = (accountId: number, pocketId: number | null, day: IsoDate, amount: number | null) => {
+    const addPaid = (accountId: number, productId: number | null, day: IsoDate, amount: number | null) => {
       const { since, idOf, total, paid } = accountsOf.get(accountId)!;
-      const id = idOf(pocketId);
+      const id = idOf(productId);
       if (day > since.get(id)!.day) {
         credit(total, id, amount);
         credit(paid, id, amount);
@@ -1780,36 +1780,36 @@ export class YieldsRepository {
     // An entry on that same day counts when it was recorded after the balance
     // was: a product created today and given an income today holds it. Without
     // this the income showed in the account's yields and never in the product.
-    const addEntry = (accountId: number, pocketId: number | null, day: IsoDate, createdAt: string, amount: number | null) => {
+    const addEntry = (accountId: number, productId: number | null, day: IsoDate, createdAt: string, amount: number | null) => {
       const { since, idOf, total } = accountsOf.get(accountId)!;
-      const id = idOf(pocketId);
+      const id = idOf(productId);
       const base = since.get(id)!;
       if (day > base.day || (day === base.day && (base.typedAt === null || createdAt >= base.typedAt))) {
         credit(total, id, amount);
       }
     };
-    type Row = { account_id: number; pocket_id: number | null; day: IsoDate; created_at: string; total: number | null };
+    type Row = { account_id: number; product_id: number | null; day: IsoDate; created_at: string; total: number | null };
     const inIds = `account_id IN ${placeholders(ids)}`;
 
     // A day's yield is in the product once it is paid, not while it is owed.
     for (const row of await this.db.query<Row>(
-      `SELECT account_id, pocket_id, paid AS day, SUM(net) AS total FROM (
-         SELECT account_id, pocket_id, COALESCE(actual_net_minor, net_minor) AS net,
+      `SELECT account_id, product_id, paid AS day, SUM(net) AS total FROM (
+         SELECT account_id, product_id, COALESCE(actual_net_minor, net_minor) AS net,
                 COALESCE(paid_on, CASE WHEN payout = 'daily' THEN on_date
                                        ELSE date(on_date, 'start of month', '+1 month', '-1 day') END) AS paid
          FROM yield_days WHERE ${inIds})
-       WHERE paid <= ? GROUP BY account_id, pocket_id, paid`, [...ids, today])) {
-      addPaid(row.account_id, row.pocket_id, row.day, row.total);
+       WHERE paid <= ? GROUP BY account_id, product_id, paid`, [...ids, today])) {
+      addPaid(row.account_id, row.product_id, row.day, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
+      `SELECT account_id, product_id, on_date AS day, created_at, amount_minor AS total
        FROM product_entries WHERE ${inIds}`, ids)) {
-      addEntry(row.account_id, row.pocket_id, row.day, row.created_at, row.total);
+      addEntry(row.account_id, row.product_id, row.day, row.created_at, row.total);
     }
     for (const row of await this.db.query<Row>(
-      `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
+      `SELECT account_id, product_id, on_date AS day, created_at, amount_minor AS total
        FROM product_cashouts WHERE ${inIds}`, ids)) {
-      addEntry(row.account_id, row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
+      addEntry(row.account_id, row.product_id, row.day, row.created_at, -(row.total ?? 0));
     }
     return out;
   }
@@ -1820,14 +1820,14 @@ export class YieldsRepository {
    * started, for a product with no figure of its own. The same rule the
    * balances follow, so a history shows exactly what they add up.
    */
-  async pocketStartDays(accountId: number, today: IsoDate): Promise<Map<number, IsoDate>> {
+  async productStartDays(accountId: number, today: IsoDate): Promise<Map<number, IsoDate>> {
     const opening = (await this.account(accountId))?.opening_on ?? '0000-01-01';
     const out = new Map<number, IsoDate>();
-    for (const pocket of await this.pockets(accountId)) {
-      const stated = pocket.source === 'manual'
-        ? (await this.pocketBalances(pocket.id)).filter(entry => entry.valid_from <= today).at(-1)
+    for (const product of await this.products(accountId)) {
+      const stated = product.source === 'manual'
+        ? (await this.productBalances(product.id)).filter(entry => entry.valid_from <= today).at(-1)
         : undefined;
-      out.set(pocket.id, stated?.valid_from ?? opening);
+      out.set(product.id, stated?.valid_from ?? opening);
     }
     return out;
   }

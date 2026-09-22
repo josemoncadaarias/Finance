@@ -170,7 +170,7 @@ backup restore against iOS's own SQLite backend.
    concepts), which is why the data needed correcting by hand.
 
 5. **Accounts can be flagged as "excluded from net worth".**
-   **So can a product inside an account** (`yield_pockets.include_in_net_worth`,
+   **So can a product inside an account** (`products.include_in_net_worth`,
    migration 033): the tax CDTs live inside Pibank, not in an account of their
    own. A product set aside has its movements left off the account's balance on
    the summary and accounts screens and off net worth, and the transfer that
@@ -247,7 +247,7 @@ backup restore against iOS's own SQLite backend.
    nothing more, and a date, which is real. Migration 040 wrote each amount as
    an ordinary entry on the product Jose named and emptied the column.
 
-   **The date belongs to the product** (`yield_pockets.earns_from`, migration
+   **The date belongs to the product** (`products.earns_from`, migration
    041). One date per account was a floor over everything in it, and in Jose's
    data it sat a day later than the products of five accounts and months later
    than Pibank's CDTs - so deleting it would have handed those products days
@@ -257,7 +257,14 @@ backup restore against iOS's own SQLite backend.
    further back does NOT pull the walk back any more: the product's date is
    the boundary, full stop.
 
-   **And the word is gone with the concept** (migration 042, Jose:
+   **And a pocket is a product** (migration 043, Jose: "pocket... muy
+   especifico porque no todas las cuentas manejan pockets"). `yield_pockets`
+   is `products`, `yield_pocket_balances` is `product_balances` and every
+   `pocket_id` is a `product_id`. Dale has alcancias, Lulo has bolsillos,
+   Pibank has CDTs: product is the word that covers all of them, and it is
+   what the screen has said for weeks.
+
+   **And the word colchon is gone with the concept** (migration 042, Jose:
    "ese termino colchon no deberia existir mas"). `cushion_adjustments` is
    `product_entries` - a product's own movements - and `cushion_withdrawals`
    is `product_cashouts` - money moved from what a product earned into the
@@ -318,12 +325,12 @@ backup restore against iOS's own SQLite backend.
    rate says daily - on the balance it holds on payday, at
    `(1 + E.A.) ^ (days in the period / 365) - 1`, and 7% of each payment is
    withheld. Each
-   product carries a kind (`yield_pockets.kind`, migration 029): `high_yield`,
+   product carries a kind (`products.kind`, migration 029): `high_yield`,
    which follows the threshold rule above and is what every product was
    before, or `cdt`. Stated by Jose 2026-09-11.
 
    **Whether a product is withheld at all is the product's own switch**
-   (`yield_pockets.withholding`, migration 031): inside one account some
+   (`products.withholding`, migration 031): inside one account some
    products are withheld and others are not, and a product that is not has
    nothing taken from its yield. Decision by Jose, 2026-09-11.
 
@@ -346,16 +353,16 @@ backup restore against iOS's own SQLite backend.
    anything that has not been taught about the table. Decision by Jose,
    2026-09-16.
 
-17. **An account can be several pockets, and the tax is per pocket.** Dale is
+17. **An account can be several products, and the tax is per product.** Dale is
    two "alcancias" and the bank pays each separately, so each is its own pago o
    abono en cuenta and the 0.055 UVT threshold is measured on each. Adding them
    up before taxing charged 386.73 pesos a day of withholding that was not
-   owed. A pocket either follows the account balance (`ledger`, at most one per
+   owed. A product either follows the account balance (`ledger`, at most one per
    account, holding whatever the others left) or carries a figure typed in and
-   dated, because a movement never says which pocket it landed in - so the app
+   dated, because a movement never says which product it landed in - so the app
    compares the two and reports the drift rather than accruing on a stale
-   figure. What the account has earned is spread across its pockets in proportion to
-   what each holds; putting it all on the first one pushed that one over the
+   figure. What the account has earned is spread across its products in
+   proportion to what each holds; putting it all on the first one pushed that one over the
    threshold by itself. Decision by Jose, 2026-09-10.
 
 18. **A missed condition is a different rate, not no rate.** Uala pays 10.5%
@@ -586,8 +593,8 @@ it unasked.
 fingerprint is kept per account (`staleAccounts`), so a movement in an account
 that earns nothing works nothing out, and one in an earning account works out
 that account alone; a new day or a tax parameter still redoes all of them. The
-screen reads every account in one batch (`lastDaysOf`, `landedByPockets`,
-`heldByPockets`). On Jose's backup: 194 questions to open with nothing changed
+screen reads every account in one batch (`lastDaysOf`, `landedByProducts`,
+`heldByProducts`). On Jose's backup: 194 questions to open with nothing changed
 became 25. Not done, on purpose: accruing in the background on app start.
 `BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
 background write running while the user saves would pull that save into its

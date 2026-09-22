@@ -341,13 +341,13 @@ test('the yields of a year add up across every enrolled account', async () => {
     name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2021-07-01',
   });
   await yields.enrol({ account_id: account, opening_on: '2025-12-30' });
-  const [pocket] = await yields.pockets(account);
+  const [product] = await yields.products(account);
 
   const day = (on_date, gross, withheld) => db.run(
-    `INSERT INTO yield_days (pocket_id, account_id, component, on_date, balance_minor, annual_rate_scaled,
+    `INSERT INTO yield_days (product_id, account_id, component, on_date, balance_minor, annual_rate_scaled,
        payout, gross_minor, withholding_minor, net_minor, computed_at)
      VALUES (?, ?, 'base', ?, 0, 90000, 'daily', ?, ?, ?, ?)`,
-    [pocket.id, account, on_date, gross, withheld, gross - withheld, now()]);
+    [product.id, account, on_date, gross, withheld, gross - withheld, now()]);
 
   await day('2025-12-31', 5_000, 0);     // the year before: not counted
   await day('2026-01-01', 10_000, 700);

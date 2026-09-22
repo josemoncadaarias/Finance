@@ -358,9 +358,9 @@
 <!-- Which category the salary is recorded under. A small sheet, sized to its
      list: the person says which one it is rather than the app guessing from a
      name. -->
-<ion-modal class="pocket-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)">
+<ion-modal class="product-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)">
   <ng-template>
-    <div class="pocket-picker">
+    <div class="product-picker">
       <h2>{{ text.salarySheetTitle }}</h2>
       @if (salaryOptions().length === 0) {
         <p class="empty">{{ fill(text.salaryEmpty, { year: year() }) }}</p>

@@ -90,7 +90,7 @@
                  line underneath. Between accounts it is the other way round: the
                  product belongs to the account and is written under it. -->
             <span class="name">
-              {{ betweenProducts() ? pocketName(pockets(), pocketId()) : (account()?.name ?? ('entry.pick' | t)) }}
+              {{ betweenProducts() ? productName(products(), productId()) : (account()?.name ?? ('entry.pick' | t)) }}
             </span>
           </span>
         </button>
@@ -102,8 +102,8 @@
             {{ account()?.name ?? '' }}
           </button>
         } @else if (splitAccount()) {
-          <button type="button" class="part" (click)="$event.stopPropagation(); openPocketSheet('from')">
-            {{ pocketName(pockets(), pocketId()) }}
+          <button type="button" class="part" (click)="$event.stopPropagation(); openProductSheet('from')">
+            {{ productName(products(), productId()) }}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
         }
@@ -129,7 +129,7 @@
             <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
                       fallback="wallet"></app-icon>
             <span class="name">
-              {{ betweenProducts() ? pocketName(toPockets(), toPocketId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
+              {{ betweenProducts() ? productName(toProducts(), toProductId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
             </span>
           </span>
         </button>
@@ -139,8 +139,8 @@
             {{ toAccount()?.name ?? '' }}
           </button>
         } @else if (splitTarget()) {
-          <button type="button" class="part" (click)="$event.stopPropagation(); openPocketSheet('to')">
-            {{ pocketName(toPockets(), toPocketId()) }}
+          <button type="button" class="part" (click)="$event.stopPropagation(); openProductSheet('to')">
+            {{ productName(toProducts(), toProductId()) }}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
         }
@@ -168,8 +168,8 @@
            room a second row costs is room the note and the categories want. -->
       <div class="chips">
         @if (splitAccount()) {
-          <button type="button" class="pocket-chip" (click)="openPocketSheet('from')">
-            {{ pocketName(pockets(), pocketId()) }}
+          <button type="button" class="product-chip" (click)="openProductSheet('from')">
+            {{ productName(products(), productId()) }}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
         }
@@ -375,25 +375,25 @@
      the account sheet opening full height to show three lines was the part
      that felt out of proportion. The title names the account, so it is never
      a list of words with no owner. -->
-<ion-modal class="pocket-sheet" [isOpen]="pickingPocket() !== null"
-           (didDismiss)="pickingPocket.set(null)">
+<ion-modal class="product-sheet" [isOpen]="pickingProduct() !== null"
+           (didDismiss)="pickingProduct.set(null)">
   <ng-template>
-    <div class="pocket-picker">
+    <div class="product-picker">
       <div class="head">
-        <h2>{{ 'entry.pocket.ofAccount' | t:{ account: pickingPocket()?.name ?? '' } }}</h2>
-        <button type="button" (click)="pickingPocket.set(null)" [attr.aria-label]="'summary.close' | t">
+        <h2>{{ 'entry.product.ofAccount' | t:{ account: pickingProduct()?.name ?? '' } }}</h2>
+        <button type="button" (click)="pickingProduct.set(null)" [attr.aria-label]="'summary.close' | t">
           <ion-icon name="close-outline"></ion-icon>
         </button>
       </div>
       <ion-list [inset]="true">
-        @for (pocket of (pocketSide() === 'to' ? toPockets() : pockets()); track pocket.id) {
-          <ion-item button lines="full" (click)="choosePocket(pocket.id)"
-                    [class.selected]="(pocketSide() === 'to' ? toPocketId() : pocketId()) === pocket.id">
+        @for (product of (productSide() === 'to' ? toProducts() : products()); track product.id) {
+          <ion-item button lines="full" (click)="chooseProduct(product.id)"
+                    [class.selected]="(productSide() === 'to' ? toProductId() : productId()) === product.id">
             <ion-label>
-              <h3>{{ pocket.name }}</h3>
-              @if (pocket.is_default === 1) { <p>{{ 'entry.pocket.usual' | t }}</p> }
+              <h3>{{ product.name }}</h3>
+              @if (product.is_default === 1) { <p>{{ 'entry.product.usual' | t }}</p> }
             </ion-label>
-            @if ((pocketSide() === 'to' ? toPocketId() : pocketId()) === pocket.id) {
+            @if ((productSide() === 'to' ? toProductId() : productId()) === product.id) {
               <ion-icon slot="end" class="tick" name="checkmark-circle"
                         [attr.aria-label]="'entry.selected' | t"></ion-icon>
             }
@@ -404,7 +404,7 @@
            really is going to another account. -->
       @if (isTransfer()) {
         <ion-button expand="block" fill="clear" (click)="chooseAnotherAccount()">
-          {{ 'entry.pocket.otherAccount' | t }}
+          {{ 'entry.product.otherAccount' | t }}
         </ion-button>
       }
     </div>

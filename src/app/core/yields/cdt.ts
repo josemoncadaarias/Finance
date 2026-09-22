@@ -32,7 +32,7 @@ import { TransactionsRepository } from '../database/repositories/transactions.re
 import { AccrualEngine, type AccrualResult } from './accrual';
 import { addMonthsClamped, daysBetween } from './days';
 import { periodYieldMinor, ruleForProduct, withholdingMinor, type WithholdingRule } from './yield-math';
-import { removePocketInto } from './remove-pocket';
+import { removeProductInto } from './remove-product';
 
 /** The day a CDT matures: the same day of the month, `termMonths` later. */
 export function cdtMaturity(openedOn: IsoDate, termMonths: number): IsoDate {
@@ -92,20 +92,20 @@ export async function settleMaturedCdts(
 ): Promise<number> {
   let settled = 0;
 
-  const due = (await yields.pockets(accountId)).filter(pocket =>
-    pocket.kind === 'cdt' && pocket.opened_on && pocket.term_months
-    && cdtMaturity(pocket.opened_on, pocket.term_months) <= today);
+  const due = (await yields.products(accountId)).filter(product =>
+    product.kind === 'cdt' && product.opened_on && product.term_months
+    && cdtMaturity(product.opened_on, product.term_months) <= today);
 
   for (const cdt of due) {
     const maturesOn = cdtMaturity(cdt.opened_on!, cdt.term_months!);
 
-    const others = (await yields.pockets(accountId)).filter(pocket => pocket.id !== cdt.id && pocket.kind !== 'cdt');
-    const into = others.find(pocket => pocket.id === cdt.matures_into_pocket_id)
-      ?? others.find(pocket => pocket.is_default === 1)
+    const others = (await yields.products(accountId)).filter(product => product.id !== cdt.id && product.kind !== 'cdt');
+    const into = others.find(product => product.id === cdt.matures_into_product_id)
+      ?? others.find(product => product.is_default === 1)
       ?? others[0];
     if (!into) continue;
 
-    const payment = (await yields.days(accountId, maturesOn, maturesOn)).find(day => day.pocket_id === cdt.id);
+    const payment = (await yields.days(accountId, maturesOn, maturesOn)).find(day => day.product_id === cdt.id);
     const net = payment ? payment.actual_net_minor ?? payment.net_minor : 0;
     const name = cdtPaymentName(cdt.name);
 
@@ -120,7 +120,7 @@ export async function settleMaturedCdts(
         const transactionId = await new TransactionsRepository(db).create({
           account_id: accountId,
           category_id: cdt.income_category_id,
-          pocket_id: into.id,
+          product_id: into.id,
           occurred_on: maturesOn,
           amount_minor: net,
           description: name,
@@ -133,14 +133,14 @@ export async function settleMaturedCdts(
           amount_minor: net,
           transaction_id: transactionId,
           note: name,
-          pocket_id: into.id,
+          product_id: into.id,
         });
       }
     });
 
     // The capital, the locked payment and everything else the CDT carried,
     // into the chosen product - and the CDT is gone.
-    await removePocketInto(db, yields, tax, accountId, cdt.id, into.id, today);
+    await removeProductInto(db, yields, tax, accountId, cdt.id, into.id, today);
     settled += 1;
   }
 

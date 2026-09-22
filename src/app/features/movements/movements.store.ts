@@ -312,7 +312,7 @@ export class MovementsStore {
       const scope = this.filter.scopeFor(accounts);
 
       const setAside = await driver.queryOne<{ total: number }>(
-        `SELECT COUNT(*) AS total FROM yield_pockets
+        `SELECT COUNT(*) AS total FROM products
          WHERE include_in_net_worth = 0 AND account_id IN (${scope.map(() => '?').join(', ') || 'NULL'})`,
         [...scope]);
       this.setAsideProducts.set(setAside?.total ?? 0);
@@ -356,11 +356,11 @@ export class MovementsStore {
     const leaveOut = !this.filter.includeExcluded();
 
     const visible = detailed.filter(row => {
-      if (leaveOut && row.pocket_set_aside === 1) return false;
+      if (leaveOut && row.product_set_aside === 1) return false;
       return row.transfer_id === null ||
         row.other_account_id === null ||
         !inScope.has(row.other_account_id) ||
-        (leaveOut && row.other_pocket_set_aside === 1);
+        (leaveOut && row.other_product_set_aside === 1);
     });
 
     return visible.map(row => toMovement(row, this.i18n));
@@ -379,7 +379,7 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
   // and "from" around it are the app speaking.
   // Money moved into a product set aside is named by that product: "a Pibank"
   // says nothing when both ends are Pibank.
-  const setAsideProduct = row.other_pocket_set_aside === 1 ? row.other_pocket_name : null;
+  const setAsideProduct = row.other_product_set_aside === 1 ? row.other_product_name : null;
   const other = setAsideProduct !== null
     ? (row.other_account_id === row.account_id ? setAsideProduct : `${row.other_account_name} · ${setAsideProduct}`)
     : row.other_account_name ?? i18n.t('movement.otherAccount');

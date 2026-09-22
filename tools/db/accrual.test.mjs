@@ -293,20 +293,20 @@ test('what was earned splits by product and adds up to the account, and follows 
   const { engine, yields, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
   await yields.setRate({ account_id: ids.uala, component: 'daily', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(5) });
-  const [first] = await yields.pockets(ids.uala);
-  const second = await yields.addPocket({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
+  const [first] = await yields.products(ids.uala);
+  const second = await yields.addProduct({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
 
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 500_000, kind: 'other', pocket_id: second });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: -120_000, kind: 'correction', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 500_000, kind: 'other', product_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: -120_000, kind: 'correction', product_id: second });
   await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 30_000, kind: 'cashback' });
   await engine.accrue(ids.uala, '2026-09-10');
 
-  const split = await yields.earnedByPocket(ids.uala);
+  const split = await yields.earnedByProduct(ids.uala);
   const total = (await yields.earned(ids.uala)).totalMinor;
   assert.equal([...split.values()].reduce((sum, part) => sum + part, 0), total, 'the parts are the whole');
 
   const earnedBy = async id => (await yields.days(ids.uala))
-    .filter(day => day.pocket_id === id).reduce((sum, day) => sum + day.net_minor, 0);
+    .filter(day => day.product_id === id).reduce((sum, day) => sum + day.net_minor, 0);
   assert.equal(split.get(second), 380_000 + await earnedBy(second), 'income minus the expense, plus what it earned');
   assert.equal(split.get(first.id), 30_000 + await earnedBy(first.id),
     'the entry naming no product stays on the first');
@@ -315,34 +315,34 @@ test('what was earned splits by product and adds up to the account, and follows 
 test('a product balance counts the yields that landed in it after it was stated, and no earlier', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
-  const second = await yields.addPocket({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
-  await yields.setPocketBalance({ pocket_id: second, valid_from: '2026-09-05', amount_minor: 100_000_000 });
+  const second = await yields.addProduct({ account_id: ids.uala, name: 'Prueba', source: 'manual', sort_order: 1 });
+  await yields.setProductBalance({ product_id: second, valid_from: '2026-09-05', amount_minor: 100_000_000 });
   await yields.setRate({
-    account_id: ids.uala, pocket_id: second, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10),
+    account_id: ids.uala, product_id: second, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10),
   });
 
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-03', amount_minor: 500_000, kind: 'other', pocket_id: second });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 400_000, kind: 'other', pocket_id: second });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-07', amount_minor: 200_000, kind: 'cashback', pocket_id: second });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-08', amount_minor: -50_000, kind: 'correction', pocket_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-03', amount_minor: 500_000, kind: 'other', product_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-05', amount_minor: 400_000, kind: 'other', product_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-07', amount_minor: 200_000, kind: 'cashback', product_id: second });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-08', amount_minor: -50_000, kind: 'correction', product_id: second });
   await engine.accrue(ids.uala, '2026-09-10');
 
   const paidAfter = (await yields.days(ids.uala))
-    .filter(day => day.pocket_id === second && day.on_date > '2026-09-05')
+    .filter(day => day.product_id === second && day.on_date > '2026-09-05')
     .reduce((sum, day) => sum + day.net_minor, 0);
   assert.ok(paidAfter > 0);
 
-  const landed = await yields.landedByPocket(ids.uala, '2026-09-10');
+  const landed = await yields.landedByProduct(ids.uala, '2026-09-10');
   assert.equal(landed.yields.get(second), paidAfter, 'of it, yield is only what the bank paid');
   assert.equal(landed.total.get(second), 400_000 + 150_000 + paidAfter,
     'what was entered after the balance - its own day included - and the days paid after it; the stated figure holds the rest');
 
   // Jose's test: a product created today, its balance 0 as of today, and an
   // income of 1 entered today. It is in the product, not only in the yields.
-  const fresh = await yields.addPocket({ account_id: ids.uala, name: 'test', source: 'manual', sort_order: 2 });
-  await yields.setPocketBalance({ pocket_id: fresh, valid_from: '2026-09-10', amount_minor: 0 });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-10', amount_minor: 100, kind: 'other', pocket_id: fresh });
-  const freshLanded = await yields.landedByPocket(ids.uala, '2026-09-10');
+  const fresh = await yields.addProduct({ account_id: ids.uala, name: 'test', source: 'manual', sort_order: 2 });
+  await yields.setProductBalance({ product_id: fresh, valid_from: '2026-09-10', amount_minor: 0 });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-10', amount_minor: 100, kind: 'other', product_id: fresh });
+  const freshLanded = await yields.landedByProduct(ids.uala, '2026-09-10');
   assert.equal(freshLanded.total.get(fresh), 100, 'the income is in the balance');
   assert.equal(freshLanded.yields.get(fresh), 0, 'and it is not a yield');
 });
@@ -355,20 +355,20 @@ test('a product that is not withheld has nothing taken, beside one in the same a
     await tax.set({ key, valid_from: '2026-01-01', value, source: 'test', confirmed: true });
   }
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: true });
-  const withheld = await yields.addPocket({ account_id: ids.uala, name: 'Con retención', source: 'manual', sort_order: 1 });
-  const free = await yields.addPocket({ account_id: ids.uala, name: 'Sin retención', source: 'manual', sort_order: 2 });
-  assert.equal((await yields.pockets(ids.uala)).find(pocket => pocket.id === free).withholding, 1,
+  const withheld = await yields.addProduct({ account_id: ids.uala, name: 'Con retención', source: 'manual', sort_order: 1 });
+  const free = await yields.addProduct({ account_id: ids.uala, name: 'Sin retención', source: 'manual', sort_order: 2 });
+  assert.equal((await yields.products(ids.uala)).find(product => product.id === free).withholding, 1,
     'a new product starts with its account\'s answer');
-  await yields.setPocketWithholding(free, false);
+  await yields.setProductWithholding(free, false);
 
   for (const id of [withheld, free]) {
-    await yields.setPocketBalance({ pocket_id: id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+    await yields.setProductBalance({ product_id: id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
   }
   await yields.setRate({ account_id: ids.uala, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
   await engine.accrue(ids.uala, '2026-09-05');
 
   const days = await yields.days(ids.uala);
-  const of = id => days.filter(day => day.pocket_id === id);
+  const of = id => days.filter(day => day.product_id === id);
   assert.ok(of(withheld).length > 0 && of(withheld).every(day => day.withholding_minor > 0));
   assert.ok(of(free).length > 0 && of(free).every(day => day.withholding_minor === 0 && day.net_minor === day.gross_minor),
     'nothing at all is taken from the product that is not withheld');
@@ -377,10 +377,10 @@ test('a product that is not withheld has nothing taken, beside one in the same a
 test('cashing in, or the reverse, moves the account and leaves the product balance where it was', async () => {
   const { engine, yields, transactions, categories, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
-  const [product] = await yields.pockets(ids.uala);
+  const [product] = await yields.products(ids.uala);
   const income = await categories.create({ name: 'Rendimientos', kind: 'income', builtin_icon: 'cash' });
-  const balance = async () => (await engine.heldByPocket(ids.uala, '2026-09-10')).get(product.id)
-    + (await yields.landedByPocket(ids.uala, '2026-09-10')).total.get(product.id);
+  const balance = async () => (await engine.heldByProduct(ids.uala, '2026-09-10')).get(product.id)
+    + (await yields.landedByProduct(ids.uala, '2026-09-10')).total.get(product.id);
   const before = await balance();
   const earned = async () => (await yields.earned(ids.uala)).totalMinor;
   const gathered = await earned();
@@ -390,7 +390,7 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
     account_id: ids.uala, category_id: income, occurred_on: '2026-09-05', amount_minor: 300_000_000, source: 'manual',
   });
   await yields.withdraw({
-    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, pocket_id: product.id,
+    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, product_id: product.id,
   });
   assert.equal(await balance(), before, 'the product holds what it held');
   assert.equal(await earned(), gathered - 300_000_000, 'what it had gathered is 3 million less');
@@ -399,7 +399,7 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
   await transactions.create({
     account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-06', amount_minor: -100_000_000, source: 'manual',
   });
-  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', pocket_id: product.id });
+  await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', product_id: product.id });
   assert.equal(await balance(), before);
   assert.equal(await earned(), gathered - 200_000_000);
 });
@@ -407,23 +407,23 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
 test('correcting or deleting a cashed-in movement carries its other half with it', async () => {
   const { engine, yields, transactions, categories, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
-  const [product] = await yields.pockets(ids.uala);
+  const [product] = await yields.products(ids.uala);
   const income = await categories.create({ name: 'Rendimientos', kind: 'income', builtin_icon: 'cash' });
-  const balance = async () => (await engine.heldByPocket(ids.uala, '2026-09-10')).get(product.id)
-    + (await yields.landedByPocket(ids.uala, '2026-09-10')).total.get(product.id);
+  const balance = async () => (await engine.heldByProduct(ids.uala, '2026-09-10')).get(product.id)
+    + (await yields.landedByProduct(ids.uala, '2026-09-10')).total.get(product.id);
   const before = await balance();
 
   const cashed = await transactions.create({
     account_id: ids.uala, category_id: income, occurred_on: '2026-09-05', amount_minor: 300_000_000, source: 'manual',
   });
   await yields.withdraw({
-    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, pocket_id: product.id,
+    account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, product_id: product.id,
   });
   const spent = await transactions.create({
     account_id: ids.uala, category_id: ids.gastos, occurred_on: '2026-09-06', amount_minor: -100_000_000, source: 'manual',
   });
   await yields.adjust({
-    account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', pocket_id: product.id, transaction_id: spent,
+    account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', product_id: product.id, transaction_id: spent,
   });
 
   await transactions.update(cashed, { amount_minor: 200_000_000, occurred_on: '2026-09-07' });
@@ -441,21 +441,21 @@ test('correcting or deleting a cashed-in movement carries its other half with it
 test('a month worked out on its own comes to the same as one walk from the start', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
-  const [main] = await yields.pockets(ids.uala);
-  await yields.setPocketSource(main.id, 'manual');
-  await yields.setPocketBalance({ pocket_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
-  const monthly = await yields.addPocket({
+  const [main] = await yields.products(ids.uala);
+  await yields.setProductSource(main.id, 'manual');
+  await yields.setProductBalance({ product_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+  const monthly = await yields.addProduct({
     account_id: ids.uala, name: 'Mensual', source: 'manual', sort_order: 1, payout: 'monthly', payout_months: 1,
   });
-  await yields.setPocketBalance({ pocket_id: monthly, valid_from: '2026-08-31', amount_minor: 500_000_000 });
-  await yields.setRate({ account_id: ids.uala, pocket_id: main.id, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
-  await yields.setRate({ account_id: ids.uala, pocket_id: monthly, component: 'base', payout: 'monthly', payout_months: 1, valid_from: '2026-08-31', annual_rate_scaled: pct(12) });
+  await yields.setProductBalance({ product_id: monthly, valid_from: '2026-08-31', amount_minor: 500_000_000 });
+  await yields.setRate({ account_id: ids.uala, product_id: main.id, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
+  await yields.setRate({ account_id: ids.uala, product_id: monthly, component: 'base', payout: 'monthly', payout_months: 1, valid_from: '2026-08-31', annual_rate_scaled: pct(12) });
   // One entry on the day the account started, one in September.
-  await yields.adjust({ account_id: ids.uala, pocket_id: main.id, on_date: '2026-08-31', amount_minor: 20_000_000, kind: 'other' });
-  await yields.adjust({ account_id: ids.uala, pocket_id: main.id, on_date: '2026-09-15', amount_minor: 30_000_000, kind: 'cashback' });
+  await yields.adjust({ account_id: ids.uala, product_id: main.id, on_date: '2026-08-31', amount_minor: 20_000_000, kind: 'other' });
+  await yields.adjust({ account_id: ids.uala, product_id: main.id, on_date: '2026-09-15', amount_minor: 30_000_000, kind: 'cashback' });
 
   const snapshot = async () => (await yields.days(ids.uala))
-    .map(day => [day.pocket_id, day.component, day.on_date, day.balance_minor, day.net_minor]);
+    .map(day => [day.product_id, day.component, day.on_date, day.balance_minor, day.net_minor]);
 
   // Month by month: the second pass starts again on the 1st of October, with
   // September's paid yield and both entries already behind it.
@@ -474,27 +474,27 @@ test('a month worked out on its own comes to the same as one walk from the start
 test('a new product opened with money from another one holds it, and earns on it, from that day', async () => {
   const { engine, yields, transfers, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
-  const [main] = await yields.pockets(ids.uala);
-  await yields.setPocketSource(main.id, 'manual');
-  await yields.setPocketBalance({ pocket_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
+  const [main] = await yields.products(ids.uala);
+  await yields.setProductSource(main.id, 'manual');
+  await yields.setProductBalance({ product_id: main.id, valid_from: '2026-08-31', amount_minor: 1_000_000_000 });
 
   // What the product form writes: the new product empty the day before, and a
   // transfer carrying the money in.
-  const created = await yields.addPocket({ account_id: ids.uala, name: 'CDT', source: 'manual', sort_order: 1 });
-  await yields.setPocketBalance({ pocket_id: created, valid_from: '2026-09-04', amount_minor: 0 });
+  const created = await yields.addProduct({ account_id: ids.uala, name: 'CDT', source: 'manual', sort_order: 1 });
+  await yields.setProductBalance({ product_id: created, valid_from: '2026-09-04', amount_minor: 0 });
   await transfers.create({
     occurred_on: '2026-09-05', description: 'Saldo inicial de CDT',
-    from: { account_id: ids.uala, pocket_id: main.id, amount_minor: 300_000_000 },
-    to: { account_id: ids.uala, pocket_id: created, amount_minor: 300_000_000 },
+    from: { account_id: ids.uala, product_id: main.id, amount_minor: 300_000_000 },
+    to: { account_id: ids.uala, product_id: created, amount_minor: 300_000_000 },
   });
 
-  const held = await engine.heldByPocket(ids.uala, '2026-09-10');
+  const held = await engine.heldByProduct(ids.uala, '2026-09-10');
   assert.equal(held.get(created), 300_000_000, 'the new product holds what came in');
   assert.equal(held.get(main.id), 700_000_000, 'and the one it came from holds that much less');
 
-  await yields.setRate({ account_id: ids.uala, pocket_id: created, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
+  await yields.setRate({ account_id: ids.uala, product_id: created, component: 'base', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(10) });
   await engine.accrue(ids.uala, '2026-09-10');
-  const earning = (await yields.days(ids.uala)).find(day => day.pocket_id === created && day.on_date === '2026-09-06');
+  const earning = (await yields.days(ids.uala)).find(day => day.product_id === created && day.on_date === '2026-09-06');
   assert.equal(earning.balance_minor, 300_000_000, 'it earns on the money from the day after it arrived');
   assert.equal((await yields.withdrawals(ids.uala)).length, 0);
   assert.equal((await yields.adjustments(ids.uala)).length, 0);
@@ -529,9 +529,9 @@ test('a day corrected by hand is never rewritten, and still counts', async () =>
   await engine.accrue(ids.rappi, '2026-09-12');
   const computed = (await yields.days(ids.rappi)).find(d => d.on_date === '2026-09-11');
 
-  // The statement said something else. Corrected on the pocket, not on the
+  // The statement said something else. Corrected on the product, not on the
   // account: an account can hold several, and only one of them was wrong.
-  await yields.correctDay(computed.pocket_id, '2026-09-11', 99_999);
+  await yields.correctDay(computed.product_id, '2026-09-11', 99_999);
 
   const result = await engine.accrue(ids.rappi, '2026-09-15');
   assert.equal(result.daysLocked, 1);
@@ -678,7 +678,7 @@ test('what a foreign-currency account earns stays in its own currency', async ()
 });
 
 // ---------------------------------------------------------------------------
-// Pockets
+// Products
 //
 // The reason this exists: Dale is two "alcancias" and the bank pays each of
 // them separately. The withholding threshold in articulo 1.2.4.2.87 applies to
@@ -699,7 +699,7 @@ async function withRealisticWithholding(tax) {
   }
 }
 
-test('two pockets are taxed apart, and it changes the answer', async () => {
+test('two products are taxed apart, and it changes the answer', async () => {
   const { db, accounts, yields, tax, engine } = await setup();
   await withRealisticWithholding(tax);
 
@@ -720,30 +720,30 @@ test('two pockets are taxed apart, and it changes the answer', async () => {
 
   // Now split into the two real alcancias, which add up to exactly the balance
   // the ledger already knew about.
-  const [existing] = await yields.pockets(dale);
-  await yields.renamePocket(existing.id, 'Alcancia principal');
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [existing.id]);
-  await yields.setPocketBalance({
-    pocket_id: existing.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
+  const [existing] = await yields.products(dale);
+  await yields.renameProduct(existing.id, 'Alcancia principal');
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [existing.id]);
+  await yields.setProductBalance({
+    product_id: existing.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
   });
-  const second = await yields.addPocket({
+  const second = await yields.addProduct({
     account_id: dale, name: 'Alcancia complemento', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
+  await yields.setProductBalance({
+    product_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
   });
 
   await yields.clearDays(dale);
   const result = await engine.accrue(dale, '2026-09-11');
-  assert.equal(result.pockets, 2);
+  assert.equal(result.products, 2);
 
   const days = await yields.days(dale, '2026-09-11', '2026-09-11');
-  assert.equal(days.length, 2, 'one row per pocket per day');
+  assert.equal(days.length, 2, 'one row per product per day');
 
   // 2,762.25 and 2,762.53: both under the threshold, so nothing is withheld.
   assert.deepEqual(days.map(day => day.gross_minor).sort(), [276225, 276253]);
   for (const day of days) {
-    assert.equal(day.withholding_minor, 0, 'neither pocket reaches 0.055 UVT');
+    assert.equal(day.withholding_minor, 0, 'neither product reaches 0.055 UVT');
     assert.equal(day.net_minor, day.gross_minor);
   }
 
@@ -756,51 +756,51 @@ test('two pockets are taxed apart, and it changes the answer', async () => {
     'splitting keeps money the account was being charged');
 });
 
-test('an account keeps one pocket unless someone splits it', async () => {
+test('an account keeps one product unless someone splits it', async () => {
   const { yields, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
 
-  const pockets = await yields.pockets(ids.rappi);
-  assert.equal(pockets.length, 1);
-  assert.equal(pockets[0].source, 'ledger', 'it follows the account balance');
+  const products = await yields.products(ids.rappi);
+  assert.equal(products.length, 1);
+  assert.equal(products[0].source, 'ledger', 'it follows the account balance');
   // Named for what it is. An account starts as one savings product, and the
   // caller supplies the word so it arrives in the language the user reads.
-  assert.equal(pockets[0].name, 'Savings account');
+  assert.equal(products[0].name, 'Savings account');
 
-  // Enrolling again must not pile up pockets.
+  // Enrolling again must not pile up products.
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
-  assert.equal((await yields.pockets(ids.rappi)).length, 1);
+  assert.equal((await yields.products(ids.rappi)).length, 1);
 });
 
 
 
-test('removing a pocket takes its days with it', async () => {
+test('removing a product takes its days with it', async () => {
   const { yields, engine, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  const named = await yields.addPocket({
+  const named = await yields.addProduct({
     account_id: ids.rappi, name: 'Meta', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: named, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  await yields.setProductBalance({
+    product_id: named, valid_from: '2026-09-09', amount_minor: 100_000_000,
   });
   await engine.accrue(ids.rappi, '2026-09-15');
-  assert.equal((await yields.pocketDays(named)).length, 6);
+  assert.equal((await yields.productDays(named)).length, 6);
 
-  await yields.removePocket(named);
-  assert.equal((await yields.pocketDays(named)).length, 0);
-  assert.equal((await yields.pocketBalances(named)).length, 0);
-  assert.equal((await yields.pockets(ids.rappi)).length, 1);
+  await yields.removeProduct(named);
+  assert.equal((await yields.productDays(named)).length, 0);
+  assert.equal((await yields.productBalances(named)).length, 0);
+  assert.equal((await yields.products(ids.rappi)).length, 1);
 });
 
-test('a figure typed for a pocket is the bank figure, yields included', async () => {
+test('a figure typed for a product is the bank figure, yields included', async () => {
   const { db, accounts, yields, tax, engine } = await setup();
   await withRealisticWithholding(tax);
 
@@ -816,16 +816,16 @@ test('a figure typed for a pocket is the bank figure, yields included', async ()
   });
   await yields.setRate({ account_id: dale, valid_from: '2026-09-09', annual_rate_scaled: pct(10.5) });
 
-  const [first] = await yields.pockets(dale);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
-  await yields.setPocketBalance({
-    pocket_id: first.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
+  const [first] = await yields.products(dale);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setProductBalance({
+    product_id: first.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
   });
-  const second = await yields.addPocket({
+  const second = await yields.addProduct({
     account_id: dale, name: 'Alcancia complemento', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
+  await yields.setProductBalance({
+    product_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
   });
 
   await engine.accrue(dale, '2026-09-10');
@@ -844,7 +844,7 @@ test('a figure typed for a pocket is the bank figure, yields included', async ()
     assert.equal(day.withholding_minor, 0);
   }
 
-  // And tomorrow each pocket earns on what the bank will show today: the
+  // And tomorrow each product earns on what the bank will show today: the
   // figure typed in plus what it just earned.
   await engine.accrue(dale, '2026-09-11');
   const tomorrow = await yields.days(dale, '2026-09-11', '2026-09-11');
@@ -855,13 +855,13 @@ test('a figure typed for a pocket is the bank figure, yields included', async ()
 test('each product walks from its own day, not from its account', async () => {
   const { yields, engine, ids } = await setup();
   await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
-  const [first] = await yields.pockets(ids.rappi);
-  const second = await yields.addPocket({
+  const [first] = await yields.products(ids.rappi);
+  const second = await yields.addProduct({
     account_id: ids.rappi, name: 'Bolsillo', source: 'manual', sort_order: 1,
     earns_from: '2026-09-11',
   });
-  await yields.setPocketBalance({
-    pocket_id: second, valid_from: '2026-09-11', amount_minor: 100_000_000,
+  await yields.setProductBalance({
+    product_id: second, valid_from: '2026-09-11', amount_minor: 100_000_000,
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
@@ -869,28 +869,28 @@ test('each product walks from its own day, not from its account', async () => {
 
   // The one that starts on the 9th has been earning since the 10th; the one
   // that starts on the 11th has not, and nobody worked out its first two days.
-  assert.equal((await yields.pocketDays(first.id))[0].on_date, '2026-09-10');
-  assert.equal((await yields.pocketDays(second)).map(day => day.on_date).sort()[0], '2026-09-12');
+  assert.equal((await yields.productDays(first.id))[0].on_date, '2026-09-10');
+  assert.equal((await yields.productDays(second)).map(day => day.on_date).sort()[0], '2026-09-12');
 });
 
-test('a pocket earning nothing is not a pocket losing what it earned', async () => {
+test('a product earning nothing is not a product losing what it earned', async () => {
   const { db, yields, engine, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  // Every pocket typed in by hand, so nothing carries the earned.
-  const [only] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [only.id]);
-  await yields.setPocketBalance({
-    pocket_id: only.id, valid_from: '2026-09-09', amount_minor: 1_000_000_000,
+  // Every product typed in by hand, so nothing carries the earned.
+  const [only] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [only.id]);
+  await yields.setProductBalance({
+    product_id: only.id, valid_from: '2026-09-09', amount_minor: 1_000_000_000,
   });
 
   await engine.accrue(ids.rappi, '2026-09-10');
   const earned = await yields.earned(ids.rappi);
 
-  // The pocket earns on the figure typed in and on nothing else, and what it
+  // The product earns on the figure typed in and on nothing else, and what it
   // earns is still there to be moved into net worth.
   assert.equal((await yields.days(ids.rappi))[0].balance_minor, 1_000_000_000);
   assert.ok(earned.totalMinor > 0);
@@ -899,18 +899,18 @@ test('a pocket earning nothing is not a pocket losing what it earned', async () 
 // ---------------------------------------------------------------------------
 // Drift
 //
-// A pocket figure is what the bank says and contains every yield it ever paid.
+// A product figure is what the bank says and contains every yield it ever paid.
 // A ledger balance is what Monefy recorded and contains none of them. Comparing
 // the two directly reports a difference of exactly what was earned, forever, and
 // tells the user to correct data that was never wrong - which is what Dale did
 // on 2026-09-11: "no cuadran por -526.619,25", what it had earned, to the cent.
 // ---------------------------------------------------------------------------
 
-/** Dale as it stands: two typed pockets, earnings the ledger never saw. */
-async function daleWithPockets({ accounts, yields, db }) {
+/** Dale as it stands: two typed products, earnings the ledger never saw. */
+async function daleWithProducts({ accounts, yields, db }) {
   const dale = await accounts.create({
     name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
-    // The ledger is the pocket total MINUS what was earned, because Monefy never
+    // The ledger is the product total MINUS what was earned, because Monefy never
     // recorded a single one of those yields.
     opening_balance_minor: 1_966_729_900, opened_on: '2024-01-01',
   });
@@ -920,16 +920,16 @@ async function daleWithPockets({ accounts, yields, db }) {
   });
   await yields.setRate({ account_id: dale, valid_from: '2026-09-09', annual_rate_scaled: pct(10.5) });
 
-  const [first] = await yields.pockets(dale);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
-  await yields.setPocketBalance({
-    pocket_id: first.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
+  const [first] = await yields.products(dale);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setProductBalance({
+    product_id: first.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
   });
-  const second = await yields.addPocket({
+  const second = await yields.addProduct({
     account_id: dale, name: 'Alcancia complemento', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
+  await yields.setProductBalance({
+    product_id: second, valid_from: '2026-09-10', amount_minor: 1_009_746_725,
   });
   return dale;
 }
@@ -1168,10 +1168,10 @@ test('an account earns on the figure stated for it, and nothing else', async () 
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  const [pocket] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
-  await yields.setPocketBalance({
-    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 6_795_974_641,
+  const [product] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  await yields.setProductBalance({
+    product_id: product.id, valid_from: '2026-09-09', amount_minor: 6_795_974_641,
   });
 
   await engine.accrue(ids.rappi, '2026-09-10');
@@ -1187,10 +1187,10 @@ test('a movement after the figure was stated is added on top', async () => {
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  const [pocket] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
-  await yields.setPocketBalance({
-    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  const [product] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  await yields.setProductBalance({
+    product_id: product.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
   });
 
   // 500,000.00 arrives on the 11th, recorded like any other movement.
@@ -1221,10 +1221,10 @@ test('a movement BEFORE the figure was stated is already inside it', async () =>
     amount_minor: 50_000_000, source: 'manual',
   });
 
-  const [pocket] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
-  await yields.setPocketBalance({
-    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  const [product] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  await yields.setProductBalance({
+    product_id: product.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
   });
 
   await engine.accrue(ids.rappi, '2026-09-10');
@@ -1232,23 +1232,23 @@ test('a movement BEFORE the figure was stated is already inside it', async () =>
     'counting it again would be counting it twice');
 });
 
-test('a second pocket does not take the movements as well', async () => {
+test('a second product does not take the movements as well', async () => {
   const { db, yields, engine, transactions, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  const [first] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
-  await yields.setPocketBalance({
-    pocket_id: first.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
+  const [first] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setProductBalance({
+    product_id: first.id, valid_from: '2026-09-09', amount_minor: 100_000_000,
   });
-  const second = await yields.addPocket({
+  const second = await yields.addProduct({
     account_id: ids.rappi, name: 'Segunda', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: second, valid_from: '2026-09-09', amount_minor: 200_000_000,
+  await yields.setProductBalance({
+    product_id: second, valid_from: '2026-09-09', amount_minor: 200_000_000,
   });
 
   await transactions.create({
@@ -1257,13 +1257,13 @@ test('a second pocket does not take the movements as well', async () => {
   });
   await engine.accrue(ids.rappi, '2026-09-11');
 
-  // A movement never says which pocket it landed in. It goes to the first, once
+  // A movement never says which product it landed in. It goes to the first, once
   // - putting it in both would count the same deposit twice.
-  const firstDay = (await yields.pocketDays(first.id, '2026-09-11', '2026-09-11'))[0];
-  const secondDay = (await yields.pocketDays(second, '2026-09-11', '2026-09-11'))[0];
+  const firstDay = (await yields.productDays(first.id, '2026-09-11', '2026-09-11'))[0];
+  const secondDay = (await yields.productDays(second, '2026-09-11', '2026-09-11'))[0];
 
   assert.ok(firstDay.balance_minor > 150_000_000);
-  assert.ok(secondDay.balance_minor < 201_000_000, 'the second pocket did not see it');
+  assert.ok(secondDay.balance_minor < 201_000_000, 'the second product did not see it');
 });
 
 // ---------------------------------------------------------------------------
@@ -1281,12 +1281,12 @@ async function statedAccount({ db, yields }, accountId, statedMinor) {
     account_id: accountId,
     opening_on: '2026-09-09', withholding: false,
   });
-  const [pocket] = await yields.pockets(accountId);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [pocket.id]);
-  await yields.setPocketBalance({
-    pocket_id: pocket.id, valid_from: '2026-09-09', amount_minor: statedMinor,
+  const [product] = await yields.products(accountId);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  await yields.setProductBalance({
+    product_id: product.id, valid_from: '2026-09-09', amount_minor: statedMinor,
   });
-  return pocket.id;
+  return product.id;
 }
 
 test('money put in today is in tomorrow\'s yield, not today\'s', async () => {
@@ -1391,22 +1391,22 @@ test("a rate older than the product's own day does not pull the walk back", asyn
     account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
   });
 
-  const [savings] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
+  const [savings] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
   });
 
   // The rate says the 7th; the product says the 9th. The product wins - it is
   // the day Jose says it starts earning, and a rate reaching further back does
   // not make the app work out days he has already accounted for.
   await yields.setRate({
-    account_id: ids.rappi, pocket_id: savings.id,
+    account_id: ids.rappi, product_id: savings.id,
     valid_from: '2026-09-07', annual_rate_scaled: pct(11),
   });
 
   await engine.accrue(ids.rappi, '2026-09-12');
-  const days = (await yields.pocketDays(savings.id)).map(day => day.on_date).sort();
+  const days = (await yields.productDays(savings.id)).map(day => day.on_date).sort();
 
   assert.equal(days[0], '2026-09-10', "the day after the product's own day");
   assert.ok(days.includes('2026-09-11'), 'and it goes on from there');
@@ -1417,18 +1417,18 @@ test("a rate older than the product's own day does not pull the walk back", asyn
   await later.yields.enrol({
     account_id: later.ids.rappi, opening_on: '2026-09-01', withholding: false,
   });
-  const [other] = await later.yields.pockets(later.ids.rappi);
-  await later.db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [other.id]);
-  await later.yields.setPocketBalance({
-    pocket_id: other.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
+  const [other] = await later.yields.products(later.ids.rappi);
+  await later.db.run("UPDATE products SET source = 'manual' WHERE id = ?", [other.id]);
+  await later.yields.setProductBalance({
+    product_id: other.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
   });
   await later.yields.setRate({
-    account_id: later.ids.rappi, pocket_id: other.id,
+    account_id: later.ids.rappi, product_id: other.id,
     valid_from: '2026-09-05', annual_rate_scaled: pct(11),
   });
   await later.engine.accrue(later.ids.rappi, '2026-09-08');
 
-  const theirs = (await later.yields.pocketDays(other.id)).map(day => day.on_date).sort();
+  const theirs = (await later.yields.productDays(other.id)).map(day => day.on_date).sort();
   assert.equal(theirs[0], '2026-09-05', 'a rate that starts later starts on its own first day');
 });
 
@@ -1438,21 +1438,21 @@ test('a product keeps its own rate however many the account has', async () => {
     account_id: ids.rappi, opening_on: '2026-09-07', withholding: false,
   });
 
-  const [savings] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-07', amount_minor: 100_000_000,
+  const [savings] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-07', amount_minor: 100_000_000,
   });
 
   // The account's own rate, and the product's, both named 'base'.
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(11) });
   await yields.setRate({
-    account_id: ids.rappi, pocket_id: savings.id,
+    account_id: ids.rappi, product_id: savings.id,
     valid_from: '2026-09-08', valid_to: '2026-11-08', annual_rate_scaled: pct(6.5),
   });
 
   await engine.accrue(ids.rappi, '2026-11-10');
-  const days = await yields.pocketDays(savings.id);
+  const days = await yields.productDays(savings.id);
   const on = date => days.find(day => day.on_date === date);
 
   // The product uses its own rate, and goes on using it well past the day the
@@ -1473,28 +1473,28 @@ test('a product with no rate of its own uses the account rate', async () => {
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(11) });
 
-  const [first] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [first.id]);
-  await yields.setPocketBalance({
-    pocket_id: first.id, valid_from: '2026-09-08', amount_minor: 100_000_000,
+  const [first] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [first.id]);
+  await yields.setProductBalance({
+    product_id: first.id, valid_from: '2026-09-08', amount_minor: 100_000_000,
   });
 
-  const other = await yields.addPocket({
+  const other = await yields.addProduct({
     account_id: ids.rappi, name: 'Cuenta de ahorros', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({
-    pocket_id: other, valid_from: '2026-09-08', amount_minor: 100_000_000,
+  await yields.setProductBalance({
+    product_id: other, valid_from: '2026-09-08', amount_minor: 100_000_000,
   });
   await yields.setRate({
-    account_id: ids.rappi, pocket_id: other,
+    account_id: ids.rappi, product_id: other,
     valid_from: '2026-09-08', annual_rate_scaled: pct(6.5),
   });
 
   await engine.accrue(ids.rappi, '2026-09-20');
 
-  assert.equal((await yields.pocketDays(first.id, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
+  assert.equal((await yields.productDays(first.id, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
     pct(11), 'no rate of its own, so the account rate applies');
-  assert.equal((await yields.pocketDays(other, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
+  assert.equal((await yields.productDays(other, '2026-09-15', '2026-09-15'))[0].annual_rate_scaled,
     pct(6.5), 'and the one with its own keeps it');
 });
 
@@ -1547,27 +1547,27 @@ test('each product holds its own figure plus what moved through it', async () =>
     account_id: ids.rappi, opening_on: '2026-09-01',
   });
 
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  const alcancia = await yields.addPocket({
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  const alcancia = await yields.addProduct({
     account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
 
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 600_000_000 });
-  await yields.setPocketBalance({
-    pocket_id: alcancia, valid_from: '2026-09-01', amount_minor: 400_000_000 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-01', amount_minor: 600_000_000 });
+  await yields.setProductBalance({
+    product_id: alcancia, valid_from: '2026-09-01', amount_minor: 400_000_000 });
 
-  let held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  let held = await engine.heldByProduct(ids.rappi, '2026-09-10');
   assert.equal(held.get(savings.id), 600_000_000);
   assert.equal(held.get(alcancia), 400_000_000);
 
   // Money arriving, filed against the alcancía.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
-    amount_minor: 20_000_000, pocket_id: alcancia, source: 'manual',
+    amount_minor: 20_000_000, product_id: alcancia, source: 'manual',
   });
 
-  held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  held = await engine.heldByProduct(ids.rappi, '2026-09-10');
   assert.equal(held.get(savings.id), 600_000_000, 'untouched');
   assert.equal(held.get(alcancia), 420_000_000, 'and it went where it said');
 
@@ -1586,34 +1586,34 @@ test('a product goes negative when the money was never moved across', async () =
     account_id: ids.rappi, opening_on: '2026-09-01',
   });
 
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  const alcancia = await yields.addPocket({
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  const alcancia = await yields.addProduct({
     account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
 
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 0 });
-  await yields.setPocketBalance({
-    pocket_id: alcancia, valid_from: '2026-09-01', amount_minor: 500_000_000 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-01', amount_minor: 0 });
+  await yields.setProductBalance({
+    product_id: alcancia, valid_from: '2026-09-01', amount_minor: 500_000_000 });
 
   // 1,000,000.00 leaves the savings account, which has nothing in it.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-05',
-    amount_minor: -100_000_000, pocket_id: savings.id, source: 'manual',
+    amount_minor: -100_000_000, product_id: savings.id, source: 'manual',
   });
 
-  let held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  let held = await engine.heldByProduct(ids.rappi, '2026-09-10');
   assert.equal(held.get(savings.id), -100_000_000, 'visible, not hidden');
 
   // Recording the move that was forgotten puts it right, and the account's
   // own total never changed through any of it.
   await transfers.create({
     occurred_on: '2026-09-05',
-    from: { account_id: ids.rappi, pocket_id: alcancia, amount_minor: 100_000_000 },
-    to: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100_000_000 },
+    from: { account_id: ids.rappi, product_id: alcancia, amount_minor: 100_000_000 },
+    to: { account_id: ids.rappi, product_id: savings.id, amount_minor: 100_000_000 },
   });
 
-  held = await engine.heldByPocket(ids.rappi, '2026-09-10');
+  held = await engine.heldByProduct(ids.rappi, '2026-09-10');
   assert.equal(held.get(savings.id), 0);
   assert.equal(held.get(alcancia), 400_000_000);
 
@@ -1628,9 +1628,9 @@ test('moving between two products of one account leaves the account alone', asyn
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-01',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  const cdt = await yields.addPocket({
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  const cdt = await yields.addProduct({
     account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
 
   const before = await db.queryOne(
@@ -1639,8 +1639,8 @@ test('moving between two products of one account leaves the account alone', asyn
 
   await transfers.create({
     occurred_on: '2026-09-05',
-    from: { account_id: ids.rappi, pocket_id: savings.id, amount_minor: 100_000_000 },
-    to: { account_id: ids.rappi, pocket_id: cdt, amount_minor: 100_000_000 },
+    from: { account_id: ids.rappi, product_id: savings.id, amount_minor: 100_000_000 },
+    to: { account_id: ids.rappi, product_id: cdt, amount_minor: 100_000_000 },
   });
 
   const after = await db.queryOne(
@@ -1649,10 +1649,10 @@ test('moving between two products of one account leaves the account alone', asyn
   assert.equal(after.total, before.total, 'the account holds exactly what it held');
 
   const legs = await db.query(
-    `SELECT pocket_id, amount_minor FROM transactions
+    `SELECT product_id, amount_minor FROM transactions
      WHERE transfer_id IS NOT NULL AND account_id = ? ORDER BY amount_minor`, [ids.rappi]);
   assert.deepEqual(
-    legs.map(leg => [leg.pocket_id, leg.amount_minor]),
+    legs.map(leg => [leg.product_id, leg.amount_minor]),
     [[savings.id, -100_000_000], [cdt, 100_000_000]]);
 
   await db.close();
@@ -1682,30 +1682,30 @@ test('a product balance is the figure typed, never one derived from history', as
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
 
   // Migration 021 files the whole history against the savings product.
-  await db.run('UPDATE transactions SET pocket_id = ? WHERE account_id = ?',
+  await db.run('UPDATE transactions SET product_id = ? WHERE account_id = ?',
     [savings.id, ids.rappi]);
 
-  let held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  let held = await engine.heldByProduct(ids.rappi, '2026-09-11');
   assert.equal(held.get(savings.id), 0,
     'empty is empty: none of that history is its balance');
 
   // A figure typed on a date, and only what moves after it.
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 50_000_00 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-10', amount_minor: 50_000_00 });
 
-  held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  held = await engine.heldByProduct(ids.rappi, '2026-09-11');
   assert.equal(held.get(savings.id), 50_000_00, 'exactly what was typed');
 
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
-    amount_minor: -1_000_00, pocket_id: savings.id, source: 'manual',
+    amount_minor: -1_000_00, product_id: savings.id, source: 'manual',
   });
 
-  held = await engine.heldByPocket(ids.rappi, '2026-09-11');
+  held = await engine.heldByProduct(ids.rappi, '2026-09-11');
   assert.equal(held.get(savings.id), 49_000_00, 'and what has moved since');
 
   await db.close();
@@ -1722,37 +1722,37 @@ test('a product counts every movement from the day its balance was set', async (
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 0 });
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-10', amount_minor: 0 });
 
   // Before the date: inside the figure already, so it changes nothing.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-08',
-    amount_minor: -900_00, pocket_id: savings.id, source: 'manual',
+    amount_minor: -900_00, product_id: savings.id, source: 'manual',
   });
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 0);
 
   // On the date, and after it.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
-    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+    amount_minor: -100, product_id: savings.id, source: 'manual',
   });
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-11',
-    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+    amount_minor: -100, product_id: savings.id, source: 'manual',
   });
 
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), -200);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), -200);
 
   // Dated ahead of today, which is how Jose tests it. Recorded is recorded.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-15',
-    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+    amount_minor: -100, product_id: savings.id, source: 'manual',
   });
 
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), -300,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), -300,
     'a movement dated ahead still counts, as it does for the account');
 
   await db.close();
@@ -1760,7 +1760,7 @@ test('a product counts every movement from the day its balance was set', async (
 
 test('changing the date a balance counts from moves it, rather than adding another', async () => {
   // How it looked from outside: edit the date, save, reopen, and the old date
-  // is back. `setPocketBalance` is keyed on the date, so changing the date
+  // is back. `setProductBalance` is keyed on the date, so changing the date
   // through it wrote a SECOND balance and left the first standing — and the
   // first, being the later of the two, went on winning.
   const { db, yields, transactions, engine, ids } = await setup();
@@ -1768,51 +1768,51 @@ test('changing the date a balance counts from moves it, rather than adding anoth
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-01',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 100_000_00 });
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-10', amount_minor: 100_000_00 });
 
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-08',
-    amount_minor: -5_000_00, pocket_id: savings.id, source: 'manual',
+    amount_minor: -5_000_00, product_id: savings.id, source: 'manual',
   });
 
   // Counting from the 10th, the 8th is inside the figure.
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 100_000_00);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 100_000_00);
 
-  const [row] = await yields.pocketBalances(savings.id);
-  await yields.movePocketBalance(row.id, {
+  const [row] = await yields.productBalances(savings.id);
+  await yields.moveProductBalance(row.id, {
     valid_from: '2026-09-05', amount_minor: 100_000_00 });
 
-  const history = await yields.pocketBalances(savings.id);
+  const history = await yields.productBalances(savings.id);
   assert.equal(history.length, 1, 'moved, not duplicated');
   assert.equal(history[0].valid_from, '2026-09-05');
 
   // And counting from the 5th, the 8th is now on top of it.
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 95_000_00);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 95_000_00);
 
   // A balance already sitting on the target date gives way: one date, one
   // balance, rather than a constraint failure in front of someone who only
   // changed a date.
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-09', amount_minor: 7_000_00 });
-  await yields.movePocketBalance(history[0].id, {
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-09', amount_minor: 7_000_00 });
+  await yields.moveProductBalance(history[0].id, {
     valid_from: '2026-09-09', amount_minor: 100_000_00 });
 
-  const after = await yields.pocketBalances(savings.id);
+  const after = await yields.productBalances(savings.id);
   assert.equal(after.length, 1);
   assert.equal(after[0].amount_minor, 100_000_00);
 
   // Jose's case: a balance on the 9th and another on the 10th. The form edits
   // the latest, and moving it back to the 1st must leave it in charge - not
   // the 9th's, which would make the save look undone.
-  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: 90_000_00 });
-  const latest = (await yields.pocketBalances(savings.id)).at(-1);
-  await yields.movePocketBalance(latest.id, { valid_from: '2026-09-01', amount_minor: 80_000_00 });
-  const moved = await yields.pocketBalances(savings.id);
+  await yields.setProductBalance({ product_id: savings.id, valid_from: '2026-09-10', amount_minor: 90_000_00 });
+  const latest = (await yields.productBalances(savings.id)).at(-1);
+  await yields.moveProductBalance(latest.id, { valid_from: '2026-09-01', amount_minor: 80_000_00 });
+  const moved = await yields.productBalances(savings.id);
   assert.deepEqual(moved.map(entry => [entry.valid_from, entry.amount_minor]), [['2026-09-01', 80_000_00]]);
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 75_000_00,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 75_000_00,
     'the moved balance, with the expense of the 8th on top of it');
 
   await db.close();
@@ -1830,15 +1830,15 @@ test('a balance dated ahead is stored, and is the one an editor should show', as
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-01',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
 
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-05', amount_minor: 100_000_00 });
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-20', amount_minor: 0 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-05', amount_minor: 100_000_00 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-20', amount_minor: 0 });
 
-  const history = await yields.pocketBalances(savings.id);
+  const history = await yields.productBalances(savings.id);
   assert.equal(history.at(-1).valid_from, '2026-09-20', 'the last one recorded');
   assert.equal(history.at(-1).amount_minor, 0);
 
@@ -1846,7 +1846,7 @@ test('a balance dated ahead is stored, and is the one an editor should show', as
   // date it counts from, and today has nothing to do with either. The question
   // that does depend on the day is what a product EARNS on, and that one is
   // asked separately, day by day, inside `accrue`.
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 0,
     'the last balance recorded is the one that governs');
 
   await db.close();
@@ -1863,39 +1863,39 @@ test('a balance dated tomorrow keeps today out of it', async () => {
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
 
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
-    amount_minor: -95_649_327, pocket_id: savings.id, source: 'manual',
+    amount_minor: -95_649_327, product_id: savings.id, source: 'manual',
   });
 
   // Counting starts tomorrow, at zero.
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
 
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-10')).get(savings.id), 0,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-10')).get(savings.id), 0,
     'today is before the date counting starts, so nothing is counted');
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-11')).get(savings.id), 0,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-11')).get(savings.id), 0,
     'and the day itself starts from the figure, not from history');
 
   // From then on it moves, and only with what happens from then on.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-12',
-    amount_minor: -1_000_00, pocket_id: savings.id, source: 'manual',
+    amount_minor: -1_000_00, product_id: savings.id, source: 'manual',
   });
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-12')).get(savings.id), -1_000_00);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-12')).get(savings.id), -1_000_00);
 
   // A product with no balance at all is a different case: nobody has chosen a
   // start date for it, so counting starts where this module started.
-  const alcancia = await yields.addPocket({
+  const alcancia = await yields.addProduct({
     account_id: ids.rappi, name: 'Alcancía', source: 'manual', sort_order: 1 });
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
-    amount_minor: -2_000_00, pocket_id: alcancia, source: 'manual',
+    amount_minor: -2_000_00, product_id: alcancia, source: 'manual',
   });
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-12')).get(alcancia), -2_000_00);
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-12')).get(alcancia), -2_000_00);
 
   await db.close();
 });
@@ -1911,29 +1911,29 @@ test('a movement dated ahead of the start date counts, whatever today is', async
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09',
   });
-  const [savings] = await yields.pockets(ids.rappi);
-  await yields.setPocketSource(savings.id, 'manual');
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
+  const [savings] = await yields.products(ids.rappi);
+  await yields.setProductSource(savings.id, 'manual');
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-11', amount_minor: 0 });
 
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-15',
-    amount_minor: -100, pocket_id: savings.id, source: 'manual',
+    amount_minor: -100, product_id: savings.id, source: 'manual',
   });
 
   // Asked on any day at all, the answer is the same, because the question is
   // not about a day.
   for (const day of ['2026-09-10', '2026-09-11', '2026-09-20']) {
-    assert.equal((await engine.heldByPocket(ids.rappi, day)).get(savings.id), -100,
+    assert.equal((await engine.heldByProduct(ids.rappi, day)).get(savings.id), -100,
       `asked on ${day}`);
   }
 
   // What still falls outside is anything before the start date.
   await transactions.create({
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-10',
-    amount_minor: -95_649_327, pocket_id: savings.id, source: 'manual',
+    amount_minor: -95_649_327, product_id: savings.id, source: 'manual',
   });
-  assert.equal((await engine.heldByPocket(ids.rappi, '2026-09-20')).get(savings.id), -100,
+  assert.equal((await engine.heldByProduct(ids.rappi, '2026-09-20')).get(savings.id), -100,
     'the card payment is before the date counting starts');
 
   await db.close();
@@ -2027,17 +2027,17 @@ async function withCdt() {
   await yields.enrol({ account_id: ids.rappi, opening_on: '2026-07-31', withholding: false });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-07-31', annual_rate_scaled: pct(9) });
 
-  const [savings] = await yields.pockets(ids.rappi);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-07-31', amount_minor: 600_000_000 });
-  const cdt = await yields.addPocket({ account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
-  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-07-31', amount_minor: 400_000_000 });
-  await yields.setDefaultPocket(ids.rappi, savings.id);
+  const [savings] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setProductBalance({ product_id: savings.id, valid_from: '2026-07-31', amount_minor: 600_000_000 });
+  const cdt = await yields.addProduct({ account_id: ids.rappi, name: 'CDT', source: 'manual', sort_order: 1 });
+  await yields.setProductBalance({ product_id: cdt, valid_from: '2026-07-31', amount_minor: 400_000_000 });
+  await yields.setDefaultProduct(ids.rappi, savings.id);
 
   // A movement filed against the CDT.
   await db.run(
     `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
-       pocket_id, created_at, updated_at)
+       product_id, created_at, updated_at)
      VALUES (?, ?, '2026-08-20', -5000000, -5000000, 'manual', ?, ?, ?)`,
     [ids.rappi, ids.gastos, cdt, NOW(), NOW()]);
 
@@ -2045,7 +2045,7 @@ async function withCdt() {
 }
 
 test('removing a product hands its balance, movements and earnings to the one chosen', async () => {
-  const { removePocketInto } = await import('../../src/app/core/yields/remove-pocket.ts');
+  const { removeProductInto } = await import('../../src/app/core/yields/remove-product.ts');
   const { db, yields, tax, engine, accounts, ids, savings, cdt } = await withCdt();
   const TODAY = '2026-09-10';
 
@@ -2053,40 +2053,40 @@ test('removing a product hands its balance, movements and earnings to the one ch
   // What each product holds. The yield it earned travels with its own days and
   // is worked out again afterwards, so it is not part of what is carried.
   const shown = async () => {
-    const held = await engine.heldByPocket(ids.rappi, TODAY);
+    const held = await engine.heldByProduct(ids.rappi, TODAY);
     return id => held.get(id) ?? 0;
   };
   const before = await shown();
-  const statedBefore = (await yields.pocketBalances(savings)).map(entry => ({ ...entry }));
+  const statedBefore = (await yields.productBalances(savings)).map(entry => ({ ...entry }));
   const grossTo = async to => (await yields.days(ids.rappi, undefined, to)).reduce((sum, day) => sum + day.gross_minor, 0);
   const august = await grossTo('2026-08-31');
   const balance = async () => (await accounts.balances()).find(b => b.account.id === ids.rappi).balance_minor;
   const accountBefore = await balance();
 
-  await removePocketInto(db, yields, tax, ids.rappi, cdt, savings, TODAY);
+  await removeProductInto(db, yields, tax, ids.rappi, cdt, savings, TODAY);
 
-  assert.deepEqual((await yields.pockets(ids.rappi)).map(pocket => pocket.id), [savings], 'the CDT is gone');
+  assert.deepEqual((await yields.products(ids.rappi)).map(product => product.id), [savings], 'the CDT is gone');
   const carried = (await yields.adjustments(ids.rappi))
-    .filter(entry => entry.pocket_id === savings && entry.on_date === TODAY)
+    .filter(entry => entry.product_id === savings && entry.on_date === TODAY)
     .reduce((sum, entry) => sum + entry.amount_minor, 0);
   assert.equal((await shown())(savings) + carried, before(savings) + before(cdt), 'its balance moved across, exactly');
-  assert.deepEqual((await yields.pocketBalances(savings)).map(entry => ({ ...entry })), statedBefore,
+  assert.deepEqual((await yields.productBalances(savings)).map(entry => ({ ...entry })), statedBefore,
     'the destination\'s own stated balance was not rewritten');
-  assert.ok((await yields.adjustments(ids.rappi)).some(entry => entry.pocket_id === savings && entry.on_date === TODAY),
+  assert.ok((await yields.adjustments(ids.rappi)).some(entry => entry.product_id === savings && entry.on_date === TODAY),
     'the balance arrived as a movement on the destination');
   assert.equal(await grossTo('2026-08-31'), august, 'nothing it earned in August was lost');
-  assert.equal((await db.queryOne('SELECT pocket_id FROM transactions WHERE amount_minor = -5000000')).pocket_id, savings,
+  assert.equal((await db.queryOne('SELECT product_id FROM transactions WHERE amount_minor = -5000000')).product_id, savings,
     'its movement names the product it went to');
   assert.equal(await balance(), accountBefore, 'the account itself did not move');
 });
 
 test('removing the usual product makes the destination the usual one', async () => {
-  const { removePocketInto } = await import('../../src/app/core/yields/remove-pocket.ts');
+  const { removeProductInto } = await import('../../src/app/core/yields/remove-product.ts');
   const { db, yields, tax, ids, savings, cdt } = await withCdt();
 
-  await removePocketInto(db, yields, tax, ids.rappi, savings, cdt, '2026-09-10');
+  await removeProductInto(db, yields, tax, ids.rappi, savings, cdt, '2026-09-10');
 
-  const [left] = await yields.pockets(ids.rappi);
+  const [left] = await yields.products(ids.rappi);
   assert.equal(left.id, cdt);
   assert.equal(left.is_default, 1, 'unassigned money still has somewhere to land');
 });
@@ -2125,20 +2125,20 @@ test('a product emptied of its yields stops earning on them', async () => {
 
   // Two products, both stated: the savings one holds the money, the other is
   // empty. Neither follows the account, as Plata's do not.
-  const [savings] = await yields.pockets(plata);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({
-    pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 100_000_00,
+  const [savings] = await yields.products(plata);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setProductBalance({
+    product_id: savings.id, valid_from: '2026-09-01', amount_minor: 100_000_00,
   });
-  const other = await yields.addPocket({
+  const other = await yields.addProduct({
     account_id: plata, name: 'Bolsillo', source: 'manual', sort_order: 1,
   });
-  await yields.setPocketBalance({ pocket_id: other, valid_from: '2026-09-01', amount_minor: 0 });
+  await yields.setProductBalance({ product_id: other, valid_from: '2026-09-01', amount_minor: 0 });
 
   // A week of earning, all of it in the savings product.
   await engine.accrue(plata, '2026-09-08');
   const earned = (await yields.days(plata))
-    .filter(day => day.pocket_id === savings.id)
+    .filter(day => day.product_id === savings.id)
     .reduce((sum, day) => sum + day.net_minor, 0);
   assert.ok(earned > 0, 'the savings product earned something to move');
 
@@ -2147,15 +2147,15 @@ test('a product emptied of its yields stops earning on them', async () => {
   await transfers.create({
     occurred_on: '2026-09-08',
     description: 'Recarga bolsillo',
-    from: { account_id: plata, pocket_id: savings.id, amount_minor: 100_000_00 + earned },
-    to: { account_id: plata, pocket_id: other, amount_minor: 100_000_00 + earned },
+    from: { account_id: plata, product_id: savings.id, amount_minor: 100_000_00 + earned },
+    to: { account_id: plata, product_id: other, amount_minor: 100_000_00 + earned },
   });
 
   await yields.clearDays(plata);
   await engine.accrue(plata, '2026-09-12');
 
   const after = (await yields.days(plata)).filter(day => day.on_date > '2026-09-09');
-  const emptied = after.filter(day => day.pocket_id === savings.id);
+  const emptied = after.filter(day => day.product_id === savings.id);
 
   assert.ok(emptied.length > 0, 'the emptied product still has days on record');
   assert.deepEqual(emptied.map(day => day.balance_minor), emptied.map(() => 0),
@@ -2163,7 +2163,7 @@ test('a product emptied of its yields stops earning on them', async () => {
   assert.deepEqual(emptied.map(day => day.net_minor), emptied.map(() => 0));
 
   // And the product it went to earns on all of it, so nothing was lost.
-  const receiving = after.filter(day => day.pocket_id === other);
+  const receiving = after.filter(day => day.product_id === other);
   assert.ok(receiving.every(day => day.balance_minor >= 100_000_00 + earned),
     'the money and its yield earn where they actually are');
 });

@@ -31,24 +31,24 @@ async function bank({ funded }) {
     opened_on: '2026-01-01', opening_balance_minor: pesos(10_000_000),
   });
   await yields.enrol({ account_id: account, opening_on: '2026-01-01', withholding: true });
-  const [savings] = await yields.pockets(account);
-  await yields.setDefaultPocket(account, savings.id);
-  const cdt = await yields.addPocket({
+  const [savings] = await yields.products(account);
+  await yields.setDefaultProduct(account, savings.id);
+  const cdt = await yields.addProduct({
     account_id: account, name: 'CDT renta', kind: 'cdt', sort_order: 1,
-    opened_on: '2026-07-28', term_months: 12, matures_into_pocket_id: savings.id,
+    opened_on: '2026-07-28', term_months: 12, matures_into_product_id: savings.id,
   });
   if (funded) {
     // What creating it "from another product" writes: zero the day before, then the transfer.
-    await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-07-27', amount_minor: 0 });
+    await yields.setProductBalance({ product_id: cdt, valid_from: '2026-07-27', amount_minor: 0 });
     await new TransfersRepository(db, NOW).create({
       occurred_on: '2026-07-28',
-      from: { account_id: account, pocket_id: savings.id, amount_minor: pesos(1_000_000) },
-      to: { account_id: account, pocket_id: cdt, amount_minor: pesos(1_000_000) },
+      from: { account_id: account, product_id: savings.id, amount_minor: pesos(1_000_000) },
+      to: { account_id: account, product_id: cdt, amount_minor: pesos(1_000_000) },
     });
   }
   const engine = new AccrualEngine(db, yields, new TaxParametersRepository(db, NOW));
-  const held = async () => ((await engine.heldByPocket(account, TODAY)).get(cdt) ?? 0)
-    + ((await yields.landedByPocket(account, TODAY)).total.get(cdt) ?? 0);
+  const held = async () => ((await engine.heldByProduct(account, TODAY)).get(cdt) ?? 0)
+    + ((await yields.landedByProduct(account, TODAY)).total.get(cdt) ?? 0);
   return { yields, cdt, held };
 }
 
@@ -61,14 +61,14 @@ test('saving a funded CDT again keeps its capital, however many times', async ()
   await yields.setCdtCapital(cdt, terms);
   await yields.setCdtCapital(cdt, terms);
 
-  assert.deepEqual((await yields.pocketBalances(cdt)).map(b => [b.valid_from, b.amount_minor]), [['2026-07-27', 0]]);
+  assert.deepEqual((await yields.productBalances(cdt)).map(b => [b.valid_from, b.amount_minor]), [['2026-07-27', 0]]);
   assert.equal(await held(), pesos(1_000_000));
 });
 
 test('saving puts right a CDT that the old form had doubled', async () => {
   const { yields, cdt, held } = await bank({ funded: true });
-  for (const old of await yields.pocketBalances(cdt)) await yields.removePocketBalance(old.id);
-  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-07-28', amount_minor: pesos(1_000_000) });
+  for (const old of await yields.productBalances(cdt)) await yields.removeProductBalance(old.id);
+  await yields.setProductBalance({ product_id: cdt, valid_from: '2026-07-28', amount_minor: pesos(1_000_000) });
   assert.equal(await held(), pesos(2_000_000), 'the state the old form left behind');
 
   await yields.setCdtCapital(cdt, terms);
@@ -79,7 +79,7 @@ test('a CDT whose capital was typed in holds exactly that', async () => {
   const { yields, cdt, held } = await bank({ funded: false });
   await yields.setCdtCapital(cdt, terms);
 
-  assert.deepEqual((await yields.pocketBalances(cdt)).map(b => [b.valid_from, b.amount_minor]),
+  assert.deepEqual((await yields.productBalances(cdt)).map(b => [b.valid_from, b.amount_minor]),
     [['2026-07-27', pesos(1_000_000)]]);
   assert.equal(await held(), pesos(1_000_000));
 });

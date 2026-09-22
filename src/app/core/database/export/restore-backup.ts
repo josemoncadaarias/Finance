@@ -180,7 +180,11 @@ async function replaceWith(
         if (!Array.isArray(stored) || stored.length === 0) continue;
         // Rows that point at rows of their own table go in parents first: a
         // category at its parent, a CDT at the product it matures into.
+        // A backup written before migration 043 calls the table yield_pockets
+        // and the column matures_into_pocket_id, and it is restored into the
+        // schema of its own day, so both names have to be recognised here.
         const rows = table === 'categories' ? parentsFirst(stored, 'parent_id')
+          : table === 'products' ? parentsFirst(stored, 'matures_into_product_id')
           : table === 'yield_pockets' ? parentsFirst(stored, 'matures_into_pocket_id')
           : stored;
 

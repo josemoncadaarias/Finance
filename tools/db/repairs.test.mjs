@@ -25,7 +25,8 @@ test('a skipped 030 is run again, once', async () => {
   const account = await new AccountsRepository(db, NOW).create({
     name: 'Cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2025-01-01',
   });
-  const pocket = (await db.run(
+  const product = (await db.run(
+    // Under the names version 29 had. Migration 043 renames them.
     `INSERT INTO yield_pockets (account_id, name, source, sort_order, created_at, updated_at)
      VALUES (?, 'Ahorros', 'manual', 0, ?, ?)`, [account, NOW(), NOW()])).lastId;
   await db.run(
@@ -37,11 +38,11 @@ test('a skipped 030 is run again, once', async () => {
 
   await migrate(db, MIGRATION_SOURCES);
 
-  const columns = (await db.query('PRAGMA table_info(yield_pockets)')).map(column => column.name);
+  const columns = (await db.query('PRAGMA table_info(products)')).map(column => column.name);
   assert.ok(columns.includes('payout') && columns.includes('term_months'), 'the columns are there now');
-  assert.deepEqual((await db.query('SELECT pocket_id, payout FROM yield_rates')).map(row => ({ ...row })),
-    [{ pocket_id: pocket, payout: 'monthly' }], 'the account rate was copied onto its product');
-  assert.equal((await db.queryOne('SELECT payout FROM yield_pockets WHERE id = ?', [pocket])).payout, 'monthly');
+  assert.deepEqual((await db.query('SELECT product_id, payout FROM yield_rates')).map(row => ({ ...row })),
+    [{ product_id: product, payout: 'monthly' }], 'the account rate was copied onto its product');
+  assert.equal((await db.queryOne('SELECT payout FROM products WHERE id = ?', [product])).payout, 'monthly');
 
   await migrate(db, MIGRATION_SOURCES);
   assert.equal((await db.query('SELECT id FROM yield_rates')).length, 1, 'and a second start repairs nothing');

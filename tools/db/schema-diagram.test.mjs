@@ -122,7 +122,7 @@ test('the delete rules described match the schema', () => {
   assert.equal(rule('product_cashouts', 'transaction_id'), 'SET NULL');
   assert.equal(rule('yield_rates', 'account_id'), 'CASCADE');
   assert.equal(rule('yield_days', 'account_id'), 'CASCADE');
-  assert.equal(rule('yield_days', 'pocket_id'), 'CASCADE');
-  assert.equal(rule('yield_pocket_balances', 'pocket_id'), 'CASCADE');
+  assert.equal(rule('yield_days', 'product_id'), 'CASCADE');
+  assert.equal(rule('product_balances', 'product_id'), 'CASCADE');
   assert.equal(rule('review_queue', 'batch_id'), 'CASCADE');
 });

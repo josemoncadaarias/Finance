@@ -58,7 +58,7 @@ erDiagram
         INTEGER id PK
         INTEGER account_id FK
         INTEGER category_id FK
-        INTEGER pocket_id FK
+        INTEGER product_id FK
         TEXT occurred_on
         INTEGER amount_minor
         INTEGER rate_scaled
@@ -89,7 +89,7 @@ erDiagram
     yield_rates {
         INTEGER id PK
         INTEGER account_id FK
-        INTEGER pocket_id FK
+        INTEGER product_id FK
         TEXT valid_from
         INTEGER annual_rate_scaled
         INTEGER min_balance_minor
@@ -104,7 +104,7 @@ erDiagram
         INTEGER account_id FK
         TEXT note
     }
-    yield_pockets {
+    products {
         INTEGER id PK
         INTEGER account_id FK
         TEXT name UK
@@ -114,20 +114,20 @@ erDiagram
         INTEGER payout_months
         TEXT opened_on
         INTEGER term_months
-        INTEGER matures_into_pocket_id FK
+        INTEGER matures_into_product_id FK
         INTEGER income_category_id FK
         INTEGER withholding
         INTEGER include_in_net_worth
         INTEGER sort_order
     }
-    yield_pocket_balances {
+    product_balances {
         INTEGER id PK
-        INTEGER pocket_id FK
+        INTEGER product_id FK
         TEXT valid_from
         INTEGER amount_minor
     }
     yield_days {
-        INTEGER pocket_id PK, FK
+        INTEGER product_id PK, FK
         INTEGER account_id FK
         TEXT component PK
         TEXT payout
@@ -176,7 +176,7 @@ erDiagram
     product_entries {
         INTEGER id PK
         INTEGER account_id FK
-        INTEGER pocket_id FK
+        INTEGER product_id FK
         TEXT source
         TEXT kind
         INTEGER product_kind_id FK
@@ -187,7 +187,7 @@ erDiagram
     product_cashouts {
         INTEGER id PK
         INTEGER account_id FK
-        INTEGER pocket_id FK
+        INTEGER product_id FK
         TEXT source
         TEXT on_date
         INTEGER amount_minor
@@ -252,10 +252,10 @@ erDiagram
     accounts       ||--o| yield_accounts    : "earns a yield"
     accounts       ||--o{ yield_rates       : "at these rates"
     accounts       ||--o{ account_aliases    : "is also called"
-    accounts       ||--o{ yield_pockets     : "split into"
-    yield_pockets  ||--o{ yield_pocket_balances : "held this much"
-    yield_pockets  ||--o{ yield_rates        : "earns at its own"
-    yield_pockets  ||--o{ yield_days        : "day by day"
+    accounts       ||--o{ products     : "split into"
+    products  ||--o{ product_balances : "held this much"
+    products  ||--o{ yield_rates        : "earns at its own"
+    products  ||--o{ yield_days        : "day by day"
     accounts       ||--o{ yield_days        : "day by day"
     accounts       ||--o{ cashback_rules    : "rewards under"
     accounts       ||--o{ cashback_rules    : "conditioned on the balance of"
@@ -264,11 +264,11 @@ erDiagram
     cashback_rules ||--o{ cashback_entries  : "worked out by"
     transactions   ||--o{ cashback_entries  : "produced"
     accounts       ||--o{ product_entries : "corrected by"
-    yield_pockets  ||--o{ product_entries : "landed in"
-    yield_pockets  ||--o{ transactions       : "money moved through"
-    yield_pockets  ||--o{ product_cashouts : "taken out of"
-    yield_pockets  ||--o{ yield_pockets     : "a CDT matures into"
-    categories     ||--o{ yield_pockets     : "a CDT's yield is recorded as"
+    products  ||--o{ product_entries : "landed in"
+    products  ||--o{ transactions       : "money moved through"
+    products  ||--o{ product_cashouts : "taken out of"
+    products  ||--o{ products     : "a CDT matures into"
+    categories     ||--o{ products     : "a CDT's yield is recorded as"
     accounts       ||--o{ product_cashouts : "moved into"
     transactions   ||--o| product_cashouts : "became"
     transactions   ||--o{ product_entries : "cashed in by"
@@ -315,18 +315,18 @@ outside the balance of the account that produced it and outside net worth.
 no row here is never accrued, which is how the brokers stay out without a list
 of names in code. `yield_rates` is the effective-annual-rate history you
 maintain by hand, optionally banded by balance. `yield_days` is one row per
-**pocket** per day, holding the balance and the rate it was worked out from, so
+**product** per day, holding the balance and the rate it was worked out from, so
 any figure can be explained rather than only recomputed.
 
-`yield_pockets` is why the day belongs to a pocket rather than an account. One
+`products` is why the day belongs to a product rather than an account. One
 account can be several pots that the bank pays separately — Dale is two
 "alcancias" — and the withholding threshold applies to a payment, not to an
 account. Adding the pots up before taxing charges withholding that is not owed:
 on 2026-09-10 that was 386.73 pesos a day Dale was not actually charged. A
-pocket either follows the account's own balance (`source = 'ledger'`, at most
+product either follows the account's own balance (`source = 'ledger'`, at most
 one per account, holding whatever the others did not take) or carries a figure
-typed in and dated in `yield_pocket_balances`, because a movement never says
-which pocket it landed in.
+typed in and dated in `product_balances`, because a movement never says
+which product it landed in.
 
 `cashback_rules` holds the conditions as they stood on a date — a percentage,
 optionally on one category, optionally requiring a minimum balance somewhere
@@ -408,23 +408,23 @@ outright:
 | `idx_transactions_account_date` | an account's statement, and balances as of a date |
 | `idx_transactions_date` | the month view |
 | `idx_transactions_category` | reports by category |
-| `idx_transactions_pocket` | which product a movement went to; **partial**, since only a split account fills it |
+| `idx_transactions_product` | which product a movement went to; **partial**, since only a split account fills it |
 | `idx_transactions_transfer` | fetching both legs of a transfer |
 | `idx_accounts_name` | unique; the importer matches accounts by name |
 | `idx_accounts_group_currency` | unique; one currency per group |
 | `idx_categories_name_kind` | unique; the importer matches categories this way |
-| `idx_yield_pockets_account` | the pockets of an account, in order |
+| `idx_products_account` | the products of an account, in order |
 | `idx_account_aliases_account` | the names a backup uses for one account |
-| `idx_yield_pockets_default` | the product money lands in by default; **partial**, so an account has at most one |
-| `idx_yield_pocket_balances` | what a pocket held on a date |
-| `idx_yield_days_account` | every pocket's days for one account |
+| `idx_products_default` | the product money lands in by default; **partial**, so an account has at most one |
+| `idx_product_balances` | what a product held on a date |
+| `idx_yield_days_account` | every product's days for one account |
 | `idx_yield_rates_account` | finding the rate in force on a date |
-| `idx_yield_rates_pocket` | and the rates belonging to one pocket |
-| `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each pocket |
+| `idx_yield_rates_product` | and the rates belonging to one product |
+| `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each product |
 | `idx_cashback_rules_account` | the rules in force for a card on a date |
 | `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
 | `idx_product_entries_account` | what has landed in an account's products |
-| `idx_product_entries_pocket` | and which pocket it landed in |
+| `idx_product_entries_product` | and which product it landed in |
 | `idx_product_entries_kind` | and which kind it was filed under |
 | `idx_product_entries_category` | and the income category it is filed under, since migration 037 |
 | `idx_product_kinds_name` | a kind is named once |

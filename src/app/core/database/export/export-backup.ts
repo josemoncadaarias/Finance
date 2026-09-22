@@ -47,8 +47,8 @@ export const TABLES = [
   // imported history failed on its first row - see restore-backup.ts.
   'import_batches',
   'yield_accounts',
-  'yield_pockets',
-  'yield_pocket_balances',
+  'products',
+  'product_balances',
   'yield_rates',
   'transfers',
   'transactions',

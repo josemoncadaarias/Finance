@@ -24,7 +24,7 @@ export interface NewTransaction {
    * nothing to choose, and the column stays empty - which is also every row
    * that existed before a movement could say.
    */
-  pocket_id?: number | null;
+  product_id?: number | null;
   occurred_on: IsoDate;
   amount_minor: number;
   /** Omit on a base-currency transaction. */
@@ -95,10 +95,10 @@ export interface DetailedTransaction extends TransactionRow {
   /** The far account's id, so a caller can tell inside a scope from outside. */
   other_account_id: number | null;
   /** 1 when this movement's product sits outside net worth. */
-  pocket_set_aside: 0 | 1;
+  product_set_aside: 0 | 1;
   /** The product on the other side of a transfer, and whether it sits outside net worth. */
-  other_pocket_name: string | null;
-  other_pocket_set_aside: 0 | 1;
+  other_product_name: string | null;
+  other_product_set_aside: 0 | 1;
 }
 
 export interface DetailedFilter {
@@ -110,13 +110,13 @@ export interface DetailedFilter {
   excludeTransfers?: boolean;
 }
 
-const COLUMNS = `id, account_id, category_id, pocket_id, occurred_on, amount_minor, rate_scaled,
+const COLUMNS = `id, account_id, category_id, product_id, occurred_on, amount_minor, rate_scaled,
   amount_base_minor, rate_source, confidence, description, transfer_id, transfer_leg,
   source, import_fingerprint, import_seq, import_batch_id, locked, created_at, updated_at`;
 
 /** Fields a user can edit. Touching any of them locks the row. */
 const EDITABLE = [
-  'account_id', 'category_id', 'pocket_id', 'occurred_on', 'amount_minor', 'rate_scaled',
+  'account_id', 'category_id', 'product_id', 'occurred_on', 'amount_minor', 'rate_scaled',
   'amount_base_minor', 'rate_source', 'confidence', 'description',
 ] as const;
 
@@ -191,14 +191,14 @@ export class TransactionsRepository {
   async create(transaction: NewTransaction): Promise<number> {
     const timestamp = this.now();
     const result = await this.db.run(
-      `INSERT INTO transactions (account_id, category_id, pocket_id, occurred_on, amount_minor, rate_scaled,
+      `INSERT INTO transactions (account_id, category_id, product_id, occurred_on, amount_minor, rate_scaled,
          amount_base_minor, rate_source, confidence, description, transfer_id, transfer_leg,
          source, import_fingerprint, import_seq, import_batch_id, locked, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transaction.account_id,
         transaction.category_id ?? null,
-        transaction.pocket_id ?? null,
+        transaction.product_id ?? null,
         transaction.occurred_on,
         transaction.amount_minor,
         transaction.rate_scaled ?? null,
@@ -254,7 +254,7 @@ export class TransactionsRepository {
     values.push(this.now(), id);
     await this.db.run(`UPDATE transactions SET ${columns.join(', ')} WHERE id = ?`, values);
 
-    if (changes.amount_minor !== undefined || changes.occurred_on !== undefined || changes.pocket_id !== undefined) {
+    if (changes.amount_minor !== undefined || changes.occurred_on !== undefined || changes.product_id !== undefined) {
       await this.followCashIn(id);
     }
   }
@@ -272,13 +272,13 @@ export class TransactionsRepository {
     const row = await this.findById(id);
     if (!row) return;
     await this.db.run(
-      `UPDATE product_cashouts SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id)
+      `UPDATE product_cashouts SET amount_minor = ?, on_date = ?, product_id = COALESCE(?, product_id)
        WHERE transaction_id = ?`,
-      [Math.abs(row.amount_minor), row.occurred_on, row.pocket_id, id]);
+      [Math.abs(row.amount_minor), row.occurred_on, row.product_id, id]);
     await this.db.run(
-      `UPDATE product_entries SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id), updated_at = ?
+      `UPDATE product_entries SET amount_minor = ?, on_date = ?, product_id = COALESCE(?, product_id), updated_at = ?
        WHERE transaction_id = ?`,
-      [-row.amount_minor, row.occurred_on, row.pocket_id, this.now(), id]);
+      [-row.amount_minor, row.occurred_on, row.product_id, this.now(), id]);
   }
 
   /**
@@ -384,17 +384,17 @@ export class TransactionsRepository {
               other.builtin_icon AS other_account_builtin_icon,
               other.custom_icon_id AS other_account_custom_icon_id,
               other.id AS other_account_id,
-              CASE WHEN own_pocket.include_in_net_worth = 0 THEN 1 ELSE 0 END AS pocket_set_aside,
-              other_pocket.name AS other_pocket_name,
-              CASE WHEN other_pocket.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_pocket_set_aside
+              CASE WHEN own_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS product_set_aside,
+              other_product.name AS other_product_name,
+              CASE WHEN other_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_product_set_aside
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id
        LEFT JOIN transactions sibling
               ON sibling.transfer_id = t.transfer_id AND sibling.id <> t.id
        LEFT JOIN accounts other ON other.id = sibling.account_id
-       LEFT JOIN yield_pockets own_pocket ON own_pocket.id = t.pocket_id
-       LEFT JOIN yield_pockets other_pocket ON other_pocket.id = sibling.pocket_id
+       LEFT JOIN products own_product ON own_product.id = t.product_id
+       LEFT JOIN products other_product ON other_product.id = sibling.product_id
        ${where}
        ORDER BY t.occurred_on DESC, t.id DESC`,
       values,

@@ -133,7 +133,7 @@ test('an older backup is brought forward, migrations and all', async () => {
   assert.equal(restored[0].name, 'Rappi cuenta');
 
   const tables = await target.query(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name = 'yield_pockets'");
+    "SELECT name FROM sqlite_master WHERE type='table' AND name = 'products'");
   assert.equal(tables.length, 1, 'a table added after the backup was written');
 });
 
@@ -178,7 +178,7 @@ test('a backup of imported movements, products and nested categories comes back 
 
   const yields = new YieldsRepository(db, NOW);
   await yields.enrol({ account_id: source.ids.rappi, opening_on: '2025-12-30' });
-  const [pocket] = await yields.pockets(source.ids.rappi);
+  const [product] = await yields.products(source.ids.rappi);
 
   const categories = new CategoriesRepository(db, NOW);
   const child = await categories.create({ name: 'Almuerzos', kind: 'expense', builtin_icon: 'restaurant' });
@@ -188,12 +188,12 @@ test('a backup of imported movements, products and nested categories comes back 
 
   await db.run(
     `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
-       import_fingerprint, import_seq, import_batch_id, pocket_id, created_at, updated_at)
+       import_fingerprint, import_seq, import_batch_id, product_id, created_at, updated_at)
      VALUES (?, ?, '2026-09-01', -250000, -250000, 'monefy', 'fingerprint', 1, ?, ?, ?, ?)`,
-    [source.ids.rappi, child, batch, pocket.id, NOW(), NOW()]);
+    [source.ids.rappi, child, batch, product.id, NOW(), NOW()]);
 
   const counts = async target => Object.fromEntries(await Promise.all(
-    ['accounts', 'categories', 'transactions', 'import_batches', 'yield_pockets'].map(async table =>
+    ['accounts', 'categories', 'transactions', 'import_batches', 'products'].map(async table =>
       [table, (await target.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n])));
   const expected = await counts(db);
 
@@ -203,8 +203,8 @@ test('a backup of imported movements, products and nested categories comes back 
 
   assert.deepEqual(await counts(target.db), expected);
   assert.deepEqual(await target.db.query('PRAGMA foreign_key_check'), [], 'every reference points somewhere');
-  const imported = await target.db.queryOne("SELECT import_batch_id, pocket_id FROM transactions WHERE source = 'monefy'");
-  assert.deepEqual({ ...imported }, { import_batch_id: batch, pocket_id: pocket.id });
+  const imported = await target.db.queryOne("SELECT import_batch_id, product_id FROM transactions WHERE source = 'monefy'");
+  assert.deepEqual({ ...imported }, { import_batch_id: batch, product_id: product.id });
   assert.equal((await target.db.queryOne('PRAGMA foreign_keys')).foreign_keys, 1, 'foreign keys are back on');
 });
 
@@ -306,16 +306,16 @@ test('a backup comes back even where foreign keys cannot be turned off, whatever
   const batch = (await db.queryOne('SELECT MAX(id) AS id FROM import_batches')).id;
   const yields = new YieldsRepository(db, NOW);
   await yields.enrol({ account_id: source.ids.rappi, opening_on: '2025-12-30' });
-  const [pocket] = await yields.pockets(source.ids.rappi);
+  const [product] = await yields.products(source.ids.rappi);
   const categories = new CategoriesRepository(db, NOW);
   const child = await categories.create({ name: 'Almuerzos', kind: 'expense', builtin_icon: 'restaurant' });
   const parent = await categories.create({ name: 'Comida afuera', kind: 'expense', builtin_icon: 'restaurant' });
   await db.run('UPDATE categories SET parent_id = ? WHERE id = ?', [parent, child]);
   await db.run(
     `INSERT INTO transactions (account_id, category_id, occurred_on, amount_minor, amount_base_minor, source,
-       import_fingerprint, import_seq, import_batch_id, pocket_id, created_at, updated_at)
+       import_fingerprint, import_seq, import_batch_id, product_id, created_at, updated_at)
      VALUES (?, ?, '2026-09-01', -250000, -250000, 'monefy', 'fingerprint', 1, ?, ?, ?, ?)`,
-    [source.ids.rappi, child, batch, pocket.id, NOW(), NOW()]);
+    [source.ids.rappi, child, batch, product.id, NOW(), NOW()]);
 
   const backup = parseBackup(toJson(await exportBackup(db)));
   backup.tables = Object.fromEntries(Object.entries(backup.tables).reverse());
@@ -324,7 +324,7 @@ test('a backup comes back even where foreign keys cannot be turned off, whatever
   await migrate(target, MIGRATION_SOURCES);
   await restoreBackup(target, backup, MIGRATION_SOURCES);
 
-  for (const table of ['accounts', 'categories', 'transactions', 'import_batches', 'yield_pockets']) {
+  for (const table of ['accounts', 'categories', 'transactions', 'import_batches', 'products']) {
     assert.equal(
       (await target.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n,
       (await db.queryOne(`SELECT COUNT(*) AS n FROM ${table}`)).n,

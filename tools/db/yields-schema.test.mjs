@@ -46,13 +46,13 @@ const enrol = (db, accountId, opening = 0) => db.exec(
    VALUES (${accountId}, ${opening}, '2026-09-01', 1, 1, '${NOW}', '${NOW}')`);
 
 /**
- * A pocket for an account, which is what a day actually belongs to.
+ * A product for an account, which is what a day actually belongs to.
  *
  * Every account has at least one. An account with none has nothing to accrue
  * on, which is why the repository creates one as part of enrolling.
  */
-const addPocket = (db, id, accountId, name, source = 'ledger') => db.exec(
-  `INSERT INTO yield_pockets (id, account_id, name, source, sort_order, created_at, updated_at)
+const addProduct = (db, id, accountId, name, source = 'ledger') => db.exec(
+  `INSERT INTO products (id, account_id, name, source, sort_order, created_at, updated_at)
    VALUES (${id}, ${accountId}, '${name}', '${source}', 0, '${NOW}', '${NOW}')`);
 
 test('the placeholders from 001 are gone and the module replaced them', () => {
@@ -65,7 +65,7 @@ test('the placeholders from 001 are gone and the module replaced them', () => {
     assert.equal(tables.includes(gone), false, `${gone} should have been dropped`);
   }
   for (const added of ['yield_accounts', 'yield_rates', 'yield_days',
-                       'yield_pockets', 'yield_pocket_balances',
+                       'products', 'product_balances',
                        'cashback_rules', 'cashback_entries', 'product_cashouts', 'tax_parameters']) {
     assert.equal(tables.includes(added), true, `${added} is missing`);
   }
@@ -113,58 +113,58 @@ test('rate bands: one rate per account, band and start date', () => {
      VALUES (4, 1, '2026-10-01', 90000, 50000000, 10000000, '${NOW}')`), 'a band cannot end below where it starts');
 });
 
-test('a day of yield must add up, and there is only one per pocket per day', () => {
+test('a day of yield must add up, and there is only one per product per day', () => {
   const db = freshDb();
   enrol(db, 1);
-  addPocket(db, 10, 1, 'Rappi cuenta');
-  addPocket(db, 11, 1, 'Meta', 'manual');
+  addProduct(db, 10, 1, 'Rappi cuenta');
+  addProduct(db, 11, 1, 'Meta', 'manual');
 
-  db.exec(`INSERT INTO yield_days (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled,
+  db.exec(`INSERT INTO yield_days (product_id, account_id, on_date, balance_minor, annual_rate_scaled,
              gross_minor, withholding_minor, net_minor, computed_at)
            VALUES (10, 1, '2026-09-02', 1000000000, 114500, 30000, 2100, 27900, '${NOW}')`);
 
-  // The same day for a different pocket is a different row, which is the whole
-  // reason the key changed: the bank pays each pocket separately.
-  db.exec(`INSERT INTO yield_days (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled,
+  // The same day for a different product is a different row, which is the whole
+  // reason the key changed: the bank pays each product separately.
+  db.exec(`INSERT INTO yield_days (product_id, account_id, on_date, balance_minor, annual_rate_scaled,
              gross_minor, withholding_minor, net_minor, computed_at)
            VALUES (11, 1, '2026-09-02', 500000000, 114500, 15000, 0, 15000, '${NOW}')`);
 
   assert.throws(() => db.exec(
-    `INSERT INTO yield_days (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled,
+    `INSERT INTO yield_days (product_id, account_id, on_date, balance_minor, annual_rate_scaled,
        gross_minor, withholding_minor, net_minor, computed_at)
      VALUES (10, 1, '2026-09-02', 1000000000, 114500, 30000, 0, 30000, '${NOW}')`),
-    'one row per pocket per day');
+    'one row per product per day');
 
   assert.throws(() => db.exec(
-    `INSERT INTO yield_days (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled,
+    `INSERT INTO yield_days (product_id, account_id, on_date, balance_minor, annual_rate_scaled,
        gross_minor, withholding_minor, net_minor, computed_at)
      VALUES (10, 1, '2026-09-03', 1000000000, 114500, 30000, 2100, 30000, '${NOW}')`),
     'net has to be gross minus the withholding');
 });
 
-test('a pocket is named once per account, and knows where its balance comes from', () => {
+test('a product is named once per account, and knows where its balance comes from', () => {
   const db = freshDb();
   enrol(db, 1);
-  addPocket(db, 10, 1, 'Alcancia principal', 'manual');
+  addProduct(db, 10, 1, 'Alcancia principal', 'manual');
 
-  assert.throws(() => addPocket(db, 11, 1, 'Alcancia principal', 'manual'),
-    'two pockets of one account cannot share a name');
+  assert.throws(() => addProduct(db, 11, 1, 'Alcancia principal', 'manual'),
+    'two products of one account cannot share a name');
 
   assert.throws(() => db.exec(
-    `INSERT INTO yield_pockets (id, account_id, name, source, created_at, updated_at)
+    `INSERT INTO products (id, account_id, name, source, created_at, updated_at)
      VALUES (12, 1, 'Otra', 'invented', '${NOW}', '${NOW}')`),
     'a balance comes from the ledger or from a figure typed in, nothing else');
 
-  db.exec(`INSERT INTO yield_pocket_balances (id, pocket_id, valid_from, amount_minor, created_at, updated_at)
+  db.exec(`INSERT INTO product_balances (id, product_id, valid_from, amount_minor, created_at, updated_at)
            VALUES (1, 10, '2026-09-10', 1009645100, '${NOW}', '${NOW}')`);
 
   assert.throws(() => db.exec(
-    `INSERT INTO yield_pocket_balances (id, pocket_id, valid_from, amount_minor, created_at, updated_at)
-     VALUES (2, 10, '2026-09-10', 1, '${NOW}', '${NOW}')`), 'one figure per pocket per day');
+    `INSERT INTO product_balances (id, product_id, valid_from, amount_minor, created_at, updated_at)
+     VALUES (2, 10, '2026-09-10', 1, '${NOW}', '${NOW}')`), 'one figure per product per day');
 
   assert.throws(() => db.exec(
-    `INSERT INTO yield_pocket_balances (id, pocket_id, valid_from, amount_minor, created_at, updated_at)
-     VALUES (3, 10, '2026-10-01', -1, '${NOW}', '${NOW}')`), 'a pocket cannot hold less than nothing');
+    `INSERT INTO product_balances (id, product_id, valid_from, amount_minor, created_at, updated_at)
+     VALUES (3, 10, '2026-10-01', -1, '${NOW}', '${NOW}')`), 'a product cannot hold less than nothing');
 });
 
 test('a cashback rule needs both halves of its balance condition', () => {
@@ -285,18 +285,18 @@ test('every tax parameter carries the norm it came from', () => {
 test('deleting an account takes everything it earned with it', () => {
   const db = freshDb();
   enrol(db, 1, 500000000);
-  addPocket(db, 10, 1, 'Rappi cuenta');
+  addProduct(db, 10, 1, 'Rappi cuenta');
   db.exec(`INSERT INTO yield_rates (id, account_id, valid_from, annual_rate_scaled, created_at)
            VALUES (1, 1, '2026-09-01', 114500, '${NOW}')`);
-  db.exec(`INSERT INTO yield_pocket_balances (id, pocket_id, valid_from, amount_minor, created_at, updated_at)
+  db.exec(`INSERT INTO product_balances (id, product_id, valid_from, amount_minor, created_at, updated_at)
            VALUES (1, 10, '2026-09-01', 1000000000, '${NOW}', '${NOW}')`);
-  db.exec(`INSERT INTO yield_days (pocket_id, account_id, on_date, balance_minor, annual_rate_scaled,
+  db.exec(`INSERT INTO yield_days (product_id, account_id, on_date, balance_minor, annual_rate_scaled,
              gross_minor, withholding_minor, net_minor, computed_at)
            VALUES (10, 1, '2026-09-02', 1000000000, 114500, 30000, 0, 30000, '${NOW}')`);
 
   db.exec('DELETE FROM accounts WHERE id = 1');
   for (const table of ['yield_accounts', 'yield_rates', 'yield_days',
-                       'yield_pockets', 'yield_pocket_balances']) {
+                       'products', 'product_balances']) {
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n, 0, `${table} kept an orphan`);
   }
 });

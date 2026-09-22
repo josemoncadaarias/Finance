@@ -105,7 +105,7 @@ export interface WithholdingRule {
   base: 'all' | 'excess';
 }
 
-/** What kind of product a pocket is. It decides how its yield is withheld. */
+/** What kind of product a product is. It decides how its yield is withheld. */
 export type ProductKind = 'high_yield' | 'cdt';
 
 /**

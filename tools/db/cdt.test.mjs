@@ -49,17 +49,17 @@ async function withCdt({ withholding = true } = {}) {
   }
 
   await yields.enrol({ account_id: account, opening_on: '2026-08-31', withholding });
-  const [savings] = await yields.pockets(account);
-  await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [savings.id]);
-  await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-08-31', amount_minor: pesos(5_000_000) });
-  await yields.setDefaultPocket(account, savings.id);
+  const [savings] = await yields.products(account);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [savings.id]);
+  await yields.setProductBalance({ product_id: savings.id, valid_from: '2026-08-31', amount_minor: pesos(5_000_000) });
+  await yields.setDefaultProduct(account, savings.id);
 
-  const cdt = await yields.addPocket({
+  const cdt = await yields.addProduct({
     account_id: account, name: 'Demo 1M', source: 'manual', kind: 'cdt', sort_order: 1,
-    opened_on: '2026-09-10', term_months: 1, matures_into_pocket_id: savings.id, income_category_id: income,
+    opened_on: '2026-09-10', term_months: 1, matures_into_product_id: savings.id, income_category_id: income,
   });
-  await yields.setPocketBalance({ pocket_id: cdt, valid_from: '2026-09-10', amount_minor: pesos(10_000_000) });
-  await yields.setRate({ account_id: account, pocket_id: cdt, valid_from: '2026-09-10', annual_rate_scaled: pct(9) });
+  await yields.setProductBalance({ product_id: cdt, valid_from: '2026-09-10', amount_minor: pesos(10_000_000) });
+  await yields.setRate({ account_id: account, product_id: cdt, valid_from: '2026-09-10', annual_rate_scaled: pct(9) });
 
   return { db, accounts, yields, tax, account, savings: savings.id, cdt };
 }
@@ -76,8 +76,8 @@ test('a CDT earns nothing on any day before it matures', async () => {
   const { db, yields, tax, account, cdt } = await withCdt();
   await accrueAndSettle(db, yields, tax, account, '2026-10-09');
 
-  assert.equal((await yields.days(account)).filter(day => day.pocket_id === cdt).length, 0);
-  assert.ok((await yields.pockets(account)).some(pocket => pocket.id === cdt), 'still open the day before');
+  assert.equal((await yields.days(account)).filter(day => day.product_id === cdt).length, 0);
+  assert.ok((await yields.products(account)).some(product => product.id === cdt), 'still open the day before');
 });
 
 test('the day it matures, it pays its term with 7% withheld, hands everything over and closes', async () => {
@@ -95,24 +95,24 @@ test('the day it matures, it pays its term with 7% withheld, hands everything ov
 
   const balance = async () => (await accounts.balances()).find(b => b.account.id === account).balance_minor;
   const accountBefore = await balance();
-  const savingsBefore = (await engine.heldByPocket(account, '2026-10-10')).get(savings);
+  const savingsBefore = (await engine.heldByProduct(account, '2026-10-10')).get(savings);
 
   await accrueAndSettle(db, yields, tax, account, '2026-10-10');
 
-  assert.deepEqual((await yields.pockets(account)).map(pocket => pocket.id), [savings], 'the CDT closed itself');
+  assert.deepEqual((await yields.products(account)).map(product => product.id), [savings], 'the CDT closed itself');
   // The capital arrives as a movement on the chosen product rather than by
   // rewriting its stated balance; the net yield as a movement of the account.
   const carried = (await yields.adjustments(account))
-    .filter(entry => entry.pocket_id === savings && entry.transaction_id === null)
+    .filter(entry => entry.product_id === savings && entry.transaction_id === null)
     .reduce((sum, entry) => sum + entry.amount_minor, 0);
   assert.equal(carried, pesos(10_000_000), 'the capital, carried across as a movement');
-  assert.equal((await engine.heldByPocket(account, '2026-10-10')).get(savings) + carried,
+  assert.equal((await engine.heldByProduct(account, '2026-10-10')).get(savings) + carried,
     savingsBefore + pesos(10_000_000) + preview.netMinor, 'capital and net yield, into the chosen product');
   assert.equal(await balance(), accountBefore + preview.netMinor, 'the net yield is new money in the account');
 
   const payment = (await yields.days(account)).find(day => day.component === 'CDT Demo 1M');
   assert.ok(payment, 'the payment is kept, named after the CDT');
-  assert.equal(payment.pocket_id, savings);
+  assert.equal(payment.product_id, savings);
   assert.equal(payment.gross_minor, preview.grossMinor);
   assert.equal(payment.withholding_minor, preview.withheldMinor);
   assert.equal(payment.locked, 1);
@@ -148,33 +148,34 @@ test('a rate that belonged to a whole account is copied onto each product that u
   const account = await new AccountsRepository(db, NOW).create({
     name: 'Cuenta vieja', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2025-01-01',
   });
-  const insertPocket = (name, sort) => db.run(
+  // Under the names version 29 had: migration 043 renames them.
+  const insertProduct = (name, sort) => db.run(
     `INSERT INTO yield_pockets (account_id, name, source, sort_order, created_at, updated_at)
      VALUES (?, ?, 'manual', ?, ?, ?)`, [account, name, sort, NOW(), NOW()]).then(r => r.lastId);
-  const first = await insertPocket('Principal', 0);
-  const second = await insertPocket('Ahorro', 1);
-  const own = await insertPocket('Propia', 2);
-  const rate = (pocket, component, payout, value, spend = null) => db.run(
+  const first = await insertProduct('Principal', 0);
+  const second = await insertProduct('Ahorro', 1);
+  const own = await insertProduct('Propia', 2);
+  const rate = (product, component, payout, value, spend = null) => db.run(
     `INSERT INTO yield_rates (account_id, pocket_id, component, payout, valid_from, annual_rate_scaled,
        requires_monthly_spend_minor, fallback_annual_rate_scaled, created_at)
      VALUES (?, ?, ?, ?, '2026-09-09', ?, ?, ?, ?)`,
-    [account, pocket, component, payout, value, spend, spend === null ? null : 0, NOW()]);
+    [account, product, component, payout, value, spend, spend === null ? null : 0, NOW()]);
   await rate(null, 'Diario', 'daily', pct(5));
   await rate(null, 'Mensual por gasto', 'monthly', pct(5.5), pesos(400_000));
   await rate(own, 'base', 'monthly', pct(9));
 
   await migrate(db, MIGRATION_SOURCES);
 
-  const rows = await db.query('SELECT pocket_id, component, payout, annual_rate_scaled FROM yield_rates ORDER BY pocket_id, component');
-  assert.equal(rows.filter(row => row.pocket_id === null).length, 0, 'no rate is left for a whole account');
-  for (const pocket of [first, second]) {
-    assert.deepEqual(rows.filter(row => row.pocket_id === pocket).map(row => [row.component, row.payout, row.annual_rate_scaled]),
+  const rows = await db.query('SELECT product_id, component, payout, annual_rate_scaled FROM yield_rates ORDER BY product_id, component');
+  assert.equal(rows.filter(row => row.product_id === null).length, 0, 'no rate is left for a whole account');
+  for (const product of [first, second]) {
+    assert.deepEqual(rows.filter(row => row.product_id === product).map(row => [row.component, row.payout, row.annual_rate_scaled]),
       [['Diario', 'daily', pct(5)], ['Mensual por gasto', 'monthly', pct(5.5)]], 'both parts, onto a product that used them');
   }
-  assert.deepEqual(rows.filter(row => row.pocket_id === own).map(row => row.component), ['base'],
+  assert.deepEqual(rows.filter(row => row.product_id === own).map(row => row.component), ['base'],
     'a product with a rate of its own did not use the account\'s, and gets no copy');
 
-  const pockets = await db.query('SELECT id, payout FROM yield_pockets ORDER BY id');
-  assert.deepEqual(pockets.map(pocket => pocket.payout), ['daily', 'daily', 'monthly'],
+  const products = await db.query('SELECT id, payout FROM products ORDER BY id');
+  assert.deepEqual(products.map(product => product.payout), ['daily', 'daily', 'monthly'],
     'each product is paid the way its rate without a condition was');
 });

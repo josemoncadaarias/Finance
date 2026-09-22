@@ -21,7 +21,7 @@ export interface TransferLegInput {
    * and the balance is exactly what it was. What changes is which product
    * each figure belongs to, and so what each one earns on.
    */
-  pocket_id?: number | null;
+  product_id?: number | null;
   /** Positive; the sign is applied per leg. */
   amount_minor: number;
   rate_scaled?: number | null;
@@ -88,7 +88,7 @@ export class TransfersRepository {
       await this.transactions.create({
         ...common,
         account_id: transfer.from.account_id,
-        pocket_id: transfer.from.pocket_id ?? null,
+        product_id: transfer.from.product_id ?? null,
         amount_minor: -transfer.from.amount_minor,
         rate_scaled: transfer.from.rate_scaled ?? null,
         amount_base_minor:
@@ -102,7 +102,7 @@ export class TransfersRepository {
       await this.transactions.create({
         ...common,
         account_id: transfer.to.account_id,
-        pocket_id: transfer.to.pocket_id ?? null,
+        product_id: transfer.to.product_id ?? null,
         amount_minor: transfer.to.amount_minor,
         rate_scaled: transfer.to.rate_scaled ?? null,
         amount_base_minor:
@@ -197,7 +197,7 @@ export class TransfersRepository {
       await this.transactions.update(existing.from.id, {
         ...common,
         account_id: transfer.from.account_id,
-        pocket_id: transfer.from.pocket_id ?? null,
+        product_id: transfer.from.product_id ?? null,
         amount_minor: -transfer.from.amount_minor,
         rate_scaled: transfer.from.rate_scaled ?? null,
         amount_base_minor:
@@ -210,7 +210,7 @@ export class TransfersRepository {
       await this.transactions.update(existing.to.id, {
         ...common,
         account_id: transfer.to.account_id,
-        pocket_id: transfer.to.pocket_id ?? null,
+        product_id: transfer.to.product_id ?? null,
         amount_minor: transfer.to.amount_minor,
         rate_scaled: transfer.to.rate_scaled ?? null,
         amount_base_minor:

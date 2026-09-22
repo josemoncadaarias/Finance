@@ -301,7 +301,7 @@ ion-modal.entry-sheet {
  * Jose's phone while the compiled CSS said it should not. A sheet that asks
  * which of four products to show has no business being a page.
  */
-ion-modal.pocket-sheet {
+ion-modal.product-sheet {
   --height: auto !important;
   --max-height: 80vh !important;
   --width: min(21rem, calc(100% - 2.5rem)) !important;
@@ -311,7 +311,7 @@ ion-modal.pocket-sheet {
   align-items: center;
   justify-content: center;
 
-  .pocket-picker {
+  .product-picker {
     /* The gutter is the box's, not each child's: a margin on the heading is
        one more thing that can fail to apply, and when it does the words sit
        against the edge of the screen. */

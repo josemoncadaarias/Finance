@@ -46,10 +46,10 @@ function snapshot(db) {
   return out;
 }
 
-function build(run) {
+function build(run, upTo = MIGRATION_SOURCES.length) {
   const db = new SQL.Database();
   db.exec('PRAGMA foreign_keys = ON;');
-  for (const migration of MIGRATION_SOURCES) run(db, migration.sql);
+  for (const migration of MIGRATION_SOURCES.filter(m => m.version <= upTo)) run(db, migration.sql);
   const result = snapshot(db);
   db.close();
   return result;
@@ -67,7 +67,13 @@ test('and through the device plugin', () => {
 
 test('without the rewrite, the browser plugin silently skipped migration 030', () => {
   // The failure this exists for, kept on record: no error, and no column.
-  const broken = build((db, sql) => browserExec(db, sql));
+  //
+  // Stopped at 30, which is as far as the point goes. Carried further, the
+  // build now fails outright at migration 043, which renames a column 030
+  // creates - and a database in that state is what `REPAIRS` is for. The
+  // runner puts it right before it migrates, which `repairs.test.mjs` holds
+  // to; this test is about the plugin, not about the repair.
+  const broken = build((db, sql) => browserExec(db, sql), 30);
   const columns = broken.yield_pockets.columns.map(column => column.split(' ')[0]);
   assert.equal(columns.includes('payout'), false);
 });

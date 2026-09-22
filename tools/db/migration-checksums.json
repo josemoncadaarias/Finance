@@ -40,5 +40,6 @@
   "039_plata_money_was_always_in_the_bolsillo.sql": "fc8bd5e307a3025782ff598b4db79f25a5394f80984c30c6d569df9464c5cfe4",
   "040_the_opening_figure_becomes_an_income.sql": "7aed7eb601264af88c16b2fab0010f4413a1cc04b8ef1eb5631795aa47b152d2",
   "041_each_product_earns_from_its_own_day.sql": "2e5a7970a8a7ac9ef1f45e4c5c4a57f9858f8d0381e84fe4f928c17d796b73a3",
-  "042_the_cushion_tables_become_the_products.sql": "8b3184ccc4fe41d49d66a2b527545437812325827ad1a526e8d1ac70cc3f131b"
+  "042_the_cushion_tables_become_the_products.sql": "8b3184ccc4fe41d49d66a2b527545437812325827ad1a526e8d1ac70cc3f131b",
+  "043_a_pocket_is_a_product.sql": "832e82be860ca8784398a32c84e259cf8d644d34c13ff40cc8dc55e1afa0e135"
 }

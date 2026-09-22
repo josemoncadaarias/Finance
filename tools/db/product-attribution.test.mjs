@@ -41,10 +41,10 @@ async function setup() {
   });
 
   await yields.enrol({
-    account_id: accountId, default_pocket_name: 'Bolsillo',
+    account_id: accountId, default_product_name: 'Bolsillo',
     opening_on: '2026-01-01', withholding: false,
   });
-  const [only] = await yields.pockets(accountId);
+  const [only] = await yields.products(accountId);
 
   // The money goes in while there is one product, so it names none.
   await transactions.create({
@@ -57,35 +57,35 @@ async function setup() {
 
 const heldBy = async (db, yields, accountId) => {
   const engine = new AccrualEngine(db, yields, new TaxParametersRepository(db));
-  const pockets = await yields.pockets(accountId);
-  const map = await engine.heldByPocket(accountId, '2026-09-21', pockets);
-  return Object.fromEntries(pockets.map(p => [p.name, map.get(p.id) ?? 0]));
+  const products = await yields.products(accountId);
+  const map = await engine.heldByProduct(accountId, '2026-09-21', products);
+  return Object.fromEntries(products.map(p => [p.name, map.get(p.id) ?? 0]));
 };
 
 test('a second product writes down whose the earlier movements were', async () => {
   const { db, yields, accountId, only } = await setup();
 
   const loose = await db.queryOne(
-    'SELECT COUNT(*) AS n FROM transactions WHERE account_id = ? AND pocket_id IS NULL', [accountId]);
+    'SELECT COUNT(*) AS n FROM transactions WHERE account_id = ? AND product_id IS NULL', [accountId]);
   assert.equal(loose.n, 1, 'one product, so the movement named none');
 
-  await yields.addPocket({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
+  await yields.addProduct({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
 
   const after = await db.queryOne(
-    'SELECT pocket_id FROM transactions WHERE account_id = ?', [accountId]);
-  assert.equal(after.pocket_id, only.id, 'it says Bolsillo, where it went');
+    'SELECT product_id FROM transactions WHERE account_id = ?', [accountId]);
+  assert.equal(after.product_id, only.id, 'it says Bolsillo, where it went');
 });
 
 test('changing the usual product moves no money', async () => {
   const { db, yields, accountId } = await setup();
-  await yields.addPocket({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
+  await yields.addProduct({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
 
   const before = await heldBy(db, yields, accountId);
   assert.equal(before['Bolsillo'], 20_000_000);
   assert.equal(before['Cuenta Ahorros'], 0);
 
-  const other = (await yields.pockets(accountId)).find(p => p.name === 'Cuenta Ahorros');
-  await yields.setDefaultPocket(accountId, other.id);
+  const other = (await yields.products(accountId)).find(p => p.name === 'Cuenta Ahorros');
+  await yields.setDefaultProduct(accountId, other.id);
 
   assert.deepEqual(await heldBy(db, yields, accountId), before,
     'the usual product changed; the money did not');
@@ -93,12 +93,12 @@ test('changing the usual product moves no money', async () => {
 
 test('a third product leaves the earlier ones where they are', async () => {
   const { db, yields, accountId } = await setup();
-  await yields.addPocket({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
+  await yields.addProduct({ account_id: accountId, name: 'Cuenta Ahorros', sort_order: 1 });
   const held = await heldBy(db, yields, accountId);
 
   // Whatever is unnamed by now was left unnamed on purpose, so a third
   // product claims nothing.
-  await yields.addPocket({ account_id: accountId, name: 'CDT', sort_order: 2 });
+  await yields.addProduct({ account_id: accountId, name: 'CDT', sort_order: 2 });
 
   const after = await heldBy(db, yields, accountId);
   assert.equal(after['Bolsillo'], held['Bolsillo']);

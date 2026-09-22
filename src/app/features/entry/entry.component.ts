@@ -38,7 +38,7 @@ import {
 } from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
-import type { YieldPocket } from '../../core/database/repositories/yields.repository';
+import type { YieldProduct } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
@@ -116,15 +116,15 @@ export class EntryComponent implements OnInit, OnDestroy {
    * already chosen: an account's first product is the savings account it
    * started as, which is where a salary lands and a card payment leaves from.
    */
-  readonly pockets = signal<YieldPocket[]>([]);
-  readonly pocketId = signal<number | null>(null);
+  readonly products = signal<YieldProduct[]>([]);
+  readonly productId = signal<number | null>(null);
 
   /** The far side of a transfer has products of its own. */
-  readonly toPockets = signal<YieldPocket[]>([]);
-  readonly toPocketId = signal<number | null>(null);
+  readonly toProducts = signal<YieldProduct[]>([]);
+  readonly toProductId = signal<number | null>(null);
 
-  readonly splitAccount = computed(() => this.pockets().length > 1);
-  readonly splitTarget = computed(() => this.toPockets().length > 1);
+  readonly splitAccount = computed(() => this.products().length > 1);
+  readonly splitTarget = computed(() => this.toProducts().length > 1);
 
   /**
    * True when both legs sit on one account: money moving between two of its
@@ -438,7 +438,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       // products to move between, and they have to be different ones.
       if (this.toAccountId() === this.accountId()) {
         if (!this.splitAccount()) return this.i18n.t('entry.need.differentAccounts');
-        if (this.pocketId() === null || this.pocketId() === this.toPocketId()) {
+        if (this.productId() === null || this.productId() === this.toProductId()) {
           return this.i18n.t('entry.need.differentProducts');
         }
       }
@@ -491,7 +491,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // picker never appeared: the account was still null, so there were no
     // products to show and the row decided there was nothing to ask.
     await this.loadAccountsAndCategories();
-    await this.loadPockets();
+    await this.loadProducts();
   }
 
   private async loadAccountsAndCategories(): Promise<void> {
@@ -558,8 +558,8 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     this.editingTransferId.set(transferId);
     this.accountId.set(found.from.account_id);
-    this.nearLegPocketId = found.from.pocket_id ?? null;
-    this.farLegPocketId = found.to.pocket_id ?? null;
+    this.nearLegProductId = found.from.product_id ?? null;
+    this.farLegProductId = found.to.product_id ?? null;
     this.toAccountId.set(found.to.account_id);
     this.amount.set(AmountBuffer.from(found.from.amount_minor));
     this.targetAmount.set(AmountBuffer.from(found.to.amount_minor));
@@ -954,7 +954,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const toSide = this.picking() === 'to';
     if (toSide) this.toAccountId.set(id);
     else this.accountId.set(id);
-    await this.loadPockets();
+    await this.loadProducts();
 
     // Landing on the same account on both sides is a transfer between two of
     // its products, which is a real thing to want. Only an account with a
@@ -962,25 +962,25 @@ export class EntryComponent implements OnInit, OnDestroy {
     // this one usually sends. Moving it in every case was what made editing a
     // transfer between products impossible: choosing the account it comes out
     // of changed the account it goes to.
-    if (this.isTransfer() && this.toAccountId() === this.accountId() && this.pockets().length < 2) {
+    if (this.isTransfer() && this.toAccountId() === this.accountId() && this.products().length < 2) {
       const other = await this.counterpart(this.accounts(), id, toSide ? 'to' : 'from');
       if (toSide) this.accountId.set(other);
       else this.toAccountId.set(other);
-      await this.loadPockets();
+      await this.loadProducts();
     }
 
     // Straight on to the product, when the account has more than one. The
     // sheet stays open and changes what it is asking; anything else means
     // reopening it to answer the obvious follow-up.
-    const side = this.picking() === 'to' ? this.toPockets() : this.pockets();
+    const side = this.picking() === 'to' ? this.toProducts() : this.products();
     const account = this.picking() === 'to' ? this.toAccount() : this.account();
-    this.pocketSide.set(this.picking());
+    this.productSide.set(this.picking());
     this.picking.set(null);
 
     // Straight on to the product when the account has more than one, in a
     // sheet of its own: the follow-up is obvious enough that making it be
     // asked for is worse than asking it.
-    if (side.length > 1 && account) this.pickingPocket.set(account);
+    if (side.length > 1 && account) this.pickingProduct.set(account);
   }
 
   swapAccounts(): void {
@@ -991,12 +991,12 @@ export class EntryComponent implements OnInit, OnDestroy {
     // The products swap with them: on one account they are the whole of what
     // the two sides are, and leaving them put would turn the transfer around
     // without turning it around.
-    const fromPocket = this.pocketId();
-    const fromPockets = this.pockets();
-    this.pocketId.set(this.toPocketId());
-    this.pockets.set(this.toPockets());
-    this.toPocketId.set(fromPocket);
-    this.toPockets.set(fromPockets);
+    const fromProduct = this.productId();
+    const fromProducts = this.products();
+    this.productId.set(this.toProductId());
+    this.products.set(this.toProducts());
+    this.toProductId.set(fromProduct);
+    this.toProducts.set(fromProducts);
   }
 
   pickDate(value: string | null): void {
@@ -1037,7 +1037,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * whole question, and keeping the old choice would file a movement against
    * a product belonging to somewhere else.
    */
-  private async loadPockets(): Promise<void> {
+  private async loadProducts(): Promise<void> {
     if (this.database.status() !== 'ready') return;
     const yields = new YieldsRepository(this.database.driver);
 
@@ -1046,48 +1046,48 @@ export class EntryComponent implements OnInit, OnDestroy {
     // the far side move by itself: choosing Plata again for "from" put "from"
     // back on its first product and pushed "to" off it.
     const read = async (accountId: number | null, currentId: number | null, storedId: number | null) => {
-      if (accountId === null) return { pockets: [] as YieldPocket[], chosen: null };
-      const pockets = await yields.pockets(accountId);
-      const known = (id: number | null) => id !== null && pockets.some(pocket => pocket.id === id);
-      const chosen = known(currentId) ? currentId : known(storedId) ? storedId : defaultPocket(pockets);
-      return { pockets, chosen };
+      if (accountId === null) return { products: [] as YieldProduct[], chosen: null };
+      const products = await yields.products(accountId);
+      const known = (id: number | null) => id !== null && products.some(product => product.id === id);
+      const chosen = known(currentId) ? currentId : known(storedId) ? storedId : defaultProduct(products);
+      return { products, chosen };
     };
 
     const editing = this.request().editing;
     const storedFor = (accountId: number | null) =>
-      editing && editing.account_id === accountId ? editing.pocket_id ?? null : null;
+      editing && editing.account_id === accountId ? editing.product_id ?? null : null;
 
     // A transfer between two products of one account has the same account on
     // both legs, so which leg a stored product belongs to cannot be told from
     // the account alone: each leg's product is remembered as it was read.
     const nearStored = this.editingTransferId() !== null
-      ? this.nearLegPocketId
+      ? this.nearLegProductId
       : storedFor(this.accountId());
-    const here = await read(this.accountId(), this.pocketId(), nearStored);
-    this.pockets.set(here.pockets);
-    this.pocketId.set(here.chosen);
+    const here = await read(this.accountId(), this.productId(), nearStored);
+    this.products.set(here.products);
+    this.productId.set(here.chosen);
 
     // A transfer moves between two products as much as between two accounts,
     // and they are asked for separately because they are separate questions -
-    // the far account's savings pocket is not this one's.
+    // the far account's savings product is not this one's.
     const far = this.isTransfer()
-      ? await read(this.toAccountId(), this.toPocketId(), this.farLegPocket())
-      : { pockets: [] as YieldPocket[], chosen: null };
+      ? await read(this.toAccountId(), this.toProductId(), this.farLegProduct())
+      : { products: [] as YieldProduct[], chosen: null };
     // Both sides on one account: the far side starts on a different product,
     // because money does not move from a product to itself.
     const farChosen = this.toAccountId() === this.accountId() && far.chosen === here.chosen
-      ? far.pockets.find(pocket => pocket.id !== here.chosen)?.id ?? far.chosen
+      ? far.products.find(product => product.id !== here.chosen)?.id ?? far.chosen
       : far.chosen;
-    this.toPockets.set(far.pockets);
-    this.toPocketId.set(farChosen);
+    this.toProducts.set(far.products);
+    this.toProductId.set(farChosen);
   }
 
   /** The products recorded on each leg of the transfer being corrected. */
-  private nearLegPocketId: number | null = null;
-  private farLegPocketId: number | null = null;
+  private nearLegProductId: number | null = null;
+  private farLegProductId: number | null = null;
 
-  private farLegPocket(): number | null {
-    return this.farLegPocketId;
+  private farLegProduct(): number | null {
+    return this.farLegProductId;
   }
 
   /**
@@ -1100,7 +1100,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * scales - ten products are a list to scroll, where ten chips in a row are
    * a wall.
    */
-  readonly pickingPocket = signal<AccountRow | null>(null);
+  readonly pickingProduct = signal<AccountRow | null>(null);
 
   /**
    * Which side the PRODUCT sheet is asking about.
@@ -1111,46 +1111,46 @@ export class EntryComponent implements OnInit, OnDestroy {
    * had to set it, and setting it opened the whole list of accounts behind
    * them. Two questions were sharing one answer.
    */
-  readonly pocketSide = signal<'from' | 'to' | null>(null);
+  readonly productSide = signal<'from' | 'to' | null>(null);
 
   /** The product's own name, for the line under the account. */
-  pocketName(pockets: readonly YieldPocket[], id: number | null): string {
-    return pockets.find(pocket => pocket.id === id)?.name ?? '';
+  productName(products: readonly YieldProduct[], id: number | null): string {
+    return products.find(product => product.id === id)?.name ?? '';
   }
 
   /** Answers the second step and closes the sheet. */
-  choosePocket(id: number): void {
-    const toSide = this.pocketSide() === 'to';
-    if (toSide) this.toPocketId.set(id);
-    else this.pocketId.set(id);
+  chooseProduct(id: number): void {
+    const toSide = this.productSide() === 'to';
+    if (toSide) this.toProductId.set(id);
+    else this.productId.set(id);
 
     // Between two products of one account the other side cannot be this same
     // one, so it moves to another - with two products, the only other. The
     // side just chosen is never the one that moves. The products' own form
     // does the same.
     if (this.betweenProducts()) {
-      const other = toSide ? this.pocketId() : this.toPocketId();
+      const other = toSide ? this.productId() : this.toProductId();
       if (other === id) {
-        const next = this.pockets().find(pocket => pocket.id !== id)?.id ?? null;
-        if (toSide) this.pocketId.set(next);
-        else this.toPocketId.set(next);
+        const next = this.products().find(product => product.id !== id)?.id ?? null;
+        if (toSide) this.productId.set(next);
+        else this.toProductId.set(next);
       }
     }
 
-    this.pickingPocket.set(null);
+    this.pickingProduct.set(null);
   }
 
-  pickPocketTo(id: number): void {
-    this.toPocketId.set(id);
+  pickProductTo(id: number): void {
+    this.toProductId.set(id);
   }
 
-  pickPocket(id: number): void {
-    this.pocketId.set(id);
+  pickProduct(id: number): void {
+    this.productId.set(id);
   }
 
   /** Closing it drops the second step too, so it reopens at the account. */
   closeAccountSheet(): void {
-    this.pickingPocket.set(null);
+    this.pickingProduct.set(null);
     this.picking.set(null);
   }
 
@@ -1162,17 +1162,17 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   openAccountSheet(which: 'from' | 'to'): void {
     this.picking.set(which);
-    this.pocketSide.set(which);
+    this.productSide.set(which);
     const side = which === 'to' ? this.toAccount() : this.account();
-    const pockets = which === 'to' ? this.toPockets() : this.pockets();
-    this.pickingPocket.set(this.betweenProducts() && side && pockets.length > 1 ? side : null);
+    const products = which === 'to' ? this.toProducts() : this.products();
+    this.pickingProduct.set(this.betweenProducts() && side && products.length > 1 ? side : null);
   }
 
   /** From the products back to the accounts, for the side being chosen. */
   chooseAnotherAccount(): void {
     // Back to the accounts, for the side the products were being chosen for.
-    this.picking.set(this.pocketSide());
-    this.pickingPocket.set(null);
+    this.picking.set(this.productSide());
+    this.pickingProduct.set(null);
   }
 
   /**
@@ -1182,13 +1182,13 @@ export class EntryComponent implements OnInit, OnDestroy {
    * sheet would follow with its products - a step that answered a question
    * nobody had asked. The product line is its own button now.
    */
-  openPocketSheet(which: 'from' | 'to'): void {
+  openProductSheet(which: 'from' | 'to'): void {
     const side = which === 'to' ? this.toAccount() : this.account();
     if (!side) return;
     // The products alone. The account has its own button above them, and
     // opening its sheet here only ever put it behind these.
-    this.pocketSide.set(which);
-    this.pickingPocket.set(side);
+    this.productSide.set(which);
+    this.pickingProduct.set(side);
   }
 
   private async saveMovement(): Promise<void> {
@@ -1202,7 +1202,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       await transactions.update(editing.id, {
         account_id: this.accountId()!,
         category_id: this.categoryId(),
-        pocket_id: this.splitAccount() ? this.pocketId() : null,
+        product_id: this.splitAccount() ? this.productId() : null,
         occurred_on: this.occurredOn(),
         amount_minor: signed,
         description: this.note().trim() || null,
@@ -1215,7 +1215,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       category_id: this.categoryId(),
       // Null on an account with one product: there is nothing to choose, and
       // a column filled in anyway would be a fact nobody stated.
-      pocket_id: this.splitAccount() ? this.pocketId() : null,
+      product_id: this.splitAccount() ? this.productId() : null,
       occurred_on: this.occurredOn(),
       amount_minor: signed,
       description: this.note().trim() || null,
@@ -1238,12 +1238,12 @@ export class EntryComponent implements OnInit, OnDestroy {
       description: this.note().trim() || null,
       from: {
         account_id: this.accountId()!,
-        pocket_id: this.splitAccount() ? this.pocketId() : null,
+        product_id: this.splitAccount() ? this.productId() : null,
         amount_minor: out,
       },
       to: {
         account_id: this.toAccountId()!,
-        pocket_id: this.splitTarget() ? this.toPocketId() : null,
+        product_id: this.splitTarget() ? this.toProductId() : null,
         amount_minor: into,
         rate_scaled: rateScaled,
         amount_base_minor: this.crossesCurrency() ? out : undefined,
@@ -1314,9 +1314,9 @@ export class EntryComponent implements OnInit, OnDestroy {
  * It falls back to the first only if no product is marked, which the schema
  * makes unlikely: every account had one set when the flag was added.
  */
-function defaultPocket(pockets: readonly YieldPocket[]): number | null {
-  const usual = pockets.find(pocket => pocket.is_default === 1);
-  return (usual ?? pockets[0])?.id ?? null;
+function defaultProduct(products: readonly YieldProduct[]): number | null {
+  const usual = products.find(product => product.is_default === 1);
+  return (usual ?? products[0])?.id ?? null;
 }
 
 /** The order last chosen, or habit if there is none to read. */

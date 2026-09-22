@@ -34,7 +34,7 @@
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type {
-  ProductEntry, NewYieldDay, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
+  ProductEntry, NewYieldDay, ProductBalance, YieldProduct, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import type { OnProgress } from '../database/export/progress';
@@ -56,8 +56,8 @@ export interface AccrualResult {
   withheldMinor: number;
   /** Days whose withholding could not be worked out for lack of parameters. */
   daysWithUnknownWithholding: number;
-  /** How many pockets the account was split into. */
-  pockets: number;
+  /** How many products the account was split into. */
+  products: number;
   /** Days that fell back to a lower rate because a monthly condition was missed. */
   daysConditionNotMet: number;
 }
@@ -74,9 +74,9 @@ export interface AccrualResult {
  * The first is the fallback for an account where nothing is marked, which the
  * schema makes unlikely: every account had one set when the flag was added.
  */
-function absorbsUnassigned(pockets: readonly YieldPocket[]): number | null {
-  const usual = pockets.find(pocket => pocket.is_default === 1);
-  return (usual ?? pockets[0])?.id ?? null;
+function absorbsUnassigned(products: readonly YieldProduct[]): number | null {
+  const usual = products.find(product => product.is_default === 1);
+  return (usual ?? products[0])?.id ?? null;
 }
 
 /** Past any date a person will type. Used where an answer has no upper bound. */
@@ -149,11 +149,11 @@ export class AccrualEngine {
    * still floors at zero — a product in the red earns nothing, it does not
    * charge interest.
    */
-  async heldByPocket(accountId: number, on: IsoDate, known?: readonly YieldPocket[]): Promise<Map<number, number>> {
+  async heldByProduct(accountId: number, on: IsoDate, known?: readonly YieldProduct[]): Promise<Map<number, number>> {
     // The caller usually has the products in hand already; asking for them
     // again is a call a phone pays for.
-    const pockets = known ?? await this.yields.pockets(accountId);
-    return (await this.heldByPockets(on, new Map([[accountId, pockets]]))).get(accountId)!;
+    const products = known ?? await this.yields.products(accountId);
+    return (await this.heldByProducts(on, new Map([[accountId, products]]))).get(accountId)!;
   }
 
   /**
@@ -161,12 +161,12 @@ export class AccrualEngine {
    * The yields screen draws every account, and five questions per account is
    * what it used to spend its time on.
    */
-  async heldByPockets(
-    on: IsoDate, pocketsOf: ReadonlyMap<number, readonly YieldPocket[]>,
+  async heldByProducts(
+    on: IsoDate, productsOf: ReadonlyMap<number, readonly YieldProduct[]>,
   ): Promise<Map<number, Map<number, number>>> {
     const out = new Map<number, Map<number, number>>();
-    for (const accountId of pocketsOf.keys()) out.set(accountId, new Map());
-    const ids = [...pocketsOf].filter(([, pockets]) => pockets.length > 0).map(([id]) => id);
+    for (const accountId of productsOf.keys()) out.set(accountId, new Map());
+    const ids = [...productsOf].filter(([, products]) => products.length > 0).map(([id]) => id);
     if (ids.length === 0) return out;
     const list = `(${ids.map(() => '?').join(', ')})`;
 
@@ -186,24 +186,24 @@ export class AccrualEngine {
 
     // Every product's stated balances, and what has moved through each of
     // them, in one question each rather than two per product.
-    const histories = await this.yields.pocketBalancesOf(ids);
+    const histories = await this.yields.productBalancesOf(ids);
     const asked = new Map<number, { since: Map<number, IsoDate>; absorbs: number | null }>();
     for (const accountId of ids) {
-      const pockets = pocketsOf.get(accountId)!;
+      const products = productsOf.get(accountId)!;
       const opening = openings.get(accountId) ?? on;
       const since = new Map<number, IsoDate>();
-      for (const pocket of pockets) {
-        if (pocket.source !== 'manual') continue;
+      for (const product of products) {
+        if (product.source !== 'manual') continue;
         // No balance at all means no start date has been chosen, so counting
         // starts where this module started: the day the account was enrolled.
-        since.set(pocket.id, (histories.get(pocket.id) ?? []).at(-1)?.valid_from ?? opening);
+        since.set(product.id, (histories.get(product.id) ?? []).at(-1)?.valid_from ?? opening);
       }
-      asked.set(accountId, { since, absorbs: absorbsUnassigned(pockets) });
+      asked.set(accountId, { since, absorbs: absorbsUnassigned(products) });
     }
-    const moved = await this.yields.movedInPocketsOf(asked);
+    const moved = await this.yields.movedInProductsOf(asked);
 
     for (const accountId of ids) {
-      heldIn(pocketsOf.get(accountId)!, out.get(accountId)!, accountOn.get(accountId) ?? 0, histories, moved);
+      heldIn(productsOf.get(accountId)!, out.get(accountId)!, accountOn.get(accountId) ?? 0, histories, moved);
     }
     return out;
   }
@@ -216,7 +216,7 @@ export class AccrualEngine {
     const nothing: AccrualResult = {
       account_id: accountId, from: null, to: null, daysWritten: 0, daysLocked: 0,
       netMinor: 0, withheldMinor: 0, daysWithUnknownWithholding: 0,
-      daysConditionNotMet: 0, pockets: 0,
+      daysConditionNotMet: 0, products: 0,
     };
 
     const enrolled = await this.yields.account(accountId);
@@ -235,8 +235,8 @@ export class AccrualEngine {
 
     // An account always has at least one product. Without one there is
     // nothing to accrue on, and saying so beats writing zeroes.
-    const pockets = await this.yields.pockets(accountId);
-    if (pockets.length === 0) return nothing;
+    const products = await this.yields.products(accountId);
+    if (products.length === 0) return nothing;
 
     // Where the walk starts.
     //
@@ -249,7 +249,7 @@ export class AccrualEngine {
     // It was one date per account until 2026-09-22, overruling what each
     // product said about itself. Migration 041 gave every product the day its
     // account was already starting it from, so moving it here moved nothing.
-    const earliest = startsOn(pockets, enrolled.opening_on)
+    const earliest = startsOn(products, enrolled.opening_on)
       .reduce((first, day) => day < first ? day : first);
     const firstEver = nextDay(earliest);
 
@@ -276,15 +276,15 @@ export class AccrualEngine {
       // that names no product is the first product's, which is the rule that
       // held for every account before one could be named at all.
       const movedInto = new Map<number, DayBalance[]>();
-      const takesUnassigned = absorbsUnassigned(pockets);
-      for (const pocket of pockets) {
-        movedInto.set(pocket.id, await this.dailyBalances(
-          accountId, upTo, pocket.id, pocket.id === takesUnassigned));
+      const takesUnassigned = absorbsUnassigned(products);
+      for (const product of products) {
+        movedInto.set(product.id, await this.dailyBalances(
+          accountId, upTo, product.id, product.id === takesUnassigned));
       }
 
-      const balancesOf = new Map<number, PocketBalance[]>();
-      for (const pocket of pockets) {
-        balancesOf.set(pocket.id, await this.yields.pocketBalances(pocket.id));
+      const balancesOf = new Map<number, ProductBalance[]>();
+      for (const product of products) {
+        balancesOf.set(product.id, await this.yields.productBalances(product.id));
       }
       const spentBetween = await this.spendCounter(accountId, upTo);
       // Anything that lands on a product inside the range being worked
@@ -294,14 +294,14 @@ export class AccrualEngine {
       // earning on the old balance: the total came out right and every
       // day after it was quietly too small.
       const arriving = new Map<string, number>();
-      const land = (day: IsoDate, pocketId: number, amount: number) => {
-        const key = `${pocketId}|${day}`;
+      const land = (day: IsoDate, productId: number, amount: number) => {
+        const key = `${productId}|${day}`;
         arriving.set(key, (arriving.get(key) ?? 0) + amount);
       };
       const locked = new Map(
         (await this.yields.days(accountId, from, upTo))
           .filter(day => day.locked === 1)
-          .map(day => [`${day.pocket_id}|${day.component}|${day.on_date}`, day]));
+          .map(day => [`${day.product_id}|${day.component}|${day.on_date}`, day]));
 
       // Locked days that no rate in force reaches on its own still count, and
       // still land: a closed CDT's payment, kept on the product it matured
@@ -322,7 +322,7 @@ export class AccrualEngine {
       // call per day is what made opening the screen slow on the phone.
       const written: NewYieldDay[] = [];
 
-      const result: AccrualResult = { ...nothing, from, to: upTo, pockets: pockets.length };
+      const result: AccrualResult = { ...nothing, from, to: upTo, products: products.length };
 
       // What was already earned is a RECORD, not money to add to the balance.
       //
@@ -333,33 +333,33 @@ export class AccrualEngine {
       // Rappi cuenta earn on 72.8 million when the account holds 67.9, and
       // what pushed one of Dale's alcancias over the withholding threshold.
       //
-      // So every pocket starts at zero here. What grows during the walk is
+      // So every product starts at zero here. What grows during the walk is
       // only what THIS app worked out, which the balance genuinely does not
       // know about yet, and which therefore genuinely does compound.
-      const earnedOf = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
-      const ledgerPocket = pockets.find(pocket => pocket.source === 'ledger');
+      const earnedOf = new Map<number, number>(products.map(product => [product.id, 0]));
+      const ledgerProduct = products.find(product => product.source === 'ledger');
 
-      // An entry says which pocket it landed in when the user knows. When
-      // it does not, it goes to the pocket that follows the account
+      // An entry says which product it landed in when the user knows. When
+      // it does not, it goes to the product that follows the account
       // balance, and failing that to the first one - the same order the
       // what has been earned follows.
-      const fallbackPocket = ledgerPocket?.id ?? pockets[0].id;
+      const fallbackProduct = ledgerProduct?.id ?? products[0].id;
 
       // A component paid monthly works its yield out every day and hands it
       // over at the end of the month. Until then the money is not in the
-      // account and is not earning: it waits here, keyed by pocket and
+      // account and is not earning: it waits here, keyed by product and
       // component, and joins the base on the day it is actually paid.
       //
-      // Keyed by pocket and payday, so a component paid every six months and
+      // Keyed by product and payday, so a component paid every six months and
       // one paid every month can wait side by side.
       const waiting = new Map<string, number>();
 
-      const creditTo = (pocketId: number, payout: 'daily' | 'monthly', paidOn: IsoDate, net: number) => {
+      const creditTo = (productId: number, payout: 'daily' | 'monthly', paidOn: IsoDate, net: number) => {
         if (payout === 'daily') {
-          earnedOf.set(pocketId, (earnedOf.get(pocketId) ?? 0) + net);
+          earnedOf.set(productId, (earnedOf.get(productId) ?? 0) + net);
           return;
         }
-        const key = `${pocketId}|${paidOn}`;
+        const key = `${productId}|${paidOn}`;
         waiting.set(key, (waiting.get(key) ?? 0) + net);
       };
 
@@ -370,11 +370,11 @@ export class AccrualEngine {
       // land on the payday it belongs to.
       for (const earlier of await this.yields.days(accountId, undefined, addDays(from, -1))) {
         if (earlier.payout !== 'monthly' || earlier.paid_on === null || earlier.paid_on < from) continue;
-        const key = `${earlier.pocket_id}|${earlier.paid_on}`;
+        const key = `${earlier.product_id}|${earlier.paid_on}`;
         waiting.set(key, (waiting.get(key) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
-      const pocketOf = (id: number | null) =>
-        pockets.some(pocket => pocket.id === id) ? (id as number) : fallbackPocket;
+      const productOf = (id: number | null) =>
+        products.some(product => product.id === id) ? (id as number) : fallbackProduct;
 
       // What landed before this stretch still earns in it. Every product used
       // to start the walk at zero, which was right only while the stretch began
@@ -387,69 +387,69 @@ export class AccrualEngine {
         const paid = earlier.paid_on ?? (earlier.payout === 'monthly' ? endOfMonth(earlier.on_date) : earlier.on_date);
         // Still owed on `from`: carried into `waiting` above instead.
         if (paid >= from) continue;
-        earnedOf.set(earlier.pocket_id,
-          (earnedOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
+        earnedOf.set(earlier.product_id,
+          (earnedOf.get(earlier.product_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
       // The opening figure summarises everything before its date, so an entry
       // back there would be counted twice.
       for (const entry of entries) {
         if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
-        const id = pocketOf(entry.pocket_id);
+        const id = productOf(entry.product_id);
         earnedOf.set(id, (earnedOf.get(id) ?? 0) + entry.amount_minor);
       }
       for (const taken of takenOut) {
         if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
-        const id = pocketOf(taken.pocket_id ?? null);
+        const id = productOf(taken.product_id ?? null);
         earnedOf.set(id, (earnedOf.get(id) ?? 0) - taken.amount_minor);
       }
 
       for (const entry of entries) {
         if (entry.on_date < from || entry.on_date > upTo) continue;
-        land(entry.on_date, pocketOf(entry.pocket_id), entry.amount_minor);
+        land(entry.on_date, productOf(entry.product_id), entry.amount_minor);
       }
       for (const taken of takenOut) {
         if (taken.on_date < from || taken.on_date > upTo) continue;
         // From the product it left, when it says - a CDT's yield paid into the
         // product it matured into - and otherwise where unassigned money goes.
-        land(taken.on_date, pocketOf(taken.pocket_id ?? null), -taken.amount_minor);
+        land(taken.on_date, productOf(taken.product_id ?? null), -taken.amount_minor);
       }
 
       for (const day of eachDay(from, upTo)) {
         const rule = await ruleFor(day);
 
-        for (const pocket of pockets) {
+        for (const product of products) {
           // A product earns nothing before the day it starts earning from, and
           // nothing on that day either: that day's own earning lands on the
           // next one, like every other day here.
-          if (day <= (pocket.earns_from || enrolled.opening_on)) continue;
+          if (day <= (product.earns_from || enrolled.opening_on)) continue;
 
-          // What the pocket holds on this day.
+          // What the product holds on this day.
           //
           // A stated balance is a figure Jose read off the bank on a date, and
-          // it is the whole truth about that pocket on that date - not a part
+          // it is the whole truth about that product on that date - not a part
           // of a sum. Everything that has moved in or out of the account since
           // then is added on top, so a deposit made afterwards earns like any
           // other money.
           //
-          // The movements go to the first pocket. A movement never says which
-          // pocket it landed in, and putting it in all of them would count it
-          // once per pocket; the drift check is what surfaces a guess gone
-          // stale. With one pocket - which is every account but Dale - there is
+          // The movements go to the first product. A movement never says which
+          // product it landed in, and putting it in all of them would count it
+          // once per product; the drift check is what surfaces a guess gone
+          // stale. With one product - which is every account but Dale - there is
           // nothing to guess.
           // A product that names a figure is that figure, plus whatever has
           // moved through THAT product since - not whatever moved through the
           // account. Before movements could name a product, the first one
           // absorbed all of them, which is why a transfer between two products
           // of one account moved neither.
-          const held = pocket.source === 'manual'
-            ? statedOn(balancesOf.get(pocket.id) ?? [], day,
-                       movedInto.get(pocket.id) ?? [], true)
+          const held = product.source === 'manual'
+            ? statedOn(balancesOf.get(product.id) ?? [], day,
+                       movedInto.get(product.id) ?? [], true)
             : balanceOn(balances, day);
 
           /*
            * The floor is on the WHOLE base, not on the ledger half of it.
            *
-           * A pocket's ledger share goes negative when more has been moved
+           * A product's ledger share goes negative when more has been moved
            * out of it than the ledger ever put in - which is exactly what
            * happens when the yields it had gathered are transferred out with
            * the rest. Jose emptied Plata's savings product into its other
@@ -467,20 +467,20 @@ export class AccrualEngine {
            * negative - every other product in his data - both spellings give
            * the same figure, because both halves are already positive.
            */
-          const base = Math.max(0, held + (earnedOf.get(pocket.id) ?? 0));
+          const base = Math.max(0, held + (earnedOf.get(product.id) ?? 0));
 
           // Every component earns on the same base and is worked out apart:
           // each has its own rate, its own condition and its own payday, and
           // the withholding threshold in articulo 1.2.4.2.87 is measured per
           // payment. Two components are two payments.
-          for (const [component, bands] of componentsInForce(ratesFor(rates, pocket.id), day)) {
-            const lockedDay = locked.get(`${pocket.id}|${component}|${day}`);
+          for (const [component, bands] of componentsInForce(ratesFor(rates, product.id), day)) {
+            const lockedDay = locked.get(`${product.id}|${component}|${day}`);
 
             if (lockedDay) {
-              usedLocked.add(`${pocket.id}|${component}|${day}`);
+              usedLocked.add(`${product.id}|${component}|${day}`);
               // Left exactly as it was, and still part of what has been earned.
               const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
-              creditTo(pocket.id, lockedDay.payout,
+              creditTo(product.id, lockedDay.payout,
                 lockedDay.paid_on ?? (lockedDay.payout === 'daily' ? day : endOfMonth(day)), net);
               result.daysLocked += 1;
               continue;
@@ -491,9 +491,9 @@ export class AccrualEngine {
             // A CDT is never worked out day by day: it pays once, on the day it
             // matures, for its whole term. Every other day earns it nothing, and
             // a CDT whose terms are not set earns nothing at all.
-            const cdt = pocket.kind === 'cdt';
-            if (cdt && !(pocket.opened_on && pocket.term_months
-                && addMonthsClamped(pocket.opened_on, pocket.term_months) === day)) continue;
+            const cdt = product.kind === 'cdt';
+            if (cdt && !(product.opened_on && product.term_months
+                && addMonthsClamped(product.opened_on, product.term_months) === day)) continue;
             const payout = cdt ? 'monthly' : band.payout;
             const paidOn = cdt ? day : paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
 
@@ -512,13 +512,13 @@ export class AccrualEngine {
             // the daily threshold a savings product has - and how the yield is
             // worked out: a CDT's whole term at once, on its balance the day it
             // matures.
-            const withholdingRule = ruleForProduct(pocket.kind, rule);
+            const withholdingRule = ruleForProduct(product.kind, rule);
             const accrued = cdt
-              ? accruePayment(base, band, daysBetween(pocket.opened_on!, day), withholdingRule, pocket.withholding === 1)
-              : accrueDay(base, band, withholdingRule, pocket.withholding === 1);
+              ? accruePayment(base, band, daysBetween(product.opened_on!, day), withholdingRule, product.withholding === 1)
+              : accrueDay(base, band, withholdingRule, product.withholding === 1);
 
             written.push({
-              pocket_id: pocket.id,
+              product_id: product.id,
               account_id: accountId,
               component,
               payout,
@@ -532,7 +532,7 @@ export class AccrualEngine {
               withholding_unknown: accrued.withholding_unknown ? 1 : 0,
             });
 
-            creditTo(pocket.id, payout, paidOn, accrued.net_minor);
+            creditTo(product.id, payout, paidOn, accrued.net_minor);
             result.daysWritten += 1;
             result.netMinor += accrued.net_minor;
             result.withheldMinor += accrued.withholding_minor;
@@ -543,23 +543,23 @@ export class AccrualEngine {
         // At the close of the day, so what arrived earns from the next one.
         // That is the same rule the opening figure follows: a figure
         // recorded on a day already covers that day.
-        for (const pocket of pockets) {
-          const landed = arriving.get(`${pocket.id}|${day}`);
-          if (landed) earnedOf.set(pocket.id, (earnedOf.get(pocket.id) ?? 0) + landed);
+        for (const product of products) {
+          const landed = arriving.get(`${product.id}|${day}`);
+          if (landed) earnedOf.set(product.id, (earnedOf.get(product.id) ?? 0) + landed);
         }
 
         for (const [key, fixed] of locked) {
           if (fixed.on_date !== day || usedLocked.has(key)) continue;
-          if (!pockets.some(pocket => pocket.id === fixed.pocket_id)) continue;
-          creditTo(fixed.pocket_id, 'monthly', day, fixed.actual_net_minor ?? fixed.net_minor);
+          if (!products.some(product => product.id === fixed.product_id)) continue;
+          creditTo(fixed.product_id, 'monthly', day, fixed.actual_net_minor ?? fixed.net_minor);
         }
 
         // Payday: everything worked out for a payment that falls today lands at
         // once, and starts earning tomorrow.
         for (const [key, owed] of waiting) {
-          const [pocket, paidOn] = key.split('|');
+          const [product, paidOn] = key.split('|');
           if (paidOn !== day) continue;
-          earnedOf.set(Number(pocket), (earnedOf.get(Number(pocket)) ?? 0) + owed);
+          earnedOf.set(Number(product), (earnedOf.get(Number(product)) ?? 0) + owed);
           waiting.delete(key);
         }
 
@@ -579,17 +579,17 @@ export class AccrualEngine {
   private async dailyBalances(
     accountId: number,
     upTo: IsoDate,
-    pocketId?: number,
+    productId?: number,
     takesUnassigned = false,
   ): Promise<DayBalance[]> {
     // The opening balance belongs to the account, not to any one product, so
     // a per-product walk starts from zero and counts only what moved.
-    const opening = pocketId === undefined
+    const opening = productId === undefined
       ? await this.db.queryOne<{ opening_balance_minor: number }>(
           'SELECT opening_balance_minor FROM accounts WHERE id = ?', [accountId])
       : { opening_balance_minor: 0 };
 
-    // `pocketId` undefined means the whole account. Otherwise it is one
+    // `productId` undefined means the whole account. Otherwise it is one
     // product's own movements - and for the first product, the movements that
     // named no product at all as well, which is where they have always gone.
     //
@@ -597,11 +597,11 @@ export class AccrualEngine {
     // lost every movement filed against it by name, so moving money out of
     // the savings account into a CDT credited the CDT and left the savings
     // account where it was.
-    const scope = pocketId === undefined ? ''
-      : takesUnassigned ? 'AND (pocket_id IS NULL OR pocket_id = ?)'
-      : 'AND pocket_id = ?';
+    const scope = productId === undefined ? ''
+      : takesUnassigned ? 'AND (product_id IS NULL OR product_id = ?)'
+      : 'AND product_id = ?';
     const values: unknown[] = [accountId, upTo];
-    if (pocketId !== undefined) values.push(pocketId);
+    if (productId !== undefined) values.push(productId);
 
     const moves = await this.db.query<{ on_date: IsoDate; total: number }>(
       `SELECT occurred_on AS on_date, SUM(amount_minor) AS total
@@ -700,7 +700,7 @@ export function spendPeriodFor(
 }
 
 /**
- * What a pocket holds on a day: the figure stated for it, plus whatever has
+ * What a product holds on a day: the figure stated for it, plus whatever has
  * moved in the account since that figure was read.
  *
  * The stated figure is the starting point and it is not negotiable - it is
@@ -709,7 +709,7 @@ export function spendPeriodFor(
  * here too" means.
  */
 function statedOn(
-  history: PocketBalance[],
+  history: ProductBalance[],
   day: IsoDate,
   balances: DayBalance[],
   takesMovements: boolean,
@@ -740,12 +740,12 @@ function statedOn(
  * for a product born in between - and for the tests, which build a database
  * without going through the app.
  */
-function startsOn(pockets: { earns_from: IsoDate }[], fallback: IsoDate): IsoDate[] {
-  return pockets.map(pocket => pocket.earns_from || fallback);
+function startsOn(products: { earns_from: IsoDate }[], fallback: IsoDate): IsoDate[] {
+  return products.map(product => product.earns_from || fallback);
 }
 
-/** What a manual pocket held on a day: the newest figure on or before it. */
-function amountOn(history: PocketBalance[], day: IsoDate): number {
+/** What a manual product held on a day: the newest figure on or before it. */
+function amountOn(history: ProductBalance[], day: IsoDate): number {
   let amount = 0;
   for (const entry of history) {
     if (entry.valid_from > day) break;
@@ -764,16 +764,16 @@ function amountOn(history: PocketBalance[], day: IsoDate): number {
  * 2026-11-09) simply wait its turn instead of needing to be remembered.
  */
 /**
- * The rates that apply to one pocket: its own if it has any, the account's
+ * The rates that apply to one product: its own if it has any, the account's
  * otherwise.
  *
- * Not a merge and not a precedence order - a pocket with a rate of its own
- * is a pocket the bank treats differently, and mixing in the account rate
+ * Not a merge and not a precedence order - a product with a rate of its own
+ * is a product the bank treats differently, and mixing in the account rate
  * would earn at both. One sentence, and no surprises at midnight.
  */
-function ratesFor(rates: YieldRate[], pocketId: number): YieldRate[] {
-  const own = rates.filter(rate => rate.pocket_id === pocketId);
-  return own.length > 0 ? own : rates.filter(rate => rate.pocket_id === null);
+function ratesFor(rates: YieldRate[], productId: number): YieldRate[] {
+  const own = rates.filter(rate => rate.product_id === productId);
+  return own.length > 0 ? own : rates.filter(rate => rate.product_id === null);
 }
 
 /**
@@ -839,17 +839,17 @@ function balanceOn(balances: DayBalance[], day: IsoDate): number {
   return found;
 }
 
-/** Fills `held` with what each product of one account holds. See `heldByPocket`. */
+/** Fills `held` with what each product of one account holds. See `heldByProduct`. */
 function heldIn(
-  pockets: readonly YieldPocket[],
+  products: readonly YieldProduct[],
   held: Map<number, number>,
   accountBalance: number,
-  histories: ReadonlyMap<number, PocketBalance[]>,
+  histories: ReadonlyMap<number, ProductBalance[]>,
   moved: ReadonlyMap<number, number>,
 ): void {
-  for (const pocket of pockets) {
-    if (pocket.source !== 'manual') {
-      held.set(pocket.id, accountBalance);
+  for (const product of products) {
+    if (product.source !== 'manual') {
+      held.set(product.id, accountBalance);
       continue;
     }
 
@@ -874,7 +874,7 @@ function heldIn(
     // No upper bound either. A movement dated next week has been recorded,
     // and the account's own balance counts it, so a product that did not
     // would be disagreeing with the account it lives in.
-    const history = histories.get(pocket.id) ?? [];
+    const history = histories.get(product.id) ?? [];
 
     // The last balance recorded, whatever date it carries - not the last one
     // in force today.
@@ -890,10 +890,10 @@ function heldIn(
     const statedFrom: IsoDate | null = latest?.valid_from ?? null;
 
     if (statedFrom === null) {
-      held.set(pocket.id, moved.get(pocket.id) ?? 0);
+      held.set(product.id, moved.get(product.id) ?? 0);
       continue;
     }
 
-    held.set(pocket.id, stated + (moved.get(pocket.id) ?? 0));
+    held.set(product.id, stated + (moved.get(product.id) ?? 0));
   }
 }

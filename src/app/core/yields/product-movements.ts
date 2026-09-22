@@ -19,7 +19,7 @@
 import type { IsoDate } from '../database/types';
 import type { DetailedTransaction } from '../database/repositories/transactions.repository';
 
-export interface MovementPocket {
+export interface MovementProduct {
   id: number;
   name: string;
   source: 'ledger' | 'manual';
@@ -35,7 +35,7 @@ export interface MovementEntry {
   product_kind_id?: number | null;
   /** The ordinary category it is filed under, since migration 037. */
   category_id?: number | null;
-  pocket_id: number | null;
+  product_id: number | null;
   note: string | null;
   transaction_id: number | null;
 }
@@ -44,48 +44,48 @@ export interface MovementWithdrawal {
   id: number;
   on_date: IsoDate;
   amount_minor: number;
-  pocket_id: number | null;
+  product_id: number | null;
   note: string | null;
   transaction_id: number | null;
 }
 
 export type ProductMovement =
   | {
-      type: 'transaction'; key: string; on: IsoDate; amountMinor: number; pocketId: number;
+      type: 'transaction'; key: string; on: IsoDate; amountMinor: number; productId: number;
       transaction: DetailedTransaction;
       /** Half of a cash-in: the product's balance did not move, net worth did. */
       cashIn: boolean;
     }
   | {
       type: 'transfer'; key: string; on: IsoDate; amountMinor: number;
-      fromPocketId: number; toPocketId: number;
+      fromProductId: number; toProductId: number;
       /** The leg the money left from, which is what the movement screen opens. */
       transaction: DetailedTransaction;
     }
-  | { type: 'entry'; key: string; on: IsoDate; amountMinor: number; pocketId: number; entry: MovementEntry }
-  | { type: 'withdrawal'; key: string; on: IsoDate; amountMinor: number; pocketId: number; withdrawal: MovementWithdrawal };
+  | { type: 'entry'; key: string; on: IsoDate; amountMinor: number; productId: number; entry: MovementEntry }
+  | { type: 'withdrawal'; key: string; on: IsoDate; amountMinor: number; productId: number; withdrawal: MovementWithdrawal };
 
 export function productMovements(input: {
   accountId: number;
-  pockets: readonly MovementPocket[];
+  products: readonly MovementProduct[];
   /** The day from which each product's balance counts movements. */
   startDays: ReadonlyMap<number, IsoDate>;
   transactions: readonly DetailedTransaction[];
   entries: readonly MovementEntry[];
   withdrawals: readonly MovementWithdrawal[];
 }): ProductMovement[] {
-  const { accountId, pockets } = input;
-  if (pockets.length === 0) return [];
+  const { accountId, products } = input;
+  if (products.length === 0) return [];
 
-  const known = new Set(pockets.map(pocket => pocket.id));
+  const known = new Set(products.map(product => product.id));
   // Movements naming no product belong to the usual one; entries naming none
   // to the one following the account, or the first - each the rule its own
   // balance follows.
-  const usual = (pockets.find(pocket => pocket.is_default === 1) ?? pockets[0]).id;
-  const fallback = (pockets.find(pocket => pocket.source === 'ledger') ?? pockets[0]).id;
-  const movementPocket = (id: number | null) => (id !== null && known.has(id) ? id : usual);
-  const entryPocket = (id: number | null) => (id !== null && known.has(id) ? id : fallback);
-  const counts = (pocketId: number, on: IsoDate) => on >= (input.startDays.get(pocketId) ?? '0000-01-01');
+  const usual = (products.find(product => product.is_default === 1) ?? products[0]).id;
+  const fallback = (products.find(product => product.source === 'ledger') ?? products[0]).id;
+  const movementProduct = (id: number | null) => (id !== null && known.has(id) ? id : usual);
+  const entryProduct = (id: number | null) => (id !== null && known.has(id) ? id : fallback);
+  const counts = (productId: number, on: IsoDate) => on >= (input.startDays.get(productId) ?? '0000-01-01');
 
   const cashedIn = new Set<number>();
   for (const half of [...input.entries, ...input.withdrawals]) {
@@ -111,21 +111,21 @@ export function productMovements(input: {
       const legs = legsOf.get(row.transfer_id) ?? [row];
       const from = legs.find(leg => leg.transfer_leg === 'from') ?? row;
       const to = legs.find(leg => leg.transfer_leg === 'to') ?? row;
-      const fromPocketId = movementPocket(from.pocket_id);
-      const toPocketId = movementPocket(to.pocket_id);
-      if (!counts(fromPocketId, from.occurred_on) && !counts(toPocketId, to.occurred_on)) continue;
+      const fromProductId = movementProduct(from.product_id);
+      const toProductId = movementProduct(to.product_id);
+      if (!counts(fromProductId, from.occurred_on) && !counts(toProductId, to.occurred_on)) continue;
       out.push({
         type: 'transfer', key: `x:${row.transfer_id}`, on: from.occurred_on,
-        amountMinor: Math.abs(from.amount_minor), fromPocketId, toPocketId, transaction: from,
+        amountMinor: Math.abs(from.amount_minor), fromProductId, toProductId, transaction: from,
       });
       continue;
     }
 
-    const pocketId = movementPocket(row.pocket_id);
-    if (!counts(pocketId, row.occurred_on)) continue;
+    const productId = movementProduct(row.product_id);
+    if (!counts(productId, row.occurred_on)) continue;
     out.push({
       type: 'transaction', key: `t:${row.id}`, on: row.occurred_on, amountMinor: row.amount_minor,
-      pocketId, transaction: row, cashIn: cashedIn.has(row.id),
+      productId, transaction: row, cashIn: cashedIn.has(row.id),
     });
   }
 
@@ -133,7 +133,7 @@ export function productMovements(input: {
     if (entry.transaction_id !== null) continue;
     out.push({
       type: 'entry', key: `a:${entry.id}`, on: entry.on_date, amountMinor: entry.amount_minor,
-      pocketId: entryPocket(entry.pocket_id), entry,
+      productId: entryProduct(entry.product_id), entry,
     });
   }
 
@@ -142,7 +142,7 @@ export function productMovements(input: {
     if (withdrawal.transaction_id !== null) continue;
     out.push({
       type: 'withdrawal', key: `w:${withdrawal.id}`, on: withdrawal.on_date, amountMinor: -withdrawal.amount_minor,
-      pocketId: entryPocket(withdrawal.pocket_id), withdrawal,
+      productId: entryProduct(withdrawal.product_id), withdrawal,
     });
   }
 
@@ -150,8 +150,8 @@ export function productMovements(input: {
 }
 
 /** Whether a movement touches a product: its own, or either end of a transfer. */
-export function movementTouches(movement: ProductMovement, pocketId: number): boolean {
+export function movementTouches(movement: ProductMovement, productId: number): boolean {
   return movement.type === 'transfer'
-    ? movement.fromPocketId === pocketId || movement.toPocketId === pocketId
-    : movement.pocketId === pocketId;
+    ? movement.fromProductId === productId || movement.toProductId === productId
+    : movement.productId === productId;
 }

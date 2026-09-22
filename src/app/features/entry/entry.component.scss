@@ -632,7 +632,7 @@ ion-footer.pad {
 
 /* Which product of the account the money touches. Only drawn when an account
    has more than one, so it is never in the way of the usual case. */
-.pockets {
+.products {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1004,7 +1004,7 @@ ion-footer[hidden] { display: none; }
 }
 
 /* The same, under the account of an income or an expense. */
-.context.stacked .pocket-chip {
+.context.stacked .product-chip {
   justify-self: center;
   display: inline-flex;
   align-items: center;
@@ -1051,7 +1051,7 @@ ion-footer[hidden] { display: none; }
   ion-icon { font-size: 0.85rem; color: var(--ion-color-medium); flex: none; }
 }
 
-.context.stacked .pocket-chip { justify-self: auto; }
+.context.stacked .product-chip { justify-self: auto; }
 
 /*
  * Four columns, whatever the width.

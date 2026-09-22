@@ -31,24 +31,24 @@ import type { YieldsRepository } from '../database/repositories/yields.repositor
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import { AccrualEngine } from './accrual';
 
-export async function removePocketInto(
+export async function removeProductInto(
   db: SqlDriver,
   yields: YieldsRepository,
   tax: TaxParametersRepository,
   accountId: number,
-  pocketId: number,
+  productId: number,
   intoId: number,
   today: IsoDate,
   /** The note on the entry that carries the balance across. */
   note?: string,
 ): Promise<void> {
-  const pockets = await yields.pockets(accountId);
-  const removed = pockets.find(pocket => pocket.id === pocketId);
-  const into = pockets.find(pocket => pocket.id === intoId);
+  const products = await yields.products(accountId);
+  const removed = products.find(product => product.id === productId);
+  const into = products.find(product => product.id === intoId);
 
   if (!removed || !into) throw new Error('Both products must belong to this account.');
-  if (pocketId === intoId) throw new Error('A product cannot be moved into itself.');
-  if (pockets.length <= 1) throw new Error('An account keeps at least one product.');
+  if (productId === intoId) throw new Error('A product cannot be moved into itself.');
+  if (products.length <= 1) throw new Error('An account keeps at least one product.');
 
   const engine = new AccrualEngine(db, yields, tax);
 
@@ -57,26 +57,26 @@ export async function removePocketInto(
   // are worked out again afterwards on the new balance - counting them here
   // too would carry them twice.
   const held = async () => {
-    const byPocket = await engine.heldByPocket(accountId, today);
-    return (id: number) => byPocket.get(id) ?? 0;
+    const byProduct = await engine.heldByProduct(accountId, today);
+    return (id: number) => byProduct.get(id) ?? 0;
   };
 
   // Read before anything moves: this is what the destination must end up holding.
   const before = await held();
-  const target = before(intoId) + before(pocketId);
+  const target = before(intoId) + before(productId);
 
   await db.transaction(async () => {
-    await yields.mergePocketInto(pocketId, intoId);
-    await yields.removePocket(pocketId);
+    await yields.mergeProductInto(productId, intoId);
+    await yields.removeProduct(productId);
 
     if (removed.is_default === 1) {
-      await yields.setDefaultPocket(accountId, intoId);
+      await yields.setDefaultProduct(accountId, intoId);
     }
 
     if (removed.source === 'ledger') {
       // The product that followed the account's balance is gone, and some
       // product has to go on following it.
-      await yields.setPocketSource(intoId, 'ledger');
+      await yields.setProductSource(intoId, 'ledger');
       return;
     }
 
@@ -89,11 +89,11 @@ export async function removePocketInto(
 
     // Dated today, or on the destination's latest balance when that one is
     // dated later - an entry before it would already be inside that figure.
-    const latest = (await yields.pocketBalances(intoId)).at(-1);
+    const latest = (await yields.productBalances(intoId)).at(-1);
     const on = latest && latest.valid_from > today ? latest.valid_from : today;
 
     await yields.adjust({
-      account_id: accountId, pocket_id: intoId, on_date: on, amount_minor: missing,
+      account_id: accountId, product_id: intoId, on_date: on, amount_minor: missing,
       kind: 'other', note: note ?? removed.name,
     });
   });
