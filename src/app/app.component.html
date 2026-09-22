@@ -25,11 +25,8 @@
                  "Cuenta" was. It is how anyone opening the drawer can tell at
                  a glance that the app is connected, and to which account. -->
             @if (item.path === '/account' && google.user(); as user) {
-              @if (user.photoUrl) {
-                <img slot="start" class="face" [src]="user.photoUrl" alt="">
-              } @else {
-                <span slot="start" class="face letter">{{ (user.name || user.email || '?').charAt(0) }}</span>
-              }
+              <app-avatar slot="start" class="face" [photoUrl]="user.photoUrl"
+                          [name]="user.name" [email]="user.email"></app-avatar>
               <ion-label>
                 <h3>{{ user.name || user.email }}</h3>
                 <p>{{ 'nav.account.signedIn' | t }}</p>

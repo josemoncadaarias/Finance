@@ -55,22 +55,13 @@ ion-menu ion-content {
  * The same width as the icons it replaces, so the names of every section
  * still start on one line.
  */
+/* The size and the place; app-avatar brings its own round frame and its
+   own fallback. The font size is set here because the initial inside it
+   inherits it, and the two places this appears want different sizes. */
 .nav ion-item .face {
   width: 1.6rem;
   height: 1.6rem;
   margin-inline-end: 1.1rem;
-  border-radius: 50%;
-  object-fit: cover;
   flex: none;
-}
-
-.nav ion-item .face.letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(var(--ion-color-primary-rgb), 0.15);
-  color: var(--ion-color-primary);
   font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
 }

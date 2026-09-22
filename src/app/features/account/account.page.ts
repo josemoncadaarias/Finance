@@ -32,13 +32,14 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import { AvatarComponent } from '../../core/cloud/avatar.component';
 
 @Component({
   selector: 'app-account',
   templateUrl: './account.page.html',
   styleUrls: ['./account.page.scss'],
   imports: [
-    TranslatePipe, LanguageButtonComponent, BusyOverlayComponent,
+    TranslatePipe, LanguageButtonComponent, BusyOverlayComponent, AvatarComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton,
     IonSpinner, IonIcon, IonButton, IonToggle,
   ],

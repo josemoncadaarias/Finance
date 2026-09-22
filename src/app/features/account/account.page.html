@@ -14,11 +14,8 @@
   @if (google.user(); as user) {
     <!-- Signed in: who, and what is kept. -->
     <section class="who">
-      @if (user.photoUrl) {
-        <img class="face" [src]="user.photoUrl" alt="">
-      } @else {
-        <div class="face letter">{{ (user.name || user.email || '?').charAt(0) }}</div>
-      }
+      <app-avatar class="face" [photoUrl]="user.photoUrl"
+                  [name]="user.name" [email]="user.email"></app-avatar>
       <h2>{{ user.name || user.email }}</h2>
       @if (user.name && user.email) {
         <p class="email">{{ user.email }}</p>

@@ -22,6 +22,7 @@ import { GoogleAccountService } from './core/cloud/google-account.service';
 import { CloudBackupService } from './core/cloud/cloud-backup.service';
 import { ForeignConversionService } from './core/rates/foreign-conversion.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
+import { AvatarComponent } from './core/cloud/avatar.component';
 
 interface Section {
   path: string;
@@ -37,7 +38,7 @@ interface Section {
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
   imports: [
-    RouterLink, TranslatePipe, LanguageButtonComponent, ThemeButtonComponent,
+    RouterLink, TranslatePipe, LanguageButtonComponent, ThemeButtonComponent, AvatarComponent,
     IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
     IonContent, IonList, IonItem, IonIcon, IonLabel,
   ],
