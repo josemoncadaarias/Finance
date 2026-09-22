@@ -1167,6 +1167,23 @@ export class CushionPage {
       this.collapsedGroups.set(new Set());
       this.showPayments.set(false);
       this.showDays.set(false);
+
+      /*
+       * Everything else a section remembers about the account that was open.
+       *
+       * Jose found this one: he opened "what the bank had already paid",
+       * closed that account, opened another, and the section was still open
+       * showing the first account's figure. Anything below belongs to the
+       * account it was opened on - which month was expanded, which day, what
+       * was half-confirmed - and none of it means anything in the next one.
+       */
+      this.editingOpening.set(false);
+      this.openWorkings.set(new Set());
+      this.openMonths.set(new Set());
+      this.confirmingStop.set(false);
+      this.confirmingZeroDay.set(false);
+      this.openDay.set(null);
+      this.error.set('');
     }
     // The products list says each product's rate, so the rates are read here
     // too, not only when the settings open.
