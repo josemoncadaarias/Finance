@@ -333,9 +333,6 @@ export class CushionPage {
     await this.measureSheet();
   }
 
-  /** Open while the date the account starts earning from is being moved. */
-  readonly editingOpening = signal(false);
-  readonly openingOn = signal('');
 
   /** The settings form, filled from the account being edited. */
   readonly withholds = signal(true);
@@ -491,6 +488,8 @@ export class CushionPage {
   /** The pocket form. */
   readonly editingPocket = signal<YieldPocket | null>(null);
   readonly pocketName = signal('');
+  /** The day this product starts earning. Nothing before it is worked out. */
+  readonly pocketEarnsFrom = signal('');
   readonly pocketKind = signal<YieldPocket['kind']>('high_yield');
 
   /**
@@ -1179,7 +1178,6 @@ export class CushionPage {
        * account it was opened on - which month was expanded, which day, what
        * was half-confirmed - and none of it means anything in the next one.
        */
-      this.editingOpening.set(false);
       this.openWorkings.set(new Set());
       this.openMonths.set(new Set());
       this.confirmingStop.set(false);
@@ -1386,6 +1384,7 @@ export class CushionPage {
     this.pocketCounts.set(pocket ? pocket.include_in_net_worth !== 0 : true);
 
     this.pocketName.set(pocket?.name ?? '');
+    this.pocketEarnsFrom.set(pocket?.earns_from || today());
     this.pocketKind.set(pocket?.kind ?? 'high_yield');
     this.pocketPayout.set(pocket?.payout ?? 'daily');
     this.pocketMonths.set(String(pocket?.payout_months ?? 1));
@@ -1519,6 +1518,7 @@ export class CushionPage {
               sort_order: line.pockets.length,
               payout,
               payout_months: months,
+              earns_from: this.pocketEarnsFrom() || this.pocketFrom(),
             });
 
         if (existing) {
@@ -1526,6 +1526,15 @@ export class CushionPage {
           // A product that used to follow the account balance holds what was
           // typed from now on.
           await yields.setPocketSource(id, 'manual');
+
+          // Moving the day it starts earning changes which days exist at all,
+          // so its account is worked out again from the beginning. Days
+          // corrected by hand are left alone, as everywhere else.
+          const moved = this.pocketEarnsFrom();
+          if (moved && moved !== existing.earns_from) {
+            await yields.setPocketEarnsFrom(id, moved);
+            await yields.clearDays(line.account.id, '0000-01-01');
+          }
         }
         await yields.setPocketPayout(id, payout, months);
         if ((existing?.withholding ?? -1) !== (this.pocketWithholds() ? 1 : 0)) {
@@ -1984,57 +1993,6 @@ export class CushionPage {
     return months === 1
       ? this.i18n.t('cushion.payout.monthly')
       : this.i18n.t('cushion.payout.everyMonths', { count: months });
-  }
-
-  /**
-   * Moving the day the account starts earning from.
-   *
-   * Nothing before it is ever worked out, and a rate reaching further back
-   * does not change that while there is something on record as earned before
-   * that day. It is the only part of the old "colchon" that was real, and it
-   * stays because Jose needs it: it is how he tells the app when a product of
-   * his began.
-   */
-  async toggleOpening(line: CushionLine): Promise<void> {
-    if (this.editingOpening()) {
-      this.editingOpening.set(false);
-      return;
-    }
-    const enrolled = await this.repos().yields.account(line.account.id);
-    this.openingOn.set(enrolled?.opening_on ?? today());
-    this.editingOpening.set(true);
-  }
-
-  async saveOpening(line: CushionLine): Promise<void> {
-    const on = this.openingOn() || today();
-
-    this.saving.set(true);
-    try {
-      const { db, yields, tax } = this.repos();
-
-      // Enrolling is an upsert over the whole row, so every other setting is
-      // handed back exactly as it stands: saving this one must not quietly
-      // switch withholding on, resume a paused account or reset its payout.
-      const enrolled = await yields.account(line.account.id);
-      if (!enrolled) return;
-
-      await yields.enrol({
-        account_id: line.account.id,
-        opening_on: on,
-        withholding: enrolled.withholding === 1,
-        enabled: enrolled.enabled === 1,
-        payout: enrolled.payout,
-        note: enrolled.note,
-      });
-      // Where the walk starts may have moved, so everything it worked out is
-      // worked out again. Days corrected by hand are left as they are.
-      await yields.clearDays(line.account.id, '0000-01-01');
-      await accrueAllAndSettle(db, yields, tax, today());
-      this.editingOpening.set(false);
-      await this.afterOwnChange(line.account.id);
-    } finally {
-      this.saving.set(false);
-    }
   }
 
   /** Adds an account to the module, with nothing accrued and no rate yet. */

@@ -787,32 +787,6 @@
               }
             }
             }
-            <!-- The day the account starts earning from. It used to carry a
-                 figure beside it - what the bank had already paid - which was
-                 a mechanism of its own that nobody could use; migration 040
-                 turned every one of those into an ordinary income to the
-                 product that held it. The date was always the real half. -->
-            <button type="button" class="section-head" (click)="toggleOpening(line)"
-                    [class.open]="editingOpening()" [attr.aria-expanded]="editingOpening()">
-              <ion-icon class="fold"
-                        [name]="editingOpening() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-              <span class="title">{{ 'cushion.earningSince' | t }}</span>
-              <span class="count">{{ dayText(line.openingOn) }}</span>
-            </button>
-
-            @if (editingOpening()) {
-              <p class="hint">{{ 'cushion.earningSince.hint' | t }}</p>
-              <ion-list [inset]="true">
-                <ion-item>
-                  <ion-input [label]="'cushion.earningSince' | t" labelPlacement="stacked"
-                             type="date" [value]="openingOn()"
-                             (ionInput)="openingOn.set($any($event.target).value)"></ion-input>
-                </ion-item>
-              </ion-list>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveOpening(line)">
-                {{ 'cushion.earningSince.save' | t }}
-              </ion-button>
-            }
 
             <!-- Stopping the account, well away from anything else: it is
                  silent when it happens - the figures simply stop moving. -->
@@ -1131,7 +1105,16 @@
                                type="date" [value]="pocketFrom()"
                                (ionInput)="setPocketFrom($any($event.target).value)"></ion-input>
                   </ion-item>
+                  <!-- The day this product starts earning. Its own, since what
+                       earns is the product; it used to be one date per account
+                       that overruled every product in it. -->
+                  <ion-item>
+                    <ion-input [label]="'cushion.pocket.earnsFrom' | t" labelPlacement="stacked"
+                               type="date" [value]="pocketEarnsFrom()"
+                               (ionInput)="pocketEarnsFrom.set($any($event.target).value)"></ion-input>
+                  </ion-item>
                 </ion-list>
+                <p class="hint">{{ 'cushion.pocket.earnsFrom.hint' | t }}</p>
                 <!-- Money in a new product came from somewhere: nearly always
                      another product, recorded as a transfer; or typed in. -->
                 @if (fundingAsked()) {
