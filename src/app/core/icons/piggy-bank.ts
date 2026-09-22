@@ -19,8 +19,18 @@
  * because a newline inside a URI ends it.
  */
 export const PIGGY_BANK = 'data:image/svg+xml;utf8,'
-  + "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>"
-  + "<g fill='none' stroke='currentColor' stroke-width='32'"
+  /*
+   * The viewBox is cropped to the drawing, not left at the full 512.
+   *
+   * The pig only ever used the middle of that square, so beside icons that
+   * fill theirs it came out visibly smaller - which is what Jose saw in the
+   * drawer. Cropping to what is drawn, with a margin of Ionicons' own size,
+   * makes it the same weight as the rest. The stroke comes down to 25
+   * because the crop scales everything up by about a quarter, and 32 through
+   * that would be a fatter line than any icon beside it.
+   */
+  + "<svg xmlns='http://www.w3.org/2000/svg' viewBox='60 78 400 400'>"
+  + "<g fill='none' stroke='currentColor' stroke-width='25'"
   + " stroke-linecap='round' stroke-linejoin='round'>"
   + "<ellipse cx='288' cy='280' rx='144' ry='112'/>"
   + "<rect x='88' y='248' width='56' height='64' rx='24'/>"
