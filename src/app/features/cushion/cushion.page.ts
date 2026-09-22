@@ -1767,6 +1767,56 @@ export class CushionPage {
   }
 
   /** Removes the product, handing its balance, movements and earnings to the one chosen. */
+  /** Open while "move every movement to another product" is being confirmed. */
+  readonly movingMovements = signal(false);
+  readonly moveMovementsTo = signal<number | null>(null);
+
+  /** How many movements would move, for the question and for afterwards. */
+  readonly movableCount = computed(() => {
+    const pocket = this.editingPocket();
+    if (!pocket) return 0;
+    return this.movements().filter(movement => movementTouches(movement, pocket.id)).length;
+  });
+
+  startMoveMovements(): void {
+    this.moveMovementsTo.set(this.otherPockets()[0]?.id ?? null);
+    this.movingMovements.set(true);
+  }
+
+  /**
+   * Re-points every movement of this product at another.
+   *
+   * The correction for a product that was never really holding the money.
+   * Before a movement named a product, "names none" was read as "the usual
+   * one", so making a product usual moved years of movements into it - and
+   * migration 038 wrote that reading down. Plata's savings product came out
+   * holding 200,000 for ten days at 6.5% when the money had been in Bolsillo
+   * at 11% the whole time.
+   */
+  async moveMovements(): Promise<void> {
+    const line = this.openLine();
+    const pocket = this.editingPocket();
+    const into = this.moveMovementsTo();
+    this.movingMovements.set(false);
+    if (!line || !pocket || into === null) return;
+
+    this.saving.set(true);
+    try {
+      const { yields } = this.repos();
+      await yields.movePocketMovements(pocket.id, into);
+      // Every day of this account was worked out on balances that have just
+      // changed, so they all go and are worked out again.
+      await yields.clearDays(line.account.id);
+      this.database.dataChanged();
+      await this.afterOwnChange(line.account.id);
+      this.form.set('none');
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   async deletePocket(): Promise<void> {
     const line = this.openLine();
     const pocket = this.editingPocket();

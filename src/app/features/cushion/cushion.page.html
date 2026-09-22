@@ -1330,6 +1330,20 @@
               </ion-button>
             </div>
 
+            <!-- The correction for a product that was never really holding
+                 the money: its movements belong to another one. -->
+            @if (editingPocket(); as current) {
+              @if (otherPockets().length > 0 && movableCount() > 0) {
+                <div class="actions">
+                  <ion-button expand="block" fill="clear"
+                              [disabled]="saving()" (click)="startMoveMovements()">
+                    <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
+                    {{ 'cushion.pocket.moveMovements' | t:{ count: movableCount() } }}
+                  </ion-button>
+                </div>
+              }
+            }
+
             @if (editingPocket(); as removing) {
               @if (editablePockets().length > 1) {
                 <div class="actions">
@@ -1588,3 +1602,38 @@
              [body]="'cushion.day.zero.body' | t" [busy]="saving()"
              [confirmLabel]="'cushion.day.zero.yes' | t"
              (confirmed)="zeroDay()" (cancelled)="confirmingZeroDay.set(false)"></app-confirm>
+
+<!-- Where this product's movements really belong. -->
+<ion-modal class="confirm-sheet" [isOpen]="movingMovements()" (didDismiss)="movingMovements.set(false)">
+  <ng-template>
+    <div class="confirm-dialog">
+      <span class="badge"><ion-icon name="swap-horizontal-outline"></ion-icon></span>
+      <h2>{{ 'cushion.pocket.moveMovements.ask' | t:{ count: movableCount() } }}</h2>
+      <p>{{ 'cushion.pocket.moveMovements.body' | t }}</p>
+
+      <ion-list>
+        <ion-item lines="none">
+          <ion-select [label]="'cushion.pocket.moveMovements.to' | t" labelPlacement="stacked"
+                      [value]="moveMovementsTo()" interface="alert"
+                      [interfaceOptions]="{ cssClass: 'select-alert' }"
+                      (ionChange)="moveMovementsTo.set($any($event.detail).value)">
+            @for (other of otherPockets(); track other.id) {
+              <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+      </ion-list>
+
+      @if (error()) { <p class="error">{{ error() }}</p> }
+
+      <div class="buttons">
+        <ion-button fill="outline" color="medium" (click)="movingMovements.set(false)">
+          {{ 'entry.cancel' | t }}
+        </ion-button>
+        <ion-button [disabled]="saving() || moveMovementsTo() === null" (click)="moveMovements()">
+          {{ 'cushion.pocket.moveMovements.yes' | t }}
+        </ion-button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>

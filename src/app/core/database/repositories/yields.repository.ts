@@ -763,6 +763,38 @@ export class YieldsRepository {
   }
 
   /**
+   * Re-points every movement of one product at another.
+   *
+   * Needed because of how movements came to name a product at all. Before
+   * they did, "names no product" was read as "the usual one" - so making a
+   * product usual quietly moved years of movements into it, and migration 038
+   * then wrote that reading down. In Jose's Plata that put 200,000 into
+   * Cuenta Ahorros from the 8th to the 18th of September, earning 6.5% a year,
+   * when the money had been in Bolsillo the whole time earning 11%. He said
+   * it plainly: he has never left money in the savings account overnight.
+   *
+   * One at a time was already possible - a movement is edited and its product
+   * chosen - but twenty-three of them is not a correction, it is an
+   * afternoon. This is the same edit, done to all of them at once.
+   *
+   * It moves nothing else: the days each product earned are worked out again
+   * from the balances this leaves behind.
+   */
+  async movePocketMovements(fromPocketId: number, toPocketId: number): Promise<number> {
+    if (fromPocketId === toPocketId) return 0;
+
+    const { total } = (await this.db.queryOne<{ total: number }>(
+      'SELECT COUNT(*) AS total FROM transactions WHERE pocket_id = ?', [fromPocketId]))
+      ?? { total: 0 };
+
+    await this.db.run(
+      'UPDATE transactions SET pocket_id = ?, updated_at = ? WHERE pocket_id = ?',
+      [toPocketId, this.now(), fromPocketId]);
+
+    return total;
+  }
+
+  /**
    * What has moved through a product since a date, that date included.
    *
    * One rule, and the one Jose stated: movements before the date a product's
