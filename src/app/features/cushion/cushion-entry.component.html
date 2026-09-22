@@ -45,7 +45,8 @@
     @if (isTransfer()) {
       <!-- From and to, products only: both are inside the account on screen. -->
       <div class="route">
-        <div class="leg">
+        <!-- The box takes the tap, not only the words in it. -->
+        <div class="leg" (click)="pickingPocket.set('from')">
           <button type="button" class="face" (click)="pickingPocket.set('from')">
             <span class="lead">{{ 'cushion.move.from' | t }}</span>
             <span class="who">
@@ -69,7 +70,8 @@
           </button>
         </div>
 
-        <div class="leg" [class.needed]="toPocketId() === null || toPocketId() === pocketId()">
+        <div class="leg" (click)="pickingPocket.set('to')"
+             [class.needed]="toPocketId() === null || toPocketId() === pocketId()">
           <button type="button" class="face" (click)="pickingPocket.set('to')">
             <span class="lead">{{ 'cushion.move.to' | t }}</span>
             <span class="who">

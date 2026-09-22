@@ -76,7 +76,10 @@
   <!-- Accounts and date -->
   @if (isTransfer()) {
     <div class="route">
-      <div class="leg">
+      <!-- The box takes the tap, not only the words in it. The button stays
+           where it is: it is what a keyboard reaches and what a screen reader
+           announces. -->
+      <div class="leg" (click)="openAccountSheet('from')">
         <button type="button" class="face" (click)="openAccountSheet('from')">
           <span class="lead">{{ 'entry.from' | t }}</span>
           <span class="who">
@@ -99,7 +102,7 @@
             {{ account()?.name ?? '' }}
           </button>
         } @else if (splitAccount()) {
-          <button type="button" class="part" (click)="openPocketSheet('from')">
+          <button type="button" class="part" (click)="$event.stopPropagation(); openPocketSheet('from')">
             {{ pocketName(pockets(), pocketId()) }}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
@@ -119,7 +122,7 @@
         </button>
       </div>
 
-      <div class="leg" [class.needed]="toAccountId() === null">
+      <div class="leg" (click)="openAccountSheet('to')" [class.needed]="toAccountId() === null">
         <button type="button" class="face" (click)="openAccountSheet('to')">
           <span class="lead">{{ 'entry.to' | t }}</span>
           <span class="who">
@@ -136,7 +139,7 @@
             {{ toAccount()?.name ?? '' }}
           </button>
         } @else if (splitTarget()) {
-          <button type="button" class="part" (click)="openPocketSheet('to')">
+          <button type="button" class="part" (click)="$event.stopPropagation(); openPocketSheet('to')">
             {{ pocketName(toPockets(), toPocketId()) }}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
