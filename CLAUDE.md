@@ -1,7 +1,7 @@
 # Project context — Finance
 
 Android mobile app for personal finance. Offline-first, with all data stored
-locally on the phone. Replaces and improves on Monefy.
+locally on the phone.
 
 Claude Code reads this file automatically when the project is opened.
 Keep it up to date whenever we make new decisions.
@@ -10,16 +10,15 @@ Keep it up to date whenever we make new decisions.
 
 - **The repository is English.** Code, comments, identifiers, documentation,
   commit messages, branch names and file names: all in English. The only
-  exception is data coming from the real Monefy backup (account and category
-  names such as `Tarjeta credito rappi` or `Ahorros`), which stays verbatim so
-  the importer keeps working.
+  exception is Jose's own data (account and category names such as
+  `Tarjeta credito rappi` or `Ahorros`), which is his and stays verbatim.
 - **The conversation with Jose is in Spanish**, with simple, easy-to-follow
   explanations. English technical terms inside that Spanish are fine.
 - **The app itself is multilingual** (Spanish by default, English available).
   Its own words live in `src/app/core/i18n/translations.ts` under English keys;
   no user-facing string belongs in a template or a component. What is NOT
   translated: the user's data (account names, category names, notes on a
-  movement) and the Monefy importer's pattern matching. Decision by Jose,
+  movement). Decision by Jose,
   2026-09-09.
 - **The tax module is translated too, but the DIAN's terms are not.** Its
   explanations, hints, titles and every word the app says in its own voice
@@ -121,14 +120,14 @@ backup restore against iOS's own SQLite backend.
 
 2. **Money as integers.** JavaScript has no decimal type; everything is
    float64. Amounts are stored as integers in minor units and only formatted
-   for display. **Never add floats.** The Monefy backup already carries the
-   typical garbage: `9421.2800000000007`.
+   for display. **Never add floats.** The data seeded into the app already
+   carries the typical garbage: `9421.2800000000007`.
 
    **Both COP and USD use 2 minor units (cents).** COP was originally going to
    be stored as whole pesos, but 2,313 of the 12,890 backup rows carry cents
    (including opening balances such as `66,750,767.94`), and rounding them
    would make balances impossible to reconcile against the bank. COP is also
-   *displayed* with 2 decimals, the same way Monefy does it. Decision by Jose,
+   *displayed* with 2 decimals. Decision by Jose,
    2026-09-08.
 
 3. **Two different questions, two different rates.** A movement keeps the rate
@@ -166,10 +165,11 @@ backup restore against iOS's own SQLite backend.
 4. **Credit cards as liabilities.** The balance represents the debt (negative
    or zero). The credit limit is a separate attribute. Available credit is
    computed: credit limit − debt. They do not count as an asset for net worth,
-   but they do subtract as a liability. Monefy modeled them wrong (a positive
-   initial balance of 800,000 = the credit limit, mixing two concepts).
+   but they do subtract as a liability. The app they came from modelled them
+   wrong (a positive initial balance of 800,000 = the credit limit, mixing two
+   concepts), which is why the data needed correcting by hand.
 
-5. **Accounts can be flagged as "excluded from net worth"**, same as Monefy.
+5. **Accounts can be flagged as "excluded from net worth".**
    **So can a product inside an account** (`yield_pockets.include_in_net_worth`,
    migration 033): the tax CDTs live inside Pibank, not in an account of their
    own. A product set aside has its movements left off the account's balance on
@@ -208,48 +208,49 @@ backup restore against iOS's own SQLite backend.
    down - moves no money and leaves the debt untouched; only the room left
    over changes. So limits live in `credit_limit_changes` (one row per card
    per day, holding the limit as of that day) and never in the ledger. That is
-   the mistake Monefy forced: with nowhere to put a limit increase, it was
-   logged as a deposit, which understated the debt by exactly the increase.
+   the mistake the old app forced: with nowhere to put a limit increase, it
+   was logged as a deposit, which understated the debt by exactly the increase.
    `accounts.credit_limit_minor` stays the limit in force today, kept in step
    by the repository. The import seeds the history from the backup but never
    overrules a confirmed or hand-corrected limit. Decision by Jose, 2026-09-09.
 
-12. **A new movement in a foreign-currency account always goes to review.**
-   Monefy only ever stored pesos, so the dollar or euro figure of any row in
-   ARQ, eToro, XTB, Plenti or Global66 USD is a reading or an estimate. Jose
-   has corrected many of those by hand to figures more exact than Monefy could
-   hold. Those are protected twice over - the fingerprint skips them and the
-   `locked` flag guards them - and every genuinely new row in such an account
-   arrives flagged `foreign_new_movement` so it is corrected at once instead of
-   sitting there as an approximation nobody was told about. Peso rows import
-   silently: there the CSV figure is the real one. Decision by Jose, 2026-09-09.
+12. **There is one source of data: what is in the app today.** The app was
+   seeded once from another one and that is over - said plainly by Jose on
+   2026-09-22: no importer, no CSV, and above all **no reading an old export
+   to decide anything about the data as it stands now**. A figure that looks
+   wrong is checked against the app's own current backup, the one in
+   `G:My DriveFinance App` (the newest `.json` there), and nowhere else.
+   `source`, `locked`, the fingerprints, `deleted_imports` and `review_queue`
+   are columns and tables that survive in the schema because migrations are
+   history; nothing new is ever written to them and no new work leans on them.
+   A row flagged `locked` still means "Jose corrected this by hand", and that
+   is the one part still worth honouring.
 
-13. **A deletion is a decision too.** Deleting an imported movement removes its
-   fingerprint, and the importer recognises stored rows by fingerprint — so
-   without help, the next import meets the row as new and puts it back. The
-   fingerprint now outlives the row in `deleted_imports`, and the importer
-   skips it. Jose hit this on 2026-09-09: an import reported 7 new movements
-   when only 1 was new, the other 6 being rows he had deleted. It can be undone
-   (`forgetDeletion`), so nothing is permanent by accident.
-
-14. **Manual edits win over re-imports.** The Monefy CSV is re-exported
-   regularly, carrying the whole history again plus new rows, so the importer
-   must be repeatable. Any record edited by hand inside Finance is flagged
-   `locked` and a later re-import never overwrites it: a manual edit means Jose
-   corrected it towards the final, true version. Decision by Jose, 2026-09-08.
-
-15. **Interest and cashback are a cushion, not net worth.** Money earned that
-   was never counted on. It accumulates outside the balance of the account that
+15. **Interest and cashback stay outside net worth.** Money earned that was
+   never counted on. It accumulates outside the balance of the account that
    produced it and outside net worth, and moving part of it in is a deliberate
    act that writes both a movement and a `cushion_withdrawals` row, so nothing
    is counted twice - modelled on the real 2026-08-13 adjustment on Rappi
-   cuenta. Historical yields cannot be reconstructed, so each account gets one
-   opening figure typed by hand and accrual runs day by day from there, against
-   an effective-annual-rate history the user maintains. The daily rate is
-   `(1 + annual) ^ (1/365) - 1`, never the annual one over 365, and the accrual
-   base is the ledger balance plus the cushion. Accounts whose return is the
-   market's - XTB, eToro, Fiducuenta, Multinversion - are never accrued: they
-   already carry their own movements. Decision by Jose, 2026-09-09.
+   cuenta. The daily rate is `(1 + annual) ^ (1/365) - 1`, never the annual one
+   over 365, against an effective-annual-rate history the user maintains.
+   Accounts whose return is the market's - XTB, eToro, Fiducuenta,
+   Multinversion - are never accrued: they already carry their own movements.
+   Decision by Jose, 2026-09-09.
+
+   **There are five things and no sixth: products, their balances, the date
+   each starts earning from, their rates and their movements.** Said by Jose
+   over and over through 2026-09-22 before it was done. What stood in the way
+   was `yield_accounts.opening_cushion_minor` - one figure per account saying
+   what the bank had already paid, which the screens called a "colchon". It
+   was a mechanism of its own with a name nobody could use, and it was two
+   things wearing one name: an amount, which is an income to a product and
+   nothing more, and a date, which is real. Migration 040 wrote each amount as
+   an ordinary entry on the product Jose named, dated the day before the walk
+   begins, and emptied the column; the code that read it is gone and the screen
+   keeps the date alone, as "Desde cuando rinde". Verified against his backup
+   of that day, restored and accrued from scratch: not one product balance, not
+   one available figure, not one peso the bank had paid moved. **Do not bring
+   the concept back under another name.**
 
    **A day in `yield_days` is the day the money is HANDED OVER, and it is
    worked out on the balance the day before closed with.** That is how these
@@ -260,17 +261,18 @@ backup restore against iOS's own SQLite backend.
    is when it lands. Do not "fix" this by moving the base forward a day: it
    would double-count the edges and stop matching the bank.
 
-   **The opening figure is a RECORD, and is never added to the accrual base.**
-   It looks like money the base is missing — the bank shows more than the
-   ledger does — but every product carries a balance Jose typed after reading
-   it off the bank, and that figure ALREADY has the yields inside it.
-   Migration 035 turned each opening figure into an adjustment so that it
-   would earn; Uala's product states 4,584,082.13 and it began earning on
-   5,699,581.59. Migration 036 undid it the same night. The opening date is
-   that record's boundary, so nothing — not even a rate reaching further back
-   — pulls the walk earlier while the figure is non-zero. An account whose
-   opening figure is zero has no record to overlap with, and there the rates
-   decide. Found by Jose, 2026-09-17.
+   **What was already earned is a RECORD, and is never added to the accrual
+   base.** It looks like money the base is missing — the bank shows more than
+   the ledger does — but every product carries a balance Jose typed after
+   reading it off the bank, and that figure ALREADY has the yields inside it.
+   Migration 035 made each one earn; Uala's product states 4,584,082.13 and it
+   began earning on 5,699,581.59. Migration 036 undid it the same night.
+   `yield_accounts.opening_on` is that record's boundary, so nothing — not
+   even a rate reaching further back — pulls the walk earlier while something
+   is on record as earned before it (`YieldsRepository.earnedBefore`). An
+   account with no such record has nothing to overlap with, and there the
+   rates decide: that is Plata. Found by Jose, 2026-09-17, and restated on
+   2026-09-22 when the opening figure itself became one of those records.
 
 16. **Withholding figures are configuration, each carrying its source.** They
    live in `tax_parameters`, dated, and are unusable until marked confirmed
@@ -508,7 +510,7 @@ backup restore against iOS's own SQLite backend.
 ## Current status
 
 The SQLite schema, the migration runner, the money helpers, the repository
-layer and the yields module are covered by 368 tests that run against a real
+layer and the yields module are covered by 415 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -524,16 +526,14 @@ npm run db:test    the database tests
 npm run android    build and copy the web app into the Android project
 ```
 
-**The Monefy importer is gone** (2026-09-12). Jose enters every movement by
-hand from now on, after imports kept putting his corrections at risk. The
-import screen, the review screen that listed what the importer assumed, the
-CSV parser and its tools were removed. What the imports left in the data stays
-untouched: `source = 'monefy'`, `locked`, fingerprints, `deleted_imports` and
-`review_queue` are still tables and columns, carried by the backup, and never
-dropped - migrations are history. Rules 12 to 14 describe that history.
+**Every movement is entered by hand** (2026-09-12), after the old importer
+kept putting Jose's corrections at risk. Rule 12 says what is left of it and
+what not to do with it.
 
 Data moves between the browser and the phone as a backup: "Importar y
-exportar" saves one and restores one. The Android project lives in `android/`
+exportar" saves one and restores one. A copy of the current one lives in
+`G:My DriveFinance App`, and the newest `.json` there is what to verify
+a change against. The Android project lives in `android/`
 (Capacitor 8).
 
 **Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
@@ -624,8 +624,7 @@ Google sign-in client is registered against the same SHA-1.
 - [x] eToro, XTB and Plenti hold USD only. Balances on 2026-09-08:
       eToro 17,195.31, XTB 2,607, Plenti 0.
 - [ ] Current balance of each currency of the two multi-currency accounts:
-      ARQ (USD and EUR) and Global66 (COP and USD). The last ones needed to
-      reconcile the import (see `docs/01-monefy-backup-analysis.md`).
+      ARQ (USD and EUR) and Global66 (COP and USD).
 - Deferred, not pending: market value of the brokers. eToro and XTB move with
   the market daily, so their balance is not derivable from transactions and is
   not something the ledger should be reconciled against. The app records their
@@ -638,12 +637,8 @@ Google sign-in client is registered against the same SHA-1.
 
 ## Documents
 
-- `docs/01-monefy-backup-analysis.md` — what the backup contains and its problems
 - `docs/02-technical-decisions.md` — the reasoning behind each decision
 - `docs/03-roadmap.md` — order of work by phase
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
-- `data/monefy-YYYY-MM-DD.csv` — the real backups, one file per export.
-  Never overwrite one: comparing consecutive exports is what verifies that
-  Monefy orders rows stably, which the import fingerprint relies on.
