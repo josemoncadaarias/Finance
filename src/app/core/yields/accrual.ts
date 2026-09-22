@@ -239,14 +239,21 @@ export class AccrualEngine {
     // the first day this app can work out is the day after: starting earlier
     // would work out days that figure already contains.
     //
-    // A rate reaching further back cannot pull it back either, for the same
-    // reason - which is what made the first attempt at Jose's Plata report
-    // wrong twice over. An account with NO opening figure has nothing to
-    // overlap with, so there the rates decide, and Plata's products beginning
-    // on the 7th and the 8th are worked out from then.
+    // A rate reaching further back pulls it back only where there is nothing
+    // recorded before that date to overlap with.
+    //
+    // The boundary used to be "the opening figure is not zero". Migration 040
+    // turned every one of those figures into an ordinary income to a product,
+    // dated the day before, so that test would now be true of every account
+    // and each would start a day early and invent a day of yield. What the
+    // figure really meant is what is asked now: is there a record of what this
+    // account had already earned before this date? If there is, it covers
+    // everything up to it and nothing earlier is worked out again. If there is
+    // none - Plata, whose products began on the 7th and the 8th - the rates
+    // decide, which is what Jose asked for on 2026-09-17.
     const earliestRate = rates.map(rate => rate.valid_from).sort()[0];
-    const earliest = enrolled.opening_cushion_minor === 0
-                     && earliestRate !== undefined && earliestRate < enrolled.opening_on
+    const recorded = await this.yields.earnedBefore(accountId, enrolled.opening_on);
+    const earliest = !recorded && earliestRate !== undefined && earliestRate < enrolled.opening_on
       ? earliestRate
       : enrolled.opening_on;
     const firstEver = nextDay(earliest);

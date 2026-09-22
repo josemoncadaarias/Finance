@@ -758,6 +758,21 @@ export class YieldsRepository {
    * longer exists; what they added to the cushion is worked out again on the
    * next pass, from whatever pockets are left.
    */
+  /**
+   * Whether anything is on record as earned before a date.
+   *
+   * What the opening figure used to say by being non-zero. It is an entry on
+   * a product now - "rendimientos que el banco ya había pagado" - and the
+   * question is the same one: is there a record covering everything up to
+   * this day? If there is, the walk does not go behind it.
+   */
+  async earnedBefore(accountId: number, on: IsoDate): Promise<boolean> {
+    const row = await this.db.queryOne<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM cushion_adjustments
+       WHERE account_id = ? AND on_date < ?`, [accountId, on]);
+    return (row?.total ?? 0) > 0;
+  }
+
   async removePocket(id: number): Promise<void> {
     await this.db.run('DELETE FROM yield_pockets WHERE id = ?', [id]);
   }
