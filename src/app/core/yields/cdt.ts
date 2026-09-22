@@ -14,7 +14,7 @@
  *     even though the product it was worked out on is gone;
  *   * the net yield becomes money in the account: an income movement into the
  *     chosen product, under the category chosen for it, and the matching
- *     withdrawal from the cushion, exactly as "Pasar a la cuenta" does;
+ *     cashout from what the product has earned, exactly as "Pasar a la cuenta" does;
  *   * the capital moves across, and the CDT is removed, through the same
  *     removal that loses nothing a product carried.
  *
@@ -114,8 +114,8 @@ export async function settleMaturedCdts(
 
       // The net yield becomes money in the account, the way "Pasar a la
       // cuenta" makes it: a movement in, and the same amount out of the
-      // cushion. Without a category there is no movement to write, and the
-      // yield simply stays in the cushion of the product it lands in.
+      // product. Without a category there is no movement to write, and the
+      // yield simply stays in what the product it lands in has earned.
       if (net > 0 && cdt.income_category_id !== null) {
         const transactionId = await new TransactionsRepository(db).create({
           account_id: accountId,

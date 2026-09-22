@@ -177,7 +177,7 @@ test('a change in one account marks that account and no other', async () => {
       await yields.setPocketBalance({ pocket_id: savings.id, valid_from: '2026-09-10', amount_minor: pesos(1_000) });
     }],
     ['a new product', async ({ yields, pibank }) => yields.addPocket({ account_id: pibank, name: 'Meta', source: 'manual' })],
-    ['a cushion entry', async ({ yields, pibank }) =>
+    ['an entry on a product', async ({ yields, pibank }) =>
       yields.adjust({ account_id: pibank, on_date: '2026-09-10', amount_minor: pesos(500), kind: 'cashback' })],
     ['a day corrected by hand', async ({ yields, pibank }) => {
       const [day] = await yields.days(pibank, '2026-09-10', '2026-09-10');

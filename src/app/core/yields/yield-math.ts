@@ -43,7 +43,7 @@ export function dailyRate(annualRateScaled: number): number {
  *
  * A negative balance earns nothing. An overdrawn account or a credit card does
  * not pay interest to its holder, and a formula that quietly returned a
- * negative yield would subtract from the cushion.
+ * negative yield would subtract from what has been earned.
  */
 export function dailyYieldMinor(balanceMinor: number, annualRateScaled: number): number {
   if (balanceMinor <= 0) return 0;
@@ -159,7 +159,7 @@ export interface AccruedDay {
  * One day, end to end: balance and rate in, gross, withholding and net out.
  *
  * The balance passed in is the accrual base, which is the account's ledger
- * balance plus whatever the cushion already holds. The bank paid those yields
+ * balance plus whatever has been earned already. The bank paid those yields
  * into the account even though the ledger never recorded them, so the real
  * balance earning interest tomorrow includes them. Leaving them out would
  * quietly under-pay, more so the longer the history runs.

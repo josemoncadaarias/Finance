@@ -186,13 +186,13 @@ the form that survived:
 
 - **What an account earns on is a figure he states**, on a date, per product.
   Not a sum the app derives. Six versions of that sum existed — ledger plus
-  cushion, minus a part "not earning", plus a share of something — and each was
+  earnings, minus a part "not earning", plus a share of something — and each was
   an inference about what one of his numbers meant. What the ledger adds is
   only what has MOVED since the figure was stated.
 - **Money that arrives today earns from tomorrow.** A day's yield is worked out
   on what was there when the day started. The stated figure, a deposit and a
-  cushion entry all follow that one rule.
-- **The cushion is a record, never a base.** What the app itself works out does
+  entry on a product all follow that one rule.
+- **What was earned is a record, never a base.** What the app itself works out does
   compound, because the balance does not know about it yet.
 - **An account can be several products** — alcancías, bolsillos, metas — that
   the bank pays separately. The withholding threshold is measured per payment,
@@ -209,10 +209,10 @@ the form that survived:
 Built: the schema (004, 008, 009, 011, 016, 017), the arithmetic
 (`yield-math.ts`, `days.ts`), the engine (`accrual.ts`), and the screen —
 which lists what the bank actually pays, keeps the day-by-day working out
-underneath it, and lets rates, products, opening figures and cushion entries be
+underneath it, and lets rates, products, opening figures and a product's own entries be
 maintained without a migration.
 
-**Cashback** is recorded by hand as a dated cushion entry with a reason, which
+**Cashback** is recorded by hand as a dated entry on a product with a reason, which
 is Jose's own reading of it and the better one: the conditions change without
 notice, so deriving it from rules would invent precision that does not exist.
 `cashback_rules` and `cashback_entries` are still in the schema, unused,

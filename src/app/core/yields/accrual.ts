@@ -6,7 +6,7 @@
  * was made deliberately:
  *
  *   * **The balance it earns on** is the account's ledger balance plus the
- *     cushion accumulated so far. The bank did pay those yields in even though
+ *     earned so far. The bank did pay those yields in even though
  *     The ledger never recorded them, so the money earning interest tomorrow
  *     includes them. Leaving them out would under-pay, more so every year.
  *
@@ -24,7 +24,7 @@
  *     written with the full yield and flagged, never with a silent zero.
  *
  * A day marked `locked` — corrected by hand against a statement — is never
- * rewritten. It still counts towards the cushion, at the corrected figure.
+ * rewritten. It still counts towards what has been earned, at the corrected figure.
  *
  * The balances are read once and walked in memory rather than queried per day:
  * five years is under two thousand days, but one query each would be two
@@ -34,7 +34,7 @@
 import type { SqlDriver } from '../database/sql-driver';
 import type { IsoDate } from '../database/types';
 import type {
-  CushionEntry, NewYieldDay, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
+  ProductEntry, NewYieldDay, PocketBalance, YieldPocket, YieldRate, YieldsRepository,
 } from '../database/repositories/yields.repository';
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import type { OnProgress } from '../database/export/progress';
@@ -51,7 +51,7 @@ export interface AccrualResult {
   daysWritten: number;
   /** Days left alone because they were corrected by hand. */
   daysLocked: number;
-  /** Net added to the cushion by this pass. */
+  /** Net added to what has been earned by this pass. */
   netMinor: number;
   withheldMinor: number;
   /** Days whose withholding could not be worked out for lack of parameters. */
@@ -269,7 +269,7 @@ export class AccrualEngine {
 
       const balances = await this.dailyBalances(accountId, upTo);
 
-      const entries: CushionEntry[] = await this.yields.adjustments(accountId);
+      const entries: ProductEntry[] = await this.yields.adjustments(accountId);
       const takenOut = await this.yields.withdrawals(accountId);
 
       // What each product's own movements add up to, day by day. A movement
@@ -287,7 +287,7 @@ export class AccrualEngine {
         balancesOf.set(pocket.id, await this.yields.pocketBalances(pocket.id));
       }
       const spentBetween = await this.spendCounter(accountId, upTo);
-      // Anything that lands in the cushion inside the range being worked
+      // Anything that lands on a product inside the range being worked
       // out has to be part of it from that day on. The starting figure
       // above only covers what happened BEFORE the range, so without this
       // an entry dated on the Wednesday left Thursday onwards still
@@ -324,7 +324,7 @@ export class AccrualEngine {
 
       const result: AccrualResult = { ...nothing, from, to: upTo, pockets: pockets.length };
 
-      // The opening cushion is a RECORD, not money to add to the balance.
+      // What was already earned is a RECORD, not money to add to the balance.
       //
       // This took four attempts to get right, so it is worth stating plainly:
       // the figure Jose entered per account is what that account had already
@@ -336,13 +336,13 @@ export class AccrualEngine {
       // So every pocket starts at zero here. What grows during the walk is
       // only what THIS app worked out, which the balance genuinely does not
       // know about yet, and which therefore genuinely does compound.
-      const cushionOf = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
+      const earnedOf = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
       const ledgerPocket = pockets.find(pocket => pocket.source === 'ledger');
 
       // An entry says which pocket it landed in when the user knows. When
       // it does not, it goes to the pocket that follows the account
       // balance, and failing that to the first one - the same order the
-      // cushion itself follows.
+      // what has been earned follows.
       const fallbackPocket = ledgerPocket?.id ?? pockets[0].id;
 
       // A component paid monthly works its yield out every day and hands it
@@ -356,7 +356,7 @@ export class AccrualEngine {
 
       const creditTo = (pocketId: number, payout: 'daily' | 'monthly', paidOn: IsoDate, net: number) => {
         if (payout === 'daily') {
-          cushionOf.set(pocketId, (cushionOf.get(pocketId) ?? 0) + net);
+          earnedOf.set(pocketId, (earnedOf.get(pocketId) ?? 0) + net);
           return;
         }
         const key = `${pocketId}|${paidOn}`;
@@ -387,20 +387,20 @@ export class AccrualEngine {
         const paid = earlier.paid_on ?? (earlier.payout === 'monthly' ? endOfMonth(earlier.on_date) : earlier.on_date);
         // Still owed on `from`: carried into `waiting` above instead.
         if (paid >= from) continue;
-        cushionOf.set(earlier.pocket_id,
-          (cushionOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
+        earnedOf.set(earlier.pocket_id,
+          (earnedOf.get(earlier.pocket_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
       // The opening figure summarises everything before its date, so an entry
       // back there would be counted twice.
       for (const entry of entries) {
         if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
         const id = pocketOf(entry.pocket_id);
-        cushionOf.set(id, (cushionOf.get(id) ?? 0) + entry.amount_minor);
+        earnedOf.set(id, (earnedOf.get(id) ?? 0) + entry.amount_minor);
       }
       for (const taken of takenOut) {
         if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
         const id = pocketOf(taken.pocket_id ?? null);
-        cushionOf.set(id, (cushionOf.get(id) ?? 0) - taken.amount_minor);
+        earnedOf.set(id, (earnedOf.get(id) ?? 0) - taken.amount_minor);
       }
 
       for (const entry of entries) {
@@ -457,17 +457,17 @@ export class AccrualEngine {
            * because that is the money the bank really had there.
            *
            * Clamping the ledger share to zero first threw that away and then
-           * added the cushion back on top, so the product went on earning
+           * added what had been earned back on top, so the product went on earning
            * 0.07 a day on 380.08 that had already left it. He read the screen
            * and asked where the balance had come from; it had come from
            * counting the same yield twice.
            *
-           * Taking what was moved out off the cushion first leaves nothing,
+           * Taking what was moved out off what had been earned first leaves nothing,
            * which is what the product holds. Where the ledger share is not
            * negative - every other product in his data - both spellings give
            * the same figure, because both halves are already positive.
            */
-          const base = Math.max(0, held + (cushionOf.get(pocket.id) ?? 0));
+          const base = Math.max(0, held + (earnedOf.get(pocket.id) ?? 0));
 
           // Every component earns on the same base and is worked out apart:
           // each has its own rate, its own condition and its own payday, and
@@ -478,7 +478,7 @@ export class AccrualEngine {
 
             if (lockedDay) {
               usedLocked.add(`${pocket.id}|${component}|${day}`);
-              // Left exactly as it was, and still part of the cushion.
+              // Left exactly as it was, and still part of what has been earned.
               const net = lockedDay.actual_net_minor ?? lockedDay.net_minor;
               creditTo(pocket.id, lockedDay.payout,
                 lockedDay.paid_on ?? (lockedDay.payout === 'daily' ? day : endOfMonth(day)), net);
@@ -545,7 +545,7 @@ export class AccrualEngine {
         // recorded on a day already covers that day.
         for (const pocket of pockets) {
           const landed = arriving.get(`${pocket.id}|${day}`);
-          if (landed) cushionOf.set(pocket.id, (cushionOf.get(pocket.id) ?? 0) + landed);
+          if (landed) earnedOf.set(pocket.id, (earnedOf.get(pocket.id) ?? 0) + landed);
         }
 
         for (const [key, fixed] of locked) {
@@ -559,7 +559,7 @@ export class AccrualEngine {
         for (const [key, owed] of waiting) {
           const [pocket, paidOn] = key.split('|');
           if (paidOn !== day) continue;
-          cushionOf.set(Number(pocket), (cushionOf.get(Number(pocket)) ?? 0) + owed);
+          earnedOf.set(Number(pocket), (earnedOf.get(Number(pocket)) ?? 0) + owed);
           waiting.delete(key);
         }
 
@@ -727,7 +727,7 @@ function statedOn(
   // What moved up to the END of the day before, not up to this one. A deposit
   // made today is in the account today, but the yield of a day is worked out
   // on what was there when the day started - which is the same rule the stated
-  // figure follows, and the same rule an entry in the cushion follows. Money
+  // figure follows, and the same rule an entry on a product follows. Money
   // that arrives today earns from tomorrow.
   return stated + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
 }

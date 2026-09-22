@@ -9,7 +9,7 @@
  *
  * An income or expense says what it changes:
  *
- *   * **The product only** - a `cushion_adjustments` row saying what it is
+ *   * **The product only** - a `product_entries` row saying what it is
  *     (cashback, a correction, something else). Net worth stays put.
  *   * **The product and net worth** - an ordinary movement of the account,
  *     with a category and the product, exactly as the movements screen writes
@@ -43,7 +43,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
-import { YieldsRepository, type CushionEntry, type YieldPocket } from '../../core/database/repositories/yields.repository';
+import { YieldsRepository, type ProductEntry, type YieldPocket } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
@@ -62,22 +62,22 @@ import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { apply, isOperator, operatorFromKey, type Operator, type Pending } from '../entry/calculator';
 
-export interface CushionEntryRequest {
+export interface ProductEntryRequest {
   kind: 'income' | 'expense' | 'transfer';
   account: AccountRow;
   pockets: readonly YieldPocket[];
   /** An entry on the product alone, being corrected. */
-  editing?: CushionEntry;
+  editing?: ProductEntry;
 }
 
 @Component({
-  selector: 'app-cushion-entry',
+  selector: 'app-product-entry',
   imports: [
     TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent, ConfirmComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
   ],
-  templateUrl: './cushion-entry.component.html',
+  templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
   styleUrls: ['../entry/entry.component.scss'],
   styles: [`
@@ -95,11 +95,11 @@ export interface CushionEntryRequest {
     }
   `],
 })
-export class CushionEntryComponent implements OnInit, OnDestroy {
+export class ProductEntryComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
   readonly i18n = inject(I18nService);
 
-  readonly request = input.required<CushionEntryRequest>();
+  readonly request = input.required<ProductEntryRequest>();
   readonly saved = output<void>();
   readonly cancelled = output<void>();
 
@@ -338,9 +338,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly scopeHint = computed(() => {
     const expense = this.request().kind === 'expense';
     switch (this.scope()) {
-      case 'product': return this.i18n.t('cushion.entry.noNetWorth');
-      case 'both': return this.i18n.t('cushion.entry.netWorthHint');
-      default: return this.i18n.t(expense ? 'cushion.entry.scope.netWorthExpenseHint' : 'cushion.entry.scope.netWorthIncomeHint');
+      case 'product': return this.i18n.t('products.entry.noNetWorth');
+      case 'both': return this.i18n.t('products.entry.netWorthHint');
+      default: return this.i18n.t(expense ? 'products.entry.scope.netWorthExpenseHint' : 'products.entry.scope.netWorthIncomeHint');
     }
   });
   readonly categoryId = signal<number | null>(null);
@@ -353,11 +353,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
   readonly scopeOptions = computed(() => {
     const expense = this.request().kind === 'expense';
     return ([
-      ['product', 'cushion.entry.scope.product', 'cushion.entry.scope.product.hint'],
-      ['both', 'cushion.entry.scope.both', 'cushion.entry.scope.both.hint'],
+      ['product', 'products.entry.scope.product', 'products.entry.scope.product.hint'],
+      ['both', 'products.entry.scope.both', 'products.entry.scope.both.hint'],
       ['netWorth',
-       expense ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome',
-       expense ? 'cushion.entry.scope.netWorthExpense.hint' : 'cushion.entry.scope.netWorthIncome.hint'],
+       expense ? 'products.entry.scope.netWorthExpense' : 'products.entry.scope.netWorthIncome',
+       expense ? 'products.entry.scope.netWorthExpense.hint' : 'products.entry.scope.netWorthIncome.hint'],
     ] as const).map(([id, name, detail]) => ({
       id: id as 'product' | 'both' | 'netWorth',
       name: this.i18n.t(name),
@@ -445,9 +445,9 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
 
   readonly title = computed(() => {
     const kind = this.request().kind;
-    if (this.isEditing()) return this.i18n.t(kind === 'expense' ? 'cushion.entry.editExpense' : 'cushion.entry.editIncome');
-    if (kind === 'transfer') return this.i18n.t('cushion.move.title');
-    return this.i18n.t(kind === 'expense' ? 'cushion.entry.newExpense' : 'cushion.entry.newIncome');
+    if (this.isEditing()) return this.i18n.t(kind === 'expense' ? 'products.entry.editExpense' : 'products.entry.editIncome');
+    if (kind === 'transfer') return this.i18n.t('products.move.title');
+    return this.i18n.t(kind === 'expense' ? 'products.entry.newExpense' : 'products.entry.newIncome');
   });
 
   readonly pocketName = computed(() => this.nameOf(this.pocketId()));
@@ -543,7 +543,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
     if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
     if (this.isTransfer() && (this.toPocketId() === null || this.toPocketId() === this.pocketId())) {
-      return this.i18n.t('cushion.move.samePocket');
+      return this.i18n.t('products.move.samePocket');
     }
     if (!this.isTransfer() && this.usesCategory() && this.categoryId() === null) {
       return this.i18n.t('entry.need.category');
@@ -678,7 +678,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     const typed = value.trim();
     const mine = ++this.noteQuery;
 
-    if (typed.length < CushionEntryComponent.NOTE_HINT_AT || this.database.status() !== 'ready') {
+    if (typed.length < ProductEntryComponent.NOTE_HINT_AT || this.database.status() !== 'ready') {
       this.noteSuggestions.set([]);
       return;
     }
@@ -792,7 +792,7 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
    * takes both halves with it - left alone, the half that stayed would move the
    * product's balance on its own.
    */
-  private async removeWhatItWas(db: SqlDriver, yields: YieldsRepository, editing: CushionEntry): Promise<void> {
+  private async removeWhatItWas(db: SqlDriver, yields: YieldsRepository, editing: ProductEntry): Promise<void> {
     if (editing.transaction_id !== null) {
       await new TransactionsRepository(db).delete(editing.transaction_id);
       return;

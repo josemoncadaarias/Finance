@@ -114,12 +114,12 @@ test('the delete rules described match the schema', () => {
   assert.equal(rule('transactions', 'import_batch_id'), 'SET NULL');
   assert.equal(rule('accounts', 'group_id'), 'SET NULL');
   assert.equal(rule('accounts', 'custom_icon_id'), 'RESTRICT');
-  // The cushion. A reward with no purchase behind it is a figure nobody can
+  // The earned. A reward with no purchase behind it is a figure nobody can
   // check, so it goes when the purchase does; a withdrawal outlives the
-  // movement it became, so the cushion never quietly grows back.
+  // movement it became, so what was earned never quietly grows back.
   assert.equal(rule('cashback_entries', 'source_transaction_id'), 'CASCADE');
   assert.equal(rule('cashback_entries', 'account_id'), 'CASCADE');
-  assert.equal(rule('cushion_withdrawals', 'transaction_id'), 'SET NULL');
+  assert.equal(rule('product_cashouts', 'transaction_id'), 'SET NULL');
   assert.equal(rule('yield_rates', 'account_id'), 'CASCADE');
   assert.equal(rule('yield_days', 'account_id'), 'CASCADE');
   assert.equal(rule('yield_days', 'pocket_id'), 'CASCADE');

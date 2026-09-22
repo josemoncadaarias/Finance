@@ -48,7 +48,7 @@
         <!-- The box takes the tap, not only the words in it. -->
         <div class="leg" (click)="pickingPocket.set('from')">
           <button type="button" class="face" (click)="pickingPocket.set('from')">
-            <span class="lead">{{ 'cushion.move.from' | t }}</span>
+            <span class="lead">{{ 'products.move.from' | t }}</span>
             <span class="who">
               <!-- A product has no logo of its own, so it wears its account's:
                    both sides of this transfer are inside that one account. -->
@@ -73,7 +73,7 @@
         <div class="leg" (click)="pickingPocket.set('to')"
              [class.needed]="toPocketId() === null || toPocketId() === pocketId()">
           <button type="button" class="face" (click)="pickingPocket.set('to')">
-            <span class="lead">{{ 'cushion.move.to' | t }}</span>
+            <span class="lead">{{ 'products.move.to' | t }}</span>
             <span class="who">
               <app-icon [builtin]="account()?.builtin_icon ?? null"
                         [customId]="account()?.custom_icon_id ?? null" fallback="wallet"></app-icon>
@@ -92,7 +92,7 @@
           <ion-icon name="calendar-outline"></ion-icon>
           <span>{{ dateLabel() }}</span>
         </button>
-        <app-info-hint [text]="'cushion.move.hint' | t"
+        <app-info-hint [text]="'products.move.hint' | t"
                        [label]="'entry.whatThisMeans' | t"></app-info-hint>
       </div>
     } @else {
@@ -142,7 +142,7 @@
            buttons and two lines of explanation took the height the note and
            the keyboard wanted, to say something that changes rarely. -->
       <button type="button" class="picked" (click)="choosingScope.set(true)">
-        <span class="lead">{{ 'cushion.entry.scope' | t }}</span>
+        <span class="lead">{{ 'products.entry.scope' | t }}</span>
         <span class="what">{{ scopeName() }}</span>
         <ion-icon name="chevron-down-outline"></ion-icon>
       </button>
@@ -270,7 +270,7 @@
 <ion-modal class="editor-sheet" [isOpen]="choosingScope()" (didDismiss)="choosingScope.set(false)">
   <ng-template>
     <div class="which-scope">
-      <h2>{{ 'cushion.entry.scope' | t }}</h2>
+      <h2>{{ 'products.entry.scope' | t }}</h2>
       @for (option of scopeOptions(); track option.id) {
         <button type="button" [class.on]="scope() === option.id" (click)="chooseScope(option.id)">
           <span class="name">{{ option.name }}</span>
@@ -287,11 +287,11 @@
       <div class="head">
         <h2>
           @if (pickingPocket() === 'to') {
-            {{ 'cushion.move.to' | t }}
+            {{ 'products.move.to' | t }}
           } @else if (isTransfer()) {
-            {{ 'cushion.move.from' | t }}
+            {{ 'products.move.from' | t }}
           } @else {
-            {{ (request().kind === 'expense' ? 'cushion.entry.pocketOut' : 'cushion.entry.pocket') | t }}
+            {{ (request().kind === 'expense' ? 'products.entry.pocketOut' : 'products.entry.pocket') | t }}
           }
         </h2>
         <button type="button" (click)="pickingPocket.set(null)" [attr.aria-label]="'summary.close' | t">
@@ -412,7 +412,7 @@
     </ion-header>
 
     <ion-content class="account-sheet">
-      <h2>{{ 'cushion.entry.whichAccount' | t }}</h2>
+      <h2>{{ 'products.entry.whichAccount' | t }}</h2>
 
       <!-- What it is on now, in full and before the alternatives. -->
       <div class="current">

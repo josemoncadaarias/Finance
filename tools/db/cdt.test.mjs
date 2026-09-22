@@ -117,7 +117,7 @@ test('the day it matures, it pays its term with 7% withheld, hands everything ov
   assert.equal(payment.withholding_minor, preview.withheldMinor);
   assert.equal(payment.locked, 1);
 
-  const gathered = await yields.cushion(account, '2026-10-10');
+  const gathered = await yields.earned(account, '2026-10-10');
   assert.equal(gathered.accrued_minor - gathered.withdrawn_minor, 0,
     'the yield was paid into the balance, not left on top of it');
   const year = await yields.yearTotals(2026);
@@ -135,7 +135,7 @@ test('a closed CDT\'s payment survives every recompute after it', async () => {
   const again = (await yields.days(account)).find(day => day.component === 'CDT Demo 1M');
   assert.deepEqual({ gross: again.gross_minor, withheld: again.withholding_minor, net: again.net_minor },
     { gross: kept.gross_minor, withheld: kept.withholding_minor, net: kept.net_minor });
-  const gathered = await yields.cushion(account, '2026-10-25');
+  const gathered = await yields.earned(account, '2026-10-25');
   assert.equal(gathered.accrued_minor - gathered.withdrawn_minor, 0);
 });
 

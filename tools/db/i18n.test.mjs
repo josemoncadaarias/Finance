@@ -40,7 +40,7 @@ test('no phrase is left empty or accidentally identical', () => {
     'csv.no',
     // The banks say cashback in Spanish too. "Reembolso" would be a word
     // nobody uses for the thing that comes back off the card.
-    'cushion.kind.cashback',
+    'products.kind.cashback',
     // The alphabet is the alphabet.
     'entry.order.name',
     // "Balance" and "Total" are the same word in both, and both are the word

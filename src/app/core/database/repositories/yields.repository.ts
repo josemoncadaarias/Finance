@@ -1,7 +1,7 @@
 /**
- * The cushion: yields earned, and what has been done with them.
+ * What the products have earned, and what has been done with it.
  *
- * Four things add up to what an account's cushion is worth today:
+ * Four things add up to what an account has earned today:
  *
  *   opening + sum(net accrued) + sum(adjustments) - sum(withdrawals)
  *
@@ -10,7 +10,7 @@
  * adjustments are the gap against what the bank actually paid — most of these
  * banks deposit once a month, so a daily accrual is an estimate until the
  * deposit lands. The withdrawals are money moved into the account, where it
- * stops being a cushion and becomes net worth.
+ * stops sitting apart and becomes net worth.
  *
  * None of it touches the balance of the account, and none of it enters net
  * worth. That separation is the whole point of the module.
@@ -130,7 +130,7 @@ export interface YieldPocket {
 }
 
 /**
- * Money that landed in the cushion on a date, for a reason.
+ * Money that landed on a product on a date, for a reason.
  *
  * `kind` is what it IS: `cashback` that arrived, a `correction` against what
  * the bank actually paid, or something `other` the note explains. They are
@@ -140,7 +140,7 @@ export interface YieldPocket {
  *
  * Signed: a correction can go either way.
  */
-export interface CushionEntry {
+export interface ProductEntry {
   id: number;
   account_id: number;
   source: 'yield' | 'cashback';
@@ -209,7 +209,7 @@ export type NewYieldDay = Omit<YieldDay, 'actual_net_minor' | 'locked' | 'comput
 };
 
 /** What an account's accumulated yield is made of, so a total can be explained. */
-export interface CushionBalance {
+export interface EarnedBalance {
   account_id: number;
   accrued_minor: number;
   adjusted_minor: number;
@@ -221,11 +221,11 @@ export interface CushionBalance {
    * A bank that pays once a month has not paid you anything for the month
    * that is still running. The app knows what it will be, day by day, and
    * it is not money you have: it is money you are owed. Reporting it as
-   * part of the cushion without saying so is what made Rappi cuenta look
+   * part of it without saying so is what made Rappi cuenta look
    * like it had already earned in September when September was not over.
    */
   pendingMinor: number;
-  /** The cushion less what is still owed: what could actually be moved. */
+  /** What has been earned, less what is still owed: what could actually be moved. */
   availableMinor: number;
   /** Day the pending amount is handed over, or null when nothing is pending. */
   paidOn: IsoDate | null;
@@ -349,7 +349,7 @@ export class YieldsRepository {
    * Stops accruing an account, keeping everything already worked out.
    *
    * Deliberately not a delete: the days, the rates and the opening figure are
-   * the evidence behind a cushion someone may still want to look at.
+   * the evidence behind a figure someone may still want to look at.
    */
   async setEnabled(accountId: number, enabled: boolean): Promise<void> {
     await this.db.run(
@@ -600,7 +600,7 @@ export class YieldsRepository {
     // is still unnamed was left unnamed on purpose.
     if (others.length !== 1) return;
 
-    for (const table of ['transactions', 'cushion_adjustments', 'cushion_withdrawals']) {
+    for (const table of ['transactions', 'product_entries', 'product_cashouts']) {
       await this.db.run(
         `UPDATE "${table}" SET pocket_id = ? WHERE account_id = ? AND pocket_id IS NULL`,
         [others[0].id, accountId]);
@@ -736,7 +736,7 @@ export class YieldsRepository {
    * Hands everything one product carried to another product of the same account.
    *
    * The half of removing a product that keeps it from losing anything. The
-   * movements, cushion entries and withdrawals that named it name the other
+   * movements, entries and cashouts that named it name the other
    * one. Every day it earned is added to the other one's day - summed where
    * both earned on the same day, moved where only it did - so what the account
    * earned, and what was withheld from it, stays exactly what it was, and the
@@ -749,7 +749,7 @@ export class YieldsRepository {
       throw new Error('Product ids must be integers');
     }
 
-    for (const table of ['transactions', 'cushion_adjustments', 'cushion_withdrawals']) {
+    for (const table of ['transactions', 'product_entries', 'product_cashouts']) {
       await this.db.run(`UPDATE ${table} SET pocket_id = ? WHERE pocket_id = ?`, [toId, fromId]);
     }
 
@@ -785,7 +785,7 @@ export class YieldsRepository {
    * Removes a pocket and every day it earned.
    *
    * The days go with it because they were worked out on a balance that no
-   * longer exists; what they added to the cushion is worked out again on the
+   * longer exists; what they added is worked out again on the
    * next pass, from whatever pockets are left.
    */
   /**
@@ -798,7 +798,7 @@ export class YieldsRepository {
    */
   async earnedBefore(accountId: number, on: IsoDate): Promise<boolean> {
     const row = await this.db.queryOne<{ total: number }>(
-      `SELECT COUNT(*) AS total FROM cushion_adjustments
+      `SELECT COUNT(*) AS total FROM product_entries
        WHERE account_id = ? AND on_date < ?`, [accountId, on]);
     return (row?.total ?? 0) > 0;
   }
@@ -1089,7 +1089,7 @@ export class YieldsRepository {
        FROM yield_days WHERE on_date >= ? AND on_date <= ?`,
       range);
     const cashback = await this.db.queryOne<{ total: number | null }>(
-      `SELECT SUM(amount_minor) AS total FROM cushion_adjustments
+      `SELECT SUM(amount_minor) AS total FROM product_entries
        WHERE kind = 'cashback' AND on_date >= ? AND on_date <= ?`,
       range);
     return {
@@ -1310,7 +1310,7 @@ export class YieldsRepository {
   }): Promise<number> {
     const now = this.now();
     const result = await this.db.run(
-      `INSERT INTO cushion_adjustments
+      `INSERT INTO product_entries
          (account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
           amount_minor, note, transaction_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1321,20 +1321,20 @@ export class YieldsRepository {
     return result.lastId ?? 0;
   }
 
-  async adjustments(accountId: number): Promise<CushionEntry[]> {
-    return this.db.query<CushionEntry>(
+  async adjustments(accountId: number): Promise<ProductEntry[]> {
+    return this.db.query<ProductEntry>(
       `SELECT id, account_id, source, kind, product_kind_id, category_id, pocket_id, on_date,
               amount_minor, note, transaction_id
-       FROM cushion_adjustments WHERE account_id = ? ORDER BY on_date, id`,
+       FROM product_entries WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
 
   async removeAdjustment(id: number): Promise<void> {
-    await this.db.run('DELETE FROM cushion_adjustments WHERE id = ?', [id]);
+    await this.db.run('DELETE FROM product_entries WHERE id = ?', [id]);
   }
 
   async removeWithdrawal(id: number): Promise<void> {
-    await this.db.run('DELETE FROM cushion_withdrawals WHERE id = ?', [id]);
+    await this.db.run('DELETE FROM product_cashouts WHERE id = ?', [id]);
   }
 
   /**
@@ -1345,8 +1345,8 @@ export class YieldsRepository {
   async pocketHistoryCount(pocketId: number): Promise<number> {
     const row = await this.db.queryOne<{ n: number }>(
       `SELECT (SELECT COUNT(*) FROM transactions WHERE pocket_id = ?)
-            + (SELECT COUNT(*) FROM cushion_adjustments WHERE pocket_id = ?)
-            + (SELECT COUNT(*) FROM cushion_withdrawals WHERE pocket_id = ?)
+            + (SELECT COUNT(*) FROM product_entries WHERE pocket_id = ?)
+            + (SELECT COUNT(*) FROM product_cashouts WHERE pocket_id = ?)
             + (SELECT COUNT(*) FROM yield_days WHERE pocket_id = ?) AS n`,
       [pocketId, pocketId, pocketId, pocketId]);
     return row?.n ?? 0;
@@ -1363,7 +1363,7 @@ export class YieldsRepository {
     note: string | null;
   }): Promise<void> {
     await this.db.run(
-      `UPDATE cushion_adjustments
+      `UPDATE product_entries
        SET on_date = ?, amount_minor = ?, kind = ?, product_kind_id = ?, category_id = ?, pocket_id = ?, note = ?,
            updated_at = ?
        WHERE id = ?`,
@@ -1373,11 +1373,11 @@ export class YieldsRepository {
   }
 
   /**
-   * Takes money out of the cushion, having become a real movement.
+   * Takes money out of what a product earned, having become a real movement.
    *
    * The caller creates the movement first and passes its id: the two belong
    * together, and the link is what stops the money being counted twice — once
-   * as cushion and once as balance.
+   * as earned and once as balance.
    */
   async withdraw(input: {
     account_id: number;
@@ -1390,7 +1390,7 @@ export class YieldsRepository {
     pocket_id?: number | null;
   }): Promise<number> {
     const result = await this.db.run(
-      `INSERT INTO cushion_withdrawals
+      `INSERT INTO product_cashouts
          (account_id, source, on_date, amount_minor, transaction_id, note, pocket_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.source ?? 'yield', input.on_date,
@@ -1405,7 +1405,7 @@ export class YieldsRepository {
   }[]> {
     return this.db.query(
       `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, pocket_id
-       FROM cushion_withdrawals WHERE account_id = ? ORDER BY on_date, id`,
+       FROM product_cashouts WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
 
@@ -1414,7 +1414,7 @@ export class YieldsRepository {
   // -------------------------------------------------------------------------
 
   /**
-   * The cushion of one account, broken into the four parts it is made of.
+   * What one account has earned, broken into the four parts it is made of.
    *
    * Returned in pieces rather than as a single figure on purpose: a total
    * nobody can take apart is a total nobody can check. `asOf` lets the same
@@ -1451,7 +1451,7 @@ export class YieldsRepository {
    * stale; otherwise only the ones whose own string did.
    *
    * An account works out from its own rows only - its movements, products,
-   * balances, rates and cushion entries - so a change to one account can never
+   * balances, rates and product entries - so a change to one account can never
    * make another one wrong. A transfer is two movements, one in each account,
    * and marks both.
    */
@@ -1536,8 +1536,8 @@ export class YieldsRepository {
            SELECT account_id, ${RATE_COLUMNS.split(',').map(column => `quote(${column.trim()})`).join(" || ',' || ")} AS line
            FROM yield_rates WHERE ${enrolled} ORDER BY account_id, id)
          GROUP BY account_id`,
-        part('entries', 'cushion_adjustments', 'updated_at'),
-        part('taken', 'cushion_withdrawals', 'created_at'),
+        part('entries', 'product_entries', 'updated_at'),
+        part('taken', 'product_cashouts', 'created_at'),
         part('days', 'yield_days', 'computed_at'),
       ].join(' UNION ALL '));
 
@@ -1557,8 +1557,8 @@ export class YieldsRepository {
     return marks;
   }
 
-  async cushion(accountId: number, asOf?: IsoDate): Promise<CushionBalance> {
-    return (await this.cushions(asOf)).get(accountId) ?? emptyCushion(accountId);
+  async earned(accountId: number, asOf?: IsoDate): Promise<EarnedBalance> {
+    return (await this.earnedAll(asOf)).get(accountId) ?? nothingEarned(accountId);
   }
 
   /**
@@ -1569,7 +1569,7 @@ export class YieldsRepository {
    * side, which is where the seconds went. These are the same sums, grouped by
    * account: six questions however many accounts there are.
    */
-  async cushions(asOf?: IsoDate): Promise<Map<number, CushionBalance>> {
+  async earnedAll(asOf?: IsoDate): Promise<Map<number, EarnedBalance>> {
     const upTo = asOf ?? '9999-12-31';
     const day = asOf ?? todayIso();
     const [year, month] = day.split('-').map(Number);
@@ -1584,11 +1584,11 @@ export class YieldsRepository {
        FROM yield_days WHERE on_date <= ? GROUP BY account_id`, [upTo]);
 
     const adjusted = await this.db.query<{ account_id: number; total: number | null }>(
-      'SELECT account_id, SUM(amount_minor) AS total FROM cushion_adjustments WHERE on_date <= ? GROUP BY account_id',
+      'SELECT account_id, SUM(amount_minor) AS total FROM product_entries WHERE on_date <= ? GROUP BY account_id',
       [upTo]);
 
     const withdrawn = await this.db.query<{ account_id: number; total: number | null }>(
-      'SELECT account_id, SUM(amount_minor) AS total FROM cushion_withdrawals WHERE on_date <= ? GROUP BY account_id',
+      'SELECT account_id, SUM(amount_minor) AS total FROM product_cashouts WHERE on_date <= ? GROUP BY account_id',
       [upTo]);
 
     // What a monthly account has worked out this month is owed, not held. A
@@ -1627,7 +1627,7 @@ export class YieldsRepository {
       ...withdrawn.map(row => row.account_id),
     ]);
 
-    const out = new Map<number, CushionBalance>();
+    const out = new Map<number, EarnedBalance>();
 
     for (const accountId of ids) {
       const accruedMinor = accruedBy.get(accountId)?.net ?? 0;
@@ -1663,9 +1663,9 @@ export class YieldsRepository {
    * What each product has earned, had added or taken out. A row that names no
    * product - an entry from before a product could be named - belongs to the
    * product that follows the account balance, or else the first, the same rule
-   * the accrual follows. The parts add up to `cushion().totalMinor`.
+   * the accrual follows. The parts add up to `earned().totalMinor`.
    */
-  async cushionByPocket(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
+  async earnedByPocket(accountId: number, asOf?: IsoDate): Promise<Map<number, number>> {
     const upTo = asOf ?? '9999-12-31';
     const pockets = await this.pockets(accountId);
     const out = new Map<number, number>(pockets.map(pocket => [pocket.id, 0]));
@@ -1685,12 +1685,12 @@ export class YieldsRepository {
     }
     for (const row of await this.db.query<Row>(
       `SELECT pocket_id, SUM(amount_minor) AS total
-       FROM cushion_adjustments WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
+       FROM product_entries WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
       add(row.pocket_id, row.total);
     }
     for (const row of await this.db.query<Row>(
       `SELECT pocket_id, SUM(amount_minor) AS total
-       FROM cushion_withdrawals WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
+       FROM product_cashouts WHERE account_id = ? AND on_date <= ? GROUP BY pocket_id`, [accountId, upTo])) {
       add(row.pocket_id, -(row.total ?? 0));
     }
     return out;
@@ -1803,12 +1803,12 @@ export class YieldsRepository {
     }
     for (const row of await this.db.query<Row>(
       `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
-       FROM cushion_adjustments WHERE ${inIds}`, ids)) {
+       FROM product_entries WHERE ${inIds}`, ids)) {
       addEntry(row.account_id, row.pocket_id, row.day, row.created_at, row.total);
     }
     for (const row of await this.db.query<Row>(
       `SELECT account_id, pocket_id, on_date AS day, created_at, amount_minor AS total
-       FROM cushion_withdrawals WHERE ${inIds}`, ids)) {
+       FROM product_cashouts WHERE ${inIds}`, ids)) {
       addEntry(row.account_id, row.pocket_id, row.day, row.created_at, -(row.total ?? 0));
     }
     return out;
@@ -1832,12 +1832,12 @@ export class YieldsRepository {
     return out;
   }
 
-  /** Every enrolled account's cushion, for the screen that lists them. */
-  async allCushions(asOf?: IsoDate): Promise<CushionBalance[]> {
+  /** What every enrolled account has earned, for the screen that lists them. */
+  async allEarned(asOf?: IsoDate): Promise<EarnedBalance[]> {
     const accounts = await this.accounts();
-    const out: CushionBalance[] = [];
+    const out: EarnedBalance[] = [];
     for (const account of accounts) {
-      out.push(await this.cushion(account.account_id, asOf));
+      out.push(await this.earned(account.account_id, asOf));
     }
     return out;
   }
@@ -1853,7 +1853,7 @@ interface AccrualMarks {
 }
 
 /** An account that has earned nothing and owes nothing. */
-function emptyCushion(accountId: number): CushionBalance {
+function nothingEarned(accountId: number): EarnedBalance {
   return {
     account_id: accountId,
     accrued_minor: 0,

@@ -31,7 +31,7 @@ const plain = value => JSON.parse(JSON.stringify(value instanceof Map ? Object.f
 /**
  * Three accounts that differ in every way the read cares about: one product
  * following the ledger, a product with a stated balance and its own
- * movements, a rate paid monthly, a cushion entry, a withdrawal, and an
+ * movements, a rate paid monthly, an entry on a product, a cashout, and an
  * account with nothing worked out at all.
  */
 async function bank() {

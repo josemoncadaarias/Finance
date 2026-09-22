@@ -34,7 +34,7 @@ function freshDb() {
   // Migration 037 turns the product kinds into income categories, so the
   // table is no longer empty when the migrations finish. This fixture wants
   // exactly the two below and nothing else.
-  db.exec('DELETE FROM cushion_adjustments; DELETE FROM categories;');
+  db.exec('DELETE FROM product_entries; DELETE FROM categories;');
   db.exec(`INSERT INTO categories (id, name, kind, builtin_icon, created_at, updated_at) VALUES
     (1, 'Restaurante', 'expense', 'restaurant', '${NOW}', '${NOW}'),
     (2, 'Ahorros', 'income', 'wallet', '${NOW}', '${NOW}')`);
@@ -66,7 +66,7 @@ test('the placeholders from 001 are gone and the module replaced them', () => {
   }
   for (const added of ['yield_accounts', 'yield_rates', 'yield_days',
                        'yield_pockets', 'yield_pocket_balances',
-                       'cashback_rules', 'cashback_entries', 'cushion_withdrawals', 'tax_parameters']) {
+                       'cashback_rules', 'cashback_entries', 'product_cashouts', 'tax_parameters']) {
     assert.equal(tables.includes(added), true, `${added} is missing`);
   }
 });
@@ -82,11 +82,14 @@ test('an account earns a yield only by being enrolled, once', () => {
   assert.throws(() => enrol(db, 1), 'one enrolment per account');
 });
 
-test('the opening cushion cannot be negative and needs a real date', () => {
+// `opening_cushion_minor` is the column migration 040 emptied and 041 replaced
+// with a date on each product. It is still in the table - migrations are
+// history - so its constraints are still worth holding to.
+test('the opening figure cannot be negative and needs a real date', () => {
   const db = freshDb();
   assert.throws(() => db.exec(
     `INSERT INTO yield_accounts (account_id, opening_cushion_minor, opening_on, created_at, updated_at)
-     VALUES (1, -1, '2026-09-01', '${NOW}', '${NOW}')`), 'a cushion cannot start below zero');
+     VALUES (1, -1, '2026-09-01', '${NOW}', '${NOW}')`), 'it cannot start below zero');
   assert.throws(() => db.exec(
     `INSERT INTO yield_accounts (account_id, opening_cushion_minor, opening_on, created_at, updated_at)
      VALUES (1, 0, '01/09/2026', '${NOW}', '${NOW}')`), 'dates are ISO');
@@ -227,20 +230,20 @@ test('a withdrawal survives losing the movement it became', () => {
   db.exec(`INSERT INTO transactions (id, account_id, category_id, occurred_on, amount_minor,
              amount_base_minor, confidence, source, locked, created_at, updated_at)
            VALUES (200, 1, 2, '2026-08-13', 538900000, 538900000, 'high', 'manual', 0, '${NOW}', '${NOW}')`);
-  db.exec(`INSERT INTO cushion_withdrawals (id, account_id, source, on_date, amount_minor, transaction_id, note, created_at)
+  db.exec(`INSERT INTO product_cashouts (id, account_id, source, on_date, amount_minor, transaction_id, note, created_at)
            VALUES (1, 1, 'yield', '2026-08-13', 538900000, 200,
                    'Ajuste rappi cuenta rendimientos para pago de declaracion de renta 2025', '${NOW}')`);
 
   assert.throws(() => db.exec(
-    `INSERT INTO cushion_withdrawals (id, account_id, source, on_date, amount_minor, created_at)
+    `INSERT INTO product_cashouts (id, account_id, source, on_date, amount_minor, created_at)
      VALUES (2, 1, 'nothing', '2026-08-13', 1000, '${NOW}')`), 'only yield or cashback');
   assert.throws(() => db.exec(
-    `INSERT INTO cushion_withdrawals (id, account_id, source, on_date, amount_minor, created_at)
+    `INSERT INTO product_cashouts (id, account_id, source, on_date, amount_minor, created_at)
      VALUES (3, 1, 'yield', '2026-08-13', 0, '${NOW}')`), 'a withdrawal of nothing is not a withdrawal');
 
   db.exec('DELETE FROM transactions WHERE id = 200');
-  const left = db.prepare('SELECT amount_minor AS amt, transaction_id AS tx FROM cushion_withdrawals WHERE id = 1').get();
-  assert.equal(left.amt, 538900000, 'the money still left the cushion');
+  const left = db.prepare('SELECT amount_minor AS amt, transaction_id AS tx FROM product_cashouts WHERE id = 1').get();
+  assert.equal(left.amt, 538900000, 'the money still left the product');
   assert.equal(left.tx, null);
 });
 
@@ -279,7 +282,7 @@ test('every tax parameter carries the norm it came from', () => {
 });
 
 
-test('deleting an account takes its whole cushion with it', () => {
+test('deleting an account takes everything it earned with it', () => {
   const db = freshDb();
   enrol(db, 1, 500000000);
   addPocket(db, 10, 1, 'Rappi cuenta');

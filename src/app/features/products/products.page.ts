@@ -1,5 +1,5 @@
 /**
- * The cushion: money earned that was never counted on.
+ * Products: what each one holds, what it earns, and what it has earned.
  *
  * Deliberately its own screen and not a line on the accounts page. What is
  * here is not net worth — it is interest and cashback that accumulated on the
@@ -40,7 +40,7 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
-  YieldsRepository, type CushionBalance, type CushionEntry, type YieldAccount, type YieldDay,
+  YieldsRepository, type EarnedBalance, type ProductEntry, type YieldAccount, type YieldDay,
   type YieldPocket, type YieldRate,
 } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
@@ -56,7 +56,7 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
-import { CushionEntryComponent, type CushionEntryRequest } from './cushion-entry.component';
+import { ProductEntryComponent, type ProductEntryRequest } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
@@ -64,10 +64,10 @@ import {
   PERIOD_KINDS, currentPeriod, includesToday, periodLabel, rangePeriod, shiftPeriod, type Period, type PeriodKind,
 } from '../../core/filters/period';
 
-/** One row of the list: an enrolled account and what its cushion is worth. */
-interface CushionLine {
+/** One row of the list: an enrolled account and what it has earned. */
+interface ProductLine {
   account: AccountRow;
-  cushion: CushionBalance;
+  earned: EarnedBalance;
   /** The rate in force today, for the subtitle. Null when none is recorded. */
   rate: YieldRate | null;
   /** False when the account is paused: kept, shown, not accrued. */
@@ -152,25 +152,25 @@ interface Payment {
 }
 
 @Component({
-  selector: 'app-cushion',
-  templateUrl: './cushion.page.html',
-  styleUrls: ['./cushion.page.scss'],
+  selector: 'app-products',
+  templateUrl: './products.page.html',
+  styleUrls: ['./products.page.scss'],
   imports: [
     BusyOverlayComponent,
-    IconComponent, CushionEntryComponent, EntryComponent, ConfirmComponent,
+    IconComponent, ProductEntryComponent, EntryComponent, ConfirmComponent,
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
     IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
   ],
 })
-export class CushionPage {
+export class ProductsPage {
   readonly database = inject(DatabaseService);
   private readonly i18n = inject(I18nService);
   readonly customIcons = inject(CustomIconsService);
   readonly status = this.database.status;
 
-  readonly lines = signal<CushionLine[]>([]);
+  readonly lines = signal<ProductLine[]>([]);
   readonly loading = signal(false);
   readonly working = signal(false);
 
@@ -187,7 +187,7 @@ export class CushionPage {
   readonly lastAccrued = signal<IsoDate | null>(null);
 
   /** The account whose detail sheet is open. */
-  readonly openLine = signal<CushionLine | null>(null);
+  readonly openLine = signal<ProductLine | null>(null);
   private readonly allDays = signal<YieldDay[]>([]);
 
   /**
@@ -214,14 +214,14 @@ export class CushionPage {
   /** What the button says: "todos" or how many are picked. */
   readonly chosenProductsLabel = computed(() => {
     const chosen = this.chosenProducts();
-    if (chosen === null) return this.i18n.t('cushion.products.all');
+    if (chosen === null) return this.i18n.t('products.products.all');
 
     const line = this.openLine();
     if (chosen.size === 1 && line) {
       const only = line.pockets.find(pocket => chosen.has(pocket.id));
       if (only) return only.name;
     }
-    return this.i18n.t('cushion.products.some', { count: chosen.size });
+    return this.i18n.t('products.products.some', { count: chosen.size });
   });
 
   isProductChosen(id: number): boolean {
@@ -384,9 +384,9 @@ export class CushionPage {
 
   /** What kind of money an entry is, and where it landed. */
   /** The income or expense screen for a product's yields, while it is open. */
-  readonly cushionEntry = signal<CushionEntryRequest | null>(null);
+  readonly productEntry = signal<ProductEntryRequest | null>(null);
 
-  /** Everything that has landed in the open account's cushion by hand. */
+  /** Everything that has landed on the open account's products by hand. */
   /** The account's movements: collapsed until asked for, and read then. */
   readonly showMovements = signal(false);
   readonly movements = signal<ProductMovement[]>([]);
@@ -624,7 +624,7 @@ export class CushionPage {
       dates.push(this.dayText(payday));
       payday = paidOnFor('monthly', months, from, addDays(payday, 1));
     }
-    return this.i18n.t('cushion.payout.nextPaydays', { dates: dates.join(', ') });
+    return this.i18n.t('products.payout.nextPaydays', { dates: dates.join(', ') });
   });
 
   /** Accounts that could be enrolled but are not. */
@@ -634,7 +634,7 @@ export class CushionPage {
   /**
    * The peso total, and only the peso total.
    *
-   * A dollar cushion and a peso cushion do not add up without choosing a rate,
+   * Dollars earned and pesos earned do not add up without choosing a rate,
    * and choosing one here would be inventing a figure. The foreign ones are
    * listed on their own instead — the same rule net worth follows.
    */
@@ -653,7 +653,7 @@ export class CushionPage {
 
   /** Days the withholding could not be worked out, across every account. */
   readonly unknownWithholdingDays = computed(() =>
-    this.lines().reduce((sum, line) => sum + line.cushion.daysWithUnknownWithholding, 0));
+    this.lines().reduce((sum, line) => sum + line.earned.daysWithUnknownWithholding, 0));
 
   /**
    * Re-entrancy guard. A plain field and not a signal, on purpose.
@@ -673,7 +673,7 @@ export class CushionPage {
     effect(() => {
       this.form();
       this.openLine();
-      this.cushionEntry();
+      this.productEntry();
       untracked(() => this.error.set(''));
     });
 
@@ -846,7 +846,7 @@ export class CushionPage {
       new Map([[accountId, balance.account]]),
       new Map([[accountId, balance.balance_minor]]),
       new Map([[accountId, await yields.pockets(accountId)]]),
-      new Map([[accountId, await yields.cushion(accountId)]]),
+      new Map([[accountId, await yields.earned(accountId)]]),
     );
     if (!line) { await this.refresh(); return; }
 
@@ -874,8 +874,8 @@ export class CushionPage {
     accountOf: ReadonlyMap<number, AccountRow>,
     balanceOf: ReadonlyMap<number, number>,
     pocketsOf: ReadonlyMap<number, YieldPocket[]>,
-    cushionOf: ReadonlyMap<number, CushionBalance>,
-  ): Promise<{ line: CushionLine; last: IsoDate | null }[]> {
+    earnedOf: ReadonlyMap<number, EarnedBalance>,
+  ): Promise<{ line: ProductLine; last: IsoDate | null }[]> {
     const { db, yields, tax } = this.repos();
     const shown = enrolled.filter(entry => accountOf.has(entry.account_id));
     const ids = shown.map(entry => entry.account_id);
@@ -885,7 +885,7 @@ export class CushionPage {
     const landedOf = await yields.landedByPockets(today(), pocketsOfShown);
     const heldOf = await new AccrualEngine(db, yields, tax).heldByPockets(today(), pocketsOfShown);
 
-    const out: { line: CushionLine; last: IsoDate | null }[] = [];
+    const out: { line: ProductLine; last: IsoDate | null }[] = [];
     for (const entry of shown) {
       const id = entry.account_id;
       const pockets = pocketsOfShown.get(id)!;
@@ -904,7 +904,7 @@ export class CushionPage {
         last,
         line: {
           account: accountOf.get(id)!,
-          cushion: cushionOf.get(id) ?? await yields.cushion(id),
+          earned: earnedOf.get(id) ?? await yields.earned(id),
           rate: bands[0] ?? null,
           enabled: entry.enabled !== 0,
           pockets,
@@ -937,7 +937,7 @@ export class CushionPage {
       // Asked once for every account rather than once per account: on a
       // phone each question crosses into the native side, and thirteen
       // accounts asking ten questions each is what made this screen slow.
-      const cushions = await yields.cushions();
+      const earned = await yields.earnedAll();
       const balances = new Map((await accounts.balances({ includeArchived: true }))
         .map(entry => [entry.account.id, entry.balance_minor]));
       const pocketsOf = new Map<number, YieldPocket[]>();
@@ -945,7 +945,7 @@ export class CushionPage {
         pocketsOf.set(pocket.account_id, [...(pocketsOf.get(pocket.account_id) ?? []), pocket]);
       }
 
-      const built = await this.linesFor(enrolled, byId, balances, pocketsOf, cushions);
+      const built = await this.linesFor(enrolled, byId, balances, pocketsOf, earned);
       const lines = built.map(entry => entry.line);
       let newest: IsoDate | null = null;
       for (const { last } of built) {
@@ -1141,7 +1141,7 @@ export class CushionPage {
   }
 
   /** The pocket a day belongs to, for a list that mixes several. */
-  pocketNameOf(line: CushionLine, day: YieldDay): string {
+  pocketNameOf(line: ProductLine, day: YieldDay): string {
     return line.pockets.find(pocket => pocket.id === day.pocket_id)?.name ?? '';
   }
 
@@ -1149,7 +1149,7 @@ export class CushionPage {
   // The detail sheet
   // ---------------------------------------------------------------------------
 
-  async open(line: CushionLine): Promise<void> {
+  async open(line: ProductLine): Promise<void> {
     const sameAccount = this.openLine()?.account.id === line.account.id;
     this.openLine.set(line);
     this.form.set('none');
@@ -1234,19 +1234,19 @@ export class CushionPage {
   }
 
   /** After a product was saved or removed: its account read again, and shown. */
-  private async returnFromPocket(line: CushionLine): Promise<void> {
+  private async returnFromPocket(line: ProductLine): Promise<void> {
     await this.afterOwnChange(line.account.id);
     this.form.set('none');
   }
 
   /** Opens the income or expense screen for the yields of the account on screen. */
-  openEntry(line: CushionLine, kind: 'income' | 'expense'): void {
-    this.cushionEntry.set({ kind, account: line.account, pockets: line.pockets });
+  openEntry(line: ProductLine, kind: 'income' | 'expense'): void {
+    this.productEntry.set({ kind, account: line.account, pockets: line.pockets });
   }
 
   /** Saved and worked out again; the account shows the new figures. */
   async entrySaved(): Promise<void> {
-    this.cushionEntry.set(null);
+    this.productEntry.set(null);
     const line = this.openLine();
     if (!line) return;
     await this.afterOwnChange(line.account.id);
@@ -1272,9 +1272,9 @@ export class CushionPage {
    * untouched while moving what each product earns on.
    */
   /** Opens the transfer screen, between two products of the account on screen. */
-  openMove(line: CushionLine): void {
+  openMove(line: ProductLine): void {
     if (line.pockets.length < 2) return;
-    this.cushionEntry.set({ kind: 'transfer', account: line.account, pockets: line.pockets });
+    this.productEntry.set({ kind: 'transfer', account: line.account, pockets: line.pockets });
   }
 
   /**
@@ -1285,7 +1285,7 @@ export class CushionPage {
    * beside each other because they are the same act at two scales: between
    * this account's products, and between accounts.
    */
-  openTransfer(line: CushionLine): void {
+  openTransfer(line: ProductLine): void {
     this.movementEdit.set({ kind: 'transfer', preferredAccountId: line.account.id });
   }
 
@@ -1462,7 +1462,7 @@ export class CushionPage {
 
     const name = this.pocketName().trim();
     if (name.length === 0) {
-      this.error.set(this.i18n.t('cushion.error.name'));
+      this.error.set(this.i18n.t('products.error.name'));
       return;
     }
     if (this.pocketKind() === 'cdt') {
@@ -1474,21 +1474,21 @@ export class CushionPage {
     // and transfers keep it square from there.
     const amount = parseOrNull(this.pocketAmount());
     if (amount === null || amount < 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
+      this.error.set(this.i18n.t('products.error.amount'));
       return;
     }
 
     const payout = this.pocketPayout();
     const months = payout === 'monthly' ? Number(this.pocketMonths().trim()) : 1;
     if (!Number.isInteger(months) || months < 1) {
-      this.error.set(this.i18n.t('cushion.error.months'));
+      this.error.set(this.i18n.t('products.error.months'));
       return;
     }
 
     // A new product with money in it says where that money came from.
     const funded = !this.editingPocket() && amount > 0 && this.pocketFunding() === 'pocket';
     if (funded && this.pocketFundingFrom() === null) {
-      this.error.set(this.i18n.t('cushion.error.fundingFrom'));
+      this.error.set(this.i18n.t('products.error.fundingFrom'));
       return;
     }
 
@@ -1498,7 +1498,7 @@ export class CushionPage {
       try {
         firstRate = parsePercentToScaled(this.pocketRate());
       } catch {
-        this.error.set(this.i18n.t('cushion.error.rate'));
+        this.error.set(this.i18n.t('products.error.rate'));
         return;
       }
     }
@@ -1627,34 +1627,34 @@ export class CushionPage {
    * day it opened - or the day it used to open, if that was earlier - and, if
    * that day has already come, it matures and closes straight away.
    */
-  private async saveCdt(line: CushionLine, name: string): Promise<void> {
+  private async saveCdt(line: ProductLine, name: string): Promise<void> {
     const capital = parseOrNull(this.pocketAmount());
     if (capital === null || capital <= 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
+      this.error.set(this.i18n.t('products.error.amount'));
       return;
     }
     const term = Number(this.cdtTerm().trim());
     if (!Number.isInteger(term) || term < 1) {
-      this.error.set(this.i18n.t('cushion.error.months'));
+      this.error.set(this.i18n.t('products.error.months'));
       return;
     }
     let rate: number;
     try {
       rate = parsePercentToScaled(this.cdtRate());
     } catch {
-      this.error.set(this.i18n.t('cushion.error.rate'));
+      this.error.set(this.i18n.t('products.error.rate'));
       return;
     }
     const category = this.cdtCategory();
     if (category === null) {
-      this.error.set(this.i18n.t('cushion.error.category'));
+      this.error.set(this.i18n.t('products.error.category'));
       return;
     }
     const opened = this.cdtOpenedOn();
     const into = this.cdtInto();
     const funded = !this.editingPocket() && this.pocketFunding() === 'pocket';
     if (funded && this.pocketFundingFrom() === null) {
-      this.error.set(this.i18n.t('cushion.error.fundingFrom'));
+      this.error.set(this.i18n.t('products.error.fundingFrom'));
       return;
     }
 
@@ -1735,7 +1735,7 @@ export class CushionPage {
     if (!line || !pocket) return;
 
     if (line.pockets.length <= 1) {
-      this.error.set(this.i18n.t('cushion.error.lastPocket'));
+      this.error.set(this.i18n.t('products.error.lastPocket'));
       return;
     }
 
@@ -1763,13 +1763,13 @@ export class CushionPage {
    * by the same, with the transfer in both products' history.
    */
   private async fundFromPocket(
-    line: CushionLine, pocketId: number, fromId: number, on: IsoDate, amount: number, name: string,
+    line: ProductLine, pocketId: number, fromId: number, on: IsoDate, amount: number, name: string,
   ): Promise<void> {
     const { yields, transfers } = this.repos();
     await yields.setPocketBalance({ pocket_id: pocketId, valid_from: addDays(on, -1), amount_minor: 0 });
     await transfers.create({
       occurred_on: on,
-      description: this.i18n.t('cushion.pocket.fundedNote', { name }),
+      description: this.i18n.t('products.pocket.fundedNote', { name }),
       from: { account_id: line.account.id, pocket_id: fromId, amount_minor: amount },
       to: { account_id: line.account.id, pocket_id: pocketId, amount_minor: amount },
     });
@@ -1805,7 +1805,7 @@ export class CushionPage {
     try {
       const { db, yields, tax } = this.repos();
       await removePocketInto(db, yields, tax, line.account.id, pocket.id, into, today(),
-        this.i18n.t('cushion.pocket.removedNote', { name: pocket.name }));
+        this.i18n.t('products.pocket.removedNote', { name: pocket.name }));
       // Removing the usual product needs a new one: the one chosen, which is
       // not necessarily where the balance went.
       const usual = this.pocketNewUsual();
@@ -1866,18 +1866,18 @@ export class CushionPage {
     try {
       scaled = parsePercentToScaled(this.ratePercent());
     } catch {
-      this.error.set(this.i18n.t('cushion.error.rate'));
+      this.error.set(this.i18n.t('products.error.rate'));
       return;
     }
 
     const spend = bonus ? parseOrNull(this.rateSpend().trim()) : null;
     if (bonus && (spend === null || spend <= 0)) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
+      this.error.set(this.i18n.t('products.error.amount'));
       return;
     }
     const bonusMonths = Number(this.rateMonths().trim());
     if (bonus && (!Number.isInteger(bonusMonths) || bonusMonths < 1)) {
-      this.error.set(this.i18n.t('cushion.error.months'));
+      this.error.set(this.i18n.t('products.error.months'));
       return;
     }
 
@@ -1886,7 +1886,7 @@ export class CushionPage {
     const existing = this.editingRate();
     const component = existing?.component
       ?? (bonus
-        ? this.pocketBonusRates()[0]?.component ?? this.i18n.t('cushion.rate.bonusName')
+        ? this.pocketBonusRates()[0]?.component ?? this.i18n.t('products.rate.bonusName')
         : this.pocketBaseRates()[0]?.component ?? 'base');
 
     this.saving.set(true);
@@ -1954,7 +1954,7 @@ export class CushionPage {
   }
 
   /** Back to a product's form, with the account and its figures read again. */
-  private async backToPocket(line: CushionLine, pocketId: number): Promise<void> {
+  private async backToPocket(line: ProductLine, pocketId: number): Promise<void> {
     await this.afterOwnChange(line.account.id);
     await this.readAccount();
     const pocket = this.editablePockets().find(candidate => candidate.id === pocketId);
@@ -1968,31 +1968,31 @@ export class CushionPage {
   pocketSummary(pocket: YieldPocket): string {
     if (pocket.kind === 'cdt') {
       return pocket.opened_on && pocket.term_months
-        ? this.i18n.t('cushion.pocket.cdtMatures', {
+        ? this.i18n.t('products.pocket.cdtMatures', {
             date: this.longDayText(cdtMaturity(pocket.opened_on, pocket.term_months)),
           })
-        : this.i18n.t('cushion.pocket.kind.cdt');
+        : this.i18n.t('products.pocket.kind.cdt');
     }
 
     const current = this.rates().filter(rate =>
       rate.pocket_id === pocket.id && rate.requires_monthly_spend_minor === null
       && this.rateStatus(rate) === 'current').at(-1);
     // With no rate there is nothing paid, so no payday to mention.
-    if (!current || current.annual_rate_scaled <= 0) return this.i18n.t('cushion.pocket.noRate');
+    if (!current || current.annual_rate_scaled <= 0) return this.i18n.t('products.pocket.noRate');
     const rate = this.rateText(current.annual_rate_scaled);
-    const paid = pocket.payout === 'daily' ? this.i18n.t('cushion.payout.daily')
-      : pocket.payout_months === 1 ? this.i18n.t('cushion.payout.monthly')
-      : this.i18n.t('cushion.payout.everyMonths', { count: pocket.payout_months });
+    const paid = pocket.payout === 'daily' ? this.i18n.t('products.payout.daily')
+      : pocket.payout_months === 1 ? this.i18n.t('products.payout.monthly')
+      : this.i18n.t('products.payout.everyMonths', { count: pocket.payout_months });
     return `${rate} · ${paid}`;
   }
 
   /** How a rate is paid, in words: every day, every month, or every so many months. */
   payoutText(rate: YieldRate): string {
-    if (rate.payout === 'daily') return this.i18n.t('cushion.payout.daily');
+    if (rate.payout === 'daily') return this.i18n.t('products.payout.daily');
     const months = rate.payout_months ?? 1;
     return months === 1
-      ? this.i18n.t('cushion.payout.monthly')
-      : this.i18n.t('cushion.payout.everyMonths', { count: months });
+      ? this.i18n.t('products.payout.monthly')
+      : this.i18n.t('products.payout.everyMonths', { count: months });
   }
 
   /** Adds an account to the module, with nothing accrued and no rate yet. */
@@ -2002,7 +2002,7 @@ export class CushionPage {
       const { db, yields, tax } = this.repos();
       await yields.enrol({
         account_id: account.id,
-        default_pocket_name: this.i18n.t('cushion.pocket.defaultName'),
+        default_pocket_name: this.i18n.t('products.pocket.defaultName'),
         opening_on: today(),
         withholding: account.currency_code === 'COP',
         // Most banks pay monthly. Claiming daily would credit interest on
@@ -2094,7 +2094,7 @@ export class CushionPage {
 
     const minor = this.parsed();
     if (minor === null || minor < 0) {
-      this.error.set(this.i18n.t('cushion.error.amount'));
+      this.error.set(this.i18n.t('products.error.amount'));
       return;
     }
 
@@ -2134,7 +2134,7 @@ export class CushionPage {
 
   /** The name of the pocket a rate belongs to, or the account itself. */
   pocketNameById(id: number | null): string {
-    if (id === null) return this.i18n.t('cushion.rate.everyPocket');
+    if (id === null) return this.i18n.t('products.rate.everyPocket');
     return this.editablePockets().find(pocket => pocket.id === id)?.name ?? '';
   }
 
@@ -2208,13 +2208,13 @@ export class CushionPage {
   }
 
   /** Opens or closes the account's movements, reading them when it opens. */
-  async toggleMovements(line: CushionLine): Promise<void> {
+  async toggleMovements(line: ProductLine): Promise<void> {
     const open = !this.showMovements();
     this.showMovements.set(open);
     if (open) await this.loadMovements(line);
   }
 
-  private async loadMovements(line: CushionLine): Promise<void> {
+  private async loadMovements(line: ProductLine): Promise<void> {
     const { yields, transactions } = this.repos();
     const rows = await transactions.listDetailed({ accountIds: [line.account.id] });
     const entries = await yields.adjustments(line.account.id);
@@ -2230,11 +2230,11 @@ export class CushionPage {
    * account on the movement screen - the same the summary uses, products and
    * all - and an entry on the product alone on its income or expense screen.
    */
-  openMovement(line: CushionLine, movement: ProductMovement): void {
+  openMovement(line: ProductLine, movement: ProductMovement): void {
     if (movement.type === 'entry') {
-      this.cushionEntry.set({
+      this.productEntry.set({
         kind: movement.amountMinor < 0 ? 'expense' : 'income',
-        account: line.account, pockets: line.pockets, editing: movement.entry as CushionEntry,
+        account: line.account, pockets: line.pockets, editing: movement.entry as ProductEntry,
       });
       return;
     }
@@ -2299,37 +2299,37 @@ export class CushionPage {
     await this.afterOwnChange(line.account.id);
   }
 
-  movementTitle(line: CushionLine, movement: ProductMovement): string {
+  movementTitle(line: ProductLine, movement: ProductMovement): string {
     switch (movement.type) {
       case 'transfer':
         return `${this.pocketLabel(line, movement.fromPocketId)} → ${this.pocketLabel(line, movement.toPocketId)}`;
       case 'entry':
-        return this.kindLabel(movement.entry as CushionEntry);
+        return this.kindLabel(movement.entry as ProductEntry);
       case 'withdrawal':
-        return this.i18n.t('cushion.movements.withdrawal');
+        return this.i18n.t('products.movements.withdrawal');
       default: {
         const row = movement.transaction;
         if (row.transfer_id !== null) {
-          return this.i18n.t(row.amount_minor < 0 ? 'cushion.movements.transferTo' : 'cushion.movements.transferFrom',
+          return this.i18n.t(row.amount_minor < 0 ? 'products.movements.transferTo' : 'products.movements.transferFrom',
             { account: row.other_account_name ?? '' });
         }
-        return row.category_name ?? this.i18n.t('cushion.movements.noCategory');
+        return row.category_name ?? this.i18n.t('products.movements.noCategory');
       }
     }
   }
 
   /** The line under a movement: its day, its product, how it was made, its note. */
-  movementDetail(line: CushionLine, movement: ProductMovement): string {
+  movementDetail(line: ProductLine, movement: ProductMovement): string {
     const parts: string[] = [];
     if (this.movementsView() !== 'date') parts.push(this.dayText(movement.on));
     if (movement.type === 'transfer') {
-      parts.push(this.i18n.t('cushion.movements.betweenProducts'));
+      parts.push(this.i18n.t('products.movements.betweenProducts'));
     } else {
       if (line.pockets.length > 1) parts.push(this.pocketLabel(line, movement.pocketId));
-      if (movement.type === 'entry') parts.push(this.i18n.t('cushion.entry.scope.product'));
+      if (movement.type === 'entry') parts.push(this.i18n.t('products.entry.scope.product'));
       if (movement.type === 'transaction' && movement.cashIn) {
         parts.push(this.i18n.t(movement.amountMinor < 0
-          ? 'cushion.entry.scope.netWorthExpense' : 'cushion.entry.scope.netWorthIncome'));
+          ? 'products.entry.scope.netWorthExpense' : 'products.entry.scope.netWorthIncome'));
       }
     }
     const note = movement.type === 'entry' ? movement.entry.note
@@ -2358,23 +2358,23 @@ export class CushionPage {
 
   private categoryOf(movement: ProductMovement): [string, string] {
     switch (movement.type) {
-      case 'transfer': return ['between', this.i18n.t('cushion.movements.betweenProducts')];
+      case 'transfer': return ['between', this.i18n.t('products.movements.betweenProducts')];
       case 'entry': return [
         movement.entry.category_id !== null && movement.entry.category_id !== undefined
           ? `category:${movement.entry.category_id}`
           : `kind:${movement.entry.product_kind_id ?? movement.entry.kind}`,
-        this.kindLabel(movement.entry as CushionEntry),
+        this.kindLabel(movement.entry as ProductEntry),
       ];
-      case 'withdrawal': return ['withdrawal', this.i18n.t('cushion.movements.withdrawal')];
+      case 'withdrawal': return ['withdrawal', this.i18n.t('products.movements.withdrawal')];
       default: {
         const row = movement.transaction;
         if (row.transfer_id !== null) return [`account:${row.other_account_id}`, row.other_account_name ?? ''];
-        return [`category:${row.category_id ?? 'none'}`, row.category_name ?? this.i18n.t('cushion.movements.noCategory')];
+        return [`category:${row.category_id ?? 'none'}`, row.category_name ?? this.i18n.t('products.movements.noCategory')];
       }
     }
   }
 
-  pocketLabel(line: CushionLine, pocketId: number): string {
+  pocketLabel(line: ProductLine, pocketId: number): string {
     return line.pockets.find(pocket => pocket.id === pocketId)?.name ?? '';
   }
 
@@ -2384,15 +2384,15 @@ export class CushionPage {
    * An entry written before the kinds were rows of their own has none, and
    * falls back to the coarse word its column has always carried.
    */
-  kindLabel(entry: CushionEntry): string {
+  kindLabel(entry: ProductEntry): string {
     const category = this.categoriesById().get(entry.category_id ?? -1);
     if (category) return category.name;
 
     const kind = this.kindsById().get(entry.product_kind_id ?? -1);
     if (kind) return kind.name;
-    if (entry.kind === 'cashback') return this.i18n.t('cushion.kind.cashback');
-    if (entry.kind === 'other') return this.i18n.t('cushion.kind.other');
-    return this.i18n.t('cushion.kind.correction');
+    if (entry.kind === 'cashback') return this.i18n.t('products.kind.cashback');
+    if (entry.kind === 'other') return this.i18n.t('products.kind.other');
+    return this.i18n.t('products.kind.correction');
   }
 
   /** The kinds themselves, for the name and the picture on a row. */
@@ -2405,7 +2405,7 @@ export class CushionPage {
    * Null rather than a stand-in when there is a picture: `app-icon` draws the
    * picture then, and a name here would be what it fell back to.
    */
-  entryIcon(entry: CushionEntry): string | null {
+  entryIcon(entry: ProductEntry): string | null {
     const category = this.categoriesById().get(entry.category_id ?? -1);
     if (category) return category.custom_icon_id ? null : (category.builtin_icon ?? 'pricetag-outline');
 
@@ -2417,7 +2417,7 @@ export class CushionPage {
   }
 
   /** The image an entry's category wears, when it wears one of the user's own. */
-  kindIconId(entry: CushionEntry): number | null {
+  kindIconId(entry: ProductEntry): number | null {
     return this.categoriesById().get(entry.category_id ?? -1)?.custom_icon_id
       ?? this.kindsById().get(entry.product_kind_id ?? -1)?.custom_icon_id
       ?? null;
@@ -2466,7 +2466,7 @@ export class CushionPage {
   // ---------------------------------------------------------------------------
 
   /** Everything the products hold, which is the account plus its yields. */
-  totalHeld(line: CushionLine): number {
+  totalHeld(line: ProductLine): number {
     return line.pockets.reduce((sum, pocket) => sum + this.balanceIn(line, pocket.id), 0);
   }
   /**
@@ -2481,7 +2481,7 @@ export class CushionPage {
     return parseOrNull(this.pocketAmount()) ?? 0;
   }
   /** What one product holds today. Zero when nothing is known about it. */
-  heldIn(line: CushionLine, pocketId: number): number {
+  heldIn(line: ProductLine, pocketId: number): number {
     return line.heldByPocket.get(pocketId) ?? 0;
   }
 
@@ -2490,7 +2490,7 @@ export class CushionPage {
    * under it. An income or expense someone enters is not a yield. Never more
    * than the balance: money moved out takes its share with it.
    */
-  yieldIn(line: CushionLine, pocketId: number): number {
+  yieldIn(line: ProductLine, pocketId: number): number {
     const paid = line.paidYieldByPocket.get(pocketId) ?? 0;
     return Math.max(0, Math.min(paid, this.balanceIn(line, pocketId)));
   }
@@ -2515,7 +2515,7 @@ export class CushionPage {
   }
 
   /** The product's balance as its bank shows it: what it holds plus the yields paid into it. */
-  balanceIn(line: CushionLine, pocketId: number): number {
+  balanceIn(line: ProductLine, pocketId: number): number {
     return this.heldIn(line, pocketId) + (line.landedByPocket.get(pocketId) ?? 0);
   }
   /** The size of a difference, without its direction. */
@@ -2645,7 +2645,7 @@ function parseOrNull(raw: string): number | null {
   }
 }
 
-/** What a day actually added to the cushion: the correction if there is one. */
+/** What a day actually added: the correction if there is one. */
 function netOf(day: YieldDay | null): number {
   if (!day) return 0;
   return day.actual_net_minor ?? day.net_minor;

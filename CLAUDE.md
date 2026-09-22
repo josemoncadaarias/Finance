@@ -229,7 +229,7 @@ backup restore against iOS's own SQLite backend.
 15. **Interest and cashback stay outside net worth.** Money earned that was
    never counted on. It accumulates outside the balance of the account that
    produced it and outside net worth, and moving part of it in is a deliberate
-   act that writes both a movement and a `cushion_withdrawals` row, so nothing
+   act that writes both a movement and a `product_cashouts` row, so nothing
    is counted twice - modelled on the real 2026-08-13 adjustment on Rappi
    cuenta. The daily rate is `(1 + annual) ^ (1/365) - 1`, never the annual one
    over 365, against an effective-annual-rate history the user maintains.
@@ -245,12 +245,33 @@ backup restore against iOS's own SQLite backend.
    was a mechanism of its own with a name nobody could use, and it was two
    things wearing one name: an amount, which is an income to a product and
    nothing more, and a date, which is real. Migration 040 wrote each amount as
-   an ordinary entry on the product Jose named, dated the day before the walk
-   begins, and emptied the column; the code that read it is gone and the screen
-   keeps the date alone, as "Desde cuando rinde". Verified against his backup
-   of that day, restored and accrued from scratch: not one product balance, not
-   one available figure, not one peso the bank had paid moved. **Do not bring
-   the concept back under another name.**
+   an ordinary entry on the product Jose named and emptied the column.
+
+   **The date belongs to the product** (`yield_pockets.earns_from`, migration
+   041). One date per account was a floor over everything in it, and in Jose's
+   data it sat a day later than the products of five accounts and months later
+   than Pibank's CDTs - so deleting it would have handed those products days
+   nobody had worked out. 041 gave each product the day its account was
+   already starting it from, and the engine walks from the earliest of them
+   with each product sitting out the days before its own. A rate reaching
+   further back does NOT pull the walk back any more: the product's date is
+   the boundary, full stop.
+
+   **And the word is gone with the concept** (migration 042, Jose:
+   "ese termino colchon no deberia existir mas"). `cushion_adjustments` is
+   `product_entries` - a product's own movements - and `cushion_withdrawals`
+   is `product_cashouts` - money moved from what a product earned into the
+   account itself. The screen is `features/products`, its URL is `/products`
+   and every word it says is keyed `products.*`. An older backup still
+   restores: `restoreBackup` rebuilds the schema the file came out of, puts
+   the rows back under the names they were written with, and migrates forward
+   afterwards.
+
+   All of it checked the same way, and this is the way to check anything here:
+   compare what Jose's phone has ALREADY worked out - the `yield_days` his
+   backup carries - against what the code makes of the same file. Nothing of
+   the above moved a figure. **Do not bring the concept back under another
+   name.**
 
    **A day in `yield_days` is the day the money is HANDED OVER, and it is
    worked out on the balance the day before closed with.** That is how these
@@ -333,7 +354,7 @@ backup restore against iOS's own SQLite backend.
    account, holding whatever the others left) or carries a figure typed in and
    dated, because a movement never says which pocket it landed in - so the app
    compares the two and reports the drift rather than accruing on a stale
-   figure. The account's cushion is spread across its pockets in proportion to
+   figure. What the account has earned is spread across its pockets in proportion to
    what each holds; putting it all on the first one pushed that one over the
    threshold by itself. Decision by Jose, 2026-09-10.
 

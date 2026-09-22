@@ -97,6 +97,7 @@ test('entries written before the kinds were rows are pointed at theirs', async (
   });
   for (const [kind, amount] of [['cashback', 1000], ['correction', 2000], ['other', 3000]]) {
     await db.run(
+      // Under the name it had at version 33. Migration 042 renames it.
       `INSERT INTO cushion_adjustments (account_id, source, kind, on_date, amount_minor, created_at, updated_at)
        VALUES (?, 'yield', ?, '2026-09-01', ?, ?, ?)`,
       [account, kind, amount, NOW(), NOW()]);
@@ -106,7 +107,7 @@ test('entries written before the kinds were rows are pointed at theirs', async (
 
   const rows = await db.query(
     `SELECT a.kind, k.name, k.counts_as
-     FROM cushion_adjustments a JOIN product_kinds k ON k.id = a.product_kind_id
+     FROM product_entries a JOIN product_kinds k ON k.id = a.product_kind_id
      ORDER BY a.amount_minor`);
   assert.deepEqual(rows.map(row => [row.kind, row.name]), [
     ['cashback', 'Cashback'],

@@ -60,9 +60,9 @@ async function setup() {
  * The base is the balance and what THIS app has worked out since - never the
  * opening figure. That figure is the interest the account had already been
  * paid, and it is already inside the balance; adding it would count the same
- * money twice. It is part of the cushion total all the same.
+ * money twice. It is part of the total all the same.
  */
-function expectedCushion(balanceMinor, annualRateScaled, days) {
+function expectedEarnings(balanceMinor, annualRateScaled, days) {
   const rate = dailyRate(annualRateScaled);
   let earned = 0;
   for (let day = 0; day < days; day += 1) {
@@ -110,13 +110,13 @@ test('what is earned compounds on itself, and the parts add up', async () => {
 
   await engine.accrue(ids.rappi, '2026-10-09');
 
-  const expected = expectedCushion(1_000_000_000, pct(9), 30);
-  const cushion = await yields.cushion(ids.rappi);
+  const expected = expectedEarnings(1_000_000_000, pct(9), 30);
+  const earned = await yields.earned(ids.rappi);
 
-  assert.equal(cushion.totalMinor, expected);
-  assert.equal(cushion.accrued_minor, expected);
-  assert.equal(cushion.adjusted_minor, 0);
-  assert.equal(cushion.withdrawn_minor, 0);
+  assert.equal(earned.totalMinor, expected);
+  assert.equal(earned.accrued_minor, expected);
+  assert.equal(earned.adjusted_minor, 0);
+  assert.equal(earned.withdrawn_minor, 0);
 
   // The first day earns on the balance and nothing else.
   const days = await yields.days(ids.rappi);
@@ -168,8 +168,8 @@ test('with no tax parameters the yield still accrues, flagged', async () => {
   assert.equal(days[0].withholding_unknown, 1);
   assert.equal(days[0].net_minor, days[0].gross_minor, 'nothing is withheld, and nobody is told it was');
 
-  const cushion = await yields.cushion(ids.rappi);
-  assert.equal(cushion.daysWithUnknownWithholding, 3);
+  const earned = await yields.earned(ids.rappi);
+  assert.equal(earned.daysWithUnknownWithholding, 3);
 });
 
 test('once the parameters are confirmed, the withholding is applied', async () => {
@@ -229,7 +229,7 @@ test('a rate that needs a monthly spend pays nothing in a month that missed it',
   let result = await engine.accrue(ids.uala, '2026-09-20');
   assert.equal(result.daysConditionNotMet, 20);
   assert.equal(result.netMinor, 0);
-  assert.equal((await yields.cushion(ids.uala)).totalMinor, 0, 'nothing was earned');
+  assert.equal((await yields.earned(ids.uala)).totalMinor, 0, 'nothing was earned');
 
   // Another 150,000 later in the month crosses the threshold, and the whole
   // month is filled in on the next pass - including the days before the spend.
@@ -242,7 +242,7 @@ test('a rate that needs a monthly spend pays nothing in a month that missed it',
   assert.equal(result.from, '2026-09-01', 'a recompute restarts at the top of the month');
   assert.equal(result.daysConditionNotMet, 0);
   assert.ok(result.netMinor > 0);
-  assert.ok((await yields.cushion(ids.uala)).totalMinor > 0);
+  assert.ok((await yields.earned(ids.uala)).totalMinor > 0);
 });
 
 test('a bonus judged every two months counts the spending of both', async () => {
@@ -289,7 +289,7 @@ test('what was paid on a day leaves out what is only paid at the end of the mont
   assert.equal(paid.filter(day => day.component === 'daily').length, 1);
 });
 
-test('the cushion split by product adds up to the account, and follows each entry', async () => {
+test('what was earned splits by product and adds up to the account, and follows each entry', async () => {
   const { engine, yields, ids } = await setup();
   await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
   await yields.setRate({ account_id: ids.uala, component: 'daily', payout: 'daily', valid_from: '2026-08-31', annual_rate_scaled: pct(5) });
@@ -301,8 +301,8 @@ test('the cushion split by product adds up to the account, and follows each entr
   await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 30_000, kind: 'cashback' });
   await engine.accrue(ids.uala, '2026-09-10');
 
-  const split = await yields.cushionByPocket(ids.uala);
-  const total = (await yields.cushion(ids.uala)).totalMinor;
+  const split = await yields.earnedByPocket(ids.uala);
+  const total = (await yields.earned(ids.uala)).totalMinor;
   assert.equal([...split.values()].reduce((sum, part) => sum + part, 0), total, 'the parts are the whole');
 
   const earnedBy = async id => (await yields.days(ids.uala))
@@ -382,8 +382,8 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
   const balance = async () => (await engine.heldByPocket(ids.uala, '2026-09-10')).get(product.id)
     + (await yields.landedByPocket(ids.uala, '2026-09-10')).total.get(product.id);
   const before = await balance();
-  const cushion = async () => (await yields.cushion(ids.uala)).totalMinor;
-  const gathered = await cushion();
+  const earned = async () => (await yields.earned(ids.uala)).totalMinor;
+  const gathered = await earned();
 
   // Cashing in 3 million, written the way the income screen writes it.
   const cashed = await transactions.create({
@@ -393,7 +393,7 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
     account_id: ids.uala, on_date: '2026-09-05', amount_minor: 300_000_000, transaction_id: cashed, pocket_id: product.id,
   });
   assert.equal(await balance(), before, 'the product holds what it held');
-  assert.equal(await cushion(), gathered - 300_000_000, 'what it had gathered is 3 million less');
+  assert.equal(await earned(), gathered - 300_000_000, 'what it had gathered is 3 million less');
 
   // And the reverse, as an expense of 1 million.
   await transactions.create({
@@ -401,7 +401,7 @@ test('cashing in, or the reverse, moves the account and leaves the product balan
   });
   await yields.adjust({ account_id: ids.uala, on_date: '2026-09-06', amount_minor: 100_000_000, kind: 'other', pocket_id: product.id });
   assert.equal(await balance(), before);
-  assert.equal(await cushion(), gathered - 200_000_000);
+  assert.equal(await earned(), gathered - 200_000_000);
 });
 
 test('correcting or deleting a cashed-in movement carries its other half with it', async () => {
@@ -541,13 +541,13 @@ test('a day corrected by hand is never rewritten, and still counts', async () =>
   assert.equal(day.net_minor, computed.net_minor, 'what the app worked out is still there to compare');
   assert.equal(day.locked, 1);
 
-  // The cushion counts the corrected figure, not the computed one.
-  const cushion = await yields.cushion(ids.rappi, '2026-09-11');
-  assert.equal(cushion.accrued_minor,
+  // The total counts the corrected figure, not the computed one.
+  const earned = await yields.earned(ids.rappi, '2026-09-11');
+  assert.equal(earned.accrued_minor,
     (await yields.days(ids.rappi, '2026-09-10', '2026-09-10'))[0].net_minor + 99_999);
 });
 
-test('adjustments and withdrawals move the cushion, and the account does not', async () => {
+test('entries and cashouts move what was earned, and the account does not', async () => {
   const { engine, yields, accounts, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi,
@@ -556,7 +556,7 @@ test('adjustments and withdrawals move the cushion, and the account does not', a
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9), payout: 'monthly' });
   await engine.accrue(ids.rappi, '2026-09-30');
 
-  const before = await yields.cushion(ids.rappi);
+  const before = await yields.earned(ids.rappi);
 
   // The bank paid 1,000.00 less than the app worked out.
   await yields.adjust({
@@ -569,7 +569,7 @@ test('adjustments and withdrawals move the cushion, and the account does not', a
     note: 'Ajuste rendimientos',
   });
 
-  const after = await yields.cushion(ids.rappi);
+  const after = await yields.earned(ids.rappi);
   assert.equal(after.adjusted_minor, -100_000);
   assert.equal(after.withdrawn_minor, 200_000_000);
   assert.equal(after.totalMinor, before.totalMinor - 100_000 - 200_000_000);
@@ -587,12 +587,12 @@ test('re-running the same day twice does not pay twice', async () => {
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
   await engine.accrue(ids.rappi, '2026-09-20');
-  const once = await yields.cushion(ids.rappi);
+  const once = await yields.earned(ids.rappi);
 
   await engine.accrue(ids.rappi, '2026-09-20');
   await engine.accrue(ids.rappi, '2026-09-20');
 
-  assert.equal((await yields.cushion(ids.rappi)).totalMinor, once.totalMinor);
+  assert.equal((await yields.earned(ids.rappi)).totalMinor, once.totalMinor);
   assert.equal((await yields.days(ids.rappi)).length, 11);
 });
 
@@ -654,7 +654,7 @@ test('a band with no fallback still earns nothing when its condition is missed',
 
 
 
-test('a foreign-currency cushion stays in its own currency', async () => {
+test('what a foreign-currency account earns stays in its own currency', async () => {
   const { engine, yields, accounts, ids } = await setup();
   const arq = await accounts.create({
     name: 'ARQ USD', type: 'investment', currency_code: 'USD', builtin_icon: 'trending-up',
@@ -668,13 +668,13 @@ test('a foreign-currency cushion stays in its own currency', async () => {
   await yields.setRate({ account_id: arq, valid_from: '2026-09-09', annual_rate_scaled: pct(2) });
 
   await engine.accrue(arq, '2026-12-31');
-  const cushion = await yields.cushion(arq);
+  const earned = await yields.earned(arq);
 
   // 10,000 dollars at 2% for 113 days is around 61 dollars - not a peso
   // figure, and not converted anywhere.
-  assert.ok(cushion.totalMinor > 0);
-  assert.ok(cushion.totalMinor < 10_000, `${cushion.totalMinor} is not a dollar figure`);
-  assert.equal(cushion.totalMinor, expectedCushion(1_000_000, pct(2), 113));
+  assert.ok(earned.totalMinor > 0);
+  assert.ok(earned.totalMinor < 10_000, `${earned.totalMinor} is not a dollar figure`);
+  assert.equal(earned.totalMinor, expectedEarnings(1_000_000, pct(2), 113));
 });
 
 // ---------------------------------------------------------------------------
@@ -751,7 +751,7 @@ test('two pockets are taxed apart, and it changes the answer', async () => {
   // the point of the exercise.
   const grossTogether = days.reduce((sum, day) => sum + day.gross_minor, 0);
   assert.equal(grossTogether, 552478);
-  assert.equal((await yields.cushion(dale)).totalMinor, 552478);
+  assert.equal((await yields.earned(dale)).totalMinor, 552478);
   assert.ok(grossTogether > asOne.net_minor,
     'splitting keeps money the account was being charged');
 });
@@ -800,11 +800,11 @@ test('removing a pocket takes its days with it', async () => {
   assert.equal((await yields.pockets(ids.rappi)).length, 1);
 });
 
-test('a figure typed for a pocket is the bank figure, cushion included', async () => {
+test('a figure typed for a pocket is the bank figure, yields included', async () => {
   const { db, accounts, yields, tax, engine } = await setup();
   await withRealisticWithholding(tax);
 
-  // Dale exactly as it stands on 2026-09-10, with the cushion of 526,619.25
+  // Dale exactly as it stands on 2026-09-10, with the 526,619.25 it had earned
   // that accumulated before this app existed.
   const dale = await accounts.create({
     name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
@@ -832,7 +832,7 @@ test('a figure typed for a pocket is the bank figure, cushion included', async (
   const days = await yields.days(dale, '2026-09-10', '2026-09-10');
 
   // The base is the figure typed in, and nothing else. A bank balance already
-  // holds every yield that bank ever paid; adding the cushion on top of it
+  // holds every yield that bank ever paid; adding what it had earned on top of it
   // counts the same money twice.
   assert.deepEqual(days.map(day => day.balance_minor).sort((a, b) => a - b),
     [1_009_645_100, 1_009_746_725]);
@@ -880,7 +880,7 @@ test('a pocket earning nothing is not a pocket losing what it earned', async () 
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  // Every pocket typed in by hand, so nothing carries the cushion.
+  // Every pocket typed in by hand, so nothing carries the earned.
   const [only] = await yields.pockets(ids.rappi);
   await db.run("UPDATE yield_pockets SET source = 'manual' WHERE id = ?", [only.id]);
   await yields.setPocketBalance({
@@ -888,12 +888,12 @@ test('a pocket earning nothing is not a pocket losing what it earned', async () 
   });
 
   await engine.accrue(ids.rappi, '2026-09-10');
-  const cushion = await yields.cushion(ids.rappi);
+  const earned = await yields.earned(ids.rappi);
 
   // The pocket earns on the figure typed in and on nothing else, and what it
   // earns is still there to be moved into net worth.
   assert.equal((await yields.days(ids.rappi))[0].balance_minor, 1_000_000_000);
-  assert.ok(cushion.totalMinor > 0);
+  assert.ok(earned.totalMinor > 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -901,16 +901,16 @@ test('a pocket earning nothing is not a pocket losing what it earned', async () 
 //
 // A pocket figure is what the bank says and contains every yield it ever paid.
 // A ledger balance is what Monefy recorded and contains none of them. Comparing
-// the two directly reports a difference of exactly the cushion, forever, and
+// the two directly reports a difference of exactly what was earned, forever, and
 // tells the user to correct data that was never wrong - which is what Dale did
-// on 2026-09-11: "no cuadran por -526.619,25", the cushion to the cent.
+// on 2026-09-11: "no cuadran por -526.619,25", what it had earned, to the cent.
 // ---------------------------------------------------------------------------
 
-/** Dale as it stands: two typed pockets, a cushion the ledger never saw. */
+/** Dale as it stands: two typed pockets, earnings the ledger never saw. */
 async function daleWithPockets({ accounts, yields, db }) {
   const dale = await accounts.create({
     name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
-    // The ledger is the pocket total MINUS the cushion, because Monefy never
+    // The ledger is the pocket total MINUS what was earned, because Monefy never
     // recorded a single one of those yields.
     opening_balance_minor: 1_966_729_900, opened_on: '2024-01-01',
   });
@@ -939,7 +939,7 @@ async function daleWithPockets({ accounts, yields, db }) {
 
 
 // ---------------------------------------------------------------------------
-// Money landing in the cushion mid-week
+// Money landing on a product mid-week
 //
 // Jose's scenario, and the bug it uncovered: the app accrues day after day,
 // and on the Wednesday 10,000 arrives as cashback. Every day from Thursday on
@@ -1072,10 +1072,10 @@ test('a monthly account does not compound until it is paid', async () => {
   assert.equal(bases.size, 1, 'the base moved during a month that pays nothing');
   assert.equal([...bases][0], 1_000_000_000);
 
-  // The money is still earned - it is in the cushion, just not in the account.
-  const cushion = await yields.cushion(ids.rappi);
-  assert.equal(cushion.totalMinor, days.reduce((sum, day) => sum + day.net_minor, 0));
-  assert.ok(cushion.totalMinor > 0);
+  // The money is still earned - it is on the product, just not in the account.
+  const earned = await yields.earned(ids.rappi);
+  assert.equal(earned.totalMinor, days.reduce((sum, day) => sum + day.net_minor, 0));
+  assert.ok(earned.totalMinor > 0);
 });
 
 test('and starts compounding the day after payday', async () => {
@@ -1126,7 +1126,7 @@ test('over a year, paying monthly earns less than paying daily', async () => {
   });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2025-12-31', annual_rate_scaled: pct(12), payout: 'monthly' });
   await engine.accrue(ids.rappi, '2026-12-31');
-  const monthly = (await yields.cushion(ids.rappi)).totalMinor;
+  const monthly = (await yields.earned(ids.rappi)).totalMinor;
 
   await yields.enrol({
     account_id: ids.uala, opening_on: '2025-12-31',
@@ -1134,7 +1134,7 @@ test('over a year, paying monthly earns less than paying daily', async () => {
   });
   await yields.setRate({ account_id: ids.uala, valid_from: '2025-12-31', annual_rate_scaled: pct(12), payout: 'daily' });
   await engine.accrue(ids.uala, '2026-12-31');
-  const daily = (await yields.cushion(ids.uala)).totalMinor;
+  const daily = (await yields.earned(ids.uala)).totalMinor;
 
   // Same balance, same rate, same year. Holding the money back costs
   // something real, and calling a monthly account daily would have quietly
@@ -1150,7 +1150,7 @@ test('over a year, paying monthly earns less than paying daily', async () => {
 // ---------------------------------------------------------------------------
 // The base is stated, not derived
 //
-// Six migrations worked the base out as a sum - ledger plus cushion, minus a
+// Six migrations worked the base out as a sum - ledger plus earnings, minus a
 // part that was "not earning" - and each version was wrong in its own way,
 // because each was an inference about what a figure Jose gave actually meant.
 // The figure he states IS the base. What the ledger contributes is only the
@@ -1160,7 +1160,7 @@ test('over a year, paying monthly earns less than paying daily', async () => {
 test('an account earns on the figure stated for it, and nothing else', async () => {
   const { db, yields, engine, ids } = await setup();
 
-  // The account holds 10,000,000.00 as far as the ledger knows, and a cushion
+  // The account holds 10,000,000.00 as far as the ledger knows, and earnings
   // of 4,917,434.98 was recorded. Neither belongs in the base.
   await yields.enrol({
     account_id: ids.rappi,
@@ -1272,7 +1272,7 @@ test('a second pocket does not take the movements as well', async () => {
 // The question to have settled before checking the figures against the banks:
 // money put into an account on a Thursday has to show up in Friday's yield,
 // and not in Thursday's. A day's yield is worked out on what was there when
-// the day started - the same rule the stated figure and a cushion entry both
+// the day started - the same rule the stated figure and an entry on a product both
 // follow.
 // ---------------------------------------------------------------------------
 
@@ -1977,11 +1977,11 @@ test('a rate paid every three months holds the yield until the end of the third 
 test('what is owed in the middle of a period says when it will be paid', async () => {
   const { yields, ids } = await quarterly(['2026-08-15']);
   const owed = (await yields.days(ids.rappi)).reduce((sum, day) => sum + day.net_minor, 0);
-  const cushion = await yields.cushion(ids.rappi, '2026-08-15');
+  const earned = await yields.earned(ids.rappi, '2026-08-15');
 
-  assert.equal(cushion.pendingMinor, owed, 'July and half of August are owed, not paid');
-  assert.equal(cushion.paidOn, '2026-09-30');
-  assert.equal(cushion.availableMinor, cushion.totalMinor - owed);
+  assert.equal(earned.pendingMinor, owed, 'July and half of August are owed, not paid');
+  assert.equal(earned.paidOn, '2026-09-30');
+  assert.equal(earned.availableMinor, earned.totalMinor - owed);
 });
 
 test('working it out again from the middle of a period still pays the months before', async () => {
@@ -2107,7 +2107,7 @@ test('removing the usual product makes the destination the usual one', async () 
 // 0.07 worked out on 380.08, and he asked where that balance had come from.
 //
 // It had come from counting the same yield twice: the ledger share went to
-// -380.08, the engine clamped that to zero, and then added the cushion of
+// -380.08, the engine clamped that to zero, and then added the earnings of
 // +380.08 back on top of it.
 // ---------------------------------------------------------------------------
 

@@ -791,7 +791,7 @@ test('a note written on a product\'s own income is suggested back', async () => 
   });
 
   // A product's own income is not a movement at all - it is an entry on the
-  // cushion - so its note used to be offered to nobody. Jose, 2026-09-21.
+  // product - so its note used to be offered to nobody. Jose, 2026-09-21.
   await yields.enrol({
     account_id: ids.rappi, default_pocket_name: 'Cuenta de ahorros',
     opening_on: '2026-09-01', withholding: false,

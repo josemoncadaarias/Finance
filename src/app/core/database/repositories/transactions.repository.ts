@@ -272,11 +272,11 @@ export class TransactionsRepository {
     const row = await this.findById(id);
     if (!row) return;
     await this.db.run(
-      `UPDATE cushion_withdrawals SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id)
+      `UPDATE product_cashouts SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id)
        WHERE transaction_id = ?`,
       [Math.abs(row.amount_minor), row.occurred_on, row.pocket_id, id]);
     await this.db.run(
-      `UPDATE cushion_adjustments SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id), updated_at = ?
+      `UPDATE product_entries SET amount_minor = ?, on_date = ?, pocket_id = COALESCE(?, pocket_id), updated_at = ?
        WHERE transaction_id = ?`,
       [-row.amount_minor, row.occurred_on, row.pocket_id, this.now(), id]);
   }
@@ -301,8 +301,8 @@ export class TransactionsRepository {
       // A cash-in is this movement plus the same amount out of, or into, what a
       // product gathered. Left behind, that half would move the product's
       // balance on its own, so it goes with the movement.
-      await this.db.run('DELETE FROM cushion_withdrawals WHERE transaction_id = ?', [id]);
-      await this.db.run('DELETE FROM cushion_adjustments WHERE transaction_id = ?', [id]);
+      await this.db.run('DELETE FROM product_cashouts WHERE transaction_id = ?', [id]);
+      await this.db.run('DELETE FROM product_entries WHERE transaction_id = ?', [id]);
       await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
 
       if (row?.import_fingerprint != null && row.import_seq != null) {
@@ -427,7 +427,7 @@ export class TransactionsRepository {
    *
    * The history is all three places a note can be written, not only the
    * movements. A product's own income - a cashback the bank paid in - is a
-   * row of `cushion_adjustments` and never a movement, so its note was
+   * row of `product_entries` and never a movement, so its note was
    * offered to nobody: Jose wrote "Cashback RappiCard" on one on 2026-09-21
    * and the next one did not suggest it back.
    */
@@ -444,9 +444,9 @@ export class TransactionsRepository {
       `SELECT note, COUNT(*) AS times, MAX(on_date) AS last_used FROM (
          SELECT description AS note, occurred_on AS on_date FROM transactions
          UNION ALL
-         SELECT note, on_date FROM cushion_adjustments
+         SELECT note, on_date FROM product_entries
          UNION ALL
-         SELECT note, on_date FROM cushion_withdrawals
+         SELECT note, on_date FROM product_cashouts
        )
        WHERE note IS NOT NULL AND TRIM(note) <> '' AND note LIKE ? ESCAPE '\\'
        GROUP BY note COLLATE NOCASE

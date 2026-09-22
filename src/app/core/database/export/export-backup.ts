@@ -58,8 +58,8 @@ export const TABLES = [
   'cashback_entries',
   // Before the entries, which point at them.
   'product_kinds',
-  'cushion_adjustments',
-  'cushion_withdrawals',
+  'product_entries',
+  'product_cashouts',
   'tax_parameters',
   'credit_limit_changes',
   'review_queue',

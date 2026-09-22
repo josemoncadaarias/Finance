@@ -2,14 +2,14 @@
  * Removing a product without losing anything it carried.
  *
  * Deleting the row alone was quietly destructive. Every day the product earned
- * went with it, so the account's cushion - and the year the tax simulator
+ * went with it, so what the account had earned - and the year the tax simulator
  * reads - shrank. Every movement that named it lost its product and landed in
  * whichever product takes unassigned money, moving a balance nobody chose to
  * move. And it happened on one tap, with no question asked.
  *
  * So removing a product hands all of it to another one, chosen by the person:
  *
- *   * **The history.** Movements, cushion entries, withdrawals and every day
+ *   * **The history.** Movements, a product's entries, cashouts and every day
  *     earned move across, summed where both products earned on the same day.
  *   * **The balance.** Whatever the removed product held that did not come
  *     with those movements - its own stated figure, mostly - arrives on the

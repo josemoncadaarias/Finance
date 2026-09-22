@@ -58,7 +58,7 @@ export class ProductKindsRepository {
   /** How many entries are filed under it, so archiving is an informed act. */
   async timesUsed(id: number): Promise<number> {
     const row = await this.db.queryOne<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM cushion_adjustments WHERE product_kind_id = ?', [id]);
+      'SELECT COUNT(*) AS total FROM product_entries WHERE product_kind_id = ?', [id]);
     return row?.total ?? 0;
   }
 
@@ -117,7 +117,7 @@ export class ProductKindsRepository {
    */
   async delete(id: number): Promise<void> {
     const used = await this.db.queryOne<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM cushion_adjustments WHERE product_kind_id = ?', [id]);
+      'SELECT COUNT(*) AS total FROM product_entries WHERE product_kind_id = ?', [id]);
     if ((used?.total ?? 0) > 0) {
       throw new Error(`That kind is used by ${used!.total} entries; archive it instead`);
     }

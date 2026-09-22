@@ -146,11 +146,11 @@ currency pair. This is the *official* rate, which is not what a bank charged:
 that one lives on the transaction. The gap between them is the provider's
 spread.
 
-### The cushion — yields and cashback
+### What a product has earned — yields and cashback
 
 Interest and cashback are money that was earned and never counted on. They are
 not part of net worth and not part of the balance of the account that produced
-them: they are a *cushion*, and moving any of it into an account is a
+them: they sit apart, and moving any of it into an account is a
 deliberate act, which the real history already shows happening (2026-08-13,
 part of the accumulated yield of Rappi cuenta, taken to pay the income-tax
 return).
@@ -158,7 +158,7 @@ return).
 **`yield_accounts`** — which accounts the app accrues, and from when. Being in
 this table is the switch: XTB, eToro, Fiducuenta and Multinversion are simply
 not in it, because their return is the market's and already arrives as ordinary
-movements. It also holds the opening cushion — the figure typed in once,
+movements. It also holds what the account had already earned before the app existed — the figure typed in once,
 because five years of daily yields cannot be reconstructed.
 
 **`yield_rates`** — the effective annual rate history, maintained by hand
@@ -176,7 +176,7 @@ can be explained rather than only recomputed.
 The daily rate is not the annual one over 365. An effective annual rate already
 contains its compounding, so the daily one is `(1 + annual) ^ (1/365) - 1`;
 dividing would under-pay by about 5% of the figure, every day. The accrual base
-is the account's ledger balance plus the cushion, because the bank did pay
+is the account's ledger balance plus what it has earned, because the bank did pay
 those yields in even though the ledger never recorded them.
 
 **`cashback_rules`** — the conditions as they stood on a date: a percentage,
@@ -190,9 +190,9 @@ category. Conditions change, so they are history, not settings.
 reward: a figure with nothing behind it cannot be checked against a statement.
 A reward typed in from a statement has no purchase and stands on its own.
 
-**`cushion_withdrawals`** — money moved out of the cushion and into an account,
+**`product_cashouts`** — money moved out of what a product earned and into an account,
 pointing at the movement it became so it is never counted twice. It outlives
-that movement being deleted, so the cushion never quietly grows back.
+that movement being deleted, so what was earned never quietly grows back.
 
 **`tax_parameters`** — the dated figures a withholding rule is made of: the UVT
 in pesos, the daily threshold in UVT, the percentage, and whether the

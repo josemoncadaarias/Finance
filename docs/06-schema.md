@@ -173,7 +173,7 @@ erDiagram
         INTEGER archived
         INTEGER sort_order
     }
-    cushion_adjustments {
+    product_entries {
         INTEGER id PK
         INTEGER account_id FK
         INTEGER pocket_id FK
@@ -184,7 +184,7 @@ erDiagram
         INTEGER amount_minor
         INTEGER transaction_id FK
     }
-    cushion_withdrawals {
+    product_cashouts {
         INTEGER id PK
         INTEGER account_id FK
         INTEGER pocket_id FK
@@ -263,17 +263,17 @@ erDiagram
     accounts       ||--o{ cashback_entries  : "receives"
     cashback_rules ||--o{ cashback_entries  : "worked out by"
     transactions   ||--o{ cashback_entries  : "produced"
-    accounts       ||--o{ cushion_adjustments : "corrected by"
-    yield_pockets  ||--o{ cushion_adjustments : "landed in"
+    accounts       ||--o{ product_entries : "corrected by"
+    yield_pockets  ||--o{ product_entries : "landed in"
     yield_pockets  ||--o{ transactions       : "money moved through"
-    yield_pockets  ||--o{ cushion_withdrawals : "taken out of"
+    yield_pockets  ||--o{ product_cashouts : "taken out of"
     yield_pockets  ||--o{ yield_pockets     : "a CDT matures into"
     categories     ||--o{ yield_pockets     : "a CDT's yield is recorded as"
-    accounts       ||--o{ cushion_withdrawals : "moved into"
-    transactions   ||--o| cushion_withdrawals : "became"
-    transactions   ||--o{ cushion_adjustments : "cashed in by"
-    product_kinds  ||--o{ cushion_adjustments : "is a"
-    categories     ||--o{ cushion_adjustments : "filed under"
+    accounts       ||--o{ product_cashouts : "moved into"
+    transactions   ||--o| product_cashouts : "became"
+    transactions   ||--o{ product_entries : "cashed in by"
+    product_kinds  ||--o{ product_entries : "is a"
+    categories     ||--o{ product_entries : "filed under"
     custom_icons   ||--o{ product_kinds       : "wears"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
@@ -308,7 +308,7 @@ case, and lets the two legs be in different currencies.
 
 `exchange_rates` caches the official TRM.
 
-The rest is the cushion: money earned but never counted on, kept deliberately
+The rest is what the products have earned: money but never counted on, kept deliberately
 outside the balance of the account that produced it and outside net worth.
 
 `yield_accounts` says which accounts the app accrues at all — an account with
@@ -333,7 +333,7 @@ optionally on one category, optionally requiring a minimum balance somewhere
 else. `cashback_entries.source_transaction_id` is the link no off-the-shelf app had:
 the reward knows which purchase produced it.
 
-`cushion_adjustments` is money that landed in the cushion on a date, and
+`product_entries` is money that landed on a product on a date, and
 `kind` says what it was: `cashback` that arrived, a `correction` against what
 the bank actually paid, or something `other` the note explains. They are kept
 apart because their tax treatment is not the same — cashback is not withheld
@@ -350,7 +350,7 @@ accrual is an estimate until the deposit lands; the difference is recorded here
 rather than by rewriting the daily history, which is the evidence of what was
 worked out and why. Signed, because the bank can pay more or less than expected.
 
-`cushion_withdrawals` is money taken out of the cushion and into an account,
+`product_cashouts` is money taken out of what a product earned and into an account,
 pointing at the movement it became so it is never counted twice.
 
 `tax_parameters` holds the dated figures a withholding rule is made of, and
@@ -423,13 +423,13 @@ outright:
 | `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each pocket |
 | `idx_cashback_rules_account` | the rules in force for a card on a date |
 | `idx_cashback_entries_account`, `idx_cashback_entries_source` | the cashback ledger, and the reward a purchase produced |
-| `idx_cushion_adjustments_account` | what has landed in an account's cushion |
-| `idx_cushion_adjustments_pocket` | and which pocket it landed in |
-| `idx_cushion_adjustments_kind` | and which kind it was filed under |
-| `idx_cushion_adjustments_category` | and the income category it is filed under, since migration 037 |
+| `idx_product_entries_account` | what has landed in an account's products |
+| `idx_product_entries_pocket` | and which pocket it landed in |
+| `idx_product_entries_kind` | and which kind it was filed under |
+| `idx_product_entries_category` | and the income category it is filed under, since migration 037 |
 | `idx_product_kinds_name` | a kind is named once |
-| `idx_cushion_adjustments_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
-| `idx_cushion_withdrawals_account` | what has been taken out of an account's cushion |
+| `idx_product_entries_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
+| `idx_product_cashouts_account` | what has been taken out of an account's products |
 | `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |
