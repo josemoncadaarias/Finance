@@ -58,6 +58,7 @@ import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { CushionEntryComponent, type CushionEntryRequest } from './cushion-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
 import {
   PERIOD_KINDS, currentPeriod, includesToday, periodLabel, rangePeriod, shiftPeriod, type Period, type PeriodKind,
@@ -154,7 +155,7 @@ interface Payment {
   styleUrls: ['./cushion.page.scss'],
   imports: [
     BusyOverlayComponent,
-    IconComponent, CushionEntryComponent, EntryComponent,
+    IconComponent, CushionEntryComponent, EntryComponent, ConfirmComponent,
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
@@ -2096,6 +2097,38 @@ export class CushionPage {
    * it alone — the same protection a hand-edited movement gets from a
    * re-import.
    */
+  /** Open while a day is being cleared. */
+  readonly confirmingZeroDay = signal(false);
+
+  /**
+   * "The bank paid nothing that day."
+   *
+   * Asked for as deleting a yield, and this is what deleting one means here.
+   * A day cannot simply be removed: the engine walks the calendar and would
+   * write it again on the next pass. Corrected to zero and locked, it stays
+   * on record saying the bank paid nothing - which is the fact - survives
+   * every recompute, and can still be undone, which a deleted row could not.
+   */
+  async zeroDay(): Promise<void> {
+    const line = this.openLine();
+    const day = this.openDay();
+    this.confirmingZeroDay.set(false);
+    if (!line || !day) return;
+
+    this.saving.set(true);
+    try {
+      const { yields } = this.repos();
+      await yields.correctDay(day.pocket_id, day.on_date, 0);
+      this.database.dataChanged();
+      await this.afterOwnChange(line.account.id);
+      this.form.set('none');
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   async saveDay(): Promise<void> {
     const line = this.openLine();
     const day = this.openDay();

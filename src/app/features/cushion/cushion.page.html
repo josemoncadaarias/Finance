@@ -918,6 +918,19 @@
                   {{ 'entry.save' | t }}
                 </ion-button>
               </div>
+
+              <!-- Deleting a yield the bank never paid. It is a correction to
+                   zero rather than a removed row: the engine walks the
+                   calendar and would write the day again on the next pass. -->
+              @if (netOf(day) !== 0 || day.locked !== 1) {
+                <div class="danger">
+                  <ion-button expand="block" fill="clear" color="danger"
+                              [disabled]="saving()" (click)="confirmingZeroDay.set(true)">
+                    <ion-icon slot="start" name="trash-outline"></ion-icon>
+                    {{ 'cushion.day.zero' | t }}
+                  </ion-button>
+                </div>
+              }
             }
           }
 
@@ -1569,3 +1582,9 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<!-- Clearing a yield the bank never paid. -->
+<app-confirm [open]="confirmingZeroDay()" [title]="'cushion.day.zero.ask' | t"
+             [body]="'cushion.day.zero.body' | t" [busy]="saving()"
+             [confirmLabel]="'cushion.day.zero.yes' | t"
+             (confirmed)="zeroDay()" (cancelled)="confirmingZeroDay.set(false)"></app-confirm>
