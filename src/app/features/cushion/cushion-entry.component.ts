@@ -56,6 +56,7 @@ import { CategoryEditorComponent } from '../categories/category-editor.component
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { InfoHintComponent } from '../../shared/info-hint.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -72,7 +73,7 @@ export interface CushionEntryRequest {
 @Component({
   selector: 'app-cushion-entry',
   imports: [
-    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent,
+    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent, ConfirmComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
   ],
@@ -799,9 +800,17 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
     await yields.removeAdjustment(editing.id);
   }
 
+  /** Open while the delete is being confirmed. Nothing is gone until it is. */
+  readonly confirmingDelete = signal(false);
+
+  askToDelete(): void {
+    if (this.request().editing) this.confirmingDelete.set(true);
+  }
+
   async remove(): Promise<void> {
     const editing = this.request().editing;
     if (!editing || this.saving()) return;
+    this.confirmingDelete.set(false);
     this.saving.set(true);
     this.error.set('');
     await this.sayBusy('busy.deletingMovement');

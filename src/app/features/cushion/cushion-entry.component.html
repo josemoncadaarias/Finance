@@ -221,7 +221,7 @@
     </div>
     @if (isEditing()) {
       <div class="danger-zone">
-        <ion-button expand="block" fill="clear" color="danger" [disabled]="saving()" (click)="remove()">
+        <ion-button expand="block" fill="clear" color="danger" [disabled]="saving()" (click)="askToDelete()">
           <ion-icon slot="start" name="trash-outline"></ion-icon>
           {{ 'entry.deleteMovement' | t }}
         </ion-button>
@@ -454,3 +454,9 @@
     </ion-content>
   </ng-template>
 </ion-modal>
+
+<!-- Nothing is deleted on one tap. -->
+<app-confirm [open]="confirmingDelete()" [title]="'entry.deleteMovement.ask' | t"
+             [body]="'entry.delete.body' | t" [busy]="saving()"
+             [confirmLabel]="'entry.delete.yes' | t"
+             (confirmed)="remove()" (cancelled)="confirmingDelete.set(false)"></app-confirm>

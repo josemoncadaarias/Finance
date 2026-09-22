@@ -636,6 +636,15 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
     margin-top: 0.75rem;
     cursor: pointer;
     font-size: 0.78rem;
+
+    /* The summary screen's own heading: it stays at the top of its group as
+       the list scrolls under it, on a surface of its own so the rows cannot
+       be read through it. Two lists of movements that behaved differently
+       were two things to learn. */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--ion-item-background, var(--ion-background-color));
     border-bottom: 1px solid var(--ion-color-light-shade);
 
     .chevron { color: var(--ion-color-medium); font-size: 0.9rem; }
@@ -713,6 +722,10 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
   }
 
   ion-note[slot='end'],
+  /* The first heading sits under the line that introduced the list, not a
+     gap away from it: the space was reading as the end of that sentence. */
+  .group:first-child .group-head { margin-top: 0.15rem; }
+
   .group-head .total {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;

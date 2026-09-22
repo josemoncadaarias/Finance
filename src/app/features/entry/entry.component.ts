@@ -50,6 +50,7 @@ import {
 import { outlined } from '../../core/icons/icon-catalog';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -71,7 +72,7 @@ export interface EntryRequest {
     IconComponent,
     CommonModule, TranslatePipe,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-    CategoryEditorComponent,
+    CategoryEditorComponent, ConfirmComponent,
     IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
     IonSearchbar, IonNote,
   ],
@@ -1261,9 +1262,27 @@ export class EntryComponent implements OnInit, OnDestroy {
     await transfers.create(transfer);
   }
 
+  /** Open while the delete is being confirmed. Nothing is gone until it is. */
+  readonly confirmingDelete = signal(false);
+
+  /**
+   * What the dialog asks, which is not the same question for a transfer.
+   *
+   * Deleting one leg of a transfer would leave money arriving from nowhere,
+   * so both go - and the person about to tap it should be told that before,
+   * not discover it after.
+   */
+  readonly deleteTitle = computed(() =>
+    this.i18n.t(this.isTransfer() ? 'entry.deleteTransfer.ask' : 'entry.deleteMovement.ask'));
+
+  askToDelete(): void {
+    if (this.request().editing) this.confirmingDelete.set(true);
+  }
+
   async remove(): Promise<void> {
     const editing = this.request().editing;
     if (!editing) return;
+    this.confirmingDelete.set(false);
 
     this.saving.set(true);
     try {
