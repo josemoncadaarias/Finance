@@ -423,6 +423,14 @@
         </span>
       </div>
 
+      <!-- The same two orders every other picker offers, drawn the same way. -->
+      <div class="order">
+        <button type="button" [class.on]="accountOrder() === 'use'"
+                (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="accountOrder() === 'name'"
+                (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
+
       <ion-list>
         @for (one of switchable(); track one.id) {
           <ion-item button lines="full" [id]="'product-account-' + one.id"

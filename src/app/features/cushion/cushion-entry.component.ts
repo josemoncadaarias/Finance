@@ -127,7 +127,43 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
    * with none has nothing for it to land in. Archived accounts are left out
    * for the same reason they are everywhere else.
    */
-  readonly switchable = signal<AccountRow[]>([]);
+  private readonly withProducts = signal<AccountRow[]>([]);
+
+  /**
+   * How the list is ordered, under the key every other account picker uses.
+   *
+   * One preference about one list. Choosing A-Z while recording a movement
+   * leaves the products form's list in A-Z too, which is what anyone would
+   * expect of a choice they made once.
+   */
+  readonly accountOrder = signal<'use' | 'name'>(readAccountOrder());
+
+  setAccountOrder(order: 'use' | 'name'): void {
+    this.accountOrder.set(order);
+    try {
+      localStorage.setItem('finance.accountOrder', order);
+    } catch {
+      // A browser with site data blocked still gets the order for this visit.
+    }
+  }
+
+  /** How many movements each account carries, for the "most used" order. */
+  private readonly useCounts = signal<Map<number, number>>(new Map());
+
+  readonly switchable = computed(() => {
+    const offered = this.withProducts();
+
+    // `localeCompare` so "Éxito" files under E and not after Z.
+    if (this.accountOrder() === 'name') {
+      return [...offered].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    }
+
+    const times = this.useCounts();
+    return [...offered].sort((a, b) => {
+      const byUse = (times.get(b.id) ?? 0) - (times.get(a.id) ?? 0);
+      return byUse !== 0 ? byUse : a.name.localeCompare(b.name, 'es');
+    });
+  });
 
   readonly amount = signal(new AmountBuffer());
   readonly pending = signal<Pending | null>(null);
@@ -196,7 +232,11 @@ export class CushionEntryComponent implements OnInit, OnDestroy {
       if ((await yields.pockets(account.id)).length > 0) withProducts.push(account);
     }
 
-    this.switchable.set(withProducts.sort((a, b) => a.name.localeCompare(b.name)));
+    this.withProducts.set(withProducts);
+
+    // What each one is used for, so "most used" has something to go on.
+    void new AccountsRepository(driver).timesUsed()
+      .then(counts => this.useCounts.set(counts));
   }
 
   /**
@@ -939,4 +979,12 @@ function readCategoryOrder(): 'use' | 'name' {
 /** Lowercased and without accents, for searching. */
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+/** The account list's order, the key every picker in the app shares. */
+function readAccountOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.accountOrder') === 'use' ? 'use' : 'name';
+  } catch {
+    return 'name';
+  }
 }
