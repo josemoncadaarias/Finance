@@ -793,10 +793,20 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
  * note repeated the count already on the heading's bubble. One button, named,
  * on the side of the screen the thumb is on.
  */
+/*
+ * A section's own controls: what it is filtered to on the left, and the
+ * fold on the right.
+ *
+ * The right edge lines up with the inset list below rather than with the
+ * screen - Jose found the fold button hard against the side of the phone,
+ * because this row had no gutter of its own while everything under it does.
+ */
 .months-controls {
   display: flex;
-  justify-content: flex-end;
-  margin: 0 0 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 1rem 0.5rem;
 
   button {
     display: inline-flex;
@@ -873,28 +883,12 @@ ion-content.sheet { --padding-bottom: 4.5rem; }
  * a question that is asked once and then left alone, and the lists under it
  * are what the screen is about.
  */
-.which-products {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.6rem 1rem 0;
+.months-controls .which {
+  /* Quieter than the fold beside it: it says what is being read, and the
+     fold is the thing being pressed. */
+  color: var(--ion-color-medium-shade);
 
-  button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 100%;
-    padding: 0.3rem 0.75rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-primary);
-    font-size: 0.74rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    ion-icon { font-size: 0.9rem; flex: none; }
-    .more { font-size: 0.7rem; opacity: 0.6; }
-
-    .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  }
+  .more { font-size: 0.7rem; opacity: 0.6; }
+  .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+

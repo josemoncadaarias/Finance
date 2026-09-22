@@ -609,21 +609,6 @@
               }
             }
 
-            <!-- Which products the two lists below are about.
-                 The bank pays each product apart and its app shows each one
-                 apart, so a list with all of them mixed together is a list
-                 nobody can hold beside it. Only where there is more than one
-                 product to choose between. -->
-            @if (line.pockets.length > 1) {
-              <div class="which-products">
-                <button type="button" (click)="pickingProducts.set(true)">
-                  <ion-icon name="funnel-outline"></ion-icon>
-                  <span class="text">{{ chosenProductsLabel() }}</span>
-                  <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-                </button>
-              </div>
-            }
-
             <!-- What the bank hands over. The list to hold beside the bank's
                  own app: same date, same rate, same figure. -->
             <button type="button" class="section-head" (click)="showPayments.set(!showPayments())"
@@ -641,6 +626,17 @@
             } @else {
               <p class="hint">{{ (paysEveryDay() ? 'cushion.payments.daily' : 'cushion.payments.hint') | t }}</p>
               <div class="months-controls">
+                <!-- Which products this list is about, beside the control
+                     that opens it. -->
+                @if (line.pockets.length > 1) {
+                  <button type="button" class="which" (click)="pickingProducts.set(true)">
+                    <ion-icon name="funnel-outline"></ion-icon>
+                    <span class="text">{{ chosenProductsLabel() }}</span>
+                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+                  </button>
+                } @else {
+                  <span></span>
+                }
                 <button type="button" (click)="togglePaymentMonths()"
                         [attr.aria-expanded]="!allPaymentMonthsClosed()">
                   <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
@@ -728,6 +724,17 @@
             } @else {
               <p class="hint">{{ 'cushion.days.hint' | t }}</p>
               <div class="months-controls">
+                <!-- Which products this list is about, beside the control
+                     that opens it. -->
+                @if (line.pockets.length > 1) {
+                  <button type="button" class="which" (click)="pickingProducts.set(true)">
+                    <ion-icon name="funnel-outline"></ion-icon>
+                    <span class="text">{{ chosenProductsLabel() }}</span>
+                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+                  </button>
+                } @else {
+                  <span></span>
+                }
                 <button type="button" (click)="toggleDayMonths()"
                         [attr.aria-expanded]="!allDayMonthsClosed()">
                   <ion-icon [name]="allDayMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
