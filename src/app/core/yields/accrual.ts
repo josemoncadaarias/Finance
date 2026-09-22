@@ -233,29 +233,24 @@ export class AccrualEngine {
     const last = await this.yields.lastAccruedDay(accountId);
     const rates = await this.yields.rateHistory(accountId);
 
+    // An account always has at least one product. Without one there is
+    // nothing to accrue on, and saying so beats writing zeroes.
+    const pockets = await this.yields.pockets(accountId);
+    if (pockets.length === 0) return nothing;
+
     // Where the walk starts.
     //
-    // The opening figure covers everything up to the day it was measured, so
-    // the first day this app can work out is the day after: starting earlier
-    // would work out days that figure already contains.
+    // Each product says the day it starts earning and the day before it is
+    // where its own record ends, so the first day the app can work out for it
+    // is the day after. The account walks from the earliest of them and each
+    // product sits out the days before its own - which is what lets one
+    // product of an account begin months after another, as Pibank's CDTs do.
     //
-    // A rate reaching further back pulls it back only where there is nothing
-    // recorded before that date to overlap with.
-    //
-    // The boundary used to be "the opening figure is not zero". Migration 040
-    // turned every one of those figures into an ordinary income to a product,
-    // dated the day before, so that test would now be true of every account
-    // and each would start a day early and invent a day of yield. What the
-    // figure really meant is what is asked now: is there a record of what this
-    // account had already earned before this date? If there is, it covers
-    // everything up to it and nothing earlier is worked out again. If there is
-    // none - Plata, whose products began on the 7th and the 8th - the rates
-    // decide, which is what Jose asked for on 2026-09-17.
-    const earliestRate = rates.map(rate => rate.valid_from).sort()[0];
-    const recorded = await this.yields.earnedBefore(accountId, enrolled.opening_on);
-    const earliest = !recorded && earliestRate !== undefined && earliestRate < enrolled.opening_on
-      ? earliestRate
-      : enrolled.opening_on;
+    // It was one date per account until 2026-09-22, overruling what each
+    // product said about itself. Migration 041 gave every product the day its
+    // account was already starting it from, so moving it here moved nothing.
+    const earliest = startsOn(pockets, enrolled.opening_on)
+      .reduce((first, day) => day < first ? day : first);
     const firstEver = nextDay(earliest);
 
     let resume = last === null ? firstEver : startOfMonth(last);
@@ -273,11 +268,6 @@ export class AccrualEngine {
       await this.yields.clearDays(accountId, from);
 
       const balances = await this.dailyBalances(accountId, upTo);
-
-      // An account always has at least one pocket. Without one there is
-      // nothing to accrue on, and saying so beats writing zeroes.
-      const pockets = await this.yields.pockets(accountId);
-      if (pockets.length === 0) return nothing;
 
       const entries: CushionEntry[] = await this.yields.adjustments(accountId);
       const takenOut = await this.yields.withdrawals(accountId);
@@ -428,6 +418,11 @@ export class AccrualEngine {
         const rule = await ruleFor(day);
 
         for (const pocket of pockets) {
+          // A product earns nothing before the day it starts earning from, and
+          // nothing on that day either: that day's own earning lands on the
+          // next one, like every other day here.
+          if (day <= (pocket.earns_from || enrolled.opening_on)) continue;
+
           // What the pocket holds on this day.
           //
           // A stated balance is a figure Jose read off the bank on a date, and
@@ -735,6 +730,18 @@ function statedOn(
   // figure follows, and the same rule an entry in the cushion follows. Money
   // that arrives today earns from tomorrow.
   return stated + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
+}
+
+/**
+ * The day each product starts earning from, never empty.
+ *
+ * A product of an account enrolled before migration 041 carries the account's
+ * old date; one added afterwards carries the day it was added. The fallback is
+ * for a product born in between - and for the tests, which build a database
+ * without going through the app.
+ */
+function startsOn(pockets: { earns_from: IsoDate }[], fallback: IsoDate): IsoDate[] {
+  return pockets.map(pocket => pocket.earns_from || fallback);
 }
 
 /** What a manual pocket held on a day: the newest figure on or before it. */

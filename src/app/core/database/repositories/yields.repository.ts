@@ -95,6 +95,14 @@ export interface YieldPocket {
    */
   payout: 'daily' | 'monthly';
   payout_months: number;
+  /**
+   * The day this product starts earning. Nothing before it is worked out.
+   *
+   * It used to be one date per account (`yield_accounts.opening_on`), which
+   * overruled what each product said about itself. It belongs here: what earns
+   * is the product. Empty on a product of an account that was never enrolled.
+   */
+  earns_from: IsoDate;
   /** A CDT's opening day and term in months. Null for any other product. */
   opened_on: IsoDate | null;
   term_months: number | null;
@@ -500,7 +508,8 @@ export class YieldsRepository {
   async pockets(accountId: number): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding,
+              earns_from, payout, payout_months, opened_on, term_months,
+              matures_into_pocket_id, income_category_id, withholding,
               include_in_net_worth
        FROM yield_pockets WHERE account_id = ? ORDER BY sort_order, id`,
       [accountId]);
@@ -510,7 +519,8 @@ export class YieldsRepository {
   async allPockets(): Promise<YieldPocket[]> {
     return this.db.query<YieldPocket>(
       `SELECT id, account_id, name, source, kind, sort_order, is_default, note,
-              payout, payout_months, opened_on, term_months, matures_into_pocket_id, income_category_id, withholding,
+              earns_from, payout, payout_months, opened_on, term_months,
+              matures_into_pocket_id, income_category_id, withholding,
               include_in_net_worth
        FROM yield_pockets ORDER BY account_id, sort_order, id`);
   }
@@ -522,6 +532,8 @@ export class YieldsRepository {
     kind?: ProductKind;
     sort_order?: number;
     note?: string | null;
+    /** The day it starts earning. Its account's own day when nothing says otherwise. */
+    earns_from?: IsoDate;
     payout?: 'daily' | 'monthly';
     payout_months?: number;
     opened_on?: IsoDate | null;
@@ -530,13 +542,23 @@ export class YieldsRepository {
     income_category_id?: number | null;
   }): Promise<number> {
     const now = this.now();
+    // A product of an account that already earns starts where that account
+    // starts. That is what the account's single date did for all of them, so
+    // keeping it means adding a product moves no figure; the product's own
+    // stated balance is what decides when it really begins to earn. Only a
+    // product of an account with no date at all starts today.
+    const earnsFrom = input.earns_from
+      ?? (await this.db.queryOne<{ opening_on: IsoDate }>(
+            'SELECT opening_on FROM yield_accounts WHERE account_id = ?',
+            [input.account_id]))?.opening_on
+      ?? todayIso();
     const result = await this.db.run(
-      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note,
+      `INSERT INTO yield_pockets (account_id, name, source, kind, sort_order, note, earns_from,
                                   payout, payout_months, opened_on, term_months,
                                   matures_into_pocket_id, income_category_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.account_id, input.name, input.source ?? 'manual', input.kind ?? 'high_yield',
-       input.sort_order ?? 0, input.note ?? null,
+       input.sort_order ?? 0, input.note ?? null, earnsFrom,
        input.payout ?? 'daily', input.payout_months ?? 1, input.opened_on ?? null, input.term_months ?? null,
        input.matures_into_pocket_id ?? null, input.income_category_id ?? null, now, now]);
     const id = result.lastId ?? 0;
@@ -690,6 +712,19 @@ export class YieldsRepository {
     await this.db.run(
       'UPDATE yield_pockets SET is_default = 1, include_in_net_worth = 1, updated_at = ? WHERE id = ?',
       [now, pocketId]);
+  }
+
+  /**
+   * Moves the day a product starts earning from.
+   *
+   * Everything already worked out for its account goes, because the days
+   * behind the new date are not days any more and the ones in front of it may
+   * never have been written. Days corrected by hand stay: `clearDays` leaves
+   * them alone.
+   */
+  async setPocketEarnsFrom(id: number, on: IsoDate): Promise<void> {
+    await this.db.run('UPDATE yield_pockets SET earns_from = ?, updated_at = ? WHERE id = ?',
+      [on, this.now(), id]);
   }
 
   async renamePocket(id: number, name: string): Promise<void> {

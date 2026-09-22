@@ -852,31 +852,25 @@ test('a figure typed for a pocket is the bank figure, cushion included', async (
     [1_009_645_100 + 276225, 1_009_746_725 + 276253]);
 });
 
-test('what was earned before the date on record does not pull the walk back', async () => {
+test('each product walks from its own day, not from its account', async () => {
   const { yields, engine, ids } = await setup();
-  await yields.enrol({
-    account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
+  const [first] = await yields.pockets(ids.rappi);
+  const second = await yields.addPocket({
+    account_id: ids.rappi, name: 'Bolsillo', source: 'manual', sort_order: 1,
+    earns_from: '2026-09-11',
   });
-  // A rate reaching a week further back than the date the account earns from.
-  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-02', annual_rate_scaled: pct(9) });
-
-  // And a record of what the bank had already paid by then, which migration
-  // 040 wrote for every account that carried an opening figure. It covers
-  // everything up to its own day, so nothing behind it is worked out again.
-  await yields.adjust({
-    account_id: ids.rappi, on_date: '2026-09-08', amount_minor: 491_743_498, kind: 'other',
+  await yields.setPocketBalance({
+    pocket_id: second, valid_from: '2026-09-11', amount_minor: 100_000_000,
   });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
 
-  await engine.accrue(ids.rappi, '2026-09-12');
-  const days = await yields.days(ids.rappi);
-  assert.deepEqual(days.map(day => day.on_date), ['2026-09-10', '2026-09-11', '2026-09-12']);
+  await engine.accrue(ids.rappi, '2026-09-13');
 
-  // Without that record the rate decides instead, which is Plata's case.
-  const { yields: other, engine: engine2, ids: ids2 } = await setup();
-  await other.enrol({ account_id: ids2.rappi, opening_on: '2026-09-09', withholding: false });
-  await other.setRate({ account_id: ids2.rappi, valid_from: '2026-09-02', annual_rate_scaled: pct(9) });
-  await engine2.accrue(ids2.rappi, '2026-09-12');
-  assert.equal((await other.days(ids2.rappi))[0].on_date, '2026-09-03');
+  // The one that starts on the 9th has been earning since the 10th; the one
+  // that starts on the 11th has not, and nobody worked out its first two days.
+  assert.equal((await yields.pocketDays(first.id))[0].on_date, '2026-09-10');
+  assert.equal((await yields.pocketDays(second)).map(day => day.on_date).sort()[0], '2026-09-12');
 });
 
 test('a pocket earning nothing is not a pocket losing what it earned', async () => {
@@ -1391,7 +1385,7 @@ test('a rate given an end stops, and nothing takes its place', async () => {
 // better answer about when there was something to work out.
 // ---------------------------------------------------------------------------
 
-test('a rate older than the enrolment pulls the first day back to it', async () => {
+test("a rate older than the product's own day does not pull the walk back", async () => {
   const { db, yields, engine, ids } = await setup();
   await yields.enrol({
     account_id: ids.rappi, opening_on: '2026-09-09', withholding: false,
@@ -1403,7 +1397,9 @@ test('a rate older than the enrolment pulls the first day back to it', async () 
     pocket_id: savings.id, valid_from: '2026-09-01', amount_minor: 20_000_000,
   });
 
-  // The rate says the 7th; the enrolment says the 9th. The rate wins.
+  // The rate says the 7th; the product says the 9th. The product wins - it is
+  // the day Jose says it starts earning, and a rate reaching further back does
+  // not make the app work out days he has already accounted for.
   await yields.setRate({
     account_id: ids.rappi, pocket_id: savings.id,
     valid_from: '2026-09-07', annual_rate_scaled: pct(11),
@@ -1412,11 +1408,11 @@ test('a rate older than the enrolment pulls the first day back to it', async () 
   await engine.accrue(ids.rappi, '2026-09-12');
   const days = (await yields.pocketDays(savings.id)).map(day => day.on_date).sort();
 
-  assert.equal(days[0], '2026-09-08', 'the day after the rate begins, not after the enrolment');
-  assert.ok(days.includes('2026-09-09'), 'and it goes on from there');
+  assert.equal(days[0], '2026-09-10', "the day after the product's own day");
+  assert.ok(days.includes('2026-09-11'), 'and it goes on from there');
 
-  // The enrolment still holds the floor when it is the earlier of the two:
-  // nothing can be worked out before there was anything to work it out on.
+  // A rate that starts later than the product decides the first day all the
+  // same: there is nothing to work a day out with before it.
   const later = await setup();
   await later.yields.enrol({
     account_id: later.ids.rappi, opening_on: '2026-09-01', withholding: false,
