@@ -389,16 +389,17 @@
                        date: dayText(line.earned.paidOn) } }}
                 </p>
               }
+              <!-- Of the figure above, the part this app worked out itself.
+                   It was an inset list with one row in it, which took the
+                   height of a section to say one number - Jose, 2026-09-22:
+                   "esa parte que dice Rendido me parece que esta ocupando un
+                   espacio exageradamente grande". A label and a value, like
+                   the line above it. -->
+              <p class="accrued">
+                {{ 'products.part.accrued' | t }}
+                <strong>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</strong>
+              </p>
             </section>
-
-            <!-- Taken apart, because a total nobody can check is a total
-                 nobody trusts. -->
-            <ion-list [inset]="true">
-              <ion-item lines="none">
-                <ion-label>{{ 'products.part.accrued' | t }}</ion-label>
-                <ion-note slot="end">{{ money(line.earned.accrued_minor, line.account.currency_code) }}</ion-note>
-              </ion-item>
-            </ion-list>
 
             <!-- How much is in each one, which the account's own figure
                  cannot say: that figure is a summary of everything inside it.

@@ -736,6 +736,19 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
 }
 
 /* Why the figure above does not move when a movement is registered today. */
+/* One line, the same shape as .earnsOn above it. */
+.accrued {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+
+  strong {
+    margin-left: 0.35rem;
+    color: var(--ion-text-color);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 .earnsOn-hint {
   margin: 0.15rem 0 0;
   font-size: 0.72rem;
