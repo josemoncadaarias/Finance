@@ -149,6 +149,7 @@ export class ReviewPage {
    */
   readonly asking = signal<
     { kind: 'accept' | 'discard' | 'forget'; batch: Batch } |
+    { kind: 'acceptOne'; line: Line } |
     { kind: 'discardOne'; line: Line } | null>(null);
 
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
@@ -356,16 +357,14 @@ export class ReviewPage {
   // Answering
   // -------------------------------------------------------------------------
 
-  async acceptOne(line: Line): Promise<void> {
-    // One movement, written and as deletable as any other: nothing to ask.
-    await this.write([line.proposal]);
-  }
 
-  /** What the dialog says, which is different for each of the three. */
+
+  /** What the dialog says, which is different for each of the five. */
   askTitle(): string {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
+    if (asking.kind === 'acceptOne') return this.i18n.t('review.accept.sure', { count: 1 });
     const count = asking.batch.lines.length;
     // Discarding a whole batch is its own sentence: the one a single row uses
     // says 'this movement', which is not what is about to happen.
@@ -377,17 +376,39 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
+    // Asking about one movement, it is worth saying WHICH: the amount, where
+    // it is being filed and the day. A confirmation that only asks "are you
+    // sure" adds a tap and says nothing.
+    if (asking.kind === 'acceptOne') {
+      const line = asking.line;
+      return [
+        this.money(line.proposal.amount_minor, line.account?.currency_code),
+        this.categoryOf(line)?.name ?? '',
+        this.dayText(line.proposal.occurred_on),
+        line.account?.name ?? '',
+      ].filter(Boolean).join(' · ');
+    }
     return this.i18n.t(`review.${asking.kind}.body`);
   }
 
   askLabel(): string {
     const asking = this.asking();
     if (asking === null) return '';
-    return this.i18n.t(`review.${asking.kind === 'discardOne' ? 'discard' : asking.kind}.do`);
+    const kind = asking.kind === 'discardOne' ? 'discard'
+      : asking.kind === 'acceptOne' ? 'accept'
+      : asking.kind;
+    return this.i18n.t(`review.${kind}.do`);
   }
 
   askIcon(): string {
-    return this.asking()?.kind === 'accept' ? 'checkmark-done-outline' : 'trash-outline';
+    const kind = this.asking()?.kind;
+    return kind === 'accept' || kind === 'acceptOne' ? 'checkmark-done-outline' : 'trash-outline';
+  }
+
+  /** Saving is not a destruction, and the dialog should not look like one. */
+  askTone(): 'danger' | 'primary' {
+    const kind = this.asking()?.kind;
+    return kind === 'accept' || kind === 'acceptOne' ? 'primary' : 'danger';
   }
 
   /** Does whatever was being asked about. */
@@ -398,6 +419,8 @@ export class ReviewPage {
 
     if (asking.kind === 'accept') {
       await this.write(asking.batch.lines.map(line => line.proposal));
+    } else if (asking.kind === 'acceptOne') {
+      await this.write([asking.line.proposal]);
     } else if (asking.kind === 'discard') {
       await this.rejectAll(asking.batch);
     } else if (asking.kind === 'discardOne') {

@@ -184,7 +184,8 @@
 
               <div class="answer" slot="end">
                 <button type="button" class="ok" [disabled]="working() || !ready(line)"
-                        (click)="acceptOne(line)" [attr.aria-label]="'review.accept' | t">
+                        (click)="asking.set({ kind: 'acceptOne', line })"
+                        [attr.aria-label]="'review.accept' | t">
                   <ion-icon name="checkmark-outline"></ion-icon>
                 </button>
                 <button type="button" class="no" [disabled]="working()"
@@ -210,5 +211,6 @@
                     (cancelled)="choosingFor.set(null)"></app-category-sheet>
 
 <app-confirm [open]="asking() !== null" [title]="askTitle()" [body]="askBody()"
-             [confirmLabel]="askLabel()" [icon]="askIcon()" [busy]="working()"
+             [confirmLabel]="askLabel()" [icon]="askIcon()" [tone]="askTone()"
+             [busy]="working()"
              (confirmed)="confirmed()" (cancelled)="asking.set(null)"></app-confirm>

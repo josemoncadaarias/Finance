@@ -38,7 +38,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <ion-button fill="outline" color="medium" (click)="cancelled.emit()">
               {{ 'entry.cancel' | t }}
             </ion-button>
-            <ion-button color="danger" [disabled]="busy()" (click)="confirmed.emit()">
+            <ion-button [color]="tone()" [disabled]="busy()" (click)="confirmed.emit()">
               {{ confirmLabel() }}
             </ion-button>
           </div>
@@ -54,6 +54,14 @@ export class ConfirmComponent {
   readonly body = input('');
   readonly confirmLabel = input.required<string>();
   readonly icon = input('trash-outline');
+  /**
+   * The colour of the button that goes ahead.
+   *
+   * Destructive by default, because that is what this dialog was built for.
+   * A question about saving something is not a warning, and painting it red
+   * would say it was.
+   */
+  readonly tone = input<'danger' | 'primary'>('danger');
   /** Shown in the dialog when the act itself failed. */
   readonly error = input('');
   readonly busy = input(false);
