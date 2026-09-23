@@ -145,9 +145,30 @@ export class ReviewPage {
    */
   readonly choosingFor = signal<Line | null>(null);
 
-  /** What is on offer depends on which way the money went. */
-  readonly choosingKind = computed<'expense' | 'income'>(() =>
-    (this.choosingFor()?.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income');
+  /**
+   * What is on offer depends on which way the money went.
+   *
+   * For one row that is its own sign. For a shop that repeats it is the sign
+   * they all share - and where they do not share one, the whole list, because
+   * a name that is sometimes money in and sometimes money out cannot be filed
+   * from half of it.
+   */
+  readonly choosingKind = computed<'expense' | 'income' | 'both'>(() => {
+    const line = this.choosingFor();
+    if (line !== null) return (line.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income';
+
+    const repeated = this.choosingMerchant();
+    if (repeated === null) return 'expense';
+
+    const signs = new Set<'expense' | 'income'>();
+    for (const batch of this.batches()) {
+      for (const one of batch.lines) {
+        if (merchantKeyOf(one.proposal.description) !== repeated.merchant) continue;
+        signs.add((one.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income');
+      }
+    }
+    return signs.size === 1 ? [...signs][0] : 'both';
+  });
 
   /** The category on a row, for the button that opens the sheet. */
   categoryOf(line: Line): CategoryRow | null {

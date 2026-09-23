@@ -65,11 +65,19 @@ export class CategorySheetComponent {
   /** The one already chosen, ticked in the list. */
   readonly chosen = input<number | null>(null);
   /**
-   * Which half of the list to show: what money goes out on, or what it comes
-   * in as. A movement is one or the other and offering both would be offering
-   * an answer that cannot be right.
+   * Which half of the list to show: what money goes out on, what it comes in
+   * as, or everything.
+   *
+   * One movement is one or the other, and offering the wrong half is offering
+   * answers that cannot be right - which is what the review screen did for a
+   * shop whose movements were incomes: it asked with the expense list because
+   * that was the default and nobody had told it otherwise.
+   *
+   * 'both' is for the case where the question covers several movements that do
+   * not agree: a name that is sometimes money in and sometimes money out is a
+   * name the person has to be allowed to file either way.
    */
-  readonly kind = input<'expense' | 'income'>('expense');
+  readonly kind = input<'expense' | 'income' | 'both'>('expense');
 
   readonly picked = output<number>();
   readonly cancelled = output<void>();
@@ -84,8 +92,9 @@ export class CategorySheetComponent {
 
   private async load(): Promise<void> {
     if (this.database.status() !== 'ready') return;
+    const kind = this.kind();
     this.categories.set(await new CategoriesRepository(this.database.driver)
-      .listByUse({ kind: this.kind(), since: aYearAgo() }));
+      .listByUse({ kind: kind === 'both' ? undefined : kind, since: aYearAgo() }));
   }
 
   setOrder(order: 'use' | 'name'): void {
