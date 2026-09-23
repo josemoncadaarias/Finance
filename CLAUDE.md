@@ -681,6 +681,46 @@ backup restore against iOS's own SQLite backend.
    rather than by care: **nothing here ever touches a row that already
    exists.** A proposal is a proposal until a person answers it.
 
+   **The opening balance is what absorbs the history nobody typed in.**
+   Jose's idea, 2026-09-23, and it is the thing that makes an imported
+   statement worth importing. An account opened in this app at zero, given one
+   month of statement worth two million, shows two million - while the bank
+   says four. The missing two million is not an error: it is the years before
+   that month, which nobody is ever going to type.
+
+   The balance this app shows is `opening_balance_minor` plus every movement,
+   whatever its date (`accounts.repository.ts`). So the figure that makes the
+   account agree with the bank is arithmetic, not a guess:
+
+       opening = what the bank said on day D  -  the movements up to day D
+
+   A statement hands over both halves of that: its closing date and its
+   closing balance. Accept its movements, set the opening figure to the
+   remainder, and the account says what the bank says - while everything typed
+   or notified AFTER that day goes on adding on top, correctly.
+
+   And it stays true as more history arrives. Import an older statement, accept
+   its movements, and the same line is computed again: the sum up to D grew, so
+   the opening figure shrinks by exactly as much, and the balance never moves.
+   Jose said "ir restando cada vez", which is the same thing said as a
+   difference; computing it from the anchor instead is what makes it
+   self-correcting rather than a running total that can drift.
+
+   What that needs: the anchor itself on record - the day and the figure the
+   bank stated - so it can be recomputed rather than remembered. Not built yet.
+
+   **Three rules for it, when it is built:**
+   - **Only ever offered, never done.** It rewrites `opening_balance_minor`,
+     which is Jose's own figure, so the screen shows what it is now, what it
+     would become, and why - and he presses the button.
+   - **Only from a statement that agrees with itself.** A misread closing
+     balance would anchor the account to a wrong number, which is worse than
+     leaving it alone.
+   - **It is not a yield, a product or a correction.** It touches one column of
+     one row, and it never invents a movement to explain itself - that was the
+     mistake of the opening figure in rule 15, and it is not to be repeated
+     under a new name.
+
    **The first step is not code**: read the notifications Jose's own banks
    post and show them raw for a few days, interpreting nothing. Half of them
    may be useless ("open the app to see"), and that is worth knowing before a
