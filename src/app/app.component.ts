@@ -74,6 +74,7 @@ export class AppComponent {
     { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
     { path: '/products', label: 'nav.products', hint: 'nav.products.hint', icon: 'piggy-bank' },
     { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
+    { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'checkmark-done-outline' },
     { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'swap-vertical-outline' },
     { path: '/account', label: 'nav.account', hint: 'nav.account.hint', icon: 'person-circle-outline' },
   ];

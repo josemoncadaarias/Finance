@@ -29,6 +29,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/tax/tax.page').then(m => m.TaxPage),
   },
   {
+    // Where a reading waits for a person. Reached from the drawer, which is
+    // also where the count of what is waiting shows, so nothing piles up unseen.
+    path: 'review',
+    loadComponent: () => import('./features/review/review.page').then(m => m.ReviewPage),
+  },
+  {
     path: 'export',
     loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
   },

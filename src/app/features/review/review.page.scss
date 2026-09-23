@@ -1,0 +1,189 @@
+/* The screen where a reading is answered. Nothing here is decorative: every
+   line has to be readable at a glance and correctable with one tap. */
+
+ion-title small {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--ion-color-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.state {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.failed {
+  margin: 0.8rem 1rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
+  color: var(--ion-color-danger);
+  font-size: 0.85rem;
+
+  ion-icon { vertical-align: -2px; margin-right: 0.3rem; }
+}
+
+/* Nothing waiting: the ordinary state, and it explains itself. */
+.empty {
+  padding: 3.5rem 2rem;
+  text-align: center;
+  color: var(--ion-color-medium);
+
+  ion-icon { font-size: 2.6rem; opacity: 0.5; }
+  .lead { margin: 0.8rem 0 0.3rem; font-size: 1rem; color: var(--ion-text-color); }
+  .hint { margin: 0; font-size: 0.82rem; line-height: 1.5; }
+}
+
+.batch > header {
+  padding: 1.1rem 1.2rem 0;
+
+  h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .hint {
+    margin: 0.15rem 0 0;
+    font-size: 0.78rem;
+    color: var(--ion-color-medium);
+  }
+}
+
+.line {
+  --padding-top: 0.6rem;
+  --padding-bottom: 0.6rem;
+
+  /* A row that cannot be written yet is not an error: it is a question. */
+  &.unready { --background: rgba(var(--ion-color-warning-rgb), 0.07); }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .on {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ion-color-medium);
+    font: inherit;
+    font-size: 0.8rem;
+  }
+
+  .amount {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-color-success);
+
+    &.out { color: var(--ion-text-color); }
+  }
+
+  .what {
+    margin: 0.2rem 0 0;
+    font-size: 0.92rem;
+    white-space: normal;
+  }
+
+  .evidence {
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--ion-color-medium);
+    white-space: normal;
+  }
+
+  /* What the app noticed. Each one is a question, so none of them is red. */
+  .flag {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    white-space: normal;
+
+    ion-icon { flex: none; margin-top: 0.1rem; font-size: 0.9rem; }
+
+    &.same { color: var(--ion-color-warning-shade); }
+    &.pair { color: var(--ion-color-primary); }
+    &.guessed { color: var(--ion-color-medium); }
+  }
+
+  .fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    margin-top: 0.5rem;
+  }
+
+  .pick {
+    --padding-start: 0.6rem;
+    --padding-end: 0.4rem;
+    min-height: 1.9rem;
+    max-width: 60%;
+    border: 1px solid var(--ion-color-step-200);
+    border-radius: 999px;
+    font-size: 0.78rem;
+  }
+
+  .learned {
+    font-size: 0.7rem;
+    color: var(--ion-color-medium);
+  }
+
+  .turn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--ion-color-step-200);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium);
+    font-size: 0.72rem;
+  }
+
+  .typed { margin-top: 0.4rem; }
+}
+
+/* Accept and discard, the same size and the same distance apart on every row,
+   so neither is ever hit by accident. */
+.answer {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  margin-top: 0.3rem;
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ion-color-step-100);
+    color: var(--ion-color-medium);
+    font-size: 1.05rem;
+
+    &:disabled { opacity: 0.35; }
+    &.ok { background: rgba(var(--ion-color-success-rgb), 0.15); color: var(--ion-color-success-shade); }
+    &.no.sure { background: var(--ion-color-danger); color: #fff; }
+  }
+}
+
+.batch-actions {
+  padding: 0 1rem 1.5rem;
+
+  ion-button { margin: 0.2rem 0; }
+}

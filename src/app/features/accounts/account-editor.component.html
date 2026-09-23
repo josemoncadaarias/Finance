@@ -111,6 +111,18 @@
     </ion-item>
 
     @if (!isNew()) {
+      <!-- A statement belongs to an account, so this is where it is opened
+           from. What it reads is proposed, never saved: the review screen is
+           where a person answers it. Rule 22. -->
+      <ion-item button [disabled]="reading()" (click)="pickStatement()">
+        <ion-icon slot="start" name="document-attach-outline"></ion-icon>
+        <ion-label>
+          <p class="strong">{{ 'statement.import' | t }}</p>
+          <p class="hint">{{ 'statement.import.hint' | t }}</p>
+        </ion-label>
+        @if (reading()) { <ion-spinner slot="end"></ion-spinner> }
+      </ion-item>
+
       <ion-item>
         <ion-toggle [checked]="archived()"
                     (ionChange)="archived.set($any($event.detail).checked)">

@@ -57,9 +57,9 @@ export async function textOfPdf(
     task = pdfjs.getDocument({
       data: new Uint8Array(file),
       password,
-      // Nothing is fetched from anywhere while a statement is read.
+      // Nothing is fetched from anywhere while a statement is read: no
+      // fonts, no standard-font files, nothing but the bytes handed over.
       disableFontFace: true,
-      isEvalSupported: false,
       useSystemFonts: false,
     });
     document = await task.promise;

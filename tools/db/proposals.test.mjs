@@ -18,6 +18,8 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { merchantKeyOf } from '../../src/app/core/proposals/merchant.ts';
 import { sameMovementAs, transferPairs } from '../../src/app/core/proposals/matching.ts';
+import { accept, isComplete } from '../../src/app/core/proposals/accept.ts';
+import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 
 const NOW = () => '2026-09-23T12:00:00Z';
 
@@ -40,7 +42,9 @@ async function setup() {
   const mercados = await categories.create({ name: 'Mercados', kind: 'expense', builtin_icon: 'cart' });
   const restaurante = await categories.create({ name: 'Restaurante', kind: 'expense', builtin_icon: 'restaurant' });
 
-  return { db, accounts, categories, transactions, proposals, rappi, nu, mercados, restaurante };
+  const transfers = new TransfersRepository(db, NOW);
+
+  return { db, accounts, categories, transactions, transfers, proposals, rappi, nu, mercados, restaurante };
 }
 
 // ---------------------------------------------------------------------------
@@ -302,5 +306,75 @@ test('a notification nobody could read still arrives, saying so', async () => {
   assert.equal(waiting.account_id, null);
   assert.equal(JSON.parse(waiting.evidence).package, 'com.banco.app',
     'the person is told which app it came from, and types the rest');
+  await db.close();
+});
+
+// ---------------------------------------------------------------------------
+// Accepting one
+// ---------------------------------------------------------------------------
+
+test('accepting a proposal writes an ordinary movement, and teaches the app', async () => {
+  const { db, proposals, transactions, transfers, rappi, mercados } = await setup();
+
+  const [id] = await proposals.propose('extracto-1', [{
+    source: 'statement', account_id: rappi, occurred_on: '2026-09-10',
+    amount_minor: -45_000_00, description: 'COMPRA EXITO POBLADO 4471', evidence: {},
+  }]);
+  await proposals.correct(id, { category_id: mercados });
+
+  const result = await accept({ proposals, transactions, transfers },
+    [await proposals.byId(id)]);
+
+  assert.equal(result.written, 1);
+  const [movement] = await transactions.list();
+  assert.equal(movement.amount_minor, -45_000_00);
+  assert.equal(movement.category_id, mercados);
+  assert.equal(movement.description, 'COMPRA EXITO POBLADO 4471');
+  assert.equal(movement.source, 'manual', 'a movement like any other afterwards');
+
+  assert.equal((await proposals.byId(id)).status, 'accepted');
+  assert.equal((await proposals.byId(id)).transaction_id, movement.id);
+  assert.equal(await proposals.learnedCategoryOf('EXITO POB 99'), mercados,
+    'and the shop is remembered for the next one');
+  await db.close();
+});
+
+test('the two halves of a transfer are accepted as one transfer', async () => {
+  const { db, proposals, transactions, transfers, rappi, nu } = await setup();
+
+  const ids = await proposals.propose('extracto-1', [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -200_000_00,
+      description: 'Envio a Nu', evidence: {} },
+    { source: 'statement', account_id: nu, occurred_on: '2026-09-10', amount_minor: 200_000_00,
+      description: 'De Rappi', evidence: {} },
+  ]);
+  const both = await Promise.all(ids.map(id => proposals.byId(id)));
+
+  const result = await accept({ proposals, transactions, transfers }, both);
+
+  assert.equal(result.written, 1, 'one transfer, not two movements');
+  const movements = await transactions.list();
+  assert.equal(movements.length, 2, 'which is two legs');
+  assert.ok(movements.every(movement => movement.transfer_id !== null));
+  assert.ok(both.every(async proposal => (await proposals.byId(proposal.id)).status === 'accepted'));
+  await db.close();
+});
+
+test('a reading that is still missing something is refused, not written half-formed', async () => {
+  const { db, proposals, transactions, transfers } = await setup();
+
+  const [id] = await proposals.propose('avisos-1', [{
+    source: 'notification', account_id: null, occurred_on: '2026-09-23',
+    amount_minor: null, description: null, evidence: { text: 'Tienes un nuevo movimiento' },
+  }]);
+  const proposal = await proposals.byId(id);
+  assert.equal(isComplete(proposal), false);
+
+  const result = await accept({ proposals, transactions, transfers }, [proposal]);
+
+  assert.equal(result.written, 0);
+  assert.deepEqual(result.refused, [{ id, reason: 'incomplete' }]);
+  assert.equal((await transactions.list()).length, 0);
+  assert.equal((await proposals.byId(id)).status, 'pending', 'and it is still waiting');
   await db.close();
 });

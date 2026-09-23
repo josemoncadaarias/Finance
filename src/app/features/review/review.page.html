@@ -1,0 +1,155 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>
+      {{ 'review.title' | t }}
+      @if (total() > 0) { <small>{{ total() }}</small> }
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (loading()) {
+    <div class="state"><ion-spinner></ion-spinner></div>
+  } @else {
+    @if (error()) {
+      <p class="failed">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        {{ error() }}
+      </p>
+    }
+
+    @if (batches().length === 0) {
+      <!-- Nothing waiting is the ordinary state of this screen, and it says
+           where the readings come from rather than only that there are none. -->
+      <div class="empty">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        <p class="lead">{{ 'review.empty' | t }}</p>
+        <p class="hint">{{ 'review.empty.hint' | t }}</p>
+      </div>
+    }
+
+    @for (batch of batches(); track batch.key) {
+      <section class="batch">
+        <header>
+          <h2>{{ batch.title }}</h2>
+          <p class="hint">{{ 'review.batch.count' | t:{ count: batch.lines.length } }}</p>
+        </header>
+
+        <ion-list [inset]="true">
+          @for (line of batch.lines; track line.proposal.id) {
+            <ion-item class="line" [class.unready]="!ready(line)" lines="full">
+              <ion-label>
+                <!-- What it says it is, first: a date, a name, an amount. -->
+                <div class="head">
+                  <input class="on" type="date" [value]="line.proposal.occurred_on ?? ''"
+                         (change)="setDate(line, $any($event.target).value)"
+                         [attr.aria-label]="'review.date' | t" />
+                  <span class="amount" [class.out]="(line.proposal.amount_minor ?? 0) < 0">
+                    {{ money(line.proposal.amount_minor, line.account?.currency_code) }}
+                  </span>
+                </div>
+
+                <p class="what">{{ line.proposal.description || ('review.noDescription' | t) }}</p>
+
+                <!-- The line it was read from. A figure whose origin cannot be
+                     shown is a figure nobody can check. -->
+                @if (line.evidence) {
+                  <p class="evidence">{{ line.evidence }}</p>
+                }
+
+                <!-- The questions, never decisions: both of these are things
+                     the app noticed and the person settles. -->
+                @if (line.sameAs) {
+                  <p class="flag same">
+                    <ion-icon name="copy-outline"></ion-icon>
+                    {{ line.sameAs }}
+                  </p>
+                }
+                @if (line.pairedWith) {
+                  <p class="flag pair">
+                    <ion-icon name="swap-horizontal-outline"></ion-icon>
+                    {{ line.pairedWith }}
+                  </p>
+                }
+                @if (line.guessed) {
+                  <p class="flag guessed">
+                    <ion-icon name="help-circle-outline"></ion-icon>
+                    {{ 'review.guessed' | t }}
+                  </p>
+                }
+
+                <div class="fields">
+                  <!-- An account only where the reading could not name one,
+                       which is the notification nobody could tie to a bank. -->
+                  @if (!line.account) {
+                    <ion-select class="pick" interface="action-sheet"
+                                [placeholder]="'review.pickAccount' | t"
+                                (ionChange)="setAccount(line, $any($event.detail).value)">
+                      @for (account of accounts(); track account.id) {
+                        <ion-select-option [value]="account.id">{{ account.name }}</ion-select-option>
+                      }
+                    </ion-select>
+                  }
+
+                  <ion-select class="pick" interface="action-sheet"
+                              [value]="line.proposal.category_id"
+                              [placeholder]="'review.pickCategory' | t"
+                              (ionChange)="setCategory(line, $any($event.detail).value)">
+                    @for (category of categories(); track category.id) {
+                      <ion-select-option [value]="category.id">{{ category.name }}</ion-select-option>
+                    }
+                  </ion-select>
+
+                  @if (line.proposal.category_from === 'learned') {
+                    <span class="learned">{{ 'review.learned' | t }}</span>
+                  }
+
+                  @if (line.proposal.amount_minor !== null) {
+                    <button type="button" class="turn" (click)="turnAround(line)">
+                      <ion-icon name="swap-vertical-outline"></ion-icon>
+                      {{ ((line.proposal.amount_minor ?? 0) < 0 ? 'review.isExpense' : 'review.isIncome') | t }}
+                    </button>
+                  }
+                </div>
+
+                <!-- What a notification could not read is typed here, which is
+                     the case Jose asked for by name. -->
+                @if (line.proposal.amount_minor === null) {
+                  <ion-input class="typed" [label]="'review.typeAmount' | t" labelPlacement="stacked"
+                             inputmode="decimal"
+                             (ionChange)="setAmount(line, $any($event.target).value)"></ion-input>
+                }
+              </ion-label>
+
+              <div class="answer" slot="end">
+                <button type="button" class="ok" [disabled]="working() || !ready(line)"
+                        (click)="acceptOne(line)" [attr.aria-label]="'review.accept' | t">
+                  <ion-icon name="checkmark-outline"></ion-icon>
+                </button>
+                <button type="button" class="no" [class.sure]="discarding() === line.proposal.id"
+                        [disabled]="working()" (click)="discard(line)"
+                        [attr.aria-label]="'review.discard' | t">
+                  <ion-icon [name]="discarding() === line.proposal.id ? 'trash' : 'trash-outline'"></ion-icon>
+                </button>
+              </div>
+            </ion-item>
+          }
+        </ion-list>
+
+        <div class="batch-actions">
+          <ion-button expand="block" [disabled]="working()" (click)="acceptBatch(batch)">
+            <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
+            {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
+          </ion-button>
+          <ion-button expand="block" fill="clear" color="medium"
+                      [disabled]="working()" (click)="discardBatch(batch)">
+            {{ (discarding() === -1 ? 'review.discardAll.sure' : 'review.discardAll') | t }}
+          </ion-button>
+        </div>
+      </section>
+    }
+  }
+</ion-content>

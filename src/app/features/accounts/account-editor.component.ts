@@ -20,13 +20,17 @@ import { FormsModule } from '@angular/forms';
 import {
   IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
   IonInput, IonLabel, IonSelect, IonSelectOption, IonToggle, IonList, IonNote,
-  IonFooter, IonModal, IonDatetime,
+  IonFooter, IonModal, IonDatetime, IonSpinner,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
+import { Router } from '@angular/router';
+
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { StatementsService } from '../../core/statements/statements.service';
+import { StatementLocked, StatementUnreadable } from '../../core/statements/pdf-text';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -47,7 +51,7 @@ const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
     BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
     IonInput, IonLabel, IonSelect, IonSelectOption, IonToggle, IonList, IonNote,
-    IonFooter, IonModal, IonDatetime,
+    IonFooter, IonModal, IonDatetime, IonSpinner,
   ],
   templateUrl: './account-editor.component.html',
   styleUrls: ['./account-editor.component.scss'],
@@ -60,6 +64,12 @@ export class AccountEditorComponent implements OnInit {
   readonly editing = input<AccountRow | null>(null);
   readonly saved = output<void>();
   readonly cancelled = output<void>();
+
+  private readonly statements = inject(StatementsService);
+  private readonly router = inject(Router);
+
+  /** True while a statement is being read, which takes a moment on a phone. */
+  readonly reading = signal(false);
 
   readonly accountIcons = ACCOUNT_ICONS;
   readonly types = TYPES;
@@ -354,6 +364,60 @@ export class AccountEditorComponent implements OnInit {
       effective_on: this.limitEffectiveOn(),
       note: this.i18n.t(current === null ? 'accounts.limit.initial' : 'accounts.limit.changed'),
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // A statement
+  // -------------------------------------------------------------------------
+
+  /**
+   * Opens a statement for this account.
+   *
+   * Nothing is saved here: what the file says becomes proposals, and the
+   * review screen is where a person accepts, corrects or throws each of them
+   * away. A statement that asks for a password asks once, here.
+   */
+  async pickStatement(): Promise<void> {
+    const account = this.editing();
+    if (!account) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) await this.readStatement(account.id, file);
+    };
+    input.click();
+  }
+
+  private async readStatement(accountId: number, file: File, password?: string): Promise<void> {
+    this.reading.set(true);
+    this.error.set('');
+    try {
+      await this.statements.importInto(accountId, file, password);
+      this.database.dataChanged();
+      this.cancelled.emit();
+      await this.router.navigateByUrl('/review');
+    } catch (problem) {
+      if (problem instanceof StatementLocked) {
+        // Asked for only when the file itself says it needs one, rather than
+        // of everybody every time.
+        const typed = window.prompt(this.i18n.t('statement.password'));
+        if (typed) {
+          this.reading.set(false);
+          await this.readStatement(accountId, file, typed);
+          return;
+        }
+        this.error.set(this.i18n.t('statement.password.hint'));
+      } else if (problem instanceof StatementUnreadable) {
+        this.error.set(this.i18n.t('statement.unreadable'));
+      } else {
+        this.error.set(problem instanceof Error ? problem.message : String(problem));
+      }
+    } finally {
+      this.reading.set(false);
+    }
   }
 }
 

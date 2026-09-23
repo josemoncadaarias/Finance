@@ -1,0 +1,316 @@
+/**
+ * What the app has read, waiting for a person to answer it.
+ *
+ * The point of the whole feature and not a detail of it - Jose, 2026-09-23:
+ * "eso es lo mas importante de todo esto en realidad". Nothing reaches the
+ * ledger from here without somebody saying so, and everything on this screen
+ * can be corrected before it does.
+ *
+ * A statement arrives as a batch of many, so it is answered as a batch: the
+ * list is read down, anything wrong is corrected in place, and one button
+ * accepts the lot. A notification arrives alone and is answered alone. Both
+ * are the same rows on the same screen.
+ */
+
+import { Component, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import {
+  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
+  IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
+  IonSpinner, IonMenuButton,
+} from '@ionic/angular';
+
+import { DatabaseService } from '../../core/database/database.service';
+import { ProposalsRepository, type MovementProposal } from '../../core/database/repositories/proposals.repository';
+import type { AccountRow, CategoryRow } from '../../core/database/types';
+import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
+import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
+import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
+import { accept, isComplete } from '../../core/proposals/accept';
+import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
+/** A proposal with everything the screen needs to explain it. */
+interface Line {
+  proposal: MovementProposal;
+  account: AccountRow | null;
+  /** The movement it may already be, in words. */
+  sameAs: string | null;
+  /** The other half of a transfer, in words. */
+  pairedWith: string | null;
+  /** What was read, as the statement or the notification put it. */
+  evidence: string;
+  /** True where the sign was guessed from the words rather than proved. */
+  guessed: boolean;
+}
+
+/** The rows of one statement, or of one batch of notifications. */
+interface Batch {
+  key: string;
+  title: string;
+  lines: Line[];
+}
+
+@Component({
+  selector: 'app-review',
+  standalone: true,
+  imports: [
+    CommonModule, FormsModule, TranslatePipe,
+    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
+    IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
+    IonSpinner, IonMenuButton,
+  ],
+  templateUrl: './review.page.html',
+  styleUrls: ['./review.page.scss'],
+})
+export class ReviewPage {
+  private readonly database = inject(DatabaseService);
+  private readonly i18n = inject(I18nService);
+
+  readonly loading = signal(true);
+  readonly working = signal(false);
+  readonly error = signal('');
+
+  readonly batches = signal<Batch[]>([]);
+  readonly categories = signal<CategoryRow[]>([]);
+  readonly accounts = signal<AccountRow[]>([]);
+
+  /** The row whose amount or date is being corrected, if any. */
+  readonly editing = signal<number | null>(null);
+  /** The row waiting to be told a second time that it is being thrown away. */
+  readonly discarding = signal<number | null>(null);
+
+  readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
+
+  constructor() {
+    void this.refresh();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    await this.refresh();
+  }
+
+  async refresh(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const db = this.database.driver;
+      const proposals = new ProposalsRepository(db);
+      const accounts = new AccountsRepository(db);
+      const categories = new CategoriesRepository(db);
+      const transactions = new TransactionsRepository(db);
+
+      const [waiting, allAccounts, allCategories] = await Promise.all([
+        proposals.pending(), accounts.list(), categories.list(),
+      ]);
+      this.accounts.set(allAccounts);
+      this.categories.set(allCategories);
+
+      const accountOf = new Map(allAccounts.map(account => [account.id, account]));
+      const known = new Map<string, Batch>();
+      const waitingById = new Map(waiting.map(one => [one.id, one]));
+
+      for (const proposal of waiting) {
+        const account = proposal.account_id === null ? null : accountOf.get(proposal.account_id) ?? null;
+        const evidence = this.evidenceOf(proposal);
+
+        let sameAs: string | null = null;
+        if (proposal.maybe_same_as !== null) {
+          const already = await transactions.findById(proposal.maybe_same_as);
+          if (already) {
+            sameAs = this.i18n.t('review.maybeSame', {
+              date: already.occurred_on,
+              amount: formatMoney(already.amount_minor, 'COP'),
+              note: already.description ?? '',
+            });
+          }
+        }
+
+        const other = proposal.pairs_with === null ? null : waitingById.get(proposal.pairs_with) ?? null;
+        const pairedWith = other === null ? null : this.i18n.t('review.pairedWith', {
+          account: (other.account_id === null ? null : accountOf.get(other.account_id)?.name) ?? '',
+        });
+
+        const batch = known.get(proposal.batch) ?? {
+          key: proposal.batch,
+          title: this.titleOf(proposal, account),
+          lines: [],
+        };
+        batch.lines.push({
+          proposal,
+          account,
+          sameAs,
+          pairedWith,
+          evidence,
+          guessed: this.guessedOf(proposal),
+        });
+        known.set(proposal.batch, batch);
+      }
+
+      this.batches.set([...known.values()]);
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // What the screen says about a row
+  // -------------------------------------------------------------------------
+
+  private read(proposal: MovementProposal): Record<string, unknown> {
+    try {
+      return JSON.parse(proposal.evidence) as Record<string, unknown> ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  private evidenceOf(proposal: MovementProposal): string {
+    const read = this.read(proposal);
+    if (typeof read['line'] === 'string') return read['line'];
+    const title = typeof read['title'] === 'string' ? read['title'] : '';
+    const text = typeof read['text'] === 'string' ? read['text'] : '';
+    return [title, text].filter(Boolean).join(' - ');
+  }
+
+  private guessedOf(proposal: MovementProposal): boolean {
+    return this.read(proposal)['confidence'] === 'low';
+  }
+
+  private titleOf(proposal: MovementProposal, account: AccountRow | null): string {
+    const read = this.read(proposal);
+    const where = account?.name ?? this.i18n.t('review.noAccount');
+    if (proposal.source === 'notification') return this.i18n.t('review.fromNotification', { account: where });
+    const file = typeof read['file'] === 'string' ? read['file'] : '';
+    return this.i18n.t('review.fromStatement', { account: where, file });
+  }
+
+  /** Whether this row can be written at all, for the button that writes it. */
+  ready(line: Line): boolean {
+    return isComplete(line.proposal);
+  }
+
+  money(minor: number | null, currency?: string): string {
+    if (minor === null) return '—';
+    return formatMoney(minor, currency ?? 'COP');
+  }
+
+  // -------------------------------------------------------------------------
+  // Correcting one
+  // -------------------------------------------------------------------------
+
+  async setCategory(line: Line, categoryId: number | null): Promise<void> {
+    await this.save(line, { category_id: categoryId });
+  }
+
+  async setAccount(line: Line, accountId: number): Promise<void> {
+    await this.save(line, { account_id: accountId });
+  }
+
+  async setDate(line: Line, on: string): Promise<void> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) return;
+    await this.save(line, { occurred_on: on });
+  }
+
+  /**
+   * The amount, typed the way the app itself writes it.
+   *
+   * The sign is kept from what was read: somebody correcting 45.000 to 46.000
+   * is correcting the figure, not turning an expense into an income. Turning
+   * it round is what the two buttons beside it are for.
+   */
+  async setAmount(line: Line, typed: string): Promise<void> {
+    const text = typed.trim();
+    if (text.length === 0) return;
+    try {
+      const minor = parseTypedAmountToMinor(text.replace(/^-/, ''));
+      const negative = (line.proposal.amount_minor ?? -1) < 0 || text.startsWith('-');
+      await this.save(line, { amount_minor: negative ? -minor : minor });
+    } catch {
+      this.error.set(this.i18n.t('review.error.amount'));
+    }
+  }
+
+  async turnAround(line: Line): Promise<void> {
+    if (line.proposal.amount_minor === null) return;
+    await this.save(line, { amount_minor: -line.proposal.amount_minor });
+  }
+
+  private async save(line: Line, fields: Parameters<ProposalsRepository['correct']>[1]): Promise<void> {
+    this.error.set('');
+    const proposals = new ProposalsRepository(this.database.driver);
+    await proposals.correct(line.proposal.id, fields);
+    await this.refresh();
+  }
+
+  // -------------------------------------------------------------------------
+  // Answering
+  // -------------------------------------------------------------------------
+
+  async acceptOne(line: Line): Promise<void> {
+    await this.write([line.proposal]);
+  }
+
+  async acceptBatch(batch: Batch): Promise<void> {
+    await this.write(batch.lines.map(line => line.proposal));
+  }
+
+  private async write(proposals: readonly MovementProposal[]): Promise<void> {
+    this.working.set(true);
+    this.error.set('');
+    try {
+      const db = this.database.driver;
+      const result = await accept({
+        proposals: new ProposalsRepository(db),
+        transactions: new TransactionsRepository(db),
+        transfers: new TransfersRepository(db),
+      }, proposals);
+
+      if (result.refused.length > 0) {
+        this.error.set(this.i18n.t('review.error.incomplete', { count: result.refused.length }));
+      }
+      this.database.dataChanged();
+      await this.refresh();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  /** Thrown away, once it has been asked twice. */
+  async discard(line: Line): Promise<void> {
+    if (this.discarding() !== line.proposal.id) {
+      this.discarding.set(line.proposal.id);
+      return;
+    }
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver).reject(line.proposal.id);
+      this.discarding.set(null);
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  async discardBatch(batch: Batch): Promise<void> {
+    if (this.discarding() !== -1) {
+      this.discarding.set(-1);
+      return;
+    }
+    this.working.set(true);
+    try {
+      const proposals = new ProposalsRepository(this.database.driver);
+      for (const line of batch.lines) await proposals.reject(line.proposal.id);
+      this.discarding.set(null);
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
+}
