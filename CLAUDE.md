@@ -583,6 +583,114 @@ backup restore against iOS's own SQLite backend.
    Still to decide, by Jose, and not by guessing: subscription or one
    payment, the price, and whether there is a trial.
 
+22. **Movements can be PROPOSED by the app, and only a person makes them
+   real.** Designed with Jose on 2026-09-22 and 23, for the people who will
+   not type every movement by hand the way he does. **None of it is built.**
+
+   Two sources, and one screen where they both end up:
+
+   - **A statement in PDF**, opened from the account it belongs to.
+   - **A bank's own notification**, read as it arrives.
+
+   **The review screen is the point of the whole feature**, not a detail of
+   it. Every proposal is listed with what was read, and the person accepts it,
+   corrects it first, or throws it away. Jose, 2026-09-23: "eso es lo mas
+   importante de todo esto en realidad". Nothing is ever written without that
+   answer - not one movement, not one category.
+
+   **Ruled out, and why:**
+   - **Suggesting a recurring expense before it happens** (rejected by Jose,
+     2026-09-23): "asi sea un gasto recurrente, quiero que sea en el momento
+     que se registre como tal, no inventando un gasto que aun no ha ocurrido".
+     The app knowing the rent usually falls on the 5th does not make it a
+     fact. Same instinct as rule 15's opening figure: a record is not an event.
+   - **CSV and Excel.** They look easier and are not: the app would have to
+     guess what each column means from a heading every bank words
+     differently, which means asking the user. Jose: if it needs that, leave
+     it out.
+
+   **Why a PDF can ask LESS than a spreadsheet.** A PDF has no columns, it has
+   text with coordinates. Group it into lines, and then what a thing IS shows
+   in its shape rather than in a heading: a date looks like a date, an amount
+   looks like an amount, and whatever is left is the description. In the good
+   case the person is asked nothing at all. What it costs: a PDF reader on the
+   phone (pdf.js, 1-2 MB, offline), a password prompt for the statements that
+   carry one, and a rule for deciding what is money in and money out - the
+   running balance settles it where the columns do not.
+
+   **The proof that makes an import trustworthy: the statement's own
+   balances.** Opening balance plus what was read must equal the closing
+   balance. If it does not, NOTHING is imported and the screen says by how
+   much it is off. Never "47 movements imported, hopefully right" - the same
+   rule as everywhere else here: a total nobody can check is a total nobody
+   trusts.
+
+   **OCR is not a second feature, it is a door into the same one.** Where a
+   PDF is a scan, or the person only has a screenshot, the picture becomes
+   text (on the phone, free, offline) and the same reading follows. Last,
+   deliberately: OCR misreads digits, and digits are money. The balance check
+   above is what would catch it. If the banks hand out PDFs with real text,
+   this is never needed.
+
+   **What a notification actually gives**, which is little but exact: the
+   package that posted it (`com.bancolombia.app`), its title and text, and
+   the moment it arrived. So **which bank it is, is data, not a guess** - and
+   the way an account is attached to a bank is the person pointing at one of
+   the apps the phone has ACTUALLY been seen posting notifications from.
+   **No built-in list of banks**: a list of Colombian banks would be wrong in
+   every other country, and this app is not Jose's alone any more.
+
+   The amount comes out of the text by pattern. The category never comes: the
+   only clue is the merchant's name. So **a dictionary that learns** - the
+   first time "EXITO" is filed under Mercados it is remembered, and next time
+   it is what gets proposed. Offline, free, better with use, and it serves
+   typing a movement by hand just as well. An LLM is not needed for the common
+   case and is not to be reached for first.
+
+   **When the notification does not say enough** - and some banks only say
+   "you have a new movement" - the proposal still appears, saying what is
+   true: a notification from this app, which is attached to this account, that
+   could not be read. Asked for by Jose in those words. The person types the
+   amount and the category, or throws it away. Silence is not something the
+   app invents around.
+
+   **The hardest problem in the feature, written down before it is met**: the
+   SAME movement arriving from both sources. A notification today, and the
+   statement next month carrying that same purchase - with a different date
+   (authorised, then posted) and a different description ("EXITO POBLADO" in
+   one, "COMPRA EXITO POB 123" in the other). An exact fingerprint will NOT
+   catch that. So the check has to be a tolerant one - same account, same
+   amount, a few days apart - and what it produces is a QUESTION on the review
+   screen, never a silent skip. Where the two are the same thing, the
+   statement is the truth and may correct what the notification left, unless
+   the person edited it by hand: `locked` still wins, as in rule 14.
+
+   **A transfer is two legs, and both sources will report it twice** - once
+   leaving, once arriving. Accepted separately they become an expense and an
+   income, and every spending figure in the report is wrong. The review screen
+   has to notice the pair and offer to join them.
+
+   **What survives from the importer that was removed** (rule 12), and it is
+   the expensive half: `import_fingerprint` and `import_seq` with the partial
+   unique index that still allows two identical bus fares on one day,
+   `import_batches`, `review_queue`, `deleted_imports` so a rejected proposal
+   never comes back, and `locked`. All of it proven on 12,890 real rows.
+
+   **This reverses rule 12, and that is deliberate** - but the danger that
+   caused rule 12 is the same one, so it has to be impossible by construction
+   rather than by care: **nothing here ever touches a row that already
+   exists.** A proposal is a proposal until a person answers it.
+
+   **The first step is not code**: read the notifications Jose's own banks
+   post and show them raw for a few days, interpreting nothing. Half of them
+   may be useless ("open the app to see"), and that is worth knowing before a
+   single parser is written.
+
+   Noted and deferred by Jose: Google reviews the notification permission
+   closely, and the screen Android shows asks to read EVERY notification on
+   the phone. Everything not from an attached bank is discarded, and the app
+   says so plainly.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
