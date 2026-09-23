@@ -59,18 +59,12 @@ export async function textOfPdf(
   // WebView on an older Android phone would have broken the same way.
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
-  // Where the reading is done. In the app it is a worker served beside the
-  // page - a statement of many pages would otherwise freeze the screen while
-  // it is read - and `angular.json` copies that file into `assets`. In the
-  // tests there is no page to freeze, so the library's own module is handed
-  // over and pdf.js reads it here.
-  //
-  // From the root, not beside whatever page is open: a relative path resolves
-  // against the route, so opening a statement from /accounts asked for
-  // /accounts/assets/... and got a 404 - which arrived here as "I could not
-  // read this statement", about a file that was perfectly readable.
-  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = workerSrc
-    ?? '/assets/pdf.worker.min.mjs';
+  // Where the reading is done. In the app it is a worker, because a statement
+  // of many pages would otherwise freeze the screen while it is read; in the
+  // tests there is no screen to freeze and the library's own module is handed
+  // over instead.
+  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc =
+    workerSrc ?? await workerFromAssets();
 
   let task;
   let document;
@@ -120,4 +114,37 @@ export async function textOfPdf(
     throw new StatementUnreadable('no text');
   }
   return items;
+}
+
+/** The worker, once, as something no dev server will rewrite on the way. */
+let workerUrl: string | null = null;
+
+/**
+ * Fetches the worker and hands pdf.js a blob URL for it.
+ *
+ * `angular.json` copies the file into `assets`, and handing pdf.js that path
+ * directly is the obvious thing - it is also what does not work. The
+ * development server treats a request that looks like a module import as one
+ * of its own, appends `?import` to it, and fails to serve it: "Failed to fetch
+ * dynamically imported module .../assets/pdf.worker.min.mjs?import". A blob
+ * URL is nobody's route, so it passes through the dev server, the built app
+ * and the phone's WebView the same way.
+ *
+ * Read once and kept: the file is over a megabyte, and a person importing
+ * three statements should fetch it once.
+ */
+async function workerFromAssets(): Promise<string> {
+  if (workerUrl !== null) return workerUrl;
+
+  // From the root, not beside whatever page is open: a relative path resolves
+  // against the route, so opening a statement from /accounts asked for
+  // /accounts/assets/... and got a 404.
+  const response = await fetch('/assets/pdf.worker.min.mjs');
+  if (!response.ok) {
+    throw new StatementUnreadable(
+      `the PDF reader is missing: /assets/pdf.worker.min.mjs answered ${response.status}`);
+  }
+  const source = await response.text();
+  workerUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  return workerUrl;
 }

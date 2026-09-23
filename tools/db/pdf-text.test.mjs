@@ -76,6 +76,14 @@ test('the reader asks for the legacy build, which is what CI and old phones need
     new URL('../../src/app/core/statements/pdf-text.ts', import.meta.url), 'utf8');
   assert.match(source, /import\('pdfjs-dist\/legacy\/build\/pdf\.mjs'\)/);
 
+  // And it is fetched and handed over as a blob rather than as a path: the
+  // development server treats a path that looks like a module import as one of
+  // its own, appends ?import and fails to serve it. A blob URL is nobody's
+  // route. Proved in a real browser against the real dev server on 2026-09-23.
+  assert.match(source, /createObjectURL/);
+  assert.ok(source.includes("fetch('/assets/pdf.worker.min.mjs')"),
+    'from the root, so the route a statement is opened from cannot change it');
+
   const angular = readFileSync(new URL('../../angular.json', import.meta.url), 'utf8');
   assert.match(angular, /node_modules\/pdfjs-dist\/legacy\/build/,
     'and the worker copied beside the app is the legacy one too');
