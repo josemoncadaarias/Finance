@@ -367,6 +367,9 @@ export class ReviewPage {
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
     const count = asking.batch.lines.length;
+    // Discarding a whole batch is its own sentence: the one a single row uses
+    // says 'this movement', which is not what is about to happen.
+    if (asking.kind === 'discard') return this.i18n.t('review.discard.sureAll', { count });
     return this.i18n.t(`review.${asking.kind}.sure`, { count });
   }
 
