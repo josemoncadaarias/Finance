@@ -537,6 +537,52 @@ backup restore against iOS's own SQLite backend.
    its bars with filled cells, which says the same thing and cannot make Excel
    call the file corrupt.
 
+21. **The app is meant for other people too, and some of it is paid.** Said
+   by Jose on 2026-09-22, asked for as a plan rather than as work: "esto le
+   puede servir a otro usuario que haga lo mismo que yo, ingresar las cuentas
+   y los movimientos manualmente". **None of this is built. Nothing below
+   starts without his word.**
+
+   Free, and enough to use the app every day: accounts in pesos, movements,
+   the summary screen, the donut, transfers, products and their yields, backup
+   and restore, and the categories that come with the app.
+
+   Paid, as he listed them:
+   - **Several currencies.** An account in anything other than the currency
+     the app starts in.
+   - **The financial summary** (`/report`) and its spreadsheet.
+   - **The income-tax simulator** (`/tax`) and its spreadsheet.
+   - **Managing categories.** Free keeps the ones that come with the app;
+     adding, renaming or re-picturing one is paid.
+
+   **Three rules this must obey, all of them consequences of rules already
+   here:**
+
+   1. **A lock never hides money.** It stops something NEW, never something
+      already on record. Someone whose subscription lapses with dollar
+      accounts on file still SEES those accounts, their balances and their
+      movements; what they cannot do is add another one. An app that hides a
+      person's own figures behind a payment is not a finance app.
+   2. **A lock is never felt offline** (rule 1). What the person is entitled
+      to is cached with the day it was read, and with no network the last
+      answer holds. Nobody is shut out of their own accounts on a bus.
+   3. **One place answers the question.** A single service says whether a
+      feature is paid for, and every screen asks IT - never a check copied
+      into four components, and never a check inside the engines. The tax
+      engine, the report analyses and the accrual do not know that money
+      exists.
+
+   **What to build first, and it is small**: that one service, a paywall
+   screen, and the route guard that sends a locked screen to it. It can
+   answer from a local setting while there is no store behind it, which is
+   what makes the whole thing testable long before a single peso is charged.
+   Plugging Google Play Billing in afterwards touches that one service and
+   nothing else. **Do not scatter the question through the app; that is the
+   only mistake here that is expensive to undo.**
+
+   Still to decide, by Jose, and not by guessing: subscription or one
+   payment, the price, and whether there is a trial.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
@@ -668,6 +714,63 @@ Google sign-in client is registered against the same SHA-1.
   the app to other people means a release key, and changing keys means one
   uninstall per phone (backup first, restore after), so it has to happen
   before the app is shared, not after.
+
+## Getting it into Google Play
+
+Looked into on 2026-09-22 at Jose's request, **as a plan, not as work**. He
+decided the app is worth giving to other people who keep their accounts by
+hand the way he does. Nothing here has been started.
+
+**The one good surprise, and it was checked, not assumed**: a fresh install is
+empty. Migrating a new database end to end leaves 0 accounts, 0 movements, 0
+products, and only what everyone needs - 3 currencies, the 3 product
+categories and the tax parameters. The 23 migrations that name "Rappi",
+"Pibank" or "Dale" all match by name and do nothing where those names do not
+exist. Jose's data does not travel with the app.
+
+In order, with the trap first:
+
+1. **The icon.** Cheap, reversible, touches neither the signature nor the
+   data. `@capacitor/assets` turns one 1024x1024 image into every size
+   Android asks for plus the 512x512 the store wants. Android masks an icon
+   into a circle or a squircle, so the artwork has to live inside the middle
+   ~66% or it gets cut; a detailed illustration turns to mush at 48dp.
+
+2. **The release key, and this is the dangerous one.** The app on Jose's
+   phone is signed with the DEBUG keystore (see "Signing the APK"). Play needs
+   a release key, and Android refuses to update an app whose signature
+   changed - so the app has to be uninstalled once, which deletes every
+   movement on the phone. Backup, uninstall, install the release build,
+   restore. It has to happen BEFORE anyone else has the app, never after.
+   And the Google sign-in client is registered against the debug SHA-1: the
+   new certificate has to be registered too, or the Drive backup stops
+   working.
+
+3. **The account.** US$25, one payment (Google's own page, read 2026-09-22).
+
+4. **Internal testing**, up to 100 people, available immediately. This is how
+   Jose gets the app from the store onto his own phone without waiting for
+   anything below.
+
+5. **The store listing**: icon, screenshots, description, a **privacy policy,
+   which is required**, the Data safety form (this app keeps everything on the
+   phone and backs up to the person's own Drive - say exactly that), the
+   content rating questionnaire and tax details for payouts.
+
+6. **Closed testing before production, for a PERSONAL account**: 12 distinct
+   Google accounts, opted in continuously for 14 days, on real devices. An
+   organization account registered to a legal entity is exempt. This, not the
+   code, is what sets the calendar.
+
+7. **Billing last**, because a purchase cannot even be tested until the app is
+   on a track. See rule 21 for what has to exist in the code first, which is
+   one service and one screen.
+
+Two more things that will come up:
+- Play takes an **Android App Bundle**, not an APK. `debug-apk.yml` builds a
+  debug APK; a release workflow is a separate job.
+- The Google consent screen is in testing mode, which admits **100 users**.
+  More than that means publishing it and passing Google's verification.
 
 ## Pending from Jose
 
