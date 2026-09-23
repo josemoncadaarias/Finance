@@ -271,6 +271,22 @@ export class ReviewPage {
     return isComplete(line.proposal);
   }
 
+  /**
+   * The rows of a batch that can actually be written.
+   *
+   * "Guardar los 9 movimientos" promised nine and delivered eight, because
+   * one of them had no category and the database will not take it. A button
+   * that says a number has to mean that number.
+   */
+  readyLines(batch: Batch): Line[] {
+    return batch.lines.filter(line => this.ready(line));
+  }
+
+  /** How many of a batch are still waiting on something. */
+  waitingOn(batch: Batch): number {
+    return batch.lines.length - this.readyLines(batch).length;
+  }
+
   /** What a row is still missing, said rather than only greyed out. */
   missing(line: Line): string | null {
     const proposal = line.proposal;
@@ -365,7 +381,11 @@ export class ReviewPage {
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
     if (asking.kind === 'acceptOne') return this.i18n.t('review.accept.sure', { count: 1 });
-    const count = asking.batch.lines.length;
+    // Saving asks about the ones it can save; the other two are about the
+    // whole batch, ready or not.
+    const count = asking.kind === 'accept'
+      ? this.readyLines(asking.batch).length
+      : asking.batch.lines.length;
     // Discarding a whole batch is its own sentence: the one a single row uses
     // says 'this movement', which is not what is about to happen.
     if (asking.kind === 'discard') return this.i18n.t('review.discard.sureAll', { count });
@@ -430,7 +450,7 @@ export class ReviewPage {
     if (asking === null) return;
 
     if (asking.kind === 'accept') {
-      await this.write(asking.batch.lines.map(line => line.proposal));
+      await this.write(this.readyLines(asking.batch).map(line => line.proposal));
     } else if (asking.kind === 'acceptOne') {
       await this.write([asking.line.proposal]);
     } else if (asking.kind === 'discard') {

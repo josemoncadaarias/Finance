@@ -72,6 +72,8 @@ ion-title small {
     margin: 0.15rem 0 0;
     font-size: 0.78rem;
     color: var(--ion-color-medium);
+
+    .waiting { color: var(--ion-color-warning-shade); }
   }
 }
 

@@ -45,16 +45,28 @@
       <section class="batch">
         <header>
           <h2>{{ batch.title }}</h2>
-          <p class="hint">{{ 'review.batch.count' | t:{ count: batch.lines.length } }}</p>
+          <p class="hint">
+            {{ 'review.batch.count' | t:{ count: batch.lines.length } }}
+            <!-- What is not going to be saved by the button below, and why it
+                 counts fewer than this line does. -->
+            @if (waitingOn(batch) > 0) {
+              <span class="waiting">
+                · {{ 'review.batch.waiting' | t:{ count: waitingOn(batch) } }}
+              </span>
+            }
+          </p>
 
           <!-- One thing to do, and two ways out of it. They were three
                buttons of a size, which made the choice look like three equal
                choices and wrapped onto two lines on a phone. -->
           <div class="batch-actions">
-            <button type="button" class="save" [disabled]="working()"
+            <!-- Only what can actually be written, and nothing at all when
+                 none of it can be. -->
+            <button type="button" class="save"
+                    [disabled]="working() || readyLines(batch).length === 0"
                     (click)="asking.set({ kind: 'accept', batch })">
               <ion-icon name="checkmark-outline"></ion-icon>
-              {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
+              {{ 'review.acceptAll' | t:{ count: readyLines(batch).length } }}
             </button>
 
             <div class="ways-out">
