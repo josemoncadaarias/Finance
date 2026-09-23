@@ -65,11 +65,14 @@ export interface StatementReading {
   /** What was read, so the comparison can be shown rather than asserted. */
   read_minor: number;
   /**
-   * 'checked' - the statement's own balances agree with what was read.
-   * 'off'     - they do not, and `offBy_minor` says by how much.
-   * 'unchecked' - the statement does not state both balances.
+   * 'checked'   - the statement agrees with itself.
+   * 'off'       - it does not, and `offBy_minor` says by how much.
+   * 'unclear'   - its running balance and its own words disagree, which is
+   *               nearly always a line with "saldo" on it that is not the one
+   *               this was looking for. Worth mentioning, not worth alarm.
+   * 'unchecked' - it gives neither, so there is nothing to check.
    */
-  balances: 'checked' | 'off' | 'unchecked';
+  balances: 'checked' | 'off' | 'unclear' | 'unchecked';
   offBy_minor: number;
   year: number | null;
 }
@@ -188,19 +191,45 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
 
   const read = rows.reduce((sum, row) => sum + row.amount_minor, 0);
 
-  // Where the statement does not give the two figures in words, its own
-  // running balance does: what the first line was left at, less what that
-  // line moved, is what the period started from.
+  /*
+   * Which pair of figures to believe.
+   *
+   * There are two ways to know where the period began and ended: the words
+   * "Saldo anterior" and "Saldo final", and the statement's own running
+   * balance column. The column is the better witness by a long way - it is
+   * the bank's own arithmetic, line by line, and it cannot be confused with
+   * anything else on the page. The words can: a real statement has several
+   * lines with "saldo" on them, and the ones this does not know about are the
+   * ones that will be picked.
+   *
+   * So where there is a column, it decides, and the words are ignored. That
+   * is what stopped Jose's Uala statement from being reported as off by three
+   * and a half million pesos it was never off by - a false alarm, in a
+   * paragraph, about a file that had been read correctly.
+   *
+   * Without a column the words are all there is, and then they are checked
+   * against the sum: that is a real check, and the one case where "this does
+   * not add up" means something.
+   */
   const first = rows[0];
-  const opening = stated.opening
-    ?? (first === undefined || first.balance_minor === null
-      ? null
-      : first.balance_minor - first.amount_minor);
-  const closing = stated.closing ?? (rows[rows.length - 1]?.balance_minor ?? null);
+  const last = rows[rows.length - 1];
+  const fromColumn = first !== undefined && first.balance_minor !== null
+    && last !== undefined && last.balance_minor !== null;
 
-  const balances = opening === null || closing === null
-    ? 'unchecked' as const
-    : (opening + read === closing ? 'checked' as const : 'off' as const);
+  const opening = fromColumn ? first.balance_minor! - first.amount_minor : stated.opening;
+  const closing = fromColumn ? last.balance_minor : stated.closing;
+
+  const balances = ((): 'checked' | 'off' | 'unclear' | 'unchecked' => {
+    if (opening === null || closing === null) return 'unchecked';
+    if (opening + read !== closing) return 'off';
+    // The column adds up. Where the words on the page say something else, one
+    // of the two was misread - and it is far likelier to be the words, so it
+    // is said quietly rather than as a fault.
+    const saidOtherwise = fromColumn
+      && ((stated.opening !== null && stated.opening !== opening)
+        || (stated.closing !== null && stated.closing !== closing));
+    return saidOtherwise ? 'unclear' : 'checked';
+  })();
 
   return {
     rows,

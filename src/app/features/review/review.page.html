@@ -25,9 +25,71 @@
          screen is left, because it is about a reading and not about the list. -->
     @if (justRead(); as just) {
       <div class="just-read" [class.off]="just.off">
-        <p class="lead">{{ just.read }}</p>
-        @if (just.knownAlready) { <p>{{ just.knownAlready }}</p> }
-        <p class="balances">{{ just.balances }}</p>
+        <p class="lead">
+          {{ just.read }}
+          <!-- What the statement says about its own arithmetic, behind a mark
+               rather than in a paragraph: it is worth having and it is not
+               worth three lines of a phone. -->
+          <button type="button" class="why" (click)="explaining.set(!explaining())"
+                  [attr.aria-label]="'review.why' | t">
+            <ion-icon [name]="just.off ? 'alert-circle' : 'information-circle-outline'"></ion-icon>
+          </button>
+        </p>
+        @if (just.knownAlready) { <p class="also">{{ just.knownAlready }}</p> }
+        @if (explaining()) {
+          <p class="balances">{{ just.balances }}</p>
+        }
+      </div>
+    }
+
+    <!-- What the bank says the account holds, against what the app says.
+         Two figures, the gap between them, and three ways out. -->
+    @if (squaring(); as drift) {
+      <div class="squaring">
+        <h2>{{ 'review.square.title' | t:{ account: drift.accountName } }}</h2>
+
+        <dl>
+          <div>
+            <dt>{{ 'review.square.ours' | t:{ date: dayText(drift.day) } }}</dt>
+            <dd>{{ money(drift.ours, drift.currency) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'review.square.theirs' | t }}</dt>
+            <dd>{{ money(drift.theirs, drift.currency) }}</dd>
+          </div>
+          <div class="gap">
+            <dt>{{ 'review.square.gap' | t }}</dt>
+            <dd>{{ money(squaringGap(), drift.currency) }}</dd>
+          </div>
+        </dl>
+
+        <p class="hint">{{ 'review.square.hint' | t }}</p>
+
+        @if (typingBalance()) {
+          <ion-input class="typed" [label]="'review.square.type' | t" labelPlacement="stacked"
+                     inputmode="decimal" [value]="typedBalance()"
+                     (ionInput)="typedBalance.set($any($event.target).value ?? '')"></ion-input>
+          <div class="ways">
+            <button type="button" class="save" [disabled]="working()" (click)="squareToTyped()">
+              {{ 'review.square.do' | t }}
+            </button>
+            <button type="button" class="quiet" (click)="typingBalance.set(false)">
+              {{ 'entry.cancel' | t }}
+            </button>
+          </div>
+        } @else {
+          <div class="ways">
+            <button type="button" class="save" [disabled]="working()" (click)="square()">
+              {{ 'review.square.match' | t }}
+            </button>
+            <button type="button" class="quiet" (click)="typingBalance.set(true)">
+              {{ 'review.square.other' | t }}
+            </button>
+            <button type="button" class="quiet" (click)="squaring.set(null)">
+              {{ 'review.square.leave' | t }}
+            </button>
+          </div>
+        }
       </div>
     }
 

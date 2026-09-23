@@ -235,6 +235,48 @@ export class AccountsRepository {
   }
 
   /** How much would be lost, for the question asked before deleting. */
+  /**
+   * What this account held at the end of a day, as the app has it.
+   *
+   * The balance is the opening figure plus every movement, and asking it of a
+   * DAY rather than of today is what lets an account be compared with a
+   * statement that ended weeks ago: everything typed since then is not a
+   * disagreement, it is the weeks since then.
+   */
+  async balanceOn(id: number, day: IsoDate): Promise<number> {
+    const row = await this.db.queryOne<{ total: number }>(
+      `SELECT a.opening_balance_minor + COALESCE((
+         SELECT SUM(t.amount_minor) FROM transactions t
+         WHERE t.account_id = a.id AND t.occurred_on <= ?), 0) AS total
+       FROM accounts a WHERE a.id = ?`, [day, id]);
+    return row?.total ?? 0;
+  }
+
+  /**
+   * Moves the opening figure so the account agrees with the bank on a day.
+   *
+   * The years before the first statement somebody imports are never going to
+   * be typed in, and the opening figure is exactly where they belong: it is
+   * the difference between what the app can account for and what the bank
+   * says. Jose's idea, and the arithmetic is his too - what the bank said on
+   * that day, less the movements up to it.
+   *
+   * Computed rather than adjusted, so importing an older statement later and
+   * running this again lands on the right figure instead of drifting. Returns
+   * the new opening figure.
+   */
+  async squareWith(id: number, day: IsoDate, balanceMinor: number): Promise<number> {
+    const moved = await this.db.queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(amount_minor), 0) AS total FROM transactions
+       WHERE account_id = ? AND occurred_on <= ?`, [id, day]);
+
+    const opening = balanceMinor - (moved?.total ?? 0);
+    await this.db.run(
+      'UPDATE accounts SET opening_balance_minor = ?, updated_at = ? WHERE id = ?',
+      [opening, this.now(), id]);
+    return opening;
+  }
+
   async movementCount(id: number): Promise<number> {
     const row = await this.db.queryOne<{ total: number }>(
       'SELECT COUNT(*) AS total FROM transactions WHERE account_id = ?', [id]);

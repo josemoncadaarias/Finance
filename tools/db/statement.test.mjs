@@ -114,7 +114,7 @@ test('what was read carries its own line, for anyone who wants to check it', () 
   assert.equal(first.balance_minor, 95_500_000);
 });
 
-test('a statement whose arithmetic does not add up says so, by how much', () => {
+test('a column that adds up beats the words on the page, and says so quietly', () => {
   const broken = page([
     [[40, 'Extracto septiembre 2026']],
     [[40, 'Saldo anterior'], [420, '1.000.000,00']],
@@ -123,8 +123,14 @@ test('a statement whose arithmetic does not add up says so, by how much', () => 
     [[40, 'Saldo final'], [420, '900.000,00']],
   ]);
   const read = readStatement(broken, COP);
-  assert.equal(read.balances, 'off');
-  assert.equal(read.offBy_minor, -5_000_000, 'fifty thousand pesos the statement does not explain');
+  // Its column adds up and its own words say otherwise, which is one of the
+  // two being misread - nearly always the words, because a page carries
+  // several lines with "saldo" on them. Said quietly rather than as a fault:
+  // crying wolf over a file that was read correctly is the worse failure, and
+  // it is what Jose met on his Uala statement.
+  assert.equal(read.balances, 'unclear');
+  assert.equal(read.opening_minor, 100_000_000, 'the column decides');
+  assert.equal(read.closing_minor, 95_000_000);
 });
 
 test('with no balance column at all the words decide, and say they guessed', () => {

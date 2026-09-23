@@ -28,6 +28,8 @@ export interface ReadStatement {
 export interface ImportedStatement {
   /** What ties these proposals together, and what the screen asks back for. */
   batch: string;
+  /** The account it was read for, so the screen can compare it with the bank. */
+  accountId: number;
   reading: StatementReading;
   /** How many rows became proposals. */
   proposed: number;
@@ -128,7 +130,8 @@ export class StatementsService {
     })));
 
     const imported = {
-      batch, reading, proposed: proposed.ids.length, knownAlready: proposed.knownAlready,
+      batch, accountId, reading,
+      proposed: proposed.ids.length, knownAlready: proposed.knownAlready,
     };
     this.lastImport.set(imported);
     return imported;

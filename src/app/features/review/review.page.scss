@@ -51,13 +51,107 @@ ion-title small {
 
   p { margin: 0; }
   .lead { font-weight: 600; }
-  .balances { color: var(--ion-color-medium); }
+  .also { color: var(--ion-color-medium); }
+  .balances {
+    margin-top: 0.35rem;
+    color: var(--ion-color-medium);
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+
+  /* The explanation is a mark on the line, not three lines under it. */
+  .why {
+    padding: 0 0 0 0.2rem;
+    border: 0;
+    background: none;
+    color: var(--ion-color-medium);
+    vertical-align: -2px;
+
+    ion-icon { font-size: 1rem; }
+  }
 
   /* A statement that does not add up is worth stopping at. */
   &.off {
     background: rgba(var(--ion-color-warning-rgb), 0.14);
     .balances { color: var(--ion-color-warning-shade); font-weight: 600; }
   }
+}
+
+/* Two figures and the gap between them: what the bank says the account holds
+   and what the app says, at the statement's own last day. */
+.squaring {
+  margin: 0.9rem 1rem 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 0.8rem;
+
+  h2 {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  dl {
+    margin: 0;
+    font-size: 0.85rem;
+
+    div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.25rem 0;
+    }
+    dt { margin: 0; color: var(--ion-color-medium); }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+    /* The figure the question is about. */
+    .gap {
+      margin-top: 0.2rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid var(--ion-color-step-150);
+      font-weight: 600;
+
+      dt { color: var(--ion-text-color); }
+    }
+  }
+
+  .hint {
+    margin: 0.6rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--ion-color-medium);
+  }
+
+  .ways {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.9rem;
+    margin-top: 0.8rem;
+
+    .save {
+      padding: 0.5rem 1rem;
+      border: 0;
+      border-radius: 999px;
+      background: var(--ion-color-primary);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 600;
+
+      &:disabled { opacity: 0.45; }
+    }
+
+    .quiet {
+      padding: 0.3rem 0;
+      border: 0;
+      background: none;
+      color: var(--ion-color-medium);
+      font-size: 0.8rem;
+    }
+  }
+
+  .typed { margin-top: 0.5rem; }
 }
 
 /* The repeated shops, above the list they save work on. */

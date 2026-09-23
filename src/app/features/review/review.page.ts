@@ -92,6 +92,30 @@ export class ReviewPage {
   private readonly i18n = inject(I18nService);
   private readonly statements = inject(StatementsService);
 
+  /**
+   * What the statement says the account held, against what the app says.
+   *
+   * Shown once the reading has been answered, because until then the app's
+   * figure is still moving. The two are compared AT THE STATEMENT'S LAST DAY
+   * and not today: anything typed since then is not a disagreement, it is the
+   * days since then.
+   */
+  readonly squaring = signal<{
+    accountId: number;
+    accountName: string;
+    currency: string;
+    day: string;
+    theirs: number;
+    ours: number;
+  } | null>(null);
+
+  /** Open while the statement's own arithmetic is being read. */
+  readonly explaining = signal(false);
+
+  /** Open while another figure is being typed instead. */
+  readonly typingBalance = signal(false);
+  readonly typedBalance = signal('');
+
   /** What the statement just read said about itself, while it is still true. */
   readonly justRead = computed(() => {
     const last = this.statements.lastImport();
@@ -119,6 +143,77 @@ export class ReviewPage {
       off: reading.balances === 'off',
     };
   });
+
+  /** How far apart the two are, which is the figure the question is about. */
+  readonly squaringGap = computed(() => {
+    const squaring = this.squaring();
+    return squaring === null ? 0 : squaring.theirs - squaring.ours;
+  });
+
+  /**
+   * Works out whether there is anything to square, after an answer.
+   *
+   * Only where the statement gave a closing balance and an account to compare
+   * it with, and only while they actually differ: a card that says "these two
+   * agree" is a card nobody needs to read.
+   */
+  private async lookForDrift(): Promise<void> {
+    const last = this.statements.lastImport();
+    if (last === null || last.reading.closing_minor === null) return this.squaring.set(null);
+
+    const accountId = last.accountId;
+    const day = last.reading.rows[last.reading.rows.length - 1]?.occurred_on ?? null;
+    if (accountId === null || day === null) return this.squaring.set(null);
+
+    // Not while its own rows are still waiting: the app's figure is going to
+    // move as they are answered, and a difference that is about to change is
+    // not worth showing.
+    const waiting = await new ProposalsRepository(this.database.driver).ofBatch(last.batch);
+    if (waiting.some(one => one.status === 'pending')) return this.squaring.set(null);
+
+    const accounts = new AccountsRepository(this.database.driver);
+    const account = await accounts.findById(accountId);
+    if (!account) return this.squaring.set(null);
+
+    const ours = await accounts.balanceOn(accountId, day);
+    if (ours === last.reading.closing_minor) return this.squaring.set(null);
+
+    this.squaring.set({
+      accountId,
+      accountName: account.name,
+      currency: account.currency_code,
+      day,
+      theirs: last.reading.closing_minor,
+      ours,
+    });
+  }
+
+  /** Makes the account say what the bank said, by moving its opening figure. */
+  async square(to?: number): Promise<void> {
+    const squaring = this.squaring();
+    if (squaring === null) return;
+
+    this.working.set(true);
+    try {
+      await new AccountsRepository(this.database.driver)
+        .squareWith(squaring.accountId, squaring.day, to ?? squaring.theirs);
+      this.squaring.set(null);
+      this.typingBalance.set(false);
+      this.statements.lastImport.set(null);
+      this.database.dataChanged();
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  /** The figure typed by hand instead of either of the two offered. */
+  async squareToTyped(): Promise<void> {
+    try {
+      await this.square(parseTypedAmountToMinor(this.typedBalance().trim()));
+    } catch {
+      this.error.set(this.i18n.t('review.error.amount'));
+    }
+  }
 
   /** The name of the file, without the moment it was read. */
   private fileOf(batch: string): string {
@@ -346,6 +441,7 @@ export class ReviewPage {
       }
 
       this.batches.set([...known.values()]);
+      await this.lookForDrift();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {

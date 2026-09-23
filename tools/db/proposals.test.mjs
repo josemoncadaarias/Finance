@@ -505,3 +505,62 @@ test('a shop that repeats is answered once, for all of its movements', async () 
   assert.equal(await proposals.learnedCategoryOf('EXITO POBLADO CALLE 10'), mercados);
   await db.close();
 });
+
+// ---------------------------------------------------------------------------
+// Squaring an account with its statement
+// ---------------------------------------------------------------------------
+
+test('the opening balance takes the history nobody typed in', async () => {
+  const { db, accounts, transactions, rappi, mercados } = await setup();
+
+  // An account made in this app at zero, given one month of statement: three
+  // movements, and a bank that says it held four million at the end of it.
+  for (const [on, amount] of [['2026-09-02', -200_000], ['2026-09-10', -300_000], ['2026-09-28', 1_000_000]]) {
+    await transactions.create({
+      account_id: rappi, category_id: mercados, occurred_on: on,
+      amount_minor: amount, source: 'manual',
+    });
+  }
+  assert.equal(await accounts.balanceOn(rappi, '2026-09-30'), 500_000, 'one month of it');
+
+  const opening = await accounts.squareWith(rappi, '2026-09-30', 4_000_000);
+
+  assert.equal(opening, 3_500_000, 'the years before it, which is what was missing');
+  assert.equal(await accounts.balanceOn(rappi, '2026-09-30'), 4_000_000, 'and now it says what the bank says');
+  await db.close();
+});
+
+test('squaring again after an older statement lands right, not twice', async () => {
+  const { db, accounts, transactions, rappi, mercados } = await setup();
+
+  await transactions.create({
+    account_id: rappi, category_id: mercados, occurred_on: '2026-09-10',
+    amount_minor: -500_000, source: 'manual',
+  });
+  await accounts.squareWith(rappi, '2026-09-30', 4_000_000);
+
+  // August arrives later and its movements are accepted too.
+  await transactions.create({
+    account_id: rappi, category_id: mercados, occurred_on: '2026-08-15',
+    amount_minor: -1_200_000, source: 'manual',
+  });
+  const opening = await accounts.squareWith(rappi, '2026-09-30', 4_000_000);
+
+  assert.equal(opening, 5_700_000, 'the opening figure gave up exactly what August explained');
+  assert.equal(await accounts.balanceOn(rappi, '2026-09-30'), 4_000_000, 'and the balance never moved');
+  await db.close();
+});
+
+test('movements after the statement are not a disagreement with it', async () => {
+  const { db, accounts, transactions, rappi, mercados } = await setup();
+
+  await accounts.squareWith(rappi, '2026-09-30', 4_000_000);
+  await transactions.create({
+    account_id: rappi, category_id: mercados, occurred_on: '2026-10-05',
+    amount_minor: -150_000, source: 'manual',
+  });
+
+  assert.equal(await accounts.balanceOn(rappi, '2026-09-30'), 4_000_000, 'the statement still agrees');
+  assert.equal(await accounts.balanceOn(rappi, '2026-10-31'), 3_850_000, 'and October is October');
+  await db.close();
+});
