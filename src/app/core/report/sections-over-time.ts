@@ -52,18 +52,18 @@ function changeFrom(before: number, now: number): number | null {
 /**
  * The same, for a column of a table rather than a sentence.
  *
- * Past a point a percentage stops informing. Jose's balance went from
- * 1,582,426 to 59,473,240 - "+3,658%", which says only that the earlier
- * figure was small. The two amounts sit beside it in the table and say it
- * better, so the percentage steps aside.
+ * It used to drop a change past 1000% on the grounds that such a percentage
+ * says only that the earlier figure was small. It left a hole: Jose's report
+ * said "Familia went up 1128%" in one section and showed nothing at all
+ * beside the same two figures in the next, which reads as a bug. Jose,
+ * 2026-09-22: "por que en algunos casos no aparece el resultado al frente del
+ * % de diferencia como los demas?".
  *
- * A sentence is different: "Dian subió 4,201%" is the whole point of that
- * sentence, and it keeps its figure.
+ * So the measurement comes through whole, and how to SAY a number that big is
+ * the reader's business - the screen writes it as "x12" rather than "+1128%".
  */
 function tabledChange(before: number, now: number): number | null {
-  const change = changeFrom(before, now);
-  if (change === null) return null;
-  return Math.abs(change) >= 1000 ? null : change;
+  return changeFrom(before, now);
 }
 
 /** Spending per category, keyed the way the donut labels it. */

@@ -172,8 +172,20 @@ export class ReportPage {
     return change > 0 ? 'arrow-up-outline' : 'arrow-down-outline';
   }
 
+  /**
+   * How much it moved, in the shortest form that still reads.
+   *
+   * Past a point a percentage stops being a number anyone holds in their
+   * head: "+4201%" is not 4201 of anything, it is "forty-three times". So
+   * from ten times over, it is said as a multiplier. Below that the
+   * percentage is the natural way to say it, and it keeps its sign.
+   */
   changeLabel(change: number | null): string {
     if (change === null) return '—';
+    if (change >= 900) {
+      const times = (change + 100) / 100;
+      return `x${times >= 10 ? Math.round(times) : times.toFixed(1)}`;
+    }
     return `${change > 0 ? '+' : ''}${change}%`;
   }
 

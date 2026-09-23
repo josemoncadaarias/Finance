@@ -141,14 +141,18 @@ test('a balance falling further below zero is not growth', () => {
   assert.ok(balance.changePercent < 0, 'a worse balance reads as a fall');
 });
 
-test('a percentage off a tiny base steps aside for the two figures', () => {
+test('a change off a tiny base is measured, however big it comes out', () => {
   const block = versusBefore(withBefore(
     [movement({ amount: 500_000_00, flow: 'in' })],
     [movement({ amount: 1_00, flow: 'in' })],
   ));
 
+  // It used to be dropped here, which left a hole in the table beside two
+  // figures the sentences upstairs were happily quoting a percentage for.
+  // The measurement is the analysis's job; saying "x5000" instead of
+  // "+49,999,900%" is the reader's.
   const income = block.rows.find(row => row.label === TEST_WORDS['report.headline.income']);
-  assert.equal(income.changePercent, null, '+49,999,900% informs nobody');
+  assert.equal(income.changePercent, 49_999_900);
   assert.equal(income.now.minor, 500_000_00, 'the amounts are still there to be read');
 });
 
