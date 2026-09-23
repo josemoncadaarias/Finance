@@ -156,6 +156,27 @@ ion-title small {
     font-size: 0.78rem;
   }
 
+  /* The category, with its own picture, as everywhere else in the app. */
+  .category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 70%;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--ion-color-step-200);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-text-color);
+    font-size: 0.78rem;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .more { font-size: 0.8rem; color: var(--ion-color-medium); }
+  }
+
   .learned {
     font-size: 0.7rem;
     color: var(--ion-color-medium);
@@ -235,20 +256,27 @@ ion-title small {
     gap: 0.5rem;
 
     button {
-      padding: 0.2rem 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.5rem;
       border: 0;
+      border-radius: 999px;
       background: none;
       color: var(--ion-color-medium);
       font-size: 0.8rem;
-      text-decoration: underline;
-      text-underline-offset: 3px;
 
       &:disabled { opacity: 0.45; }
-      /* The destructive one is named as such, and is never the one a thumb
-         lands on by default. */
-      &.drop { color: var(--ion-color-danger); }
-    }
 
-    .apart { color: var(--ion-color-step-350); font-size: 0.8rem; }
+      /* Clearing the screen decides nothing, so it says nothing: an icon. */
+      &.clear ion-icon { font-size: 1.25rem; }
+
+      /* The destructive one is named, and red, because it is the one that
+         does not come back. It is never where a thumb lands by default. */
+      &.drop {
+        color: var(--ion-color-danger);
+        ion-icon { font-size: 1rem; }
+      }
+    }
   }
 }

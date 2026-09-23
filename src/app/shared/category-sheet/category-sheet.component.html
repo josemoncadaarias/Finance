@@ -1,0 +1,58 @@
+<ion-modal [isOpen]="open()" (didPresent)="opened()" (didDismiss)="cancelled.emit()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="cancelled.emit()">{{ 'entry.cancel' | t }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="sheet">
+      <div class="sheet-head">
+        <h2>{{ 'entry.pickCategory' | t }}</h2>
+      </div>
+
+      <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="search()"
+                     (ionInput)="search.set($any($event.target).value ?? '')"
+                     [debounce]="0"></ion-searchbar>
+
+      <!-- Which order, said out loud. Two is the whole useful set: what you
+           reach for most, and where a name sits when you know it. -->
+      <div class="order">
+        <button type="button" [class.on]="order() === 'use'"
+                (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="order() === 'name'"
+                (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
+
+      @if (found().length === 0) {
+        <p class="nothing">{{ 'entry.noCategory' | t:{ search: search() } }}</p>
+      } @else {
+        <ion-list>
+          @for (category of found(); track category.id) {
+            <ion-item button lines="full" (click)="choose(category.id)"
+                      [class.selected]="chosen() === category.id">
+              <app-icon slot="start" [builtin]="category.builtin_icon"
+                        [customId]="category.custom_icon_id"></app-icon>
+              <ion-label>{{ category.name }}</ion-label>
+              <!-- On every row, zero included: a hidden count is what made
+                   the order look like no order. -->
+              <ion-note slot="end">
+                @if (category.times > 0) {
+                  {{ 'entry.timesUsed' | t:{ count: category.times } }}
+                } @else {
+                  {{ 'entry.neverUsed' | t }}
+                }
+              </ion-note>
+              @if (chosen() === category.id) {
+                <ion-icon slot="end" class="tick" name="checkmark-circle"
+                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              }
+            </ion-item>
+          }
+        </ion-list>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>

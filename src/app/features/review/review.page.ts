@@ -34,6 +34,8 @@ import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money'
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
+import { IconComponent } from '../../core/icons/icon.component';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -60,7 +62,8 @@ interface Batch {
   selector: 'app-review',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslatePipe, ConfirmComponent,
+    CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
+    IconComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
     IonSpinner, IonMenuButton,
@@ -111,6 +114,31 @@ export class ReviewPage {
 
   /** The row whose amount or date is being corrected, if any. */
   readonly editing = signal<number | null>(null);
+
+  /**
+   * The row whose category is being chosen, if any.
+   *
+   * The sheet is the movement form's, shared rather than copied: this screen
+   * asked the same question with a bare select - a short list of names, no
+   * pictures, nothing to search - and Jose asked for the one he already knows.
+   */
+  readonly choosingFor = signal<Line | null>(null);
+
+  /** What is on offer depends on which way the money went. */
+  readonly choosingKind = computed<'expense' | 'income'>(() =>
+    (this.choosingFor()?.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income');
+
+  /** The category on a row, for the button that opens the sheet. */
+  categoryOf(line: Line): CategoryRow | null {
+    const id = line.proposal.category_id;
+    return id === null ? null : this.categories().find(category => category.id === id) ?? null;
+  }
+
+  async chooseCategory(id: number): Promise<void> {
+    const line = this.choosingFor();
+    this.choosingFor.set(null);
+    if (line) await this.setCategory(line, id);
+  }
   /**
    * The question on screen, if any.
    *

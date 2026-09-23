@@ -59,14 +59,20 @@
 
             <div class="ways-out">
               <!-- Off the screen without deciding: not saved, not thrown
-                   away, and the same statement imported again brings it back. -->
-              <button type="button" [disabled]="working()"
-                      (click)="asking.set({ kind: 'forget', batch })">
-                {{ 'review.forgetAll' | t }}
+                   away, and the same statement imported again brings it back.
+                   An icon rather than a sentence - it is the quiet one, and a
+                   sentence beside a sentence made two equal choices of them. -->
+              <button type="button" class="clear" [disabled]="working()"
+                      (click)="asking.set({ kind: 'forget', batch })"
+                      [title]="'review.forgetAll' | t"
+                      [attr.aria-label]="'review.forgetAll' | t">
+                <ion-icon name="close-circle-outline"></ion-icon>
               </button>
-              <span class="apart">·</span>
+              <!-- Red, and named, because it is the one that does not come
+                   back. -->
               <button type="button" class="drop" [disabled]="working()"
                       (click)="asking.set({ kind: 'discard', batch })">
+                <ion-icon name="trash-outline"></ion-icon>
                 {{ 'review.discardAll' | t }}
               </button>
             </div>
@@ -137,14 +143,17 @@
                     </ion-select>
                   }
 
-                  <ion-select class="pick" interface="action-sheet"
-                              [value]="line.proposal.category_id"
-                              [placeholder]="'review.pickCategory' | t"
-                              (ionChange)="setCategory(line, $any($event.detail).value)">
-                    @for (category of categories(); track category.id) {
-                      <ion-select-option [value]="category.id">{{ category.name }}</ion-select-option>
+                  <button type="button" class="category" (click)="choosingFor.set(line)">
+                    @if (categoryOf(line); as category) {
+                      <app-icon [builtin]="category.builtin_icon"
+                                [customId]="category.custom_icon_id" size="1rem"></app-icon>
+                      <span>{{ category.name }}</span>
+                    } @else {
+                      <ion-icon name="pricetag-outline"></ion-icon>
+                      <span>{{ 'review.pickCategory' | t }}</span>
                     }
-                  </ion-select>
+                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+                  </button>
 
                   @if (line.proposal.category_from === 'learned') {
                     <span class="learned">{{ 'review.learned' | t }}</span>
@@ -188,6 +197,12 @@
 </ion-content>
 
 <!-- The same dialog the rest of the app asks with. -->
+<!-- The categories, the same sheet the movement form opens. -->
+<app-category-sheet [open]="choosingFor() !== null" [kind]="choosingKind()"
+                    [chosen]="choosingFor()?.proposal?.category_id ?? null"
+                    (picked)="chooseCategory($event)"
+                    (cancelled)="choosingFor.set(null)"></app-category-sheet>
+
 <app-confirm [open]="asking() !== null" [title]="askTitle()" [body]="askBody()"
              [confirmLabel]="askLabel()" [icon]="askIcon()" [busy]="working()"
              (confirmed)="confirmed()" (cancelled)="asking.set(null)"></app-confirm>
