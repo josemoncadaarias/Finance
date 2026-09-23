@@ -27,7 +27,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     <ion-modal class="confirm-sheet" [isOpen]="open()" (didDismiss)="cancelled.emit()">
       <ng-template>
         <div class="confirm-dialog">
-          <span class="badge"><ion-icon [name]="icon()"></ion-icon></span>
+          <span class="badge" [class]="tone()">
+            <ion-icon [name]="icon()"></ion-icon>
+          </span>
           <h2>{{ title() }}</h2>
           @if (body()) { <p>{{ body() }}</p> }
           @if (error()) { <p class="error">{{ error() }}</p> }
@@ -61,7 +63,7 @@ export class ConfirmComponent {
    * A question about saving something is not a warning, and painting it red
    * would say it was.
    */
-  readonly tone = input<'danger' | 'primary'>('danger');
+  readonly tone = input<'danger' | 'primary' | 'medium'>('danger');
   /** Shown in the dialog when the act itself failed. */
   readonly error = input('');
   readonly busy = input(false);

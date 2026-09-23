@@ -402,13 +402,25 @@ export class ReviewPage {
 
   askIcon(): string {
     const kind = this.asking()?.kind;
-    return kind === 'accept' || kind === 'acceptOne' ? 'checkmark-done-outline' : 'trash-outline';
+    if (kind === 'accept' || kind === 'acceptOne') return 'checkmark-done-outline';
+    // Undoing the import destroys nothing, so it is not a bin: it is the same
+    // arrow the button that opened it carries.
+    if (kind === 'forget') return 'arrow-undo-outline';
+    return 'trash-outline';
   }
 
-  /** Saving is not a destruction, and the dialog should not look like one. */
-  askTone(): 'danger' | 'primary' {
+  /**
+   * The colour of the question, which is three different things here.
+   *
+   * Saving is ordinary, undoing an import destroys nothing and comes back,
+   * and discarding is the only one that does not. Painting all three red said
+   * the same thing about all three.
+   */
+  askTone(): 'danger' | 'primary' | 'medium' {
     const kind = this.asking()?.kind;
-    return kind === 'accept' || kind === 'acceptOne' ? 'primary' : 'danger';
+    if (kind === 'accept' || kind === 'acceptOne') return 'primary';
+    if (kind === 'forget') return 'medium';
+    return 'danger';
   }
 
   /** Does whatever was being asked about. */
