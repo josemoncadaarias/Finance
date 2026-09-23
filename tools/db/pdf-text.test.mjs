@@ -8,6 +8,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { samplePdf } from './sample-statement.mjs';
 import { textOfPdf, StatementUnreadable } from '../../src/app/core/statements/pdf-text.ts';
@@ -17,7 +18,7 @@ const COP = 2;
 
 // In the app the worker is served from assets; here the library's own module
 // is handed over, so pdf.js reads the file in this process.
-const WORKER = new URL('../../node_modules/pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
+const WORKER = new URL('../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs', import.meta.url).href;
 
 // Its own bytes, copied out of Node's shared pool: `buffer` on a Buffer is the
 // pool it was allocated in, which is several statements at once.
@@ -62,4 +63,20 @@ test('a file that is not a PDF says so rather than reading nothing', async () =>
   await assert.rejects(
     () => textOfPdf(new TextEncoder().encode('esto no es un pdf').buffer, undefined, WORKER),
     error => error instanceof StatementUnreadable);
+});
+
+test('the reader asks for the legacy build, which is what CI and old phones need', () => {
+  // The modern build leans on `Uint8Array.prototype.toHex`, which Node 24 does
+  // not have - and Node 24 is what the APK workflow runs, so three pushes in a
+  // row failed on it. An older Android WebView would have failed the same way,
+  // on a phone, where nobody would have seen a log. The legacy build carries
+  // the polyfills for exactly that, and this is here so the import cannot
+  // quietly go back.
+  const source = readFileSync(
+    new URL('../../src/app/core/statements/pdf-text.ts', import.meta.url), 'utf8');
+  assert.match(source, /import\('pdfjs-dist\/legacy\/build\/pdf\.mjs'\)/);
+
+  const angular = readFileSync(new URL('../../angular.json', import.meta.url), 'utf8');
+  assert.match(angular, /node_modules\/pdfjs-dist\/legacy\/build/,
+    'and the worker copied beside the app is the legacy one too');
 });

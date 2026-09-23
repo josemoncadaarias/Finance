@@ -19,11 +19,22 @@ export class StatementLocked extends Error {
   }
 }
 
-/** A file that is not a PDF at all, or one too damaged to open. */
+/**
+ * A file that is not a PDF at all, one too damaged to open, or one that is a
+ * photograph of a statement with no text inside it.
+ *
+ * It carries what actually went wrong. The screen says the friendly sentence,
+ * but a reading that failed for a reason nobody can see is a reading nobody
+ * can fix - which is what a missing worker file looked like the first time
+ * this met a real statement.
+ */
 export class StatementUnreadable extends Error {
-  constructor(message: string) {
-    super(message);
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(reason);
     this.name = 'StatementUnreadable';
+    this.reason = reason;
   }
 }
 
@@ -41,15 +52,25 @@ export async function textOfPdf(
 ): Promise<TextItem[]> {
   // Loaded when a statement is actually opened. It is a megabyte and a half
   // of library that nobody who never imports a statement should pay for.
-  const pdfjs = await import('pdfjs-dist');
+  // The legacy build, deliberately. The modern one leans on things a recent
+  // engine has and an older one does not - `Uint8Array.prototype.toHex` among
+  // them - and the legacy build carries the polyfills for exactly those. That
+  // is not a detail: the APK workflow runs Node 24 and broke on it, and the
+  // WebView on an older Android phone would have broken the same way.
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
   // Where the reading is done. In the app it is a worker served beside the
   // page - a statement of many pages would otherwise freeze the screen while
   // it is read - and `angular.json` copies that file into `assets`. In the
   // tests there is no page to freeze, so the library's own module is handed
   // over and pdf.js reads it here.
+  //
+  // From the root, not beside whatever page is open: a relative path resolves
+  // against the route, so opening a statement from /accounts asked for
+  // /accounts/assets/... and got a 404 - which arrived here as "I could not
+  // read this statement", about a file that was perfectly readable.
   (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = workerSrc
-    ?? 'assets/pdf.worker.min.mjs';
+    ?? '/assets/pdf.worker.min.mjs';
 
   let task;
   let document;

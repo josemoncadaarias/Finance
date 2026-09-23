@@ -411,7 +411,9 @@ export class AccountEditorComponent implements OnInit {
         }
         this.error.set(this.i18n.t('statement.password.hint'));
       } else if (problem instanceof StatementUnreadable) {
-        this.error.set(this.i18n.t('statement.unreadable'));
+        // The sentence a person can act on, and behind it what actually
+        // happened, so a failure can be reported rather than only suffered.
+        this.error.set(`${this.i18n.t('statement.unreadable')} (${problem.reason})`);
       } else {
         this.error.set(problem instanceof Error ? problem.message : String(problem));
       }
