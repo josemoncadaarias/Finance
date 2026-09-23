@@ -14,8 +14,16 @@ import { DatabaseService } from '../database/database.service';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { DEFAULT_MINOR_UNITS } from '../database/money';
-import { readStatement, type StatementReading } from './statement';
+import { accountIn, readStatement, type StatementAccount, type StatementReading } from './statement';
 import { textOfPdf } from './pdf-text';
+
+/** A statement read before there is an account for it to belong to. */
+export interface ReadStatement {
+  reading: StatementReading;
+  /** What it says about the account itself, for the form being filled in. */
+  account: StatementAccount;
+  file: File;
+}
 
 export interface ImportedStatement {
   /** What ties these proposals together, and what the screen asks back for. */
@@ -42,6 +50,33 @@ export class StatementsService {
   readonly lastImport = signal<ImportedStatement | null>(null);
 
   /**
+   * Reads a statement without writing anything.
+   *
+   * For the account that does not exist yet: the form is filled in from what
+   * the statement says - the bank's name, the day the period began and what
+   * the account held then - and the movements wait until there is an account
+   * to belong to. Nothing is proposed here, because a proposal has to point
+   * at an account.
+   */
+  async read(file: File, password?: string): Promise<ReadStatement> {
+    const items = await textOfPdf(await file.arrayBuffer(), password);
+    const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    return { reading, account: accountIn(reading, items), file };
+  }
+
+  /**
+   * Proposes a reading already made, now that it has an account.
+   *
+   * The other half of `read`: the same rows, written down against the account
+   * the form just created.
+   */
+  async proposeRead(accountId: number, read: ReadStatement): Promise<ImportedStatement> {
+    const proposals = new ProposalsRepository(this.database.driver);
+    await proposals.learnFromLedger();
+    return this.write(accountId, read.file.name, read.reading, proposals);
+  }
+
+  /**
    * Reads a statement into proposals for one account.
    *
    * The account decides what the numbers mean: a statement is read in the
@@ -65,6 +100,17 @@ export class StatementsService {
     // about every shop they have answered for a hundred times.
     await proposals.learnFromLedger();
 
+    return this.write(accountId, file.name, reading, proposals);
+  }
+
+  /** Writing a reading down, wherever it was read. */
+  private async write(
+    accountId: number,
+    fileName: string,
+    reading: StatementReading,
+    proposals: ProposalsRepository,
+  ): Promise<ImportedStatement> {
+    const file = { name: fileName };
     const batch = `${file.name} ${new Date().toISOString()}`;
     const proposed = await proposals.propose(batch, reading.rows.map(row => ({
       source: 'statement' as const,

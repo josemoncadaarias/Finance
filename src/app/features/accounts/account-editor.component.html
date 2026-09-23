@@ -110,21 +110,34 @@
       </ion-toggle>
     </ion-item>
 
-    @if (!isNew()) {
-      <!-- A statement belongs to an account, so this is where it is opened
-           from. What it reads is proposed, never saved: the review screen is
-           where a person answers it. Rule 22. -->
-      <input #statementFile type="file" accept="application/pdf,.pdf" hidden
-             (change)="onStatementPicked($any($event.target))" />
+    <!-- A statement belongs to an account, so this is where it is opened
+         from. What it reads is proposed, never saved: the review screen is
+         where a person answers it. Rule 22.
 
-      <ion-item button [disabled]="reading()" (click)="statementFile.click()">
-        <ion-icon slot="start" name="document-attach-outline"></ion-icon>
-        <ion-label>
-          <p class="strong">{{ 'statement.import' | t }}</p>
-          <p class="hint">{{ 'statement.import.hint' | t }}</p>
-        </ion-label>
-        @if (reading()) { <ion-spinner slot="end"></ion-spinner> }
+         On an account that does not exist yet it fills this form in first -
+         the bank's name, what the account held when the period began, the
+         day - and its movements wait until there is an account to belong
+         to. -->
+    <input #statementFile type="file" accept="application/pdf,.pdf" hidden
+           (change)="onStatementPicked($any($event.target))" />
+
+    <ion-item button [disabled]="reading()" (click)="statementFile.click()">
+      <ion-icon slot="start" name="document-attach-outline"></ion-icon>
+      <ion-label>
+        <p class="strong">{{ 'statement.import' | t }}</p>
+        <p class="hint">{{ (isNew() ? 'statement.import.newHint' : 'statement.import.hint') | t }}</p>
+      </ion-label>
+      @if (reading()) { <ion-spinner slot="end"></ion-spinner> }
+    </ion-item>
+
+    @if (statementSaid(); as said) {
+      <ion-item lines="none" class="from-statement">
+        <ion-icon slot="start" name="sparkles-outline"></ion-icon>
+        <ion-label class="ion-text-wrap"><p class="hint">{{ said }}</p></ion-label>
       </ion-item>
+    }
+
+    @if (!isNew()) {
 
       <ion-item>
         <ion-toggle [checked]="archived()"

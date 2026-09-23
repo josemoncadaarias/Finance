@@ -304,5 +304,59 @@ function statedBalances(lines: readonly StatementLine[], minorUnits: number): {
   return { opening, closing };
 }
 
+/**
+ * What a statement says about the account it belongs to.
+ *
+ * Enough to fill in a form somebody would otherwise type: the bank's name
+ * from the top of the page, the day the period began, and what the account
+ * held then - which is exactly the opening balance of an account created from
+ * this statement, because opening plus these movements lands on the closing
+ * balance the bank printed.
+ *
+ * Every field may be missing, and a missing one is asked for rather than
+ * invented.
+ */
+export interface StatementAccount {
+  name: string | null;
+  opening_minor: number | null;
+  opened_on: IsoDate | null;
+}
+
+/** Words that are the bank's paperwork rather than its name. */
+const NOT_A_NAME = /(extracto|estado\s+de\s+cuenta|periodo|per[ií]odo|cuenta\s+n|nit|p[aá]gina|resumen|fecha)/i;
+
+export function accountIn(reading: StatementReading, items: readonly TextItem[]): StatementAccount {
+  const lines = linesOf(items);
+
+  // The first line of the first page that reads like a name: banks put their
+  // own at the top, and what is up there and is not paperwork is it.
+  let name: string | null = null;
+  for (const line of lines.slice(0, 6)) {
+    // The leftmost piece of the line, not the whole line: a bank puts its own
+    // name on the left and the words 'Extracto de cuenta' on the right of the
+    // same row, and reading the row whole threw the name away with them.
+    const text = (line.items[0]?.text ?? '').trim();
+    if (text.length < 3 || text.length > 60) continue;
+    if (NOT_A_NAME.test(text)) continue;
+    if (moneyIn(text, 2) !== null) continue;
+    // A line that starts with a date is a movement, and a movement is not a
+    // bank however few of them the page has.
+    if (dateIn(text, 2000) !== null) continue;
+    // A legal suffix is the bank's lawyers, not what anybody calls it.
+    name = text.replace(/\s+(S\.?A\.?S?\.?|LTDA\.?|BIC)\b.*$/i, '').trim();
+    break;
+  }
+
+  // The day the period began is the day before its first movement: the
+  // opening balance is what the account held when that day started.
+  const first = reading.rows[0] ?? null;
+
+  return {
+    name: name === null || name.length === 0 ? null : name,
+    opening_minor: reading.opening_minor,
+    opened_on: first === null ? null : first.occurred_on,
+  };
+}
+
 /** The same, for a single line of text - used by the tests and the readers. */
 export { moneyIn, dateIn, yearIn };

@@ -29,7 +29,7 @@ import { Router } from '@angular/router';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
-import { StatementsService } from '../../core/statements/statements.service';
+import { StatementsService, type ReadStatement } from '../../core/statements/statements.service';
 import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../core/statements/pdf-text';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
@@ -70,6 +70,26 @@ export class AccountEditorComponent implements OnInit {
 
   /** True while a statement is being read, which takes a moment on a phone. */
   readonly reading = signal(false);
+
+  /**
+   * A statement read for an account that does not exist yet.
+   *
+   * Held until the form is saved, because its movements have to point at an
+   * account and there is none. What it filled in - the name, the opening
+   * balance, the day - is on the form by then and can be corrected like
+   * anything else typed there.
+   */
+  readonly fromStatement = signal<ReadStatement | null>(null);
+
+  /** What that statement filled in, for the line that says so. */
+  readonly statementSaid = computed(() => {
+    const read = this.fromStatement();
+    if (read === null) return null;
+    return this.i18n.t('statement.filledIn', {
+      file: read.file.name,
+      count: read.reading.rows.length,
+    });
+  });
 
   readonly accountIcons = ACCOUNT_ICONS;
   readonly types = TYPES;
@@ -333,6 +353,19 @@ export class AccountEditorComponent implements OnInit {
             this.currency() === 'COP' ? this.openingBalance().minor : 0,
         });
         await this.saveLimit(id);
+
+        // The statement that filled this form in now has an account to
+        // belong to. Its movements are proposed, not written: the review
+        // screen is still where a person answers for each of them.
+        const read = this.fromStatement();
+        if (read !== null) {
+          await this.statements.proposeRead(id, read);
+          this.fromStatement.set(null);
+          this.database.dataChanged();
+          this.saved.emit();
+          await this.router.navigateByUrl('/review');
+          return;
+        }
       }
 
       this.database.dataChanged();
@@ -391,7 +424,51 @@ export class AccountEditorComponent implements OnInit {
     // Cleared straight away, or picking the same file twice in a row fires
     // nothing the second time: the value has not changed.
     input.value = '';
-    if (account && file) await this.readStatement(account.id, file);
+    if (!file) return;
+    if (account) await this.readStatement(account.id, file);
+    else await this.readForNewAccount(file);
+  }
+
+  /**
+   * A statement opened while the account is still being made.
+   *
+   * It fills the form in rather than saving anything: the bank's name, what
+   * the account held when the period began, and the day it began. Jose asked
+   * for this so that making an account is not typing out what the PDF in his
+   * hand already says - and every field it fills is a field he can correct
+   * before pressing save, because it is just the form.
+   */
+  private async readForNewAccount(file: File, password?: string): Promise<void> {
+    this.reading.set(true);
+    this.error.set('');
+    try {
+      const read = await this.statements.read(file, password);
+      this.fromStatement.set(read);
+
+      // Only what is still empty, and only what the statement actually said:
+      // a form half filled in by hand is not overwritten by a file.
+      if (read.account.name && this.name().trim() === '') this.name.set(read.account.name);
+      if (read.account.opening_minor !== null && this.openingBalance().minor === 0) {
+        this.openingBalance.set(AmountBuffer.from(read.account.opening_minor));
+      }
+      if (read.account.opened_on) this.openedOn.set(read.account.opened_on);
+    } catch (problem) {
+      if (problem instanceof StatementLocked) {
+        const typed = window.prompt(this.i18n.t('statement.password'));
+        if (typed) {
+          this.reading.set(false);
+          await this.readForNewAccount(file, typed);
+          return;
+        }
+        this.error.set(this.i18n.t('statement.password.hint'));
+      } else if (problem instanceof StatementUnreadable) {
+        this.error.set(`${this.i18n.t('statement.unreadable')} (${problem.reason})`);
+      } else {
+        this.error.set(problem instanceof Error ? problem.message : String(problem));
+      }
+    } finally {
+      this.reading.set(false);
+    }
   }
 
   private async readStatement(accountId: number, file: File, password?: string): Promise<void> {

@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { dateIn, moneyIn, yearIn } from '../../src/app/core/statements/tokens.ts';
-import { linesOf, readStatement } from '../../src/app/core/statements/statement.ts';
+import { accountIn, linesOf, readStatement } from '../../src/app/core/statements/statement.ts';
 
 const COP = 2;
 
@@ -240,4 +240,46 @@ test('a statement that never names its balances is checked by its own column', (
   assert.equal(read.opening_minor, 100_000_000, 'the first line says what came before it');
   assert.equal(read.closing_minor, 105_000_000);
   assert.equal(read.balances, 'checked');
+});
+
+// ---------------------------------------------------------------------------
+// What a statement says about the account it belongs to
+// ---------------------------------------------------------------------------
+
+test('a statement names its bank, its opening balance and its first day', () => {
+  const items = page([
+    [[40, 'BANCO AZUL S.A.'], [330, 'Extracto de cuenta - septiembre 2026']],
+    [[40, 'Cuenta de ahorros No. 556-120034-71'], [330, 'Periodo: 01/09/2026 al 30/09/2026']],
+    [[40, 'Saldo anterior'], [440, '1.250.000,00']],
+    [[40, '02/09'], [90, 'COMPRA EXITO'], [330, '145.300,00'], [440, '1.104.700,00']],
+    [[40, '05/09'], [90, 'COMPRA RAPPI'], [330, '38.900,00'], [440, '1.065.800,00']],
+    [[40, 'Saldo final'], [440, '1.065.800,00']],
+  ]);
+
+  const said = accountIn(readStatement(items, COP), items);
+  assert.equal(said.name, 'BANCO AZUL', 'without the lawyers');
+  assert.equal(said.opening_minor, 125_000_000, 'which is what an account created from this starts at');
+  assert.equal(said.opened_on, '2026-09-02');
+});
+
+test('the bank is not the word "Extracto", nor a NIT, nor a figure', () => {
+  const items = page([
+    [[40, 'Estado de cuenta']],
+    [[40, 'NIT 890.903.938-8']],
+    [[40, 'COOPERATIVA DE PRUEBA LTDA']],
+    [[40, 'Saldo anterior'], [440, '100.000,00']],
+    [[40, '02/09/2026'], [90, 'COMPRA'], [330, '10.000,00'], [440, '90.000,00']],
+  ]);
+
+  assert.equal(accountIn(readStatement(items, COP), items).name, 'COOPERATIVA DE PRUEBA');
+});
+
+test('a statement that says nothing about its account invents nothing', () => {
+  const items = page([
+    [[40, '02/09/2026'], [90, 'COMPRA'], [330, '10.000,00']],
+  ]);
+
+  const said = accountIn(readStatement(items, COP), items);
+  assert.equal(said.opening_minor, null);
+  assert.equal(said.name, null, 'a movement is not a bank');
 });
