@@ -30,7 +30,7 @@ import { Router } from '@angular/router';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { StatementsService } from '../../core/statements/statements.service';
-import { StatementLocked, StatementUnreadable } from '../../core/statements/pdf-text';
+import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../core/statements/pdf-text';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -166,6 +166,9 @@ export class AccountEditorComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    // While the form is being read, rather than while somebody waits for an
+    // answer. See warmUpPdfReader.
+    if (this.editing()) void warmUpPdfReader();
   }
 
   private async load(): Promise<void> {
@@ -395,7 +398,13 @@ export class AccountEditorComponent implements OnInit {
     this.reading.set(true);
     this.error.set('');
     try {
-      await this.statements.importInto(accountId, file, password);
+      // A reading that never comes back is still a reading somebody is
+      // waiting on. Whatever the cause, saying so beats a spinner for ever.
+      await Promise.race([
+        this.statements.importInto(accountId, file, password),
+        new Promise((_, fail) => setTimeout(
+          () => fail(new StatementUnreadable(this.i18n.t('statement.tooLong'))), 60_000)),
+      ]);
       this.database.dataChanged();
       this.cancelled.emit();
       await this.router.navigateByUrl('/review');

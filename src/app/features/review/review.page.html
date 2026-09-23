@@ -47,24 +47,29 @@
           <h2>{{ batch.title }}</h2>
           <p class="hint">{{ 'review.batch.count' | t:{ count: batch.lines.length } }}</p>
 
+          <!-- One thing to do, and two ways out of it. They were three
+               buttons of a size, which made the choice look like three equal
+               choices and wrapped onto two lines on a phone. -->
           <div class="batch-actions">
-            <ion-button size="small" [disabled]="working()"
-                        (click)="asking.set({ kind: 'accept', batch })">
-              <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
+            <button type="button" class="save" [disabled]="working()"
+                    (click)="asking.set({ kind: 'accept', batch })">
+              <ion-icon name="checkmark-outline"></ion-icon>
               {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
-            </ion-button>
-            <!-- Off the screen without deciding: not saved, not thrown away,
-                 and the same statement imported again brings it back. -->
-            <ion-button size="small" fill="clear" color="medium" [disabled]="working()"
-                        (click)="asking.set({ kind: 'forget', batch })">
-              <ion-icon slot="start" name="eye-off-outline"></ion-icon>
-              {{ 'review.forgetAll' | t }}
-            </ion-button>
-            <ion-button size="small" fill="clear" color="medium" [disabled]="working()"
-                        (click)="asking.set({ kind: 'discard', batch })">
-              <ion-icon slot="start" name="trash-outline"></ion-icon>
-              {{ 'review.discardAll' | t }}
-            </ion-button>
+            </button>
+
+            <div class="ways-out">
+              <!-- Off the screen without deciding: not saved, not thrown
+                   away, and the same statement imported again brings it back. -->
+              <button type="button" [disabled]="working()"
+                      (click)="asking.set({ kind: 'forget', batch })">
+                {{ 'review.forgetAll' | t }}
+              </button>
+              <span class="apart">·</span>
+              <button type="button" class="drop" [disabled]="working()"
+                      (click)="asking.set({ kind: 'discard', batch })">
+                {{ 'review.discardAll' | t }}
+              </button>
+            </div>
           </div>
         </header>
 

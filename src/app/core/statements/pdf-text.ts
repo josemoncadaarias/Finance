@@ -116,6 +116,31 @@ export async function textOfPdf(
   return items;
 }
 
+/**
+ * Loads the reader before anybody asks it to read.
+ *
+ * The first statement of a session pays for two things nobody else does: a
+ * megabyte and a half of library, and a megabyte of worker. On the
+ * development server it pays for a third - Vite meets `pdfjs-dist` for the
+ * first time, optimises it, and RELOADS THE PAGE, which is what left Jose
+ * watching a spinner that would never stop while the reading itself had
+ * already finished. The second statement was always fine, because by then the
+ * optimisation was cached on disk.
+ *
+ * None of that happens in the built app, where everything is bundled ahead of
+ * time. It still pays to do it early: called when the account editor opens,
+ * the cost lands while somebody is reading a form rather than while they are
+ * waiting for an answer.
+ */
+export async function warmUpPdfReader(): Promise<void> {
+  try {
+    await Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), workerFromAssets()]);
+  } catch {
+    // Nothing is being asked of it yet, so nothing is owed to anyone if it
+    // fails. The real attempt will say so properly.
+  }
+}
+
 /** The worker, once, as something no dev server will rewrite on the way. */
 let workerUrl: string | null = null;
 

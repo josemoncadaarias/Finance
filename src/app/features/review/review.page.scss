@@ -203,20 +203,52 @@ ion-title small {
   }
 }
 
-/* In the header, so the way out of a long list is visible before the list. */
+/* In the header, so the way out of a long list is visible before the list.
+   One thing to do, and two quieter ways out of it: three buttons of a size
+   read as three equal choices, which they are not. */
 .batch-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0.5rem 0 0.2rem;
+  gap: 0.5rem 0.9rem;
+  margin: 0.7rem 0 0.2rem;
 
-  ion-button {
-    --padding-start: 0.7rem;
-    --padding-end: 0.7rem;
-    margin: 0;
-    font-size: 0.78rem;
+  .save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ion-color-primary);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    ion-icon { font-size: 1rem; }
+    &:disabled { opacity: 0.45; }
   }
 
-  /* Asked a second time, the same way a row is. */
-  ion-button.sure { --color: var(--ion-color-danger); font-weight: 600; }
+  .ways-out {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    button {
+      padding: 0.2rem 0;
+      border: 0;
+      background: none;
+      color: var(--ion-color-medium);
+      font-size: 0.8rem;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+
+      &:disabled { opacity: 0.45; }
+      /* The destructive one is named as such, and is never the one a thumb
+         lands on by default. */
+      &.drop { color: var(--ion-color-danger); }
+    }
+
+    .apart { color: var(--ion-color-step-350); font-size: 0.8rem; }
+  }
 }
