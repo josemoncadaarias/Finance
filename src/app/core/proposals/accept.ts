@@ -29,12 +29,25 @@ interface Repos {
   transfers: TransfersRepository;
 }
 
-/** Everything a proposal needs before it can become a movement. */
+/**
+ * Everything a proposal needs before it can become a movement.
+ *
+ * The category is one of them, and not by choice here: the schema says
+ * `(transfer_id IS NULL) = (category_id IS NOT NULL)` - an ordinary movement
+ * is filed somewhere, and a transfer leg is not filed at all. Writing one
+ * without a category fails at the database, which is exactly where a person
+ * pressing "save" should never meet a failure. So it is a question on the
+ * screen instead.
+ *
+ * A half of a transfer is the exception: the pair is written through
+ * `transfers`, which files neither leg.
+ */
 export function isComplete(proposal: MovementProposal): boolean {
   return proposal.account_id !== null
     && proposal.occurred_on !== null
     && proposal.amount_minor !== null
-    && proposal.amount_minor !== 0;
+    && proposal.amount_minor !== 0
+    && (proposal.category_id !== null || proposal.pairs_with !== null);
 }
 
 /**

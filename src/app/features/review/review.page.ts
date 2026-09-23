@@ -33,6 +33,7 @@ import { StatementsService } from '../../core/statements/statements.service';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -59,7 +60,7 @@ interface Batch {
   selector: 'app-review',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslatePipe,
+    CommonModule, FormsModule, TranslatePipe, ConfirmComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
     IonSpinner, IonMenuButton,
@@ -110,8 +111,17 @@ export class ReviewPage {
 
   /** The row whose amount or date is being corrected, if any. */
   readonly editing = signal<number | null>(null);
-  /** The row waiting to be told a second time that it is being thrown away. */
-  readonly discarding = signal<number | null>(null);
+  /**
+   * The question on screen, if any.
+   *
+   * A dialog rather than a button that changes under the thumb: Jose asked
+   * for it by name after meeting the second kind, and the app already has one
+   * component for "are you sure" - the same one the movements and the
+   * products use.
+   */
+  readonly asking = signal<
+    { kind: 'accept' | 'discard' | 'forget'; batch: Batch } |
+    { kind: 'discardOne'; line: Line } | null>(null);
 
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
 
@@ -232,6 +242,19 @@ export class ReviewPage {
     return isComplete(line.proposal);
   }
 
+  /** What a row is still missing, said rather than only greyed out. */
+  missing(line: Line): string | null {
+    const proposal = line.proposal;
+    if (proposal.account_id === null) return this.i18n.t('review.needsAccount');
+    if (proposal.amount_minor === null || proposal.amount_minor === 0) {
+      return this.i18n.t('review.needsAmount');
+    }
+    if (proposal.category_id === null && proposal.pairs_with === null) {
+      return this.i18n.t('review.needsCategory');
+    }
+    return null;
+  }
+
   money(minor: number | null, currency?: string): string {
     if (minor === null) return '—';
     return formatMoney(minor, currency ?? 'COP');
@@ -290,11 +313,51 @@ export class ReviewPage {
   // -------------------------------------------------------------------------
 
   async acceptOne(line: Line): Promise<void> {
+    // One movement, written and as deletable as any other: nothing to ask.
     await this.write([line.proposal]);
   }
 
-  async acceptBatch(batch: Batch): Promise<void> {
-    await this.write(batch.lines.map(line => line.proposal));
+  /** What the dialog says, which is different for each of the three. */
+  askTitle(): string {
+    const asking = this.asking();
+    if (asking === null) return '';
+    if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
+    const count = asking.batch.lines.length;
+    return this.i18n.t(`review.${asking.kind}.sure`, { count });
+  }
+
+  askBody(): string {
+    const asking = this.asking();
+    if (asking === null) return '';
+    if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
+    return this.i18n.t(`review.${asking.kind}.body`);
+  }
+
+  askLabel(): string {
+    const asking = this.asking();
+    if (asking === null) return '';
+    return this.i18n.t(`review.${asking.kind === 'discardOne' ? 'discard' : asking.kind}.do`);
+  }
+
+  askIcon(): string {
+    return this.asking()?.kind === 'accept' ? 'checkmark-done-outline' : 'trash-outline';
+  }
+
+  /** Does whatever was being asked about. */
+  async confirmed(): Promise<void> {
+    const asking = this.asking();
+    this.asking.set(null);
+    if (asking === null) return;
+
+    if (asking.kind === 'accept') {
+      await this.write(asking.batch.lines.map(line => line.proposal));
+    } else if (asking.kind === 'discard') {
+      await this.rejectAll(asking.batch);
+    } else if (asking.kind === 'discardOne') {
+      await this.rejectOne(asking.line);
+    } else {
+      await this.forget(asking.batch);
+    }
   }
 
   private async write(proposals: readonly MovementProposal[]): Promise<void> {
@@ -320,32 +383,38 @@ export class ReviewPage {
     }
   }
 
-  /** Thrown away, once it has been asked twice. */
-  async discard(line: Line): Promise<void> {
-    if (this.discarding() !== line.proposal.id) {
-      this.discarding.set(line.proposal.id);
-      return;
-    }
+  private async rejectOne(line: Line): Promise<void> {
     this.working.set(true);
     try {
       await new ProposalsRepository(this.database.driver).reject(line.proposal.id);
-      this.discarding.set(null);
       await this.refresh();
     } finally {
       this.working.set(false);
     }
   }
 
-  async discardBatch(batch: Batch): Promise<void> {
-    if (this.discarding() !== -1) {
-      this.discarding.set(-1);
-      return;
-    }
+  private async rejectAll(batch: Batch): Promise<void> {
     this.working.set(true);
     try {
       const proposals = new ProposalsRepository(this.database.driver);
       for (const line of batch.lines) await proposals.reject(line.proposal.id);
-      this.discarding.set(null);
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  /**
+   * Off the screen, without deciding anything.
+   *
+   * The third answer, and the one Jose asked for: not saved, not thrown
+   * away - just gone, and the same statement imported again brings it back.
+   */
+  private async forget(batch: Batch): Promise<void> {
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver).forget(batch.key);
+      this.statements.lastImport.set(null);
       await this.refresh();
     } finally {
       this.working.set(false);

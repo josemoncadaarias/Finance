@@ -338,6 +338,24 @@ export class ProposalsRepository {
     return learned;
   }
 
+  /**
+   * Takes a batch off the screen without deciding anything about it.
+   *
+   * Jose, 2026-09-23: "y que pasa si no queria hacer nada con ese archivo?
+   * es decir no descartarlos, pero tampoco hacer algo, solo limpiar la
+   * pantalla". Throwing away is a decision and it is remembered; this is the
+   * absence of one, so the rows are deleted outright and the same statement
+   * imported again proposes them afresh.
+   *
+   * Only what is still waiting: a movement already written, and a rejection
+   * already made, are answers and they stay.
+   */
+  async forget(batch: string): Promise<number> {
+    const result = await this.db.run(
+      "DELETE FROM movement_proposals WHERE batch = ? AND status = 'pending'", [batch]);
+    return result.changes ?? 0;
+  }
+
   /** The dictionary, for the screen that shows what the app has learned. */
   async learned(): Promise<{ merchant: string; sample: string; category_id: number; times: number }[]> {
     return this.db.query(

@@ -114,7 +114,10 @@
       <!-- A statement belongs to an account, so this is where it is opened
            from. What it reads is proposed, never saved: the review screen is
            where a person answers it. Rule 22. -->
-      <ion-item button [disabled]="reading()" (click)="pickStatement()">
+      <input #statementFile type="file" accept="application/pdf,.pdf" hidden
+             (change)="onStatementPicked($any($event.target))" />
+
+      <ion-item button [disabled]="reading()" (click)="statementFile.click()">
         <ion-icon slot="start" name="document-attach-outline"></ion-icon>
         <ion-label>
           <p class="strong">{{ 'statement.import' | t }}</p>

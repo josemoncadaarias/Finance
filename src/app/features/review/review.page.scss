@@ -135,6 +135,7 @@ ion-title small {
     &.same { color: var(--ion-color-warning-shade); }
     &.pair { color: var(--ion-color-primary); }
     &.guessed { color: var(--ion-color-medium); }
+    &.needs { color: var(--ion-color-warning-shade); font-weight: 600; }
   }
 
   .fields {

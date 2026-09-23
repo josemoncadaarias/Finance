@@ -376,19 +376,19 @@ export class AccountEditorComponent implements OnInit {
    * Nothing is saved here: what the file says becomes proposals, and the
    * review screen is where a person accepts, corrects or throws each of them
    * away. A statement that asks for a password asks once, here.
+   *
+   * The input lives in the template rather than being built here, so that
+   * Angular hears the change itself. Built by hand it fired outside the
+   * framework: the reading finished, the rows were saved, and the screen went
+   * on showing a spinner until it was reloaded.
    */
-  async pickStatement(): Promise<void> {
+  async onStatementPicked(input: HTMLInputElement): Promise<void> {
     const account = this.editing();
-    if (!account) return;
-
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/pdf,.pdf';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) await this.readStatement(account.id, file);
-    };
-    input.click();
+    const file = input.files?.[0];
+    // Cleared straight away, or picking the same file twice in a row fires
+    // nothing the second time: the value has not changed.
+    input.value = '';
+    if (account && file) await this.readStatement(account.id, file);
   }
 
   private async readStatement(accountId: number, file: File, password?: string): Promise<void> {

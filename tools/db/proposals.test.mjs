@@ -420,3 +420,61 @@ test('two identical charges in one statement stay two questions', async () => {
   assert.equal(proposed.knownAlready, 0);
   await db.close();
 });
+
+test('taking a batch off the screen is not the same as throwing it away', async () => {
+  const { db, proposals, rappi } = await setup();
+  const statement = [{
+    source: 'statement', account_id: rappi, occurred_on: '2026-09-10',
+    amount_minor: -45_000_00, description: 'COMPRA EXITO POBLADO', evidence: {},
+  }];
+
+  await proposals.propose('extracto.pdf 1', statement);
+  assert.equal(await proposals.forget('extracto.pdf 1'), 1);
+  assert.equal(await proposals.pendingCount(), 0, 'off the screen');
+
+  // Nothing was decided, so the same statement says it again. That is the
+  // whole difference from discarding, which is remembered.
+  const again = await proposals.propose('extracto.pdf 2', statement);
+  assert.equal(again.ids.length, 1);
+  assert.equal(await proposals.pendingCount(), 1);
+  await db.close();
+});
+
+test('forgetting leaves what was already answered alone', async () => {
+  const { db, proposals, transactions, transfers, rappi, mercados } = await setup();
+  const { ids } = await proposals.propose('extracto.pdf', [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -1_000_00,
+      description: 'UNO', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-11', amount_minor: -2_000_00,
+      description: 'DOS', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-12', amount_minor: -3_000_00,
+      description: 'TRES', evidence: {} },
+  ]);
+  await proposals.correct(ids[0], { category_id: mercados });
+  await accept({ proposals, transactions, transfers }, [await proposals.byId(ids[0])]);
+  await proposals.reject(ids[1]);
+
+  assert.equal(await proposals.forget('extracto.pdf'), 1, 'only the one still waiting');
+  assert.equal((await proposals.byId(ids[0])).status, 'accepted');
+  assert.equal((await proposals.byId(ids[1])).status, 'rejected');
+  assert.equal(await proposals.byId(ids[2]), null);
+  await db.close();
+});
+
+test('a movement with no category is refused, because the schema says so', async () => {
+  const { db, proposals, transactions, transfers, rappi } = await setup();
+
+  // "RETIRO CAJERO" is nobody's shop, so nothing was learned for it and no
+  // category was proposed. Written as it stands it fails at the database -
+  // `(transfer_id IS NULL) = (category_id IS NOT NULL)` - which is the last
+  // place a person pressing save should meet a failure.
+  const { ids: [id] } = await proposals.propose('extracto.pdf', [{
+    source: 'statement', account_id: rappi, occurred_on: '2026-09-16',
+    amount_minor: -300_000_00, description: 'RETIRO CAJERO CC SANTAFE', evidence: {},
+  }]);
+
+  const refused = await accept({ proposals, transactions, transfers }, [await proposals.byId(id)]);
+  assert.equal(refused.written, 0);
+  assert.deepEqual(refused.refused, [{ id, reason: 'incomplete' }]);
+  assert.equal((await transactions.list()).length, 0);
+});

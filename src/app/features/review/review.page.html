@@ -48,15 +48,22 @@
           <p class="hint">{{ 'review.batch.count' | t:{ count: batch.lines.length } }}</p>
 
           <div class="batch-actions">
-            <ion-button size="small" [disabled]="working()" (click)="acceptBatch(batch)">
+            <ion-button size="small" [disabled]="working()"
+                        (click)="asking.set({ kind: 'accept', batch })">
               <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
               {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
             </ion-button>
-            <ion-button size="small" fill="clear" color="medium"
-                        [class.sure]="discarding() === -1"
-                        [disabled]="working()" (click)="discardBatch(batch)">
+            <!-- Off the screen without deciding: not saved, not thrown away,
+                 and the same statement imported again brings it back. -->
+            <ion-button size="small" fill="clear" color="medium" [disabled]="working()"
+                        (click)="asking.set({ kind: 'forget', batch })">
+              <ion-icon slot="start" name="eye-off-outline"></ion-icon>
+              {{ 'review.forgetAll' | t }}
+            </ion-button>
+            <ion-button size="small" fill="clear" color="medium" [disabled]="working()"
+                        (click)="asking.set({ kind: 'discard', batch })">
               <ion-icon slot="start" name="trash-outline"></ion-icon>
-              {{ (discarding() === -1 ? 'review.discardAll.sure' : 'review.discardAll') | t }}
+              {{ 'review.discardAll' | t }}
             </ion-button>
           </div>
         </header>
@@ -95,6 +102,14 @@
                   <p class="flag pair">
                     <ion-icon name="swap-horizontal-outline"></ion-icon>
                     {{ line.pairedWith }}
+                  </p>
+                }
+                <!-- A row that cannot be written says what it needs, rather
+                     than only having its button greyed out. -->
+                @if (missing(line); as needed) {
+                  <p class="flag needs">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                    {{ needed }}
                   </p>
                 }
                 @if (line.guessed) {
@@ -152,10 +167,10 @@
                         (click)="acceptOne(line)" [attr.aria-label]="'review.accept' | t">
                   <ion-icon name="checkmark-outline"></ion-icon>
                 </button>
-                <button type="button" class="no" [class.sure]="discarding() === line.proposal.id"
-                        [disabled]="working()" (click)="discard(line)"
+                <button type="button" class="no" [disabled]="working()"
+                        (click)="asking.set({ kind: 'discardOne', line })"
                         [attr.aria-label]="'review.discard' | t">
-                  <ion-icon [name]="discarding() === line.proposal.id ? 'trash' : 'trash-outline'"></ion-icon>
+                  <ion-icon name="trash-outline"></ion-icon>
                 </button>
               </div>
             </ion-item>
@@ -166,3 +181,8 @@
     }
   }
 </ion-content>
+
+<!-- The same dialog the rest of the app asks with. -->
+<app-confirm [open]="asking() !== null" [title]="askTitle()" [body]="askBody()"
+             [confirmLabel]="askLabel()" [icon]="askIcon()" [busy]="working()"
+             (confirmed)="confirmed()" (cancelled)="asking.set(null)"></app-confirm>
