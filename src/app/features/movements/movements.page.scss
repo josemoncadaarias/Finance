@@ -95,6 +95,11 @@ ion-toolbar.stepper {
   .period-button {
     --padding-start: 0.75rem;
     --padding-end: 0.75rem;
+    /* Centred between the two arrows. `margin: 0 auto` alone did nothing:
+       the button is inline, so there was no width for the auto margins to
+       share out, and the label sat against the left arrow. */
+    display: block;
+    width: max-content;
     margin: 0 auto;
     font-size: 0.9rem;
 
@@ -195,19 +200,20 @@ ion-toolbar.stepper {
  * ends line up with the totals below and the toolbar above.
  */
 .period-tag {
-  /* The two ends of the line, against the same gutter as everything else.
-     Centring the caption between them was tried and undone: it left the
-     button only the room the caption had not taken, so "Resumen en Excel"
-     came out as "Resumen e...". */
+  /* The ways in, against the same gutter as everything else. The caption that
+     used to hold the other end of this line is gone - it repeated the period
+     from the bar above - so what is left lines up at the end, and the currency
+     takes the other end on the accounts where there is one to show. */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
   margin: 0.2rem 0 0;
   padding: 0.6rem 1rem 0;
   border-top: 1px solid var(--ion-color-light-shade);
 
   .what {
+    margin-right: auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

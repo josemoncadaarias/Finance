@@ -41,6 +41,38 @@
       </div>
     }
 
+    <!-- The shops that turn up more than once, answered once each. Without
+         this, a month at the same supermarket is six identical questions. -->
+    @if (repeated().length > 0) {
+      <section class="repeated">
+        <h2>{{ 'review.repeated' | t }}</h2>
+        <p class="hint">{{ 'review.repeated.hint' | t }}</p>
+
+        <ion-list [inset]="true">
+          @for (shop of repeated(); track shop.merchant) {
+            <ion-item lines="full">
+              <ion-label>
+                <h3>{{ shop.sample }}</h3>
+                <p>{{ 'review.repeated.count' | t:{ count: shop.count } }}</p>
+              </ion-label>
+              <button type="button" slot="end" class="category"
+                      [disabled]="working()" (click)="choosingMerchant.set(shop)">
+                @if (shop.category; as category) {
+                  <app-icon [builtin]="category.builtin_icon"
+                            [customId]="category.custom_icon_id" size="1rem"></app-icon>
+                  <span>{{ category.name }}</span>
+                } @else {
+                  <ion-icon name="pricetag-outline"></ion-icon>
+                  <span>{{ 'review.pickCategory' | t }}</span>
+                }
+                <ion-icon class="more" name="chevron-down-outline"></ion-icon>
+              </button>
+            </ion-item>
+          }
+        </ion-list>
+      </section>
+    }
+
     @for (batch of batches(); track batch.key) {
       <section class="batch">
         <header>
@@ -223,10 +255,11 @@
 </ion-popover>
 
 <!-- The categories, the same sheet the movement form opens. -->
-<app-category-sheet [open]="choosingFor() !== null" [kind]="choosingKind()"
-                    [chosen]="choosingFor()?.proposal?.category_id ?? null"
+<app-category-sheet [open]="choosingFor() !== null || choosingMerchant() !== null"
+                    [kind]="choosingKind()"
+                    [chosen]="choosingFor()?.proposal?.category_id ?? choosingMerchant()?.category?.id ?? null"
                     (picked)="chooseCategory($event)"
-                    (cancelled)="choosingFor.set(null)"></app-category-sheet>
+                    (cancelled)="choosingFor.set(null); choosingMerchant.set(null)"></app-category-sheet>
 
 <app-confirm [open]="asking() !== null" [title]="askTitle()" [body]="askBody()"
              [confirmLabel]="askLabel()" [icon]="askIcon()" [tone]="askTone()"

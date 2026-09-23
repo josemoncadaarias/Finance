@@ -11,7 +11,7 @@
 import { Component, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
@@ -41,6 +41,8 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
+import { StatementsService } from '../../core/statements/statements.service';
+import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../core/statements/pdf-text';
 
 @Component({
   selector: 'app-movements',
@@ -63,6 +65,61 @@ export class MovementsPage {
 
   readonly status = this.database.status;
   readonly periodKinds = PERIOD_KINDS;
+
+  private readonly statements = inject(StatementsService);
+  private readonly router = inject(Router);
+
+  /** True while a statement is being read, which takes a moment on a phone. */
+  readonly reading = signal(false);
+
+  /**
+   * Opens a statement for the account being looked at.
+   *
+   * On this screen because this is where somebody IS an account: the summary
+   * names one, and a statement is about one. It is not offered while every
+   * account is on show, because then there is nothing to import into.
+   */
+  async onStatementPicked(input: HTMLInputElement): Promise<void> {
+    const accountId = this.filter.accountId();
+    const file = input.files?.[0];
+    // Cleared straight away, or picking the same file twice in a row fires
+    // nothing the second time: the value has not changed.
+    input.value = '';
+    if (accountId === null || !file) return;
+
+    this.reading.set(true);
+    try {
+      await this.statements.importInto(accountId, file);
+      this.database.dataChanged();
+      await this.router.navigateByUrl('/review');
+    } catch (problem) {
+      if (problem instanceof StatementLocked) {
+        const typed = window.prompt(this.i18n.t('statement.password'));
+        if (typed) {
+          try {
+            await this.statements.importInto(accountId, file, typed);
+            this.database.dataChanged();
+            await this.router.navigateByUrl('/review');
+          } catch (second) {
+            this.statementFailed(second);
+          }
+        }
+      } else {
+        this.statementFailed(problem);
+      }
+    } finally {
+      this.reading.set(false);
+    }
+  }
+
+  private statementFailed(problem: unknown): void {
+    const said = problem instanceof StatementUnreadable
+      ? `${this.i18n.t('statement.unreadable')} (${problem.reason})`
+      : problem instanceof Error ? problem.message : String(problem);
+    // This screen has no error line of its own, and a statement that cannot be
+    // read is not a reason to invent one: the alert says it and goes.
+    window.alert(said);
+  }
 
   /** The three ways of reading the list, each with its ordering settled. */
   readonly views: { id: Grouping; label: string; icon: string }[] = [

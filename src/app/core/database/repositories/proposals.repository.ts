@@ -14,6 +14,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
+import { todayIso } from '../../yields/days';
 import { sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
 
 export type ProposalSource = 'statement' | 'notification';
@@ -153,6 +154,34 @@ export class ProposalsRepository {
          AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')
          AND amount_minor IS NOT NULL`,
       [...accounts, days[0], days[days.length - 1]]);
+  }
+
+  /**
+   * Files every waiting reading of one merchant under the same category.
+   *
+   * The same shop turns up half a dozen times in a month, and answering for
+   * each of them in turn is the work this screen exists to save. Jose asked
+   * for it as soon as he saw a statement: settle the repeated ones at the
+   * top, then read down the rest.
+   *
+   * It teaches the dictionary too, so the next statement proposes it.
+   */
+  async fileAllAs(merchant: string, categoryId: number): Promise<number> {
+    const waiting = await this.db.query<{ id: number; description: string | null; occurred_on: IsoDate | null }>(
+      "SELECT id, description, occurred_on FROM movement_proposals WHERE status = 'pending'");
+    const mine = waiting.filter(one => merchantKeyOf(one.description) === merchant);
+    if (mine.length === 0) return 0;
+
+    const timestamp = this.now();
+    await this.db.transaction(async () => {
+      for (const one of mine) {
+        await this.db.run(
+          "UPDATE movement_proposals SET category_id = ?, category_from = 'typed', updated_at = ? WHERE id = ?",
+          [categoryId, timestamp, one.id]);
+      }
+    });
+    await this.learn(mine[0].description, categoryId, mine[0].occurred_on ?? todayIso());
+    return mine.length;
   }
 
   /** Everything still waiting, oldest first. */

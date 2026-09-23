@@ -60,6 +60,47 @@ ion-title small {
   }
 }
 
+/* The repeated shops, above the list they save work on. */
+.repeated {
+  margin-top: 0.6rem;
+
+  h2 {
+    margin: 0;
+    padding: 0 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .hint {
+    margin: 0.15rem 0 0;
+    padding: 0 1.2rem;
+    font-size: 0.78rem;
+    color: var(--ion-color-medium);
+  }
+
+  ion-item h3 {
+    font-size: 0.88rem;
+    white-space: normal;
+  }
+  ion-item p { font-size: 0.75rem; }
+
+  .category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 10rem;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--ion-color-step-200);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-text-color);
+    font-size: 0.78rem;
+
+    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .more { font-size: 0.8rem; color: var(--ion-color-medium); }
+    &:disabled { opacity: 0.45; }
+  }
+}
+
 .batch > header {
   padding: 1.1rem 1.2rem 0;
 

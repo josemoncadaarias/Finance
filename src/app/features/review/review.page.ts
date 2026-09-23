@@ -29,6 +29,7 @@ import { CategoriesRepository } from '../../core/database/repositories/categorie
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { accept, isComplete } from '../../core/proposals/accept';
+import { merchantKeyOf } from '../../core/proposals/merchant';
 import { StatementsService } from '../../core/statements/statements.service';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -49,6 +50,21 @@ interface Line {
   evidence: string;
   /** True where the sign was guessed from the words rather than proved. */
   guessed: boolean;
+}
+
+/**
+ * A shop that turns up more than once among the readings.
+ *
+ * Answering for it once is the difference between confirming a statement in
+ * a minute and confirming it in twenty.
+ */
+interface Repeated {
+  merchant: string;
+  /** What it was called, in the wording a person recognises. */
+  sample: string;
+  count: number;
+  /** The category they all share, or null while they disagree or have none. */
+  category: CategoryRow | null;
 }
 
 /** The rows of one statement, or of one batch of notifications. */
@@ -140,6 +156,10 @@ export class ReviewPage {
   }
 
   async chooseCategory(id: number): Promise<void> {
+    if (this.choosingMerchant() !== null) {
+      await this.fileAllAs(id);
+      return;
+    }
     const line = this.choosingFor();
     this.choosingFor.set(null);
     if (line) await this.setCategory(line, id);
@@ -158,6 +178,56 @@ export class ReviewPage {
     { kind: 'discardOne'; line: Line } | null>(null);
 
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
+
+  /**
+   * The shops that turn up more than once, with what they are all filed as.
+   *
+   * Shown above the list so the repeated ones are settled in one answer each
+   * and what is left to read is the handful that are not repeated.
+   */
+  readonly repeated = computed<Repeated[]>(() => {
+    const seen = new Map<string, { sample: string; count: number; categories: Set<number | null> }>();
+    for (const batch of this.batches()) {
+      for (const line of batch.lines) {
+        const merchant = merchantKeyOf(line.proposal.description);
+        if (merchant.length === 0) continue;
+        const found = seen.get(merchant)
+          ?? { sample: line.proposal.description ?? merchant, count: 0, categories: new Set<number | null>() };
+        found.count += 1;
+        found.categories.add(line.proposal.category_id);
+        seen.set(merchant, found);
+      }
+    }
+
+    return [...seen.entries()]
+      .filter(([, found]) => found.count > 1)
+      .map(([merchant, found]) => ({
+        merchant,
+        sample: found.sample,
+        count: found.count,
+        category: found.categories.size === 1
+          ? this.categories().find(one => one.id === [...found.categories][0]) ?? null
+          : null,
+      }))
+      .sort((one, other) => other.count - one.count);
+  });
+
+  /** The repeated shop whose category is being chosen, if any. */
+  readonly choosingMerchant = signal<Repeated | null>(null);
+
+  async fileAllAs(categoryId: number): Promise<void> {
+    const repeated = this.choosingMerchant();
+    this.choosingMerchant.set(null);
+    if (!repeated) return;
+
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver).fileAllAs(repeated.merchant, categoryId);
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
 
   /**
    * The batch whose other two answers are on show, and where to draw them.

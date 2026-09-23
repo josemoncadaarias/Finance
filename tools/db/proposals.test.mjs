@@ -478,3 +478,30 @@ test('a movement with no category is refused, because the schema says so', async
   assert.deepEqual(refused.refused, [{ id, reason: 'incomplete' }]);
   assert.equal((await transactions.list()).length, 0);
 });
+
+test('a shop that repeats is answered once, for all of its movements', async () => {
+  const { db, proposals, rappi, mercados } = await setup();
+
+  await proposals.propose('extracto.pdf', [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-02', amount_minor: -20_000_00,
+      description: 'COMPRA EXITO POBLADO 4471', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-14', amount_minor: -35_000_00,
+      description: 'COMPRA EXITO POBLADO 8812', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-22', amount_minor: -12_000_00,
+      description: 'COMPRA EXITO POBLADO', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-25', amount_minor: -44_900_00,
+      description: 'COMPRA NETFLIX COM', evidence: {} },
+  ]);
+
+  const filed = await proposals.fileAllAs('EXITO POBLADO', mercados);
+  assert.equal(filed, 3, 'the three visits to the same shop, whatever the receipt number');
+
+  const waiting = await proposals.pending();
+  assert.equal(waiting.filter(one => one.category_id === mercados).length, 3);
+  assert.equal(waiting.find(one => one.description.includes('NETFLIX')).category_id, null,
+    'and nothing else was touched');
+
+  // And it was learned, so the next statement proposes it without asking.
+  assert.equal(await proposals.learnedCategoryOf('EXITO POBLADO CALLE 10'), mercados);
+  await db.close();
+});

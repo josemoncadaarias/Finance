@@ -129,10 +129,14 @@
          the summary is about: these dates, this account. It asks nothing when
          tapped - everything it would ask is already chosen above. -->
     <div class="period-tag">
-      <span class="what">
-        {{ 'summary.inPeriod' | t:{ period: label() } }}
-        @if (store.currency() !== 'COP') { · {{ store.currency() }} }
-      </span>
+      <!-- The period used to be said here too, and it is already said in the
+           middle of the bar above, in blue, where it is also the way to change
+           it. Saying it twice only cost this line its room. What is left is
+           what that bar does NOT say: the currency these totals are in, and
+           only when it is not the usual one. -->
+      @if (store.currency() !== 'COP') {
+        <span class="what">{{ store.currency() }}</span>
+      }
 
       <!-- The way to the summary of what this line names. It opens the report
            rather than writing a file: reading it is the usual thing to want,
@@ -141,6 +145,23 @@
         <ion-icon name="stats-chart-outline"></ion-icon>
         <span class="say">{{ 'report.open' | t }}</span>
       </button>
+
+      <!-- A statement belongs to one account, so this only exists while one
+           is being looked at. It sits on this line for the same reason the
+           summary does: this line names what it is about. -->
+      @if (!filter.allAccounts()) {
+        <input #statementFile type="file" accept="application/pdf,.pdf" hidden
+               (change)="onStatementPicked($any($event.target))" />
+        <button type="button" class="to-report" [disabled]="reading()"
+                (click)="statementFile.click()">
+          @if (reading()) {
+            <ion-spinner name="dots"></ion-spinner>
+          } @else {
+            <ion-icon name="document-attach-outline"></ion-icon>
+          }
+          <span class="say">{{ 'statement.import.short' | t }}</span>
+        </button>
+      }
     </div>
 
     <section class="totals">
