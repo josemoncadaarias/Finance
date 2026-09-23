@@ -206,6 +206,36 @@ test('teaching it something else replaces the answer rather than arguing', async
   await db.close();
 });
 
+test('it learns from the movements already typed in, and never overrules the person', async () => {
+  const { db, proposals, transactions, rappi, mercados, restaurante } = await setup();
+
+  // Somebody's own history: the same shop filed the same way most of the time.
+  for (const [on, category] of [
+    ['2026-06-01', mercados], ['2026-07-01', mercados],
+    ['2026-08-01', restaurante], ['2026-08-15', mercados],
+  ]) {
+    await transactions.create({
+      account_id: rappi, category_id: category, occurred_on: on,
+      amount_minor: -50_000, description: 'COMPRA EXITO POBLADO 998', source: 'manual',
+    });
+  }
+  // And one the person has already answered for by hand.
+  await transactions.create({
+    account_id: rappi, category_id: mercados, occurred_on: '2026-08-20',
+    amount_minor: -10_000, description: 'RAPPI COLOMBIA', source: 'manual',
+  });
+  await proposals.learn('RAPPI COLOMBIA', restaurante, '2026-08-20');
+
+  const learned = await proposals.learnFromLedger();
+
+  assert.ok(learned >= 1);
+  assert.equal(await proposals.learnedCategoryOf('COMPRA EXITO POB 4471'), mercados,
+    'the category it was filed under most often');
+  assert.equal(await proposals.learnedCategoryOf('RAPPI COL BOG'), restaurante,
+    'and what the person taught is left alone');
+  await db.close();
+});
+
 test('a reading the ledger may already hold is flagged, and not skipped', async () => {
   const { db, proposals, transactions, rappi, mercados } = await setup();
 

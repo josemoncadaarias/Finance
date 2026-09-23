@@ -184,9 +184,26 @@ export class ProposalsRepository {
   async learnedCategoryOf(description: string | null): Promise<number | null> {
     const merchant = merchantKeyOf(description);
     if (merchant.length === 0) return null;
-    const row = await this.db.queryOne<{ category_id: number }>(
+
+    const exact = await this.db.queryOne<{ category_id: number }>(
       'SELECT category_id FROM merchant_categories WHERE merchant = ?', [merchant]);
-    return row?.category_id ?? null;
+    if (exact) return exact.category_id;
+
+    // The banks abbreviate, and they do not agree with each other: the same
+    // shop is "EXITO POBLADO" on one line and "EXITO POB 4471" on the next,
+    // which are two different names by every exact test. The first word is
+    // what survives that, so a merchant is looked for by it too - and only
+    // where everything found under it was filed the same way. A first word
+    // covering two categories is a question, not an answer.
+    const head = merchant.split(' ')[0];
+    // Two letters is enough: D1 is a chain of supermarkets, and the words
+    // that are short by accident - la, el, por - are noise and never reach here.
+    if (head.length < 2) return null;
+    const family = await this.db.query<{ category_id: number; weight: number }>(
+      `SELECT category_id, SUM(times) AS weight FROM merchant_categories
+       WHERE merchant = ? OR merchant LIKE ? || ' %'
+       GROUP BY category_id`, [head, head]);
+    return family.length === 1 ? family[0].category_id : null;
   }
 
   /**
@@ -214,6 +231,58 @@ export class ProposalsRepository {
          last_seen_on = excluded.last_seen_on,
          updated_at   = excluded.updated_at`,
       [merchant, categoryId, merchantSampleOf(description), on, timestamp, timestamp]);
+  }
+
+  /**
+   * Learns from the movements already on record.
+   *
+   * Without this the dictionary starts empty, and somebody with five years of
+   * their own history typed in would be asked again about every shop they
+   * have already filed a hundred times. Everything that carries a description
+   * and a category is read once, folded to its merchant, and the category
+   * that merchant was filed under most often wins.
+   *
+   * What a person has taught by hand is never overruled: this only fills in
+   * the merchants nobody has answered for yet.
+   */
+  async learnFromLedger(): Promise<number> {
+    const movements = await this.db.query<{
+      description: string; category_id: number; occurred_on: IsoDate;
+    }>(`SELECT description, category_id, occurred_on FROM transactions
+        WHERE description IS NOT NULL AND description <> '' AND category_id IS NOT NULL
+        ORDER BY occurred_on`);
+
+    const counted = new Map<string, {
+      sample: string; last: IsoDate; categories: Map<number, number>;
+    }>();
+    for (const movement of movements) {
+      const merchant = merchantKeyOf(movement.description);
+      if (merchant.length === 0) continue;
+      const seen = counted.get(merchant)
+        ?? { sample: merchantSampleOf(movement.description), last: movement.occurred_on, categories: new Map() };
+      seen.categories.set(movement.category_id, (seen.categories.get(movement.category_id) ?? 0) + 1);
+      seen.last = movement.occurred_on;
+      seen.sample = merchantSampleOf(movement.description);
+      counted.set(merchant, seen);
+    }
+    if (counted.size === 0) return 0;
+
+    const timestamp = this.now();
+    let learned = 0;
+    await this.db.transaction(async () => {
+      for (const [merchant, seen] of counted) {
+        const [categoryId, times] = [...seen.categories.entries()]
+          .sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0];
+        const result = await this.db.run(
+          `INSERT INTO merchant_categories
+             (merchant, category_id, sample, times, last_seen_on, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(merchant) DO NOTHING`,
+          [merchant, categoryId, seen.sample, times, seen.last, timestamp, timestamp]);
+        if ((result.changes ?? 0) > 0) learned += 1;
+      }
+    });
+    return learned;
   }
 
   /** The dictionary, for the screen that shows what the app has learned. */
