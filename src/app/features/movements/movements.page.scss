@@ -200,20 +200,22 @@ ion-toolbar.stepper {
  * ends line up with the totals below and the toolbar above.
  */
 .period-tag {
-  /* The ways in, against the same gutter as everything else. The caption that
-     used to hold the other end of this line is gone - it repeated the period
-     from the bar above - so what is left lines up at the end, and the currency
-     takes the other end on the accounts where there is one to show. */
+  /* The two ways in, centred, with the room the caption used to take.
+     Against the end of the line they read as an afterthought; in the middle
+     of it, at the size of something meant to be pressed, they read as what
+     this line is for. The currency, where there is one, keeps the left. */
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.6rem;
   margin: 0.2rem 0 0;
   padding: 0.6rem 1rem 0;
   border-top: 1px solid var(--ion-color-light-shade);
 
   .what {
-    margin-right: auto;
+    /* Centred with the two buttons rather than pushed against the far
+       side: three things in the middle of a line read as one row, and one
+       of them against each edge reads as two. */
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -229,20 +231,22 @@ ion-toolbar.stepper {
   .to-report {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    /* Never squeezed: the caption beside it is the one that can lose a word. */
-    flex: none;
-    padding: 0.3rem 0.75rem;
+    justify-content: center;
+    gap: 0.4rem;
+    /* Both the same width, so neither looks like the main one. */
+    flex: 1 1 0;
+    max-width: 11rem;
+    padding: 0.5rem 0.9rem;
     border: 1px solid var(--ion-color-light-shade);
     border-radius: 999px;
     background: var(--ion-color-light);
     color: var(--ion-color-primary);
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
 
-    ion-icon { font-size: 0.95rem; flex: none; }
-    ion-spinner { width: 0.85rem; height: 0.85rem; flex: none; }
+    ion-icon { font-size: 1.05rem; flex: none; }
+    ion-spinner { width: 0.95rem; height: 0.95rem; flex: none; }
 
     /* On a narrow phone the words go and the icon stays: a pill that wraps
        onto two lines, or one that pushes the caption off centre, is worse
