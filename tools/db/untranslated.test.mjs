@@ -41,8 +41,13 @@ const ALLOWED = [
   // The year's tax parameters, each cited to the Spanish norm that set it,
   // with an English source beside each.
   'core/tax/defaults.ts',
-  // A migration repair, carrying an account name verbatim from the Monefy backup.
+  // A migration repair, carrying an account name verbatim from a backup.
   'core/database/migrations/repairs.ts',
+  // The words a bank prints on its own statement - 'saldo anterior', the
+  // months as it abbreviates them. They are not the app speaking, they are
+  // what it is reading, and translating them would stop it reading.
+  'core/statements/statement.ts',
+  'core/statements/tokens.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */
