@@ -35,6 +35,7 @@
     "@ionic/angular": "^9.0.0",
     "ionicons": "^8.1.0",
     "jeep-sqlite": "^2.8.0",
+    "pdfjs-dist": "^6.3.289",
     "rxjs": "~7.8.0",
     "sql.js": "1.11.0",
     "tslib": "^2.3.0"
