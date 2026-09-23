@@ -197,7 +197,7 @@ export class ReviewPage {
           const already = await transactions.findById(proposal.maybe_same_as);
           if (already) {
             sameAs = this.i18n.t('review.maybeSame', {
-              date: already.occurred_on,
+              date: this.dayText(already.occurred_on),
               amount: formatMoney(already.amount_minor, 'COP'),
               note: already.description ?? '',
             });
@@ -281,6 +281,22 @@ export class ReviewPage {
       return this.i18n.t('review.needsCategory');
     }
     return null;
+  }
+
+  /**
+   * A day, written the way this app writes days.
+   *
+   * It was left to the browser, which writes 09/02/2026 for the 2nd of
+   * September in an en-US locale - beside a flag saying "2026-09-01", so one
+   * card carried two formats and neither of them the app's. Jose could not
+   * reconcile what he was looking at, and he was right not to.
+   */
+  dayText(iso: string | null): string {
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
+      this.i18n.language() === 'en' ? 'en-GB' : 'es-CO',
+      { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   }
 
   money(minor: number | null, currency?: string): string {

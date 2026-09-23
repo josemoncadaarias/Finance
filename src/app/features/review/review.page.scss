@@ -89,13 +89,23 @@ ion-title small {
     gap: 0.6rem;
   }
 
+  /* The day, in the app's words, with the phone's own calendar over it. */
   .on {
-    padding: 0;
-    border: 0;
-    background: none;
+    position: relative;
+    display: inline-block;
     color: var(--ion-color-medium);
-    font: inherit;
     font-size: 0.8rem;
+
+    .said { pointer-events: none; }
+
+    input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      opacity: 0;
+      border: 0;
+      background: none;
+    }
   }
 
   .amount {
@@ -250,10 +260,13 @@ ion-title small {
     &:disabled { opacity: 0.45; }
   }
 
+  /* Pushed to the far side: the thing to do is on the left, and the two ways
+     out of it are where a thumb does not land by accident. */
   .ways-out {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-left: auto;
 
     button {
       display: inline-flex;

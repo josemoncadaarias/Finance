@@ -66,7 +66,7 @@
                       (click)="asking.set({ kind: 'forget', batch })"
                       [title]="'review.forgetAll' | t"
                       [attr.aria-label]="'review.forgetAll' | t">
-                <ion-icon name="close-circle-outline"></ion-icon>
+                <ion-icon name="eye-off-outline"></ion-icon>
               </button>
               <!-- Red, and named, because it is the one that does not come
                    back. -->
@@ -85,9 +85,15 @@
               <ion-label>
                 <!-- What it says it is, first: a date, a name, an amount. -->
                 <div class="head">
-                  <input class="on" type="date" [value]="line.proposal.occurred_on ?? ''"
-                         (change)="setDate(line, $any($event.target).value)"
-                         [attr.aria-label]="'review.date' | t" />
+                  <span class="on">
+                    <span class="said">{{ dayText(line.proposal.occurred_on) }}</span>
+                    <!-- The native picker, over the words rather than instead
+                         of them: it opens the calendar the phone knows and
+                         writes nothing on the screen. -->
+                    <input type="date" [value]="line.proposal.occurred_on ?? ''"
+                           (change)="setDate(line, $any($event.target).value)"
+                           [attr.aria-label]="'review.date' | t" />
+                  </span>
                   <span class="amount" [class.out]="(line.proposal.amount_minor ?? 0) < 0">
                     {{ money(line.proposal.amount_minor, line.account?.currency_code) }}
                   </span>
