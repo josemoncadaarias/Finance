@@ -40,6 +40,26 @@ ion-title small {
   .hint { margin: 0; font-size: 0.82rem; line-height: 1.5; }
 }
 
+/* What the statement said about itself, above the list it produced. */
+.just-read {
+  margin: 0.9rem 1rem 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.7rem;
+  background: var(--ion-color-step-100);
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  p { margin: 0; }
+  .lead { font-weight: 600; }
+  .balances { color: var(--ion-color-medium); }
+
+  /* A statement that does not add up is worth stopping at. */
+  &.off {
+    background: rgba(var(--ion-color-warning-rgb), 0.14);
+    .balances { color: var(--ion-color-warning-shade); font-weight: 600; }
+  }
+}
+
 .batch > header {
   padding: 1.1rem 1.2rem 0;
 
@@ -182,8 +202,20 @@ ion-title small {
   }
 }
 
+/* In the header, so the way out of a long list is visible before the list. */
 .batch-actions {
-  padding: 0 1rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0.2rem;
 
-  ion-button { margin: 0.2rem 0; }
+  ion-button {
+    --padding-start: 0.7rem;
+    --padding-end: 0.7rem;
+    margin: 0;
+    font-size: 0.78rem;
+  }
+
+  /* Asked a second time, the same way a row is. */
+  ion-button.sure { --color: var(--ion-color-danger); font-weight: 600; }
 }

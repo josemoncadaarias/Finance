@@ -262,7 +262,7 @@ test('a reading the ledger may already hold is flagged, and not skipped', async 
 test('the two halves of a transfer find each other', async () => {
   const { db, proposals, rappi, nu } = await setup();
 
-  const [out, into] = await proposals.propose('extracto-1', [
+  const { ids: [out, into] } = await proposals.propose('extracto-1', [
     { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -200_000_00,
       description: 'Envio a Nu', evidence: {} },
     { source: 'statement', account_id: nu, occurred_on: '2026-09-10', amount_minor: 200_000_00,
@@ -277,7 +277,7 @@ test('the two halves of a transfer find each other', async () => {
 test('a rejected reading stays rejected, and the count only sees what waits', async () => {
   const { db, proposals, rappi } = await setup();
 
-  const [one, two] = await proposals.propose('extracto-1', [
+  const { ids: [one, two] } = await proposals.propose('extracto-1', [
     { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -1_000_00,
       description: 'Uno', evidence: {} },
     { source: 'statement', account_id: rappi, occurred_on: '2026-09-11', amount_minor: -2_000_00,
@@ -316,7 +316,7 @@ test('a notification nobody could read still arrives, saying so', async () => {
 test('accepting a proposal writes an ordinary movement, and teaches the app', async () => {
   const { db, proposals, transactions, transfers, rappi, mercados } = await setup();
 
-  const [id] = await proposals.propose('extracto-1', [{
+  const { ids: [id] } = await proposals.propose('extracto-1', [{
     source: 'statement', account_id: rappi, occurred_on: '2026-09-10',
     amount_minor: -45_000_00, description: 'COMPRA EXITO POBLADO 4471', evidence: {},
   }]);
@@ -342,7 +342,7 @@ test('accepting a proposal writes an ordinary movement, and teaches the app', as
 test('the two halves of a transfer are accepted as one transfer', async () => {
   const { db, proposals, transactions, transfers, rappi, nu } = await setup();
 
-  const ids = await proposals.propose('extracto-1', [
+  const { ids } = await proposals.propose('extracto-1', [
     { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -200_000_00,
       description: 'Envio a Nu', evidence: {} },
     { source: 'statement', account_id: nu, occurred_on: '2026-09-10', amount_minor: 200_000_00,
@@ -363,7 +363,7 @@ test('the two halves of a transfer are accepted as one transfer', async () => {
 test('a reading that is still missing something is refused, not written half-formed', async () => {
   const { db, proposals, transactions, transfers } = await setup();
 
-  const [id] = await proposals.propose('avisos-1', [{
+  const { ids: [id] } = await proposals.propose('avisos-1', [{
     source: 'notification', account_id: null, occurred_on: '2026-09-23',
     amount_minor: null, description: null, evidence: { text: 'Tienes un nuevo movimiento' },
   }]);
@@ -376,5 +376,47 @@ test('a reading that is still missing something is refused, not written half-for
   assert.deepEqual(result.refused, [{ id, reason: 'incomplete' }]);
   assert.equal((await transactions.list()).length, 0);
   assert.equal((await proposals.byId(id)).status, 'pending', 'and it is still waiting');
+  await db.close();
+});
+
+test('the same statement imported twice does not ask everything again', async () => {
+  const { db, proposals, rappi } = await setup();
+  const statement = [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-10', amount_minor: -45_000_00,
+      description: 'COMPRA EXITO POBLADO', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-11', amount_minor: -30_000_00,
+      description: 'COMPRA RAPPI', evidence: {} },
+  ];
+
+  const first = await proposals.propose('extracto.pdf 1', statement);
+  assert.equal(first.ids.length, 2);
+  assert.equal(first.knownAlready, 0);
+
+  // Jose did this within a minute of the screen existing, and saw every row
+  // twice with two sets of buttons.
+  const again = await proposals.propose('extracto.pdf 2', statement);
+  assert.equal(again.ids.length, 0);
+  assert.equal(again.knownAlready, 2);
+  assert.equal(await proposals.pendingCount(), 2, 'still two questions, not four');
+
+  // And what was thrown away stays thrown away: a rejection that a second
+  // import undoes is not a rejection.
+  await proposals.reject(first.ids[0]);
+  const third = await proposals.propose('extracto.pdf 3', statement);
+  assert.equal(third.ids.length, 0);
+  assert.equal(await proposals.pendingCount(), 1);
+  await db.close();
+});
+
+test('two identical charges in one statement stay two questions', async () => {
+  const { db, proposals, rappi } = await setup();
+  const twice = {
+    source: 'statement', account_id: rappi, occurred_on: '2026-09-10',
+    amount_minor: -260_000, description: 'BUS', evidence: {},
+  };
+
+  const proposed = await proposals.propose('extracto.pdf', [twice, { ...twice }]);
+  assert.equal(proposed.ids.length, 2, 'the same fare twice in one day is two fares');
+  assert.equal(proposed.knownAlready, 0);
   await db.close();
 });

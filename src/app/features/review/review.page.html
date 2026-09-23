@@ -21,6 +21,16 @@
       </p>
     }
 
+    <!-- What the statement just read said about itself. It goes when the
+         screen is left, because it is about a reading and not about the list. -->
+    @if (justRead(); as just) {
+      <div class="just-read" [class.off]="just.off">
+        <p class="lead">{{ just.read }}</p>
+        @if (just.knownAlready) { <p>{{ just.knownAlready }}</p> }
+        <p class="balances">{{ just.balances }}</p>
+      </div>
+    }
+
     @if (batches().length === 0) {
       <!-- Nothing waiting is the ordinary state of this screen, and it says
            where the readings come from rather than only that there are none. -->
@@ -36,6 +46,19 @@
         <header>
           <h2>{{ batch.title }}</h2>
           <p class="hint">{{ 'review.batch.count' | t:{ count: batch.lines.length } }}</p>
+
+          <div class="batch-actions">
+            <ion-button size="small" [disabled]="working()" (click)="acceptBatch(batch)">
+              <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
+              {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
+            </ion-button>
+            <ion-button size="small" fill="clear" color="medium"
+                        [class.sure]="discarding() === -1"
+                        [disabled]="working()" (click)="discardBatch(batch)">
+              <ion-icon slot="start" name="trash-outline"></ion-icon>
+              {{ (discarding() === -1 ? 'review.discardAll.sure' : 'review.discardAll') | t }}
+            </ion-button>
+          </div>
         </header>
 
         <ion-list [inset]="true">
@@ -139,16 +162,6 @@
           }
         </ion-list>
 
-        <div class="batch-actions">
-          <ion-button expand="block" [disabled]="working()" (click)="acceptBatch(batch)">
-            <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
-            {{ 'review.acceptAll' | t:{ count: batch.lines.length } }}
-          </ion-button>
-          <ion-button expand="block" fill="clear" color="medium"
-                      [disabled]="working()" (click)="discardBatch(batch)">
-            {{ (discarding() === -1 ? 'review.discardAll.sure' : 'review.discardAll') | t }}
-          </ion-button>
-        </div>
       </section>
     }
   }

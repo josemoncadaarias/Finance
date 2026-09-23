@@ -12,7 +12,7 @@
  * are the same rows on the same screen.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -29,6 +29,7 @@ import { CategoriesRepository } from '../../core/database/repositories/categorie
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { accept, isComplete } from '../../core/proposals/accept';
+import { StatementsService } from '../../core/statements/statements.service';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -69,6 +70,35 @@ interface Batch {
 export class ReviewPage {
   private readonly database = inject(DatabaseService);
   private readonly i18n = inject(I18nService);
+  private readonly statements = inject(StatementsService);
+
+  /** What the statement just read said about itself, while it is still true. */
+  readonly justRead = computed(() => {
+    const last = this.statements.lastImport();
+    if (last === null) return null;
+    const { reading } = last;
+    const balances = reading.balances === 'checked'
+      ? this.i18n.t('statement.balances.checked', {
+          opening: this.money(reading.opening_minor),
+          closing: this.money(reading.closing_minor),
+        })
+      : reading.balances === 'off'
+        ? this.i18n.t('statement.balances.off', { amount: this.money(reading.offBy_minor) })
+        : this.i18n.t('statement.balances.unchecked');
+    return {
+      read: this.i18n.t('statement.read', { count: last.proposed, file: this.fileOf(last.batch) }),
+      knownAlready: last.knownAlready > 0
+        ? this.i18n.t('statement.knownAlready', { count: last.knownAlready })
+        : null,
+      balances,
+      off: reading.balances === 'off',
+    };
+  });
+
+  /** The name of the file, without the moment it was read. */
+  private fileOf(batch: string): string {
+    return batch.replace(/\s\d{4}-\d{2}-\d{2}T.*$/, '');
+  }
 
   readonly loading = signal(true);
   readonly working = signal(false);
@@ -86,15 +116,23 @@ export class ReviewPage {
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
 
   constructor() {
-    void this.refresh();
-  }
-
-  async ionViewWillEnter(): Promise<void> {
-    await this.refresh();
+    // Not in the constructor and not on entering: the database is opened once
+    // at startup, and a screen that reads it before that is a screen showing
+    // "Database is not initialized yet" - which is what Jose met when a
+    // reload landed him straight here. This waits for it, and reads again
+    // whenever the data changes, which is how every other screen here works.
+    effect(() => {
+      this.database.dataVersion();
+      if (this.database.status() === 'ready') void this.refresh();
+    });
   }
 
   async refresh(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
     this.loading.set(true);
+    // Whatever went wrong last time was about the state being left behind,
+    // and this is that state being read again.
+    this.error.set('');
     try {
       const db = this.database.driver;
       const proposals = new ProposalsRepository(db);

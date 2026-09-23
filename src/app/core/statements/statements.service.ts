@@ -8,7 +8,7 @@
  * balances, which are what say whether the reading can be trusted at all.
  */
 
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 
 import { DatabaseService } from '../database/database.service';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
@@ -21,13 +21,25 @@ export interface ImportedStatement {
   /** What ties these proposals together, and what the screen asks back for. */
   batch: string;
   reading: StatementReading;
-  /** How many rows became proposals. Fewer than read when some were rejected before. */
+  /** How many rows became proposals. */
   proposed: number;
+  /** How many were already on the review screen, or thrown away once. */
+  knownAlready: number;
 }
 
 @Injectable({ providedIn: 'root' })
 export class StatementsService {
   private readonly database = inject(DatabaseService);
+
+  /**
+   * What the last statement said, for the screen that opens next.
+   *
+   * The reading is worth a sentence - how many movements, how many were
+   * already there, and above all whether the statement's own balances agree
+   * with what was read. Dropping somebody onto a list without that is
+   * dropping them onto a list they have no reason to trust.
+   */
+  readonly lastImport = signal<ImportedStatement | null>(null);
 
   /**
    * Reads a statement into proposals for one account.
@@ -54,7 +66,7 @@ export class StatementsService {
     await proposals.learnFromLedger();
 
     const batch = `${file.name} ${new Date().toISOString()}`;
-    const ids = await proposals.propose(batch, reading.rows.map(row => ({
+    const proposed = await proposals.propose(batch, reading.rows.map(row => ({
       source: 'statement' as const,
       account_id: accountId,
       occurred_on: row.occurred_on,
@@ -69,6 +81,10 @@ export class StatementsService {
       },
     })));
 
-    return { batch, reading, proposed: ids.length };
+    const imported = {
+      batch, reading, proposed: proposed.ids.length, knownAlready: proposed.knownAlready,
+    };
+    this.lastImport.set(imported);
+    return imported;
   }
 }

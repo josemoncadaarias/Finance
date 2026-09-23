@@ -37,6 +37,17 @@ export interface MovementProposal {
   batch: string;
 }
 
+/** What a batch of readings did. */
+export interface Proposed {
+  /** The ones now waiting for a person. */
+  ids: number[];
+  /**
+   * The ones not asked about again: already on this screen from an earlier
+   * import of the same statement, or already thrown away once.
+   */
+  knownAlready: number;
+}
+
 /** One reading, before it is written down. */
 export interface NewProposal {
   source: ProposalSource;
@@ -68,13 +79,33 @@ export class ProposalsRepository {
    * free: what the category probably is, whether the ledger already holds it,
    * and which of them are the two halves of one transfer.
    */
-  async propose(batch: string, readings: readonly NewProposal[]): Promise<number[]> {
-    if (readings.length === 0) return [];
+  async propose(batch: string, readings: readonly NewProposal[]): Promise<Proposed> {
+    if (readings.length === 0) return { ids: [], knownAlready: 0 };
     const timestamp = this.now();
+
+    // What this screen already holds for these accounts, whatever was decided
+    // about it. Importing the same statement twice is an ordinary thing to
+    // do - Jose did it within a minute of the screen existing - and the second
+    // time must not ask every question again. A row thrown away once does not
+    // come back either: that is what keeps a rejection meaning something.
+    const seen = await this.alreadyReadOf(readings);
+    const taken = new Set<number>();
 
     return this.db.transaction(async () => {
       const ids: number[] = [];
+      let knownAlready = 0;
       for (const reading of readings) {
+        const twin = sameMovementAs({
+          account_id: reading.account_id ?? null,
+          occurred_on: reading.occurred_on ?? null,
+          amount_minor: reading.amount_minor ?? null,
+          description: reading.description ?? null,
+        }, seen, taken);
+        if (twin !== null) {
+          taken.add(twin);
+          knownAlready += 1;
+          continue;
+        }
         const category = await this.learnedCategoryOf(reading.description ?? null);
         const result = await this.db.run(
           `INSERT INTO movement_proposals
@@ -98,8 +129,30 @@ export class ProposalsRepository {
 
       await this.markKnownAgain(ids);
       await this.markTransfers(ids);
-      return ids;
+      return { ids, knownAlready };
     });
+  }
+
+  /**
+   * The readings this screen has already held, in the shape the check wants.
+   *
+   * Only around the days the new readings speak about, and only for their
+   * accounts, so this asks for a handful of rows rather than for everything
+   * ever proposed.
+   */
+  private async alreadyReadOf(readings: readonly NewProposal[]): Promise<LedgerMovement[]> {
+    const dated = readings.filter(reading => reading.account_id != null && reading.occurred_on != null);
+    if (dated.length === 0) return [];
+
+    const days = dated.map(reading => reading.occurred_on!).sort();
+    const accounts = [...new Set(dated.map(reading => reading.account_id!))];
+    return this.db.query<LedgerMovement>(
+      `SELECT id, account_id, occurred_on, amount_minor, description
+       FROM movement_proposals
+       WHERE account_id IN (${accounts.map(() => '?').join(', ')})
+         AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')
+         AND amount_minor IS NOT NULL`,
+      [...accounts, days[0], days[days.length - 1]]);
   }
 
   /** Everything still waiting, oldest first. */
