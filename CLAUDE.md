@@ -219,7 +219,7 @@ backup restore against iOS's own SQLite backend.
    2026-09-22: no importer, no CSV, and above all **no reading an old export
    to decide anything about the data as it stands now**. A figure that looks
    wrong is checked against the app's own current backup, the one in
-   `G:My DriveFinance App` (the newest `.json` there), and nowhere else.
+   `G:\My Drive\Finance App` (the newest `.json` there), and nowhere else.
    `source`, `locked`, the fingerprints, `deleted_imports` and `review_queue`
    are columns and tables that survive in the schema because migrations are
    history; nothing new is ever written to them and no new work leans on them.
@@ -436,9 +436,14 @@ backup restore against iOS's own SQLite backend.
    (2026-09-18).
 
 20. **The financial summary: one screen, and a spreadsheet of what it shows.**
-   Agreed with Jose on 2026-09-21, designed, **not yet built - he starts it on
-   his own word and not before.** The summary screen already answers "what did
-   I spend"; this answers "and what does that mean". One way in, an item in the
+   Agreed with Jose on 2026-09-21 and **built** (`core/report/`,
+   `features/report/`, route `/report`). Eleven analyses run today, in this
+   order: the headline figures, the same against the period before, the
+   categories that jumped, where the money went, the categories before and
+   now, what comes back every month, charges repeated inside one period, the
+   months of the year, the accounts, and the biggest movements. The summary
+   screen already answers "what did I spend"; this answers "and what does that
+   mean". One way in, an item in the
    summary screen's menu, opening a report screen that **inherits the dates and
    the account already chosen** and asks nothing again; exporting to .xlsx is a
    button inside that screen, acting on what is on view. No new button loose on
@@ -521,6 +526,17 @@ backup restore against iOS's own SQLite backend.
    needs that do not exist yet. The list of analyses and the five kinds are
    enough; anything more waits for a real case.
 
+   **An analysis measures; the reader decides how to say it.** A change past
+   ten times over is drawn as "x43" rather than "+4201%", and that choice
+   lives in `report.page.ts`, not in the analysis. The analysis used to drop
+   such a change altogether, which left the screen blank beside two figures
+   its own sentences were quoting a percentage for. Corrected 2026-09-22 after
+   Jose asked why some rows had nothing in front of them.
+
+   Still not built, deliberately: a real Excel chart. The spreadsheet draws
+   its bars with filled cells, which says the same thing and cannot make Excel
+   call the file corrupt.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
@@ -560,7 +576,7 @@ what not to do with it.
 
 Data moves between the browser and the phone as a backup: "Importar y
 exportar" saves one and restores one. A copy of the current one lives in
-`G:My DriveFinance App`, and the newest `.json` there is what to verify
+`G:\My Drive\Finance App`, and the newest `.json` there is what to verify
 a change against. The Android project lives in `android/`
 (Capacitor 8).
 
@@ -599,6 +615,17 @@ became 25. Not done, on purpose: accruing in the background on app start.
 `BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.
+
+**How a change to the yields is proved** (2026-09-22, and this is the method
+to use again). Restore Jose's current backup into a fresh database, migrate it
+forward, work every account out from scratch, and compare that against the
+`yield_days` THE FILE ALREADY CARRIES - which is what his phone worked out and
+what he is looking at. Anything that differs is either a correction that was
+asked for or a bug. Twice today a simulation looked clean because it was
+comparing a database against itself; the file is the only "before" that cannot
+lie. Two differences are known and expected: Plata, corrected by migration
+039, and 0.85 pesos in Global66, five days his phone worked out on a balance
+that later changed and never redid.
 
 ## Jose's two machines
 
