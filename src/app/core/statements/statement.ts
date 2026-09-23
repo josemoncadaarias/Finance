@@ -49,8 +49,21 @@ export interface StatementRow {
 
 export interface StatementReading {
   rows: StatementRow[];
+  /**
+   * The two figures THE STATEMENT gives about ITSELF: what the account held
+   * when the period began and what it held when it ended.
+   *
+   * Nothing here is ever compared against the account's balance in the app. A
+   * statement is one month of a life that started earlier, and asking a month
+   * to add up to a history would be asking a wrong question - it would report
+   * every statement ever written as broken. What is asked is only whether the
+   * statement agrees with itself: where it says it started, plus what it
+   * lists, has to land where it says it ended.
+   */
   opening_minor: number | null;
   closing_minor: number | null;
+  /** What was read, so the comparison can be shown rather than asserted. */
+  read_minor: number;
   /**
    * 'checked' - the statement's own balances agree with what was read.
    * 'off'     - they do not, and `offBy_minor` says by how much.
@@ -87,6 +100,16 @@ export function linesOf(items: readonly TextItem[]): StatementLine[] {
   }
   return lines;
 }
+
+/**
+ * The other lines with "saldo" on them, which are not the two below.
+ *
+ * A real statement is full of them - the average balance of the month, what
+ * is available to spend, the minimum to keep, the card's limit - and reading
+ * one of those as the closing balance reports a statement as broken when it
+ * is perfectly fine. That false alarm is worse than no check at all.
+ */
+const NOT_A_BALANCE = /(promedio|disponible|m[ií]nimo|minimo|cupo|retenido|canje|puntos)/i;
 
 /** The words a statement uses for the two figures that prove the rest. */
 const OPENING = /saldo\s+(anterior|inicial|al\s+inicio|inicio)/i;
@@ -164,17 +187,28 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
   }
 
   const read = rows.reduce((sum, row) => sum + row.amount_minor, 0);
+
+  // Where the statement does not give the two figures in words, its own
+  // running balance does: what the first line was left at, less what that
+  // line moved, is what the period started from.
+  const first = rows[0];
+  const opening = stated.opening
+    ?? (first === undefined || first.balance_minor === null
+      ? null
+      : first.balance_minor - first.amount_minor);
   const closing = stated.closing ?? (rows[rows.length - 1]?.balance_minor ?? null);
-  const balances = stated.opening === null || closing === null
+
+  const balances = opening === null || closing === null
     ? 'unchecked' as const
-    : (stated.opening + read === closing ? 'checked' as const : 'off' as const);
+    : (opening + read === closing ? 'checked' as const : 'off' as const);
 
   return {
     rows,
-    opening_minor: stated.opening,
+    opening_minor: opening,
     closing_minor: closing,
+    read_minor: read,
     balances,
-    offBy_minor: balances === 'off' ? closing! - (stated.opening! + read) : 0,
+    offBy_minor: balances === 'off' ? closing! - (opening! + read) : 0,
     year,
   };
 }
@@ -263,6 +297,7 @@ function statedBalances(lines: readonly StatementLine[], minorUnits: number): {
     const money = moneyTokensIn(line.items, minorUnits);
     if (money.length === 0) continue;
     const last = money[money.length - 1];
+    if (NOT_A_BALANCE.test(line.text)) continue;
     if (opening === null && OPENING.test(line.text)) opening = signedOf(last);
     if (CLOSING.test(line.text)) closing = signedOf(last);
   }

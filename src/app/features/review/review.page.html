@@ -69,25 +69,14 @@
               {{ 'review.acceptAll' | t:{ count: readyLines(batch).length } }}
             </button>
 
-            <div class="ways-out">
-              <!-- Off the screen without deciding: not saved, not thrown
-                   away, and the same statement imported again brings it back.
-                   An icon rather than a sentence - it is the quiet one, and a
-                   sentence beside a sentence made two equal choices of them. -->
-              <button type="button" class="clear" [disabled]="working()"
-                      (click)="asking.set({ kind: 'forget', batch })"
-                      [title]="'review.forgetAll' | t"
-                      [attr.aria-label]="'review.forgetAll' | t">
-                <ion-icon name="arrow-undo-outline"></ion-icon>
-              </button>
-              <!-- Red, and named, because it is the one that does not come
-                   back. -->
-              <button type="button" class="drop" [disabled]="working()"
-                      (click)="asking.set({ kind: 'discard', batch })">
-                <ion-icon name="trash-outline"></ion-icon>
-                {{ 'review.discardAll' | t }}
-              </button>
-            </div>
+            <!-- The other two answers, behind one dot-dot-dot: neither is
+                 frequent, and as buttons in a row they read as choices equal
+                 to saving, which they are not. -->
+            <button type="button" class="more" [disabled]="working()"
+                    (click)="openMenu($event, batch)"
+                    [attr.aria-label]="'review.more' | t">
+              <ion-icon name="ellipsis-horizontal"></ion-icon>
+            </button>
           </div>
         </header>
 
@@ -216,6 +205,23 @@
 </ion-content>
 
 <!-- The same dialog the rest of the app asks with. -->
+<!-- The two answers that are not "save", each with its name on it. -->
+<ion-popover class="batch-menu" [isOpen]="menuFor() !== null" [event]="menuAt()"
+             (didDismiss)="menuFor.set(null)" [dismissOnSelect]="true">
+  <ng-template>
+    <ion-list lines="none">
+      <ion-item button detail="false" (click)="fromMenu('forget')">
+        <ion-icon slot="start" name="arrow-undo-outline"></ion-icon>
+        <ion-label>{{ 'review.forgetAll' | t }}</ion-label>
+      </ion-item>
+      <ion-item button detail="false" class="drop" (click)="fromMenu('discard')">
+        <ion-icon slot="start" name="trash-outline"></ion-icon>
+        <ion-label>{{ 'review.discardAll.long' | t }}</ion-label>
+      </ion-item>
+    </ion-list>
+  </ng-template>
+</ion-popover>
+
 <!-- The categories, the same sheet the movement form opens. -->
 <app-category-sheet [open]="choosingFor() !== null" [kind]="choosingKind()"
                     [chosen]="choosingFor()?.proposal?.category_id ?? null"

@@ -18,7 +18,7 @@ import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-  IonSpinner, IonMenuButton,
+  IonSpinner, IonMenuButton, IonPopover,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -66,7 +66,7 @@ interface Batch {
     IconComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-    IonSpinner, IonMenuButton,
+    IonSpinner, IonMenuButton, IonPopover,
   ],
   templateUrl: './review.page.html',
   styleUrls: ['./review.page.scss'],
@@ -87,7 +87,12 @@ export class ReviewPage {
           closing: this.money(reading.closing_minor),
         })
       : reading.balances === 'off'
-        ? this.i18n.t('statement.balances.off', { amount: this.money(reading.offBy_minor) })
+        ? this.i18n.t('statement.balances.off', {
+            opening: this.money(reading.opening_minor),
+            closing: this.money(reading.closing_minor),
+            read: this.money(reading.read_minor),
+            amount: this.money(Math.abs(reading.offBy_minor)),
+          })
         : this.i18n.t('statement.balances.unchecked');
     return {
       read: this.i18n.t('statement.read', { count: last.proposed, file: this.fileOf(last.batch) }),
@@ -153,6 +158,29 @@ export class ReviewPage {
     { kind: 'discardOne'; line: Line } | null>(null);
 
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
+
+  /**
+   * The batch whose other two answers are on show, and where to draw them.
+   *
+   * Saving is what somebody came here to do; undoing the import and throwing
+   * it away are neither frequent nor urgent. As three buttons in a row they
+   * read as three equal choices and took two goes at an icon that nobody
+   * could name. Behind one dot-dot-dot they are two lines of plain words.
+   */
+  readonly menuFor = signal<Batch | null>(null);
+  readonly menuAt = signal<Event | undefined>(undefined);
+
+  openMenu(event: Event, batch: Batch): void {
+    this.menuAt.set(event);
+    this.menuFor.set(batch);
+  }
+
+  /** Closes the menu and asks the question it chose. */
+  fromMenu(kind: 'forget' | 'discard'): void {
+    const batch = this.menuFor();
+    this.menuFor.set(null);
+    if (batch) this.asking.set({ kind, batch });
+  }
 
   constructor() {
     // Not in the constructor and not on entering: the database is opened once

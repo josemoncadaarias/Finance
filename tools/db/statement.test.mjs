@@ -186,3 +186,58 @@ test('a statement of several pages is read in order', () => {
   assert.deepEqual(read.rows.map(row => row.description), ['UNO', 'DOS']);
   assert.equal(read.balances, 'checked');
 });
+
+test('a month is checked against itself, never against a history', () => {
+  // The case Jose raised: a statement is one month of an account that has
+  // been alive for years. Its opening balance is where THAT month started,
+  // and nothing here ever looks at what the app thinks the account holds.
+  const month = page([
+    [[40, 'BANCO DE PRUEBA'], [330, 'Extracto septiembre 2026']],
+    [[40, 'Saldo anterior'], [440, '12.652.860,42']],
+    [[40, '02/09'], [90, 'COMPRA EXITO'], [330, '209.631,16'], [440, '12.443.229,26']],
+    [[40, '05/09'], [90, 'PAGO ARRIENDO'], [330, '1.800.000,00'], [440, '10.643.229,26']],
+    [[40, '28/09'], [90, 'ABONO NOMINA'], [330, '6.400.000,00'], [440, '17.043.229,26']],
+    [[40, 'Saldo final'], [440, '17.043.229,26']],
+  ]);
+
+  const read = readStatement(month, COP);
+  assert.equal(read.balances, 'checked');
+  assert.equal(read.opening_minor, 1_265_286_042, 'where the month began, not where the account did');
+  assert.equal(read.read_minor, 439_036_884, 'and what the month itself moved');
+  assert.equal(read.opening_minor + read.read_minor, read.closing_minor);
+});
+
+test('the other lines with the word saldo on them are not the balance', () => {
+  // A real statement carries several: the average of the month, what is
+  // available, the minimum to keep. Reading one of those as the closing
+  // balance reports a perfectly good statement as broken, which is a worse
+  // failure than not checking at all.
+  const noisy = page([
+    [[40, 'BANCO DE PRUEBA'], [330, 'Extracto septiembre 2026']],
+    [[40, 'Saldo anterior'], [440, '1.000.000,00']],
+    [[40, '02/09'], [90, 'COMPRA'], [330, '100.000,00'], [440, '900.000,00']],
+    [[40, 'Saldo promedio del mes'], [440, '950.000,00']],
+    [[40, 'Saldo disponible'], [440, '900.000,00']],
+    [[40, 'Cupo disponible'], [440, '8.000.000,00']],
+    [[40, 'Saldo final'], [440, '900.000,00']],
+  ]);
+
+  const read = readStatement(noisy, COP);
+  assert.equal(read.balances, 'checked');
+  assert.equal(read.closing_minor, 90_000_000);
+  assert.equal(read.rows.length, 1, 'and none of those lines is a movement');
+});
+
+test('a statement that never names its balances is checked by its own column', () => {
+  const quiet = page([
+    [[40, 'BANCO DE PRUEBA'], [330, 'Extracto septiembre 2026']],
+    [[40, '02/09'], [90, 'COMPRA'], [330, '100.000,00'], [440, '900.000,00']],
+    [[40, '05/09'], [90, 'COMPRA'], [330, '50.000,00'], [440, '850.000,00']],
+    [[40, '09/09'], [90, 'ABONO'], [330, '200.000,00'], [440, '1.050.000,00']],
+  ]);
+
+  const read = readStatement(quiet, COP);
+  assert.equal(read.opening_minor, 100_000_000, 'the first line says what came before it');
+  assert.equal(read.closing_minor, 105_000_000);
+  assert.equal(read.balances, 'checked');
+});

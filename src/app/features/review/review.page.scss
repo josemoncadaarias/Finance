@@ -262,36 +262,20 @@ ion-title small {
     &:disabled { opacity: 0.45; }
   }
 
-  /* Pushed to the far side: the thing to do is on the left, and the two ways
-     out of it are where a thumb does not land by accident. */
-  .ways-out {
-    display: flex;
+  /* The far side, away from the one thing somebody came here to do. */
+  .more {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
     margin-left: auto;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ion-color-step-100);
+    color: var(--ion-color-medium);
+    font-size: 1.15rem;
 
-    button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.3rem 0.5rem;
-      border: 0;
-      border-radius: 999px;
-      background: none;
-      color: var(--ion-color-medium);
-      font-size: 0.8rem;
-
-      &:disabled { opacity: 0.45; }
-
-      /* Clearing the screen decides nothing, so it says nothing: an icon. */
-      &.clear ion-icon { font-size: 1.25rem; }
-
-      /* The destructive one is named, and red, because it is the one that
-         does not come back. It is never where a thumb lands by default. */
-      &.drop {
-        color: var(--ion-color-danger);
-        ion-icon { font-size: 1rem; }
-      }
-    }
+    &:disabled { opacity: 0.45; }
   }
 }

@@ -407,6 +407,14 @@ ion-modal.confirm-sheet {
 
   align-items: center;
 
+  /* The two answers that are not "save", on a statement's header. The
+     popover renders outside the component that declares it, so its rules live
+     here - the same reason the confirmation dialog's do. */
+  .batch-menu ion-item.drop {
+    --color: var(--ion-color-danger);
+    ion-icon { color: var(--ion-color-danger); }
+  }
+
   .confirm-dialog {
     display: flex;
     flex-direction: column;
