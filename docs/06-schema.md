@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 26 tables and how they relate. The authority is always
+The 28 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -164,6 +164,29 @@ erDiagram
         INTEGER actual_minor
         INTEGER locked
     }
+    movement_proposals {
+        INTEGER id PK
+        TEXT source
+        INTEGER account_id FK
+        TEXT occurred_on
+        INTEGER amount_minor
+        TEXT description
+        INTEGER category_id FK
+        TEXT category_from
+        TEXT evidence
+        TEXT status
+        INTEGER transaction_id FK
+        INTEGER maybe_same_as FK
+        INTEGER pairs_with FK
+        TEXT batch
+    }
+    merchant_categories {
+        TEXT merchant PK
+        INTEGER category_id FK
+        TEXT sample
+        INTEGER times
+        TEXT last_seen_on
+    }
     product_kinds {
         INTEGER id PK
         TEXT name UK
@@ -275,6 +298,12 @@ erDiagram
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
     custom_icons   ||--o{ product_kinds       : "wears"
+    accounts       ||--o{ movement_proposals : "was read for"
+    categories     ||--o{ movement_proposals : "proposed as"
+    transactions   ||--o| movement_proposals : "was written from"
+    transactions   ||--o{ movement_proposals : "may already be"
+    movement_proposals ||--o| movement_proposals : "is the other half of"
+    categories     ||--o{ merchant_categories : "is where this merchant goes"
     import_batches ||--o{ transactions      : "brought in"
     import_batches ||--o{ review_queue      : "raised"
 ```
@@ -430,6 +459,10 @@ outright:
 | `idx_product_kinds_name` | a kind is named once |
 | `idx_product_entries_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
 | `idx_product_cashouts_account` | what has been taken out of an account's products |
+| `idx_movement_proposals_pending` | what the app has read and nobody has answered yet |
+| `idx_movement_proposals_account` | a proposal beside the account and the days it speaks about |
+| `idx_movement_proposals_batch` | the rows of one statement, or of one drain of notifications |
+| `idx_merchant_categories_category` | which merchants are filed under a category, for when one is deleted |
 | `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |

@@ -62,6 +62,11 @@ export const TABLES = [
   'product_cashouts',
   'tax_parameters',
   'credit_limit_changes',
+  // What the app has read and nobody has answered yet, and what it has learned
+  // about where a merchant is filed. After the movements and the categories,
+  // which a proposal points at.
+  'movement_proposals',
+  'merchant_categories',
   'review_queue',
   // Without these, restoring would bring back every movement deleted by hand.
   'deleted_imports',
