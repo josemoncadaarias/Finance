@@ -739,6 +739,25 @@ backup restore against iOS's own SQLite backend.
    the phone. Everything not from an attached bank is discarded, and the app
    says so plainly.
 
+   **Step one is built** (2026-09-24): `NotificationCatcher`,
+   `NotificationStore` and `BankNotificationsPlugin` in `android/`, the
+   screen at `/notifications`. It keeps WHICH apps post for everybody and
+   WHAT they said only for apps ticked by hand, and interprets nothing.
+
+   **And the first APK carrying it was refused by Play Protect** (Jose's
+   phone, 2026-09-24): "Se bloqueó la app para proteger tu dispositivo - esta
+   app puede solicitar acceso a datos sensibles", with no "install anyway".
+   Verified: the block happened, and this was the first APK to declare a
+   `NotificationListenerService`; every one before it installed. Assumed, not
+   verified: that the listener is the reason - it is the permission banking
+   trojans ask for, and Google's newer fraud protection blocks sideloaded apps
+   that declare it when they arrive from a browser, a chat or a file manager.
+   **Every future sideloaded APK will meet the same wall while the service is
+   in the manifest**, so this is a cost on every update, not a one-off. A
+   store install is not blocked, which is one more reason the Play Store's
+   internal track (see "Getting it into Google Play") matters for this
+   feature in particular.
+
    **What reading a statement learned, once it met real ones** (2026-09-23/24,
    all of it from Jose's own Rappi, Ualá, Nu and Fiducuenta files):
 
