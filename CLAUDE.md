@@ -928,6 +928,19 @@ backup restore against iOS's own SQLite backend.
    installed from the Play Store's internal track, not before**, by reverting
    the commit "Pause reading bank notifications".
 
+   That wait is short, and it is NOT the 12-tester closed test. Internal
+   testing needs only the Play account and one upload, admits up to 100
+   people (Jose alone is enough) and has no 12-tester, 14-day rule; the
+   closed test is only the gate to publishing for everybody and has nothing
+   to do with which features are in the app. So the order is: Play account,
+   an internal-testing build installed from the store (the one uninstall of
+   "Getting it into Google Play", step 2), notifications resumed and tried
+   on it, and the closed test running alongside. Clarified for Jose on
+   2026-09-24 after an answer made it sound as if notifications waited for
+   production. From memory, to confirm on the day: that internal releases
+   arrive without the long review, and that Play Protect leaves a store
+   install alone.
+
    **And the first APK carrying it was refused by Play Protect** (Jose's
    phone, 2026-09-24): "Se bloqueó la app para proteger tu dispositivo - esta
    app puede solicitar acceso a datos sensibles", with no "install anyway".
