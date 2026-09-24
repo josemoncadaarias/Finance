@@ -1320,15 +1320,14 @@ What Jose does, checked the same day:
    phone and email checked. It can take several days.
 
 **Done on 2026-09-24**: the developer account is **Jadex Labs**, a personal
-account owned by a Google account made for it, **jadex.apps@gmail.com**;
-notices also go to Jose's own address. Identity documents uploaded and under
-review. Still open: signing in to the Play Console mobile app on an Android
-phone with the Jadex account (can be done at once), and the contact phone,
-which Google only lets him verify after the identity is approved. So the
-Play side of everything - the app, its tracks, RevenueCat's link to Play -
-belongs to jadex.apps, while the Google sign-in client the app already uses
-for Drive lives where it was created; the store's signing certificate has
-to be registered on that client when the time comes.
+account. It is reached from Jose's own Google account - the Play Console
+mobile app recognised Jadex Labs only once he signed in with it - and
+**jadex.apps@gmail.com** is the address he made for Jadex Labs, with notices
+also going to his own. The Android-device check is done. Waiting on Google:
+the identity documents, under review; only after that can the contact phone
+be verified, and only after both can an app be created. The Google sign-in
+client the app already uses for Drive lives wherever it was created; the
+store's signing certificate has to be registered on it when the time comes.
 
 Then, together: the release key generated on the corporate laptop (the
 password is his and is kept safe, like the debug one), a workflow building a
