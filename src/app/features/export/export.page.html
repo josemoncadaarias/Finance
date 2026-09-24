@@ -118,7 +118,7 @@
           {{ 'restore.cancel' | t }}
         </ion-button>
         <ion-button expand="block" color="danger" [disabled]="working() !== null"
-                    (click)="restore()">
+                    (click)="asking.set(true)">
           @if (working() === 'restore') {
             <ion-spinner slot="start" name="dots"></ion-spinner>
           } @else {
@@ -140,6 +140,20 @@
     </section>
   }
 </ion-content>
+
+<!-- Replacing a whole history is the one thing here that cannot be undone,
+     and it was asked for by a red button at the bottom of a page somebody had
+     scrolled past the warning of. It asks in the middle of the screen now,
+     with the file it is about to use named in the question. -->
+@if (asking()) {
+  <app-confirm [open]="true" icon="warning-outline" tone="danger"
+               [title]="'restore.sure' | t"
+               [body]="restoreQuestion()"
+               [confirmLabel]="'restore.confirm' | t"
+               [busy]="working() === 'restore'"
+               (confirmed)="restore()"
+               (cancelled)="asking.set(false)"></app-confirm>
+}
 
 <!-- While the database is being read or written the page is out of reach, and
      says so rather than looking frozen. -->

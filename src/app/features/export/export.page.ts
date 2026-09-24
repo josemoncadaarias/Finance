@@ -32,6 +32,7 @@ import { rememberSeen } from '../../core/cloud/cloud-backup.service';
 import { saveFile } from '../../core/files/save-file';
 import type { Progress } from '../../core/database/export/progress';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 
 @Component({
   selector: 'app-export',
@@ -39,6 +40,7 @@ import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
   styleUrls: ['./export.page.scss'],
   imports: [
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent, BusyOverlayComponent,
+    ConfirmComponent,
     IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton,
   ],
@@ -232,10 +234,26 @@ export class ExportPage {
     }
   }
 
+  /** True while the question is on screen. */
+  readonly asking = signal(false);
+
+  /**
+   * The question, with the file it is about named inside it.
+   *
+   * A warning that does not say which file is a warning about nothing: the
+   * mistake this is here to catch is picking the wrong one.
+   */
+  readonly restoreQuestion = computed(() => {
+    const file = this.picked();
+    return this.i18n.t('restore.sure.body', { file: file?.name ?? '' })
+      + '\n\n' + this.i18n.t('restore.warning');
+  });
+
   /** Replaces everything. Only reachable after the file has been described. */
   async restore(): Promise<void> {
     const file = this.picked();
     if (!file) return;
+    this.asking.set(false);
 
     this.working.set('restore');
     this.error.set('');
