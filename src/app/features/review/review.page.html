@@ -324,11 +324,22 @@
           }
         </ion-list>
 
-        <!-- A filter never hides anything in silence. -->
+        <!-- A filter never hides anything in silence, and it says WHICH
+             filter: the link used to be labelled "Todos", which is the name
+             of the filter that is not on. -->
         @if (hiddenIn(batch) > 0) {
           <p class="hidden-by-filter">
-            {{ 'review.hidden' | t:{ count: hiddenIn(batch) } }}
-            <button type="button" (click)="showOnly.set('all')">{{ 'review.only.all' | t }}</button>
+            @if (shownIn(batch).length === 0) {
+              {{ 'review.hidden.none' | t:{ count: batch.lines.length, filter: filterName() } }}
+            } @else {
+              {{ 'review.hidden' | t:{
+                   shown: shownIn(batch).length,
+                   count: batch.lines.length,
+                   filter: filterName() } }}
+            }
+            <button type="button" (click)="showOnly.set('all')">
+              {{ 'review.hidden.show' | t }}
+            </button>
           </p>
         }
 

@@ -142,6 +142,10 @@ export class ReviewPage {
       : lines;
   }
 
+  /** The filter that is on, in the words the button beside it uses. */
+  readonly filterName = computed(() => this.i18n.t(
+    this.showOnly() === 'waiting' ? 'review.only.waiting' : 'review.only.flagged'));
+
   /** How many a filter is hiding, so it never hides silently. */
   hiddenIn(batch: Batch): number {
     return batch.lines.length - this.shownIn(batch).length;

@@ -65,6 +65,9 @@ async function check(response: Response): Promise<Response> {
 export async function findCopy(token: string): Promise<CloudCopy | null> {
   const query = new URLSearchParams({
     spaces: 'appDataFolder',
+    // By name, because the folder also holds the copies set aside below, and
+    // asking for the first ten files would one day not include this one.
+    q: `name = '${NAME}' and trashed = false`,
     fields: 'files(id,name,modifiedTime,size,appProperties)',
     pageSize: '10',
   });
@@ -93,6 +96,36 @@ export async function findCopy(token: string): Promise<CloudCopy | null> {
     schemaVersion: number(found.appProperties?.schemaVersion),
     rows: number(found.appProperties?.rows),
   };
+}
+
+/**
+ * Keeps the copy that is up there under a dated name of its own.
+ *
+ * Called before a device writes over a copy it has never seen. Jose's own
+ * idea, in the form it belongs in: he asked for one file per phone so nothing
+ * would ever be overwritten, which does stop the overwrite and costs
+ * something worse - two files both looking current, and the person having to
+ * remember which one is the real one. This keeps the single file everything
+ * syncs to, and makes the one dangerous moment reversible.
+ *
+ * Copied by Drive itself: no download, no upload, nothing of the 25 MB
+ * crosses the phone's connection.
+ */
+export async function setAside(token: string, copy: CloudCopy): Promise<string> {
+  const stamp = copy.modifiedTime.slice(0, 16).replace(/[:T]/g, '-');
+  const name = `finance-backup-replaced-${stamp}.json`;
+
+  const response = await check(await fetch(`${FILES}/${copy.id}/copy?fields=id,name`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, parents: ['appDataFolder'] }),
+  }));
+
+  const written = await response.json() as { name?: string };
+  return written.name ?? name;
 }
 
 /**

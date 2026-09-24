@@ -21,7 +21,7 @@ import { DatabaseService } from '../database/database.service';
 import { I18nService } from '../i18n/i18n.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
 import { GoogleAccountService } from './google-account.service';
-import { DriveError, findCopy, upload, type CloudCopy } from './drive-backup';
+import { DriveError, findCopy, setAside, upload, type CloudCopy } from './drive-backup';
 
 export type SaveState = 'idle' | 'working' | 'done' | 'failed';
 
@@ -304,8 +304,19 @@ export class CloudBackupService {
       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
     return this.i18n.t('cloud.replace.body', { when })
-      + (other.rows === null ? '' : ' ' + this.i18n.t('cloud.replace.rows', { count: other.rows }));
+      + (other.rows === null ? '' : ' ' + this.i18n.t('cloud.replace.rows', { count: other.rows }))
+      + ' ' + this.i18n.t('cloud.replace.kept');
   });
+
+  /**
+   * The name of the copy that was set aside rather than lost, when one was.
+   *
+   * Said on the screen afterwards, because a safety net nobody is told about
+   * is not one: the person has just answered a question about losing data and
+   * deserves to know the old copy is still in their Drive, and what it is
+   * called.
+   */
+  readonly kept = signal('');
 
   /** Not overwriting that one, and stop asking about it. */
   decline(): void {
@@ -344,14 +355,30 @@ export class CloudBackupService {
       const theirs = await findCopy(token);
       this.copy.set(theirs);
 
-      if (!options.anyway && theirs && theirs.modifiedTime !== readSeen()) {
-        if (!(options.auto && this.declined === theirs.modifiedTime)) {
-          this.wouldReplace.set({ when: theirs.modifiedTime, rows: theirs.rows });
+      const strange = theirs !== null && theirs.modifiedTime !== readSeen();
+
+      if (!options.anyway && strange) {
+        if (!(options.auto && this.declined === theirs!.modifiedTime)) {
+          this.wouldReplace.set({ when: theirs!.modifiedTime, rows: theirs!.rows });
         }
         this.settle('idle');
         return false;
       }
       this.wouldReplace.set(null);
+
+      /*
+       * Answering yes is the one irreversible moment in all of this, so it is
+       * made reversible: the copy that is about to be written over is kept in
+       * the same folder under a dated name of its own first. Drive copies it
+       * itself, so nothing of the 25 MB crosses the phone's connection.
+       *
+       * Only here. Copying on every ordinary save would fill the folder with
+       * a file an hour and say nothing that Drive's own version history does
+       * not already say.
+       */
+      if (strange && theirs !== null) {
+        this.kept.set(await setAside(token, theirs));
+      }
 
       const backup = await exportBackup(this.database.driver, progress => {
         this.detail.set(`${progress.done} / ${progress.total}`);
