@@ -29,11 +29,11 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
   template: `
     @if (shown()) {
       <button type="button" class="cloud-button"
-              [class]="cloud.wouldShrink() ? 'failed' : cloud.state()"
+              [class]="cloud.wouldReplace() ? 'failed' : cloud.state()"
               [disabled]="cloud.state() === 'working'"
               (click)="cloud.save()"
               [attr.aria-label]="label() | t" [title]="label() | t">
-        @switch (cloud.wouldShrink() ? 'blocked' : cloud.state()) {
+        @switch (cloud.wouldReplace() ? 'blocked' : cloud.state()) {
           @case ('working') { <ion-spinner name="crescent"></ion-spinner> }
           @case ('done') { <ion-icon name="checkmark-circle"></ion-icon> }
           @case ('failed') { <ion-icon name="alert-circle"></ion-icon> }
@@ -43,15 +43,15 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
       </button>
     }
 
-    <!-- The one moment a whole history can be lost: a device that knows
-         almost nothing writing over the copy that knows everything. -->
-    @if (cloud.wouldShrink(); as shrink) {
-      <app-confirm [open]="true" icon="cloud-offline-outline"
-                   [title]="'cloud.shrink.sure' | t"
-                   [body]="'cloud.shrink.body' | t:{ theirs: shrink.theirs, ours: shrink.ours }"
-                   [confirmLabel]="'cloud.shrink.do' | t"
+    <!-- The one moment a whole history can be lost: a device writing over a
+         copy it has never seen. -->
+    @if (cloud.wouldReplace()) {
+      <app-confirm [open]="true" icon="git-branch-outline" tone="danger"
+                   [title]="'cloud.replace.sure' | t"
+                   [body]="cloud.replaceMessage()"
+                   [confirmLabel]="'cloud.replace.do' | t"
                    (confirmed)="sendAnyway()"
-                   (cancelled)="cloud.wouldShrink.set(null)"></app-confirm>
+                   (cancelled)="cloud.decline()"></app-confirm>
     }
   `,
   styles: [`
@@ -86,14 +86,15 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
   `],
 })
 export class CloudButtonComponent {
+  readonly cloud = inject(CloudBackupService);
+  private readonly google = inject(GoogleAccountService);
+
   /** Sends it despite the warning: it is their copy and their decision. */
   async sendAnyway(): Promise<void> {
-    this.cloud.wouldShrink.set(null);
+    this.cloud.wouldReplace.set(null);
     await this.cloud.save({ anyway: true });
   }
 
-  readonly cloud = inject(CloudBackupService);
-  private readonly google = inject(GoogleAccountService);
 
   readonly shown = computed(() => this.google.user() !== null);
 

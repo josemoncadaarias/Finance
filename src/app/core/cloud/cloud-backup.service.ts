@@ -13,11 +13,12 @@
  * every screen - it stays where it can be read about first.
  */
 
-import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
 import { DatabaseService } from '../database/database.service';
+import { I18nService } from '../i18n/i18n.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
 import { GoogleAccountService } from './google-account.service';
 import { DriveError, findCopy, upload, type CloudCopy } from './drive-backup';
@@ -37,6 +38,41 @@ const AUTO_KEY = 'finance.cloud.auto';
  * time the app opens, it sees the copy is behind and makes it.
  */
 const DIRTY_KEY = 'finance.cloud.dirty';
+
+/**
+ * The copy in Drive this device is a continuation of.
+ *
+ * Holds the `modifiedTime` of the copy this device last uploaded, or last
+ * restored from. If Drive now holds something else, then somebody else wrote
+ * it and this device has never seen it - which is the one case where saving
+ * destroys history. Kept in localStorage because it has to outlive the
+ * process, the same reason as the mark above.
+ */
+const SEEN_KEY = 'finance.cloud.seen';
+
+function readSeen(): string {
+  try {
+    return localStorage.getItem(SEEN_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Remembers which copy in Drive this device continues from.
+ *
+ * Called after an upload and after restoring FROM Drive - both leave the
+ * device holding exactly what is up there. Called with '' after restoring
+ * from a file, because then nobody knows how that file relates to Drive.
+ */
+export function rememberSeen(modifiedTime: string): void {
+  try {
+    if (modifiedTime) localStorage.setItem(SEEN_KEY, modifiedTime);
+    else localStorage.removeItem(SEEN_KEY);
+  } catch {
+    // Storage switched off: the mark holds for this run and no longer.
+  }
+}
 
 function readFlag(key: string): boolean {
   try {
@@ -67,6 +103,7 @@ function readAuto(): boolean {
 export class CloudBackupService {
   private readonly google = inject(GoogleAccountService);
   private readonly database = inject(DatabaseService);
+  private readonly i18n = inject(I18nService);
 
   /** What Drive holds, as far as this session knows. */
   readonly copy = signal<CloudCopy | null>(null);
@@ -163,7 +200,7 @@ export class CloudBackupService {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.save();
+      void this.save({ auto: true });
     }, CloudBackupService.QUIET_MS);
   }
 
@@ -178,7 +215,7 @@ export class CloudBackupService {
     if (!readFlag(DIRTY_KEY)) return;
     setTimeout(() => {
       if (!readFlag(DIRTY_KEY) || !this.auto() || !this.canSave()) return;
-      void this.save();
+      void this.save({ auto: true });
     }, 8_000);
   }
 
@@ -194,7 +231,7 @@ export class CloudBackupService {
     if (!this.auto() || !this.canSave()) return;
     if (!readFlag(DIRTY_KEY) && this.database.dataVersion() === this.savedVersion) return;
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    void this.save();
+    void this.save({ auto: true });
   }
 
   private stopWaiting(): void {
@@ -229,17 +266,54 @@ export class CloudBackupService {
    * on screen for ever stops meaning "just now".
    */
   /**
-   * What the copy in Drive holds against what this device is about to send.
-   *
-   * Set when sending would replace a copy that knows far more than this
-   * device does - a second phone signed into the same account, opened for the
-   * first time, with nothing in it yet. Jose saw the danger before it
-   * happened: "por la actualizacion automatica puede que sobreescriba los
-   * datos buenos". Nothing is uploaded while this is set.
-   */
-  readonly wouldShrink = signal<{ theirs: number; ours: number } | null>(null);
+    * The copy in Drive that this device is about to write over without ever
+    * having seen it.
+    *
+    * Nothing is uploaded while this is set. It is the one moment a whole
+    * history can be lost: a device signed into the same account, carrying
+    * something OLDER than what is up there, sending it automatically.
+    *
+    * Size is not the question, and was the first answer here - a copy
+    * smaller than a tenth of the other. Jose said why it is wrong: his
+    * second phone has been restoring backups to try things out, so it holds
+    * far more than a tenth and is still months behind. What actually
+    * separates the safe case from the dangerous one is not how much this
+    * device holds but WHERE IT CAME FROM. A device that uploaded the copy in
+    * Drive, or restored from it, continues it - whatever it has done since is
+    * newer by definition. A device that has never seen it is a second branch
+    * of the same history, and only a person can say which branch to keep.
+    */
+  readonly wouldReplace = signal<{ when: string; rows: number | null } | null>(null);
 
-  async save(options: { anyway?: boolean } = {}): Promise<boolean> {
+  /**
+   * A copy in Drive the person has already chosen not to overwrite.
+   *
+   * Saving on its own must not ask the same question every ninety seconds.
+   * Pressing the button asks again, because that is a deliberate act.
+   */
+  private declined = '';
+
+  /**
+   * The warning in words, said here because two screens ask it: the cloud
+   * button in every toolbar and the account screen's own save button.
+   */
+  readonly replaceMessage = computed(() => {
+    const other = this.wouldReplace();
+    if (!other) return '';
+    const when = new Date(other.when).toLocaleString(this.i18n.dateLocale(), {
+      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    return this.i18n.t('cloud.replace.body', { when })
+      + (other.rows === null ? '' : ' ' + this.i18n.t('cloud.replace.rows', { count: other.rows }));
+  });
+
+  /** Not overwriting that one, and stop asking about it. */
+  decline(): void {
+    this.declined = this.wouldReplace()?.when ?? '';
+    this.wouldReplace.set(null);
+  }
+
+  async save(options: { anyway?: boolean; auto?: boolean } = {}): Promise<boolean> {
     if (this.state() === 'working' || !this.canSave()) return false;
 
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
@@ -255,10 +329,29 @@ export class CloudBackupService {
       const token = await this.google.accessToken();
       if (!token) throw new DriveError('signed out');
 
-      // What Drive holds, before writing over it. Asked for here rather than
-      // hoped for: the device that most needs the guard below is a new one,
-      // which has never looked.
-      if (this.copy() === null) this.copy.set(await findCopy(token));
+      /*
+       * What Drive holds, read now rather than remembered: the guard below is
+       * about the copy that is up there at this instant, and on the device
+       * that most needs it nobody has ever looked.
+       *
+       * Then: is this device a continuation of that copy, or a second branch
+       * of the same history? Written over without asking, a branch costs
+       * everything the other one did since. Asked about, it costs one tap.
+       * Answering yes sends it - it is the person's own copy and their own
+       * decision - and the 25 MB export below is not even started until that
+       * is settled.
+       */
+      const theirs = await findCopy(token);
+      this.copy.set(theirs);
+
+      if (!options.anyway && theirs && theirs.modifiedTime !== readSeen()) {
+        if (!(options.auto && this.declined === theirs.modifiedTime)) {
+          this.wouldReplace.set({ when: theirs.modifiedTime, rows: theirs.rows });
+        }
+        this.settle('idle');
+        return false;
+      }
+      this.wouldReplace.set(null);
 
       const backup = await exportBackup(this.database.driver, progress => {
         this.detail.set(`${progress.done} / ${progress.total}`);
@@ -266,29 +359,13 @@ export class CloudBackupService {
       const rows = Object.values(backup.tables)
         .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 
-      /*
-       * The copy in Drive is somebody's whole financial history, and this is
-       * the one moment it can be lost: a device that knows almost nothing
-       * sending its almost nothing over it, automatically, because it was
-       * signed in.
-       *
-       * So a copy that would replace a much larger one stops and asks. A
-       * tenth is the line: deleting a few movements is ordinary and must not
-       * interrupt anybody, and no ordinary afternoon removes nine tenths of a
-       * database. Answering yes sends it - it is still the person's own copy
-       * and their own decision.
-       */
-      const theirs = this.copy()?.rows ?? null;
-      if (!options.anyway && theirs !== null && rows < theirs / 10 && theirs > 20) {
-        this.wouldShrink.set({ theirs, ours: rows });
-        this.settle('idle');
-        return false;
-      }
-      this.wouldShrink.set(null);
-
-      this.copy.set(await upload(token, toJson(backup), {
+      const written = await upload(token, toJson(backup), {
         schemaVersion: backup.schemaVersion, rows,
-      }, abort.signal));
+      }, abort.signal);
+      this.copy.set(written);
+      // From here on this device continues that copy, whatever it does next.
+      rememberSeen(written.modifiedTime);
+      this.declined = '';
 
       this.savedVersion = version;
       // Only now: a copy counts as made when Drive has answered, never before.

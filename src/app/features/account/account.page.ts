@@ -24,7 +24,7 @@ import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { GoogleAccountService } from '../../core/cloud/google-account.service';
-import { CloudBackupService } from '../../core/cloud/cloud-backup.service';
+import { CloudBackupService, rememberSeen } from '../../core/cloud/cloud-backup.service';
 import { DriveError, download } from '../../core/cloud/drive-backup';
 import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
@@ -109,6 +109,23 @@ export class AccountPage {
     }
   }
 
+  /** Replaces the copy in Drive despite the warning: it is their decision. */
+  async saveAnyway(): Promise<void> {
+    this.cloud.wouldReplace.set(null);
+    this.busy.set(this.i18n.t('cloud.saving'));
+    try {
+      if (await this.cloud.save({ anyway: true })) {
+        this.done.set(this.i18n.t('cloud.saved'));
+        await this.cloud.look();
+      } else {
+        this.failure.set(this.cloud.failure());
+      }
+    } finally {
+      this.busy.set('');
+      this.busyDetail.set('');
+    }
+  }
+
   /** Whatever Drive holds, written over the phone's database. */
   async restore(): Promise<void> {
     this.confirmingRestore.set(false);
@@ -128,6 +145,9 @@ export class AccountPage {
       await restoreBackup(this.database.driver, backup, MIGRATION_SOURCES, progress => {
         this.busyDetail.set(`${progress.done} / ${progress.total}`);
       });
+      // This device now holds exactly what Drive holds, so from here on it
+       // continues that copy and saving over it is never a question.
+      rememberSeen(held.modifiedTime);
       this.database.dataChanged();
       this.done.set(this.i18n.t('cloud.restored'));
     } catch (error) {

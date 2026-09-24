@@ -87,6 +87,21 @@
         </div>
       }
 
+      @if (cloud.wouldReplace()) {
+        <div class="warn">
+          <p>{{ 'cloud.replace.sure' | t }}</p>
+          <p class="why">{{ cloud.replaceMessage() }}</p>
+          <div class="pair">
+            <ion-button fill="clear" (click)="cloud.decline()">
+              {{ 'entry.cancel' | t }}
+            </ion-button>
+            <ion-button color="danger" (click)="saveAnyway()">
+              {{ 'cloud.replace.do' | t }}
+            </ion-button>
+          </div>
+        </div>
+      }
+
       @if (done()) {
         <p class="good"><ion-icon name="checkmark-circle-outline"></ion-icon> {{ done() }}</p>
       }

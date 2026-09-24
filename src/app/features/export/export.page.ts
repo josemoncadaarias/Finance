@@ -28,6 +28,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { exportBackup, backupSummary, toJson } from '../../core/database/export/export-backup';
 import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
+import { rememberSeen } from '../../core/cloud/cloud-backup.service';
 import { saveFile } from '../../core/files/save-file';
 import type { Progress } from '../../core/database/export/progress';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
@@ -246,6 +247,10 @@ export class ExportPage {
         progress => this.report('busy.restoring', progress));
 
       const rows = result.restored.reduce((sum, entry) => sum + entry.rows, 0);
+      // A file from anywhere: nobody knows how it relates to the copy in
+      // Drive, so this device stops claiming to continue it and the next save
+      // asks before writing over it.
+      rememberSeen('');
       this.restored.set(this.i18n.t('restore.done', { rows, version: result.toVersion }));
       this.picked.set(null);
       this.database.dataChanged();
