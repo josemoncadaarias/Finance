@@ -21,23 +21,37 @@ import { IonIcon, IonSpinner } from '@ionic/angular';
 import { CloudBackupService } from './cloud-backup.service';
 import { GoogleAccountService } from './google-account.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 
 @Component({
   selector: 'app-cloud-button',
-  imports: [IonIcon, IonSpinner, TranslatePipe],
+  imports: [IonIcon, IonSpinner, TranslatePipe, ConfirmComponent],
   template: `
     @if (shown()) {
-      <button type="button" class="cloud-button" [class]="cloud.state()"
+      <button type="button" class="cloud-button"
+              [class]="cloud.wouldShrink() ? 'failed' : cloud.state()"
               [disabled]="cloud.state() === 'working'"
               (click)="cloud.save()"
               [attr.aria-label]="label() | t" [title]="label() | t">
-        @switch (cloud.state()) {
+        @switch (cloud.wouldShrink() ? 'blocked' : cloud.state()) {
           @case ('working') { <ion-spinner name="crescent"></ion-spinner> }
           @case ('done') { <ion-icon name="checkmark-circle"></ion-icon> }
           @case ('failed') { <ion-icon name="alert-circle"></ion-icon> }
+          @case ('blocked') { <ion-icon name="cloud-offline-outline"></ion-icon> }
           @default { <ion-icon name="cloud-upload-outline"></ion-icon> }
         }
       </button>
+    }
+
+    <!-- The one moment a whole history can be lost: a device that knows
+         almost nothing writing over the copy that knows everything. -->
+    @if (cloud.wouldShrink(); as shrink) {
+      <app-confirm [open]="true" icon="cloud-offline-outline"
+                   [title]="'cloud.shrink.sure' | t"
+                   [body]="'cloud.shrink.body' | t:{ theirs: shrink.theirs, ours: shrink.ours }"
+                   [confirmLabel]="'cloud.shrink.do' | t"
+                   (confirmed)="sendAnyway()"
+                   (cancelled)="cloud.wouldShrink.set(null)"></app-confirm>
     }
   `,
   styles: [`
@@ -72,6 +86,12 @@ import { TranslatePipe } from '../i18n/translate.pipe';
   `],
 })
 export class CloudButtonComponent {
+  /** Sends it despite the warning: it is their copy and their decision. */
+  async sendAnyway(): Promise<void> {
+    this.cloud.wouldShrink.set(null);
+    await this.cloud.save({ anyway: true });
+  }
+
   readonly cloud = inject(CloudBackupService);
   private readonly google = inject(GoogleAccountService);
 

@@ -12,7 +12,7 @@
  * are the same rows on the same screen.
  */
 
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -107,7 +107,55 @@ export class ReviewPage {
     day: string;
     theirs: number;
     ours: number;
+    /** What the account's opening figure is now, for the question asked. */
+    opening: number;
   } | null>(null);
+
+  /**
+   * How the readings are sorted and which of them are shown.
+   *
+   * A statement is fifty lines on a phone, and the two questions somebody
+   * actually asks of it are "what is the biggest thing here" and "what still
+   * needs me". Both are one tap now. The order lives here rather than in the
+   * repository because it is about looking, not about the data.
+   */
+  readonly sortBy = signal<'date' | 'amount'>('date');
+  readonly showOnly = signal<'all' | 'waiting' | 'flagged'>('all');
+
+  /** The list as it is being looked at: filtered, then sorted. */
+  shownIn(batch: Batch): Line[] {
+    const only = this.showOnly();
+    const lines = batch.lines.filter(line => {
+      if (only === 'waiting') return !this.ready(line);
+      if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed;
+      return true;
+    });
+
+    return this.sortBy() === 'amount'
+      // By what it is worth, biggest first, whichever way the money went: the
+      // question is "what is the large thing here", and a large expense and a
+      // large income are both answers to it.
+      ? [...lines].sort((one, other) =>
+          Math.abs(other.proposal.amount_minor ?? 0) - Math.abs(one.proposal.amount_minor ?? 0))
+      : lines;
+  }
+
+  /** How many a filter is hiding, so it never hides silently. */
+  hiddenIn(batch: Batch): number {
+    return batch.lines.length - this.shownIn(batch).length;
+  }
+
+  // --- moving through a long list ------------------------------------------
+
+  private readonly content = viewChild(IonContent);
+
+  async toTop(): Promise<void> {
+    await this.content()?.scrollToTop(300);
+  }
+
+  async toBottom(): Promise<void> {
+    await this.content()?.scrollToBottom(300);
+  }
 
   /** Open while the statement's own arithmetic is being read. */
   readonly explaining = signal(false);
@@ -185,7 +233,23 @@ export class ReviewPage {
       day,
       theirs: last.reading.closing_minor,
       ours,
+      opening: account.opening_balance_minor,
     });
+  }
+
+  /** Asks before moving it: it is a figure of his own, not a reading. */
+  askToSquare(to?: number): void {
+    const squaring = this.squaring();
+    if (squaring === null) return;
+    this.asking.set({ kind: 'square', to: to ?? squaring.theirs });
+  }
+
+  askToSquareTyped(): void {
+    try {
+      this.askToSquare(parseTypedAmountToMinor(this.typedBalance().trim()));
+    } catch {
+      this.error.set(this.i18n.t('review.error.amount'));
+    }
   }
 
   /** Makes the account say what the bank said, by moving its opening figure. */
@@ -291,7 +355,11 @@ export class ReviewPage {
   readonly asking = signal<
     { kind: 'accept' | 'discard' | 'forget'; batch: Batch } |
     { kind: 'acceptOne'; line: Line } |
-    { kind: 'discardOne'; line: Line } | null>(null);
+    { kind: 'discardOne'; line: Line } |
+    /** Moving the opening balance, which is a figure of Jose's own. */
+    { kind: 'square'; to: number } |
+    /** Leaving it as it is, which is also an answer to the same question. */
+    { kind: 'leaveBalance' } | null>(null);
 
   readonly total = computed(() => this.batches().reduce((sum, batch) => sum + batch.lines.length, 0));
 
@@ -596,6 +664,10 @@ export class ReviewPage {
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
     if (asking.kind === 'acceptOne') return this.i18n.t('review.accept.sure', { count: 1 });
+    if (asking.kind === 'square') {
+      return this.i18n.t('review.square.sure', { account: this.squaring()?.accountName ?? '' });
+    }
+    if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.sure');
     // Saving asks about the ones it can save; the other two are about the
     // whole batch, ready or not.
     const count = asking.kind === 'accept'
@@ -611,6 +683,20 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
+    if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.body');
+    if (asking.kind === 'square') {
+      const squaring = this.squaring();
+      if (squaring === null) return '';
+      // What actually changes, in the two figures it changes between: the
+      // opening balance moves by the gap, and nothing else moves at all.
+      const moved = asking.to - squaring.ours;
+      return this.i18n.t('review.square.body', {
+        from: this.money(squaring.opening, squaring.currency),
+        to: this.money(squaring.opening + moved, squaring.currency),
+        balance: this.money(asking.to, squaring.currency),
+        date: this.dayText(squaring.day),
+      });
+    }
     // Asking about one movement, it is worth saying WHICH: the amount, where
     // it is being filed and the day. A confirmation that only asks "are you
     // sure" adds a tap and says nothing.
@@ -629,6 +715,7 @@ export class ReviewPage {
   askLabel(): string {
     const asking = this.asking();
     if (asking === null) return '';
+    if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.do');
     const kind = asking.kind === 'discardOne' ? 'discard'
       : asking.kind === 'acceptOne' ? 'accept'
       : asking.kind;
@@ -637,6 +724,8 @@ export class ReviewPage {
 
   askIcon(): string {
     const kind = this.asking()?.kind;
+    if (kind === 'square') return 'swap-vertical-outline';
+    if (kind === 'leaveBalance') return 'remove-circle-outline';
     if (kind === 'accept' || kind === 'acceptOne') return 'checkmark-done-outline';
     // Undoing the import destroys nothing, so it is not a bin: it is the same
     // arrow the button that opened it carries.
@@ -653,7 +742,8 @@ export class ReviewPage {
    */
   askTone(): 'danger' | 'primary' | 'medium' {
     const kind = this.asking()?.kind;
-    if (kind === 'accept' || kind === 'acceptOne') return 'primary';
+    if (kind === 'accept' || kind === 'acceptOne' || kind === 'square') return 'primary';
+    if (kind === 'leaveBalance') return 'medium';
     if (kind === 'forget') return 'medium';
     return 'danger';
   }
@@ -670,6 +760,11 @@ export class ReviewPage {
       await this.write([asking.line.proposal]);
     } else if (asking.kind === 'discard') {
       await this.rejectAll(asking.batch);
+    } else if (asking.kind === 'square') {
+      await this.square(asking.to);
+    } else if (asking.kind === 'leaveBalance') {
+      this.squaring.set(null);
+      this.statements.lastImport.set(null);
     } else if (asking.kind === 'discardOne') {
       await this.rejectOne(asking.line);
     } else {

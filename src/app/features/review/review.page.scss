@@ -154,6 +154,55 @@ ion-title small {
   .typed { margin-top: 0.5rem; }
 }
 
+/* What to look at, and in what order. Two groups of small pills rather than
+   a row of six: they answer two different questions. */
+.looking {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin: 0.9rem 0 0;
+  padding: 0 1.1rem;
+
+  .group {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--ion-color-step-150);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium);
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+    }
+  }
+}
+
+.hidden-by-filter {
+  margin: 0.2rem 0 0;
+  padding: 0 1.2rem;
+  font-size: 0.76rem;
+  color: var(--ion-color-medium);
+
+  button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ion-color-primary);
+    font-size: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
 /* The repeated shops, above the list they save work on. */
 .repeated {
   margin-top: 0.6rem;

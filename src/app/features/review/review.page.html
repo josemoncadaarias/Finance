@@ -70,7 +70,7 @@
                      inputmode="decimal" [value]="typedBalance()"
                      (ionInput)="typedBalance.set($any($event.target).value ?? '')"></ion-input>
           <div class="ways">
-            <button type="button" class="save" [disabled]="working()" (click)="squareToTyped()">
+            <button type="button" class="save" [disabled]="working()" (click)="askToSquareTyped()">
               {{ 'review.square.do' | t }}
             </button>
             <button type="button" class="quiet" (click)="typingBalance.set(false)">
@@ -79,13 +79,13 @@
           </div>
         } @else {
           <div class="ways">
-            <button type="button" class="save" [disabled]="working()" (click)="square()">
+            <button type="button" class="save" [disabled]="working()" (click)="askToSquare()">
               {{ 'review.square.match' | t }}
             </button>
             <button type="button" class="quiet" (click)="typingBalance.set(true)">
               {{ 'review.square.other' | t }}
             </button>
-            <button type="button" class="quiet" (click)="squaring.set(null)">
+            <button type="button" class="quiet" (click)="asking.set({ kind: 'leaveBalance' })">
               {{ 'review.square.leave' | t }}
             </button>
           </div>
@@ -135,6 +135,33 @@
       </section>
     }
 
+    @if (total() > 3) {
+      <!-- What to look at and in what order. A statement is fifty lines on a
+           phone, and these are the two questions anybody asks of one. -->
+      <div class="looking">
+        <div class="group">
+          <button type="button" [class.on]="sortBy() === 'date'" (click)="sortBy.set('date')">
+            {{ 'review.sort.date' | t }}
+          </button>
+          <button type="button" [class.on]="sortBy() === 'amount'" (click)="sortBy.set('amount')">
+            {{ 'review.sort.amount' | t }}
+          </button>
+        </div>
+
+        <div class="group">
+          <button type="button" [class.on]="showOnly() === 'all'" (click)="showOnly.set('all')">
+            {{ 'review.only.all' | t }}
+          </button>
+          <button type="button" [class.on]="showOnly() === 'waiting'" (click)="showOnly.set('waiting')">
+            {{ 'review.only.waiting' | t }}
+          </button>
+          <button type="button" [class.on]="showOnly() === 'flagged'" (click)="showOnly.set('flagged')">
+            {{ 'review.only.flagged' | t }}
+          </button>
+        </div>
+      </div>
+    }
+
     @for (batch of batches(); track batch.key) {
       <section class="batch">
         <header>
@@ -175,7 +202,7 @@
         </header>
 
         <ion-list [inset]="true">
-          @for (line of batch.lines; track line.proposal.id) {
+          @for (line of shownIn(batch); track line.proposal.id) {
             <ion-item class="line" [class.unready]="!ready(line)" lines="full">
               <ion-label>
                 <!-- What it says it is, first: a date, a name, an amount. -->
@@ -293,8 +320,28 @@
           }
         </ion-list>
 
+        <!-- A filter never hides anything in silence. -->
+        @if (hiddenIn(batch) > 0) {
+          <p class="hidden-by-filter">
+            {{ 'review.hidden' | t:{ count: hiddenIn(batch) } }}
+            <button type="button" (click)="showOnly.set('all')">{{ 'review.only.all' | t }}</button>
+          </p>
+        }
+
       </section>
     }
+  }
+  <!-- The same control the summary screen carries, and for the same reason:
+       a statement is a long list and both ends of it are worth reaching. -->
+  @if (total() > 8) {
+    <div class="jump" slot="fixed">
+      <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+      </button>
+      <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t">
+        <ion-icon name="arrow-down-outline"></ion-icon>
+      </button>
+    </div>
   }
 </ion-content>
 

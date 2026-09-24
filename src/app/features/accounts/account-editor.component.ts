@@ -363,7 +363,11 @@ export class AccountEditorComponent implements OnInit {
           this.fromStatement.set(null);
           this.database.dataChanged();
           this.saved.emit();
-          await this.router.navigateByUrl('/review');
+          // After the sheet has closed, not while it is closing. Routing out
+          // from under an ion-modal mid-dismiss left Jose on the form he had
+          // just saved, with the movements waiting on a screen he could only
+          // reach by reloading.
+          await this.leaveFor('/review');
           return;
         }
       }
@@ -471,6 +475,12 @@ export class AccountEditorComponent implements OnInit {
     }
   }
 
+  /** Lets the sheet finish closing, then goes. */
+  private async leaveFor(url: string): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 350));
+    await this.router.navigateByUrl(url);
+  }
+
   private async readStatement(accountId: number, file: File, password?: string): Promise<void> {
     this.reading.set(true);
     this.error.set('');
@@ -484,7 +494,7 @@ export class AccountEditorComponent implements OnInit {
       ]);
       this.database.dataChanged();
       this.cancelled.emit();
-      await this.router.navigateByUrl('/review');
+      await this.leaveFor('/review');
     } catch (problem) {
       if (problem instanceof StatementLocked) {
         // Asked for only when the file itself says it needs one, rather than

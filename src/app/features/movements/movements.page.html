@@ -103,7 +103,12 @@
 
           <span class="figure" [class.owed]="standing.amountMinor < 0">
             {{ standing.amountMinor | money:standing.currency }}
-            @if (standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+            <!-- Only while several accounts are on show. With one chosen,
+                 the bar at the top already says which currency it is in, and
+                 the same word twice on one screen is one word too many. -->
+            @if (filter.allAccounts() && standing.currency !== 'COP') {
+              <small>{{ standing.currency }}</small>
+            }
           </span>
 
           <!-- Editing the account this figure is about. Its own icon rather
@@ -128,41 +133,6 @@
          The way to the summary sits on this line because this line is what
          the summary is about: these dates, this account. It asks nothing when
          tapped - everything it would ask is already chosen above. -->
-    <div class="period-tag">
-      <!-- The period used to be said here too, and it is already said in the
-           middle of the bar above, in blue, where it is also the way to change
-           it. Saying it twice only cost this line its room. What is left is
-           what that bar does NOT say: the currency these totals are in, and
-           only when it is not the usual one. -->
-      @if (store.currency() !== 'COP') {
-        <span class="what">{{ store.currency() }}</span>
-      }
-
-      <!-- The way to the summary of what this line names. It opens the report
-           rather than writing a file: reading it is the usual thing to want,
-           and the spreadsheet is a button inside it for when it is not. -->
-      <button type="button" class="to-report" routerLink="/report">
-        <ion-icon name="stats-chart-outline"></ion-icon>
-        <span class="say">{{ 'report.open' | t }}</span>
-      </button>
-
-      <!-- A statement belongs to one account, so this only exists while one
-           is being looked at. It sits on this line for the same reason the
-           summary does: this line names what it is about. -->
-      @if (!filter.allAccounts()) {
-        <input #statementFile type="file" accept="application/pdf,.pdf" hidden
-               (change)="onStatementPicked($any($event.target))" />
-        <button type="button" class="to-report" [disabled]="reading()"
-                (click)="statementFile.click()">
-          @if (reading()) {
-            <ion-spinner name="dots"></ion-spinner>
-          } @else {
-            <ion-icon name="document-attach-outline"></ion-icon>
-          }
-          <span class="say">{{ 'statement.import.short' | t }}</span>
-        </button>
-      }
-    </div>
 
     <section class="totals">
       <div>
@@ -188,6 +158,38 @@
         </div>
       }
     </section>
+
+    <div class="period-tag">
+      <!-- The period used to be said here too, and it is already said in the
+           middle of the bar above, in blue, where it is also the way to change
+           it. Saying it twice only cost this line its room. What is left is
+           what that bar does NOT say: the currency these totals are in, and
+           only when it is not the usual one. -->
+      <!-- The way to the summary of what this line names. It opens the report
+           rather than writing a file: reading it is the usual thing to want,
+           and the spreadsheet is a button inside it for when it is not. -->
+      <button type="button" class="to-report" routerLink="/report">
+        <ion-icon name="stats-chart-outline"></ion-icon>
+        <span class="say">{{ 'report.open' | t }}</span>
+      </button>
+
+      <!-- A statement belongs to one account, so this only exists while one
+           is being looked at. It sits on this line for the same reason the
+           summary does: this line names what it is about. -->
+      @if (!filter.allAccounts()) {
+        <input #statementFile type="file" accept="application/pdf,.pdf" hidden
+               (change)="onStatementPicked($any($event.target))" />
+        <button type="button" class="to-report" [disabled]="reading()"
+                (click)="statementFile.click()">
+          @if (reading()) {
+            <ion-spinner name="dots"></ion-spinner>
+          } @else {
+            <ion-icon name="document-attach-outline"></ion-icon>
+          }
+          <span class="say">{{ 'statement.import.short' | t }}</span>
+        </button>
+      }
+    </div>
 
     <!-- Chart or list: two states, so two halves of one control. It used to be
          three buttons - a pill with the same icon on either side of it - which
@@ -336,7 +338,9 @@
                   </ion-label>
                   <ion-note slot="end" [class]="movement.flow">
                     {{ movement.transaction.amount_minor | money:movement.currency }}
-                    @if (movement.currency !== 'COP') { <small>{{ movement.currency }}</small> }
+                    @if (filter.allAccounts() && movement.currency !== 'COP') {
+                      <small>{{ movement.currency }}</small>
+                    }
                   </ion-note>
                 </ion-item>
               }

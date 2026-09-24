@@ -247,7 +247,7 @@ test('the legend lists income too, and puts it first', () => {
   assert.deepEqual(slices.slice(1).map(s => s.percent), [75, 25]);
 });
 
-test('the largest view is one flat list, biggest first', () => {
+test('the largest view is one flat list: what came in, then what went out', () => {
   const movements = [
     movement({ amount: -2500000, date: '2026-09-01', label: 'Restaurante' }),
     movement({ amount: -13000000, date: '2026-09-08', label: 'Casa' }),
@@ -260,7 +260,8 @@ test('the largest view is one flat list, biggest first', () => {
   // One group, so the ordering is never broken into pieces by a heading.
   assert.equal(groups.length, 1);
   assert.deepEqual(groups[0].movements.map(m => m.transaction.amount_base_minor),
-    [30264043, -13000000, -12210100, -2500000], 'by size, whichever way the money went');
+    [30264043, -13000000, -12210100, -2500000],
+    'money in first, then money out, each side largest first');
   assert.equal(groups[0].count, 4);
 
   // Grouping by date over the same movements answers a different question.
@@ -434,4 +435,20 @@ test('money received from another account is beside income, not in the ring', ()
   assert.equal(share('Restaurante'), 13);
   assert.equal(share('Arriendo'), 38);
   assert.equal(slices.find(slice => slice.flow === 'moved').percent, 50);
+});
+
+test('the largest view never interleaves money in with money out', () => {
+  // Sorting the two together by size alternates between them, and a list that
+  // does that answers neither "what did I spend most on" nor "where did the
+  // money come from". Jose asked for the split when this view was built.
+  const movements = [
+    movement({ amount: -900000, date: '2026-09-01', label: 'Casa' }),
+    movement({ amount: 800000, date: '2026-09-02', label: 'Ahorros' }),
+    movement({ amount: -700000, date: '2026-09-03', label: 'Casa' }),
+    movement({ amount: 600000, date: '2026-09-04', label: 'Ahorros' }),
+  ];
+
+  const [group] = groupMovements(movements, 'largest');
+  assert.deepEqual(group.movements.map(m => m.transaction.amount_base_minor),
+    [800000, 600000, -900000, -700000]);
 });

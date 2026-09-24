@@ -228,7 +228,18 @@ export class CloudBackupService {
    * state it leaves behind settles back to idle on its own: a tick that stays
    * on screen for ever stops meaning "just now".
    */
-  async save(): Promise<boolean> {
+  /**
+   * What the copy in Drive holds against what this device is about to send.
+   *
+   * Set when sending would replace a copy that knows far more than this
+   * device does - a second phone signed into the same account, opened for the
+   * first time, with nothing in it yet. Jose saw the danger before it
+   * happened: "por la actualizacion automatica puede que sobreescriba los
+   * datos buenos". Nothing is uploaded while this is set.
+   */
+  readonly wouldShrink = signal<{ theirs: number; ours: number } | null>(null);
+
+  async save(options: { anyway?: boolean } = {}): Promise<boolean> {
     if (this.state() === 'working' || !this.canSave()) return false;
 
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
@@ -244,11 +255,36 @@ export class CloudBackupService {
       const token = await this.google.accessToken();
       if (!token) throw new DriveError('signed out');
 
+      // What Drive holds, before writing over it. Asked for here rather than
+      // hoped for: the device that most needs the guard below is a new one,
+      // which has never looked.
+      if (this.copy() === null) this.copy.set(await findCopy(token));
+
       const backup = await exportBackup(this.database.driver, progress => {
         this.detail.set(`${progress.done} / ${progress.total}`);
       });
       const rows = Object.values(backup.tables)
         .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
+
+      /*
+       * The copy in Drive is somebody's whole financial history, and this is
+       * the one moment it can be lost: a device that knows almost nothing
+       * sending its almost nothing over it, automatically, because it was
+       * signed in.
+       *
+       * So a copy that would replace a much larger one stops and asks. A
+       * tenth is the line: deleting a few movements is ordinary and must not
+       * interrupt anybody, and no ordinary afternoon removes nine tenths of a
+       * database. Answering yes sends it - it is still the person's own copy
+       * and their own decision.
+       */
+      const theirs = this.copy()?.rows ?? null;
+      if (!options.anyway && theirs !== null && rows < theirs / 10 && theirs > 20) {
+        this.wouldShrink.set({ theirs, ours: rows });
+        this.settle('idle');
+        return false;
+      }
+      this.wouldShrink.set(null);
 
       this.copy.set(await upload(token, toJson(backup), {
         schemaVersion: backup.schemaVersion, rows,

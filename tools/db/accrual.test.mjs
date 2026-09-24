@@ -2167,3 +2167,28 @@ test('a product emptied of its yields stops earning on them', async () => {
   assert.ok(receiving.every(day => day.balance_minor >= 100_000_00 + earned),
     'the money and its yield earn where they actually are');
 });
+
+test('going back to what was worked out forgets the correction', async () => {
+  const { engine, yields, ids } = await setup();
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+  await engine.accrue(ids.rappi, '2026-09-12');
+
+  const [day] = await yields.days(ids.rappi);
+  const computed = day.net_minor;
+  await yields.correctDay(day.product_id, day.on_date, 123_456);
+
+  const corrected = (await yields.days(ids.rappi))[0];
+  assert.equal(corrected.actual_net_minor, 123_456);
+  assert.equal(corrected.locked, 1);
+
+  // The button that says "go back to the calculation" used to clear only the
+  // lock, so the typed figure stayed and the day went on showing it. Jose
+  // pressed it on a Plata alcancia and nothing moved.
+  await yields.unlockDay(day.product_id, day.on_date);
+
+  const back = (await yields.days(ids.rappi))[0];
+  assert.equal(back.actual_net_minor, null);
+  assert.equal(back.locked, 0);
+  assert.equal(back.net_minor, computed, 'and the day says what the engine worked out');
+});

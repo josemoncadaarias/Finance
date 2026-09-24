@@ -1249,9 +1249,20 @@ export class YieldsRepository {
       [actualNetMinor, this.now(), productId, on]);
   }
 
+  /**
+   * Gives a day back to the engine, correction and all.
+   *
+   * It used to clear the lock and leave the corrected figure sitting on the
+   * row, so the button that says 'go back to what was worked out' changed
+   * nothing anybody could see: the day stayed at the typed figure until
+   * something else happened to make the engine rewrite that month. Jose
+   * pressed it on a Plata alcancia and watched it do nothing.
+   *
+   * Forgetting the correction is the whole of what the button means.
+   */
   async unlockDay(productId: number, on: IsoDate): Promise<void> {
     await this.db.run(
-      'UPDATE yield_days SET locked = 0 WHERE product_id = ? AND on_date = ?',
+      'UPDATE yield_days SET locked = 0, actual_net_minor = NULL WHERE product_id = ? AND on_date = ?',
       [productId, on]);
   }
 

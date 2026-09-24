@@ -320,8 +320,14 @@ function flatByAmount(
   allLabel: string,
   basis: AmountBasis,
 ): MovementGroup {
+  // Money in first and money out under it, each side largest first. Sorting
+  // the two together by size interleaves them, and a list that alternates
+  // between what came in and what went out answers neither question - Jose
+  // asked for the split when this view was built, and it had been lost.
+  const rank = (movement: Movement) => (amountOf(movement, basis) >= 0 ? 0 : 1);
   const sorted = [...movements].sort((a, b) =>
-    Math.abs(amountOf(b, basis)) - Math.abs(amountOf(a, basis)));
+    (rank(a) - rank(b))
+    || (Math.abs(amountOf(b, basis)) - Math.abs(amountOf(a, basis))));
 
   const totalBaseMinor = sorted.reduce((sum, m) => sum + amountOf(m, basis), 0);
 
