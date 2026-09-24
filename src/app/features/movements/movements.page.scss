@@ -200,16 +200,15 @@ ion-toolbar.stepper {
  * ends line up with the totals below and the toolbar above.
  */
 .period-tag {
-  /* The two ways in, centred, with the room the caption used to take.
-     Against the end of the line they read as an afterthought; in the middle
-     of it, at the size of something meant to be pressed, they read as what
-     this line is for. The currency, where there is one, keeps the left. */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
+  /* Laid out exactly as the chart-or-list pair below it: two of a width, the
+     same gap, the same gutter. They sit one above the other and anything that
+     does not match between them reads as a mistake. A little more air under
+     them, so the two rows are two rows rather than a block of four. */
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
   margin: 0.2rem 0 0;
-  padding: 0.6rem 1rem 0;
+  padding: 0.6rem 1rem 0.65rem;
   border-top: 1px solid var(--ion-color-light-shade);
 
   .what {
@@ -228,25 +227,25 @@ ion-toolbar.stepper {
 
   /* The same small pill the products screen uses to add a product: one shape
      for "a way out of this section", wherever it appears. */
+  /* The same button as the pair below, in everything but its colour: these
+     two go somewhere and those two change what is on show. */
   .to-report {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    /* Both the same width, so neither looks like the main one. */
-    flex: 1 1 0;
-    max-width: 11rem;
-    padding: 0.5rem 0.9rem;
+    min-width: 0;
+    padding: 0.6rem 0.5rem;
     border: 1px solid var(--ion-color-light-shade);
     border-radius: 999px;
     background: var(--ion-color-light);
     color: var(--ion-color-primary);
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
 
     ion-icon { font-size: 1.05rem; flex: none; }
-    ion-spinner { width: 0.95rem; height: 0.95rem; flex: none; }
+    ion-spinner { width: 1.05rem; height: 1.05rem; flex: none; }
 
     /* On a narrow phone the words go and the icon stays: a pill that wraps
        onto two lines, or one that pushes the caption off centre, is worse
