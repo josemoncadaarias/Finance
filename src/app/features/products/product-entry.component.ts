@@ -102,6 +102,16 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly request = input.required<ProductEntryRequest>();
   readonly saved = output<void>();
   readonly cancelled = output<void>();
+  /**
+   * The account chosen has no products, so this form cannot record it. It
+   * says which account, and what had been written, for the page to open the
+   * ordinary movement form with - Jose, 2026-09-24: registering a purchase
+   * from another account should not mean closing this and starting again
+   * on another screen.
+   */
+  readonly elsewhere = output<{
+    kind: 'income' | 'expense'; accountId: number; amountMinor: number; onDate: string; note: string;
+  }>();
 
   /**
    * The account this is about, and its products.
@@ -131,6 +141,13 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   private readonly withProducts = signal<AccountRow[]>([]);
 
   /**
+   * Every other account, offered too for an income or an expense. They have
+   * no product for this form to land in, so choosing one opens the ordinary
+   * movement form instead, with what was written carried over.
+   */
+  private readonly withoutProducts = signal<AccountRow[]>([]);
+
+  /**
    * How the list is ordered, under the key every other account picker uses.
    *
    * One preference about one list. Choosing A-Z while recording a movement
@@ -151,9 +168,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   /** How many movements each account carries, for the "most used" order. */
   private readonly useCounts = signal<Map<number, number>>(new Map());
 
-  readonly switchable = computed(() => {
-    const offered = this.withProducts();
-
+  /** Both lists in the order chosen, the same rule for each. */
+  private ordered(offered: readonly AccountRow[]): AccountRow[] {
     // `localeCompare` so "Éxito" files under E and not after Z.
     if (this.accountOrder() === 'name') {
       return [...offered].sort((a, b) => a.name.localeCompare(b.name, 'es'));
@@ -164,7 +180,29 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       const byUse = (times.get(b.id) ?? 0) - (times.get(a.id) ?? 0);
       return byUse !== 0 ? byUse : a.name.localeCompare(b.name, 'es');
     });
-  });
+  }
+
+  readonly switchable = computed(() => this.ordered(this.withProducts()));
+
+  /** The accounts without products, offered only for an income or an expense. */
+  readonly others = computed(() => (this.isTransfer() ? [] : this.ordered(this.withoutProducts())));
+
+  /** Whether there is anywhere else to point this form at. */
+  readonly canSwitch = computed(() => this.switchable().length > 1 || this.others().length > 0);
+
+  /** Hands what was written to the ordinary movement form, on that account. */
+  goElsewhere(account: AccountRow): void {
+    this.pickingAccount.set(false);
+    const kind = this.request().kind;
+    if (kind === 'transfer') return;
+    this.elsewhere.emit({
+      kind,
+      accountId: account.id,
+      amountMinor: this.amount().minor,
+      onDate: this.onDate(),
+      note: this.note(),
+    });
+  }
 
   readonly amount = signal(new AmountBuffer());
   readonly pending = signal<Pending | null>(null);
@@ -229,11 +267,14 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     // An account with no product has nowhere for this to land, so it is not
     // offered. One query each, over a list that is tens long, once.
     const withProducts: AccountRow[] = [];
+    const withoutProducts: AccountRow[] = [];
     for (const account of all) {
       if ((await yields.products(account.id)).length > 0) withProducts.push(account);
+      else withoutProducts.push(account);
     }
 
     this.withProducts.set(withProducts);
+    this.withoutProducts.set(withoutProducts);
 
     // What each one is used for, so "most used" has something to go on.
     void new AccountsRepository(driver).timesUsed()

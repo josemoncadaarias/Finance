@@ -18,6 +18,27 @@
   padding: 1.5rem 1rem 1rem;
   text-align: center;
 
+  /* A way out to the summary screen, under the figures it relates to. Quiet:
+     a pill outlined in the colour of a link, not a second call to action
+     competing with the income and expense buttons at the bottom. */
+  .to-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.9rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid rgba(var(--ion-color-primary-rgb), 0.45);
+    border-radius: 999px;
+    background: rgba(var(--ion-color-primary-rgb), 0.08);
+    color: var(--ion-color-primary);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon { font-size: 1rem; flex: none; }
+    .chevron { font-size: 0.9rem; opacity: 0.8; }
+  }
+
   .label {
     margin: 0;
     font-size: 0.72rem;

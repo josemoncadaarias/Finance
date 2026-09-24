@@ -5,7 +5,9 @@
  */
 
 import { Component, effect, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter, map } from 'rxjs';
 import {
   IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
   IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
@@ -46,6 +48,24 @@ interface Section {
 export class AppComponent {
   private readonly menu = inject(MenuController);
   private readonly router = inject(Router);
+
+  /**
+   * The screen on show, as a signal of every navigation that finished.
+   *
+   * `router.url` read in the template is only read when the drawer happens to
+   * be drawn again - which it is after a tap on the drawer itself, and not
+   * after a screen sends the app somewhere. So "Ver sus movimientos en Inicio"
+   * on the products screen landed on the summary with the drawer still
+   * marking "Productos y rendimientos"; Jose, 2026-09-24. A signal redraws the
+   * drawer whoever navigated: the drawer, a button, a statement import.
+   */
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map(event => event.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
+  );
   private readonly database = inject(DatabaseService);
 
   /**
@@ -119,7 +139,7 @@ export class AppComponent {
    * screen was open - two sections apparently current at once.
    */
   isCurrent(path: string): boolean {
-    const url = this.router.url.split(/[?#]/)[0];
+    const url = this.url().split(/[?#]/)[0];
     return url === path || url.startsWith(path + '/');
   }
 

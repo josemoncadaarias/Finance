@@ -967,6 +967,38 @@ ion-content.account-sheet {
 /* The two orders a picker offers, inside the account sheet. The movement
    form has the same control in its own stylesheet; this is the copy the
    sheets use, since a modal's content leaves the component that declared it. */
+/*
+ * A picker with two kinds of account in it - the products form, which writes
+ * into accounts with products and hands every other one to the movement form.
+ * A heading in the sheet's own weight, never small grey capitals, and a line
+ * saying what choosing from the second group does before it is done.
+ */
+ion-content.account-sheet {
+  .group-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 1rem 0 0.35rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
+
+    ion-icon { font-size: 1.05rem; color: var(--ion-color-primary); }
+  }
+
+  .group-title:first-of-type { margin-top: 0.25rem; }
+
+  .group-hint {
+    margin: -0.1rem 0 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--ion-color-medium);
+  }
+
+  /* Another form opens from these rows, and the mark on the right says so. */
+  .goes { color: var(--ion-color-medium); font-size: 1.05rem; flex: none; }
+}
+
 ion-content.account-sheet .order {
   display: flex;
   gap: 0.4rem;

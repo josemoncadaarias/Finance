@@ -58,6 +58,8 @@ import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { ProductEntryComponent, type ProductEntryRequest } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
+import { Router } from '@angular/router';
+import { FilterService } from '../../core/filters/filter.service';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
 import {
@@ -394,6 +396,9 @@ export class ProductsPage {
   /** One product's movements only, or every product's when null. */
   /** A movement of the account being corrected on the movement screen. */
   readonly movementEdit = signal<EntryRequest | null>(null);
+
+  private readonly router = inject(Router);
+  private readonly filter = inject(FilterService);
   /** Groups closed by hand; every group starts open, as on the summary. */
   readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
   /** The two lists under the movements, closed until asked for. */
@@ -1242,6 +1247,37 @@ export class ProductsPage {
   /** Opens the income or expense screen for the yields of the account on screen. */
   openEntry(line: ProductLine, kind: 'income' | 'expense'): void {
     this.productEntry.set({ kind, account: line.account, products: line.products });
+  }
+
+  /**
+   * An income or expense for an account with no products: the product form
+   * closes and the ordinary movement form opens on that account, with the
+   * amount, the day and the note already written. Once the first sheet has
+   * gone - opening one modal while another is still leaving is the same trap
+   * the account form fell into (`leaveFor`).
+   */
+  async openElsewhere(event: {
+    kind: 'income' | 'expense'; accountId: number; amountMinor: number; onDate: string; note: string;
+  }): Promise<void> {
+    this.productEntry.set(null);
+    await new Promise(resolve => setTimeout(resolve, 350));
+    this.movementEdit.set({
+      kind: event.kind,
+      preferredAccountId: event.accountId,
+      start: { amountMinor: event.amountMinor, onDate: event.onDate, note: event.note },
+    });
+  }
+
+  /**
+   * To the summary screen, on this account. Asked for by Jose on 2026-09-24:
+   * from an account's yields to its movements is one tap, not closing the
+   * sheet, opening the menu and choosing the account again.
+   */
+  async goToSummary(line: ProductLine): Promise<void> {
+    this.filter.selectAccount(line.account.id);
+    this.closeDetail();
+    await new Promise(resolve => setTimeout(resolve, 350));
+    await this.router.navigateByUrl('/movements');
   }
 
   /** Saved and worked out again; the account shows the new figures. */

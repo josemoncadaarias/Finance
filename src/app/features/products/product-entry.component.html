@@ -113,7 +113,7 @@
           <!-- The account, which can be changed here rather than by closing
                the form and starting again somewhere else. Only when there is
                another account with products to change to. -->
-          @if (switchable().length > 1) {
+          @if (canSwitch()) {
             <button type="button" class="owner-chip can-change" [disabled]="switching()"
                     (click)="pickingAccount.set(true)">
               @if (switching()) {
@@ -433,6 +433,15 @@
                 (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
       </div>
 
+      <!-- Two groups once there are two: the accounts this form writes into,
+           and every other one, which the ordinary movement form takes over.
+           Said before it happens, so opening another form is not a surprise. -->
+      @if (others().length > 0) {
+        <p class="group-title">
+          <ion-icon name="trending-up-outline"></ion-icon>
+          {{ 'products.entry.withProducts' | t }}
+        </p>
+      }
       <ion-list>
         @for (one of switchable(); track one.id) {
           <ion-item button lines="full" [id]="'product-account-' + one.id"
@@ -451,6 +460,27 @@
           </ion-item>
         }
       </ion-list>
+
+      @if (others().length > 0) {
+        <p class="group-title">
+          <ion-icon name="wallet-outline"></ion-icon>
+          {{ 'products.entry.otherAccounts' | t }}
+        </p>
+        <p class="group-hint">{{ 'products.entry.otherAccounts.hint' | t }}</p>
+        <ion-list>
+          @for (one of others(); track one.id) {
+            <ion-item button lines="full" [id]="'other-account-' + one.id" (click)="goElsewhere(one)">
+              <app-icon slot="start" [builtin]="one.builtin_icon"
+                        [customId]="one.custom_icon_id" fallback="wallet"></app-icon>
+              <ion-label>
+                <h3>{{ one.name }}</h3>
+                <p>{{ one.currency_code }}</p>
+              </ion-label>
+              <ion-icon slot="end" class="goes" name="open-outline"></ion-icon>
+            </ion-item>
+          }
+        </ion-list>
+      }
     </ion-content>
   </ng-template>
 </ion-modal>

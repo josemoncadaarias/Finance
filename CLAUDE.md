@@ -1126,6 +1126,26 @@ replaced did an upsert, so typing USD with another name renamed the dollar
 every one of Jose's dollar accounts is kept in. The product sheet shares the movement form's whole
 stylesheet by `styleUrls`, deliberately.
 
+**Any account from the products screen, and one tap back to the summary**
+(Jose, 2026-09-24). The product form records against a product, so its
+account picker offered only accounts with products; an expense from any other
+account meant closing it and starting again elsewhere. The picker now lists
+both groups - "Cuentas con productos", then "Otras cuentas" with a line saying
+what choosing one does - and choosing from the second closes the product form
+and opens the ORDINARY movement form on that account, carrying the amount,
+the day and the note (\`EntryRequest.start\`). No third form: each thing is
+recorded by the form that records it. The group headings are in the sheet's
+own weight in \`global.scss\` (\`.group-title\`, \`.group-hint\`), never small
+grey capitals. An account's sheet also has "Ver sus movimientos en Inicio",
+which selects that account in \`FilterService\` and goes to the summary.
+
+**The drawer marks the screen on show, whoever navigated.** It read
+\`router.url\` in its template, which is only read again when the drawer is
+redrawn - after a tap on the drawer, never after a screen sends the app
+somewhere - so the button above landed on the summary with "Productos y
+rendimientos" still marked (reproduced in a browser before it was fixed). It
+reads a signal of \`NavigationEnd\` now (\`app.component.ts\`).
+
 A note's matches fall BELOW the note, like any list of matches. They were
 ordered above for a while because they had landed behind the keyboard; what
 actually fixed that is the rule that hides the rest of the form while the

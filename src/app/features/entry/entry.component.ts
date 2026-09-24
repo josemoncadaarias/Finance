@@ -64,6 +64,13 @@ export interface EntryRequest {
    * is the better guess.
    */
   preferredAccountId?: number | null;
+  /**
+   * What was already written somewhere else, carried over rather than typed
+   * twice. The products screen hands its form here when the account chosen
+   * has no products: the amount, the day and the note were the right ones,
+   * only the form was not.
+   */
+  start?: { amountMinor: number; onDate: string; note: string };
 }
 
 @Component({
@@ -538,6 +545,13 @@ export class EntryComponent implements OnInit, OnDestroy {
     }
 
     this.accountId.set(await this.defaultAccount(accounts));
+
+    const start = this.request().start;
+    if (start) {
+      if (start.amountMinor > 0) this.amount.set(AmountBuffer.from(start.amountMinor));
+      this.occurredOn.set(start.onDate);
+      this.note.set(start.note);
+    }
   }
 
   /**

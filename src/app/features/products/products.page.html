@@ -272,7 +272,8 @@
   <ion-modal class="entry-sheet" [isOpen]="productEntry() !== null" (didDismiss)="productEntry.set(null)">
     <ng-template>
       @if (productEntry(); as request) {
-        <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"></app-product-entry>
+        <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"
+                           (elsewhere)="openElsewhere($event)"></app-product-entry>
       }
     </ng-template>
   </ion-modal>
@@ -399,6 +400,14 @@
                 {{ 'products.part.accrued' | t }}
                 <strong>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</strong>
               </p>
+
+              <!-- From an account's yields to its movements in one tap: the
+                   summary screen, already on this account. -->
+              <button type="button" class="to-summary" (click)="goToSummary(line)">
+                <ion-icon name="pie-chart-outline"></ion-icon>
+                <span>{{ 'products.toSummary' | t }}</span>
+                <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
+              </button>
             </section>
 
             <!-- How much is in each one, which the account's own figure
