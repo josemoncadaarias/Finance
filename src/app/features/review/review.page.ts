@@ -446,6 +446,11 @@ export class ReviewPage {
     // whenever the data changes, which is how every other screen here works.
     effect(() => {
       this.database.dataVersion();
+      // The language too: the titles, the dates and the sentences about a
+      // duplicate or a pair are built here, once, and stored on each row. An
+      // import made in English left "Statement of Ualá" sitting there after
+      // the flag was switched, because nothing asked for them again.
+      this.i18n.language();
       if (this.database.status() === 'ready') void this.refresh();
     });
   }
