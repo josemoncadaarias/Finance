@@ -25,6 +25,8 @@ export interface MoneyToken {
   minor: number;
   /** True when the statement itself marked it negative. */
   negative: boolean;
+  /** True when the statement itself marked it positive: a + in front, or CR. */
+  positive: boolean;
   x: number;
   text: string;
 }
