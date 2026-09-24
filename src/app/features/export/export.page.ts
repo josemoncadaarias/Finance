@@ -227,6 +227,11 @@ export class ExportPage {
         counts,
       }));
       this.picked.set(file);
+      // Asked for here, the moment the file is known, rather than after
+      // scrolling to a button: choosing the file IS the decision, and Jose
+      // asked for the question to arrive with it. The button below re-opens
+      // it for anybody who says no and changes their mind.
+      this.asking.set(true);
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
