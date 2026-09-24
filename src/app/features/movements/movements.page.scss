@@ -211,6 +211,15 @@ ion-toolbar.stepper {
   padding: 0.6rem 1rem 0.65rem;
   border-top: 1px solid var(--ion-color-light-shade);
 
+  /* Every account at once: a statement belongs to one, so there is nothing
+     to import into and only the summary is here. It takes the middle at the
+     width of one of the pair rather than half a line with a gap beside it,
+     which reads as a button whose other half failed to load. */
+  &.alone {
+    grid-template-columns: minmax(0, 12rem);
+    justify-content: center;
+  }
+
   .what {
     /* Centred with the two buttons rather than pushed against the far
        side: three things in the middle of a line read as one row, and one

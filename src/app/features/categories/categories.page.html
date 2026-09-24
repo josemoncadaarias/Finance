@@ -33,6 +33,18 @@
       </button>
     </div>
   </ion-toolbar>
+
+  <!-- Its own toolbar rather than a third thing inside the one above: a
+       toolbar sizes itself to one row, and the pills were landing on top of
+       the buttons. -->
+  <ion-toolbar class="page-actions">
+    <div class="order order-pills">
+      <button type="button" [class.on]="order() === 'use'"
+              (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
+      <button type="button" [class.on]="order() === 'name'"
+              (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
+    </div>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
@@ -47,20 +59,26 @@
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else {
 
-    <!-- Two lists, because they are never chosen together -->
+    <!-- Two lists, because they are never chosen together. Money out and
+         money in are the same pair the movement form opens with, so they wear
+         the same marks and the same two colours here: red with an arrow going
+         out, green with one coming in. A heading in small grey capitals said
+         nothing the compose bar has not already taught. -->
     @for (side of [
-      { kind: 'expense', title: 'categories.expenses', rows: expenses() },
-      { kind: 'income', title: 'categories.incomes', rows: incomes() }
+      { kind: 'expense', title: 'categories.expenses', rows: expenses(), mark: 'arrow-up-outline' },
+      { kind: 'income', title: 'categories.incomes', rows: incomes(), mark: 'arrow-down-outline' }
     ]; track side.kind) {
-      <section class="side">
+      <section class="side" [class]="side.kind">
         <!-- Closed to begin with. Three headings and their counts fit on one
              screen; the expenses alone do not, and open they pushed the third
              heading off the bottom edge. -->
         <div class="head">
           <button type="button" class="fold" (click)="toggle($any(side.kind))">
-            <ion-icon [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+            <span class="mark"><ion-icon [name]="$any(side.mark)"></ion-icon></span>
             <h2>{{ $any(side.title) | t }}</h2>
             <span class="count">{{ side.rows.length }}</span>
+            <ion-icon class="chevron"
+                      [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
           </button>
         </div>
 

@@ -34,6 +34,15 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
+/** The order last chosen, wherever it was chosen. */
+function readOrder(): 'use' | 'name' {
+  try {
+    return localStorage.getItem('finance.categoryOrder') === 'name' ? 'name' : 'use';
+  } catch {
+    return 'use';
+  }
+}
+
 @Component({
   selector: 'app-categories',
   templateUrl: './categories.page.html',
@@ -49,8 +58,38 @@ export class CategoriesPage {
   readonly database = inject(DatabaseService);
   readonly status = this.database.status;
 
-  readonly expenses = signal<UsedCategory[]>([]);
-  readonly incomes = signal<UsedCategory[]>([]);
+  private readonly rawExpenses = signal<UsedCategory[]>([]);
+  private readonly rawIncomes = signal<UsedCategory[]>([]);
+
+  /**
+   * Most used, or A to Z.
+   *
+   * The same question the category sheet asks while a movement is being
+   * typed, so it is the same preference: one key, `finance.categoryOrder`,
+   * because it is one list and it would be strange for it to be sorted two
+   * ways on two screens. Asked for by Jose on 2026-09-24, who met this screen
+   * sorted one way and the picker sorted another.
+   */
+  readonly order = signal<'use' | 'name'>(readOrder());
+
+  setOrder(order: 'use' | 'name'): void {
+    this.order.set(order);
+    try {
+      localStorage.setItem('finance.categoryOrder', order);
+    } catch {
+      // Storage switched off: the order holds for this visit and no longer.
+    }
+  }
+
+  /** Ignores case and accents, the way the picker's search does. */
+  private byName(rows: readonly UsedCategory[]): UsedCategory[] {
+    return [...rows].sort((one, other) => one.name.localeCompare(other.name, 'es'));
+  }
+
+  readonly expenses = computed(() =>
+    this.order() === 'name' ? this.byName(this.rawExpenses()) : this.rawExpenses());
+  readonly incomes = computed(() =>
+    this.order() === 'name' ? this.byName(this.rawIncomes()) : this.rawIncomes());
   readonly archived = signal<CategoryRow[]>([]);
 
   /**
@@ -220,8 +259,8 @@ export class CategoriesPage {
         new ProductKindsRepository(this.database.driver).list(),
       ]);
 
-      this.expenses.set(expenses);
-      this.incomes.set(incomes);
+      this.rawExpenses.set(expenses);
+      this.rawIncomes.set(incomes);
       this.productKinds.set(kinds);
       this.archived.set(all.filter(category => category.archived === 1));
       await this.loadIcons();

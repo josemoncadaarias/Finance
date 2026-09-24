@@ -11,8 +11,43 @@
   &.error h2 { color: var(--ion-color-danger); }
 }
 
+/* Where the order is chosen, held above the lists with the other two
+   controls that act on the whole screen. */
+.order {
+  padding: 0 1.1rem 0.6rem;
+}
+
 .side {
   margin-top: 0.75rem;
+
+  /*
+   * Money out and money in, wearing the marks the movement form gave them.
+   *
+   * These two headings were small grey capitals with a chevron, which is how
+   * a section of settings looks - and these are not settings, they are the
+   * two halves of everything this app records. Jose asked for the movement
+   * form's own vocabulary, and it costs a circle and a colour.
+   */
+  &.expense .mark { background: var(--ion-color-danger); }
+  &.income .mark { background: var(--ion-color-success); }
+
+  .mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 50%;
+    flex: none;
+
+    ion-icon { font-size: 0.95rem; color: #fff; }
+  }
+
+  .chevron {
+    margin-left: auto;
+    color: var(--ion-color-medium);
+    font-size: 1rem;
+  }
 
   /* The heading doubles as the control that folds its list. */
 .fold {
@@ -48,10 +83,9 @@
 
   h2 {
     margin: 0;
-    font-size: 0.72rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
   }
 
   .head button {

@@ -707,6 +707,66 @@ ion-popover.info-hint-popover {
  * shape. Two definitions of one control drift apart; this is one, and both
  * screens read it.
  */
+/*
+ * Most-used or A-Z, for a list of categories.
+ *
+ * It is on the category sheet and on the categories screen, and by the rule
+ * that a control appearing on two screens has one definition, it is written
+ * once here. The preference behind it is one key too - `finance.categoryOrder`
+ * - because it is one question about one list.
+ */
+.order-pills {
+  display: flex;
+  gap: 0.4rem;
+
+  button {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+    }
+  }
+}
+
+/*
+ * Most-used or A-Z, for a list of categories.
+ *
+ * It is on the category sheet and on the categories screen, and by the rule
+ * that a control appearing on two screens has one definition, it is written
+ * once here. The preference behind it is one key too - `finance.categoryOrder`
+ * - because it is one question about one list.
+ */
+.order-pills {
+  display: flex;
+  gap: 0.4rem;
+
+  button {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: none;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.on {
+      border-color: var(--ion-color-primary);
+      background: var(--ion-color-primary);
+      color: var(--ion-color-primary-contrast);
+    }
+  }
+}
+
 .compose-bar {
   background: var(--ion-background-color);
   border-top: 1px solid var(--ion-color-light-shade);

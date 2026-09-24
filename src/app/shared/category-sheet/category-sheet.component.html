@@ -19,7 +19,7 @@
 
       <!-- Which order, said out loud. Two is the whole useful set: what you
            reach for most, and where a name sits when you know it. -->
-      <div class="order">
+      <div class="order order-pills">
         <button type="button" [class.on]="order() === 'use'"
                 (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
         <button type="button" [class.on]="order() === 'name'"

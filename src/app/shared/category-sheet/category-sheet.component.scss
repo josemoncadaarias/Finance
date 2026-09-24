@@ -35,28 +35,9 @@
   margin-inline-start: 0.5rem;
 }
 
-.order {
-  display: flex;
-  gap: 0.4rem;
-  padding: 0 0.75rem 0.5rem;
-
-  button {
-    padding: 0.35rem 0.85rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-color-medium-shade);
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    &.on {
-      border-color: var(--ion-color-primary);
-      background: var(--ion-color-primary);
-      color: var(--ion-color-primary-contrast);
-    }
-  }
-}
+/* The buttons themselves live in global.scss: this screen and the categories
+   screen ask the same question and must not answer it in two shapes. */
+.order { padding: 0 0.75rem 0.5rem; }
 
 .nothing {
   margin: 1.5rem 1rem;

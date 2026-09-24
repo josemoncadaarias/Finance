@@ -169,7 +169,10 @@
       }
     </section>
 
-    <div class="period-tag">
+    <!-- Two halves when a statement can be imported, one whole when it
+         cannot: a lone button holding half the line with nothing beside it
+         reads as a button whose other half failed to load. -->
+    <div class="period-tag" [class.alone]="filter.allAccounts()">
       <!-- The period used to be said here too, and it is already said in the
            middle of the bar above, in blue, where it is also the way to change
            it. Saying it twice only cost this line its room. What is left is
