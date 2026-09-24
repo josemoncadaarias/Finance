@@ -261,6 +261,22 @@ export class AccrualEngine {
         if (period.from < resume) resume = period.from;
       }
     }
+
+    // What was spent, read once: it decides the periods behind `resume` as
+    // well as the ones about to be worked out.
+    const spentBetween = await this.spendCounter(accountId, upTo);
+
+    // A spending bonus already judged is only final while what was spent in
+    // its period is unchanged - and the ordinary way to change it is to type
+    // a purchase in late, or import last month's statement. Resuming from the
+    // top of the last month worked out never looked back: a September
+    // purchase entered in October, lifting September over the threshold, left
+    // September's bonus at nothing for good. Jose asked on 2026-09-24 whether
+    // the bonus was really being judged right; this is what it was not doing.
+    const rejudge = last === null ? null
+      : await this.periodJudgedWrongly(accountId, rates, resume, spentBetween);
+    if (rejudge !== null && rejudge < resume) resume = rejudge;
+
     const from = resume < firstEver ? firstEver : resume;
     if (from > upTo) return nothing;
 
@@ -286,7 +302,6 @@ export class AccrualEngine {
       for (const product of products) {
         balancesOf.set(product.id, await this.yields.productBalances(product.id));
       }
-      const spentBetween = await this.spendCounter(accountId, upTo);
       // Anything that lands on a product inside the range being worked
       // out has to be part of it from that day on. The starting figure
       // above only covers what happened BEFORE the range, so without this
@@ -618,6 +633,58 @@ export class AccrualEngine {
       out.push({ on_date: move.on_date, balance_minor: running });
     }
     return out;
+  }
+
+  /**
+   * The start of the earliest period already worked out whose spending
+   * condition would be judged the other way today, or null.
+   *
+   * Read from what was written rather than remembered beside it: a day of a
+   * conditional component carries the rate it was paid at, and that rate says
+   * whether its period met the condition - the full rate if it did, the rate
+   * for a missed condition if not. So nothing new is stored, a restored
+   * backup needs nothing, and a purchase that was DELETED is caught exactly
+   * like one that was added. Where the two rates are the same the answer
+   * makes no difference to the money, and none is looked for.
+   *
+   * Only the days before `before`: everything from there on is about to be
+   * worked out again anyway. Locked days are left alone, as everywhere else.
+   */
+  private async periodJudgedWrongly(
+    accountId: number,
+    rates: readonly YieldRate[],
+    before: IsoDate,
+    spentBetween: (from: IsoDate, to: IsoDate) => number,
+  ): Promise<IsoDate | null> {
+    const conditional = rates.filter(rate => rate.requires_monthly_spend_minor !== null);
+    if (conditional.length === 0) return null;
+
+    const components = [...new Set(conditional.map(rate => rate.component))];
+    const days = await this.db.query<{ component: string; on_date: IsoDate; annual_rate_scaled: number }>(
+      `SELECT component, on_date, annual_rate_scaled FROM yield_days
+       WHERE account_id = ? AND on_date < ? AND locked = 0
+         AND component IN (${components.map(() => '?').join(', ')})`,
+      [accountId, before, ...components]);
+
+    let earliest: IsoDate | null = null;
+    for (const day of days) {
+      // The conditional rate of that component in force on that day.
+      let rate: YieldRate | null = null;
+      for (const candidate of conditional) {
+        if (candidate.component !== day.component || candidate.valid_from > day.on_date) continue;
+        if (rate === null || candidate.valid_from > rate.valid_from) rate = candidate;
+      }
+      if (rate === null) continue;
+
+      const missedRate = rateWhenConditionMissed(rate.fallback_annual_rate_scaled);
+      if (missedRate === rate.annual_rate_scaled) continue;
+
+      const period = spendPeriodFor(rate.payout, rate.payout_months ?? 1, rate.valid_from, day.on_date);
+      const metNow = spentBetween(period.from, period.to) >= rate.requires_monthly_spend_minor!;
+      const metThen = day.annual_rate_scaled !== missedRate;
+      if (metNow !== metThen && (earliest === null || period.from < earliest)) earliest = period.from;
+    }
+    return earliest;
   }
 
   /**

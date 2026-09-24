@@ -365,13 +365,40 @@ backup restore against iOS's own SQLite backend.
    proportion to what each holds; putting it all on the first one pushed that one over the
    threshold by itself. Decision by Jose, 2026-09-10.
 
-18. **A missed condition is a different rate, not no rate.** Uala pays 10.5%
-   E.A. in a month with at least 400,000 spent on the card and 5% E.A. in a
-   month without, so a conditional rate carries a fallback. And not all the
-   money in an account is necessarily earning: these accounts hold several
-   products inside one balance, and what is sitting in one that pays nothing is
-   recorded by hand in `yield_excluded_balances`, dated, and taken off the
-   accrual base. Both found by Jose against his real accounts, 2026-09-09.
+18. **A spending bonus is its own part of the rate, judged on its whole
+   period.** Ualá pays 10.5% E.A., and that is two things wearing one number
+   (migration 011): 5% E.A. every day, unconditionally, and 5.5% E.A. paid at
+   the end of the month only in a month with at least 400,000 spent. So a
+   rate is a set of COMPONENTS, each with its own percentage, payday and
+   condition, and a component whose condition was missed is paid at its
+   fallback rate - none, for Ualá's. Found by Jose, 2026-09-09. (That same
+   migration dropped `yield_excluded_balances`: money set aside is money
+   somewhere else, recorded when it moves.)
+
+   **What counts as spending, all of it tested** (`accrual.test.mjs`,
+   2026-09-24): expenses on that same account in the period - the calendar
+   month, or the N months of a bonus paid every N. Not money coming in, not a
+   transfer to another account of one's own (that would meet the condition
+   for free), and not what was spent from any other account. Exactly the
+   threshold meets it. One month's spending never carries into the next.
+
+   **A period already judged is judged again when its spending changes.** The
+   engine resumed from the top of the last month worked out, so a September
+   purchase typed in October - or imported from September's statement -
+   lifting September over the threshold left its bonus at nothing for good,
+   and a purchase deleted later left a bonus that was never earned. Found when
+   Jose asked on 2026-09-24 whether the bonus was really being judged right.
+   `periodJudgedWrongly` now reads the rate each past day was paid at - the
+   full one means its period met the condition - and goes back to any period
+   that would be judged the other way today. Nothing new is stored, so a
+   restored backup needs nothing. On Jose's backup it changed none of the 237
+   days worked out.
+
+   **Assumed, and worth knowing**: every expense on the account counts, while
+   the bank counts card purchases. A payment to a person entered as an expense
+   would count here and not at the bank. Ualá is a single debit account and
+   its card draws on it, so for Jose the two agree; in September he spent
+   2,250,996 against 400,000, far from the line.
 
 19. **The income-tax simulator is a form, and every figure in it is typed.**
    One screen laid out like Formulario 210: boxes the person types into, boxes
@@ -593,7 +620,8 @@ backup restore against iOS's own SQLite backend.
    `features/review/` is where a person answers them. Ways in: the summary
    screen, for an account that exists, and the account form, which fills
    itself in from the statement and then imports it. **The notification half
-   is not built** and nothing below about it has changed.
+   has its first step built and PAUSED** - see "Step one is built, and
+   PAUSED" below - and nothing else about it has changed.
 
    Two sources, and one screen where they both end up:
 
@@ -844,7 +872,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 491 tests that run against a real
+by 500 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -873,9 +901,10 @@ exportar" saves one and restores one. A copy of the current one lives in
 a change against. The Android project lives in `android/`
 (Capacitor 8).
 
-**Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
-to mount and `initWebStore()` to succeed, and that only happens at runtime.
-Everything up to it — build, types, plugin API — is confirmed.
+**SQLite in the browser works** (verified 2026-09-24, in headless Chrome
+against `ng serve`): `jeep-sqlite` mounts, a fresh database migrates and
+seeds its starter categories, and a currency saved from a dialog is read
+back. Jose also runs the app with `npm start` day to day.
 
 **The copy in Drive is one file, and a device only writes over what it has
 seen** (2026-09-24). Saving to Drive is automatic, so two phones on one Google
@@ -924,8 +953,13 @@ that appears on two screens has one definition, in `global.scss`.** Spending
 and income are that pair - `.compose` and `.compose-bar` live there, and both
 the summary screen and a product's sheet read them, in that order and that
 shape. The category picker's two orders (most-used, A-Z) share one
-`localStorage` key, `finance.categoryOrder`, for the same reason: it is one
-preference about one list. The product sheet shares the movement form's whole
+`localStorage` key, `finance.categoryOrder`, with the categories screen, for
+the same reason: it is one preference about one list - and the pills
+themselves are `.order-pills` in `global.scss`. Adding a currency is one
+dialog (`shared/currency-dialog`) on both screens that offer it, and it
+refuses a code that exists rather than renaming it: the two inline copies it
+replaced did an upsert, so typing USD with another name renamed the dollar
+every one of Jose's dollar accounts is kept in. The product sheet shares the movement form's whole
 stylesheet by `styleUrls`, deliberately.
 
 A note's matches fall BELOW the note, like any list of matches. They were
@@ -948,6 +982,19 @@ became 25. Not done, on purpose: accruing in the background on app start.
 `BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.
+
+**Known and not fixed: a movement dated in a month already worked out does
+not change that month's yields** (measured 2026-09-24). The engine resumes
+from the top of the last month it worked out, so a 5,000,000 deposit dated 5
+September and typed in October left September's yield at 7,864.48 when it
+should have risen by about 30,000. Every day from October on is right, since
+the balance is read from the ledger; only the days before are stale. It matters
+more now that statements import past months. Rule 18's spending bonus is
+already re-judged; the ordinary yield is not. Until it is, the "Recalcular"
+button on the products screen works everything out again from scratch, locked
+days kept. The fix is to resume from the earliest date touched since the last
+pass, which has to see deletions too - so it waits for Jose's word, because it
+touches every yield he has.
 
 **A claim about the screen is checked in a browser, not reasoned about**
 (2026-09-24). Twice in one afternoon a dialog was declared fixed on code that
@@ -1038,18 +1085,22 @@ Google sign-in client is registered against the same SHA-1.
 
 Looked into on 2026-09-22 at Jose's request, **as a plan, not as work**. He
 decided the app is worth giving to other people who keep their accounts by
-hand the way he does. Nothing here has been started.
+hand the way he does. Step 1, the icon, is done (2026-09-22); nothing after
+it has been started.
 
 **The one good surprise, and it was checked, not assumed**: a fresh install is
 empty. Migrating a new database end to end leaves 0 accounts, 0 movements, 0
 products, and only what everyone needs - 3 currencies, the 3 product
-categories and the tax parameters. The 23 migrations that name "Rappi",
+categories and the tax parameters - plus, since 2026-09-23, the twenty
+starter categories `DatabaseService` seeds on first start (rule 23). The
+23 migrations that name "Rappi",
 "Pibank" or "Dale" all match by name and do nothing where those names do not
 exist. Jose's data does not travel with the app.
 
 In order, with the trap first:
 
-1. **The icon.** Cheap, reversible, touches neither the signature nor the
+1. **The icon. DONE** (commit "Give the app its own icon", 2026-09-22), from
+   `AppIcon.png` in Jose's Drive folder. Cheap, reversible, touches neither the signature nor the
    data. `@capacitor/assets` turns one 1024x1024 image into every size
    Android asks for plus the 512x512 the store wants. Android masks an icon
    into a circle or a squircle, so the artwork has to live inside the middle

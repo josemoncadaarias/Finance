@@ -2192,3 +2192,167 @@ test('going back to what was worked out forgets the correction', async () => {
   assert.equal(back.locked, 0);
   assert.equal(back.net_minor, computed, 'and the day says what the engine worked out');
 });
+
+// ---------------------------------------------------------------------------
+// The spending bonus, set up the way Jose's Ualá actually is (2026-09-24):
+// 5% E.A. every day, unconditionally, and 5.5% E.A. paid at the end of the
+// month only in a month with at least 400,000 spent. His own data has one
+// month of it, and that month met the condition - so every way of MISSING it
+// is proved here rather than waited for.
+// ---------------------------------------------------------------------------
+
+async function ualaAsItIs() {
+  const context = await setup();
+  const { yields, categories, ids } = context;
+  await yields.enrol({ account_id: ids.uala, opening_on: '2026-08-31', withholding: false });
+  await yields.setRate({
+    account_id: ids.uala, component: 'Diario', payout: 'daily',
+    valid_from: '2026-08-31', annual_rate_scaled: pct(5),
+  });
+  await yields.setRate({
+    account_id: ids.uala, component: 'Mensual por gasto', payout: 'monthly',
+    valid_from: '2026-08-31', annual_rate_scaled: pct(5.5),
+    requires_monthly_spend_minor: 40_000_000,
+  });
+  const ingresos = await categories.create({ name: 'Salario', kind: 'income', builtin_icon: 'cash' });
+  return { ...context, ingresos };
+}
+
+/** What each component earned in one month, and at what rates. */
+async function month(yields, accountId, yyyyMm) {
+  const out = {};
+  for (const day of await yields.days(accountId)) {
+    if (!day.on_date.startsWith(yyyyMm)) continue;
+    const seen = out[day.component] ?? { net: 0, rates: new Set() };
+    seen.net += day.net_minor;
+    seen.rates.add(day.annual_rate_scaled);
+    out[day.component] = seen;
+  }
+  return out;
+}
+
+const spend = (transactions, ids, accountId, on, minor) => transactions.create({
+  account_id: accountId, category_id: ids.gastos, occurred_on: on,
+  amount_minor: -minor, source: 'manual',
+});
+
+test('missing the spend leaves the daily rate paid and the bonus at nothing', async () => {
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 39_999_999);
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  const september = await month(yields, ids.uala, '2026-09');
+
+  assert.ok(september['Diario'].net > 0, 'the 5% is not conditional and is paid');
+  assert.equal(september['Mensual por gasto'].net, 0, 'one centavo short is short');
+  assert.deepEqual([...september['Mensual por gasto'].rates], [0]);
+});
+
+test('spending exactly the threshold meets it', async () => {
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 40_000_000);
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  const september = await month(yields, ids.uala, '2026-09');
+  assert.ok(september['Mensual por gasto'].net > 0);
+  assert.deepEqual([...september['Mensual por gasto'].rates], [pct(5.5)]);
+});
+
+test('moving your own money out of the account is not spending', async () => {
+  const { engine, yields, transfers, ids } = await ualaAsItIs();
+  // Half a million sent to Rappi: a transfer, not a purchase. Counting it
+  // would meet the condition for free.
+  await transfers.create({
+    occurred_on: '2026-09-10', description: 'A Rappi',
+    from: { account_id: ids.uala, amount_minor: 50_000_000 },
+    to: { account_id: ids.rappi, amount_minor: 50_000_000 },
+  });
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  const september = await month(yields, ids.uala, '2026-09');
+  assert.equal(september['Mensual por gasto'].net, 0);
+});
+
+test('money coming in never counts towards the spend', async () => {
+  const { engine, yields, transactions, ids, ingresos } = await ualaAsItIs();
+  await transactions.create({
+    account_id: ids.uala, category_id: ingresos, occurred_on: '2026-09-05',
+    amount_minor: 200_000_000, source: 'manual',
+  });
+  await spend(transactions, ids, ids.uala, '2026-09-10', 10_000_000);
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  const september = await month(yields, ids.uala, '2026-09');
+  assert.equal(september['Mensual por gasto'].net, 0,
+    'two million in and one hundred thousand out is one hundred thousand spent');
+});
+
+test('what was spent from another account does not count', async () => {
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.rappi, '2026-09-10', 90_000_000);
+
+  await engine.accrue(ids.uala, '2026-09-30');
+  const september = await month(yields, ids.uala, '2026-09');
+  assert.equal(september['Mensual por gasto'].net, 0,
+    'the condition is about the Ualá card, not about spending anywhere');
+});
+
+test('a month that met it does not carry over into the next', async () => {
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 90_000_000);
+  // Nothing at all spent in October.
+
+  await engine.accrue(ids.uala, '2026-10-31');
+  const september = await month(yields, ids.uala, '2026-09');
+  const october = await month(yields, ids.uala, '2026-10');
+
+  assert.ok(september['Mensual por gasto'].net > 0, 'September met it');
+  assert.equal(october['Mensual por gasto'].net, 0, 'October did not, whatever September did');
+  assert.ok(october['Diario'].net > 0, 'and the daily rate went on regardless');
+});
+
+test('a purchase typed in late still decides the month it happened in', async () => {
+  // The ordinary case, not an edge: movements are typed by hand, often days
+  // later, and a statement imported in October carries September's
+  // purchases. The month they belong to has to be judged again.
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 30_000_000);
+
+  await engine.accrue(ids.uala, '2026-10-10');
+  assert.equal((await month(yields, ids.uala, '2026-09'))['Mensual por gasto'].net, 0,
+    'three hundred thousand: missed, for now');
+
+  // Typed on 10 October, dated 28 September.
+  await spend(transactions, ids, ids.uala, '2026-09-28', 20_000_000);
+  await engine.accrue(ids.uala, '2026-10-10');
+
+  assert.ok((await month(yields, ids.uala, '2026-09'))['Mensual por gasto'].net > 0,
+    'September reached 500,000 and has to be paid');
+});
+
+test('a purchase deleted later takes the bonus back from its month', async () => {
+  const { engine, yields, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 30_000_000);
+  const extra = await spend(transactions, ids, ids.uala, '2026-09-28', 20_000_000);
+
+  await engine.accrue(ids.uala, '2026-10-10');
+  assert.ok((await month(yields, ids.uala, '2026-09'))['Mensual por gasto'].net > 0);
+
+  // It was typed twice by mistake, and removed in October.
+  await transactions.delete(extra);
+  await engine.accrue(ids.uala, '2026-10-10');
+
+  assert.equal((await month(yields, ids.uala, '2026-09'))['Mensual por gasto'].net, 0,
+    'three hundred thousand is short again, and September says so');
+});
+
+test('with nothing changed, a month already judged is not worked out again', async () => {
+  // Looking back must not become redoing everything: on a phone every day
+  // worked out is time on the screen.
+  const { engine, transactions, ids } = await ualaAsItIs();
+  await spend(transactions, ids, ids.uala, '2026-09-10', 90_000_000);
+
+  await engine.accrue(ids.uala, '2026-10-10');
+  const again = await engine.accrue(ids.uala, '2026-10-12');
+  assert.equal(again.from, '2026-10-01', 'only the month still running');
+});
