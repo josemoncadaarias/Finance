@@ -53,6 +53,8 @@ export const TABLES = [
   'transfers',
   'transactions',
   'exchange_rates',
+  // The DANE's index, as fetched or typed (migration 046).
+  'inflation_months',
   'yield_days',
   'cashback_rules',
   'cashback_entries',

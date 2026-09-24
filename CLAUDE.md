@@ -612,14 +612,48 @@ backup restore against iOS's own SQLite backend.
    enrolled accounts, their products, every `yield_days` row from a year
    back, each converted to pesos at the rate of its own day),
    `sections-yields.ts` (the period in figures with the effective annual
-   rate and the withholding, which account or product earned most, month by
-   month, against the period before on the same days, what the app worked
-   out against what the bank paid on the days Jose checked, and notes:
-   projection, still owed, best rate, no rate), `yieldsWorkbook` in
+   rate and the withholding; against inflation; notes - how much the money
+   earning grew and how much of that was yields, projection, still owed, best
+   rate, no rate; how much the money grew since the first month; yields so
+   far; which account or product earned most; month by month; against the
+   period before on the same days), `yieldsWorkbook` in
    `report-workbook.ts` (the summary sheet plus one row per day). Ways in:
    the products screen, for all accounts from its total and for one from an
    account's sheet; both go through `FilterService` like the money report,
-   so the dates and the account are the same two pickers. A figure counts as
+   so the dates and the account are the same two pickers. The report screen
+   carries a switch, Movimientos / Rendimientos, so the one way in from the
+   summary screen reaches both (Jose, 2026-09-24).
+
+   **Not shown: what the app worked out against what the bank paid.** Built,
+   and removed the same day at Jose's word: the summary works with what is in
+   the app, corrections included, and a sum of centavos against the engine
+   tells the person nothing. The days sheet of the spreadsheet still carries
+   both columns, as the record.
+
+   **The growth chart is measured from its first month, not from zero**, the
+   way a stock chart is: 12% over seventy million drawn from zero is nine bars
+   of one height. A month that closed below the first is drawn grey.
+
+   **Against inflation** (Jose, 2026-09-24: "si esta por encima o por debajo
+   de la inflacion"). `inflation_months` (migration 046) is the DANE's IPC,
+   one row a month, index times 100, shipped up to August 2026 from the Banco
+   de la Republica's statistics service (series 15000) and checked against
+   the DANE's releases (5.10% for 2025, 1.18% for January 2026).
+   `core/inflation/inflation.ts` works out any stretch of days, spreading
+   each month's variation over its days; a month not yet published is the
+   average month of the last twelve, and the screen names it as estimated.
+   The section shows the real return ((1 + E.A.) / (1 + inflation) - 1), the
+   inflation at a yearly pace, what inflation took from the average money
+   earning and the real gain - pesos only; a dollar account alone shows none
+   of it. It does not touch the tax module (rule on the simulator standing
+   apart). **Newer months: fetched on the phone only, and NOT verified
+   there.** The service answers an empty body without a Referer from its own
+   site and sends no CORS header, so a browser cannot read it; the phone asks
+   through `CapacitorHttp` at most once a day. Its certificate chain is sent
+   without the intermediate, which Android's native HTTP may refuse - if it
+   does, the shipped months stay and later ones are estimated, labelled. To
+   check on the phone: open the yields summary in October and see whether
+   "IPC del DANE hasta septiembre" appears instead of an estimate. A figure counts as
    what the bank paid where a day was checked (`actual_net_minor`), and as
    what the app worked out otherwise (`paidOf`). A product alone in its
    account is named by the account. Test data: `tools/db/sample-yields.mjs`
@@ -1057,7 +1091,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 512 tests that run against a real
+by 516 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

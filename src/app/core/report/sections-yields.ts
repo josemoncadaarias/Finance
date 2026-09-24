@@ -8,6 +8,7 @@
  */
 
 import { formatMoney } from '../database/money';
+import { inflationOver } from '../inflation/inflation';
 import { monthName } from '../filters/period';
 import type { Block, ComparisonBlock, RankedBlock, Section, TrendBlock } from './blocks';
 import { money, percent } from './blocks';
@@ -41,6 +42,30 @@ const sum = (values: Iterable<number>): number => {
   return total;
 };
 
+/**
+ * What was earning and what it earned: the net, the days, the money earning
+ * on an average day (each product once a day, however many parts its rate
+ * has), and that as a yearly return.
+ */
+function earning(data: YieldsReportData) {
+  const { rows, amounts } = periodDays(data);
+  const net = sum(amounts.values());
+  const dates = [...new Set(rows.map(day => day.on_date))].sort();
+  const days = dates.length;
+  const baseOf = new Map<string, number>();
+  for (const day of rows) {
+    const key = `${day.product_id}|${day.on_date}`;
+    if (!baseOf.has(key)) {
+      baseOf.set(key, data.inReportCurrency(day.balance_minor, day.account_id, day.on_date) ?? 0);
+    }
+  }
+  const averageBase = days > 0 ? sum(baseOf.values()) / days : 0;
+  const effective = averageBase > 0
+    ? Math.pow(1 + net / averageBase / days, 365) - 1
+    : null;
+  return { rows, amounts, net, days, first: dates[0], last: dates[days - 1], averageBase, effective };
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -52,28 +77,13 @@ const sum = (values: Iterable<number>): number => {
  * answer to "how much did my money actually earn".
  */
 export const yieldHeadline: Section<YieldsReportData> = data => {
-  const { rows, amounts } = periodDays(data);
+  const { rows, net, days, effective: yearly } = earning(data);
   if (rows.length === 0) return null;
   const words = data.words;
 
-  const net = sum(amounts.values());
   const withheld = sum(rows.map(day =>
     data.inReportCurrency(day.withholding_minor, day.account_id, day.on_date) ?? 0));
-  const days = new Set(rows.map(day => day.on_date)).size;
-
-  // The money earning on an average day: each product once per day, however
-  // many parts its rate has.
-  const baseOf = new Map<string, number>();
-  for (const day of rows) {
-    const key = `${day.product_id}|${day.on_date}`;
-    if (!baseOf.has(key)) {
-      baseOf.set(key, data.inReportCurrency(day.balance_minor, day.account_id, day.on_date) ?? 0);
-    }
-  }
-  const averageBase = sum(baseOf.values()) / days;
-  const effective = averageBase > 0
-    ? (Math.pow(1 + net / averageBase / days, 365) - 1) * 100
-    : null;
+  const effective = yearly === null ? null : yearly * 100;
 
   const figures: Extract<Block, { kind: 'figures' }>['figures'] = [
     { label: words['report.yields.net'], value: money(net, data.currency), tone: 'good' },
@@ -171,6 +181,71 @@ export const yieldByWhere: Section<YieldsReportData> = data => {
   return block;
 };
 
+/**
+ * Against inflation: did the money keep its value, and by how much.
+ *
+ * Jose, 2026-09-24. The same days and the same average as the headline, set
+ * against the DANE's index over those days. Four figures: inflation at a
+ * yearly pace, the real return ((1 + return) / (1 + inflation) - 1), what
+ * inflation took from the money that was earning, and what is left of the
+ * yield after it. A month the DANE has not published is estimated and the
+ * note says which. Pesos only: the index says what pesos lost, and a report
+ * of one dollar account has nothing to compare with it.
+ */
+export const yieldVersusInflation: Section<YieldsReportData> = data => {
+  if (data.currency !== 'COP') return null;
+  const { rows, net, first, last, averageBase, effective } = earning(data);
+  if (rows.length === 0 || effective === null || averageBase <= 0) return null;
+  const inflation = inflationOver(data.inflation, first, last);
+  if (inflation === null) return null;
+  const words = data.words;
+
+  const real = (1 + effective) / (1 + inflation.annual) - 1;
+  const took = Math.round(averageBase * inflation.rate);
+  const kept = net - took;
+  const ahead = real >= 0;
+  const round2 = (value: number) => Math.round(value * 10_000) / 100;
+
+  const source = inflation.estimated.length > 0
+    ? fill(words['report.yields.inflation.estimated'], {
+        months: inflation.estimated.map(month => monthLabel(month, data.locale)).join(', '),
+      })
+    : fill(words['report.yields.inflation.published'], {
+        month: monthLabel(inflation.lastPublished!, data.locale),
+      });
+
+  return {
+    kind: 'figures',
+    id: 'yields-inflation',
+    title: words['report.yields.inflation'],
+    figures: [
+      {
+        label: words['report.yields.inflation.real'],
+        value: percent(round2(real)),
+        tone: ahead ? 'good' : 'bad',
+        note: words[ahead ? 'report.yields.inflation.ahead' : 'report.yields.inflation.behind'],
+      },
+      {
+        label: words['report.yields.inflation.rate'],
+        value: percent(round2(inflation.annual)),
+        note: source,
+      },
+      {
+        label: words['report.yields.inflation.took'],
+        value: money(took, data.currency),
+        tone: 'warn',
+        note: fill(words['report.yields.inflation.tookNote'], { amount: formatMoney(Math.round(averageBase), data.currency) }),
+      },
+      {
+        label: words['report.yields.inflation.kept'],
+        value: money(kept, data.currency),
+        tone: kept >= 0 ? 'good' : 'bad',
+        note: words['report.yields.inflation.keptNote'],
+      },
+    ],
+  };
+};
+
 /** "Septiembre 2026", in the reader's own language. */
 function monthLabel(month: string, locale: string): string {
   const [year, at] = month.split('-').map(Number);
@@ -186,8 +261,53 @@ function monthLabel(month: string, locale: string): string {
  * out a month still running, which would drag it down for no reason but the
  * calendar.
  */
-export const yieldByMonth: Section<YieldsReportData> = data => {
-  const end = (data.period.to && data.period.to < data.today ? data.period.to : data.today).slice(0, 7);
+/** The last month the charts reach: the end of the period, or today. */
+const lastMonth = (data: YieldsReportData): string =>
+  (data.period.to && data.period.to < data.today ? data.period.to : data.today).slice(0, 7);
+
+/**
+ * Up to twelve months ending at `end`, from the first one that has anything,
+ * every month in between - so a month with nothing is a zero rather than a
+ * gap nobody notices.
+ */
+function monthsUpTo(seen: readonly string[], end: string): string[] {
+  const months = seen.filter(month => month <= end).sort();
+  if (months.length === 0) return [];
+  const [endYear, endMonth] = end.split('-').map(Number);
+  const floor = endMonth === 12 ? `${endYear}-01` : `${endYear - 1}-${String(endMonth + 1).padStart(2, '0')}`;
+  const all: string[] = [];
+  for (let at = months[0] > floor ? months[0] : floor; at <= end; ) {
+    all.push(at);
+    const [year, month] = at.split('-').map(Number);
+    at = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+  }
+  return all;
+}
+
+/**
+ * What was earning at the close of each month: every product's balance on
+ * its last day of the month, in pesos at that day's rate. Deposits make it
+ * grow as much as yields do, which is why the chart after it exists.
+ */
+function balanceByMonth(data: YieldsReportData, end: string): Map<string, number> {
+  const last = new Map<string, YieldDayRow>();
+  for (const day of data.days) {
+    if (day.on_date > data.today || day.on_date.slice(0, 7) > end) continue;
+    const key = `${day.on_date.slice(0, 7)}|${day.product_id}`;
+    const seen = last.get(key);
+    if (!seen || day.on_date > seen.on_date) last.set(key, day);
+  }
+  const totals = new Map<string, number>();
+  for (const [key, day] of last) {
+    const month = key.slice(0, 7);
+    const amount = data.inReportCurrency(day.balance_minor, day.account_id, day.on_date) ?? 0;
+    totals.set(month, (totals.get(month) ?? 0) + amount);
+  }
+  return totals;
+}
+
+/** What was earned each month, in pesos at each day's rate. */
+function earnedByMonth(data: YieldsReportData, end: string): Map<string, number> {
   const totals = new Map<string, number>();
   for (const day of data.days) {
     if (day.on_date > data.today) continue;
@@ -197,17 +317,61 @@ export const yieldByMonth: Section<YieldsReportData> = data => {
     if (amount === null) continue;
     totals.set(month, (totals.get(month) ?? 0) + amount);
   }
+  return totals;
+}
 
-  const months = [...totals.keys()].sort().slice(-12);
-  if (months.length < 2) return null;
-  // Every month between the first and the last, so a month with nothing is a
-  // zero rather than a gap nobody notices.
-  const all: string[] = [];
-  for (let at = months[0]; at <= end && all.length < 12; ) {
-    all.push(at);
-    const [year, month] = at.split('-').map(Number);
-    at = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
-  }
+/**
+ * How the money grew: what was earning at the close of each month, against
+ * the close of the first one. Jose, 2026-09-24: "mostrar una grafica de como
+ * va creciendo el dinero". Measured from the first month rather than from
+ * zero, the way a stock chart is: drawn from zero, 12% of growth over
+ * seventy million is nine bars of the same height. A month that closed
+ * below the first is a bar below the line.
+ */
+export const yieldGrowth: Section<YieldsReportData> = data => {
+  const end = lastMonth(data);
+  const totals = balanceByMonth(data, end);
+  const all = monthsUpTo([...totals.keys()], end);
+  if (all.length < 2) return null;
+  const start = totals.get(all[0]) ?? 0;
+  return {
+    kind: 'trend',
+    id: 'yields-growth',
+    title: fill(data.words['report.yields.growth'], { month: monthLabel(all[0], data.locale) }),
+    points: all.map(month => ({
+      label: monthLabel(month, data.locale),
+      value: money((totals.get(month) ?? 0) - start, data.currency),
+    })),
+  };
+};
+
+/**
+ * What the yields alone have added, month after month: a running total. It
+ * only ever rises, and how steeply is the compounding made visible.
+ */
+export const yieldEarnedSoFar: Section<YieldsReportData> = data => {
+  const end = lastMonth(data);
+  const totals = earnedByMonth(data, end);
+  const all = monthsUpTo([...totals.keys()], end);
+  if (all.length < 2) return null;
+  let running = 0;
+  return {
+    kind: 'trend',
+    id: 'yields-earned-so-far',
+    title: data.words['report.yields.soFar'],
+    points: all.map(month => {
+      running += totals.get(month) ?? 0;
+      return { label: monthLabel(month, data.locale), value: money(running, data.currency) };
+    }),
+  };
+};
+
+export const yieldByMonth: Section<YieldsReportData> = data => {
+  const end = lastMonth(data);
+  const totals = earnedByMonth(data, end);
+
+  const all = monthsUpTo([...totals.keys()], end);
+  if (all.length < 2) return null;
 
   const running = data.today.slice(0, 7);
   const whole = all.filter(month => month !== running);
@@ -284,58 +448,42 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
 };
 
 /**
- * What the app worked out against what the bank actually paid, on every day
- * Jose checked against a statement. The only independent truth there is
- * about the engine, so it is shown as such: per product, and in one sentence
- * saying how many days matched to the centavo.
- */
-export const yieldBankVersusApp: Section<YieldsReportData> = data => {
-  const checked = data.days.filter(day =>
-    inPeriod(data, day.on_date) && day.locked === 1 && day.actual_net_minor !== null);
-  if (checked.length === 0) return null;
-
-  const computed = new Map<number, number>();
-  const paid = new Map<number, number>();
-  for (const day of checked) {
-    const app = data.inReportCurrency(day.net_minor, day.account_id, day.on_date);
-    const bank = data.inReportCurrency(day.actual_net_minor!, day.account_id, day.on_date);
-    if (app === null || bank === null) continue;
-    computed.set(day.product_id, (computed.get(day.product_id) ?? 0) + app);
-    paid.set(day.product_id, (paid.get(day.product_id) ?? 0) + bank);
-  }
-  const exact = checked.filter(day => day.net_minor === day.actual_net_minor).length;
-
-  const block: ComparisonBlock = {
-    kind: 'comparison',
-    id: 'yields-bank',
-    title: data.words['report.yields.bank'],
-    beforeLabel: data.words['report.yields.bank.computed'],
-    nowLabel: data.words['report.yields.bank.paid'],
-    caveat: fill(data.words['report.yields.bank.summary'], { days: checked.length, exact }),
-    rows: [...computed.keys()].map(id => {
-      const was = computed.get(id) ?? 0;
-      const is = paid.get(id) ?? 0;
-      return {
-        label: productLabel(data, id),
-        before: money(was, data.currency),
-        now: money(is, data.currency),
-        changePercent: was !== 0 ? Math.round(((is - was) / Math.abs(was)) * 10000) / 100 : null,
-        growthIs: 'good' as const,
-      };
-    }),
-  };
-  return block;
-};
-
-/**
  * What is worth saying in words: where the month is heading at this pace,
  * what is still owed and when it lands, how many days were withheld, and
  * which account pays best today.
  */
+/**
+ * "From January your money earning went from X to Y; Z of that was yields":
+ * the growth chart cannot tell what was put in from what was earned, so one
+ * sentence does. Null with under two months to compare.
+ */
+function growthLine(data: YieldsReportData): string | null {
+  const end = lastMonth(data);
+  const balances = balanceByMonth(data, end);
+  const all = monthsUpTo([...balances.keys()], end);
+  if (all.length < 2) return null;
+  const from = balances.get(all[0]) ?? 0;
+  const to = balances.get(all[all.length - 1]) ?? 0;
+  if (from <= 0) return null;
+  const earned = earnedByMonth(data, end);
+  const yielded = sum(all.slice(1).map(month => earned.get(month) ?? 0));
+  const change = Math.round(((to - from) / from) * 1000) / 10;
+  return fill(data.words['report.yields.note.growth'], {
+    month: monthLabel(all[0], data.locale),
+    from: formatMoney(from, data.currency),
+    to: formatMoney(to, data.currency),
+    change: `${change > 0 ? '+' : ''}${change.toLocaleString(data.locale)} %`,
+    earned: formatMoney(yielded, data.currency),
+  });
+}
+
 export const yieldNotes: Section<YieldsReportData> = data => {
   const words = data.words;
   const lines: { text: string; tone?: 'good' | 'bad' | 'warn' | 'plain' }[] = [];
   const { rows, amounts } = periodDays(data);
+
+  const growth = growthLine(data);
+  if (growth !== null) lines.push({ text: growth });
 
   // Where this month is heading. Only for a month still running, and said to
   // be a projection: rule 20 never passes an estimate off as a figure.
@@ -402,11 +550,13 @@ export const yieldNotes: Section<YieldsReportData> = data => {
 /** The order on the screen and in the spreadsheet. */
 export const YIELD_SECTIONS: readonly Section<YieldsReportData>[] = [
   yieldHeadline,
+  yieldVersusInflation,
   yieldNotes,
+  yieldGrowth,
+  yieldEarnedSoFar,
   yieldByWhere,
   yieldByMonth,
   yieldVersusBefore,
-  yieldBankVersusApp,
 ];
 
 export function buildYieldsReport(data: YieldsReportData): Block[] {

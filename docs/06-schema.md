@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 28 tables and how they relate. The authority is always
+The 29 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -78,6 +78,12 @@ erDiagram
         TEXT quote_code PK, FK
         INTEGER rate_scaled
         TEXT source
+    }
+    inflation_months {
+        TEXT month PK
+        INTEGER index_scaled
+        TEXT source
+        TEXT fetched_at
     }
     yield_accounts {
         INTEGER account_id PK, FK
@@ -336,6 +342,10 @@ case, and lets the two legs be in different currencies.
 ### 3. Rates and the modules that need them
 
 `exchange_rates` caches the official TRM.
+
+`inflation_months` holds the DANE's consumer price index, one row a month, times 100
+(migration 046). It stands alone: nothing points at it. The yields summary sets what
+was earned against it; a month not yet published is estimated on the screen, never stored.
 
 The rest is what the products have earned: money but never counted on, kept deliberately
 outside the balance of the account that produced it and outside net worth.

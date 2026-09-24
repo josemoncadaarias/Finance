@@ -1,3 +1,4 @@
+import type { InflationMonth } from '../inflation/inflation';
 /**
  * Everything the yields summary is allowed to look at, gathered once.
  *
@@ -36,6 +37,9 @@ export interface YieldDayRow {
 }
 
 export interface YieldsReportData {
+  /** The DANE's index by month, as the app has it (migration 046). */
+  inflation: readonly InflationMonth[];
+
   period: Period;
   periodLabel: string;
 

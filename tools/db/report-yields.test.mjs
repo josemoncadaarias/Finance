@@ -10,9 +10,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  yieldHeadline, yieldByWhere, yieldByMonth, yieldVersusBefore, yieldBankVersusApp, yieldNotes,
+  yieldHeadline, yieldByWhere, yieldByMonth, yieldVersusBefore, yieldNotes,
+  yieldVersusInflation, yieldGrowth, yieldEarnedSoFar,
   buildYieldsReport,
 } from '../../src/app/core/report/sections-yields.ts';
+import { inflationOver } from '../../src/app/core/inflation/inflation.ts';
+import { parseIpc } from '../../src/app/core/inflation/ipc-client.ts';
 import { TEST_WORDS } from '../../src/app/core/report/report-words.ts';
 import { dailyRate, EA_SCALE } from '../../src/app/core/yields/yield-math.ts';
 
@@ -60,6 +63,7 @@ function data(overrides = {}) {
     today: '2026-09-24',
     locale: 'es-CO',
     words: TEST_WORDS,
+    inflation: [],
     ...overrides,
   };
 }
@@ -86,7 +90,7 @@ test('the effective return of one product at 10.5% comes out as 10.5%', () => {
   assert.ok(Math.abs(effective - 10.5) < 0.05, `worked out ${effective}, not 10.5`);
 });
 
-test('the bank figure wins where Jose typed it, and the comparison says how many matched', () => {
+test('the bank figure wins where Jose typed it', () => {
   const days = walk({ account_id: 1, product_id: 10, from: '2026-09-01', days: 24, base: 1_000_000_000, rate: pct(10.5) });
   days[20] = { ...days[20], locked: 1, actual_net_minor: days[20].net_minor };        // matched
   days[21] = { ...days[21], locked: 1, actual_net_minor: days[21].net_minor - 76 };   // 0.76 below
@@ -95,15 +99,6 @@ test('the bank figure wins where Jose typed it, and the comparison says how many
   const head = yieldHeadline(facts);
   const plain = days.reduce((sum, day) => sum + day.net_minor, 0);
   assert.equal(figure(head, TEST_WORDS['report.yields.net']).minor, plain - 76, 'the bank figure counts');
-
-  const bank = yieldBankVersusApp(facts);
-  assert.equal(bank.rows.length, 1);
-  assert.equal(bank.rows[0].now.minor - bank.rows[0].before.minor, -76);
-  assert.match(bank.caveat, /2 días.*1 coinciden/);
-});
-
-test('with no day checked against a statement there is no comparison to show', () => {
-  assert.equal(yieldBankVersusApp(data()), null);
 });
 
 test('account by account for all of them, product by product for one', () => {
@@ -165,4 +160,73 @@ test('a month still running gets a projection, labelled as one', () => {
 test('a period with nothing earned has nothing to say', () => {
   const empty = data({ days: [] });
   assert.deepEqual(buildYieldsReport(empty), []);
+});
+
+// --- Inflation -------------------------------------------------------------
+
+/** The DANE's real index for 2025 and 2026, as migration 046 ships it. */
+const IPC = [
+  ['2024-08', 14399], ['2024-09', 14424], ['2024-10', 14418], ['2024-11', 14422], ['2024-12', 14488],
+  ['2025-01', 14624], ['2025-02', 14790], ['2025-03', 14868], ['2025-04', 14966], ['2025-05', 15014],
+  ['2025-06', 15030], ['2025-07', 15071], ['2025-08', 15099], ['2025-09', 15148], ['2025-10', 15176],
+  ['2025-11', 15187], ['2025-12', 15227], ['2026-01', 15407], ['2026-02', 15573], ['2026-03', 15694],
+  ['2026-04', 15817], ['2026-05', 15891], ['2026-06', 15953], ['2026-07', 15979], ['2026-08', 16042],
+].map(([month, index_scaled]) => ({ month, index_scaled }));
+
+test('inflation over a whole year is the DANE figure for that year', () => {
+  const year = inflationOver(IPC, '2025-01-01', '2025-12-31');
+  assert.ok(Math.abs(year.rate - 0.0510) < 0.0001, `${year.rate} is not the 5.10% the DANE published`);
+  assert.deepEqual(year.estimated, []);
+  const january = inflationOver(IPC, '2026-01-01', '2026-01-31');
+  assert.ok(Math.abs(january.rate - 0.0118) < 0.0001, 'January 2026 was 1.18%');
+});
+
+test('a month not published yet is estimated, and says so', () => {
+  const september = inflationOver(IPC, '2026-09-01', '2026-09-24');
+  assert.deepEqual(september.estimated, ['2026-09']);
+  assert.equal(september.lastPublished, '2026-08');
+  // The average month of the year to August: 16042 / 15099 over twelve.
+  const typical = Math.pow(16042 / 15099, 1 / 12) - 1;
+  assert.ok(Math.abs(september.rate - (Math.pow(1 + typical, 24 / 30) - 1)) < 1e-9);
+  assert.equal(inflationOver(IPC, '2020-01-01', '2020-01-31'), null, 'before anything on record: nothing');
+});
+
+test('against inflation: the real return and what inflation took, on the same days as the headline', () => {
+  const facts = data({ inflation: IPC });
+  const block = yieldVersusInflation(facts);
+  const infl = inflationOver(IPC, '2026-09-01', '2026-09-24');
+  const head = yieldHeadline(facts);
+  const effective = figure(head, TEST_WORDS['report.yields.effective']).value / 100;
+  const real = figure(block, TEST_WORDS['report.yields.inflation.real']).value / 100;
+  assert.ok(Math.abs(real - ((1 + effective) / (1 + infl.annual) - 1)) < 0.0002);
+  const took = figure(block, TEST_WORDS['report.yields.inflation.took']).minor;
+  const kept = figure(block, TEST_WORDS['report.yields.inflation.kept']).minor;
+  const net = figure(head, TEST_WORDS['report.yields.net']).minor;
+  assert.equal(took + kept, net, 'what was earned is what inflation took plus what is left');
+  assert.equal(yieldVersusInflation(data()), null, 'no months on record: nothing to say');
+  assert.equal(yieldVersusInflation(data({ inflation: IPC, currency: 'USD' })), null, 'the index is for pesos');
+});
+
+test('the service answer is read into months, and a broken one is an error', () => {
+  const months = parseIpc({ SERIES: [{ id: 15000, data: [[1785474000000, 159.79], [1788152400000, 160.42]] }] });
+  assert.deepEqual(months, [{ month: '2026-07', index_scaled: 15979 }, { month: '2026-08', index_scaled: 16042 }]);
+  assert.throws(() => parseIpc({ SERIES: [] }));
+  assert.throws(() => parseIpc(''));
+});
+
+// --- Growth ----------------------------------------------------------------
+
+test('the growth chart is the balance at each month close, and the running total only rises', () => {
+  const facts = data();
+  const growth = yieldGrowth(facts);
+  assert.deepEqual(growth.points.map(point => point.label), ['Julio 2026', 'Agosto 2026', 'Septiembre 2026']);
+  const lastOf = (product, month) => facts.days.filter(day => day.product_id === product && day.on_date.startsWith(month)).at(-1).balance_minor;
+  const close = month => lastOf(10, month) + lastOf(20, month);
+  assert.equal(growth.points[0].value.minor, 0, 'measured from the first month');
+  assert.equal(growth.points[1].value.minor, close('2026-08') - close('2026-07'));
+
+  const soFar = yieldEarnedSoFar(facts);
+  const values = soFar.points.map(point => point.value.minor);
+  assert.ok(values.every((value, at) => at === 0 || value > values[at - 1]));
+  assert.equal(values.at(-1), facts.days.reduce((sum, day) => sum + day.net_minor, 0));
 });

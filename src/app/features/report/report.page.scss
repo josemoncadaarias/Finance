@@ -462,6 +462,9 @@
     /* A month above its own average is the point of the whole section. */
     &.above i { background: var(--ion-color-danger); }
 
+    /* Under the line it is measured from: less than where it started. */
+    &.below i { background: var(--ion-color-medium); }
+
     .when {
       font-size: 0.62rem;
       overflow: hidden;
@@ -514,6 +517,38 @@ ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px));
  * room for either here, and what this screen needs is to say what it is
  * reporting on and let it be changed, not to be a second summary.
  */
+/* Which of the two summaries: two halves of one pill, the chosen one filled. */
+ion-toolbar.which {
+  --min-height: 2.6rem;
+  --padding-start: 0.6rem;
+  --padding-end: 0.6rem;
+
+  .switch {
+    display: flex;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: var(--ion-color-light);
+
+    button {
+      flex: 1 1 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.5rem;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ion-color-medium);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+
+      &.on { background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); }
+    }
+  }
+}
+
 ion-toolbar.scope {
   --min-height: 2.8rem;
   --padding-start: 0.6rem;

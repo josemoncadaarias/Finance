@@ -34,7 +34,7 @@ import { reportWorkbook, reportFileName, yieldsWorkbook, yieldsFileName } from '
 import { YieldsReportService } from '../../core/report/yields-report.service';
 import type { YieldsReportData } from '../../core/report/yields-data';
 import { FilterService } from '../../core/filters/filter.service';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import type { Block, Value } from '../../core/report/blocks';
@@ -58,6 +58,7 @@ export class ReportPage {
   private readonly yieldsReport = inject(YieldsReportService);
   private readonly filter = inject(FilterService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   /**
    * Which summary this is: of the money that moved, or of what the accounts
@@ -69,6 +70,16 @@ export class ReportPage {
     this.route.queryParamMap.pipe(map(params => (params.get('of') === 'yields' ? 'yields' : 'money'))),
     { initialValue: 'money' as 'money' | 'yields' },
   );
+
+  /** To the other summary, on the same account and dates, replacing this one in history. */
+  switchTo(which: 'money' | 'yields'): void {
+    if (which === this.mode()) return;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { of: which === 'yields' ? 'yields' : null },
+      replaceUrl: true,
+    });
+  }
 
   /** The yields summary's facts, while that is the one on screen. */
   readonly yieldsData = signal<YieldsReportData | null>(null);

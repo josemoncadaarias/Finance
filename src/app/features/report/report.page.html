@@ -25,6 +25,21 @@
     </ion-buttons>
   </ion-toolbar>
 
+  <!-- Which summary: one way in from the summary screen and one from the
+       products screen, and from either of them the other is one tap away. -->
+  <ion-toolbar class="which">
+    <div class="switch" role="tablist">
+      <button type="button" role="tab" [class.on]="mode() === 'money'" [attr.aria-selected]="mode() === 'money'"
+              (click)="switchTo('money')">
+        <ion-icon name="swap-vertical-outline"></ion-icon>{{ 'report.which.money' | t }}
+      </button>
+      <button type="button" role="tab" [class.on]="mode() === 'yields'" [attr.aria-selected]="mode() === 'yields'"
+              (click)="switchTo('yields')">
+        <ion-icon name="trending-up-outline"></ion-icon>{{ 'report.which.yields' | t }}
+      </button>
+    </div>
+  </ion-toolbar>
+
   <!-- The same two questions the summary screen asks, asked the same way and
        answered by the same sheets: which account, and which dates. They used
        to be settled before arriving here, which meant leaving to change one. -->
@@ -208,6 +223,7 @@
                   <button type="button" class="point"
                           [class.above]="isAbove(block, point.label)"
                           [class.picked]="picked() === point.label"
+                          [class.below]="point.value.kind === 'money' && point.value.minor < 0"
                           (click)="pick(point.label)"
                           [attr.aria-label]="point.label + ': ' + show(point.value)">
                     <span class="bar"><i [style.height]="heightOf(block, point.value)"></i></span>

@@ -20,6 +20,7 @@ import { convertToBaseMinor } from '../database/money';
 import { FilterService } from '../filters/filter.service';
 import { periodLabel } from '../filters/period';
 import { I18nService } from '../i18n/i18n.service';
+import { InflationService } from '../inflation/inflation.service';
 import { todayIso } from '../yields/days';
 import type { Block } from './blocks';
 import { daysBetween, equivalentBefore } from './report-data';
@@ -32,6 +33,7 @@ export class YieldsReportService {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
   private readonly i18n = inject(I18nService);
+  private readonly inflation = inject(InflationService);
 
   async build(): Promise<{ data: YieldsReportData; blocks: Block[] }> {
     const data = await this.gather();
@@ -75,6 +77,10 @@ export class YieldsReportService {
        ORDER BY on_date`,
       [...ids, end, ...(from === null ? [] : [from])]);
 
+    // Newer months are asked for without waiting: they show next time.
+    const inflation = await this.inflation.months();
+    void this.inflation.refreshIfDue(inflation);
+
     const currencyOf = new Map(accounts.map(one => [one.id, one.currency_code]));
     const currency = account ? account.currency_code : 'COP';
     const inReportCurrency = account
@@ -89,6 +95,7 @@ export class YieldsReportService {
     const clipped = !!(period.to && period.to > today);
 
     return {
+      inflation,
       period,
       periodLabel: periodLabel(period, locale, this.i18n.t('period.all')),
       account,
