@@ -1319,6 +1319,17 @@ What Jose does, checked the same day:
 3. Identity verification: a government ID and a card in his legal name,
    phone and email checked. It can take several days.
 
+**Done on 2026-09-24**: the developer account is **Jadex Labs**, a personal
+account owned by a Google account made for it, **jadex.apps@gmail.com**;
+notices also go to Jose's own address. Identity documents uploaded and under
+review. Still open: signing in to the Play Console mobile app on an Android
+phone with the Jadex account (can be done at once), and the contact phone,
+which Google only lets him verify after the identity is approved. So the
+Play side of everything - the app, its tracks, RevenueCat's link to Play -
+belongs to jadex.apps, while the Google sign-in client the app already uses
+for Drive lives where it was created; the store's signing certificate has
+to be registered on that client when the time comes.
+
 Then, together: the release key generated on the corporate laptop (the
 password is his and is kept safe, like the debug one), a workflow building a
 signed \`.aab\` beside \`debug-apk.yml\` without touching it, the app created
