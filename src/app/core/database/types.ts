@@ -89,6 +89,8 @@ export interface CategoryRow {
   parent_id: number | null;
   archived: SqlBool;
   sort_order: number;
+  /** What an investment earned or lost, not money put in (migration 047). */
+  counts_as_return: SqlBool;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }

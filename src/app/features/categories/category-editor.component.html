@@ -56,6 +56,18 @@
       </ion-item>
     }
 
+    <!-- What an investment earned or lost, as against money put in: the
+         yields summary counts it as a return on an investment account. -->
+    <ion-item lines="full">
+      <ion-toggle [checked]="countsAsReturn()"
+                  (ionChange)="countsAsReturn.set($any($event.detail).checked)">
+        <div>
+          <p class="strong">{{ 'categories.return' | t }}</p>
+          <p class="hint">{{ 'categories.return.hint' | t }}</p>
+        </div>
+      </ion-toggle>
+    </ion-item>
+
     @if (!isNew()) {
       <ion-item lines="full">
         <ion-label>{{ 'categories.usedIn' | t }}</ion-label>

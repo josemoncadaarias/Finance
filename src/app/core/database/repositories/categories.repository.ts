@@ -16,12 +16,14 @@ export interface NewCategory {
   color?: string;
   parent_id?: number | null;
   sort_order?: number;
+  /** Filed under it, a movement is what an investment earned or lost. */
+  counts_as_return?: boolean;
 }
 
 export type CategoryUpdate = Partial<NewCategory> & { archived?: boolean };
 
 const COLUMNS = `id, name, kind, builtin_icon, custom_icon_id, color, parent_id,
-  archived, sort_order, created_at, updated_at`;
+  archived, sort_order, counts_as_return, created_at, updated_at`;
 
 export class CategoriesRepository {
   private readonly db: SqlDriver;
@@ -104,10 +106,13 @@ export class CategoriesRepository {
 
   async create(category: NewCategory): Promise<number> {
     const timestamp = this.now();
+    // The flag is named only when set, so a repair running against a schema
+    // from before migration 047 creates its categories as it always did.
+    const flag = category.counts_as_return ? ', counts_as_return' : '';
     const result = await this.db.run(
       `INSERT INTO categories (name, kind, builtin_icon, custom_icon_id, color, parent_id,
-         sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         sort_order, created_at, updated_at${flag})
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${flag ? ', 1' : ''})`,
       [
         category.name,
         category.kind,
@@ -144,6 +149,7 @@ export class CategoriesRepository {
     if (changes.parent_id !== undefined) set('parent_id', changes.parent_id);
     if (changes.sort_order !== undefined) set('sort_order', changes.sort_order);
     if (changes.archived !== undefined) set('archived', changes.archived ? 1 : 0);
+    if (changes.counts_as_return !== undefined) set('counts_as_return', changes.counts_as_return ? 1 : 0);
 
     if (changes.builtin_icon !== undefined || changes.custom_icon_id !== undefined) {
       const builtin = changes.builtin_icon ?? null;

@@ -463,7 +463,7 @@
     &.above i { background: var(--ion-color-danger); }
 
     /* Under the line it is measured from: less than where it started. */
-    &.below i { background: var(--ion-color-medium); }
+    &.below .bar i { background: var(--ion-color-medium); }
 
     .when {
       font-size: 0.62rem;

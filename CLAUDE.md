@@ -632,7 +632,51 @@ backup restore against iOS's own SQLite backend.
 
    **The growth chart is measured from its first month, not from zero**, the
    way a stock chart is: 12% over seventy million drawn from zero is nine bars
-   of one height. A month that closed below the first is drawn grey.
+   of one height. A month that closed below the first is drawn grey. **It
+   starts at the first month EVERY account in the summary is on record** -
+   a savings account from its first yield day, an investment from its window
+   - because before that an account's money is unrecorded, not absent, and
+   counting from earlier turns it into a deposit that never happened. On
+   Jose's data it read "+59.6% since October" that was only his savings
+   accounts' yields beginning in September. So across all his accounts the
+   chart appears as months accumulate from September 2026; for Fiducuenta
+   alone it reaches back a year, and there the growth equals the gains to
+   the centavo (no money in or out in that year).
+
+   **What is a return and what is money put in** (Jose, 2026-09-24). On the
+   yields summary a return is only ever: the yields the app works out for a
+   product, or, on an account of type Inversión without products, a movement
+   filed under a category marked "Ganancia o pérdida de inversión"
+   (`categories.counts_as_return`, migration 047, a switch on the category
+   form). A transfer in, a contribution, a bill paid from the fund: money in
+   or out, never a return. Inflation, the effective rate, "Mes a mes" and
+   "Rendimientos acumulados" read returns only; the growth chart reads the
+   whole balance, and the note beside it says how much of the growth was
+   returns. Interest from products and an investment's gain are shown apart
+   as well as added, because the DIAN treats them differently.
+
+   - An investment account comes into the summary only if it has at least
+     one such movement: eToro and XTB record none - Jose follows them in
+     Google Finance - so they stay out rather than sit in the average earning
+     nothing. Their market value is still the deferred decision in "Pending
+     from Jose". Tyba is archived and has none either.
+   - On an account WITH products, a movement under a return category is not
+     counted: its yields come from the engine, and such a movement there is a
+     cash-out of what was already earned (rule 15).
+   - Migration 047 flagged Jose's Ganancia and Perdida, created "Ajuste de
+     ganancias" (flagged) and moved into it the three "Dian" expenses on
+     investment accounts - the fund correcting the gain it had shown
+     (Fiducuenta 2026-07-27 and 2026-08-25, Multinversion 2023-10-03). Jose:
+     it lowers the gain, though it was not a loss as such. His own tax paid
+     from Bancolombia stays under Dian. Checked on his backup: only those
+     three rows changed, 13,260 movements otherwise identical, no balance
+     moved, the 254 yield days untouched.
+   - `core/report/investments.ts` holds the pure helpers (a balance at the
+     close of a day, the average balance over a stretch, month-end balances);
+     `YieldsReportService.investmentsOf` loads each account's balance where
+     the window opens and its movements from there, two queries for all.
+   - The sample backup carries "Fiducia Ámbar", a fund written down the same
+     way, with a monthly contribution and one correction.
 
    **Against inflation** (Jose, 2026-09-24: "si esta por encima o por debajo
    de la inflacion"). `inflation_months` (migration 046) is the DANE's IPC,
@@ -1091,7 +1135,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 516 tests that run against a real
+by 523 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

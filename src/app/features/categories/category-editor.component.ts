@@ -57,6 +57,7 @@ export class CategoryEditorComponent implements OnInit {
   readonly builtinIcon = signal<string | null>('pricetag');
   readonly customIconId = signal<number | null>(null);
   readonly archived = signal(false);
+  readonly countsAsReturn = signal(false);
 
   /** How many movements are filed under it, so archiving is an informed act. */
   readonly usedBy = signal(0);
@@ -93,6 +94,7 @@ export class CategoryEditorComponent implements OnInit {
     this.builtinIcon.set(category.builtin_icon);
     this.customIconId.set(category.custom_icon_id);
     this.archived.set(category.archived === 1);
+    this.countsAsReturn.set(category.counts_as_return === 1);
 
     if (this.database.status() !== 'ready') return;
     const row = await this.database.driver.queryOne<{ n: number }>(
@@ -131,6 +133,7 @@ export class CategoryEditorComponent implements OnInit {
         name: this.name().trim(),
         builtin_icon: this.builtinIcon(),
         custom_icon_id: this.customIconId(),
+        counts_as_return: this.countsAsReturn(),
       };
 
       if (category) {

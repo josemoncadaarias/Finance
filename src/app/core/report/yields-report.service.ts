@@ -26,7 +26,7 @@ import type { Block } from './blocks';
 import { daysBetween, equivalentBefore } from './report-data';
 import { reportWords } from './report-words';
 import { buildYieldsReport } from './sections-yields';
-import type { YieldDayRow, YieldsReportData } from './yields-data';
+import type { InvestmentData, YieldDayRow, YieldsReportData } from './yields-data';
 
 @Injectable({ providedIn: 'root' })
 export class YieldsReportService {
@@ -51,8 +51,18 @@ export class YieldsReportService {
     // leaves the scope empty, and the screen says there is nothing to show.
     const yields = new YieldsRepository(db);
     const enrolled = new Set((await yields.accounts()).map(entry => entry.account_id));
+    // And investments without products that write down what they earned: an
+    // account of that type with a movement under a category marked as a
+    // return (migration 047). eToro and XTB record none, so they stay out
+    // rather than sit in the average earning nothing.
+    const withReturns = await db.query<{ account_id: number }>(
+      `SELECT DISTINCT t.account_id FROM transactions t
+       JOIN categories c ON c.id = t.category_id
+       JOIN accounts a ON a.id = t.account_id
+       WHERE c.counts_as_return = 1 AND a.type = 'investment'`);
+    const invested = new Set(withReturns.map(row => row.account_id).filter(id => !enrolled.has(id)));
     const all = (await new AccountsRepository(db).list({ includeArchived: true }))
-      .filter(account => enrolled.has(account.id));
+      .filter(account => enrolled.has(account.id) || invested.has(account.id));
     const chosen = this.filter.accountId();
     const account = chosen === null ? null : all.find(one => one.id === chosen) ?? null;
     const accounts = chosen === null ? all : (account ? [account] : []);
@@ -81,6 +91,9 @@ export class YieldsReportService {
     const inflation = await this.inflation.months();
     void this.inflation.refreshIfDue(inflation);
 
+    const investments = await this.investmentsOf(
+      accounts.filter(one => invested.has(one.id)), from, end);
+
     const currencyOf = new Map(accounts.map(one => [one.id, one.currency_code]));
     const currency = account ? account.currency_code : 'COP';
     const inReportCurrency = account
@@ -96,6 +109,7 @@ export class YieldsReportService {
 
     return {
       inflation,
+      investments,
       period,
       periodLabel: periodLabel(period, locale, this.i18n.t('period.all')),
       account,
@@ -113,6 +127,39 @@ export class YieldsReportService {
       locale,
       words,
     };
+  }
+
+  /**
+   * Each investment account's balance where the window opens and its
+   * movements from there: two queries for all of them.
+   */
+  private async investmentsOf(
+    accounts: readonly { id: number; opening_balance_minor: number }[], from: string | null, end: string,
+  ): Promise<InvestmentData[]> {
+    if (accounts.length === 0) return [];
+    const db = this.database.driver;
+    const ids = accounts.map(one => one.id);
+    const marks = ids.map(() => '?').join(', ');
+    const before = from === null ? [] : await db.query<{ account_id: number; total: number }>(
+      `SELECT account_id, SUM(amount_minor) AS total FROM transactions
+       WHERE account_id IN (${marks}) AND occurred_on < ? GROUP BY account_id`, [...ids, from]);
+    const movements = await db.query<{ account_id: number; on_date: string; amount_minor: number; is_return: number }>(
+      `SELECT t.account_id, t.occurred_on AS on_date, t.amount_minor,
+              COALESCE(c.counts_as_return, 0) AS is_return
+       FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
+       WHERE t.account_id IN (${marks}) AND t.occurred_on <= ? ${from === null ? '' : 'AND t.occurred_on >= ?'}
+       ORDER BY t.occurred_on, t.id`, [...ids, end, ...(from === null ? [] : [from])]);
+
+    return accounts.map(account => {
+      const own = movements.filter(row => row.account_id === account.id);
+      return {
+        account_id: account.id,
+        from: from ?? own[0]?.on_date ?? end,
+        opening_minor: account.opening_balance_minor
+          + (before.find(row => row.account_id === account.id)?.total ?? 0),
+        movements: own.map(({ on_date, amount_minor, is_return }) => ({ on_date, amount_minor, is_return })),
+      };
+    });
   }
 
   /**

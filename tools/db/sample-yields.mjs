@@ -15,6 +15,11 @@
 //   - Cuenta Dólar: 3,000 dollars at 4%, with a TRM for every day, so the
 //     summary of all of them has to convert.
 //   - Banco Azul: where the salary lands. Earns nothing.
+//   - Fiducia Ámbar: an investment fund with no products, like Jose's
+//     Fiducuenta. What it earns is written down: "subio inversion" under
+//     Ganancia, "bajo inversion" under Pérdida, twice a month, mostly up and
+//     sometimes down; a contribution from Banco Azul every month; and one
+//     correction of the gain by the fund, under Ajuste de ganancias.
 //
 // And days checked "against the bank": most of them to the centavo, a few a
 // little off, the way a real statement comes out against the engine.
@@ -28,6 +33,7 @@ import { NodeSqlDriver } from './node-sql-driver.mjs';
 import { migrate } from '../../src/app/core/database/migrations/migration-runner.ts';
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
 import { exportBackup, toJson } from '../../src/app/core/database/export/export-backup.ts';
+import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
@@ -86,6 +92,17 @@ const verde = await make('Ahorro Verde', 'COP', 40_000_000_00, 'leaf');
 const naranja = await make('Cajita Naranja', 'COP', 8_000_000_00, 'cube');
 const lila = await make('Bolsillo Lila', 'COP', 5_000_000_00, 'wallet');
 const dolar = await make('Cuenta Dólar', 'USD', 3_000_00, 'cash');
+
+// An investment fund: its own type, no products, its gains written down
+// under categories marked as returns (migration 047).
+const fondo = await accounts.create({
+  name: 'Fiducia Ámbar', type: 'investment', currency_code: 'COP', builtin_icon: 'trending-up',
+  opening_balance_minor: 60_000_000_00, opened_on: '2025-12-01',
+});
+const categoriesRepo = new CategoriesRepository(db, NOW);
+const ganancia = await categoriesRepo.create({ name: 'Ganancia', kind: 'income', builtin_icon: 'trending-up-outline', counts_as_return: true });
+const perdida = await categoriesRepo.create({ name: 'Pérdida', kind: 'expense', builtin_icon: 'trending-down-outline', counts_as_return: true });
+const ajuste = await categoriesRepo.create({ name: 'Ajuste de ganancias', kind: 'expense', builtin_icon: 'trending-down-outline', counts_as_return: true });
 
 const START = '2026-01-01';
 await yields.enrol({ account_id: verde, opening_on: START, withholding: true });
@@ -150,6 +167,34 @@ for (let month = 1; month <= 9; month += 1) {
     left -= piece;
   }
 }
+
+// The fund: a contribution on the 27th, and what it did written down on the
+// 5th and the 20th - between -0.4% and +0.9% of its balance each time, so
+// most months gain and a few lose.
+let fondoBalance = 60_000_000_00;
+for (let month = 1; month <= 9; month += 1) {
+  for (const d of [5, 20]) {
+    const change = Math.round(fondoBalance * next(-40, 90) / 10_000);
+    await transactions.create({
+      account_id: fondo, category_id: change >= 0 ? ganancia : perdida, occurred_on: day(month, d),
+      amount_minor: change, description: change >= 0 ? 'subio inversion' : 'bajo inversion', source: 'manual',
+    });
+    fondoBalance += change;
+  }
+  if (month < 9) {
+    await transfers.create({
+      occurred_on: day(month, 27), description: 'Aporte al fondo',
+      from: { account_id: azul, amount_minor: 1_000_000_00 },
+      to: { account_id: fondo, amount_minor: 1_000_000_00 },
+    });
+    fondoBalance += 1_000_000_00;
+  }
+}
+// The fund corrected the gain it had been showing, once.
+await transactions.create({
+  account_id: fondo, category_id: ajuste, occurred_on: day(7, 27), amount_minor: -350_000_00,
+  description: 'Ajuste fondo impuesto renta acumulado', source: 'manual',
+});
 
 const engine = new AccrualEngine(db, yields, tax);
 await engine.accrueAll(UP_TO);

@@ -64,6 +64,7 @@ function data(overrides = {}) {
     locale: 'es-CO',
     words: TEST_WORDS,
     inflation: [],
+    investments: [],
     ...overrides,
   };
 }
@@ -229,4 +230,90 @@ test('the growth chart is the balance at each month close, and the running total
   const values = soFar.points.map(point => point.value.minor);
   assert.ok(values.every((value, at) => at === 0 || value > values[at - 1]));
   assert.equal(values.at(-1), facts.days.reduce((sum, day) => sum + day.net_minor, 0));
+});
+
+// --- Investments without products ------------------------------------------
+
+/**
+ * A fund like Fiducuenta: 100 million at the start of July, 10 million put
+ * in on 15 August, and its gains and losses written down as movements.
+ */
+function fund() {
+  return {
+    account_id: 3,
+    from: '2026-07-01',
+    opening_minor: 100_000_000_00,
+    movements: [
+      { on_date: '2026-07-10', amount_minor: 600_000_00, is_return: 1 },
+      { on_date: '2026-07-20', amount_minor: -150_000_00, is_return: 1 },
+      { on_date: '2026-08-15', amount_minor: 10_000_000_00, is_return: 0 },   // money put in
+      { on_date: '2026-08-28', amount_minor: 700_000_00, is_return: 1 },
+      { on_date: '2026-09-04', amount_minor: 300_000_00, is_return: 1 },
+      { on_date: '2026-09-10', amount_minor: -90_000_00, is_return: 0 },      // a bill paid from it
+      { on_date: '2026-09-18', amount_minor: -50_000_00, is_return: 1 },
+    ],
+  };
+}
+const withFund = (overrides = {}) => data({
+  accounts: [account(1, 'Dale'), account(2, 'Nu'), account(3, 'Fiducuenta')],
+  investments: [fund()],
+  ...overrides,
+});
+
+test('what an investment earned is only what it wrote down as a return, never what was put in', () => {
+  const plain = yieldHeadline(data());
+  const block = yieldHeadline(withFund());
+  const net = figure(block, TEST_WORDS['report.yields.net']).minor;
+  assert.equal(net - figure(plain, TEST_WORDS['report.yields.net']).minor, 300_000_00 - 50_000_00,
+    'September: +300,000 and -50,000; the bill paid from it is not a loss');
+  assert.equal(figure(block, TEST_WORDS['report.yields.invested']).minor, 250_000_00);
+  assert.equal(figure(block, TEST_WORDS['report.yields.interest']).minor, figure(plain, TEST_WORDS['report.yields.net']).minor,
+    'interest and the investment are told apart');
+});
+
+test('an investment alone: its return on the money that was in it', () => {
+  const block = yieldHeadline(data({
+    account: account(3, 'Fiducuenta'), accounts: [account(3, 'Fiducuenta')], products: [], days: [], investments: [fund()],
+  }));
+  assert.equal(figure(block, TEST_WORDS['report.yields.net']).minor, 250_000_00);
+  // 250,000 over 24 days on about 110 million: roughly 3.5% a year.
+  const effective = figure(block, TEST_WORDS['report.yields.effective']).value;
+  assert.ok(effective > 3 && effective < 4, `${effective}`);
+});
+
+test('the investment is a row of its own, and every chart counts it', () => {
+  const where = yieldByWhere(withFund());
+  const row = where.rows.find(one => one.label === 'Fiducuenta');
+  assert.equal(row.value.minor, 250_000_00);
+  assert.match(row.note, /inversión/);
+
+  const months = yieldByMonth(withFund());
+  const plainMonths = yieldByMonth(data());
+  assert.equal(months.points[0].value.minor - plainMonths.points[0].value.minor, 450_000_00, 'July: +600,000 -150,000');
+
+  const growth = yieldGrowth(withFund());
+  const plainGrowth = yieldGrowth(data());
+  // August closed 10.7 million above July in the fund: 10 million put in and 700,000 earned.
+  assert.equal(growth.points[1].value.minor - plainGrowth.points[1].value.minor, 10_700_000_00);
+
+  const before = yieldVersusBefore(withFund());
+  const againstAugust = before.rows.find(one => one.label === 'Fiducuenta');
+  assert.equal(againstAugust.before.minor, 0, 'the first 24 days of August wrote nothing down');
+  assert.equal(againstAugust.now.minor, 250_000_00);
+});
+
+test('the growth chart starts once every account is on record, never before', () => {
+  // A savings account whose yields begin in September, beside a fund on
+  // record since July: before September its money is unrecorded, not absent.
+  const late = walk({ account_id: 1, product_id: 10, from: '2026-09-01', days: 24, base: 1_000_000_000, rate: pct(10.5) });
+  const facts = data({
+    accounts: [account(1, 'Dale'), account(3, 'Fiducuenta')],
+    products: [{ id: 10, account_id: 1, name: 'Alcancía' }],
+    days: late,
+    investments: [fund()],
+  });
+  assert.equal(yieldGrowth(facts), null, 'one month on record for both is not a chart');
+  const notes = yieldNotes(facts);
+  assert.ok(!notes || notes.lines.every(line => !/Desde el cierre/.test(line.text)));
+  assert.ok(yieldEarnedSoFar(facts), 'what was earned is still on record, month by month');
 });

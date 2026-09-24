@@ -36,6 +36,20 @@ export interface YieldDayRow {
   locked: number;
 }
 
+/**
+ * An investment account without products whose returns are written down as
+ * movements (see `investments.ts`): its balance where the window opens, and
+ * every movement from there, oldest first.
+ */
+export interface InvestmentData {
+  account_id: number;
+  /** The first day covered. */
+  from: string;
+  /** The balance that day opened with, in the account's currency. */
+  opening_minor: number;
+  movements: readonly { on_date: string; amount_minor: number; is_return: number }[];
+}
+
 export interface YieldsReportData {
   /** The DANE's index by month, as the app has it (migration 046). */
   inflation: readonly InflationMonth[];
@@ -43,9 +57,12 @@ export interface YieldsReportData {
   period: Period;
   periodLabel: string;
 
+  /** The investment accounts in scope, by the same window as the days. */
+  investments: readonly InvestmentData[];
+
   /** The account chosen, or null for every account that earns. */
   account: AccountRow | null;
-  /** The accounts in scope: only ones that earn. */
+  /** The accounts in scope: ones that earn, and investments that record returns. */
   accounts: readonly AccountRow[];
   /** Their products, for naming the rows of one account. */
   products: readonly { id: number; account_id: number; name: string }[];
