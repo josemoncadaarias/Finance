@@ -612,17 +612,68 @@ backup restore against iOS's own SQLite backend.
    y los movimientos manualmente". **None of this is built. Nothing below
    starts without his word.**
 
-   Free, and enough to use the app every day: accounts in pesos, movements,
-   the summary screen, the donut, transfers, products and their yields, backup
-   and restore, and the categories that come with the app.
+   **Decided by Jose on 2026-09-24** (replacing his first list of 09-22): a
+   subscription, monthly or yearly, sold through Google Play.
 
-   Paid, as he listed them:
-   - **Several currencies.** An account in anything other than the currency
-     the app starts in.
-   - **The financial summary** (`/report`) and its spreadsheet.
+   **Free, and never behind a payment** - enough to use the app every day,
+   and everything that is the person's own data: accounts in pesos,
+   movements, transfers, the summary screen and its donut, renaming and
+   hiding categories, backup and restore (local and Drive), and the CSV
+   export. Charging someone to take their own figures out of a finance app
+   costs the trust the rest depends on.
+
+   **Paid:**
+   - **Several currencies**, including the TRM fetched every day.
+   - **Importing statements**, and the review screen with it. **The first
+     statement is free**: trying it once is what sells it.
+   - **Products and yields.** **One product is free**: seeing the daily yield
+     of one account worked out to the centavo is the best argument for the
+     rest - no other app does it for Colombian high-yield accounts.
+   - **Account and category pictures of one's own.** The built-in icons are
+     free. Cosmetic, so a lock here never drives anybody away.
+   - **Creating new categories.** Renaming and hiding the ones that come with
+     the app stay free: a list nobody can adjust on day one is a reason to
+     uninstall before seeing what the app is worth.
    - **The income-tax simulator** (`/tax`) and its spreadsheet.
-   - **Managing categories.** Free keeps the ones that come with the app;
-     adding, renaming or re-picturing one is paid.
+   - **Part of the financial summary** (`/report`) - proposed on 2026-09-24,
+     not yet confirmed by Jose. Free, because they are what hooks someone:
+     the headline figures, the same against the period before, where the
+     money went, and the biggest movements. Paid: the categories that jumped,
+     the categories before and now, what comes back every month, charges
+     repeated inside one period, the months of the year, the accounts, and
+     the spreadsheet. A paid section shows its title and what it would tell
+     you, not its figures. The report is a list of sections (rule 20), so this
+     is one flag per section and nothing else.
+   - **Bank notifications**, when that feature resumes (rule 22).
+
+   **A 7-day free trial with everything unlocked**, then the free limits above.
+
+   **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
+   that day's TRM of 3,264.39; regional Play prices can be lower):
+   - Subscriptions: Wallet by BudgetBakers ~EUR 4.49/month with a yearly
+     discount and occasional lifetime offers; Spendee Premium $5.99/month or
+     $35.99/year (~19,600 / ~117,500 COP), Spendee Plus $1.99 / $14.99; 1Money
+     $7.99/month; Mobills ~20,000 COP/month in Colombia (R$18/month, R$96/year
+     on promotion in Brazil); YNAB $14.99/month or $109/year - the top of the
+     market, and too dear for Colombia.
+   - One payment: Monefy Pro $2.49 (~8,100 COP); Money Manager by Realbyte
+     $5.99 (~19,500); Money Lover lifetime $15-25.
+   - Made in Colombia: Kuanto (free, logs through Telegram), Bankity (free,
+     reads bank notifications - the closest to rule 22), Gestiona Plus (90-day
+     trial). None of them works out yields, withholding or a tax return.
+   - What reviews complain about: subscription fatigue - paying monthly for
+     a budget app, being asked to pay before seeing it work - and basic
+     things locked behind the paywall (Monarch's category limit).
+   - Google keeps 15% of a subscription (10% service + 5% billing where the
+     2026 split applies).
+
+   **Recommended price, not yet decided by Jose**: **11,900 COP a month and
+   69,900 COP a year** (5,825 a month, about half off), below Mobills and
+   Spendee at ~20,000 because this app is new and nobody knows it yet, and
+   well above the one-payment apps because it does what none of them do.
+   After Google's 15% that is about 10,100 and 59,400. A lifetime purchase at
+   about three years' price is worth trying later for the people who refuse
+   subscriptions, not at launch.
 
    **Three rules this must obey, all of them consequences of rules already
    here:**
@@ -649,8 +700,9 @@ backup restore against iOS's own SQLite backend.
    nothing else. **Do not scatter the question through the app; that is the
    only mistake here that is expensive to undo.**
 
-   Still to decide, by Jose, and not by guessing: subscription or one
-   payment, the price, and whether there is a trial.
+   Still to decide, by Jose, and not by guessing: the price (above is only a
+   recommendation), which report sections are paid, and whether a lifetime
+   option is ever offered.
 
 22. **Movements can be PROPOSED by the app, and only a person makes them
    real.** Designed with Jose on 2026-09-22 and 23, for the people who will
