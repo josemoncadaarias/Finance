@@ -637,7 +637,10 @@ backup restore against iOS's own SQLite backend.
    the spreadsheet writes it under the section's title. The two titles that
    confused him are now "Tu saldo frente al cierre de {mes}" (the whole
    balance, what was put in included) and "Rendimientos de cada mes"
-   (returns only). The money report's sections do not carry one yet.
+   (returns only). The money report's sections carry one too (keys
+   `report.about.<block id>`), and `report.test.mjs` fails on a block id in
+   `sections.ts` or `sections-over-time.ts` without its line - so a new
+   section cannot arrive without saying what it shows.
 
    **The growth chart is measured from its first month, not from zero**, the
    way a stock chart is: 12% over seventy million drawn from zero is nine bars
@@ -1153,7 +1156,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 525 tests that run against a real
+by 526 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

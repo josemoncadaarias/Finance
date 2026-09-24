@@ -135,7 +135,7 @@ export const headlineFigures: Section<ReportData> = data => {
     });
   }
 
-  return { kind: 'figures', id: 'headline', title: words['report.headline'], figures };
+  return { kind: 'figures', id: 'headline', title: words['report.headline'], about: words['report.about.headline'], figures };
 };
 
 // ---------------------------------------------------------------------------
@@ -196,6 +196,7 @@ export const categoryBreakdown: Section<ReportData> = data => {
     kind: 'ranked',
     id: 'categories',
     title: data.words['report.categories'],
+    about: data.words['report.about.categories'],
     rowsAre: data.words['report.categories.row'],
     rows,
     totalLabel: data.words['report.categories.total'],
@@ -239,6 +240,7 @@ export const biggestMovements: Section<ReportData> = data => {
     kind: 'ranked',
     id: 'biggest',
     title: data.words['report.biggest'],
+    about: data.words['report.about.biggest'],
     rowsAre: data.words['report.biggest.row'],
     rows,
   };
@@ -294,6 +296,7 @@ export const spendingByAccount: Section<ReportData> = data => {
     kind: 'ranked',
     id: 'accounts',
     title: data.words['report.accounts'],
+    about: data.words['report.about.accounts'],
     rowsAre: data.words['report.accounts.row'],
     rows,
     totalLabel: data.words['report.categories.total'],

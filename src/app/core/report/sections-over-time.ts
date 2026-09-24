@@ -149,6 +149,7 @@ export const versusBefore: Section<ReportData> = data => {
     kind: 'comparison',
     id: 'versus',
     title: words['report.versus'],
+    about: words['report.about.versus'],
     beforeLabel: before.label,
     nowLabel: data.periodLabel,
     caveat: before.clipped
@@ -199,6 +200,7 @@ export const categoriesVersusBefore: Section<ReportData> = data => {
     kind: 'comparison',
     id: 'categories-versus',
     title: data.words['report.versus.categories'],
+    about: data.words['report.about.categories-versus'],
     beforeLabel: before.label,
     nowLabel: data.periodLabel,
     rows,
@@ -256,6 +258,7 @@ export const spendingByMonth: Section<ReportData> = data => {
     kind: 'trend',
     id: 'by-month',
     title: data.words['report.byMonth'],
+    about: data.words['report.about.by-month'],
     points,
     averageLabel: data.words['report.byMonth.average'],
     average: money(average, data.currency),
@@ -341,6 +344,7 @@ export const recurringSpending: Section<ReportData> = data => {
     kind: 'ranked',
     id: 'recurring',
     title: data.words['report.recurring'],
+    about: data.words['report.about.recurring'],
     rowsAre: data.words['report.categories.row'],
     // How many months it appeared in, not how many movements: that is what
     // makes it recurring, and it is the number the reader wants to check.
@@ -424,7 +428,7 @@ export const unusualJumps: Section<ReportData> = data => {
 
   if (lines.length === 0) return null;
 
-  return { kind: 'note', id: 'jumps', title: data.words['report.jump'], lines };
+  return { kind: 'note', id: 'jumps', title: data.words['report.jump'], about: data.words['report.about.jumps'], lines };
 };
 
 // ---------------------------------------------------------------------------
@@ -500,6 +504,7 @@ export const repeatedCharges: Section<ReportData> = data => {
     kind: 'ranked',
     id: 'repeated',
     title: data.words['report.repeated'],
+    about: data.words['report.about.repeated'],
     rowsAre: data.words['report.repeated.row'],
     countsAre: data.words['report.recurring.months'],
     rows: repeating.map(one => ({

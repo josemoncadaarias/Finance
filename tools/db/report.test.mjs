@@ -288,6 +288,24 @@ test('the report is the sections that had something to say, in order', () => {
   assert.deepEqual(blocks.map(block => block.id), ['headline', 'categories']);
 });
 
+test('every section says in one line what it shows', async () => {
+  const blocks = buildReport(data([
+    movement({ amount: -10_000_00 }),
+    movement({ amount: 50_000_00, flow: 'in', label: 'Salario' }),
+  ]));
+  assert.ok(blocks.every(block => block.about && block.about.length > 20));
+  // And the sections these two movements do not wake: each block they build
+  // names its line, read from the source so a new section cannot forget it.
+  const { readFileSync } = await import('node:fs');
+  for (const file of ['sections.ts', 'sections-over-time.ts']) {
+    const source = readFileSync(new URL(`../../src/app/core/report/${file}`, import.meta.url), 'utf8');
+    const ids = [...source.matchAll(/id: '([a-z-]+)'/g)].map(match => match[1]);
+    for (const id of ids) {
+      assert.ok(TEST_WORDS[`report.about.${id}`], `${file}: ${id} has no line`);
+    }
+  }
+});
+
 test('placeholders are filled, and an unknown one is left alone', () => {
   assert.equal(fill('van {days} de {total}', { days: 10, total: 30 }), 'van 10 de 30');
   assert.equal(fill('{unknown}', {}), '{unknown}');
