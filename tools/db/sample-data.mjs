@@ -25,7 +25,6 @@ import { migrate } from '../../src/app/core/database/migrations/migration-runner
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
 import { exportBackup, toJson } from '../../src/app/core/database/export/export-backup.ts';
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
-import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
 import { seedStarterCategories } from '../../src/app/core/database/starter-categories.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
@@ -41,24 +40,23 @@ function rolling(seed) {
   };
 }
 
-const CATEGORIES = [
-  ['Mercados', 'expense', 'cart'],
-  ['Restaurante', 'expense', 'restaurant'],
-  ['Transporte', 'expense', 'car'],
-  ['Servicios', 'expense', 'flash'],
-  ['Arriendo', 'expense', 'home'],
-  ['Suscripciones', 'expense', 'tv'],
-  ['Salud', 'expense', 'medkit'],
-  ['Salario', 'income', 'briefcase'],
-  ['Otros ingresos', 'income', 'wallet'],
-];
+/*
+ * Nothing invents a category here.
+ *
+ * This used to bring nine of its own - Mercados, Servicios, Arriendo,
+ * Suscripciones - which sat beside the ones a new install comes with and read
+ * as duplicates of them: "Mercado" above "Mercados", and nobody could say why
+ * there were two. Jose asked for a test backup whose list is exactly the list
+ * a person would have on the day they install the app, so every movement below
+ * names one of THOSE.
+ */
 
 /** What a month of somebody's ordinary life looks like. */
 const HABITS = [
-  { category: 'Arriendo', day: 5, amount: -1_800_000_00, note: 'PAGO ARRIENDO APTO 501' },
-  { category: 'Servicios', day: 8, amount: -210_000_00, note: 'EPM SERVICIOS PUBLICOS' },
-  { category: 'Suscripciones', day: 25, amount: -44_900_00, note: 'COMPRA NETFLIX COM' },
-  { category: 'Suscripciones', day: 17, amount: -16_900_00, note: 'COMPRA SPOTIFY AB' },
+  { category: 'Casa', day: 5, amount: -1_800_000_00, note: 'PAGO ARRIENDO APTO 501' },
+  { category: 'Facturas', day: 8, amount: -210_000_00, note: 'EPM SERVICIOS PUBLICOS' },
+  { category: 'Entretenimiento', day: 25, amount: -44_900_00, note: 'COMPRA NETFLIX COM' },
+  { category: 'Entretenimiento', day: 17, amount: -16_900_00, note: 'COMPRA SPOTIFY AB' },
   // On the 28th and not the 30th, so that a month cut short still pays it:
   // an account that never receives a salary goes deeply, unrealistically into
   // the red, and the statement built from it prints balances nobody believes.
@@ -66,12 +64,12 @@ const HABITS = [
 ];
 
 const SHOPS = [
-  ['Mercados', 'COMPRA EXITO POBLADO MEDELLIN', 60_000_00, 260_000_00],
-  ['Mercados', 'COMPRA D1 LAURELES', 12_000_00, 90_000_00],
+  ['Mercado', 'COMPRA EXITO POBLADO MEDELLIN', 60_000_00, 260_000_00],
+  ['Mercado', 'COMPRA D1 LAURELES', 12_000_00, 90_000_00],
   ['Restaurante', 'COMPRA RAPPI COLOMBIA', 25_000_00, 95_000_00],
   ['Restaurante', 'COMPRA MOKANA BURGERS', 38_000_00, 120_000_00],
   ['Transporte', 'COMPRA UBER BV', 9_000_00, 45_000_00],
-  ['Transporte', 'COMPRA TERPEL ESTACION', 80_000_00, 250_000_00],
+  ['Automóvil', 'COMPRA TERPEL ESTACION', 80_000_00, 250_000_00],
   ['Salud', 'COMPRA FARMATODO', 15_000_00, 140_000_00],
 ];
 
@@ -80,23 +78,22 @@ async function build() {
   await migrate(db, MIGRATION_SOURCES);
 
   const accounts = new AccountsRepository(db, NOW);
-  const categories = new CategoriesRepository(db, NOW);
   const transactions = new TransactionsRepository(db, NOW);
   const transfers = new TransfersRepository(db, NOW);
 
-  // What a new install comes with, so the test backup looks like a phone
-  // somebody just set up rather than a database built for this script.
+  // What a new install comes with, and nothing else: this backup restores a
+  // phone somebody just set up, not a database built for this script.
   await seedStarterCategories(db, 'es', NOW);
 
   const category = new Map();
   for (const row of await db.query('SELECT id, name, kind FROM categories')) {
     category.set(row.name, row.id);
   }
-  // The few this sample needs that the starter set does not carry.
-  for (const [name, kind, icon] of CATEGORIES) {
-    if (category.has(name)) continue;
-    category.set(name, await categories.create({ name, kind, builtin_icon: icon }));
-  }
+  const under = name => {
+    const found = category.get(name);
+    if (found === undefined) throw new Error(`No starter category "${name}"`);
+    return found;
+  };
 
   const azul = await accounts.create({
     name: 'Banco Azul', type: 'debit', currency_code: 'COP', builtin_icon: 'card',
@@ -123,7 +120,7 @@ async function build() {
       if (habit.day > upTo) continue;
       await transactions.create({
         account_id: habit.amount > 0 ? azul : (habit.category === 'Arriendo' ? azul : verde),
-        category_id: category.get(habit.category),
+        category_id: under(habit.category),
         occurred_on: day(month, habit.day),
         amount_minor: habit.amount,
         description: habit.note,
@@ -136,7 +133,7 @@ async function build() {
       const on = next(1, upTo);
       await transactions.create({
         account_id: [azul, verde, naranja][next(0, 2)],
-        category_id: category.get(name),
+        category_id: under(name),
         occurred_on: day(month, on),
         amount_minor: -next(low, high),
         description: note,
