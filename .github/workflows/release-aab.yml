@@ -1,0 +1,162 @@
+# Builds what Google Play takes - an Android App Bundle (.aab) signed with the
+# UPLOAD key - and keeps it as a download on the run's page.
+#
+# Only when asked for, from the Actions tab. Every upload to Play must carry a
+# higher version code than the last, so a build nobody is going to upload is a
+# number spent for nothing; and the debug APK, built on every push by
+# debug-apk.yml, is untouched by any of this.
+#
+# The upload key is not the key the store installs with. Play App Signing
+# keeps that one at Google and re-signs each bundle; this key only proves the
+# upload came from Jose. Losing it is recoverable through Play Console (an
+# upload-key reset), which is why it is safer than the debug key the phone's
+# current app is signed with - but it is still a key, kept outside this
+# repository and handed to the runner only from the secrets below.
+#
+# Secrets, created by Jose on 2026-09-24 from his personal PC:
+#   UPLOAD_KEYSTORE_BASE64   the .jks, base64
+#   UPLOAD_KEYSTORE_PASSWORD its password
+#   UPLOAD_KEY_ALIAS         the key inside it ("upload")
+#   UPLOAD_KEY_PASSWORD      the key's password (the same one)
+
+name: Store bundle
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-aab
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The same toolchain as debug-apk.yml, for the same reasons written there.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Nothing reaches the store from code whose tests fail.
+      - name: Database tests
+        run: node tools/db/run-tests.mjs
+
+      - name: Build the web app and copy it into Android
+        run: npm run android
+
+      # Unlike the debug build, there is no fallback here: a bundle signed with
+      # a key made up on the runner would be refused by Play at best, and at
+      # worst accepted as the app's first upload key. So a missing secret stops
+      # the run before anything is built.
+      - name: Take the upload key from the secrets
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [ -n "$UPLOAD_KEYSTORE_BASE64" ]   || missing+=(UPLOAD_KEYSTORE_BASE64)
+          [ -n "$UPLOAD_KEYSTORE_PASSWORD" ] || missing+=(UPLOAD_KEYSTORE_PASSWORD)
+          [ -n "$UPLOAD_KEY_ALIAS" ]         || missing+=(UPLOAD_KEY_ALIAS)
+          [ -n "$UPLOAD_KEY_PASSWORD" ]      || missing+=(UPLOAD_KEY_PASSWORD)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing secrets: ${missing[*]}. Nothing is built without the upload key."
+            exit 1
+          fi
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      # Play refuses an upload whose version code is not higher than every one
+      # before it. The run number of this workflow only ever grows, and 1000 on
+      # top of it keeps these clear of the 1 every debug APK carries.
+      - name: Choose the version
+        id: version
+        run: |
+          code=$((1000 + ${{ github.run_number }}))
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "name=1.0.$code" >> "$GITHUB_OUTPUT"
+
+      # The key is handed to Gradle by path, the way debug-apk.yml does it;
+      # build.gradle itself never learns about any key.
+      - name: Build the bundle
+        working-directory: android
+        env:
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon --stacktrace \
+            -PfinanceVersionCode=${{ steps.version.outputs.code }} \
+            -PfinanceVersionName=${{ steps.version.outputs.name }} \
+            -Pandroid.injected.signing.store.file="$UPLOAD_KEYSTORE" \
+            -Pandroid.injected.signing.store.password="$UPLOAD_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$UPLOAD_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$UPLOAD_KEY_PASSWORD"
+
+      # Checked, not assumed: the bundle must be signed by the key in the
+      # secret, or the run fails and publishes nothing.
+      - name: Check the bundle carries the upload key
+        id: check
+        env:
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+        run: |
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          expected="$(keytool -list -v -keystore "$UPLOAD_KEYSTORE" -alias "$UPLOAD_KEY_ALIAS" \
+                        -storepass "$UPLOAD_KEYSTORE_PASSWORD" | sed -n 's/^[[:space:]]*SHA1: //p' | head -1)"
+          actual="$(keytool -printcert -jarfile "$aab" | sed -n 's/^[[:space:]]*SHA1: //p' | head -1)"
+          echo "Upload key SHA-1: $expected"
+          echo "Bundle signed by: $actual"
+          if [ -z "$actual" ] || [ "$actual" != "$expected" ]; then
+            echo "::error::The bundle is not signed with the upload key from the secrets."
+            exit 1
+          fi
+          echo "sha1=$expected" >> "$GITHUB_OUTPUT"
+
+      - name: Name the bundle
+        id: name
+        run: |
+          stamp="$(TZ=America/Bogota date +%Y-%m-%d-%H%M)"
+          short="$(git rev-parse --short HEAD)"
+          name="finance-${stamp}-${short}-v${{ steps.version.outputs.code }}.aab"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 📦 $name"
+            echo
+            echo "Version code **${{ steps.version.outputs.code }}**, name **${{ steps.version.outputs.name }}**."
+            echo "Signed with the upload key, SHA-1 \`${{ steps.check.outputs.sha1 }}\`."
+            echo
+            echo "Download it from **Artifacts** at the bottom of this page and upload it in"
+            echo "Play Console. This is not an APK: it cannot be installed on a phone directly."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.name.outputs.file }}
+          path: ${{ steps.name.outputs.file }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Forget the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"

@@ -1245,6 +1245,29 @@ Google sign-in client is registered against the same SHA-1.
   uninstall per phone (backup first, restore after), so it has to happen
   before the app is shared, not after.
 
+### The upload key, for the store
+
+Made by Jose on 2026-09-24 on his personal PC: `finance-upload.jks`, alias
+`upload`, kept in `%USERPROFILE%\finance-keys\` with copies outside the
+repository and the password apart from the file. It is in GitHub as four
+secrets - `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`,
+`UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD` - and nowhere in this repository.
+
+It is an UPLOAD key, not the key the store installs with: Play App Signing
+keeps that one at Google and re-signs every bundle, and a lost upload key can
+be reset through Play Console. Safer than the debug key for that reason, and
+still never to be committed.
+
+`.github/workflows/release-aab.yml` ("Store bundle") builds the signed `.aab`
+Play takes, **only when run by hand** from the Actions tab: every upload
+needs a higher version code, so a build nobody uploads is a number spent. The
+version code is 1000 plus the workflow's run number; `build.gradle` reads it
+as `financeVersionCode` and falls back to the 1 every other build has always
+had, so `debug-apk.yml` and local builds are untouched (checked: the debug
+APK still builds as version 1). The run fails, publishing nothing, if a
+secret is missing or the bundle is not signed by the key in the secret -
+checked locally on 2026-09-24 with a throwaway key before it was written.
+
 ## Getting it into Google Play
 
 Looked into on 2026-09-22 at Jose's request, **as a plan, not as work**. He

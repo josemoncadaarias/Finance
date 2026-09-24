@@ -7,8 +7,11 @@ android {
         applicationId "com.josemoncada.finance"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Given by the store build (release-aab.yml), which must hand Play a
+        // higher number on every upload. Everything else - the debug APK, the
+        // local builds - keeps the 1 it always had.
+        versionCode((project.findProperty('financeVersionCode') ?: '1') as Integer)
+        versionName((project.findProperty('financeVersionName') ?: '1.0') as String)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
