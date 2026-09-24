@@ -391,6 +391,47 @@ export class AccrualEngine {
       const productOf = (id: number | null) =>
         products.some(product => product.id === id) ? (id as number) : fallbackProduct;
 
+      /*
+       * A balance typed in is the whole truth on its day - and that includes
+       * everything the bank had handed over by then.
+       *
+       * The engine added what it had worked out on top of the newest figure
+       * without asking WHEN each piece was paid, so a yield paid on the very
+       * day the balance was read was counted twice: once inside the figure and
+       * once on top of it. The yields screen never did - "a day paid on the day
+       * the balance was read is already in that figure" - so the two disagreed
+       * by one day's yield, and every day after was worked out on that much too
+       * much. Found by Jose on Dale, 2026-09-24: both alcancías earn from the
+       * 9th, so the walk starts on the 10th, the day their balance was read,
+       * and each day came out 0.76 above what the bank paid. Worked out the way
+       * below, the three days he had corrected against his statements come out
+       * to the centavo.
+       *
+       * So, for a product whose balance is typed in: only what lands AFTER the
+       * figure's day counts on top of it, plus anything written on that same
+       * day after the figure was - the screen's rule, word for word.
+       */
+      const anchorOf = (productId: number, day: IsoDate): ProductBalance | null => {
+        const product = products.find(one => one.id === productId);
+        if (!product || product.source !== 'manual') return null;
+        let found: ProductBalance | null = null;
+        for (const entry of balancesOf.get(productId) ?? []) {
+          if (entry.valid_from > day) break;
+          found = entry;
+        }
+        return found;
+      };
+      /** Whether something dated `on`, written at `writtenAt`, is outside the figure. */
+      const afterFigure = (productId: number, on: IsoDate, upTo: IsoDate, writtenAt?: string | null) => {
+        const anchor = anchorOf(productId, upTo);
+        if (anchor === null) return true;
+        if (on > anchor.valid_from) return true;
+        // Exactly the screen's test: no time on the figure counts it in, and
+        // one written at the same moment or later is after it.
+        if (on !== anchor.valid_from) return false;
+        return !anchor.created_at || (!!writtenAt && writtenAt >= anchor.created_at);
+      };
+
       // What landed before this stretch still earns in it. Every product used
       // to start the walk at zero, which was right only while the stretch began
       // on the first day ever: from the second month on, the yield already paid
@@ -402,6 +443,7 @@ export class AccrualEngine {
         const paid = earlier.paid_on ?? (earlier.payout === 'monthly' ? endOfMonth(earlier.on_date) : earlier.on_date);
         // Still owed on `from`: carried into `waiting` above instead.
         if (paid >= from) continue;
+        if (!afterFigure(earlier.product_id, paid, addDays(from, -1))) continue;
         earnedOf.set(earlier.product_id,
           (earnedOf.get(earlier.product_id) ?? 0) + (earlier.actual_net_minor ?? earlier.net_minor));
       }
@@ -410,11 +452,13 @@ export class AccrualEngine {
       for (const entry of entries) {
         if (entry.on_date < enrolled.opening_on || entry.on_date >= from) continue;
         const id = productOf(entry.product_id);
+        if (!afterFigure(id, entry.on_date, addDays(from, -1), entry.created_at)) continue;
         earnedOf.set(id, (earnedOf.get(id) ?? 0) + entry.amount_minor);
       }
       for (const taken of takenOut) {
         if (taken.on_date < enrolled.opening_on || taken.on_date >= from) continue;
         const id = productOf(taken.product_id ?? null);
+        if (!afterFigure(id, taken.on_date, addDays(from, -1), taken.created_at)) continue;
         earnedOf.set(id, (earnedOf.get(id) ?? 0) - taken.amount_minor);
       }
 
@@ -431,6 +475,12 @@ export class AccrualEngine {
 
       for (const day of eachDay(from, upTo)) {
         const rule = await ruleFor(day);
+
+        // A figure dated today holds everything up to today: nothing worked
+        // out before it goes on top.
+        for (const product of products) {
+          if (anchorOf(product.id, day)?.valid_from === day) earnedOf.set(product.id, 0);
+        }
 
         for (const product of products) {
           // A product earns nothing before the day it starts earning from, and
@@ -576,6 +626,23 @@ export class AccrualEngine {
           if (paidOn !== day) continue;
           earnedOf.set(Number(product), (earnedOf.get(Number(product)) ?? 0) + owed);
           waiting.delete(key);
+        }
+
+        // The day a figure was read ends with that figure: what was paid today
+        // is in it. Only an entry recorded after it was typed is not.
+        for (const product of products) {
+          const anchor = anchorOf(product.id, day);
+          if (anchor?.valid_from !== day) continue;
+          let after = 0;
+          for (const entry of entries) {
+            if (entry.on_date === day && productOf(entry.product_id) === product.id
+                && afterFigure(product.id, day, day, entry.created_at)) after += entry.amount_minor;
+          }
+          for (const taken of takenOut) {
+            if (taken.on_date === day && productOf(taken.product_id ?? null) === product.id
+                && afterFigure(product.id, day, day, taken.created_at)) after -= taken.amount_minor;
+          }
+          earnedOf.set(product.id, after);
         }
 
       }

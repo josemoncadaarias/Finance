@@ -844,12 +844,46 @@ test('a figure typed for a product is the bank figure, yields included', async (
     assert.equal(day.withholding_minor, 0);
   }
 
-  // And tomorrow each product earns on what the bank will show today: the
-  // figure typed in plus what it just earned.
+  // And tomorrow each product earns on the figure typed in, and nothing more:
+  // a balance read on the 10th already holds what was paid on the 10th.
+  //
+  // This test used to say the opposite - "the figure typed in plus what it
+  // just earned" - and that was the bug Jose found on 2026-09-24. Every day
+  // came out 0.76 above what Dale actually paid; worked out this way, the
+  // three days he had corrected against his statements (2,771.28, 2,772.04
+  // and 2,771.56) come out to the centavo.
   await engine.accrue(dale, '2026-09-11');
   const tomorrow = await yields.days(dale, '2026-09-11', '2026-09-11');
   assert.deepEqual(tomorrow.map(day => day.balance_minor).sort((a, b) => a - b),
-    [1_009_645_100 + 276225, 1_009_746_725 + 276253]);
+    [1_009_645_100, 1_009_746_725]);
+});
+
+test('Dale, the way the bank paid it: the typed figure already holds its own day', async () => {
+  // Jose's real alcancía principal from 2026-09-10, with the correction he
+  // entered on the 21st, against what the bank actually paid on the 22nd and
+  // the 23rd - the two days he had corrected by hand from his statements.
+  const { db, accounts, yields, engine } = await setup();
+  const dale = await accounts.create({
+    name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
+    opening_balance_minor: 0, opened_on: '2024-01-01',
+  });
+  await yields.enrol({ account_id: dale, opening_on: '2026-09-09', withholding: false });
+  await yields.setRate({ account_id: dale, valid_from: '2026-09-09', annual_rate_scaled: pct(10.5) });
+  const [alcancia] = await yields.products(dale);
+  await db.run("UPDATE products SET source = 'manual', earns_from = '2026-09-09' WHERE id = ?", [alcancia.id]);
+  await yields.setProductBalance({
+    product_id: alcancia.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100,
+  });
+  await yields.adjust({
+    account_id: dale, product_id: alcancia.id, on_date: '2026-09-21', amount_minor: 256_831, kind: 'correction',
+  });
+
+  await engine.accrue(dale, '2026-09-23');
+  const paid = Object.fromEntries((await yields.days(dale, '2026-09-22', '2026-09-23'))
+    .map(day => [day.on_date, day.net_minor]));
+
+  assert.equal(paid['2026-09-22'], 277_128, 'what Dale paid on the 22nd');
+  assert.equal(paid['2026-09-23'], 277_204, 'and on the 23rd');
 });
 
 test('each product walks from its own day, not from its account', async () => {
@@ -2355,4 +2389,47 @@ test('with nothing changed, a month already judged is not worked out again', asy
   await engine.accrue(ids.uala, '2026-10-10');
   const again = await engine.accrue(ids.uala, '2026-10-12');
   assert.equal(again.from, '2026-10-01', 'only the month still running');
+});
+
+test('what the screen shows at the close of a day is what the next day earns on', async () => {
+  // The screen (landedByProduct) and the engine each decide what a product
+  // holds. They disagreed by one day's yield on Dale for two weeks, and a
+  // product whose balance reads one figure and earns on another is a product
+  // nobody can check against the bank. So they are held to one answer, every
+  // day, across an entry and a figure typed mid-way.
+  const { db, accounts, yields, engine } = await setup();
+  const dale = await accounts.create({
+    name: 'Dale', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet',
+    opening_balance_minor: 0, opened_on: '2024-01-01',
+  });
+  await yields.enrol({ account_id: dale, opening_on: '2026-09-09', withholding: false });
+  await yields.setRate({ account_id: dale, valid_from: '2026-09-09', annual_rate_scaled: pct(10.5) });
+  const [alcancia] = await yields.products(dale);
+  await db.run("UPDATE products SET source = 'manual', earns_from = '2026-09-09' WHERE id = ?", [alcancia.id]);
+  await yields.setProductBalance({ product_id: alcancia.id, valid_from: '2026-09-10', amount_minor: 1_009_645_100 });
+  await yields.adjust({ account_id: dale, product_id: alcancia.id, on_date: '2026-09-15', amount_minor: 256_831, kind: 'correction' });
+  await yields.setProductBalance({ product_id: alcancia.id, valid_from: '2026-09-18', amount_minor: 1_012_000_000 });
+  await yields.adjust({ account_id: dale, product_id: alcancia.id, on_date: '2026-09-21', amount_minor: -19_404, kind: 'correction' });
+
+  await engine.accrue(dale, '2026-09-25');
+  const products = await yields.products(dale);
+  const baseOn = new Map((await yields.days(dale)).map(day => [day.on_date, day.balance_minor]));
+
+  for (let d = 10; d < 25; d += 1) {
+    const today = `2026-09-${d}`;
+    const next = `2026-09-${d + 1}`;
+    // Except into a day a NEW figure takes effect on: there the yield is
+    // worked out on that figure, the freshest reading of the bank there is,
+    // rather than on the reckoning it was typed to correct.
+    if (next === '2026-09-18') continue;
+    const stated = (await db.query(
+      'SELECT amount_minor FROM product_balances WHERE product_id = ? AND valid_from <= ? ORDER BY valid_from, id',
+      [alcancia.id, today])).at(-1).amount_minor;
+    const landed = (await yields.landedByProduct(dale, today, products)).total.get(alcancia.id);
+    // The screen as it reads on that day: nothing dated later exists yet.
+    const later = (await db.query(
+      'SELECT COALESCE(SUM(amount_minor), 0) AS s FROM product_entries WHERE product_id = ? AND on_date > ?',
+      [alcancia.id, today]))[0].s;
+    assert.equal(baseOn.get(next), stated + landed - later, `close of ${today} against the base of ${next}`);
+  }
 });

@@ -302,6 +302,23 @@ backup restore against iOS's own SQLite backend.
    rates decide: that is Plata. Found by Jose, 2026-09-17, and restated on
    2026-09-22 when the opening figure itself became one of those records.
 
+   **A product's typed balance already holds what was paid on its own day**
+   (2026-09-24). The same rule, one level down: a figure read off the bank on
+   day D holds the yield handed over on D, so only what lands AFTER D goes on
+   top of it - plus an entry written on D at or after the moment the figure
+   was typed. The yields screen always worked this way; the engine added
+   everything it had worked out since the walk began, so on Dale, whose
+   alcancías earn from the 9th and were read on the 10th, the 10th counted
+   twice and every day after came out 0.76 above what Dale paid. Fixed in the
+   engine (`anchorOf` and `afterFigure` in `accrual.ts`), and proved on the
+   only independent truth there is: the three days Jose had corrected by hand
+   from his statements (2,771.28, 2,772.04, 2,771.56) now come out to the
+   centavo, and were 0.76 off before. Nothing else in his data moved - only
+   Dale's products start earning on the day their figure was read. **So the
+   screen's balance and the engine's base are one figure: the base of day
+   D+1 is exactly what the screen shows at the close of D.** A test fails if
+   they part again.
+
 16. **Withholding figures are configuration, each carrying its source.** They
    live in `tax_parameters`, dated, and are unusable until marked confirmed
    with a source; until then the accrual runs without withholding and flags
@@ -872,7 +889,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 500 tests that run against a real
+by 502 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

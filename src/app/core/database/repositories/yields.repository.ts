@@ -157,6 +157,11 @@ export interface ProductEntry {
    * still has `kind` to fall back on.
    */
   product_kind_id: number | null;
+  /**
+   * When it was written down. On the day a product's balance was stated, it
+   * tells an entry the figure already holds from one recorded after it.
+   */
+  created_at?: string;
   /** The ordinary income or expense category, since migration 037. */
   category_id: number | null;
 }
@@ -1334,8 +1339,8 @@ export class YieldsRepository {
 
   async adjustments(accountId: number): Promise<ProductEntry[]> {
     return this.db.query<ProductEntry>(
-      `SELECT id, account_id, source, kind, product_kind_id, category_id, product_id, on_date,
-              amount_minor, note, transaction_id
+`SELECT id, account_id, source, kind, product_kind_id, category_id, product_id, on_date,
+              amount_minor, note, transaction_id, created_at
        FROM product_entries WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
@@ -1412,10 +1417,10 @@ export class YieldsRepository {
   async withdrawals(accountId: number): Promise<{
     id: number; account_id: number; source: 'yield' | 'cashback';
     on_date: IsoDate; amount_minor: number; transaction_id: number | null; note: string | null;
-    product_id: number | null;
+    product_id: number | null; created_at?: string;
   }[]> {
     return this.db.query(
-      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, product_id
+      `SELECT id, account_id, source, on_date, amount_minor, transaction_id, note, product_id, created_at
        FROM product_cashouts WHERE account_id = ? ORDER BY on_date, id`,
       [accountId]);
   }
