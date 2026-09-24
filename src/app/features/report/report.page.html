@@ -7,7 +7,7 @@
     <!-- The title says what this is; the line under it says what it is about,
          so nothing below has to repeat the dates or the account. -->
     <div class="who">
-      <h1>{{ 'report.title' | t }}</h1>
+      <h1>{{ title() }}</h1>
       <p>{{ about() }}</p>
     </div>
 
@@ -40,7 +40,7 @@
 
     <button type="button" class="pick" (click)="scope.openPeriod()">
       <ion-icon name="calendar-outline"></ion-icon>
-      <span class="text">{{ data()?.periodLabel ?? '' }}</span>
+      <span class="text">{{ periodLabel() }}</span>
       <ion-icon class="more" name="chevron-down-outline"></ion-icon>
     </button>
   </ion-toolbar>
@@ -50,7 +50,7 @@
   @if (working()) {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
   } @else if (blocks().length === 0) {
-    <div class="state"><p>{{ 'report.nothing' | t }}</p></div>
+    <div class="state"><p>{{ nothing() }}</p></div>
   } @else {
 
     <!-- One control for all of them, at the top where the list starts. The
@@ -132,7 +132,7 @@
                          percentages is read one at a time, a row of bars all
                          at once. -->
                     @if (row.share !== undefined) {
-                      <span class="share">{{ row.share }}%</span>
+                      <span class="share">{{ percent(row.share) }}</span>
                       <span class="bar"><i [style.width]="barWidth(row.share)"></i></span>
                     } @else if (row.behind !== undefined) {
                       <span class="share">{{ row.behind }}</span>

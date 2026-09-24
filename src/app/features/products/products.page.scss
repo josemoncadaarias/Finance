@@ -21,6 +21,18 @@
   /* A way out to the summary screen, under the figures it relates to. Quiet:
      a pill outlined in the colour of a link, not a second call to action
      competing with the income and expense buttons at the bottom. */
+  /* The ways out of the figures, centred together and wrapping on a narrow
+     phone rather than squeezing their words. */
+  .ways {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+
+    .to-summary { margin-top: 0; }
+  }
+
   .to-summary {
     display: inline-flex;
     align-items: center;

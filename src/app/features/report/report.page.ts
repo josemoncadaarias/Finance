@@ -30,7 +30,13 @@ import { LanguageButtonComponent } from '../../core/i18n/language-button.compone
 import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
 import { ReportService } from '../../core/report/report.service';
 import { MovementsStore } from '../movements/movements.store';
-import { reportWorkbook, reportFileName } from '../../core/report/report-workbook';
+import { reportWorkbook, reportFileName, yieldsWorkbook, yieldsFileName } from '../../core/report/report-workbook';
+import { YieldsReportService } from '../../core/report/yields-report.service';
+import type { YieldsReportData } from '../../core/report/yields-data';
+import { FilterService } from '../../core/filters/filter.service';
+import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import type { Block, Value } from '../../core/report/blocks';
 import type { ReportData } from '../../core/report/report-data';
 import { saveFile } from '../../core/files/save-file';
@@ -49,6 +55,28 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
 })
 export class ReportPage {
   private readonly report = inject(ReportService);
+  private readonly yieldsReport = inject(YieldsReportService);
+  private readonly filter = inject(FilterService);
+  private readonly route = inject(ActivatedRoute);
+
+  /**
+   * Which summary this is: of the money that moved, or of what the accounts
+   * earned. One screen for both (rule 20): the same blocks, the same pickers,
+   * the same spreadsheet writer, a different list of analyses. The products
+   * screen opens it with `?of=yields`.
+   */
+  readonly mode = toSignal(
+    this.route.queryParamMap.pipe(map(params => (params.get('of') === 'yields' ? 'yields' : 'money'))),
+    { initialValue: 'money' as 'money' | 'yields' },
+  );
+
+  /** The yields summary's facts, while that is the one on screen. */
+  readonly yieldsData = signal<YieldsReportData | null>(null);
+
+  readonly title = computed(() => this.i18n.t(this.mode() === 'yields' ? 'report.yields.title' : 'report.title'));
+  readonly nothing = computed(() => this.i18n.t(this.mode() === 'yields' ? 'report.yields.nothing' : 'report.nothing'));
+  readonly periodLabel = computed(() =>
+    (this.mode() === 'yields' ? this.yieldsData()?.periodLabel : this.data()?.periodLabel) ?? '');
   private readonly database = inject(DatabaseService);
   private readonly store = inject(MovementsStore);
   readonly i18n = inject(I18nService);
@@ -62,6 +90,11 @@ export class ReportPage {
 
   /** The period and account this is about, for the line under the title. */
   readonly about = computed(() => {
+    if (this.mode() === 'yields') {
+      const facts = this.yieldsData();
+      if (facts === null) return '';
+      return `${facts.periodLabel} · ${facts.account?.name ?? this.i18n.t('report.yields.allAccounts')}`;
+    }
     const data = this.data();
     if (data === null) return '';
     return `${data.periodLabel} · ${data.account?.name ?? this.i18n.t('report.allAccounts')}`;
@@ -81,7 +114,15 @@ export class ReportPage {
      * right ones.
      */
     effect(() => {
-      this.store.inScope();
+      // The money summary waits for the store's own list (see above); the
+      // yields summary reads the period and the account directly, since the
+      // days are its own query and nothing has to reload first.
+      if (this.mode() === 'yields') {
+        this.filter.period();
+        this.filter.accountId();
+      } else {
+        this.store.inScope();
+      }
       this.database.dataVersion();
       this.i18n.language();
       if (this.database.status() === 'ready') void this.build();
@@ -91,9 +132,15 @@ export class ReportPage {
   private async build(): Promise<void> {
     this.working.set(true);
     try {
-      const { data, blocks } = await this.report.build();
-      this.data.set(data);
-      this.blocks.set(blocks);
+      if (this.mode() === 'yields') {
+        const { data, blocks } = await this.yieldsReport.build();
+        this.yieldsData.set(data);
+        this.blocks.set(blocks);
+      } else {
+        const { data, blocks } = await this.report.build();
+        this.data.set(data);
+        this.blocks.set(blocks);
+      }
       // Another period is another question, and it starts closed.
       this.open.set(new Set());
     } finally {
@@ -102,14 +149,16 @@ export class ReportPage {
   }
 
   async exportExcel(): Promise<void> {
-    const data = this.data();
-    if (data === null) return;
+    const yields = this.mode() === 'yields' ? this.yieldsData() : null;
+    const data = this.mode() === 'yields' ? null : this.data();
+    if (yields === null && data === null) return;
 
     this.exporting.set(true);
     await new Promise(resolve => setTimeout(resolve));
     try {
-      const name = reportFileName(data);
-      const saved = await saveFile(new Blob([reportWorkbook(data)], { type: XLSX_MIME }), name);
+      const name = yields ? yieldsFileName(yields) : reportFileName(data!);
+      const bytes = yields ? yieldsWorkbook(yields, this.blocks()) : reportWorkbook(data!);
+      const saved = await saveFile(new Blob([bytes], { type: XLSX_MIME }), name);
       if (saved) this.notice.set(this.i18n.t('report.saved'));
     } catch (error) {
       this.notice.set(error instanceof Error ? error.message : String(error));
@@ -133,11 +182,17 @@ export class ReportPage {
   show(value: Value): string {
     switch (value.kind) {
       case 'money': return this.money(value.minor, value.currency);
-      case 'percent': return `${value.value}%`;
+      case 'percent': return this.percent(value.value);
       case 'count': return String(value.value);
       case 'date': return value.iso;
       default: return value.value;
     }
+  }
+
+  /** 8,62 % in Spanish and 8.62% in English, as each writes it. */
+  percent(value: number): string {
+    const number = (value === 0 ? 0 : value).toLocaleString(this.i18n.dateLocale(), { maximumFractionDigits: 2 });
+    return this.i18n.dateLocale().startsWith('es') ? `${number} %` : `${number}%`;
   }
 
   private money(minor: number, currency: string): string {
@@ -186,7 +241,7 @@ export class ReportPage {
       const times = (change + 100) / 100;
       return `x${times >= 10 ? Math.round(times) : times.toFixed(1)}`;
     }
-    return `${change > 0 ? '+' : ''}${change}%`;
+    return `${change > 0 ? '+' : ''}${this.percent(change)}`;
   }
 
   /**

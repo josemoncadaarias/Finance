@@ -20,6 +20,7 @@ import { type Block, type Value } from './blocks';
 import { buildReport } from './sections';
 import { fill } from './report-words';
 import { daysElapsed, daysBetween, type ReportData } from './report-data';
+import { paidOf, type YieldsReportData } from './yields-data';
 
 /**
  * The palette.
@@ -67,11 +68,12 @@ const STYLES: Record<string, CellStyle> = {
   share: { font: { size: 10, color: QUIET }, border: true, numberFormat: '0%' },
   number: { font: { size: 10, color: INK }, border: true, numberFormat: '#,##0' },
   day: { font: { size: 10, color: INK }, border: true, numberFormat: 'yyyy-mm-dd' },
+  rate: { font: { size: 10, color: QUIET }, border: true, numberFormat: '0.00%' },
 
   figure: { font: { bold: true, size: 11, color: INK }, numberFormat: MONEY_FORMAT },
   figureIn: { font: { bold: true, size: 11, color: IN }, numberFormat: MONEY_FORMAT },
   figureOut: { font: { bold: true, size: 11, color: OUT }, numberFormat: MONEY_FORMAT },
-  figurePercent: { font: { bold: true, size: 11, color: INK }, numberFormat: '0%' },
+  figurePercent: { font: { bold: true, size: 11, color: INK }, numberFormat: '0.0%' },
   figureCount: { font: { bold: true, size: 11, color: INK }, numberFormat: '#,##0' },
   figureText: { font: { bold: true, size: 11, color: INK } },
 
@@ -477,4 +479,110 @@ export function reportFileName(data: ReportData): string {
     ? `${data.period.from}_${data.period.to}`
     : 'todo';
   return fill(data.words['report.file'], { period });
+}
+
+// ---------------------------------------------------------------------------
+// The yields summary
+// ---------------------------------------------------------------------------
+
+/**
+ * The yields summary's file: the same first sheet the money summary writes -
+ * the same blocks, drawn by the same writers, charts included - and, as the
+ * evidence behind it, every day that was worked out.
+ */
+export function yieldsWorkbook(data: YieldsReportData, blocks: readonly Block[]): Uint8Array<ArrayBuffer> {
+  const words = data.words;
+  const sheet = new Sheet();
+
+  sheet.text(0, 'title', words['report.yields.title']);
+  sheet.row += 1;
+  sheet.text(0, 'subtitle', `${words['report.period']}: ${data.periodLabel}`);
+  sheet.row += 1;
+  sheet.text(0, 'subtitle',
+    `${words['report.account']}: ${data.account?.name ?? words['report.yields.allAccounts']}`);
+  sheet.row += 1;
+  sheet.text(0, 'subtitle', fill(words['report.madeOn'], { date: data.today }));
+  sheet.row += 1;
+  sheet.blank();
+
+  for (const block of blocks) {
+    if (block.kind === 'figures') writeFigures(sheet, block);
+    else if (block.kind === 'ranked') writeRanked(sheet, block, words);
+    else if (block.kind === 'comparison') writeComparison(sheet, block);
+    else if (block.kind === 'trend') writeTrend(sheet, block, words);
+    else writeNote(sheet, block);
+  }
+
+  const summary: SheetSpec = {
+    name: words['report.sheet.summary'],
+    columnWidths: [42, 16, 13, 13, 4, 12, 12, 12, 12, 12, 12, 12, 12],
+    cells: sheet.cells,
+    merges: sheet.merges,
+    charts: sheet.charts,
+  };
+  return writeXlsx([summary, yieldDaysSheet(data)], STYLES);
+}
+
+/**
+ * Every day of the period, one row per product and part of its rate: what it
+ * earned on, at what rate, gross, withheld, net, and what the bank paid where
+ * Jose typed it in. The figures on the first sheet can all be checked here.
+ */
+function yieldDaysSheet(data: YieldsReportData): SheetSpec {
+  const words = data.words;
+  const sheet = new Sheet();
+  const inPeriod = (day: string) =>
+    (data.period.from === null || day >= data.period.from)
+    && (data.period.to === null || day <= data.period.to) && day <= data.today;
+
+  const headings = [
+    words['report.movement.date'],
+    words['report.movement.account'],
+    words['report.yields.rows.products'],
+    words['report.yields.days.base'],
+    words['report.yields.days.rate'],
+    words['report.yields.days.gross'],
+    words['report.yields.withheld'],
+    words['report.yields.bank.computed'],
+    words['report.yields.bank.paid'],
+    words['report.movement.currency'],
+  ];
+  headings.forEach((heading, col) => sheet.text(col, col >= 3 && col <= 8 ? 'headRight' : 'head', heading));
+  sheet.row += 1;
+
+  const accountOf = new Map(data.accounts.map(one => [one.id, one]));
+  const productOf = new Map(data.products.map(one => [one.id, one.name]));
+  const newestFirst = data.days.filter(day => inPeriod(day.on_date))
+    .sort((a, b) => (a.on_date < b.on_date ? 1 : a.on_date > b.on_date ? -1 : a.product_id - b.product_id));
+
+  for (const day of newestFirst) {
+    sheet.text(0, 'day', day.on_date);
+    sheet.text(1, 'label', accountOf.get(day.account_id)?.name ?? '');
+    const part = day.component === 'base' ? '' : ` · ${day.component}`;
+    sheet.text(2, 'label', `${productOf.get(day.product_id) ?? ''}${part}`);
+    sheet.number(3, 'money', day.balance_minor / 100);
+    sheet.number(4, 'rate', day.annual_rate_scaled / 1_000_000);
+    sheet.number(5, 'money', day.gross_minor / 100);
+    sheet.number(6, day.withholding_minor > 0 ? 'moneyOut' : 'money', day.withholding_minor / 100);
+    sheet.number(7, 'money', day.net_minor / 100);
+    if (day.actual_net_minor !== null) sheet.number(8, 'moneyIn', paidOf(day) / 100);
+    else sheet.text(8, 'quiet', '');
+    sheet.text(9, 'quiet', accountOf.get(day.account_id)?.currency_code ?? '');
+    sheet.row += 1;
+  }
+
+  return {
+    name: words['report.yields.sheet.days'],
+    columnWidths: [12, 18, 26, 17, 10, 13, 13, 13, 15, 9],
+    cells: sheet.cells,
+    frozenRows: 1,
+  };
+}
+
+/** Named with the period, so two of them never collide. */
+export function yieldsFileName(data: YieldsReportData): string {
+  const period = (data.period.from && data.period.to)
+    ? `${data.period.from}_${data.period.to}`
+    : 'todo';
+  return fill(data.words['report.yields.file'], { period });
 }

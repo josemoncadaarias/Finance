@@ -602,9 +602,30 @@ backup restore against iOS's own SQLite backend.
    its own sentences were quoting a percentage for. Corrected 2026-09-22 after
    Jose asked why some rows had nothing in front of them.
 
-   Still not built, deliberately: a real Excel chart. The spreadsheet draws
-   its bars with filled cells, which says the same thing and cannot make Excel
-   call the file corrupt.
+   The xlsx writer does draw native bar charts now (`sheet.charts`, several
+   series allowed), and the trend blocks use them.
+
+   **The yields summary is the same report reading different data**
+   (2026-09-24, asked for by Jose). `/report?of=yields` swaps the data and
+   the list of sections and nothing else: `core/report/yields-data.ts`
+   (`YieldsReportData`, loaded once by `yields-report.service.ts` - the
+   enrolled accounts, their products, every `yield_days` row from a year
+   back, each converted to pesos at the rate of its own day),
+   `sections-yields.ts` (the period in figures with the effective annual
+   rate and the withholding, which account or product earned most, month by
+   month, against the period before on the same days, what the app worked
+   out against what the bank paid on the days Jose checked, and notes:
+   projection, still owed, best rate, no rate), `yieldsWorkbook` in
+   `report-workbook.ts` (the summary sheet plus one row per day). Ways in:
+   the products screen, for all accounts from its total and for one from an
+   account's sheet; both go through `FilterService` like the money report,
+   so the dates and the account are the same two pickers. A figure counts as
+   what the bank paid where a day was checked (`actual_net_minor`), and as
+   what the app worked out otherwise (`paidOf`). A product alone in its
+   account is named by the account. Test data: `tools/db/sample-yields.mjs`
+   writes `Pruebas/finance-rendimientos-de-prueba.json` - invented accounts,
+   January to yesterday, worked out by the real engine, some days "checked"
+   with a few centavos of drift.
 
 21. **The app is meant for other people too, and some of it is paid.** Said
    by Jose on 2026-09-22, asked for as a plan rather than as work: "esto le
@@ -1036,7 +1057,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 502 tests that run against a real
+by 512 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

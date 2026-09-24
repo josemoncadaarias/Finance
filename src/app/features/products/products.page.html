@@ -52,6 +52,16 @@
       } @else {
         <p class="upto">{{ 'products.notYet' | t }}</p>
       }
+
+      <!-- The summary of what every account earned: the same screen as the
+           money summary, reading the yields instead. -->
+      <div class="ways">
+        <button type="button" class="to-summary" (click)="openYieldsReport(null)">
+          <ion-icon name="stats-chart-outline"></ion-icon>
+          <span>{{ 'report.yields.open' | t }}</span>
+          <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
     </section>
 
     @if (error()) { <p class="failed">{{ error() }}</p> }
@@ -401,13 +411,18 @@
                 <strong>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</strong>
               </p>
 
-              <!-- From an account's yields to its movements in one tap: the
-                   summary screen, already on this account. -->
-              <button type="button" class="to-summary" (click)="goToSummary(line)">
-                <ion-icon name="pie-chart-outline"></ion-icon>
-                <span>{{ 'products.toSummary' | t }}</span>
-                <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
-              </button>
+              <!-- Two ways out, side by side: this account's yields summarised,
+                   and its movements on the summary screen. -->
+              <div class="ways">
+                <button type="button" class="to-summary" (click)="openYieldsReport(line.account.id)">
+                  <ion-icon name="stats-chart-outline"></ion-icon>
+                  <span>{{ 'report.yields.open' | t }}</span>
+                </button>
+                <button type="button" class="to-summary" (click)="goToSummary(line)">
+                  <ion-icon name="pie-chart-outline"></ion-icon>
+                  <span>{{ 'products.toSummary' | t }}</span>
+                </button>
+              </div>
             </section>
 
             <!-- How much is in each one, which the account's own figure

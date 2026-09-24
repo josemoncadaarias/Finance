@@ -1294,6 +1294,20 @@ export class ProductsPage {
   }
 
   /**
+   * The yields summary: of one account from its sheet, of every account that
+   * earns from the list. The account goes into the app's one filter, as it
+   * does for the movements summary, and the report reads it from there.
+   */
+  async openYieldsReport(accountId: number | null): Promise<void> {
+    this.filter.selectAccount(accountId);
+    if (this.openLine() !== null) {
+      this.closeDetail();
+      await new Promise(resolve => setTimeout(resolve, 350));
+    }
+    await this.router.navigate(['/report'], { queryParams: { of: 'yields' } });
+  }
+
+  /**
    * To the summary screen, on this account. Asked for by Jose on 2026-09-24:
    * from an account's yields to its movements is one tap, not closing the
    * sheet, opening the menu and choosing the account again.
