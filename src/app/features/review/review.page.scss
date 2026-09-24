@@ -200,6 +200,10 @@ ion-title small {
   }
 }
 
+/* Room under everything for the jump control, which floats over this corner.
+   Whatever the list ends with was ending behind the two arrows. */
+ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px)); }
+
 .hidden-by-filter {
   margin: 0.2rem 0 0;
   padding: 0 1.2rem;

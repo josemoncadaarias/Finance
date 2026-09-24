@@ -30,7 +30,10 @@ import { Router } from '@angular/router';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { StatementsService, type ReadStatement } from '../../core/statements/statements.service';
-import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../core/statements/pdf-text';
+import {
+  StatementCancelled, StatementLocked, StatementUnreadable, warmUpPdfReader,
+  type ReadingProgress,
+} from '../../core/statements/pdf-text';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -70,6 +73,40 @@ export class AccountEditorComponent implements OnInit {
 
   /** True while a statement is being read, which takes a moment on a phone. */
   readonly reading = signal(false);
+
+  /** The same progress and the same way out as the summary screen's. */
+  readonly readingPart = signal(0);
+  readonly readingStage = signal<ReadingProgress['stage']>('opening');
+  readonly readingPage = signal<{ page: number; pages: number } | null>(null);
+  private stopReading: AbortController | null = null;
+
+  readonly readingPercent = computed(() => Math.min(99, Math.round(this.readingPart() * 100)));
+  readonly readingLabel = computed(
+    () => this.i18n.t(`statement.stage.${this.readingStage()}` as 'statement.stage.opening'));
+  readonly readingDetail = computed(() => {
+    const at = this.readingPage();
+    return at === null ? '' : this.i18n.t('statement.stage.page', at);
+  });
+
+  cancelReading(): void {
+    this.stopReading?.abort();
+  }
+
+  private watching() {
+    this.stopReading = new AbortController();
+    this.readingPart.set(0);
+    this.readingStage.set('opening');
+    this.readingPage.set(null);
+    return {
+      signal: this.stopReading.signal,
+      onProgress: (progress: ReadingProgress) => {
+        this.readingPart.set(progress.part);
+        this.readingStage.set(progress.stage);
+        this.readingPage.set(progress.page && progress.pages
+          ? { page: progress.page, pages: progress.pages } : null);
+      },
+    };
+  }
 
   /**
    * A statement read for an account that does not exist yet.
@@ -446,7 +483,7 @@ export class AccountEditorComponent implements OnInit {
     this.reading.set(true);
     this.error.set('');
     try {
-      const read = await this.statements.read(file, password);
+      const read = await this.statements.read(file, password, this.watching());
       this.fromStatement.set(read);
 
       // Only what is still empty, and only what the statement actually said:
@@ -465,6 +502,8 @@ export class AccountEditorComponent implements OnInit {
           return;
         }
         this.error.set(this.i18n.t('statement.password.hint'));
+      } else if (problem instanceof StatementCancelled) {
+        // Asked for, and granted.
       } else if (problem instanceof StatementUnreadable) {
         this.error.set(`${this.i18n.t('statement.unreadable')} (${problem.reason})`);
       } else {
@@ -485,13 +524,11 @@ export class AccountEditorComponent implements OnInit {
     this.reading.set(true);
     this.error.set('');
     try {
-      // A reading that never comes back is still a reading somebody is
-      // waiting on. Whatever the cause, saying so beats a spinner for ever.
-      await Promise.race([
-        this.statements.importInto(accountId, file, password),
-        new Promise((_, fail) => setTimeout(
-          () => fail(new StatementUnreadable(this.i18n.t('statement.tooLong'))), 60_000)),
-      ]);
+      // It used to be given a minute and then declared broken, because a
+      // reading that never came back looked exactly like a slow one. It says
+      // where it has got to now and it can be stopped by hand, so there is
+      // nothing left for a stopwatch to decide.
+      await this.statements.importInto(accountId, file, password, this.watching());
       this.database.dataChanged();
       this.cancelled.emit();
       await this.leaveFor('/review');
@@ -506,6 +543,8 @@ export class AccountEditorComponent implements OnInit {
           return;
         }
         this.error.set(this.i18n.t('statement.password.hint'));
+      } else if (problem instanceof StatementCancelled) {
+        // Asked for, and granted.
       } else if (problem instanceof StatementUnreadable) {
         // The sentence a person can act on, and behind it what actually
         // happened, so a failure can be reported rather than only suffered.

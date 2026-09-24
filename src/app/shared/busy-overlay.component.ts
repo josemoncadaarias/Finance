@@ -14,7 +14,7 @@
  * pretending to a figure it does not have.
  */
 
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { IonSpinner } from '@ionic/angular';
 
 @Component({
@@ -33,6 +33,15 @@ import { IonSpinner } from '@ionic/angular';
       @if (percent() !== null) { <p class="percent">{{ percent() }}%</p> }
 
       @if (warning()) { <p class="warn">{{ warning() }}</p> }
+
+      <!-- A way out. Only where the caller has one to offer: a restore that
+           is half written cannot be stopped, and a button that lies about
+           that is worse than no button. -->
+      @if (cancelLabel()) {
+        <button type="button" class="stop" (click)="cancelled.emit()">
+          {{ cancelLabel() }}
+        </button>
+      }
     </div>
   `,
   styles: [`
@@ -50,6 +59,17 @@ import { IonSpinner } from '@ionic/angular';
       background: rgba(0, 0, 0, 0.45);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
+    }
+
+    .stop {
+      margin-top: 0.35rem;
+      padding: 0.45rem 1.1rem;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      background: none;
+      color: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
     }
 
     .sheet {
@@ -137,4 +157,12 @@ export class BusyOverlayComponent {
 
   /** Anything they should not do while it runs, such as closing the app. */
   readonly warning = input<string>('');
+
+  /**
+   * The words on the way out, where there is one. Empty means there is not,
+   * and then nothing is drawn: this overlay covers things that can be
+   * stopped safely and things that cannot.
+   */
+  readonly cancelLabel = input<string>('');
+  readonly cancelled = output<void>();
 }

@@ -37,12 +37,16 @@ import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entr
 import type { Grouping } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { StatementsService } from '../../core/statements/statements.service';
-import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../core/statements/pdf-text';
+import {
+  StatementCancelled, StatementLocked, StatementUnreadable, warmUpPdfReader,
+  type ReadingProgress,
+} from '../../core/statements/pdf-text';
 
 @Component({
   selector: 'app-movements',
@@ -51,7 +55,7 @@ import { StatementLocked, StatementUnreadable, warmUpPdfReader } from '../../cor
   imports: [
     IconComponent,
     CommonModule, FormsModule, RouterLink, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, ScopeSheetsComponent,
+    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, ScopeSheetsComponent, BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
     IonBadge, IonFooter, IonMenuButton,
@@ -73,6 +77,51 @@ export class MovementsPage {
   readonly reading = signal(false);
 
   /**
+   * How far along that reading is, and a way to stop it.
+   *
+   * On a phone it is not "a moment": a long statement took Jose forty seconds
+   * with nothing on the screen but a spinner inside a button, which reads as
+   * an app that has hung. So it says which part it is in and how far it has
+   * got, and it can be abandoned - nothing is written until the very end, so
+   * stopping leaves the database exactly as it was.
+   */
+  readonly readingPart = signal(0);
+  readonly readingStage = signal<ReadingProgress['stage']>('opening');
+  readonly readingPage = signal<{ page: number; pages: number } | null>(null);
+  private stopReading: AbortController | null = null;
+
+  readonly readingPercent = computed(() => Math.min(99, Math.round(this.readingPart() * 100)));
+
+  readonly readingLabel = computed(
+    () => this.i18n.t(`statement.stage.${this.readingStage()}` as 'statement.stage.opening'));
+
+  readonly readingDetail = computed(() => {
+    const at = this.readingPage();
+    return at === null ? '' : this.i18n.t('statement.stage.page', at);
+  });
+
+  cancelReading(): void {
+    this.stopReading?.abort();
+  }
+
+  /** What the reading reports back, in the shape the overlay draws. */
+  private watching() {
+    this.stopReading = new AbortController();
+    this.readingPart.set(0);
+    this.readingStage.set('opening');
+    this.readingPage.set(null);
+    return {
+      signal: this.stopReading.signal,
+      onProgress: (progress: ReadingProgress) => {
+        this.readingPart.set(progress.part);
+        this.readingStage.set(progress.stage);
+        this.readingPage.set(progress.page && progress.pages
+          ? { page: progress.page, pages: progress.pages } : null);
+      },
+    };
+  }
+
+  /**
    * Opens a statement for the account being looked at.
    *
    * On this screen because this is where somebody IS an account: the summary
@@ -89,7 +138,7 @@ export class MovementsPage {
 
     this.reading.set(true);
     try {
-      await this.statements.importInto(accountId, file);
+      await this.statements.importInto(accountId, file, undefined, this.watching());
       this.database.dataChanged();
       await this.router.navigateByUrl('/review');
     } catch (problem) {
@@ -97,7 +146,7 @@ export class MovementsPage {
         const typed = window.prompt(this.i18n.t('statement.password'));
         if (typed) {
           try {
-            await this.statements.importInto(accountId, file, typed);
+            await this.statements.importInto(accountId, file, typed, this.watching());
             this.database.dataChanged();
             await this.router.navigateByUrl('/review');
           } catch (second) {
@@ -113,6 +162,8 @@ export class MovementsPage {
   }
 
   private statementFailed(problem: unknown): void {
+    // Asked for, and granted: there is nothing to report about that.
+    if (problem instanceof StatementCancelled) return;
     const said = problem instanceof StatementUnreadable
       ? `${this.i18n.t('statement.unreadable')} (${problem.reason})`
       : problem instanceof Error ? problem.message : String(problem);

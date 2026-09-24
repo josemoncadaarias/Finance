@@ -11,6 +11,36 @@
 
 import type { TextItem } from './tokens';
 
+/** Somebody pressed cancel. Not a failure, and never said as one. */
+export class StatementCancelled extends Error {
+  constructor() {
+    super('cancelled');
+    this.name = 'StatementCancelled';
+  }
+}
+
+/** How far along a reading is, for the screen that is waiting on it. */
+export interface ReadingProgress {
+  /** 0 to 1 over the whole reading. */
+  part: number;
+  /** Which stage it is in, so the screen can name it. */
+  stage: 'opening' | 'pages' | 'reading' | 'writing';
+  page?: number;
+  pages?: number;
+}
+
+export interface ReadingOptions {
+  password?: string;
+  workerSrc?: string;
+  onProgress?: (progress: ReadingProgress) => void;
+  signal?: AbortSignal;
+}
+
+/** Throws if the person asked to stop. Checked between pages and chunks. */
+export function stopIfCancelled(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new StatementCancelled();
+}
+
 /** A statement whose pages are locked. The caller asks for the password. */
 export class StatementLocked extends Error {
   constructor() {
@@ -49,7 +79,10 @@ export async function textOfPdf(
   file: ArrayBuffer,
   password?: string,
   workerSrc?: string,
+  options: { onProgress?: (progress: ReadingProgress) => void; signal?: AbortSignal } = {},
 ): Promise<TextItem[]> {
+  const say = options.onProgress ?? (() => {});
+  say({ part: 0.02, stage: 'opening' });
   // Loaded when a statement is actually opened. It is a megabyte and a half
   // of library that nobody who never imports a statement should pay for.
   // The legacy build, deliberately. The modern one leans on things a recent
@@ -78,6 +111,7 @@ export async function textOfPdf(
       useSystemFonts: false,
     });
     document = await task.promise;
+    stopIfCancelled(options.signal);
   } catch (error) {
     const name = (error as { name?: string }).name;
     if (name === 'PasswordException') throw new StatementLocked();
@@ -86,7 +120,12 @@ export async function textOfPdf(
 
   const items: TextItem[] = [];
   try {
-    for (let number = 1; number <= document.numPages; number += 1) {
+    const pages = document.numPages;
+    for (let number = 1; number <= pages; number += 1) {
+      stopIfCancelled(options.signal);
+      // Most of the wait is here, and on a phone it is most of a minute, so
+      // this is the part that has to be able to say where it has got to.
+      say({ part: 0.05 + 0.6 * ((number - 1) / pages), stage: 'pages', page: number, pages });
       const page = await document.getPage(number);
       const content = await page.getTextContent();
       for (const item of content.items) {

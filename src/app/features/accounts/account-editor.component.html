@@ -249,3 +249,11 @@
 @if (busyLabel()) {
   <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
 }
+
+<!-- Reading a statement, which on a phone is tens of seconds. -->
+@if (reading()) {
+  <app-busy-overlay [label]="readingLabel()" [detail]="readingDetail()"
+                    [percent]="readingPercent()"
+                    [cancelLabel]="'statement.stage.stop' | t"
+                    (cancelled)="cancelReading()"></app-busy-overlay>
+}

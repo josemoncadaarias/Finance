@@ -1,3 +1,13 @@
+<!-- Reading a statement: what it is doing, how far it has got, and a way
+     out. On a phone this takes tens of seconds, and a spinner inside a
+     button is indistinguishable from an app that has hung. -->
+@if (reading()) {
+  <app-busy-overlay [label]="readingLabel()" [detail]="readingDetail()"
+                    [percent]="readingPercent()"
+                    [cancelLabel]="'statement.stage.stop' | t"
+                    (cancelled)="cancelReading()"></app-busy-overlay>
+}
+
 <ion-header [translucent]="true">
   <!-- Account: a control that looks like one, not a title -->
   <ion-toolbar>

@@ -93,9 +93,15 @@ export class ProposalsRepository {
     const seen = await this.alreadyReadOf(readings);
     const taken = new Set<number>();
 
+    // The two tables every row is going to be asked about, read once each.
+    // Asking per row was three trips across the bridge for each line of the
+    // statement; on a phone that is most of a minute for a long one.
+    const dictionary = await this.dictionary();
+    const starters = await this.starterCategories();
+
     return this.db.transaction(async () => {
-      const ids: number[] = [];
       let knownAlready = 0;
+      const rows: unknown[][] = [];
       for (const reading of readings) {
         const twin = sameMovementAs({
           account_id: reading.account_id ?? null,
@@ -110,32 +116,38 @@ export class ProposalsRepository {
         }
         // What this person has filed before, first. Only where that says
         // nothing does a word in the description get to suggest anything.
-        let category = await this.learnedCategoryOf(reading.description ?? null);
+        let category = dictionary.categoryOf(reading.description ?? null);
         let from: 'learned' | 'guessed' | null = category === null ? null : 'learned';
         if (category === null) {
-          category = await this.guessedCategoryOf(
-            reading.description ?? null, reading.amount_minor ?? null);
+          const word = wordCategoryOf(reading.description ?? null, reading.amount_minor ?? null);
+          category = word === null
+            ? null
+            : starters.get(`${word.kind}:${word.es}`) ?? starters.get(`${word.kind}:${word.en}`) ?? null;
           if (category !== null) from = 'guessed';
         }
-        const result = await this.db.run(
-          `INSERT INTO movement_proposals
-             (source, account_id, occurred_on, amount_minor, description, category_id, category_from,
-              evidence, status, batch, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
-          [
-            reading.source,
-            reading.account_id ?? null,
-            reading.occurred_on ?? null,
-            reading.amount_minor ?? null,
-            reading.description ?? null,
-            category,
-            from,
-            JSON.stringify(reading.evidence ?? null),
-            batch, timestamp, timestamp,
-          ],
-        );
-        ids.push(result.lastId!);
+        rows.push([
+          reading.source,
+          reading.account_id ?? null,
+          reading.occurred_on ?? null,
+          reading.amount_minor ?? null,
+          reading.description ?? null,
+          category,
+          from,
+          JSON.stringify(reading.evidence ?? null),
+          batch, timestamp, timestamp,
+        ]);
       }
+
+      await this.insertMany(
+        `INSERT INTO movement_proposals
+           (source, account_id, occurred_on, amount_minor, description, category_id,
+            category_from, evidence, batch, created_at, updated_at)
+         VALUES `, 11, rows);
+      // What was just written, asked for by the batch rather than one id at a
+      // time: a multi-row insert reports only the last of them.
+      const ids = (await this.db.query<{ id: number }>(
+        'SELECT id FROM movement_proposals WHERE batch = ? ORDER BY id', [batch]))
+        .map(row => row.id);
 
       await this.markKnownAgain(ids);
       await this.markTransfers(ids);
@@ -298,6 +310,55 @@ export class ProposalsRepository {
   }
 
   /**
+   * The whole merchant dictionary, in memory, answering the way the two
+   * queries of `learnedCategoryOf` answer.
+   *
+   * Same rules exactly: the folded description first, then its first word,
+   * and a first word that covers two categories is a question rather than an
+   * answer. It is a small table - one row per shop somebody has ever filed -
+   * and reading it whole once beats reading it twice per line of a statement.
+   */
+  private async dictionary(): Promise<{ categoryOf(description: string | null): number | null }> {
+    const rows = await this.db.query<{ merchant: string; category_id: number; times: number }>(
+      'SELECT merchant, category_id, times FROM merchant_categories');
+
+    const exact = new Map<string, number>();
+    const family = new Map<string, Set<number>>();
+    for (const row of rows) {
+      exact.set(row.merchant, row.category_id);
+      const head = row.merchant.split(' ')[0];
+      const under = family.get(head) ?? new Set<number>();
+      under.add(row.category_id);
+      family.set(head, under);
+    }
+
+    return {
+      categoryOf(description: string | null): number | null {
+        const merchant = merchantKeyOf(description);
+        if (merchant.length === 0) return null;
+        const found = exact.get(merchant);
+        if (found !== undefined) return found;
+        const head = merchant.split(' ')[0];
+        if (head.length < 2) return null;
+        const under = family.get(head);
+        return under && under.size === 1 ? [...under][0] : null;
+      },
+    };
+  }
+
+  /** The categories a guessed word may land on, keyed `kind:name`. */
+  private async starterCategories(): Promise<Map<string, number>> {
+    const rows = await this.db.query<{ id: number; name: string; kind: string }>(
+      'SELECT id, name, kind FROM categories WHERE archived = 0');
+    const found = new Map<string, number>();
+    for (const row of rows) {
+      const key = `${row.kind}:${row.name}`;
+      if (!found.has(key)) found.set(key, row.id);
+    }
+    return found;
+  }
+
+  /**
    * What an ordinary word in the description suggests, or null.
    *
    * Only a category that came with the app can be landed on this way. Somebody
@@ -356,6 +417,14 @@ export class ProposalsRepository {
    * the merchants nobody has answered for yet.
    */
   async learnFromLedger(): Promise<number> {
+    // What is already known, asked for once. On Jose's phone this used to be
+    // one INSERT per merchant - some three thousand of them, each its own
+    // trip across the bridge to the native plugin - and it ran on EVERY
+    // import. It is the single biggest reason reading a statement took forty
+    // seconds there and a moment in the browser.
+    const known = new Set((await this.db.query<{ merchant: string }>(
+      'SELECT merchant FROM merchant_categories')).map(row => row.merchant));
+
     const movements = await this.db.query<{
       description: string; category_id: number; occurred_on: IsoDate;
     }>(`SELECT description, category_id, occurred_on FROM transactions
@@ -378,21 +447,47 @@ export class ProposalsRepository {
     if (counted.size === 0) return 0;
 
     const timestamp = this.now();
-    let learned = 0;
+    const rows: unknown[][] = [];
+    for (const [merchant, seen] of counted) {
+      // Already answered for, by hand or by an earlier pass: never overruled,
+      // and never written again either. After the first import this leaves
+      // nothing to do at all.
+      if (known.has(merchant)) continue;
+      const [categoryId, times] = [...seen.categories.entries()]
+        .sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0];
+      rows.push([merchant, categoryId, seen.sample, times, seen.last, timestamp, timestamp]);
+    }
+    if (rows.length === 0) return 0;
+
     await this.db.transaction(async () => {
-      for (const [merchant, seen] of counted) {
-        const [categoryId, times] = [...seen.categories.entries()]
-          .sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0];
-        const result = await this.db.run(
-          `INSERT INTO merchant_categories
-             (merchant, category_id, sample, times, last_seen_on, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(merchant) DO NOTHING`,
-          [merchant, categoryId, seen.sample, times, seen.last, timestamp, timestamp]);
-        if ((result.changes ?? 0) > 0) learned += 1;
-      }
+      await this.insertMany(
+        `INSERT INTO merchant_categories
+           (merchant, category_id, sample, times, last_seen_on, created_at, updated_at)
+         VALUES `, 7, rows, ' ON CONFLICT(merchant) DO NOTHING');
     });
-    return learned;
+    return rows.length;
+  }
+
+  /**
+   * Many rows in as few statements as the engine will take.
+   *
+   * SQLite allows 999 parameters in one statement by default, so the rows are
+   * sent in chunks that stay under it. One statement per chunk rather than
+   * one per row is the difference between a phone that answers and a phone
+   * that looks broken: every call crosses into the native plugin, and on
+   * Android that crossing costs far more than the write itself.
+   */
+  private async insertMany(
+    head: string, width: number, rows: readonly unknown[][], tail = '',
+  ): Promise<void> {
+    const perChunk = Math.max(1, Math.floor(900 / width));
+    const one = `(${Array.from({ length: width }, () => '?').join(', ')})`;
+    for (let from = 0; from < rows.length; from += perChunk) {
+      const chunk = rows.slice(from, from + perChunk);
+      await this.db.run(
+        head + chunk.map(() => one).join(', ') + tail,
+        chunk.flat());
+    }
   }
 
   /**

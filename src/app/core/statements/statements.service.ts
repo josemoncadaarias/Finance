@@ -15,7 +15,13 @@ import { ProposalsRepository } from '../database/repositories/proposals.reposito
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { DEFAULT_MINOR_UNITS } from '../database/money';
 import { accountIn, readStatement, type StatementAccount, type StatementReading } from './statement';
-import { textOfPdf } from './pdf-text';
+import { textOfPdf, stopIfCancelled, type ReadingProgress } from './pdf-text';
+
+/** What a caller passes to watch a reading, and to stop it. */
+export interface ReadingWatch {
+  onProgress?: (progress: ReadingProgress) => void;
+  signal?: AbortSignal;
+}
 
 /** A statement read before there is an account for it to belong to. */
 export interface ReadStatement {
@@ -60,9 +66,12 @@ export class StatementsService {
    * to belong to. Nothing is proposed here, because a proposal has to point
    * at an account.
    */
-  async read(file: File, password?: string): Promise<ReadStatement> {
-    const items = await textOfPdf(await file.arrayBuffer(), password);
+  async read(file: File, password?: string, watch: ReadingWatch = {}): Promise<ReadStatement> {
+    const items = await textOfPdf(await file.arrayBuffer(), password, undefined, watch);
+    watch.onProgress?.({ part: 0.7, stage: 'reading' });
     const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    stopIfCancelled(watch.signal);
+    watch.onProgress?.({ part: 1, stage: 'writing' });
     return { reading, account: accountIn(reading, items), file };
   }
 
@@ -84,7 +93,9 @@ export class StatementsService {
    * The account decides what the numbers mean: a statement is read in the
    * currency of the account it belongs to, never in one guessed from the page.
    */
-  async importInto(accountId: number, file: File, password?: string): Promise<ImportedStatement> {
+  async importInto(
+    accountId: number, file: File, password?: string, watch: ReadingWatch = {},
+  ): Promise<ImportedStatement> {
     const db = this.database.driver;
     const accounts = new AccountsRepository(db);
     const proposals = new ProposalsRepository(db);
@@ -92,17 +103,25 @@ export class StatementsService {
     const account = await accounts.findById(accountId);
     if (!account) throw new Error(`No account ${accountId}`);
 
-    const items = await textOfPdf(await file.arrayBuffer(), password);
+    const items = await textOfPdf(await file.arrayBuffer(), password, undefined, watch);
+
+    watch.onProgress?.({ part: 0.68, stage: 'reading' });
     // Both currencies this app holds keep two, and the table says so per
     // currency; the default is what every one of them uses today.
     const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    stopIfCancelled(watch.signal);
 
     // What the person has already filed, before anything is proposed: without
     // it, somebody with years of movements typed in would be asked again
     // about every shop they have answered for a hundred times.
+    watch.onProgress?.({ part: 0.78, stage: 'writing' });
     await proposals.learnFromLedger();
+    stopIfCancelled(watch.signal);
 
-    return this.write(accountId, file.name, reading, proposals);
+    watch.onProgress?.({ part: 0.9, stage: 'writing' });
+    const written = await this.write(accountId, file.name, reading, proposals);
+    watch.onProgress?.({ part: 1, stage: 'writing' });
+    return written;
   }
 
   /** Writing a reading down, wherever it was read. */
