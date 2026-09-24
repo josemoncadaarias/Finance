@@ -739,10 +739,15 @@ backup restore against iOS's own SQLite backend.
    the phone. Everything not from an attached bank is discarded, and the app
    says so plainly.
 
-   **Step one is built** (2026-09-24): `NotificationCatcher`,
+   **Step one is built, and PAUSED** (2026-09-24): `NotificationCatcher`,
    `NotificationStore` and `BankNotificationsPlugin` in `android/`, the
-   screen at `/notifications`. It keeps WHICH apps post for everybody and
-   WHAT they said only for apps ticked by hand, and interprets nothing.
+   screen in `features/notifications/`. It keeps WHICH apps post for
+   everybody and WHAT they said only for apps ticked by hand, and interprets
+   nothing. Paused by Jose the same day, for the reason below: the `<service>`
+   is out of the manifest and the route and menu item are gone, while every
+   file stays, compiled and unreachable. **Resume it when the app is being
+   installed from the Play Store's internal track, not before**, by reverting
+   the commit "Pause reading bank notifications".
 
    **And the first APK carrying it was refused by Play Protect** (Jose's
    phone, 2026-09-24): "Se bloqueó la app para proteger tu dispositivo - esta

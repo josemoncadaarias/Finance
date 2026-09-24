@@ -35,11 +35,6 @@ export const routes: Routes = [
     loadComponent: () => import('./features/review/review.page').then(m => m.ReviewPage),
   },
   {
-    path: 'notifications',
-    loadComponent: () =>
-      import('./features/notifications/notifications.page').then(m => m.NotificationsPage),
-  },
-  {
     path: 'export',
     loadComponent: () => import('./features/export/export.page').then(m => m.ExportPage),
   },
