@@ -111,20 +111,19 @@
           </ion-item>
         </ion-list>
 
-        <p class="hint warn">{{ 'restore.warning' | t }}</p>
-
+        <!-- This button opens the question; it is not the answer to it. It
+             used to be red and to say "Sí, reemplazar todo" under a paragraph
+             in capitals, which is a confirmation - and then the real one
+             arrived on top of it and read as being asked twice. Both the
+             shouting and the word "sí" belong in the dialog. -->
         <ion-button expand="block" fill="clear" [disabled]="working() !== null"
                     (click)="picked.set(null)">
           {{ 'restore.cancel' | t }}
         </ion-button>
-        <ion-button expand="block" color="danger" [disabled]="working() !== null"
-                    (click)="asking.set(true)">
-          @if (working() === 'restore') {
-            <ion-spinner slot="start" name="dots"></ion-spinner>
-          } @else {
-            <ion-icon slot="start" name="alert-circle-outline"></ion-icon>
-          }
-          {{ 'restore.confirm' | t }}
+        <ion-button expand="block" fill="outline" color="danger"
+                    [disabled]="working() !== null" (click)="asking.set(true)">
+          <ion-icon slot="start" name="refresh-outline"></ion-icon>
+          {{ 'restore.start' | t }}
         </ion-button>
       } @else {
         <ion-button expand="block" fill="outline" [disabled]="working() !== null"
