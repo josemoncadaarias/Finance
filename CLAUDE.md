@@ -1306,6 +1306,35 @@ Two more things that will come up:
 - The Google consent screen is in testing mode, which admits **100 users**.
   More than that means publishing it and passing Google's verification.
 
+**The order Jose chose on 2026-09-24: bank notifications first, the paywall
+in the waiting days.** Neither undoes the other: the road to notifications -
+account, release key, internal testing - is the road the store needs anyway,
+and marking a finished feature as paid is one line in the one service.
+
+What Jose does, checked the same day:
+1. 2-Step Verification on his Google account (Play requires it):
+   https://myaccount.google.com/signinoptions/twosv
+2. Sign up at https://play.google.com/console/signup as a **personal**
+   account, choose the developer name shown on the store, pay the US$25 once.
+3. Identity verification: a government ID and a card in his legal name,
+   phone and email checked. It can take several days.
+
+Then, together: the release key generated on the corporate laptop (the
+password is his and is kept safe, like the debug one), a workflow building a
+signed \`.aab\` beside \`debug-apk.yml\` without touching it, the app created
+in Play Console, the first upload to **internal testing** (no review, up to
+100 testers, but the first link can take a few hours), the one uninstall of
+step 2 above with the new certificate registered for Google sign-in, and
+then notifications resumed on a store install. The package name
+\`com.josemoncada.finance\` is fixed forever from the first upload.
+
+**Android developer verification** (looked up 2026-09-24): from 30 September
+2026 in Brazil, Indonesia, Singapore and Thailand, and worldwide in 2027,
+certified Android devices refuse sideloaded apps from unregistered developers
+except through a slow "advanced" flow or ADB. Colombia is not in the first
+wave. A verified Play developer account is what registers Jose - one more
+reason for it, since the APKs from GitHub are sideloaded.
+
 ## Pending from Jose
 
 - [ ] Keep a copy of the corporate laptop's `debug.keystore` somewhere safe
