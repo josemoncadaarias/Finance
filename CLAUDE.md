@@ -585,7 +585,15 @@ backup restore against iOS's own SQLite backend.
 
 22. **Movements can be PROPOSED by the app, and only a person makes them
    real.** Designed with Jose on 2026-09-22 and 23, for the people who will
-   not type every movement by hand the way he does. **None of it is built.**
+   not type every movement by hand the way he does.
+
+   **The PDF half is BUILT and Jose uses it** (2026-09-23/24):
+   `core/statements/` reads the file, `core/proposals/` decides what each row
+   probably is, `ProposalsRepository` writes the proposals and
+   `features/review/` is where a person answers them. Ways in: the summary
+   screen, for an account that exists, and the account form, which fills
+   itself in from the statement and then imports it. **The notification half
+   is not built** and nothing below about it has changed.
 
    Two sources, and one screen where they both end up:
 
@@ -731,6 +739,69 @@ backup restore against iOS's own SQLite backend.
    the phone. Everything not from an attached bank is discarded, and the app
    says so plainly.
 
+   **What reading a statement learned, once it met real ones** (2026-09-23/24,
+   all of it from Jose's own Rappi, Ualá, Nu and Fiducuenta files):
+
+   - **The running balance column is the witness.** Where the statement
+     carries one, it decides the sign of every row and the opening and closing
+     figures, and the words "Saldo anterior"/"Saldo final" are ignored - a
+     real statement has several lines with "saldo" on them and the ones the
+     app does not know about are the ones it would pick. Where the two
+     disagree the reading is `'unclear'`, never `'off'`: crying wolf about a
+     file that was read correctly costs more than saying nothing.
+   - **A minus in a PDF is rarely the ASCII hyphen.** It is U+2212, an en
+     dash, a non-breaking hyphen. All of them read as a minus now, and a
+     leading `+` reads as a plus - without that, every line of a statement
+     that signs its own amounts was called an expense, cashback included.
+   - **A sign the bank printed is not a guess**, and carries no warning.
+   - **The category comes from what this person files**, learned from their
+     own ledger; where that says nothing, about a hundred ordinary words of
+     both languages (`core/proposals/common-words.ts` - supermercado,
+     farmacia, peaje, nomina) may suggest one. Words and never brands: a list
+     of Colombian shops would be wrong in every other country, the same reason
+     this refuses a built-in list of banks. A guess can only land on a
+     category that came with the app, so a list somebody has renamed is never
+     overruled; the sign picks which half of the list may answer; and it is
+     marked `guessed` and shown as "sugerida", never as "aprendida", because
+     the app has no history to claim.
+   - **A phone is not a browser, and the bridge is what costs.** Every call
+     to SQLite crosses into the native plugin, and on Android that crossing
+     costs far more than the query. Reading a statement took forty seconds
+     there and an instant in the browser, entirely because of per-row work:
+     `learnFromLedger` wrote one INSERT per merchant - three thousand of them,
+     on every import - and each proposed row asked three more questions.
+     **Read a table once and answer in memory; write many rows per
+     statement.** `insertMany` in `ProposalsRepository` is the shape to copy.
+     Three thousand round trips became about forty.
+   - **It says what it is doing and can be stopped.** Both ways in show the
+     stage, the page, the percentage and a Cancel. Nothing is written until
+     the end, so stopping leaves the database as it was.
+
+23. **A new install is not an empty one.** Found by Jose on 2026-09-23: a
+   fresh database had three categories - Cashback, Corrección del banco and
+   Otro, which migration 037 makes out of the three kinds a product's own
+   movement can be - and not one of them was an expense. Since a movement
+   that is not a transfer must carry a category, somebody installing this app
+   could not record the first thing they spent. Jose's own forty-nine came
+   from the app he used before, so he never met the empty case.
+
+   `core/database/starter-categories.ts` holds twenty ordinary ones and
+   `DatabaseService` seeds them on start. Three things about it:
+
+   - **Deliberately not Jose's list.** His has Didi, Éxito, EPM, D1 and
+     4x1000 in it, which are a person in Medellín and not a starting point
+     for anybody else (rule 21).
+   - **"Empty" means no expense category at all**, which is true of a fresh
+     install and of nothing else. Jose's database is looked at on every start
+     and left exactly as it is.
+   - **They are the app speaking, so they arrive in its language** - and only
+     at that moment. From the second they exist they are the person's own
+     words and nothing ever translates them again.
+
+   `tools/db/sample-data.mjs` builds the test backup from these and invents
+   no category of its own, so what it restores looks like a phone somebody
+   just set up.
+
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
@@ -748,7 +819,8 @@ backup restore against iOS's own SQLite backend.
 ## Current status
 
 The SQLite schema, the migration runner, the money helpers, the repository
-layer and the yields module are covered by 415 tests that run against a real
+layer, the yields module, the statement reader and the proposals are covered
+by 491 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -766,7 +838,10 @@ npm run android    build and copy the web app into the Android project
 
 **Every movement is entered by hand** (2026-09-12), after the old importer
 kept putting Jose's corrections at risk. Rule 12 says what is left of it and
-what not to do with it.
+what not to do with it. The statement reader of rule 22 does not undo that
+and is not a second importer: it writes PROPOSALS, which are not movements
+until a person on the review screen says so, and it never touches a row that
+already exists.
 
 Data moves between the browser and the phone as a backup: "Importar y
 exportar" saves one and restores one. A copy of the current one lives in
@@ -777,6 +852,46 @@ a change against. The Android project lives in `android/`
 **Not yet verified: SQLite in the browser.** The web build needs `jeep-sqlite`
 to mount and `initWebStore()` to succeed, and that only happens at runtime.
 Everything up to it — build, types, plugin API — is confirmed.
+
+**The copy in Drive is one file, and a device only writes over what it has
+seen** (2026-09-24). Saving to Drive is automatic, so two phones on one Google
+account is the one situation where a whole history can be lost: the second one
+sends its older database over the good one, quietly, because it was signed in.
+
+The first guard compared sizes - a copy under a tenth of the other asked
+first - and Jose said why that is wrong: his second phone has been restoring
+backups to try things out, so it holds far more than a tenth and is still
+months behind. Size never said anything about age.
+
+So each device remembers WHICH copy in Drive it continues: the `modifiedTime`
+of the one it last uploaded, or last restored from (`rememberSeen`, in
+`cloud-backup.service.ts`). Restoring a file from anywhere else forgets it,
+because then nobody knows how that file relates to Drive. If what is up there
+is something else, nothing is uploaded and the screen says when that copy was
+written and how much it holds. Saving on its own asks once and then stays
+quiet about that same copy; the button asks again, because pressing it is
+deliberate.
+
+And answering yes is not irreversible: Drive copies the old one beside it
+first, as `finance-backup-replaced-<date>.json`, on the server, so none of
+the 25 MB crosses the phone's connection. That was Jose's own idea - he asked
+for one file per phone - kept without its cost, which was two files both
+looking current and nobody remembering which was the real one.
+
+**An `app-confirm` is never created already open** (2026-09-24, and it cost
+two rounds of "it does not appear"). It is an `ion-modal`, and an ion-modal
+presents when `isOpen` goes from false to true; one built inside an `@if`
+with `[open]="true"` has nothing to transition from, flashes and dismisses.
+Leave the dialog in the page and bind `[open]` to the signal, the way the
+review screen always did. `tools/db/confirm-dialogs.test.mjs` fails on the
+other shape, because this failure looks exactly like a button that does
+nothing.
+
+**A dangerous question is asked where the decision is made.** Restoring a
+backup asks the moment the file is chosen - by then it has been read and
+described, and the only thing left to say is yes or no - names the file in the
+question, and carries the warning inside the dialog rather than in a paragraph
+somebody scrolls past. Saying no puts the picker back. Jose, 2026-09-24.
 
 **The app is used every day and shaped from the phone** (2026-09-21). What
 Jose reports is almost always a screen that reads wrong on a real phone rather
@@ -810,6 +925,12 @@ became 25. Not done, on purpose: accruing in the background on app start.
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.
 
+**A claim about the screen is checked in a browser, not reasoned about**
+(2026-09-24). Twice in one afternoon a dialog was declared fixed on code that
+read correctly and showed nothing. Puppeteer against `ng serve` on a spare
+port, driving the real page and taking a screenshot, settled it in two
+minutes. Jose's own `npm start` usually holds 8100, so use another.
+
 **How a change to the yields is proved** (2026-09-22, and this is the method
 to use again). Restore Jose's current backup into a fresh database, migrate it
 forward, work every account out from scratch, and compare that against the
@@ -821,11 +942,37 @@ lie. Two differences are known and expected: Plata, corrected by migration
 039, and 0.85 pesos in Global66, five days his phone worked out on a balance
 that later changed and never redid.
 
-## Jose's two machines
+## Jose's two machines, and a third that is not a machine
 
 Jose works on this repository from two Windows PCs. Claude Code keeps its
 conversation history and memory per machine, so what is not written here or
 in the commits is not known on the other one.
+
+**A session running in the cloud is a third place, and it is blind in ways
+the two PCs are not.** It has the repository and nothing else - a container
+that clones this repo, works, and pushes a branch. So, before starting
+anything there, know what it CANNOT do:
+
+- **It cannot see `G:\My Drive\Finance App`.** Jose's real backup is not in
+  the repository and never will be (it is his whole financial history). Every
+  method in this file that says "check it against his current backup" - the
+  yields proof, a figure that looks wrong, rule 12 - is a LOCAL job. A cloud
+  session must say so rather than approximate it.
+- **It cannot write the test backup either**, for the same reason:
+  `tools/db/sample-data.mjs` writes into that folder.
+- **It has no phone and no browser of Jose's.** It cannot say how a screen
+  reads on a real device, which is where almost every problem he reports
+  comes from.
+- **It cannot build or sign an APK.** No Android SDK, and above all no debug
+  keystore - see "Signing the APK". GitHub Actions does that.
+
+What it does perfectly well: `node tools/db/run-tests.mjs` and `npm run
+build` (both need nothing but the repo), reading and changing code, writing
+migrations and tests, and committing. That is most of the work.
+
+So the division that actually holds: **anything provable from the repository
+alone can happen anywhere; anything that needs his data, his phone or his
+keystore waits for a session on one of the two PCs.**
 
 | | Corporate laptop | Personal PC |
 |---|---|---|
