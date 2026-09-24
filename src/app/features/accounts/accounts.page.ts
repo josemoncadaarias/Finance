@@ -20,6 +20,7 @@ import * as allIcons from 'ionicons/icons';
 import { DatabaseService } from '../../core/database/database.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -41,6 +42,7 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
+    CurrencyDialogComponent,
     IconComponent,
     CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     AccountEditorComponent,
@@ -79,10 +81,6 @@ export class AccountsPage {
    */
   readonly currencies = signal<{ code: string; name: string; symbol: string; used: number }[]>([]);
   readonly addingCurrency = signal(false);
-  readonly newCode = signal('');
-  readonly newName = signal('');
-  readonly newSymbol = signal('');
-  readonly currencyError = signal('');
 
   /** The total, and every line that makes it. */
   readonly worth = signal<NetWorth | null>(null);
@@ -213,42 +211,10 @@ export class AccountsPage {
     ));
   }
 
-  /**
-   * Adds a currency the app did not ship with.
-   *
-   * Minor units are fixed at two: every currency this app is likely to meet
-   * has cents and the money helpers assume it, so offering the choice would be
-   * offering a way to store amounts a hundred times off.
-   */
-  async saveCurrency(): Promise<void> {
-    const code = this.newCode().trim().toUpperCase();
-    const name = this.newName().trim();
-
-    if (!/^[A-Z]{3}$/.test(code)) {
-      this.currencyError.set(this.i18n.t('accounts.currency.badCode'));
-      return;
-    }
-    if (name === '') {
-      this.currencyError.set(this.i18n.t('accounts.currency.needName'));
-      return;
-    }
-
-    try {
-      await this.database.driver.run(
-        `INSERT INTO currencies (code, name, symbol, minor_units) VALUES (?, ?, ?, 2)
-         ON CONFLICT(code) DO UPDATE SET name = excluded.name, symbol = excluded.symbol`,
-        [code, name, this.newSymbol().trim() || code],
-      );
-
-      await this.loadCurrencies();
-      this.addingCurrency.set(false);
-      this.newCode.set('');
-      this.newName.set('');
-      this.newSymbol.set('');
-      this.currencyError.set('');
-    } catch (error) {
-      this.currencyError.set(error instanceof Error ? error.message : String(error));
-    }
+  /** A currency was just added in the dialog: show it in the list. */
+  async onCurrencyAdded(): Promise<void> {
+    this.addingCurrency.set(false);
+    await this.loadCurrencies();
   }
 
   /**

@@ -38,6 +38,7 @@ import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
 import { IconPickerComponent, type IconChoice } from '../../core/icons/icon-picker.component';
 import { ACCOUNT_ICONS } from '../../core/icons/icon-catalog';
 import { AmountBuffer } from '../entry/amount-buffer';
@@ -50,6 +51,7 @@ const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
 @Component({
   selector: 'app-account-editor',
   imports: [
+    CurrencyDialogComponent,
     FormsModule, TranslatePipe, IconPickerComponent,
     BusyOverlayComponent,
     IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
@@ -189,9 +191,6 @@ export class AccountEditorComponent implements OnInit {
 
   /** Open while a currency the app does not know yet is being added. */
   readonly addingCurrency = signal(false);
-  readonly newCode = signal('');
-  readonly newName = signal('');
-  readonly newSymbol = signal('');
   readonly saving = signal(false);
 
   /** Set while the account and its history are being removed. */
@@ -281,46 +280,14 @@ export class AccountEditorComponent implements OnInit {
   }
 
   /**
-   * Adds a currency the app did not know about.
-   *
-   * Three currencies were seeded because they are the ones Jose holds; a
-   * fourth should not need a code change. Minor units are fixed at two: every
-   * currency this app is likely to meet has cents, and the amount helpers
-   * assume it — a currency without them would need work far beyond this form,
-   * and pretending otherwise here would store amounts a hundred times off.
+   * A currency was just added in the dialog: offer it, and pick it, since
+   * adding one from this form means this account is in it.
    */
-  async saveCurrency(): Promise<void> {
-    const code = this.newCode().trim().toUpperCase();
-    const name = this.newName().trim();
-
-    if (!/^[A-Z]{3}$/.test(code)) {
-      this.error.set(this.i18n.t('accounts.currency.badCode'));
-      return;
-    }
-    if (name === '') {
-      this.error.set(this.i18n.t('accounts.currency.needName'));
-      return;
-    }
-
-    try {
-      await this.database.driver.run(
-        `INSERT INTO currencies (code, name, symbol, minor_units) VALUES (?, ?, ?, 2)
-         ON CONFLICT(code) DO UPDATE SET name = excluded.name, symbol = excluded.symbol`,
-        [code, name, this.newSymbol().trim() || code],
-      );
-
-      this.currencies.set(await this.database.driver.query<{ code: string; name: string }>(
-        'SELECT code, name FROM currencies ORDER BY code'));
-
-      this.currency.set(code);
-      this.addingCurrency.set(false);
-      this.newCode.set('');
-      this.newName.set('');
-      this.newSymbol.set('');
-      this.error.set('');
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : String(error));
-    }
+  async onCurrencyAdded(code: string): Promise<void> {
+    this.currencies.set(await this.database.driver.query<{ code: string; name: string }>(
+      'SELECT code, name FROM currencies ORDER BY code'));
+    this.currency.set(code);
+    this.addingCurrency.set(false);
   }
 
   onIcon(choice: IconChoice): void {

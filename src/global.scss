@@ -491,6 +491,18 @@ ion-modal.confirm-sheet {
       text-align: left;
     }
 
+    /* A dialog that asks for something typed - adding a currency - rather
+       than yes or no. Fields stacked, each a box with its label above it. */
+    .fields {
+      display: grid;
+      gap: 0.6rem;
+      width: 100%;
+      margin-top: 0.3rem;
+      text-align: left;
+
+      ion-input { --border-radius: 12px; }
+    }
+
     .buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;

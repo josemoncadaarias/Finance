@@ -132,32 +132,11 @@
           </ion-item>
         }
 
-        @if (addingCurrency()) {
-          <ion-item lines="full">
-            <ion-input [label]="'accounts.currency.code' | t" [value]="newCode()" maxlength="3"
-                       [placeholder]="'accounts.currency.codeHint' | t"
-                       (ionInput)="newCode.set($any($event.target).value ?? '')"></ion-input>
-          </ion-item>
-          <ion-item lines="full">
-            <ion-input [label]="'accounts.currency.name' | t" [value]="newName()"
-                       (ionInput)="newName.set($any($event.target).value ?? '')"></ion-input>
-          </ion-item>
-          <ion-item lines="none">
-            <ion-input [label]="'accounts.currency.symbol' | t" [value]="newSymbol()"
-                       (ionInput)="newSymbol.set($any($event.target).value ?? '')"></ion-input>
-            <ion-button slot="end" size="small" (click)="saveCurrency()">
-              {{ 'entry.save' | t }}
-            </ion-button>
-          </ion-item>
-        } @else {
-          <ion-item button lines="none" (click)="addingCurrency.set(true)">
-            <ion-icon slot="start" name="add-outline" color="primary"></ion-icon>
-            <ion-label color="primary">{{ 'accounts.currency.add' | t }}</ion-label>
-          </ion-item>
-        }
+        <ion-item button lines="none" (click)="addingCurrency.set(true)">
+          <ion-icon slot="start" name="add-outline" color="primary"></ion-icon>
+          <ion-label color="primary">{{ 'accounts.currency.add' | t }}</ion-label>
+        </ion-item>
       </ion-list>
-
-      @if (currencyError()) { <p class="currency-error">{{ currencyError() }}</p> }
       <p class="hint">{{ 'accounts.currencies.hint' | t }}</p>
     </section>
 
@@ -338,3 +317,8 @@
     </ion-content>
   </ng-template>
 </ion-modal>
+
+<!-- The same dialog the account form opens: one question, one definition. -->
+<app-currency-dialog [open]="addingCurrency()"
+                     (saved)="onCurrencyAdded()"
+                     (cancelled)="addingCurrency.set(false)"></app-currency-dialog>

@@ -91,11 +91,6 @@ ion-toggle .hint { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--ion-col
   ion-note { font-size: 0.7rem; }
 }
 
-/* The little form for a currency the app has not met before. */
-.new-currency {
-  --background: rgba(var(--ion-color-primary-rgb), 0.06);
-}
-
 /* The one act on this screen that cannot be undone, kept well away from Save
    and behind a question. It says what it will take with it before it is
    pressed, because "some movements" and "its 4,512 movements" are different
