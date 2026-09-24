@@ -44,15 +44,16 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
     }
 
     <!-- The one moment a whole history can be lost: a device writing over a
-         copy it has never seen. -->
-    @if (cloud.wouldReplace()) {
-      <app-confirm [open]="true" icon="git-branch-outline" tone="danger"
-                   [title]="'cloud.replace.sure' | t"
-                   [body]="cloud.replaceMessage()"
-                   [confirmLabel]="'cloud.replace.do' | t"
-                   (confirmed)="sendAnyway()"
-                   (cancelled)="cloud.decline()"></app-confirm>
-    }
+         copy it has never seen. Always in the DOM and opened by the flag: an
+         ion-modal presents when isOpen goes from false to true, so one that
+         is created already true never appears at all. -->
+    <app-confirm [open]="cloud.wouldReplace() !== null" icon="git-branch-outline"
+                 tone="danger"
+                 [title]="'cloud.replace.sure' | t"
+                 [body]="cloud.replaceMessage()"
+                 [confirmLabel]="'cloud.replace.do' | t"
+                 (confirmed)="sendAnyway()"
+                 (cancelled)="cloud.decline()"></app-confirm>
   `,
   styles: [`
     .cloud-button {

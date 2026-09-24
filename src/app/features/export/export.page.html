@@ -144,15 +144,17 @@
      and it was asked for by a red button at the bottom of a page somebody had
      scrolled past the warning of. It asks in the middle of the screen now,
      with the file it is about to use named in the question. -->
-@if (asking()) {
-  <app-confirm [open]="true" icon="warning-outline" tone="danger"
-               [title]="'restore.sure' | t"
-               [body]="restoreQuestion()"
-               [confirmLabel]="'restore.confirm' | t"
-               [busy]="working() === 'restore'"
-               (confirmed)="restore()"
-               (cancelled)="asking.set(false)"></app-confirm>
-}
+
+<!-- Always here, opened by the flag. Wrapping it in an @if never showed at
+     all: an ion-modal presents when isOpen goes from false to true, and one
+     created with it already true has nothing to transition from. -->
+<app-confirm [open]="asking()" icon="warning-outline" tone="danger"
+             [title]="'restore.sure' | t"
+             [body]="restoreQuestion()"
+             [confirmLabel]="'restore.confirm' | t"
+             [busy]="working() === 'restore'"
+             (confirmed)="restore()"
+             (cancelled)="asking.set(false)"></app-confirm>
 
 <!-- While the database is being read or written the page is out of reach, and
      says so rather than looking frozen. -->
