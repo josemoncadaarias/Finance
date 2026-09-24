@@ -1,0 +1,129 @@
+/* Raw by design: this screen is for reading what banks post, not for looking
+   good doing it. What little styling there is exists to keep a notification's
+   own words apart from everything the app says about it. */
+
+.notifications {
+  --padding-bottom: calc(1.5rem + var(--ion-safe-area-bottom, 0px));
+}
+
+.state {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+
+  ion-icon { font-size: 2.6rem; color: var(--ion-color-medium); }
+  .lead { margin: 0.8rem 0 0.3rem; font-size: 1rem; }
+}
+
+.lead {
+  margin: 1rem 1.1rem 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+h2 {
+  margin: 1.4rem 1.1rem 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0.2rem 1.1rem 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ion-color-medium);
+
+  &.waiting { margin-top: 0.6rem; font-style: italic; }
+}
+
+/* What Android is about to ask for, and what is done with it. */
+.permission {
+  margin: 1rem 1.1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 14px;
+
+  h2 { margin: 0 0 0.6rem; }
+  .hint { margin: 0.5rem 0 0; }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+
+    ion-icon { flex: none; margin-top: 0.15rem; color: var(--ion-color-primary); }
+  }
+}
+
+.go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ion-color-primary);
+  color: var(--ion-color-primary-contrast);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.again {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--ion-color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quiet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.8rem 1.1rem 0;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 999px;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 0.82rem;
+  cursor: pointer;
+
+  &.danger { color: var(--ion-color-danger); border-color: var(--ion-color-danger); }
+}
+
+/* A notification's own words, kept visibly apart from the app's. */
+.raw {
+  .from { font-size: 0.74rem; color: var(--ion-color-medium); }
+  h3 { font-size: 0.92rem; font-weight: 600; }
+  .said {
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--ion-text-color);
+  }
+}

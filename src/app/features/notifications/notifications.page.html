@@ -1,0 +1,115 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'notifications.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <app-language-button></app-language-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="notifications">
+  @if (loading()) {
+    <div class="state"><ion-spinner></ion-spinner></div>
+  } @else if (!supported()) {
+    <!-- A browser and an iPhone have no such thing. Said plainly, because it
+         is not a failure and there is nothing to try again. -->
+    <div class="empty">
+      <ion-icon name="phone-portrait-outline"></ion-icon>
+      <p class="lead">{{ 'notifications.androidOnly' | t }}</p>
+      <p class="hint">{{ 'notifications.androidOnly.hint' | t }}</p>
+    </div>
+  } @else {
+    <p class="lead">{{ 'notifications.lead' | t }}</p>
+
+    @if (!enabled()) {
+      <!-- What Android is about to ask, said before it asks. Its own screen
+           says this app wants to read EVERY notification on the phone, which
+           is true, so the narrower thing it actually does is said first. -->
+      <section class="permission">
+        <h2>{{ 'notifications.off' | t }}</h2>
+        <ul>
+          <li><ion-icon name="eye-outline"></ion-icon> {{ 'notifications.promise.apps' | t }}</li>
+          <li><ion-icon name="lock-closed-outline"></ion-icon> {{ 'notifications.promise.watched' | t }}</li>
+          <li><ion-icon name="phone-portrait-outline"></ion-icon> {{ 'notifications.promise.local' | t }}</li>
+        </ul>
+        <button type="button" class="go" (click)="openSettings()">
+          <ion-icon name="settings-outline"></ion-icon>
+          {{ 'notifications.open' | t }}
+        </button>
+        <p class="hint">{{ 'notifications.open.hint' | t }}</p>
+        <button type="button" class="again" (click)="look()">
+          {{ 'notifications.again' | t }}
+        </button>
+      </section>
+    } @else {
+      <!-- Which apps post at all. This is how a bank gets attached to an
+           account later: by pointing at one that has actually been seen,
+           never from a built-in list of banks (rule 22). -->
+      <section>
+        <h2>{{ 'notifications.apps' | t }}</h2>
+        <p class="hint">{{ 'notifications.apps.hint' | t }}</p>
+
+        @if (sortedApps().length === 0) {
+          <p class="hint waiting">{{ 'notifications.apps.none' | t }}</p>
+        } @else {
+          <ion-list [inset]="true">
+            @for (app of sortedApps(); track app.package) {
+              <ion-item lines="full">
+                <ion-label>
+                  <h3>{{ app.label }}</h3>
+                  <p>{{ app.package }}</p>
+                  <p>{{ 'notifications.apps.count' | t:{ count: app.count } }} · {{ when(app.last) }}</p>
+                </ion-label>
+                <ion-toggle slot="end" [checked]="app.watched"
+                            (ionChange)="watch(app, $any($event.detail).checked)"></ion-toggle>
+              </ion-item>
+            }
+          </ion-list>
+        }
+      </section>
+
+      <!-- And what they said, word for word. Nothing is read into it here:
+           no amount, no category, no account. That is the next step, and it
+           is designed from what turns up on this list. -->
+      <section>
+        <h2>{{ 'notifications.caught' | t }}</h2>
+        <p class="hint">{{ 'notifications.caught.hint' | t }}</p>
+
+        @if (newest().length === 0) {
+          <p class="hint waiting">{{ 'notifications.caught.none' | t }}</p>
+        } @else {
+          <ion-list [inset]="true">
+            @for (one of newest(); track one.postedAt + one.package + one.text) {
+              <ion-item lines="full" class="raw">
+                <ion-label>
+                  <p class="from">{{ one.app }} · {{ when(one.postedAt) }}</p>
+                  @if (one.title) { <h3>{{ one.title }}</h3> }
+                  @if (one.text) { <p class="said">{{ one.text }}</p> }
+                </ion-label>
+              </ion-item>
+            }
+          </ion-list>
+
+          <button type="button" class="quiet" (click)="asking.set('forgetCaught')">
+            <ion-icon name="trash-outline"></ion-icon>
+            {{ 'notifications.forgetCaught' | t }}
+          </button>
+        }
+
+        <button type="button" class="quiet danger" (click)="asking.set('forgetEverything')">
+          <ion-icon name="close-circle-outline"></ion-icon>
+          {{ 'notifications.forgetAll' | t }}
+        </button>
+      </section>
+    }
+  }
+</ion-content>
+
+<app-confirm [open]="asking() !== null" icon="trash-outline" tone="danger"
+             [title]="askTitle()" [body]="askBody()"
+             [confirmLabel]="'notifications.forget.do' | t"
+             (confirmed)="answered()"
+             (cancelled)="asking.set(null)"></app-confirm>

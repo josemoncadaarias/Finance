@@ -24,6 +24,20 @@ import ee.forgr.capacitor.social.login.SocialLoginPlugin;
  */
 public class MainActivity extends BridgeActivity implements ModifiedMainActivityForSocialLoginPlugin {
 
+    /**
+     * The one plugin that lives in this project rather than in node_modules.
+     *
+     * Reading a bank's own notification has no official Capacitor plugin and
+     * no community one worth depending on, and it is about twenty lines of
+     * Android - so it is written here. A plugin of our own has to be named
+     * before the bridge is built; the ones from packages register themselves.
+     */
+    @Override
+    public void onCreate(android.os.Bundle savedInstanceState) {
+        registerPlugin(BankNotificationsPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
