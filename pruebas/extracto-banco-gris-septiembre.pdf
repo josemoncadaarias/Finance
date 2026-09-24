@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 1211 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 40 760 Tm (BANCO GRIS) Tj
+1 0 0 1 330 760 Tm (Extracto - septiembre 2026) Tj
+1 0 0 1 40 738 Tm (Cuenta corriente No. 880-99001) Tj
+1 0 0 1 330 738 Tm (Periodo: 01/09/2026 al 30/09/2026) Tj
+1 0 0 1 40 716 Tm (Fecha) Tj
+1 0 0 1 90 716 Tm (Descripcion) Tj
+1 0 0 1 330 716 Tm (Valor) Tj
+1 0 0 1 440 716 Tm (Saldo) Tj
+1 0 0 1 40 694 Tm (Saldo anterior) Tj
+1 0 0 1 440 694 Tm (3.000.000,00) Tj
+1 0 0 1 40 672 Tm (03/09) Tj
+1 0 0 1 90 672 Tm (COMPRA ALKOSTO CALLE 30) Tj
+1 0 0 1 330 672 Tm (1.249.000,00) Tj
+1 0 0 1 440 672 Tm (1.751.000,00) Tj
+1 0 0 1 40 650 Tm (07/09) Tj
+1 0 0 1 90 650 Tm (ABONO INTERESES) Tj
+1 0 0 1 330 650 Tm (12.400,00) Tj
+1 0 0 1 440 650 Tm (1.763.400,00) Tj
+1 0 0 1 40 628 Tm (12/09) Tj
+1 0 0 1 90 628 Tm (COMPRA CINE COLOMBIA) Tj
+1 0 0 1 330 628 Tm (64.000,00) Tj
+1 0 0 1 440 628 Tm (1.699.400,00) Tj
+1 0 0 1 40 606 Tm (19/09) Tj
+1 0 0 1 90 606 Tm (PAGO SEGURO VEHICULO) Tj
+1 0 0 1 330 606 Tm (380.000,00) Tj
+1 0 0 1 440 606 Tm (1.319.400,00) Tj
+1 0 0 1 40 584 Tm (26/09) Tj
+1 0 0 1 90 584 Tm (COMPRA EXITO POB MEDELLIN) Tj
+1 0 0 1 330 584 Tm (112.500,00) Tj
+1 0 0 1 440 584 Tm (1.206.900,00) Tj
+1 0 0 1 40 562 Tm (Saldo final) Tj
+1 0 0 1 440 562 Tm (1.206.900,00) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000338 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1601
+%%EOF

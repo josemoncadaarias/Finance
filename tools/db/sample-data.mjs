@@ -26,6 +26,7 @@ import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statem
 import { exportBackup, toJson } from '../../src/app/core/database/export/export-backup.ts';
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { CategoriesRepository } from '../../src/app/core/database/repositories/categories.repository.ts';
+import { seedStarterCategories } from '../../src/app/core/database/starter-categories.ts';
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 
@@ -83,8 +84,17 @@ async function build() {
   const transactions = new TransactionsRepository(db, NOW);
   const transfers = new TransfersRepository(db, NOW);
 
+  // What a new install comes with, so the test backup looks like a phone
+  // somebody just set up rather than a database built for this script.
+  await seedStarterCategories(db, 'es', NOW);
+
   const category = new Map();
+  for (const row of await db.query('SELECT id, name, kind FROM categories')) {
+    category.set(row.name, row.id);
+  }
+  // The few this sample needs that the starter set does not carry.
   for (const [name, kind, icon] of CATEGORIES) {
+    if (category.has(name)) continue;
     category.set(name, await categories.create({ name, kind, builtin_icon: icon }));
   }
 

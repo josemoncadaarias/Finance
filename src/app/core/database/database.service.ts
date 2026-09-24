@@ -6,11 +6,13 @@
  * that is already migrated, or an error saying why it is not.
  */
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 
 import { CapacitorSqlDriver } from './capacitor-sql-driver';
 import { prepareWebSqlite } from './web-sqlite';
 import { applyCategoryIcons } from './category-icons';
+import { seedStarterCategories } from './starter-categories';
+import { I18nService } from '../i18n/i18n.service';
 import type { SqlDriver } from './sql-driver';
 import { migrate, targetVersion, type MigrationResult } from './migrations/migration-runner';
 import { MIGRATION_SOURCES } from './migrations/statements.generated';
@@ -19,6 +21,7 @@ export type DatabaseStatus = 'closed' | 'opening' | 'ready' | 'failed';
 
 @Injectable({ providedIn: 'root' })
 export class DatabaseService {
+  private readonly i18n = inject(I18nService);
   private sqlDriver: SqlDriver | null = null;
   private opening: Promise<SqlDriver> | null = null;
 
@@ -110,6 +113,11 @@ export class DatabaseService {
     this.lastMigration.set(result);
 
     await applyCategoryIcons(driver);
+
+    // A database nobody has used yet has no expense category at all, so the
+    // first thing anybody spends could not be recorded. Looks once per start
+    // and does nothing to a database that has been used.
+    await seedStarterCategories(driver, this.i18n.language());
 
     return driver;
   }

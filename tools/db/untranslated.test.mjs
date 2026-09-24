@@ -31,6 +31,10 @@ const APP = join(HERE, '..', '..', 'src', 'app');
 const ALLOWED = [
   'core/i18n/translations.ts',
   'core/database/category-icons.ts',
+  // The categories a new install starts with, each written in both languages
+  // in the same row: they become the user's own data the moment they land, so
+  // they are seeded once in the app's language and never translated again.
+  'core/database/starter-categories.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
   // Formulario 210's Spanish: the tax module's own translations file.
