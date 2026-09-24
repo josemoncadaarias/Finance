@@ -117,7 +117,7 @@
              arrived on top of it and read as being asked twice. Both the
              shouting and the word "sí" belong in the dialog. -->
         <ion-button expand="block" fill="clear" [disabled]="working() !== null"
-                    (click)="picked.set(null)">
+                    (click)="unpick()">
           {{ 'restore.cancel' | t }}
         </ion-button>
         <ion-button expand="block" fill="outline" color="danger"
@@ -140,12 +140,11 @@
   }
 </ion-content>
 
-<!-- Replacing a whole history is the one thing here that cannot be undone,
-     and it was asked for by a red button at the bottom of a page somebody had
-     scrolled past the warning of. It asks in the middle of the screen now,
-     with the file it is about to use named in the question. -->
+<!-- Replacing a whole history is the one thing here that cannot be undone.
+     It is asked the moment the file is chosen, named in the question, with
+     the warning inside it.
 
-<!-- Always here, opened by the flag. Wrapping it in an @if never showed at
+     Always here, opened by the flag. Wrapping it in an @if never showed at
      all: an ion-modal presents when isOpen goes from false to true, and one
      created with it already true has nothing to transition from. -->
 <app-confirm [open]="asking()" icon="warning-outline" tone="danger"
@@ -154,7 +153,7 @@
              [confirmLabel]="'restore.confirm' | t"
              [busy]="working() === 'restore'"
              (confirmed)="restore()"
-             (cancelled)="asking.set(false)"></app-confirm>
+             (cancelled)="unpick()"></app-confirm>
 
 <!-- While the database is being read or written the page is out of reach, and
      says so rather than looking frozen. -->

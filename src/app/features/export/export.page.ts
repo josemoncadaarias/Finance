@@ -243,6 +243,19 @@ export class ExportPage {
   readonly asking = signal(false);
 
   /**
+   * Said no, so there is no chosen file any more.
+   *
+   * The description and the buttons under it exist to answer one question,
+   * and once it has been answered they are a page of leftovers asking to be
+   * scrolled past. Back to the one button that starts it again.
+   */
+  unpick(): void {
+    this.asking.set(false);
+    this.picked.set(null);
+    this.pickedSummary.set('');
+  }
+
+  /**
    * The question, with the file it is about named inside it.
    *
    * A warning that does not say which file is a warning about nothing: the

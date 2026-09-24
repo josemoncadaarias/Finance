@@ -193,6 +193,13 @@ export class ReviewPage {
       knownAlready: last.knownAlready > 0
         ? this.i18n.t('statement.knownAlready', { count: last.knownAlready })
         : null,
+      // The number beside the title counts everything waiting on this screen,
+      // which after a second reading is more than this one brought. Jose read
+      // the two as one figure and they disagreed: they are two figures, and
+      // the screen says so rather than leaving it to be worked out.
+      alsoWaiting: this.total() > last.proposed
+        ? this.i18n.t('statement.alsoWaiting', { count: this.total() })
+        : null,
       balances,
       off: reading.balances === 'off',
     };

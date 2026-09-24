@@ -40,6 +40,7 @@
           </button>
         </p>
         @if (just.knownAlready) { <p class="also">{{ just.knownAlready }}</p> }
+        @if (just.alsoWaiting) { <p class="also">{{ just.alsoWaiting }}</p> }
         @if (explaining()) {
           <p class="balances">{{ just.balances }}</p>
         }
