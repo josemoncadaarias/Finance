@@ -667,13 +667,40 @@ backup restore against iOS's own SQLite backend.
    - Google keeps 15% of a subscription (10% service + 5% billing where the
      2026 split applies).
 
-   **Recommended price, not yet decided by Jose**: **11,900 COP a month and
+   **Price, accepted by Jose for now (2026-09-24)**: **11,900 COP a month and
    69,900 COP a year** (5,825 a month, about half off), below Mobills and
    Spendee at ~20,000 because this app is new and nobody knows it yet, and
    well above the one-payment apps because it does what none of them do.
    After Google's 15% that is about 10,100 and 59,400. A lifetime purchase at
    about three years' price is worth trying later for the people who refuse
    subscriptions, not at launch.
+
+   **None of this is fixed.** Jose, accepting it: there is a lot of
+   competition and no price guarantees anything, so the app will adapt
+   little by little - more to offer, features moved between paid and free,
+   the price itself. That is exactly why the design keeps it cheap to
+   change: one service answers "is this paid for", and the report's paid
+   sections are one flag each. Moving a feature to free must be a one-line
+   change and never a migration.
+
+   **The owner never pays for his own app, and three different tools do
+   three different jobs** (planned 2026-09-24, nothing built):
+   - **APKs built for testing** (GitHub Actions, sideloaded) carry a build
+     flag that makes the one service answer "everything unlocked", with a
+     switch inside those builds to see the free version and test the paywall.
+     The store build never has that flag. A debug APK must never be handed to
+     anybody else for that reason.
+   - **The app Jose uses every day, once it comes from the store**, gets
+     permanent access granted to his own account - a promotional entitlement
+     in RevenueCat's dashboard if RevenueCat is what sits behind billing,
+     which needs no code and can be taken back, or else his account on an
+     owner list inside the one service. Assumed, to confirm on the day: that
+     RevenueCat grants such access to one user.
+   - **Testing the purchase itself** uses Play Console's license testers: a
+     test card, never a real charge, and subscriptions that renew in minutes
+     instead of months so a whole cycle can be watched in an afternoon. Only
+     for testing - such a subscription expires by itself after a few
+     renewals, so it is not how the owner keeps access.
 
    **Three rules this must obey, all of them consequences of rules already
    here:**
@@ -700,9 +727,8 @@ backup restore against iOS's own SQLite backend.
    nothing else. **Do not scatter the question through the app; that is the
    only mistake here that is expensive to undo.**
 
-   Still to decide, by Jose, and not by guessing: the price (above is only a
-   recommendation), which report sections are paid, and whether a lifetime
-   option is ever offered.
+   Still to decide, by Jose, and not by guessing: which report sections are
+   paid, and whether a lifetime option is ever offered.
 
 22. **Movements can be PROPOSED by the app, and only a person makes them
    real.** Designed with Jose on 2026-09-22 and 23, for the people who will
