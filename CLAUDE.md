@@ -727,8 +727,39 @@ backup restore against iOS's own SQLite backend.
    nothing else. **Do not scatter the question through the app; that is the
    only mistake here that is expensive to undo.**
 
+   **What sits between the app and Google Play** (looked up 2026-09-24,
+   recommended, not yet decided by Jose). Google recommends checking
+   purchases on a server and telling the app about renewals, cancellations
+   and refunds; this app has no server and is not meant to. Three ways:
+   - **Nothing in between**: the Play Billing library asks Google on the
+     phone which subscriptions the account holds. Free, and truly no server,
+     but every edge - acknowledging a purchase in time, renewals, grace
+     periods, refunds, a new phone - is ours to get right, with no dashboard
+     to see any of it, and no way to grant the owner access.
+   - **A subscription service** that is the server for us. RevenueCat: free
+     up to US$2,500 of revenue a month, about 1% after that, and an official
+     Capacitor SDK (`@revenuecat/purchases-capacitor`). Adapty: free under
+     US$5,000 a month, 1% after. Qonversion: free under US$7,000-10,000
+     (sources disagree), 0.6-0.8% after. At the accepted price, US$2,500 is
+     about 8.2 million COP a month - some 690 monthly or 1,400 yearly
+     subscribers - before anything is owed. What they see is an anonymous id
+     and the purchases, never a movement or an account; the privacy policy
+     has to say so.
+   - **A server of our own** (a cloud function checking Google's API): the
+     most work, and the one thing this app has always refused. Not now.
+
+   **Recommended: RevenueCat.** It costs nothing until the app earns real
+   money, it is the one with the official Capacitor SDK and the most
+   written about it, it grants the owner permanent access from its
+   dashboard, and it would cover the App Store on the day there is one (see
+   "iOS"). Switching later to Adapty or Qonversion touches only the one
+   service. Setting it up needs the Play developer account, a payments
+   profile, and a Google Cloud service account that lets RevenueCat read
+   Play's purchases - steps for Jose's accounts, not code.
+
    Still to decide, by Jose, and not by guessing: which report sections are
-   paid, and whether a lifetime option is ever offered.
+   paid, whether a lifetime option is ever offered, and what sits between
+   the app and Google Play.
 
 22. **Movements can be PROPOSED by the app, and only a person makes them
    real.** Designed with Jose on 2026-09-22 and 23, for the people who will
