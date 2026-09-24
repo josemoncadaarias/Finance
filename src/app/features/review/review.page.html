@@ -7,6 +7,10 @@
       {{ 'review.title' | t }}
       @if (total() > 0) { <small>{{ total() }}</small> }
     </ion-title>
+    <ion-buttons slot="end">
+      <app-cloud-button></app-cloud-button>
+      <app-language-button></app-language-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 

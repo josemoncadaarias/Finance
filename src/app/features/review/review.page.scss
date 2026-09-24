@@ -156,31 +156,46 @@ ion-title small {
 
 /* What to look at, and in what order. Two groups of small pills rather than
    a row of six: they answer two different questions. */
+/* Two questions, each answered by one of a set - which is a segmented
+   control and not a row of loose pills. Drawn as one: a track holding
+   segments of equal width, the chosen one lifted out of it. Left as pills
+   they read as three unrelated buttons of three different widths, one of
+   them filled in for no reason a first-time reader can see. */
 .looking {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.9rem;
+  display: grid;
+  gap: 0.45rem;
   margin: 0.9rem 0 0;
   padding: 0 1.1rem;
 
   .group {
-    display: flex;
-    gap: 0.3rem;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: var(--ion-color-step-100, var(--ion-color-light));
   }
 
   button {
-    padding: 0.3rem 0.7rem;
-    border: 1px solid var(--ion-color-step-150);
+    min-width: 0;
+    padding: 0.42rem 0.5rem;
+    border: 0;
     border-radius: 999px;
     background: none;
-    color: var(--ion-color-medium);
-    font-size: 0.75rem;
-    font-weight: 600;
+    color: var(--ion-color-medium-shade);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.15s ease, color 0.15s ease;
 
     &.on {
-      border-color: var(--ion-color-primary);
-      background: var(--ion-color-primary);
-      color: var(--ion-color-primary-contrast);
+      background: var(--ion-background-color, #fff);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+      color: var(--ion-color-primary);
+      font-weight: 600;
     }
   }
 }

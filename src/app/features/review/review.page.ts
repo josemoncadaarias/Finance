@@ -37,6 +37,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
 import { IconComponent } from '../../core/icons/icon.component';
+import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -79,7 +81,7 @@ interface Batch {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
-    IconComponent,
+    IconComponent, LanguageButtonComponent, CloudButtonComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
     IonSpinner, IonMenuButton, IonPopover,
