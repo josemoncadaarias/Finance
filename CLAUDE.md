@@ -896,52 +896,6 @@ backup restore against iOS's own SQLite backend.
    no category of its own, so what it restores looks like a phone somebody
    just set up.
 
-21. **The app is meant for other people too, and some of it is paid.** Said
-   by Jose on 2026-09-22, asked for as a plan rather than as work: "esto le
-   puede servir a otro usuario que haga lo mismo que yo, ingresar las cuentas
-   y los movimientos manualmente". **None of this is built. Nothing below
-   starts without his word.**
-
-   Free, and enough to use the app every day: accounts in pesos, movements,
-   the summary screen, the donut, transfers, products and their yields, backup
-   and restore, and the categories that come with the app.
-
-   Paid, as he listed them:
-   - **Several currencies.** An account in anything other than the currency
-     the app starts in.
-   - **The financial summary** (`/report`) and its spreadsheet.
-   - **The income-tax simulator** (`/tax`) and its spreadsheet.
-   - **Managing categories.** Free keeps the ones that come with the app;
-     adding, renaming or re-picturing one is paid.
-
-   **Three rules this must obey, all of them consequences of rules already
-   here:**
-
-   1. **A lock never hides money.** It stops something NEW, never something
-      already on record. Someone whose subscription lapses with dollar
-      accounts on file still SEES those accounts, their balances and their
-      movements; what they cannot do is add another one. An app that hides a
-      person's own figures behind a payment is not a finance app.
-   2. **A lock is never felt offline** (rule 1). What the person is entitled
-      to is cached with the day it was read, and with no network the last
-      answer holds. Nobody is shut out of their own accounts on a bus.
-   3. **One place answers the question.** A single service says whether a
-      feature is paid for, and every screen asks IT - never a check copied
-      into four components, and never a check inside the engines. The tax
-      engine, the report analyses and the accrual do not know that money
-      exists.
-
-   **What to build first, and it is small**: that one service, a paywall
-   screen, and the route guard that sends a locked screen to it. It can
-   answer from a local setting while there is no store behind it, which is
-   what makes the whole thing testable long before a single peso is charged.
-   Plugging Google Play Billing in afterwards touches that one service and
-   nothing else. **Do not scatter the question through the app; that is the
-   only mistake here that is expensive to undo.**
-
-   Still to decide, by Jose, and not by guessing: subscription or one
-   payment, the price, and whether there is a trial.
-
 ### Real limits that must not be promised away
 
 - **The rate a given bank applied on a given day is not available online.**
