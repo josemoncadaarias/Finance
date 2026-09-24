@@ -302,22 +302,47 @@ backup restore against iOS's own SQLite backend.
    rates decide: that is Plata. Found by Jose, 2026-09-17, and restated on
    2026-09-22 when the opening figure itself became one of those records.
 
-   **A product's typed balance already holds what was paid on its own day**
-   (2026-09-24). The same rule, one level down: a figure read off the bank on
-   day D holds the yield handed over on D, so only what lands AFTER D goes on
-   top of it - plus an entry written on D at or after the moment the figure
-   was typed. The yields screen always worked this way; the engine added
-   everything it had worked out since the walk began, so on Dale, whose
-   alcancías earn from the 9th and were read on the 10th, the 10th counted
-   twice and every day after came out 0.76 above what Dale paid. Fixed in the
-   engine (`anchorOf` and `afterFigure` in `accrual.ts`), and proved on the
-   only independent truth there is: the three days Jose had corrected by hand
-   from his statements (2,771.28, 2,772.04, 2,771.56) now come out to the
-   centavo, and were 0.76 off before. Nothing else in his data moved - only
-   Dale's products start earning on the day their figure was read. **So the
-   screen's balance and the engine's base are one figure: the base of day
-   D+1 is exactly what the screen shows at the close of D.** A test fails if
-   they part again.
+   **A product's balance dated D is its balance at the CLOSE of D** - it
+   holds everything paid on D, so only what lands after D goes on top of it,
+   plus an entry written on D at or after the moment the figure was typed.
+   The yields screen always read a figure that way; the engine did not, and
+   put everything it had worked out since the walk began on top of the
+   newest figure. That is harmless for a figure dated before the walk
+   starts, and a double count for any figure dated inside it - which is
+   exactly what typing today's balance mid-way does. Fixed on 2026-09-24
+   (`anchorOf`, `afterFigure` in `accrual.ts`); a test holds the two to one
+   answer: the base of day D+1 is what the screen shows at the close of D.
+
+   **What actually went wrong on Dale, and the proof, corrected the same
+   day.** Migration 008 wrote Dale's two balances dated 2026-09-10 ("Read on
+   2026-09-10"), but they are the close of the 9th: Dale paid the 10th on
+   exactly those figures, 2,762.25 and 2,762.53. Jose had typed them himself
+   dated the 9th. Under the rule above the migration's copy said the 10th was
+   already inside, so every day after came out 0.76 low. I first claimed the
+   fix was proved by the three days Jose had corrected by hand - but those
+   matched only because of the corrections he had typed to chase the bank.
+   The real proof came with his screenshots of Dale's own app: with the
+   mis-dated copy removed, the engine by itself gives all nine days from the
+   10th to the 18th to the centavo, on both alcancías. **A balance is dated
+   by the day it closes, not the day it was read** - for a bank that pays in
+   the small hours, a figure read on the morning of D is the close of D-1
+   only if D's payment has not landed yet.
+
+   Squared with Dale on 2026-09-24 from those screenshots
+   (`finance-2026-09-24-dale-completo.json`): the copy and Jose's four
+   chasing corrections removed, every day from the 10th to the 24th locked at
+   what Dale paid, today's balance typed as Dale shows it, and each
+   alcancía's record of what was paid before the app adjusted so its total
+   is Dale's "Tus rendimientos" - they were one account figure split in two
+   halves, and Dale says they are not halves. Nothing outside Dale changed.
+
+   **Still unexplained, and worth watching**: Dale's payments imply a base a
+   little larger than the balance it displays - about 575 pesos from the
+   10th to the 18th, about 380 from the 19th, about 185 by the 24th, each
+   step close to 194, which is 7% of one day's yield. Dale's movement list
+   shows nothing for it. From the 25th the app earns on the balance Dale
+   displays, so a payment 0.05 above the app's (2,773.50 against 2,773.45
+   on the 25th) would mean Dale earns on something it does not show.
 
 16. **Withholding figures are configuration, each carrying its source.** They
    live in `tax_parameters`, dated, and are unusable until marked confirmed
