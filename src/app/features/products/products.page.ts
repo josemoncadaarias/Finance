@@ -58,7 +58,9 @@ import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { ProductEntryComponent, type ProductEntryRequest } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { FilterService } from '../../core/filters/filter.service';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { movementTouches, productMovements, type ProductMovement } from '../../core/yields/product-movements';
@@ -399,6 +401,29 @@ export class ProductsPage {
 
   private readonly router = inject(Router);
   private readonly filter = inject(FilterService);
+  private readonly route = inject(ActivatedRoute);
+
+  /**
+   * An account asked for by whoever sent the app here - the summary screen's
+   * piggy bank - as `?account=ID`. Its sheet opens once the accounts are
+   * read, and the parameter is taken off the address so that coming back to
+   * this screen later does not open it again.
+   */
+  private readonly wantedAccount = toSignal(
+    this.route.queryParamMap.pipe(map(params => Number(params.get('account')) || null)),
+    { initialValue: null },
+  );
+
+  private readonly openWanted = effect(() => {
+    const wanted = this.wantedAccount();
+    const lines = this.lines();
+    if (wanted === null || lines.length === 0) return;
+    untracked(() => {
+      const line = lines.find(entry => entry.account.id === wanted);
+      if (line) void this.open(line);
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    });
+  });
   /** Groups closed by hand; every group starts open, as on the summary. */
   readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
   /** The two lists under the movements, closed until asked for. */

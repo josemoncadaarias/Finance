@@ -121,15 +121,25 @@
             }
           </span>
 
-          <!-- Editing the account this figure is about. Its own icon rather
-               than a pill with a word in it: the word cost a line of its own
-               for something used once in a while, and a pencil beside a
-               balance is not ambiguous. -->
+          <!-- What can be done with the account this figure is about, as two
+               round buttons beside it: editing it - a card with a pencil,
+               because it is the account that opens, not "something" - and,
+               for an account that earns, its yields, under the same piggy
+               bank the drawer uses. Icons rather than pills with words: a word
+               cost a line of its own for something used once in a while. -->
           @if (store.selectedAccount(); as account) {
-            <button type="button" class="edit-here" (click)="scope.editAccount(account)"
-                    [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
-              <ion-icon name="create-outline"></ion-icon>
-            </button>
+            <span class="account-actions">
+              <button type="button" class="round-action" (click)="scope.editAccount(account)"
+                      [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
+                <ion-icon name="account-edit"></ion-icon>
+              </button>
+              @if (earning().has(account.id)) {
+                <button type="button" class="round-action" (click)="toProducts(account.id)"
+                        [attr.aria-label]="'summary.toProducts' | t" [title]="'summary.toProducts' | t">
+                  <ion-icon name="piggy-bank"></ion-icon>
+                </button>
+              }
+            </span>
           }
         </div>
 

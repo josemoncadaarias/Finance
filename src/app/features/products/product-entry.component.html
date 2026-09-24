@@ -395,37 +395,27 @@
 
 <!-- Which account this is about.
 
-     The summary screen's own account picker, not a second one: the same
-     sheet, the same rows, the same tick, the same styles out of global.scss.
-     Jose asked for exactly that, and two pickers for one question is how
-     they start looking different. -->
+     The movement form's own account list, drawn the same way - the same
+     header, title, orders, rows and tick - because it IS the same question,
+     and Jose asked on 2026-09-24 for one list and never two: an earlier
+     version split it into "with products" and "other accounts" and he found
+     the plain one better. One list of every account; choosing one with
+     products stays on this form, choosing one without hands what was written
+     to the ordinary movement form on that account. Moving money between
+     products only offers accounts that have them. -->
 <ion-modal [isOpen]="pickingAccount()" (didDismiss)="pickingAccount.set(false)">
   <ng-template>
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="pickingAccount.set(false)" [attr.aria-label]="'summary.close' | t">
-            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-          </ion-button>
+          <ion-button (click)="pickingAccount.set(false)">{{ 'entry.cancel' | t }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="account-sheet">
-      <h2>{{ 'products.entry.whichAccount' | t }}</h2>
+    <ion-content class="sheet">
+      <h2>{{ 'entry.fromWhere' | t }}</h2>
 
-      <!-- What it is on now, in full and before the alternatives. -->
-      <div class="current">
-        <app-icon [builtin]="account()?.builtin_icon ?? null"
-                  [customId]="account()?.custom_icon_id ?? null"
-                  fallback="wallet" size="1.5rem"></app-icon>
-        <span class="what">
-          <span class="lead">{{ 'summary.viewing' | t }}</span>
-          <span class="name">{{ accountName() }}</span>
-        </span>
-      </div>
-
-      <!-- The same two orders every other picker offers, drawn the same way. -->
       <div class="order">
         <button type="button" [class.on]="accountOrder() === 'use'"
                 (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
@@ -433,54 +423,23 @@
                 (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
       </div>
 
-      <!-- Two groups once there are two: the accounts this form writes into,
-           and every other one, which the ordinary movement form takes over.
-           Said before it happens, so opening another form is not a surprise. -->
-      @if (others().length > 0) {
-        <p class="group-title">
-          <ion-icon name="trending-up-outline"></ion-icon>
-          {{ 'products.entry.withProducts' | t }}
-        </p>
-      }
       <ion-list>
-        @for (one of switchable(); track one.id) {
-          <ion-item button lines="full" [id]="'product-account-' + one.id"
-                    (click)="switchAccount(one)"
-                    [class.selected]="one.id === accountId()">
-            <app-icon slot="start" [builtin]="one.builtin_icon"
-                      [customId]="one.custom_icon_id" fallback="wallet"></app-icon>
+        @for (option of offered(); track option.id) {
+          <ion-item button lines="full" (click)="chooseAccount(option)"
+                    [class.selected]="accountId() === option.id">
+            <app-icon slot="start" [builtin]="option.builtin_icon"
+                      [customId]="option.custom_icon_id" fallback="wallet"></app-icon>
             <ion-label>
-              <h3>{{ one.name }}</h3>
-              <p>{{ one.currency_code }}</p>
+              <h3>{{ option.name }}</h3>
+              <p>{{ option.currency_code }}</p>
             </ion-label>
-            @if (one.id === accountId()) {
+            @if (accountId() === option.id) {
               <ion-icon slot="end" class="tick" name="checkmark-circle"
                         [attr.aria-label]="'entry.selected' | t"></ion-icon>
             }
           </ion-item>
         }
       </ion-list>
-
-      @if (others().length > 0) {
-        <p class="group-title">
-          <ion-icon name="wallet-outline"></ion-icon>
-          {{ 'products.entry.otherAccounts' | t }}
-        </p>
-        <p class="group-hint">{{ 'products.entry.otherAccounts.hint' | t }}</p>
-        <ion-list>
-          @for (one of others(); track one.id) {
-            <ion-item button lines="full" [id]="'other-account-' + one.id" (click)="goElsewhere(one)">
-              <app-icon slot="start" [builtin]="one.builtin_icon"
-                        [customId]="one.custom_icon_id" fallback="wallet"></app-icon>
-              <ion-label>
-                <h3>{{ one.name }}</h3>
-                <p>{{ one.currency_code }}</p>
-              </ion-label>
-              <ion-icon slot="end" class="goes" name="open-outline"></ion-icon>
-            </ion-item>
-          }
-        </ion-list>
-      }
     </ion-content>
   </ng-template>
 </ion-modal>

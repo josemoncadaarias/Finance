@@ -43,6 +43,7 @@ import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { StatementsService } from '../../core/statements/statements.service';
+import { YieldsRepository } from '../../core/database/repositories/yields.repository';
 import {
   StatementCancelled, StatementLocked, StatementUnreadable, warmUpPdfReader,
   type ReadingProgress,
@@ -72,6 +73,27 @@ export class MovementsPage {
 
   private readonly statements = inject(StatementsService);
   private readonly router = inject(Router);
+
+  /**
+   * The accounts that earn - the ones the products screen lists - so the
+   * piggy bank beside the balance only appears where it leads somewhere.
+   * Read again whenever the data moves: enrolling an account is a change.
+   */
+  readonly earning = signal<ReadonlySet<number>>(new Set());
+
+  private readonly earningWatch = effect(() => {
+    this.database.dataVersion();
+    if (this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      const enrolled = await new YieldsRepository(this.database.driver).accounts();
+      this.earning.set(new Set(enrolled.map(entry => entry.account_id)));
+    });
+  });
+
+  /** Straight into this account's yields, its sheet already open. */
+  async toProducts(accountId: number): Promise<void> {
+    await this.router.navigate(['/products'], { queryParams: { account: accountId } });
+  }
 
   /** True while a statement is being read, which takes a moment on a phone. */
   readonly reading = signal(false);

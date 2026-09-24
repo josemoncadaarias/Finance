@@ -668,19 +668,28 @@ ion-note[slot='end'] {
  * own. Bigger than the pencil it used to carry - 2.4rem is a comfortable
  * thumb - and quiet enough not to compete with the figure beside it.
  */
-.standing .edit-here {
+/* The account's own buttons, beside its balance: blue, like every other
+   thing on this screen that can be pressed, where the grey outline they had
+   read as disabled. One or two of them, kept together. */
+.standing .account-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex: none;
+}
+
+.standing .round-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
   width: 2.4rem;
   height: 2.4rem;
-  border: 1px solid var(--ion-color-light-shade);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.45);
   border-radius: 50%;
-  background: none;
-  color: var(--ion-color-medium);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
   cursor: pointer;
 
-  ion-icon { font-size: 1.2rem; }
-  &:active { background: var(--ion-color-light); }
+  ion-icon { font-size: 1.25rem; }
+  &:active { background: rgba(var(--ion-color-primary-rgb), 0.22); }
 }

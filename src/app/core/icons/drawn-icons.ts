@@ -7,8 +7,10 @@
  * rounds of "no veo el icono".
  */
 
+import { ACCOUNT_EDIT } from './account-edit';
 import { PIGGY_BANK } from './piggy-bank';
 
 export const DRAWN_ICONS: Record<string, string> = {
   'piggy-bank': PIGGY_BANK,
+  'account-edit': ACCOUNT_EDIT,
 };

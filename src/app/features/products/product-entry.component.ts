@@ -182,13 +182,21 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     });
   }
 
-  readonly switchable = computed(() => this.ordered(this.withProducts()));
-
-  /** The accounts without products, offered only for an income or an expense. */
-  readonly others = computed(() => (this.isTransfer() ? [] : this.ordered(this.withoutProducts())));
+  /**
+   * The one list the picker shows: every account for an income or an
+   * expense, only the ones with products for a move between products.
+   */
+  readonly offered = computed(() => this.ordered(
+    this.isTransfer() ? this.withProducts() : [...this.withProducts(), ...this.withoutProducts()]));
 
   /** Whether there is anywhere else to point this form at. */
-  readonly canSwitch = computed(() => this.switchable().length > 1 || this.others().length > 0);
+  readonly canSwitch = computed(() => this.offered().length > 1);
+
+  /** Stays on this form for an account with products, hands over otherwise. */
+  chooseAccount(account: AccountRow): void {
+    if (this.withProducts().some(one => one.id === account.id)) void this.switchAccount(account);
+    else this.goElsewhere(account);
+  }
 
   /** Hands what was written to the ordinary movement form, on that account. */
   goElsewhere(account: AccountRow): void {

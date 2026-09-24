@@ -1126,25 +1126,36 @@ replaced did an upsert, so typing USD with another name renamed the dollar
 every one of Jose's dollar accounts is kept in. The product sheet shares the movement form's whole
 stylesheet by `styleUrls`, deliberately.
 
-**Any account from the products screen, and one tap back to the summary**
-(Jose, 2026-09-24). The product form records against a product, so its
-account picker offered only accounts with products; an expense from any other
-account meant closing it and starting again elsewhere. The picker now lists
-both groups - "Cuentas con productos", then "Otras cuentas" with a line saying
-what choosing one does - and choosing from the second closes the product form
-and opens the ORDINARY movement form on that account, carrying the amount,
-the day and the note (\`EntryRequest.start\`). No third form: each thing is
-recorded by the form that records it. The group headings are in the sheet's
-own weight in \`global.scss\` (\`.group-title\`, \`.group-hint\`), never small
-grey capitals. An account's sheet also has "Ver sus movimientos en Inicio",
-which selects that account in \`FilterService\` and goes to the summary.
+**Any account from the products screen, one account list everywhere, and one
+tap between an account's movements and its yields** (Jose, 2026-09-24).
+
+- The product form records against a product, so its account picker offered
+  only accounts with products, and an expense from any other account meant
+  closing it and starting again elsewhere. Its picker is now **the movement
+  form's own list, drawn identically** - "Cancelar", "Desde dónde", the two
+  orders, one list, the tick - with every account in it (only accounts with
+  products for a move between products). An account with products stays on
+  the product form; one without hands the amount, the day and the note to the
+  ORDINARY movement form on that account (`EntryRequest.start`). No third
+  form. A first version split the list into "with products" and "other
+  accounts"; Jose found the plain list better and asked for one list, never
+  two - do not bring groups back.
+- An account's sheet on the products screen has "Ver sus movimientos en
+  Inicio": that account selected in `FilterService`, and the summary open.
+- The summary screen, beside the balance of one account, has two round blue
+  buttons: editing the account - a card with a pencil, drawn in
+  `core/icons/account-edit.ts` like the piggy bank, because Ionicons' pencil
+  said "edit" and not what - and, only for an account that earns, the piggy
+  bank of the drawer, which opens the products screen with that account's
+  sheet already open (`/products?account=ID`; the parameter is taken off the
+  address once used, so coming back later does not reopen it).
 
 **The drawer marks the screen on show, whoever navigated.** It read
-\`router.url\` in its template, which is only read again when the drawer is
+`router.url` in its template, which is only read again when the drawer is
 redrawn - after a tap on the drawer, never after a screen sends the app
 somewhere - so the button above landed on the summary with "Productos y
 rendimientos" still marked (reproduced in a browser before it was fixed). It
-reads a signal of \`NavigationEnd\` now (\`app.component.ts\`).
+reads a signal of `NavigationEnd` now (`app.component.ts`).
 
 A note's matches fall BELOW the note, like any list of matches. They were
 ordered above for a while because they had landed behind the keyboard; what
@@ -1374,12 +1385,12 @@ store's signing certificate has to be registered on it when the time comes.
 
 Then, together: the release key generated on the corporate laptop (the
 password is his and is kept safe, like the debug one), a workflow building a
-signed \`.aab\` beside \`debug-apk.yml\` without touching it, the app created
+signed `.aab` beside `debug-apk.yml` without touching it, the app created
 in Play Console, the first upload to **internal testing** (no review, up to
 100 testers, but the first link can take a few hours), the one uninstall of
 step 2 above with the new certificate registered for Google sign-in, and
 then notifications resumed on a store install. The package name
-\`com.josemoncada.finance\` is fixed forever from the first upload.
+`com.josemoncada.finance` is fixed forever from the first upload.
 
 **Android developer verification** (looked up 2026-09-24): from 30 September
 2026 in Brazil, Indonesia, Singapore and Thailand, and worldwide in 2027,
