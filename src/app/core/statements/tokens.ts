@@ -101,19 +101,34 @@ export function yearIn(text: string): number | null {
 }
 
 /**
+ * A minus sign is not always a hyphen.
+ *
+ * A PDF is typeset, so what looks like a minus is as likely to be U+2212, an
+ * en dash or a non-breaking hyphen as the ASCII one, and `/^-/` reads none of
+ * those. That is exactly what happened to Jose's Rappi statement on
+ * 2026-09-23: every line of it carried its own sign, and the app called all
+ * seventy of them an expense - including the cashback.
+ */
+const DASHES = /[‐‑‒–—―−﹘﹣－]/g;
+
+/**
  * Whether a piece of text is an amount, and what it is worth.
  *
  * Wants a separator, a currency sign or at least four digits, so a reference
  * number, a card's last four digits and a branch code are left alone. What
  * makes it negative is anything a statement uses to say so: a minus in front,
- * a minus behind, brackets, or DB/DÉBITO beside it.
+ * a minus behind, brackets, or DB/DÉBITO beside it; and what makes it
+ * positive is a plus in front or CR beside it. Neither is guessed at - this
+ * reports only what the statement itself wrote.
  */
 export function moneyIn(text: string, minorUnits: number): MoneyToken | null {
-  const raw = text.trim();
+  const raw = text.trim().replace(DASHES, '-');
   if (raw.length === 0) return null;
 
   const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw) || /-$/.test(raw)
     || /\b(DB|DEBITO|DÉBITO)\b/i.test(raw);
+  const positive = !negative
+    && (/^\+/.test(raw) || /\+$/.test(raw) || /\b(CR|CREDITO|CRÉDITO)\b/i.test(raw));
 
   const digits = raw
     .replace(/\((.*)\)/, '$1')
@@ -132,7 +147,7 @@ export function moneyIn(text: string, minorUnits: number): MoneyToken | null {
 
   try {
     const minor = parseTypedAmountToMinor(digits, minorUnits);
-    return { minor, negative, x: 0, text: raw };
+    return { minor, negative, positive, x: 0, text: raw };
   } catch {
     return null;
   }

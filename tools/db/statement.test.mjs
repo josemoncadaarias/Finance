@@ -69,6 +69,26 @@ test('a statement says a number is negative in four different ways', () => {
   assert.equal(moneyIn('45.000,00', COP).negative, false);
 });
 
+test('a minus in a typeset PDF is rarely the ASCII one', () => {
+  // Jose's Rappi statement, 2026-09-23: every line carried its own sign and
+  // all seventy were read as expenses, cashback included.
+  for (const dash of ['−', '–', '—', '‐', '－']) {
+    const token = moneyIn(`${dash}$26.180,00`, COP);
+    assert.equal(token.negative, true, `${dash.codePointAt(0).toString(16)} is a minus`);
+    assert.equal(token.minor, 2_618_000, 'and the number is still the number');
+  }
+});
+
+test('a statement that writes a plus means it', () => {
+  assert.equal(moneyIn('+$329,99', COP).positive, true);
+  assert.equal(moneyIn('45.000,00 CR', COP).positive, true);
+  assert.equal(moneyIn('-45.000,00', COP).positive, false);
+  // Said nothing either way: not positive, and not negative either. The sign
+  // is then somebody else's problem - the balance column's, or the words'.
+  assert.equal(moneyIn('45.000,00', COP).positive, false);
+  assert.equal(moneyIn('+$329,99', COP).minor, 32_999);
+});
+
 test('everything printed at the same height is one line', () => {
   const lines = linesOf([
     { text: 'COMPRA', x: 100, y: 500, page: 1 },
@@ -105,6 +125,27 @@ test('the balance column decides the sign, and the reading is proved end to end'
   assert.equal(read.balances, 'checked');
   assert.equal(read.opening_minor, 100_000_000);
   assert.equal(read.closing_minor, 272_500_000);
+});
+
+test('a statement with no balance column is read by its own signs', () => {
+  // Rappi cuenta, as Jose's August statement is laid out: three columns and
+  // no running balance, with every amount carrying a + or a typeset minus.
+  const rappi = page([
+    [[40, 'Movimientos agosto 2026']],
+    [[40, 'Fecha'], [170, 'Descripción'], [700, 'Valor']],
+    [[40, '03 Ago 2026'], [170, 'Redención Cashback'], [700, '+$329,99']],
+    [[40, '03 Ago 2026'], [170, 'Envío a otra llave'], [700, '−$26.180,00']],
+    [[40, '04 Ago 2026'], [170, 'Pago de RappiCard'], [700, '−$655.771,10']],
+    [[40, '06 Ago 2026'], [170, 'Depósito desde llave'], [700, '+$4.638,00']],
+  ]);
+  const read = readStatement(rappi, COP);
+
+  assert.deepEqual(read.rows.map(row => row.amount_minor), [
+    32_999, -2_618_000, -65_577_110, 463_800,
+  ]);
+  assert.ok(
+    read.rows.every(row => row.confidence === 'high'),
+    'the bank wrote the sign itself, so nothing here was guessed at');
 });
 
 test('what was read carries its own line, for anyone who wants to check it', () => {

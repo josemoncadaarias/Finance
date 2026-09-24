@@ -170,6 +170,10 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
       // and a second one is the balance nobody could prove.
       const token = others[0];
       amount = token.minor * signFromWords(line.text, token);
+      // A sign written on the line itself, in the bank's own ink, is not the
+      // last resort this function usually is, and the review screen should
+      // not warn about it.
+      if (token.negative || token.positive) confidence = 'high';
     }
     if (amount === null || amount === 0) {
       if (balance !== null) previous = signedOf(balance);
@@ -311,6 +315,7 @@ function descriptionOf(line: StatementLine, money: readonly MoneyToken[]): strin
  */
 function signFromWords(text: string, token: MoneyToken): -1 | 1 {
   if (token.negative) return -1;
+  if (token.positive) return 1;
   if (CAME_IN.test(text) && !WENT_OUT.test(text)) return 1;
   return -1;
 }
