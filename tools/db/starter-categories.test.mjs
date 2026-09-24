@@ -84,3 +84,14 @@ test('every starter category is written in both languages and has an icon', () =
     assert.match(category.icon, /-outline$|^[a-z-]+$/, 'a real icon name');
   }
 });
+
+test('a new install can record what an investment earned or lost, already marked as such', async () => {
+  const db = await fresh();
+  await seedStarterCategories(db, 'es', NOW);
+  const marked = await db.query('SELECT name, kind FROM categories WHERE counts_as_return = 1 ORDER BY kind');
+  assert.deepEqual(marked.map(row => `${row.kind}:${row.name}`),
+    ['expense:Pérdida de inversión', 'income:Ganancia de inversión']);
+  const english = await fresh();
+  await seedStarterCategories(english, 'en', NOW);
+  assert.equal((await english.query('SELECT name FROM categories WHERE counts_as_return = 1')).length, 2);
+});

@@ -29,6 +29,13 @@ export interface StarterCategory {
   es: string;
   en: string;
   icon: string;
+  /**
+   * What an investment earned or lost (migration 047): the yields summary
+   * counts it as a return on an account of type Inversión. Jose, 2026-09-24:
+   * without these a new user would have to create and mark one before a fund
+   * could show what it earned.
+   */
+  isReturn?: true;
 }
 
 export const STARTER_CATEGORIES: readonly StarterCategory[] = [
@@ -48,6 +55,7 @@ export const STARTER_CATEGORIES: readonly StarterCategory[] = [
   { kind: 'expense', es: 'Viajes', en: 'Travel', icon: 'airplane-outline' },
   { kind: 'expense', es: 'Mascotas', en: 'Pets', icon: 'paw-outline' },
   { kind: 'expense', es: 'Regalos', en: 'Gifts', icon: 'gift-outline' },
+  { kind: 'expense', es: 'Pérdida de inversión', en: 'Investment loss', icon: 'trending-down-outline', isReturn: true },
   { kind: 'expense', es: 'Otros gastos', en: 'Other', icon: 'ellipsis-horizontal-circle-outline' },
 
   // Where it comes from. Cashback, the bank's own correction and "Otro"
@@ -55,6 +63,7 @@ export const STARTER_CATEGORIES: readonly StarterCategory[] = [
   { kind: 'income', es: 'Salario', en: 'Salary', icon: 'cash-outline' },
   { kind: 'income', es: 'Depósitos', en: 'Deposits', icon: 'arrow-down-circle-outline' },
   { kind: 'income', es: 'Rendimientos', en: 'Interest', icon: 'trending-up-outline' },
+  { kind: 'income', es: 'Ganancia de inversión', en: 'Investment gain', icon: 'stats-chart-outline', isReturn: true },
   { kind: 'income', es: 'Ventas', en: 'Sales', icon: 'pricetags-outline' },
 ];
 
@@ -94,9 +103,9 @@ export async function seedStarterCategories(
     if (taken.has(`${category.kind}:${name.toLocaleLowerCase()}`)) continue;
     await driver.run(
       `INSERT INTO categories (name, kind, builtin_icon, archived, sort_order,
-                               created_at, updated_at)
-       VALUES (?, ?, ?, 0, ?, ?, ?)`,
-      [name, category.kind, category.icon, order++, at, at],
+                               counts_as_return, created_at, updated_at)
+       VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+      [name, category.kind, category.icon, order++, category.isReturn ? 1 : 0, at, at],
     );
     added++;
   }

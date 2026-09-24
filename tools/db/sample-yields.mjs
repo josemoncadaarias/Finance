@@ -17,7 +17,7 @@
 //   - Banco Azul: where the salary lands. Earns nothing.
 //   - Fiducia Ámbar: an investment fund with no products, like Jose's
 //     Fiducuenta. What it earns is written down: "subio inversion" under
-//     Ganancia, "bajo inversion" under Pérdida, twice a month, mostly up and
+//     Ganancia de inversión, "bajo inversion" under Pérdida de inversión, twice a month, mostly up and
 //     sometimes down; a contribution from Banco Azul every month; and one
 //     correction of the gain by the fund, under Ajuste de ganancias.
 //
@@ -99,10 +99,13 @@ const fondo = await accounts.create({
   name: 'Fiducia Ámbar', type: 'investment', currency_code: 'COP', builtin_icon: 'trending-up',
   opening_balance_minor: 60_000_000_00, opened_on: '2025-12-01',
 });
-const categoriesRepo = new CategoriesRepository(db, NOW);
-const ganancia = await categoriesRepo.create({ name: 'Ganancia', kind: 'income', builtin_icon: 'trending-up-outline', counts_as_return: true });
-const perdida = await categoriesRepo.create({ name: 'Pérdida', kind: 'expense', builtin_icon: 'trending-down-outline', counts_as_return: true });
-const ajuste = await categoriesRepo.create({ name: 'Ajuste de ganancias', kind: 'expense', builtin_icon: 'trending-down-outline', counts_as_return: true });
+// Gains and losses go under the two the app ships with, already marked; the
+// fund's correction under one of the person's own, marked by hand.
+const ganancia = await category('Ganancia de inversión', 'income');
+const perdida = await category('Pérdida de inversión', 'expense');
+const ajuste = await new CategoriesRepository(db, NOW).create({
+  name: 'Ajuste de ganancias', kind: 'expense', builtin_icon: 'trending-down-outline', counts_as_return: true,
+});
 
 const START = '2026-01-01';
 await yields.enrol({ account_id: verde, opening_on: START, withholding: true });

@@ -16,6 +16,7 @@ import {
 } from '../../src/app/core/report/sections-yields.ts';
 import { inflationOver } from '../../src/app/core/inflation/inflation.ts';
 import { parseIpc } from '../../src/app/core/inflation/ipc-client.ts';
+import { yieldsWorkbook } from '../../src/app/core/report/report-workbook.ts';
 import { TEST_WORDS } from '../../src/app/core/report/report-words.ts';
 import { dailyRate, EA_SCALE } from '../../src/app/core/yields/yield-math.ts';
 
@@ -316,4 +317,13 @@ test('the growth chart starts once every account is on record, never before', ()
   const notes = yieldNotes(facts);
   assert.ok(!notes || notes.lines.every(line => !/Desde el cierre/.test(line.text)));
   assert.ok(yieldEarnedSoFar(facts), 'what was earned is still on record, month by month');
+});
+
+test('each section says what it shows, on the screen and in the spreadsheet', () => {
+  const facts = data();
+  const blocks = buildYieldsReport(facts);
+  assert.ok(blocks.length > 3);
+  assert.ok(blocks.filter(block => block.kind !== 'note').every(block => block.about), 'every section but the notes');
+  const xml = new TextDecoder().decode(yieldsWorkbook(facts, blocks));
+  assert.ok(xml.includes(TEST_WORDS['report.yields.about.headline']), 'the line reaches the sheet');
 });

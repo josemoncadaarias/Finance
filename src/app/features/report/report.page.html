@@ -91,6 +91,7 @@
 
         @if (isOpen(block.id)) {
           <div class="body">
+            @if (block.about) { <p class="about">{{ block.about }}</p> }
 
             <!-- ---------------- the headline figures ---------------- -->
             @if (block.kind === 'figures') {

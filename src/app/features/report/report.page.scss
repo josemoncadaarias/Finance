@@ -82,6 +82,15 @@
  * The same shape the summary and the products screens use for the groups they
  * fold, so folding works the same way wherever it appears.
  */
+/* What a section shows, said once at its top: on a phone there is no hover
+   for a tooltip, and the same line goes into the spreadsheet. */
+.about {
+  margin: 0.55rem 0.15rem 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ion-color-medium);
+}
+
 .section-head {
   display: flex;
   align-items: center;

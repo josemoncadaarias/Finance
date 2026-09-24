@@ -147,8 +147,17 @@ function moneyStyle(minor: number, flow?: string): string {
 // The summary sheet
 // ---------------------------------------------------------------------------
 
-function writeFigures(sheet: Sheet, block: Extract<Block, { kind: 'figures' }>): void {
+/** A section's title, and under it the line saying what it shows, when it has one. */
+function sectionHead(sheet: Sheet, block: Block): void {
   sheet.text(0, 'section', block.title);
+  if (block.about) {
+    sheet.row += 1;
+    sheet.text(0, 'subtitle', block.about);
+  }
+}
+
+function writeFigures(sheet: Sheet, block: Extract<Block, { kind: 'figures' }>): void {
+  sectionHead(sheet, block);
   sheet.row += 2;
 
   for (const figure of block.figures) {
@@ -173,7 +182,7 @@ function writeFigures(sheet: Sheet, block: Extract<Block, { kind: 'figures' }>):
 }
 
 function writeRanked(sheet: Sheet, block: Extract<Block, { kind: 'ranked' }>, words: ReportData['words']): void {
-  sheet.text(0, 'section', block.title);
+  sectionHead(sheet, block);
   sheet.row += 2;
 
   sheet.text(0, 'head', block.rowsAre);
@@ -244,7 +253,7 @@ function writeRanked(sheet: Sheet, block: Extract<Block, { kind: 'ranked' }>, wo
 }
 
 function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison' }>): void {
-  sheet.text(0, 'section', block.title);
+  sectionHead(sheet, block);
   sheet.row += 1;
   if (block.caveat) {
     sheet.text(0, 'caveat', block.caveat);
@@ -300,7 +309,7 @@ function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison
 }
 
 function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, words: ReportData['words']): void {
-  sheet.text(0, 'section', block.title);
+  sectionHead(sheet, block);
   sheet.row += 2;
 
   const firstRow = sheet.row;
@@ -342,7 +351,7 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
 }
 
 function writeNote(sheet: Sheet, block: Extract<Block, { kind: 'note' }>): void {
-  sheet.text(0, 'section', block.title);
+  sectionHead(sheet, block);
   sheet.row += 2;
 
   for (const line of block.lines) {

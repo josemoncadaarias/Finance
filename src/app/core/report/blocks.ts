@@ -49,6 +49,8 @@ export interface FiguresBlock {
   kind: 'figures';
   id: string;
   title: string;
+  /** One line saying what the section shows and what it leaves out, under its title. */
+  about?: string;
   figures: {
     label: string;
     value: Value;
@@ -66,6 +68,8 @@ export interface RankedBlock {
   kind: 'ranked';
   id: string;
   title: string;
+  /** One line saying what the section shows and what it leaves out, under its title. */
+  about?: string;
   /** What the rows are, for the column header: "Categoría", "Cuenta". */
   rowsAre: string;
   /** What the count column counts, when it is not movements. */
@@ -99,6 +103,8 @@ export interface ComparisonBlock {
   kind: 'comparison';
   id: string;
   title: string;
+  /** One line saying what the section shows and what it leaves out, under its title. */
+  about?: string;
   /** What the two columns are: "Agosto" and "Septiembre". */
   beforeLabel: string;
   nowLabel: string;
@@ -127,6 +133,8 @@ export interface TrendBlock {
   kind: 'trend';
   id: string;
   title: string;
+  /** One line saying what the section shows and what it leaves out, under its title. */
+  about?: string;
   points: { label: string; value: Value }[];
   /** The line drawn across it, when there is one worth drawing. */
   averageLabel?: string;
@@ -140,6 +148,8 @@ export interface NoteBlock {
   kind: 'note';
   id: string;
   title: string;
+  /** One line saying what the section shows and what it leaves out, under its title. */
+  about?: string;
   lines: { text: string; tone?: Tone }[];
 }
 

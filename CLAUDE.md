@@ -630,6 +630,15 @@ backup restore against iOS's own SQLite backend.
    tells the person nothing. The days sheet of the spreadsheet still carries
    both columns, as the record.
 
+   **Every section says what it shows, in one line under its title**
+   (`Block.about`, optional on every kind; Jose, 2026-09-24, after "Cuánto
+   ha crecido" and "Mes a mes" read as the same thing). Not a tooltip: a
+   phone has no hover. The screen shows it at the top of an open section and
+   the spreadsheet writes it under the section's title. The two titles that
+   confused him are now "Tu saldo frente al cierre de {mes}" (the whole
+   balance, what was put in included) and "Rendimientos de cada mes"
+   (returns only). The money report's sections do not carry one yet.
+
    **The growth chart is measured from its first month, not from zero**, the
    way a stock chart is: 12% over seventy million drawn from zero is nine bars
    of one height. A month that closed below the first is drawn grey. **It
@@ -649,7 +658,8 @@ backup restore against iOS's own SQLite backend.
    filed under a category marked "Ganancia o pérdida de inversión"
    (`categories.counts_as_return`, migration 047, a switch on the category
    form). A transfer in, a contribution, a bill paid from the fund: money in
-   or out, never a return. Inflation, the effective rate, "Mes a mes" and
+   or out, never a return. Inflation, the effective rate, "Rendimientos de
+   cada mes" and
    "Rendimientos acumulados" read returns only; the growth chart reads the
    whole balance, and the note beside it says how much of the growth was
    returns. Interest from products and an investment's gain are shown apart
@@ -689,7 +699,10 @@ backup restore against iOS's own SQLite backend.
    The section shows the real return ((1 + E.A.) / (1 + inflation) - 1), the
    inflation at a yearly pace, what inflation took from the average money
    earning and the real gain - pesos only; a dollar account alone shows none
-   of it. It does not touch the tax module (rule on the simulator standing
+   of it. **Colombia's index only, and that is decided** (Jose, 2026-09-24):
+   inflation differs by country, and the app is Colombian in other ways
+   already - the tax simulator is form 210. A person keeping accounts in
+   another currency simply does not see the section. It does not touch the tax module (rule on the simulator standing
    apart). **Newer months: fetched on the phone only, and NOT verified
    there.** The service answers an empty body without a Referer from its own
    site and sends no CORS header, so a browser cannot read it; the phone asks
@@ -1100,7 +1113,7 @@ backup restore against iOS's own SQLite backend.
    could not record the first thing they spent. Jose's own forty-nine came
    from the app he used before, so he never met the empty case.
 
-   `core/database/starter-categories.ts` holds twenty ordinary ones and
+   `core/database/starter-categories.ts` holds twenty-two ordinary ones and
    `DatabaseService` seeds them on start. Three things about it:
 
    - **Deliberately not Jose's list.** His has Didi, Éxito, EPM, D1 and
@@ -1112,6 +1125,11 @@ backup restore against iOS's own SQLite backend.
    - **They are the app speaking, so they arrive in its language** - and only
      at that moment. From the second they exist they are the person's own
      words and nothing ever translates them again.
+   - **Two of them come marked as an investment's return** (2026-09-24,
+     Jose): "Ganancia de inversión" and "Pérdida de inversión" (rule 20,
+     the yields summary). Without them a new user would have to create a
+     category and mark it before any fund could show what it earned - and
+     creating categories is meant to be paid (rule 21).
 
    `tools/db/sample-data.mjs` builds the test backup from these and invents
    no category of its own, so what it restores looks like a phone somebody
@@ -1135,7 +1153,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 523 tests that run against a real
+by 525 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

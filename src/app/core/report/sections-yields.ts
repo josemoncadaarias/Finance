@@ -144,7 +144,10 @@ export const yieldHeadline: Section<YieldsReportData> = data => {
     });
   }
 
-  return { kind: 'figures', id: 'yields-headline', title: words['report.yields.headline'], figures };
+  return {
+    kind: 'figures', id: 'yields-headline', title: words['report.yields.headline'],
+    about: words['report.yields.about.headline'], figures,
+  };
 };
 
 /**
@@ -222,6 +225,7 @@ export const yieldByWhere: Section<YieldsReportData> = data => {
     kind: 'ranked',
     id: 'yields-where',
     title: data.words[perAccount ? 'report.yields.byAccount' : 'report.yields.byProduct'],
+    about: data.words[perAccount ? 'report.yields.about.byAccount' : 'report.yields.about.byProduct'],
     rowsAre: data.words[perAccount ? 'report.yields.rows.accounts' : 'report.yields.rows.products'],
     rows: [...totals.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -279,6 +283,7 @@ export const yieldVersusInflation: Section<YieldsReportData> = data => {
     kind: 'figures',
     id: 'yields-inflation',
     title: words['report.yields.inflation'],
+    about: words['report.yields.about.inflation'],
     figures: [
       {
         label: words['report.yields.inflation.real'],
@@ -442,6 +447,7 @@ export const yieldGrowth: Section<YieldsReportData> = data => {
     kind: 'trend',
     id: 'yields-growth',
     title: fill(data.words['report.yields.growth'], { month: monthLabel(all[0], data.locale) }),
+    about: data.words['report.yields.about.growth'],
     points: all.map(month => ({
       label: monthLabel(month, data.locale),
       value: money((totals.get(month) ?? 0) - start, data.currency),
@@ -463,6 +469,7 @@ export const yieldEarnedSoFar: Section<YieldsReportData> = data => {
     kind: 'trend',
     id: 'yields-earned-so-far',
     title: data.words['report.yields.soFar'],
+    about: data.words['report.yields.about.soFar'],
     points: all.map(month => {
       running += totals.get(month) ?? 0;
       return { label: monthLabel(month, data.locale), value: money(running, data.currency) };
@@ -487,6 +494,7 @@ export const yieldByMonth: Section<YieldsReportData> = data => {
     kind: 'trend',
     id: 'yields-by-month',
     title: data.words['report.yields.byMonth'],
+    about: data.words['report.yields.about.byMonth'],
     points: all.map(month => ({
       label: monthLabel(month, data.locale),
       value: money(totals.get(month) ?? 0, data.currency),
@@ -540,6 +548,7 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
     kind: 'comparison',
     id: 'yields-versus-before',
     title: data.words['report.yields.versusBefore'],
+    about: data.words['report.yields.about.versusBefore'],
     beforeLabel: before.label,
     nowLabel: data.periodLabel,
     caveat: before.clipped ? data.words['report.yields.sameDays'] : undefined,
