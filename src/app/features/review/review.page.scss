@@ -391,6 +391,10 @@ ion-title small {
   .learned {
     font-size: 0.7rem;
     color: var(--ion-color-medium);
+
+    /* A word out of the app's own table, not a memory of this person: worth
+       a second look, so it is said in the colour the screen uses for that. */
+    &.guessed { color: var(--ion-color-warning-shade, var(--ion-color-medium)); }
   }
 
   .turn {

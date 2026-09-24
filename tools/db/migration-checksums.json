@@ -42,5 +42,6 @@
   "041_each_product_earns_from_its_own_day.sql": "2e5a7970a8a7ac9ef1f45e4c5c4a57f9858f8d0381e84fe4f928c17d796b73a3",
   "042_the_cushion_tables_become_the_products.sql": "8b3184ccc4fe41d49d66a2b527545437812325827ad1a526e8d1ac70cc3f131b",
   "043_a_pocket_is_a_product.sql": "832e82be860ca8784398a32c84e259cf8d644d34c13ff40cc8dc55e1afa0e135",
-  "044_movements_the_app_proposes.sql": "781884620ae2a4c7576f125678cafe9dd8600ba7adb6e7d1100b0d47fd38eaf5"
+  "044_movements_the_app_proposes.sql": "781884620ae2a4c7576f125678cafe9dd8600ba7adb6e7d1100b0d47fd38eaf5",
+  "045_a_guess_is_not_a_memory.sql": "506056ba17b030adc0e654242c7a8a1d262983cac1c975460a5198159550d7fb"
 }

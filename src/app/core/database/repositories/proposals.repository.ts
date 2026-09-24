@@ -14,6 +14,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
+import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
 import { sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
 
@@ -28,7 +29,7 @@ export interface MovementProposal {
   amount_minor: number | null;
   description: string | null;
   category_id: number | null;
-  category_from: 'learned' | 'typed' | null;
+  category_from: 'learned' | 'guessed' | 'typed' | null;
   /** What it was read from, as JSON. Never thrown away. */
   evidence: string;
   status: ProposalStatus;
@@ -107,7 +108,15 @@ export class ProposalsRepository {
           knownAlready += 1;
           continue;
         }
-        const category = await this.learnedCategoryOf(reading.description ?? null);
+        // What this person has filed before, first. Only where that says
+        // nothing does a word in the description get to suggest anything.
+        let category = await this.learnedCategoryOf(reading.description ?? null);
+        let from: 'learned' | 'guessed' | null = category === null ? null : 'learned';
+        if (category === null) {
+          category = await this.guessedCategoryOf(
+            reading.description ?? null, reading.amount_minor ?? null);
+          if (category !== null) from = 'guessed';
+        }
         const result = await this.db.run(
           `INSERT INTO movement_proposals
              (source, account_id, occurred_on, amount_minor, description, category_id, category_from,
@@ -120,7 +129,7 @@ export class ProposalsRepository {
             reading.amount_minor ?? null,
             reading.description ?? null,
             category,
-            category === null ? null : 'learned',
+            from,
             JSON.stringify(reading.evidence ?? null),
             batch, timestamp, timestamp,
           ],
@@ -286,6 +295,25 @@ export class ProposalsRepository {
        WHERE merchant = ? OR merchant LIKE ? || ' %'
        GROUP BY category_id`, [head, head]);
     return family.length === 1 ? family[0].category_id : null;
+  }
+
+  /**
+   * What an ordinary word in the description suggests, or null.
+   *
+   * Only a category that came with the app can be landed on this way. Somebody
+   * who has renamed "Mercado" to something of their own has said what their
+   * list is, and a word out of a table is not going to argue with them - it
+   * simply finds nothing and the row is asked about, as before.
+   */
+  async guessedCategoryOf(description: string | null, signed: number | null): Promise<number | null> {
+    const match = wordCategoryOf(description, signed);
+    if (match === null) return null;
+    const found = await this.db.queryOne<{ id: number }>(
+      `SELECT id FROM categories
+        WHERE kind = ? AND archived = 0 AND (name = ? OR name = ?)
+        ORDER BY id LIMIT 1`,
+      [match.kind, match.es, match.en]);
+    return found?.id ?? null;
   }
 
   /**

@@ -35,6 +35,10 @@ const ALLOWED = [
   // in the same row: they become the user's own data the moment they land, so
   // they are seeded once in the app's language and never translated again.
   'core/database/starter-categories.ts',
+  // The ordinary words of both languages that say what a movement was -
+  // supermercado, peaje, nomina. They are read out of a statement, not shown
+  // to anybody, so there is nothing here to translate.
+  'core/proposals/common-words.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
   // Formulario 210's Spanish: the tax module's own translations file.

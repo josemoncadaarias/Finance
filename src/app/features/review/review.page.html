@@ -291,6 +291,12 @@
                     <span class="learned">{{ 'review.learned' | t }}</span>
                   }
 
+                  <!-- A word out of the app's own table, not a memory of what
+                       this person does. Said differently, because it is. -->
+                  @if (line.proposal.category_from === 'guessed') {
+                    <span class="learned guessed">{{ 'review.fromWords' | t }}</span>
+                  }
+
                   @if (line.proposal.amount_minor !== null) {
                     <button type="button" class="turn" (click)="turnAround(line)">
                       <ion-icon name="swap-vertical-outline"></ion-icon>
