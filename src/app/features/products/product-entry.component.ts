@@ -254,6 +254,44 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Which way a move between products points before anyone chooses.
+   *
+   * Jose, 2026-09-25: from a product that is not the usual one - the one money
+   * most often leaves - to the one it most often goes to. On his Rappi cuenta
+   * that is Bolsillo Principal into Cuenta de ahorros, dozens of times a
+   * month. Read from this account's own moves between its products; a leg
+   * that names no product is the usual one's. With no such history: the first
+   * product that is not the usual one, into the usual one.
+   */
+  private async routeBetweenProducts(accountId: number, products: readonly YieldProduct[]): Promise<void> {
+    if (products.length < 2) return;
+    const usual = (products.find(product => product.is_default === 1) ?? products[0]).id;
+    const exists = (id: number) => products.some(product => product.id === id);
+
+    const pairs = await this.database.driver.query<{ from_id: number | null; to_id: number | null; times: number }>(
+      `SELECT f.product_id AS from_id, t.product_id AS to_id, COUNT(*) AS times
+       FROM transactions f
+       JOIN transactions t ON t.transfer_id = f.transfer_id AND t.id <> f.id
+       WHERE f.account_id = ? AND t.account_id = f.account_id AND f.transfer_leg = 'from'
+       GROUP BY f.product_id, t.product_id
+       ORDER BY times DESC`, [accountId]);
+    const best = pairs
+      .map(pair => ({ from: pair.from_id ?? usual, to: pair.to_id ?? usual }))
+      .find(pair => pair.from !== usual && pair.from !== pair.to && exists(pair.from) && exists(pair.to));
+
+    if (best) {
+      this.productId.set(best.from);
+      this.toProductId.set(best.to);
+      return;
+    }
+    const other = products.find(product => product.id !== usual);
+    if (other) {
+      this.productId.set(other.id);
+      this.toProductId.set(usual);
+    }
+  }
+
+  /**
    * Points the form at another account, and loads its products.
    *
    * The amount, the date and the note are kept: they are what was being
@@ -274,6 +312,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       const usual = (products.find(product => product.is_default === 1) ?? products[0])?.id ?? null;
       this.productId.set(usual);
       this.toProductId.set(this.isTransfer() ? this.otherThan(usual) : null);
+      if (this.isTransfer()) await this.routeBetweenProducts(account.id, products);
     } finally {
       this.switching.set(false);
     }
@@ -587,8 +626,10 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     const products = this.request().products;
     const usual = (products.find(product => product.is_default === 1) ?? products[0])?.id ?? null;
     this.productId.set(usual);
-    if (this.isTransfer()) this.toProductId.set(this.otherThan(usual));
-    else void this.loadCategories();
+    if (this.isTransfer()) {
+      this.toProductId.set(this.otherThan(usual));
+      await this.routeBetweenProducts(this.request().account.id, products);
+    } else void this.loadCategories();
 
     // The kinds a product movement can be, which are the user's own.
     await this.loadKinds();

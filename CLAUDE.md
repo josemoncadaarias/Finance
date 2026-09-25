@@ -1446,12 +1446,22 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.
-- A transfer opened from an account's sheet on the products screen starts
-  FROM that account, TO the account it sends money to most often
-  (`EntryRequest.preferredSide: 'from'`; Jose, 2026-09-24 - it used to start
-  from Bancolombia into the account on show). The summary screen keeps the
-  other way round on purpose: there the account on show is the destination,
-  because transferring while looking at a card means paying it.
+- **A transfer starts FROM the account on show, TO the account it sends money
+  to most often** - from the products screen and, since 2026-09-25, from the
+  summary screen too (`EntryRequest.preferredSide: 'from'`; Jose). The
+  summary used to make the account on show the destination, on the idea that
+  transferring while looking at a card means paying it; Jose asked for one
+  rule on both screens. With every account on show, the route still starts
+  where money usually leaves.
+- **A move between products starts from a product that is not the usual
+  one - the one money most often leaves - into the one it most often goes
+  to** (`routeBetweenProducts` in the product form; Jose, 2026-09-25). Read
+  from the account's own moves between its products, a leg naming no product
+  being the usual one's. On Rappi cuenta: Bolsillo Principal into Cuenta de
+  ahorros (37 times against 10 the other way). With no history, the first
+  product that is not the usual one, into the usual one.
+- The title of a products sheet opens the account list from anywhere on its
+  row, not only over the name, as the summary's header does (2026-09-25).
 - An account's sheet on the products screen has "Ver sus movimientos en
   Inicio": that account selected in `FilterService`, and the summary open.
 - The summary screen, beside the balance of one account, has two round blue

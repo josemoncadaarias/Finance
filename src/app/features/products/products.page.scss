@@ -393,7 +393,13 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
 
 /* The sheet's title is a button when there is another account to change to. */
 button.who {
+  /* The whole row, not only the name: a tap past the end of a short name
+     opens the list too, as the summary screen's header does (Jose,
+     2026-09-25). */
+  width: 100%;
   max-width: 100%;
+  justify-content: flex-start;
+  text-align: left;
   padding: 0;
   border: none;
   background: none;

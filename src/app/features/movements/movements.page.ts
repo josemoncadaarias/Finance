@@ -519,7 +519,12 @@ export class MovementsPage {
   }
 
   add(kind: EntryKind): void {
-    this.entry.set({ kind, preferredAccountId: this.filter.accountId() });
+    // A transfer leaves the account on show, to wherever it usually sends
+    // money - the same as from the products screen (Jose, 2026-09-25).
+    this.entry.set({
+      kind, preferredAccountId: this.filter.accountId(),
+      preferredSide: kind === 'transfer' ? 'from' : undefined,
+    });
   }
 
   /**
