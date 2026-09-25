@@ -151,6 +151,14 @@
             {{ 'review.select' | t }}
           </button>
         }
+        <!-- Finding one among dozens: its words, its amount, its day. -->
+        @if (total() > 5) {
+          <div class="search-row">
+            <ion-searchbar [placeholder]="'review.search' | t" [value]="search()"
+                           (ionInput)="search.set($any($event.target).value ?? '')"
+                           [debounce]="150" showCancelButton="never"></ion-searchbar>
+          </div>
+        }
         @if (total() > 3) {
         <div class="group">
           <button type="button" [class.on]="sortBy() === 'date'" (click)="sortBy.set('date')">
@@ -362,7 +370,7 @@
                    count: batch.lines.length,
                    filter: filterName() } }}
             }
-            <button type="button" (click)="showOnly.set('all')">
+            <button type="button" (click)="showEverything()">
               {{ 'review.hidden.show' | t }}
             </button>
           </p>
@@ -424,7 +432,7 @@
   <ng-template>
     <ion-list lines="none">
       <ion-item button detail="false" (click)="fromMenu('forget')">
-        <ion-icon slot="start" name="arrow-undo-outline"></ion-icon>
+        <ion-icon slot="start" name="eye-off-outline"></ion-icon>
         <ion-label>{{ 'review.forgetAll' | t }}</ion-label>
       </ion-item>
       <ion-item button detail="false" class="drop" (click)="fromMenu('discard')">

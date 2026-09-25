@@ -1120,6 +1120,24 @@ backup restore against iOS's own SQLite backend.
    notifications screen only exists on Android, so its half is checked on
    the phone.
 
+   **Both screens search, and a long list has the two arrows** (Jose,
+   2026-09-25). Review searches a row's description, what was read, the
+   account, the category, the amount and the day - and the digits alone, so
+   "45900" finds "$ 45.900,00"; it narrows the list like the filters, so
+   "Todos" in the selection bar ticks only what was found, and the note that
+   a filter hides rows names the search. Notifications searches an app's name
+   and package and what it said. `foldText` (`core/text/fold-text.ts`) is the
+   one definition of how a search compares text. The review menu's "forget"
+   is "No ver más estos movimientos en pantalla", with the crossed eye.
+
+   **The app does not have to be open.** Android itself starts
+   `NotificationCatcher` once notification access is given and keeps it
+   bound, app open or not; it writes to SharedPreferences, and the app reads
+   that when it opens. What can stop it is the phone, not the app: some
+   makers (Xiaomi among them) kill background services to save battery, so
+   the notifications screen may need to say "Sin restricciones" and
+   "Inicio automático" if Jose's phone shows gaps. Not seen yet; to watch.
+
    **The hardest problem in the feature, written down before it is met**: the
    SAME movement arriving from both sources. A notification today, and the
    statement next month carrying that same purchase - with a different date

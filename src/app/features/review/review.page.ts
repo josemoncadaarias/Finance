@@ -18,7 +18,7 @@ import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-  IonSpinner, IonMenuButton, IonPopover,
+  IonSpinner, IonMenuButton, IonPopover, IonSearchbar,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -33,6 +33,7 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
 import { StatementsService } from '../../core/statements/statements.service';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { foldText } from '../../core/text/fold-text';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
@@ -84,7 +85,7 @@ interface Batch {
     IconComponent, LanguageButtonComponent, CloudButtonComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-    IonSpinner, IonMenuButton, IonPopover,
+    IonSpinner, IonMenuButton, IonPopover, IonSearchbar,
   ],
   templateUrl: './review.page.html',
   styleUrls: ['./review.page.scss'],
@@ -127,7 +128,9 @@ export class ReviewPage {
   /** The list as it is being looked at: filtered, then sorted. */
   shownIn(batch: Batch): Line[] {
     const only = this.showOnly();
+    const term = foldText(this.search());
     const lines = batch.lines.filter(line => {
+      if (term.length > 0 && !this.matches(line, term)) return false;
       if (only === 'waiting') return !this.ready(line);
       if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed;
       return true;
@@ -142,9 +145,38 @@ export class ReviewPage {
       : lines;
   }
 
+  /**
+   * What is typed in the search (Jose, 2026-09-25: a statement can bring
+   * dozens). It narrows the list like the filters do, so "Todos" in the
+   * selection bar ticks only what was found.
+   */
+  readonly search = signal('');
+
+  /** What a row says, as the search reads it: the words, the amount, where. */
+  private matches(line: Line, term: string): boolean {
+    const said = [
+      line.proposal.description, line.evidence, line.account?.name, this.categoryOf(line)?.name,
+      this.money(line.proposal.amount_minor, line.account?.currency_code),
+      this.dayText(line.proposal.occurred_on),
+    ].filter(Boolean).join(' ');
+    // Digits as typed too: "45900" finds "$ 45.900,00".
+    const digits = term.replace(/[^\d]/g, '');
+    return foldText(said).includes(term)
+      || (digits.length >= 3 && said.replace(/[^\d]/g, '').includes(digits));
+  }
+
   /** The filter that is on, in the words the button beside it uses. */
-  readonly filterName = computed(() => this.i18n.t(
-    this.showOnly() === 'waiting' ? 'review.only.waiting' : 'review.only.flagged'));
+  readonly filterName = computed(() => {
+    const typed = this.search().trim();
+    if (typed.length > 0) return this.i18n.t('review.search.named', { term: typed });
+    return this.i18n.t(this.showOnly() === 'waiting' ? 'review.only.waiting' : 'review.only.flagged');
+  });
+
+  /** "Ver todos": every filter off, the search included. */
+  showEverything(): void {
+    this.showOnly.set('all');
+    this.search.set('');
+  }
 
   /** How many a filter is hiding, so it never hides silently. */
   hiddenIn(batch: Batch): number {
@@ -856,7 +888,7 @@ export class ReviewPage {
     if (kind === 'accept' || kind === 'acceptOne' || kind === 'acceptSelected') return 'checkmark-done-outline';
     // Undoing the import destroys nothing, so it is not a bin: it is the same
     // arrow the button that opened it carries.
-    if (kind === 'forget') return 'arrow-undo-outline';
+    if (kind === 'forget') return 'eye-off-outline';
     return 'trash-outline';
   }
 

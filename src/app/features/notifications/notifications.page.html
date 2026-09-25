@@ -52,7 +52,18 @@
         <h2>{{ 'notifications.apps' | t }}</h2>
         <p class="hint">{{ 'notifications.apps.hint' | t }}</p>
 
-        @if (sortedApps().length === 0) {
+        <!-- Finding one app, or one thing it said, in a long list. -->
+        @if (longList()) {
+          <div class="search-row">
+            <ion-searchbar [placeholder]="'notifications.search' | t" [value]="search()"
+                           (ionInput)="search.set($any($event.target).value ?? '')"
+                           [debounce]="150" showCancelButton="never"></ion-searchbar>
+          </div>
+        }
+
+        @if (nothingFound()) {
+          <p class="hint waiting">{{ 'notifications.search.none' | t }}</p>
+        } @else if (sortedApps().length === 0) {
           <p class="hint waiting">{{ 'notifications.apps.none' | t }}</p>
         } @else {
           <!-- Several at once. A long press on a row does the same. -->
@@ -126,7 +137,7 @@
         <p class="hint">{{ 'notifications.caught.hint' | t }}</p>
 
         @if (newest().length === 0) {
-          <p class="hint waiting">{{ 'notifications.caught.none' | t }}</p>
+          <p class="hint waiting">{{ (caught().length > 0 ? 'notifications.search.none' : 'notifications.caught.none') | t }}</p>
         } @else {
           <ion-list [inset]="true">
             @for (one of newest(); track one.postedAt + one.package + one.text) {
@@ -152,6 +163,18 @@
         </button>
       </section>
     }
+  }
+
+  <!-- Both ends of a long list, the same control as the other screens. -->
+  @if (longList() && !selecting()) {
+    <div class="jump" slot="fixed">
+      <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+      </button>
+      <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t">
+        <ion-icon name="arrow-down-outline"></ion-icon>
+      </button>
+    </div>
   }
 
   <!-- What to do with the ticked apps: the review screen's bar. -->

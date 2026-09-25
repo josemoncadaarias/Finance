@@ -70,6 +70,7 @@ import { movementTouches, productMovements, type ProductMovement } from '../../c
 import {
   PERIOD_KINDS, currentPeriod, includesToday, periodLabel, rangePeriod, shiftPeriod, type Period, type PeriodKind,
 } from '../../core/filters/period';
+import { foldText } from '../../core/text/fold-text';
 
 /** One row of the list: an enrolled account and what it has earned. */
 interface ProductLine {
@@ -2801,9 +2802,4 @@ function today(): IsoDate {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/** Lowercased and without accents, so "exito" finds "Éxito". */
-function foldText(text: string): string {
-  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }

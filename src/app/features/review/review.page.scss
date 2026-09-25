@@ -177,7 +177,7 @@ ion-title small {
     background: var(--ion-color-step-100, var(--ion-color-light));
   }
 
-  button {
+  .group button {
     min-width: 0;
     padding: 0.42rem 0.5rem;
     border: 0;
@@ -494,6 +494,11 @@ ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px));
 /* Its own line above the two pickers, at the right, and never one of them. */
 .looking .select-start {
   justify-self: end;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  font-size: 0.82rem;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -505,3 +510,6 @@ ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px));
 
 /* The bar is taller than the jump arrows it replaces. */
 ion-content.selecting { --padding-bottom: calc(8rem + var(--ion-safe-area-bottom, 0px)); }
+
+/* The search sits in the same column as the pickers, edge to edge. */
+.looking .search-row { padding: 0; }

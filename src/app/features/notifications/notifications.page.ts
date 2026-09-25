@@ -13,17 +13,18 @@
  * this screen learns goes into the design of the next step.
  */
 
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
 import { App } from '@capacitor/app';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton,
+  IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton, IonSearchbar,
 } from '@ionic/angular';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { foldText } from '../../core/text/fold-text';
 import {
   BankNotifications, type CaughtNotification, type SeenApp,
 } from '../../core/notifications/bank-notifications';
@@ -34,7 +35,7 @@ import {
   imports: [
     TranslatePipe, LanguageButtonComponent, ConfirmComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton,
+    IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton, IonSearchbar,
   ],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
@@ -118,15 +119,43 @@ export class NotificationsPage {
   readonly showHidden = signal(false);
 
   /** The ones being kept, first: they are what this screen is for. */
-  readonly sortedApps = computed(() => this.apps().filter(app => !app.hidden).sort((one, other) =>
+  /**
+   * What is typed in the search: it narrows both lists, the apps by name and
+   * package, and what they said by app, title and text.
+   */
+  readonly search = signal('');
+  private readonly term = computed(() => foldText(this.search()));
+
+  /** Enough on screen for a search and the two arrows to be worth having. */
+  readonly longList = computed(() => this.apps().length + this.caught().length > 8);
+
+  private readonly content = viewChild(IonContent);
+
+  async toTop(): Promise<void> {
+    await this.content()?.scrollToTop(300);
+  }
+
+  async toBottom(): Promise<void> {
+    await this.content()?.scrollToBottom(300);
+  }
+
+  readonly sortedApps = computed(() => this.apps().filter(app => !app.hidden
+    && (this.term().length === 0 || foldText(`${app.label} ${app.package}`).includes(this.term())))
+    .sort((one, other) =>
     Number(other.watched) - Number(one.watched)
     || other.last - one.last));
 
   readonly hiddenApps = computed(() => this.apps().filter(app => app.hidden)
     .sort((one, other) => one.label.localeCompare(other.label)));
 
-  readonly newest = computed(() =>
-    [...this.caught()].sort((one, other) => other.postedAt - one.postedAt));
+  readonly newest = computed(() => this.caught()
+    .filter(one => this.term().length === 0
+      || foldText(`${one.app} ${one.title} ${one.text}`).includes(this.term()))
+    .sort((one, other) => other.postedAt - one.postedAt));
+
+  /** Apps that are there, but not one of them matches what was typed. */
+  readonly nothingFound = computed(() =>
+    this.term().length > 0 && this.apps().some(app => !app.hidden) && this.sortedApps().length === 0);
 
   /**
    * Read again whenever the screen comes into view and whenever the app comes
