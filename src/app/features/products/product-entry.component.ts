@@ -620,7 +620,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /**
    * What the note is written for: a move between two products, or a product's
-   * own spending or income - its category too once one is chosen.
+   * own spending or income once its category is chosen.
    */
   private readonly noteContext = computed<NoteContext | null>(() => {
     const account = this.account() ?? this.request().account;
@@ -633,9 +633,14 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       return to === null || to === product ? null
         : { kind: 'betweenProducts', accountId: account.id, fromProductId: product, toProductId: to, usualProductId: usual };
     }
+    // A spending or an income only once its category is chosen, as on the
+    // movement form: before that the product's commonest note is a guess
+    // about something not yet said (Jose, 2026-09-25).
+    const category = this.categoryId();
+    if (category === null) return null;
     return {
       kind: 'product', accountId: account.id, productId: product, usualProductId: usual,
-      side: this.request().kind === 'income' ? 'in' : 'out', categoryId: this.categoryId(),
+      side: this.request().kind === 'income' ? 'in' : 'out', categoryId: category,
     };
   });
 
