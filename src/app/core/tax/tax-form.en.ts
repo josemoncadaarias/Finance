@@ -127,6 +127,7 @@ export const TAX_TEXT_EN: TaxText = {
 
   yieldsButton: 'Bring in the yields and cashback of {year}',
   yieldsHint: 'Yields and cashback go here, in rentas de capital, not in ganancias ocasionales. What the app brings in is approximate: use each bank\'s certificate. Investment accounts are not brought in: add by hand what the fund certifies you realized in the year, and again if you bring the yields in once more.',
+  yieldsUndo: 'Undo',
   yieldsNone: 'No yields or cashback recorded in {year}.',
   yieldsUsed: 'Took {gross} of gross yields worked out ({days} days), {estimated} estimated for the days before the app worked them out, {cashback} of cashback and {withheld} of withholding. Approximate: compare it with the banks\' certificates.',
   yieldsInvestments: 'Your investment accounts are not included ({accounts}): add by hand to casilla 58 what the certificate says you realized in the year.',

@@ -463,6 +463,13 @@ ion-toolbar.stepper {
     ion-icon { flex: none; }
   }
 
+  /* Undoing is quieter than bringing in: no border of its own. */
+  button.undo {
+    margin-left: 0.4rem;
+    border-color: transparent;
+    color: var(--ion-color-medium);
+  }
+
   .hint, .notice {
     margin: 0.4rem 0 0;
     font-size: 0.7rem;

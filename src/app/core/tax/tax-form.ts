@@ -171,6 +171,7 @@ export const TAX_TEXT = {
 
   yieldsButton: 'Traer rendimientos y cashback de {year}',
   yieldsHint: 'Los rendimientos y el cashback van aquí, en rentas de capital, no en ganancias ocasionales. Lo que trae la app es aproximado: usa el certificado de cada banco. Las cuentas de inversión no se traen: suma a mano lo que el fondo certifique que hiciste efectivo en el año, y vuelve a sumarlo si traes los rendimientos otra vez.',
+  yieldsUndo: 'Deshacer',
   yieldsNone: 'No hay rendimientos ni cashback registrados en {year}.',
   yieldsUsed: 'Se tomaron {gross} de rendimientos brutos calculados ({days} días), {estimated} estimados para los días antes de que la app los calculara, {cashback} de cashback y {withheld} de retención. Aproximado: compáralo con los certificados de los bancos.',
   yieldsInvestments: 'No incluye tus cuentas de inversión ({accounts}): suma a mano en la casilla 58 lo que el certificado diga que hiciste efectivo en el año.',

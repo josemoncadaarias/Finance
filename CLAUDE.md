@@ -493,7 +493,9 @@ backup restore against iOS's own SQLite backend.
      casilla 58 by hand - Jose chose that over a line of its own - and the
      notice names the investment accounts left out to remind them. Pressing
      the button again rewrites casilla 58, so the typed part must be added
-     again; the hint says so. An estimated day carries what was paid, net of
+     again; the hint says so. "Deshacer" beside the button puts every box it
+     wrote (58, the financial yields, the withholding line) back to what it
+     held before the FIRST press, until the year changes. An estimated day carries what was paid, net of
      withholding, as its gross, so the estimate is a little short of what
      the bank certifies.
    - **Yields and cashback are rentas de capital (casilla 58), not ganancias

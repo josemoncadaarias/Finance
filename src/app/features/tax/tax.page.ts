@@ -126,6 +126,15 @@ export class TaxPage {
   readonly salaryOptions = signal<SalaryOption[]>([]);
   readonly salaryNotice = signal('');
   readonly yieldsNotice = signal('');
+
+  /**
+   * What the boxes the yields button writes held before it was first
+   * pressed, so 'Deshacer' puts them back (Jose, 2026-09-25). Kept from the
+   * FIRST press: pressing it twice and undoing returns to what the person
+   * had, not to the first bring-in. Forgotten when the year changes.
+   */
+  readonly beforeYields = signal<Pick<TaxInputs,
+    'capitalIncomeMinor' | 'financialYieldMinor' | 'extraWithholdingMinor' | 'extraWithholdingLabels'> | null>(null);
   readonly excelNotice = signal('');
 
   /** Set while the spreadsheet is being written, which holds the screen. */
@@ -208,6 +217,7 @@ export class TaxPage {
     this.drafts.set(new Map());
     this.salaryNotice.set('');
     this.yieldsNotice.set('');
+    this.beforeYields.set(null);
     this.saveState.set('idle');
     this.remeasure();
   }
@@ -551,6 +561,16 @@ export class TaxPage {
       return;
     }
 
+    if (this.beforeYields() === null) {
+      const now = this.inputs();
+      this.beforeYields.set({
+        capitalIncomeMinor: now.capitalIncomeMinor,
+        financialYieldMinor: now.financialYieldMinor,
+        extraWithholdingMinor: [...now.extraWithholdingMinor],
+        extraWithholdingLabels: now.extraWithholdingLabels ? [...now.extraWithholdingLabels] : now.extraWithholdingLabels,
+      });
+    }
+
     const label = this.text.yieldsWithholdingLabel;
     // The line may have been written while the app was in the other language,
     // and bringing the yields in again must land on it rather than on a
@@ -590,6 +610,18 @@ export class TaxPage {
       said.push(fill(this.text.yieldsInvestments, { accounts: year.investmentsLeftOut.join(', ') }));
     }
     this.yieldsNotice.set(said.join(' '));
+    this.schedule();
+  }
+
+  /** Every box the yields button wrote goes back to what it held before. */
+  undoYields(): void {
+    const before = this.beforeYields();
+    if (before === null) return;
+    this.inputs.update(inputs => ({ ...inputs, ...before }));
+    for (const key of ['capitalIncomeMinor', 'financialYieldMinor']) this.endDraft(key);
+    for (let at = 0; at < 4; at++) this.endDraft(`extra${at}`);
+    this.beforeYields.set(null);
+    this.yieldsNotice.set('');
     this.schedule();
   }
 
