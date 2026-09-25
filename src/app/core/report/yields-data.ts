@@ -34,6 +34,12 @@ export interface YieldDayRow {
   /** What the bank paid, where Jose typed it in from a statement. */
   actual_net_minor: number | null;
   locked: number;
+  /**
+   * Not worked out by the engine: an estimate of a day before the app began
+   * working the account out (`estimate.ts`). Its product id is the account's,
+   * negated, so it is never mistaken for a real product.
+   */
+  estimated?: boolean;
 }
 
 /**
@@ -47,6 +53,8 @@ export interface InvestmentData {
   from: string;
   /** The balance that day opened with, in the account's currency. */
   opening_minor: number;
+  /** The last return written down before the window, so the first one in it knows what it covers. */
+  previous_return_on: string | null;
   movements: readonly { on_date: string; amount_minor: number; is_return: number }[];
 }
 

@@ -655,6 +655,39 @@ backup restore against iOS's own SQLite backend.
    alone it reaches back a year, and there the growth equals the gains to
    the centavo (no money in or out in that year).
 
+   **The yearly rate is measured in PESO-DAYS** (Jose, 2026-09-24, after it
+   said 5.49% for 2026 on his data): every peso counts only for the days it
+   was earning, the return over that capital is a daily rate, and the yearly
+   rate is (1 + daily) ^ 365 - 1 - never a sum or an average of percentages.
+   The first version counted 98 million of products worked out since
+   September as if they had been there all year; corrected, 7.80% on what
+   is recorded. An investment's return is **spread over the days it covers**
+   (`investmentReturns`): a "subio inversion" written down after two weeks is
+   two weeks of gain, from the day after the return before it (the last one
+   before the window is loaded for that). A month, a period and a rate all
+   read those pieces, never the lump.
+
+   **Days before an account was worked out are ESTIMATED, and always said to
+   be** (`core/report/estimate.ts`; Jose, 2026-09-24). What a product says
+   it had already earned cannot fill them - that record is years of yields
+   in one figure. So, for any user and any account with products: the
+   account's balance on each earlier day, exact, from its movements (the
+   close of the day before, as the engine uses), times the rate the account
+   actually earned on its first seven worked-out days (paid over what was in
+   its products, net of withholding, every product and every part). The
+   window reaches back as far as the report's (a year for the charts; a year
+   before today at most for "all time"). Such a day is a `YieldDayRow` with
+   `estimated: true` and product id = the account's, negated. It counts in
+   the totals, the rate and the charts, and is shown apart everywhere it
+   counts: a "De eso, estimado" figure in amber, "incluye X estimado" under
+   the net, the rate and the real gain, a line in the notes naming the
+   accounts, when their working-out began and both assumptions (the rate
+   never changed; the movements do not carry the yields already inside the
+   balance, so it falls short), and "Estimado" in the product column of the
+   days sheet. It is never a balance on record: the growth chart and "on
+   record since" ignore it. On Jose's data: about 5.7 million of 2026's 18.1
+   million, 7.96% E.A. against 5.77% inflation.
+
    **What is a return and what is money put in** (Jose, 2026-09-24). On the
    yields summary a return is only ever: the yields the app works out for a
    product, or, on an account of type Inversión without products, a movement
@@ -684,6 +717,9 @@ backup restore against iOS's own SQLite backend.
      from Bancolombia stays under Dian. Checked on his backup: only those
      three rows changed, 13,260 movements otherwise identical, no balance
      moved, the 254 yield days untouched.
+   - `core/report/yields-gather.ts` is every query the summary needs, with
+     no Angular in it, so the same code runs over a restored backup in Node -
+     how every figure above was checked against Jose's own file.
    - `core/report/investments.ts` holds the pure helpers (a balance at the
      close of a day, the average balance over a stretch, month-end balances);
      `YieldsReportService.investmentsOf` loads each account's balance where
@@ -696,12 +732,18 @@ backup restore against iOS's own SQLite backend.
    one row a month, index times 100, shipped up to August 2026 from the Banco
    de la Republica's statistics service (series 15000) and checked against
    the DANE's releases (5.10% for 2025, 1.18% for January 2026).
-   `core/inflation/inflation.ts` works out any stretch of days, spreading
-   each month's variation over its days; a month not yet published is the
-   average month of the last twelve, and the screen names it as estimated.
-   The section shows the real return ((1 + E.A.) / (1 + inflation) - 1), the
-   inflation at a yearly pace, what inflation took from the average money
-   earning and the real gain - pesos only; a dollar account alone shows none
+   **The inflation a period is set against is the AVERAGE of the annual
+   inflation the DANE published for that year, from January to the period's
+   last month** (`inflationReference`; Jose, 2026-09-24). A month not yet
+   published is simply not in the average; with nothing of the year
+   published, last year's December, labelled borrowed; a period across a
+   year end takes each year with its own figures, weighted by days. **Never
+   figures of another year.** The first version annualised the variation
+   since January and said 7.98% for 2026 - Colombian prices rise most in the
+   first months, so that pace is no year's inflation; the average to August
+   is 5.77%. The section shows the real return ((1 + E.A.) / (1 +
+   inflation) - 1), that inflation, what it took from the same peso-days the
+   return is measured on and the real gain - pesos only; a dollar account alone shows none
    of it. **Colombia's index only, and that is decided** (Jose, 2026-09-24):
    inflation differs by country, and the app is Colombian in other ways
    already - the tax simulator is form 210. A person keeping accounts in
@@ -1156,7 +1198,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 526 tests that run against a real
+by 530 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

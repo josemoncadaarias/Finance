@@ -31,14 +31,31 @@ export function closingBalance(investment: InvestmentData, day: string): number 
   return balance;
 }
 
-/** Every return on record, in the report's currency, dated. */
+/**
+ * Every return on record, in the report's currency, spread over the days it
+ * covers - one piece per day.
+ *
+ * Jose, 2026-09-24: a "subio inversion" written down today, two weeks after
+ * the last one, is not one day's gain: it is two weeks of them. So each is
+ * spread evenly over the days since the return before it (the last one before
+ * the window, or the window's start), and a period counts only the days of it
+ * that fall inside. A loss is spread the same way. What a month earned, the
+ * return of the period and the yearly rate all read these pieces, never the
+ * lump.
+ */
 export function investmentReturns(data: YieldsReportData): { account_id: number; on_date: string; amount: number }[] {
   const out: { account_id: number; on_date: string; amount: number }[] = [];
   for (const investment of data.investments) {
+    let since = investment.previous_return_on ?? addDays(investment.from, -1);
     for (const movement of investment.movements) {
       if (movement.is_return !== 1 || movement.on_date > data.today) continue;
-      const amount = data.inReportCurrency(movement.amount_minor, investment.account_id, movement.on_date);
-      if (amount !== null) out.push({ account_id: investment.account_id, on_date: movement.on_date, amount });
+      const first = addDays(since, 1) > movement.on_date ? movement.on_date : addDays(since, 1);
+      const span = Math.round((Date.parse(`${movement.on_date}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / DAY) + 1;
+      for (let day = first; day <= movement.on_date; day = addDays(day, 1)) {
+        const amount = data.inReportCurrency(movement.amount_minor / span, investment.account_id, day);
+        if (amount !== null) out.push({ account_id: investment.account_id, on_date: day, amount });
+      }
+      since = movement.on_date;
     }
   }
   return out;

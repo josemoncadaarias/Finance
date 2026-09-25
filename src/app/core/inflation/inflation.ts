@@ -1,16 +1,23 @@
 /**
- * What inflation did to pesos over a stretch of days.
+ * The inflation a return is set against.
  *
- * The DANE publishes one index a month; a month's variation is its index over
- * the one before. A period rarely starts on the first, so each month's
- * variation is spread evenly over its days, compounding, and the period takes
- * the days it covers.
+ * The DANE publishes one index a month, and with it the figure everybody
+ * quotes: the ANNUAL inflation, that month's index against the same month a
+ * year before. Jose, 2026-09-24, after a first version annualised January to
+ * September and came out at 7.98% - Colombian prices rise most at the start
+ * of the year, so that pace is not a year's inflation at all:
  *
- * A month not published yet - the running one, always, and the one before it
- * until about the 8th - is estimated: the average month of the last twelve
- * that were published. The answer says which months were estimated, and the
- * screen says so, the way the tax simulator labels a figure it borrowed.
- * Nothing here is ever fetched: it works on the months it is handed.
+ *   - compare against the AVERAGE of the annual inflation the DANE has
+ *     published for the year so far, month by month - "el promedio del año
+ *     hasta esa fecha";
+ *   - never take figures of another year: a period in 2026 is measured with
+ *     2026's figures;
+ *   - with nothing of that year published yet (the first days of January),
+ *     take last year's December, and say so.
+ *
+ * A period that crosses a year end is measured year by year, each weighted by
+ * its days in the period. Nothing here is ever fetched: it works on the months
+ * it is handed.
  */
 
 export interface InflationMonth {
@@ -20,15 +27,14 @@ export interface InflationMonth {
   index_scaled: number;
 }
 
-export interface InflationOver {
-  /** What pesos lost over the days, as a fraction: 0.012 is 1.2%. */
-  rate: number;
-  /** The same at a yearly pace, so it sits beside an E.A. rate. */
+export interface InflationReference {
+  /** The annual inflation to compare with, as a fraction: 0.0577 is 5.77%. */
   annual: number;
-  /** Months of the period that had to be estimated, `YYYY-MM`. */
-  estimated: string[];
-  /** The last month the DANE has published, or null with none on record. */
-  lastPublished: string | null;
+  /** The published months averaged, first and last `YYYY-MM`, of the last year covered. */
+  firstMonth: string | null;
+  lastMonth: string | null;
+  /** Set when no month of that year was published: last year's December was used. */
+  borrowed: string | null;
 }
 
 const DAY = 86_400_000;
@@ -37,61 +43,66 @@ function toTime(day: string): number {
   return Date.parse(`${day}T00:00:00Z`);
 }
 
-function monthBefore(month: string): string {
-  const [year, number] = month.split('-').map(Number);
-  return number === 1 ? `${year - 1}-12` : `${year}-${String(number - 1).padStart(2, '0')}`;
+function sameMonthYearBefore(month: string): string {
+  return `${Number(month.slice(0, 4)) - 1}${month.slice(4)}`;
 }
 
-function monthsBetween(from: string, to: string): number {
-  const [a, b] = [from, to].map(month => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)));
-  return b - a;
+/** The annual inflation the DANE published for one month, or null if it has not. */
+function annualOf(index: ReadonlyMap<string, number>, month: string): number | null {
+  const now = index.get(month);
+  const before = index.get(sameMonthYearBefore(month));
+  return now && before ? now / before - 1 : null;
 }
 
-function daysIn(month: string): number {
-  const [year, number] = month.split('-').map(Number);
-  return new Date(Date.UTC(year, number, 0)).getUTCDate();
+/** One year's reference up to a month of it: the average of what was published. */
+function yearReference(index: ReadonlyMap<string, number>, year: number, upTo: number) {
+  const published: { month: string; annual: number }[] = [];
+  for (let at = 1; at <= upTo; at += 1) {
+    const month = `${year}-${String(at).padStart(2, '0')}`;
+    const annual = annualOf(index, month);
+    if (annual !== null) published.push({ month, annual });
+  }
+  if (published.length > 0) {
+    return {
+      annual: published.reduce((sum, one) => sum + one.annual, 0) / published.length,
+      firstMonth: published[0].month,
+      lastMonth: published[published.length - 1].month,
+      borrowed: null,
+    };
+  }
+  const december = `${year - 1}-12`;
+  const annual = annualOf(index, december);
+  return annual === null ? null : { annual, firstMonth: null, lastMonth: null, borrowed: december };
 }
 
 /**
- * Inflation from the start of `from` to the end of `to`, both `YYYY-MM-DD`.
- * Null when there is nothing to go on: no months at all, or a period that
- * starts before the first one on record.
+ * The inflation to set a return from `from` to `to` (both `YYYY-MM-DD`)
+ * against. Null when there is nothing to go on.
  */
-export function inflationOver(
+export function inflationReference(
   months: readonly InflationMonth[], from: string, to: string,
-): InflationOver | null {
-  if (months.length < 2 || to < from) return null;
+): InflationReference | null {
+  if (to < from) return null;
   const index = new Map(months.map(one => [one.month, one.index_scaled]));
-  const sorted = [...index.keys()].sort();
-  const last = sorted[sorted.length - 1];
 
-  // The estimate: the average month of the last twelve published.
-  const yearAgo = `${Number(last.slice(0, 4)) - 1}${last.slice(4)}`;
-  const base = index.has(yearAgo) ? yearAgo : sorted[0];
-  const span = monthsBetween(base, last);
-  const typical = Math.pow(index.get(last)! / index.get(base)!, 1 / span) - 1;
-
-  let factor = 1;
-  const estimated: string[] = [];
-  for (let t = toTime(from); t <= toTime(to); t += DAY) {
-    const month = new Date(t).toISOString().slice(0, 7);
-    let variation: number;
-    if (index.has(month) && index.has(monthBefore(month))) {
-      variation = index.get(month)! / index.get(monthBefore(month))! - 1;
-    } else if (month > last) {
-      variation = typical;
-      if (!estimated.includes(month)) estimated.push(month);
-    } else {
-      return null;
-    }
-    factor *= Math.pow(1 + variation, 1 / daysIn(month));
+  let weighted = 0;
+  let days = 0;
+  let last: ReturnType<typeof yearReference> = null;
+  for (let year = Number(from.slice(0, 4)); year <= Number(to.slice(0, 4)); year += 1) {
+    const start = `${year}-01-01` > from ? `${year}-01-01` : from;
+    const end = `${year}-12-31` < to ? `${year}-12-31` : to;
+    const reference = yearReference(index, year, Number(end.slice(5, 7)));
+    if (reference === null) return null;
+    const inYear = Math.round((toTime(end) - toTime(start)) / DAY) + 1;
+    weighted += reference.annual * inYear;
+    days += inYear;
+    last = reference;
   }
-
-  const days = Math.round((toTime(to) - toTime(from)) / DAY) + 1;
+  if (last === null || days === 0) return null;
   return {
-    rate: factor - 1,
-    annual: Math.pow(factor, 365 / days) - 1,
-    estimated,
-    lastPublished: last,
+    annual: weighted / days,
+    firstMonth: last.firstMonth,
+    lastMonth: last.lastMonth,
+    borrowed: last.borrowed,
   };
 }

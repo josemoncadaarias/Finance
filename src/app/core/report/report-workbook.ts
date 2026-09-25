@@ -568,7 +568,9 @@ function yieldDaysSheet(data: YieldsReportData): SheetSpec {
     sheet.text(0, 'day', day.on_date);
     sheet.text(1, 'label', accountOf.get(day.account_id)?.name ?? '');
     const part = day.component === 'base' ? '' : ` · ${day.component}`;
-    sheet.text(2, 'label', `${productOf.get(day.product_id) ?? ''}${part}`);
+    // An estimated day says so in the product column, in the same words as the screen.
+    sheet.text(2, day.estimated ? 'quiet' : 'label',
+      day.estimated ? words['report.yields.estimatedRow'] : `${productOf.get(day.product_id) ?? ''}${part}`);
     sheet.number(3, 'money', day.balance_minor / 100);
     sheet.number(4, 'rate', day.annual_rate_scaled / 1_000_000);
     sheet.number(5, 'money', day.gross_minor / 100);
