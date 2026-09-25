@@ -688,6 +688,24 @@ backup restore against iOS's own SQLite backend.
    record since" ignore it. On Jose's data: about 5.7 million of 2026's 18.1
    million, 7.96% E.A. against 5.77% inflation.
 
+   **Generic, for any user, and it says when it knows too little** (Jose,
+   2026-09-24: "esto debe funcionarle a cualquiera"). Nothing in the report
+   code names an account, a category or a bank; every rule reads a flag, a
+   type or a date. Where the app knows less than the period asks about, the
+   notes say so in amber, naming the account and the date:
+   - an account with products whose days before a date could not even be
+     estimated - no balance on record, a CDT that has not paid yet - counted
+     only from when the account existed (`opened_on`): one opened in June
+     is missing nothing about May;
+   - an investment whose last gain or loss is more than a month before the
+     end of the period: what happened since is in no figure.
+   An investment is never counted before its `opened_on` either. Checked by
+   building every section and the spreadsheet for every account alone and all
+   together, over six kinds of period, on Jose's backup (216 runs), the sample
+   (42) and a fresh database (6): no failure. That sweep found a real crash -
+   a fraction of a peso reaching `formatMoney` once returns were spread over
+   days - fixed by rounding everything that is shown.
+
    **What is a return and what is money put in** (Jose, 2026-09-24). On the
    yields summary a return is only ever: the yields the app works out for a
    product, or, on an account of type Inversión without products, a movement
@@ -1198,7 +1216,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 530 tests that run against a real
+by 532 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

@@ -57,9 +57,14 @@ export function estimateBeforeRecord(
     const start = [windowStart, opened, ledger.from].sort()[2];
     if (start >= first) continue;
 
-    // The rate of the first days: what they paid over what was earning.
-    const until = addDays(first, FIRST_DAYS - 1);
-    const early = own.filter(day => day.on_date <= until);
+    // The rate of the first days that paid anything: what they paid over what
+    // was earning. An account empty on its first days would otherwise measure
+    // nothing and be left out.
+    const paidOn = new Map<string, number>();
+    for (const day of own) paidOn.set(day.on_date, (paidOn.get(day.on_date) ?? 0) + (day.actual_net_minor ?? day.net_minor));
+    const earningDays = new Set([...paidOn.entries()]
+      .filter(([, paid]) => paid > 0).map(([day]) => day).sort().slice(0, FIRST_DAYS));
+    const early = own.filter(day => earningDays.has(day.on_date));
     const paid = early.reduce((sum, day) => sum + (day.actual_net_minor ?? day.net_minor), 0);
     const bases = new Map<string, number>();
     for (const day of early) bases.set(`${day.product_id}|${day.on_date}`, day.balance_minor);

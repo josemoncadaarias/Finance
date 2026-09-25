@@ -132,7 +132,7 @@ export async function gatherYieldsReport(db: SqlDriver, ask: YieldsAsk): Promise
  */
 async function investmentsOf(
   db: SqlDriver,
-  accounts: readonly { id: number; opening_balance_minor: number }[], from: string | null, end: string,
+  accounts: readonly { id: number; opening_balance_minor: number; opened_on: string }[], from: string | null, end: string,
 ): Promise<InvestmentData[]> {
   if (accounts.length === 0) return [];
   const ids = accounts.map(one => one.id);
@@ -156,7 +156,9 @@ async function investmentsOf(
     const own = movements.filter(row => row.account_id === account.id);
     return {
       account_id: account.id,
-      from: from ?? own[0]?.on_date ?? end,
+      // Never before the account existed in the app: nothing is known of it
+      // then, and its opening balance is not a balance it held.
+      from: [from ?? own[0]?.on_date ?? end, account.opened_on].sort()[1],
       opening_minor: account.opening_balance_minor
         + (before.find(row => row.account_id === account.id)?.total ?? 0),
       previous_return_on: previous.find(row => row.account_id === account.id)?.on_date ?? null,

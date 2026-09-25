@@ -604,6 +604,66 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
  * what is still owed and when it lands, how many days were withheld, and
  * which account pays best today.
  */
+/** "24 de septiembre", in the reader's language. */
+function dayOf(data: YieldsReportData, day: string): string {
+  return new Date(`${day}T12:00:00`).toLocaleDateString(data.locale, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/**
+ * The accounts the app knows nothing about for part of the period in which
+ * they already existed: every figure here is worked out from what is in the
+ * app, and an account whose earlier days could not even be estimated - no
+ * balance before, or a CDT that has not paid yet - has nothing before that
+ * to count. The total is then
+ * smaller than the truth, and the person has to be told, not left to guess.
+ */
+function coverage(data: YieldsReportData): { name: string; since: string }[] {
+  const start = data.period.from;
+  if (start === null) return [];
+  const end = data.period.to !== null && data.period.to < data.today ? data.period.to : data.today;
+  const out: { name: string; since: string }[] = [];
+  for (const account of data.accounts) {
+    const investment = data.investments.find(one => one.account_id === account.id);
+    let since: string | null = investment ? investment.from : null;
+    if (!investment) {
+      let paid = 0;
+      for (const day of data.days) {
+        if (day.account_id !== account.id) continue;
+        paid += paidOf(day);
+        if (since === null || day.on_date < since) since = day.on_date;
+      }
+      // An account that has earned nothing on record - a 0% pocket - is
+      // missing nothing either.
+      if (paid <= 0) continue;
+    }
+    // Missing only from when the account existed: one opened in June has
+    // nothing to tell about May.
+    const from = account.opened_on > start ? account.opened_on : start;
+    if (since !== null && since > from && since <= end) out.push({ name: account.name, since });
+  }
+  return out.sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name, data.locale));
+}
+
+/**
+ * Investments whose last gain or loss was written down more than a month
+ * before the end of the period: what happened since is not in any figure,
+ * and the rate reads as if the money earned nothing.
+ */
+function staleReturns(data: YieldsReportData): { name: string; last: string }[] {
+  const end = data.period.to !== null && data.period.to < data.today ? data.period.to : data.today;
+  const monthBefore = new Date(Date.parse(`${end}T00:00:00Z`) - 31 * 86_400_000).toISOString().slice(0, 10);
+  const out: { name: string; last: string }[] = [];
+  for (const investment of data.investments) {
+    const returns = investment.movements.filter(one => one.is_return === 1 && one.on_date <= end);
+    const last = returns.length > 0 ? returns[returns.length - 1].on_date : investment.previous_return_on;
+    if (last === null || last < monthBefore) {
+      const name = data.accounts.find(account => account.id === investment.account_id)?.name ?? '?';
+      out.push({ name, last: last ?? investment.from });
+    }
+  }
+  return out;
+}
+
 /**
  * "From January your money earning went from X to Y; Z of that was yields":
  * the growth chart cannot tell what was put in from what was earned, so one
@@ -622,10 +682,10 @@ function growthLine(data: YieldsReportData): string | null {
   const change = Math.round(((to - from) / from) * 1000) / 10;
   return fill(data.words['report.yields.note.growth'], {
     month: monthLabel(all[0], data.locale),
-    from: formatMoney(from, data.currency),
-    to: formatMoney(to, data.currency),
+    from: formatMoney(Math.round(from), data.currency),
+    to: formatMoney(Math.round(to), data.currency),
     change: `${change > 0 ? '+' : ''}${change.toLocaleString(data.locale)} %`,
-    earned: formatMoney(yielded, data.currency),
+    earned: formatMoney(Math.round(yielded), data.currency),
   });
 }
 
@@ -636,6 +696,20 @@ export const yieldNotes: Section<YieldsReportData> = data => {
 
   const growth = growthLine(data);
   if (growth !== null) lines.push({ text: growth });
+
+  // Where the app knows less than the period asks about, it says so.
+  const thin = coverage(data);
+  if (thin.length > 0) {
+    lines.push({
+      tone: 'warn',
+      text: fill(words['report.yields.note.coverage'], {
+        accounts: thin.map(one => fill(words['report.yields.note.coverage.one'], { account: one.name, date: dayOf(data, one.since) })).join('; '),
+      }),
+    });
+  }
+  for (const one of staleReturns(data)) {
+    lines.push({ tone: 'warn', text: fill(words['report.yields.note.stale'], { account: one.name, date: dayOf(data, one.last) }) });
+  }
 
   // What was estimated, where and from when - and what it assumes.
   const guessed = rows.filter(day => day.estimated);
@@ -682,7 +756,7 @@ export const yieldNotes: Section<YieldsReportData> = data => {
     const when = owed.filter(day => paidOf(day) > 0).map(day => day.paid_on!).sort()[0];
     lines.push({
       text: fill(words['report.yields.note.pending'], {
-        amount: formatMoney(owedTotal, data.currency),
+        amount: formatMoney(Math.round(owedTotal), data.currency),
         date: new Date(`${when}T12:00:00`).toLocaleDateString(data.locale, { day: 'numeric', month: 'long' }),
       }),
     });

@@ -23,8 +23,8 @@ import { dailyRate, EA_SCALE } from '../../src/app/core/yields/yield-math.ts';
 
 const pct = p => Math.round((p / 100) * EA_SCALE);
 
-const account = (id, name, currency = 'COP') => ({
-  id, name, currency_code: currency, builtin_icon: 'wallet', custom_icon_id: null,
+const account = (id, name, currency = 'COP', opened_on = '2025-01-01') => ({
+  id, name, currency_code: currency, builtin_icon: 'wallet', custom_icon_id: null, opened_on,
 });
 
 /** Days of one product compounding daily from `base`, the way the engine walks. */
@@ -438,4 +438,33 @@ test('each section says what it shows, on the screen and in the spreadsheet', ()
   assert.ok(blocks.filter(block => block.kind !== 'note').every(block => block.about), 'every section but the notes');
   const xml = new TextDecoder().decode(yieldsWorkbook(facts, blocks));
   assert.ok(xml.includes(TEST_WORDS['report.yields.about.headline']), 'the line reaches the sheet');
+});
+
+// --- When the app knows less than the period asks about --------------------
+
+test('an account the app only knows from part of the period is named, with the date', () => {
+  // Any user: an account created in the app on 15 September, a period of all September.
+  const late = walk({ account_id: 2, product_id: 20, from: '2026-09-15', days: 10, base: 200_000_000, rate: pct(9) });
+  const early = walk({ account_id: 1, product_id: 10, from: '2026-08-01', days: 55, base: 1_000_000_000, rate: pct(10.5) });
+  const notes = yieldNotes(data({ days: [...early, ...late] }));
+  const line = notes.lines.find(one => /solo tiene información/.test(one.text));
+  assert.ok(line, 'said');
+  assert.equal(line.tone, 'warn');
+  assert.match(line.text, /Nu desde el 15 de septiembre de 2026/);
+  assert.doesNotMatch(line.text, /Dale/, 'an account on record all along is not named');
+
+  // An account opened in the app's world on 15 September is missing nothing before it.
+  const opened = yieldNotes(data({ days: [...early, ...late], accounts: [account(1, 'Dale'), account(2, 'Nu', 'COP', '2026-09-15')] }));
+  assert.ok(!opened.lines.some(one => /solo tiene información/.test(one.text)), 'nothing is missing before an account existed');
+
+  const quiet = yieldNotes(data());
+  assert.ok(!quiet?.lines.some(one => /solo tiene información/.test(one.text)), 'nothing to say when every day is known');
+});
+
+test('an investment with no gain written down for over a month is named', () => {
+  const stale = { ...fund(), movements: fund().movements.filter(one => one.on_date < '2026-08-01') };
+  const notes = yieldNotes(withFund({ investments: [stale] }));
+  assert.ok(notes.lines.some(one => one.tone === 'warn' && /Fiducuenta: la última ganancia o pérdida registrada es del 20 de julio/.test(one.text)));
+  const fresh = yieldNotes(withFund());
+  assert.ok(!fresh.lines.some(one => /la última ganancia o pérdida/.test(one.text)));
 });
