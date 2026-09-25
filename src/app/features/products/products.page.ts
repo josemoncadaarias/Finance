@@ -52,6 +52,7 @@ import { addDays, endOfMonth } from '../../core/yields/days';
 import { parseTypedAmountToMinor } from '../../core/database/money';
 import { groupTypedAmount, typedAmountOf } from '../../core/database/typed-amount';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { IconComponent } from '../../core/icons/icon.component';
@@ -161,7 +162,7 @@ interface Payment {
   styleUrls: ['./products.page.scss'],
   imports: [
     BusyOverlayComponent,
-    IconComponent, ProductEntryComponent, EntryComponent, ConfirmComponent,
+    IconComponent, ProductEntryComponent, EntryComponent, ConfirmComponent, AccountPickerComponent,
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
@@ -1231,6 +1232,20 @@ export class ProductsPage {
     this.openWorkings.set(new Set());
     // Open already, as after a correction: read again, so it shows the change.
     if (this.showMovements()) await this.loadMovements(line);
+  }
+
+  /** The account list of the sheet's title: every account on this screen, each with its products. */
+  readonly pickingAccount = signal(false);
+  readonly accountsWithProducts = computed(() => this.lines().map(line => line.account));
+  readonly canSwitchAccount = computed(() => this.lines().length > 1 && this.form() === 'none');
+
+  /** Another account's sheet, in place: the same as closing this one and opening that. */
+  async switchAccount(account: AccountRow): Promise<void> {
+    this.pickingAccount.set(false);
+    const line = this.lines().find(one => one.account.id === account.id);
+    if (!line || line.account.id === this.openLine()?.account.id) return;
+    await this.open(line);
+    await this.sheet()?.scrollToTop(0);
   }
 
   closeDetail(): void {

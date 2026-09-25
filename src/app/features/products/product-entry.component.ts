@@ -50,6 +50,7 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import type { AccountRow, CategoryKind, CategoryRow } from '../../core/database/types';
 import { IconComponent } from '../../core/icons/icon.component';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
@@ -74,6 +75,7 @@ export interface ProductEntryRequest {
   selector: 'app-product-entry',
   imports: [
     TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent, ConfirmComponent,
+    AccountPickerComponent,
     IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
     IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
   ],
@@ -148,46 +150,11 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   private readonly withoutProducts = signal<AccountRow[]>([]);
 
   /**
-   * How the list is ordered, under the key every other account picker uses.
-   *
-   * One preference about one list. Choosing A-Z while recording a movement
-   * leaves the products form's list in A-Z too, which is what anyone would
-   * expect of a choice they made once.
-   */
-  readonly accountOrder = signal<'use' | 'name'>(readAccountOrder());
-
-  setAccountOrder(order: 'use' | 'name'): void {
-    this.accountOrder.set(order);
-    try {
-      localStorage.setItem('finance.accountOrder', order);
-    } catch {
-      // A browser with site data blocked still gets the order for this visit.
-    }
-  }
-
-  /** How many movements each account carries, for the "most used" order. */
-  private readonly useCounts = signal<Map<number, number>>(new Map());
-
-  /** Both lists in the order chosen, the same rule for each. */
-  private ordered(offered: readonly AccountRow[]): AccountRow[] {
-    // `localeCompare` so "Éxito" files under E and not after Z.
-    if (this.accountOrder() === 'name') {
-      return [...offered].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    }
-
-    const times = this.useCounts();
-    return [...offered].sort((a, b) => {
-      const byUse = (times.get(b.id) ?? 0) - (times.get(a.id) ?? 0);
-      return byUse !== 0 ? byUse : a.name.localeCompare(b.name, 'es');
-    });
-  }
-
-  /**
    * The one list the picker shows: every account for an income or an
    * expense, only the ones with products for a move between products.
    */
-  readonly offered = computed(() => this.ordered(
-    this.isTransfer() ? this.withProducts() : [...this.withProducts(), ...this.withoutProducts()]));
+  readonly offered = computed(() =>
+    this.isTransfer() ? this.withProducts() : [...this.withProducts(), ...this.withoutProducts()]);
 
   /** Whether there is anywhere else to point this form at. */
   readonly canSwitch = computed(() => this.offered().length > 1);
@@ -284,9 +251,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     this.withProducts.set(withProducts);
     this.withoutProducts.set(withoutProducts);
 
-    // What each one is used for, so "most used" has something to go on.
-    void new AccountsRepository(driver).timesUsed()
-      .then(counts => this.useCounts.set(counts));
   }
 
   /**
@@ -1037,12 +1001,4 @@ function readCategoryOrder(): 'use' | 'name' {
 /** Lowercased and without accents, for searching. */
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
-/** The account list's order, the key every picker in the app shares. */
-function readAccountOrder(): 'use' | 'name' {
-  try {
-    return localStorage.getItem('finance.accountOrder') === 'use' ? 'use' : 'name';
-  } catch {
-    return 'name';
-  }
 }

@@ -391,6 +391,21 @@ ion-modal:not(.confirm-sheet):not(.entry-sheet):not(.period-sheet) {
   flex: none;
 }
 
+/* The sheet's title is a button when there is another account to change to. */
+button.who {
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+
+  &.can-switch { cursor: pointer; }
+  &:disabled { opacity: 1; }
+
+  .switch { font-size: 0.95rem; color: var(--ion-color-medium); }
+}
+
 .who .logo {
   width: 1.5rem;
   height: 1.5rem;

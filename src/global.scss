@@ -828,10 +828,31 @@ ion-popover.info-hint-popover {
     &.income { background: var(--ion-color-success); }
     &:active { transform: scale(0.96); }
   }
+
+  /* A transfer, round and beside the two pills: a third way money moves,
+     drawn smaller because it neither earns nor spends. */
+  .swap {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.9rem;
+    height: 2.9rem;
+    border: none;
+    border-radius: 50%;
+    background: var(--ion-color-primary);
+    color: var(--ion-color-primary-contrast);
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+    transition: transform 0.12s ease;
+
+    ion-icon { font-size: 1.35rem; }
+    &:active { transform: scale(0.94); }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .compose .big:active { transform: none; }
+  .compose .big:active, .compose .swap:active { transform: none; }
 }
 
 /*

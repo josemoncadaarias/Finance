@@ -1383,6 +1383,22 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   form. A first version split the list into "with products" and "other
   accounts"; Jose found the plain list better and asked for one list, never
   two - do not bring groups back.
+- **The account list is one component now**, `shared/account-picker`
+  (Cancelar, a heading, Más usadas / A-Z under `finance.accountOrder`, the
+  list, the tick). The product form and the products screen's account sheet
+  use it; the movement form keeps its own because it also picks a product in
+  the same sheet. Its heading is said for the occasion (Jose, 2026-09-24:
+  "Desde dónde" was showing everywhere): "Desde dónde" where money leaves,
+  "Hacia dónde" where it arrives - an income, a transfer's far end - and
+  "Cuenta" when an account is only being chosen to look at or to move money
+  between its products.
+- The title of an account's sheet on the products screen is that list: tap
+  it to go to another account with products without leaving (never while a
+  form is open, which would be lost). Only accounts on that screen are
+  offered.
+- The transfer button lives in the summary screen's bottom bar, round and
+  blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
+  and no longer in the header, where it crowded the account and the search.
 - A transfer opened from an account's sheet on the products screen starts
   FROM that account, TO the account it sends money to most often
   (`EntryRequest.preferredSide: 'from'`; Jose, 2026-09-24 - it used to start

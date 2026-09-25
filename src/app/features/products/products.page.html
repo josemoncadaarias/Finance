@@ -312,15 +312,23 @@
                  Nothing under it - a toolbar has no room for a second line,
                  and both things that were there are already on the screen: the
                  figure below in full size, the form's name as its heading. -->
+            <!-- Tapped, it changes account without leaving: the same list the
+                 movement form shows, offering only accounts with products
+                 (Jose, 2026-09-24). Not while a form is open, which would be
+                 lost. -->
             <ion-title>
-              <span class="who">
+              <button type="button" class="who" [class.can-switch]="canSwitchAccount()"
+                      [disabled]="!canSwitchAccount()" (click)="pickingAccount.set(true)">
                 @if (imageOf(line.account); as logo) {
                   <img class="logo" [src]="logo" alt="">
                 } @else {
                   <ion-icon [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
                 }
                 <span class="name">{{ line.account.name }}</span>
-              </span>
+                @if (canSwitchAccount()) {
+                  <ion-icon class="switch" name="chevron-down-outline"></ion-icon>
+                }
+              </button>
             </ion-title>
 
             <!-- The flag and the cloud go wherever a screen can be read, and
@@ -335,6 +343,11 @@
 
           </ion-toolbar>
         </ion-header>
+
+        <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
+                            [selectedId]="line.account.id" [heading]="'summary.account' | t"
+                            (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)">
+        </app-account-picker>
 
         <ion-content #sheet class="sheet" [scrollEvents]="true" (ionScroll)="onSheetScroll()">
           <!-- Inside the sheet, because the sheet covers the screen. This was

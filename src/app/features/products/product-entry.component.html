@@ -403,46 +403,10 @@
      products stays on this form, choosing one without hands what was written
      to the ordinary movement form on that account. Moving money between
      products only offers accounts that have them. -->
-<ion-modal [isOpen]="pickingAccount()" (didDismiss)="pickingAccount.set(false)">
-  <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="pickingAccount.set(false)">{{ 'entry.cancel' | t }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="sheet">
-      <h2>{{ 'entry.fromWhere' | t }}</h2>
-
-      <div class="order">
-        <button type="button" [class.on]="accountOrder() === 'use'"
-                (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
-        <button type="button" [class.on]="accountOrder() === 'name'"
-                (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
-      </div>
-
-      <ion-list>
-        @for (option of offered(); track option.id) {
-          <ion-item button lines="full" (click)="chooseAccount(option)"
-                    [class.selected]="accountId() === option.id">
-            <app-icon slot="start" [builtin]="option.builtin_icon"
-                      [customId]="option.custom_icon_id" fallback="wallet"></app-icon>
-            <ion-label>
-              <h3>{{ option.name }}</h3>
-              <p>{{ option.currency_code }}</p>
-            </ion-label>
-            @if (accountId() === option.id) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
-            }
-          </ion-item>
-        }
-      </ion-list>
-    </ion-content>
-  </ng-template>
-</ion-modal>
+<app-account-picker [open]="pickingAccount()" [accounts]="offered()" [selectedId]="accountId()"
+                    [heading]="(request().kind === 'expense' ? 'entry.fromWhere' : request().kind === 'income' ? 'entry.toWhere' : 'summary.account') | t"
+                    (chosen)="chooseAccount($event)" (closed)="pickingAccount.set(false)">
+</app-account-picker>
 
 <!-- Nothing is deleted on one tap. -->
 <app-confirm [open]="confirmingDelete()" [title]="'entry.deleteMovement.ask' | t"

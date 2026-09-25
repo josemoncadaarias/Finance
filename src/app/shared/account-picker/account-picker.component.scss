@@ -1,0 +1,25 @@
+/* The movement form's account list, drawn the same: see entry.component.scss. */
+.picker {
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --padding-top: 1rem;
+
+  h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+  .order-pills { padding: 0 0.75rem 0.5rem; }
+  ion-item.selected { --background: var(--ion-color-light); }
+  ion-item app-icon[slot='start'] { color: var(--ion-color-medium); margin-inline-end: 0.75rem; }
+}
+
+/* Which row is the one in force: the tinted background alone vanishes in dark. */
+ion-item.selected ion-label,
+ion-item.selected ion-label h3 {
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.tick {
+  color: var(--ion-color-primary);
+  font-size: 1.25rem;
+  flex: none;
+  margin-inline-start: 0.5rem;
+}

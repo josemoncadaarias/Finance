@@ -332,7 +332,9 @@
            one. Asked here rather than on the form because it is the same
            question narrowed, and because a form with a row of products on it
            looked like a setting that had been left lying around. -->
-      <h2>{{ (picking() === 'to' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
+      <!-- Where money arrives for an income and a transfer's far end, where it
+           leaves from for an expense and a transfer's near one. -->
+      <h2>{{ (picking() === 'to' || kind() === 'income' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
 
       <!-- The same two orders the categories offer, drawn the same way. By
            name here, because the accounts are a list to be predicted rather

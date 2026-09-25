@@ -44,9 +44,6 @@
       <ion-button (click)="showSearch.set(!showSearch())" [attr.aria-label]="'summary.search' | t">
         <ion-icon slot="icon-only" name="search-outline"></ion-icon>
       </ion-button>
-      <ion-button (click)="add('transfer')" [attr.aria-label]="'summary.newTransfer' | t">
-        <ion-icon slot="icon-only" name="swap-horizontal-outline"></ion-icon>
-      </ion-button>
       <app-cloud-button></app-cloud-button>
       <app-language-button></app-language-button>
     </ion-buttons>
@@ -455,6 +452,14 @@
     <button type="button" class="big income" (click)="add('income')">
       <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
       <span class="what">{{ 'summary.income' | t }}</span>
+    </button>
+    <!-- Moving money between one's own accounts, beside the other two ways
+         money moves, and smaller than them: it neither earns nor spends.
+         It used to sit in the header, where it crowded the account and the
+         search (Jose, 2026-09-24). -->
+    <button type="button" class="swap" (click)="add('transfer')"
+            [attr.aria-label]="'summary.newTransfer' | t" [title]="'summary.newTransfer' | t">
+      <ion-icon name="swap-horizontal-outline"></ion-icon>
     </button>
   </div>
 </ion-footer>
