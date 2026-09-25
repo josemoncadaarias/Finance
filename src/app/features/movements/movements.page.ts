@@ -8,10 +8,12 @@
  * and why it feels quick.
  */
 
-import { Component, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import {
   IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
@@ -259,6 +261,44 @@ export class MovementsPage {
   // Named, not just "the first ion-content": the two modals below carry one
   // each, and a query by type would start matching whichever opened.
   private readonly content = viewChild<IonContent>('list');
+  private readonly searchRow = viewChild<ElementRef<HTMLElement>>('searchRow');
+
+  /**
+   * True while the search is being typed into. The keyboard takes half the
+   * screen, so the compose bar steps aside and the search scrolls to the top
+   * of what is left, with its results under it (Jose, 2026-09-24).
+   */
+  readonly searching = signal(false);
+
+  /**
+   * The keyboard going away ends the search however it went - Android's back
+   * button closes it without taking the focus off the field, which would
+   * leave the compose bar hidden until something else was tapped.
+   */
+  private keyboardClosed: { remove: () => Promise<void> } | null = null;
+
+  private listenForKeyboard(): void {
+    if (!Capacitor.isNativePlatform()) return;
+    void Keyboard.addListener('keyboardDidHide', () => {
+      if (!this.searching()) return;
+      (document.activeElement as HTMLElement | null)?.blur();
+      this.searching.set(false);
+    }).then(handle => { this.keyboardClosed = handle; });
+  }
+
+  ngOnDestroy(): void {
+    void this.keyboardClosed?.remove();
+  }
+
+  async startSearching(): Promise<void> {
+    this.searching.set(true);
+    const row = this.searchRow()?.nativeElement;
+    const content = this.content();
+    if (!row || !content) return;
+    // After the keyboard has taken its room, or the target moves under it.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await content.scrollToPoint(0, Math.max(row.offsetTop - 8, 0), 250);
+  }
 
   /**
    * Re-reads the position.
@@ -354,6 +394,7 @@ export class MovementsPage {
   });
 
   constructor() {
+    this.listenForKeyboard();
     // Account and category icons come from the user's data, so which names
     // are needed is not known until runtime. Ionicons draws nothing for a name
     // it was never given - which is exactly why the two main buttons rendered

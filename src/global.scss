@@ -785,6 +785,9 @@ ion-popover.info-hint-popover {
   /* Android keeps the bottom strip for its own gesture bar or three buttons.
      Sitting in it means a mis-tap leaves the app. */
   padding-bottom: env(safe-area-inset-bottom, 0);
+
+  /* Stepped aside while a search is typed into: see the summary screen. */
+  &.away { display: none; }
 }
 
 .compose {

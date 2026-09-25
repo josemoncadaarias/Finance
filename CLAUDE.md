@@ -1402,6 +1402,12 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   movements, so from up there it meant opening the list afterwards to see the
   results (Jose, 2026-09-24). The tab's count and Entró / Salió follow what it
   finds, as they always did.
+  While it is typed into, the compose bar and the scroll buttons step aside
+  and the field scrolls to the top of what the keyboard leaves, so the
+  results sit under it (on his phone the bar had covered them). The keyboard
+  closing - Android's back button included, which does not blur the field -
+  brings the bar back. Checked in a browser at keyboard-up height; not yet on
+  the phone itself.
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.

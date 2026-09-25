@@ -243,9 +243,10 @@
            and from the header it meant opening this list afterwards to see
            them (Jose, 2026-09-24). The count on the tab above says how many
            match as it is typed. -->
-      <div class="search-row">
+      <div class="search-row" #searchRow>
         <ion-searchbar [placeholder]="'summary.search.in' | t:{ period: label() }" [value]="filter.search()"
                        (ionInput)="filter.search.set($any($event.target).value ?? '')"
+                       (ionFocus)="startSearching()" (ionBlur)="searching.set(false)"
                        [debounce]="150" showCancelButton="never"></ion-searchbar>
       </div>
 
@@ -409,7 +410,7 @@
        against whichever ancestor Ionic is transforming during a page
        transition - which is why the first attempt scrolled away with the
        list. -->
-@if (scrollable()) {
+@if (scrollable() && !searching()) {
     <div class="jump" slot="fixed">
       <!-- A row, one button tall, rather than the column this started as. The
            column stood three buttons high and lay across three group totals -
@@ -439,7 +440,9 @@
 
 </ion-content>
 
-<ion-footer class="compose-bar">
+<!-- Out of the way while the search is being typed into: with the keyboard up
+     it was the bar, not the results, that filled what was left of the screen. -->
+<ion-footer class="compose-bar" [class.away]="searching()">
   <!-- The two buttons the whole app is really for. They say what they do:
        a bare coloured circle asks the user to remember which side is which. -->
   <div class="compose">
