@@ -1000,8 +1000,9 @@ backup restore against iOS's own SQLite backend.
    `features/review/` is where a person answers them. Ways in: the summary
    screen, for an account that exists, and the account form, which fills
    itself in from the statement and then imports it. **The notification half
-   has its first step built and PAUSED** - see "Step one is built, and
-   PAUSED" below - and nothing else about it has changed.
+   has its first step built**, paused on 2026-09-24 and resumed on
+   2026-09-25 - see "Step one is built" below - and nothing else about it
+   has changed.
 
    Two sources, and one screen where they both end up:
 
