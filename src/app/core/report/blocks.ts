@@ -125,6 +125,8 @@ export interface ComparisonBlock {
     changePercent: number | null;
     /** Whether growth here is good news. Spending grows the wrong way. */
     growthIs: 'good' | 'bad';
+    /** A second line under the name: what explains the change. */
+    note?: string;
   }[];
 }
 
@@ -135,7 +137,14 @@ export interface TrendBlock {
   title: string;
   /** One line saying what the section shows and what it leaves out, under its title. */
   about?: string;
-  points: { label: string; value: Value }[];
+  points: {
+    label: string;
+    value: Value;
+    /** How much of the value is of another kind - what was estimated - drawn lighter inside the bar. */
+    part?: Value;
+  }[];
+  /** What `part` is, when a point carries one. */
+  partLabel?: string;
   /** The line drawn across it, when there is one worth drawing. */
   averageLabel?: string;
   average?: Value;

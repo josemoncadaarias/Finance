@@ -108,6 +108,7 @@ export const REPORT_KEYS = [
   'report.yields.perDayNote',
   'report.yields.effective',
   'report.yields.effectiveNote',
+  'report.yields.versusBefore.base',
   'report.yields.versusBefore.estimated',
   'report.yields.note.coverage',
   'report.yields.note.coverage.one',

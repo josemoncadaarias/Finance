@@ -17,6 +17,9 @@ import { fill } from './report-words';
 import { averageBalance, investmentReturns, monthEndBalances } from './investments';
 import { inPeriod, paidOf, type YieldDayRow, type YieldsReportData } from './yields-data';
 
+/** Keys an investment account below every estimate's negative product id. */
+const INVESTMENT_KEY = 1_000_000_000;
+
 /** A rate as stored - E.A. scaled by a million - as a percentage. */
 const rateOf = (scaled: number): number => Math.round(scaled / 100) / 100;
 
@@ -441,6 +444,19 @@ function growthMonths(data: YieldsReportData, end: string): string[] {
     .filter(month => floor === null || month >= floor);
 }
 
+/** What was estimated each month, in pesos at each day's rate. */
+function estimatedByMonth(data: YieldsReportData, end: string): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const day of data.days) {
+    if (!day.estimated || day.on_date > data.today) continue;
+    const month = day.on_date.slice(0, 7);
+    if (month > end) continue;
+    const amount = data.inReportCurrency(paidOf(day), day.account_id, day.on_date);
+    if (amount !== null) totals.set(month, (totals.get(month) ?? 0) + amount);
+  }
+  return totals;
+}
+
 /** What was earned each month, in pesos at each day's rate. */
 function earnedByMonth(data: YieldsReportData, end: string): Map<string, number> {
   const totals = new Map<string, number>();
@@ -487,23 +503,35 @@ export const yieldGrowth: Section<YieldsReportData> = data => {
 };
 
 /**
- * What the yields alone have added, month after month: a running total. It
- * only ever rises, and how steeply is the compounding made visible.
+ * What the yields have added in the year, month after month: a running total
+ * from January. Jose, 2026-09-24: running it over the chart's twelve months
+ * ended September on 21.7 million that matched nothing else on the screen;
+ * from January, its last bar is the year so far - the figure of the year's
+ * summary. What of it was estimated is drawn lighter inside each bar.
  */
 export const yieldEarnedSoFar: Section<YieldsReportData> = data => {
   const end = lastMonth(data);
+  const year = end.slice(0, 4);
   const totals = earnedByMonth(data, end);
-  const all = monthsUpTo([...totals.keys()], end);
+  const guessed = estimatedByMonth(data, end);
+  const all = monthsUpTo([...totals.keys()], end).filter(month => month.startsWith(year));
   if (all.length < 2) return null;
   let running = 0;
+  let runningGuess = 0;
   return {
     kind: 'trend',
     id: 'yields-earned-so-far',
-    title: data.words['report.yields.soFar'],
+    title: fill(data.words['report.yields.soFar'], { year }),
     about: data.words['report.yields.about.soFar'],
+    partLabel: guessed.size > 0 ? data.words['report.yields.estimated'] : undefined,
     points: all.map(month => {
       running += totals.get(month) ?? 0;
-      return { label: monthLabel(month, data.locale), value: money(Math.round(running), data.currency) };
+      runningGuess += guessed.get(month) ?? 0;
+      return {
+        label: monthLabel(month, data.locale),
+        value: money(Math.round(running), data.currency),
+        part: guessed.size > 0 ? money(Math.round(runningGuess), data.currency) : undefined,
+      };
     }),
   };
 };
@@ -511,6 +539,7 @@ export const yieldEarnedSoFar: Section<YieldsReportData> = data => {
 export const yieldByMonth: Section<YieldsReportData> = data => {
   const end = lastMonth(data);
   const totals = earnedByMonth(data, end);
+  const guessed = estimatedByMonth(data, end);
 
   const all = monthsUpTo([...totals.keys()], end);
   if (all.length < 2) return null;
@@ -526,9 +555,11 @@ export const yieldByMonth: Section<YieldsReportData> = data => {
     id: 'yields-by-month',
     title: data.words['report.yields.byMonth'],
     about: data.words['report.yields.about.byMonth'],
+    partLabel: guessed.size > 0 ? data.words['report.yields.estimated'] : undefined,
     points: all.map(month => ({
       label: monthLabel(month, data.locale),
       value: money(Math.round(totals.get(month) ?? 0), data.currency),
+      part: guessed.size > 0 ? money(Math.round(guessed.get(month) ?? 0), data.currency) : undefined,
     })),
     averageLabel: data.words['report.yields.byMonth.average'],
     average: money(average, data.currency),
@@ -560,8 +591,10 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
       then.set(keyOf(day), (then.get(keyOf(day)) ?? 0) + amount);
     }
   }
+  // An investment seen alone is keyed far below any estimate's negative id.
+  const investmentKey = (id: number) => (perAccount ? id : -INVESTMENT_KEY - id);
   for (const one of investmentReturns(data)) {
-    const key = perAccount ? one.account_id : -one.account_id;
+    const key = investmentKey(one.account_id);
     if (inPeriod(data, one.on_date)) now.set(key, (now.get(key) ?? 0) + one.amount);
     else if (one.on_date >= before.period.from && one.on_date <= before.period.to) {
       then.set(key, (then.get(key) ?? 0) + one.amount);
@@ -571,9 +604,41 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
 
   const keys = [...new Set([...now.keys(), ...then.keys()])]
     .sort((a, b) => (now.get(b) ?? 0) - (now.get(a) ?? 0));
-  const nameOf = (key: number) => perAccount || key < 0
-    ? data.accounts.find(account => account.id === Math.abs(key))?.name ?? '?'
-    : productLabel(data, key);
+  const nameOf = (key: number) => perAccount
+    ? data.accounts.find(account => account.id === key)?.name ?? '?'
+    : key <= -INVESTMENT_KEY
+      ? data.accounts.find(account => account.id === -INVESTMENT_KEY - key)?.name ?? '?'
+      : productLabel(data, key);
+
+  // What each row earned on, on each side: a jump of 548% is a balance that
+  // grew five times, and the row says so rather than leaving it to be guessed.
+  const nowEnd = data.period.to !== null && data.period.to < data.today ? data.period.to : data.today;
+  const capital = (key: number, from: string, to: string): number => {
+    // One balance per product per day, however many parts its rate has.
+    const seen = new Set<string>();
+    let total = 0;
+    for (const day of data.days) {
+      if (day.on_date < from || day.on_date > to) continue;
+      if ((perAccount ? day.account_id : day.product_id) !== key) continue;
+      const once = `${day.product_id}|${day.on_date}`;
+      if (seen.has(once)) continue;
+      seen.add(once);
+      total += data.inReportCurrency(day.balance_minor, day.account_id, day.on_date) ?? 0;
+    }
+    let average = total / daysBetween(from, to);
+    const investment = data.investments.find(one => investmentKey(one.account_id) === key);
+    if (investment) average += averageBalance(data, investment, from > investment.from ? from : investment.from, to);
+    return average;
+  };
+  const baseNote = (key: number): string | undefined => {
+    const was = capital(key, before.period.from!, before.period.to!);
+    const is = capital(key, data.period.from ?? before.period.to!, nowEnd);
+    if (was <= 0 && is <= 0) return undefined;
+    return fill(data.words['report.yields.versusBefore.base'], {
+      before: formatMoney(Math.round(was), data.currency),
+      now: formatMoney(Math.round(is), data.currency),
+    });
+  };
 
   const block: ComparisonBlock = {
     kind: 'comparison',
@@ -600,6 +665,7 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
         // Against a period that lost money a percentage says nothing true.
         changePercent: was > 0 ? Math.round(((is - was) / was) * 1000) / 10 : null,
         growthIs: 'good' as const,
+        note: baseNote(key),
       };
     }),
   };

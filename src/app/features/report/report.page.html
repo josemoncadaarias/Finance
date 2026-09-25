@@ -184,6 +184,7 @@
                       }
                       <span class="text">{{ row.label }}</span>
                     </span>
+                    @if (row.note) { <span class="row-note">{{ row.note }}</span> }
 
                     <span class="pair">
                       <span class="side was">
@@ -227,7 +228,7 @@
                           [class.below]="point.value.kind === 'money' && point.value.minor < 0"
                           (click)="pick(point.label)"
                           [attr.aria-label]="point.label + ': ' + show(point.value)">
-                    <span class="bar"><i [style.height]="heightOf(block, point.value)"></i></span>
+                    <span class="bar"><i [style.height]="heightOf(block, point.value)">@if (point.part) {<s [style.height]="partOf(point)"></s>}</i></span>
                     <span class="when">{{ shortMonth(point.label) }}</span>
                   </button>
                 }
@@ -237,6 +238,9 @@
                 @if (pickedPoint(block); as point) {
                   <span class="when">{{ point.label }}</span>
                   <strong>{{ show(point.value) }}</strong>
+                  @if (point.part && block.partLabel) {
+                    <span class="part">{{ block.partLabel }}: {{ show(point.part) }}</span>
+                  }
                 } @else {
                   <span class="hint">{{ 'report.byMonth.tap' | t }}</span>
                 }

@@ -279,6 +279,9 @@ function writeComparison(sheet: Sheet, block: Extract<Block, { kind: 'comparison
       const worse = row.growthIs === 'bad' ? row.changePercent > 0 : row.changePercent < 0;
       sheet.number(3, worse ? 'moneyOut' : 'moneyIn', row.changePercent / 100);
     }
+    // The line that explains the row, beside it: a row of its own would break
+    // the run of figures the chart reads.
+    if (row.note) sheet.text(4, 'quiet', row.note);
     sheet.row += 1;
   }
 
@@ -312,11 +315,18 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
   sectionHead(sheet, block);
   sheet.row += 2;
 
+  // What of each figure was estimated, in a column of its own and named.
+  if (block.partLabel) {
+    sheet.text(2, 'headRight', block.partLabel);
+    sheet.row += 1;
+  }
   const firstRow = sheet.row;
   for (const point of block.points) {
     sheet.text(0, 'label', point.label);
     const number = asNumber(point.value);
     if (number !== null) sheet.number(1, 'money', number);
+    const part = point.part ? asNumber(point.part) : null;
+    if (part !== null) sheet.number(2, 'money', part);
     sheet.row += 1;
   }
 

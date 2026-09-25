@@ -479,3 +479,24 @@ test('against the period before, an estimated side is said', () => {
   assert.match(block.caveat, /estimada/);
   assert.doesNotMatch(yieldVersusBefore(data()).caveat, /estimada/, 'nothing estimated, nothing said');
 });
+
+test('yields so far start in January, and what was estimated is carried inside each bar', () => {
+  const worked = walk({ account_id: 1, product_id: 10, from: '2026-09-10', days: 15, base: 1_000_000_000, rate: pct(10.5) });
+  const ledger = { account_id: 1, from: '2025-11-01', opening_minor: 1_000_000_000, previous_return_on: null, movements: [] };
+  const estimated = estimateBeforeRecord(worked, [ledger], new Map([[1, '2025-01-01']]), '2025-11-01', '2026-09-24');
+  const facts = data({ accounts: [account(1, 'Dale')], products: [{ id: 10, account_id: 1, name: 'Alcancía' }], days: [...estimated, ...worked] });
+  const soFar = yieldEarnedSoFar(facts);
+  assert.equal(soFar.points[0].label, 'Enero 2026', 'November and December 2025 belong to another year');
+  assert.match(soFar.title, /2026/);
+  const year = [...estimated, ...worked].filter(day => day.on_date >= '2026-01-01' && day.on_date <= '2026-09-24');
+  assert.equal(soFar.points.at(-1).value.minor, year.reduce((sum, day) => sum + day.net_minor, 0), 'the last bar is the year so far');
+  assert.equal(soFar.points.at(-1).part.minor, year.filter(day => day.estimated).reduce((sum, day) => sum + day.net_minor, 0));
+  const months = yieldByMonth(facts);
+  assert.equal(months.points.find(one => one.label === 'Agosto 2026').part.minor,
+    months.points.find(one => one.label === 'Agosto 2026').value.minor, 'August was all estimated');
+});
+
+test('against the period before, each row says the balance it earned on', () => {
+  const block = yieldVersusBefore(data());
+  assert.ok(block.rows.every(row => /saldo promedio .* → /.test(row.note)));
+});

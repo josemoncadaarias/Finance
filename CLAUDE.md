@@ -706,6 +706,19 @@ backup restore against iOS's own SQLite backend.
    a fraction of a peso reaching `formatMoney` once returns were spread over
    days - fixed by rounding everything that is shown.
 
+   **Each chart says what it holds** (Jose, 2026-09-24, who could not tell
+   where 21.7 million came from). "Rendimientos acumulados en {año}" runs
+   from January of the period's year, so its last bar IS the year so far -
+   the year's net, 18.1 million on his data - where it used to run over the
+   chart's twelve months into the year before. A trend point may carry a
+   `part` (`TrendBlock.partLabel`): what of it was estimated, drawn paler
+   inside the bar, said when the bar is tapped and written in its own column
+   of the spreadsheet; both yield charts use it. A comparison row may carry a
+   `note`: against the period before, each account says the average balance
+   it had earning on each side ("saldo promedio 1.014.514 → 6.448.090" is
+   why ARQ USD reads +548%), beside the row in the spreadsheet so the run of
+   figures the chart reads is not broken.
+
    **Both sides of "Contra el periodo anterior" are read the same way.** The
    data window reaches back to the start of the period before as well as a
    year for the charts (`yields-gather.ts`). It used to stop a year back, so
@@ -1226,7 +1239,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 533 tests that run against a real
+by 535 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

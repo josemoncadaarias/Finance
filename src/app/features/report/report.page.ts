@@ -298,9 +298,15 @@ export class ReportPage {
     this.picked.update(current => (current === label ? null : label));
   }
 
-  pickedPoint(block: Extract<Block, { kind: 'trend' }>): { label: string; value: Value } | null {
+  pickedPoint(block: Extract<Block, { kind: 'trend' }>): Extract<Block, { kind: 'trend' }>['points'][number] | null {
     const label = this.picked();
     return block.points.find(point => point.label === label) ?? null;
+  }
+
+  /** How much of a bar its lighter part fills. */
+  partOf(point: { value: Value; part?: Value }): string {
+    if (point.value.kind !== 'money' || point.part?.kind !== 'money' || point.value.minor === 0) return '0';
+    return `${Math.min(Math.max((point.part.minor / point.value.minor) * 100, 0), 100)}%`;
   }
 
   /** The tallest point of a trend, so the bars have something to scale to. */
