@@ -1077,6 +1077,17 @@ ion-content {
   cursor: pointer;
 }
 
+/* While choosing, a whole row is one tap: what is inside it waits, so a tap
+   meant to tick it never changes its category or its date by accident. */
+.selecting ion-item:has(.tick) {
+  cursor: pointer;
+
+  ion-label { pointer-events: none; }
+}
+
+/* The tick is a picture of the row's state; the row takes the tap. */
+.tick ion-icon { pointer-events: none; }
+
 .picked {
   --background: rgba(var(--ion-color-primary-rgb), 0.08);
 

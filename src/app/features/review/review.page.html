@@ -226,9 +226,10 @@
         <ion-list [inset]="true">
           @for (line of shownIn(batch); track line.proposal.id) {
             <ion-item class="line" [class.unready]="!ready(line)" [class.picked]="isSelected(line)"
-                      lines="full" (contextmenu)="pressed($event, line)">
+                      lines="full" (contextmenu)="pressed($event, line)"
+                      (click)="selecting() && toggle(line)">
               @if (selecting()) {
-                <button type="button" slot="start" class="tick" (click)="toggle(line)"
+                <button type="button" slot="start" class="tick"
                         [attr.aria-pressed]="isSelected(line)" [attr.aria-label]="'review.select.row' | t">
                   <ion-icon [name]="isSelected(line) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
                 </button>

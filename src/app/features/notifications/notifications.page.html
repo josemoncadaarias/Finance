@@ -75,9 +75,10 @@
           }
           <ion-list [inset]="true">
             @for (app of sortedApps(); track app.package) {
-              <ion-item lines="full" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)">
+              <ion-item lines="full" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)"
+                        (click)="selecting() && toggle(app)">
                 @if (selecting()) {
-                  <button type="button" slot="start" class="tick" (click)="toggle(app)"
+                  <button type="button" slot="start" class="tick"
                           [attr.aria-pressed]="isSelected(app)" [attr.aria-label]="app.label">
                     <ion-icon [name]="isSelected(app) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
                   </button>

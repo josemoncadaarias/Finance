@@ -1108,7 +1108,9 @@ backup restore against iOS's own SQLite backend.
    screen and the notifications screen share one gesture and one bar:
    "Seleccionar", or a long press on a row (the `contextmenu` event, which
    Android's WebView fires on a long press - to confirm on the phone), turns
-   on a round tick per row; a floating bar says how many, "Todos"/"Ninguno"
+   on a round tick per row - the WHOLE row takes the tap, and what is inside
+   it (category, date, the toggle) waits until choosing ends; a floating bar
+   says how many, "Todos"/"Ninguno"
    over what the filter shows, and what to do. On review: one category for
    all (`fileThese`, one UPDATE), save the ready ones (the count on the button
    is what will be written, and the dialog says how many stay behind and
