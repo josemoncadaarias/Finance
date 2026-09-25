@@ -233,6 +233,68 @@ test('what kind of work it is changes the contribution base and the rates', () =
   assert.ok(contractor.taxMinor < ordinary.taxMinor);
 });
 
+test('non-salary payments leave the base, except what passes 40% of the pay', () => {
+  // Jose's example, 2026-09-25: 20 million, 10 of them bonuses agreed as
+  // non-salary. 40% of 20 is 8, so 2 of the 10 still count: the base is 12.
+  const paid = simulate(sheetInputs({
+    employment: 'ordinary', baseShareScaled: undefined,
+    monthlySalaryMinor: pesos(20_000_000), nonSalaryMonthlyMinor: pesos(10_000_000),
+  }));
+  assert.equal(paid.nonSalaryExcessMinor, pesos(2_000_000));
+  assert.equal(paid.monthlyBaseMinor, pesos(12_000_000));
+  // Still income, all of it.
+  const inputs = sheetInputs({});
+  assert.equal(paid.grossLabourMinor, inputs.monthsWorked * pesos(20_000_000) + inputs.otherLabourIncomeMinor);
+
+  // Under 40%, none of it counts; and someone independent has no such split.
+  const small = simulate(sheetInputs({
+    employment: 'ordinary', baseShareScaled: undefined,
+    monthlySalaryMinor: pesos(20_000_000), nonSalaryMonthlyMinor: pesos(5_000_000),
+  }));
+  assert.equal(small.monthlyBaseMinor, pesos(15_000_000));
+  const contractor = simulate(sheetInputs({
+    employment: 'independent', baseShareScaled: undefined,
+    monthlySalaryMinor: pesos(20_000_000), nonSalaryMonthlyMinor: pesos(10_000_000),
+  }));
+  assert.equal(contractor.nonSalaryExcessMinor, 0);
+  assert.equal(contractor.monthlyBaseMinor, applyRate(pesos(20_000_000), 400_000));
+});
+
+test('dependents: the 10% needs one; an employee takes both, an independent the better one', () => {
+  const employee = over => simulate(sheetInputs({ employment: 'ordinary', baseShareScaled: undefined, ...over }));
+
+  // No dependents, no 10% - it used to be taken regardless.
+  const none = employee({ dependents: 0 });
+  assert.equal(none.dependentDeductionMinor, 0);
+  assert.equal(none.dependentsMinor, 0);
+
+  // An employee with two: both deductions.
+  const two = employee({ dependents: 2 });
+  assert.ok(two.dependentDeductionMinor > 0);
+  const inputs = sheetInputs({});
+  assert.equal(two.dependentsMinor, 2 * inputs.dependentUvt * inputs.uvtMinor);
+
+  // Independent, with room under the cap: the 10% lowers the base more than
+  // 72 UVT for one dependent, so it is the one taken, and only it.
+  const roomy = simulate(sheetInputs({
+    employment: 'independent', baseShareScaled: undefined, healthScaled: undefined, pensionScaled: undefined,
+    dependents: 1, voluntaryPayrollMinor: 0, voluntaryOwnMinor: 0, housingInterestMinor: 0,
+  }));
+  assert.ok(roomy.dependentDeductionMinor > 0);
+  assert.equal(roomy.dependentsMinor, 0);
+
+  // Independent with the cap already full: the 10% would add nothing, so the
+  // UVT per dependent, which sit outside the cap, are taken instead.
+  const full = simulate(sheetInputs({
+    employment: 'independent', baseShareScaled: undefined, healthScaled: undefined, pensionScaled: undefined,
+    dependents: 3, voluntaryOwnMinor: pesos(200_000_000),
+  }));
+  assert.equal(full.dependentDeductionMinor, 0);
+  assert.ok(full.dependentsMinor > 0);
+  // Whichever was taken, it is never both.
+  for (const one of [roomy, full]) assert.ok(one.dependentDeductionMinor === 0 || one.dependentsMinor === 0);
+});
+
 test('the contribution base is held between one minimum wage and twenty-five', () => {
   const wage = pesos(1_623_500);
 

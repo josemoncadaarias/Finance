@@ -117,12 +117,14 @@ export function contributionBase(
   monthlyIncomeMinor: number,
   shareScaled: number,
   minimumWageMinor: number,
+  /** Added after the share and before the floor and ceiling: the non-salary excess. */
+  addedMinor = 0,
 ): number {
   // No income, no contributions. The floor is for a salary below the minimum,
   // not for the absence of one - applied to zero it charged health and pension
   // on money never earned and pushed the renta líquida below zero.
-  if (monthlyIncomeMinor <= 0) return 0;
-  const share = applyRate(monthlyIncomeMinor, shareScaled);
+  if (monthlyIncomeMinor + addedMinor <= 0) return 0;
+  const share = applyRate(monthlyIncomeMinor, shareScaled) + addedMinor;
   if (minimumWageMinor <= 0) return share;
   return Math.min(Math.max(share, minimumWageMinor), minimumWageMinor * CONTRIBUTION_CEILING_WAGES);
 }
@@ -151,6 +153,12 @@ export const SOLIDARITY_TOP_RATE_SCALED = 20_000;
 
 /** A contribution base never goes above twenty-five minimum wages. */
 export const CONTRIBUTION_CEILING_WAGES = 25;
+
+/**
+ * Non-salary payments are free of contributions only up to 40% of the whole
+ * pay; what passes it counts for the base. Ley 1393 de 2010 art. 30.
+ */
+export const NON_SALARY_FREE_SHARE_SCALED = 400_000;
 
 /** The deduction for a dependent: 10% of gross labour income, art. 387 E.T. */
 export const DEPENDENT_DEDUCTION_SHARE_SCALED = 100_000;
@@ -187,10 +195,22 @@ export function simulate(input: TaxInputs): TaxResult {
   const grossLabourMinor =
     input.monthlySalaryMinor * input.monthsWorked + input.otherLabourIncomeMinor;
 
+  // An employee may be paid part of the salary as agreed non-salary payments.
+  // They are income all the same (casilla 32 counts the whole pay), but only
+  // what passes 40% of the pay is contributed on. Someone working by contract
+  // has no such split: the 40% of what they bill is their base already.
+  const employee = input.employment !== 'independent';
+  const nonSalaryMinor = employee
+    ? Math.min(Math.max(input.nonSalaryMonthlyMinor ?? 0, 0), Math.max(input.monthlySalaryMinor, 0))
+    : 0;
+  const nonSalaryExcessMinor = Math.max(
+    nonSalaryMinor - applyRate(input.monthlySalaryMinor, NON_SALARY_FREE_SHARE_SCALED), 0);
+
   const monthlyBaseMinor = contributionBase(
-    input.monthlySalaryMinor,
+    input.monthlySalaryMinor - nonSalaryMinor,
     input.baseShareScaled ?? rules.baseShareScaled,
     input.minimumWageMinor,
+    nonSalaryExcessMinor,
   );
 
   const healthScaled = input.healthScaled ?? rules.healthScaled;
@@ -254,26 +274,40 @@ export function simulate(input: TaxInputs): TaxResult {
     applyRate(labourNetMinor, input.labourExemptScaled),
     input.labourExemptCapUvt * uvt,
   );
-  const dependentDeductionMinor = Math.min(
-    applyRate(grossLabourMinor, DEPENDENT_DEDUCTION_SHARE_SCALED),
-    input.dependentMonthlyCapUvt * uvt * 12,
-  );
   const healthPolicyMinor = Math.min(
     input.healthPolicyMinor, input.healthPolicyCapUvt * uvt * 12);
-
-  const beforeCapMinor = voluntaryMinor + input.housingInterestMinor
-    + labourExemptMinor + dependentDeductionMinor + healthPolicyMinor
-    + input.otherDeductionsMinor;
 
   const capMinor = Math.min(
     applyRate(generalNetMinor, input.globalCapScaled),
     input.globalCapUvt * uvt,
   );
+
+  // Dependents, two ways (Jose, 2026-09-25). The 10% of art. 387 needs at
+  // least one dependent - it used to be taken with none. An employee takes
+  // it AND the 72 UVT each of art. 336; someone working independently takes
+  // ONE of the two, and the app takes whichever lowers the tax more: the 10%
+  // competes for the 40% cap, the UVT do not, so the better one depends on
+  // how full that cap already is. Jose's rule, to confirm with an accountant.
+  const tenAvailableMinor = input.dependents > 0
+    ? Math.min(
+        applyRate(grossLabourMinor, DEPENDENT_DEDUCTION_SHARE_SCALED),
+        input.dependentMonthlyCapUvt * uvt * 12)
+    : 0;
+  const perDependentAvailableMinor =
+    Math.min(Math.max(input.dependents, 0), MAX_DEPENDENTS) * input.dependentUvt * uvt;
+  const otherBeforeCapMinor = voluntaryMinor + input.housingInterestMinor
+    + labourExemptMinor + healthPolicyMinor + input.otherDeductionsMinor;
+  const tenGainMinor = Math.min(otherBeforeCapMinor + tenAvailableMinor, capMinor)
+    - Math.min(otherBeforeCapMinor, capMinor);
+  const dependentDeductionMinor =
+    employee || tenGainMinor >= perDependentAvailableMinor ? tenAvailableMinor : 0;
+
+  const beforeCapMinor = otherBeforeCapMinor + dependentDeductionMinor;
   const cappedMinor = Math.min(beforeCapMinor, capMinor);
 
   // ---- 5. Deductions that do not compete for that cap ----------------------
 
-  const dependentsMinor = Math.min(input.dependents, MAX_DEPENDENTS) * input.dependentUvt * uvt;
+  const dependentsMinor = employee || dependentDeductionMinor === 0 ? perDependentAvailableMinor : 0;
   const eInvoiceMinor = Math.min(
     applyRate(input.eInvoicePurchasesMinor, E_INVOICE_SHARE_SCALED),
     input.eInvoiceCapUvt * uvt,
@@ -321,6 +355,7 @@ export function simulate(input: TaxInputs): TaxResult {
   return {
     grossLabourMinor,
     monthlyBaseMinor,
+    nonSalaryExcessMinor,
     solidarityRateScaled: fspScaled,
     healthMinor,
     pensionMinor,

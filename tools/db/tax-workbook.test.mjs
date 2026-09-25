@@ -46,6 +46,16 @@ const OTHER_CASES = {
     minimumWageMinor: 0, solidarityScaled: 15_000, monthlySalaryMinor: pesos(3_000_000),
   }),
   'no salary at all': () => ({ ...jose(), monthlySalaryMinor: 0, capitalIncomeMinor: 0, financialYieldMinor: 0 }),
+  'an employee paid half in non-salary bonuses, with no dependents': () => ({
+    ...jose(), employment: 'ordinary', baseShareScaled: undefined, healthScaled: undefined, pensionScaled: undefined,
+    monthlySalaryMinor: pesos(20_000_000), nonSalaryMonthlyMinor: pesos(10_000_000), dependents: 0,
+  }),
+  'working independently with the 40% cap already full, so the UVT per dependent win': () => ({
+    ...jose(),
+    employment: 'independent', baseShareScaled: undefined, healthScaled: undefined, pensionScaled: undefined,
+    monthlySalaryMinor: pesos(12_000_000), dependents: 3,
+    voluntaryOwnMinor: pesos(60_000_000), housingInterestMinor: pesos(20_000_000),
+  }),
 };
 
 // ---------------------------------------------------------------------------
@@ -222,9 +232,12 @@ test('each formula works out to the app\'s own figure', () => {
 for (const [story, make] of Object.entries(OTHER_CASES)) {
   test(`the formulas are live: ${story}`, () => {
     // The file exported for Jose's figures, with other figures typed over its
-    // yellow boxes - which is what someone editing it in Excel does.
-    const sheet = taxSheet(jose(), TODAY);
+    // yellow boxes - which is what someone editing it in Excel does. The kind
+    // of work is not a box in the file (it decides which rows and which
+    // dependents rule the file carries), so the file is exported for the
+    // kind of work of the case being typed in.
     const other = make();
+    const sheet = taxSheet({ ...jose(), employment: other.employment }, TODAY);
     const overrides = new Map();
 
     for (const [key, { ref, format }] of Object.entries(sheet.inputCells)) {

@@ -403,7 +403,7 @@ export class TaxPage {
 
   /** Whether a row belongs on the form as it is being filled in. */
   shows(row: FormRow): boolean {
-    return rowApplies(row.when, this.inputs().capitalNonTaxableTyped === true);
+    return rowApplies(row.when, this.inputs());
   }
 
   setEmployment(kind: EmploymentKind): void {

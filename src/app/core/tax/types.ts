@@ -61,6 +61,13 @@ export interface TaxInputs {
   monthlySalaryMinor: number;
   monthsWorked: number;
   otherLabourIncomeMinor: number;
+  /**
+   * Of the monthly salary, what is paid but agreed as NOT salary - bonuses,
+   * allowances (CST art. 128). Only for the two salaried kinds; absent means
+   * none, which is almost everyone. It stays taxable income; what changes is
+   * the contribution base (Ley 1393 de 2010 art. 30). Jose, 2026-09-25.
+   */
+  nonSalaryMonthlyMinor?: number;
 
   /** Overrides for what this kind of work contributes on, and at what rates. */
   baseShareScaled?: number;
@@ -155,6 +162,8 @@ export interface TaxInputs {
 export interface TaxResult {
   grossLabourMinor: number;
   monthlyBaseMinor: number;
+  /** Of the non-salary payments, the part over 40% of the pay: it counts for the base. */
+  nonSalaryExcessMinor: number;
   solidarityRateScaled: number;
   healthMinor: number;
   pensionMinor: number;

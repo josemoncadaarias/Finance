@@ -479,6 +479,27 @@ backup restore against iOS's own SQLite backend.
    not modelled yet, and the form's notes say so (corrected 2026-09-18 - the
    note used to claim the whole section was missing).
 
+   - **An employee's pay can hold non-salary payments** (Jose, 2026-09-25):
+     an optional box under the salary, shown only for ordinary and integral
+     salaries, "De ese salario, pagos que no son salario" - bonuses and
+     allowances agreed as non-salary (CST art. 128). They stay taxable income
+     (casilla 32 is the whole pay); they leave the contribution base except
+     what passes 40% of the pay, which comes back on top (Ley 1393 de 2010
+     art. 30), before the floor and ceiling. His example: 20 million, 10 of
+     them bonuses, base 12 million (9 for an integral salary: 70% of 10 plus
+     2). The 40% rule is sourced but, like the rest, not confirmed with an
+     accountant.
+   - **Dependents, two deductions** (Jose, 2026-09-25): the 10% of art. 387
+     (inside the 40% cap) and 72 UVT each up to four of art. 336 (outside
+     it). **The 10% needs at least one dependent** - the engine took it with
+     none, a port of the sheet whose case had two. An employee takes both;
+     someone independent takes ONE, and the app takes whichever lowers the
+     tax more: the 10% only where it lowers the capped total at least as
+     much as the UVT would. That rule is Jose's, to confirm with an
+     accountant. The exported sheet carries the same choice as a formula;
+     since the kind of work is not a box in the file, the live-formula tests
+     export for the kind of work of each case. His saved 2025 and 2026
+     simulations (integral, two dependents) do not move.
    - **What "bring in the yields" brings, and what it never brings** (Jose,
      2026-09-25; the one change to the simulator he asked for directly). The
      yields summary's own days for the whole tax year (`yields-for-tax.ts`,

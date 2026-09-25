@@ -27,6 +27,7 @@ import { formatMoney } from '../database/money';
 import { cellRef, writeXlsx, type CellStyle, type SheetCell, type SheetSpec } from '../xlsx/xlsx-writer';
 import {
   CONTRIBUTION_CEILING_WAGES, DEPENDENT_DEDUCTION_SHARE_SCALED, E_INVOICE_SHARE_SCALED,
+  NON_SALARY_FREE_SHARE_SCALED,
   EMPLOYMENT_DEFAULTS, MAX_DEPENDENTS, RATE_BANDS, RATE_SCALE, SOLIDARITY_STEPS,
   SOLIDARITY_TOP_RATE_SCALED, simulate,
 } from './cedula-general';
@@ -136,6 +137,17 @@ function solidarityFormula(ratio: string): string {
   return formula;
 }
 
+/** The non-salary payments as the engine clamps them: never below 0 nor above the pay. */
+const nonSalaryOf = (i: Ref<InputKey>) =>
+  `MIN(MAX(${i('nonSalaryMonthlyMinor')},0),MAX(${i('monthlySalaryMinor')},0))`;
+/** The 10% of art. 387, only with at least one dependent. */
+const tenAvailable = (i: Ref<InputKey>, o: Ref<ResultKey>) =>
+  `IF(${i('dependents')}>0,MIN(${cents(`${o('grossLabourMinor')}*${rate(DEPENDENT_DEDUCTION_SHARE_SCALED)}`)},`
+  + `${i('dependentMonthlyCapUvt')}*${i('uvtMinor')}*12),0)`;
+/** 72 UVT a dependent, at most four. */
+const perDependent = (i: Ref<InputKey>) =>
+  `MIN(MAX(${i('dependents')},0),${MAX_DEPENDENTS})*${i('dependentUvt')}*${i('uvtMinor')}`;
+
 /**
  * One formula per figure the engine works out, mirroring `simulate` line for
  * line. Typed as a record over every result key, so a figure added to the
@@ -143,10 +155,17 @@ function solidarityFormula(ratio: string): string {
  */
 const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: Ranges, inputs: TaxInputs) => string> = {
   grossLabourMinor: i => `${i('monthlySalaryMinor')}*${i('monthsWorked')}+${i('otherLabourIncomeMinor')}`,
-  monthlyBaseMinor: i => {
-    const share = cents(`${i('monthlySalaryMinor')}*${i('baseShareScaled')}`);
+  // An employee's non-salary payments leave the salary part, and what of them
+  // passes 40% of the pay comes back on top; someone independent has neither.
+  nonSalaryExcessMinor: (i, _o, _ranges, inputs) => inputs.employment === 'independent' ? '0'
+    : `MAX(${nonSalaryOf(i)}-${cents(`${i('monthlySalaryMinor')}*${rate(NON_SALARY_FREE_SHARE_SCALED)}`)},0)`,
+  monthlyBaseMinor: (i, o, _ranges, inputs) => {
+    const independent = inputs.employment === 'independent';
+    const part = independent ? i('monthlySalaryMinor') : `(${i('monthlySalaryMinor')}-${nonSalaryOf(i)})`;
+    const added = independent ? '' : `+${o('nonSalaryExcessMinor')}`;
+    const share = `${cents(`${part}*${i('baseShareScaled')}`)}${added}`;
     const wage = i('minimumWageMinor');
-    return `IF(${i('monthlySalaryMinor')}<=0,0,IF(${wage}<=0,${share},`
+    return `IF(${part}${added}<=0,0,IF(${wage}<=0,${share},`
       + `MIN(MAX(${share},${wage}),${wage}*${CONTRIBUTION_CEILING_WAGES})))`;
   },
   solidarityRateScaled: (i, o) =>
@@ -176,9 +195,16 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
   voluntaryMinor: i => `${i('voluntaryPayrollMinor')}+${i('voluntaryOwnMinor')}`,
   labourExemptMinor: (i, o) =>
     `MIN(${cents(`${o('labourNetMinor')}*${i('labourExemptScaled')}`)},${i('labourExemptCapUvt')}*${i('uvtMinor')})`,
-  dependentDeductionMinor: (i, o) =>
-    `MIN(${cents(`${o('grossLabourMinor')}*${rate(DEPENDENT_DEDUCTION_SHARE_SCALED)}`)},`
-    + `${i('dependentMonthlyCapUvt')}*${i('uvtMinor')}*12)`,
+  // The 10% needs a dependent. Independent: the 10% only where it lowers the
+  // base at least as much as the UVT per dependent would (the engine's rule).
+  dependentDeductionMinor: (i, o, _ranges, inputs) => {
+    const ten = tenAvailable(i, o);
+    if (inputs.employment !== 'independent') return ten;
+    const others = `(${o('voluntaryMinor')}+${i('housingInterestMinor')}+${o('labourExemptMinor')}`
+      + `+${o('healthPolicyMinor')}+${i('otherDeductionsMinor')})`;
+    const gain = `(MIN(${others}+${ten},${o('capMinor')})-MIN(${others},${o('capMinor')}))`;
+    return `IF(${gain}>=${perDependent(i)},${ten},0)`;
+  },
   healthPolicyMinor: i => `MIN(${i('healthPolicyMinor')},${i('healthPolicyCapUvt')}*${i('uvtMinor')}*12)`,
   beforeCapMinor: (i, o) =>
     `${o('voluntaryMinor')}+${i('housingInterestMinor')}+${o('labourExemptMinor')}`
@@ -187,7 +213,8 @@ const FORMULAS: Record<ResultKey, (i: Ref<InputKey>, o: Ref<ResultKey>, ranges: 
     `MIN(${cents(`${o('generalNetMinor')}*${i('globalCapScaled')}`)},${i('globalCapUvt')}*${i('uvtMinor')})`,
   cappedMinor: (_, o) => `MIN(${o('beforeCapMinor')},${o('capMinor')})`,
 
-  dependentsMinor: i => `MIN(${i('dependents')},${MAX_DEPENDENTS})*${i('dependentUvt')}*${i('uvtMinor')}`,
+  dependentsMinor: (i, o, _ranges, inputs) => inputs.employment !== 'independent' ? perDependent(i)
+    : `IF(${o('dependentDeductionMinor')}=0,${perDependent(i)},0)`,
   eInvoiceMinor: i =>
     `MIN(${cents(`${i('eInvoicePurchasesMinor')}*${rate(E_INVOICE_SHARE_SCALED)}`)},${i('eInvoiceCapUvt')}*${i('uvtMinor')})`,
   deductionsMinor: (_, o) => `${o('cappedMinor')}+${o('dependentsMinor')}+${o('eInvoiceMinor')}`,
@@ -351,7 +378,7 @@ export function taxSheet(inputs: TaxInputs, today: Date = new Date(), language: 
     for (const formRow of section.rows) {
       // The rows of the way casilla 59 was not answered are not part of this
       // person's form, so they are not part of their spreadsheet either.
-      if (!rowApplies(formRow.when, inputs.capitalNonTaxableTyped === true)) continue;
+      if (!rowApplies(formRow.when, inputs)) continue;
 
       switch (formRow.kind) {
         case 'input':

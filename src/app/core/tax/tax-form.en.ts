@@ -181,7 +181,10 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
   situation: {
     title: 'Your situation',
     rows: {
-      'input.dependents': { label: 'Financial dependants', hint: 'Up to 4 count (art. 336 E.T.).' },
+      'input.dependents': {
+        label: 'Financial dependants',
+        hint: 'As an employee you deduct both the 10% (art. 387) and 72 UVT for each one, up to 4 (art. 336). Self-employed, only one of the two: the app takes whichever lowers your tax more.',
+      },
     },
   },
 
@@ -219,6 +222,10 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
         label: 'Gross monthly salary',
         hint: 'The one in your contract, before deductions. If it changes from month to month, the average.',
       },
+      'input.nonSalaryMonthlyMinor': {
+        label: 'Of that salary, payments that are not salary',
+        hint: 'Optional, almost always 0: bonuses or allowances agreed as non-salary. They are still income, but they do not count for the IBC except what passes 40% of your pay (Ley 1393 de 2010, art. 30).',
+      },
       'input.monthsWorked': { label: 'Months worked in the year' },
       'input.otherLabourIncomeMinor': {
         label: 'Other employment income in the year',
@@ -229,7 +236,11 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
       'note.0': { text: 'Mandatory social security contributions. They are subtracted as ingresos no constitutivos de renta (income that is not taxable).' },
       'computed.monthlyBaseMinor': {
         label: 'Monthly contribution base (IBC)',
-        hint: 'The whole salary if ordinary, 70% if integral, 40% if you are self-employed.',
+        hint: 'The whole salary if ordinary, 70% if integral, 40% if you are self-employed. Without the non-salary payments, except what passes 40%.',
+      },
+      'computed.nonSalaryExcessMinor': {
+        label: 'Of the non-salary payments, what does count for the IBC',
+        hint: 'What passes 40% of your monthly pay. Already added into the IBC.',
       },
       'input.healthScaled': { label: 'Health contribution %', hint: '4% as an employee, 12,5% as self-employed.' },
       'input.pensionScaled': { label: 'Pension contribution %', hint: '4% as an employee, 16% as self-employed.' },
@@ -381,7 +392,7 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
       'computed.dependentDeductionMinor': {
         label: 'Deducción por dependiente',
         gloss: 'dependant deduction',
-        hint: '10% of employment income, capped at 32 UVT a month.',
+        hint: '10% of employment income, capped at 32 UVT a month. Only with at least one dependant; self-employed, only when it suits you better than the 72 UVT.',
       },
       'input.healthPolicyMinor': {
         label: 'Prepaid medicine or health insurance payments',
@@ -405,7 +416,7 @@ export const TAX_FORM_EN: Readonly<Record<string, SectionWords>> = {
       'computed.dependentsMinor': {
         label: 'Deducción por dependientes económicos',
         gloss: 'deduction for dependants',
-        hint: '72 UVT for each one, up to 4.',
+        hint: '72 UVT for each one, up to 4. Self-employed, only when it suits you better than the 10%.',
       },
       'input.eInvoicePurchasesMinor': {
         label: 'Purchases with an electronic invoice',

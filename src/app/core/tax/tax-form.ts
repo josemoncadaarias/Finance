@@ -50,7 +50,7 @@ export type SpecialRow =
  * out", they are simply not part of the form that person is filling in. The
  * spreadsheet leaves them out for the same reason.
  */
-export type RowWhen = 'inflationary.worked' | 'inflationary.typed';
+export type RowWhen = 'inflationary.worked' | 'inflationary.typed' | 'employee';
 
 /**
  * `gloss` is only ever set by a translation: what the Spanish label of a box
@@ -69,8 +69,14 @@ export type FormRow =
   | { kind: 'special'; which: SpecialRow; when?: RowWhen };
 
 /** Whether a row belongs on the form these inputs describe. */
-export function rowApplies(when: RowWhen | undefined, typed: boolean): boolean {
+export function rowApplies(
+  when: RowWhen | undefined,
+  inputs: { capitalNonTaxableTyped?: boolean; employment: EmploymentKind },
+): boolean {
   if (!when) return true;
+  // Only an employee's pay is split into salary and non-salary payments.
+  if (when === 'employee') return inputs.employment !== 'independent';
+  const typed = inputs.capitalNonTaxableTyped === true;
   return when === 'inflationary.typed' ? typed : !typed;
 }
 
@@ -236,7 +242,7 @@ export const TAX_FORM: readonly FormSection[] = [
       {
         kind: 'input', key: 'dependents', format: 'count',
         label: 'Dependientes económicos',
-        hint: 'Hasta 4 cuentan (art. 336 E.T.).',
+        hint: 'Como empleado se descuentan el 10% (art. 387) y 72 UVT por cada uno, hasta 4 (art. 336). Como independiente, solo una de las dos: la app toma la que más te baje el impuesto.',
       },
     ],
   },
@@ -282,6 +288,11 @@ export const TAX_FORM: readonly FormSection[] = [
         hint: 'El de tu contrato, antes de descuentos. Si cambia mes a mes, el promedio.',
       },
       { kind: 'special', which: 'salaryPrefill' },
+      {
+        kind: 'input', key: 'nonSalaryMonthlyMinor', format: 'money', when: 'employee',
+        label: 'De ese salario, pagos que no son salario',
+        hint: 'Opcional, casi siempre 0: bonos o auxilios pactados como no salariales. Siguen siendo ingreso, pero no cuentan para el IBC salvo lo que pase del 40% de tu pago (Ley 1393 de 2010, art. 30).',
+      },
       { kind: 'input', key: 'monthsWorked', format: 'count', label: 'Meses trabajados en el año' },
       {
         kind: 'input', key: 'otherLabourIncomeMinor', format: 'money',
@@ -294,7 +305,12 @@ export const TAX_FORM: readonly FormSection[] = [
       {
         kind: 'computed', key: 'monthlyBaseMinor', format: 'money',
         label: 'Base de cotización mensual (IBC)',
-        hint: 'Todo el salario si es ordinario, 70% si es integral, 40% si eres independiente.',
+        hint: 'Todo el salario si es ordinario, 70% si es integral, 40% si eres independiente. Sin los pagos que no son salario, salvo lo que pase del 40%.',
+      },
+      {
+        kind: 'computed', key: 'nonSalaryExcessMinor', format: 'money', when: 'employee',
+        label: 'De lo no salarial, lo que sí cuenta para el IBC',
+        hint: 'Lo que pasa del 40% de tu pago mensual. Ya está sumado en el IBC.',
       },
       { kind: 'input', key: 'healthScaled', format: 'percent', label: '% aporte a salud', hint: '4% como empleado, 12,5% como independiente.' },
       { kind: 'input', key: 'pensionScaled', format: 'percent', label: '% aporte a pensión', hint: '4% como empleado, 16% como independiente.' },
@@ -443,7 +459,7 @@ export const TAX_FORM: readonly FormSection[] = [
       { kind: 'computed', key: 'voluntaryMinor', format: 'money', label: 'Total aportes voluntarios', box: '35' },
       { kind: 'input', key: 'housingInterestMinor', format: 'money', box: '38', label: 'Intereses de vivienda o ICETEX' },
       { kind: 'computed', key: 'labourExemptMinor', format: 'money', box: '36', label: 'Renta exenta de trabajo', hint: '25% de la renta de trabajo, con tope de 790 UVT.' },
-      { kind: 'computed', key: 'dependentDeductionMinor', format: 'money', box: '39', label: 'Deducción por dependiente', hint: '10% de los ingresos de trabajo, con tope de 32 UVT al mes.' },
+      { kind: 'computed', key: 'dependentDeductionMinor', format: 'money', box: '39', label: 'Deducción por dependiente', hint: '10% de los ingresos de trabajo, con tope de 32 UVT al mes. Solo con al menos un dependiente; como independiente, solo si te conviene más que los 72 UVT.' },
       { kind: 'input', key: 'healthPolicyMinor', format: 'money', label: 'Pagos de medicina prepagada o pólizas de salud', hint: 'Solo lo que pagaste en el año, tuyo, de tu cónyuge o de tus hijos.' },
       { kind: 'computed', key: 'healthPolicyMinor', format: 'money', box: '39', label: 'Deducción por salud', hint: 'Con tope de 16 UVT al mes.' },
       { kind: 'input', key: 'otherDeductionsMinor', format: 'money', box: '39', label: 'Otras deducciones' },
@@ -458,7 +474,7 @@ export const TAX_FORM: readonly FormSection[] = [
     title: '6. Deducciones sin límite',
     subtitle: 'No compiten por el 40% ni por los 1.340 UVT',
     rows: [
-      { kind: 'computed', key: 'dependentsMinor', format: 'money', box: '139', label: 'Deducción por dependientes económicos', hint: '72 UVT por cada uno, hasta 4.' },
+      { kind: 'computed', key: 'dependentsMinor', format: 'money', box: '139', label: 'Deducción por dependientes económicos', hint: '72 UVT por cada uno, hasta 4. Como independiente, solo si te conviene más que el 10%.' },
       { kind: 'input', key: 'eInvoicePurchasesMinor', format: 'money', label: 'Compras con factura electrónica', hint: 'Pagadas por medio electrónico y que no estén ya en otra casilla.' },
       { kind: 'computed', key: 'eInvoiceMinor', format: 'money', box: '28', label: 'Deducción del 1% por factura electrónica', hint: 'Con tope de 240 UVT.' },
       { kind: 'computed', key: 'deductionsMinor', format: 'money', box: '92', label: 'Total rentas exentas y deducciones', total: true },
