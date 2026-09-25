@@ -20,6 +20,7 @@ import { reportWords } from './report-words';
 import { buildYieldsReport } from './sections-yields';
 import type { YieldsReportData } from './yields-data';
 import { gatherYieldsReport } from './yields-gather';
+import { yieldsOfTaxYear, type TaxYearYields } from './yields-for-tax';
 
 @Injectable({ providedIn: 'root' })
 export class YieldsReportService {
@@ -31,6 +32,24 @@ export class YieldsReportService {
   async build(): Promise<{ data: YieldsReportData; blocks: Block[] }> {
     const data = await this.gather();
     return { data, blocks: buildYieldsReport(data) };
+  }
+
+  /**
+   * One tax year of yields for the income-tax form: the summary's own days
+   * for that whole year, every account, estimates included (`yields-for-tax`).
+   * No inflation is read - the form does not ask about it here.
+   */
+  async forTaxYear(year: number): Promise<TaxYearYields> {
+    const data = await gatherYieldsReport(this.database.driver, {
+      period: { kind: 'range', from: `${year}-01-01`, to: `${year}-12-31` },
+      accountId: null,
+      today: todayIso(),
+      locale: this.i18n.dateLocale(),
+      words: reportWords(key => this.i18n.t(key)),
+      allLabel: this.i18n.t('period.all'),
+      inflation: [],
+    });
+    return yieldsOfTaxYear(data, year);
   }
 
   async gather(): Promise<YieldsReportData> {

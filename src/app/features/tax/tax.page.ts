@@ -32,6 +32,7 @@ import { parsePercentToScaled } from '../../core/yields/yield-math';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
+import { YieldsReportService } from '../../core/report/yields-report.service';
 import { TaxSimulationsRepository } from '../../core/database/repositories/tax-simulations.repository';
 import { EMPLOYMENT_DEFAULTS, RATE_BANDS, simulate } from '../../core/tax/cedula-general';
 import {
@@ -71,6 +72,7 @@ export class TaxPage {
   readonly status = this.database.status;
 
   private readonly i18n = inject(I18nService);
+  private readonly yieldsReport = inject(YieldsReportService);
 
   /**
    * The words of the screen, in the language it is being read in.
@@ -528,10 +530,23 @@ export class TaxPage {
    * Approximate twice over, and the notice says so: these are yields as
    * accrued day by day, where the return counts what the bank actually paid;
    * and the bank's own certificate is the figure that goes on the form.
+   *
+   * The yields are the yields summary's own for the whole year (Jose,
+   * 2026-09-25): what the engine worked out, plus the estimate for the months
+   * before it began, in pesos at the rate of each day - and nothing from an
+   * account of type Inversión, whose return is taxed only when the fund
+   * certifies it as realized. That figure is typed into casilla 58 by hand,
+   * which is why the notice names those accounts.
    */
   async useYields(): Promise<void> {
-    const totals = await new YieldsRepository(this.database.driver).yearTotals(this.year());
-    if (totals.days === 0 && totals.cashbackMinor === 0) {
+    const year = await this.yieldsReport.forTaxYear(this.year());
+    const cashback = await new YieldsRepository(this.database.driver).yearTotals(this.year());
+    const totals = {
+      grossMinor: year.workedMinor + year.estimatedMinor,
+      withheldMinor: year.withheldMinor,
+      cashbackMinor: cashback.cashbackMinor,
+    };
+    if (year.workedDays + year.estimatedDays === 0 && totals.cashbackMinor === 0) {
       this.yieldsNotice.set(fill(this.text.yieldsNone, { year: this.year() }));
       return;
     }
@@ -564,12 +579,17 @@ export class TaxPage {
     for (const key of ['capitalIncomeMinor', 'financialYieldMinor']) this.endDraft(key);
     for (let at = 0; at < 4; at++) this.endDraft(`extra${at}`);
 
-    this.yieldsNotice.set(fill(this.text.yieldsUsed, {
-      gross: this.money(totals.grossMinor),
+    const said = [fill(this.text.yieldsUsed, {
+      gross: this.money(year.workedMinor),
+      days: year.workedDays,
+      estimated: this.money(year.estimatedMinor),
       cashback: this.money(totals.cashbackMinor),
       withheld: this.money(totals.withheldMinor),
-      days: totals.days,
-    }));
+    })];
+    if (year.investmentsLeftOut.length > 0) {
+      said.push(fill(this.text.yieldsInvestments, { accounts: year.investmentsLeftOut.join(', ') }));
+    }
+    this.yieldsNotice.set(said.join(' '));
     this.schedule();
   }
 

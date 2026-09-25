@@ -479,6 +479,23 @@ backup restore against iOS's own SQLite backend.
    not modelled yet, and the form's notes say so (corrected 2026-09-18 - the
    note used to claim the whole section was missing).
 
+   - **What "bring in the yields" brings, and what it never brings** (Jose,
+     2026-09-25; the one change to the simulator he asked for directly). The
+     yields summary's own days for the whole tax year (`yields-for-tax.ts`,
+     `YieldsReportService.forTaxYear`): what the engine worked out plus the
+     ESTIMATE for the days before it began, every figure in pesos at its
+     day's rate - it used to bring only the worked-out days (from September
+     2026, for Jose: 426,445 against about 6.1 million with the estimate)
+     and to add dollars as pesos. **Nothing from an account of type
+     Inversión, even with products**: its return stays inside until taken
+     out, and only what the fund certifies as realized is taxed (48 of
+     Fiducuenta's ~55 million, one year). The person types that into
+     casilla 58 by hand - Jose chose that over a line of its own - and the
+     notice names the investment accounts left out to remind them. Pressing
+     the button again rewrites casilla 58, so the typed part must be added
+     again; the hint says so. An estimated day carries what was paid, net of
+     withholding, as its gross, so the estimate is a little short of what
+     the bank certifies.
    - **Yields and cashback are rentas de capital (casilla 58), not ganancias
      ocasionales.** The componente inflacionario of the financial yields is
      casilla 59, worked out by the form; cashback carries none (an assumption:
