@@ -1439,7 +1439,10 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   line under it, notes included - without accents or case; the compose bar
   steps aside while typing, as on the summary. A new account starts with an
   empty search. The sheet's bottom bar also carries the same round transfer,
-  from that account to where it usually sends money.
+  from that account to where it usually sends money; the "Nueva
+  transferencia" button that sat beside "Mover entre productos" did the same
+  and was removed, so that row is only there for an account with more than
+  one product.
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.

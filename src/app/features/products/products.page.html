@@ -501,23 +501,19 @@
                  the summary screen keeps them there and this screen is just
                  as long. -->
 
-            <!-- The two ways money moves without being spent: between this
-                 account's own products, and between accounts. They are the
-                 same kind of act and belong side by side - inside on the
-                 left, outside on the right. The first only appears where
-                 there is more than one product to move between. -->
-            <div class="actions">
-              @if (line.products.length > 1) {
+            <!-- Moving money between this account's own products, where there
+                 is more than one. A transfer to another account is the round
+                 button in the bottom bar, beside Gasto and Ingreso; the second
+                 button that used to sit here did the same and was removed
+                 (Jose, 2026-09-24). -->
+            @if (line.products.length > 1) {
+              <div class="actions">
                 <ion-button expand="block" fill="outline" (click)="openMove(line)">
                   <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
                   {{ 'products.move' | t }}
                 </ion-button>
-              }
-              <ion-button expand="block" fill="outline" (click)="openTransfer(line)">
-                <ion-icon slot="start" name="git-compare-outline"></ion-icon>
-                {{ 'summary.newTransfer' | t }}
-              </ion-button>
-            </div>
+              </div>
+            }
 
             <!-- Every movement of this account's products, as one history: to
                  look back, and to correct or delete one. Collapsed until asked
