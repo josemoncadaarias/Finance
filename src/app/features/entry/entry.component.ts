@@ -65,6 +65,13 @@ export interface EntryRequest {
    */
   preferredAccountId?: number | null;
   /**
+   * Which end of a transfer that account is. The summary screen leaves it as
+   * the destination - looking at a card and pressing transfer means paying it.
+   * The products screen makes it the origin: looking at the account holding
+   * the savings, the move is money leaving it (Jose, 2026-09-24).
+   */
+  preferredSide?: 'from' | 'to';
+  /**
    * What was already written somewhere else, carried over rather than typed
    * twice. The products screen hands its form here when the account chosen
    * has no products: the amount, the day and the note were the right ones,
@@ -584,9 +591,10 @@ export class EntryComponent implements OnInit, OnDestroy {
   /**
    * Which way a transfer should point before anyone chooses.
    *
-   * The account on screen is where the money is going: opening a transfer
-   * while looking at the credit card means paying that card, not taking money
-   * out of it. So the destination is settled, and the only open question is
+   * On the summary screen the account on show is where the money is going:
+   * opening a transfer while looking at the credit card means paying that
+   * card, not taking money out of it. (The products screen asks the other way
+   * round, with `preferredSide: 'from'`.) So the destination is settled, and the only open question is
    * where the money comes from — answered by whichever account has sent to
    * that destination most often.
    *
@@ -600,6 +608,10 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     const selected = this.request().preferredAccountId;
     if (selected != null && accounts.some(a => a.id === selected)) {
+      // Leaving it: to wherever this account sends money most often.
+      if (this.request().preferredSide === 'from') {
+        return { from: selected, to: await this.counterpart(accounts, selected, 'from') };
+      }
       return { from: await this.counterpart(accounts, selected, 'to'), to: selected };
     }
 

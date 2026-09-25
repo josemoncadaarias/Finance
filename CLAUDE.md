@@ -1330,6 +1330,12 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   form. A first version split the list into "with products" and "other
   accounts"; Jose found the plain list better and asked for one list, never
   two - do not bring groups back.
+- A transfer opened from an account's sheet on the products screen starts
+  FROM that account, TO the account it sends money to most often
+  (`EntryRequest.preferredSide: 'from'`; Jose, 2026-09-24 - it used to start
+  from Bancolombia into the account on show). The summary screen keeps the
+  other way round on purpose: there the account on show is the destination,
+  because transferring while looking at a card means paying it.
 - An account's sheet on the products screen has "Ver sus movimientos en
   Inicio": that account selected in `FilterService`, and the summary open.
 - The summary screen, beside the balance of one account, has two round blue

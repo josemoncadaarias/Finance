@@ -1361,7 +1361,8 @@ export class ProductsPage {
    * this account's products, and between accounts.
    */
   openTransfer(line: ProductLine): void {
-    this.movementEdit.set({ kind: 'transfer', preferredAccountId: line.account.id });
+    // From this account, to wherever it usually sends money.
+    this.movementEdit.set({ kind: 'transfer', preferredAccountId: line.account.id, preferredSide: 'from' });
   }
 
   /** Opens one day so it can be checked against a statement and corrected. */
