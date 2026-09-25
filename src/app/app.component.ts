@@ -25,6 +25,7 @@ import { CloudBackupService } from './core/cloud/cloud-backup.service';
 import { ForeignConversionService } from './core/rates/foreign-conversion.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
 import { AvatarComponent } from './core/cloud/avatar.component';
+import { MarqueeService } from './core/ui/marquee.service';
 
 interface Section {
   path: string;
@@ -114,7 +115,11 @@ export class AppComponent {
   /** Values foreign movements in pesos at their own day's rate. Same reason. */
   private readonly foreign = inject(ForeignConversionService);
 
+  /** Text cut short with "…" slides to show the rest of itself, on every screen. */
+  private readonly marquee = inject(MarqueeService);
+
   constructor() {
+    this.marquee.start();
     // Every icon, once, for the whole app: see the note above the class.
     addIcons(allIcons as unknown as Record<string, string>);
     // The ones drawn here, because Ionicons has none like them.

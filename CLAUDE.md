@@ -1408,6 +1408,23 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   closing - Android's back button included, which does not blur the field -
   brings the bar back. Checked in a browser at keyboard-up height; not yet on
   the phone itself.
+- **Text cut short with "…" slides to show the rest of itself, on every
+  screen** (`core/ui/marquee.service.ts`, started by `AppComponent`; Jose,
+  2026-09-24). No directive per place: the service finds, a moment after
+  the page stops changing, every element with a text of its own that the
+  stylesheet clips with an ellipsis, so a new screen gets it for free. Such a
+  text slides ONCE, a second after it comes fully into view, rests, slides
+  back and stays still, and again when tapped - ten long names moving
+  forever would be a list nobody reads. Only a text marked `marquee-loop`
+  slides without stopping, and that is kept to texts that stand alone: the
+  account and its hint in the summary's header, the account in a products
+  sheet's title, the line under the report's title. Nothing moves that fits,
+  and nothing moves at all when the phone asks for reduced motion. It
+  animates `text-indent`, measured with a Range so a text mid-slide measures
+  the same as a still one. Checked in a browser at 330px: the header loops,
+  a clipped category title slides once in view, stops, and slides on a tap.
+  A search field's hint cannot slide (it is an input's placeholder); it ends
+  in "…" instead (global.scss).
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.

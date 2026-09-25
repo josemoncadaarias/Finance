@@ -324,7 +324,7 @@
                 } @else {
                   <ion-icon [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
                 }
-                <span class="name">{{ line.account.name }}</span>
+                <span class="name marquee-loop">{{ line.account.name }}</span>
                 @if (canSwitchAccount()) {
                   <ion-icon class="switch" name="chevron-down-outline"></ion-icon>
                 }
