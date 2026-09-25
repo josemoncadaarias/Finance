@@ -88,3 +88,28 @@ test('a transfer: the same two accounts, in that direction', async () => {
   assert.equal(await usualNote(w.db, { kind: 'transfer', fromAccountId: w.bank, toAccountId: w.card }, TODAY), 'Pago tarjeta');
   assert.equal(await usualNote(w.db, { kind: 'transfer', fromAccountId: w.card, toAccountId: w.bank }, TODAY), 'Devolución');
 });
+
+test('a product with no habit of its own takes the account\'s, for that category', async () => {
+  // Jose's Plata, 2026-09-25: every "Cosas para la casa mercado or" sits in
+  // the Bolsillo, and a spending on Cuenta Ahorros under the same category
+  // offered nothing.
+  const w = await world();
+  const { YieldsRepository } = await import('../../src/app/core/database/repositories/yields.repository.ts');
+  const yields = new YieldsRepository(w.db, NOW);
+  const pocket = await yields.addProduct({ account_id: w.bank, name: 'Bolsillo', source: 'manual', earns_from: '2026-01-01' });
+  const savings = await yields.addProduct({ account_id: w.bank, name: 'Cuenta Ahorros', source: 'manual', earns_from: '2026-01-01' });
+  const moves = new TransactionsRepository(w.db, NOW);
+  for (const day of ['2026-09-18', '2026-09-19']) {
+    await moves.create({
+      account_id: w.bank, category_id: w.home, product_id: pocket, amount_minor: -100_000_00,
+      occurred_on: day, description: 'Cosas para la casa mercado or', source: 'manual',
+    });
+  }
+  const ask = (productId, categoryId) => usualNote(w.db, {
+    kind: 'product', accountId: w.bank, productId, usualProductId: savings, side: 'out', categoryId,
+  }, TODAY);
+
+  assert.equal(await ask(pocket, w.home), 'Cosas para la casa mercado or', 'its own product first');
+  assert.equal(await ask(savings, w.home), 'Cosas para la casa mercado or', 'another product of the account, same category');
+  assert.equal(await ask(savings, w.food), null, 'never another category');
+});

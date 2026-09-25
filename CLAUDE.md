@@ -1593,7 +1593,13 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   (only once a category is chosen: the account's commonest note alone is too
   vague), a transfer between the same two accounts in that direction, a
   product's own spending or income (same account, product, side and
-  category - also only once a category is chosen), a move between the same two products. It takes two
+  category - also only once a category is chosen), a move between the same two products. A product's
+  spending or income with no habit of its own falls back to the account's
+  for the same side and category (2026-09-25: Plata's Mercados notes all sit
+  in the Bolsillo since migration 039, and Cuenta Ahorros offered nothing). A
+  move between products has no such fallback: 039 put both legs of Plata's
+  old moves in the Bolsillo, so their direction is gone, and a guess could
+  offer "Recarga" for a "Retiro"; two new moves teach it. It takes two
   uses to be a habit; the last year speaks first, then all of it; notes are
   compared without case or surrounding spaces and offered in their latest
   spelling. It follows the form while the person has not touched the note -

@@ -110,6 +110,19 @@ function usesOf(context: NoteContext): { sql: string; params: unknown[] } {
  * when nothing has been written for it at least twice.
  */
 export async function usualNote(db: SqlDriver, context: NoteContext, today: string): Promise<string | null> {
+  const own = await mostWritten(db, context, today);
+  if (own !== null || context.kind !== 'product' || context.categoryId === null) return own;
+  // A product with no habit of its own falls back to the account's, for the
+  // same side and category: a note says what was bought, not which pocket it
+  // came out of. Found by Jose on 2026-09-25 - his "Cosas para la casa
+  // mercado or" were all recorded in Plata's Bolsillo, and a spending on its
+  // Cuenta Ahorros offered nothing.
+  return mostWritten(db, {
+    kind: 'movement', accountId: context.accountId, side: context.side, categoryId: context.categoryId,
+  }, today);
+}
+
+async function mostWritten(db: SqlDriver, context: NoteContext, today: string): Promise<string | null> {
   const { sql, params } = usesOf(context);
   for (const since of [aYearBefore(today), null]) {
     const rows = await db.query<{ note: string; times: number }>(
