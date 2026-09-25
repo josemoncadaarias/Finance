@@ -858,6 +858,13 @@ ion-popover.info-hint-popover {
   .compose .big:active, .compose .swap:active { transform: none; }
 }
 
+/* A search whose hint is longer than the field ends in "…" instead of being
+   cut mid-word. Here and not in the page's styles: the input is Ionic's own,
+   outside the component's reach. */
+ion-searchbar input.searchbar-input.searchbar-input {
+  text-overflow: ellipsis;
+}
+
 /*
  * Which account is being looked at, or recorded against.
  *
