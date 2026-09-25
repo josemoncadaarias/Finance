@@ -1396,6 +1396,12 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   it to go to another account with products without leaving (never while a
   form is open, which would be lost). Only accounts on that screen are
   offered.
+- The search lives inside the "Movimientos" tab, a rounded field between
+  the views and the list ("Buscar en {periodo}: nota, categoría o cuenta"),
+  and no longer behind a magnifier in the header: it only ever searched the
+  movements, so from up there it meant opening the list afterwards to see the
+  results (Jose, 2026-09-24). The tab's count and Entró / Salió follow what it
+  finds, as they always did.
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.

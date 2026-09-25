@@ -201,7 +201,6 @@ export class MovementsPage {
     { id: 'largest', label: 'summary.view.largest', icon: 'trending-down-outline' },
   ];
 
-  readonly showSearch = signal(false);
 
   /** Icon names arrive with or without their suffix; this settles it. */
   readonly outlined = outlined;
@@ -501,11 +500,6 @@ export class MovementsPage {
 
   onSaved(): void {
     this.entry.set(null);
-  }
-
-  closeSearch(): void {
-    this.filter.search.set('');
-    this.showSearch.set(false);
   }
 }
 

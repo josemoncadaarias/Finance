@@ -85,6 +85,7 @@ export const SPANISH = {
   'summary.empty.search': 'No hay movimientos en {period} que digan "{search}".',
   'summary.search': 'Buscar',
   'summary.search.placeholder': 'Buscar movimiento',
+  'summary.search.in': 'Buscar en {period}: nota, categoría o cuenta',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
   'nav.report': 'Resumen financiero',
   'nav.report.hint': 'Como te fue en el periodo y contra el anterior',
@@ -1083,6 +1084,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.empty.search': 'No movements in {period} saying "{search}".',
   'summary.search': 'Search',
   'summary.search.placeholder': 'Search a movement',
+  'summary.search.in': 'Search {period}: note, category or account',
   // ---- The financial summary of a period, and the spreadsheet it exports ----
   'nav.report': 'Financial summary',
   'nav.report.hint': 'How the period went, and how it compares',

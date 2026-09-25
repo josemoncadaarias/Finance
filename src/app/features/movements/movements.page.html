@@ -41,22 +41,10 @@
     </button>
 
     <ion-buttons slot="end">
-      <ion-button (click)="showSearch.set(!showSearch())" [attr.aria-label]="'summary.search' | t">
-        <ion-icon slot="icon-only" name="search-outline"></ion-icon>
-      </ion-button>
       <app-cloud-button></app-cloud-button>
       <app-language-button></app-language-button>
     </ion-buttons>
   </ion-toolbar>
-
-  @if (showSearch()) {
-    <ion-toolbar>
-      <ion-searchbar [placeholder]="'summary.search.placeholder' | t" [value]="filter.search()"
-                     (ionInput)="filter.search.set($any($event.target).value ?? '')"
-                     (ionCancel)="closeSearch()" showCancelButton="always"
-                     [cancelButtonText]="'summary.close' | t"></ion-searchbar>
-    </ion-toolbar>
-  }
 
   <!-- Period: arrows to step, and the label itself opens the picker -->
   <ion-toolbar class="stepper">
@@ -249,6 +237,16 @@
             <span>{{ $any(view.label) | t }}</span>
           </button>
         }
+      </div>
+
+      <!-- Search, where its results are: it only ever searched the movements,
+           and from the header it meant opening this list afterwards to see
+           them (Jose, 2026-09-24). The count on the tab above says how many
+           match as it is typed. -->
+      <div class="search-row">
+        <ion-searchbar [placeholder]="'summary.search.in' | t:{ period: label() }" [value]="filter.search()"
+                       (ionInput)="filter.search.set($any($event.target).value ?? '')"
+                       [debounce]="150" showCancelButton="never"></ion-searchbar>
       </div>
 
       @if (filter.grouping() !== 'largest') {
