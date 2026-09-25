@@ -15,10 +15,16 @@
  * One service for the whole app rather than a directive on each of the
  * thirty-odd places that clip text: it finds them itself - any element with
  * a text of its own that the stylesheet clips with an ellipsis - so a new
- * screen gets it without anyone remembering to ask. It looks only at
- * elements it has not seen, a moment after the page stops changing, and the
- * movement is a CSS animation of `text-indent`, which the phone runs without
- * the app's help.
+ * screen gets it without anyone remembering to ask.
+ *
+ * **What the phone taught it** (2026-09-24, the first version): animating
+ * `text-indent` and walking the whole page after every change was smooth on a
+ * computer and jumped on Jose's phone - a millimetre, then the end - because
+ * both run on the thread the app itself runs on. So the text now moves by a
+ * `transform` on a wrapper made for the length of the slide, which the phone
+ * runs on its own, off that thread; and only what was added to the page is
+ * looked at. While it moves, the text sits in a `.marquee-track` span; when a
+ * once-slide ends it is put back where it was, so the "…" returns.
  */
 
 import { Injectable } from '@angular/core';
@@ -28,13 +34,15 @@ const SPEED = 40;
 /** The pause before a text first moves, and at each end of its trip. */
 const DELAY_MS = 1000;
 const REST_MS = 900;
+const TRACK = 'marquee-track';
 
 @Injectable({ providedIn: 'root' })
 export class MarqueeService {
   private started = false;
   private readonly seen = new WeakSet<Element>();
   private readonly played = new WeakSet<Element>();
-  private readonly running = new WeakMap<Element, Animation>();
+  private readonly running = new WeakMap<Element, { animation: Animation; distance: number }>();
+  private readonly pending = new Set<Node>();
   private scanTimer: ReturnType<typeof setTimeout> | null = null;
   private visible: IntersectionObserver | null = null;
   private resized: ResizeObserver | null = null;
@@ -60,14 +68,26 @@ export class MarqueeService {
       }
     }, { threshold: 0.9 });
 
-    // A looping text whose box changes size - a rotated phone, a new account
-    // chosen - is measured again.
+    // A looping text whose box changes size is measured again.
     this.resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(entries => {
       for (const entry of entries) this.loop(entry.target as HTMLElement);
     });
 
-    new MutationObserver(() => this.scheduleScan())
-      .observe(document.body, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(records => {
+      for (const record of records) {
+        // Its own wrapping and unwrapping is not news.
+        if (this.isTrack(record.target)) continue;
+        // A looping text whose words changed is measured again.
+        const loop = this.loopAround(record.target);
+        if (loop) this.pending.add(loop);
+        record.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE && !this.isTrack(node)) this.pending.add(node);
+        });
+      }
+      if (this.pending.size > 0) this.scheduleScan();
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+
+    this.pending.add(document.querySelector('ion-app') ?? document.body);
     this.scheduleScan();
 
     // A tap on a clipped text plays it again, whatever else the tap does.
@@ -78,26 +98,35 @@ export class MarqueeService {
     }, { passive: true, capture: true });
   }
 
+  private isTrack(node: Node): boolean {
+    return node instanceof HTMLElement && node.classList.contains(TRACK);
+  }
+
+  private loopAround(node: Node): HTMLElement | null {
+    const element = node instanceof HTMLElement ? node : node.parentElement;
+    return element?.closest<HTMLElement>('.marquee-loop') ?? null;
+  }
+
   private scheduleScan(): void {
     if (this.scanTimer !== null) clearTimeout(this.scanTimer);
     this.scanTimer = setTimeout(() => {
       this.scanTimer = null;
-      this.scan();
+      const roots = [...this.pending];
+      this.pending.clear();
+      for (const root of roots) if (root.isConnected) this.scan(root as HTMLElement);
     }, 350);
   }
 
-  /** Every element not seen before that clips a text of its own. */
-  private scan(): void {
-    const root = document.querySelector('ion-app') ?? document.body;
+  /** The elements under `root`, itself included, not seen before that clip a text of their own. */
+  private scan(root: HTMLElement): void {
+    if (root.classList?.contains('marquee-loop') && this.seen.has(root)) {
+      this.loop(root);
+      return;
+    }
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (let node: Node | null = root; node; node = walker.nextNode()) {
       const element = node as HTMLElement;
-      if (this.seen.has(element)) {
-        // A looping text keeps being checked: its words change with the account.
-        if (element.classList.contains('marquee-loop')) this.loop(element);
-        continue;
-      }
-      if (!this.hasOwnText(element)) continue;
+      if (this.seen.has(element) || this.isTrack(element) || !this.hasOwnText(element)) continue;
       this.seen.add(element);
       if (!this.clips(element)) continue;
       if (element.classList.contains('marquee-loop')) {
@@ -124,12 +153,12 @@ export class MarqueeService {
 
   /**
    * How far the text runs past its box, in pixels; zero when it fits. The
-   * words' own width, measured with a range, so a text in the middle of
-   * moving measures the same as a still one.
+   * words' own width, measured with a range, whether or not they are wrapped
+   * and moving.
    */
   private overflow(element: HTMLElement): number {
     const range = document.createRange();
-    range.selectNodeContents(element);
+    range.selectNodeContents(this.trackOf(element) ?? element);
     const text = range.getBoundingClientRect().width;
     const style = getComputedStyle(element);
     const box = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
@@ -141,28 +170,57 @@ export class MarqueeService {
   private clippedAround(target: HTMLElement): HTMLElement | null {
     let element: HTMLElement | null = target;
     for (let depth = 0; element && depth < 4; depth += 1, element = element.parentElement) {
+      if (this.isTrack(element)) continue;
       if (this.seen.has(element) && this.clips(element) && this.overflow(element) > 0) return element;
     }
     return null;
   }
 
+  private trackOf(element: HTMLElement): HTMLElement | null {
+    const first = element.firstElementChild;
+    return first instanceof HTMLElement && this.isTrack(first) && element.childNodes.length === 1 ? first : null;
+  }
+
+  /** Puts the text in a span of its own, the one thing that moves. */
+  private wrap(element: HTMLElement): HTMLElement {
+    const existing = this.trackOf(element);
+    if (existing) return existing;
+    const track = document.createElement('span');
+    track.className = TRACK;
+    track.style.display = 'inline-block';
+    track.style.whiteSpace = 'nowrap';
+    track.style.willChange = 'transform';
+    while (element.firstChild) track.appendChild(element.firstChild);
+    element.appendChild(track);
+    return track;
+  }
+
+  /** Back as it was, so the ellipsis draws again. */
+  private unwrap(element: HTMLElement): void {
+    const track = this.trackOf(element);
+    if (!track) return;
+    while (track.firstChild) element.insertBefore(track.firstChild, track);
+    track.remove();
+  }
+
   /** To the end, a rest, and back; the ellipsis returns when it is over. */
   private playOnce(element: HTMLElement): void {
+    if (this.running.has(element) || !element.isConnected) return;
     const distance = this.overflow(element);
-    if (distance === 0 || this.running.has(element) || !element.isConnected) return;
+    if (distance === 0) return;
     const travel = Math.min(Math.max((distance / SPEED) * 1000, 1200), 8000);
     const total = travel * 2 + REST_MS;
-    element.style.textOverflow = 'clip';
-    const animation = element.animate([
-      { textIndent: '0px', offset: 0 },
-      { textIndent: `-${distance}px`, offset: travel / total },
-      { textIndent: `-${distance}px`, offset: (travel + REST_MS) / total },
-      { textIndent: '0px', offset: 1 },
+    const track = this.wrap(element);
+    const animation = track.animate([
+      { transform: 'translateX(0)', offset: 0 },
+      { transform: `translateX(-${distance}px)`, offset: travel / total },
+      { transform: `translateX(-${distance}px)`, offset: (travel + REST_MS) / total },
+      { transform: 'translateX(0)', offset: 1 },
     ], { duration: total, easing: 'ease-in-out' });
-    this.running.set(element, animation);
+    this.running.set(element, { animation, distance });
     const done = () => {
       this.running.delete(element);
-      element.style.textOverflow = '';
+      this.unwrap(element);
     };
     animation.onfinish = done;
     animation.oncancel = done;
@@ -170,27 +228,30 @@ export class MarqueeService {
 
   /** Round and round while it does not fit; still again the moment it does. */
   private loop(element: HTMLElement): void {
+    if (!element.isConnected) return;
     const distance = this.overflow(element);
     const current = this.running.get(element);
-    const wanted = distance > 0 ? `${distance}` : '';
-    if (current && element.dataset['marqueeDistance'] === wanted) return;
-    current?.cancel();
-    this.running.delete(element);
-    element.dataset['marqueeDistance'] = wanted;
+    if (current && Math.abs(current.distance - distance) <= 2) return;
+    if (current) {
+      current.animation.onfinish = null;
+      current.animation.oncancel = null;
+      current.animation.cancel();
+      this.running.delete(element);
+    }
     if (distance === 0) {
-      element.style.textOverflow = '';
+      this.unwrap(element);
       return;
     }
     const travel = Math.min(Math.max((distance / SPEED) * 1000, 1500), 10000);
     const total = REST_MS * 2 + travel * 2;
-    element.style.textOverflow = 'clip';
-    const animation = element.animate([
-      { textIndent: '0px', offset: 0 },
-      { textIndent: '0px', offset: REST_MS / total },
-      { textIndent: `-${distance}px`, offset: (REST_MS + travel) / total },
-      { textIndent: `-${distance}px`, offset: (REST_MS * 2 + travel) / total },
-      { textIndent: '0px', offset: 1 },
+    const track = this.wrap(element);
+    const animation = track.animate([
+      { transform: 'translateX(0)', offset: 0 },
+      { transform: 'translateX(0)', offset: REST_MS / total },
+      { transform: `translateX(-${distance}px)`, offset: (REST_MS + travel) / total },
+      { transform: `translateX(-${distance}px)`, offset: (REST_MS * 2 + travel) / total },
+      { transform: 'translateX(0)', offset: 1 },
     ], { duration: total, iterations: Infinity, easing: 'ease-in-out' });
-    this.running.set(element, animation);
+    this.running.set(element, { animation, distance });
   }
 }

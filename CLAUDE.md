@@ -1419,10 +1419,18 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   slides without stopping, and that is kept to texts that stand alone: the
   account and its hint in the summary's header, the account in a products
   sheet's title, the line under the report's title. Nothing moves that fits,
-  and nothing moves at all when the phone asks for reduced motion. It
-  animates `text-indent`, measured with a Range so a text mid-slide measures
-  the same as a still one. Checked in a browser at 330px: the header loops,
-  a clipped category title slides once in view, stops, and slides on a tap.
+  and nothing moves at all when the phone asks for reduced motion.
+  **It moves by `transform`, never `text-indent`**: the first version
+  animated text-indent and walked the whole page after every change, which
+  was smooth on a computer and jumped on Jose's phone - a millimetre, then
+  the end - because both ran on the thread the app runs on. Now the text is
+  put in a `.marquee-track` span for the length of a slide (for good on a
+  looping one) and moved with a transform the phone runs on its own, and
+  only nodes added to the page are looked at. A once-slide puts the text
+  back where it was, so the "…" returns; Angular keeps updating the moved
+  text nodes, and a looping text that changes is measured again. Checked in
+  a browser: the long account name slides smoothly, switching to a short one
+  stops it, a category title slides once and gets its ellipsis back.
   A search field's hint cannot slide (it is an input's placeholder); it ends
   in "…" instead (global.scss).
 - The transfer button lives in the summary screen's bottom bar, round and
