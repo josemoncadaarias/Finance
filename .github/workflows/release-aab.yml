@@ -3,8 +3,8 @@
 #
 # Only when asked for, from the Actions tab. Every upload to Play must carry a
 # higher version code than the last, so a build nobody is going to upload is a
-# number spent for nothing; and the debug APK, built on every push by
-# debug-apk.yml, is untouched by any of this.
+# number spent for nothing; and the debug APK (debug-apk.yml, also built only
+# when asked) is untouched by any of this.
 #
 # The upload key is not the key the store installs with. Play App Signing
 # keeps that one at Google and re-signs each bundle; this key only proves the
@@ -18,11 +18,24 @@
 #   UPLOAD_KEYSTORE_PASSWORD its password
 #   UPLOAD_KEY_ALIAS         the key inside it ("upload")
 #   UPLOAD_KEY_PASSWORD      the key's password (the same one)
+#
+# And one more, optional (Jose, 2026-09-25): with it, the bundle is also put on
+# Play's INTERNAL TESTING track, so one button updates the app on his phone
+# from the Play Store. Without it the run does what it always did - builds and
+# keeps the bundle - and says the upload was skipped.
+#   PLAY_SERVICE_ACCOUNT_JSON  the JSON key of a Google Cloud service account
+#                              invited in Play Console with permission to
+#                              release to testing tracks. Nothing more.
 
 name: Store bundle
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Subir a la prueba interna de Play (si la cuenta de servicio está configurada)'
+        type: boolean
+        default: true
 
 concurrency:
   group: release-aab
@@ -156,6 +169,48 @@ jobs:
           path: ${{ steps.name.outputs.file }}
           retention-days: 30
           if-no-files-found: error
+
+      # Onto the internal testing track, for Jose's phone to update from the
+      # Play Store. Only the internal track: nothing here ever reaches closed
+      # testing or production, which stay a decision made in Play Console.
+      - name: Is there a way into Play?
+        id: play
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ "${{ inputs.publish }}" != "true" ]; then
+            echo "Upload to Play not asked for." >> "$GITHUB_STEP_SUMMARY"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON is not set: the bundle is built but not uploaded."
+            echo "Upload to Play skipped: no service account configured. Upload the bundle by hand." >> "$GITHUB_STEP_SUMMARY"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # r0adkll/upload-google-play, pinned to the commit of its v1 tag as read
+      # on 2026-09-25, so a change to the action cannot reach the account
+      # without a change here.
+      - name: Upload to internal testing
+        if: steps.play.outputs.go == 'true'
+        uses: r0adkll/upload-google-play@eb49699984a39f23558439581660aa6f088acfd6
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.jadexlabs.finance
+          releaseFiles: ${{ steps.name.outputs.file }}
+          releaseName: ${{ steps.version.outputs.name }}
+          track: internal
+          status: completed
+
+      - name: Say it is on its way
+        if: steps.play.outputs.go == 'true'
+        run: |
+          {
+            echo
+            echo "✅ Uploaded to **internal testing** as version **${{ steps.version.outputs.name }}**."
+            echo "On the phone: Play Store → Finance → Actualizar (it can take a few minutes to show)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Forget the key
         if: always()

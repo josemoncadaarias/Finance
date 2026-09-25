@@ -1775,6 +1775,23 @@ Drive backup work there. What that took, for the next time a key is involved:
   with the default Android icon and "(unreviewed)": normal for internal
   testing.
 
+**Updating the phone from now on is the Store bundle** (2026-09-25). One app
+on the phone, the store's; the old debug-signed `com.josemoncada.finance`
+is uninstalled once its data is restored in the new one, and a debug APK is
+never installed on that phone again (same package as the store's, other
+key: Android refuses it). `release-aab.yml` builds the bundle and, when the
+secret `PLAY_SERVICE_ACCOUNT_JSON` exists and the run's "Subir a la prueba
+interna" box is ticked (the default), uploads it to the INTERNAL track with
+`r0adkll/upload-google-play` pinned to a commit - never to closed testing or
+production. Without the secret it builds and keeps the bundle as before and
+says the upload was skipped. The service account lives in Google Cloud
+project 76504816542 with the Google Play Android Developer API enabled, and
+is invited in Play Console with "release to testing tracks" on this app
+only. Store listing changes wait in "Changes not yet submitted for review"
+until the app is sent for review; testers on the internal track see the
+package name and "(unreviewed)" meanwhile, and the app is never found by
+searching the store until it is published.
+
 **The store listing is prepared in `store/`** (2026-09-25): `play-listing.es.md`
 (name "Finance: gastos y rendimientos" - 30 of 30 characters -, short and
 full description, all checked against the limits and against what the app
