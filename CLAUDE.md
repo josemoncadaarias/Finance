@@ -1071,6 +1071,39 @@ backup restore against iOS's own SQLite backend.
    amount and the category, or throws it away. Silence is not something the
    app invents around.
 
+   **The app adapts to each bank by itself, from what the person does**
+   (Jose, 2026-09-25: save the user every step and every manual process
+   possible, without costing performance or the experience). Designed, not
+   built: the reading waits for real notifications on Jose's phone, so the
+   generic first reading is shaped by real text rather than guessed. Nothing
+   in it names a bank, a country or a format.
+
+   - **A first reading by shape**, the same one the statement reader uses: an
+     amount looks like money, money in or out is said by ordinary words of
+     both languages, what is left is the merchant.
+   - **Then the app learns the MOLD of each app's message.** When a person
+     accepts or corrects a proposal that came from a notification, the text
+     is stored as a mold for that package: the amount, the merchant, the
+     date and any card digits become slots, and the fixed words stay. The
+     next notification of that app that fits the mold is read with it,
+     exactly. A bank never seen before costs one correction, not a release.
+   - **Which account, learned too.** An app posting for several accounts
+     (a debit account and a card of the same bank) usually names the last
+     digits; the digits a person files under an account are remembered for
+     that app. With one account tied to the app, nothing is asked.
+   - **Category, as today**: the dictionary learned from the person's own
+     ledger, then the common words.
+   - **The answer is one tap wherever it can be.** A proposal read by a
+     learned mold, with a learned account and category, needs nothing but
+     "Guardar", and "Guardar los N" takes all of them at once. It is still
+     never written without that tap (the rule above).
+   - **Performance, by construction**: the Java side only stores the raw
+     notification, which costs nothing while the phone is in a pocket. The
+     reading happens in the app, in one pass when it opens or returns: one
+     read of the molds and the dictionary, answered in memory, and the
+     proposals written with `insertMany` - never a query per notification,
+     and nothing working in the background.
+
    **The hardest problem in the feature, written down before it is met**: the
    SAME movement arriving from both sources. A notification today, and the
    statement next month carrying that same purchase - with a different date
