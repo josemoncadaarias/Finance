@@ -249,13 +249,13 @@ export function groupMovements(
   const groups = new Map<string, MovementGroup>();
 
   for (const movement of movements) {
-    const key = grouping === 'date' ? movement.transaction.occurred_on : movement.label;
+    const key = grouping === 'date' ? movement.transaction.occurred_on : sideOf(movement);
 
     let group = groups.get(key);
     if (!group) {
       group = {
         key,
-        title: grouping === 'date' ? dayTitle(key, locale, thisYear) : key,
+        title: grouping === 'date' ? dayTitle(key, locale, thisYear) : movement.label,
         icon: grouping === 'date' ? null : movement.icon,
         customIconId: grouping === 'date' ? null : movement.customIconId,
         count: 0,
@@ -362,6 +362,21 @@ export interface Slice {
   flow: Flow;
 }
 
+/**
+ * A movement's group: its label, on its side of the money.
+ *
+ * One category can be used both ways - Jose files refunds on his credit card
+ * under the same "Depósitos" his debit accounts receive income under - and
+ * grouped by name alone the two met in one slice, the refunds taken off the
+ * income. An independent audit of the summary found it on 2026-09-24. Money
+ * that left and a refund of it share a side, since a refund is negative
+ * spending; money that arrived is the other side; transfers keep their own.
+ */
+function sideOf(movement: Movement): string {
+  const side = movement.flow === 'refund' ? 'out' : movement.flow;
+  return `${side}|${movement.label}`;
+}
+
 export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'base'): Slice[] {
   const byLabel = new Map<string, Slice>();
 
@@ -372,11 +387,12 @@ export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'b
       ? -Math.abs(amountOf(movement, basis))
       : Math.abs(amountOf(movement, basis));
 
-    const slice = byLabel.get(movement.label);
+    const key = sideOf(movement);
+    const slice = byLabel.get(key);
     if (slice) {
       slice.amountMinor += signed;
     } else {
-      byLabel.set(movement.label, {
+      byLabel.set(key, {
         label: movement.label,
         icon: movement.icon,
         customIconId: movement.customIconId,

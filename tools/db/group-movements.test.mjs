@@ -452,3 +452,23 @@ test('the largest view never interleaves money in with money out', () => {
   assert.deepEqual(group.movements.map(m => m.transaction.amount_base_minor),
     [800000, 600000, -900000, -700000]);
 });
+
+test('one category used both ways keeps its income and its refunds apart', () => {
+  // Found by an independent audit on Jose's data, 2026-09-24: refunds on his
+  // credit card filed under the same "Depósitos" his debit accounts receive
+  // income under were taken off that income.
+  const rows = [
+    movement({ date: '2026-09-08', label: 'Depósitos', amount: 500000 }),
+    movement({ date: '2026-09-08', label: 'Depósitos', amount: 120000, accountType: 'credit' }),
+    movement({ date: '2026-09-08', label: 'Mercado', amount: -300000 }),
+  ];
+  const slices = slicesOf(rows);
+  const income = slices.find(one => one.label === 'Depósitos' && one.flow === 'in');
+  const refund = slices.find(one => one.label === 'Depósitos' && one.flow === 'out');
+  assert.equal(income.amountMinor, 500000, 'the income untouched');
+  assert.equal(refund.amountMinor, -120000, 'the refund on the spending side');
+  const spent = slices.filter(one => one.flow === 'out').reduce((sum, one) => sum + one.amountMinor, 0);
+  assert.equal(spent, totalsOf(rows).outMinor, 'the spending side adds up to what was spent');
+  const groups = groupMovements(rows, 'category');
+  assert.equal(groups.filter(one => one.title === 'Depósitos').length, 2);
+});

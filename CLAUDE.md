@@ -722,6 +722,21 @@ backup restore against iOS's own SQLite backend.
    After both, 112 checks on Jose's backup and 42 on the sample agree to the
    peso and to 0.01 point. Run it after any change to this arithmetic.
 
+   **The money summary has its audit too** (`tools/db/audit-money-report.mjs
+   <backup.json>`, 2026-09-24). Income, spending, refunds, what moved between
+   accounts, the balance, the count, the daily average, the biggest expense,
+   spending by category, by account and by month, and the period before -
+   recomputed from the file with the rules written here and compared with the
+   sections, every account alone and together, seven periods. It found one
+   bug, older than the report and on the summary screen too: slices and the
+   list by category were grouped by NAME alone, so a category used both ways
+   - Jose files refunds on Rappi Card under the same "Depósitos" his debit
+   accounts receive income under - met in one slice and the refunds came off
+   the income. They are grouped by name AND side now (`sideOf` in
+   `group-movements.ts`): a refund sits with spending, as negative spending,
+   income with income. After it: 2,194 checks on Jose's backup, 310 and 247 on
+   the two sample backups, all agree to the peso.
+
    **Each chart says what it holds** (Jose, 2026-09-24, who could not tell
    where 21.7 million came from). "Rendimientos acumulados en {año}" runs
    from January of the period's year, so its last bar IS the year so far -
@@ -1255,7 +1270,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 536 tests that run against a real
+by 537 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
