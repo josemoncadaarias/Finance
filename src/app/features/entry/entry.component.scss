@@ -1521,3 +1521,26 @@ ion-footer[hidden] { display: none; }
 
   app-info-hint { flex: none; }
 }
+
+/* "Move it all" in a move between products: to the LEFT of the arrow, as the
+   turn-around button sits to its right, with the figure it will fill in. */
+.route .between .all {
+  grid-column: 1;
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.05rem;
+  margin-right: 0.5rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 12px;
+  background: var(--ion-color-light);
+  color: var(--ion-color-primary);
+  line-height: 1.15;
+  cursor: pointer;
+
+  .say { font-size: 0.72rem; font-weight: 600; }
+  .figure { font-size: 0.72rem; color: var(--ion-color-medium-shade); font-variant-numeric: tabular-nums; }
+  &:active { background: var(--ion-color-light-shade); }
+}

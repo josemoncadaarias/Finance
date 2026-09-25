@@ -1609,6 +1609,14 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   another form. On Jose's data: "Pago tarjeta de crédito RappiCard" (Rappi
   cuenta to Rappi Card), "Cashback RappiCard" (income on its usual product),
   "Retiro bolsillo principal" (Bolsillo Principal into Cuenta de ahorros).
+- **"Pasar todo" with the figure on it, left of the arrow** (Jose,
+  2026-09-25), in a move between products and in a transfer to another
+  account: it fills the amount with what the origin holds today - the
+  product chosen when the account has several, the account otherwise
+  (`core/yields/holdings.ts`, the same figure the products sheet shows per
+  product). Nothing when the origin is empty or a card in debt. Withdrawing
+  or topping up a whole bolsillo no longer means closing the form to read
+  the figure.
 - The title of a products sheet opens the account list from anywhere on its
   row, not only over the name, as the summary's header does (2026-09-25).
 - An account's sheet on the products screen has "Ver sus movimientos en

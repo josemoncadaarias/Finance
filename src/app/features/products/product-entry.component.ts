@@ -70,6 +70,13 @@ export interface ProductEntryRequest {
   products: readonly YieldProduct[];
   /** An entry on the product alone, being corrected. */
   editing?: ProductEntry;
+  /**
+   * What a product holds today, as the products screen shows it - null when
+   * the screen does not know. For "move everything" in a move between
+   * products (Jose, 2026-09-25): the figure is on the screen behind this
+   * form, and having to close it to read the figure was the whole problem.
+   */
+  balanceOf?: (accountId: number, productId: number) => number | null;
 }
 
 @Component({
@@ -770,6 +777,27 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     const result = buffer.isEmpty ? sum.leftMinor : apply(sum.leftMinor, sum.operator, buffer.minor);
     this.pending.set(null);
     this.amount.set(AmountBuffer.from(Math.max(result, 0)));
+  }
+
+  /** What the product money leaves holds today; null when unknown or nothing. */
+  readonly fromBalance = computed(() => {
+    const product = this.productId();
+    if (!this.isTransfer() || product === null) return null;
+    const held = this.request().balanceOf?.(this.accountId(), product) ?? null;
+    return held !== null && held > 0 ? held : null;
+  });
+
+  readonly fromBalanceText = computed(() => {
+    const held = this.fromBalance();
+    return held === null ? '' : formatMoney(held, this.currency());
+  });
+
+  /** The whole of it as the amount: withdraw everything, or top it all up. */
+  moveEverything(): void {
+    const held = this.fromBalance();
+    if (held === null) return;
+    this.pending.set(null);
+    this.amount.set(AmountBuffer.from(held));
   }
 
   clearAmount(): void {

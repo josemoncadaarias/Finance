@@ -63,6 +63,14 @@
         <!-- Down the screen, with the arrow pointing the way the money goes -
              the movement form's layout, for the same reason. -->
         <div class="between">
+          <!-- Everything the product holds, in one tap, with the figure on it:
+               withdrawing or topping up all of it is the common case. -->
+          @if (fromBalance() !== null) {
+            <button type="button" class="all" (click)="moveEverything()">
+              <span class="say">{{ 'products.move.all' | t }}</span>
+              <span class="figure">{{ fromBalanceText() }}</span>
+            </button>
+          }
           <ion-icon class="way" name="arrow-down-outline"></ion-icon>
           <button type="button" class="swap" (click)="swap()">
             <ion-icon name="swap-vertical-outline"></ion-icon>

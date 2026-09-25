@@ -44,6 +44,7 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
+import { whatItHolds } from '../../core/yields/holdings';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
@@ -474,6 +475,43 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Move it all (core/yields/holdings.ts; Jose, 2026-09-25)
+  // ---------------------------------------------------------------------------
+
+  /** What the side money leaves from holds today; null while unknown or empty. */
+  readonly fromHolds = signal<number | null>(null);
+  private holdsAsked = 0;
+
+  /**
+   * Asked again whenever the transfer's origin changes: the product chosen
+   * when the account is split into several, the account's balance otherwise.
+   * A card in debt or an empty product offers nothing.
+   */
+  private readonly readHolds = effect(() => {
+    const account = this.accountId();
+    const product = this.splitAccount() ? this.productId() : null;
+    const transfer = this.isTransfer();
+    const asked = ++this.holdsAsked;
+    this.fromHolds.set(null);
+    if (!transfer || account === null || this.database.status() !== 'ready') return;
+    void whatItHolds(this.database.driver, account, product, todayIso()).then(held => {
+      if (asked === this.holdsAsked) this.fromHolds.set(held > 0 ? held : null);
+    });
+  });
+
+  readonly fromHoldsText = computed(() => {
+    const held = this.fromHolds();
+    return held === null ? '' : formatMoney(held, this.currency());
+  });
+
+  moveEverything(): void {
+    const held = this.fromHolds();
+    if (held === null) return;
+    this.pending.set(null);
+    this.amount.set(AmountBuffer.from(held));
   }
 
   // ---------------------------------------------------------------------------

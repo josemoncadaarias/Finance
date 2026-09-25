@@ -1412,7 +1412,14 @@ export class ProductsPage {
   /** Opens the transfer screen, between two products of the account on screen. */
   openMove(line: ProductLine): void {
     if (line.products.length < 2) return;
-    this.productEntry.set({ kind: 'transfer', account: line.account, products: line.products });
+    this.productEntry.set({
+      kind: 'transfer', account: line.account, products: line.products,
+      // Read when asked, so a move that switches account gets that account's figure.
+      balanceOf: (accountId, productId) => {
+        const shown = this.lines().find(one => one.account.id === accountId);
+        return shown ? this.balanceIn(shown, productId) : null;
+      },
+    });
   }
 
   /**

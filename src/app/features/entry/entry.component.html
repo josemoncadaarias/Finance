@@ -115,6 +115,13 @@
            way; turning it around is the button beside it, in plain sight -
            the arrow itself used to be that button, and nobody could tell. -->
       <div class="between">
+        <!-- Everything the origin holds, in one tap, with the figure on it. -->
+        @if (fromHolds() !== null) {
+          <button type="button" class="all" (click)="moveEverything()">
+            <span class="say">{{ 'products.move.all' | t }}</span>
+            <span class="figure">{{ fromHoldsText() }}</span>
+          </button>
+        }
         <ion-icon class="way" name="arrow-down-outline"></ion-icon>
         <button type="button" class="swap" (click)="swapAccounts()">
           <ion-icon name="swap-vertical-outline"></ion-icon>
