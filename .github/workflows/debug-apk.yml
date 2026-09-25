@@ -1,5 +1,9 @@
-# Builds the debug APK on GitHub, on every push to main, and keeps it as a
-# download on the run's page.
+# Builds the debug APK on GitHub when asked - Actions tab, "Debug APK", "Run
+# workflow" - and keeps it as a download on the run's page for three days.
+#
+# Only when asked (Jose, 2026-09-24): it used to build on every push to main,
+# ten minutes each, and a day of forty pushes spent minutes of the free
+# monthly 2,000 on APKs nobody installed.
 #
 # The local build - `npm run android` and then `gradlew assembleDebug` - still
 # works exactly as before. This is the same build done somewhere else, so an
@@ -16,18 +20,11 @@
 name: Debug APK
 
 on:
-  push:
-    branches: [main]
-    # Pages that change nothing inside the app are not worth ten minutes.
-    paths-ignore:
-      - 'docs/**'
-      - 'site/**'
-      - '**.md'
-  # And a button on the Actions tab, for a build on demand.
+  # A button on the Actions tab: a build when there is one to install.
   workflow_dispatch:
 
-# Pushes often come in bursts. A newer push makes the build still running for
-# the older one pointless, so it is cancelled rather than finished.
+# A second run asked for while one is still building makes the first
+# pointless, so it is cancelled rather than finished.
 concurrency:
   group: debug-apk-${{ github.ref }}
   cancel-in-progress: true
@@ -160,7 +157,7 @@ jobs:
         with:
           name: ${{ steps.name.outputs.file }}
           path: ${{ steps.name.outputs.file }}
-          # Two weeks is enough to install the latest one, and old ones count
-          # against the repository's storage.
-          retention-days: 14
+          # Three days: the newest is the one installed, and old ones count
+          # against the repository's 500 MB of storage (Jose, 2026-09-24).
+          retention-days: 3
           if-no-files-found: error

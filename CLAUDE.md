@@ -1576,6 +1576,15 @@ an update signed with any other key ("conflicto con un paquete"), and the only
 way past it is uninstalling, which deletes every movement on the phone. The
 Google sign-in client is registered against the same SHA-1.
 
+- **The debug APK is built only when asked**: Actions tab → "Debug APK" →
+  "Run workflow" (Jose, 2026-09-24). It used to build on every push to main,
+  about ten minutes each, and a day of forty pushes spent a good part of the
+  free 2,000 minutes a month of a private repository on APKs nobody
+  installed. Each APK (~22 MB) is kept 3 days, since only the newest is ever
+  installed and artifacts count against the free 500 MB of storage. With no
+  payment method on the account, running out stops builds or uploads until
+  the month turns or old artifacts expire - it never charges (from memory;
+  https://github.com/settings/billing shows the usage).
 - GitHub Actions (`.github/workflows/debug-apk.yml`) signs with that keystore
   from the `DEBUG_KEYSTORE_BASE64` secret, handed to Gradle by path, and FAILS
   the run if the APK's SHA-1 is not the one above. Before 2026-09-18 it left
