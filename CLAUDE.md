@@ -1736,8 +1736,26 @@ signed `.aab` beside `debug-apk.yml` without touching it, the app created
 in Play Console, the first upload to **internal testing** (no review, up to
 100 testers, but the first link can take a few hours), the one uninstall of
 step 2 above with the new certificate registered for Google sign-in, and
-then notifications resumed on a store install. The package name
-`com.josemoncada.finance` is fixed forever from the first upload.
+then notifications resumed on a store install.
+
+**The package is `com.jadexlabs.finance` from 2026-09-25** (Jose, before the
+first upload, when it could still change; it is fixed forever from that
+upload). It was `com.josemoncada.finance`. Only the application id changed
+- `applicationId` in build.gradle, `appId` in capacitor.config.ts, and the
+two package strings in strings.xml; the Java package of the code (the
+`namespace`, `com.josemoncada.finance`) stays, being internal. Checked with
+a local debug build: aapt reads `package: name='com.jadexlabs.finance'`.
+What it means:
+- To Android it is a different app. The one on Jose's phone
+  (`com.josemoncada.finance`, debug-signed) is not updated by any new
+  build: a debug APK built from now on installs BESIDE it, empty, under the
+  same name. Moving his data is backup there, restore here - no uninstall
+  needed, since the two can live side by side.
+- Google sign-in (Drive backup) matches an Android OAuth client by package
+  AND SHA-1, so the new package needs its own Android client in Google Cloud:
+  with the Play app-signing SHA-1 for the store install (Play Console → Test
+  and release → App integrity), and with the debug SHA-1 above if debug APKs
+  are to sign in too. The web client id does not change.
 
 **Android developer verification** (looked up 2026-09-24): from 30 September
 2026 in Brazil, Indonesia, Singapore and Thailand, and worldwide in 2027,
