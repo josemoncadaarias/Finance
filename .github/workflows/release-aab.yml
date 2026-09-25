@@ -58,7 +58,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -200,7 +200,7 @@ jobs:
           packageName: com.jadexlabs.finance
           releaseFiles: ${{ steps.name.outputs.file }}
           releaseName: ${{ steps.version.outputs.name }}
-          track: internal
+          tracks: internal
           status: completed
 
       - name: Say it is on its way

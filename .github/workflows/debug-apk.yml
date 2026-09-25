@@ -52,7 +52,7 @@ jobs:
       # (android/app/capacitor.build.gradle), and AGP 8.13 on Gradle 8.14.3 runs
       # on it. Android Studio ships 25, which is too new for that Gradle - the
       # same reason the PC points JAVA_HOME at a separate JDK 21.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
