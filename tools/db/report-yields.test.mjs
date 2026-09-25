@@ -500,3 +500,13 @@ test('against the period before, each row says the balance it earned on', () => 
   const block = yieldVersusBefore(data());
   assert.ok(block.rows.every(row => /saldo promedio .* → /.test(row.note)));
 });
+
+test('the first gain ever written down covers the days since the account was opened, whatever the period', () => {
+  const opened = { ...fund(), opened_on: '2026-06-21', movements: [{ on_date: '2026-07-10', amount_minor: 200_000_00, is_return: 1 }] };
+  const july = yieldHeadline(data({
+    account: account(3, 'Fiducuenta'), accounts: [account(3, 'Fiducuenta')], products: [], days: [],
+    investments: [opened], period: { kind: 'month', from: '2026-07-01', to: '2026-07-31' },
+  }));
+  // 20 days: 21 June to 10 July. July holds 10 of them.
+  assert.ok(Math.abs(figure(july, TEST_WORDS['report.yields.net']).minor - 200_000_00 * 10 / 20) <= 1);
+});

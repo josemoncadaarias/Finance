@@ -86,8 +86,11 @@ export async function gatherYieldsReport(db: SqlDriver, ask: YieldsAsk): Promise
      ORDER BY on_date`,
     [...ids, end, ...(from === null ? [] : [from])]);
 
+  // Up to today, not to the end of the period: a gain written down on 4
+  // September covers the last days of August too, and a look at August must
+  // count its share (found by the same audit).
   const investments = await investmentsOf(db,
-    accounts.filter(one => invested.has(one.id)), from, end);
+    accounts.filter(one => invested.has(one.id)), from, today);
 
   // The days before an account with products began to be worked out, estimated
   // and marked (`estimate.ts`). With no start to the period, a year before
@@ -95,8 +98,24 @@ export async function gatherYieldsReport(db: SqlDriver, ask: YieldsAsk): Promise
   const earning = accounts.filter(one => enrolled.has(one.id));
   const estimateFrom = from ?? `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
   const ledgers = await investmentsOf(db, earning, estimateFrom, end);
+  // The rate is measured on each account's first worked-out days, which may
+  // lie after the period: a look at August when the app began in September.
+  // Read them on their own, whatever the period - found by an independent
+  // audit on 2026-09-24, when August and 2025 carried no estimate at all.
+  const earningIds = earning.map(one => one.id);
+  const firstDays = earningIds.length === 0 ? [] : await db.query<YieldDayRow>(
+    `SELECT y.account_id, y.product_id, y.component, y.on_date, y.paid_on, y.balance_minor,
+            y.annual_rate_scaled, y.gross_minor, y.withholding_minor, y.net_minor,
+            y.actual_net_minor, y.locked
+     FROM yield_days y
+     JOIN (SELECT account_id, MIN(on_date) AS first FROM yield_days
+           WHERE account_id IN (${earningIds.map(() => '?').join(', ')}) GROUP BY account_id) f
+       ON f.account_id = y.account_id
+     WHERE y.on_date <= date(f.first, '+60 days') AND y.on_date <= ?
+     ORDER BY y.on_date`, [...earningIds, today]);
   const estimated = estimateBeforeRecord(
-    worked, ledgers, new Map(earning.map(one => [one.id, one.opened_on])), estimateFrom, today);
+    firstDays, ledgers, new Map(earning.map(one => [one.id, one.opened_on])), estimateFrom, today)
+    .filter(day => day.on_date <= end);
   const days = estimated.length === 0 ? worked
     : [...estimated, ...worked].sort((a, b) => a.on_date.localeCompare(b.on_date));
 
@@ -166,6 +185,7 @@ async function investmentsOf(
       opening_minor: account.opening_balance_minor
         + (before.find(row => row.account_id === account.id)?.total ?? 0),
       previous_return_on: previous.find(row => row.account_id === account.id)?.on_date ?? null,
+      opened_on: account.opened_on,
       movements: own.map(({ on_date, amount_minor, is_return }) => ({ on_date, amount_minor, is_return })),
     };
   });

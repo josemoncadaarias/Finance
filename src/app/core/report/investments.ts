@@ -38,15 +38,18 @@ export function closingBalance(investment: InvestmentData, day: string): number 
  * Jose, 2026-09-24: a "subio inversion" written down today, two weeks after
  * the last one, is not one day's gain: it is two weeks of them. So each is
  * spread evenly over the days since the return before it (the last one before
- * the window, or the window's start), and a period counts only the days of it
- * that fall inside. A loss is spread the same way. What a month earned, the
+ * the window, or for the very first one, the day the account was opened), and
+ * a period counts only the days of it that fall inside. A loss is spread the same way. What a month earned, the
  * return of the period and the yearly rate all read these pieces, never the
  * lump.
  */
 export function investmentReturns(data: YieldsReportData): { account_id: number; on_date: string; amount: number }[] {
   const out: { account_id: number; on_date: string; amount: number }[] = [];
   for (const investment of data.investments) {
-    let since = investment.previous_return_on ?? addDays(investment.from, -1);
+    // The first return ever covers the days since the account was opened -
+    // never "since wherever this window happens to start", which would spread
+    // the same gain differently depending on the period on screen.
+    let since = investment.previous_return_on ?? addDays(investment.opened_on ?? investment.from, -1);
     for (const movement of investment.movements) {
       if (movement.is_return !== 1 || movement.on_date > data.today) continue;
       const first = addDays(since, 1) > movement.on_date ? movement.on_date : addDays(since, 1);

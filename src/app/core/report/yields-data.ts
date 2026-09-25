@@ -55,6 +55,11 @@ export interface InvestmentData {
   opening_minor: number;
   /** The last return written down before the window, so the first one in it knows what it covers. */
   previous_return_on: string | null;
+  /**
+   * The day the account was opened: the very first return written down covers
+   * every day since, whatever period is on screen.
+   */
+  opened_on?: string;
   movements: readonly { on_date: string; amount_minor: number; is_return: number }[];
 }
 

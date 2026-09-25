@@ -706,6 +706,22 @@ backup restore against iOS's own SQLite backend.
    a fraction of a peso reaching `formatMoney` once returns were spread over
    days - fixed by rounding everything that is shown.
 
+   **How the report's arithmetic is proved: an independent audit**
+   (`tools/db/audit-yields-report.mjs <backup.json>`, 2026-09-24, when Jose
+   asked for an assurance). It recomputes the net, the estimate, the
+   investments' gain, the yearly rate, the inflation and the real return from
+   the backup file with no app code, and compares them with the sections for
+   every account alone and together over seven periods. On its first run it
+   found two bugs no test had: a period already over (August, all of 2025)
+   carried no estimate, because the first worked-out days that set the rate
+   lay after it - they are now read on their own; and a gain written down
+   after the period's end lost the share of it that fell inside - movements
+   are now loaded up to today. It also settled a rule: **the very first gain
+   ever written down covers the days since the account was opened**, never
+   "since the window starts", which spread one gain differently by period.
+   After both, 112 checks on Jose's backup and 42 on the sample agree to the
+   peso and to 0.01 point. Run it after any change to this arithmetic.
+
    **Each chart says what it holds** (Jose, 2026-09-24, who could not tell
    where 21.7 million came from). "Rendimientos acumulados en {año}" runs
    from January of the period's year, so its last bar IS the year so far -
@@ -1239,7 +1255,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 535 tests that run against a real
+by 536 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
