@@ -329,6 +329,13 @@ export class ReviewPage {
     const line = this.choosingFor();
     if (line !== null) return (line.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income';
 
+    // Several ticked: the side they share, or the whole list where they mix.
+    if (this.choosingForSelection()) {
+      const sides = new Set(this.selectedLines().map(one =>
+        (one.proposal.amount_minor ?? -1) < 0 ? 'expense' as const : 'income' as const));
+      return sides.size === 1 ? [...sides][0] : 'both';
+    }
+
     const repeated = this.choosingMerchant();
     if (repeated === null) return 'expense';
 
@@ -349,6 +356,11 @@ export class ReviewPage {
   }
 
   async chooseCategory(id: number): Promise<void> {
+    if (this.choosingForSelection()) {
+      this.choosingForSelection.set(false);
+      await this.fileSelected(id);
+      return;
+    }
     if (this.choosingMerchant() !== null) {
       await this.fileAllAs(id);
       return;
@@ -367,6 +379,8 @@ export class ReviewPage {
    */
   readonly asking = signal<
     { kind: 'accept' | 'discard' | 'forget'; batch: Batch } |
+    /** The rows chosen by hand, whatever batch they are in. */
+    { kind: 'acceptSelected' } | { kind: 'discardSelected' } |
     { kind: 'acceptOne'; line: Line } |
     { kind: 'discardOne'; line: Line } |
     /** Moving the opening balance, which is a figure of Jose's own. */
@@ -411,6 +425,88 @@ export class ReviewPage {
 
   /** The repeated shop whose category is being chosen, if any. */
   readonly choosingMerchant = signal<Repeated | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Choosing several by hand
+  // -------------------------------------------------------------------------
+
+  /**
+   * Several rows answered at once (Jose, 2026-09-25): tick them, then give
+   * them one category, save them or discard them together. The repeated
+   * shops above do that for rows that share a name; this is for rows that
+   * share only what the person knows about them. Entered from "Seleccionar"
+   * or by a long press on a row, the way Android lists do it.
+   */
+  readonly selecting = signal(false);
+  private readonly selectedIds = signal<ReadonlySet<number>>(new Set());
+  /** The category sheet is open for the selection. */
+  readonly choosingForSelection = signal(false);
+
+  /** Every row on view, across batches, as the filter leaves it. */
+  private readonly shownLines = computed(() => this.batches().flatMap(batch => this.shownIn(batch)));
+
+  /** What is ticked and still waiting: a row answered meanwhile drops out. */
+  readonly selectedLines = computed(() => {
+    const ids = this.selectedIds();
+    return this.batches().flatMap(batch => batch.lines).filter(line => ids.has(line.proposal.id));
+  });
+
+  readonly selectedReady = computed(() => this.selectedLines().filter(line => this.ready(line)));
+
+  readonly allShownSelected = computed(() => {
+    const shown = this.shownLines();
+    const ids = this.selectedIds();
+    return shown.length > 0 && shown.every(line => ids.has(line.proposal.id));
+  });
+
+  isSelected(line: Line): boolean {
+    return this.selectedIds().has(line.proposal.id);
+  }
+
+  toggle(line: Line): void {
+    const next = new Set(this.selectedIds());
+    if (!next.delete(line.proposal.id)) next.add(line.proposal.id);
+    this.selectedIds.set(next);
+  }
+
+  startSelecting(line?: Line): void {
+    this.selecting.set(true);
+    this.selectedIds.set(new Set(line ? [line.proposal.id] : []));
+  }
+
+  /** A long press starts choosing with that row ticked; Android's own gesture. */
+  pressed(event: Event, line: Line): void {
+    if (this.selecting()) return;
+    event.preventDefault();
+    this.startSelecting(line);
+  }
+
+  stopSelecting(): void {
+    this.selecting.set(false);
+    this.selectedIds.set(new Set());
+  }
+
+  /** All that the filter shows, or none if they are all ticked already. */
+  selectAllShown(): void {
+    this.selectedIds.set(this.allShownSelected()
+      ? new Set()
+      : new Set(this.shownLines().map(line => line.proposal.id)));
+  }
+
+  /**
+   * One category for every ticked row. The selection stays, so the next tap
+   * can save them - which is almost always what comes next.
+   */
+  private async fileSelected(categoryId: number): Promise<void> {
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver)
+        .fileThese(this.selectedLines().map(line => line.proposal.id), categoryId);
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
 
   async fileAllAs(categoryId: number): Promise<void> {
     const repeated = this.choosingMerchant();
@@ -686,6 +782,12 @@ export class ReviewPage {
       return this.i18n.t('review.square.sure', { account: this.squaring()?.accountName ?? '' });
     }
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.sure');
+    if (asking.kind === 'acceptSelected') {
+      return this.i18n.t('review.accept.sure', { count: this.selectedReady().length });
+    }
+    if (asking.kind === 'discardSelected') {
+      return this.i18n.t('review.discard.sureAll', { count: this.selectedLines().length });
+    }
     // Saving asks about the ones it can save; the other two are about the
     // whole batch, ready or not.
     const count = asking.kind === 'accept'
@@ -702,6 +804,13 @@ export class ReviewPage {
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.body');
+    if (asking.kind === 'discardSelected') return this.i18n.t('review.discard.body');
+    if (asking.kind === 'acceptSelected') {
+      // Ticked is not the same as ready: say which ones stay behind, and why.
+      const left = this.selectedLines().length - this.selectedReady().length;
+      const body = this.i18n.t('review.accept.body');
+      return left === 0 ? body : `${body} ${this.i18n.t('review.select.notReady', { count: left })}`;
+    }
     if (asking.kind === 'square') {
       const squaring = this.squaring();
       if (squaring === null) return '';
@@ -734,8 +843,8 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.do');
-    const kind = asking.kind === 'discardOne' ? 'discard'
-      : asking.kind === 'acceptOne' ? 'accept'
+    const kind = asking.kind === 'discardOne' || asking.kind === 'discardSelected' ? 'discard'
+      : asking.kind === 'acceptOne' || asking.kind === 'acceptSelected' ? 'accept'
       : asking.kind;
     return this.i18n.t(`review.${kind}.do`);
   }
@@ -744,7 +853,7 @@ export class ReviewPage {
     const kind = this.asking()?.kind;
     if (kind === 'square') return 'swap-vertical-outline';
     if (kind === 'leaveBalance') return 'remove-circle-outline';
-    if (kind === 'accept' || kind === 'acceptOne') return 'checkmark-done-outline';
+    if (kind === 'accept' || kind === 'acceptOne' || kind === 'acceptSelected') return 'checkmark-done-outline';
     // Undoing the import destroys nothing, so it is not a bin: it is the same
     // arrow the button that opened it carries.
     if (kind === 'forget') return 'arrow-undo-outline';
@@ -760,7 +869,9 @@ export class ReviewPage {
    */
   askTone(): 'danger' | 'primary' | 'medium' {
     const kind = this.asking()?.kind;
-    if (kind === 'accept' || kind === 'acceptOne' || kind === 'square') return 'primary';
+    if (kind === 'accept' || kind === 'acceptOne' || kind === 'acceptSelected' || kind === 'square') {
+      return 'primary';
+    }
     if (kind === 'leaveBalance') return 'medium';
     if (kind === 'forget') return 'medium';
     return 'danger';
@@ -776,6 +887,13 @@ export class ReviewPage {
       await this.write(this.readyLines(asking.batch).map(line => line.proposal));
     } else if (asking.kind === 'acceptOne') {
       await this.write([asking.line.proposal]);
+    } else if (asking.kind === 'acceptSelected') {
+      await this.write(this.selectedReady().map(line => line.proposal));
+      // What could not be saved stays ticked, so it is plain what is left.
+      if (this.selectedLines().length === 0) this.stopSelecting();
+    } else if (asking.kind === 'discardSelected') {
+      await this.rejectSelected();
+      this.stopSelecting();
     } else if (asking.kind === 'discard') {
       await this.rejectAll(asking.batch);
     } else if (asking.kind === 'square') {
@@ -823,11 +941,24 @@ export class ReviewPage {
     }
   }
 
+  private async rejectSelected(): Promise<void> {
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver)
+        .rejectThese(this.selectedLines().map(line => line.proposal.id));
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
+
   private async rejectAll(batch: Batch): Promise<void> {
     this.working.set(true);
     try {
-      const proposals = new ProposalsRepository(this.database.driver);
-      for (const line of batch.lines) await proposals.reject(line.proposal.id);
+      // One statement for the whole batch: on the phone each call crosses
+      // the bridge, and fifty of them were fifty crossings.
+      await new ProposalsRepository(this.database.driver)
+        .rejectThese(batch.lines.map(line => line.proposal.id));
       await this.refresh();
     } finally {
       this.working.set(false);

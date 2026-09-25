@@ -1058,3 +1058,84 @@ ion-content.account-sheet .order {
 ion-content {
   --padding-bottom: calc(0.5rem + var(--ion-safe-area-bottom, 0px));
 }
+
+/* ---------------------------------------------------------------------------
+   Choosing several rows at once: the round tick at the start of a row, the
+   row it marks, and the floating bar with what to do with them. One
+   definition for every list that offers it (review, notifications).
+   --------------------------------------------------------------------------- */
+
+.tick {
+  display: flex;
+  align-items: center;
+  margin: 0 0.6rem 0 0;
+  padding: 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.picked {
+  --background: rgba(var(--ion-color-primary-rgb), 0.08);
+
+  .tick { color: var(--ion-color-primary); }
+}
+
+
+.selection-bar {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + var(--ion-safe-area-bottom, 0px));
+  left: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+  border-radius: 18px;
+  background: var(--ion-color-step-50, var(--ion-background-color));
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 0;
+    background: none;
+    color: var(--ion-text-color);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled { opacity: 0.4; }
+    ion-icon { font-size: 1.05rem; }
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .close { padding: 0.2rem; font-size: 1.3rem; }
+    .count { flex: 1; font-size: 0.88rem; font-weight: 600; }
+    .all { color: var(--ion-color-primary); }
+  }
+
+  .acts {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+
+    button {
+      min-width: 0;
+      padding: 0.55rem 0.7rem;
+      border-radius: 999px;
+      background: var(--ion-color-step-150, var(--ion-color-light));
+      white-space: nowrap;
+    }
+
+    .save { background: var(--ion-color-primary); color: #fff; }
+    .drop { color: var(--ion-color-danger); }
+  }
+}

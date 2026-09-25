@@ -167,3 +167,24 @@ h2 {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Room under the list for the selection bar (global.scss draws the bar). */
+.notifications.selecting {
+  --padding-bottom: calc(8rem + var(--ion-safe-area-bottom, 0px));
+}
+
+.select-start {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.6rem 1.1rem 0 auto;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  color: var(--ion-color-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  ion-icon { font-size: 1rem; }
+}

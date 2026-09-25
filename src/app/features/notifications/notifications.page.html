@@ -10,7 +10,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="notifications">
+<ion-content class="notifications" [class.selecting]="selecting()">
   @if (loading()) {
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else if (!supported()) {
@@ -55,20 +55,38 @@
         @if (sortedApps().length === 0) {
           <p class="hint waiting">{{ 'notifications.apps.none' | t }}</p>
         } @else {
+          <!-- Several at once. A long press on a row does the same. -->
+          @if (sortedApps().length > 1 && !selecting()) {
+            <button type="button" class="select-start" (click)="startSelecting()">
+              <ion-icon name="checkmark-circle-outline"></ion-icon>
+              {{ 'review.select' | t }}
+            </button>
+          }
           <ion-list [inset]="true">
             @for (app of sortedApps(); track app.package) {
-              <ion-item lines="full">
+              <ion-item lines="full" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)">
+                @if (selecting()) {
+                  <button type="button" slot="start" class="tick" (click)="toggle(app)"
+                          [attr.aria-pressed]="isSelected(app)" [attr.aria-label]="app.label">
+                    <ion-icon [name]="isSelected(app) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+                  </button>
+                }
                 <ion-label>
                   <h3>{{ app.label }}</h3>
                   <p>{{ app.package }}</p>
-                  <p>{{ 'notifications.apps.count' | t:{ count: app.count } }} · {{ when(app.last) }}</p>
+                  <p>
+                    {{ 'notifications.apps.count' | t:{ count: app.count } }} · {{ when(app.last) }}
+                    @if (selecting() && app.watched) { · {{ 'notifications.watched' | t }} }
+                  </p>
                 </ion-label>
-                <ion-toggle slot="end" [checked]="app.watched"
-                            (ionChange)="watch(app, $any($event.detail).checked)"></ion-toggle>
-                <button type="button" slot="end" class="hide" (click)="hide(app)"
-                        [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
-                  <ion-icon name="eye-off-outline"></ion-icon>
-                </button>
+                @if (!selecting()) {
+                  <ion-toggle slot="end" [checked]="app.watched"
+                              (ionChange)="watch(app, $any($event.detail).checked)"></ion-toggle>
+                  <button type="button" slot="end" class="hide" (click)="hide(app)"
+                          [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
+                    <ion-icon name="eye-off-outline"></ion-icon>
+                  </button>
+                }
               </ion-item>
             }
           </ion-list>
@@ -134,6 +152,35 @@
         </button>
       </section>
     }
+  }
+
+  <!-- What to do with the ticked apps: the review screen's bar. -->
+  @if (selecting()) {
+    <div class="selection-bar" slot="fixed">
+      <div class="top">
+        <button type="button" class="close" (click)="stopSelecting()" [attr.aria-label]="'entry.cancel' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+        <span class="count">{{ 'notifications.select.count' | t:{ count: selectedApps().length } }}</span>
+        <button type="button" class="all" (click)="selectAll()">
+          {{ (allSelected() ? 'review.select.none' : 'review.select.all') | t }}
+        </button>
+      </div>
+      <div class="acts">
+        <button type="button" class="save" [disabled]="selectedApps().length === 0" (click)="watchSelected(true)">
+          <ion-icon name="lock-closed-outline"></ion-icon>
+          {{ 'notifications.select.watch' | t }}
+        </button>
+        <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(false)">
+          <ion-icon name="lock-open-outline"></ion-icon>
+          {{ 'notifications.select.unwatch' | t }}
+        </button>
+        <button type="button" [disabled]="selectedApps().length === 0" (click)="hideSelected()"
+                [attr.aria-label]="'notifications.hide.do' | t">
+          <ion-icon name="eye-off-outline"></ion-icon>
+        </button>
+      </div>
+    </div>
   }
 </ion-content>
 

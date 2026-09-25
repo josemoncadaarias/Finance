@@ -506,6 +506,35 @@ test('a shop that repeats is answered once, for all of its movements', async () 
   await db.close();
 });
 
+test('several chosen by hand are filed or rejected together, and only those', async () => {
+  const { db, proposals, rappi, mercados } = await setup();
+
+  const { ids } = await proposals.propose('extracto.pdf', [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-02', amount_minor: -20_000_00,
+      description: 'COMPRA TIENDA UNO', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-03', amount_minor: -30_000_00,
+      description: 'COMPRA OTRA TIENDA', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-04', amount_minor: -40_000_00,
+      description: 'PAGO SERVICIO', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-09-05', amount_minor: -50_000_00,
+      description: 'COMPRA LEJANA', evidence: {} },
+  ]);
+
+  assert.equal(await proposals.fileThese([ids[0], ids[1]], mercados), 2, 'two shops, one answer');
+  let waiting = await proposals.pending();
+  assert.deepEqual(waiting.filter(one => one.category_id === mercados).map(one => one.id), [ids[0], ids[1]]);
+  assert.equal(waiting.find(one => one.id === ids[0]).category_from, 'typed');
+
+  assert.equal(await proposals.rejectThese([ids[1], ids[2]]), 2);
+  waiting = await proposals.pending();
+  assert.deepEqual(waiting.map(one => one.id), [ids[0], ids[3]], 'the other two are still waiting');
+
+  // A rejected one is not pending, so neither method reaches it again.
+  assert.equal(await proposals.fileThese([ids[1]], mercados), 0);
+  assert.equal(await proposals.rejectThese([]), 0);
+  await db.close();
+});
+
 // ---------------------------------------------------------------------------
 // Squaring an account with its statement
 // ---------------------------------------------------------------------------

@@ -486,3 +486,22 @@ ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px));
     &:disabled { opacity: 0.45; }
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Choosing several at once.
+   --------------------------------------------------------------------------- */
+
+/* Its own line above the two pickers, at the right, and never one of them. */
+.looking .select-start {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--ion-color-primary);
+  font-weight: 600;
+
+  ion-icon { font-size: 1rem; }
+}
+
+/* The bar is taller than the jump arrows it replaces. */
+ion-content.selecting { --padding-bottom: calc(8rem + var(--ion-safe-area-bottom, 0px)); }

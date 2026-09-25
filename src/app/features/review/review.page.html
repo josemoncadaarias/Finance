@@ -14,7 +14,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content [class.selecting]="selecting()">
   @if (loading()) {
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else {
@@ -140,10 +140,18 @@
       </section>
     }
 
-    @if (total() > 3) {
+    @if (total() > 1) {
       <!-- What to look at and in what order. A statement is fifty lines on a
            phone, and these are the two questions anybody asks of one. -->
       <div class="looking">
+        <!-- Several answered at once. A long press on a row does the same. -->
+        @if (!selecting()) {
+          <button type="button" class="select-start" (click)="startSelecting()">
+            <ion-icon name="checkmark-circle-outline"></ion-icon>
+            {{ 'review.select' | t }}
+          </button>
+        }
+        @if (total() > 3) {
         <div class="group">
           <button type="button" [class.on]="sortBy() === 'date'" (click)="sortBy.set('date')">
             {{ 'review.sort.date' | t }}
@@ -164,6 +172,7 @@
             {{ 'review.only.flagged' | t }}
           </button>
         </div>
+        }
       </div>
     }
 
@@ -208,7 +217,14 @@
 
         <ion-list [inset]="true">
           @for (line of shownIn(batch); track line.proposal.id) {
-            <ion-item class="line" [class.unready]="!ready(line)" lines="full">
+            <ion-item class="line" [class.unready]="!ready(line)" [class.picked]="isSelected(line)"
+                      lines="full" (contextmenu)="pressed($event, line)">
+              @if (selecting()) {
+                <button type="button" slot="start" class="tick" (click)="toggle(line)"
+                        [attr.aria-pressed]="isSelected(line)" [attr.aria-label]="'review.select.row' | t">
+                  <ion-icon [name]="isSelected(line) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+                </button>
+              }
               <ion-label>
                 <!-- What it says it is, first: a date, a name, an amount. -->
                 <div class="head">
@@ -315,18 +331,20 @@
                 }
               </ion-label>
 
-              <div class="answer" slot="end">
-                <button type="button" class="ok" [disabled]="working() || !ready(line)"
-                        (click)="asking.set({ kind: 'acceptOne', line })"
-                        [attr.aria-label]="'review.accept' | t">
-                  <ion-icon name="checkmark-outline"></ion-icon>
-                </button>
-                <button type="button" class="no" [disabled]="working()"
-                        (click)="asking.set({ kind: 'discardOne', line })"
-                        [attr.aria-label]="'review.discard' | t">
-                  <ion-icon name="trash-outline"></ion-icon>
-                </button>
-              </div>
+              @if (!selecting()) {
+                <div class="answer" slot="end">
+                  <button type="button" class="ok" [disabled]="working() || !ready(line)"
+                          (click)="asking.set({ kind: 'acceptOne', line })"
+                          [attr.aria-label]="'review.accept' | t">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                  </button>
+                  <button type="button" class="no" [disabled]="working()"
+                          (click)="asking.set({ kind: 'discardOne', line })"
+                          [attr.aria-label]="'review.discard' | t">
+                    <ion-icon name="trash-outline"></ion-icon>
+                  </button>
+                </div>
+              }
             </ion-item>
           }
         </ion-list>
@@ -355,7 +373,7 @@
   }
   <!-- The same control the summary screen carries, and for the same reason:
        a statement is a long list and both ends of it are worth reaching. -->
-  @if (total() > 8) {
+  @if (total() > 8 && !selecting()) {
     <div class="jump" slot="fixed">
       <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t">
         <ion-icon name="arrow-up-outline"></ion-icon>
@@ -363,6 +381,38 @@
       <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t">
         <ion-icon name="arrow-down-outline"></ion-icon>
       </button>
+    </div>
+  }
+
+  <!-- What to do with the ticked rows. Saving counts only what can be saved,
+       as the batch button does; the other two act on every ticked row. -->
+  @if (selecting()) {
+    <div class="selection-bar" slot="fixed">
+      <div class="top">
+        <button type="button" class="close" (click)="stopSelecting()" [attr.aria-label]="'entry.cancel' | t">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+        <span class="count">{{ 'review.select.count' | t:{ count: selectedLines().length } }}</span>
+        <button type="button" class="all" (click)="selectAllShown()">
+          {{ (allShownSelected() ? 'review.select.none' : 'review.select.all') | t }}
+        </button>
+      </div>
+      <div class="acts">
+        <button type="button" [disabled]="working() || selectedLines().length === 0"
+                (click)="choosingForSelection.set(true)">
+          <ion-icon name="pricetag-outline"></ion-icon>
+          {{ 'review.select.category' | t }}
+        </button>
+        <button type="button" class="save" [disabled]="working() || selectedReady().length === 0"
+                (click)="asking.set({ kind: 'acceptSelected' })">
+          <ion-icon name="checkmark-outline"></ion-icon>
+          {{ 'review.select.save' | t:{ count: selectedReady().length } }}
+        </button>
+        <button type="button" class="drop" [disabled]="working() || selectedLines().length === 0"
+                (click)="asking.set({ kind: 'discardSelected' })" [attr.aria-label]="'review.discard' | t">
+          <ion-icon name="trash-outline"></ion-icon>
+        </button>
+      </div>
     </div>
   }
 </ion-content>
@@ -386,11 +436,11 @@
 </ion-popover>
 
 <!-- The categories, the same sheet the movement form opens. -->
-<app-category-sheet [open]="choosingFor() !== null || choosingMerchant() !== null"
+<app-category-sheet [open]="choosingFor() !== null || choosingMerchant() !== null || choosingForSelection()"
                     [kind]="choosingKind()"
                     [chosen]="choosingFor()?.proposal?.category_id ?? choosingMerchant()?.category?.id ?? null"
                     (picked)="chooseCategory($event)"
-                    (cancelled)="choosingFor.set(null); choosingMerchant.set(null)"></app-category-sheet>
+                    (cancelled)="choosingFor.set(null); choosingMerchant.set(null); choosingForSelection.set(false)"></app-category-sheet>
 
 <app-confirm [open]="asking() !== null" [title]="askTitle()" [body]="askBody()"
              [confirmLabel]="askLabel()" [icon]="askIcon()" [tone]="askTone()"

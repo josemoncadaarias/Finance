@@ -205,6 +205,22 @@ export class ProposalsRepository {
     return mine.length;
   }
 
+  /**
+   * Files the chosen readings under one category, in one statement.
+   *
+   * What a person selected by hand on the review screen, whatever their
+   * shop. Nothing is learned here: saving a movement is what teaches the
+   * dictionary, and these are not saved yet. Only pending ones are touched.
+   */
+  async fileThese(ids: readonly number[], categoryId: number): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await this.db.run(
+      `UPDATE movement_proposals SET category_id = ?, category_from = 'typed', updated_at = ?
+       WHERE status = 'pending' AND id IN (${ids.map(() => '?').join(', ')})`,
+      [categoryId, this.now(), ...ids]);
+    return result.changes ?? 0;
+  }
+
   /** Everything still waiting, oldest first. */
   async pending(): Promise<MovementProposal[]> {
     return this.db.query<MovementProposal>(
@@ -275,6 +291,16 @@ export class ProposalsRepository {
     await this.db.run(
       `UPDATE movement_proposals SET status = 'rejected', updated_at = ? WHERE id = ?`,
       [this.now(), id]);
+  }
+
+  /** Rejects several in one statement: one trip over the bridge, not one each. */
+  async rejectThese(ids: readonly number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await this.db.run(
+      `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
+       WHERE status = 'pending' AND id IN (${ids.map(() => '?').join(', ')})`,
+      [this.now(), ...ids]);
+    return result.changes ?? 0;
   }
 
   /**

@@ -52,8 +52,68 @@ export class NotificationsPage {
 
   /** Which question is on screen, or null. */
   readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | null>(null);
-  /** The app a "hide" question is about. */
-  private readonly hiding = signal<SeenApp | null>(null);
+  /** The apps a "hide" question is about: one, or the ticked ones. */
+  private readonly hiding = signal<SeenApp[]>([]);
+
+  /**
+   * Several apps answered at once (Jose, 2026-09-25): tick them, then keep
+   * what they say, stop keeping it, or hide them. The same bar and gesture as
+   * the review screen - "Seleccionar", or a long press on a row.
+   */
+  readonly selecting = signal(false);
+  private readonly selectedPkgs = signal<ReadonlySet<string>>(new Set());
+
+  readonly selectedApps = computed(() => {
+    const ticked = this.selectedPkgs();
+    return this.sortedApps().filter(app => ticked.has(app.package));
+  });
+
+  readonly allSelected = computed(() =>
+    this.sortedApps().length > 0 && this.selectedApps().length === this.sortedApps().length);
+
+  isSelected(app: SeenApp): boolean {
+    return this.selectedPkgs().has(app.package);
+  }
+
+  toggle(app: SeenApp): void {
+    const next = new Set(this.selectedPkgs());
+    if (!next.delete(app.package)) next.add(app.package);
+    this.selectedPkgs.set(next);
+  }
+
+  startSelecting(app?: SeenApp): void {
+    this.selecting.set(true);
+    this.selectedPkgs.set(new Set(app ? [app.package] : []));
+  }
+
+  pressed(event: Event, app: SeenApp): void {
+    if (this.selecting()) return;
+    event.preventDefault();
+    this.startSelecting(app);
+  }
+
+  stopSelecting(): void {
+    this.selecting.set(false);
+    this.selectedPkgs.set(new Set());
+  }
+
+  selectAll(): void {
+    this.selectedPkgs.set(this.allSelected()
+      ? new Set() : new Set(this.sortedApps().map(app => app.package)));
+  }
+
+  /** Keep, or stop keeping, what every ticked app says. */
+  async watchSelected(on: boolean): Promise<void> {
+    for (const app of this.selectedApps()) {
+      if (app.watched !== on) await BankNotifications.watch({ package: app.package, on });
+    }
+    this.stopSelecting();
+    await this.look();
+  }
+
+  hideSelected(): void {
+    void this.hideAll(this.selectedApps());
+  }
   /** The hidden apps' list is folded away until asked for. */
   readonly showHidden = signal(false);
 
@@ -124,12 +184,23 @@ export class NotificationsPage {
    * never ticked has nothing to lose and comes back from the list below.
    */
   async hide(app: SeenApp): Promise<void> {
-    if (this.caught().some(one => one.package === app.package)) {
-      this.hiding.set(app);
+    await this.hideAll([app]);
+  }
+
+  private async hideAll(apps: SeenApp[]): Promise<void> {
+    if (apps.length === 0) return;
+    const packages = new Set(apps.map(app => app.package));
+    if (this.caught().some(one => packages.has(one.package))) {
+      this.hiding.set(apps);
       this.asking.set('hide');
       return;
     }
-    await BankNotifications.hide({ package: app.package, on: true });
+    await this.putAway(apps);
+  }
+
+  private async putAway(apps: SeenApp[]): Promise<void> {
+    for (const app of apps) await BankNotifications.hide({ package: app.package, on: true });
+    this.stopSelecting();
     await this.look();
   }
 
@@ -141,9 +212,12 @@ export class NotificationsPage {
   async answered(): Promise<void> {
     const question = this.asking();
     this.asking.set(null);
-    const app = this.hiding();
-    this.hiding.set(null);
-    if (question === 'hide' && app) await BankNotifications.hide({ package: app.package, on: true });
+    const apps = this.hiding();
+    this.hiding.set([]);
+    if (question === 'hide') {
+      await this.putAway(apps);
+      return;
+    }
     if (question === 'forgetCaught') await BankNotifications.forgetCaught();
     if (question === 'forgetEverything') await BankNotifications.forgetEverything();
     await this.look();
@@ -151,7 +225,12 @@ export class NotificationsPage {
 
   readonly askTitle = computed(() => {
     const question = this.asking();
-    if (question === 'hide') return this.i18n.t('notifications.hide.sure', { app: this.hiding()?.label ?? '' });
+    if (question === 'hide') {
+      const apps = this.hiding();
+      return apps.length === 1
+        ? this.i18n.t('notifications.hide.sure', { app: apps[0].label })
+        : this.i18n.t('notifications.hide.sureMany', { count: apps.length });
+    }
     return this.i18n.t(question === 'forgetEverything'
       ? 'notifications.forgetAll.sure' : 'notifications.forgetCaught.sure');
   });
@@ -168,7 +247,7 @@ export class NotificationsPage {
 
   cancelled(): void {
     this.asking.set(null);
-    this.hiding.set(null);
+    this.hiding.set([]);
   }
 
   /** When it arrived, in the reader's own language. */

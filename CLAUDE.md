@@ -1104,6 +1104,22 @@ backup restore against iOS's own SQLite backend.
      proposals written with `insertMany` - never a query per notification,
      and nothing working in the background.
 
+   **Several rows answered at once** (Jose, 2026-09-25, built). The review
+   screen and the notifications screen share one gesture and one bar:
+   "Seleccionar", or a long press on a row (the `contextmenu` event, which
+   Android's WebView fires on a long press - to confirm on the phone), turns
+   on a round tick per row; a floating bar says how many, "Todos"/"Ninguno"
+   over what the filter shows, and what to do. On review: one category for
+   all (`fileThese`, one UPDATE), save the ready ones (the count on the button
+   is what will be written, and the dialog says how many stay behind and
+   why), or discard (`rejectThese`, one UPDATE, asked first). On
+   notifications: keep what they say, stop keeping it, or hide them (asked
+   first when something kept goes with them). The bar, the tick and the
+   picked row are `.selection-bar`, `.tick`, `.picked` in global.scss.
+   Checked in a browser on the invented Banco Azul statement; the
+   notifications screen only exists on Android, so its half is checked on
+   the phone.
+
    **The hardest problem in the feature, written down before it is met**: the
    SAME movement arriving from both sources. A notification today, and the
    statement next month carrying that same purchase - with a different date
