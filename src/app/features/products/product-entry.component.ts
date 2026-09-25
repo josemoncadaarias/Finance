@@ -793,11 +793,29 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   });
 
   /** The whole of it as the amount: withdraw everything, or top it all up. */
+  /**
+   * The figure "Pasar todo" put in, while it is still the amount. Turning the
+   * move around makes it the other side's balance, which may be less - saved
+   * like that it could leave the new origin below zero - so it goes back to
+   * nothing (Jose, 2026-09-25). An amount typed by hand stays: turning the
+   * direction is then all that was meant.
+   */
+  private filledWithAll: number | null = null;
+
+  /** Clears the amount if it is still the one "Pasar todo" wrote. */
+  private forgetFilledAll(): void {
+    if (this.filledWithAll !== null && this.pending() === null && this.amount().minor === this.filledWithAll) {
+      this.amount.set(new AmountBuffer());
+    }
+    this.filledWithAll = null;
+  }
+
   moveEverything(): void {
     const held = this.fromBalance();
     if (held === null) return;
     this.pending.set(null);
     this.amount.set(AmountBuffer.from(held));
+    this.filledWithAll = held;
   }
 
   clearAmount(): void {
@@ -902,6 +920,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   swap(): void {
+    this.forgetFilledAll();
     const from = this.productId();
     this.productId.set(this.toProductId());
     this.toProductId.set(from);

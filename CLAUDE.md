@@ -1616,7 +1616,10 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   (`core/yields/holdings.ts`, the same figure the products sheet shows per
   product). Nothing when the origin is empty or a card in debt. Withdrawing
   or topping up a whole bolsillo no longer means closing the form to read
-  the figure.
+  the figure. Turning the move around ("Invertir") while the amount is still
+  the figure "Pasar todo" wrote puts it back to nothing - the other side may
+  hold less, and saved like that it could go below zero; an amount typed by
+  hand stays.
 - The title of a products sheet opens the account list from anywhere on its
   row, not only over the name, as the summary's header does (2026-09-25).
 - An account's sheet on the products screen has "Ver sus movimientos en
