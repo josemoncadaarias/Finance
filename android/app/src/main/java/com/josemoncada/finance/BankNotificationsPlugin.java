@@ -91,6 +91,18 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Hides an app from the list for good, or shows it again. */
+    @PluginMethod
+    public void hide(PluginCall call) {
+        String pkg = call.getString("package");
+        if (pkg == null || pkg.isEmpty()) {
+            call.reject("No package");
+            return;
+        }
+        NotificationStore.hide(getContext(), pkg, Boolean.TRUE.equals(call.getBoolean("on", true)));
+        call.resolve();
+    }
+
     /** Everything caught since the app last looked, still held. */
     @PluginMethod
     public void caught(PluginCall call) {

@@ -27,6 +27,8 @@ export interface SeenApp {
   last: number;
   /** True while what it says is being kept, not only that it posted. */
   watched: boolean;
+  /** Put away by the person: not counted, not listed, until shown again. */
+  hidden: boolean;
 }
 
 /** One notification, exactly as it was posted. Nothing is read into it. */
@@ -50,6 +52,8 @@ export interface BankNotificationsPlugin {
   apps(): Promise<{ apps: SeenApp[] }>;
   /** Starts or stops keeping what one app says. */
   watch(options: { package: string; on: boolean }): Promise<void>;
+  /** Hides an app for good (and drops what was kept from it), or shows it again. */
+  hide(options: { package: string; on: boolean }): Promise<void>;
   /** Everything kept so far. */
   caught(): Promise<{ caught: CaughtNotification[] }>;
   forgetCaught(): Promise<void>;
@@ -69,6 +73,7 @@ const nothing: BankNotificationsPlugin = {
   openSettings: async () => {},
   apps: async () => ({ apps: [] }),
   watch: async () => {},
+  hide: async () => {},
   caught: async () => ({ caught: [] }),
   forgetCaught: async () => {},
   forgetEverything: async () => {},

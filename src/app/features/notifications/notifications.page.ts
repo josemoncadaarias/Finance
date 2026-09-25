@@ -51,12 +51,19 @@ export class NotificationsPage {
   readonly caught = signal<CaughtNotification[]>([]);
 
   /** Which question is on screen, or null. */
-  readonly asking = signal<'forgetCaught' | 'forgetEverything' | null>(null);
+  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | null>(null);
+  /** The app a "hide" question is about. */
+  private readonly hiding = signal<SeenApp | null>(null);
+  /** The hidden apps' list is folded away until asked for. */
+  readonly showHidden = signal(false);
 
   /** The ones being kept, first: they are what this screen is for. */
-  readonly sortedApps = computed(() => [...this.apps()].sort((one, other) =>
+  readonly sortedApps = computed(() => this.apps().filter(app => !app.hidden).sort((one, other) =>
     Number(other.watched) - Number(one.watched)
     || other.last - one.last));
+
+  readonly hiddenApps = computed(() => this.apps().filter(app => app.hidden)
+    .sort((one, other) => one.label.localeCompare(other.label)));
 
   readonly newest = computed(() =>
     [...this.caught()].sort((one, other) => other.postedAt - one.postedAt));
@@ -111,21 +118,58 @@ export class NotificationsPage {
     await this.look();
   }
 
+  /**
+   * Puts an app away: the phone stops noting it at all. Asked first only when
+   * something it said was kept, because that goes with it; an app that was
+   * never ticked has nothing to lose and comes back from the list below.
+   */
+  async hide(app: SeenApp): Promise<void> {
+    if (this.caught().some(one => one.package === app.package)) {
+      this.hiding.set(app);
+      this.asking.set('hide');
+      return;
+    }
+    await BankNotifications.hide({ package: app.package, on: true });
+    await this.look();
+  }
+
+  async unhide(app: SeenApp): Promise<void> {
+    await BankNotifications.hide({ package: app.package, on: false });
+    await this.look();
+  }
+
   async answered(): Promise<void> {
     const question = this.asking();
     this.asking.set(null);
+    const app = this.hiding();
+    this.hiding.set(null);
+    if (question === 'hide' && app) await BankNotifications.hide({ package: app.package, on: true });
     if (question === 'forgetCaught') await BankNotifications.forgetCaught();
     if (question === 'forgetEverything') await BankNotifications.forgetEverything();
     await this.look();
   }
 
-  readonly askTitle = computed(() => this.i18n.t(
-    this.asking() === 'forgetEverything'
-      ? 'notifications.forgetAll.sure' : 'notifications.forgetCaught.sure'));
+  readonly askTitle = computed(() => {
+    const question = this.asking();
+    if (question === 'hide') return this.i18n.t('notifications.hide.sure', { app: this.hiding()?.label ?? '' });
+    return this.i18n.t(question === 'forgetEverything'
+      ? 'notifications.forgetAll.sure' : 'notifications.forgetCaught.sure');
+  });
 
-  readonly askBody = computed(() => this.i18n.t(
-    this.asking() === 'forgetEverything'
-      ? 'notifications.forgetAll.body' : 'notifications.forgetCaught.body'));
+  readonly askBody = computed(() => {
+    const question = this.asking();
+    if (question === 'hide') return this.i18n.t('notifications.hide.body');
+    return this.i18n.t(question === 'forgetEverything'
+      ? 'notifications.forgetAll.body' : 'notifications.forgetCaught.body');
+  });
+
+  readonly askConfirm = computed(() => this.i18n.t(
+    this.asking() === 'hide' ? 'notifications.hide.do' : 'notifications.forget.do'));
+
+  cancelled(): void {
+    this.asking.set(null);
+    this.hiding.set(null);
+  }
 
   /** When it arrived, in the reader's own language. */
   when(at: number): string {

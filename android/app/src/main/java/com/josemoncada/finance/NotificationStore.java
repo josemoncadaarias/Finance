@@ -38,6 +38,8 @@ final class NotificationStore {
     private static final String APPS = "apps";
     private static final String WATCHED = "watched";
     private static final String CAUGHT = "caught";
+    /** Apps the person asked never to see here again - until they ask back. */
+    private static final String HIDDEN = "hidden";
 
     /** Enough to read a few days of a bank's messages, and not a diary. */
     private static final int KEEP = 300;
@@ -84,23 +86,60 @@ final class NotificationStore {
         }
     }
 
-    static boolean isWatched(Context context, String pkg) {
-        JSONArray watched = array(context, WATCHED);
-        for (int at = 0; at < watched.length(); at += 1) {
-            if (pkg.equals(watched.optString(at))) return true;
+    private static boolean contains(Context context, String key, String pkg) {
+        JSONArray list = array(context, key);
+        for (int at = 0; at < list.length(); at += 1) {
+            if (pkg.equals(list.optString(at))) return true;
         }
         return false;
     }
 
-    static void watch(Context context, String pkg, boolean on) {
-        JSONArray watched = array(context, WATCHED);
+    /** The list under this key with the package taken out, and put back when on. */
+    private static String toggled(Context context, String key, String pkg, boolean on) {
+        JSONArray list = array(context, key);
         JSONArray next = new JSONArray();
-        for (int at = 0; at < watched.length(); at += 1) {
-            String one = watched.optString(at);
+        for (int at = 0; at < list.length(); at += 1) {
+            String one = list.optString(at);
             if (!one.equals(pkg)) next.put(one);
         }
         if (on) next.put(pkg);
-        prefs(context).edit().putString(WATCHED, next.toString()).apply();
+        return next.toString();
+    }
+
+    static boolean isWatched(Context context, String pkg) {
+        return contains(context, WATCHED, pkg);
+    }
+
+    static void watch(Context context, String pkg, boolean on) {
+        prefs(context).edit().putString(WATCHED, toggled(context, WATCHED, pkg, on)).apply();
+    }
+
+    static boolean isHidden(Context context, String pkg) {
+        return contains(context, HIDDEN, pkg);
+    }
+
+    /**
+     * Hides an app from the list, or shows it again.
+     *
+     * Hidden means the listener stops even noting that it posted, so hiding
+     * it also stops keeping what it says and drops what was kept from it:
+     * a hidden app leaving its words on the screen would not be hidden. Shown
+     * again, it comes back unticked, with the count it had.
+     */
+    static void hide(Context context, String pkg, boolean on) {
+        SharedPreferences.Editor edit = prefs(context).edit();
+        edit.putString(HIDDEN, toggled(context, HIDDEN, pkg, on));
+        if (on) {
+            edit.putString(WATCHED, toggled(context, WATCHED, pkg, false));
+            JSONArray all = array(context, CAUGHT);
+            JSONArray rest = new JSONArray();
+            for (int at = 0; at < all.length(); at += 1) {
+                JSONObject one = all.optJSONObject(at);
+                if (one != null && !pkg.equals(one.optString("package"))) rest.put(one);
+            }
+            edit.putString(CAUGHT, rest.toString());
+        }
+        edit.apply();
     }
 
     /** Keeps one notification, oldest dropped once there are too many. */
@@ -122,6 +161,7 @@ final class NotificationStore {
                 JSONObject one = new JSONObject(app.toString());
                 one.put("package", pkg);
                 one.put("watched", isWatched(context, pkg));
+                one.put("hidden", isHidden(context, pkg));
                 list.put(one);
             } catch (JSONException broken) {
                 // Skip the one that will not copy rather than lose the rest.

@@ -44,6 +44,9 @@ public class NotificationCatcher extends NotificationListenerService {
         // progress, a call, music playing. A bank's message is never one.
         if ((notification.flags & Notification.FLAG_ONGOING_EVENT) != 0) return;
 
+        // An app the person hid is not even counted.
+        if (NotificationStore.isHidden(this, pkg)) return;
+
         long at = posted.getPostTime();
         NotificationStore.noteApp(this, pkg, labelOf(pkg), at);
         if (!NotificationStore.isWatched(this, pkg)) return;

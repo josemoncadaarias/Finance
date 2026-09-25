@@ -65,9 +65,38 @@
                 </ion-label>
                 <ion-toggle slot="end" [checked]="app.watched"
                             (ionChange)="watch(app, $any($event.detail).checked)"></ion-toggle>
+                <button type="button" slot="end" class="hide" (click)="hide(app)"
+                        [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
+                  <ion-icon name="eye-off-outline"></ion-icon>
+                </button>
               </ion-item>
             }
           </ion-list>
+        }
+
+        <!-- Put away, not forgotten: folded here so it can be brought back. -->
+        @if (hiddenApps().length > 0) {
+          <button type="button" class="fold" (click)="showHidden.set(!showHidden())"
+                  [attr.aria-expanded]="showHidden()">
+            <ion-icon [name]="showHidden() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            {{ 'notifications.hidden' | t:{ count: hiddenApps().length } }}
+          </button>
+          @if (showHidden()) {
+            <ion-list [inset]="true">
+              @for (app of hiddenApps(); track app.package) {
+                <ion-item lines="full">
+                  <ion-label>
+                    <h3>{{ app.label }}</h3>
+                    <p>{{ app.package }}</p>
+                  </ion-label>
+                  <button type="button" slot="end" class="unhide" (click)="unhide(app)">
+                    <ion-icon name="eye-outline"></ion-icon>
+                    {{ 'notifications.unhide' | t }}
+                  </button>
+                </ion-item>
+              }
+            </ion-list>
+          }
         }
       </section>
 
@@ -110,6 +139,6 @@
 
 <app-confirm [open]="asking() !== null" icon="trash-outline" tone="danger"
              [title]="askTitle()" [body]="askBody()"
-             [confirmLabel]="'notifications.forget.do' | t"
+             [confirmLabel]="askConfirm()"
              (confirmed)="answered()"
-             (cancelled)="asking.set(null)"></app-confirm>
+             (cancelled)="cancelled()"></app-confirm>

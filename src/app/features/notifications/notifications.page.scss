@@ -127,3 +127,43 @@ h2 {
     color: var(--ion-text-color);
   }
 }
+
+/* Putting an app away, and the folded list that brings it back. */
+.hide {
+  display: flex;
+  align-items: center;
+  margin-left: 0.6rem;
+  padding: 0.4rem;
+  border: 0;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.fold {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.8rem 1.1rem 0;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.unhide {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 999px;
+  background: none;
+  color: var(--ion-color-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
