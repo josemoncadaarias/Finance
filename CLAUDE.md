@@ -1279,7 +1279,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 537 tests that run against a real
+by 540 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -1460,6 +1460,22 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   being the usual one's. On Rappi cuenta: Bolsillo Principal into Cuenta de
   ahorros (37 times against 10 the other way). With no history, the first
   product that is not the usual one, into the usual one.
+- **A new movement starts with its usual note written** (`core/notes/
+  usual-note.ts`; Jose, 2026-09-25): the note most often written for the
+  same thing - a spending or an income on the same account and category
+  (only once a category is chosen: the account's commonest note alone is too
+  vague), a transfer between the same two accounts in that direction, a
+  product's own spending or income (same account, product, side, and
+  category once chosen), a move between the same two products. It takes two
+  uses to be a habit; the last year speaks first, then all of it; notes are
+  compared without case or surrounding spaces and offered in their latest
+  spelling. It follows the form while the person has not touched the note -
+  changing the account, the category or the destination offers that one's
+  note - and stops for good the moment they type, pick a suggestion or clear
+  it with the X. Never over a movement being corrected or a note carried from
+  another form. On Jose's data: "Pago tarjeta de crédito RappiCard" (Rappi
+  cuenta to Rappi Card), "Cashback RappiCard" (income on its usual product),
+  "Retiro bolsillo principal" (Bolsillo Principal into Cuenta de ahorros).
 - The title of a products sheet opens the account list from anywhere on its
   row, not only over the name, as the summary's header does (2026-09-25).
 - An account's sheet on the products screen has "Ver sus movimientos en

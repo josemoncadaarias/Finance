@@ -15,7 +15,7 @@
  */
 
 import {
-  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild,
+  Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -44,6 +44,7 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
+import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
 } from './calculator';
@@ -475,6 +476,55 @@ export class EntryComponent implements OnInit, OnDestroy {
     addIcons(allIcons as unknown as Record<string, string>);
   }
 
+  // ---------------------------------------------------------------------------
+  // The usual note (core/notes/usual-note.ts; Jose, 2026-09-25)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * True once the person has written in the note or cleared it: from then on
+   * the note is theirs and the app stops offering one.
+   */
+  private noteIsTheirs = false;
+  /** Rises with every question, so a slow answer cannot land on a newer one. */
+  private usualNoteAsked = 0;
+
+  /**
+   * What the note is written for, as far as the form can say yet: a transfer
+   * as soon as it has both accounts, a spending or an income once its
+   * category is chosen - before that the account's most common note is too
+   * vague to be worth writing.
+   */
+  private readonly noteContext = computed<NoteContext | null>(() => {
+    const from = this.accountId();
+    if (from === null) return null;
+    if (this.isTransfer()) {
+      const to = this.toAccountId();
+      return to === null ? null : { kind: 'transfer', fromAccountId: from, toAccountId: to };
+    }
+    const category = this.categoryId();
+    return category === null ? null
+      : { kind: 'movement', accountId: from, side: this.kind() === 'income' ? 'in' : 'out', categoryId: category };
+  });
+
+  private readonly offerUsualNote = effect(() => {
+    const context = this.noteContext();
+    if (context === null) return;
+    untracked(() => void this.fillUsualNote(context));
+  });
+
+  private async fillUsualNote(context: NoteContext): Promise<void> {
+    // Never over a movement being corrected, a note carried from another form,
+    // or one the person wrote.
+    if (this.request().editing || this.request().start?.note || this.noteIsTheirs) return;
+    if (this.database.status() !== 'ready') return;
+    const asked = ++this.usualNoteAsked;
+    const found = await usualNote(this.database.driver, context, todayIso());
+    if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
+    this.note.set(found ?? '');
+    const field = this.noteField();
+    if (field) field.nativeElement.value = found ?? '';
+  }
+
   /** Undoes the keyboard listener when the form closes. */
   private keyboardClosed: { remove: () => Promise<void> } | null = null;
 
@@ -712,6 +762,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   private noteQuery = 0;
 
   async onNoteInput(value: string): Promise<void> {
+    this.noteIsTheirs = true;
     this.note.set(value);
 
     const typed = value.trim();
@@ -782,6 +833,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   clearNote(pressed?: Event): void {
     pressed?.preventDefault();
+    this.noteIsTheirs = true;
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;
@@ -811,6 +863,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   useNote(note: string, pressed?: Event): void {
     pressed?.preventDefault();
+    this.noteIsTheirs = true;
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;

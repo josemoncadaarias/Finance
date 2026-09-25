@@ -25,7 +25,7 @@
  */
 
 import {
-  Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild,
+  Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
 } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
@@ -61,6 +61,7 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
+import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import { apply, isOperator, operatorFromKey, type Operator, type Pending } from '../entry/calculator';
 
 export interface ProductEntryRequest {
@@ -609,6 +610,51 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     addIcons(allIcons as unknown as Record<string, string>);
   }
 
+  // ---------------------------------------------------------------------------
+  // The usual note (core/notes/usual-note.ts; Jose, 2026-09-25)
+  // ---------------------------------------------------------------------------
+
+  /** True once the person has written in the note or cleared it. */
+  private noteIsTheirs = false;
+  private usualNoteAsked = 0;
+
+  /**
+   * What the note is written for: a move between two products, or a product's
+   * own spending or income - its category too once one is chosen.
+   */
+  private readonly noteContext = computed<NoteContext | null>(() => {
+    const account = this.account() ?? this.request().account;
+    const products = this.products();
+    const product = this.productId();
+    if (!account || product === null || products.length === 0) return null;
+    const usual = (products.find(one => one.is_default === 1) ?? products[0]).id;
+    if (this.isTransfer()) {
+      const to = this.toProductId();
+      return to === null || to === product ? null
+        : { kind: 'betweenProducts', accountId: account.id, fromProductId: product, toProductId: to, usualProductId: usual };
+    }
+    return {
+      kind: 'product', accountId: account.id, productId: product, usualProductId: usual,
+      side: this.request().kind === 'income' ? 'in' : 'out', categoryId: this.categoryId(),
+    };
+  });
+
+  private readonly offerUsualNote = effect(() => {
+    const context = this.noteContext();
+    if (context === null) return;
+    untracked(() => void this.fillUsualNote(context));
+  });
+
+  private async fillUsualNote(context: NoteContext): Promise<void> {
+    if (this.request().editing || this.noteIsTheirs || this.database.status() !== 'ready') return;
+    const asked = ++this.usualNoteAsked;
+    const found = await usualNote(this.database.driver, context, todayIso());
+    if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
+    this.note.set(found ?? '');
+    const field = this.noteField();
+    if (field) field.nativeElement.value = found ?? '';
+  }
+
   async ngOnInit(): Promise<void> {
     // However the keyboard is closed - the Android back button included,
     // which leaves the focus where it was - the note is finished.
@@ -727,6 +773,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   async onNoteInput(value: string): Promise<void> {
+    this.noteIsTheirs = true;
     this.note.set(value);
 
     const typed = value.trim();
@@ -746,6 +793,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   useNote(note: string, pressed?: Event): void {
     pressed?.preventDefault();
+    this.noteIsTheirs = true;
     this.note.set(note);
     this.noteSuggestions.set([]);
     this.noteQuery++;
@@ -776,6 +824,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   /** Taken on the press, for the reason the movement form explains. */
   clearNote(pressed?: Event): void {
     pressed?.preventDefault();
+    this.noteIsTheirs = true;
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;
