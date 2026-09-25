@@ -573,6 +573,16 @@
                   }
                 </div>
 
+                <!-- Search, as on the summary screen: the note, the category,
+                     the product, the other account (Jose, 2026-09-24). -->
+                <div class="search-row" #movementsSearchRow>
+                  <ion-searchbar [placeholder]="'products.search.in' | t:{ period: movementsPeriodLabel() }"
+                                 [value]="movementsSearch()"
+                                 (ionInput)="movementsSearch.set($any($event.target).value ?? '')"
+                                 (ionFocus)="startSearching()" (ionBlur)="searching.set(false)"
+                                 [debounce]="150" showCancelButton="never"></ion-searchbar>
+                </div>
+
                 @if (movementsView() !== 'largest') {
                   <div class="list-controls">
                     <span class="within-note">
@@ -588,7 +598,13 @@
                 }
               </div>
               @if (shownMovements().length === 0) {
-                <p class="hint">{{ 'products.movements.noneInPeriod' | t:{ period: movementsPeriodLabel() } }}</p>
+                <p class="hint">
+                  @if (movementsSearch().trim() !== '') {
+                    {{ 'summary.empty.search' | t:{ period: movementsPeriodLabel(), search: movementsSearch() } }}
+                  } @else {
+                    {{ 'products.movements.noneInPeriod' | t:{ period: movementsPeriodLabel() } }}
+                  }
+                </p>
               } @else {
                 <div class="product-movements">
                   @for (group of movementGroups(); track group.key) {
@@ -1528,7 +1544,7 @@
              its own Save, and a second pair of buttons under it would ask the
              user which one finishes the job. -->
         @if (form() === 'none') {
-          <ion-footer class="compose-bar">
+          <ion-footer class="compose-bar" [class.away]="searching()">
             <div class="compose">
               <button type="button" class="big expense" (click)="openEntry(line, 'expense')">
                 <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
@@ -1537,6 +1553,12 @@
               <button type="button" class="big income" (click)="openEntry(line, 'income')">
                 <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
                 <span class="what">{{ 'summary.income' | t }}</span>
+              </button>
+              <!-- The same round transfer as on the summary screen, from this
+                   account to where it usually sends money (Jose, 2026-09-24). -->
+              <button type="button" class="swap" (click)="openTransfer(line)"
+                      [attr.aria-label]="'summary.newTransfer' | t" [title]="'summary.newTransfer' | t">
+                <ion-icon name="swap-horizontal-outline"></ion-icon>
               </button>
             </div>
           </ion-footer>

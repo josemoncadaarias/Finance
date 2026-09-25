@@ -1433,6 +1433,13 @@ tap between an account's movements and its yields** (Jose, 2026-09-24).
   stops it, a category title slides once and gets its ellipsis back.
   A search field's hint cannot slide (it is an input's placeholder); it ends
   in "…" instead (global.scss).
+- **An account's sheet on the products screen searches its movements the
+  same way** (Jose, 2026-09-24): the same `.search-row` (now in global.scss,
+  one definition for both), matching what each row says - its title and the
+  line under it, notes included - without accents or case; the compose bar
+  steps aside while typing, as on the summary. A new account starts with an
+  empty search. The sheet's bottom bar also carries the same round transfer,
+  from that account to where it usually sends money.
 - The transfer button lives in the summary screen's bottom bar, round and
   blue beside the Gasto and Ingreso pills (`.compose .swap` in global.scss),
   and no longer in the header, where it crowded the account and the search.

@@ -373,21 +373,6 @@ ion-toolbar.stepper {
 }
 
 /* One row of views. Three questions, each answering itself. */
-/* The search, a quiet rounded field between the views and the list. */
-.search-row {
-  padding: 0 0.6rem 0.4rem;
-
-  ion-searchbar {
-    --border-radius: 999px;
-    --box-shadow: none;
-    --background: var(--ion-color-light);
-    padding: 0;
-    min-height: 0;
-    height: 2.6rem;
-    font-size: 0.9rem;
-  }
-}
-
 .views {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

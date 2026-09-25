@@ -20,11 +20,13 @@
  * it never rewrites a day corrected by hand.
  */
 
-import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import {
   IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
   IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
+  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonSearchbar,
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
@@ -166,7 +168,7 @@ interface Payment {
     TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
     IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
     IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime,
+    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonSearchbar,
   ],
 })
 export class ProductsPage {
@@ -396,6 +398,39 @@ export class ProductsPage {
   readonly showMovements = signal(false);
   readonly movements = signal<ProductMovement[]>([]);
   readonly movementsView = signal<'date' | 'category' | 'largest'>('date');
+
+  /** What is typed in the movements' search; blank shows every movement. */
+  readonly movementsSearch = signal('');
+  /** True while that search is typed into: the compose bar steps aside. */
+  readonly searching = signal(false);
+  private readonly movementsSearchRow = viewChild<ElementRef<HTMLElement>>('movementsSearchRow');
+
+  /** The search up at the top of what the keyboard leaves, its results under it. */
+  async startSearching(): Promise<void> {
+    this.searching.set(true);
+    const row = this.movementsSearchRow()?.nativeElement;
+    const content = this.sheet();
+    if (!row || !content) return;
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const scroller = await content.getScrollElement();
+    const top = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    await content.scrollToPoint(0, Math.max(top - 8, 0), 250);
+  }
+
+  /**
+   * The keyboard going away ends the search however it went - Android's back
+   * button closes it without taking the focus off the field.
+   */
+  private keyboardClosed: { remove: () => Promise<void> } | null = null;
+
+  private listenForKeyboard(): void {
+    if (!Capacitor.isNativePlatform()) return;
+    void Keyboard.addListener('keyboardDidHide', () => {
+      if (!this.searching()) return;
+      (document.activeElement as HTMLElement | null)?.blur();
+      this.searching.set(false);
+    }).then(handle => { this.keyboardClosed = handle; });
+  }
   /** One product's movements only, or every product's when null. */
   /** A movement of the account being corrected on the movement screen. */
   readonly movementEdit = signal<EntryRequest | null>(null);
@@ -469,10 +504,16 @@ export class ProductsPage {
     const chosen = this.chosenProducts();
     const { from, to } = this.movementsPeriod();
 
+    // The search reads what each row says - its title and the line under it -
+    // without accents or case, as the summary screen's does.
+    const term = foldText(this.movementsSearch());
+    const line = this.openLine();
     return this.movements().filter(movement =>
       (from === null || movement.on >= from)
       && (to === null || movement.on <= to)
-      && (chosen === null || [...chosen].some(id => movementTouches(movement, id))));
+      && (chosen === null || [...chosen].some(id => movementTouches(movement, id)))
+      && (term === '' || line === null
+        || foldText(`${this.movementTitle(line, movement)} ${this.movementDetail(line, movement)}`).includes(term)));
   });
 
   /** Grouped as asked: by day, by category, or one list from the largest down. */
@@ -697,7 +738,12 @@ export class ProductsPage {
    */
   private busy = false;
 
+  ngOnDestroy(): void {
+    void this.keyboardClosed?.remove();
+  }
+
   constructor() {
+    this.listenForKeyboard();
     // A message belongs to the form it was raised on. Leaving that form - or
     // the account, or opening an entry screen - clears it; an error from the
     // product form used to stay on every screen visited after it.
@@ -1195,6 +1241,7 @@ export class ProductsPage {
       this.movementsPeriod.set(currentPeriod('month'));
       this.movementsRangeStart.set(null);
       this.movementsRangeEnd.set(null);
+      this.movementsSearch.set('');
       this.movements.set([]);
       this.collapsedGroups.set(new Set());
       this.showPayments.set(false);
@@ -2754,4 +2801,9 @@ function today(): IsoDate {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Lowercased and without accents, so "exito" finds "Éxito". */
+function foldText(text: string): string {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
