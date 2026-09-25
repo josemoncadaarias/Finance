@@ -1757,6 +1757,40 @@ What it means:
   and release → App integrity), and with the debug SHA-1 above if debug APKs
   are to sign in too. The web client id does not change.
 
+**Where it stands on 2026-09-25**: the app exists in Play Console under
+Jadex Labs (`com.jadexlabs.finance`), version code 1002 is on the internal
+testing track, Jose installed it from the store, and Google sign-in and the
+Drive backup work there. What that took, for the next time a key is involved:
+- Play App Signing holds the key the store installs with. Its SHA-1s (not
+  secret): **classical key `D9:24:22:FC:B5:6E:FB:43:35:39:D7:B5:98:BC:4F:E5:52:88:C9:7D`**
+  and a previous key of the same day `AA:5E:33:EA:FE:F7:50:66:70:13:D0:13:32:44:11:83:50:5F:50:E8`.
+  They are in Play Console → Protected with Play → Play Store protection →
+  Manage Play app signing (Google moved it there from App integrity).
+- Google Cloud project **76504816542** (the web client id's prefix) → APIs &
+  Services → Credentials holds one Android OAuth client per (package, SHA-1):
+  `com.jadexlabs.finance` with the Play SHA-1(s), and with the debug SHA-1
+  `3E:94:…:E5` for the APKs from GitHub; the old `com.josemoncada.finance`
+  client stays while the old install is still in use.
+- Until the store listing is filled, Play shows the app as its package name
+  with the default Android icon and "(unreviewed)": normal for internal
+  testing.
+
+**The store listing is prepared in `store/`** (2026-09-25): `play-listing.es.md`
+(name "Finance: gastos y rendimientos" - 30 of 30 characters -, short and
+full description, all checked against the limits and against what the app
+really does), `icon-512.png` (from assets/icon.png), `feature-graphic-1024x500.png`
+and eight 1080×1920 screenshots in `store/screenshots/`, taken in dark mode
+with reduced motion from the INVENTED sample backup - never from Jose's data,
+because they are published. A copy of all of it is in
+`G:My DriveFinance AppPlay Store` for uploading from the browser. The
+sample backup grew for it: a credit card with everyday spending in ordinary
+words (no brands) paid monthly from Banco Azul, and each product named in
+Spanish with its rate on the product. Taking them showed seventeen Spanish
+report labels without their accents ("Gasto mas grande"); fixed.
+- **Still to redo before publishing**: `site/index.html` says the app's goal
+  is income tax and that Jose Moncada Arias made it; the privacy policy and
+  home page Play asks for must speak for Jadex Labs and the app as it is now.
+
 **Android developer verification** (looked up 2026-09-24): from 30 September
 2026 in Brazil, Indonesia, Singapore and Thailand, and worldwide in 2027,
 certified Android devices refuse sideloaded apps from unregistered developers

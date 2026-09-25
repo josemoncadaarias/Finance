@@ -108,25 +108,37 @@ const ajuste = await new CategoriesRepository(db, NOW).create({
 });
 
 const START = '2026-01-01';
+// Each account's one product named in Spanish, the rate on the product: how a
+// person sets it up, and how the store's screenshots should read.
+const productOf = async (accountId, name) => {
+  const product = (await yields.products(accountId))[0];
+  await yields.renameProduct(product.id, name);
+  return product.id;
+};
+
 await yields.enrol({ account_id: verde, opening_on: START, withholding: true });
-await yields.setRate({ account_id: verde, valid_from: START, annual_rate_scaled: pct(10.5) });
+const verdeP = await productOf(verde, 'Cuenta de ahorros');
+await yields.setRate({ account_id: verde, product_id: verdeP, valid_from: START, annual_rate_scaled: pct(10.5) });
 
 await yields.enrol({ account_id: naranja, opening_on: START, withholding: true });
-await yields.setRate({ account_id: naranja, valid_from: START, annual_rate_scaled: pct(9) });
+const naranjaP = await productOf(naranja, 'Cajita');
+await yields.setRate({ account_id: naranja, product_id: naranjaP, valid_from: START, annual_rate_scaled: pct(9) });
 // A rate cut in June, the way banks do: the summary should show the dip.
-await yields.setRate({ account_id: naranja, valid_from: '2026-06-01', annual_rate_scaled: pct(8.25) });
+await yields.setRate({ account_id: naranja, product_id: naranjaP, valid_from: '2026-06-01', annual_rate_scaled: pct(8.25) });
 
 await yields.enrol({ account_id: lila, opening_on: START, withholding: false });
+const lilaP = await productOf(lila, 'Bolsillo');
 await yields.setRate({
-  account_id: lila, component: 'Diario', payout: 'daily', valid_from: START, annual_rate_scaled: pct(6),
+  account_id: lila, product_id: lilaP, component: 'Diario', payout: 'daily', valid_from: START, annual_rate_scaled: pct(6),
 });
 await yields.setRate({
-  account_id: lila, component: 'Mensual por gasto', payout: 'monthly', valid_from: START,
+  account_id: lila, product_id: lilaP, component: 'Mensual por gasto', payout: 'monthly', valid_from: START,
   annual_rate_scaled: pct(5), requires_monthly_spend_minor: 400_000_00,
 });
 
 await yields.enrol({ account_id: dolar, opening_on: START, withholding: false });
-await yields.setRate({ account_id: dolar, valid_from: START, annual_rate_scaled: pct(4) });
+const dolarP = await productOf(dolar, 'Cuenta en dólares');
+await yields.setRate({ account_id: dolar, product_id: dolarP, valid_from: START, annual_rate_scaled: pct(4) });
 
 // A TRM for every day, drifting the way it does.
 let trm = 4_120_0000;
@@ -198,6 +210,53 @@ await transactions.create({
   account_id: fondo, category_id: ajuste, occurred_on: day(7, 27), amount_minor: -350_000_00,
   description: 'Ajuste fondo impuesto renta acumulado', source: 'manual',
 });
+
+// Everyday life on a credit card, paid from Banco Azul every month - what the
+// summary screen, its donut and the money report show, and what the store's
+// screenshots are taken of. Ordinary words, never brands: this backup is
+// published as pictures.
+const tarjeta = await accounts.create({
+  name: 'Tarjeta Coral', type: 'credit', currency_code: 'COP', builtin_icon: 'card',
+  credit_limit_minor: 8_000_000_00, opening_balance_minor: 0, opened_on: '2025-12-01',
+});
+const LIFE = [
+  // category, notes to choose from, [min, max] pesos, times a month
+  ['Mercado', ['Mercado semanal', 'Frutas y verduras', 'Mercado del mes'], [60_000, 320_000], 5],
+  ['Restaurante', ['Almuerzo', 'Cena con amigos', 'Almuerzo ejecutivo', 'Café y postre'], [18_000, 140_000], 7],
+  ['Transporte', ['Taxi', 'Viaje en app de transporte', 'Recarga transporte público'], [8_000, 45_000], 6],
+  ['Automóvil', ['Gasolina', 'Parqueadero', 'Lavado del carro'], [15_000, 180_000], 3],
+  ['Facturas', ['Energía', 'Internet y TV', 'Plan de celular', 'Agua'], [60_000, 190_000], 3],
+  ['Casa', ['Arriendo'], [1_600_000, 1_600_000], 1],
+  ['Salud', ['Farmacia', 'Cita médica'], [25_000, 160_000], 1],
+  ['Entretenimiento', ['Suscripción de streaming', 'Cine', 'Suscripción de música'], [17_000, 60_000], 3],
+  ['Ropa', ['Camisa', 'Zapatos', 'Ropa deportiva'], [70_000, 260_000], 1],
+  ['Cuidado personal', ['Peluquería', 'Productos de aseo'], [25_000, 90_000], 1],
+  ['Tecnología', ['Audífonos', 'Accesorios del celular'], [40_000, 350_000], 0.5],
+];
+for (let month = 1; month <= 9; month += 1) {
+  const last = month === 9 ? 23 : 28;
+  let spent = 0;
+  for (const [name, notes, [low, high], times] of LIFE) {
+    const categoryId = await category(name, 'expense');
+    const count = times >= 1 ? times : (next(0, 1) === 1 ? 1 : 0);
+    for (let n = 0; n < count; n += 1) {
+      const pesos = low === high ? low : Math.round(next(low, high) / 100) * 100;
+      spent += pesos;
+      await transactions.create({
+        account_id: tarjeta, category_id: categoryId, occurred_on: day(month, next(1, last)),
+        amount_minor: -pesos * 100, description: notes[next(0, notes.length - 1)], source: 'manual',
+      });
+    }
+  }
+  // The card paid in full from Banco Azul, the next month's 5th.
+  if (month < 9) {
+    await transfers.create({
+      occurred_on: day(month + 1, 5), description: 'Pago tarjeta de crédito',
+      from: { account_id: azul, amount_minor: spent * 100 },
+      to: { account_id: tarjeta, amount_minor: spent * 100 },
+    });
+  }
+}
 
 const engine = new AccrualEngine(db, yields, tax);
 await engine.accrueAll(UP_TO);
