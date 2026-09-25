@@ -1128,7 +1128,15 @@ ion-content {
     align-items: center;
     gap: 0.5rem;
 
-    .close { padding: 0.2rem; font-size: 1.3rem; }
+    /* A finger-sized way out: 2.5rem round, the size of the jump arrows. */
+    .close {
+      flex: none;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: var(--ion-color-step-150, var(--ion-color-light));
+      font-size: 1.4rem;
+    }
     .count { flex: 1; font-size: 0.88rem; font-weight: 600; }
     .all { color: var(--ion-color-primary); }
   }

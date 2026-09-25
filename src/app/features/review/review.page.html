@@ -145,10 +145,16 @@
            phone, and these are the two questions anybody asks of one. -->
       <div class="looking">
         <!-- Several answered at once. A long press on a row does the same. -->
+        <!-- The same place says how to leave it again. -->
         @if (!selecting()) {
           <button type="button" class="select-start" (click)="startSelecting()">
             <ion-icon name="checkmark-circle-outline"></ion-icon>
             {{ 'review.select' | t }}
+          </button>
+        } @else {
+          <button type="button" class="select-start" (click)="stopSelecting()">
+            <ion-icon name="close-circle-outline"></ion-icon>
+            {{ 'review.select.exit' | t }}
           </button>
         }
         <!-- Finding one among dozens: its words, its amount, its day. -->

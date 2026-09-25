@@ -67,7 +67,13 @@
           <p class="hint waiting">{{ 'notifications.apps.none' | t }}</p>
         } @else {
           <!-- Several at once. A long press on a row does the same. -->
-          @if (sortedApps().length > 1 && !selecting()) {
+          <!-- The same place says how to leave it again. -->
+          @if (selecting()) {
+            <button type="button" class="select-start" (click)="stopSelecting()">
+              <ion-icon name="close-circle-outline"></ion-icon>
+              {{ 'review.select.exit' | t }}
+            </button>
+          } @else if (sortedApps().length > 1) {
             <button type="button" class="select-start" (click)="startSelecting()">
               <ion-icon name="checkmark-circle-outline"></ion-icon>
               {{ 'review.select' | t }}

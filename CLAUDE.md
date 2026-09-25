@@ -1110,7 +1110,8 @@ backup restore against iOS's own SQLite backend.
    Android's WebView fires on a long press - to confirm on the phone), turns
    on a round tick per row - the WHOLE row takes the tap, and what is inside
    it (category, date, the toggle) waits until choosing ends; a floating bar
-   says how many, "Todos"/"Ninguno"
+   says how many (its X a round 2.5rem button, and "Seleccionar" turns into
+   "Salir de la selección" where it stood), "Todos"/"Ninguno"
    over what the filter shows, and what to do. On review: one category for
    all (`fileThese`, one UPDATE), save the ready ones (the count on the button
    is what will be written, and the dialog says how many stay behind and
