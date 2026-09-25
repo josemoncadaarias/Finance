@@ -1179,7 +1179,16 @@ backup restore against iOS's own SQLite backend.
    trojans ask for, and Google's newer fraud protection blocks sideloaded apps
    that declare it when they arrive from a browser, a chat or a file manager.
    **Every future sideloaded APK will meet the same wall while the service is
-   in the manifest**, so this is a cost on every update, not a one-off. A
+   in the manifest**, so this is a cost on every update, not a one-off.
+
+   **With the service out, a gentler warning remains** (Jose's phone,
+   2026-09-24/25): "Se bloqueó la app para proteger tu dispositivo - Play
+   Protect no vio una app de este desarrollador antes", this time WITH
+   "Instalar de todas formas", which installs over the existing app and keeps
+   the data (same package, same debug key). It is Play Protect not knowing the
+   debug certificate as any developer's - every sideloaded APK of this app will
+   show it. "Entendido" cancels the install. It ends when the app comes from
+   the Play Store's internal track, signed through Play App Signing. A
    store install is not blocked, which is one more reason the Play Store's
    internal track (see "Getting it into Google Play") matters for this
    feature in particular.
