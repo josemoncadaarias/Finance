@@ -1118,9 +1118,19 @@ backup restore against iOS's own SQLite backend.
    notifications: keep what they say, stop keeping it, or hide them (asked
    first when something kept goes with them). The bar, the tick and the
    picked row are `.selection-bar`, `.tick`, `.picked` in global.scss.
-   Checked in a browser on the invented Banco Azul statement; the
-   notifications screen only exists on Android, so its half is checked on
-   the phone.
+   **The tick is a `<span>`, never a button**: an ion-item holding a single
+   button forwards a tap anywhere on the row to it, so on the notifications
+   screen - whose rows hold nothing else while choosing - a tap ticked the
+   row and unticked it through the button, and only the circle worked. Found
+   by Jose on his phone after I had declared it done from the review screen
+   alone; `selection-rows.test.mjs` fails on a button tick.
+
+   **The notifications screen CAN be checked in a browser**, and must be:
+   with `ng serve`, `window.ng.getComponent(document.querySelector(
+   'app-notifications'))` hands over the component, and setting `supported`,
+   `enabled`, `apps` and `caught` on it draws the screen with invented apps
+   and notifications. No app code is changed for it (the script used lives
+   only in a session's scratchpad; the recipe is this paragraph).
 
    **Both screens search, and a long list has the two arrows** (Jose,
    2026-09-25). Review searches a row's description, what was read, the

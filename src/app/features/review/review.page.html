@@ -227,12 +227,15 @@
           @for (line of shownIn(batch); track line.proposal.id) {
             <ion-item class="line" [class.unready]="!ready(line)" [class.picked]="isSelected(line)"
                       lines="full" (contextmenu)="pressed($event, line)"
-                      (click)="selecting() && toggle(line)">
+                      (click)="selecting() && toggle(line)"
+                      [attr.role]="selecting() ? 'checkbox' : null"
+                      [attr.aria-checked]="selecting() ? isSelected(line) : null">
               @if (selecting()) {
-                <button type="button" slot="start" class="tick"
-                        [attr.aria-pressed]="isSelected(line)" [attr.aria-label]="'review.select.row' | t">
+                <!-- A picture of the row's state, not a button (see the
+                     notifications screen: a lone button takes every tap). -->
+                <span slot="start" class="tick" aria-hidden="true">
                   <ion-icon [name]="isSelected(line) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
-                </button>
+                </span>
               }
               <ion-label>
                 <!-- What it says it is, first: a date, a name, an amount. -->

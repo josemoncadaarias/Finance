@@ -76,12 +76,17 @@
           <ion-list [inset]="true">
             @for (app of sortedApps(); track app.package) {
               <ion-item lines="full" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)"
-                        (click)="selecting() && toggle(app)">
+                        (click)="selecting() && toggle(app)"
+                        [attr.role]="selecting() ? 'checkbox' : null"
+                        [attr.aria-checked]="selecting() ? isSelected(app) : null">
                 @if (selecting()) {
-                  <button type="button" slot="start" class="tick"
-                          [attr.aria-pressed]="isSelected(app)" [attr.aria-label]="app.label">
+                  <!-- A picture of the row's state, not a button: an ion-item
+                       with a single button in it forwards every tap on the row
+                       to that button, so the row ticked itself and then
+                       unticked through it. -->
+                  <span slot="start" class="tick" aria-hidden="true">
                     <ion-icon [name]="isSelected(app) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
-                  </button>
+                  </span>
                 }
                 <ion-label>
                   <h3>{{ app.label }}</h3>
