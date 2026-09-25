@@ -47,7 +47,6 @@ test('worked-out days, estimated days, pesos, and no investment account', () => 
   assert.equal(got.workedDays, 2);
   assert.equal(got.estimatedDays, 1);
   assert.equal(got.leftOutDays, 1);
-  assert.deepEqual(got.investmentsLeftOut, ['Fondo']);
 });
 
 test('a year with nothing in it is all zeroes', () => {

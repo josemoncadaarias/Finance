@@ -491,7 +491,9 @@ backup restore against iOS's own SQLite backend.
      out, and only what the fund certifies as realized is taxed (48 of
      Fiducuenta's ~55 million, one year). The person types that into
      casilla 58 by hand - Jose chose that over a line of its own - and the
-     notice names the investment accounts left out to remind them. Pressing
+     notice always says investment accounts are not included, without naming
+     any: only those with a product ever reached this sum, so a list named
+     Plenti and not Fiducuenta (Jose, 2026-09-25). Pressing
      the button again rewrites casilla 58, so the typed part must be added
      again; the hint says so. "Deshacer" beside the button puts every box it
      wrote (58, the financial yields, the withholding line) back to what it

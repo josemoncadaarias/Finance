@@ -174,7 +174,7 @@ export const TAX_TEXT = {
   yieldsUndo: 'Deshacer',
   yieldsNone: 'No hay rendimientos ni cashback registrados en {year}.',
   yieldsUsed: 'Se tomaron {gross} de rendimientos brutos calculados ({days} días), {estimated} estimados para los días antes de que la app los calculara, {cashback} de cashback y {withheld} de retención. Aproximado: compáralo con los certificados de los bancos.',
-  yieldsInvestments: 'No incluye tus cuentas de inversión ({accounts}): suma a mano en la casilla 58 lo que el certificado diga que hiciste efectivo en el año.',
+  yieldsInvestments: 'No incluye tus cuentas de inversión: suma a mano en la casilla 58 lo que el certificado diga que hiciste efectivo en el año.',
 
   sourcesTitle: 'Fuentes consultadas',
 

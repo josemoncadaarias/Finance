@@ -606,9 +606,9 @@ export class TaxPage {
       cashback: this.money(totals.cashbackMinor),
       withheld: this.money(totals.withheldMinor),
     })];
-    if (year.investmentsLeftOut.length > 0) {
-      said.push(fill(this.text.yieldsInvestments, { accounts: year.investmentsLeftOut.join(', ') }));
-    }
+    // Always said, and without names: every investment account is left out,
+    // not only the few that happen to have a product here (Jose, 2026-09-25).
+    said.push(this.text.yieldsInvestments);
     this.yieldsNotice.set(said.join(' '));
     this.schedule();
   }

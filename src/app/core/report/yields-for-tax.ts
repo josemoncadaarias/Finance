@@ -33,8 +33,6 @@ export interface TaxYearYields {
   estimatedDays: number;
   /** Days of a currency with no rate on record: left out, and counted. */
   leftOutDays: number;
-  /** The investment accounts that earn here and were left out, by name. */
-  investmentsLeftOut: string[];
 }
 
 export function yieldsOfTaxYear(data: YieldsReportData, year: number): TaxYearYields {
@@ -43,17 +41,13 @@ export function yieldsOfTaxYear(data: YieldsReportData, year: number): TaxYearYi
   const kind = new Map(data.accounts.map(account => [account.id, account]));
   const out: TaxYearYields = {
     workedMinor: 0, estimatedMinor: 0, withheldMinor: 0,
-    workedDays: 0, estimatedDays: 0, leftOutDays: 0, investmentsLeftOut: [],
+    workedDays: 0, estimatedDays: 0, leftOutDays: 0,
   };
-  const skipped = new Set<string>();
 
   for (const day of data.days) {
     if (day.on_date < from || day.on_date > to) continue;
     const account = kind.get(day.account_id);
-    if (account?.type === 'investment') {
-      skipped.add(account.name);
-      continue;
-    }
+    if (account?.type === 'investment') continue;
     const gross = data.inReportCurrency(day.gross_minor, day.account_id, day.on_date);
     const withheld = data.inReportCurrency(day.withholding_minor, day.account_id, day.on_date);
     if (gross === null || withheld === null) {
@@ -74,6 +68,5 @@ export function yieldsOfTaxYear(data: YieldsReportData, year: number): TaxYearYi
   out.workedMinor = Math.round(out.workedMinor);
   out.estimatedMinor = Math.round(out.estimatedMinor);
   out.withheldMinor = Math.round(out.withheldMinor);
-  out.investmentsLeftOut = [...skipped].sort();
   return out;
 }

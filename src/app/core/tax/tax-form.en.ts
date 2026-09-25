@@ -130,7 +130,7 @@ export const TAX_TEXT_EN: TaxText = {
   yieldsUndo: 'Undo',
   yieldsNone: 'No yields or cashback recorded in {year}.',
   yieldsUsed: 'Took {gross} of gross yields worked out ({days} days), {estimated} estimated for the days before the app worked them out, {cashback} of cashback and {withheld} of withholding. Approximate: compare it with the banks\' certificates.',
-  yieldsInvestments: 'Your investment accounts are not included ({accounts}): add by hand to casilla 58 what the certificate says you realized in the year.',
+  yieldsInvestments: 'Your investment accounts are not included: add by hand to casilla 58 what the certificate says you realized in the year.',
 
   sourcesTitle: 'Sources consulted (in Spanish)',
 
