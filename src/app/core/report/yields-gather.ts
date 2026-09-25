@@ -60,10 +60,21 @@ export async function gatherYieldsReport(db: SqlDriver, ask: YieldsAsk): Promise
     .filter(product => ids.includes(product.account_id))
     .map(product => ({ id: product.id, account_id: product.account_id, name: product.name }));
 
-  // A year before the end of the period, or its start if that is earlier.
+  // The same stretch of the period before: as many days as have gone by.
+  const elapsed = period.from && period.to
+    ? daysBetween(period.from, period.to < today ? period.to : today)
+    : 0;
+  const earlier = elapsed > 0 ? equivalentBefore(period, elapsed) : null;
+  const clipped = !!(period.to && period.to > today);
+
+  // Far enough back for everything read: a year before the end of the period
+  // for the charts, and the whole of the period before for the comparison.
+  // Jose, 2026-09-24: 2026 against 2025 read "+1,312%" because 2025 was loaded
+  // from September only - both sides must be read the same way.
   const end = period.to && period.to < today ? period.to : today;
   const yearBack = `${Number(end.slice(0, 4)) - 1}-${end.slice(5, 7)}-01`;
-  const from = period.from === null ? null : (period.from < yearBack ? period.from : yearBack);
+  const from = period.from === null ? null
+    : [period.from, yearBack, earlier?.from ?? yearBack].sort()[0];
 
   const worked = ids.length === 0 ? [] : await db.query<YieldDayRow>(
     `SELECT account_id, product_id, component, on_date, paid_on, balance_minor,
@@ -94,13 +105,6 @@ export async function gatherYieldsReport(db: SqlDriver, ask: YieldsAsk): Promise
   const inReportCurrency = account
     ? (minor: number) => minor
     : await toPesos(db, currencyOf);
-
-  // The same stretch of the period before: as many days as have gone by.
-  const elapsed = period.from && period.to
-    ? daysBetween(period.from, period.to < today ? period.to : today)
-    : 0;
-  const earlier = elapsed > 0 ? equivalentBefore(period, elapsed) : null;
-  const clipped = !!(period.to && period.to > today);
 
   return {
     inflation,

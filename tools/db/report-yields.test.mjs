@@ -468,3 +468,14 @@ test('an investment with no gain written down for over a month is named', () => 
   const fresh = yieldNotes(withFund());
   assert.ok(!fresh.lines.some(one => /la última ganancia o pérdida/.test(one.text)));
 });
+
+test('against the period before, an estimated side is said', () => {
+  const worked = walk({ account_id: 1, product_id: 10, from: '2026-09-10', days: 15, base: 1_000_000_000, rate: pct(10.5) });
+  const ledger = { account_id: 1, from: '2026-08-01', opening_minor: 1_000_000_000, previous_return_on: null, movements: [] };
+  const estimated = estimateBeforeRecord(worked, [ledger], new Map([[1, '2025-01-01']]), '2026-08-01', '2026-09-24');
+  const block = yieldVersusBefore(data({
+    accounts: [account(1, 'Dale')], products: [{ id: 10, account_id: 1, name: 'Alcancía' }], days: [...estimated, ...worked],
+  }));
+  assert.match(block.caveat, /estimada/);
+  assert.doesNotMatch(yieldVersusBefore(data()).caveat, /estimada/, 'nothing estimated, nothing said');
+});

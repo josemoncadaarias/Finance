@@ -582,7 +582,14 @@ export const yieldVersusBefore: Section<YieldsReportData> = data => {
     about: data.words['report.yields.about.versusBefore'],
     beforeLabel: before.label,
     nowLabel: data.periodLabel,
-    caveat: before.clipped ? data.words['report.yields.sameDays'] : undefined,
+    caveat: [
+      before.clipped ? data.words['report.yields.sameDays'] : null,
+      // Estimated days on either side are said, so a jump is not read as real
+      // when part of it was estimated.
+      data.days.some(day => day.estimated
+        && (inPeriod(data, day.on_date) || (day.on_date >= before.period.from! && day.on_date <= before.period.to!)))
+        ? data.words['report.yields.versusBefore.estimated'] : null,
+    ].filter(Boolean).join(' ') || undefined,
     rows: keys.map(key => {
       const was = then.get(key) ?? 0;
       const is = now.get(key) ?? 0;

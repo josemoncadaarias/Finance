@@ -706,6 +706,16 @@ backup restore against iOS's own SQLite backend.
    a fraction of a peso reaching `formatMoney` once returns were spread over
    days - fixed by rounding everything that is shown.
 
+   **Both sides of "Contra el periodo anterior" are read the same way.** The
+   data window reaches back to the start of the period before as well as a
+   year for the charts (`yields-gather.ts`). It used to stop a year back, so
+   2026 against 2025 compared nine months with three weeks and read "+1,312%"
+   on Fiducuenta; corrected, +1.4%. When either side holds estimated days the
+   comparison says so. Known and not fixed: an estimate is worked on the
+   account's ledger balance, so a product whose balance is typed rather than
+   moved there - Pibank's CDTs - is estimated on almost nothing, and its year
+   against the last reads as a huge jump.
+
    **What is a return and what is money put in** (Jose, 2026-09-24). On the
    yields summary a return is only ever: the yields the app works out for a
    product, or, on an account of type Inversión without products, a movement
@@ -1216,7 +1226,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 532 tests that run against a real
+by 533 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
