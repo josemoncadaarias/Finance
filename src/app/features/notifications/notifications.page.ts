@@ -13,7 +13,8 @@
  * this screen learns goes into the design of the next step.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { App } from '@capacitor/app';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon,
   IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton,
@@ -60,12 +61,23 @@ export class NotificationsPage {
   readonly newest = computed(() =>
     [...this.caught()].sort((one, other) => other.postedAt - one.postedAt));
 
+  /**
+   * Read again whenever the screen comes into view and whenever the app comes
+   * back to the front: what arrived meanwhile - or the permission just given
+   * in Android's settings - shows without anybody having to ask for it.
+   */
   constructor() {
+    const resumed = App.addListener('resume', () => void this.look());
+    inject(DestroyRef).onDestroy(() => void resumed.then(handle => handle.remove()));
+  }
+
+  ionViewWillEnter(): void {
     void this.look();
   }
 
+  /** The spinner only the first time; after that the list is replaced in place. */
   async look(): Promise<void> {
-    this.loading.set(true);
+    if (!this.supported()) this.loading.set(true);
     try {
       const { supported } = await BankNotifications.isSupported();
       this.supported.set(supported);
