@@ -25,17 +25,22 @@
         </activity>
 
         <!--
-            Reading a bank's own notification is PAUSED (Jose, 2026-09-24).
+            Reading a bank's own notification.
 
-            Declaring the NotificationListenerService here made Play Protect
-            refuse every sideloaded APK - "Se bloqueó la app para proteger tu
-            dispositivo", with no way past it - and APKs are how this app is
-            updated until it is on the Play Store. The Java (NotificationCatcher,
-            NotificationStore, BankNotificationsPlugin) stays, compiled and
-            unused: without this declaration Android never binds it. Resuming
-            is putting the <service> back, from the commit that removed it,
-            once the app is installed from the store's internal track.
+            Android only starts this after the person has given notification
+            access in Settings, and `android:permission` is what says only
+            Android may bind to it. Declaring it costs nothing until then: no
+            prompt, no battery, nothing running.
         -->
+        <service
+            android:name=".NotificationCatcher"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

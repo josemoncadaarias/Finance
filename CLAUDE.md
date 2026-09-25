@@ -1147,17 +1147,21 @@ backup restore against iOS's own SQLite backend.
    the phone. Everything not from an attached bank is discarded, and the app
    says so plainly.
 
-   **Step one is built, and PAUSED** (2026-09-24): `NotificationCatcher`,
+   **Step one is built** (2026-09-24): `NotificationCatcher`,
    `NotificationStore` and `BankNotificationsPlugin` in `android/`, the
-   screen in `features/notifications/`. It keeps WHICH apps post for
-   everybody and WHAT they said only for apps ticked by hand, and interprets
-   nothing. Paused by Jose the same day, for the reason below: the `<service>`
-   is out of the manifest and the route and menu item are gone, while every
-   file stays, compiled and unreachable. **Resume it when the app is being
-   installed from the Play Store's internal track, not before**, by reverting
-   the commit "Pause reading bank notifications".
+   screen at `/notifications`. It keeps WHICH apps post for everybody and
+   WHAT they said only for apps ticked by hand, and interprets nothing.
+   Paused on 2026-09-24 because Play Protect blocked every sideloaded APK
+   declaring the listener, and **resumed on 2026-09-25** by reverting that
+   commit, once Jose's phone ran the app installed from the Play Store's
+   internal track. The Java package stays `com.josemoncada.finance` (the
+   namespace), so `.NotificationCatcher` in the manifest still resolves
+   under the new application id. The consequence to remember: **a debug APK
+   from `debug-apk.yml` is blocked again by Play Protect**, and it could not
+   update the store install anyway (different signing key). The phone is
+   updated only through "Store bundle" and the Play Store from here on.
 
-   That wait is short, and it is NOT the 12-tester closed test. Internal
+   That wait was short, and it is NOT the 12-tester closed test. Internal
    testing needs only the Play account and one upload, admits up to 100
    people (Jose alone is enough) and has no 12-tester, 14-day rule; the
    closed test is only the gate to publishing for everybody and has nothing
