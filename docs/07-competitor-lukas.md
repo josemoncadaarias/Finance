@@ -67,10 +67,9 @@ competitor looked at so far. It was not in the 2026-09-24 market survey
   recurring transactions "on autopilot". **[listing]**
 - **Detects a rhythm and offers to schedule it.** For example, it notices
   rent and suggests making it a recurring movement. **[listing]**
-- 50+ currencies. **[listing]** Whether it handles exchange rates, or
-  per-transaction rates as we do, is **[unknown]**. The listing mentions
-  "travelers", which suggests the currency is a label rather than a
-  conversion.
+- 50+ currencies. **[listing]** On its screens that is ONE currency for
+  the whole app, picked in settings: no rates, no conversion, and no
+  accounts at all. **[seen]**
 
 ### Insights
 
@@ -161,7 +160,8 @@ Checked against the code and CLAUDE.md on 2026-09-27.
    the 0.055 UVT threshold per product, and results checked against what
    the banks actually paid (rules 15–18). Lukas mentions nothing like it,
    and neither does any app in the rule 21 survey.
-2. **Real multi-currency.** Each movement keeps the rate its bank applied.
+2. **Real multi-currency, and accounts at all.** Lukas has neither: one
+   currency and no accounts (seen on its screens). Each movement keeps the rate its bank applied.
    The official TRM is fetched daily, EUR is derived, net worth uses
    today's rate, and several currencies can sit in one account (rules 3, 4
    and 9).
@@ -363,6 +363,209 @@ true for us too (Colombia), and in a market of foreign apps it says
 - **Transactional email (Resend)** needs accounts. Google Play already
   emails the purchase receipt.
 
+## What its screens show (Jose's screenshots, 2026-09-27)
+
+Fourteen screenshots of Lukas v0.17.9, from a fresh install as a guest,
+dark theme. Everything in this section is **seen**, not claimed.
+
+### The shell: four tabs and a floating bar
+
+- **A floating bottom bar with four icons and no labels**: Inicio,
+  Planes (a wallet), Estadísticas, Configuración. It floats above the
+  system's own buttons with a margin all round, and the active tab sits
+  in a darker pill with the icon in the accent colour.
+- **One round "+" button** (teal, bottom right), above the bar.
+- **The same header on every tab**: the app icon, the name, and under it
+  the month with ‹ › to step through months. On the right, an **eye**
+  (privacy mode) and the **profile** (with a green dot while a guest).
+  The statistics tab adds a document icon (export) and a grid icon.
+- **Settings is a tab**, not something hidden in a drawer.
+
+### Home, empty
+
+- "¡Hola!" and one line about what the app does.
+- A big card, **"EMPIEZA AQUÍ – Escribe o pega varios a la vez"**, that
+  *shows* the feature instead of explaining it: a chat bubble "TÚ:
+  Almuerzo 25 mil + Uber 12k" and, under it, the two movements it becomes
+  with their category icons and amounts.
+- Then one card per way in: "Dicta tus movimientos", "Toma foto del
+  recibo", "Agrega tu saldo inicial". Each card: a round tinted icon,
+  a title, one grey line, and a chevron.
+- At the very bottom, small: **"Prefiero registrarlo manualmente"**.
+
+### The "+" sheet
+
+A bottom sheet with a grab handle: a highlighted wide card **"Asistente
+Inteligente – Dicta, toma una foto o escribe"**, then two square cards
+side by side, **Gasto / Manual** (red arrow down) and **Ingreso /
+Manual** (green arrow up), and a row "Agregar saldo inicial".
+
+### Planes
+
+- Empty state: a big "+" in a circle, **"No tienes ningún plan"**, one
+  line ("Crea límites de gasto o metas de ahorro para organizar tu
+  dinero"), and one text button, "CREAR MI PRIMER PLAN".
+- It opens a sheet: **"Controlar un gasto – Tope máximo para una
+  categoría"** or **"Ahorrar para una meta – Registra aportes a un
+  objetivo"**.
+- **Nuevo límite**: a huge amount at the top ("$ 0"), then three rows:
+  Categoría, Período (Mes, with its dates spelled out) and a
+  **Recurrente** switch, "Renovar automáticamente al finalizar". A wide
+  Guardar at the bottom, dimmed until the form is complete.
+- **Metas de ahorro** is an explainer page, not a form: "¿Cómo
+  funcionan las metas?", an example in a tinted box, a "💡 Recomendación"
+  box, and two buttons, "Crear categoría de ahorro" / "Continuar sin
+  crear categoría". **Their goal is a category**: putting money aside is
+  recorded as an EXPENSE in a category named after the goal ("Así sale
+  de tu balance pero se acumula en tu meta").
+
+### Estadísticas
+
+- A row of period pills: Semanal, **Quincenal 🔒**, Mensual,
+  **Trimestral 🔒**, Semestral… The locked ones are Pro, and they are
+  shown with the lock rather than hidden.
+- A card with ‹ Septiembre de 2026 ›.
+- Sections: "Gastos por categoría", "Ingresos vs Gastos", "Tendencia de
+  gastos", and projections ("Agrega más transacciones para ver
+  proyecciones – Necesitamos al menos 1 mes de datos").
+- **Every empty chart has an empty state**: a grey outline icon of that
+  chart and one sentence. Nothing is blank.
+- The period card sticks under the header while scrolling.
+
+### Configuración
+
+- A card on top: **"SESIÓN DE INVITADO – Crea tu cuenta – Tus datos
+  están seguros, pero no vinculados"**. So the app works with no account
+  and asks for one later.
+- An upsell card: "Lleva tus finanzas al siguiente nivel – Elimina los
+  anuncios y desbloquea registros con IA ilimitados", with **"USO DE IA
+  ESTE MES 33%"** as a progress bar, and "Descubre Pro".
+- Grouped lists under small uppercase headings. Every row has a round
+  grey icon, a title, the current value or a hint in grey, and a chevron
+  (or a switch):
+  - **APARIENCIA**: Idioma, Tema (Automático), Moneda (with the flag).
+  - **GESTIÓN DE GASTOS**: Período de presupuesto (Mensual), Categorías
+    (22), **Registros comunes** ("Movimientos repetidos de un toque"),
+    Etiquetas, **Programadas** ("Transacciones automáticas"), **Acceso
+    rápido** ("Registros comunes desde el icono o los ajustes"), **Seguro
+    para gastar** ("Visible en inicio").
+  - **DATOS Y SEGURIDAD**: Respaldo y restauración, **Autenticación
+    biométrica** (a switch), Exportar datos ("CSV o reporte PDF"),
+    Notificaciones ("Recordatorios y alertas").
+  - **LEGAL**: Términos de servicio, Política de privacidad.
+  - "Conéctate con el dev" (his Instagram), the **version** (v0.17.9),
+    and **"Eliminar mis datos"** in red at the very end.
+- It has 22 categories, the same number as our starter set (rule 23).
+- **One currency for the whole app** (Moneda: COP), and no accounts
+  anywhere on these screens. Its "50+ currencies" is a choice of ONE
+  currency, not several at once. **[inferred from the screens]**
+
+## Its design, and why it feels better
+
+What Jose means by "professional, pleasant and fluid", broken into
+things that can actually be built.
+
+1. **Everything is two taps away, and visible.** Four tabs are always on
+   screen; settings are one of them. We have ten entries in a drawer,
+   and a drawer is a place you must remember to open. Lukas can do this
+   partly because it has less: no accounts, no products, no tax, no
+   review.
+2. **One shape for every row.** A round tinted icon, a title, a grey
+   second line, a chevron. Every list and every card, on every screen.
+   Colour means something: red for spending and limits, green for income,
+   purple for "recurring", blue for dates.
+3. **One accent colour** (teal) for everything you can press, and
+   nothing else is that colour.
+4. **An empty screen teaches.** Every empty state has an icon, one
+   sentence and one action. The home screen, empty, is a guide to the
+   app.
+5. **Show, don't explain.** The "EMPIEZA AQUÍ" card is a fake
+   conversation showing the result. Nobody reads the paragraph; everybody
+   sees the two rows.
+6. **Choices come up from the bottom.** The "+" and "Crear plan" open a
+   sheet with a grab handle and big cards, reachable with the thumb.
+7. **The amount is the hero.** In "Nuevo límite" the figure is huge and
+   everything else is small rows under it.
+8. **Grouped settings under small uppercase headings**, each row saying
+   its current value ("Mensual", "Automático", "Desactivada"). You know
+   the state without opening anything.
+9. **Locks are visible.** "Quincenal 🔒" says what Pro adds at the exact
+   moment you would want it.
+
+### How this fits what is already decided here
+
+- **The drawer was a deliberate decision** (`app.component.html`, the
+  comment on `ion-menu`): the bottom edge belongs to Android's own
+  buttons, and a tab bar there means cramped targets or mis-taps. Lukas
+  answers that exact objection: its bar *floats* above the system bar,
+  with a margin, and it has four big targets, not ten. Moving to it
+  reverses a recorded decision, so it is Jose's call.
+- **Four tabs cannot hold ten screens.** A possible split, to decide:
+  - **Inicio**: the summary (donut, movements) as today.
+  - **Cuentas**: accounts, and from each one its products and yields.
+  - **Reporte**: the money and yields report (already one screen with a
+    switch).
+  - **Más** (or Ajustes): categories, review, notifications, tax
+    simulator, import/export, the Google account, language, theme -
+    grouped the way Lukas groups its settings.
+  With the "+" as the one way to create anything, opening the sheet
+  Gasto / Ingreso / Transferencia / Importar extracto.
+- **Our compose bar already does the "+" job** on two screens (rule on
+  `.compose` in global.scss). A floating "+" would replace it or sit
+  beside it; that is one decision, not two.
+- **The home screen needs accounts in it**, which Lukas does not have to
+  fit. Its header "month with ‹ ›" is what our summary header already
+  does, plus the account picker.
+
+### Ideas from these screens, added to the list
+
+15. **Savings goals, done our way.** Lukas files money set aside as an
+    EXPENSE in a goal category. That breaks our rule 20 ("saved is income
+    minus expenses; a transfer is not a decision to save"): the money is
+    still Jose's, just elsewhere. Here the natural home is a **product**
+    (a bolsillo, an alcancía) or an account, with a target amount and
+    maybe a date, and progress = its balance ÷ target. Careful: rule 15
+    says products are "five things and no sixth"; a target is a new
+    attribute of a product, not a new mechanism, but it needs Jose's
+    word.
+16. **Budgets exactly like its "Nuevo límite"**: category, amount,
+    period, "renew every period". That is idea 2 with its form already
+    designed.
+17. **Quincenal as a period.** In Colombia salaries are paid on the 15th
+    and the 30th. `core/filters/period.ts` has day, week, month, year,
+    all and range; "quincena" (1-15, 16-end) is a small addition there,
+    and would show in the summary and the report for free. Trimestral
+    and semestral likewise.
+18. **Visible locks** for the paid tier (rule 21): a period pill or a
+    report section with a small lock, which opens the paywall. That is
+    how the "one service answers" of rule 21 should look on screen.
+19. **Home that teaches when empty.** For a new user, the summary shows
+    cards: "Crea tu primera cuenta", "Importa un extracto en PDF",
+    "Registra tu primer gasto", "Activa la copia en Drive". Jose, with
+    data, never sees them. It matters for the store (rule 21).
+20. **Empty states everywhere**: an icon, one sentence, one action. Worth
+    a pass over every screen and report section.
+21. **A settings screen** in Lukas's shape, with the current value on
+    every row. Today language and theme live at the bottom of the drawer.
+22. **"Registros comunes" and "Acceso rápido"**: our idea 5 (favourites),
+    plus Android **app shortcuts**: long press on the app icon offers
+    "Nuevo gasto", "Nuevo ingreso" or a favourite. Capacitor supports
+    them with a plugin, and iOS has the same thing (Quick Actions), so it
+    does not break the "no Android-only" rule if both are done.
+23. **Version on the settings screen**, and **"Eliminar mis datos"**.
+    Google Play asks apps to let people delete their data. With no
+    account and no server, ours means: wipe the database on the phone,
+    and optionally the backup in their Drive, with a strong confirmation.
+24. **A contact link** ("Conéctate con el dev"): for Jadex Labs, an email
+    or a store link to leave a review.
+
+**Not taken: tags** ("Etiquetas"). Jose, 2026-09-27: not needed. The
+note on a movement and the search already give context, and tags would
+add a table and one more picker to every form.
+
+**Not taken: the guest session / create account.** We have no accounts;
+the Google sign-in is only for Drive, and that is enough.
+
 ## What this says about pricing (rule 21)
 
 Lukas sells "no ads and more AI", because those are what cost it money,
@@ -381,6 +584,8 @@ LLM, it can be called "dictation" honestly.
       whether audio and photos are kept or used to train models, how long
       data is kept after an account is deleted.
 - [ ] Price of Pro, monthly and yearly.
-- [ ] Install it: screenshots of the home screen, the entry flow,
-      Safe to Spend and the budgets. Rating and number of downloads.
-- [ ] Whether its multi-currency converts at all, or only labels.
+- [x] Screens of the shell, home, plans, statistics and settings
+      (2026-09-27).
+- [ ] Screens with data in them: Safe to Spend, a budget half spent, a
+      goal, a chart. Rating and number of downloads.
+- [x] Multi-currency: one currency for the whole app, chosen in settings.

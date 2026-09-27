@@ -1959,6 +1959,76 @@ except through a slow "advanced" flow or ADB. Colombia is not in the first
 wave. A verified Play developer account is what registers Jose - one more
 reason for it, since the APKs from GitHub are sideloaded.
 
+## Ideas waiting for Jose's word
+
+**Nothing in this section is decided or built.** It is a list of
+proposals, so a session on either PC can pick one up without mistaking
+it for a decision. Before starting any of them: ask Jose, and move the
+line into the rules above once he has answered. The full reasoning is in
+`docs/07-competitor-lukas.md`, a study of Lukas (Jotatech, Medellín), made
+on 2026-09-27 from its store listing, its privacy policy and fourteen
+screenshots Jose took of it.
+
+**What Lukas is, in one paragraph**: a one-person Colombian expense
+tracker with AI entry (voice, receipt photo, pasted text via Gemini and
+OpenAI), budgets and goals, ONE currency and NO accounts, ads on the
+free tier, Pro by subscription through RevenueCat, and ten third-party
+services including Supabase in the US holding users' data. We win on
+yields, multi-currency, accounts, cards, statements that check
+themselves, the tax simulator and privacy (no server, no ads, no
+trackers). It wins on how the app FEELS, and that is the main lesson.
+
+### The design direction Jose asked for (2026-09-27)
+
+Jose: Lukas's access to its options and menus "es muy fluida y mejor... a
+eso me refiero con diseño profesional, agradable y bonito para el
+usuario". Not decided in detail; the principles, drawn from its screens:
+
+- Everything reachable in two taps, always visible. **This reverses the
+  drawer decision** recorded on `ion-menu` in `app.component.html`
+  (Android's own buttons own the bottom edge). Lukas's answer is a bar
+  that FLOATS above them, four big targets. Proposed tabs: Inicio,
+  Cuentas (with products and yields inside), Reporte, Más. To decide.
+- One row shape everywhere: round tinted icon, title, grey second line
+  with the current value, chevron or switch. Colour carries meaning (red
+  spending, green income).
+- One accent colour for everything pressable.
+- Every empty screen or section: an icon, one sentence, one action.
+- Choices open from the bottom, as a sheet with a grab handle.
+- A settings screen grouped under small uppercase headings.
+- The rule "a control on two screens has one definition in global.scss"
+  is what makes all this possible: build the row, the card, the sheet
+  and the empty state once, there.
+
+### The ideas, by what they would take
+
+| # | Idea | Size | Touches | Status |
+|---|---|---|---|---|
+| D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | Proposed |
+| 21 | Settings screen, grouped, value on each row | Medium | Drawer | Proposed |
+| 20 | Empty state on every screen and section | Small, many places | - | Proposed |
+| 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
+| 3 | Privacy mode: eye in the header hides amounts | Small (`formatMoney`) | - | Proposed |
+| 4 | Biometric or PIN lock (free) | Small, plugin | iOS rule | Proposed |
+| 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
+| 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
+| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
+| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed |
+| 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
+| 7 | Month-end projection, as a report section | Small | Rule 20 | Proposed |
+| 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed |
+| 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | Proposed |
+| 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
+| 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
+| 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
+| 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
+| - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
+| - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
+
+A suggested order, if Jose agrees: the small ones that make the app feel
+finished (20, 3, 23, 17), then the design shell (D with 21), then the
+budget family (2/16, 1, 7), then the rest.
+
 ## Pending from Jose
 
 - [ ] Keep a copy of the corporate laptop's `debug.keystore` somewhere safe
