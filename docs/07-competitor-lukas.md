@@ -12,16 +12,21 @@ This was written from a cloud session. Its network policy blocked
 from web-search excerpts of those same pages. The app was not installed or
 opened, so no screen was seen.
 
+The same day, Jose sent three screenshots from his phone of section 4 of
+that privacy policy, "Proveedores con los que compartimos datos". That
+section is transcribed below and marked **[policy]**.
+
 Each fact below is marked:
 
+- **[policy]**: Lukas's own privacy policy, section 4, read from Jose's
+  screenshots.
 - **[listing]**: Lukas's own Play Store or App Store text, quoted by search
   results. It is what the developer claims, not what was seen working.
-- **[inferred]**: reasoned from the listing, not stated there.
+- **[inferred]**: reasoned from the above, not stated there.
 - **[unknown]**: looked for and not found.
 
-To complete this study, do it locally: install Lukas, read
-`https://lukas.jotatech.org/es/privacy-policy` in full, and fill in the
-[unknown] rows below.
+To complete this study, do it locally: install Lukas, read the rest of the
+privacy policy, and fill in the [unknown] rows below.
 
 ## Who makes it
 
@@ -89,44 +94,63 @@ competitor looked at so far. It was not in the 2026-09-24 market survey
 
 ### Business model
 
-- Free to download. **Pro raises the AI quota** and unlocks extras. No
-  subscription is needed to start. **[listing]**
-- Prices, and whether Pro is a subscription or a one-time payment:
-  **[unknown]**.
+- Free to download, **with ads on the free plan** (Google AdMob). **Pro
+  removes the ads** and raises the AI quota. **[policy / listing]**
+- Pro is a **subscription**, sold through the App Store and Google Play and
+  managed by **RevenueCat**. **[policy]**
+- Price: **[unknown]**.
 
-## How it stores data, and what it probably pays for
+## How it stores data, and who it pays
 
-What the listing says: the data lives on the phone, and cloud sync is an
-option the person turns on. Which service is behind that sync is
-**[unknown]**. It is probably in the privacy policy that could not be read.
+### What its privacy policy lists (section 4, verbatim in substance)
 
-**[inferred]** Two costs are close to certain:
+"Para operar Lukas usamos los proveedores de abajo. Cada uno recibe
+únicamente lo mínimo necesario para su función, y ninguno tiene permiso
+para usar tus datos con fines propios." **[policy]**
 
-1. **An AI provider, paid per call.** Understanding speech, reading a
-   receipt photo and sorting pasted text all need a multimodal model
-   (OpenAI, Gemini, Claude or similar). A "quota" on the free tier is the
-   sign that each use costs the developer money. That is exactly why the
-   paid tier is sold as "more AI". To keep the API key off the phone, the
-   calls usually go through a backend the developer owns, such as a
-   Supabase Edge Function, a Firebase Cloud Function or a small server.
-   Without that, anyone could pull the key out of the APK.
-2. **A server for sync.** Sync across devices needs somewhere to keep the
-   data: Firebase, Supabase, their own server, or the person's own
-   iCloud/Drive. "Encrypted" could mean end-to-end encryption, where the
-   developer cannot read the data, or only encryption in transit and at
-   rest, where the developer can. The listing does not say which, and it
-   matters.
+| Provider | What it is for | What it receives, per the policy |
+|---|---|---|
+| **Supabase** | Database and authentication | The account, the synced data and the cloud backups. **Servers in the United States.** |
+| **Google and Apple** | Sign-in | Only if the person signs in with them: identity confirmed, email and name. Never the password. |
+| **Google Gemini and OpenAI** | AI features | The text, audio or receipt photo sent, and the date. "Nunca tu identidad ni tu historial financiero completo." |
+| **Firebase Cloud Messaging** | Push notifications | The device token, not the content of the finances. |
+| **RevenueCat** | Subscriptions | Checks with Apple and Google whether Pro is active. Receives the purchase identifier. |
+| **Google AdMob** | Ads, free plan only | May receive the device's advertising id if tracking was allowed. Not loaded with Pro. |
+| **AppsFlyer** | Campaign attribution | Which of their ads led to an install. Technical device and install data. |
+| **Sentry** | Crash reports | Technical reports when the app fails, **including the user id and email if signed in**. |
+| **Resend** | Transactional email | Emails such as a purchase confirmation. Receives the email address. |
+| **App Store and Google Play** | Payments | Handle the whole charge; Lukas never sees the payment method. |
 
-So Lukas is **not serverless**, at least not once the AI or sync is used.
-Its monthly cost grows with the number of users. That is the model this
-app has refused (rule 21: no server of our own). Our Drive backup costs
-nothing per user, because it goes into the user's own Drive.
+### What that means
 
-**To check in the privacy policy, locally:** the list of subprocessors,
-whether sync is end-to-end encrypted, whether audio and receipt photos are
-kept or used to train models, whether analytics or crash reporting is
-included (Firebase Analytics, Crashlytics, Sentry), and who handles
-billing (RevenueCat or plain Play Billing).
+- **It has a server, and so it has accounts.** Supabase keeps each
+  person's synced data and backups in the United States. So Lukas holds
+  its users' financial history, even if encrypted. The listing's
+  "encrypted" does not say end-to-end, and a Supabase database with
+  accounts is normally readable by whoever runs it. **[inferred]**
+- **Its costs grow with its users.** Supabase (free up to a size, then
+  paid), Gemini and OpenAI per call (hence the AI quota), Resend, Sentry
+  and AppsFlyer past their free tiers. Ads and Pro pay for that.
+  **[inferred]**
+- **Two AI providers.** Most likely one is the main one and the other a
+  fallback, or each is used for what it does better (Gemini for audio and
+  images, OpenAI for text). **[inferred]**
+- **Its "the data never leaves your device unless you decide otherwise"
+  holds for the ledger**, but not for crash reports, attribution or ads,
+  which run anyway. **[policy / inferred]**
+
+### Against this app
+
+This app sends nothing to anyone of ours: there is no server. What leaves
+the phone goes to the person's own Google Drive (the backup) and to the
+public rate and inflation services (datos.gov.co, the ECB, the Banco de
+la República), which only see a request. Nobody at Jadex Labs could read
+a user's figures even if asked to. That is the strongest privacy argument
+this app has, and Lukas cannot make it.
+
+**Lukas uses RevenueCat**, which is what rule 21 recommended on
+2026-09-24. A Colombian developer in the same market reached the same
+choice.
 
 ## Where this app is ahead
 
@@ -159,6 +183,11 @@ Checked against the code and CLAUDE.md on 2026-09-27.
    `audit-yields-report.mjs`).
 8. **Bank notifications as a source** (step one built). Lukas does not list
    this.
+9. **No account, no server, no ads, no trackers.** Checked in
+   `package.json` on 2026-09-27: no analytics, crash reporting, ads,
+   attribution or push SDK. Lukas lists ten providers. Our Play Data
+   safety form and privacy policy can be almost empty, and a person can
+   use the app without handing an email to anybody.
 
 ## Where Lukas is ahead: ideas worth considering
 
@@ -255,9 +284,89 @@ the person checks it on the review screen, which is required anyway.
   to add a movement. That is Android-specific, so it goes beside, never
   instead of, the in-app flow.
 
+## Ideas from its list of providers
+
+The list above is also a list of things a finished app ends up needing.
+Some of them fit this app without breaking its rules; others show what
+not to do.
+
+### 11. Crash reports, and the only one worth considering
+
+This app learns about a failure only when Jose meets it on his phone.
+Once other people use it, a crash on their phone reaches nobody. Sentry
+has an official Capacitor SDK and a free tier.
+
+**How it would fit our rules:**
+- **Off by default, and asked once:** "¿Enviar informes de error
+  anónimos?" A finance app that sends things without asking loses what
+  item 9 above gains.
+- **Never a figure, a name or a note.** Sentry sends the error message
+  and a trail of the screens visited, and an error message can carry an
+  amount or an account name. Its `beforeSend` hook has to strip anything
+  that is not the error type and the line of code. No user id and no
+  email: Lukas sends the email of a signed-in user, and we should not.
+- It is a server of someone else's that receives data. The privacy
+  policy and the Data safety form must name it.
+
+**Cheaper alternative, and probably the first step:** Play Console
+already shows Android crashes and ANRs ("Android vitals") for installs
+from the store, with no SDK and nothing to declare. It only sees native
+crashes, not an error inside the web app. Try it first; add Sentry only
+if it does not show what is failing.
+
+### 12. Reminders without a server
+
+Lukas uses Firebase Cloud Messaging, a server sending pushes. Everything
+this app might remind someone of is already on the phone: "you have 12
+proposals to review", "your Nu statement usually arrives about now", the
+rent reminder of idea 6. `@capacitor/local-notifications` schedules
+those on the phone itself, with no server, no token and nothing to
+declare. It supports iOS as well.
+
+### 13. The privacy policy, laid out the way Lukas's is
+
+Its section 4 is good: one entry per provider, what it is for, exactly
+what it receives, and a link to that provider's own policy. Ours is still
+to be written (see "Still to redo before publishing" in CLAUDE.md), and
+it would be short in the same shape:
+
+- **Google:** sign-in and Drive, only if the person turns on the backup.
+  The backup goes into their own Drive, and Jadex Labs cannot read it.
+- **Google Play:** payments, once they exist.
+- **RevenueCat:** if chosen (rule 21), an anonymous id and the purchase.
+- **datos.gov.co, the ECB and the Banco de la República:** the app asks
+  them for the day's rates and the IPC. They receive the request, nothing
+  of the person's.
+
+Saying "nobody else" in a list that short is itself the argument.
+
+### 14. "Hecho en Medellín"
+
+Lukas's site carries a small badge with the flag. It is cheap, it is
+true for us too (Colombia), and in a market of foreign apps it says
+"made for how things work here": TRM, UVT, form 210, CDTs.
+
+### What NOT to copy
+
+- **Ads (AdMob).** Ads in a finance app mean an advertising id and a
+  tracking permission, the opposite of item 9, and it would mean
+  declaring them on Play. Rule 21 chose a subscription with a generous
+  free tier instead. Keep it that way.
+- **Accounts and a cloud database (Supabase).** It is what makes Lukas's
+  sync work across devices, and what makes it hold everybody's finances
+  on a server in the US. Our Drive backup does the same job for one
+  person without us holding anything. If sync between two phones ever
+  becomes a real need, the way to do it without a server is through the
+  person's own Drive, the way the backup already works.
+- **Attribution (AppsFlyer)** only matters when paying for ad campaigns.
+  Play Console already shows where installs come from.
+- **Transactional email (Resend)** needs accounts. Google Play already
+  emails the purchase receipt.
+
 ## What this says about pricing (rule 21)
 
-Lukas sells "more AI", because that is what costs it money. We cannot
+Lukas sells "no ads and more AI", because those are what cost it money,
+or what it earns from. We cannot
 sell the same thing, and we don't need to: what we sell (yields,
 multi-currency, statements, the tax simulator) costs nothing per user.
 The cost of that is that we cannot say "AI" in the store listing, which
@@ -266,10 +375,12 @@ LLM, it can be called "dictation" honestly.
 
 ## Open items, to fill in from a local session
 
-- [ ] Read the privacy policy: backend, subprocessors, AI provider,
-      whether sync is end-to-end encrypted, what is kept from voice and
-      photos, analytics.
-- [ ] Price of Pro, and whether it is monthly, yearly or lifetime.
+- [x] Backend, subprocessors, AI provider (section 4 of the policy, from
+      Jose's screenshots, 2026-09-27).
+- [ ] The rest of the policy: whether sync is end-to-end encrypted,
+      whether audio and photos are kept or used to train models, how long
+      data is kept after an account is deleted.
+- [ ] Price of Pro, monthly and yearly.
 - [ ] Install it: screenshots of the home screen, the entry flow,
       Safe to Spend and the budgets. Rating and number of downloads.
 - [ ] Whether its multi-currency converts at all, or only labels.
