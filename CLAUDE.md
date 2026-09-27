@@ -1987,3 +1987,4 @@ reason for it, since the APKs from GitHub are sideloaded.
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
+- `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
