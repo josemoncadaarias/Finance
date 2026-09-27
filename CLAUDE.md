@@ -2000,6 +2000,30 @@ usuario". Not decided in detail; the principles, drawn from its screens:
   is what makes all this possible: build the row, the card, the sheet
   and the empty state once, there.
 
+**Jose liked the mockups (2026-09-27), on one condition: every function
+the app has today stays.** "Solo estamos cambiando apariencias y accesos":
+the A–Z / most-used orders, the current account ticked in the list, the
+usual note offered for a new movement, and everything else. So:
+
+- **The redesign touches looks and access only**: no repository, query,
+  engine, migration or figure changes, and no data changes. The colours
+  already exist (`accounts.color`, `categories.color`).
+- **`docs/08-redesign-checklist.md` is the inventory of what every screen
+  does today.** A screen is not done until each of its lines is checked in
+  a browser and on the phone. Anything missing is a bug, not a
+  simplification.
+- **Screen by screen**, each shipped before the next.
+- What the mockups show: a navy background (page `#070d1a`, cards
+  `#121c30`, a blue gradient on the main card of a screen), our own blue
+  kept as the accent, and every category and account in its own colour on
+  a tinted background, **categories in rounded squares and accounts in
+  circles** so the shape says which is which. The mockups (20 screens,
+  v2) were drawn in a cloud session and are not in the repository.
+- Additions that the mockups show but are NOT "only looks" (hiding
+  amounts, frequent movements, biometric lock, welcome steps, delete my
+  data, fortnight periods) each still need Jose's word, in the table
+  below.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -2058,3 +2082,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
+- `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
