@@ -29,7 +29,7 @@ selected in the list, and the usual note offered for a new movement.
    checked against this list and shipped before the next is started, so a
    regression has one place to be.
 
-The mockups are v2 of 2026-09-27 (20 screens). They were drawn to show the
+The mockups are v3 of 2026-09-27, in `docs/mockups/` (56 screens). They show the
 direction; where they leave something out, this list wins.
 
 ## Inventory, screen by screen
@@ -89,9 +89,15 @@ the new screen is checked.
 - [ ] Keyboard use on a computer (Enter saves, Esc closes) and its hint.
 - [ ] Cross-currency: Sale / Llega, each editable, the rate kept per
       movement.
-- [ ] Account ("Desde dónde" / "Hacia dónde" / "Cuenta"), with the product
-      of a split account chosen apart (El habitual, Productos de X, Escoger
-      otra cuenta).
+- [ ] Account ("Desde dónde" / "Hacia dónde" / "Cuenta"). **For an
+      account with products, the product chosen is always on show** under
+      the account ("El habitual" or its name) **and can be changed on its
+      own** without choosing the account again (the product sheet:
+      "Productos de X", "Escoger otra cuenta"). Jose, 2026-09-27: this must
+      survive exactly.
+- [ ] Product's own movement: "¿A qué producto entra? / ¿De qué producto
+      sale?", "¿Qué cambia?" with its four answers and their hints, product
+      categories (`product_kinds`) with "Nueva categoría".
 - [ ] Transfer route top to bottom, "Invertir", "Pasar todo" with the
       figure, and "Invertir" clearing an amount "Pasar todo" wrote.
 - [ ] Moves between products: routed from the usual origin into the usual
@@ -106,6 +112,15 @@ the new screen is checked.
       accounts or products, arrived amount, category).
 - [ ] Delete, with the transfer hint (both accounts / both products) and
       the confirm dialog built the `[open]` way.
+
+### Scope sheets (`shared/scope`), used by Inicio, Productos and Reporte
+
+- [ ] "Estás viendo": all accounts ("sin las archivadas ni las apartadas")
+      or one, each with icon, balance and tags (apartada, archivada),
+      the current one ticked, the two orders, edit an account from here.
+- [ ] "Incluir lo apartado del patrimonio" with its counts (accounts and
+      products).
+- [ ] Period: the kinds, Desde / Hasta, Aplicar, Cerrar.
 
 ### Pickers (category and account)
 
@@ -146,7 +161,19 @@ the new screen is checked.
       `currency-dialog`, refusing an existing code), opening balance, opened
       on, credit limit with "Vigente desde" and the limit history, counts to
       net worth, archive, delete (with the count of movements it takes).
-- [ ] Creating an account from a statement PDF.
+- [ ] Creating an account from a statement PDF, with the reading's
+      stage, page, percentage and "Detener" (nothing written until the end).
+- [ ] "Del backup" on a limit that came from the old app's backup.
+
+### Currencies (`shared/currency-dialog`, the accounts screen)
+
+- [ ] The list of currencies with "En N cuentas" and the hint.
+- [ ] Add a currency: code (three letters, "CAD, MXN, BRL…"), name,
+      symbol; refuses a code that exists; the same dialog wherever it is
+      offered (accounts screen and account editor).
+- [ ] A currency in use cannot change its code ("todos los montos guardados
+      están en esta moneda").
+- [ ] Today's rate per currency ("Tasa de hoy"), typed by hand or official.
 
 ### Products and yields (`features/products`)
 
@@ -157,12 +184,32 @@ the new screen is checked.
 - [ ] Account sheet: title that switches account (whole row), close;
       "Rendimiento disponible", "Rinde sobre" and the "cerró ayer" note;
       "Ver sus movimientos en Inicio"; "Resumen de rendimientos".
-- [ ] Products: add, edit (kind high_yield / CDT, withholding, net worth,
-      ledger or typed balance, earns from, balances), the "usual" product.
+- [ ] Products list: total, count, "incluye rendimiento", products set
+      aside from net worth, the usual one, "which product" hint; add a
+      product with its hint.
+- [ ] Product form: name, kind (alto rendimiento / CDT with its hint),
+      withholding switch, counts to net worth, the balance stated and its
+      date ("Saldo leído del banco"), what moved since, yield since, earns
+      from (with hint), funding (typed by hand or from another product,
+      each with hint), make it the usual one, its own rate or the
+      account's, change rate, add a spending bonus; delete (balance only,
+      history, or move it to another product), delete confirm; "nuevo
+      habitual".
+- [ ] CDT: amount, term, opened on, matures on, gross, withheld (or
+      unknown), net, which account and category it pays into, payments
+      made and pending, "de N días".
+- [ ] Payout settings: daily or every N months; stop accruing (with
+      confirm) and resume; "pausado".
 - [ ] Rates: add (replace / add another), components, bonus by spending
       with months, until, fix, "Vigente / Todavía no empieza / Ya no
       aplica", per product.
-- [ ] Days: checked against the bank, locked; withholding unknown notice.
+- [ ] Days (what each day paid): count, hint, base, rate, gross, tax,
+      net, "lo que pagó el banco" typed per day (actual), locked days,
+      undo a correction, set a day to zero (with its question), "no rinde
+      aún", "calculando…"; conditional (bonus) parts and "corregido".
+- [ ] "Rendido el {día}" / "Rinde sobre" / "hoy paga sobre … el cierre de
+      ayer"; the total and its hint; foreign-currency products apart.
+- [ ] Withholding unknown notice; "sin retefuente" per product.
 - [ ] Mover entre productos with "Pasar todo".
 - [ ] Product's own income/expense with "¿Qué cambia?" (solo el producto,
       producto y patrimonio, hacer efectivo, solo el patrimonio).
@@ -216,8 +263,31 @@ the new screen is checked.
 
 ### Renta (`features/tax`)
 
-- [ ] Takes the new colours only. Nothing else moves: it is finished and
-      stands apart.
+Jose asked on 2026-09-27 for this screen to be redesigned too. The same
+condition holds: looks and access only. The engine, the form's rows, the
+formulas and the spreadsheet do not change (rule 19).
+
+- [ ] Year with ‹ › and "Guardando… / Guardado".
+- [ ] The verdict always in view: A pagar / A favor / En paz, the figure,
+      "ahorra X al mes" when there is tax to pay, the tax and withholding
+      line.
+- [ ] Missing UVT for the year.
+- [ ] Legend: typed box vs worked-out box (a key, never shaped like a
+      button).
+- [ ] Excel button and its hint or notice.
+- [ ] "Tu situación": kind of work (ordinario, integral, independiente).
+- [ ] Every section, collapsible, with title, Spanish gloss and subtitle
+      (casillas); every row with label, gloss, casilla number, hint;
+      typed rows with $, %, UVT units; worked-out rows and totals.
+- [ ] Parameters of the year with their origin (oficial, prestado de otro
+      año, estimado) and source.
+- [ ] Casilla 59 asked two ways (worked out / typed from the certificate).
+- [ ] "Traer el salario" by category (the category sheet) and its hint.
+- [ ] "Traer los rendimientos", its hint, "Deshacer".
+- [ ] Rate table, references, sources, disclaimer.
+- [ ] The floating controls (top / bottom) of a long form.
+- [ ] Language button, Drive button in the header.
+- [ ] Busy overlay while the spreadsheet is written.
 
 ## Added by the redesign, each needing Jose's word separately
 

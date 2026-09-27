@@ -2013,16 +2013,35 @@ usual note offered for a new movement, and everything else. So:
   a browser and on the phone. Anything missing is a bug, not a
   simplification.
 - **Screen by screen**, each shipped before the next.
-- What the mockups show: a navy background (page `#070d1a`, cards
-  `#121c30`, a blue gradient on the main card of a screen), our own blue
-  kept as the accent, and every category and account in its own colour on
-  a tinted background, **categories in rounded squares and accounts in
-  circles** so the shape says which is which. The mockups (20 screens,
-  v2) were drawn in a cloud session and are not in the repository.
-- Additions that the mockups show but are NOT "only looks" (hiding
-  amounts, frequent movements, biometric lock, welcome steps, delete my
-  data, fortnight periods) each still need Jose's word, in the table
-  below.
+- **The mockups are in the repository**: `docs/mockups/` (56 screens, v3,
+  2026-09-27), with an index in its README and the source that draws them
+  in `docs/mockups/src/`. EVERY screen is there - Jose's word: "todas y
+  cada una de las pantallas deben ser rediseñadas" - including creating
+  and editing accounts, currencies, an account's products with their days,
+  movements and rates, a product, a CDT, Por revisar, Avisos del banco,
+  the report, Importar y exportar, signing in and changing the Google
+  account, and the income-tax simulator.
+- **The income-tax simulator is redesigned too** (Jose, 2026-09-27). Looks
+  and access only: rule 19, its engine, its rows and its spreadsheet stay
+  exactly as they are.
+- **An account with products keeps its product on show in the movement
+  form, and the product changes on its own** without choosing the account
+  again (`a08`, `a09`). Said twice by Jose; it is in the checklist.
+- **The look**: a navy background (page `#070d1a`, cards `#111b2f`, the
+  main card of a screen in a gradient of the accent); every category and
+  account in its own colour on a tinted background, **categories in
+  rounded squares and accounts in circles**; sixteen colours at one
+  lightness (`PALETTE` in `docs/mockups/src/lib.mjs`).
+- **The colour picker was redone** after Jose found the first one
+  "rudimentario": every swatch is the category (or account) itself, drawn
+  in that colour, grouped in families (warm; greens and blues; violets
+  and neutrals), with "Así se verá" on top showing the real row. Colour,
+  icon and own image are three tabs of one editor (`b06b`, `b10`-`b12`).
+- **The accent is to be chosen by Jose** (`00-azul-opciones`). Recommended:
+  **Zafiro `#6378ff`**, the wallet of the app's own icon lifted for a dark
+  background - its own colour, not Ionic's default `#4d8dff` and not a
+  competitor's teal. Jose asked for a blue "un tris diferente" so the app
+  is not taken for someone else's.
 
 ### The ideas, by what they would take
 
@@ -2046,6 +2065,9 @@ usual note offered for a new movement, and everything else. So:
 | 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
 | 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
 | 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
+| F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
+| H | Hide amounts with the eye (same as 3) | Small | - | Proposed, liked by Jose |
+| P | Choose the accent: Zafiro recommended | Small | Design | Waiting for Jose |
 | - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
 | - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
 
@@ -2083,3 +2105,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
+- `docs/mockups/` — the redesign drawn, every screen (index in its README)
