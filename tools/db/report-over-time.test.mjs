@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import {
   versusBefore, categoriesVersusBefore, recurringSpending, repeatedCharges,
-  spendingByMonth, unusualJumps,
+  spendingByMonth, unusualJumps, balanceAhead,
 } from '../../src/app/core/report/sections-over-time.ts';
 import { equivalentBefore, monthsIn } from '../../src/app/core/report/report-data.ts';
 import { TEST_WORDS } from '../../src/app/core/report/report-words.ts';
@@ -302,4 +302,55 @@ test('two months of a charge is not yet a subscription', () => {
       ? [movement({ amount: -44_900_00, on: `${month}-03`, note: 'Netflix' })]
       : []);
   assert.equal(repeatedCharges(over), null);
+});
+
+// ---------------------------------------------------------------------------
+// Month by month, with what came in beside it; and the balance ahead
+// ---------------------------------------------------------------------------
+
+test('month by month carries what came in beside what went out', () => {
+  const over = data([
+    movement({ amount: -300_00, on: '2026-07-05' }),
+    movement({ amount: 1_000_00, on: '2026-07-06', flow: 'in', label: 'Salario' }),
+    movement({ amount: -500_00, on: '2026-08-05' }),
+  ], { period: { kind: 'range', from: '2026-07-01', to: '2026-08-31' } });
+
+  const block = spendingByMonth(over);
+  assert.equal(block.points[0].value.minor, 300_00);
+  assert.equal(block.points[0].second.minor, 1_000_00);
+  assert.equal(block.points[1].second.minor, 0);
+  assert.equal(block.series.second, TEST_WORDS['report.byMonth.income']);
+});
+
+test('the balance ahead walks back from today and projects at the average month', () => {
+  // Today 2026-09-30 holding 1,000. The six whole months are March to
+  // August; movements start in July, so July and August are on record.
+  const movements = [
+    movement({ amount: 600_00, on: '2026-07-10', flow: 'in' }),
+    movement({ amount: -200_00, on: '2026-08-10' }),
+    movement({ amount: 300_00, on: '2026-09-05', flow: 'in' }),
+  ];
+  const over = data([], { future: { nowMinor: 1_000_00, since: '2026-03-01', movements } });
+
+  const block = balanceAhead(over);
+  assert.equal(block.shape, 'line');
+
+  const recorded = block.points.filter(point => !point.projected);
+  assert.deepEqual(recorded.map(point => point.on), ['2026-07-31', '2026-08-31', '2026-09-30']);
+  // Close of August: 1,000 less September's 300. Close of July: less August's -200 too.
+  assert.deepEqual(recorded.map(point => point.value.minor), [900_00, 700_00, 1_000_00]);
+
+  // July +600 and August -200 over two months: +200 a month.
+  assert.equal(block.average.minor, 200_00);
+  const ahead = block.points.filter(point => point.projected);
+  assert.equal(ahead.length, 3);
+  assert.equal(ahead.at(-1).on, '2026-12-29');
+  assert.equal(ahead.at(-1).value.minor, Math.round(1_000_00 + (200_00 * 12 / 365) * 90));
+});
+
+test('the balance ahead says nothing with less than two months on record, or nothing loaded', () => {
+  const one = [movement({ amount: -200_00, on: '2026-08-10' })];
+  assert.equal(balanceAhead(data([], { future: { nowMinor: 0, since: '2026-03-01', movements: one } })), null);
+  assert.equal(balanceAhead(data([])), null);
+  assert.equal(balanceAhead(data([], { future: { nowMinor: 5, since: '2026-03-01', movements: [] } })), null);
 });

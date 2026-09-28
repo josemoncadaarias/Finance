@@ -18,7 +18,7 @@ import {
   count, money, percent,
   type ComparisonBlock, type NoteBlock, type RankedBlock, type Section, type TrendBlock,
 } from './blocks';
-import { daysElapsed, monthsIn, type ReportData } from './report-data';
+import { addDays, daysElapsed, monthsIn, type ReportData } from './report-data';
 import { fill } from './report-words';
 
 /** What a movement is worth here, always positive. */
@@ -244,10 +244,16 @@ export const spendingByMonth: Section<ReportData> = data => {
   const thisMonth = data.today.slice(0, 7);
   const { whole } = daysElapsed(data);
 
-  const points: TrendBlock['points'] = months.map(month => ({
-    label: monthLabel(month, data.locale),
-    value: money(totalsOf(grouped.get(month) ?? [], data.basis).outMinor, data.currency),
-  }));
+  // Spending, and beside it what came in: the screen offers either the one
+  // or both side by side (mockup 5q), the spreadsheet writes both.
+  const points: TrendBlock['points'] = months.map(month => {
+    const totals = totalsOf(grouped.get(month) ?? [], data.basis);
+    return {
+      label: monthLabel(month, data.locale),
+      value: money(totals.outMinor, data.currency),
+      second: money(totals.inMinor, data.currency),
+    };
+  });
 
   const counted = months.filter(month => whole || month !== thisMonth);
   const total = counted.reduce((sum, month) =>
@@ -260,6 +266,12 @@ export const spendingByMonth: Section<ReportData> = data => {
     title: data.words['report.byMonth'],
     about: data.words['report.about.by-month'],
     points,
+    series: {
+      first: data.words['report.byMonth.spending'],
+      second: data.words['report.byMonth.income'],
+      both: data.words['report.byMonth.both'],
+      left: data.words['report.byMonth.left'],
+    },
     averageLabel: data.words['report.byMonth.average'],
     average: money(average, data.currency),
     /** Which of them are above it, named rather than left to be eyeballed. */
@@ -268,6 +280,109 @@ export const spendingByMonth: Section<ReportData> = data => {
       .map(month => monthLabel(month, data.locale)),
   };
 };
+
+// ---------------------------------------------------------------------------
+
+/** How far ahead the balance is carried, in days. */
+const AHEAD_DAYS = 90;
+/** And the whole months it is averaged over. */
+const AHEAD_MONTHS = 6;
+
+/**
+ * Tu saldo a futuro: the balance of the last months, and 90 days ahead at
+ * the average the last six whole months moved it by.
+ *
+ * A projection, and it says so everywhere: dashed on the screen, "proyectado"
+ * beside every figure it made up, a column of its own in the spreadsheet. It
+ * never writes a movement and never pretends one will happen (rule 22: the
+ * rent that usually falls on the 5th is not a fact until it does).
+ *
+ * The balance walks BACK from today's with each movement's own figure, so a
+ * month-end on the line is what today's balance minus everything since says
+ * it was. Across accounts in more than one currency that mixes today's rates
+ * with each day's, which is why this answers "where is this going" and not
+ * "what did I have".
+ *
+ * Nothing to say, and so no section, with less than two whole months on
+ * record or no balance loaded.
+ */
+export const balanceAhead: Section<ReportData> = data => {
+  const future = data.future;
+  if (!future) return null;
+
+  const signed = (movement: Movement) => data.basis === 'own'
+    ? movement.transaction.amount_minor
+    : movement.transaction.amount_base_minor;
+
+  // The whole months, oldest first, and the ones with anything in them.
+  const months: string[] = [];
+  let at = future.since.slice(0, 7);
+  const thisMonth = data.today.slice(0, 7);
+  while (at < thisMonth && months.length < AHEAD_MONTHS) {
+    months.push(at);
+    const [year, month] = at.split('-').map(Number);
+    at = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+  }
+  const first = future.movements.reduce<string | null>((oldest, movement) =>
+    oldest === null || movement.transaction.occurred_on < oldest ? movement.transaction.occurred_on : oldest, null);
+  if (first === null) return null;
+  const recorded = months.filter(month => `${month}-31` >= first);
+  if (recorded.length < 2) return null;
+
+  // What the balance was at the close of a day: today's, less what came after.
+  const closeOf = (day: string) => future.movements
+    .filter(movement => movement.transaction.occurred_on > day)
+    .reduce((balance, movement) => balance - signed(movement), future.nowMinor);
+
+  const points: TrendBlock['points'] = recorded.map(month => {
+    const last = lastDayOf(month);
+    return { label: dayLabel(last, data.locale), on: last, value: money(closeOf(last), data.currency) };
+  });
+  points.push({ label: dayLabel(data.today, data.locale), on: data.today, value: money(future.nowMinor, data.currency) });
+
+  // The average month of the ones on record, as so much a day.
+  const inRecorded = future.movements.filter(movement =>
+    recorded.includes(movement.transaction.occurred_on.slice(0, 7)));
+  const net = inRecorded.reduce((sum, movement) => sum + signed(movement), 0);
+  const perMonth = net / recorded.length;
+  const perDay = (perMonth * 12) / 365;
+
+  for (const days of [30, 60, AHEAD_DAYS]) {
+    const on = addDays(data.today, days);
+    points.push({
+      label: dayLabel(on, data.locale),
+      on,
+      value: money(Math.round(future.nowMinor + perDay * days), data.currency),
+      projected: true,
+    });
+  }
+
+  return {
+    kind: 'trend',
+    id: 'ahead',
+    title: data.words['report.ahead'],
+    about: fill(data.words['report.about.ahead'], { months: recorded.length }),
+    shape: 'line',
+    points,
+    todayLabel: data.words['report.ahead.today'],
+    projectedLabel: data.words['report.ahead.projected'],
+    averageLabel: data.words['report.ahead.perMonth'],
+    average: money(Math.round(perMonth), data.currency),
+  };
+};
+
+/** The last day of a month, `YYYY-MM-DD`. */
+function lastDayOf(month: string): string {
+  const [year, at] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, at, 0)).toISOString().slice(0, 10);
+}
+
+/** "30 nov 2026", in the reader's own language. */
+function dayLabel(iso: string, locale: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const name = monthName(new Date(year, month - 1, 1), locale).slice(0, 3).toLowerCase();
+  return `${day} ${name} ${year}`;
+}
 
 // ---------------------------------------------------------------------------
 

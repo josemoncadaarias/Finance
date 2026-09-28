@@ -52,6 +52,18 @@ export class ReportService {
       words,
     };
 
+    // The balance ahead, only for a period that reaches today: one more
+    // query, the six whole months before this one and this one so far.
+    const standing = this.store.standing();
+    if (standing !== null && (period.to === null || period.to >= today) && (period.from === null || period.from <= today)) {
+      const since = sixMonthsBefore(today);
+      partial.future = {
+        nowMinor: standing.amountMinor,
+        since,
+        movements: await this.store.movementsFor({ kind: 'range', from: since, to: today }),
+      };
+    }
+
     // The same number of days of the period before, which is the only
     // comparison worth drawing. One extra query, and only one: every analysis
     // that compares reads this same list.
@@ -75,4 +87,11 @@ export class ReportService {
     const data = await this.gather();
     return { data, blocks: buildReport(data) };
   }
+}
+
+/** The first day of the month six months before today's: "2026-03-01" on any day of September. */
+function sixMonthsBefore(today: string): string {
+  const [year, month] = today.split('-').map(Number);
+  const at = new Date(Date.UTC(year, month - 1 - 6, 1));
+  return at.toISOString().slice(0, 10);
 }

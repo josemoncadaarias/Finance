@@ -337,6 +337,82 @@ export class ReportPage {
     return block.points.find(point => point.label === label) ?? null;
   }
 
+  /** The trends showing both series ("Ingresos y gastos"), by block id. */
+  private readonly both = signal<ReadonlySet<string>>(new Set());
+
+  isBoth(id: string): boolean {
+    return this.both().has(id);
+  }
+
+  setBoth(id: string, on: boolean): void {
+    this.both.update(current => {
+      const next = new Set(current);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
+  /** Two bars a month fit six months (mockup 5q). */
+  recentPoints(block: Extract<Block, { kind: 'trend' }>): Extract<Block, { kind: 'trend' }>['points'] {
+    return block.points.slice(-6);
+  }
+
+  /** A bar of a pair, against the tallest of either series on show. */
+  pairHeight(block: Extract<Block, { kind: 'trend' }>, value: Value | undefined): string {
+    const peak = this.recentPoints(block).reduce((most, point) => Math.max(most,
+      point.value.kind === 'money' ? Math.abs(point.value.minor) : 0,
+      point.second?.kind === 'money' ? Math.abs(point.second.minor) : 0), 0);
+    if (!value || value.kind !== 'money' || peak <= 0) return '2%';
+    return `${Math.max(Math.round((Math.abs(value.minor) / peak) * 100), 2)}%`;
+  }
+
+  /** What was left in a month: income less spending. */
+  leftOf(point: { value: Value; second?: Value }): string {
+    if (point.value.kind !== 'money' || point.second?.kind !== 'money') return '';
+    return this.show({ ...point.value, minor: point.second.minor - point.value.minor });
+  }
+
+  /**
+   * The balance line (mockup 5r) in a 300 x 130 box: x by date, y by value,
+   * the recorded part solid and the projected part dashed from today.
+   */
+  lineOf(block: Extract<Block, { kind: 'trend' }>): {
+    solid: string; dashed: string; todayX: number; pickedX: number | null;
+    dots: { label: string; x: number; y: number; picked: boolean }[];
+    firstLabel: string; lastLabel: string;
+  } {
+    const points = block.points.filter(point => point.on && point.value.kind === 'money');
+    const time = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    const first = time(points[0]?.on ?? '2000-01-01');
+    const last = time(points.at(-1)?.on ?? '2000-01-02');
+    const values = points.map(point => (point.value as { minor: number }).minor);
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const span = high - low || 1;
+    const at = (point: typeof points[number]) => ({
+      x: 6 + ((time(point.on!) - first) / Math.max(last - first, 1)) * 288,
+      y: 108 - (((point.value as { minor: number }).minor - low) / span) * 96,
+    });
+    const coords = points.map(at);
+    const path = (from: number, to: number) => coords.slice(from, to)
+      .map((c, index) => `${index === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const today = points.findIndex(point => point.projected) - 1;
+    const split = today >= 0 ? today : points.length - 1;
+    const pickedLabel = (this.pickedPoint(block) ?? this.lastPoint(block))?.label ?? null;
+    const pickedAt = points.findIndex(point => point.label === pickedLabel);
+    const month = (iso: string | undefined) => (iso ? new Date(`${iso}T12:00:00Z`)
+      .toLocaleDateString(this.i18n.dateLocale(), { month: 'short', timeZone: 'UTC' }).replace('.', '') : '');
+    return {
+      solid: path(0, split + 1),
+      dashed: path(split, points.length),
+      todayX: coords[split]?.x ?? 0,
+      pickedX: pickedAt >= 0 ? coords[pickedAt].x : null,
+      dots: points.map((point, index) => ({ label: point.label, ...coords[index], picked: index === pickedAt })),
+      firstLabel: month(points[0]?.on),
+      lastLabel: month(points.at(-1)?.on),
+    };
+  }
+
   /** How much of a bar its lighter part fills. */
   partOf(point: { value: Value; part?: Value }): string {
     if (point.value.kind !== 'money' || point.part?.kind !== 'money' || point.value.minor === 0) return '0';
@@ -414,7 +490,7 @@ export class ReportPage {
   iconOf(block: Block): string {
     const id = block.id;
     const pick: [RegExp, string][] = [
-      [/infla/, 'flame-outline'], [/compar|before|previous|against/, 'git-compare-outline'],
+      [/ahead/, 'telescope-outline'], [/infla/, 'flame-outline'], [/compar|before|previous|against/, 'git-compare-outline'],
       [/change|jump/, 'flash-outline'], [/where|categor|went/, 'pie-chart-outline'],
       [/recurr|repeat|charge/, 'repeat-outline'], [/month|trend|cumul/, 'bar-chart-outline'],
       [/account|best|top/, 'trophy-outline'], [/largest|biggest/, 'arrow-up-outline'],
@@ -449,6 +525,10 @@ export class ReportPage {
         return row.share !== undefined ? `${row.label} ${this.percent(Math.round(row.share))}` : `${row.label} · ${this.show(row.value)}`;
       }
       case 'trend': {
+        if (block.shape === 'line') {
+          const end = block.points.at(-1);
+          return end ? this.i18n.t('ui.report.ahead', { amount: this.short(end.value) }) : '';
+        }
         if (block.average && block.averageLabel) return `${block.averageLabel} ${this.short(block.average)}`;
         const last = block.points.at(-1);
         return last ? this.short(last.value) : '';

@@ -49,6 +49,15 @@ export const REPORT_KEYS = [
   'report.byMonth',
   'report.byMonth.average',
   'report.byMonth.above',
+  'report.byMonth.spending',
+  'report.byMonth.income',
+  'report.byMonth.both',
+  'report.byMonth.left',
+
+  'report.ahead',
+  'report.ahead.today',
+  'report.ahead.projected',
+  'report.ahead.perMonth',
 
   'report.recurring',
   'report.recurring.months',
@@ -132,6 +141,7 @@ export const REPORT_KEYS = [
   'report.about.recurring',
   'report.about.repeated',
   'report.about.by-month',
+  'report.about.ahead',
   'report.about.accounts',
   'report.about.biggest',
   'report.yields.about.headline',

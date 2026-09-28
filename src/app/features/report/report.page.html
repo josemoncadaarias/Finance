@@ -161,36 +161,103 @@
                 </div>
               }
 
-              <!-- ---------------- month by month ---------------- -->
+              <!-- ---------------- over time: bars, pairs of bars, or a line ---------------- -->
               @if (block.kind === 'trend') {
-                <div class="trend">
-                  @if (block.average && block.average.kind === 'money') {
-                    <span class="avg" [style.bottom]="avgBottom(block)"></span>
+                @if (block.shape === 'line') {
+                  <!-- Tu saldo a futuro (5r): the balance on record, solid,
+                       and 90 days ahead, dashed; "hoy" between them. -->
+                  @let line = lineOf(block);
+                  <div class="line-chart">
+                    <svg viewBox="0 0 300 130" preserveAspectRatio="none">
+                      <line class="today" [attr.x1]="line.todayX" [attr.x2]="line.todayX" y1="4" y2="116"></line>
+                      @if (line.pickedX !== null) {
+                        <line class="cursor" [attr.x1]="line.pickedX" [attr.x2]="line.pickedX" y1="4" y2="116"></line>
+                      }
+                      <path class="solid" [attr.d]="line.solid"></path>
+                      <path class="dashed" [attr.d]="line.dashed"></path>
+                    </svg>
+                    @for (dot of line.dots; track dot.label) {
+                      <button type="button" class="dot" [class.on]="dot.picked"
+                              [style.left.%]="dot.x / 3" [style.top.%]="dot.y / 1.3"
+                              (click)="pick(dot.label)" [attr.aria-label]="dot.label"></button>
+                    }
+                    <div class="axis">
+                      <span>{{ line.firstLabel }}</span>
+                      <span class="now" [style.left.%]="line.todayX / 3">{{ block.todayLabel }}</span>
+                      <span>{{ line.lastLabel }}</span>
+                    </div>
+                  </div>
+                  <div class="reading">
+                    @if (pickedPoint(block) ?? lastPoint(block); as point) {
+                      <span>{{ point.label }}@if (point.projected) { · {{ block.projectedLabel }} }</span>
+                      <b>{{ show(point.value) }}</b>
+                    }
+                  </div>
+                  <p class="caveat">{{ block.about }}</p>
+                } @else {
+                  @if (block.series) {
+                    <div class="ui-seg series">
+                      <button type="button" [class.on]="!isBoth(block.id)" (click)="setBoth(block.id, false)">{{ block.series.first }}</button>
+                      <button type="button" [class.on]="isBoth(block.id)" (click)="setBoth(block.id, true)">{{ block.series.both }}</button>
+                    </div>
                   }
-                  @for (point of block.points; track point.label) {
-                    <button type="button" class="point"
-                            [class.picked]="picked() === point.label"
-                            [class.below]="point.value.kind === 'money' && point.value.minor < 0"
-                            (click)="pick(point.label)"
-                            [attr.aria-label]="point.label + ': ' + show(point.value)">
-                      <span class="bar"><i [style.height]="heightOf(block, point.value)">@if (point.part) {<s [style.height]="partOf(point)"></s>}</i></span>
-                      <span class="when">{{ shortMonth(point.label) }}</span>
-                    </button>
-                  }
-                </div>
-                <div class="reading">
-                  @if (pickedPoint(block) ?? lastPoint(block); as point) {
-                    <span>{{ capital(point.label) }}</span>
-                    <b>{{ show(point.value) }}</b>
-                    @if (point.part && block.partLabel) {
-                      <small>{{ block.partLabel }}: {{ show(point.part) }}</small>
+                  @if (block.series && isBoth(block.id)) {
+                    <!-- Ingresos y gastos (5q): two bars a month, the last six. -->
+                    <div class="trend pairs">
+                      @for (point of recentPoints(block); track point.label) {
+                        <button type="button" class="point" [class.picked]="picked() === point.label"
+                                (click)="pick(point.label)" [attr.aria-label]="point.label">
+                          <span class="bar">
+                            <i class="in" [style.height]="pairHeight(block, point.second)"></i>
+                            <i class="out" [style.height]="pairHeight(block, point.value)"></i>
+                          </span>
+                          <span class="when">{{ shortMonth(point.label) }}</span>
+                        </button>
+                      }
+                    </div>
+                    <div class="legend">
+                      <span><i class="in"></i>{{ block.series.second }}</span>
+                      <span><i class="out"></i>{{ block.series.first }}</span>
+                    </div>
+                    @if (pickedPoint(block) ?? lastPoint(block); as point) {
+                      <div class="pair-reading">
+                        <b>{{ capital(point.label) }}</b>
+                        <span>{{ block.series.second }}</span><span class="ui-g">{{ show(point.second ?? point.value) }}</span>
+                        <span>{{ block.series.first }}</span><span class="ui-r">{{ show(point.value) }}</span>
+                        <span>{{ block.series.left }}</span><b>{{ leftOf(point) }}</b>
+                      </div>
+                    }
+                  } @else {
+                    <div class="trend">
+                      @if (block.average && block.average.kind === 'money') {
+                        <span class="avg" [style.bottom]="avgBottom(block)"></span>
+                      }
+                      @for (point of block.points; track point.label) {
+                        <button type="button" class="point"
+                                [class.picked]="picked() === point.label"
+                                [class.below]="point.value.kind === 'money' && point.value.minor < 0"
+                                (click)="pick(point.label)"
+                                [attr.aria-label]="point.label + ': ' + show(point.value)">
+                          <span class="bar"><i [style.height]="heightOf(block, point.value)">@if (point.part) {<s [style.height]="partOf(point)"></s>}</i></span>
+                          <span class="when">{{ shortMonth(point.label) }}</span>
+                        </button>
+                      }
+                    </div>
+                    <div class="reading">
+                      @if (pickedPoint(block) ?? lastPoint(block); as point) {
+                        <span>{{ capital(point.label) }}</span>
+                        <b>{{ show(point.value) }}</b>
+                        @if (point.part && block.partLabel) {
+                          <small>{{ block.partLabel }}: {{ show(point.part) }}</small>
+                        }
+                      }
+                    </div>
+                    @if (block.average && block.averageLabel) {
+                      <p class="caveat">
+                        {{ block.averageLabel }} {{ show(block.average) }}@if (block.aboveAverage && block.aboveAverage.length > 0) { · {{ 'ui.report.above' | t:{ months: block.aboveAverage.join(', ') } }} }
+                      </p>
                     }
                   }
-                </div>
-                @if (block.average && block.averageLabel) {
-                  <p class="caveat">
-                    {{ block.averageLabel }} {{ show(block.average) }}@if (block.aboveAverage && block.aboveAverage.length > 0) { · {{ 'ui.report.above' | t:{ months: block.aboveAverage.join(', ') } }} }
-                  </p>
                 }
               }
 
