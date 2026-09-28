@@ -197,9 +197,9 @@
 </div>
 
 <!-- The currency of a new account (the one list, with a tick). -->
-<ion-modal class="ui-sheet" [isOpen]="pickingCurrency()" (didDismiss)="pickingCurrency.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingCurrency()" (didDismiss)="pickingCurrency.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="pickingCurrency.set(false)">{{ 'entry.cancel' | t }}</button>
@@ -221,9 +221,9 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="showDate() !== null" (didDismiss)="showDate.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="showDate() !== null" (didDismiss)="showDate.set(null)">
   <ng-template>
-    <div class="ui-sheet-body date-sheet">
+    <div class="ui-sheet-body ion-content-scroll-host date-sheet">
       <div class="grab"></div>
       <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
                     [showDefaultButtons]="true"

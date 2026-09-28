@@ -2497,3 +2497,24 @@ ion-modal.confirm-sheet .confirm-dialog {
   .ui-banner.warning { display: flex; gap: 8px; text-align: left; font-size: 13.5px; line-height: 1.4; ion-icon { font-size: 18px; flex: none; } }
 }
 ion-modal.confirm-sheet .confirm-dialog .kept { display: flex; gap: 6px; align-items: center; color: var(--app-grn); font-size: 13.5px; }
+
+/* Every sheet can be left by a word as well as by sliding it down (Jose,
+   2026-09-28): "Cancelar", top left, where the pickers already have it. */
+.ui-sheet-body { position: relative; }
+.ui-sheet-body > .sheet-cancel {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 2;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--app-pr);
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ui-sheet-body:has(> .sheet-cancel) > h2,
+.ui-sheet-body:has(> .sheet-cancel) > .sheet-head h2 { padding-left: 78px; padding-right: 78px; }
+.ui-sheet-body:has(> .sheet-cancel):not(:has(> h2)):not(:has(> .sheet-head)) > .grab { margin-bottom: 40px; }

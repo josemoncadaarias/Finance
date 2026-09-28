@@ -89,9 +89,9 @@
   </div>
 </div>
 
-<ion-modal class="ui-sheet" [isOpen]="pickingKind()" (didDismiss)="pickingKind.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingKind()" (didDismiss)="pickingKind.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="pickingKind.set(false)">{{ 'entry.cancel' | t }}</button>

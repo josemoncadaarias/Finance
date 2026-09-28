@@ -111,9 +111,10 @@
 
 <!-- Adding an account (4b): every account not already here, so the brokers
      can be added deliberately and never by accident. -->
-<ion-modal class="ui-sheet" [isOpen]="picking()" (didDismiss)="picking.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picking()" (didDismiss)="picking.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="picking.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'products.add' | t }}</h2>
       <p class="hint center">{{ 'products.add.hint' | t }}</p>
@@ -136,9 +137,10 @@
 </ion-modal>
 
 <!-- The period of the products' movements: the summary's own sheet (5h). -->
-<ion-modal class="ui-sheet" [isOpen]="showMovementsPeriodSheet()" (didDismiss)="showMovementsPeriodSheet.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="showMovementsPeriodSheet()" (didDismiss)="showMovementsPeriodSheet.set(false)">
   <ng-template>
-    <div class="ui-sheet-body period-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host period-sheet-body">
+      <button type="button" class="sheet-cancel" (click)="showMovementsPeriodSheet.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'summary.period' | t }}</h2>
       <div class="kinds">
@@ -588,10 +590,10 @@
                             (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)"></app-account-picker>
 
         <!-- One day, checked against a statement (4g). -->
-        <ion-modal class="ui-sheet" [isOpen]="form() === 'day'" (didDismiss)="form() === 'day' && form.set('none')">
+        <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="form() === 'day'" (didDismiss)="form() === 'day' && form.set('none')">
           <ng-template>
             @if (openDay(); as day) {
-              <div class="ui-sheet-body day-sheet">
+              <div class="ui-sheet-body ion-content-scroll-host day-sheet">
                 <div class="grab"></div>
                 @let product = productById(line, day.product_id);
                 @if (product) { <div class="sheet-icon"><app-badge [size]="48" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge></div> }
@@ -1012,9 +1014,9 @@
 
   <!-- A rate of the product being edited, from a date (4n, 4p). A change is a
        new rate, never an edit of the one before it. -->
-  <ion-modal class="ui-sheet" [isOpen]="form() === 'rate'" (didDismiss)="form() === 'rate' && openProduct(editingProduct())">
+  <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="form() === 'rate'" (didDismiss)="form() === 'rate' && openProduct(editingProduct())">
     <ng-template>
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
         <div class="grab"></div>
         <h2 class="center">{{ (editingRate() ? 'products.rate.fix' : (rateIsBonus() ? 'products.product.addBonus' : 'products.product.changeRate')) | t }}</h2>
         <div class="ui-inputs">
@@ -1064,9 +1066,10 @@
   </ion-modal>
 
   <!-- ¿De dónde sale este saldo? -->
-  <ion-modal class="ui-sheet" [isOpen]="choosingFunding()" (didDismiss)="choosingFunding.set(false)">
+  <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingFunding()" (didDismiss)="choosingFunding.set(false)">
     <ng-template>
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="choosingFunding.set(false)">{{ 'entry.cancel' | t }}</button>
         <div class="grab"></div>
         <h2 class="center">{{ 'products.product.fundingQuestion' | t }}</h2>
         <div class="ui-list">
@@ -1088,9 +1091,10 @@
   <ng-container *ngTemplateOutlet="productList; context: { open: choosingCdtInto(), title: 'ui.yields.goesTo', chosen: cdtInto(), products: cdtTargets(), line: line, pick: 'cdtInto' }"></ng-container>
 
   <!-- How often the bank pays. -->
-  <ion-modal class="ui-sheet" [isOpen]="choosingPayout()" (didDismiss)="choosingPayout.set(false)">
+  <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingPayout()" (didDismiss)="choosingPayout.set(false)">
     <ng-template>
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="choosingPayout.set(false)">{{ 'entry.cancel' | t }}</button>
         <div class="grab"></div>
         <h2 class="center">{{ 'ui.yields.howOften' | t }}</h2>
         <div class="ui-list">
@@ -1106,9 +1110,9 @@
   </ion-modal>
 
   <!-- The category a CDT's payment is filed under. -->
-  <ion-modal class="ui-sheet tall" [isOpen]="choosingCdtCategory()" (didDismiss)="choosingCdtCategory.set(false)">
+  <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet tall" [isOpen]="choosingCdtCategory()" (didDismiss)="choosingCdtCategory.set(false)">
     <ng-template>
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
         <div class="grab"></div>
         <div class="sheet-head">
           <button type="button" class="link left" (click)="choosingCdtCategory.set(false)">{{ 'entry.cancel' | t }}</button>
@@ -1206,9 +1210,9 @@
 
 <!-- A list of the account's products to pick one from, with what each holds. -->
 <ng-template #productList let-open="open" let-title="title" let-chosen="chosen" let-products="products" let-line="line" let-pick="pick">
-  <ion-modal class="ui-sheet" [isOpen]="open" (didDismiss)="closePick(pick)">
+  <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="open" (didDismiss)="closePick(pick)">
     <ng-template>
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
         <div class="grab"></div>
         <div class="sheet-head wide">
           <button type="button" class="link left" (click)="closePick(pick)">{{ 'entry.cancel' | t }}</button>
@@ -1238,9 +1242,10 @@
 }
 
 <!-- Which products the lists are read for ("Qué productos ver"). -->
-<ion-modal class="ui-sheet" [isOpen]="pickingProducts()" (didDismiss)="pickingProducts.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingProducts()" (didDismiss)="pickingProducts.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="pickingProducts.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <div class="sheet-head">
         <span class="left"></span>

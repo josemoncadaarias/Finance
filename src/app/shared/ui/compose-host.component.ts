@@ -31,9 +31,10 @@ import { AccentService } from '../../core/theme/accent.service';
   standalone: true,
   imports: [IonModal, IonIcon, TranslatePipe, EntryComponent, AccountPickerComponent, BadgeComponent],
   template: `
-    <ion-modal class="ui-sheet" [isOpen]="compose.sheet()" (didDismiss)="compose.sheet.set(false)">
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="compose.sheet()" (didDismiss)="compose.sheet.set(false)">
       <ng-template>
-        <div class="ui-sheet-body plus-sheet">
+        <div class="ui-sheet-body ion-content-scroll-host plus-sheet">
+          <button type="button" class="sheet-cancel" (click)="compose.sheet.set(false)">{{ 'entry.cancel' | t }}</button>
           <div class="grab"></div>
           <div class="kinds">
             <button type="button" (click)="compose.open('expense')">

@@ -226,9 +226,9 @@ export interface ProposalAnswer {
                         (picked)="categoryId.set($event); from.set('typed'); pickingCategory.set(false)"
                         (cancelled)="pickingCategory.set(false)"></app-category-sheet>
 
-    <ion-modal class="ui-sheet" [isOpen]="pickingDate()" (didDismiss)="pickingDate.set(false)">
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingDate()" (didDismiss)="pickingDate.set(false)">
       <ng-template>
-        <div class="ui-sheet-body date-sheet">
+        <div class="ui-sheet-body ion-content-scroll-host date-sheet">
           <div class="grab"></div>
           <ion-datetime presentation="date" [value]="day()" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
                         [showDefaultButtons]="true" [doneText]="'entry.doneDate' | t" [cancelText]="'entry.cancel' | t"

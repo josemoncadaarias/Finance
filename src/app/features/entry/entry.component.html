@@ -236,9 +236,9 @@
 <!-- Where the money leaves from or arrives at: the one account list, drawn
      the one way (1k), with the products of the account chosen as a second
      step (1l). -->
-<ion-modal class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</button>
@@ -265,9 +265,9 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head wide">
         <button type="button" class="link left" (click)="pickingProduct.set(null)">{{ 'entry.cancel' | t }}</button>
@@ -310,9 +310,9 @@
 </ion-modal>
 
 <!-- Every category, searchable (1m). -->
-<ion-modal class="ui-sheet tall" [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet tall" [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</button>
@@ -353,9 +353,9 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="showDate()" (didDismiss)="showDate.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="showDate()" (didDismiss)="showDate.set(false)">
   <ng-template>
-    <div class="ui-sheet-body date-sheet">
+    <div class="ui-sheet-body ion-content-scroll-host date-sheet">
       <div class="grab"></div>
       <ion-datetime presentation="date" [value]="occurredOn()" [locale]="i18n.dateLocale()"
                     [firstDayOfWeek]="1" [showDefaultButtons]="true"
