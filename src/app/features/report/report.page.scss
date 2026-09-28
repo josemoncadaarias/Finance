@@ -1,699 +1,212 @@
-/*
- * The financial summary, read on a phone.
- *
- * Five kinds of block, each drawn its own way on purpose. One table shape for
- * everything would be less work and would read as a database dump: what makes
- * this legible at arm's length is that a headline figure, a ranked list and a
- * before-and-after look nothing like each other, so the eye knows what kind of
- * answer it is getting before it reads a word.
- *
- * Every inner class is prefixed where it could collide with a block's own
- * name. The first version put the block's kind on the SECTION - `class="block
- * figures"` - so `.figures` and `.ranked` styled the section as well as the
- * thing inside it: the figures grid laid out the heading and the card as two
- * columns, and `.ranked`'s `padding: 0` stripped the section's gutter and put
- * every row hard against the edge of the screen. The kind is not a class here
- * at all now; the template asks `block.kind` directly.
- */
+/* Reporte (mockups 5a-5t). The shared pieces are in global.scss. */
 
-.who {
-  padding-inline: 0.25rem;
-  min-width: 0;
-
-  h1 {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.72rem;
-    color: var(--ion-color-medium);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.report-top {
+  background: var(--app-top);
+  border-bottom: 1px solid var(--app-line);
+  padding-bottom: 12px;
 }
 
-.state {
-  display: flex;
-  flex-direction: column;
+.head { display: flex; flex-direction: column; gap: 10px; }
+.which { margin: 0; button { gap: 8px; } ion-icon { font-size: 18px; } }
+
+.account-row { display: flex; justify-content: center; }
+.account {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 4rem 2rem;
-  text-align: center;
-  color: var(--ion-color-medium);
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 12px 6px 6px;
+  border-radius: 16px;
+  ion-icon { font-size: 16px; flex: none; color: var(--app-chev); }
 }
 
-/* Opening or closing the lot, at the top where the reading starts. */
-.all {
+.body { padding-top: 12px; }
+
+.lead {
   display: flex;
-  justify-content: flex-end;
-  padding: 0.65rem 1rem 0.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
 
-  button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.8rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-primary);
-    font-size: 0.74rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    ion-icon { font-size: 0.95rem; }
-  }
+  .gone { display: inline-flex; align-items: center; gap: 6px; color: var(--app-mu); font-size: 13.5px; ion-icon { font-size: 16px; } }
+  .ui-chip { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 16px; } }
 }
 
 .block {
-  padding: 0 1rem;
+  padding: 0;
+  margin-bottom: 10px;
+  overflow: hidden;
 
-  .body { padding: 0.15rem 0 0.9rem; }
-}
+  .bhead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
 
-/*
- * A section's own heading, which is also how it opens.
- *
- * The same shape the summary and the products screens use for the groups they
- * fold, so folding works the same way wherever it appears.
- */
-/* What a section shows, said once at its top: on a phone there is no hover
-   for a tooltip, and the same line goes into the spreadsheet. */
-.about {
-  margin: 0.55rem 0.15rem 0;
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: var(--ion-color-medium);
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  width: 100%;
-  margin: 0.45rem 0 0;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--ion-color-light-shade);
-  border-radius: 10px;
-  background: var(--ion-color-light);
-  color: var(--ion-text-color);
-  text-align: left;
-  cursor: pointer;
-
-  .fold { flex: none; font-size: 1rem; color: var(--ion-color-medium); }
-
-  .what {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.82rem;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    .title { font-size: 15.5px; font-weight: 600; }
+    small { color: var(--app-mu); font-size: 13px; display: block; margin-top: 2px; }
+    .ui-info { flex: none; }
   }
 
-  /* How much is behind it, so a section can be chosen without opening it. */
-  .how-many {
-    flex: none;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    background: var(--ion-background-color);
-    font-size: 0.68rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-color-medium);
-  }
+  &.open .bhead .title { font-size: 16.5px; }
 
-  &.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .bbody { padding: 0 14px 14px; }
 }
 
-/* A caveat is the one place this screen argues with itself, so it is allowed
-   to look like a remark rather than a heading. */
-.caveat {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  margin: 0.6rem 0 0.25rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 8px;
-  background: rgba(var(--ion-color-warning-rgb), 0.12);
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: var(--ion-color-warning-shade);
-}
-
-/* ---------------- figures ---------------- */
-
-/*
- * Two to a row, and one when the figure is too long to share.
- *
- * `auto-fit` with a floor rather than a fixed two: at 320px two columns of
- * eleven-digit pesos collide, and the grid drops to one by itself.
- */
 .figures {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+
+  .figure {
+    background: var(--app-s2);
+    border-radius: 14px;
+    padding: 10px 12px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .ui-lab { font-size: 10.5px; line-height: 1.3; }
+    b { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    small { color: var(--app-mu); font-size: 12px; line-height: 1.35; }
+  }
 }
-
-.figure {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: 10px;
-  background: var(--ion-color-light);
-  min-width: 0;
-
-  .what {
-    font-size: 0.64rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ion-color-medium);
-  }
-
-  .value {
-    font-size: 1rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-text-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .note {
-    font-size: 0.66rem;
-    line-height: 1.3;
-    color: var(--ion-color-medium);
-  }
-
-  /* Colour says which way the money went; the word above it says what the
-     figure is. Neither has to carry the meaning alone. */
-  &.is-good .value { color: var(--ion-color-success); }
-  &.is-bad .value { color: var(--ion-color-danger); }
-}
-
-/* ---------------- a ranked list ---------------- */
 
 .ranked {
-  list-style: none;
-  margin: 0.4rem 0 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 
-  li {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      'face name amount'
-      'bar  bar  share';
-    align-items: center;
-    gap: 0.2rem 0.6rem;
-    padding: 0.5rem 0;
-
-    & + li { border-top: 1px solid var(--ion-color-light-shade); }
-  }
-
-  .face { grid-area: face; color: var(--ion-color-medium); }
-
-  .name {
-    grid-area: name;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-
-    .text {
-      font-size: 0.88rem;
-      color: var(--ion-text-color);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .note {
-      font-size: 0.68rem;
-      color: var(--ion-color-medium);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .amount {
-    grid-area: amount;
-    font-size: 0.88rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-
-    &.is-in, &.is-received { color: var(--ion-color-success); }
-    &.is-out, &.is-moved, &.is-refund { color: var(--ion-color-danger); }
-  }
-
-  .share {
-    grid-area: share;
-    font-size: 0.68rem;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    color: var(--ion-color-medium);
-  }
-
-  .bar {
-    grid-area: bar;
-    display: block;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--ion-color-light-shade);
-    overflow: hidden;
-
-    i {
-      display: block;
-      height: 100%;
-      border-radius: 999px;
-      background: var(--ion-color-primary);
-    }
-  }
+  .rank { display: flex; gap: 10px; align-items: flex-start; }
+  .what { flex: 1; min-width: 0; }
+  .top { display: flex; gap: 8px; align-items: baseline; }
+  .name { flex: 1; min-width: 0; font-size: 15px; }
+  .top b { flex: none; font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  .note { display: block; color: var(--app-mu); font-size: 12.5px; line-height: 1.35; margin-top: 2px; }
+  .barline { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+  .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--app-s3); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 3px; }
+  .share { font-size: 12px; color: var(--app-mu); width: 38px; text-align: right; flex: none; }
 }
 
-/*
- * The line a list adds up to.
- *
- * Both ends against the same edges as the rows above it - the label where
- * their names start, the figure where their amounts end - so it reads as the
- * bottom of the column rather than as a separate remark.
- */
-.total {
+.more {
+  border: 0;
+  background: none;
+  color: var(--app-pr);
+  font: inherit;
+  font-size: 14px;
+  padding: 12px 0 0;
+  cursor: pointer;
+}
+
+.totalline {
   display: flex;
-  align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0.5rem 0 0;
-  padding-top: 0.55rem;
-  border-top: 2px solid var(--ion-color-light-shade);
-
-  .what {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.74rem;
-    line-height: 1.3;
-    color: var(--ion-color-medium);
-  }
-
-  strong {
-    flex: none;
-    font-size: 0.95rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-text-color);
-  }
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-line);
+  font-size: 14.5px;
+  b { font-weight: 700; }
 }
 
-/* ---------------- before and now ---------------- */
+.caveat { margin: 0 0 10px; color: var(--app-mu); font-size: 13.5px; line-height: 1.45; }
 
-/*
- * One card per row, with both figures inside it under their own dates.
- *
- * It was a three-column table with the two months as headings at the top.
- * On a phone that put the heading five rows away from the figure it named,
- * in the quietest grey on the screen - Jose could not tell which column was
- * August. Here every figure carries its own date, and neither can be read as
- * the other.
- */
 .compare {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 
-  li {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 0.35rem 0.6rem;
-    padding: 0.6rem 0.7rem;
-    border-radius: 10px;
-    background: var(--ion-color-light);
-
-    & + li { margin-top: 0.4rem; }
-  }
-
-  .name {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-width: 0;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--ion-text-color);
-
-    .face { flex: none; color: var(--ion-color-medium); }
-
-    .text {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  /* Under the name, across the card: what explains the change. */
-  .row-note {
-    grid-column: 1 / -1;
-    margin-top: -0.2rem;
-    font-size: 0.72rem;
-    color: var(--ion-color-medium);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .pair {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-  }
-
-  .side {
-    display: flex;
-    flex-direction: column;
-    /* The date and the figure it labels were touching, which read as one
-       run-on line rather than as a caption over a number. */
-    gap: 0.2rem;
-    min-width: 0;
-
-    em {
-      font-style: normal;
-      line-height: 1;
-      font-size: 0.6rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ion-color-medium);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    b {
-      font-size: 0.85rem;
-      line-height: 1.1;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-  }
-
-  /* What it was is context; what it is now is the answer. */
-  .was b { font-weight: 500; color: var(--ion-color-medium); }
-  .now b { font-weight: 600; color: var(--ion-text-color); }
-
-  .arrow { flex: none; font-size: 0.85rem; color: var(--ion-color-medium); }
-
-  /* The change reads on its own, with an arrow as well as a colour: a figure
-     that only colour distinguishes is a figure half the readers cannot use. */
-  .change {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15rem;
-    padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-    background: var(--ion-background-color);
-    font-size: 0.72rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-color-medium);
-    white-space: nowrap;
-
-    ion-icon { font-size: 0.8rem; }
-
-    &.worse { color: var(--ion-color-danger); }
-    &.better { color: var(--ion-color-success); }
-  }
+  .crow { display: flex; gap: 10px; align-items: center; }
+  .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .name { font-size: 15px; }
+  small { color: var(--app-mu); font-size: 12.5px; line-height: 1.35; }
+  .change { flex: none; font-size: 15px; font-weight: 700; }
 }
 
-/* ---------------- month by month ---------------- */
-
-/*
- * Bars, scrolling sideways when there are more months than fit.
- *
- * Not a line chart: this compares separate months, and a line between two of
- * them implies the money moved smoothly from one to the other, which is not
- * a thing that happened.
- */
 .trend {
+  position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 0.25rem;
-  margin-top: 0.6rem;
-  padding-bottom: 0.35rem;
+  align-items: stretch;
+  gap: 4px;
+  height: 150px;
+
+  .avg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1.5px dashed rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+    z-index: 1;
+  }
 
   .point {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    /* Share the width rather than demand a fixed slice of it: a year of
-       months has to fit a phone, and it does once the amounts are off the
-       bars. */
-    flex: 1 1 0;
-    min-width: 0;
-    border: none;
+    border: 0;
     background: none;
     padding: 0;
     cursor: pointer;
-
-    .bar {
-      display: flex;
-      align-items: flex-end;
-      width: 100%;
-      height: 5.5rem;
-
-      i {
-        position: relative;
-        display: flex;
-        align-items: flex-end;
-        width: 100%;
-        min-height: 2px;
-        overflow: hidden;
-        border-radius: 5px 5px 0 0;
-        background: var(--ion-color-primary);
-
-        /* What of the bar was estimated: the same colour, paler, at its foot. */
-        s {
-          display: block;
-          width: 100%;
-          background: rgba(255, 255, 255, 0.45);
-        }
-      }
-    }
-
-    /* A month above its own average is the point of the whole section. */
-    &.above i { background: var(--ion-color-danger); }
-
-    /* Under the line it is measured from: less than where it started. */
-    &.below .bar i { background: var(--ion-color-medium); }
-
-    .when {
-      font-size: 0.62rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      width: 100%;
-      text-transform: uppercase;
-      color: var(--ion-color-medium);
-    }
-
-    /* The one being read stands out from the rest. */
-    &.picked i { outline: 2px solid var(--ion-text-color); outline-offset: 1px; }
   }
+
+  .bar { flex: 1; display: flex; align-items: flex-end; }
+  .bar i {
+    position: relative;
+    display: block;
+    width: 100%;
+    border-radius: 6px 6px 3px 3px;
+    background: rgba(var(--app-grn-rgb), 0.55);
+    overflow: hidden;
+  }
+  .bar s { position: absolute; left: 0; right: 0; top: 0; background: rgba(255, 255, 255, 0.28); }
+  .picked .bar i { background: var(--app-grn); }
+  .below .bar i { background: rgba(var(--app-red-rgb), 0.55); }
+  .when { height: 20px; line-height: 20px; font-size: 10.5px; color: var(--app-mu); text-align: center; overflow: hidden; }
 }
 
-/* ---------------- notes ---------------- */
-
-.notes {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-
-  li {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.55rem;
-    padding: 0.6rem 0.7rem;
-    border-radius: 10px;
-    font-size: 0.83rem;
-    line-height: 1.4;
-    background: var(--ion-color-light);
-
-    & + li { margin-top: 0.4rem; }
-
-    ion-icon { flex: none; font-size: 1.05rem; margin-top: 0.1rem; }
-
-    &.is-warn ion-icon { color: var(--ion-color-warning); }
-    &.is-bad ion-icon { color: var(--ion-color-danger); }
-    &.is-good ion-icon { color: var(--ion-color-success); }
-  }
-}
-
-/* The jump controls float over the end of the list, so it needs room. */
-ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px)); }
-
-/*
- * Which account and which dates, the same two questions the summary asks.
- *
- * Two pills rather than the summary's identity block and stepper: there is no
- * room for either here, and what this screen needs is to say what it is
- * reporting on and let it be changed, not to be a second summary.
- */
-/* Which of the two summaries: two halves of one pill, the chosen one filled. */
-ion-toolbar.which {
-  --min-height: 2.6rem;
-  --padding-start: 0.6rem;
-  --padding-end: 0.6rem;
-
-  .switch {
-    display: flex;
-    padding: 0.2rem;
-    border-radius: 999px;
-    background: var(--ion-color-light);
-
-    button {
-      flex: 1 1 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.35rem;
-      padding: 0.4rem 0.5rem;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--ion-color-medium);
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-
-      &.on { background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); }
-    }
-  }
-}
-
-ion-toolbar.scope {
-  --min-height: 2.8rem;
-  --padding-start: 0.6rem;
-  --padding-end: 0.6rem;
-
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.15rem 0 0.35rem;
-
-  .pick {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0.35rem 0.6rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-text-color);
-    font-size: 0.78rem;
-    cursor: pointer;
-
-    app-icon, ion-icon { flex: none; color: var(--ion-color-medium); }
-
-    .text {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      text-transform: capitalize;
-    }
-
-    .more { font-size: 0.7rem; opacity: 0.6; margin-left: auto; }
-
-    &:active { opacity: 0.75; }
-  }
-}
-
-/* ---------------- the ring over a ranked list ---------------- */
-
-/*
- * The shape of the shares, beside the four that matter most.
- *
- * Small on purpose: the list under it carries the figures, and a ring big
- * enough to read exact values off is a ring that pushes the figures off the
- * screen. This one answers "is this month two things or twenty".
- */
-.ring {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  margin-top: 0.6rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: 10px;
-  background: var(--ion-color-light);
-
-  svg { width: 4.5rem; height: 4.5rem; flex: none; }
-
-  .key {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-
-    li {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.74rem;
-      color: var(--ion-color-medium);
-      min-width: 0;
-
-      i {
-        width: 0.6rem;
-        height: 0.6rem;
-        flex: none;
-        border-radius: 2px;
-      }
-
-      span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
-  }
-}
-
-/* The figure of whichever bar is being pointed at. */
 .reading {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0.35rem 0 0;
-  min-height: 1.4rem;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--app-s2);
+  font-size: 15px;
+  b { font-weight: 700; }
+  small { flex-basis: 100%; color: var(--app-mu); font-size: 12.5px; }
+}
 
-  .when { font-size: 0.75rem; color: var(--ion-color-medium); }
-  .hint { font-size: 0.72rem; font-style: italic; color: var(--ion-color-medium); }
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
-  /* How much of the bar read was estimated, on its own line under the figure. */
-  .part {
-    flex-basis: 100%;
-    text-align: right;
-    font-size: 0.72rem;
-    color: var(--ion-color-medium);
-    font-variant-numeric: tabular-nums;
-  }
+  li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 14.5px;
+    line-height: 1.45;
 
-  strong {
-    font-size: 0.95rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-text-color);
+    &::before { content: '•'; position: absolute; left: 2px; top: 0; color: var(--app-mu); }
+
+    &.warn {
+      color: var(--app-yel);
+      padding-left: 24px;
+      &::before { content: none; }
+      ion-icon { position: absolute; left: 0; top: 2px; font-size: 17px; }
+    }
   }
 }
+
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }

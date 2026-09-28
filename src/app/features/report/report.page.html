@@ -1,304 +1,229 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/movements" [text]="''"></ion-back-button>
-    </ion-buttons>
-
-    <!-- The title says what this is; the line under it says what it is about,
-         so nothing below has to repeat the dates or the account. -->
-    <div class="who">
-      <h1>{{ title() }}</h1>
-      <p class="marquee-loop">{{ about() }}</p>
-    </div>
-
-    <ion-buttons slot="end">
-      <ion-button [disabled]="exporting() || working()" (click)="exportExcel()"
-                  [attr.aria-label]="'report.export' | t" [title]="'report.export' | t">
-        @if (exporting()) {
-          <ion-spinner name="crescent"></ion-spinner>
-        } @else {
-          <ion-icon slot="icon-only" name="document-text-outline"></ion-icon>
-        }
-      </ion-button>
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-
-  <!-- Which summary: one way in from the summary screen and one from the
-       products screen, and from either of them the other is one tap away. -->
-  <ion-toolbar class="which">
-    <div class="switch" role="tablist">
-      <button type="button" role="tab" [class.on]="mode() === 'money'" [attr.aria-selected]="mode() === 'money'"
-              (click)="switchTo('money')">
-        <ion-icon name="swap-vertical-outline"></ion-icon>{{ 'report.which.money' | t }}
-      </button>
-      <button type="button" role="tab" [class.on]="mode() === 'yields'" [attr.aria-selected]="mode() === 'yields'"
-              (click)="switchTo('yields')">
-        <ion-icon name="trending-up-outline"></ion-icon>{{ 'report.which.yields' | t }}
-      </button>
-    </div>
-  </ion-toolbar>
-
-  <!-- The same two questions the summary screen asks, asked the same way and
-       answered by the same sheets: which account, and which dates. They used
-       to be settled before arriving here, which meant leaving to change one. -->
-  <ion-toolbar class="scope">
-    <button type="button" class="pick" (click)="scope.openAccounts()">
-      <app-icon [builtin]="scope.store.selectedAccount()?.builtin_icon"
-                [customId]="scope.store.selectedAccount()?.custom_icon_id"
-                [fallback]="scope.filter.allAccounts() ? 'albums' : 'wallet'"
-                size="1.05rem"></app-icon>
-      <span class="text">{{ scope.accountLabel() }}</span>
-      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-    </button>
-
-    <button type="button" class="pick" (click)="scope.openPeriod()">
-      <ion-icon name="calendar-outline"></ion-icon>
-      <span class="text">{{ periodLabel() }}</span>
-      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-    </button>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
-  @if (working()) {
-    <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
-  } @else if (blocks().length === 0) {
-    <div class="state"><p>{{ nothing() }}</p></div>
-  } @else {
-
-    <!-- One control for all of them, at the top where the list starts. The
-         sections arrive closed: the whole report at once is a very long
-         screen, and which part is wanted is the reader's question, not the
-         app's. -->
-    <div class="all">
-      <button type="button" (click)="toggleAll()">
-        <ion-icon [name]="allClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-        {{ (allClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
+<!-- Reporte (mockups 5a-5t): the Reporte tab of the bar. Movimientos |
+     Rendimientos, the account and the period it inherits from Inicio, and the
+     sections, each closed showing its key figure. -->
+<ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="jump.measure()">
+  <div class="report-top">
+    <div class="ui-bigtitle">
+      <h1>{{ 'ui.tab.report' | t }}</h1>
+      <button type="button" class="ui-round" [disabled]="exporting() || working()" (click)="exportExcel()"
+              [attr.aria-label]="'report.export' | t" [title]="'report.export' | t">
+        <ion-icon name="download-outline"></ion-icon>
       </button>
     </div>
 
-    @for (block of blocks(); track block.id) {
-      <section class="block">
-        <button type="button" class="section-head" (click)="toggle(block.id)"
-                [class.open]="isOpen(block.id)" [attr.aria-expanded]="isOpen(block.id)">
-          <ion-icon class="fold"
-                    [name]="isOpen(block.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-          <span class="what">{{ block.title }}</span>
-          <span class="how-many">{{ sizeOf(block) }}</span>
+    <div class="ui-main head">
+      <div class="ui-seg which" role="tablist">
+        <button type="button" role="tab" [class.on]="mode() === 'money'" (click)="switchTo('money')">
+          <ion-icon name="swap-vertical-outline"></ion-icon><span>{{ 'report.which.money' | t }}</span>
         </button>
-
-        @if (isOpen(block.id)) {
-          <div class="body">
-            @if (block.about) { <p class="about">{{ block.about }}</p> }
-
-            <!-- ---------------- the headline figures ---------------- -->
-            @if (block.kind === 'figures') {
-              <div class="figures">
-                @for (figure of block.figures; track figure.label) {
-                  <div class="figure" [class]="'is-' + (figure.tone ?? 'plain')">
-                    <span class="what">{{ figure.label }}</span>
-                    <span class="value">{{ show(figure.value) }}</span>
-                    @if (figure.note) { <span class="note">{{ figure.note }}</span> }
-                  </div>
-                }
-              </div>
-            }
-
-            <!-- ---------------- a list in order of size ---------------- -->
-            @if (block.kind === 'ranked') {
-              <!-- The shape of the shares, which a column of percentages is
-                   worst at saying: that two categories are most of the month,
-                   or that a dozen are all much the same. -->
-              @if (ringOf(block); as ring) {
-                @if (ring.length > 0) {
-                  <div class="ring">
-                    <svg viewBox="0 0 60 60" role="img" [attr.aria-label]="block.title">
-                      @for (slice of ring; track slice.label) {
-                        <path [attr.d]="slice.path" [attr.fill]="slice.colour"></path>
-                      }
-                    </svg>
-                    <ul class="key">
-                      @for (slice of ring.slice(0, 4); track slice.label) {
-                        <li>
-                          <i [style.background]="slice.colour"></i>
-                          <span>{{ slice.label }}</span>
-                        </li>
-                      }
-                    </ul>
-                  </div>
-                }
-              }
-
-              <ul class="ranked">
-                @for (row of block.rows; track row.label) {
-                  <li>
-                    <app-icon class="face" [builtin]="row.icon ?? null"
-                              [customId]="row.customIconId ?? null" size="1.1rem"></app-icon>
-
-                    <span class="name">
-                      <span class="text">{{ row.label }}</span>
-                      @if (row.note) { <span class="note">{{ row.note }}</span> }
-                    </span>
-
-                    <span class="amount" [class]="'is-' + (row.flow ?? 'out')">{{ show(row.value) }}</span>
-
-                    <!-- The share drawn as well as printed: a column of
-                         percentages is read one at a time, a row of bars all
-                         at once. -->
-                    @if (row.share !== undefined) {
-                      <span class="share">{{ percent(row.share) }}</span>
-                      <span class="bar"><i [style.width]="barWidth(row.share)"></i></span>
-                    } @else if (row.behind !== undefined) {
-                      <span class="share">{{ row.behind }}</span>
-                    }
-                  </li>
-                }
-              </ul>
-
-              @if (block.total && block.totalLabel) {
-                <p class="total">
-                  <span class="what">{{ block.totalLabel }}</span>
-                  <strong>{{ show(block.total) }}</strong>
-                </p>
-              }
-            }
-
-            <!-- ---------------- before and now ---------------- -->
-            @if (block.kind === 'comparison') {
-              @if (block.caveat) { <p class="caveat">{{ block.caveat }}</p> }
-
-              <!-- Each row is its own little card: two columns of figures
-                   under two headings was unreadable on a phone - the headings
-                   were too far from the numbers to say which was which. -->
-              <ul class="compare">
-                @for (row of block.rows; track row.label) {
-                  <li>
-                    <span class="name">
-                      <!-- A category is recognised by its picture before its
-                           name is read, here as much as anywhere else. -->
-                      @if (row.icon !== undefined || row.customIconId !== undefined) {
-                        <app-icon class="face" [builtin]="row.icon ?? null"
-                                  [customId]="row.customIconId ?? null" size="1rem"></app-icon>
-                      }
-                      <span class="text">{{ row.label }}</span>
-                    </span>
-                    @if (row.note) { <span class="row-note">{{ row.note }}</span> }
-
-                    <span class="pair">
-                      <span class="side was">
-                        <em>{{ block.beforeLabel }}</em>
-                        <b>{{ show(row.before) }}</b>
-                      </span>
-
-                      <ion-icon class="arrow" name="arrow-forward-outline"></ion-icon>
-
-                      <span class="side now">
-                        <em>{{ block.nowLabel }}</em>
-                        <b>{{ show(row.now) }}</b>
-                      </span>
-                    </span>
-
-                    @if (row.changePercent !== null) {
-                      <span class="change"
-                            [class.worse]="isWorse(row.changePercent, row.growthIs)"
-                            [class.better]="isBetter(row.changePercent, row.growthIs)">
-                        <ion-icon [name]="changeIcon(row.changePercent)"></ion-icon>
-                        {{ changeLabel(row.changePercent) }}
-                      </span>
-                    }
-                  </li>
-                }
-              </ul>
-            }
-
-            <!-- ---------------- month by month ---------------- -->
-            @if (block.kind === 'trend') {
-              <!-- Every month fits, and the amounts are not printed over the
-                   bars: at eleven digits each they were what forced the chart
-                   wider than the screen, and the way out of that was a
-                   sideways scroll nobody found. Tapping a bar says its
-                   figure underneath. -->
-              <div class="trend">
-                @for (point of block.points; track point.label) {
-                  <button type="button" class="point"
-                          [class.above]="isAbove(block, point.label)"
-                          [class.picked]="picked() === point.label"
-                          [class.below]="point.value.kind === 'money' && point.value.minor < 0"
-                          (click)="pick(point.label)"
-                          [attr.aria-label]="point.label + ': ' + show(point.value)">
-                    <span class="bar"><i [style.height]="heightOf(block, point.value)">@if (point.part) {<s [style.height]="partOf(point)"></s>}</i></span>
-                    <span class="when">{{ shortMonth(point.label) }}</span>
-                  </button>
-                }
-              </div>
-
-              <p class="reading">
-                @if (pickedPoint(block); as point) {
-                  <span class="when">{{ point.label }}</span>
-                  <strong>{{ show(point.value) }}</strong>
-                  @if (point.part && block.partLabel) {
-                    <span class="part">{{ block.partLabel }}: {{ show(point.part) }}</span>
-                  }
-                } @else {
-                  <span class="hint">{{ 'report.byMonth.tap' | t }}</span>
-                }
-              </p>
-
-              @if (block.average && block.averageLabel) {
-                <p class="total">
-                  <span class="what">{{ block.averageLabel }}</span>
-                  <strong>{{ show(block.average) }}</strong>
-                </p>
-              }
-              @if (block.aboveAverage && block.aboveAverage.length > 0) {
-                <p class="caveat">
-                  {{ 'report.byMonth.above' | t:{ months: block.aboveAverage.join(', ') } }}
-                </p>
-              }
-            }
-
-            <!-- ---------------- something worth saying ---------------- -->
-            @if (block.kind === 'note') {
-              <ul class="notes">
-                @for (line of block.lines; track line.text) {
-                  <li [class]="'is-' + (line.tone ?? 'plain')">
-                    <ion-icon [name]="noteIcon(line.tone)"></ion-icon>
-                    <span>{{ line.text }}</span>
-                  </li>
-                }
-              </ul>
-            }
-
-          </div>
-        }
-      </section>
-    }
-
-    <!-- Up and down, the row the summary and the products screens carry. -->
-    @if (showUp() || showDown()) {
-      <div class="jump" slot="fixed">
-        <button type="button" [class.gone]="!showUp()" (click)="toTop()"
-                [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
-          <ion-icon name="arrow-up-outline"></ion-icon>
-        </button>
-        <button type="button" class="fold" (click)="toggleAll()"
-                [attr.aria-label]="(allClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                [title]="(allClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-          <ion-icon [name]="allClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-        </button>
-        <button type="button" [class.gone]="!showDown()" (click)="toBottom()"
-                [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
-          <ion-icon name="arrow-down-outline"></ion-icon>
+        <button type="button" role="tab" [class.on]="mode() === 'yields'" (click)="switchTo('yields')">
+          <ion-icon name="trending-up-outline"></ion-icon><span>{{ 'report.which.yields' | t }}</span>
         </button>
       </div>
-    }
-  }
 
-  <ion-toast [isOpen]="notice() !== ''" [message]="notice()" [duration]="2600"
-             position="bottom" (didDismiss)="notice.set('')"></ion-toast>
+      <!-- The account, centred, as wide as its name. -->
+      <div class="account-row">
+        <button type="button" class="ui-chip account" (click)="scope.openAccounts()">
+          @if (scope.store.selectedAccount(); as account) {
+            <app-badge shape="ci" [size]="26" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
+                       [tone]="account.color" [seed]="account.id" fallback="wallet"></app-badge>
+          } @else {
+            <app-badge shape="ci" [size]="26" [builtin]="mode() === 'yields' ? 'trending-up' : 'layers'"
+                       [fixed]="mode() === 'yields' ? '#34c98b' : accentColor()"></app-badge>
+          }
+          <span class="ui-one">{{ accountLabel() }}</span>
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+      </div>
+
+      <!-- The period: its own row, round arrows at its edges. -->
+      <div class="ui-period">
+        <button type="button" class="arrow" (click)="filter.step(-1)" [disabled]="!canStep()"
+                [attr.aria-label]="'summary.previousPeriod' | t">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+        </button>
+        <button type="button" class="label" (click)="scope.openPeriod()">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>{{ periodTitle() }}</span>
+          <ion-icon class="down" name="chevron-down-outline"></ion-icon>
+        </button>
+        <button type="button" class="arrow" (click)="filter.step(1)" [disabled]="!canStep() || atNewest()"
+                [attr.aria-label]="'summary.nextPeriod' | t">
+          <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui-main body">
+    @if (working()) {
+      <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
+    } @else if (blocks().length === 0) {
+      <div class="state"><p>{{ nothing() }}</p></div>
+    } @else {
+      <div class="lead">
+        @if (daysGoneLine(); as gone) {
+          <span class="gone"><ion-icon name="time-outline"></ion-icon>{{ gone }}</span>
+        } @else { <span></span> }
+        <button type="button" class="ui-chip" (click)="toggleAll()">
+          <ion-icon [name]="allClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+          {{ (allClosed() ? 'ui.openAll' : 'ui.closeAll') | t }}
+        </button>
+      </div>
+
+      @for (block of blocks(); track block.id) {
+        <section class="ui-card block" [class.open]="isOpen(block.id)">
+          <div class="bhead" (click)="toggle(block.id)" [attr.aria-expanded]="isOpen(block.id)" role="button">
+            <app-badge [size]="38" [builtin]="iconOf(block)" [fixed]="colorOf(block)"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap title">{{ block.title }}</b>
+              @if (!isOpen(block.id) && keyOf(block); as key) { <small class="wrap">{{ key }}</small> }
+            </span>
+            @if (isOpen(block.id) && block.about) {
+              <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(block.about)"
+                    [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+            }
+            <ion-icon class="ui-chev" [name]="isOpen(block.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+          </div>
+
+          @if (isOpen(block.id)) {
+            <div class="bbody">
+              <!-- ---------------- the headline figures ---------------- -->
+              @if (block.kind === 'figures') {
+                <div class="figures">
+                  @for (figure of block.figures; track figure.label) {
+                    <div class="figure">
+                      <span class="ui-lab">{{ figure.label }}</span>
+                      <b [class]="toneClass(figure.tone)">{{ show(figure.value) }}</b>
+                      @if (figure.note) { <small>{{ figure.note }}</small> }
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- ---------------- a list in order of size ---------------- -->
+              @if (block.kind === 'ranked') {
+                <div class="ranked">
+                  @for (row of shownRows(block); track row.label) {
+                    <div class="rank">
+                      @if (row.icon !== undefined || row.customIconId !== undefined) {
+                        <app-badge [size]="34" [builtin]="row.icon ?? null" [customId]="row.customIconId ?? null"
+                                   [seed]="$index"></app-badge>
+                      }
+                      <div class="what">
+                        <div class="top">
+                          <span class="name ui-one">{{ row.label }}</span>
+                          <b [class]="flowClass(row.flow)">{{ show(row.value) }}</b>
+                        </div>
+                        @if (row.note) { <small class="note">{{ row.note }}</small> }
+                        @if (row.share !== undefined) {
+                          <div class="barline">
+                            <span class="bar"><i [style.width]="barWidth(row.share)" [style.background]="barColor($index)"></i></span>
+                            <span class="share">{{ percent(row.share) }}</span>
+                          </div>
+                        } @else if (row.behind !== undefined) {
+                          <small class="note">{{ row.behind === 1 ? ('ui.count.movement' | t) : ('ui.count.movements' | t:{ count: row.behind }) }}</small>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+                @if (block.rows.length > rowLimit && !isExpanded(block.id)) {
+                  <button type="button" class="more" (click)="expand(block.id)">
+                    {{ 'ui.report.seeRest' | t:{ count: block.rows.length - rowLimit } }}
+                  </button>
+                }
+                @if (block.total && block.totalLabel) {
+                  <div class="totalline"><span>{{ block.totalLabel }}</span><b>{{ show(block.total) }}</b></div>
+                }
+              }
+
+              <!-- ---------------- before and now ---------------- -->
+              @if (block.kind === 'comparison') {
+                @if (block.caveat) { <p class="caveat">{{ block.caveat }}</p> }
+                <div class="compare">
+                  @for (row of block.rows; track row.label) {
+                    <div class="crow">
+                      @if (row.icon !== undefined || row.customIconId !== undefined) {
+                        <app-badge [size]="34" [builtin]="row.icon ?? null" [customId]="row.customIconId ?? null" [seed]="$index"></app-badge>
+                      }
+                      <div class="what">
+                        <span class="name ui-one">{{ row.label }}</span>
+                        <small>{{ show(row.before) }} → {{ show(row.now) }}</small>
+                        @if (row.note) { <small class="note">{{ row.note }}</small> }
+                      </div>
+                      @if (row.changePercent !== null) {
+                        <b class="change" [class.ui-r]="isWorse(row.changePercent, row.growthIs)"
+                           [class.ui-g]="isBetter(row.changePercent, row.growthIs)">{{ changeLabel(row.changePercent) }}</b>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- ---------------- month by month ---------------- -->
+              @if (block.kind === 'trend') {
+                <div class="trend">
+                  @if (block.average && block.average.kind === 'money') {
+                    <span class="avg" [style.bottom]="avgBottom(block)"></span>
+                  }
+                  @for (point of block.points; track point.label) {
+                    <button type="button" class="point"
+                            [class.picked]="picked() === point.label"
+                            [class.below]="point.value.kind === 'money' && point.value.minor < 0"
+                            (click)="pick(point.label)"
+                            [attr.aria-label]="point.label + ': ' + show(point.value)">
+                      <span class="bar"><i [style.height]="heightOf(block, point.value)">@if (point.part) {<s [style.height]="partOf(point)"></s>}</i></span>
+                      <span class="when">{{ shortMonth(point.label) }}</span>
+                    </button>
+                  }
+                </div>
+                <div class="reading">
+                  @if (pickedPoint(block) ?? lastPoint(block); as point) {
+                    <span>{{ capital(point.label) }}</span>
+                    <b>{{ show(point.value) }}</b>
+                    @if (point.part && block.partLabel) {
+                      <small>{{ block.partLabel }}: {{ show(point.part) }}</small>
+                    }
+                  }
+                </div>
+                @if (block.average && block.averageLabel) {
+                  <p class="caveat">
+                    {{ block.averageLabel }} {{ show(block.average) }}@if (block.aboveAverage && block.aboveAverage.length > 0) { · {{ 'ui.report.above' | t:{ months: block.aboveAverage.join(', ') } }} }
+                  </p>
+                }
+              }
+
+              <!-- ---------------- something worth saying ---------------- -->
+              @if (block.kind === 'note') {
+                <ul class="notes">
+                  @for (line of block.lines; track line.text) {
+                    <li [class.warn]="line.tone === 'warn' || line.tone === 'bad'">
+                      @if (line.tone === 'warn' || line.tone === 'bad') { <ion-icon name="alert-circle-outline"></ion-icon> }
+                      <span>{{ line.text }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </section>
+      }
+      <div class="ui-page-end"></div>
+    }
+  </div>
+
+  <app-jump #jump [content]="list"></app-jump>
 </ion-content>
 
 <!-- The dates and the account, shared with the summary screen. -->
 <app-scope-sheets #scope></app-scope-sheets>
+
+@if (exporting()) {
+  <app-busy-overlay icon="document-text-outline" [label]="'ui.report.building' | t" [detail]="exportName()"></app-busy-overlay>
+}
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
+}

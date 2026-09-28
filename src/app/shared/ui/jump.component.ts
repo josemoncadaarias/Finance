@@ -22,6 +22,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
   standalone: true,
   imports: [IonIcon, TranslatePipe],
   host: { slot: 'fixed' },
+  styles: [`
+    :host { position: absolute; inset: 0; pointer-events: none; }
+    .ui-jump { pointer-events: auto; }
+  `],
   template: `
     @if (!hidden() && (!atTop() || !atBottom())) {
       <div class="ui-jump" [class.row]="row()">

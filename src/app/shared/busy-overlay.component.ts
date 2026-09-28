@@ -15,15 +15,19 @@
  */
 
 import { Component, input, output } from '@angular/core';
-import { IonSpinner } from '@ionic/angular';
+import { IonSpinner, IonIcon } from '@ionic/angular';
 
 @Component({
   selector: 'app-busy-overlay',
   standalone: true,
-  imports: [IonSpinner],
+  imports: [IonSpinner, IonIcon],
   template: `
     <div class="sheet" role="status" aria-live="polite">
-      <ion-spinner name="crescent"></ion-spinner>
+      @if (icon()) {
+        <span class="icon"><ion-icon [name]="icon()"></ion-icon></span>
+      } @else {
+        <ion-spinner name="crescent"></ion-spinner>
+      }
       <p class="label">{{ label() }}</p>
       @if (detail()) { <p class="detail">{{ detail() }}</p> }
 
@@ -80,13 +84,20 @@ import { IonSpinner } from '@ionic/angular';
       width: 100%;
       max-width: 20rem;
       padding: 1.6rem 1.35rem 1.4rem;
-      border-radius: 18px;
-      background: var(--ion-background-color);
+      border-radius: 26px;
+      border: 1px solid var(--app-border);
+      background: var(--app-s1);
+      color: var(--app-tx);
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
       text-align: center;
     }
 
     ion-spinner { width: 2rem; height: 2rem; color: var(--ion-color-primary); }
+    .icon {
+      width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+      background: rgba(var(--app-grn-rgb), 0.18); color: var(--app-grn); font-size: 26px;
+    }
+    .label { font-size: 18px !important; font-weight: 700 !important; }
 
     .label { margin: 0; font-size: 1rem; font-weight: 600; }
 
@@ -148,6 +159,8 @@ import { IonSpinner } from '@ionic/angular';
 export class BusyOverlayComponent {
   /** What is happening, in the user's words. */
   readonly label = input.required<string>();
+  /** A picture in place of the spinner: what is being made (5i). */
+  readonly icon = input('');
 
   /** The measurable part of it: "8.400 de 16.194 filas". */
   readonly detail = input<string>('');

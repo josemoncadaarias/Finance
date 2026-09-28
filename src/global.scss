@@ -2423,3 +2423,27 @@ ion-modal.account-page {
 }
 
 ion-modal.confirm-sheet .confirm-dialog .pick-row { width: 100%; text-align: left; }
+
+/* An explanation: an (i) opens a bubble; a tap anywhere closes it. */
+.info-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.info-bubble {
+  position: fixed;
+  left: 24px;
+  right: 24px;
+  top: 38%;
+  z-index: 31;
+  background: var(--app-s2);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--app-tx);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
