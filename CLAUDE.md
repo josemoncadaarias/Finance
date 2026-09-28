@@ -2050,8 +2050,8 @@ then does the next start. The groups and where each stands:
 | Group | Screens | Mockups | Status |
 |---|---|---|---|
 | 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
-| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | Sent 2026-09-28, waiting for Jose |
-| 3 | Categories and their editor | `b08`-`b13` (v3 draft) | To redo |
+| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
+| 3 | Categories and their editor | `docs/mockups/3*` (v4) | Sent 2026-09-28, waiting for Jose |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `c*` (v3 draft) | To redo |
 | 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
 | 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
@@ -2124,9 +2124,8 @@ then does the next start. The groups and where each stands:
   in a column of their own; the total spent sits inside the ring. Every
   category with its figure is the list under it.
 
-**Group 2 as sent (v4, 2026-09-28)**, and the three changes of ACCESS in
-it, which Jose has to accept or refuse (everything else is today's screen
-redrawn):
+**Group 2 (v4, approved 2026-09-28)** and the three changes of ACCESS in
+it, all accepted by Jose (everything else is today's screen redrawn):
 
 - **Currencies and today's rates in one screen, "Monedas y tasas"**,
   reached from a row under the accounts. Today the currencies list sits
@@ -2144,6 +2143,19 @@ redrawn):
   behind the image (a logo with a transparent background takes it) and
   stays the account's colour elsewhere (`2q`, `2r`). "Tus imágenes" shows
   the pictures uploaded, never plain colours (`2n` looked like colours).
+
+**Group 3 as sent (v4, 2026-09-28)**: today's categories screen redrawn -
+two folding lists with their counts (closed on opening), "Abrir todas /
+Cerrar todas", Más usadas / A-Z, "Nueva categoría" asking which list, the
+archived with the list each belonged to, the two arrows on a long list -
+and the editor in the account form's shape: the face with its pencil, the
+name, "Para" (locked with the reason once used), "Usada en", "Ganancia o
+pérdida de inversión", archive. The face opens the same Ícono / Color /
+Imagen propia editor as an account, in rounded squares. Choosing a
+category's colour is new on screen (`categories.color` exists), as it was
+for accounts. No search on this screen, as today (the picker has one).
+The product categories' own editor (reached from a product's form) belongs
+to group 4.
 
 ### The ideas, by what they would take
 

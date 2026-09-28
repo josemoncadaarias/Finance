@@ -135,7 +135,8 @@ the new screen is checked.
 
 ### Categories (`features/categories`)
 
-- [ ] Gastos / Ingresos / De productos (`product_kinds`), with the hint.
+- [ ] Gastos / Ingresos, each folding with its count (closed on opening);
+      "Abrir todas / Cerrar todas"; the up/down arrows on a long list.
 - [ ] Order shared with the picker; "En N movimientos".
 - [ ] Archived: show/hide, with their hint.
 - [ ] New category: "¿En cuál lista?".
@@ -143,7 +144,8 @@ the new screen is checked.
       icon from the catalogue by group, **image of one's own** (upload, 100
       kB limit, "Tus imágenes"), "Ganancia o pérdida de inversión" with its
       hint, archive with its hint, "Usada en".
-- [ ] Product kinds: new, edit, rename, delete.
+- [ ] Product kinds (income categories since migration 037): their own
+      editor is opened from a product's form (group 4).
 
 ### Accounts (`features/accounts`)
 
