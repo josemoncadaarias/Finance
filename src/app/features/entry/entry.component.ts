@@ -80,11 +80,13 @@ export interface EntryRequest {
   start?: { amountMinor: number; onDate: string; note: string };
 }
 
+import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-entry',
   imports: [
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent,
-    CategoryEditorComponent, ConfirmComponent,
+    CategoryEditorComponent, ConfirmComponent, KeypadComponent,
     IonIcon, IonDatetime, IonModal,
   ],
   templateUrl: './entry.component.html',
@@ -104,6 +106,33 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly switchTo = output<EntryRequest>();
 
   readonly amount = signal(new AmountBuffer());
+
+  /**
+   * Whether the keypad is on show. Open on a new movement, where the amount
+   * is the first thing typed; closed on one being corrected, where it
+   * usually is not. Touching any other part of the form folds it away, and
+   * touching the amount brings it back (Jose, 2026-09-28: it took the room
+   * the rest of the form needed).
+   */
+  readonly keypadOpen = signal(true);
+
+  /**
+   * "Registrar otro": save and start the next movement at once, on the same
+   * account, kind and day. A preference, remembered on this device.
+   */
+  readonly again = signal(readAgain());
+  private readonly toast = inject(ToastService);
+
+  setAgain(on: boolean): void {
+    this.again.set(on);
+    try { localStorage.setItem(AGAIN_KEY, on ? 'yes' : 'no'); } catch { /* a preference, nothing more */ }
+  }
+
+  /** A tap anywhere on the lists below the amount folds the keypad away. */
+  bodyTapped(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  }
   /** Only used when a transfer crosses currencies. */
   readonly targetAmount = signal(new AmountBuffer());
   readonly editingTarget = signal(false);
@@ -224,13 +253,6 @@ export class EntryComponent implements OnInit, OnDestroy {
    * the screen beside the figure - while '=' is only needed when a sum is
    * being added up, which is when it appears beside the save button instead.
    */
-  /** The keypad as the mockups draw it (1f): backspace is beside the amount. */
-  readonly keys = [
-    '7', '8', '9', '÷',
-    '4', '5', '6', '×',
-    '1', '2', '3', '-',
-    ',', '0', '=', '+',
-  ];
 
   /** Set when the screen is editing an existing transfer rather than a movement. */
   readonly editingTransferId = signal<number | null>(null);
@@ -456,8 +478,16 @@ export class EntryComponent implements OnInit, OnDestroy {
    * button. A disabled control that says nothing is the app refusing without
    * explaining itself.
    */
+  /** The amount, or the result of the sum still being typed: saving finishes it. */
+  private readonly effectiveMinor = computed(() => {
+    const sum = this.pending();
+    const buffer = this.editingTarget() ? this.targetAmount() : this.amount();
+    if (!sum || this.editingTarget()) return this.amount().minor;
+    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
+  });
+
   readonly missing = computed<string | null>(() => {
-    if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
+    if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
 
     if (this.isTransfer()) {
@@ -611,6 +641,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.keypadOpen.set(this.request().editing === undefined);
     // The phone's keyboard closing is the end of writing a note, however it
     // was closed - the back button included, which does not blur the field.
     if (Capacitor.isNativePlatform()) {
@@ -1030,7 +1061,12 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
     if (!sum) return '';
-    return `${this.money(sum.leftMinor)} ${sum.operator}`;
+    // With no "=" key, the result is said as the sum is typed; a second
+    // operator or saving finishes it.
+    const buffer = this.editingTarget() ? this.targetAmount() : this.amount();
+    if (buffer.isEmpty) return `${this.money(sum.leftMinor)} ${sum.operator}`;
+    const result = Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
+    return `${this.money(sum.leftMinor)} ${sum.operator} ${this.money(buffer.minor)} = ${this.money(result)}`;
   });
 
   /**
@@ -1079,6 +1115,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   press(key: string): void {
+    if (key === 'C') { this.clearAmount(); return; }
     if (isOperator(key)) { this.operate(key); return; }
     if (key === '=') { this.equals(); return; }
 
@@ -1094,6 +1131,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   focusAmount(target: boolean): void {
+    this.keypadOpen.set(true);
     this.editingTarget.set(target);
   }
 
@@ -1181,12 +1219,37 @@ export class EntryComponent implements OnInit, OnDestroy {
       else await this.saveMovement();
 
       this.database.dataChanged();
-      this.saved.emit();
+      if (this.again() && !this.isEditing()) {
+        this.startNext();
+        this.toast.say(this.i18n.t('entry.again.saved'), 2500);
+      } else {
+        this.saved.emit();
+      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * The next movement, after one saved with "Registrar otro" on: the same
+   * kind, account, products and day; the amount, the category and the note
+   * empty, and the keypad open for the amount.
+   */
+  private startNext(): void {
+    this.pending.set(null);
+    this.amount.set(new AmountBuffer());
+    this.targetAmount.set(new AmountBuffer());
+    this.editingTarget.set(false);
+    if (!this.isTransfer()) this.categoryId.set(null);
+    this.noteIsTheirs = false;
+    this.usualNoteShown.set(false);
+    this.note.set('');
+    const field = this.noteField();
+    if (field) field.nativeElement.value = '';
+    this.error.set('');
+    this.keypadOpen.set(true);
   }
 
   /**
@@ -1749,4 +1812,14 @@ function aYearAgo(): string {
  */
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+const AGAIN_KEY = 'finance.enterAnother';
+
+function readAgain(): boolean {
+  try {
+    return localStorage.getItem(AGAIN_KEY) === 'yes';
+  } catch {
+    return false;
+  }
 }

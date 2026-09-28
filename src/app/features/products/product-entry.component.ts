@@ -78,11 +78,12 @@ export interface ProductEntryRequest {
   balanceOf?: (accountId: number, productId: number) => number | null;
 }
 
+import { KeypadComponent } from '../../shared/ui/keypad.component';
 @Component({
   selector: 'app-product-entry',
   imports: [
     TranslatePipe, BadgeComponent, CategoryEditorComponent, BusyOverlayComponent, ConfirmComponent,
-    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner,
+    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent,
   ],
   templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -475,12 +476,14 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   /** The movement form's keypad, key for key: backspace, and "=" on the bar. */
-  readonly keys = [
-    '7', '8', '9', '÷',
-    '4', '5', '6', '×',
-    '1', '2', '3', '-',
-    ',', '0', '=', '+',
-  ];
+  /** The keypad on show: open for a new movement, folded for a correction. */
+  readonly keypadOpen = signal(true);
+
+  /** A tap anywhere on the lists below the amount folds the keypad away. */
+  bodyTapped(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  }
 
   /** True while an arithmetic operator is waiting for its second number. */
   readonly midSum = computed(() => this.pending() !== null);
@@ -574,7 +577,11 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
-    return sum ? `${formatMoney(sum.leftMinor, this.currency(), { withSymbol: false })} ${sum.operator}` : '';
+    if (!sum) return '';
+    const shown = (minor: number) => formatMoney(minor, this.currency(), { withSymbol: false });
+    const buffer = this.amount();
+    if (buffer.isEmpty) return `${shown(sum.leftMinor)} ${sum.operator}`;
+    return `${shown(sum.leftMinor)} ${sum.operator} ${shown(buffer.minor)} = ${shown(Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0))}`;
   });
 
   /** "Hoy · domingo 27 sept", as on the movement form. */
@@ -656,9 +663,17 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return [hint.slice(0, at), hint.slice(at, at + typed.length), hint.slice(at + typed.length)];
   }
 
+  /** The amount, or the result of the sum still being typed. */
+  private readonly effectiveMinor = computed(() => {
+    const sum = this.pending();
+    const buffer = this.amount();
+    if (!sum) return buffer.minor;
+    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
+  });
+
   readonly missing = computed<string | null>(() => {
-    if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
-    if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
+    // A sum being added up counts as its result: saving finishes it.
+    if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.isTransfer() && (this.toProductId() === null || this.toProductId() === this.productId())) {
       return this.i18n.t('products.move.sameProduct');
     }
@@ -726,6 +741,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    this.keypadOpen.set(this.request().editing === undefined);
     // However the keyboard is closed - the Android back button included,
     // which leaves the focus where it was - the note is finished.
     if (Capacitor.isNativePlatform()) {
@@ -801,6 +817,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   press(key: string): void {
+    if (key === 'C') { this.clearAmount(); return; }
     if (isOperator(key)) { this.operate(key); return; }
     if (key === '=') { this.equals(); return; }
 
@@ -1074,6 +1091,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   async save(): Promise<void> {
+    // A sum still being added up is finished by saving it: there is no "=".
+    if (this.pending() !== null) this.equals();
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');

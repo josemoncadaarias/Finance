@@ -38,10 +38,11 @@ export interface ProposalAnswer {
   category_id: number | null;
 }
 
+import { KeypadComponent } from '../../shared/ui/keypad.component';
 @Component({
   selector: 'app-proposal-form',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime],
+  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, KeypadComponent],
   styleUrls: ['../entry/entry.component.scss'],
   styles: [`
     .said {
@@ -78,7 +79,7 @@ export interface ProposalAnswer {
       </header>
 
       <div class="entry-scroll">
-        <div class="entry-body">
+        <div class="entry-body" (click)="bodyTapped($event)">
           <!-- While the note is written the rest steps aside by CSS (.writing-note);
            the note is never drawn a second time, or the phone drops its keyboard. -->
             <div class="ui-seg kinds">
@@ -116,12 +117,10 @@ export interface ProposalAnswer {
             }
 
             @if (pendingLabel(); as sum) { <p class="pending">{{ sum }}</p> }
-            <section class="amount">
+            <section class="amount" (click)="keypadOpen.set(true)">
               <span class="sign" [class.expense]="sign() < 0" [class.income]="sign() > 0">{{ sign() < 0 ? '−' : '+' }}</span>
               <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
               <span class="currency">{{ currency() }}</span>
-              <button type="button" class="erase" (click)="press('<')" (contextmenu)="$event.preventDefault(); clear()"
-                      [attr.aria-label]="'entry.erase' | t"><ion-icon name="backspace-outline"></ion-icon></button>
             </section>
 
             <div class="ui-list ends">
@@ -167,16 +166,10 @@ export interface ProposalAnswer {
       </div>
 
       @if (!writingNote()) {
-        <footer class="pad">
-          @if (missing(); as hint) { <p class="missing">{{ hint }}</p> }
-          <div class="ui-kp">
-            @for (key of keys; track key) {
-              <button type="button" (click)="press(key)" [class.op]="isOperator(key) || key === '='"
-                      [class.on]="pending()?.operator === key">{{ key === '-' ? '−' : key }}</button>
-            }
-            <button type="button" class="save" [disabled]="missing() !== null || busy()" (click)="save()">{{ 'entry.save' | t }}</button>
-          </div>
-        </footer>
+        <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
+                    [missing]="missing()" [canSave]="missing() === null && !busy()"
+                    [operator]="pending()?.operator ?? null"
+                    (pressed)="press($event)" (save)="save()"></app-keypad>
       }
     </div>
 
@@ -264,7 +257,14 @@ export class ProposalFormComponent implements OnInit {
 
   private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
 
-  readonly keys = ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '-', ',', '0', '=', '+'];
+  /** Folded once the amount is read: a proposal usually has its amount already. */
+  readonly keypadOpen = signal(false);
+
+  /** A tap anywhere on the lists below the amount folds the keypad away. */
+  bodyTapped(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  }
   readonly isOperator = isOperator;
 
   readonly amount = signal(new AmountBuffer());
@@ -290,7 +290,11 @@ export class ProposalFormComponent implements OnInit {
 
   readonly pendingLabel = computed(() => {
     const sum = this.pending();
-    return sum ? `${formatMoney(sum.leftMinor, this.currency(), { withSymbol: false })} ${sum.operator}` : '';
+    if (!sum) return '';
+    const shown = (minor: number) => formatMoney(minor, this.currency(), { withSymbol: false });
+    const buffer = this.amount();
+    if (buffer.isEmpty) return `${shown(sum.leftMinor)} ${sum.operator}`;
+    return `${shown(sum.leftMinor)} ${sum.operator} ${shown(buffer.minor)} = ${shown(Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0))}`;
   });
 
   readonly dateLabel = computed(() => {
@@ -304,9 +308,17 @@ export class ProposalFormComponent implements OnInit {
     return text.charAt(0).toUpperCase() + text.slice(1);
   });
 
+  /** The amount, or the result of the sum still being typed. */
+  private readonly effectiveMinor = computed(() => {
+    const sum = this.pending();
+    const buffer = this.amount();
+    if (!sum) return buffer.minor;
+    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
+  });
+
   readonly missing = computed<string | null>(() => {
-    if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
-    if (this.amount().minor <= 0) return this.i18n.t('entry.need.amount');
+    // A sum being added up counts as its result: saving finishes it.
+    if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
     if (this.categoryId() === null) return this.i18n.t('entry.need.category');
     if (!this.day()) return this.i18n.t('ui.review.noDate');
@@ -315,6 +327,9 @@ export class ProposalFormComponent implements OnInit {
 
   ngOnInit(): void {
     const proposal = this.proposal();
+    // Open only when there is no amount yet to read: a notification that said
+    // nothing but "you have a new movement".
+    this.keypadOpen.set(proposal.amount_minor === null || proposal.amount_minor === 0);
     if (proposal.amount_minor !== null) {
       this.amount.set(AmountBuffer.from(Math.abs(proposal.amount_minor)));
       this.sign.set(proposal.amount_minor < 0 ? -1 : 1);
@@ -328,6 +343,7 @@ export class ProposalFormComponent implements OnInit {
   }
 
   press(key: string): void {
+    if (key === 'C') { this.clear(); return; }
     if (isOperator(key)) { this.operate(key); return; }
     if (key === '=') { this.equals(); return; }
     const buffer = this.amount();
@@ -390,6 +406,8 @@ export class ProposalFormComponent implements OnInit {
   }
 
   save(): void {
+    // A sum still being added up is finished by saving it: there is no "=".
+    if (this.pending() !== null) this.equals();
     if (this.missing() !== null) return;
     this.answered.emit({
       account_id: this.accountId(),
