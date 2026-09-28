@@ -2052,8 +2052,8 @@ then does the next start. The groups and where each stands:
 | 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
-| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
-| 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
+| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 5 | Report (money and yields) | `docs/mockups/5*` (v4) | Sent 2026-09-28, waiting |
 | 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
@@ -2254,6 +2254,30 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
 - (The black areas in the contact sheets sent before were empty slots,
   not screens: nothing was missed. The sheets are now as wide as what
   they hold.)
+
+**Group 5 as sent (v4, 2026-09-28)**: every section the report has today,
+in its order, on both faces (Movimientos | Rendimientos), with these
+changes of ACCESS for Jose to accept or refuse:
+
+- **The report is the Reporte tab of the floating bar**, not an item in
+  the summary's menu. It still inherits the account and the dates from
+  `FilterService`, shown as two chips under the switch: the account, and
+  the period with its arrows; tapping the period opens a sheet (Día,
+  Semana, Mes, Trimestre, Año, Todo, Entre dos fechas, and "Incluir lo
+  apartado del patrimonio").
+- **One section open at a time, each closed one shows its key figure**
+  ("Ahorrado 38 %", "Gastos -6 %", "Vivienda 27 %"), so the whole report
+  reads in one screen closed. Today several can be open and "Abrir todas /
+  Cerrar todas" exists; that button would go.
+- **What a section shows (`Block.about`) is an (i) beside its title**,
+  opening a bubble, not a visible line (the rule of group 4); the
+  caveats that change a figure's meaning ("los mismos 27 días", "parte
+  es estimada") stay visible.
+- **Export is the download icon in the title bar**, with the progress
+  card while the .xlsx is built.
+- "Van 27 de 30 días del periodo" stays on top when the period is not
+  over. The drawing of each kind of block (figures, ranked with bars,
+  comparison, trend with a tapped bar and its average, note) is today's.
 
 ### The ideas, by what they would take
 

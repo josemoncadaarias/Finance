@@ -3,41 +3,6 @@ import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, t
 
 const S = {};
 
-const reportTop = on => top(`Resumen`, { sub: 'septiembre 2026 · todas las cuentas', left: 'back', right: `<div class="btn-r">${ic('document-text-outline')}</div>`,
-  extra: `<div class="seg" style="margin-top:8px"><div class="${on === 'm' ? 'on blu' : ''}">${ic('swap-vertical-outline')}Movimientos</div><div class="${on === 'y' ? 'on grn' : ''}">${ic('trending-up-outline')}Rendimientos</div></div>
-  <div style="display:flex;gap:8px;margin-top:8px"><div class="chip i" style="flex:1">${ci('layers-outline', C.blu, 27)}Todas las cuentas ${down()}</div><div class="chip">${ic('calendar-outline', 'p')}Septiembre ${down()}</div></div>` });
-
-S['d01-resumen-financiero'] = `${reportTop('m')}<main>
- <div class="kpi"><div class="card"><span class="lab">Ingresos</span><b class="g">7.500.000,00</b></div><div class="card"><span class="lab">Gastos</span><b class="r">5.185.220,71</b></div>
-  <div class="card"><span class="lab">Ahorrado</span><b class="g">2.314.779,29</b><span class="note">31 % de lo que entró</span></div>
-  <div class="card"><span class="lab">vs. mismos días de agosto</span><b class="g">−8,2 %</b><span class="note">gastaste 462.110 menos</span></div></div>
- <div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between"><span class="lab">Dónde se fue la plata</span><span class="mu">${ic('chevron-up-outline', '', 'width:16px;height:16px')}</span></div>
-  <div class="note" style="margin:4px 0 4px">Cada categoría, de mayor a menor, con su parte del gasto.</div>
-  ${[['vivienda', 31, '1.600.000'], ['mercado', 20, '1.055.000'], ['rest', 19, '1.009.100'], ['transp', 11, '570.400']].map(([k, p, a]) =>
-   `<div style="display:flex;align-items:center;gap:10px;margin-top:9px">${catIcon(k, 32)}<div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${CAT[k][2]}</span><span>${a}</span></div>
-    <div class="pbar" style="margin-top:5px;height:6px"><i style="width:${p * 3}%;background:${CAT[k][1]}"></i></div></div><span class="mu" style="font-size:12px;width:30px;text-align:right">${p}%</span></div>`).join('')}</div>
- <div class="card" style="margin-top:10px"><div style="display:flex;gap:10px;align-items:flex-start">${ci('alert-circle-outline', C.yel, 36)}<div><b style="font-size:14.5px">Restaurantes subió 42 %</b>
-  <div class="sub">Frente a los mismos días de agosto: 298.600 más.</div></div></div></div>
- <div class="h">Más secciones<span class="p">Expandir todo</span></div>
- <div class="list">${['Categorías antes y ahora', 'Lo que se repite cada mes', 'Cobros repetidos en el periodo', 'Los meses del año', 'Por cuenta', 'Los movimientos más grandes'].map(t => `<div class="row plain"><div class="tx"><b>${t}</b></div>${chev()}</div>`).join('')}</div>
- </main><div class="fade"></div>${tabs('Reporte')}`;
-
-S['d02-resumen-rendimientos'] = `${reportTop('y')}<main>
- <div class="card hero"><div class="lab">Rendimiento neto del periodo</div><div class="big g">$ 998.551,09</div>
-  <div class="sub">$ 39.942,04 por día · 25 días · incluye 0 estimado</div>
-  <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:10px" class="mu"><span>Intereses 433.078</span><span>Inversiones 565.472</span></div>
-  <div class="pbar" style="margin-top:6px"><i style="width:43%;background:var(--grn)"></i><i style="width:57%;background:${C.gold}"></i></div></div>
- <div class="kpi" style="margin-top:10px"><div class="card"><span class="lab">Rentabilidad E.A.</span><b>10,34 %</b><span class="note">ya sin retención</span></div>
-  <div class="card"><span class="lab">Retefuente</span><b class="r">−26.360,57</b><span class="note">7 % · días ≥ 0,055 UVT</span></div></div>
- <div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="lab">Frente a la inflación</span>${tag('Le ganas', C.grn)}</div>
-  ${[['Tu rentabilidad', '10,34', 82, C.grn], ['Inflación 2026 (promedio a agosto)', '5,77', 46, C.org]].map(([t, v, w, c]) => `<div style="display:flex;justify-content:space-between;margin-top:9px;font-size:13px"><span>${t}</span><b>${v} %</b></div><div class="pbar" style="margin-top:4px"><i style="width:${w}%;background:${c}"></i></div>`).join('')}
-  <div class="sub" style="margin-top:8px">Rendimiento real <b class="g">+4,32 %</b> · ganancia real 417.330,12</div></div>
- <div class="card" style="margin-top:10px"><div class="lab">Rendimientos acumulados en 2026</div>
-  <div class="bars">${[8, 22, 31, 40, 48, 60, 66, 76, 92].map((h, n) => `<div style="height:${h}%">${n < 8 ? `<i style="height:${n < 7 ? 45 : 20}%"></i>` : ''}</div>`).join('')}</div>
-  <div class="months">${'ENE FEB MAR ABR MAY JUN JUL AGO SEP'.split(' ').map(m => `<span>${m}</span>`).join('')}</div>
-  <div class="note" style="margin-top:6px">La parte clara es estimada. Toca una barra para ver su valor.</div></div>
- </main><div class="fade"></div>${tabs('Reporte')}`;
-
 S['d03-leyendo-extracto'] = `${top('Importar extracto', { left: 'x' })}<main style="padding-top:30px;text-align:center">
  ${ci('document-text-outline', C.pur, 84).replace('display:grid', 'display:grid;margin:0 auto 16px')}
  <b style="font-size:19px">Leyendo el extracto</b><div class="sub" style="margin-top:4px">extracto-banco-azul-septiembre.pdf</div>

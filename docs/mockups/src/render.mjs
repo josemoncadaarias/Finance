@@ -8,6 +8,7 @@ import G1 from './screens-1.mjs';
 import G2 from './screens-2.mjs';
 import G3 from './screens-3.mjs';
 import G4 from './screens-4.mjs';
+import G5 from './screens-5.mjs';
 import D from './screens-d.mjs';
 
 const require = createRequire((process.env.MOCK_DEPS ?? process.cwd()) + '/');
@@ -27,7 +28,7 @@ const accents = `<div style="padding:20px 16px"><div style="font-size:21px;font-
  <div style="display:flex;gap:10px">${swatch('Zafiro', '#6378ff', '#4a5ef0', 'Recomendado. El azul del ícono, con un toque violeta: propio y tranquilo.')}${swatch('Cobalto', '#3f7bf2', '#2f5fd8', 'Más cerca del de hoy, un poco más profundo.')}</div>
  <div style="display:flex;gap:10px;margin-top:10px">${swatch('Índigo', '#7c6cff', '#6352f0', 'Más violeta: se distingue de todos los bancos.')}${swatch('Hoy', '#4d8dff', '#3a6fe0', 'El que tiene la app ahora.')}</div></div>`;
 
-const all = { '00-azul-opciones': accents, ...G1, ...G2, ...G3, ...G4, ...D };
+const all = { '00-azul-opciones': accents, ...G1, ...G2, ...G3, ...G4, ...G5, ...D };
 const only = process.argv[2];
 const browser = await chromium.launch({ executablePath: process.env.MOCK_CHROME });
 const p = await browser.newPage({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 });
