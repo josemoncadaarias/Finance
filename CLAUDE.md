@@ -2053,7 +2053,7 @@ then does the next start. The groups and where each stands:
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
-| 5 | Report (money and yields) | `docs/mockups/5*` (v4) | Sent 2026-09-28, waiting |
+| 5 | Report (money and yields) | `docs/mockups/5*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
 | 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
@@ -2278,6 +2278,33 @@ changes of ACCESS for Jose to accept or refuse:
 - "Van 27 de 30 días del periodo" stays on top when the period is not
   over. The drawing of each kind of block (figures, ranked with bars,
   comparison, trend with a tapped bar and its average, note) is today's.
+
+**And from his review of group 5 v4 (2026-09-28), v5 sent:**
+
+- **An explanation that belongs to a figure is shown whole**, wrapping
+  onto a second line, never cut with "…": the line under each figure
+  ("al año, por encima de la inflación"), the average balances of
+  "Contra el periodo anterior" (a line of their own under the change).
+  The marquee is for names; an explanation is read, not watched.
+- **A section's title is never cut**: closed, it is the title (wrapping
+  if it must) and, under it, its key figure in grey or its colour - the
+  one row shape of the Lukas study.
+- **"Qué cuenta rindió más" is ordered by what each earned, in pesos**
+  (a dollar account by its peso value), and says so.
+- **The period has its own row, with round 44px arrows at its edges**
+  and the month in the middle, which opens the period sheet; the account
+  is the row above. Taken from Lukas: the arrows were small and next to
+  the month, easy to miss.
+- **Two ideas from Lukas, drawn inside the report's own kinds of block
+  (proposed, not decided):** "Mes a mes" carries a selector, Gastos |
+  Ingresos y gastos, the second being income and spending side by side
+  per month (a trend with two series, as the spreadsheet already
+  draws); and a new section, **"Tu saldo a futuro"**, the balance of the
+  last months and, dashed, 90 days ahead at the average income and
+  spending of the last six months, saying it is a projection and never
+  writing a movement (rules 20 and 22; idea 7 of the table below).
+  Lukas's line chart of spending was left out: it is "Mes a mes" drawn
+  another way, and the rule is no second way to see the same thing.
 
 ### The ideas, by what they would take
 
