@@ -110,7 +110,7 @@ const keys = label => `<div class="kp">${['7', '8', '9', '÷', '4', '5', '6', '�
 // A row that is one button: small label over the value, the whole row taps.
 const pick = (icon, label, value, extra = '') => `<div class="row">${icon}<div class="tx"><span class="k">${label}</span><b>${value}</b></div>${extra}${down()}</div>`;
 const productChip = (i, c, t) => `<div class="chip i" style="padding:4px 9px 4px 4px;font-size:12.8px;max-width:150px">${sq(i, c, 24)}<span class="one">${t}</span>${down()}</div>`;
-const note = (text, hint = 'la de siempre') => `<div class="row">${ic('create-outline', 'mu')}<div class="tx"><b class="one">${text}</b>${hint ? `<small>${hint}</small>` : ''}</div><span class="mu">${ic('close-circle', '', 'width:19px;height:19px')}</span></div>`;
+const note = (text, hint = 'la de siempre') => `<div class="row">${ic('create-outline', 'mu')}<div class="tx"><span class="k">Nota</span><b class="one">${text}</b>${hint ? `<small>${hint}</small>` : ''}</div><span class="mu">${ic('close-circle', '', 'width:19px;height:19px')}</span></div>`;
 const dayRow = `<div class="row">${ic('calendar-outline', 'mu')}<div class="tx"><b>Hoy · domingo 27 sept</b></div><div class="chip" style="padding:5px 11px">Ayer</div></div>`;
 
 // Each end of a movement: its account and, when the account has products,
@@ -200,4 +200,4 @@ S['1n-editar-y-borrar'] = `${top('Editar movimiento', { left: 'x', right: `<div 
   <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, borrar</div></div></div>`;
 
 export default S;
-export { typeSeg, amount, keys, prod, end, dayRow, note };
+export { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route };

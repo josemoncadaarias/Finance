@@ -2214,6 +2214,13 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   holds the person's own words about that movement; the usual note and
   the matches while typing are notes written before, never category
   names (`4x`, `4z`).
+- **Transfers with products** (`4t01`-`4t11`, asked for by Jose): the one
+  transfer form, which today already carries a product on each end
+  (`productId`, `toProductId` in `entry.component.ts`) and refuses the
+  same product on both ("Elige dos productos distintos"). Every case is
+  drawn; a product set aside from net worth says quietly that the money
+  then counts as leaving (rule 5). Every note row is labelled "Nota",
+  group 1's included.
 - (The black areas in the contact sheets sent before were empty slots,
   not screens: nothing was missed. The sheets are now as wide as what
   they hold.)

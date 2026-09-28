@@ -10,7 +10,7 @@
 //   each product that uses it, marked as the account's;
 // - the orphan withdrawal is said quietly, inside its row.
 import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint } from './lib.mjs';
-import { typeSeg, amount, keys, prod, end, dayRow, note } from './screens-1.mjs';
+import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route } from './screens-1.mjs';
 
 const S = {};
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
@@ -287,5 +287,100 @@ S['4zz-gasto-del-producto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="
   ${catRow('correccion', 'Corrección del banco')}${scopeRow('Solo el producto')}</div>
  <div class="list" style="margin-top:10px">${dayRow}${noteRow('Diferencia con el extracto de septiembre')}</div>
  </main>${keys('Guardar')}`;
+
+// ------------------------------------------ transfers with products
+// Every case of the ONE transfer form (group 1) where products are involved.
+// Each end names its account and, when the account has products, the
+// product under it with its icon, changeable right there. "Pasar todo"
+// fills what the origin - the product, if it has them - holds today.
+const xTop = (t = 'Transferir', right = '') => top(t, { left: 'x', right });
+const quiet = t => `<div class="hint" style="margin:8px 4px 0;display:flex;gap:6px">${ic('information-circle-outline', '', 'width:16px;height:16px;flex:none;margin-top:1px')}<span>${t}</span></div>`;
+const pEnd = (acc, k, label, name, pk, pname) => end(accIcon(acc, 38), k, name, pk ? prod(P[pk][0], P[pk][1], pname) : '');
+const tr = ({ amt = '500.000', all, from, to, info = '', noteText, noteHint, title, right, sign = '⇄' }) => `${xTop(title, right)}<main style="padding-top:8px">${typeSeg('Transferir')}
+ ${amount(sign, 'p', amt)}${all ? allBtn(all) : '<div style="height:8px"></div>'}
+ ${route(from, to)}${info}
+ <div class="list" style="margin-top:10px">${dayRow}${note(noteText, noteHint)}</div>
+ </main>${keys('Guardar')}`;
+
+// 1. Between two products of the same account: the account's balance does
+//    not change, the money only sits in another product.
+S['4t01-transferir-entre-productos'] = tr({ amt: '2.000.000', all: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  info: quiet('El saldo de la cuenta no cambia: la misma plata queda en otro producto. Desde mañana cada uno rinde sobre su nuevo saldo.'),
+  noteText: 'Retiro bolsillo viajes' });
+
+// 2. Choosing the product money leaves from: the account's products with
+//    what each holds, the current one ticked, and another account.
+const pList = (title, rows, on) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div class="sh"><span class="p">Cancelar</span><h2 style="text-align:center" class="one">${title}</h2><span style="width:62px"></span></div>
+ <div class="list">${rows.map(([k, t, s2]) => `<div class="row">${psq(k)}<div class="tx"><b>${t}</b><small>${s2}</small></div>${k === on ? `<span class="tick on">${ic('checkmark')}</span>` : ''}</div>`).join('')}
+ <div class="row">${ci('swap-horizontal', C.blu, 42)}<div class="tx"><b class="p">Escoger otra cuenta</b></div>${chev()}</div></div></div>`;
+const VERDE = [['cuenta', 'Cuenta de ahorros', 'El habitual · 52.000.000,00'], ['mercado', 'Bolsillo Mercado', '1.240.546,90'], ['viajes', 'Bolsillo Viajes', '2.000.000,00']];
+S['4t02-transferir-elegir-producto-origen'] = S['4t01-transferir-entre-productos'] + pList('Sale de · Ahorro Verde', VERDE, 'viajes');
+
+// 3. From a product to an account without products (paying the card).
+S['4t03-transferir-producto-a-cuenta'] = tr({ amt: '800.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: end(accIcon('coral', 38), 'Hacia dónde', 'Tarjeta Coral'),
+  noteText: 'Pago tarjeta de crédito' });
+
+// 4. From an account without products into one with products: the product
+//    it lands in, the usual one to begin with.
+S['4t04-transferir-cuenta-a-producto'] = tr({ amt: '1.000.000', all: '12.480.300',
+  from: end(accIcon('azul', 38), 'Desde', 'Banco Azul'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'mercado', 'Bolsillo Mercado'),
+  noteText: 'Plata del mercado de octubre' });
+
+// 5. Choosing the product money lands in.
+S['4t05-transferir-elegir-producto-destino'] = S['4t04-transferir-cuenta-a-producto'] + pList('Entra a · Ahorro Verde', VERDE, 'mercado');
+
+// 6. Between two accounts that both have products: a product on each end.
+S['4t06-transferir-entre-cuentas-con-productos'] = tr({ amt: '300.000', all: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: end(accIcon('naranja', 38), 'Hacia dónde', 'Cajita Naranja', prod('car-outline', C.org, 'Meta carro')),
+  noteText: 'Ahorro para el carro' });
+
+// 7. Into a product set aside from net worth (a CDT): said quietly, since
+//    that money then counts as leaving.
+S['4t07-transferir-a-producto-fuera-del-patrimonio'] = tr({ amt: '10.000.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cdt', 'CDT 90 días'),
+  info: quiet('CDT 90 días está fuera del patrimonio: esta plata cuenta como si saliera de tu patrimonio.'),
+  noteText: 'Apertura CDT 90 días', noteHint: '' });
+
+// 8. From a product to an account in another currency: what leaves, what
+//    arrives and the rate, as any transfer between two currencies.
+S['4t08-transferir-producto-otra-moneda'] = `${xTop()}<main style="padding-top:8px">${typeSeg('Transferir')}
+ <div style="display:flex;gap:8px;align-items:center;margin:10px 0 8px">
+  <div class="card" style="flex:1;text-align:center;padding:9px;border-color:var(--pr)"><div class="lab">Sale</div><div style="font-size:23px;font-weight:700;margin-top:2px">1.000.000</div><div class="mu" style="font-size:12px">COP</div></div>
+  <span class="p">${ic('arrow-forward-outline')}</span>
+  <div class="card" style="flex:1;text-align:center;padding:9px"><div class="lab">Llega</div><div style="font-size:23px;font-weight:700;margin-top:2px">254,12</div><div class="mu" style="font-size:12px">USD · tasa 3.935,15</div></div></div>
+ ${allBtn('52.000.000')}
+ ${route(pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'), end(accIcon('dolar', 38), 'Hacia dónde', 'Cuenta Dólar'))}
+ <div class="list" style="margin-top:10px">${dayRow}${note('Ahorro en dólares')}</div>
+ </main>${keys('Guardar')}`;
+
+// 9. After "Invertir": the ends swap, each keeping its product, and an
+//    amount that "Pasar todo" wrote goes back to nothing (the other side
+//    may hold less); "Pasar todo" now shows what the new origin holds.
+S['4t09-transferir-invertida'] = tr({ amt: '0', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  info: quiet('Se volteó: el monto que había puesto "Pasar todo" se borró, porque el otro lado puede tener menos.'),
+  noteText: 'Recarga bolsillo viajes' });
+
+// 10. The same product on both ends: said where it is, and Guardar waits.
+S['4t10-transferir-mismo-producto'] = tr({ amt: '500.000', all: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  info: `<div class="hint" style="margin:8px 4px 0;color:var(--red);display:flex;gap:6px">${ic('alert-circle-outline', '', 'width:16px;height:16px;flex:none;margin-top:1px')}<span>Elige dos productos distintos</span></div>`,
+  noteText: 'Retiro bolsillo viajes' }).replace('<div style="grid-column:span 4" class="ok">Guardar</div>', '<div style="grid-column:span 4;opacity:.45" class="ok">Guardar</div>');
+
+// 11. Correcting one: the same form, with its bin; deleting takes both legs.
+S['4t11-editar-transferencia-entre-productos'] = tr({ title: 'Editar transferencia', right: `<div class="btn-r" style="color:var(--red)">${ic('trash-outline')}</div>`, amt: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  noteText: 'Retiro bolsillo viajes', noteHint: '' }).replace('Hoy · domingo 27 sept', 'Viernes 25 sept');
 
 export default S;
