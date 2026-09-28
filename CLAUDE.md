@@ -2326,6 +2326,19 @@ changes of ACCESS for Jose to accept or refuse:
   sections can be open at once, with "Cerrar todas" beside "Van 27 de 30
   días"; the closed ones still show their key figure.
 
+**Every list of movements, on any screen, is in folding sections**
+(Jose, 2026-09-28). By day or by category (by month for payments and
+days), each heading with its icon when it is a category, the title, how
+many, the total and its chevron - what `movements.page.html` already
+draws (`toggleGroup`, `toggleAll`). "Más grandes" stays one flat list.
+**One change of behaviour, asked for by Jose: a list opens with only its
+first section open** - the most recent day, or the largest category -
+and the rest closed; today every section opens open. The one round
+button at the end of the grouping row (two chevrons apart: open all;
+together: close all, as today) does them all at once. Drawn in `1b`,
+`1c`, `1o` (by category), `1p` (all open), `4d` and `4d2` (a day further
+down opened); the same shape goes to Por revisar and every later group.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |

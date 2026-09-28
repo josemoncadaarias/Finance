@@ -7,7 +7,7 @@
 //   a move between products, each with its note;
 // - writing a note lifts the note to the top and hides the rest, with the
 //   suggestions under it and the phone's keyboard below.
-import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint, jump } from './lib.mjs';
+import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint, jump, mgroup, groupRow } from './lib.mjs';
 
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 const LONG = 'Tarjeta de crédito Rappi Visa Platinum';
@@ -70,10 +70,14 @@ S['1b-inicio-cuenta-con-productos'] = `${header({ acc: 'verde' })}<main>
  <div class="card hero"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1;min-width:0"><div class="lab">Saldo hoy</div><div class="big">55.240.546,90</div></div>${quick(true)}</div>
   <div class="mini" style="margin-top:12px">${fig('Entró', '412.380,15', 'g')}${fig('Salió', '1.164.200,00', 'r')}</div>${moved('2.000.000,00', '800.000,00')}</div>
  <div class="seg" style="margin:12px 0"><div>${ic('pie-chart-outline')}Gráfico</div><div class="on">${ic('list-outline')}Movimientos · 14</div></div>
- <div class="h">Hoy · domingo 27<span class="p" style="letter-spacing:0">800.000,00</span></div>
- <div class="list">${xfer('Pago tarjeta de crédito', 'Cuenta de ahorros → Tarjeta Coral', '−800.000,00')}</div>
- <div class="h">Viernes 25</div>
- <div class="list">${xfer('Retiro bolsillo viajes', 'Bolsillo Viajes → Cuenta de ahorros', '2.000.000,00')}${line('mercado', 'Mercado quincena', 'Mercado · Bolsillo Mercado', '−164.200,00', 'r')}${xfer('Nómina a ahorro', 'Banco Azul → Cuenta de ahorros', '+2.000.000,00')}</div>
+ <div class="search">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o cuenta…</span></div>
+ ${groupRow()}
+ ${mgroup('Hoy · domingo 27', 1, '−800.000,00', 'p', true, xfer('Pago tarjeta de crédito', 'Cuenta de ahorros → Tarjeta Coral', '−800.000,00'))}
+ ${mgroup('Viernes 25', 3, '+1.835.800,00', 'g', false)}
+ ${mgroup('Jueves 24', 2, '−96.400,00', 'r', false)}
+ ${mgroup('Lunes 21', 4, '−210.300,00', 'r', false)}
+ ${mgroup('Sábado 19', 1, '−38.000,00', 'r', false)}
+ ${mgroup('Martes 15', 3, '+412.380,15', 'g', false)}
  </main><div class="fade"></div>${tabs('Inicio')}`;
 
 // One account with a long name: one line, "…", and the slide (second frame).
@@ -84,13 +88,28 @@ const oneCard = sliding => `${header({ acc: 'long', sliding })}<main>
   <div class="mini" style="margin-top:12px">${fig('Salió', '4.560.400,00', 'r')}${fig('Recibido', '4.318.500,00', 'p', `${ic('swap-horizontal', '', 'width:13px;height:13px;vertical-align:-2px;margin-right:4px')}`)}</div></div>
  <div class="seg" style="margin:12px 0"><div>${ic('pie-chart-outline')}Gráfico</div><div class="on">${ic('list-outline')}Movimientos · 32</div></div>
  <div class="search">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o cuenta…</span></div>
- <div style="display:flex;gap:8px;margin-top:10px;align-items:center"><div class="chip on">Por día</div><div class="chip">Por categoría</div><div class="chip">Más grandes</div></div>
- <div class="h">Hoy · domingo 27<span class="r" style="letter-spacing:0">−32.000,00</span></div>
- <div class="list">${line('rest', 'Almuerzo con el equipo de trabajo en el centro', 'Restaurantes', '−32.000,00', 'r')}${xfer('Pago tarjeta de crédito', 'Desde Ahorro Verde · Cuenta de ahorros', '+800.000,00')}</div>
- <div class="h">Viernes 25<span class="r" style="letter-spacing:0">−181.600,00</span></div>
- <div class="list">${line('mercado', 'Mercado quincena', 'Mercado', '−164.200,00', 'r')}${line('transp', 'Taxi', 'Transporte · corregido a mano', '−17.400,00', 'r')}</div>
+ ${groupRow()}
+ ${mgroup('Hoy · domingo 27', 2, '+768.000,00', 'g', true, line('rest', 'Almuerzo con el equipo de trabajo en el centro', 'Restaurantes', '−32.000,00', 'r') + xfer('Pago tarjeta de crédito', 'Desde Ahorro Verde · Cuenta de ahorros', '+800.000,00'))}
+ ${mgroup('Viernes 25', 2, '−181.600,00', 'r', false)}
+ ${mgroup('Jueves 24', 3, '−248.900,00', 'r', false)}
+ ${mgroup('Lunes 21', 1, '−59.000,00', 'r', false)}
  </main><div class="fade"></div>${tabs('Inicio')}`;
 S['1c-inicio-una-cuenta-nombre-largo'] = oneCard(false);
+// The same list by category: each heading with its icon, the largest open.
+const catHead = k => catIcon(k, 30);
+S['1o-inicio-por-categoria'] = oneCard(false).replace(/ <div style="display:flex;gap:6px;margin-top:10px[\s\S]*?<\/main>/, `${groupRow('Por categoría')}
+ ${mgroup('Mercado', 6, '−1.164.200,00', 'r', true, line('mercado', 'Mercado quincena', 'Viernes 25', '−164.200,00', 'r') + line('mercado', 'Mercado del mes', 'Lunes 1', '−1.000.000,00', 'r'), catHead('mercado'))}
+ ${mgroup('Restaurantes', 9, '−785.400,00', 'r', false, '', catHead('rest'))}
+ ${mgroup('Transporte', 12, '−523.600,00', 'r', false, '', catHead('transp'))}
+ ${mgroup('Servicios', 3, '−418.900,00', 'r', false, '', catHead('servicios'))}
+ ${mgroup('Ocio', 2, '−516.000,00', 'r', false, '', catHead('ocio'))}
+ </main>`);
+// Everything opened with "Abrir todos"; the button now closes them.
+S['1p-inicio-todo-abierto'] = oneCard(false).replace(/ <div style="display:flex;gap:6px;margin-top:10px[\s\S]*?<\/main>/, `${groupRow('Por día', true)}
+ ${mgroup('Hoy · domingo 27', 2, '+768.000,00', 'g', true, line('rest', 'Almuerzo con el equipo de trabajo en el centro', 'Restaurantes', '−32.000,00', 'r') + xfer('Pago tarjeta de crédito', 'Desde Ahorro Verde · Cuenta de ahorros', '+800.000,00'))}
+ ${mgroup('Viernes 25', 2, '−181.600,00', 'r', true, line('mercado', 'Mercado quincena', 'Mercado', '−164.200,00', 'r') + line('transp', 'Taxi', 'Transporte · corregido a mano', '−17.400,00', 'r'))}
+ ${mgroup('Jueves 24', 3, '−248.900,00', 'r', true, line('rest', 'Cena', 'Restaurantes', '−98.500,00', 'r'))}
+ </main>`);
 S['1d-inicio-nombre-largo-deslizando'] = oneCard(true);
 
 // The "+" : the one way to create. Gasto, Ingreso, Transferir; the form itself
@@ -213,6 +232,8 @@ S['1n-editar-y-borrar'] = `${top('Editar movimiento', { left: 'x', right: `<div 
   <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, borrar</div></div></div>`;
 
 // Long lists carry the two arrows.
+S['1o-inicio-por-categoria'] += jump(112, 'down');
+S['1p-inicio-todo-abierto'] += jump(112, 'both');
 S['1a-inicio'] += jump(112, 'down');
 S['1b-inicio-cuenta-con-productos'] += jump(112, 'down');
 S['1c-inicio-una-cuenta-nombre-largo'] += jump(112, 'down');

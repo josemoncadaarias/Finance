@@ -165,6 +165,19 @@ nav .plus{flex:none;width:52px;height:52px;padding:0;margin:0 4px;border-radius:
 const arrowBtn = d => `<div style="width:38px;height:38px;border-radius:50%;background:rgba(38,50,79,.82);border:1px solid #3a4a72;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.45)">${ic(`arrow-${d}-outline`, '', 'width:19px;height:19px')}</div>`;
 export const jump = (bottom = 112, show = 'both') => `<div class="float-ctl" style="bottom:${bottom}px;right:10px">${show !== 'down' ? arrowBtn('up') : ''}${show !== 'up' ? arrowBtn('down') : ''}</div>`;
 
+// A list of movements is always in sections - by day, by category - each
+// one folding, as the app does today (movements.store.ts: toggleGroup,
+// toggleAll). The heading: its icon when grouped by category, the title,
+// how many, the total, the chevron. It opens with only the first (the most
+// recent day, or the largest category) open; "Abrir todos / Cerrar todos"
+// does them all at once.
+export const mgroup = (title, count, total, cls, open, rows = '', icon = '') => `<div class="list" style="margin-top:8px"><div class="row" style="background:var(--s2);padding:11px 14px;gap:10px">${icon}<div class="tx"><b class="one" style="font-size:14.5px">${title}</b></div><span style="background:var(--s3);border-radius:10px;padding:1px 8px;font-size:12px;color:#aab6d3">${count}</span><span class="${cls}" style="font-weight:600;font-size:14px;white-space:nowrap">${total}</span>${ic(open ? 'chevron-up-outline' : 'chevron-down-outline', 'mu', 'width:18px;height:18px')}</div>${open ? rows : ''}</div>`;
+// As today: one round button, two chevrons pulling apart (open all) or
+// closing together (close all); the shape says which, no words needed.
+export const foldAll = (allOpen = false) => `<span style="width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid #26324f;display:grid;place-items:center;flex:none">${ic(allOpen ? 'chevron-collapse-outline' : 'chevron-expand-outline', '', 'width:19px;height:19px')}</span>`;
+// The three ways to group, and the fold-all at the end of the same row.
+export const groupRow = (on = 'Por día', allOpen = false) => `<div style="display:flex;gap:6px;margin-top:10px;align-items:center">${['Por día', 'Por categoría', 'Más grandes'].map(t => `<div class="chip ${t === on ? 'on' : ''}" style="padding:7px 10px;font-size:13px">${t}</div>`).join('')}<span style="flex:1"></span>${on === 'Más grandes' ? '' : foldAll(allOpen)}</div>`;
+
 export const status = `<div class="status"><span>9:41</span><span>5G ▮▮▮ 87%</span></div>`;
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 // The "+" sits in the middle of the bar itself (v5): floating over the page it
