@@ -25,7 +25,7 @@
  */
 
 import {
-  Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
+  Component, ElementRef, HostListener, computed, effect, inject, input, linkedSignal, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -76,9 +76,12 @@ export interface ProductEntryRequest {
    * form, and having to close it to read the figure was the whole problem.
    */
   balanceOf?: (accountId: number, productId: number) => number | null;
+  /** "Registrar otro" was ticked on the form this one replaced (Gasto, Ingreso, Transferir). */
+  again?: boolean;
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-product-entry',
   imports: [
@@ -619,11 +622,27 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   /** Gasto, Ingreso or Transferir: the products screen opens the same form on the other kind. */
-  readonly switchTo = output<'income' | 'expense' | 'transfer'>();
+  readonly switchTo = output<{ kind: 'income' | 'expense' | 'transfer'; again: boolean }>();
+  /**
+   * Saved with "Registrar otro" ticked: the form stays open for the next one,
+   * and the page only reads the account's figures again.
+   */
+  readonly savedOne = output<void>();
+
+  /**
+   * "Registrar otro", as in the movement form: save and start the next one on
+   * the same account, products, kind and day. Off every time the form opens.
+   */
+  readonly again = linkedSignal(() => this.request().again ?? false);
+  private readonly toast = inject(ToastService);
+
+  setAgain(on: boolean): void {
+    this.again.set(on);
+  }
 
   switchKind(kind: 'income' | 'expense' | 'transfer'): void {
     if (this.isEditing() || kind === this.request().kind) return;
-    this.switchTo.emit(kind);
+    this.switchTo.emit({ kind, again: this.again() });
   }
 
   readonly usualNoteShown = signal(false);
@@ -1206,13 +1225,37 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
       // The account that changed has just been worked out.
       await yields.markAccrued(todayIso(), { onlyIfKnown: true });
       this.database.dataChanged();
-      this.saved.emit();
+      if (this.again() && !editing) {
+        this.startNext();
+        this.toast.say(this.i18n.t('entry.again.saved'), 2500);
+        this.savedOne.emit();
+      } else {
+        this.saved.emit();
+      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
       this.busyLabel.set('');
     }
+  }
+
+  /**
+   * The next one, after a save with "Registrar otro" on: the same kind,
+   * account, products and day; the amount, the category and the note empty,
+   * and the keypad open for the amount.
+   */
+  private startNext(): void {
+    this.pending.set(null);
+    this.amount.set(new AmountBuffer());
+    if (!this.isTransfer()) this.categoryId.set(null);
+    this.noteIsTheirs = false;
+    this.usualNoteShown.set(false);
+    this.note.set('');
+    const field = this.noteField();
+    if (field) field.nativeElement.value = '';
+    this.error.set('');
+    this.keypadOpen.set(true);
   }
 }
 

@@ -107,6 +107,7 @@
     <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
                 [missing]="missing()" [canSave]="canSave() && !saving()"
                 [operator]="pending()?.operator ?? null"
+                [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
                 (pressed)="press($event)" (save)="save()"></app-keypad>
   }
 </div>

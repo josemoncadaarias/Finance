@@ -378,12 +378,12 @@ export class ProductsPage {
   }
 
   /** Gasto, Ingreso or Transferir, switched on the product form. */
-  switchEntry(kind: 'income' | 'expense' | 'transfer'): void {
+  switchEntry({ kind, again }: { kind: 'income' | 'expense' | 'transfer'; again: boolean }): void {
     const line = this.openLine();
     const current = this.productEntry();
     if (!line || !current) return;
-    if (kind === 'transfer') { this.openMove(line); return; }
-    this.productEntry.set({ kind, account: current.account, products: current.products });
+    if (kind === 'transfer') { this.openMove(line, again); return; }
+    this.productEntry.set({ kind, account: current.account, products: current.products, again });
   }
 
   /**
@@ -1624,6 +1624,12 @@ export class ProductsPage {
     await this.router.navigateByUrl('/movements');
   }
 
+  /** Saved with "Registrar otro": the form stays open, the account's figures are read again. */
+  async entrySavedOne(): Promise<void> {
+    const line = this.openLine();
+    if (line) await this.afterOwnChange(line.account.id);
+  }
+
   /** Saved and worked out again; the account shows the new figures. */
   async entrySaved(): Promise<void> {
     this.productEntry.set(null);
@@ -1652,10 +1658,10 @@ export class ProductsPage {
    * untouched while moving what each product earns on.
    */
   /** Opens the transfer screen, between two products of the account on screen. */
-  openMove(line: ProductLine): void {
+  openMove(line: ProductLine, again = false): void {
     if (line.products.length < 2) return;
     this.productEntry.set({
-      kind: 'transfer', account: line.account, products: line.products,
+      kind: 'transfer', account: line.account, products: line.products, again,
       // Read when asked, so a move that switches account gets that account's figure.
       balanceOf: (accountId, productId) => {
         const shown = this.lines().find(one => one.account.id === accountId);

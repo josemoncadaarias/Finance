@@ -219,7 +219,7 @@
     @for (request of [productEntry()]; track request) {
       @if (request) {
         <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"
-                           (switchTo)="switchEntry($event)" (elsewhere)="openElsewhere($event)"></app-product-entry>
+                           (switchTo)="switchEntry($event)" (savedOne)="entrySavedOne()" (elsewhere)="openElsewhere($event)"></app-product-entry>
       }
     }
   </ng-template>

@@ -2254,7 +2254,10 @@ changed in the shape of the app, for the next session:
   (`finance.enterAnother`, no longer read), and a form that stayed open
   after saving one movement looked like a save that failed. It is kept only
   while the same form switches between Gasto, Ingreso and Transferir
-  (`EntryRequest.start.again`).
+  (`EntryRequest.start.again`). **A product's own movement offers it too**
+  (Jose, 2026-09-28), with the same rules (`ProductEntryRequest.again`):
+  saving keeps the form open on the same account, products, kind and day,
+  and the page only reads that account's figures again (`savedOne`).
 - **The X while the note is being written only leaves the note** (Jose,
   2026-09-28), in the movement form, a product's own movement and a
   proposal being checked: the form comes back as it was, with the keypad,
