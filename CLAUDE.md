@@ -66,6 +66,89 @@ categories, products and what the app can tell the user about them.
 
 ---
 
+## Start here: where things stand (updated 2026-09-28)
+
+Read this section first on any machine or in any session; everything below
+it is the detail and the reasoning.
+
+**The app today.** Angular 22 + Ionic 9 + Capacitor 8, SQLite on the phone,
+installed on Jose's phone from the Play Store's internal track as
+`com.jadexlabs.finance` (see "Getting it into Google Play"). The whole UI was
+redesigned on 2026-09-28 from the mockups in `docs/mockups/` (groups 1-9, all
+approved by Jose): a floating bar (Inicio, Cuentas, "+", Reporte, Más)
+instead of the drawer, a navy look with an accent the person chooses
+(Zafiro by default), every screen redrawn. **No data, migration or engine
+changed with it** - a backup from before restores unchanged - and every
+function the app had is kept (`docs/08-redesign-checklist.md`).
+
+**What was merged to `main` on 2026-09-28**, in order (all through PRs,
+each merged by the session after checks passed):
+
+| PR | What |
+|---|---|
+| #1 | The redesign of every screen (groups 1-9), plus two new report sections: "Mes a mes" with income beside spending, and "Tu saldo a futuro" |
+| #2 | First fixes from Jose's phone: the Drive copy's progress bar and failures, the note that closed itself, every sheet slides down and says Cancelar and closes when the screen changes, first section open on an account's movements/payments/days, the piggy bank landing on its account, transfers in their own blue, no card squeezed with large text |
+| #3 | Review screen: smooth scroll after importing a statement (change detection 6.6 → 1.8 ms on 150 rows), long press on shops and days |
+| #4 | One keypad component for every movement form: folds away, erase key everywhere, no "=" key, "Registrar otro" |
+
+The details of each are in "Built, all nine groups" and "First round from
+the phone" under "Ideas waiting for Jose's word" (they live there because
+that is where the redesign was planned).
+
+**Going back.** Branch `app-before-redesign` holds `main` exactly as it was
+before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
+`release-aab.yml`, `workflow_dispatch`) on that branch builds the old app
+with a higher version code, so the phone takes it as an update, data kept.
+Nothing about the data would need undoing: the redesign wrote no migration.
+
+**How Jose updates his phone**: Actions tab → "Store bundle" → Run workflow
+on `main` → it uploads to the internal track → the Play Store updates the
+app. A debug APK can no longer be installed on that phone (other key).
+
+**Waiting for Jose, or to check on the phone** (a browser cannot show
+these):
+- The Drive copy's new progress bar and its messages (the browser cannot
+  sign in to Google, so it was never seen running).
+- The long press that starts choosing (Android's `contextmenu`), now also on
+  shops and days in Por revisar.
+- The keypad folding and returning, "Registrar otro", swiping sheets down,
+  the note raised with the keyboard, the marquee, the floating bar over
+  Android's buttons.
+- Whether the accent colour visibly changes things for him in the light
+  theme (it does in a browser; transfers keep their own blue since #2).
+- The open questions of rule 21 (which report sections are paid, lifetime
+  option, what sits between the app and Google Play) and the list in
+  "Pending from Jose".
+
+**How to work, wherever you are.**
+- Tests: `node tools/db/run-tests.mjs` (553, all must pass). Build:
+  `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
+  and `tools/db/audit-yields-report.mjs`, take a backup file and must say
+  "all agree" after any change to the report's arithmetic.
+- A claim about a screen is checked in a browser, never reasoned about (see
+  "Current status"). On a PC: `npm start`. In a cloud session, `ng serve`
+  may fail to open the database (a Stencil "Couldn't find host element for
+  jeep-sqlite" error); then build with `npx ng build --configuration
+  development` and serve `www/` with a small static server that falls back
+  to `index.html` - `window.ng.getComponent(...)` still works for driving the
+  page from Playwright (Chromium is at `/opt/pw-browsers`). Restore Jose's
+  backup through "Importar y exportar" in that browser profile.
+- Jose's backup is never committed or published. In a cloud session he may
+  upload one; use it only inside the session, and delete whatever test rows
+  are written into the browser copy afterwards.
+- Git in a cloud session: the session's branch is the only one it can push
+  (`claude/...`); pull requests are opened and merged with the GitHub tools,
+  and once a PR is merged the next piece of work starts from the new `main`
+  on the same branch name. Commit messages in English, ending with the
+  attribution lines the session asks for.
+- A new user-facing word goes into `core/i18n/translations.ts` or, for the
+  redesign's words, `core/i18n/translations-ui.ts` - both languages, same
+  keys (`i18n.test.mjs` checks it).
+- A new control that appears on two screens is defined once in
+  `src/global.scss` (the `ui-*` classes).
+
+---
+
 ## Decisions already made
 
 ### Stack
@@ -548,11 +631,15 @@ backup restore against iOS's own SQLite backend.
 
 20. **The financial summary: one screen, and a spreadsheet of what it shows.**
    Agreed with Jose on 2026-09-21 and **built** (`core/report/`,
-   `features/report/`, route `/report`). Eleven analyses run today, in this
-   order: the headline figures, the same against the period before, the
-   categories that jumped, where the money went, the categories before and
-   now, what comes back every month, charges repeated inside one period, the
-   months of the year, the accounts, and the biggest movements. The summary
+   `features/report/`, route `/report`). The analyses, in this order: the
+   headline figures, the same against the period before, the categories that
+   jumped, where the money went, the categories before and now, what comes
+   back every month, charges repeated inside one period, the months of the
+   year ("Mes a mes", with income beside spending since 2026-09-28), the
+   balance ahead ("Tu saldo a futuro", 2026-09-28), the accounts, and the
+   biggest movements. **Since the redesign the report is the Reporte tab of
+   the floating bar**, not an item of the summary's menu; the paragraph below
+   is the original reasoning. The summary
    screen already answers "what did I spend"; this answers "and what does that
    mean". One way in, an item in the
    summary screen's menu, opening a report screen that **inherits the dates and
@@ -1480,6 +1567,15 @@ described, and the only thing left to say is yes or no - names the file in the
 question, and carries the warning inside the dialog rather than in a paragraph
 somebody scrolls past. Saying no puts the picker back. Jose, 2026-09-24.
 
+> **Read with the redesign in mind.** The paragraphs from here to "A claim
+> about the screen is checked in a browser" were written before 2026-09-28.
+> Their rules still hold (one definition per control, the usual note, "Pasar
+> todo", routing a transfer, the marquee, one account list), but the places
+> they name moved: the compose bar, the round transfer button and the drawer
+> are gone - the "+" in the floating bar opens the one movement form - the
+> products "sheet" is the account page inside the Cuentas tab, and the
+> screen on show is marked by `app-tab-bar` from `NavigationEnd`.
+
 **The app is used every day and shaped from the phone** (2026-09-21). What
 Jose reports is almost always a screen that reads wrong on a real phone rather
 than a wrong figure, and the answers keep coming back to one rule: **a control
@@ -1701,7 +1797,10 @@ the two PCs are not.** It has the repository and nothing else - a container
 that clones this repo, works, and pushes a branch. So, before starting
 anything there, know what it CANNOT do:
 
-- **It cannot see `G:\My Drive\Finance App`.** Jose's real backup is not in
+- **It cannot see `G:\My Drive\Finance App`** - unless Jose uploads the
+  file into the session, which he did on 2026-09-28; then it can be restored
+  into the session's browser and used for checks, and it is still never
+  committed. Jose's real backup is not in
   the repository and never will be (it is his whole financial history). Every
   method in this file that says "check it against his current backup" - the
   yields proof, a figure that looks wrong, rule 12 - is a LOCAL job. A cloud
@@ -1961,7 +2060,11 @@ reason for it, since the APKs from GitHub are sideloaded.
 
 ## Ideas waiting for Jose's word
 
-**Nothing in this section is decided or built.** It is a list of
+**The redesign described here is BUILT and merged (2026-09-28)** - the
+design direction, the group-by-group mockups, "Built, all nine groups" and
+"First round from the phone" below are the record of it. **The table at the
+end ("The ideas, by what they would take") is still only proposals**, except
+the rows marked otherwise. For those: nothing is decided or built. It is a list of
 proposals, so a session on either PC can pick one up without mistaking
 it for a decision. Before starting any of them: ask Jose, and move the
 line into the rules above once he has answered. The full reasoning is in
@@ -2059,8 +2162,12 @@ then does the next start. The groups and where each stands:
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | **Approved** by Jose, 2026-09-28 (the colour of the app drawn, not yet confirmed on its own) |
 | 9 | Income-tax simulator | `docs/mockups/9*` (v4) | **Approved** by Jose, 2026-09-28 |
 
-**Built, all nine groups, on 2026-09-28** (branch `claude/redesign-all-screens`,
-merged to `main` through its own PR). The app as it was before is kept on the
+All nine: **built and merged to `main` on 2026-09-28 (PR #1)**, then
+corrected from the phone in #2, #3 and #4.
+
+**Built, all nine groups, on 2026-09-28** (worked on locally as
+`claude/redesign-all-screens`, pushed as `claude/repo-access-pushes-tme1dv`
+and merged to `main` as PR #1). The app as it was before is kept on the
 branch **`app-before-redesign`**: to go back, run "Store bundle" from that
 branch in the Actions tab (it is `workflow_dispatch`, so any branch can be
 built; the version code still rises, so Play takes it as an update). What
@@ -2140,6 +2247,16 @@ changed in the shape of the app, for the next session:
   at the foot, with "Registrar otro" (`finance.enterAnother`) beside it on a
   new movement: it saves and leaves the form ready for the next one on the
   same account, kind and day.
+- **A template never recomputes a list** (PR #3, Jose: the review list
+  stuck while scrolling after an import). On the phone scrolling runs change
+  detection every frame, so a method called from the template that filters,
+  groups or formats rows costs that much per frame per call. Groupings,
+  filtered lists and lookups by id are `computed` maps, read by the
+  template; the review screen went from 6.6 to 1.8 ms per pass on 150 rows.
+  A long list may also use `content-visibility: auto` on its sections.
+- **A long press works on a group as on a row**: on the review screen a
+  shop, the shops' heading and a day's heading start choosing with all their
+  rows ticked (`pressedMany`).
 - **A transfer has its own blue, never the accent** (`--app-move`, `.ui-t`,
   `MOVE_COLOR`): with Coral chosen, Recibido and every transfer read as
   spending.
@@ -2671,8 +2788,8 @@ The changes of ACCESS, for Jose to accept or refuse:
 
 | # | Idea | Size | Touches | Status |
 |---|---|---|---|---|
-| D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | Proposed |
-| 21 | Settings screen, grouped, value on each row | Medium | Drawer | Proposed |
+| D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | **Built** with the redesign, 2026-09-28 |
+| 21 | Settings screen, grouped, value on each row | Medium | Drawer | **Built**: Más, 2026-09-28 |
 | 20 | Empty state on every screen and section | Small, many places | - | Proposed |
 | 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
 | 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
@@ -2682,7 +2799,7 @@ The changes of ACCESS, for Jose to accept or refuse:
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
 | 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
-| 7 | Month-end projection, as a report section | Small | Rule 20 | Proposed |
+| 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
 | 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed |
 | 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | Proposed |
 | 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
@@ -2719,6 +2836,11 @@ budget family (2/16, 1, 7), then the rest.
   share a table just because they look alike. Decision by Jose, 2026-09-08.
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
+- [ ] Try the redesign on the phone and report what reads wrong: the list
+      in "Start here" (Drive progress, long press, keypad, Registrar otro,
+      sheets, the accent in the light theme).
+- [ ] Say whether the keypad should start closed, and whether he misses the
+      "=" key (both small changes).
 
 ## Documents
 
@@ -2728,5 +2850,6 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
+- `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
 - `docs/mockups/` — the redesign drawn, every screen (index in its README)
