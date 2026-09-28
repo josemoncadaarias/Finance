@@ -2235,8 +2235,20 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
 - **An explanation is an (i), not a paragraph**: a small (i) beside what it
   explains opens a bubble on tap (`4t01b`); a one-off outcome, such as the
   amount cleared after "Invertir", is a short notice that goes away by
-  itself; an error marks the thing that is wrong ("Bolsillo Viajes · elige
-  otro producto" in red), without a line of its own.
+  itself.
+- **Nothing is said when "Invertir" is pressed, and the same product never
+  reaches both ends** (Jose, 2026-09-28). The form starts where it does
+  today - "Desde" is the account on show (or the most used) with the
+  product money most often leaves from (not the usual one), "Hacia" the
+  same account with the usual product - and choosing, on one side, the
+  product the other side holds keeps that choice and moves the OTHER side
+  to the product the route most often uses. No red text, no disabled
+  Guardar (`4t10a`, `4t10b`). Verified today: `chooseProduct` in
+  `entry.component.ts` already moves the other side, but to the first
+  other product in the list; picking the most used one instead is a small
+  change of behaviour, Jose's.
+- **Every note row, every end and every list uses the same icons as the
+  account and product lists**, and the product hangs from its account.
 - **Long account and product names slide** in every end and every list
   (`marquee.service.ts`, shown in `4t12` and `4t13`).
 - (The black areas in the contact sheets sent before were empty slots,

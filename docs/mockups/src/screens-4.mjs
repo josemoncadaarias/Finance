@@ -373,13 +373,19 @@ S['4t08-transferir-producto-otra-moneda'] = `${xTop()}<main style="padding-top:8
 S['4t09-transferir-invertida'] = tr({ amt: '0', all: '52.000.000',
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
   to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  noteText: 'Recarga bolsillo viajes' }).replace('</main>', `</main>${toast('Se volteó: el monto de "Pasar todo" se borró, porque este lado puede tener menos.')}`);
+  noteText: 'Recarga bolsillo viajes' });
 
 // 10. The same product on both ends: said where it is, and Guardar waits.
-S['4t10-transferir-mismo-producto'] = tr({ amt: '500.000', all: '2.000.000',
-  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes · elige otro producto', { bad: true }),
-  noteText: 'Retiro bolsillo viajes' }).replace('<div style="grid-column:span 4" class="ok">Guardar</div>', '<div style="grid-column:span 4;opacity:.45" class="ok">Guardar</div>');
+// 10. The same product can never be on both ends, and nothing is said
+//     about it (Jose): choosing, in "Hacia", the product that "Desde" holds
+//     keeps that choice and moves "Desde" to the product money most often
+//     leaves from - the route the form already starts with. First frame:
+//     choosing Bolsillo Viajes for "Hacia"; second: the form after it.
+S['4t10a-transferir-elige-el-mismo-producto'] = S['4t01-transferir-entre-productos'] + pList('Entra a · Ahorro Verde', VERDE, 'cuenta').replace('<b>Bolsillo Viajes</b>', '<b>Bolsillo Viajes</b>') + `<span style="position:absolute;left:190px;top:780px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.5)"></span>`;
+S['4t10b-transferir-el-otro-lado-se-mueve'] = tr({ amt: '2.000.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  noteText: 'Recarga bolsillo viajes' });
 
 // 11. Correcting one: the same form, with its bin; deleting takes both legs.
 S['4t11-editar-transferencia-entre-productos'] = tr({ title: 'Editar transferencia', right: `<div class="btn-r" style="color:var(--red)">${ic('trash-outline')}</div>`, amt: '2.000.000',
