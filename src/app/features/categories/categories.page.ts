@@ -10,11 +10,9 @@
  * makes archiving an informed decision rather than a guess.
  */
 
-import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
-import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
-} from '@ionic/angular';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Location } from '@angular/common';
+import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -22,16 +20,15 @@ import { DatabaseService } from '../../core/database/database.service';
 import {
   CategoriesRepository, type UsedCategory,
 } from '../../core/database/repositories/categories.repository';
-import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
 import { CategoryEditorComponent } from './category-editor.component';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { ProductKindEditorComponent } from './product-kind-editor.component';
 import type { CategoryKind, CategoryRow } from '../../core/database/types';
 import { outlined } from '../../core/icons/icon-catalog';
-import { IconComponent } from '../../core/icons/icon.component';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 
 /** The order last chosen, wherever it was chosen. */
@@ -48,10 +45,8 @@ function readOrder(): 'use' | 'name' {
   templateUrl: './categories.page.html',
   styleUrls: ['./categories.page.scss'],
   imports: [
-    IconComponent,
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, CategoryEditorComponent, ProductKindEditorComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal, IonBadge,
+    TranslatePipe, CategoryEditorComponent, ProductKindEditorComponent, BadgeComponent, JumpComponent,
+    IonContent, IonIcon, IonSpinner, IonModal,
   ],
 })
 export class CategoriesPage {
@@ -147,55 +142,36 @@ export class CategoriesPage {
 
   readonly allCollapsed = computed(() => this.openSides().size === 0);
 
-  /** Opens all three or closes all three, whichever the screen is not. */
+  private readonly i18n = inject(I18nService);
+  private readonly location = inject(Location);
+
+  /** Opens both or closes both, whichever the screen is not. */
   foldAll(): void {
     const open = this.allCollapsed();
     this.openSides.set(new Set(open ? this.sides : []));
-    setTimeout(() => void this.measure(), 0);
   }
 
-  private readonly content = viewChild<IonContent>('list');
-  private readonly atTop = signal(true);
-  private readonly atBottom = signal(true);
-
-  /** True when there is enough on screen for any of this to be worth showing. */
-  readonly scrollable = computed(() => !this.allCollapsed());
-
-  readonly showJumpUp = computed(() => this.scrollable() && !this.atTop());
-  readonly showJumpDown = computed(() => this.scrollable() && !this.atBottom());
-
-  /**
-   * Where the list is, read only when the answer changes.
-   *
-   * The 4px slack is for fractional device pixels: the bottom of a scroller
-   * is rarely a whole number, and without it the "go down" button never
-   * quite goes away.
-   */
-  private async measure(): Promise<void> {
-    const content = this.content();
-    if (!content) return;
-
-    const element = await content.getScrollElement();
-    const top = element.scrollTop <= 4;
-    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
-
-    if (top !== this.atTop()) this.atTop.set(top);
-    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+  back(): void {
+    this.location.back();
   }
 
-  onScroll(): void {
-    void this.measure();
+  /** "16 categorías": a count says what it counts. */
+  countOf(count: number): string {
+    return count === 1 ? this.i18n.t('ui.count.category') : this.i18n.t('ui.count.categories', { count });
   }
 
-  async toTop(): Promise<void> {
-    await this.content()?.scrollToTop(300);
-    await this.measure();
+  usedIn(times: number): string {
+    if (times === 0) return this.i18n.t('ui.unused');
+    return times === 1 ? this.i18n.t('categories.inUse.one') : this.i18n.t('categories.inUse', { count: times.toLocaleString(this.i18n.dateLocale()) });
   }
 
-  async toBottom(): Promise<void> {
-    await this.content()?.scrollToBottom(300);
-    await this.measure();
-  }
+  readonly archivedLabel = computed(() => {
+    const count = this.archivedCount();
+    const key = this.showArchived()
+      ? (count === 1 ? 'categories.hideArchived.one' : 'categories.hideArchived')
+      : (count === 1 ? 'categories.showArchived.one' : 'categories.showArchived');
+    return this.i18n.t(key as 'categories.showArchived', { count });
+  });
 
   /** Open while the one "new category" button is asking which list. */
   readonly choosingList = signal(false);
@@ -231,9 +207,6 @@ export class CategoriesPage {
       else next.add(kind);
       return next;
     });
-    // Opening or closing one changes how tall the screen is, and no scroll
-    // event says so.
-    setTimeout(() => void this.measure(), 0);
   }
 
   /** The product categories were changed: read them again and close the sheet. */

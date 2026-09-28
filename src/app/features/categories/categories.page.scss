@@ -1,246 +1,93 @@
-.state {
+/* Categorías (mockups 3a-3c, 3j). The shared pieces are in global.scss. */
+
+.ui-titlebar { background: transparent; border-bottom: 0; }
+
+.tools {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 3rem 2rem;
-  text-align: center;
-  color: var(--ion-color-medium);
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 12px;
 
-  h2 { margin: 0; font-size: 1.05rem; color: var(--ion-text-color); }
-  &.error h2 { color: var(--ion-color-danger); }
-}
+  .ui-seg { flex: 1; margin: 0; }
 
-/* Where the order is chosen, held above the lists with the other two
-   controls that act on the whole screen. */
-.order {
-  padding: 0 1.1rem 0.6rem;
-}
-
-.side {
-  margin-top: 0.75rem;
-
-  /*
-   * Money out and money in, wearing the marks the movement form gave them.
-   *
-   * These two headings were small grey capitals with a chevron, which is how
-   * a section of settings looks - and these are not settings, they are the
-   * two halves of everything this app records. Jose asked for the movement
-   * form's own vocabulary, and it costs a circle and a colour.
-   */
-  &.expense .mark { background: var(--ion-color-danger); }
-  &.income .mark { background: var(--ion-color-success); }
-
-  .mark {
-    display: flex;
+  .fold-all {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 1.55rem;
-    height: 1.55rem;
-    border-radius: 50%;
+    gap: 6px;
     flex: none;
-
-    ion-icon { font-size: 0.95rem; color: #fff; }
-  }
-
-  .chevron {
-    margin-left: auto;
-    color: var(--ion-color-medium);
-    font-size: 1rem;
-  }
-
-  /* The heading doubles as the control that folds its list. */
-.fold {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-
-  ion-icon { color: var(--ion-color-primary); font-size: 1rem; }
-
-  .count {
-    padding: 0.05rem 0.45rem;
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium-shade);
-    font-size: 0.7rem;
-    font-weight: 600;
+    border-radius: 14px;
+    ion-icon { font-size: 18px; }
   }
 }
+
+.side { margin-bottom: 12px; }
 
 .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 1.5rem 0.25rem;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 0.98rem;
-    font-weight: 600;
-    color: var(--ion-text-color);
-  }
-
-  .head button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    border: none;
-    background: none;
-    color: var(--ion-color-primary);
-    font-size: 0.8rem;
-    cursor: pointer;
-
-    ion-icon { font-size: 1rem; }
-  }
-
-  .hint {
-    margin: 0 1.5rem 0.5rem;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    color: var(--ion-color-medium);
-  }
-
-  .empty {
-    margin: 0 1.5rem 0.75rem;
-    font-size: 0.85rem;
-    color: var(--ion-color-medium);
-  }
-
-  ion-icon[slot='start'] { color: var(--ion-color-medium); }
-  ion-note { font-size: 0.75rem; }
-
-  .own-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-    object-fit: contain;
-    border-radius: 4px;
-    margin-inline-end: 0.9rem;
-  }
-}
-
-.archived-toggle {
   display: flex;
-  justify-content: center;
-  padding: 0.75rem 1rem 0.25rem;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--app-tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 
-  button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    border: none;
-    background: none;
-    color: var(--ion-color-primary);
-    font-size: 0.82rem;
-    cursor: pointer;
-  }
+  h2 { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 600; }
+  h2.small { font-size: 15.5px; }
+  .ui-tag { flex: none; }
 }
 
-/* Archived categories: no longer offered, but what was filed under them stays. */
-.archived-section {
-  border-top: 1px solid var(--ion-color-light-shade);
-  padding-top: 0.75rem;
+.rows { margin-top: 10px; }
 
-  ion-item { opacity: 0.72; }
+.past .ui-tx b { color: var(--app-mu); }
+
+.kind {
+  flex: none;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(var(--app-red-rgb), 0.16);
+  color: var(--app-red);
+
+  &.in { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
 }
 
-/*
- * Room under the last section.
- *
- * The third heading sat on the very bottom edge, behind the phone's own
- * navigation bar, which is where Jose lost it. The list ends clear of both
- * that bar and the controls floating over it.
- */
-ion-content {
-  --padding-bottom: calc(5rem + var(--ion-safe-area-bottom, 0px));
+.archived-toggle { margin-top: 12px; }
+
+.hint {
+  margin: 10px 4px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--app-mu);
 }
 
-/*
- * The bar that does not scroll: add a category, open or close everything.
- *
- * Above ion-content rather than inside it, so it is there while the list is
- * being scrolled through - which is exactly when someone finds that what they
- * were looking for is not in it.
- */
-ion-toolbar.page-actions {
-  --min-height: 0;
-  --padding-top: 0.15rem;
-  --padding-bottom: 0.55rem;
-  --padding-start: 1rem;
-  --padding-end: 1rem;
-  --border-width: 0;
+.empty { color: var(--app-mu); font-size: 14px; padding: 10px 4px; margin: 0; }
 
-  /* Ionic's toolbar content area is a block, so the row is stated here. */
-  .bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }
 
-  button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 0.5rem 0.9rem;
-    border: none;
-    border-radius: 999px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    ion-icon { font-size: 1rem; }
-  }
-
-  /* The one the screen is for. */
-  .new {
-    flex: 1;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-    box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.35);
-  }
-
-  /* The one that rearranges what is already there: quieter. */
-  .fold {
-    flex: 0 0 auto;
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium-shade);
-    font-weight: 500;
-  }
-}
-
-/* Which of the three lists the new category belongs to. */
 .which-list {
-  padding: 1.25rem 1.25rem 1.5rem;
+  h2.center { text-align: center; margin: 4px 0 14px; font-size: 19px; }
 
-  h2 {
-    margin: 0 0 1rem;
-    font-size: 1.05rem;
-    text-align: center;
+  .two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding-bottom: 8px;
   }
 
   button {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    margin-bottom: 0.5rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 12px;
-    background: var(--ion-color-light);
-    color: var(--ion-text-color);
-    font-size: 0.95rem;
+    gap: 10px;
+    padding: 18px 8px;
+    border-radius: 18px;
+    border: 1px solid var(--app-border);
+    background: var(--app-s2);
+    color: var(--app-tx);
+    font: inherit;
+    font-size: 15.5px;
     cursor: pointer;
-
-    ion-icon { font-size: 1.3rem; color: var(--ion-color-primary); flex: none; }
-    &:last-child { margin-bottom: 0; }
   }
 }

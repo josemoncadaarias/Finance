@@ -12,10 +12,7 @@
 import {
   Component, HostListener, computed, inject, input, output, signal, type OnInit,
 } from '@angular/core';
-import {
-  IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-  IonInput, IonLabel, IonList, IonNote, IonToggle, IonSelect, IonSelectOption,
-} from '@ionic/angular';
+import { IonIcon, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -23,17 +20,14 @@ import { DatabaseService } from '../../core/database/database.service';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { IconPickerComponent, type IconChoice } from '../../core/icons/icon-picker.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { FaceEditorComponent, type FaceChoice } from '../../shared/ui/face-editor.component';
 import { CATEGORY_ICONS_CATALOG } from '../../core/icons/icon-catalog';
 import type { CategoryKind, CategoryRow } from '../../core/database/types';
 
 @Component({
   selector: 'app-category-editor',
-  imports: [
-    TranslatePipe, IconPickerComponent,
-    IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-    IonInput, IonLabel, IonList, IonNote, IonToggle, IonSelect, IonSelectOption,
-  ],
+  imports: [TranslatePipe, BadgeComponent, FaceEditorComponent, IonIcon, IonModal],
   templateUrl: './category-editor.component.html',
   styleUrls: ['./category-editor.component.scss'],
 })
@@ -58,6 +52,10 @@ export class CategoryEditorComponent implements OnInit {
   readonly customIconId = signal<number | null>(null);
   readonly archived = signal(false);
   readonly countsAsReturn = signal(false);
+  readonly color = signal<string | null>(null);
+  readonly editingFace = signal(false);
+  readonly pickingKind = signal(false);
+  readonly nameFocused = signal(false);
 
   /** How many movements are filed under it, so archiving is an informed act. */
   readonly usedBy = signal(0);
@@ -93,6 +91,7 @@ export class CategoryEditorComponent implements OnInit {
     this.kind.set(category.kind);
     this.builtinIcon.set(category.builtin_icon);
     this.customIconId.set(category.custom_icon_id);
+    this.color.set(category.color);
     this.archived.set(category.archived === 1);
     this.countsAsReturn.set(category.counts_as_return === 1);
 
@@ -115,10 +114,19 @@ export class CategoryEditorComponent implements OnInit {
     }
   }
 
-  onIcon(choice: IconChoice): void {
-    this.builtinIcon.set(choice.builtin_icon);
+  onFace(choice: FaceChoice): void {
+    this.builtinIcon.set(choice.builtin_icon ?? (choice.custom_icon_id === null ? 'pricetag' : this.builtinIcon()));
     this.customIconId.set(choice.custom_icon_id);
+    this.color.set(choice.color);
+    this.editingFace.set(false);
   }
+
+  /** "112 movimientos", or nothing yet. */
+  readonly usedLine = computed(() => {
+    const count = this.usedBy();
+    if (count === 0) return this.i18n.t('ui.unused');
+    return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count: count.toLocaleString(this.i18n.dateLocale()) });
+  });
 
   async save(): Promise<void> {
     if (!this.canSave() || this.saving()) return;
@@ -133,6 +141,7 @@ export class CategoryEditorComponent implements OnInit {
         name: this.name().trim(),
         builtin_icon: this.builtinIcon(),
         custom_icon_id: this.customIconId(),
+        ...(this.color() !== null ? { color: this.color()! } : {}),
         counts_as_return: this.countsAsReturn(),
       };
 

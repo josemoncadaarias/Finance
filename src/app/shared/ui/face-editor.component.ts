@@ -76,7 +76,7 @@ type Tab = 'icon' | 'color' | 'image';
                   <h3 class="ui-h">{{ $any(group.key) | t }}</h3>
                   <div class="grid">
                     @for (icon of group.icons; track icon) {
-                      <button type="button" class="swatch" [class.on]="customId() === null && bare(builtin()) === icon"
+                      <button type="button" class="swatch" [class.sq]="shape() === 'sq'" [class.on]="customId() === null && bare(builtin()) === icon"
                               [style.--ring]="shownColor()" (click)="pickIcon(icon)" [attr.aria-label]="icon">
                         <app-badge [shape]="shape()" [size]="48" [builtin]="icon"
                                    [fixed]="customId() === null && bare(builtin()) === icon ? shownColor() : '#8e9ab2'"></app-badge>
@@ -92,7 +92,7 @@ type Tab = 'icon' | 'color' | 'image';
                   <h3 class="ui-h">{{ $any('face.family.' + family.family) | t }}</h3>
                   <div class="grid">
                     @for (hex of family.colors; track hex) {
-                      <button type="button" class="swatch" [class.on]="shownColor() === hex" [style.--ring]="hex"
+                      <button type="button" class="swatch" [class.sq]="shape() === 'sq'" [class.on]="shownColor() === hex" [style.--ring]="hex"
                               (click)="color.set(hex)">
                         <app-badge [shape]="shape()" [size]="48" [builtin]="builtin()" [customId]="customId()"
                                    [fixed]="hex" [fallback]="shape() === 'ci' ? 'wallet' : 'pricetag'"></app-badge>
@@ -120,7 +120,7 @@ type Tab = 'icon' | 'color' | 'image';
                   <h3 class="ui-h">{{ 'icons.yours' | t }}</h3>
                   <div class="grid">
                     @for (image of images().slice(0, shown()); track image.id) {
-                      <button type="button" class="swatch" [class.on]="customId() === image.id" [style.--ring]="accent"
+                      <button type="button" class="swatch" [class.sq]="shape() === 'sq'" [class.on]="customId() === image.id" [style.--ring]="accent"
                               (click)="pickImage(image.id)" [title]="image.name">
                         <app-badge [shape]="shape()" [size]="48" [customId]="image.id" [fixed]="shownColor()"></app-badge>
                         @if (customId() === image.id) { <span class="check blue"><ion-icon name="checkmark"></ion-icon></span> }
@@ -163,6 +163,7 @@ type Tab = 'icon' | 'color' | 'image';
       position: relative; border: 0; background: none; padding: 3px; border-radius: 50%; cursor: pointer;
       box-shadow: 0 0 0 2px transparent; display: grid; place-items: center;
     }
+    .swatch.sq { border-radius: 32%; }
     .swatch.on { box-shadow: 0 0 0 2px var(--ring); }
     .check {
       position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%;

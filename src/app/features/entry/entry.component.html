@@ -304,7 +304,7 @@
 
 <!-- Making a category, or correcting the one chosen, without leaving the
      movement: the same editor the categories screen uses. -->
-<ion-modal class="editor-sheet" [isOpen]="editingCategory() !== null" (didDismiss)="editingCategory.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="editingCategory() !== null" (didDismiss)="editingCategory.set(null)">
   <ng-template>
     @if (editingCategory(); as open) {
       <app-category-editor [editing]="open.category" [startKind]="open.kind"
