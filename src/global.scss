@@ -2447,3 +2447,39 @@ ion-modal.confirm-sheet .confirm-dialog .pick-row { width: 100%; text-align: lef
   color: var(--app-tx);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
+
+/* The selection bar, redrawn (6j, 7h): where the tab bar is, which steps
+   aside while choosing. */
+body.choosing app-tab-bar { display: none; }
+
+.selection-bar {
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--ion-safe-area-bottom, 0px));
+  padding: 12px;
+  border-radius: 24px;
+  background: var(--app-nav, var(--app-s2));
+  border: 1px solid var(--app-nav-border, var(--app-border));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  gap: 10px;
+  color: var(--app-tx);
+
+  button { color: var(--app-tx); font-family: inherit; font-size: 14.5px; }
+
+  .top {
+    gap: 10px;
+    .close { width: 40px; height: 40px; background: var(--app-s3); font-size: 22px; }
+    .count { display: flex; flex-direction: column; min-width: 0; font-weight: 400; b { font-size: 15px; font-weight: 700; } small { color: var(--app-mu); font-size: 12.5px; } }
+    .all { color: var(--app-pr); font-weight: 500; }
+    .dot { color: var(--app-mu); }
+  }
+
+  .acts {
+    grid-template-columns: auto auto 1fr;
+    button { padding: 10px 14px; border-radius: 14px; background: var(--app-s3); font-weight: 500; }
+    .drop { color: var(--app-red); background: rgba(var(--app-red-rgb), 0.16); }
+    .save { background: linear-gradient(135deg, var(--app-pr), var(--app-pr2)); color: #fff; font-weight: 700; }
+  }
+}
+
+.ui-tick.half { background: var(--app-pr); border-color: var(--app-pr); color: #fff; }

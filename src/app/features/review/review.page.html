@@ -1,457 +1,392 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>
-      {{ 'review.title' | t }}
-      @if (total() > 0) { <small>{{ total() }}</small> }
-    </ion-title>
-    <ion-buttons slot="end">
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- Movimientos por revisar (mockups 6a-6z): what a statement or a bank
+     notification proposed, answered one by one or several at once. Nothing is
+     written without that answer (rule 22). -->
+<ion-content #list [scrollEvents]="true" (ionScroll)="jump.measure()" [class.selecting]="selecting()">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'more.review' | t }}</h1>
+  </header>
 
-<ion-content [class.selecting]="selecting()">
-  @if (loading()) {
-    <div class="state"><ion-spinner></ion-spinner></div>
-  } @else {
-    @if (error()) {
-      <p class="failed">
-        <ion-icon name="alert-circle-outline"></ion-icon>
-        {{ error() }}
-      </p>
-    }
-
-    <!-- What the statement just read said about itself. It goes when the
-         screen is left, because it is about a reading and not about the list. -->
-    @if (justRead(); as just) {
-      <div class="just-read" [class.off]="just.off">
-        <p class="lead">
-          {{ just.read }}
-          <!-- What the statement says about its own arithmetic, behind a mark
-               rather than in a paragraph: it is worth having and it is not
-               worth three lines of a phone. -->
-          <button type="button" class="why" (click)="explaining.set(!explaining())"
-                  [attr.aria-label]="'review.why' | t">
-            <ion-icon [name]="just.off ? 'alert-circle' : 'information-circle-outline'"></ion-icon>
-          </button>
-        </p>
-        @if (just.knownAlready) { <p class="also">{{ just.knownAlready }}</p> }
-        @if (just.alsoWaiting) { <p class="also">{{ just.alsoWaiting }}</p> }
-        @if (explaining()) {
-          <p class="balances">{{ just.balances }}</p>
-        }
-      </div>
-    }
-
-    <!-- What the bank says the account holds, against what the app says.
-         Two figures, the gap between them, and three ways out. -->
-    @if (squaring(); as drift) {
-      <div class="squaring">
-        <h2>{{ 'review.square.title' | t:{ account: drift.accountName } }}</h2>
-
-        <dl>
-          <div>
-            <dt>{{ 'review.square.ours' | t:{ date: dayText(drift.day) } }}</dt>
-            <dd>{{ money(drift.ours, drift.currency) }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'review.square.theirs' | t }}</dt>
-            <dd>{{ money(drift.theirs, drift.currency) }}</dd>
-          </div>
-          <div class="gap">
-            <dt>{{ 'review.square.gap' | t }}</dt>
-            <dd>{{ money(squaringGap(), drift.currency) }}</dd>
-          </div>
-        </dl>
-
-        <p class="hint">{{ 'review.square.hint' | t }}</p>
-
-        @if (typingBalance()) {
-          <ion-input class="typed" [label]="'review.square.type' | t" labelPlacement="stacked"
-                     inputmode="decimal" [value]="typedBalance()"
-                     (ionInput)="typedBalance.set($any($event.target).value ?? '')"></ion-input>
-          <div class="ways">
-            <button type="button" class="save" [disabled]="working()" (click)="askToSquareTyped()">
-              {{ 'review.square.do' | t }}
-            </button>
-            <button type="button" class="quiet" (click)="typingBalance.set(false)">
-              {{ 'entry.cancel' | t }}
-            </button>
-          </div>
-        } @else {
-          <div class="ways">
-            <button type="button" class="save" [disabled]="working()" (click)="askToSquare()">
-              {{ 'review.square.match' | t }}
-            </button>
-            <button type="button" class="quiet" (click)="typingBalance.set(true)">
-              {{ 'review.square.other' | t }}
-            </button>
-            <button type="button" class="quiet" (click)="asking.set({ kind: 'leaveBalance' })">
-              {{ 'review.square.leave' | t }}
-            </button>
-          </div>
-        }
-      </div>
-    }
-
-    @if (batches().length === 0) {
-      <!-- Nothing waiting is the ordinary state of this screen, and it says
-           where the readings come from rather than only that there are none. -->
+  <div class="ui-main">
+    @if (loading() && batches().length === 0) {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (total() === 0 && !squaring()) {
+      <!-- Nothing waiting: an icon, one sentence, one action (6z). -->
       <div class="empty">
-        <ion-icon name="checkmark-circle-outline"></ion-icon>
-        <p class="lead">{{ 'review.empty' | t }}</p>
-        <p class="hint">{{ 'review.empty.hint' | t }}</p>
+        <app-badge shape="ci" [size]="80" builtin="checkmark-done" fixed="#34c98b"></app-badge>
+        <h2>{{ 'ui.review.empty' | t }}</h2>
+        <p>{{ 'ui.review.empty.hint' | t }}</p>
+        <button type="button" class="ui-btn" (click)="startImport()">
+          <ion-icon name="document-text-outline"></ion-icon>{{ 'ui.import.title' | t }}
+        </button>
       </div>
-    }
-
-    <!-- The shops that turn up more than once, answered once each. Without
-         this, a month at the same supermarket is six identical questions. -->
-    @if (repeated().length > 0) {
-      <section class="repeated">
-        <h2>{{ 'review.repeated' | t }}</h2>
-        <p class="hint">{{ 'review.repeated.hint' | t }}</p>
-
-        <ion-list [inset]="true">
-          @for (shop of repeated(); track shop.merchant) {
-            <ion-item lines="full">
-              <ion-label>
-                <h3>{{ shop.sample }}</h3>
-                <p>{{ 'review.repeated.count' | t:{ count: shop.count } }}</p>
-              </ion-label>
-              <button type="button" slot="end" class="category"
-                      [disabled]="working()" (click)="choosingMerchant.set(shop)">
-                @if (shop.category; as category) {
-                  <app-icon [builtin]="category.builtin_icon"
-                            [customId]="category.custom_icon_id" size="1rem"></app-icon>
-                  <span>{{ category.name }}</span>
-                } @else {
-                  <ion-icon name="pricetag-outline"></ion-icon>
-                  <span>{{ 'review.pickCategory' | t }}</span>
-                }
-                <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-              </button>
-            </ion-item>
+    } @else {
+      <!-- The account, centred, with "Todas las cuentas" first in its list. -->
+      <div class="account-row">
+        <button type="button" class="ui-chip account" (click)="pickingAccount.set(true)">
+          @if (shownAccount(); as account) {
+            <app-badge shape="ci" [size]="26" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
+                       [tone]="account.color" [seed]="account.id" fallback="wallet"></app-badge>
+          } @else {
+            <app-badge shape="ci" [size]="26" builtin="layers" fixed="#6378ff"></app-badge>
           }
-        </ion-list>
-      </section>
-    }
+          <span class="ui-one">{{ accountLabel() }}</span>
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+      </div>
 
-    @if (total() > 1) {
-      <!-- What to look at and in what order. A statement is fifty lines on a
-           phone, and these are the two questions anybody asks of one. -->
-      <div class="looking">
-        <!-- Several answered at once. A long press on a row does the same. -->
-        <!-- The same place says how to leave it again. -->
+      <div class="ui-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="'ui.review.search' | t" [value]="search()"
+               (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
+        @if (search()) {
+          <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
+        }
+      </div>
+
+      <div class="controls">
+        <button type="button" class="ui-chip view" [class.on]="showOnly() !== 'all'" (click)="choosingView.set(true)">
+          <ion-icon name="funnel-outline"></ion-icon><span>{{ viewLabel() }}</span><ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+        <span class="grow"></span>
+        <button type="button" class="ui-fold" (click)="toggleAllDays()"
+                [attr.aria-label]="(allDaysClosed() ? 'ui.openAll' : 'ui.closeAll') | t">
+          <ion-icon [name]="allDaysClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+        </button>
         @if (!selecting()) {
-          <button type="button" class="select-start" (click)="startSelecting()">
-            <ion-icon name="checkmark-circle-outline"></ion-icon>
-            {{ 'review.select' | t }}
+          <button type="button" class="ui-chip" (click)="startSelecting()">
+            <ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}
           </button>
         } @else {
-          <button type="button" class="select-start" (click)="stopSelecting()">
-            <ion-icon name="close-circle-outline"></ion-icon>
-            {{ 'review.select.exit' | t }}
+          <button type="button" class="ui-chip on" (click)="stopSelecting()">
+            <ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}
           </button>
-        }
-        <!-- Finding one among dozens: its words, its amount, its day. -->
-        @if (total() > 5) {
-          <div class="search-row">
-            <ion-searchbar [placeholder]="'review.search' | t" [value]="search()"
-                           (ionInput)="search.set($any($event.target).value ?? '')"
-                           [debounce]="150" showCancelButton="never"></ion-searchbar>
-          </div>
-        }
-        @if (total() > 3) {
-        <div class="group">
-          <button type="button" [class.on]="sortBy() === 'date'" (click)="sortBy.set('date')">
-            {{ 'review.sort.date' | t }}
-          </button>
-          <button type="button" [class.on]="sortBy() === 'amount'" (click)="sortBy.set('amount')">
-            {{ 'review.sort.amount' | t }}
-          </button>
-        </div>
-
-        <div class="group">
-          <button type="button" [class.on]="showOnly() === 'all'" (click)="showOnly.set('all')">
-            {{ 'review.only.all' | t }}
-          </button>
-          <button type="button" [class.on]="showOnly() === 'waiting'" (click)="showOnly.set('waiting')">
-            {{ 'review.only.waiting' | t }}
-          </button>
-          <button type="button" [class.on]="showOnly() === 'flagged'" (click)="showOnly.set('flagged')">
-            {{ 'review.only.flagged' | t }}
-          </button>
-        </div>
         }
       </div>
-    }
 
-    @for (batch of batches(); track batch.key) {
-      <section class="batch">
-        <header>
-          <h2>{{ batch.title }}</h2>
-          <p class="hint">
-            {{ 'review.batch.count' | t:{ count: batch.lines.length } }}
-            <!-- What is not going to be saved by the button below, and why it
-                 counts fewer than this line does. -->
-            @if (waitingOn(batch) > 0) {
-              <span class="waiting">
-                · {{ 'review.batch.waiting' | t:{ count: waitingOn(batch) } }}
-              </span>
+      @if (filtering() && shownCount() < total()) {
+        <div class="seen">
+          <ion-icon name="eye-off-outline"></ion-icon>
+          <span>{{ 'ui.review.seeing' | t:{ shown: shownCount(), total: total() } }}</span>
+          <button type="button" (click)="showEverything(); accountFilter.set(null)">{{ 'review.hidden.show' | t }}</button>
+        </div>
+      }
+
+      @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+
+      <!-- What the bank says the account holds, against what the app says
+           (6p-6s): the question before it changes anything. -->
+      @if (squaring(); as drift) {
+        <div class="ui-card squaring">
+          <div class="shead">
+            <app-badge shape="ci" [size]="34" builtin="wallet" fixed="#6378ff"></app-badge>
+            <b class="ui-one">{{ 'review.square.title' | t:{ account: drift.accountName } }}</b>
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('review.square.hint'))" [attr.aria-label]="'ui.info' | t">
+              <ion-icon name="information"></ion-icon>
+            </span>
+          </div>
+          <div class="sline"><span>{{ 'review.square.ours' | t:{ date: dayText(drift.day) } }}</span><b>{{ money(drift.ours, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.theirs' | t }}</span><b>{{ money(drift.theirs, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.gap' | t }}</span><b class="ui-p">{{ squaringGap() > 0 ? '+' : '' }}{{ money(squaringGap(), drift.currency) }}</b></div>
+          @if (typingBalance()) {
+            <div class="ui-inputs">
+              <label class="ui-input">
+                <span>{{ 'review.square.type' | t }}</span>
+                <input inputmode="decimal" [value]="typedBalance()" (input)="typedBalance.set($any($event.target).value ?? '')">
+              </label>
+            </div>
+            <div class="two">
+              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(false)">{{ 'entry.cancel' | t }}</button>
+              <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquareTyped()">{{ 'review.square.do' | t }}</button>
+            </div>
+          } @else {
+            <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.match' | t }}</button>
+            <div class="two">
+              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(true)">{{ 'review.square.other' | t }}</button>
+              <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
+            </div>
+          }
+        </div>
+      }
+
+      @for (batch of batches(); track batch.key) {
+        <!-- A batch is one card: where it came from, how many, the check. -->
+        <section class="ui-card batch">
+          <div class="bhead">
+            <app-badge shape="ci" [size]="40" builtin="document-text" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ batch.title }}</b>
+              <small class="ui-one">{{ fileName(batch) }}</small>
+            </span>
+            @if (checkOf(batch); as check) {
+              <button type="button" class="check" [class.off]="check.off" (click)="info.set(check.line)" [attr.aria-label]="'ui.info' | t">
+                <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
+              </button>
             }
-          </p>
-
-          <!-- One thing to do, and two ways out of it. They were three
-               buttons of a size, which made the choice look like three equal
-               choices and wrapped onto two lines on a phone. -->
-          <div class="batch-actions">
-            <!-- Only what can actually be written, and nothing at all when
-                 none of it can be. -->
-            <button type="button" class="save"
-                    [disabled]="working() || readyLines(batch).length === 0"
+          </div>
+          @if (checkOf(batch); as check) {
+            @if (check.off) {
+              <p class="off"><ion-icon name="alert-circle-outline"></ion-icon>{{ 'ui.review.offBy' | t:{ amount: check.gap } }}</p>
+            }
+          }
+          <p class="count">{{ 'ui.review.toConfirm' | t:{ count: batch.lines.length } }}</p>
+          @if (waitingOn(batch) > 0) {
+            <p class="needs">• {{ (waitingOn(batch) === 1 ? 'ui.review.needsOne' : 'ui.review.needs') | t:{ count: waitingOn(batch) } }}</p>
+          }
+          <div class="bactions">
+            <button type="button" class="ui-btn" [disabled]="working() || readyLines(batch).length === 0"
                     (click)="asking.set({ kind: 'accept', batch })">
-              <ion-icon name="checkmark-outline"></ion-icon>
-              {{ 'review.acceptAll' | t:{ count: readyLines(batch).length } }}
+              <ion-icon name="checkmark-done"></ion-icon>
+              {{ (readyLines(batch).length === 1 ? 'ui.review.saveReadyOne' : 'ui.review.saveReady') | t:{ count: readyLines(batch).length } }}
             </button>
-
-            <!-- The other two answers, behind one dot-dot-dot: neither is
-                 frequent, and as buttons in a row they read as choices equal
-                 to saving, which they are not. -->
-            <button type="button" class="more" [disabled]="working()"
-                    (click)="openMenu($event, batch)"
-                    [attr.aria-label]="'review.more' | t">
+            <button type="button" class="ui-round" [disabled]="working()" (click)="batchMenu.set(batch)" [attr.aria-label]="'review.more' | t">
               <ion-icon name="ellipsis-horizontal"></ion-icon>
             </button>
           </div>
-        </header>
+        </section>
+      }
 
-        <ion-list [inset]="true">
-          @for (line of shownIn(batch); track line.proposal.id) {
-            <ion-item class="line" [class.unready]="!ready(line)" [class.picked]="isSelected(line)"
-                      lines="full" (contextmenu)="pressed($event, line)"
-                      (click)="selecting() && toggle(line)"
-                      [attr.role]="selecting() ? 'checkbox' : null"
-                      [attr.aria-checked]="selecting() ? isSelected(line) : null">
-              @if (selecting()) {
-                <!-- A picture of the row's state, not a button (see the
-                     notifications screen: a lone button takes every tap). -->
-                <span slot="start" class="tick" aria-hidden="true">
-                  <ion-icon [name]="isSelected(line) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
-                </span>
-              }
-              <ion-label>
-                <!-- What it says it is, first: a date, a name, an amount. -->
-                <div class="head">
-                  <span class="on">
-                    <span class="said">{{ dayText(line.proposal.occurred_on) }}</span>
-                    <!-- The native picker, over the words rather than instead
-                         of them: it opens the calendar the phone knows and
-                         writes nothing on the screen. -->
-                    <input type="date" [value]="line.proposal.occurred_on ?? ''"
-                           (change)="setDate(line, $any($event.target).value)"
-                           [attr.aria-label]="'review.date' | t" />
-                  </span>
-                  <span class="amount" [class.out]="(line.proposal.amount_minor ?? 0) < 0">
-                    {{ money(line.proposal.amount_minor, line.account?.currency_code) }}
-                  </span>
-                </div>
-
-                <p class="what">{{ line.proposal.description || ('review.noDescription' | t) }}</p>
-
-                <!-- The line it was read from. A figure whose origin cannot be
-                     shown is a figure nobody can check. -->
-                @if (line.evidence) {
-                  <p class="evidence">{{ line.evidence }}</p>
-                }
-
-                <!-- The questions, never decisions: both of these are things
-                     the app noticed and the person settles. -->
-                @if (line.sameAs) {
-                  <p class="flag same">
-                    <ion-icon name="copy-outline"></ion-icon>
-                    {{ line.sameAs }}
-                  </p>
-                }
-                @if (line.pairedWith) {
-                  <p class="flag pair">
-                    <ion-icon name="swap-horizontal-outline"></ion-icon>
-                    {{ line.pairedWith }}
-                  </p>
-                }
-                <!-- A row that cannot be written says what it needs, rather
-                     than only having its button greyed out. -->
-                @if (missing(line); as needed) {
-                  <p class="flag needs">
-                    <ion-icon name="alert-circle-outline"></ion-icon>
-                    {{ needed }}
-                  </p>
-                }
-                @if (line.guessed) {
-                  <p class="flag guessed">
-                    <ion-icon name="help-circle-outline"></ion-icon>
-                    {{ 'review.guessed' | t }}
-                  </p>
-                }
-
-                <div class="fields">
-                  <!-- An account only where the reading could not name one,
-                       which is the notification nobody could tie to a bank. -->
-                  @if (!line.account) {
-                    <ion-select class="pick" interface="action-sheet"
-                                [placeholder]="'review.pickAccount' | t"
-                                (ionChange)="setAccount(line, $any($event.detail).value)">
-                      @for (account of accounts(); track account.id) {
-                        <ion-select-option [value]="account.id">{{ account.name }}</ion-select-option>
-                      }
-                    </ion-select>
-                  }
-
-                  <button type="button" class="category" (click)="choosingFor.set(line)">
-                    @if (categoryOf(line); as category) {
-                      <app-icon [builtin]="category.builtin_icon"
-                                [customId]="category.custom_icon_id" size="1rem"></app-icon>
-                      <span>{{ category.name }}</span>
-                    } @else {
-                      <ion-icon name="pricetag-outline"></ion-icon>
-                      <span>{{ 'review.pickCategory' | t }}</span>
-                    }
-                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-                  </button>
-
-                  @if (line.proposal.category_from === 'learned') {
-                    <span class="learned">{{ 'review.learned' | t }}</span>
-                  }
-
-                  <!-- A word out of the app's own table, not a memory of what
-                       this person does. Said differently, because it is. -->
-                  @if (line.proposal.category_from === 'guessed') {
-                    <span class="learned guessed">{{ 'review.fromWords' | t }}</span>
-                  }
-
-                  @if (line.proposal.amount_minor !== null) {
-                    <button type="button" class="turn" (click)="turnAround(line)">
-                      <ion-icon name="swap-vertical-outline"></ion-icon>
-                      {{ ((line.proposal.amount_minor ?? 0) < 0 ? 'review.isExpense' : 'review.isIncome') | t }}
-                    </button>
-                  }
-                </div>
-
-                <!-- What a notification could not read is typed here, which is
-                     the case Jose asked for by name. -->
-                @if (line.proposal.amount_minor === null) {
-                  <ion-input class="typed" [label]="'review.typeAmount' | t" labelPlacement="stacked"
-                             inputmode="decimal"
-                             (ionChange)="setAmount(line, $any($event.target).value)"></ion-input>
-                }
-              </ion-label>
-
-              @if (!selecting()) {
-                <div class="answer" slot="end">
-                  <button type="button" class="ok" [disabled]="working() || !ready(line)"
-                          (click)="asking.set({ kind: 'acceptOne', line })"
-                          [attr.aria-label]="'review.accept' | t">
-                    <ion-icon name="checkmark-outline"></ion-icon>
-                  </button>
-                  <button type="button" class="no" [disabled]="working()"
-                          (click)="asking.set({ kind: 'discardOne', line })"
-                          [attr.aria-label]="'review.discard' | t">
-                    <ion-icon name="trash-outline"></ion-icon>
-                  </button>
-                </div>
-              }
-            </ion-item>
-          }
-        </ion-list>
-
-        <!-- A filter never hides anything in silence, and it says WHICH
-             filter: the link used to be labelled "Todos", which is the name
-             of the filter that is not on. -->
-        @if (hiddenIn(batch) > 0) {
-          <p class="hidden-by-filter">
-            @if (shownIn(batch).length === 0) {
-              {{ 'review.hidden.none' | t:{ count: batch.lines.length, filter: filterName() } }}
-            } @else {
-              {{ 'review.hidden' | t:{
-                   shown: shownIn(batch).length,
-                   count: batch.lines.length,
-                   filter: filterName() } }}
+      <!-- The shops that turn up more than once, answered once each. -->
+      @if (repeated().length > 0) {
+        <section class="ui-list ui-group shops">
+          <div class="ui-row head" (click)="shopsOpen.set(!shopsOpen())">
+            @if (selecting()) {
+              @let all = allShopLines();
+              <span class="ui-tick" [class.on]="tickOf(all) === 'on'" [class.half]="tickOf(all) === 'half'"
+                    (click)="$event.stopPropagation(); toggleMany(all)" aria-hidden="true">
+                @if (tickOf(all) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(all) === 'half') { <ion-icon name="remove"></ion-icon> }
+              </span>
             }
-            <button type="button" (click)="showEverything()">
-              {{ 'review.hidden.show' | t }}
-            </button>
-          </p>
+            <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
+            <span class="ui-tx">
+              <b>{{ 'review.repeated' | t }}</b>
+              <small>{{ (repeated().length === 1 ? 'ui.review.shopsOne' : 'ui.review.shops') | t:{ shops: repeated().length, count: allShopLines().length } }}</small>
+            </span>
+            <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(i18n.t('review.repeated.hint'))"
+                  [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+            <ion-icon class="ui-chev" [name]="shopsOpen() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </div>
+          @if (shopsOpen()) {
+            @for (shop of repeated(); track shop.merchant) {
+              @let shopLines = linesOfShop(shop);
+              <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
+                   (click)="selecting() && toggleMany(shopLines)">
+                @if (selecting()) {
+                  <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
+                    @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
+                  </span>
+                }
+                @if (shop.category; as category) {
+                  <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+                } @else {
+                  <app-badge [size]="38" builtin="storefront" fixed="#2ec4b6"></app-badge>
+                }
+                <span class="ui-tx">
+                  <b class="ui-one">{{ shop.sample }}</b>
+                  <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
+                </span>
+                @if (!selecting()) {
+                  <button type="button" class="ui-chip cat" [disabled]="working()" (click)="$event.stopPropagation(); choosingMerchant.set(shop)">
+                    @if (shop.category; as category) {
+                      <span class="ui-one">{{ category.name }}</span>
+                    } @else {
+                      <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'review.pickCategory' | t }}</span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          }
+        </section>
+      }
+
+      @for (batch of batches(); track batch.key) {
+        @for (day of daysOf(batch); track day.key) {
+          <section class="ui-list ui-group">
+            @if (day.title) {
+              <div class="ui-row head" (click)="toggleDay(batch, day.key)">
+                @if (selecting()) {
+                  <span class="ui-tick" [class.on]="tickOf(day.lines) === 'on'" [class.half]="tickOf(day.lines) === 'half'"
+                        (click)="$event.stopPropagation(); toggleMany(day.lines)" aria-hidden="true">
+                    @if (tickOf(day.lines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(day.lines) === 'half') { <ion-icon name="remove"></ion-icon> }
+                  </span>
+                }
+                <span class="ui-tx">
+                  <b class="ui-one">{{ day.title }}</b>
+                  <small>
+                    @if (selecting() && pickedOf(day.lines) > 0) { {{ 'ui.review.picked' | t:{ picked: pickedOf(day.lines), count: day.lines.length } }} }
+                    @else { {{ countOf(day.lines.length) }} }
+                  </small>
+                </span>
+                <span class="total" [class.ui-r]="day.totalMinor < 0" [class.ui-g]="day.totalMinor > 0">{{ day.totalMinor > 0 ? '+' : '' }}{{ money(day.totalMinor, day.currency) }}</span>
+                <ion-icon class="ui-chev" [name]="isDayOpen(batch, day.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              </div>
+            }
+            @if (!day.title || isDayOpen(batch, day.key)) {
+              @for (line of day.lines; track line.proposal.id) {
+                <div class="ui-row line" [class.picked]="isSelected(line)" (click)="tapped(line)" (contextmenu)="pressed($event, line)"
+                     [attr.role]="selecting() ? 'checkbox' : 'button'" [attr.aria-checked]="selecting() ? isSelected(line) : null">
+                  @if (selecting()) {
+                    <span class="ui-tick" [class.on]="isSelected(line)" aria-hidden="true">
+                      @if (isSelected(line)) { <ion-icon name="checkmark"></ion-icon> }
+                    </span>
+                  }
+                  @if (categoryOf(line); as category) {
+                    <app-badge [size]="40" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                               [tone]="category.color" [seed]="category.id"></app-badge>
+                  } @else {
+                    <app-badge [size]="40" builtin="help" fixed="#f6b93b"></app-badge>
+                  }
+                  <span class="ui-tx">
+                    <b class="ui-one">{{ line.proposal.description || ('review.noDescription' | t) }}</b>
+                    @if (categoryOf(line); as category) {
+                      <small class="ui-one">{{ category.name }}
+                        @if (line.proposal.category_from === 'learned') { <span class="tag learned">{{ 'review.learned' | t }}</span> }
+                        @if (line.proposal.category_from === 'guessed') { <span class="tag guessed">{{ 'review.fromWords' | t }}</span> }
+                      </small>
+                    } @else if (missing(line); as needed) {
+                      <small class="ui-y wrap">{{ needed }}</small>
+                    }
+                    @if (line.sameAs) {
+                      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.sameAs }}</small>
+                    }
+                    @if (line.pairedWith) {
+                      <small class="flag"><ion-icon name="git-compare-outline"></ion-icon>{{ line.pairedWith }}</small>
+                    }
+                  </span>
+                  <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
+                    {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
+                  </span>
+                </div>
+              }
+            }
+          </section>
         }
-
-      </section>
+      }
+      <div class="ui-page-end"></div>
     }
-  }
-  <!-- The same control the summary screen carries, and for the same reason:
-       a statement is a long list and both ends of it are worth reaching. -->
-  @if (total() > 8 && !selecting()) {
-    <div class="jump" slot="fixed">
-      <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t">
-        <ion-icon name="arrow-up-outline"></ion-icon>
-      </button>
-      <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-      </button>
-    </div>
-  }
+  </div>
 
-  <!-- What to do with the ticked rows. Saving counts only what can be saved,
-       as the batch button does; the other two act on every ticked row. -->
+  <app-jump #jump [content]="list" [hidden]="selecting()"></app-jump>
+
+  <!-- What to do with the ticked rows (6j). -->
   @if (selecting()) {
     <div class="selection-bar" slot="fixed">
       <div class="top">
         <button type="button" class="close" (click)="stopSelecting()" [attr.aria-label]="'entry.cancel' | t">
-          <ion-icon name="close-outline"></ion-icon>
+          <ion-icon name="close"></ion-icon>
         </button>
-        <span class="count">{{ 'review.select.count' | t:{ count: selectedLines().length } }}</span>
-        <button type="button" class="all" (click)="selectAllShown()">
-          {{ (allShownSelected() ? 'review.select.none' : 'review.select.all') | t }}
-        </button>
+        <span class="count">
+          <b>{{ (selectedLines().length === 1 ? 'ui.review.chosenOne' : 'ui.review.chosen') | t:{ count: selectedLines().length } }}</b>
+          <small>{{ 'ui.review.ofOnView' | t:{ count: shownCount() } }}</small>
+        </span>
+        <button type="button" class="all" (click)="selectAllShown()">{{ 'review.select.all' | t }}</button>
+        <span class="dot">·</span>
+        <button type="button" class="all" (click)="stopSelecting(); startSelecting()">{{ 'review.select.none' | t }}</button>
       </div>
       <div class="acts">
-        <button type="button" [disabled]="working() || selectedLines().length === 0"
-                (click)="choosingForSelection.set(true)">
-          <ion-icon name="pricetag-outline"></ion-icon>
-          {{ 'review.select.category' | t }}
-        </button>
-        <button type="button" class="save" [disabled]="working() || selectedReady().length === 0"
-                (click)="asking.set({ kind: 'acceptSelected' })">
-          <ion-icon name="checkmark-outline"></ion-icon>
-          {{ 'review.select.save' | t:{ count: selectedReady().length } }}
+        <button type="button" [disabled]="working() || selectedLines().length === 0" (click)="choosingForSelection.set(true)">
+          <ion-icon name="pricetag-outline"></ion-icon>{{ 'entry.category' | t }}
         </button>
         <button type="button" class="drop" [disabled]="working() || selectedLines().length === 0"
                 (click)="asking.set({ kind: 'discardSelected' })" [attr.aria-label]="'review.discard' | t">
           <ion-icon name="trash-outline"></ion-icon>
+        </button>
+        <button type="button" class="save" [disabled]="working() || selectedReady().length === 0"
+                (click)="asking.set({ kind: 'acceptSelected' })">
+          {{ (selectedReady().length === 1 ? 'ui.review.saveOne' : 'ui.review.save') | t:{ count: selectedReady().length } }}
         </button>
       </div>
     </div>
   }
 </ion-content>
 
-<!-- The same dialog the rest of the app asks with. -->
-<!-- The two answers that are not "save", each with its name on it. -->
-<ion-popover class="batch-menu" [isOpen]="menuFor() !== null" [event]="menuAt()"
-             (didDismiss)="menuFor.set(null)" [dismissOnSelect]="true">
+<!-- Mostrar and Ordenar, one sheet (6k). -->
+<ion-modal class="ui-sheet" [isOpen]="choosingView()" (didDismiss)="choosingView.set(false)">
   <ng-template>
-    <ion-list lines="none">
-      <ion-item button detail="false" (click)="fromMenu('forget')">
-        <ion-icon slot="start" name="eye-off-outline"></ion-icon>
-        <ion-label>{{ 'review.forgetAll' | t }}</ion-label>
-      </ion-item>
-      <ion-item button detail="false" class="drop" (click)="fromMenu('discard')">
-        <ion-icon slot="start" name="trash-outline"></ion-icon>
-        <ion-label>{{ 'review.discardAll.long' | t }}</ion-label>
-      </ion-item>
-    </ion-list>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'ui.review.show' | t }}</h3>
+      <div class="ui-list">
+        @for (option of [
+          { id: 'all', icon: 'list', color: '#6378ff', title: 'review.only.all', line: countOf(total()) },
+          { id: 'waiting', icon: 'help-circle', color: '#f6b93b', title: 'review.only.waiting', line: 'ui.review.waitingLine' },
+          { id: 'flagged', icon: 'flag', color: '#ff6b6b', title: 'review.only.flagged', line: 'ui.review.flaggedLine' }
+        ]; track option.id) {
+          <button type="button" class="ui-row" (click)="showOnly.set($any(option.id)); choosingView.set(false)">
+            <app-badge shape="ci" [size]="38" [builtin]="option.icon" [fixed]="option.color"></app-badge>
+            <span class="ui-tx">
+              <b>{{ $any(option.title) | t }}</b>
+              <small class="wrap">
+                @if (option.id === 'all') { {{ option.line }} }
+                @else if (option.id === 'waiting') { {{ 'ui.review.waitingLine' | t:{ count: waitingCount() } }} }
+                @else { {{ 'ui.review.flaggedLine' | t:{ count: flaggedCount() } }} }
+              </small>
+            </span>
+            @if (showOnly() === option.id) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+      <h3 class="ui-h">{{ 'ui.review.order' | t }}</h3>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="sortBy.set('date'); choosingView.set(false)">
+          <app-badge shape="ci" [size]="38" builtin="calendar" fixed="#9b7bff"></app-badge>
+          <span class="ui-tx"><b>{{ 'review.sort.date' | t }}</b><small>{{ 'ui.review.byDate.line' | t }}</small></span>
+          @if (sortBy() === 'date') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+        <button type="button" class="ui-row" (click)="sortBy.set('amount'); choosingView.set(false)">
+          <app-badge shape="ci" [size]="38" builtin="cash" fixed="#34c98b"></app-badge>
+          <span class="ui-tx"><b>{{ 'review.sort.amount' | t }}</b><small>{{ 'ui.review.byAmount.line' | t }}</small></span>
+          @if (sortBy() === 'amount') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+      </div>
+    </div>
   </ng-template>
-</ion-popover>
+</ion-modal>
+
+<!-- The two answers that are not "save", with the batch named (6n). -->
+<ion-modal class="ui-sheet" [isOpen]="batchMenu() !== null" (didDismiss)="batchMenu.set(null)">
+  <ng-template>
+    @if (batchMenu(); as batch) {
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <h2 class="center">{{ batch.title }}</h2>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="batchMenu.set(null); asking.set({ kind: 'discard', batch })">
+            <app-badge shape="ci" [size]="38" builtin="trash" fixed="#ff6b6b"></app-badge>
+            <span class="ui-tx"><b class="ui-r wrap">{{ 'ui.review.discardAll' | t:{ count: batch.lines.length } }}</b><small class="wrap">{{ 'ui.review.discardAll.line' | t }}</small></span>
+          </button>
+          <button type="button" class="ui-row" (click)="batchMenu.set(null); asking.set({ kind: 'forget', batch })">
+            <app-badge shape="ci" [size]="38" builtin="eye-off" fixed="#8c9bb5"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'review.forgetAll' | t }}</b><small class="wrap">{{ 'ui.review.forget.line' | t }}</small></span>
+          </button>
+        </div>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Which account to look at, "Todas las cuentas" first (6m). -->
+<app-account-picker [open]="pickingAccount()" [accounts]="accounts()" [selectedId]="accountFilter()"
+                    [heading]="'summary.account' | t" [showAll]="true" [allDetail]="'ui.review.waiting' | t:{ count: total() }"
+                    detail="kind"
+                    (chosen)="accountFilter.set($event.id); pickingAccount.set(false)"
+                    (chosenAll)="accountFilter.set(null); pickingAccount.set(false)"
+                    (closed)="pickingAccount.set(false)"></app-account-picker>
+
+<!-- One row, answered in the movement form (6e-6h). -->
+<ion-modal class="entry-sheet" [isOpen]="openLine() !== null" (didDismiss)="openLine.set(null)">
+  <ng-template>
+    @if (openLine(); as line) {
+      <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs"
+                         [accounts]="accounts()" [categories]="categories()" [busy]="working()"
+                         (answered)="answer(line, $event)" (discard)="discardOpen()"
+                         (cancelled)="openLine.set(null)"></app-proposal-form>
+    }
+  </ng-template>
+</ion-modal>
 
 <!-- The categories, the same sheet the movement form opens. -->
 <app-category-sheet [open]="choosingFor() !== null || choosingMerchant() !== null || choosingForSelection()"
@@ -464,3 +399,8 @@
              [confirmLabel]="askLabel()" [icon]="askIcon()" [tone]="askTone()"
              [busy]="working()"
              (confirmed)="confirmed()" (cancelled)="asking.set(null)"></app-confirm>
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
+}

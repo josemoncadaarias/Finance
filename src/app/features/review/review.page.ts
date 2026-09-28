@@ -15,11 +15,8 @@
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-  IonSpinner, IonMenuButton, IonPopover, IonSearchbar,
-} from '@ionic/angular';
+import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
+import { Location } from '@angular/common';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { ProposalsRepository, type MovementProposal } from '../../core/database/repositories/proposals.repository';
@@ -37,9 +34,11 @@ import { foldText } from '../../core/text/fold-text';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
-import { IconComponent } from '../../core/icons/icon.component';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
+import { ComposeService } from '../../core/ui/compose.service';
+import { ProposalFormComponent, type ProposalAnswer } from './proposal-form.component';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -82,18 +81,35 @@ interface Batch {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
-    IconComponent, LanguageButtonComponent, CloudButtonComponent,
-    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonInput, IonSelect, IonSelectOption,
-    IonSpinner, IonMenuButton, IonPopover, IonSearchbar,
+    BadgeComponent, JumpComponent, AccountPickerComponent, ProposalFormComponent,
+    IonContent, IonIcon, IonSpinner, IonModal,
   ],
   templateUrl: './review.page.html',
   styleUrls: ['./review.page.scss'],
 })
 export class ReviewPage {
   private readonly database = inject(DatabaseService);
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
   private readonly statements = inject(StatementsService);
+  private readonly compose = inject(ComposeService);
+  private readonly location = inject(Location);
+  readonly info = signal<string | null>(null);
+
+  back(): void {
+    this.location.back();
+  }
+
+  /** While choosing, the selection bar takes the tab bar's place. */
+  private readonly hideTabs = effect(() => {
+    document.body.classList.toggle('choosing', this.selecting());
+  });
+
+  ngOnDestroy(): void {
+    document.body.classList.remove('choosing');
+  }
+
+  /** Every row of every shop that repeats, for the tick on their heading. */
+  readonly allShopLines = computed(() => this.repeated().flatMap(shop => this.linesOfShop(shop)));
 
   /**
    * What the statement says the account held, against what the app says.
@@ -129,7 +145,9 @@ export class ReviewPage {
   shownIn(batch: Batch): Line[] {
     const only = this.showOnly();
     const term = foldText(this.search());
+    const account = this.accountFilter();
     const lines = batch.lines.filter(line => {
+      if (account !== null && line.proposal.account_id !== account) return false;
       if (term.length > 0 && !this.matches(line, term)) return false;
       if (only === 'waiting') return !this.ready(line);
       if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed;
@@ -176,6 +194,192 @@ export class ReviewPage {
   showEverything(): void {
     this.showOnly.set('all');
     this.search.set('');
+  }
+
+  // -------------------------------------------------------------------------
+  // The redesign (mockups 6a-6z)
+  // -------------------------------------------------------------------------
+
+  /** Which account's movements are on show; null is "Todas las cuentas". */
+  readonly accountFilter = signal<number | null>(null);
+  readonly pickingAccount = signal(false);
+  readonly choosingView = signal(false);
+  readonly batchMenu = signal<Batch | null>(null);
+  readonly balancesFor = signal<Batch | null>(null);
+
+  /** The accounts with something waiting, first, for the account list. */
+  readonly waitingByAccount = computed(() => {
+    const counts = new Map<number, number>();
+    for (const batch of this.batches()) {
+      for (const line of batch.lines) {
+        if (line.proposal.account_id !== null) counts.set(line.proposal.account_id, (counts.get(line.proposal.account_id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  });
+
+  readonly accountLabel = computed(() =>
+    this.accounts().find(one => one.id === this.accountFilter())?.name ?? this.i18n.t('summary.allAccounts'));
+
+  readonly shownAccount = computed(() => this.accounts().find(one => one.id === this.accountFilter()) ?? null);
+
+  /** "Todos · por fecha": what is shown and in what order, on one chip. */
+  readonly viewLabel = computed(() => {
+    const only = this.i18n.t(this.showOnly() === 'waiting' ? 'review.only.waiting'
+      : this.showOnly() === 'flagged' ? 'review.only.flagged' : 'review.only.all');
+    const order = this.i18n.t(this.sortBy() === 'amount' ? 'ui.review.byAmount' : 'ui.review.byDate');
+    return `${only} · ${order}`;
+  });
+
+  readonly filtering = computed(() => this.showOnly() !== 'all' || this.search().trim() !== '' || this.accountFilter() !== null);
+
+  readonly shownCount = computed(() => this.batches().reduce((sum, batch) => sum + this.shownIn(batch).length, 0));
+
+  countOf(count: number): string {
+    return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count });
+  }
+
+  /** How many flagged or waiting, for the rows of the "Mostrar" sheet. */
+  readonly waitingCount = computed(() => this.batches().reduce((sum, batch) => sum + this.waitingOn(batch), 0));
+  readonly flaggedCount = computed(() => this.batches().reduce((sum, batch) =>
+    sum + batch.lines.filter(line => line.sameAs !== null || line.pairedWith !== null || line.guessed).length, 0));
+
+  /** A batch's rows, by day, the first day open (the rule for every list). */
+  daysOf(batch: Batch): { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }[] {
+    const days = new Map<string, { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }>();
+    for (const line of this.shownIn(batch)) {
+      const key = `${batch.key}|${this.sortBy() === 'amount' ? 'all' : line.proposal.occurred_on ?? ''}`;
+      const day = days.get(key) ?? {
+        key, title: this.sortBy() === 'amount' ? '' : this.longDay(line.proposal.occurred_on),
+        lines: [], totalMinor: 0, currency: line.account?.currency_code ?? 'COP',
+      };
+      day.lines.push(line);
+      day.totalMinor += line.proposal.amount_minor ?? 0;
+      days.set(key, day);
+    }
+    // Newest first, the way every list of movements reads.
+    return [...days.values()].sort((a, b) => b.key.localeCompare(a.key));
+  }
+
+  private readonly dayState = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  isDayOpen(batch: Batch, key: string): boolean {
+    const set = this.dayState().get(key);
+    if (set !== undefined) return set;
+    return this.daysOf(batch)[0]?.key === key;
+  }
+
+  toggleDay(batch: Batch, key: string): void {
+    const next = new Map(this.dayState());
+    next.set(key, !this.isDayOpen(batch, key));
+    this.dayState.set(next);
+  }
+
+  /** Open all, or close all, of every day on show. */
+  toggleAllDays(): void {
+    const keys = this.batches().flatMap(batch => this.daysOf(batch).map(day => ({ batch, key: day.key })));
+    const open = keys.every(({ batch, key }) => !this.isDayOpen(batch, key));
+    this.dayState.set(new Map(keys.map(({ key }) => [key, open])));
+  }
+
+  readonly allDaysClosed = computed(() =>
+    this.batches().every(batch => this.daysOf(batch).every(day => !this.isDayOpen(batch, day.key))));
+
+  readonly shopsOpen = signal(false);
+
+  /** "Viernes 26 de septiembre". */
+  longDay(iso: string | null): string {
+    if (!iso) return this.i18n.t('ui.review.noDate');
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const monthText = date.toLocaleDateString(locale, { month: 'long' });
+    const text = this.i18n.t('ui.review.dayTitle', { weekday, day, month: monthText });
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  /** Ticks every row of a day or a shop, or none when all of them are ticked. */
+  toggleMany(lines: readonly Line[]): void {
+    const next = new Set(this.selectedIds());
+    const all = lines.every(line => next.has(line.proposal.id));
+    for (const line of lines) {
+      if (all) next.delete(line.proposal.id);
+      else next.add(line.proposal.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  /** 'on', 'half' or 'off', for the tick of a day or a shop. */
+  tickOf(lines: readonly Line[]): 'on' | 'half' | 'off' {
+    const ids = this.selectedIds();
+    const ticked = lines.filter(line => ids.has(line.proposal.id)).length;
+    return ticked === 0 ? 'off' : ticked === lines.length ? 'on' : 'half';
+  }
+
+  pickedOf(lines: readonly Line[]): number {
+    const ids = this.selectedIds();
+    return lines.filter(line => ids.has(line.proposal.id)).length;
+  }
+
+  /** The rows of a repeated shop, wherever they are. */
+  linesOfShop(shop: Repeated): Line[] {
+    return this.batches().flatMap(batch => batch.lines)
+      .filter(line => merchantKeyOf(line.proposal.description) === shop.merchant);
+  }
+
+  /** A row tapped: ticked while choosing, opened in the movement form otherwise. */
+  tapped(line: Line): void {
+    if (this.selecting()) this.toggle(line);
+    else this.openLine.set(line);
+  }
+
+  // --- one row, answered in the movement form (6e-6h) ----------------------
+
+  readonly openLine = signal<Line | null>(null);
+
+  async answer(line: Line, fields: ProposalAnswer): Promise<void> {
+    this.working.set(true);
+    try {
+      const proposals = new ProposalsRepository(this.database.driver);
+      await proposals.correct(line.proposal.id, fields);
+      const updated = await proposals.byId(line.proposal.id);
+      this.openLine.set(null);
+      if (updated) await this.write([updated]);
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  discardOpen(): void {
+    const line = this.openLine();
+    if (!line) return;
+    this.openLine.set(null);
+    this.asking.set({ kind: 'discardOne', line });
+  }
+
+  /** The file a batch was read from. */
+  fileName(batch: Batch): string {
+    const read = this.read(batch.lines[0]?.proposal ?? ({ evidence: '{}' } as MovementProposal));
+    return typeof read['file'] === 'string' ? read['file'] : this.fileOf(batch.key);
+  }
+
+  /** What the statement said about its own arithmetic, for its batch. */
+  checkOf(batch: Batch): { off: boolean; line: string; gap: string } | null {
+    const last = this.statements.lastImport();
+    if (last === null || last.batch !== batch.key) return null;
+    const reading = last.reading;
+    const just = this.justRead();
+    if (!just) return null;
+    return {
+      off: reading.balances === 'off',
+      line: just.balances,
+      gap: reading.balances === 'off' ? this.money(Math.abs(reading.offBy_minor)) : '',
+    };
+  }
+
+  startImport(): void {
+    this.compose.startImport();
   }
 
   /** How many a filter is hiding, so it never hides silently. */
@@ -325,7 +529,7 @@ export class ReviewPage {
   }
 
   /** The name of the file, without the moment it was read. */
-  private fileOf(batch: string): string {
+  fileOf(batch: string): string {
     return batch.replace(/\s\d{4}-\d{2}-\d{2}T.*$/, '');
   }
 
@@ -691,8 +895,7 @@ export class ReviewPage {
     const read = this.read(proposal);
     const where = account?.name ?? this.i18n.t('review.noAccount');
     if (proposal.source === 'notification') return this.i18n.t('review.fromNotification', { account: where });
-    const file = typeof read['file'] === 'string' ? read['file'] : '';
-    return this.i18n.t('review.fromStatement', { account: where, file });
+    return this.i18n.t('ui.review.statementOf', { account: where });
   }
 
   /** Whether this row can be written at all, for the button that writes it. */
@@ -747,7 +950,7 @@ export class ReviewPage {
 
   money(minor: number | null, currency?: string): string {
     if (minor === null) return '—';
-    return formatMoney(minor, currency ?? 'COP');
+    return formatMoney(minor, currency ?? 'COP', { withSymbol: false });
   }
 
   // -------------------------------------------------------------------------
