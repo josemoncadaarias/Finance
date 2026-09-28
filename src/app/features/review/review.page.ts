@@ -141,8 +141,24 @@ export class ReviewPage {
   readonly sortBy = signal<'date' | 'amount'>('date');
   readonly showOnly = signal<'all' | 'waiting' | 'flagged'>('all');
 
-  /** The list as it is being looked at: filtered, then sorted. */
+  /**
+   * The list as it is being looked at, worked out once per change of the
+   * rows or the filters and read from here by everything on the screen.
+   *
+   * It used to be worked out again by every call from the template - and
+   * `daysOf` called it once per day, per change detection, which on a phone
+   * is every frame of a scroll. With a statement of two hundred rows that
+   * was the stutter Jose felt scrolling the list after an import.
+   */
+  private readonly shownByBatch = computed(() =>
+    new Map(this.batches().map(batch => [batch.key, this.filterBatch(batch)])));
+
   shownIn(batch: Batch): Line[] {
+    return this.shownByBatch().get(batch.key) ?? this.filterBatch(batch);
+  }
+
+  /** Filtered, then sorted. */
+  private filterBatch(batch: Batch): Line[] {
     const only = this.showOnly();
     const term = foldText(this.search());
     const account = this.accountFilter();
@@ -245,7 +261,14 @@ export class ReviewPage {
     sum + batch.lines.filter(line => line.sameAs !== null || line.pairedWith !== null || line.guessed).length, 0));
 
   /** A batch's rows, by day, the first day open (the rule for every list). */
+  private readonly daysByBatch = computed(() =>
+    new Map(this.batches().map(batch => [batch.key, this.groupDays(batch)])));
+
   daysOf(batch: Batch): { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }[] {
+    return this.daysByBatch().get(batch.key) ?? this.groupDays(batch);
+  }
+
+  private groupDays(batch: Batch): { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }[] {
     const days = new Map<string, { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }>();
     for (const line of this.shownIn(batch)) {
       const key = `${batch.key}|${this.sortBy() === 'amount' ? 'all' : line.proposal.occurred_on ?? ''}`;
@@ -324,9 +347,19 @@ export class ReviewPage {
 
   /** The rows of a repeated shop, wherever they are. */
   linesOfShop(shop: Repeated): Line[] {
-    return this.batches().flatMap(batch => batch.lines)
-      .filter(line => merchantKeyOf(line.proposal.description) === shop.merchant);
+    return this.linesByMerchant().get(shop.merchant) ?? [];
   }
+
+  /** Every row by its shop, read once rather than once per shop per frame. */
+  private readonly linesByMerchant = computed(() => {
+    const byMerchant = new Map<string, Line[]>();
+    for (const line of this.batches().flatMap(batch => batch.lines)) {
+      const key = merchantKeyOf(line.proposal.description);
+      const found = byMerchant.get(key);
+      if (found) found.push(line); else byMerchant.set(key, [line]);
+    }
+    return byMerchant;
+  });
 
   /** A row tapped: ticked while choosing, opened in the movement form otherwise. */
   tapped(line: Line): void {
@@ -588,8 +621,10 @@ export class ReviewPage {
   /** The category on a row, for the button that opens the sheet. */
   categoryOf(line: Line): CategoryRow | null {
     const id = line.proposal.category_id;
-    return id === null ? null : this.categories().find(category => category.id === id) ?? null;
+    return id === null ? null : this.categoriesById().get(id) ?? null;
   }
+
+  private readonly categoriesById = computed(() => new Map(this.categories().map(category => [category.id, category])));
 
   async chooseCategory(id: number): Promise<void> {
     if (this.choosingForSelection()) {
@@ -717,6 +752,18 @@ export class ReviewPage {
     this.startSelecting(line);
   }
 
+  /**
+   * A long press on a shop or on a day starts choosing with all its rows
+   * ticked, as a long press on one row starts it with that row (Jose,
+   * 2026-09-28: it only worked on the rows).
+   */
+  pressedMany(event: Event, lines: readonly Line[]): void {
+    event.preventDefault();
+    if (this.selecting()) return;
+    this.selecting.set(true);
+    this.selectedIds.set(new Set(lines.map(line => line.proposal.id)));
+  }
+
   stopSelecting(): void {
     this.selecting.set(false);
     this.selectedIds.set(new Set());
@@ -820,6 +867,10 @@ export class ReviewPage {
       const accountOf = new Map(allAccounts.map(account => [account.id, account]));
       const known = new Map<string, Batch>();
       const waitingById = new Map(waiting.map(one => [one.id, one]));
+      // The movements some proposals may repeat, read in one query rather than
+      // one per proposal: every query crosses into native code on the phone.
+      const maybeIds = [...new Set(waiting.map(one => one.maybe_same_as).filter((id): id is number => id !== null))];
+      const alreadyById = new Map((await transactions.findByIds(maybeIds)).map(row => [row.id, row]));
 
       for (const proposal of waiting) {
         const account = proposal.account_id === null ? null : accountOf.get(proposal.account_id) ?? null;
@@ -827,7 +878,7 @@ export class ReviewPage {
 
         let sameAs: string | null = null;
         if (proposal.maybe_same_as !== null) {
-          const already = await transactions.findById(proposal.maybe_same_as);
+          const already = alreadyById.get(proposal.maybe_same_as);
           if (already) {
             sameAs = this.i18n.t('review.maybeSame', {
               date: this.dayText(already.occurred_on),
@@ -911,8 +962,11 @@ export class ReviewPage {
    * that says a number has to mean that number.
    */
   readyLines(batch: Batch): Line[] {
-    return batch.lines.filter(line => this.ready(line));
+    return this.readyByBatch().get(batch.key) ?? batch.lines.filter(line => this.ready(line));
   }
+
+  private readonly readyByBatch = computed(() =>
+    new Map(this.batches().map(batch => [batch.key, batch.lines.filter(line => this.ready(line))])));
 
   /** How many of a batch are still waiting on something. */
   waitingOn(batch: Batch): number {
