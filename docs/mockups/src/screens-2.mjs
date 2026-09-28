@@ -4,7 +4,7 @@
 // deleting. Everything the accounts screen and its editor do today
 // (docs/08-redesign-checklist.md, "Accounts" and "Currencies"), drawn with the
 // rules of group 1: one line per name, minimal, the same row everywhere.
-import { ic, ci, sq, C, ACC, PALETTE, accIcon, chev, down, tag, sw, top, tabs, status, tint } from './lib.mjs';
+import { ic, ci, sq, C, ACC, PALETTE, accIcon, chev, down, tag, sw, top, tabs, status, tint, jump } from './lib.mjs';
 
 const S = {};
 // A screen scrolled down: the content moves up under a fixed header.
@@ -252,5 +252,9 @@ S['2p-cuentas-vacia'] = `${head}<main style="display:grid;place-items:center;hei
  <div>${centred(ci('wallet-outline', C.blu, 72), 16)}<b style="font-size:19px">Todavía no hay cuentas</b>
  <div class="sub" style="margin:8px 0 18px">Crea tu primera cuenta. Si ya tienes datos guardados, tráelos desde "Importar y exportar" o desde tu cuenta de Google.</div>
  <div class="btn" style="padding:0 22px">${ic('add')}Nueva cuenta</div></div></main>${tabs('Cuentas')}`;
+
+// Long lists carry the two arrows.
+S['2a-cuentas'] += jump(112, 'down');
+S['2c-monedas-y-tasas'] += jump(112, 'down');
 
 export default S;

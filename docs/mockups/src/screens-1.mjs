@@ -7,7 +7,7 @@
 //   a move between products, each with its note;
 // - writing a note lifts the note to the top and hides the rest, with the
 //   suggestions under it and the phone's keyboard below.
-import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint } from './lib.mjs';
+import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint, jump } from './lib.mjs';
 
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 const LONG = 'Tarjeta de crédito Rappi Visa Platinum';
@@ -211,6 +211,12 @@ S['1n-editar-y-borrar'] = `${top('Editar movimiento', { left: 'x', right: `<div 
  <div class="scrim"></div><div class="dialog" style="text-align:center">${ci('trash-outline', C.red, 54).replace('display:grid', 'display:grid;margin:0 auto 12px')}<b style="font-size:18px">¿Borrar este movimiento?</b>
   <div class="sub" style="margin-top:6px">No se puede deshacer.</div>
   <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, borrar</div></div></div>`;
+
+// Long lists carry the two arrows.
+S['1a-inicio'] += jump(112, 'down');
+S['1b-inicio-cuenta-con-productos'] += jump(112, 'down');
+S['1c-inicio-una-cuenta-nombre-largo'] += jump(112, 'down');
+S['1d-inicio-nombre-largo-deslizando'] += jump(112, 'down');
 
 export default S;
 export { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot };

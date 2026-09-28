@@ -2265,10 +2265,10 @@ changes of ACCESS for Jose to accept or refuse:
   the period with its arrows; tapping the period opens a sheet (Día,
   Semana, Mes, Trimestre, Año, Todo, Entre dos fechas, and "Incluir lo
   apartado del patrimonio").
-- **One section open at a time, each closed one shows its key figure**
-  ("Ahorrado 38 %", "Gastos -6 %", "Vivienda 27 %"), so the whole report
-  reads in one screen closed. Today several can be open and "Abrir todas /
-  Cerrar todas" exists; that button would go.
+- **Each closed section shows its key figure** ("Ahorrado 38 %", "Gastos
+  -6 %", "Vivienda 27 %"), so the whole report reads in one screen
+  closed. (v4 proposed one open at a time; v5 keeps today's several
+  open and "Abrir todas / Cerrar todas".)
 - **What a section shows (`Block.about`) is an (i) beside its title**,
   opening a bubble, not a visible line (the rule of group 4); the
   caveats that change a figure's meaning ("los mismos 27 días", "parte
@@ -2305,6 +2305,26 @@ changes of ACCESS for Jose to accept or refuse:
   writing a movement (rules 20 and 22; idea 7 of the table below).
   Lukas's line chart of spending was left out: it is "Mes a mes" drawn
   another way, and the rule is no second way to see the same thing.
+
+**And from his second look at group 5 (2026-09-28), for every group:**
+
+- **The account picker under the switch is centred**, as wide as its
+  name (on the report; Inicio's header already carries it).
+- **A long name slides wherever it is listed**, not only in the
+  movement form: a category in "En qué se fue", an account in a ranking
+  or a comparison - one line, "…", and the marquee (`5s`).
+- **Every screen with a long list has the two arrows, and folding lists
+  have "Abrir todas / Cerrar todas"**, as the app does today on the
+  summary, the report, categories and review (up only once the list has
+  left the top, down only while there is more below; `showJumpUp`,
+  `showJumpDown` in `movements.page.ts`). Drawn now on Inicio (`1a`-`1d`),
+  Cuentas and Monedas y tasas (`2a`, `2c`), Rendimientos and an account's
+  Movimientos, Pagos and Días (`4a`, `4d`-`4f`) - the accounts and
+  products screens are new to it - and every report screen. They are
+  38px, see-through and pressed against the right edge so they cover
+  little. So the report keeps today's behaviour after all: several
+  sections can be open at once, with "Cerrar todas" beside "Van 27 de 30
+  días"; the closed ones still show their key figure.
 
 ### The ideas, by what they would take
 

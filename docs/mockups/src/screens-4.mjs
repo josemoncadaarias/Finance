@@ -9,7 +9,7 @@
 // - rates live inside their product; a rate of the whole account shows in
 //   each product that uses it, marked as the account's;
 // - the orphan withdrawal is said quietly, inside its row.
-import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint } from './lib.mjs';
+import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint, jump } from './lib.mjs';
 import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot } from './screens-1.mjs';
 
 const S = {};
@@ -404,5 +404,11 @@ const longForm = slide => `${xTop()}<main style="padding-top:8px">${typeSeg('Tra
  </main>${keys('Guardar')}`;
 S['4t12-transferir-nombres-largos'] = longForm(false);
 S['4t13-transferir-nombres-largos-deslizando'] = longForm(true);
+
+// Long lists carry the two arrows.
+S['4a-rendimientos'] += jump(112, 'down');
+S['4d-cuenta-movimientos'] += jump(112, 'down');
+S['4e-cuenta-pagos'] += jump(112, 'down');
+S['4f-cuenta-dias'] += jump(112, 'down');
 
 export default S;

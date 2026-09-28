@@ -8,7 +8,7 @@
 // sections separated (only one open at a time, each closed one showing its
 // key figure), the "about" line as an (i) that opens a bubble, icons on
 // every account and category, long names on one line.
-import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, sw, tabs, status, tint } from './lib.mjs';
+import { jump, ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, sw, tabs, status, tint } from './lib.mjs';
 
 const S = {};
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
@@ -21,7 +21,7 @@ const arrow = d => `<span style="width:44px;height:44px;border-radius:50%;backgr
 const head = which => `<div class="bar-top">${st}<div class="tt" style="gap:10px"><h1 style="flex:1">Reporte</h1>
   <div class="btn-r">${ic('download-outline')}</div></div>
  <div class="seg" style="margin-top:10px"><div class="${which === 'm' ? 'on' : ''}">${ic('swap-vertical-outline')}Movimientos</div><div class="${which === 'y' ? 'on' : ''}">${ic('trending-up-outline')}Rendimientos</div></div>
- <div class="chip" style="margin-top:10px;padding:6px 10px">${which === 'm' ? ci('layers-outline', C.blu, 24) : ci('trending-up-outline', C.grn, 24)}<span class="one" style="flex:1">${which === 'm' ? 'Todas las cuentas' : 'Todas las cuentas que rinden'}</span>${down()}</div>
+ <div class="chip" style="display:flex;width:fit-content;max-width:100%;margin:10px auto 0;padding:6px 12px">${which === 'm' ? ci('layers-outline', C.blu, 24) : ci('trending-up-outline', C.grn, 24)}<span class="one">${which === 'm' ? 'Todas las cuentas' : 'Todas las cuentas que rinden'}</span>${down()}</div>
  <div style="display:flex;align-items:center;gap:8px;margin-top:8px">${arrow('back')}<span style="flex:1;display:flex;justify-content:center;align-items:center;gap:8px;font-size:16.5px;font-weight:600">${ic('calendar-outline', 'p', 'width:19px;height:19px')}Septiembre 2026${down()}</span>${arrow('forward')}</div></div>`;
 const TOP = 250;
 
@@ -32,7 +32,8 @@ const open = (icon, title, body) => `<div class="card" style="margin-top:8px;pad
 const sIcon = (i, c) => ci(i, c, 34);
 const fig = (lab, v, cls = '', note = '') => `<div style="background:var(--s2);border-radius:14px;padding:10px 12px;min-width:0"><div class="lab" style="font-size:10.5px">${lab}</div><b class="${cls} one" style="display:block;font-size:17px;margin-top:3px">${v}</b>${note ? `<div class="sub" style="font-size:12px;line-height:1.35;margin-top:2px">${note}</div>` : ''}</div>`;
 const grid = items => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${items.join('')}</div>`;
-const partial = `<div class="sub" style="margin:10px 4px 0;display:flex;gap:6px;align-items:center">${ic('time-outline', '', 'width:15px;height:15px')}Van 27 de 30 días del periodo</div>`;
+const partial = `<div style="margin:10px 0 0 4px;display:flex;gap:6px;align-items:center"><span class="sub" style="flex:1;display:flex;gap:6px;align-items:center">${ic('time-outline', '', 'width:15px;height:15px')}Van 27 de 30 días</span>
+ <span class="chip" style="padding:6px 11px;font-size:13px">${ic('chevron-collapse-outline', '', 'width:16px;height:16px')}Cerrar todas</span></div>`;
 
 // Every money section, closed, with its peek - in the report's own order.
 const MONEY = {
@@ -69,10 +70,14 @@ S['5b-comparado-con-antes'] = page('m', moneyList('versus', `<div class="sub" st
  ${cmp(catIcon('transp', 34), 'Transporte', '402.300', '318.100', '−21 %', 'g')}</div>`));
 
 // 3. Where the money went: the ring and the ranked list, with icons.
-const bar = (k, t, amt, pct, w) => `<div style="display:flex;align-items:center;gap:10px;margin-top:10px">${catIcon(k, 32)}<div style="flex:1;min-width:0"><div style="display:flex;gap:8px"><b class="one" style="flex:1;font-weight:500;font-size:14.5px">${t}</b><span style="font-size:14px;white-space:nowrap">${amt}</span></div>
-  <div style="display:flex;align-items:center;gap:8px;margin-top:5px"><div class="pbar" style="flex:1;height:6px"><i style="width:${w}%;background:${CAT[k][1]}"></i></div><span class="mu" style="font-size:12px;width:34px;text-align:right">${pct}</span></div></div></div>`;
-S['5c-en-que-se-fue'] = page('m', moneyList('categories', `${bar('vivienda', 'Vivienda y arriendo del apartamento', '1.400.000', '27 %', 100)}${bar('mercado', 'Mercado', '890.200', '17 %', 64)}${bar('rest', 'Restaurantes', '785.400', '15 %', 56)}${bar('transp', 'Transporte', '523.600', '10 %', 37)}${bar('servicios', 'Servicios', '418.900', '8 %', 30)}
- <div class="p" style="margin-top:12px;font-size:14px">Ver las 11 restantes</div>`));
+const bar = (k, t, amt, pct, w, slide = 0) => `<div style="display:flex;align-items:center;gap:10px;margin-top:10px">${typeof k === 'string' && CAT[k] ? catIcon(k, 32) : k}<div style="flex:1;min-width:0"><div style="display:flex;gap:8px"><b class="one" style="flex:1;font-weight:500;font-size:14.5px;${slide ? 'text-overflow:clip' : ''}">${slide ? `<span style="display:inline-block;transform:translateX(${slide}px)">${t}</span>` : t}</b><span style="font-size:14px;white-space:nowrap">${amt}</span></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:5px"><div class="pbar" style="flex:1;height:6px"><i style="width:${w}%;background:${CAT[k]?.[1] ?? PALETTE.arena}"></i></div><span class="mu" style="font-size:12px;width:34px;text-align:right">${pct}</span></div></div></div>`;
+const pets = sq('paw-outline', PALETTE.arena, 32);
+const whereItWent = slide => `${bar('vivienda', 'Vivienda', '1.400.000', '27 %', 100)}${bar('mercado', 'Mercado', '890.200', '17 %', 64)}${bar(pets, 'Mascotas: comida, veterinario y peluquería', '812.300', '16 %', 58, slide)}${bar('rest', 'Restaurantes', '785.400', '15 %', 56)}${bar('transp', 'Transporte', '523.600', '10 %', 37)}
+ <div class="p" style="margin-top:12px;font-size:14px">Ver las 11 restantes</div>`;
+S['5c-en-que-se-fue'] = page('m', moneyList('categories', whereItWent(0)));
+// The long name, sliding to show itself (marquee.service.ts), second frame.
+S['5s-nombre-largo-deslizando'] = page('m', moneyList('categories', whereItWent(-78)));
 
 // 4. What changed, in words; charges that repeat, ranked.
 const noteLine = (t, amber = false) => `<div style="display:flex;gap:9px;margin-top:10px;font-size:14px;line-height:1.4;${amber ? 'color:#f3d58a' : ''}">${ic(amber ? 'alert-circle-outline' : 'ellipse', '', `width:${amber ? 17 : 7}px;height:${amber ? 17 : 7}px;flex:none;margin-top:${amber ? 1 : 7}px`)}<span>${t}</span></div>`;
@@ -184,5 +189,8 @@ const future = (pick) => {
   <div class="sub" style="margin-top:8px;font-size:12.5px">Línea continua: tu saldo real. Punteada: una proyección con tu ingreso y gasto promedio de los últimos 6 meses, no un hecho.</div>`;
 };
 S['5r-saldo-a-futuro'] = scrolledPage('m', 540, moneyList('future', future(3)));
+
+// The two arrows on every report screen (sheets and dialogs cover them).
+for (const k of Object.keys(S)) if (!/5[ghi]-/.test(k)) S[k] += jump(112, S[k].includes('margin-top:-') ? 'both' : 'down');
 
 export default S;

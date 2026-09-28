@@ -159,6 +159,12 @@ nav .plus{flex:none;width:52px;height:52px;padding:0;margin:0 4px;border-radius:
 .float-ctl{position:absolute;right:16px;bottom:110px;display:flex;flex-direction:column;gap:8px}
 `;
 
+// The two arrows of a long list, as the app shows them today: up only once
+// the list has left the top, down only while there is more below. Floating
+// on the right above the bar, small and see-through so they cover little.
+const arrowBtn = d => `<div style="width:38px;height:38px;border-radius:50%;background:rgba(38,50,79,.82);border:1px solid #3a4a72;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.45)">${ic(`arrow-${d}-outline`, '', 'width:19px;height:19px')}</div>`;
+export const jump = (bottom = 112, show = 'both') => `<div class="float-ctl" style="bottom:${bottom}px;right:10px">${show !== 'down' ? arrowBtn('up') : ''}${show !== 'up' ? arrowBtn('down') : ''}</div>`;
+
 export const status = `<div class="status"><span>9:41</span><span>5G ▮▮▮ 87%</span></div>`;
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 // The "+" sits in the middle of the bar itself (v5): floating over the page it

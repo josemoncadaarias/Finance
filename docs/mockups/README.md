@@ -13,6 +13,8 @@ agreed"). Files starting with a digit are the current version of their
 group (v4 and later). The "+" sits in the middle of the floating bar from v5, in every file that draws the bar; `b*`, `c*`, `d*` are v3 drafts, kept until their group
 is redone, and superseded by Jose's review of 2026-09-28.
 
+Every screen with a long list carries the two arrows (up, down) on the right above the bar, as the app shows them today.
+
 ## The files
 
 | File | Screen |
@@ -23,7 +25,7 @@ is redone, and superseded by Jose's review of 2026-09-28.
 | `3a`–`3j` | Group 3 (v4): Categorías closed and open, which list for a new one, editing (Para locked), a new one, the investment-return switch, the face's icon, colour and own image, the archived |
 | `4t01`–`4t13` | Group 4: every transfer with products, each end compact (account and product on two lines, two shapes) - the (i) help opened (`4t01b`), choosing on one side the product the other holds and the other side moving (`4t10a`, `4t10b`), long names and their slide (`4t12`, `4t13`), between two products of one account, choosing the product it leaves from, product to an account, account to a product, choosing the product it lands in, between two accounts with products, into a product set aside from net worth, into another currency, after "Invertir", the same product on both ends, editing one |
 | `4a`–`4zz` | Group 4 (v5): Rendimientos in the Cuentas tab, adding an account; an account's page with its selector (Productos, Movimientos, Pagos, Días), one day corrected or set to zero, stopping it; a product with its selector (Producto, Saldo said as a sum, Tasa, one using the account's rate, a new rate, Bonificación and a new one), deleting it and choosing where its balance goes; a CDT (CDT, Al vencer and choosing where it pays, Pagos); a new product's Saldo; a product's own income and expense with "¿Qué cambia?" as one row opening a sheet, and the note |
-| `5a`–`5r` | Group 5 (v5): the report. Movimientos: as it opens, each section open in turn (compared with before, what changed, where the money went, charges repeated each month, spending month by month), the (i) of a section, choosing the period, exporting. Rendimientos: the period in figures, against inflation, worth knowing, the balance against last month's close, yields so far with the estimated part, which account earned most, against the period before. From Lukas: income and spending month by month (`5q`) and the balance ahead (`5r`) |
+| `5a`–`5s` | Group 5 (v5): the report. Movimientos: as it opens, each section open in turn (compared with before, what changed, where the money went, charges repeated each month, spending month by month), the (i) of a section, choosing the period, exporting. Rendimientos: the period in figures, against inflation, worth knowing, the balance against last month's close, yields so far with the estimated part, which account earned most, against the period before. From Lukas: income and spending month by month (`5q`) and the balance ahead (`5r`); a long category name sliding (`5s`) |
 | `d03`–`d05` | Reading a statement, Por revisar (and choosing several) |
 | `d06`–`d07` | Avisos del banco, without and with permission |
 | `d08`–`d13` | Más, Importar y exportar, restoring, Google signed out and in (change account, sign out), replacing the Drive copy |
