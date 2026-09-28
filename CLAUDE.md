@@ -1406,7 +1406,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 540 tests that run against a real
+by 553 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -2058,6 +2058,51 @@ then does the next start. The groups and where each stands:
 | 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | **Approved** by Jose, 2026-09-28 (the colour of the app drawn, not yet confirmed on its own) |
 | 9 | Income-tax simulator | `docs/mockups/9*` (v4) | **Approved** by Jose, 2026-09-28 |
+
+**Built, all nine groups, on 2026-09-28** (branch `claude/redesign-all-screens`,
+merged to `main` through its own PR). The app as it was before is kept on the
+branch **`app-before-redesign`**: to go back, run "Store bundle" from that
+branch in the Actions tab (it is `workflow_dispatch`, so any branch can be
+built; the version code still rises, so Play takes it as an update). What
+changed in the shape of the app, for the next session:
+
+- **The drawer is gone.** `app-tab-bar` (`shared/ui/tab-bar.component.ts`)
+  floats over Android's buttons: Inicio, Cuentas, the "+", Reporte, Más.
+  `/more` is Más (replaces the drawer; the Google card, Tus datos,
+  Herramientas, Preferencias with Idioma and Apariencia, where the accent is
+  chosen - Zafiro by default, `core/theme/accent.service.ts`).
+  `/currencies` is Monedas y tasas. Screens reached from Más have a back
+  arrow in a `ui-titlebar` and no menu button.
+- **The "+" is the one way to a new movement** (`core/ui/compose.service.ts`, and
+  `compose-host` draws the sheet and the form). A screen that must route it
+  elsewhere sets `compose.handler` (the products account page does, to the
+  product form) and `compose.context` (the account on show).
+- **Every new control is in `global.scss`** under `ui-*` (card, hero, row,
+  seg, chip, tag, btn, round, info bubble, switch, tick, banner, period,
+  group, jump, titlebar, pill, frame, field, input, toast, selection bar).
+  The redesign's words are in `core/i18n/translations-ui.ts` (`ui.*`,
+  `face.*`, `more.*`, `accent.*`), spread into both dictionaries.
+- **`app-badge`** draws every icon (category in a rounded square, account in
+  a circle, in its own colour; `displayColor` gives the default grey a
+  palette colour by id, for display only). `app-jump` is the two arrows of
+  every long list but Inicio. `shared/ui/face-editor` is Ícono / Color /
+  Imagen propia for accounts and categories.
+- **Two report sections are new** (rule 20): "Mes a mes" carries income
+  beside spending (`TrendBlock.series`, a switch on screen, two columns in
+  the spreadsheet), and "Tu saldo a futuro" (`balanceAhead`,
+  `ReportData.future`, `TrendBlock.shape: 'line'`) walks the balance back
+  from today's and projects 90 days at the average of the last six whole
+  months, dashed and called a projection. Both audits still agree on Jose's
+  backup (2,210 and 112 checks).
+- **The tax simulator opens with every section closed**, each showing the
+  casilla that sums it up; its engine, rows and spreadsheet are untouched.
+- Not built, deliberately: a product's own face (no column holds one - the
+  icon is derived, `core/icons/product-face.ts`); anything in "Ideas waiting
+  for Jose's word".
+- Checked in a browser against Jose's backup, screen by screen, against the
+  mockups; **not yet on the phone**. What a phone may show differently: the
+  long press that starts choosing, the keyboard with the note raised, the
+  marquee, the floating bar over Android's own buttons.
 
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
 
