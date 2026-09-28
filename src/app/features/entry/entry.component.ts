@@ -41,6 +41,9 @@ import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../.
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
 import { whatItHolds } from '../../core/yields/holdings';
+import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
+import { accrueAndSettle } from '../../core/yields/cdt';
+import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
@@ -49,6 +52,7 @@ import { outlined } from '../../core/icons/icon-catalog';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { BadgeComponent } from '../../shared/ui/badge.component';
+import { ScopeSheetComponent, SCOPE_ICON, SCOPE_TONE, scopeOptionsIn } from '../../shared/scope-sheet/scope-sheet.component';
 import { productIcon, productSeed } from '../../core/icons/product-face';
 import { AccentService } from '../../core/theme/accent.service';
 
@@ -85,7 +89,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-entry',
   imports: [
-    CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent,
+    CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
     CategoryEditorComponent, ConfirmComponent, KeypadComponent,
     IonIcon, IonDatetime, IonModal,
   ],
@@ -173,6 +177,47 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   readonly splitAccount = computed(() => this.products().length > 1);
   readonly splitTarget = computed(() => this.toProducts().length > 1);
+
+  /**
+   * "¿Qué cambia?" (`core/yields/entry-scope.ts`), asked here too whenever the
+   * account has products (Jose, 2026-09-28): an ordinary movement for a
+   * salary, the product alone for a gain not to be counted in net worth yet.
+   * Only on a new income or spending: a movement being corrected is already
+   * one shape, and the products screen corrects the other two.
+   */
+  readonly asksScope = computed(() =>
+    !this.isTransfer() && !this.isEditing() && this.products().length > 0);
+  readonly scope = signal<EntryScope>(DEFAULT_SCOPE);
+  readonly choosingScope = signal(false);
+  /** Chosen by hand: the habit stops following the form. */
+  private scopeTouched = false;
+  private scopeAsked = 0;
+
+  readonly scopeIcon = SCOPE_ICON;
+  readonly scopeTone = SCOPE_TONE;
+  readonly scopeName = computed(() =>
+    scopeOptionsIn(this.i18n, this.kind() === 'expense' ? 'expense' : 'income')
+      .find(option => option.id === this.scope())?.name ?? '');
+
+  chooseScope(id: EntryScope): void {
+    this.scopeTouched = true;
+    this.scope.set(id);
+    this.choosingScope.set(false);
+  }
+
+  /** The answer this person usually gives for the account, category and side. */
+  private readonly offerUsualScope = effect(() => {
+    const asks = this.asksScope();
+    const accountId = this.accountId();
+    const categoryId = this.categoryId();
+    const kind = this.kind();
+    untracked(() => {
+      if (!asks || accountId === null || this.scopeTouched || this.database.status() !== 'ready') return;
+      const asked = ++this.scopeAsked;
+      void usualScope(this.database.driver, { accountId, side: kind === 'income' ? 'in' : 'out', categoryId })
+        .then(found => { if (asked === this.scopeAsked && !this.scopeTouched) this.scope.set(found); });
+    });
+  });
 
   /**
    * True when both legs sit on one account: money moving between two of its
@@ -1234,6 +1279,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     try {
       if (this.isTransfer()) await this.saveTransfer();
+      else if (this.asksScope() && this.scope() !== 'both') await this.saveScoped();
       else await this.saveMovement();
 
       this.database.dataChanged();
@@ -1268,6 +1314,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (field) field.nativeElement.value = '';
     this.error.set('');
     this.keypadOpen.set(true);
+    // The next one asks the habit again, once its category is chosen.
+    this.scopeTouched = false;
+    this.scope.set(DEFAULT_SCOPE);
   }
 
   /**
@@ -1488,6 +1537,33 @@ export class EntryComponent implements OnInit, OnDestroy {
       description: this.note().trim() || null,
       source: 'manual',
     });
+  }
+
+  /**
+   * A new income or spending that is not an ordinary movement: the product's
+   * alone, or net worth alone. Written as the products screen writes it, and
+   * the account's days worked out again from its date, as that screen does.
+   */
+  private async saveScoped(): Promise<void> {
+    const db = this.database.driver;
+    const yields = new YieldsRepository(db);
+    const accountId = this.accountId()!;
+    await db.transaction(async () => {
+      await writeScoped(db, yields, {
+        scope: this.scope(),
+        kind: this.kind() === 'expense' ? 'expense' : 'income',
+        accountId,
+        categoryId: this.categoryId(),
+        productId: this.productId(),
+        movementProductId: this.splitAccount() ? this.productId() : null,
+        onDate: this.occurredOn(),
+        amountMinor: this.amount().minor,
+        note: this.note().trim() || null,
+      });
+      await yields.clearDays(accountId, this.occurredOn());
+    });
+    await accrueAndSettle(db, yields, new TaxParametersRepository(db), accountId, todayIso());
+    await yields.markAccrued(todayIso(), { onlyIfKnown: true });
   }
 
   private async saveTransfer(): Promise<void> {

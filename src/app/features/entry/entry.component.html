@@ -110,6 +110,14 @@
               </button>
               <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openCategories()"></ion-icon>
             </div>
+            <!-- ¿Qué cambia? on an account with products, started on the habit (4y). -->
+            @if (asksScope()) {
+              <button type="button" class="ui-row pick category scope" (click)="choosingScope.set(true)">
+                <app-badge [size]="42" [builtin]="scopeIcon" [fixed]="scopeTone"></app-badge>
+                <span class="ui-tx"><span class="k">{{ 'products.entry.scope' | t }}</span><b>{{ scopeName() }}</b></span>
+                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+              </button>
+            }
             <ng-container *ngTemplateOutlet="dayTpl"></ng-container>
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           }
@@ -351,6 +359,9 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<app-scope-sheet [open]="choosingScope()" [kind]="kind() === 'expense' ? 'expense' : 'income'" [scope]="scope()"
+                 (chosen)="chooseScope($event)" (closed)="choosingScope.set(false)"></app-scope-sheet>
 
 <!-- Nothing is deleted on one tap. Jose lost a movement to a mis-tap. -->
 <app-confirm [open]="confirmingDelete()" [title]="deleteTitle()"

@@ -322,6 +322,42 @@ backup restore against iOS's own SQLite backend.
    Multinversion - are never accrued: they already carry their own movements.
    Decision by Jose, 2026-09-09.
 
+   **"¿Qué cambia?" is asked wherever an income or a spending is made on an
+   account with products, and it starts on the person's habit** (Jose,
+   2026-09-28; `core/yields/entry-scope.ts`). Three answers: the product and
+   net worth (an ordinary movement), the product alone (a `product_entries`
+   row, no movement - a cashback not to be counted yet) and net worth alone
+   (a movement plus its other half on the product, which is how money a
+   product already holds is cashed in). It used to be asked only by the
+   products screen's form, which started an income on "the product alone",
+   while Inicio, Cuentas and the list of accounts on the products screen
+   opened the ordinary form and counted everything in net worth.
+   - **Both forms ask now.** The ordinary movement form shows the row under
+     the category when the account has products, on a NEW income or
+     spending only - a movement being corrected keeps its shape. One sheet
+     for both (`shared/scope-sheet`), and one writer (`writeScoped`), which
+     the products screen's form now uses too.
+   - **The answer starts on the habit, and only the habit**, as Jose chose
+     over a switch on the category: the commonest answer among the latest
+     five for the same account, category and side, the newest winning a
+     tie (`usualScope`). One answer is already a habit. With no category
+     chosen yet, or no history, it is "the product and net worth", so a
+     salary costs no tap. Choosing by hand stops the habit following the
+     form; "Registrar otro" asks it again for the next one.
+   - Each past row says its own answer by its shape: an entry with no
+     movement is "the product alone", a movement whose other half is on a
+     product (a cash-out for an income, an entry for a spending) is "net
+     worth alone", any other movement "both". Nothing new is stored.
+   - Checked on Jose's backup of 2026-09-28: of 109 account, category and
+     side combinations on accounts with products, 99 start on "both",
+     Rappi cuenta's Cashback (15 uses) and every "Corrección del banco"
+     start on "the product alone", and one "Ajuste bancario" of Global66
+     COP on "net worth alone". Tests: `entry-scope.test.mjs`.
+   - Not done yet, on purpose: merging the two forms into one. With the
+     question in both, the products screen's form is left for what the
+     ordinary one does not do (moving between products, correcting a
+     product's own entry); the merge waits for Jose's word.
+
    **There are five things and no sixth: products, their balances, the date
    each starts earning from, their rates and their movements.** Said by Jose
    over and over through 2026-09-22 before it was done. What stood in the way
@@ -1235,6 +1271,78 @@ backup restore against iOS's own SQLite backend.
      proposals written with `insertMany` - never a query per notification,
      and nothing working in the background.
 
+   **SMS and email: many banks send no push notification of their own**
+   (Jose, 2026-09-28). Analysed and proposed, **nothing built, nothing
+   decided**; waiting on Jose.
+
+   - **Seeing them costs no new permission.** An SMS arrives through the
+     phone's messaging app (Google Messages and the makers' own), and a
+     mail through Gmail, and both POST A NOTIFICATION - which
+     `NotificationCatcher` already receives. Verified in the code: it keeps
+     every package's title (the sender: the bank's short code or name) and
+     text; what it does not do yet is tell one sender from another inside
+     one package.
+   - **So the unit to tick is a SENDER, not an app.** Ticking the messaging
+     app whole would keep every personal SMS on the phone, which is not
+     acceptable. What the person points at is "this sender, inside this
+     app", chosen from the senders the phone has actually seen - no list of
+     bank numbers or addresses, same rule as no list of banks. The Java
+     side would keep the text only for ticked senders, as it does for
+     ticked apps now.
+   - **What is still unknown and has to be looked at on Jose's phone
+     first**, the same "show it raw for a few days" step as before: whether
+     his banks' SMS carry the amount and merchant in the notification text
+     (a MessagingStyle notification may hold earlier messages in
+     `EXTRA_MESSAGES` and be re-posted when a new one arrives); and whether
+     Gmail notifies bank mail at all - it only notifies the inboxes set to
+     notify, and mail filed under Promotions or Updates usually is not, and
+     the notification carries the subject and a snippet, not the whole mail.
+   - **Reading the SMS inbox itself** (`READ_SMS`/`RECEIVE_SMS`) is what
+     Play restricts most: only the default SMS app or a listed exception,
+     with a declaration form and a review. From memory, to confirm before
+     counting on it: "SMS-based money management" is one of the exceptions.
+     Not needed while the notification carries the text; a fallback, not a
+     first step.
+   - **Reading the mailbox itself** (the Gmail API, `gmail.readonly`) is a
+     RESTRICTED scope: fine for Jose and up to 100 test users with the
+     consent screen in testing, but for the public it needs Google's yearly
+     security assessment, which costs real money. From memory, to confirm.
+     Only if Gmail's notification turns out to say too little.
+
+   **One movement, several messages: how to count it once** (proposed).
+   The same purchase may arrive as a push, an SMS and a mail, minutes to
+   hours apart, and a second identical purchase (same amount, same shop,
+   same day) is real and must not be swallowed.
+   - **Every message is a SIGHTING**, stored raw with its channel (push,
+     SMS, mail), its sender and when it arrived; a proposal is built from
+     one or more sightings and says which ("visto por notificación · SMS ·
+     correo").
+   - **Two sightings are one movement when**: same account, same amount to
+     the cent, same direction, arrived within a window (minutes for push
+     and SMS, hours for mail), and no disagreement on what both state - the
+     merchant (`merchantKeyOf`, as `matching.ts` does), the card's last
+     digits, the time written inside the text, an authorisation or
+     reference number. A reference number that matches settles it; one
+     that differs settles it the other way.
+   - **The rule that tells a second identical purchase apart: a sender
+     never reports one movement twice.** One movement takes at most one
+     sighting from each sender. Two SMS of the same amount from the same
+     bank are two movements, always; the mails are paired with them in
+     order of arrival. So a real double purchase ends as two proposals, and
+     a triple notification of one purchase ends as one.
+   - **Except the phone repeating itself**: Android re-posts a notification
+     when it is updated, and a messaging app re-posts the conversation. The
+     same sender with the same text within a couple of minutes is one
+     sighting (or, better, the notification's own key, which the catcher
+     would have to start keeping).
+   - **Where it is not sure, it asks**, never merges or drops silently -
+     the review screen's question "¿Es el mismo movimiento?", the same
+     answer rule 22 already gives for a notification against a statement.
+     A merge is undoable from the proposal.
+   - **Against what was already typed by hand**: the same tolerant check
+     `sameMovementAs` runs for statements, so a purchase Jose typed before
+     the SMS arrived is offered as "ya registrado", not proposed again.
+
    **Several rows answered at once** (Jose, 2026-09-25, built). The review
    screen and the notifications screen share one gesture and one bar:
    "Seleccionar", or a long press on a row (the `contextmenu` event, which
@@ -1495,7 +1603,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 553 tests that run against a real
+by 558 tests that run against a real
 SQLite engine with no dependencies:
 
 ```

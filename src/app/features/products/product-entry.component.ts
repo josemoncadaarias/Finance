@@ -52,12 +52,14 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import type { AccountRow, CategoryKind, CategoryRow } from '../../core/database/types';
 import { BadgeComponent } from '../../shared/ui/badge.component';
+import { ScopeSheetComponent, SCOPE_ICON, scopeOptionsIn } from '../../shared/scope-sheet/scope-sheet.component';
 import { productIcon, productSeed } from '../../core/icons/product-face';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
+import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
@@ -86,7 +88,7 @@ import { ToastService } from '../../shared/ui/toast.service';
   selector: 'app-product-entry',
   imports: [
     TranslatePipe, BadgeComponent, CategoryEditorComponent, BusyOverlayComponent, ConfirmComponent,
-    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent,
+    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent, ScopeSheetComponent,
   ],
   templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -377,8 +379,28 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly pickingProduct = signal<'from' | 'to' | null>(null);
   readonly showDate = signal(false);
 
-  /** What the entry changes: the product, the product and net worth, or net worth alone. */
-  readonly scope = signal<'product' | 'both' | 'netWorth'>('product');
+  /**
+   * What the entry changes: the product, the product and net worth, or net
+   * worth alone (`core/yields/entry-scope.ts`). A new one starts on the
+   * person's habit for the account, category and side, or on both.
+   */
+  readonly scope = signal<EntryScope>(DEFAULT_SCOPE);
+  /** Chosen by hand: the habit stops following the form. */
+  private scopeTouched = false;
+  private scopeAsked = 0;
+
+  private readonly offerUsualScope = effect(() => {
+    const account = this.account();
+    const category = this.categoryId();
+    const kind = this.request().kind;
+    untracked(() => {
+      if (kind === 'transfer' || !account || this.request().editing || this.scopeTouched) return;
+      if (this.database.status() !== 'ready') return;
+      const asked = ++this.scopeAsked;
+      void usualScope(this.database.driver, { accountId: account.id, side: kind === 'income' ? 'in' : 'out', categoryId: category })
+        .then(found => { if (asked === this.scopeAsked && !this.scopeTouched) this.scope.set(found); });
+    });
+  });
 
   /**
    * What the entry being corrected already is.
@@ -387,7 +409,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
    * gathered; one with a movement is the other half of a cash-in. Changing the
    * answer rewrites it into the other shape.
    */
-  private scopeWhenOpened: 'product' | 'both' | 'netWorth' = 'product';
+  private scopeWhenOpened: EntryScope = 'product';
   /** Anything that reaches net worth is a movement of the account, with a category. */
   /**
    * Always. A cashback the bank paid into a product is income like any other,
@@ -411,26 +433,15 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly choosingScope = signal(false);
 
   /** The three answers, each with the sentence that explains it. */
-  readonly scopeOptions = computed(() => {
-    const expense = this.request().kind === 'expense';
-    return ([
-      ['product', 'products.entry.scope.product', 'products.entry.scope.product.hint'],
-      ['both', 'products.entry.scope.both', 'products.entry.scope.both.hint'],
-      ['netWorth',
-       expense ? 'products.entry.scope.netWorthExpense' : 'products.entry.scope.netWorthIncome',
-       expense ? 'products.entry.scope.netWorthExpense.hint' : 'products.entry.scope.netWorthIncome.hint'],
-    ] as const).map(([id, name, detail]) => ({
-      id: id as 'product' | 'both' | 'netWorth',
-      name: this.i18n.t(name),
-      detail: this.i18n.t(detail),
-    }));
-  });
+  readonly scopeOptions = computed(() =>
+    scopeOptionsIn(this.i18n, this.request().kind === 'expense' ? 'expense' : 'income'));
 
   /** What the line on the form says. */
   readonly scopeName = computed(() =>
     this.scopeOptions().find(option => option.id === this.scope())?.name ?? '');
 
-  chooseScope(id: 'product' | 'both' | 'netWorth'): void {
+  chooseScope(id: EntryScope): void {
+    this.scopeTouched = true;
     this.scope.set(id);
     this.choosingScope.set(false);
   }
@@ -672,7 +683,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** The icon of "¿Qué cambia?", after what is chosen. */
   scopeIcon(): string {
-    return 'git-compare-outline';
+    return SCOPE_ICON;
   }
 
   grow(field: HTMLTextAreaElement): void {
@@ -796,12 +807,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
     // The kinds a product movement can be, which are the user's own.
     await this.loadKinds();
-
-    // A gasto on a product is money leaving: it left the account and it left
-    // the net worth, and saying so is nearly always the right answer. An
-    // ingreso is usually the bank paying into the product, which is not net
-    // worth until it is cashed in. Either can be changed before saving.
-    if (this.request().kind === 'expense') this.scope.set('both');
 
     // Correcting an entry: the screen opens on what it says.
     const editing = this.request().editing;
@@ -1154,43 +1159,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             from: { account_id: account.id, product_id: this.productId(), amount_minor: minor },
             to: { account_id: account.id, product_id: this.toProductId(), amount_minor: minor },
           });
-        } else if (this.scope() !== 'product') {
-          // Correcting one that already was a movement: it is written again
-          // from scratch rather than patched, because what changes may be its
-          // shape - a movement with a product half, or without one.
-          if (editing) await this.removeWhatItWas(db, yields, editing);
-
-          // An ordinary movement, written the way the movements screen writes
-          // one: it shows there with its category and product.
-          const transactionId = await new TransactionsRepository(db).create({
-            account_id: account.id,
-            category_id: this.categoryId(),
-            // Null on an account with one product, as the movements screen does.
-            product_id: products.length > 1 ? this.productId() : null,
-            occurred_on: this.onDate(),
-            amount_minor: signed,
-            description: this.note().trim() || null,
-            source: 'manual',
-          });
-
-          if (this.scope() === 'netWorth') {
-            // The movement put the money in the product; it was already there.
-            // So the same amount leaves what the product had gathered - or, for
-            // an expense, goes back into it - and its balance does not move.
-            if (kind === 'income') {
-              await yields.withdraw({
-                account_id: account.id, on_date: this.onDate(), amount_minor: minor,
-                transaction_id: transactionId, product_id: this.productId(), note: this.note().trim() || null,
-              });
-            } else {
-              await yields.adjust({
-                account_id: account.id, on_date: this.onDate(), amount_minor: minor,
-                kind: 'other', product_id: this.productId(), note: this.note().trim() || null,
-                transaction_id: transactionId,
-              });
-            }
-          }
-        } else if (editing && this.scopeWhenOpened === 'product') {
+        } else if (this.scope() === 'product' && editing && this.scopeWhenOpened === 'product') {
           await yields.updateAdjustment(editing.id, {
             on_date: this.onDate(),
             amount_minor: signed,
@@ -1200,17 +1169,20 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
             note: this.note().trim() || null,
           });
         } else {
-          // It was a movement and is now only the product's: the movement goes,
-          // and with it the half that kept the product's balance where it was.
+          // Correcting one into another shape: it is written again from
+          // scratch rather than patched - a movement with a product half, or
+          // without one, or the product's alone.
           if (editing) await this.removeWhatItWas(db, yields, editing);
-
-          await yields.adjust({
-            account_id: account.id,
-            on_date: this.onDate(),
-            amount_minor: signed,
-            kind: this.legacyKind(),
-            category_id: this.categoryId(),
-            product_id: this.productId(),
+          await writeScoped(db, yields, {
+            scope: this.scope(),
+            kind,
+            accountId: account.id,
+            categoryId: this.categoryId(),
+            productId: this.productId(),
+            // Null on an account with one product, as the movements screen does.
+            movementProductId: products.length > 1 ? this.productId() : null,
+            onDate: this.onDate(),
+            amountMinor: minor,
             note: this.note().trim() || null,
           });
         }
@@ -1256,6 +1228,9 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     if (field) field.nativeElement.value = '';
     this.error.set('');
     this.keypadOpen.set(true);
+    // The next one asks the habit again, once its category is chosen.
+    this.scopeTouched = false;
+    this.scope.set(DEFAULT_SCOPE);
   }
 }
 

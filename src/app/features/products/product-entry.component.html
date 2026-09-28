@@ -176,26 +176,8 @@
 </ng-template>
 
 <!-- ¿Qué cambia? (4y): each choice says what it does. -->
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingScope()" (didDismiss)="choosingScope.set(false)">
-  <ng-template>
-    <div class="ui-sheet-body ion-content-scroll-host">
-      <button type="button" class="sheet-cancel" (click)="choosingScope.set(false)">{{ 'entry.cancel' | t }}</button>
-      <div class="grab"></div>
-      <div class="sheet-icon"><app-badge shape="ci" [size]="48" [builtin]="scopeIcon()" fixed="#9b7bff"></app-badge></div>
-      <h2 class="center">{{ 'products.entry.scope' | t }}</h2>
-      <div class="ui-list">
-        @for (option of scopeOptions(); track option.id) {
-          <button type="button" class="ui-row plain" (click)="chooseScope(option.id)">
-            <span class="ui-tx"><b class="wrap">{{ option.name }}</b><small class="wrap">{{ option.detail }}</small></span>
-            <span class="ui-tick" [class.on]="scope() === option.id">
-              @if (scope() === option.id) { <ion-icon name="checkmark"></ion-icon> }
-            </span>
-          </button>
-        }
-      </div>
-    </div>
-  </ng-template>
-</ion-modal>
+<app-scope-sheet [open]="choosingScope()" [kind]="request().kind === 'expense' ? 'expense' : 'income'" [scope]="scope()"
+                 (chosen)="chooseScope($event)" (closed)="choosingScope.set(false)"></app-scope-sheet>
 
 <!-- Which product (1l): the account's products, each with what it holds. -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
