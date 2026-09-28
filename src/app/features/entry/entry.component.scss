@@ -97,7 +97,7 @@
     align-self: center;
     &.expense { color: var(--app-red); }
     &.income { color: var(--app-grn); }
-    &.transfer { color: var(--app-pr); }
+    &.transfer { color: var(--app-move); }
   }
 
   .value {

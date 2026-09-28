@@ -34,6 +34,9 @@ export const PALETTE_FAMILIES: { family: 'warm' | 'cool' | 'violet'; names: Pale
 /** What the schema writes when nobody chose a colour. */
 export const DEFAULT_COLOR = '#607D8B';
 
+/** A transfer's own blue: never the accent, which may be red (Coral). */
+export const MOVE_COLOR = '#6378ff';
+
 /**
  * The order colours are handed out to rows still on the default: neighbours
  * in id tend to be neighbours in a list, so this jumps around the wheel

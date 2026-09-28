@@ -25,6 +25,7 @@ import { AccountPickerComponent } from '../account-picker/account-picker.compone
 import { BadgeComponent } from './badge.component';
 import { ToastService } from './toast.service';
 import { AccentService } from '../../core/theme/accent.service';
+import { MOVE_COLOR } from '../../core/theme/palette';
 
 @Component({
   selector: 'app-compose-host',
@@ -46,7 +47,7 @@ import { AccentService } from '../../core/theme/accent.service';
               <b>{{ 'ui.new.income' | t }}</b>
             </button>
             <button type="button" (click)="compose.open('transfer')">
-              <app-badge shape="ci" [size]="50" builtin="swap-horizontal" [fixed]="accent.accent().color"></app-badge>
+              <app-badge shape="ci" [size]="50" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
               <b>{{ 'ui.new.transfer' | t }}</b>
             </button>
           </div>
@@ -84,6 +85,9 @@ import { AccentService } from '../../core/theme/accent.service';
   `],
 })
 export class ComposeHostComponent {
+  /** A transfer's own blue, whatever the accent. */
+  readonly MOVE = MOVE_COLOR;
+
   readonly compose = inject(ComposeService);
   private readonly database = inject(DatabaseService);
   private readonly statements = inject(StatementsService);

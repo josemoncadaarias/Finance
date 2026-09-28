@@ -87,7 +87,7 @@ const RING = 2 * Math.PI * RADIUS;
               <b>{{ row.label }}</b>
               <small>{{ lineOf(row) }}</small>
             </span>
-            <span class="ui-am" [class.ui-g]="arrived(row)" [class.ui-p]="row.flow === 'moved'">
+            <span class="ui-am" [class.ui-g]="arrived(row)" [class.ui-t]="row.flow === 'moved'">
               {{ arrived(row) ? '+' : '' }}{{ money(row.amountMinor) }}
             </span>
           </button>

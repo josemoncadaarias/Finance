@@ -457,7 +457,7 @@
                                   <app-badge [size]="42" [builtin]="entryIcon($any(movement.entry))"
                                              [customId]="kindIconId($any(movement.entry))" [seed]="movement.entry.category_id"></app-badge>
                                 } @else {
-                                  <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+                                  <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
                                 }
                                 <span class="ui-tx">
                                   <b class="ui-one">{{ movementTitle(line, movement) }}</b>

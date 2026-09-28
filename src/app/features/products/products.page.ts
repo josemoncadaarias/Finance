@@ -73,6 +73,7 @@ import {
   PERIOD_KINDS, currentPeriod, includesToday, periodLabel, rangePeriod, shiftPeriod, type Period, type PeriodKind,
 } from '../../core/filters/period';
 import { foldText } from '../../core/text/fold-text';
+import { MOVE_COLOR } from '../../core/theme/palette';
 
 /** One row of the list: an enrolled account and what it has earned. */
 interface ProductLine {
@@ -172,6 +173,9 @@ interface Payment {
   ],
 })
 export class ProductsPage {
+  /** A transfer's own blue, whatever the accent. */
+  readonly MOVE = MOVE_COLOR;
+
   readonly database = inject(DatabaseService);
   private readonly compose = inject(ComposeService);
   private readonly accent = inject(AccentService);
@@ -316,7 +320,7 @@ export class ProductsPage {
   }
 
   toneOfFlow(flow: string): string {
-    return flow === 'in' ? 'ui-g' : flow === 'out' ? 'ui-r' : 'ui-p';
+    return flow === 'in' ? 'ui-g' : flow === 'out' ? 'ui-r' : 'ui-t';
   }
 
   signedMoney(minor: number, currency: string): string {

@@ -1222,6 +1222,7 @@ ion-toolbar {
 .ui-r { color: var(--app-red); }
 .ui-y { color: var(--app-yel); }
 .ui-p { color: var(--app-pr); }
+.ui-t { color: var(--app-move); }
 .ui-mu { color: var(--app-mu); }
 
 /* A small uppercase heading over a group of rows. */
@@ -1372,7 +1373,7 @@ button.ui-row:active { background: var(--app-s2); }
     &.on { background: var(--app-s3); color: var(--app-tx); }
     &.on.red { background: rgba(var(--app-red-rgb), 0.2); color: var(--app-red); }
     &.on.grn { background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn); }
-    &.on.blu { background: rgba(var(--app-pr-rgb), 0.24); color: var(--app-pr); }
+    &.on.blu { background: rgba(var(--app-move-rgb), 0.24); color: var(--app-move); }
   }
 }
 
