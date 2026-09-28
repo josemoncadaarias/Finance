@@ -1297,17 +1297,51 @@ backup restore against iOS's own SQLite backend.
      Gmail notifies bank mail at all - it only notifies the inboxes set to
      notify, and mail filed under Promotions or Updates usually is not, and
      the notification carries the subject and a snippet, not the whole mail.
-   - **Reading the SMS inbox itself** (`READ_SMS`/`RECEIVE_SMS`) is what
-     Play restricts most: only the default SMS app or a listed exception,
-     with a declaration form and a review. From memory, to confirm before
-     counting on it: "SMS-based money management" is one of the exceptions.
-     Not needed while the notification carries the text; a fallback, not a
-     first step.
-   - **Reading the mailbox itself** (the Gmail API, `gmail.readonly`) is a
-     RESTRICTED scope: fine for Jose and up to 100 test users with the
-     consent screen in testing, but for the public it needs Google's yearly
-     security assessment, which costs real money. From memory, to confirm.
-     Only if Gmail's notification turns out to say too little.
+   - **Notifications are not enough, and that is the point** (Jose,
+     2026-09-28): many people, him included, keep their bank apps and their
+     mail hidden or silenced, so no notification ever arrives - and mail
+     almost never arrives as one. Every channel has to be readable WITHOUT
+     a notification.
+   - **SMS: reading the inbox is allowed for this app, with a form.**
+     Verified on Play's policy page (answer 10208820) on 2026-09-28: a
+     non-default SMS app may hold `READ_SMS` and `RECEIVE_SMS` under the
+     exception "SMS-based money management - for example, apps that track
+     and manage budget", after a Permissions Declaration Form and Play's
+     review, and it must never take non-financial SMS off the phone. So:
+     read only the senders the person ticks, on the phone, nothing sent
+     anywhere. Free; the cost is the review and a clear privacy policy.
+   - **Mail through the Gmail API: possible, and costly for the public.**
+     Verified the same day on Google's pages: every scope that reads a
+     mail's body (`gmail.readonly`, `gmail.modify`, even `gmail.metadata`)
+     is RESTRICTED; the app then needs restricted-scope verification and a
+     CASA security assessment by a Google-approved lab, renewed EVERY
+     YEAR. The cheapest lab listed (TAC Security's basic plan) is about
+     US$675 a year per app - a third-party figure (switchlabs, deepstrike),
+     to confirm on the day. And Gmail's approved uses name email clients,
+     backup, productivity and "reporting or monitoring ... such as ... track
+     flights or package delivery"; money tracking is not named, so approval
+     is not certain. Exempt: an app in "Testing" (up to 100 test users) or
+     used only by its developer and people they know - so Jose alone could
+     use it free, the public could not.
+   - **Mail without a restricted scope, proposed and not yet tried**: the
+     person's OWN Google Apps Script. A script the person copies into their
+     own account (from a template link, "Hacer una copia") runs as them, is
+     their own project with one user - the personal-use exemption - and
+     reads their bank mail on a timer, even with the phone off, appending
+     each alert to a file in their Drive that the app created. The app
+     would add `drive.file` (non-sensitive: only files the app itself made)
+     beside the `drive.appdata` it holds today, and read that file when it
+     opens. Free for everybody. The costs: a setup of a few steps with an
+     "unverified app" warning from Google on the person's own script, and a
+     template to maintain. Assumed, to prove with a prototype on Jose's
+     account before anything is promised.
+   - **IMAP with an app password** would also avoid the Gmail API (Gmail
+     still accepts app passwords for accounts with 2-Step Verification -
+     from memory), but it hands the app a password to the whole mailbox and
+     asks the person to create one. Worse than the script on both counts.
+   - **If none of it is acceptable, mail is dropped** and SMS plus
+     notifications are what the app reads (Jose's words: if it is
+     definitely costly, discard it).
 
    **One movement, several messages: how to count it once** (proposed).
    The same purchase may arrive as a push, an SMS and a mail, minutes to
