@@ -2056,8 +2056,8 @@ then does the next start. The groups and where each stands:
 | 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
 | 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
-| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | Sent 2026-09-28, waiting |
-| 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
+| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | **Approved** by Jose, 2026-09-28 (the colour of the app drawn, not yet confirmed on its own) |
+| 9 | Income-tax simulator | `docs/mockups/9*` (v4) | Sent 2026-09-28, waiting |
 
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
 
@@ -2519,6 +2519,50 @@ Jose to accept or refuse:
   (Jose, again, 2026-09-28): a row's title and the line under it, a hint,
   a notice. Only a name - the person's, an address, an account - ends in
   "…" and slides.
+
+**Group 9 as sent (v4, 2026-09-28)**: everything the simulator does today
+(the checklist's "Renta"), and nothing of rule 19 touched - the engine,
+the rows, the casillas, the formulas and the spreadsheet are as they are.
+The changes of ACCESS, for Jose to accept or refuse:
+
+- **Reached from Más → Herramientas** (the bar stays, Más lit). Its title
+  bar is back, "Simulador de renta / Formulario 210" and the download icon
+  for the .xlsx (its explanation an (i) bubble, then the busy dialog and a
+  short notice naming the file). The Drive and language buttons leave the
+  header: both live in Más.
+- **The year is a full row with round arrows**, "Guardado" / "Guardando…"
+  under it. **The verdict is a big card on top and, once scrolled, one
+  line pinned under the year** (A pagar / A favor / En paz and the figure),
+  so it is never out of view; "Aparta X cada mes" and the tax and
+  withholding line sit in the big card.
+- **One screen of folding sections, not a selector and not a wizard**
+  (rule 19: seeing twenty boxes move is how the form explains itself).
+  Closed, each section shows its icon, title and the casilla that sums it
+  up ("Csl. 34 · 230.280.000", "Csl. 134 · a pagar 4.812.000"), so the
+  whole return reads closed; "15 secciones" with "Abrir todas / Cerrar
+  todas". Today every section opens open except Parámetros and Notas;
+  proposed: all closed on opening.
+- **A row**: the label whole (wrapping), its casilla as a small chip, the
+  hint behind an (i); a typed box framed in gold with its unit ($, %, UVT,
+  meses, personas), a worked-out one on grey, a total in bold. The key of
+  the two looks stays, as samples, never shaped like a button.
+- **Tipo de trabajo is one row** showing the choice and what it means; the
+  three kinds, each explained, open in a sheet.
+- **Bringing figures in**: "Traer el salario de 2026" opens the income
+  categories of the year with their totals and counts; "Traer los
+  rendimientos de 2026" with "Deshacer" beside it; what was brought is one
+  line under the button (the notice), the long hint an (i).
+- **Casilla 59** keeps its two answers as a switch; the year's percentage
+  carries its standing ("Referencia 2025") with the source behind an (i).
+  **Parámetros del año** lists each parameter with its standing and source,
+  and a figure from a later year is a red banner, as today.
+- **A year without UVT** says so under the verdict with "Ir a Parámetros
+  del año" (new: today it is only the sentence).
+- The rate table lights the band the return falls in; the twelve months of
+  withholding are a grid of typed boxes; notes are listed whole with the
+  sources as links; the disclaimer closes the form.
+- **The two arrows sit side by side above the bar**, in a deeper fade:
+  stacked on the right they covered the value column.
 
 ### The ideas, by what they would take
 
