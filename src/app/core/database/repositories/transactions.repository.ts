@@ -144,6 +144,13 @@ export class TransactionsRepository {
     return this.db.queryOne<TransactionRow>(`SELECT ${COLUMNS} FROM transactions WHERE id = ?`, [id]);
   }
 
+  /** Several at once: one trip to the database, however many are asked for. */
+  async findByIds(ids: readonly number[]): Promise<TransactionRow[]> {
+    if (ids.length === 0) return [];
+    return this.db.query<TransactionRow>(
+      `SELECT ${COLUMNS} FROM transactions WHERE id IN (${ids.map(() => '?').join(', ')})`, [...ids]);
+  }
+
   async list(filter: TransactionFilter = {}): Promise<TransactionRow[]> {
     const conditions: string[] = [];
     const values: unknown[] = [];
