@@ -21,7 +21,7 @@ const PIG = `<svg viewBox='60 78 400 400' width='22' height='22'><g fill='none' 
 
 // ---------------------------------------------------------------- the list
 // Cuentas has two faces: the balances (group 2) and what the accounts earn.
-const faces = on => `<div class="seg" style="margin-top:2px">${['Cuentas', 'Rendimientos'].map(t => `<div class="${t === on ? 'on' : ''}">${t}</div>`).join('')}</div>`;
+const faces = on => `<div class="seg" style="margin-top:2px">${[['Saldos', 'wallet-outline'], ['Rendimientos', 'trending-up-outline']].map(([t, i]) => `<div class="${t === on || (on === 'Cuentas' && t === 'Saldos') ? 'on' : ''}">${ic(i)}${t}</div>`).join('')}</div>`;
 const listHead = `<div class="bar-top">${st}<div class="tt" style="gap:10px"><h1 style="flex:1">Cuentas</h1>
  <div class="btn-r">${ic('refresh-outline')}</div></div><div style="margin-top:10px">${faces('Rendimientos')}</div></div>`;
 

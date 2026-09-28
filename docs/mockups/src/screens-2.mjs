@@ -18,7 +18,7 @@ const centred = (html, gap = 12) => html.replace('display:grid', `display:grid;m
 // account). The "+" in the bar below stays the way to a new MOVEMENT.
 const head = `<div class="bar-top">${st}<div class="tt" style="gap:10px"><h1 style="flex:1">Cuentas</h1>
  <div class="chip" style="padding:7px 12px;color:var(--pr)">${ic('add', '', 'width:18px;height:18px')}Nueva cuenta</div></div>
- <div class="seg" style="margin-top:10px"><div class="on">Cuentas</div><div>Rendimientos</div></div></div>`;
+ <div class="seg" style="margin-top:10px"><div class="on">${ic('wallet-outline')}Saldos</div><div>${ic('trending-up-outline')}Rendimientos</div></div></div>`;
 
 // A row of the list: tapping it opens its movements in Inicio (as today); the
 // pencil beside the amount edits it.

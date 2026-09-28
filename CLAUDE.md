@@ -2351,6 +2351,15 @@ down opened); the same shape goes to Por revisar and every later group.
   in the middle opening the period sheet, and the search on its own full
   row under it (`4d`, `4d2`). The report's is the same shape.
 
+**The Cuentas tab's two faces are "Saldos | Rendimientos"** (Jose,
+2026-09-28: the tab and one of its faces were both called "Cuentas" and
+it was not clear what each showed). Saldos is every account with today's
+balance and net worth - what the tab opens on - and a row opens that
+account in Inicio; Rendimientos is only the accounts that earn, with what
+they have been paid, and a row opens the account's page (Productos,
+Movimientos, Pagos, Días). Each face carries its icon (wallet, rising
+line). `2s-recorrido-cuentas.jpg` draws the four steps.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |

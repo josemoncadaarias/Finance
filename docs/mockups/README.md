@@ -13,6 +13,8 @@ agreed"). Files starting with a digit are the current version of their
 group (v4 and later). The "+" sits in the middle of the floating bar from v5, in every file that draws the bar; `b*`, `c*`, `d*` are v3 drafts, kept until their group
 is redone, and superseded by Jose's review of 2026-09-28.
 
+`2s-recorrido-cuentas.jpg` shows the Cuentas tab step by step: Saldos, an account in Inicio, Rendimientos, an account's products.
+
 Every list of movements is in folding sections (by day or category), only the first open, with the round open-all / close-all button (`1o`, `1p`, `4d2`). Every screen with a long list carries the two arrows (up, down) on the right above the bar, as the app shows them today.
 
 ## The files
