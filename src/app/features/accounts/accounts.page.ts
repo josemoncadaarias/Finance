@@ -7,12 +7,10 @@
  */
 
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
-  IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
-  IonButton, IonModal, IonInput,
+  IonContent, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonModal,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
@@ -20,56 +18,53 @@ import * as allIcons from 'ionicons/icons';
 import { DatabaseService } from '../../core/database/database.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
-import { CustomIconsRepository, iconDataUrl } from '../../core/database/repositories/custom-icons.repository';
-import { RatesRepository, RATE_SCALE } from '../../core/database/repositories/rates.repository';
+import { RATE_SCALE } from '../../core/database/repositories/rates.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { RatesService } from '../../core/rates/rates.service';
 import type { NetWorth } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from './account-editor.component';
-import type { AccountRow, GroupedBalance } from '../../core/database/types';
+import type { AccountBalance, AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
-import { SignPipe } from '../../shared/sign.pipe';
-import { outlined } from '../../core/icons/icon-catalog';
-import { IconComponent } from '../../core/icons/icon.component';
+import { formatMoney } from '../../core/database/money';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
+import { AccountsFacesComponent } from '../../shared/ui/accounts-faces.component';
+import { AccentService } from '../../core/theme/accent.service';
+import { shortDay } from '../../core/filters/period';
+
+/** The colour each currency's code badge wears (2a, 2c). */
+const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EUR: '#f6b93b' };
 
 @Component({
   selector: 'app-accounts',
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
-    CurrencyDialogComponent,
-    IconComponent,
-    CommonModule, MoneyPipe, SignPipe, TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
-    AccountEditorComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel,
-    IonNote, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonBadge, IonMenuButton, IonButtons,
-    IonButton, IonModal, IonInput,
+    NgTemplateOutlet, MoneyPipe, TranslatePipe, AccountEditorComponent,
+    BadgeComponent, JumpComponent, AccountsFacesComponent,
+    IonContent, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonModal,
   ],
 })
 export class AccountsPage {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly accentService = inject(AccentService);
+  readonly accent = computed(() => this.accentService.accent().color);
   private readonly i18n = inject(I18nService);
   readonly rates = inject(RatesService);
 
   /** Non-null while the editor is open; its account is null when creating. */
   readonly editor = signal<{ account: AccountRow | null } | null>(null);
 
-  /** Data URLs for user-supplied icons, built once each. */
-  private readonly iconUrls = signal<Map<number, string>>(new Map());
 
   readonly grouped = signal<GroupedBalance[] | null>(null);
   readonly netWorthMinor = signal(0);
   readonly showArchived = signal(false);
 
-  /** Icon names arrive with or without their suffix; this settles it. */
-  readonly outlined = outlined;
 
   /**
    * The currencies the app knows, and the form for adding one.
@@ -80,26 +75,13 @@ export class AccountsPage {
    * say not reachable at all unless you were already making an account.
    */
   readonly currencies = signal<{ code: string; name: string; symbol: string; used: number }[]>([]);
-  readonly addingCurrency = signal(false);
 
   /** The total, and every line that makes it. */
   readonly worth = signal<NetWorth | null>(null);
   readonly showBreakdown = signal(false);
 
-  /** The rate being typed in, per currency, while the sheet is open. */
-  readonly rateDrafts = signal<Record<string, string>>({});
-
   /** Currencies holding money that has no rate to value it with. */
   readonly missingRates = computed(() => this.worth()?.missingRatesFor ?? []);
-
-  /** Every non-peso currency in play, so a rate can be set before it is missed. */
-  readonly foreignCurrencies = computed(() => {
-    const seen = new Set<string>();
-    for (const line of this.worth()?.lines ?? []) {
-      if (line.currency_code !== 'COP') seen.add(line.currency_code);
-    }
-    return [...seen].sort();
-  });
 
   readonly status = this.database.status;
   readonly error = this.database.error;
@@ -158,47 +140,6 @@ export class AccountsPage {
     () => (this.grouped() ?? []).flatMap(e => e.balances).filter(b => b.account.archived).length,
   );
 
-  /** What is typed into a currency's rate box, or the rate already in force. */
-  rateDraft(currency: string): string {
-    const typed = this.rateDrafts()[currency];
-    if (typed !== undefined) return typed;
-
-    const line = this.worth()?.lines.find(l => l.currency_code === currency && l.rate);
-    return line?.rate ? String(line.rate.rate_scaled / RATE_SCALE) : '';
-  }
-
-  onRateTyped(currency: string, text: string): void {
-    this.rateDrafts.update(drafts => ({ ...drafts, [currency]: text }));
-  }
-
-  /**
-   * Records today's rate for a currency.
-   *
-   * Typed by hand for now: the official TRM comes from a public API, and
-   * fetching it is Phase 4. Until then the app asks rather than assuming, and
-   * whatever is entered is dated today so tomorrow's figure does not silently
-   * reinterpret today's.
-   */
-  async saveRate(currency: string): Promise<void> {
-    const typed = this.rateDraft(currency).replace(/[^0-9.,]/g, '').replace(',', '.');
-    const value = Number(typed);
-    if (!Number.isFinite(value) || value <= 0) return;
-
-    await new RatesRepository(this.database.driver).set({
-      on_date: todayIso(),
-      base_code: currency,
-      quote_code: 'COP',
-      rate_scaled: Math.round(value * RATE_SCALE),
-    });
-
-    this.rateDrafts.update(drafts => {
-      const next = { ...drafts };
-      delete next[currency];
-      return next;
-    });
-    await this.load();
-  }
-
   private async loadCurrencies(): Promise<void> {
     // Counted so a currency nothing uses can be told apart from one that is
     // holding money.
@@ -209,23 +150,6 @@ export class AccountsPage {
               (SELECT COUNT(*) FROM accounts a WHERE a.currency_code = c.code) AS used
        FROM currencies c ORDER BY used DESC, c.code`,
     ));
-  }
-
-  /** A currency was just added in the dialog: show it in the list. */
-  async onCurrencyAdded(): Promise<void> {
-    this.addingCurrency.set(false);
-    await this.loadCurrencies();
-  }
-
-  /**
-   * Asks the TRM service for today's rate.
-   *
-   * Nothing waits on it: the screen is already showing what it has, and this
-   * either improves it or leaves it exactly as it was.
-   */
-  async refreshTrm(): Promise<void> {
-    await this.rates.refresh({ force: true });
-    await this.load();
   }
 
   /**
@@ -248,6 +172,14 @@ export class AccountsPage {
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
+
+    // "Es de una cuenta nueva", chosen after reading a statement from the
+    // "+": the new-account form opens filled in from it (2h).
+    this.route.queryParamMap.subscribe(params => {
+      if (params.get('new') !== 'statement') return;
+      this.editor.set({ account: null });
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    });
 
     // The database opens in the background, so the page cannot read it once at
     // construction and be done. This reruns the moment it becomes ready.
@@ -324,6 +256,76 @@ export class AccountsPage {
   private async loadIcons(): Promise<void> {
     await this.customIcons.load();
   }
+
+  openCurrencies(): void {
+    void this.router.navigateByUrl('/currencies');
+  }
+
+  /** "COP, USD, EUR · TRM del 27 sept". */
+  readonly currenciesLine = computed(() => {
+    const codes = this.currencies().filter(c => c.used > 0).map(c => c.code).join(', ');
+    const trm = this.rates.current();
+    if (!trm) return codes;
+    const day = shortDay(trm.on_date, this.i18n.dateLocale());
+    return `${codes} · ${this.i18n.t('accounts.trm.on', { date: day })}`;
+  });
+
+  readonly archivedToggle = computed(() => {
+    const count = this.archivedCount();
+    const key = this.showArchived()
+      ? (count === 1 ? 'accounts.hideArchived.one' : 'accounts.hideArchived')
+      : (count === 1 ? 'accounts.showArchived.one' : 'accounts.showArchived');
+    return this.i18n.t(key as 'accounts.showArchived', { count });
+  });
+
+  currencyCount(count: number): string {
+    return count === 1 ? this.i18n.t('accounts.currencies.one') : this.i18n.t('accounts.currencies', { count });
+  }
+
+  /** The grey line under an account: what a card has left, or why it is apart. */
+  lineOf(balance: AccountBalance): string {
+    const account = balance.account;
+    if (balance.available_credit_minor !== null && account.credit_limit_minor) {
+      return this.i18n.t('accounts.availableOf', {
+        available: formatMoney(balance.available_credit_minor, account.currency_code, { withSymbol: false }),
+        limit: formatMoney(account.credit_limit_minor, account.currency_code, { withSymbol: false }),
+      });
+    }
+    if (account.archived) return '';
+    if (!account.include_in_net_worth) return this.i18n.t('ui.account.setAside');
+    if (this.missingRates().includes(account.currency_code) && balance.balance_minor !== 0) {
+      return this.i18n.t('ui.account.noRate');
+    }
+    return '';
+  }
+
+  /** How much of a card's limit is spent, for the bar under it. */
+  usedPct(balance: AccountBalance): number {
+    const limit = balance.account.credit_limit_minor ?? 0;
+    if (limit <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((limit - (balance.available_credit_minor ?? limit)) / limit * 100)));
+  }
+
+  codeColor(code: string): string {
+    return CODE_COLORS[code] ?? '#9b7bff';
+  }
+
+  codeTint(code: string): string {
+    const n = parseInt(this.codeColor(code).slice(1), 16);
+    return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, 0.16)`;
+  }
+
+  private accountOf(id: number): AccountRow | undefined {
+    for (const entry of this.grouped() ?? []) {
+      for (const balance of entry.balances) if (balance.account.id === id) return balance.account;
+    }
+    return undefined;
+  }
+
+  iconOf(id: number): string | null { return this.accountOf(id)?.builtin_icon ?? null; }
+  customOf(id: number): number | null { return this.accountOf(id)?.custom_icon_id ?? null; }
+  colorOf(id: number): string | null { return this.accountOf(id)?.color ?? null; }
+  isCard(id: number): boolean { return this.accountOf(id)?.type === 'credit'; }
 
   edit(account: AccountRow | null): void {
     this.editor.set({ account });

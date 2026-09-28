@@ -13,6 +13,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/report/report.page').then(m => m.ReportPage),
   },
   {
+    path: 'currencies',
+    loadComponent: () => import('./features/currencies/currencies.page').then(m => m.CurrenciesPage),
+  },
+  {
     path: 'accounts',
     loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
   },

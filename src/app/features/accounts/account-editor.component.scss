@@ -1,120 +1,145 @@
-/* Inside an ion-modal the header and content must be the page's own children,
-   so the host takes the page's box. Same reason as the entry screen. */
-:host {
+/* Creating and correcting an account (mockups 2f-2k, 2q). The title bar,
+   the frame, the lists and the fields are in global.scss. */
+
+:host { display: block; height: 100%; }
+
+.editor > .scroll {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
+  gap: 12px;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  text-align: center;
+.ui-h.center { justify-content: center; margin: 4px 0 -2px; }
+.ui-h { margin: 6px 4px -4px; }
+
+.from-statement {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-color: rgba(var(--app-pr-rgb), 0.45);
+  background: rgba(var(--app-pr-rgb), 0.1);
+
+  ion-icon { color: var(--app-pr); font-size: 24px; flex: none; }
+  p { margin: 0; font-size: 14px; line-height: 1.45; }
 }
 
-ion-button.save {
-  --border-radius: 999px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.error {
-  margin: 0.75rem 1rem 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
-  background: rgba(var(--ion-color-danger-rgb), 0.12);
-  color: var(--ion-color-danger);
-  font-size: 0.85rem;
-}
-
-/* The icon and the name side by side: an account is a face and a name. */
 .identity {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 1rem 0.25rem;
+  gap: 12px;
+
+  .face {
+    position: relative;
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .pen {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--app-pr);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--app-bg);
+    ion-icon { font-size: 13px; }
+  }
 
   .name {
     flex: 1;
-    font-size: 1.15rem;
-    font-weight: 600;
-    --padding-start: 0.5rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    cursor: text;
+
+    &.focus { border-color: var(--app-pr); box-shadow: 0 0 0 1px var(--app-pr) inset; }
+
+    .ui-lab { letter-spacing: 1.2px; }
+
+    input {
+      border: 0;
+      outline: none;
+      background: none;
+      color: var(--app-tx);
+      font: inherit;
+      font-size: 16.5px;
+      padding: 0;
+      width: 100%;
+      min-width: 0;
+      &::placeholder { color: var(--app-mu); }
+    }
   }
 }
 
-ion-toggle .strong { margin: 0; font-size: 0.92rem; color: var(--ion-text-color); }
-ion-toggle .hint { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--ion-color-medium); }
+.types {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 4px 10px;
+    border-radius: 16px;
+    border: 1px solid var(--app-border);
+    background: var(--app-s1);
+    color: var(--app-mu);
+    font: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
+    min-width: 0;
+
+    span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    &.on {
+      border-color: var(--tone);
+      background: color-mix(in srgb, var(--tone) 14%, var(--app-s1));
+      color: var(--app-tx);
+    }
+  }
+}
+
+.ui-field.add .accent { color: var(--app-pr); font-weight: 500; }
+.ui-field.add ion-icon.accent { color: var(--app-pr); }
 
 .explain {
-  margin: -0.5rem 1.5rem 1rem;
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: var(--ion-color-medium);
+  margin: -4px 4px 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--app-mu);
 }
 
-.history h3 {
-  margin: 0 1.5rem 0.25rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ion-color-medium);
+.switches .ui-row.plain { padding: 13px 14px; }
+.switches .ui-row .ui-tx b { font-weight: 600; }
+
+.danger {
+  .ui-row { align-items: flex-start; }
+  ion-icon { color: var(--app-red); font-size: 22px; flex: none; margin-top: 2px; }
+  b { font-weight: 600; }
 }
 
-.missing {
-  margin: 0;
-  padding: 0.45rem 1rem;
-  background: rgba(var(--ion-color-warning-rgb), 0.14);
-  color: var(--ion-color-warning-shade);
-  font-size: 0.82rem;
-  text-align: center;
+.code-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(var(--app-pr-rgb), 0.16);
+  color: var(--app-pr);
 }
 
-.sheet {
-  --padding-start: 1rem;
-  --padding-end: 1rem;
-  --padding-top: 1rem;
-}
-
-/* The limit is what the row is about; the date is the qualifier. */
-.history ion-item {
-  h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--ion-text-color);
-    font-variant-numeric: tabular-nums;
-  }
-
-  p { font-size: 0.78rem; color: var(--ion-color-medium); }
-  ion-note { font-size: 0.7rem; }
-}
-
-/* The one act on this screen that cannot be undone, kept well away from Save
-   and behind a question. It says what it will take with it before it is
-   pressed, because "some movements" and "its 4,512 movements" are different
-   sentences and only one of them is an informed decision. */
-.danger-zone {
-  margin-top: 1.5rem;
-  padding: 0.75rem 1rem 1.5rem;
-  border-top: 1px solid var(--ion-color-light-shade);
-
-  .warn {
-    margin: 0.25rem 0 0;
-    font-size: 0.78rem;
-    line-height: 1.4;
-    text-align: center;
-    color: var(--ion-color-medium);
-
-    &.strong { color: var(--ion-color-danger); font-weight: 600; font-size: 0.9rem; }
-  }
-
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-    padding-top: 0.5rem;
-
-    ion-button { flex: 1; --border-radius: 999px; text-transform: none; font-weight: 600; }
-  }
-}
+.date-sheet ion-datetime { margin: 0 auto; --background: transparent; }

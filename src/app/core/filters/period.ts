@@ -235,3 +235,11 @@ export const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'all', label: 'period.all' },
   { kind: 'range', label: 'period.range' },
 ];
+
+/** "27 sept", "Sep 27": a day as a line under a figure says it, short. */
+export function shortDay(iso: string, locale = 'es-CO'): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Date(year, month - 1, day)
+    .toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+    .replace('.', '');
+}
