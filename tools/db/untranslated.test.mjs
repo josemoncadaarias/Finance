@@ -30,6 +30,8 @@ const APP = join(HERE, '..', '..', 'src', 'app');
  */
 const ALLOWED = [
   'core/i18n/translations.ts',
+  // The redesign's own words, spread into translations.ts.
+  'core/i18n/translations-ui.ts',
   'core/database/category-icons.ts',
   // The categories a new install starts with, each written in both languages
   // in the same row: they become the user's own data the moment they land, so
