@@ -2054,8 +2054,8 @@ then does the next start. The groups and where each stands:
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
-| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
-| 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
+| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 7 | Avisos del banco | `docs/mockups/7*` (v4) | Sent 2026-09-28, waiting |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
 | 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
 
@@ -2445,6 +2445,29 @@ refuse:
   (`1k`, `6t`).
 - `6-recorrido-importar.jpg` draws importing step by step: the "+",
   "¿De qué cuenta es?", the reading, the review.
+
+**Group 7 as sent (v4, 2026-09-28)**: everything Avisos del banco does
+today (rule 22, step one), with these changes of ACCESS for Jose to accept
+or refuse:
+
+- **It lives in the Más tab** (the bar stays); its "···" holds "Borrar lo
+  guardado" and "Olvidar todo", each asked first.
+- **The two lists are two faces of one selector**, each saying what it
+  holds: "5 apps" and "24 avisos guardados". Today they are one scroll.
+- **Apps**: each with its icon, name, "18 avisos · package", "se guarda"
+  when ticked, and its switch; "Apps ocultas" folds at the foot with
+  "Mostrar" on each. "Marca las de tus bancos" carries its (i).
+- **Avisos guardados**: by day in folding sections, the most recent open,
+  each notice whole with its app and hour; "Tal cual llegó" with its (i);
+  an app chip with "Todas las apps" first (new: today the search is the
+  only way to narrow them).
+- **Choosing several apps** takes the whole row; the bar says "2 apps
+  elegidas · de 5 apps a la vista" with Guardar, No guardar and Ocultar
+  (Ocultar asked first).
+- **Without permission**: the three promises as rows, "Abrir los ajustes
+  de Android", Android's own wording behind an (i) under it, and "Ya lo
+  di, volver a revisar". Nothing yet, and "Esto solo existe en Android",
+  are an icon and one sentence.
 
 ### The ideas, by what they would take
 

@@ -3,25 +3,6 @@ import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, t
 
 const S = {};
 
-S['d06-avisos-sin-permiso'] = `${top('Avisos del banco', { sub: 'Lo que tus bancos mandan al celular, tal cual' })}<main>
- <div class="card hero" style="text-align:center">${ci('notifications-outline', C.yel, 60).replace('display:grid', 'display:grid;margin:0 auto 10px')}<b style="font-size:17px">Falta darle permiso</b>
-  <div class="sub" style="margin-top:4px">Primero hay que ver qué mandan tus bancos, sin interpretar nada.</div></div>
- <div class="list" style="margin-top:12px">${[['eye-outline', 'La app anota QUÉ aplicaciones mandan avisos, sin guardar lo que dicen.'], ['checkbox-outline', 'Lo que dice un aviso solo se guarda para las apps que tú marques.'], ['phone-portrait-outline', 'Todo se queda en el celular. No se manda a ningún lado.']]
-  .map(([i, t]) => `<div class="row">${ci(i, C.grn, 38)}<div class="tx"><small style="color:var(--tx);font-size:13.5px;margin:0">${t}</small></div></div>`).join('')}</div>
- <div class="hint">Android va a pedir permiso para leer TODOS los avisos del celular: no sabe distinguir. Todo lo que no sea de un banco marcado se descarta.</div>
- </main><div style="position:absolute;left:16px;right:16px;bottom:22px"><div class="btn">Abrir los ajustes de Android</div><div class="btn ghost" style="margin-top:8px">Ya lo di, volver a revisar</div></div>`;
-
-S['d07-avisos-banco'] = `${top('Avisos del banco', { right: `<div class="btn-r">${ic('ellipsis-vertical')}</div>` })}<main>
- <div class="search">${ic('search-outline')}Buscar una app o lo que dijo</div>
- <div class="h">Apps que mandan avisos<span class="p">Seleccionar</span></div><div class="list">
-  ${[['Banco Azul', 'com.bancoazul.app · 18 avisos', C.blu, true], ['Tarjeta Coral', 'com.coral.card · 6 avisos', C.yel, true], ['Mensajería', 'no es un banco · 212 avisos', C.gry, false]].map(([n, s, c, on]) =>
-   `<div class="row">${sq('phone-portrait-outline', c, 40)}<div class="tx"><b>${n} ${on ? tag('se guarda', C.grn) : ''}</b><small>${s}</small></div>${sw(on)}</div>`).join('')}
-  <div class="row">${sq('eye-off-outline', C.gry, 40)}<div class="tx"><b>Apps ocultas (2)</b></div><span class="p" style="font-size:13px">Mostrar</span></div></div>
- <div class="h">Lo que dijeron</div><div class="list">
-  ${[['Banco Azul', 'Compra por $45.900 en EXITO POBLADO con tu tarjeta *1234', 'hace 12 min', C.blu], ['Tarjeta Coral', 'Tienes un nuevo movimiento. Abre la app para verlo.', 'ayer 8:14 p. m.', C.yel]].map(([n, t, w, c]) =>
-   `<div class="row" style="align-items:flex-start">${sq('notifications-outline', c, 36)}<div class="tx"><b style="font-size:14px">${n} <span class="mu" style="font-weight:400;font-size:12px">· ${w}</span></b><small style="color:#c3cbdb">${t}</small></div></div>`).join('')}</div>
- <div class="hint">Tal cual llegó. Todavía no se saca monto ni categoría: primero hay que ver qué dicen.</div></main>`;
-
 S['d08-mas'] = `${bigTitle('Más')}<main style="padding-top:6px">
  <div class="card hero" style="display:flex;align-items:center;gap:14px"><div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--pr),${C.pur});display:grid;place-items:center;font-weight:700;font-size:20px">J</div>
   <div style="flex:1"><b style="font-size:16px">Jose</b><div class="sub">Copia en tu Google Drive · hoy 8:12 a. m.</div></div>${chev()}</div>
