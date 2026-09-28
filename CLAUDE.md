@@ -2056,7 +2056,7 @@ then does the next start. The groups and where each stands:
 | 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
 | 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
-| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v4) | Sent 2026-09-28, waiting |
+| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | Sent 2026-09-28, waiting |
 | 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
 
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
@@ -2493,7 +2493,12 @@ Jose to accept or refuse:
 - **A red dot on the Más tab and on Por revisar** says something is
   waiting, where the drawer's count used to.
 - **Language and appearance are sheets** from their rows, each option with
-  a tick.
+  a tick. **Appearance adds the colour of the app** (v5, after Jose asked
+  whether it had one - verified: today it is only Automático / Claro /
+  Oscuro, `theme.*` in translations.ts): six accents drawn as the button
+  itself (Zafiro, the default, Océano, Turquesa, Esmeralda, Violeta,
+  Coral); a preference like the theme, no data. New, and Jose's to accept;
+  it would settle idea P by letting each person choose.
 - **Importar y exportar**: the backup and the CSV each a card with one
   button; what each holds and warns is behind an (i). Restoring still asks
   the moment the file is chosen, naming the file, the warning inside the
@@ -2504,8 +2509,14 @@ Jose to accept or refuse:
   "Cambiar de cuenta" (Android's own chooser) and "Cerrar sesión".
   Replacing a copy another device wrote asks first and says when that copy
   was written and what it holds; the old one kept aside is a short notice.
-- **In the browser**, where there is no Google sign-in, the screen says so
-  in one sentence and offers "Ir a Importar y exportar".
+- **No browser screen** (Jose, 2026-09-28: "no se en que momento saldrá o
+  si tan siquiera es útil"). Where Google sign-in cannot work - the
+  browser (`GoogleAccountService.available`) - Más shows no Google card
+  and Importar y exportar no Drive row: nothing to open, as in group 7.
+- **Every word the app says is shown whole**, wrapping onto a second line
+  (Jose, again, 2026-09-28): a row's title and the line under it, a hint,
+  a notice. Only a name - the person's, an address, an account - ends in
+  "…" and slides.
 
 ### The ideas, by what they would take
 

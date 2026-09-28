@@ -19,7 +19,9 @@ const toast = t => `<div style="position:absolute;left:24px;right:24px;bottom:10
 const dialog = (icon, title, body, no, yes, danger = false) => `<div class="scrim"></div><div class="dialog" style="text-align:center">${centred(icon)}<b style="font-size:18px">${title}</b>
  <div class="sub" style="margin-top:8px;line-height:1.45">${body}</div>
  <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">${no}</div><div class="btn${danger ? ' danger' : ''}" style="flex:1">${yes}</div></div></div>`;
-const row = (icon, t, s, right = chev()) => `<div class="row">${icon}<div class="tx"><b class="one">${t}</b>${s ? `<small class="one">${s}</small>` : ''}</div>${right}</div>`;
+// Every word the app says here is shown whole, wrapping if it must: only a
+// name (the person's, an address) is cut with "…" and slides.
+const row = (icon, t, s, right = chev()) => `<div class="row">${icon}<div class="tx"><b style="white-space:normal;line-height:1.3">${t}</b>${s ? `<small>${s}</small>` : ''}</div>${right}</div>`;
 const photo = (size = 50) => `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--pr),${C.pur});display:grid;place-items:center;font-weight:700;font-size:${Math.round(size * .4)}px;flex:none">J</div>`;
 
 // 1. Más: whose Google account it is, then everything the drawer held that
@@ -37,14 +39,25 @@ S['8a-mas'] = `${bigTitle('Más')}<main style="padding-top:6px">
   ${row(sq('calculator-outline', C.org, 40), 'Simulador de renta', 'Formulario 210 · año 2026')}</div>
  <div class="h">Preferencias</div><div class="list">
   ${row(sq('language-outline', C.cya, 40), 'Idioma', 'Español')}
-  ${row(sq('contrast-outline', C.pnk, 40), 'Apariencia', 'Automático, como el teléfono')}</div>
+  ${row(sq('contrast-outline', C.pnk, 40), 'Apariencia', 'Automático · color Zafiro')}</div>
  <div style="height:110px"></div></main><div class="fade"></div>${tabs('Más', true)}`;
 
 // 2. Language and appearance: a sheet each, the current one ticked.
 const choice = (title, opts) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="display:block;text-align:center;font-size:17px;margin-bottom:12px">${title}</b>
  <div class="list">${opts.map(([i, c, t, s, on]) => row(ci(i, c, 38), t, s, on ? ic('checkmark', 'p', 'width:20px;height:20px') : '')).join('')}</div></div>`;
 S['8b-idioma'] = S['8a-mas'] + choice('Idioma', [['text-outline', C.cya, 'Español', 'Los nombres de tus cuentas y categorías no cambian', true], ['text-outline', C.blu, 'English', '', false]]);
-S['8c-apariencia'] = S['8a-mas'] + choice('Apariencia', [['phone-portrait-outline', C.pnk, 'Automático', 'Como esté el teléfono', true], ['sunny-outline', C.yel, 'Claro', '', false], ['moon-outline', C.pur, 'Oscuro', '', false]]);
+// Appearance: the theme as today (Automático, Claro, Oscuro) and, new, the
+// colour of the app - the accent of everything pressable - one of a few
+// blues and neighbours, each drawn as the app's own button in that colour.
+const ACCENTS = [['Zafiro', '#6378ff', true], ['Océano', '#3d8bfd'], ['Turquesa', '#22b8cf'], ['Esmeralda', '#2fbf71'], ['Violeta', '#9b6bff'], ['Coral', '#ff7a6b']];
+S['8c-apariencia'] = S['8a-mas'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="display:block;text-align:center;font-size:17px;margin-bottom:12px">Apariencia</b>
+ <div class="h" style="margin-top:4px">Tema</div>
+ <div style="display:flex;gap:8px">${[['phone-portrait-outline', 'Automático', true], ['sunny-outline', 'Claro'], ['moon-outline', 'Oscuro']].map(([i, t, on]) => `<div style="flex:1;border-radius:14px;padding:11px 6px;text-align:center;background:${on ? tint(C.blu, .22) : 'var(--s1)'};border:1px solid ${on ? 'var(--pr)' : '#17223b'}">${ic(i, on ? 'p' : '', 'width:22px;height:22px')}<div style="font-size:13.5px;margin-top:4px">${t}</div></div>`).join('')}</div>
+ <div class="hint">Automático sigue lo que tenga el teléfono.</div>
+ <div class="h">Color de la app</div>
+ <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${ACCENTS.map(([n, c, on]) => `<div style="border-radius:14px;padding:10px 6px;text-align:center;background:var(--s1);border:1px solid ${on ? c : '#17223b'};position:relative">
+  <div style="height:30px;border-radius:10px;background:${c};margin:0 6px;display:grid;place-items:center">${on ? ic('checkmark', '', 'width:18px;height:18px;color:#fff') : ''}</div><div style="font-size:13px;margin-top:6px">${n}</div></div>`).join('')}</div>
+ <div class="hint">Es el color de los botones, las pestañas y lo que se puede tocar. Los colores de tus cuentas y categorías no cambian.</div></div>`;
 
 // 3. Importar y exportar: the backup (save it, restore one), the CSV, and
 //    the way to the Drive copy. Each warning is one (i).
@@ -117,11 +130,8 @@ S['8q-cambiar-de-cuenta'] = googlePage() + `<div class="scrim"></div><div class=
  ${[['J', 'Jose', 'jose.ejemplo@gmail.com'], ['J', 'Jadex Labs', 'jadex.ejemplo@gmail.com']].map(([l, n, e]) => `<div style="display:flex;gap:12px;align-items:center;padding:11px 6px;border-bottom:1px solid #dadce0"><div style="width:36px;height:36px;border-radius:50%;background:#6378ff;color:#fff;display:grid;place-items:center;font-weight:600">${l}</div><div><div style="font-size:15px">${n}</div><div style="font-size:13px;color:#5f6368">${e}</div></div></div>`).join('')}
  <div style="display:flex;gap:12px;align-items:center;padding:13px 6px">${ic('person-add-outline', '', 'width:22px;height:22px;color:#5f6368')}<span style="font-size:15px">Usar otra cuenta</span></div></div>`;
 
-// 10. In the browser: the Drive copy belongs to the phone, and it says why -
-//     then points to what does work here.
-S['8r-google-en-el-navegador'] = `${top('Copia en Google Drive')}<main style="padding-top:70px;text-align:center">${centred(ci('phone-portrait-outline', C.blu, 80), 16)}
- <b style="font-size:19px">Se conecta desde la app del teléfono</b>
- <div class="sub" style="margin:8px 22px 0;line-height:1.45">El navegador tiene su propia base de datos, la de tus pruebas: si se conectara desde aquí podría subirla encima de la buena.</div>
- <div class="btn ghost" style="margin:22px 30px 0">${ic('swap-vertical-outline')}Ir a Importar y exportar</div></main>${tabs('Más')}`;
+// (No browser screen: where Google sign-in cannot work - the browser - Más
+// shows no Google card and Importar y exportar no Drive row, rather than a
+// screen that only says no. The rule of group 7.)
 
 export default S;
