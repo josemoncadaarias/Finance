@@ -71,7 +71,7 @@ const psq = (k, z = 42) => sq(P[k][0], P[k][1], z);
 const prodRow = (k, name, sub, amt) => `<div class="row">${psq(k)}<div class="tx"><b class="one">${name}</b><small class="one">${sub}</small></div><div class="am">${amt}</div>${chev()}</div>`;
 S['4c-cuenta-productos'] = page('Productos', `<div class="list">
   ${prodRow('cuenta', 'Cuenta de ahorros', 'El habitual · 9,25 % E.A.', '52.000.000,00')}
-  ${prodRow('mercado', 'Bolsillo Mercado', '9,25 % E.A. de la cuenta', '1.240.546,90')}
+  ${prodRow('mercado', 'Bolsillo Mercado', '9,25 % E.A.', '1.240.546,90')}
   ${prodRow('viajes', 'Bolsillo Viajes', '11,00 % E.A. · sin retefuente', '2.000.000,00')}
   ${prodRow('cdt', 'CDT 90 días', 'CDT · vence el 12 dic · Fuera del patrimonio', '10.000.000,00')}
   <div class="row" style="background:var(--s2)"><div class="tx"><b>Entre todos los productos</b><small>De este saldo, 924.118,20 son rendimientos que pagó el banco</small></div><div class="am" style="font-weight:700">65.240.546,90</div></div>
@@ -177,10 +177,7 @@ S['4l-producto-tasa'] = productPage('viajes', 'Bolsillo Viajes', 'Tasa', `<div c
   ${addRow('Cambiar la tasa desde una fecha')}</div>
  <div class="hint">Una tasa nueva no borra la anterior: manda la más reciente hasta su fecha.</div>`);
 
-S['4m-producto-tasa-de-la-cuenta'] = productPage('mercado', 'Bolsillo Mercado', 'Tasa', `<div class="list">
-  ${val('¿Cada cuánto paga el banco?', 'Todos los días', down())}
-  ${rate('9,25 % E.A.', 'Desde el 1 ago 2026 · de la cuenta: la usan los productos sin tasa propia', 'Vigente', C.grn)}
-  ${addRow('Darle una tasa propia desde una fecha')}</div>`);
+// (No 4m: every rate belongs to one product since migration 030, 2026-09-11.)
 
 S['4n-nueva-tasa'] = S['4l-producto-tasa'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
  <h2 style="text-align:center;font-size:19px;margin-bottom:12px">Cambiar la tasa desde una fecha</h2>

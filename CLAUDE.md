@@ -2087,10 +2087,16 @@ then does the next start. The groups and where each stands:
 - **The category editor opens on Ícono**, then Color, then Imagen propia.
 - **A rate lives inside its product** on screen: it is added and edited
   from the product, never as a loose list with a "which products" picker.
-  In the data a rate can also belong to the whole account (`product_id`
-  NULL, used by every product without its own); on screen such a rate
-  shows inside each product it applies to, marked as the account's. Making
-  every rate strictly per product would change data and is Jose's call.
+  **Every rate belongs to exactly one product, and has since migration 030
+  (2026-09-11)**: it copied each whole-account rate onto every product that
+  used it - the rule the engine already followed, so no day moved - and
+  deleted the whole-account rows; every screen that saves a rate passes the
+  product (`products.page.ts`, three places, checked 2026-09-28). The
+  remark written here that a rate "can also belong to the whole account"
+  was wrong, read off migration 016's comment without reading 030; Jose,
+  2026-09-28: "una tasa solo aplica a un producto específico". `4m`, which
+  drew such a rate, is gone. What only a local session can confirm: that
+  his backup holds no `yield_rates` row with `product_id` NULL.
 - **Icons in dialogs and sheets are centred with their title**, never
   left against a centred text.
 - **The orphan withdrawal** ("Retiro sin su movimiento") exists in the app
@@ -2178,10 +2184,8 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   and stopping the account. No tabs.
 - **Rates stay where they already are, inside the product form**, with
   payout frequency, Vigente / Ya no aplica, "Cambiar la tasa desde una
-  fecha" and the spending bonus. A product using the account's rate shows
-  it marked "de la cuenta" and offers "Darle una tasa propia desde una
-  fecha" (`4k`) - assumed, not checked, that today's form can already do
-  that without a data change; to verify before building.
+  fecha" and the spending bonus. (A rate "of the account" was drawn here
+  and removed: there is no such thing - see the rule above.)
 - "Recalcular" is the round arrow in the title bar of the Rendimientos
   face.
 
@@ -2245,8 +2249,11 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   to the product the route most often uses. No red text, no disabled
   Guardar (`4t10a`, `4t10b`). Verified today: `chooseProduct` in
   `entry.component.ts` already moves the other side, but to the first
-  other product in the list; picking the most used one instead is a small
-  change of behaviour, Jose's.
+  other product in the list. **Decided by Jose, 2026-09-28: it moves to
+  the product most used for that route in that scenario** (the same
+  reading `routeBetweenProducts` makes), and everything that depends on
+  the ends follows it - the usual note for the new route, and "Pasar todo"
+  with the figure of the new origin. To build with the movement form.
 - **Every note row, every end and every list uses the same icons as the
   account and product lists**, and the product hangs from its account.
 - **Long account and product names slide** in every end and every list
@@ -2499,8 +2506,8 @@ Jose to accept or refuse:
   whether it had one - verified: today it is only Automático / Claro /
   Oscuro, `theme.*` in translations.ts): six accents drawn as the button
   itself (Zafiro, the default, Océano, Turquesa, Esmeralda, Violeta,
-  Coral); a preference like the theme, no data. New, and Jose's to accept;
-  it would settle idea P by letting each person choose.
+  Coral); a preference like the theme, no data. **Accepted by Jose,
+  2026-09-28: Zafiro by default, and each person changes it if they want.**
 - **Importar y exportar**: the backup and the CSV each a card with one
   button; what each holds and warns is behind an (i). Restoring still asks
   the moment the file is chosen, naming the file, the warning inside the
@@ -2588,7 +2595,7 @@ The changes of ACCESS, for Jose to accept or refuse:
 | 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
 | F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
 | H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
-| P | Choose the accent: Zafiro recommended | Small | Design | Waiting for Jose |
+| P | Choose the accent | Small | Design | **Decided** by Jose, 2026-09-28: Zafiro by default, changeable in Apariencia |
 | - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
 | - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
 
