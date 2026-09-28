@@ -1709,7 +1709,9 @@ button.ui-row:active { background: var(--app-s2); }
   left: 22px;
   right: 22px;
   bottom: calc(104px + var(--ion-safe-area-bottom, 0px));
-  z-index: 60;
+  /* Above an open form too: "Guardado. Escribe el siguiente" is said over
+     the movement form that stays open (Ionic's overlays start at 20000). */
+  z-index: 40000;
   background: var(--app-s2);
   border: 1px solid var(--app-line);
   border-radius: 16px;
@@ -2530,4 +2532,11 @@ ion-modal.confirm-sheet .confirm-dialog .kept { display: flex; gap: 6px; align-i
 .ui-frame > .scroll > *, .editor > .scroll > *, .product-form > .scroll > *,
 .entry-body > * {
   flex-shrink: 0;
+}
+
+/* Over an open form the notice sits at the top, clear of the keypad the
+   next amount is typed on. */
+body:has(ion-modal.entry-sheet.show-modal) .ui-toast {
+  top: calc(64px + var(--ion-safe-area-top, 0px));
+  bottom: auto;
 }

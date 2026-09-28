@@ -16,7 +16,7 @@
   </header>
 
   <div class="entry-scroll">
-    <div class="entry-body">
+    <div class="entry-body" (click)="bodyTapped($event)">
 
       <!-- Gasto, Ingreso or Transferir: the form switches between them, keeping
            what was already written. A movement being corrected keeps its kind. -->
@@ -58,14 +58,11 @@
             </button>
           </div>
         } @else {
-          <section class="amount">
+          <!-- Touching the amount brings the keypad back; erasing is a key of it. -->
+          <section class="amount" (click)="keypadOpen.set(true)">
             <span class="sign" [class]="kind()">{{ isTransfer() ? '⇄' : kind() === 'expense' ? '−' : '+' }}</span>
             <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
             <span class="currency">{{ currency() }}</span>
-            <button type="button" class="erase" (click)="press('<')" (contextmenu)="$event.preventDefault(); clearAmount()"
-                    [attr.aria-label]="'entry.erase' | t" [title]="'entry.erase' | t">
-              <ion-icon name="backspace-outline"></ion-icon>
-            </button>
           </section>
         }
 
@@ -127,24 +124,13 @@
     </div>
   </div>
 
-  <!-- The keypad, and saving at the bottom where a thumb rests. -->
+  <!-- The keypad while the amount is typed, and saving at the foot always. -->
   @if (!writingNote()) {
-    <footer class="pad">
-      @if (missing(); as hint) {
-        <p class="missing">{{ hint }}</p>
-      }
-      <div class="ui-kp">
-        @for (key of keys; track key) {
-          <button type="button" (click)="press(key)" [class.op]="isOperatorKey(key)"
-                  [class.on]="pending()?.operator === key">
-            {{ key === '-' ? '−' : key }}
-          </button>
-        }
-        <button type="button" class="save" [disabled]="!canSave() || saving()" (click)="save()">
-          {{ 'entry.save' | t }}
-        </button>
-      </div>
-    </footer>
+    <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
+                [missing]="missing()" [canSave]="canSave() && !saving()"
+                [operator]="pending()?.operator ?? null"
+                [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
+                (pressed)="press($event)" (save)="save()"></app-keypad>
   }
 </div>
 

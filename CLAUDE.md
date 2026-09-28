@@ -2128,6 +2128,18 @@ changed in the shape of the app, for the next session:
 - **A list of sections opens on its first one** everywhere, through
   `core/ui/first-open.ts` (`FirstOpen`), which keeps only what the person
   changed. Inicio has its own in `movements.store.ts`.
+- **The keypad is one component, `shared/ui/keypad.component.ts`**, in the
+  movement form, a product's own movement and a proposal being checked
+  (Jose, 2026-09-28: take it away, or at least give every form a way to
+  erase a digit). Kept rather than the phone's number keyboard, which has no
+  + − × ÷ and writes a comma or a point by its language. It shows while the
+  amount is typed and folds away (its handle, or a tap on the form below
+  the amount); a tap on the amount brings it back; closed from the start
+  when correcting. Erasing is a key (a long press clears); "=" is gone - the
+  sum's result is shown as it is typed and saving finishes it. Saving stays
+  at the foot, with "Registrar otro" (`finance.enterAnother`) beside it on a
+  new movement: it saves and leaves the form ready for the next one on the
+  same account, kind and day.
 - **A transfer has its own blue, never the accent** (`--app-move`, `.ui-t`,
   `MOVE_COLOR`): with Coral chosen, Recibido and every transfer read as
   spending.

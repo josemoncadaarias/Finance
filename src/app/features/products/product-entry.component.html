@@ -15,7 +15,7 @@
   </header>
 
   <div class="entry-scroll">
-    <div class="entry-body">
+    <div class="entry-body" (click)="bodyTapped($event)">
       <!-- While the note is written the rest steps aside by CSS (.writing-note);
            the note is never drawn a second time, or the phone drops its keyboard. -->
         <div class="ui-seg kinds">
@@ -35,14 +35,10 @@
 
         @if (pendingLabel(); as sum) { <p class="pending">{{ sum }}</p> }
 
-        <section class="amount">
+        <section class="amount" (click)="keypadOpen.set(true)">
           <span class="sign" [class]="request().kind">{{ isTransfer() ? '⇄' : request().kind === 'expense' ? '−' : '+' }}</span>
           <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
           <span class="currency">{{ currency() }}</span>
-          <button type="button" class="erase" (click)="press('<')" (contextmenu)="$event.preventDefault(); clearAmount()"
-                  [attr.aria-label]="'entry.erase' | t">
-            <ion-icon name="backspace-outline"></ion-icon>
-          </button>
         </section>
 
         @if (isTransfer() && fromBalance() !== null) {
@@ -108,16 +104,10 @@
   </div>
 
   @if (!writingNote()) {
-    <footer class="pad">
-      @if (missing(); as hint) { <p class="missing">{{ hint }}</p> }
-      <div class="ui-kp">
-        @for (key of keys; track key) {
-          <button type="button" (click)="press(key)" [class.op]="isOperatorKey(key) || key === '='"
-                  [class.on]="pending()?.operator === key">{{ key === '-' ? '−' : key }}</button>
-        }
-        <button type="button" class="save" [disabled]="!canSave() || saving()" (click)="save()">{{ 'entry.save' | t }}</button>
-      </div>
-    </footer>
+    <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
+                [missing]="missing()" [canSave]="canSave() && !saving()"
+                [operator]="pending()?.operator ?? null"
+                (pressed)="press($event)" (save)="save()"></app-keypad>
   }
 </div>
 
