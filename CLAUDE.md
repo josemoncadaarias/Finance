@@ -90,6 +90,8 @@ each merged by the session after checks passed):
 | #2 | First fixes from Jose's phone: the Drive copy's progress bar and failures, the note that closed itself, every sheet slides down and says Cancelar and closes when the screen changes, first section open on an account's movements/payments/days, the piggy bank landing on its account, transfers in their own blue, no card squeezed with large text |
 | #3 | Review screen: smooth scroll after importing a statement (change detection 6.6 → 1.8 ms on 150 rows), long press on shops and days |
 | #4 | One keypad component for every movement form: folds away, erase key everywhere, no "=" key, "Registrar otro" |
+| #5 | This "Start here" section and the rest of CLAUDE.md brought up to date |
+| #6 | Nothing ends under the floating bar (one rule for every screen); a small arrow brings the folded keypad back |
 
 The details of each are in "Built, all nine groups" and "First round from
 the phone" under "Ideas waiting for Jose's word" (they live there because
@@ -2241,8 +2243,9 @@ changed in the shape of the app, for the next session:
   erase a digit). Kept rather than the phone's number keyboard, which has no
   + − × ÷ and writes a comma or a point by its language. It shows while the
   amount is typed and folds away (its handle, or a tap on the form below
-  the amount); a tap on the amount brings it back; closed from the start
-  when correcting. Erasing is a key (a long press clears); "=" is gone - the
+  the amount); a tap on the amount, or the small "Mostrar el teclado" arrow
+  left at the foot when it is folded (PR #6, Jose), brings it back; closed
+  from the start when correcting. Erasing is a key (a long press clears); "=" is gone - the
   sum's result is shown as it is typed and saving finishes it. Saving stays
   at the foot, with "Registrar otro" (`finance.enterAnother`) beside it on a
   new movement: it saves and leaves the form ready for the next one on the
@@ -2254,6 +2257,17 @@ changed in the shape of the app, for the next session:
   filtered lists and lookups by id are `computed` maps, read by the
   template; the review screen went from 6.6 to 1.8 ms per pass on 150 rows.
   A long list may also use `content-visibility: auto` on its sections.
+- **Nothing ends under the floating bar** (PR #6, Jose: the "Continuar con
+  Google" button sat under it). Every screen routed under the bar gets its
+  room at the foot from one rule in global.scss (`ion-router-outlet >
+  .ion-page > ion-content { --padding-bottom }`), so a new screen or a new
+  empty state cannot forget it; `.ui-page-end` is only still needed inside
+  the account page, a modal with its own bar. How it was checked, and how to
+  check again: on a 700px-high viewport at 120% zoom (a phone with larger
+  text), scroll each screen to its end and list any text or button whose
+  box overlaps the bar's; every screen, the Google sign-in, the
+  notifications permission, the tax disclaimer and an account page's four
+  tabs came out clear.
 - **A long press works on a group as on a row**: on the review screen a
   shop, the shops' heading and a day's heading start choosing with all their
   rows ticked (`pressedMany`).
@@ -2840,7 +2854,8 @@ budget family (2/16, 1, 7), then the rest.
       in "Start here" (Drive progress, long press, keypad, Registrar otro,
       sheets, the accent in the light theme).
 - [ ] Say whether the keypad should start closed, and whether he misses the
-      "=" key (both small changes).
+      "=" key (both small changes). He liked it folding away (2026-09-28)
+      and asked for the arrow that brings it back, done in #6.
 
 ## Documents
 

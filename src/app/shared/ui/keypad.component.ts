@@ -13,8 +13,8 @@
  * took, so:
  *
  *   - it is shown while the amount is being typed and folds away (the handle
- *     on top, or touching any other part of the form); touching the amount
- *     brings it back;
+ *     on top, or touching any other part of the form); touching the amount,
+ *     or the small arrow left at the foot, brings it back;
  *   - erasing is a key of its own - a tap erases a digit, a long press all of
  *     it - so it is there in every form and every layout;
  *   - "=" is gone: the running sum shows its result as it is typed, and a
@@ -60,6 +60,14 @@ export const KEYPAD_KEYS = [
       padding: 2px 0 0;
       cursor: pointer;
       ion-icon { font-size: 22px; }
+      &.up {
+        align-items: center;
+        gap: 6px;
+        padding: 6px 0 0;
+        font-size: 13px;
+        color: var(--app-pr);
+        ion-icon { font-size: 20px; }
+      }
     }
     .ui-kp { padding-bottom: 0; }
     .ui-kp button.on { background: var(--app-pr); color: #fff; }
@@ -102,6 +110,14 @@ export const KEYPAD_KEYS = [
   template: `
     <footer class="pad">
       @if (missing(); as hint) { <p class="missing">{{ hint }}</p> }
+      @if (!open()) {
+        <!-- Folded: a small arrow at the foot brings it back, as well as a
+             tap on the amount (Jose, 2026-09-28). -->
+        <button type="button" class="fold up" (click)="openChange.emit(true)"
+                [attr.aria-label]="'entry.keypad.show' | t" [title]="'entry.keypad.show' | t">
+          <ion-icon name="chevron-up"></ion-icon><span>{{ 'entry.keypad.show' | t }}</span>
+        </button>
+      }
       @if (open()) {
         <button type="button" class="fold" (click)="openChange.emit(false)"
                 [attr.aria-label]="'entry.keypad.hide' | t" [title]="'entry.keypad.hide' | t">
