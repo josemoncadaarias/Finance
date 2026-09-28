@@ -2055,8 +2055,8 @@ then does the next start. The groups and where each stands:
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
 | 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
-| 7 | Avisos del banco | `docs/mockups/7*` (v4) | Sent 2026-09-28, waiting |
-| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
+| 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
+| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v4) | Sent 2026-09-28, waiting |
 | 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
 
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
@@ -2479,6 +2479,33 @@ or refuse:
   those purchases would land as proposals in Movimientos por revisar,
   like a statement or a notice (rule 22). To look up properly the day
   there is an iOS build.
+
+**Group 8 as sent (v4, 2026-09-28)**: everything the drawer, Importar y
+exportar and the Google screen do today, with these changes of ACCESS for
+Jose to accept or refuse:
+
+- **Más replaces the drawer.** On top, the Google card (name, "Copia en
+  Drive · hoy 8:12"), then rows under small headings, each with its value:
+  Tus datos (Movimientos por revisar with how many wait, Categorías, Avisos
+  del banco, Importar y exportar), Herramientas (Simulador de renta) and
+  Preferencias (Idioma, Apariencia). Monedas y tasas stays under Cuentas
+  only - one way in, not two.
+- **A red dot on the Más tab and on Por revisar** says something is
+  waiting, where the drawer's count used to.
+- **Language and appearance are sheets** from their rows, each option with
+  a tick.
+- **Importar y exportar**: the backup and the CSV each a card with one
+  button; what each holds and warns is behind an (i). Restoring still asks
+  the moment the file is chosen, naming the file, the warning inside the
+  dialog, "Escoger otro" putting the picker back; then its progress.
+- **Google**: signed out, one card and one button; signed in, the account
+  card, the copy in Drive (when, how much, from which device), "Guardar
+  ahora" and "Traer la copia", "Guardar la copia sola" with its (i),
+  "Cambiar de cuenta" (Android's own chooser) and "Cerrar sesión".
+  Replacing a copy another device wrote asks first and says when that copy
+  was written and what it holds; the old one kept aside is a short notice.
+- **In the browser**, where there is no Google sign-in, the screen says so
+  in one sentence and offers "Ir a Importar y exportar".
 
 ### The ideas, by what they would take
 

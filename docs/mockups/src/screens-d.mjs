@@ -3,61 +3,6 @@ import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, t
 
 const S = {};
 
-S['d08-mas'] = `${bigTitle('Más')}<main style="padding-top:6px">
- <div class="card hero" style="display:flex;align-items:center;gap:14px"><div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--pr),${C.pur});display:grid;place-items:center;font-weight:700;font-size:20px">J</div>
-  <div style="flex:1"><b style="font-size:16px">Jose</b><div class="sub">Copia en tu Google Drive · hoy 8:12 a. m.</div></div>${chev()}</div>
- <div class="h">Tus datos</div><div class="list">
-  <div class="row">${sq('checkmark-done-outline', C.blu, 40)}<div class="tx"><b>Por revisar</b><small>Lo que la app leyó y tú confirmas</small></div><span class="pill">14</span>${chev()}</div>
-  <div class="row">${sq('pricetags-outline', C.pur, 40)}<div class="tx"><b>Categorías</b><small>22 activas · 3 archivadas</small></div>${chev()}</div>
-  <div class="row">${sq('notifications-outline', C.yel, 40)}<div class="tx"><b>Avisos del banco</b><small>2 apps marcadas</small></div>${chev()}</div>
-  <div class="row">${sq('swap-vertical-outline', C.tea, 40)}<div class="tx"><b>Importar y exportar</b><small>Copia de seguridad y CSV</small></div>${chev()}</div></div>
- <div class="h">Herramientas</div><div class="list">
-  <div class="row">${sq('calculator-outline', C.org, 40)}<div class="tx"><b>Simulador de renta</b><small>Formulario 210 · 2026</small></div>${chev()}</div>
-  <div class="row">${sq('cash-outline', C.lim, 40)}<div class="tx"><b>Monedas y tasas</b><small>COP, USD, EUR · TRM de hoy</small></div>${chev()}</div></div>
- <div class="h">Preferencias</div><div class="list">
-  <div class="row">${sq('language-outline', C.cya, 40)}<div class="tx"><b>Idioma</b><small>Español</small></div>${chev()}</div>
-  <div class="row">${sq('color-palette-outline', C.pnk, 40)}<div class="tx"><b>Tema</b><small>Automático</small></div>${chev()}</div></div>
- </main><div class="fade"></div>${tabs('Más', true)}`;
-
-S['d09-importar-exportar'] = `${top('Importar y exportar')}<main>
- <div class="card hero"><div style="display:flex;gap:12px;align-items:center">${ci('shield-checkmark-outline', C.grn, 46)}<div class="tx"><b>Copia de seguridad</b><small>Un solo archivo con todo: cuentas, movimientos, productos e imágenes</small></div></div>
-  <div class="btn" style="margin-top:12px">${ic('download-outline')}Guardar copia de seguridad</div></div>
- <div class="list" style="margin-top:10px"><div class="row">${sq('refresh-outline', C.org, 40)}<div class="tx"><b>Restaurar una copia</b><small>Reemplaza lo que hay en este teléfono; te preguntamos al elegir el archivo</small></div>${chev()}</div></div>
- <div class="card" style="margin-top:10px"><div style="display:flex;gap:12px;align-items:center">${ci('grid-outline', C.tea, 46)}<div class="tx"><b>CSV para leer</b><small>Tus movimientos en una hoja, para Excel. No sirve para restaurar.</small></div></div>
-  <div class="btn ghost" style="margin-top:12px">${ic('download-outline')}Descargar CSV</div></div>
- <div class="list" style="margin-top:10px"><div class="row">${sq('logo-google', C.blu, 40)}<div class="tx"><b>Copia en Google Drive</b><small>Automática · hoy 8:12 a. m.</small></div>${chev()}</div></div>
- <div class="banner" style="background:${tint(C.grn, .1)};color:#a7ecc9;margin-top:12px">${ic('checkmark-circle')}<span>Se guardó finance-2026-09-27.json</span></div></main>`;
-
-S['d10-restaurar-dialogo'] = S['d09-importar-exportar'] + `<div class="scrim"></div><div class="dialog">
- <div style="text-align:center">${ci('refresh-outline', C.org, 54).replace('display:grid', 'display:grid;margin:0 auto 12px')}<b style="font-size:18px">¿Restaurar finance-2026-09-20.json?</b></div>
- <div class="list" style="margin-top:12px">${[['Guardada el', '20 sept 2026'], ['Movimientos', '13.214'], ['Cuentas', '19']].map(([k, v]) => `<div class="row plain" style="padding:8px 12px"><div class="tx"><small style="margin:0">${k}</small></div><b>${v}</b></div>`).join('')}</div>
- <div class="banner" style="background:${tint(C.red, .14)};color:#ffb4b9;margin-top:10px">${ic('alert-circle-outline')}<span>Reemplaza TODO lo que hay en este teléfono. Guarda una copia antes si no estás seguro.</span></div>
- <div style="display:flex;gap:10px;margin-top:14px"><div class="btn ghost" style="flex:1">Elegir otro</div><div class="btn danger" style="flex:1">Restaurar</div></div></div>`;
-
-S['d11-google-sin-sesion'] = `${top('Copia en Google Drive')}<main>
- <div style="text-align:center;margin-top:10px">${ci('logo-google', C.blu, 76).replace('display:grid', 'display:grid;margin:0 auto 12px')}<b style="font-size:19px">Guarda una copia en tu Google Drive</b>
-  <div class="sub" style="margin-top:6px">Opcional. La app funciona igual sin conectarte: tus datos viven en este celular.</div></div>
- <div class="list" style="margin-top:14px">${[['phone-portrait-outline', 'Todo sigue guardándose en el celular, incluso sin internet.'], ['lock-closed-outline', 'La copia va a una carpeta de tu propio Drive que solo esta app puede ver.'], ['hand-left-outline', 'Tú decides si se guarda sola o con un botón.']]
-  .map(([i, t]) => `<div class="row">${ci(i, C.grn, 38)}<div class="tx"><small style="color:var(--tx);font-size:13.5px;margin:0">${t}</small></div></div>`).join('')}</div>
- </main><div class="save" style="background:#fff;color:#1f1f1f;display:flex;gap:10px;align-items:center;justify-content:center">${ic('logo-google', '', 'width:20px;height:20px;color:#4285f4')}Continuar con Google</div>`;
-
-S['d12-google-con-sesion'] = `${top('Copia en Google Drive')}<main>
- <div class="card hero" style="display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--pr),${C.pur});display:grid;place-items:center;font-weight:700;font-size:20px">J</div>
-  <div style="flex:1"><b>Jose</b><div class="sub">jose@gmail.com</div></div></div>
- <div class="card" style="margin-top:10px"><div class="lab">Copia en Drive</div>
-  <div class="mini" style="margin-top:8px"><div><span class="lab">Guardada</span><b>Hoy 8:12 a. m.</b></div><div><span class="lab">Tiene</span><b>13.402 registros</b></div></div>
-  <div style="display:flex;gap:10px;margin-top:12px"><div class="btn" style="flex:1">${ic('cloud-upload-outline')}Guardar ahora</div><div class="btn ghost" style="flex:1">${ic('cloud-download-outline')}Traer la copia</div></div></div>
- <div class="list" style="margin-top:10px"><div class="row plain"><div class="tx"><b>Guardar la copia sola</b><small>Sube cuando sales de la app, que es cuando no estorba</small></div>${sw(true)}</div></div>
- <div class="hint">Es el mismo archivo que guarda "Importar y exportar". La copia anterior nunca se pierde: si otro teléfono la cambió, se guarda aparte con su fecha.</div>
- <div class="list" style="margin-top:12px"><div class="row">${sq('swap-horizontal', C.blu, 40)}<div class="tx"><b>Cambiar de cuenta de Google</b><small>Cierra esta sesión y entra con otra</small></div>${chev()}</div>
-  <div class="row">${sq('log-out-outline', C.red, 40)}<div class="tx"><b class="r">Cerrar sesión</b><small>Tus datos se quedan en el teléfono</small></div></div></div></main>`;
-
-S['d13-drive-reemplazar'] = S['d12-google-con-sesion'] + `<div class="scrim"></div><div class="dialog">
- <div style="text-align:center">${ci('cloud-upload-outline', C.yel, 54).replace('display:grid', 'display:grid;margin:0 auto 12px')}<b style="font-size:18px">¿Reemplazar la copia de Drive?</b></div>
- <div class="sub" style="margin-top:8px">La copia que hay en Drive se guardó el 25 sept a las 9:40 p. m. y este teléfono nunca la ha visto. Tiene 13.388 registros.</div>
- <div class="banner" style="background:${tint(C.grn, .1)};color:#a7ecc9;margin-top:10px">${ic('shield-checkmark-outline')}<span>La que hay hoy no se pierde: queda guardada aparte, con su fecha.</span></div>
- <div style="display:flex;gap:10px;margin-top:14px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn" style="flex:1">Reemplazarla</div></div></div>`;
-
 // The income-tax simulator: the verdict stays pinned, the form below it.
 const taxTop = `${top('Simulador de renta', { sub: 'Formulario 210', right: `<div class="btn-r">${ic('cloud-done-outline')}</div><div class="btn-r">${ic('language-outline')}</div>`,
   extra: `<div class="month" style="margin-top:8px">${ic('chevron-back-outline')}<span>Año gravable 2026 <small class="mu" style="font-weight:400;font-size:12px">· guardado</small></span>${ic('chevron-forward-outline')}</div>` })}`;
