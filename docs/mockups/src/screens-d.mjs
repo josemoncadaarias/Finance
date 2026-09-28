@@ -3,34 +3,6 @@ import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, t
 
 const S = {};
 
-S['d03-leyendo-extracto'] = `${top('Importar extracto', { left: 'x' })}<main style="padding-top:30px;text-align:center">
- ${ci('document-text-outline', C.pur, 84).replace('display:grid', 'display:grid;margin:0 auto 16px')}
- <b style="font-size:19px">Leyendo el extracto</b><div class="sub" style="margin-top:4px">extracto-banco-azul-septiembre.pdf</div>
- <div class="card" style="margin-top:18px;text-align:left"><div style="display:flex;justify-content:space-between"><b>Página 3 de 4</b><span class="p b">72 %</span></div>
-  <div class="pbar" style="margin-top:8px"><i style="width:72%;background:var(--pr)"></i></div>
-  <div class="list" style="margin-top:12px;background:transparent;border:0">${[['Abrir el archivo', 1], ['Leer las líneas', 2], ['Cuadrar saldos', 0], ['Proponer categorías', 0]].map(([t, s]) => `<div class="row plain" style="padding:7px 0">${s === 1 ? ci('checkmark', C.grn, 26) : s === 2 ? ci('ellipsis-horizontal', C.blu, 26) : ci('ellipse-outline', C.gry, 26)}<div class="tx"><b style="font-size:14px;${s ? '' : 'color:var(--mu)'}">${t}</b></div></div>`).join('')}</div></div>
- <div class="banner" style="background:${tint(C.blu, .12)};color:#c3cdfa;margin-top:12px;text-align:left">${ic('shield-checkmark-outline')}<span>Nada se escribe hasta el final: detenerlo deja todo como estaba.</span></div>
- </main><div class="save" style="background:var(--s2);color:var(--tx)">Detener</div>`;
-
-S['d04-por-revisar'] = `${top('Por revisar', { sub: 'Extracto de Banco Azul · septiembre', right: `<div class="btn-r">${ic('ellipsis-vertical')}</div>` })}<main>
- <div class="banner" style="background:${tint(C.grn, .12)};color:#a7ecc9">${ic('checkmark-circle')}<span><b>El extracto cuadra.</b> Saldo inicial + lo leído = saldo final 1.206.900,00.</span></div>
- <div class="search" style="margin-top:10px">${ic('search-outline')}Buscar: descripción, monto, fecha o categoría</div>
- <div style="display:flex;gap:8px;margin:10px 0;align-items:center"><div class="chip on">Todos · 14</div><div class="chip">Listos · 11</div><div class="chip">Les falta algo · 3</div><span style="margin-left:auto" class="p">Seleccionar</span></div>
- <div class="list">
-  <div class="row">${catIcon('mercado', 38)}<div class="tx"><b style="font-size:14px">COMPRA EXITO POB MEDELLIN</b><small>26 sept · Mercado ${tag('aprendida', C.grn)}</small></div><div class="am r">−112.500,00</div></div>
-  <div class="row">${catIcon('transp', 38)}<div class="tx"><b style="font-size:14px">PAGO SEGURO VEHICULO</b><small>19 sept · Transporte ${tag('sugerida', C.yel)}</small></div><div class="am r">−380.000,00</div></div>
-  <div class="row">${sq('help-outline', C.gry, 38)}<div class="tx"><b style="font-size:14px">COMPRA ALKOSTO CALLE 30</b><small class="r">3 sept · Falta la categoría para poder guardarlo</small></div><div class="am r">−1.249.000,00</div></div>
-  <div class="row">${ci('copy-outline', C.org, 38)}<div class="tx"><b style="font-size:14px">COMPRA CINE COLOMBIA</b><small>Puede ser el del 12 sept por 64.000 · Cine</small></div><div class="am r">−64.000,00</div></div>
-  <div class="row">${ci('swap-horizontal', C.blu, 38)}<div class="tx"><b style="font-size:14px">TRANSF A AHORRO VERDE</b><small>Parece la otra mitad de un traslado con Ahorro Verde</small></div><div class="am">3.000.000,00</div></div></div>
- <div class="h">Comercios que se repiten</div>
- <div class="list"><div class="row">${sq('storefront-outline', C.tea, 38)}<div class="tx"><b>D1 LAURELES</b><small>4 movimientos · una categoría para todos</small></div><div class="chip" style="padding:5px 10px">Elegir</div></div></div>
- </main><div style="position:absolute;left:16px;right:16px;bottom:22px;display:flex;gap:10px"><div class="btn ghost" style="width:120px">Descartar</div><div class="btn" style="flex:1">Guardar los 11</div></div>`;
-
-S['d05-por-revisar-seleccion'] = S['d04-por-revisar'].replace(/<div class="row">(<span class="sq|<span class="ci)/g, '<div class="row">' + tick(true) + '$1').replace('Guardar los 11', 'x')
-  + `<div style="position:absolute;left:12px;right:12px;bottom:22px;background:#15213a;border:1px solid #2a3b60;border-radius:22px;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.6)">
-  <span class="btn-r" style="width:38px;height:38px">${ic('close')}</span><b style="flex:1">5 elegidos</b><span class="p" style="font-size:13px">Ninguno</span>
-  <span class="chip" style="padding:8px 10px">${ic('pricetags-outline')}</span><span class="chip" style="padding:8px 10px;color:var(--red)">${ic('trash-outline')}</span><span class="chip" style="padding:8px 12px;background:var(--pr);border-color:var(--pr)">Guardar 4</span></div>`;
-
 S['d06-avisos-sin-permiso'] = `${top('Avisos del banco', { sub: 'Lo que tus bancos mandan al celular, tal cual' })}<main>
  <div class="card hero" style="text-align:center">${ci('notifications-outline', C.yel, 60).replace('display:grid', 'display:grid;margin:0 auto 10px')}<b style="font-size:17px">Falta darle permiso</b>
   <div class="sub" style="margin-top:4px">Primero hay que ver qué mandan tus bancos, sin interpretar nada.</div></div>

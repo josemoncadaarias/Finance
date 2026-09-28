@@ -2053,8 +2053,8 @@ then does the next start. The groups and where each stands:
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
-| 5 | Report (money and yields) | `docs/mockups/5*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
-| 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
+| 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
+| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v4) | Sent 2026-09-28, waiting |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
 | 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
@@ -2359,6 +2359,43 @@ account in Inicio; Rendimientos is only the accounts that earn, with what
 they have been paid, and a row opens the account's page (Productos,
 Movimientos, Pagos, Días). Each face carries its icon (wallet, rising
 line). `2s-recorrido-cuentas.jpg` draws the four steps.
+
+**Group 6 as sent (v4, 2026-09-28)**: everything Por revisar and reading a
+statement do today, with these changes of ACCESS for Jose to accept or
+refuse:
+
+- **Por revisar lives in the Más tab** (the bar stays), reached from Más
+  and by itself after a statement is read.
+- **Importing starts from the "+"**: "Importar extracto" asks "¿De qué
+  cuenta es?" - the one account list, with "Es de una cuenta nueva" at its
+  foot, which is the account form filled from the statement (`2g`, `2h`).
+  Today the ways in are the summary screen, for the account on show, and
+  the account form.
+- **A batch is one card**: where it came from, how many, how many still
+  need something, the statement's own check (green, or amber when it does
+  not square), "Guardar los N" and a "···" holding "Descartar estos
+  movimientos" and "No ver más estos movimientos en pantalla".
+- **Its rows are in folding sections by day, the first open** (the rule
+  for every list of movements); "Comercios que se repiten" is a folding
+  section of its own at the top. Search on its own row; Todos / Les falta
+  algo / Con aviso with their counts; Por fecha / Por monto; open-all;
+  Seleccionar. A row: category icon ("?" in amber while it has none), the
+  description on one line (sliding), the category with "aprendida" or
+  "sugerida", and "puede ser el mismo" / "otra mitad de un traslado" as a
+  short line under it.
+- **A row is answered in a sheet, not inline**: tapping it opens what the
+  statement said (as read, in its own box), Gasto / Ingreso, the amount,
+  Fecha, Cuenta, Categoría and Nota, with Descartar and "Guardar este
+  movimiento". Today the category, date and sign are changed inside the
+  row itself. A missing piece is the row marked in amber, and Guardar
+  waits; "maybe the same" shows the movement it may be, with its icon.
+- **Squaring with the bank** is a card inside the batch (the app, the
+  statement, the gap; "Igualar al extracto", "Escribir otro", "Dejar
+  así"), its explanation behind an (i), and the question before it
+  changes anything.
+- Reading keeps its four stages, the page, the percentage and Cancelar,
+  and says nothing is saved until the end; the password and the unreadable
+  file are dialogs.
 
 ### The ideas, by what they would take
 
