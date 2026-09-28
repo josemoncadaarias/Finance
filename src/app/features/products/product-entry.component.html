@@ -3,7 +3,7 @@
      form, with "¿Qué cambia?" as a row of its own. -->
 <div class="entry" [class.writing-note]="writingNote()">
   <header class="entry-top">
-    <button type="button" class="x" (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+    <button type="button" class="x" (click)="close()" [attr.aria-label]="'entry.cancel' | t">
       <ion-icon name="close"></ion-icon>
     </button>
     <h1>{{ title() }}</h1>

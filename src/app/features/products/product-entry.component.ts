@@ -312,6 +312,18 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * The X (and Escape): while the note is being written it only leaves the
+   * note; the next one closes the form. A blur still waiting counts as writing.
+   */
+  close(): void {
+    if (this.writingNote() || this.noteBlurTimer !== null) {
+      this.finishNote();
+      return;
+    }
+    this.cancelled.emit();
+  }
+
   startNote(): void {
     if (this.noteBlurTimer !== null) {
       clearTimeout(this.noteBlurTimer);
@@ -1072,7 +1084,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
-    if (event.key === 'Escape') { event.preventDefault(); this.cancelled.emit(); return; }
+    if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
     if (this.pickingProduct() !== null || this.showDate() || this.browsingCategories()) return;
     if ((event.target as HTMLElement | null)?.closest('ion-textarea, ion-searchbar, input, textarea')) return;
 

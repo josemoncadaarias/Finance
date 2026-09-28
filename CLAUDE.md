@@ -2247,9 +2247,20 @@ changed in the shape of the app, for the next session:
   left at the foot when it is folded (PR #6, Jose), brings it back; closed
   from the start when correcting. Erasing is a key (a long press clears); "=" is gone - the
   sum's result is shown as it is typed and saving finishes it. Saving stays
-  at the foot, with "Registrar otro" (`finance.enterAnother`) beside it on a
-  new movement: it saves and leaves the form ready for the next one on the
-  same account, kind and day.
+  at the foot, with "Registrar otro" beside it on a new movement: it saves
+  and leaves the form ready for the next one on the same account, kind and
+  day. **It starts unticked every time a movement is opened** (Jose,
+  2026-09-28): it used to be remembered on the device
+  (`finance.enterAnother`, no longer read), and a form that stayed open
+  after saving one movement looked like a save that failed. It is kept only
+  while the same form switches between Gasto, Ingreso and Transferir
+  (`EntryRequest.start.again`).
+- **The X while the note is being written only leaves the note** (Jose,
+  2026-09-28), in the movement form, a product's own movement and a
+  proposal being checked: the form comes back as it was, with the keypad,
+  and the next X closes it. Escape does the same. Tapping the X blurs the
+  note first, so a blur still waiting to land (`noteBlurTimer`) counts as
+  writing (`close()` in each form).
 - **A template never recomputes a list** (PR #3, Jose: the review list
   stuck while scrolling after an import). On the phone scrolling runs change
   detection every frame, so a method called from the template that filters,

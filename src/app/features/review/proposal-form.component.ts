@@ -69,7 +69,7 @@ import { KeypadComponent } from '../../shared/ui/keypad.component';
   template: `
     <div class="entry" [class.writing-note]="writingNote()">
       <header class="entry-top">
-        <button type="button" class="x" (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+        <button type="button" class="x" (click)="close()" [attr.aria-label]="'entry.cancel' | t">
           <ion-icon name="close"></ion-icon>
         </button>
         <h1>{{ 'ui.review.check' | t }}</h1>
@@ -397,6 +397,15 @@ export class ProposalFormComponent implements OnInit {
     const field = this.noteField();
     if (field) field.nativeElement.value = note;
     this.hints.set([]);
+  }
+
+  /** The X: while the note is being written it only leaves the note. */
+  close(): void {
+    if (this.writingNote()) {
+      this.finishNote();
+      return;
+    }
+    this.cancelled.emit();
   }
 
   finishNote(): void {

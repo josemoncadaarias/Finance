@@ -77,7 +77,7 @@ export interface EntryRequest {
    * has no products: the amount, the day and the note were the right ones,
    * only the form was not.
    */
-  start?: { amountMinor: number; onDate: string; note: string };
+  start?: { amountMinor: number; onDate: string; note: string; again?: boolean };
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
@@ -118,14 +118,17 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /**
    * "Registrar otro": save and start the next movement at once, on the same
-   * account, kind and day. A preference, remembered on this device.
+   * account, kind and day. Off every time a movement is opened (Jose,
+   * 2026-09-28): it used to be remembered, and a form that saved and stayed
+   * open when a single movement was meant looked like a save that failed.
+   * Kept only while the same form switches between Gasto, Ingreso and
+   * Transferir.
    */
-  readonly again = signal(readAgain());
+  readonly again = signal(false);
   private readonly toast = inject(ToastService);
 
   setAgain(on: boolean): void {
     this.again.set(on);
-    try { localStorage.setItem(AGAIN_KEY, on ? 'yes' : 'no'); } catch { /* a preference, nothing more */ }
   }
 
   /** A tap anywhere on the lists below the amount folds the keypad away. */
@@ -299,6 +302,20 @@ export class EntryComponent implements OnInit, OnDestroy {
     const field = this.noteBox()?.nativeElement.querySelector('textarea');
     field?.blur();
     if (Capacitor.isNativePlatform()) void Keyboard.hide().catch(() => undefined);
+  }
+
+  /**
+   * The X (and Escape). While the note is being written it only leaves the
+   * note, back to the movement as it was; the next one closes the movement.
+   * Tapping the X blurs the note first, so a blur still waiting to land counts
+   * as writing too.
+   */
+  close(): void {
+    if (this.writingNote() || this.noteBlurTimer !== null) {
+      this.finishNote();
+      return;
+    }
+    this.cancelled.emit();
   }
 
   startNote(): void {
@@ -717,6 +734,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       if (start.amountMinor > 0) this.amount.set(AmountBuffer.from(start.amountMinor));
       this.occurredOn.set(start.onDate);
       this.note.set(start.note);
+      if (start.again) this.again.set(true);
     }
   }
 
@@ -1002,7 +1020,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      this.cancelled.emit();
+      this.close();
       return;
     }
 
@@ -1531,6 +1549,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         amountMinor: this.amount().minor,
         onDate: this.occurredOn(),
         note: this.noteIsTheirs ? this.note() : '',
+        again: this.again(),
       },
     });
   }
@@ -1814,12 +1833,3 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-const AGAIN_KEY = 'finance.enterAnother';
-
-function readAgain(): boolean {
-  try {
-    return localStorage.getItem(AGAIN_KEY) === 'yes';
-  } catch {
-    return false;
-  }
-}
