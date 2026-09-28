@@ -34,6 +34,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { AccountsFacesComponent } from '../../shared/ui/accounts-faces.component';
 import { TabBarComponent } from '../../shared/ui/tab-bar.component';
+import { FirstOpen } from '../../core/ui/first-open';
 import { ComposeService } from '../../core/ui/compose.service';
 import { AccentService } from '../../core/theme/accent.service';
 import { productIcon, productSeed } from '../../core/icons/product-face';
@@ -218,13 +219,9 @@ export class ProductsPage {
     if (tab === 'movements' && !this.showMovements()) await this.toggleMovements(line);
     if (tab === 'payments') {
       this.showPayments.set(true);
-      const first = this.paymentsByMonth()[0];
-      if (first && this.openWorkings().size === 0) this.openWorkings.set(new Set([first.key]));
     }
     if (tab === 'days') {
       this.showDays.set(true);
-      const first = this.daysByMonth()[0];
-      if (first && this.openMonths().size === 0) this.openMonths.set(new Set([first.key]));
     }
     await this.sheet()?.scrollToTop(0);
   }
@@ -705,7 +702,7 @@ export class ProductsPage {
     });
   });
   /** Groups closed by hand; every group starts open, as on the summary. */
-  readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
+  readonly movementFold = new FirstOpen(() => this.movementGroups().map(group => group.key));
   /** The two lists under the movements, closed until asked for. */
   readonly showPayments = signal(false);
   readonly showDays = signal(false);
@@ -1379,41 +1376,36 @@ export class ProductsPage {
   });
 
   /** Months of the working-out that the user has opened. */
-  readonly openWorkings = signal<ReadonlySet<string>>(new Set());
+  /** The months of payments: only the newest open (Jose, 2026-09-28). */
+  readonly paymentFold = new FirstOpen(() => this.paymentsByMonth().map(month => month.key));
 
   isWorkingOpen(key: string): boolean {
-    return this.openWorkings().has(key);
+    return this.paymentFold.isOpen(key);
   }
 
   toggleWorking(key: string): void {
     setTimeout(() => void this.measureSheet(), 0);
-    this.openWorkings.update(current => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    this.paymentFold.toggle(key);
   }
-  readonly allPaymentMonthsClosed = computed(() => this.openWorkings().size === 0);
+
+  readonly allPaymentMonthsClosed = computed(() => this.paymentFold.allClosed());
 
   /** Opens every month of the payments, or closes every one. */
   togglePaymentMonths(): void {
-    this.openWorkings.set(new Set(
-      this.allPaymentMonthsClosed() ? this.paymentsByMonth().map(month => month.key) : []));
+    this.paymentFold.toggleAll();
     setTimeout(() => void this.measureSheet(), 0);
   }
 
-  readonly allDayMonthsClosed = computed(() => this.openMonths().size === 0);
+  readonly allDayMonthsClosed = computed(() => this.dayFold.allClosed());
 
   /** Opens every month of the day list, or closes every one. */
   toggleDayMonths(): void {
-    this.openMonths.set(new Set(
-      this.allDayMonthsClosed() ? this.daysByMonth().map(month => month.key) : []));
+    this.dayFold.toggleAll();
     setTimeout(() => void this.measureSheet(), 0);
   }
 
-  /** Months the user has opened in the day list. */
-  readonly openMonths = signal<ReadonlySet<string>>(new Set());
+  /** The months of the day list: only the newest open (Jose, 2026-09-28). */
+  readonly dayFold = new FirstOpen(() => this.daysByMonth().map(month => month.key));
 
   /**
    * The days gathered by month, newest first.
@@ -1445,18 +1437,14 @@ export class ProductsPage {
   });
 
   isMonthOpen(key: string): boolean {
-    return this.openMonths().has(key);
+    return this.dayFold.isOpen(key);
   }
 
   toggleMonth(key: string): void {
     setTimeout(() => void this.measureSheet(), 0);
-    this.openMonths.update(current => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    this.dayFold.toggle(key);
   }
+
 
   /** `2026-09` as a month someone reads, in their own language. */
   monthText(key: string): string {
@@ -1494,7 +1482,7 @@ export class ProductsPage {
       this.movementsRangeEnd.set(null);
       this.movementsSearch.set('');
       this.movements.set([]);
-      this.collapsedGroups.set(new Set());
+      this.movementFold.reset();
       this.showPayments.set(false);
       this.showDays.set(false);
 
@@ -1507,8 +1495,8 @@ export class ProductsPage {
        * account it was opened on - which month was expanded, which day, what
        * was half-confirmed - and none of it means anything in the next one.
        */
-      this.openWorkings.set(new Set());
-      this.openMonths.set(new Set());
+      this.paymentFold.reset();
+      this.dayFold.reset();
       this.confirmingStop.set(false);
       this.confirmingZeroDay.set(false);
       this.openDay.set(null);
@@ -1526,8 +1514,8 @@ export class ProductsPage {
     // Closed, both of them. They opened on their latest month, which is fine
     // for one month and not for the two years these lists will hold: the
     // months are the index, and an index that is already open is a wall.
-    this.openMonths.set(new Set());
-    this.openWorkings.set(new Set());
+    this.dayFold.reset();
+    this.paymentFold.reset();
     // Open already, as after a correction: read again, so it shows the change.
     if (this.showMovements()) await this.loadMovements(line);
   }
@@ -2537,28 +2525,18 @@ export class ProductsPage {
   }
 
   /** What an entry is called on the screen. */
-  readonly allGroupsCollapsed = computed(() => {
-    const groups = this.movementGroups();
-    return groups.length > 0 && groups.every(group => this.collapsedGroups().has(group.key));
-  });
+  readonly allGroupsCollapsed = computed(() => this.movementFold.allClosed());
 
   isGroupCollapsed(key: string): boolean {
-    return this.collapsedGroups().has(key);
+    return !this.movementFold.isOpen(key);
   }
 
   toggleGroup(key: string): void {
-    this.collapsedGroups.update(current => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    this.movementFold.toggle(key);
   }
 
   toggleAllGroups(): void {
-    this.collapsedGroups.set(this.allGroupsCollapsed()
-      ? new Set()
-      : new Set(this.movementGroups().map(group => group.key)));
+    this.movementFold.toggleAll();
   }
 
   /** In, out, or only moved between products - the dot and colour of a row. */
@@ -2568,6 +2546,7 @@ export class ProductsPage {
   }
 
   stepMovementsPeriod(steps: number): void {
+    this.movementFold.reset();
     this.movementsPeriod.update(period => shiftPeriod(period, steps));
   }
 
