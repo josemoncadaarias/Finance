@@ -13,16 +13,15 @@
  * this screen learns goes into the design of the next step.
  */
 
-import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Location } from '@angular/common';
 import { App } from '@capacitor/app';
-import {
-  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton, IonSearchbar,
-} from '@ionic/angular';
+import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
@@ -32,16 +31,123 @@ import {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [
-    TranslatePipe, LanguageButtonComponent, ConfirmComponent,
-    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonToggle, IonSpinner, IonMenuButton, IonSearchbar,
-  ],
+  imports: [TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })
 export class NotificationsPage {
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
+  private readonly location = inject(Location);
+
+  // ---------------------------------------------------------------------------
+  // The redesign (mockups 7a-7l)
+  // ---------------------------------------------------------------------------
+
+  readonly face = signal<'apps' | 'caught'>('apps');
+  readonly menuOpen = signal(false);
+  readonly pickingApp = signal(false);
+  readonly info = signal<string | null>(null);
+  /** Which app's notices are on show; null is "Todas las apps". */
+  readonly appFilter = signal<string | null>(null);
+
+  back(): void {
+    this.location.back();
+  }
+
+  setFace(face: 'apps' | 'caught'): void {
+    this.face.set(face);
+    if (face === 'caught') this.stopSelecting();
+  }
+
+  /** While choosing, the selection bar takes the tab bar's place. */
+  private readonly hideTabs = effect(() => {
+    document.body.classList.toggle('choosing', this.selecting());
+  });
+
+  ngOnDestroy(): void {
+    document.body.classList.remove('choosing');
+  }
+
+  readonly appFilterApp = computed(() => this.apps().find(app => app.package === this.appFilter()) ?? null);
+
+  /** The apps that have something kept, with how much, for the app list. */
+  readonly appsWithCaught = computed(() => {
+    const kept = new Map<string, number>();
+    for (const one of this.caught()) kept.set(one.package, (kept.get(one.package) ?? 0) + 1);
+    return this.apps().filter(app => kept.has(app.package))
+      .map(app => ({ package: app.package, label: app.label, kept: kept.get(app.package) ?? 0 }));
+  });
+
+  /** A picture for an app, from ordinary words in its name - never a list of banks. */
+  appIcon(pkg: string, label: string): string {
+    const name = foldText(`${label} ${pkg}`);
+    const words: [RegExp, string][] = [
+      [/bank|banco|bancolombia|finan|pay|pago|nequi|davi/, 'business-outline'],
+      [/card|tarjeta|credit|visa|master/, 'card-outline'],
+      [/wallet|billetera|cartera/, 'wallet-outline'],
+      [/chat|messag|mensaj|whatsapp|telegram|sms/, 'chatbubble-outline'],
+      [/mail|correo|gmail|outlook/, 'mail-outline'],
+      [/game|juego|play/, 'game-controller-outline'],
+      [/shop|tienda|store|market/, 'bag-handle-outline'],
+    ];
+    for (const [pattern, icon] of words) if (pattern.test(name)) return icon;
+    return 'apps-outline';
+  }
+
+  appSeed(pkg: string): number {
+    let hash = 0;
+    for (const char of pkg) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+    return Math.abs(hash);
+  }
+
+  /** "9:12 a. m.". */
+  hour(at: number): string {
+    return new Date(at).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
+  }
+
+  /** What they said, by day, newest first; the first day open. */
+  readonly caughtDays = computed(() => {
+    const days = new Map<string, { key: string; title: string; items: CaughtNotification[] }>();
+    const filter = this.appFilter();
+    for (const one of this.newest()) {
+      if (filter !== null && one.package !== filter) continue;
+      const date = new Date(one.postedAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const day = days.get(key) ?? { key, title: this.dayTitle(date), items: [] };
+      day.items.push(one);
+      days.set(key, day);
+    }
+    return [...days.values()];
+  });
+
+  private dayTitle(date: Date): string {
+    const today = new Date();
+    const same = date.toDateString() === today.toDateString();
+    const weekday = date.toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long' });
+    const text = `${weekday} ${date.getDate()}`;
+    const capital = text.charAt(0).toUpperCase() + text.slice(1);
+    return same ? this.i18n.t('ui.today.day', { day: text }) : capital;
+  }
+
+  private readonly dayState = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  isDayOpen(key: string): boolean {
+    const set = this.dayState().get(key);
+    return set !== undefined ? set : this.caughtDays()[0]?.key === key;
+  }
+
+  toggleDay(key: string): void {
+    const next = new Map(this.dayState());
+    next.set(key, !this.isDayOpen(key));
+    this.dayState.set(next);
+  }
+
+  readonly allDaysClosed = computed(() => this.caughtDays().every(day => !this.isDayOpen(day.key)));
+
+  toggleAllDays(): void {
+    const open = this.allDaysClosed();
+    this.dayState.set(new Map(this.caughtDays().map(day => [day.key, open])));
+  }
 
   readonly loading = signal(true);
   /** False in a browser and on iOS, which is an ordinary state. */

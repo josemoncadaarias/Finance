@@ -1,190 +1,79 @@
-/* Raw by design: this screen is for reading what banks post, not for looking
-   good doing it. What little styling there is exists to keep a notification's
-   own words apart from everything the app says about it. */
+/* Avisos del banco (mockups 7a-7l). Shared pieces are in global.scss. */
 
-.notifications {
-  --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px));
+.ui-titlebar { background: transparent; border-bottom: 0; }
+
+.faces { margin: 0 0 10px; button { gap: 8px; } ion-icon { font-size: 17px; } }
+
+.app-row { display: flex; justify-content: center; margin-bottom: 10px; }
+.app { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 12px 6px 6px; border-radius: 16px; ion-icon { font-size: 16px; color: var(--app-chev); flex: none; } }
+
+.ui-search { margin-bottom: 10px; }
+
+.lead-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  .ui-h { margin: 0 4px; display: inline-flex; align-items: center; gap: 8px; }
+  .ui-chip { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 16px; } }
+  .as-came { display: inline-flex; align-items: center; gap: 8px; color: var(--app-mu); font-size: 14px; margin-left: 4px; }
 }
 
-.state {
+.app .kept, .kept {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  background: rgba(var(--app-grn-rgb), 0.16);
+  color: var(--app-grn);
+}
+
+.ui-row.app { cursor: default; }
+.picked { background: rgba(var(--app-pr-rgb), 0.12); }
+
+.hidden-apps { margin-top: 12px; }
+.show { display: inline-flex; align-items: center; gap: 6px; color: var(--app-pr); flex: none; ion-icon { font-size: 16px; } }
+
+.ui-group { margin-bottom: 10px; }
+
+.notice {
+  align-items: flex-start;
+  .from { display: block; font-size: 13.5px; color: var(--app-mu); b { display: inline; font-size: 15px; color: var(--app-tx); font-weight: 600; } }
+  .said { display: block; font-size: 14.5px; line-height: 1.4; white-space: normal; margin-top: 2px; }
+  .said.strong { font-weight: 600; }
+}
+
+.acts.three { grid-template-columns: 1fr 1fr 1fr !important; }
+
+.permission {
   display: flex;
-  justify-content: center;
-  padding: 3rem 0;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding-top: 8px;
+  min-height: calc(100vh - 220px);
+
+  h2 { margin: 8px 0 0; font-size: 20px; }
+  .lead { margin: 0 0 8px; color: var(--app-mu); font-size: 14px; line-height: 1.45; }
+  .promises { width: 100%; text-align: left; .t { font-size: 15px; } }
+  .bottom { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 10px; padding-top: 16px; }
+  .asks { margin: 0; display: inline-flex; justify-content: center; align-items: center; gap: 8px; color: var(--app-mu); font-size: 13.5px; }
 }
 
 .empty {
-  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-
-  ion-icon { font-size: 2.6rem; color: var(--ion-color-medium); }
-  .lead { margin: 0.8rem 0 0.3rem; font-size: 1rem; }
+  padding: 70px 16px 0;
+  gap: 8px;
+  h2 { margin: 10px 0 0; font-size: 20px; }
+  p { margin: 0; color: var(--app-mu); font-size: 14px; line-height: 1.45; }
+  &.small { padding-top: 40px; }
 }
 
-.lead {
-  margin: 1rem 1.1rem 0;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-h2 {
-  margin: 1.4rem 1.1rem 0.2rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.hint {
-  margin: 0.2rem 1.1rem 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--ion-color-medium);
-
-  &.waiting { margin-top: 0.6rem; font-style: italic; }
-}
-
-/* What Android is about to ask for, and what is done with it. */
-.permission {
-  margin: 1rem 1.1rem 0;
-  padding: 1rem;
-  border: 1px solid var(--ion-color-step-150);
-  border-radius: 14px;
-
-  h2 { margin: 0 0 0.6rem; }
-  .hint { margin: 0.5rem 0 0; }
-
-  ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  li {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    line-height: 1.45;
-
-    ion-icon { flex: none; margin-top: 0.15rem; color: var(--ion-color-primary); }
-  }
-}
-
-.go {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  width: 100%;
-  margin-top: 1rem;
-  padding: 0.7rem 1rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ion-color-primary);
-  color: var(--ion-color-primary-contrast);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.again {
-  width: 100%;
-  margin-top: 0.6rem;
-  padding: 0.5rem;
-  border: 0;
-  background: none;
-  color: var(--ion-color-primary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.quiet {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  margin: 0.8rem 1.1rem 0;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--ion-color-step-150);
-  border-radius: 999px;
-  background: none;
-  color: var(--ion-color-medium);
-  font-size: 0.82rem;
-  cursor: pointer;
-
-  &.danger { color: var(--ion-color-danger); border-color: var(--ion-color-danger); }
-}
-
-/* A notification's own words, kept visibly apart from the app's. */
-.raw {
-  .from { font-size: 0.74rem; color: var(--ion-color-medium); }
-  h3 { font-size: 0.92rem; font-weight: 600; }
-  .said {
-    white-space: pre-wrap;
-    font-size: 0.85rem;
-    line-height: 1.45;
-    color: var(--ion-text-color);
-  }
-}
-
-/* Putting an app away, and the folded list that brings it back. */
-.hide {
-  display: flex;
-  align-items: center;
-  margin-left: 0.6rem;
-  padding: 0.4rem;
-  border: 0;
-  background: none;
-  color: var(--ion-color-medium);
-  font-size: 1.2rem;
-  cursor: pointer;
-}
-
-.fold {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0.8rem 1.1rem 0;
-  padding: 0.3rem 0;
-  border: 0;
-  background: none;
-  color: var(--ion-color-medium);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.unhide {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--ion-color-step-150);
-  border-radius: 999px;
-  background: none;
-  color: var(--ion-color-primary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Room under the list for the selection bar (global.scss draws the bar). */
-.notifications.selecting {
-  --padding-bottom: calc(8rem + var(--ion-safe-area-bottom, 0px));
-}
-
-.select-start {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin: 0.6rem 1.1rem 0 auto;
-  padding: 0.3rem 0;
-  border: 0;
-  background: none;
-  color: var(--ion-color-primary);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-
-  ion-icon { font-size: 1rem; }
-}
+.hint { color: var(--app-mu); font-size: 14px; margin: 10px 4px; }
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }

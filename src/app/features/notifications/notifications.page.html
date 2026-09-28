@@ -1,226 +1,291 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ 'notifications.title' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- Avisos del banco (mockups 7a-7l): which apps post notifications, and
+     what the ones marked by hand said, word for word. Nothing is read into
+     them yet (rule 22, step one). -->
+<ion-content #list [scrollEvents]="true" (ionScroll)="jump.measure()" [class.selecting]="selecting()">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'notifications.title' | t }}</h1>
+    @if (supported() && enabled()) {
+      <button type="button" class="ui-round" (click)="menuOpen.set(true)" [attr.aria-label]="'review.more' | t">
+        <ion-icon name="ellipsis-vertical"></ion-icon>
+      </button>
+    }
+  </header>
 
-<ion-content class="notifications" [class.selecting]="selecting()">
-  @if (loading()) {
-    <div class="state"><ion-spinner></ion-spinner></div>
-  } @else if (!supported()) {
-    <!-- A browser and an iPhone have no such thing. Said plainly, because it
-         is not a failure and there is nothing to try again. -->
-    <div class="empty">
-      <ion-icon name="phone-portrait-outline"></ion-icon>
-      <p class="lead">{{ 'notifications.androidOnly' | t }}</p>
-      <p class="hint">{{ 'notifications.androidOnly.hint' | t }}</p>
-    </div>
-  } @else {
-    <p class="lead">{{ 'notifications.lead' | t }}</p>
-
-    @if (!enabled()) {
-      <!-- What Android is about to ask, said before it asks. Its own screen
-           says this app wants to read EVERY notification on the phone, which
-           is true, so the narrower thing it actually does is said first. -->
-      <section class="permission">
-        <h2>{{ 'notifications.off' | t }}</h2>
-        <ul>
-          <li><ion-icon name="eye-outline"></ion-icon> {{ 'notifications.promise.apps' | t }}</li>
-          <li><ion-icon name="lock-closed-outline"></ion-icon> {{ 'notifications.promise.watched' | t }}</li>
-          <li><ion-icon name="phone-portrait-outline"></ion-icon> {{ 'notifications.promise.local' | t }}</li>
-        </ul>
-        <button type="button" class="go" (click)="openSettings()">
-          <ion-icon name="settings-outline"></ion-icon>
-          {{ 'notifications.open' | t }}
-        </button>
-        <p class="hint">{{ 'notifications.open.hint' | t }}</p>
-        <button type="button" class="again" (click)="look()">
-          {{ 'notifications.again' | t }}
-        </button>
-      </section>
-    } @else {
-      <!-- Which apps post at all. This is how a bank gets attached to an
-           account later: by pointing at one that has actually been seen,
-           never from a built-in list of banks (rule 22). -->
-      <section>
-        <h2>{{ 'notifications.apps' | t }}</h2>
-        <p class="hint">{{ 'notifications.apps.hint' | t }}</p>
-
-        <!-- Finding one app, or one thing it said, in a long list. -->
-        @if (longList()) {
-          <div class="search-row">
-            <ion-searchbar [placeholder]="'notifications.search' | t" [value]="search()"
-                           (ionInput)="search.set($any($event.target).value ?? '')"
-                           [debounce]="150" showCancelButton="never"></ion-searchbar>
+  <div class="ui-main">
+    @if (loading()) {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (!supported() || !enabled()) {
+      <!-- What Android is about to ask, said before it asks (7i, 7j). -->
+      <div class="permission">
+        <app-badge shape="ci" [size]="72" builtin="notifications" fixed="#f6b93b"></app-badge>
+        <h2>{{ 'ui.notifications.needPermission' | t }}</h2>
+        <p class="lead">{{ 'notifications.lead' | t }}</p>
+        <div class="ui-list promises">
+          <div class="ui-row plain">
+            <app-badge shape="ci" [size]="36" builtin="eye" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><span class="t wrap">{{ 'notifications.promise.apps' | t }}</span></span>
           </div>
+          <div class="ui-row plain">
+            <app-badge shape="ci" [size]="36" builtin="checkbox" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><span class="t wrap">{{ 'notifications.promise.watched' | t }}</span></span>
+          </div>
+          <div class="ui-row plain">
+            <app-badge shape="ci" [size]="36" builtin="phone-portrait" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><span class="t wrap">{{ 'notifications.promise.local' | t }}</span></span>
+          </div>
+        </div>
+        <div class="bottom">
+          <button type="button" class="ui-btn" (click)="openSettings()">{{ 'notifications.open' | t }}</button>
+          <p class="asks">
+            {{ 'ui.notifications.androidAsks' | t }}
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.open.hint'))"><ion-icon name="information"></ion-icon></span>
+          </p>
+          <button type="button" class="ui-btn ghost" (click)="look()">{{ 'notifications.again' | t }}</button>
+        </div>
+      </div>
+    } @else if (apps().length === 0 && caught().length === 0) {
+      <!-- Nothing yet: an icon and one sentence (7k). -->
+      <div class="empty">
+        <app-badge shape="ci" [size]="80" builtin="hourglass" [fixed]="'#6378ff'"></app-badge>
+        <h2>{{ 'ui.notifications.none' | t }}</h2>
+        <p>{{ 'ui.notifications.none.hint' | t }}</p>
+      </div>
+    } @else {
+      <!-- The two lists, two faces of one selector, each saying what it holds. -->
+      <div class="ui-seg faces">
+        <button type="button" [class.on]="face() === 'apps'" (click)="setFace('apps')">
+          <ion-icon name="apps"></ion-icon><span>{{ (sortedApps().length === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps') | t:{ count: sortedApps().length } }}</span>
+        </button>
+        <button type="button" [class.on]="face() === 'caught'" (click)="setFace('caught')">
+          <ion-icon name="chatbubble-ellipses-outline"></ion-icon><span>{{ (caught().length === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: caught().length } }}</span>
+        </button>
+      </div>
+
+      @if (face() === 'caught') {
+        <div class="app-row">
+          <button type="button" class="ui-chip app" (click)="pickingApp.set(true)">
+            @if (appFilterApp(); as app) {
+              <app-badge shape="sq" [size]="26" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
+              <span class="ui-one">{{ app.label }}</span>
+            } @else {
+              <app-badge shape="sq" [size]="26" builtin="apps" fixed="#6378ff"></app-badge>
+              <span>{{ 'ui.notifications.allApps' | t }}</span>
+            }
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
+        </div>
+      }
+
+      <div class="ui-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="'ui.notifications.search' | t" [value]="search()"
+               (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
+        @if (search()) {
+          <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
         }
+      </div>
+
+      @if (face() === 'apps') {
+        <div class="lead-row">
+          <h3 class="ui-h">{{ 'ui.notifications.markBanks' | t }}
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.apps.hint'))"><ion-icon name="information"></ion-icon></span>
+          </h3>
+          @if (sortedApps().length > 1) {
+            @if (!selecting()) {
+              <button type="button" class="ui-chip" (click)="startSelecting()"><ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}</button>
+            } @else {
+              <button type="button" class="ui-chip on" (click)="stopSelecting()"><ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}</button>
+            }
+          }
+        </div>
 
         @if (nothingFound()) {
-          <p class="hint waiting">{{ 'notifications.search.none' | t }}</p>
+          <div class="empty small">
+            <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>
+            <p>{{ 'notifications.search.none' | t }}</p>
+          </div>
         } @else if (sortedApps().length === 0) {
-          <p class="hint waiting">{{ 'notifications.apps.none' | t }}</p>
+          <p class="hint">{{ 'notifications.apps.none' | t }}</p>
         } @else {
-          <!-- Several at once. A long press on a row does the same. -->
-          <!-- The same place says how to leave it again. -->
-          @if (selecting()) {
-            <button type="button" class="select-start" (click)="stopSelecting()">
-              <ion-icon name="close-circle-outline"></ion-icon>
-              {{ 'review.select.exit' | t }}
-            </button>
-          } @else if (sortedApps().length > 1) {
-            <button type="button" class="select-start" (click)="startSelecting()">
-              <ion-icon name="checkmark-circle-outline"></ion-icon>
-              {{ 'review.select' | t }}
-            </button>
-          }
-          <ion-list [inset]="true">
+          <div class="ui-list">
             @for (app of sortedApps(); track app.package) {
-              <ion-item lines="full" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)"
-                        (click)="selecting() && toggle(app)"
-                        [attr.role]="selecting() ? 'checkbox' : null"
-                        [attr.aria-checked]="selecting() ? isSelected(app) : null">
+              <div class="ui-row app" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)"
+                   (click)="selecting() && toggle(app)"
+                   [attr.role]="selecting() ? 'checkbox' : null" [attr.aria-checked]="selecting() ? isSelected(app) : null">
                 @if (selecting()) {
-                  <!-- A picture of the row's state, not a button: an ion-item
-                       with a single button in it forwards every tap on the row
-                       to that button, so the row ticked itself and then
-                       unticked through it. -->
-                  <span slot="start" class="tick" aria-hidden="true">
-                    <ion-icon [name]="isSelected(app) ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+                  <!-- A picture of the row's state, never a button. -->
+                  <span class="ui-tick" [class.on]="isSelected(app)" aria-hidden="true">
+                    @if (isSelected(app)) { <ion-icon name="checkmark"></ion-icon> }
                   </span>
                 }
-                <ion-label>
-                  <h3>{{ app.label }}</h3>
-                  <p>{{ app.package }}</p>
-                  <p>
-                    {{ 'notifications.apps.count' | t:{ count: app.count } }} · {{ when(app.last) }}
-                    @if (selecting() && app.watched) { · {{ 'notifications.watched' | t }} }
-                  </p>
-                </ion-label>
+                <app-badge [size]="40" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ app.label }}@if (app.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
+                  <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small>
+                </span>
                 @if (!selecting()) {
-                  <ion-toggle slot="end" [checked]="app.watched"
-                              (ionChange)="watch(app, $any($event.detail).checked)"></ion-toggle>
-                  <button type="button" slot="end" class="hide" (click)="hide(app)"
-                          [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
-                    <ion-icon name="eye-off-outline"></ion-icon>
-                  </button>
+                  <button type="button" class="ui-switch" [class.on]="app.watched" role="switch" [attr.aria-checked]="app.watched"
+                          [attr.aria-label]="app.label" (click)="watch(app, !app.watched)"></button>
                 }
-              </ion-item>
+              </div>
             }
-          </ion-list>
+          </div>
         }
 
         <!-- Put away, not forgotten: folded here so it can be brought back. -->
         @if (hiddenApps().length > 0) {
-          <button type="button" class="fold" (click)="showHidden.set(!showHidden())"
-                  [attr.aria-expanded]="showHidden()">
-            <ion-icon [name]="showHidden() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-            {{ 'notifications.hidden' | t:{ count: hiddenApps().length } }}
-          </button>
-          @if (showHidden()) {
-            <ion-list [inset]="true">
+          <div class="ui-list ui-group hidden-apps">
+            <div class="ui-row head" (click)="showHidden.set(!showHidden())">
+              <app-badge [size]="36" builtin="eye-off" fixed="#8c9bb5"></app-badge>
+              <span class="ui-tx"><b>{{ 'ui.notifications.hidden' | t }}</b>
+                <small>{{ (hiddenApps().length === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps') | t:{ count: hiddenApps().length } }}</small></span>
+              <ion-icon class="ui-chev" [name]="showHidden() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            @if (showHidden()) {
               @for (app of hiddenApps(); track app.package) {
-                <ion-item lines="full">
-                  <ion-label>
-                    <h3>{{ app.label }}</h3>
-                    <p>{{ app.package }}</p>
-                  </ion-label>
-                  <button type="button" slot="end" class="unhide" (click)="unhide(app)">
-                    <ion-icon name="eye-outline"></ion-icon>
-                    {{ 'notifications.unhide' | t }}
-                  </button>
-                </ion-item>
+                <div class="ui-row">
+                  <app-badge [size]="36" [builtin]="appIcon(app.package, app.label)" fixed="#8c9bb5"></app-badge>
+                  <span class="ui-tx"><b class="ui-one">{{ app.label }}</b>
+                    <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small></span>
+                  <button type="button" class="ui-chip show" (click)="unhide(app)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
+                </div>
               }
-            </ion-list>
+            }
+          </div>
+        }
+      } @else {
+        <div class="lead-row">
+          <span class="as-came">{{ 'ui.notifications.asCame' | t }}
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.caught.hint'))"><ion-icon name="information"></ion-icon></span>
+          </span>
+          <button type="button" class="ui-fold" (click)="toggleAllDays()" [attr.aria-label]="(allDaysClosed() ? 'ui.openAll' : 'ui.closeAll') | t">
+            <ion-icon [name]="allDaysClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+          </button>
+        </div>
+
+        @if (caughtDays().length === 0) {
+          <div class="empty small">
+            <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>
+            <p>{{ (caught().length > 0 ? 'notifications.search.none' : 'notifications.caught.none') | t }}</p>
+          </div>
+        } @else {
+          @for (day of caughtDays(); track day.key) {
+            <div class="ui-list ui-group">
+              <div class="ui-row head" (click)="toggleDay(day.key)">
+                <span class="ui-tx"><b>{{ day.title }}</b>
+                  <small>{{ (day.items.length === 1 ? 'ui.notifications.oneNotice' : 'ui.notifications.notices') | t:{ count: day.items.length } }}</small></span>
+                <ion-icon class="ui-chev" [name]="isDayOpen(day.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              </div>
+              @if (isDayOpen(day.key)) {
+                @for (one of day.items; track one.postedAt + one.package + one.text) {
+                  <div class="ui-row notice">
+                    <app-badge [size]="36" [builtin]="appIcon(one.package, one.app)" [seed]="appSeed(one.package)"></app-badge>
+                    <span class="ui-tx">
+                      <span class="from"><b>{{ one.app }}</b> · {{ hour(one.postedAt) }}</span>
+                      @if (one.title) { <span class="said strong">{{ one.title }}</span> }
+                      @if (one.text) { <span class="said">{{ one.text }}</span> }
+                    </span>
+                  </div>
+                }
+              }
+            </div>
           }
         }
-      </section>
-
-      <!-- And what they said, word for word. Nothing is read into it here:
-           no amount, no category, no account. That is the next step, and it
-           is designed from what turns up on this list. -->
-      <section>
-        <h2>{{ 'notifications.caught' | t }}</h2>
-        <p class="hint">{{ 'notifications.caught.hint' | t }}</p>
-
-        @if (newest().length === 0) {
-          <p class="hint waiting">{{ (caught().length > 0 ? 'notifications.search.none' : 'notifications.caught.none') | t }}</p>
-        } @else {
-          <ion-list [inset]="true">
-            @for (one of newest(); track one.postedAt + one.package + one.text) {
-              <ion-item lines="full" class="raw">
-                <ion-label>
-                  <p class="from">{{ one.app }} · {{ when(one.postedAt) }}</p>
-                  @if (one.title) { <h3>{{ one.title }}</h3> }
-                  @if (one.text) { <p class="said">{{ one.text }}</p> }
-                </ion-label>
-              </ion-item>
-            }
-          </ion-list>
-
-          <button type="button" class="quiet" (click)="asking.set('forgetCaught')">
-            <ion-icon name="trash-outline"></ion-icon>
-            {{ 'notifications.forgetCaught' | t }}
-          </button>
-        }
-
-        <button type="button" class="quiet danger" (click)="asking.set('forgetEverything')">
-          <ion-icon name="close-circle-outline"></ion-icon>
-          {{ 'notifications.forgetAll' | t }}
-        </button>
-      </section>
+      }
+      <div class="ui-page-end"></div>
     }
-  }
+  </div>
 
-  <!-- Both ends of a long list, the same control as the other screens. -->
-  @if (longList() && !selecting()) {
-    <div class="jump" slot="fixed">
-      <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t">
-        <ion-icon name="arrow-up-outline"></ion-icon>
-      </button>
-      <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-      </button>
-    </div>
-  }
+  <app-jump #jump [content]="list" [hidden]="selecting()"></app-jump>
 
-  <!-- What to do with the ticked apps: the review screen's bar. -->
+  <!-- What to do with the ticked apps (7d). -->
   @if (selecting()) {
     <div class="selection-bar" slot="fixed">
       <div class="top">
         <button type="button" class="close" (click)="stopSelecting()" [attr.aria-label]="'entry.cancel' | t">
-          <ion-icon name="close-outline"></ion-icon>
+          <ion-icon name="close"></ion-icon>
         </button>
-        <span class="count">{{ 'notifications.select.count' | t:{ count: selectedApps().length } }}</span>
-        <button type="button" class="all" (click)="selectAll()">
-          {{ (allSelected() ? 'review.select.none' : 'review.select.all') | t }}
-        </button>
+        <span class="count">
+          <b>{{ (selectedApps().length === 1 ? 'ui.notifications.chosenOne' : 'ui.notifications.chosen') | t:{ count: selectedApps().length } }}</b>
+          <small>{{ 'ui.notifications.ofOnView' | t:{ count: sortedApps().length } }}</small>
+        </span>
+        <button type="button" class="all" (click)="selectAll()">{{ 'ui.notifications.all' | t }}</button>
+        <span class="dot">·</span>
+        <button type="button" class="all" (click)="stopSelecting(); startSelecting()">{{ 'ui.notifications.none.pick' | t }}</button>
       </div>
-      <div class="acts">
-        <button type="button" class="save" [disabled]="selectedApps().length === 0" (click)="watchSelected(true)">
-          <ion-icon name="lock-closed-outline"></ion-icon>
-          {{ 'notifications.select.watch' | t }}
+      <div class="acts three">
+        <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(true)">
+          <ion-icon name="bookmark"></ion-icon>{{ 'ui.notifications.keep' | t }}
         </button>
         <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(false)">
-          <ion-icon name="lock-open-outline"></ion-icon>
-          {{ 'notifications.select.unwatch' | t }}
+          <ion-icon name="bookmark-outline"></ion-icon>{{ 'ui.notifications.dontKeep' | t }}
         </button>
-        <button type="button" [disabled]="selectedApps().length === 0" (click)="hideSelected()"
-                [attr.aria-label]="'notifications.hide.do' | t">
-          <ion-icon name="eye-off-outline"></ion-icon>
+        <button type="button" class="drop" [disabled]="selectedApps().length === 0" (click)="hideSelected()">
+          <ion-icon name="eye-off-outline"></ion-icon>{{ 'notifications.hide.do' | t }}
         </button>
       </div>
     </div>
   }
 </ion-content>
 
-<app-confirm [open]="asking() !== null" icon="trash-outline" tone="danger"
-             [title]="askTitle()" [body]="askBody()"
-             [confirmLabel]="askConfirm()"
-             (confirmed)="answered()"
-             (cancelled)="cancelled()"></app-confirm>
+<!-- Borrar lo guardado, Olvidar todo (7g). -->
+<ion-modal class="ui-sheet" [isOpen]="menuOpen()" (didDismiss)="menuOpen.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'notifications.title' | t }}</h2>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="menuOpen.set(false); asking.set('forgetCaught')">
+          <app-badge shape="ci" [size]="38" builtin="document-text" fixed="#ff9152"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'notifications.forgetCaught' | t }}</b><small class="wrap">{{ 'ui.notifications.forgetCaught.line' | t }}</small></span>
+        </button>
+        <button type="button" class="ui-row" (click)="menuOpen.set(false); asking.set('forgetEverything')">
+          <app-badge shape="ci" [size]="38" builtin="refresh" fixed="#ff6b6b"></app-badge>
+          <span class="ui-tx"><b class="wrap ui-r">{{ 'notifications.forgetAll' | t }}</b><small class="wrap">{{ 'ui.notifications.forgetAll.line' | t }}</small></span>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Which app's notices to read, "Todas las apps" first. -->
+<ion-modal class="ui-sheet" [isOpen]="pickingApp()" (didDismiss)="pickingApp.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="pickingApp.set(false)">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ 'ui.notifications.app' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="appFilter.set(null); pickingApp.set(false)">
+          <app-badge [size]="40" builtin="apps" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.notifications.allApps' | t }}</b>
+            <small>{{ (caught().length === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: caught().length } }}</small></span>
+          @if (appFilter() === null) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+        @for (app of appsWithCaught(); track app.package) {
+          <button type="button" class="ui-row" (click)="appFilter.set(app.package); pickingApp.set(false)">
+            <app-badge [size]="40" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
+            <span class="ui-tx"><b class="ui-one">{{ app.label }}</b>
+              <small>{{ (app.kept === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: app.kept } }}</small></span>
+            @if (appFilter() === app.package) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="asking() !== null" [icon]="asking() === 'hide' ? 'eye-off-outline' : asking() === 'forgetEverything' ? 'refresh-outline' : 'trash-outline'"
+             tone="danger" [title]="askTitle()" [body]="askBody()" [confirmLabel]="askConfirm()"
+             (confirmed)="answered()" (cancelled)="cancelled()"></app-confirm>
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
+}
