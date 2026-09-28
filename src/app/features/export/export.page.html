@@ -1,163 +1,103 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ 'export.title' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- Importar y exportar (mockups 8d-8i): the backup and the CSV, each a card
+     with its buttons; what each holds and warns is behind an (i). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'export.title' | t }}</h1>
+  </header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  @if (status() === 'opening') {
-    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
-  } @else if (status() === 'failed') {
-    <div class="state error">
-      <h2>{{ 'state.failed' | t }}</h2>
-      <p>{{ database.error()?.message }}</p>
-    </div>
-  } @else {
+  <div class="ui-main">
+    @if (status() === 'opening') {
+      <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+    } @else if (status() === 'failed') {
+      <div class="state"><h2>{{ 'state.failed' | t }}</h2><p>{{ database.error()?.message }}</p></div>
+    } @else {
+      @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+      @if (restored()) { <div class="ui-banner good">{{ restored() }}</div> }
 
-    @if (error()) { <p class="failed">{{ error() }}</p> }
+      <!-- The one that matters: this database is the only copy. -->
+      <section class="ui-card option">
+        <div class="ohead">
+          <app-badge shape="ci" [size]="44" builtin="shield-checkmark" fixed="#34c98b"></app-badge>
+          <span class="ui-tx">
+            <b class="wrap">{{ 'export.backup.title' | t }}
+              <span class="ui-info" role="button" (click)="info.set(i18n.t('export.backup.hint'))"><ion-icon name="information"></ion-icon></span>
+            </b>
+            <small class="wrap">{{ 'ui.export.backupLine' | t }}</small>
+          </span>
+        </div>
+        <button type="button" class="ui-btn" [disabled]="!hasData() || working() !== null" (click)="downloadBackup()">
+          <ion-icon name="download-outline"></ion-icon>{{ 'export.backup.action' | t }}
+        </button>
+        <button type="button" class="ui-btn ghost" [disabled]="working() !== null" (click)="fileInput.click()">
+          <ion-icon name="refresh-outline"></ion-icon>{{ 'ui.export.restore' | t }}
+        </button>
+        <input #fileInput type="file" accept="application/json,.json" hidden (change)="pick($event)">
+      </section>
 
-    @if (lastFile()) {
-      <p class="done">
-        <ion-icon name="checkmark-circle-outline"></ion-icon>
-        {{ 'export.saved' | t:{ file: lastFile() } }}
-      </p>
-    }
+      <!-- The readable one. -->
+      <section class="ui-card option">
+        <div class="ohead">
+          <app-badge shape="ci" [size]="44" builtin="grid" fixed="#2ec4b6"></app-badge>
+          <span class="ui-tx">
+            <b class="wrap">{{ 'export.csv.title' | t }}
+              <span class="ui-info" role="button" (click)="info.set(i18n.t('export.csv.hint'))"><ion-icon name="information"></ion-icon></span>
+            </b>
+            <small class="wrap">{{ 'ui.export.csvLine' | t }}</small>
+          </span>
+        </div>
+        <button type="button" class="ui-btn ghost" [disabled]="!hasData() || working() !== null" (click)="downloadCsv()">
+          <ion-icon name="download-outline"></ion-icon>{{ 'export.csv.action' | t }}
+        </button>
+      </section>
 
-    <!-- The one that matters: this database is the only copy -->
-    <section class="option important">
-      <h2>{{ 'export.backup.title' | t }}</h2>
-      <p>{{ 'export.backup.body' | t }}</p>
-
-      <ion-list [inset]="true">
-        <ion-item lines="full">
-          <ion-label>{{ 'export.movements' | t }}</ion-label>
-          <ion-note slot="end">{{ counts().movements }}</ion-note>
-        </ion-item>
-        <ion-item lines="full">
-          <ion-label>{{ 'nav.accounts' | t }}</ion-label>
-          <ion-note slot="end">{{ counts().accounts }}</ion-note>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-label>{{ 'nav.categories' | t }}</ion-label>
-          <ion-note slot="end">{{ counts().categories }}</ion-note>
-        </ion-item>
-      </ion-list>
-
-      <ion-button expand="block" [disabled]="!hasData() || working() !== null"
-                  (click)="downloadBackup()">
-        @if (working() === 'backup') {
-          <ion-spinner slot="start" name="dots"></ion-spinner>
-        } @else {
-          <ion-icon slot="start" name="shield-checkmark-outline"></ion-icon>
-        }
-        {{ 'export.backup.action' | t }}
-      </ion-button>
-
-      <p class="hint">{{ 'export.backup.hint' | t }}</p>
-    </section>
-
-    <!-- The readable one -->
-    <section class="option">
-      <h2>{{ 'export.csv.title' | t }}</h2>
-      <p>{{ 'export.csv.body' | t }}</p>
-
-      <ion-button expand="block" fill="outline"
-                  [disabled]="!hasData() || working() !== null" (click)="downloadCsv()">
-        @if (working() === 'csv') {
-          <ion-spinner slot="start" name="dots"></ion-spinner>
-        } @else {
-          <ion-icon slot="start" name="document-text-outline"></ion-icon>
-        }
-        {{ 'export.csv.action' | t }}
-      </ion-button>
-
-      <p class="hint warn">{{ 'export.csv.hint' | t }}</p>
-    </section>
-
-    @if (!hasData()) {
-      <p class="hint">{{ 'export.nothing' | t }}</p>
-    }
-
-    <!-- Reading one back. A backup that has never been restored is an archive
-         with good intentions, and the day it matters is the day you find out. -->
-    <section class="option">
-      <h2>{{ 'restore.title' | t }}</h2>
-      <p>{{ 'restore.body' | t }}</p>
-
-      @if (restored()) {
-        <p class="done">
-          <ion-icon name="checkmark-circle-outline"></ion-icon>
-          {{ restored() }}
-        </p>
+      <!-- Where Google sign-in cannot work there is no Drive row at all. -->
+      @if (google.available) {
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="toDrive()">
+            <app-badge shape="ci" [size]="42" builtin="logo-google" fixed="#6378ff"></app-badge>
+            <span class="ui-tx">
+              <b>{{ 'ui.export.drive' | t }}</b>
+              <small class="ui-one">{{ driveLine() }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
       }
 
-      @if (picked(); as file) {
-        <!-- What was found in it, before anything is replaced. Picking the
-             wrong file is the easy mistake and the one that cannot be undone. -->
-        <ion-list [inset]="true">
-          <ion-item lines="none">
-            <ion-icon slot="start" name="document-attach-outline"></ion-icon>
-            <ion-label>
-              <h3>{{ file.name }}</h3>
-              <p>{{ pickedSummary() }}</p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-
-        <!-- This button opens the question; it is not the answer to it. It
-             used to be red and to say "Sí, reemplazar todo" under a paragraph
-             in capitals, which is a confirmation - and then the real one
-             arrived on top of it and read as being asked twice. Both the
-             shouting and the word "sí" belong in the dialog. -->
-        <ion-button expand="block" fill="clear" [disabled]="working() !== null"
-                    (click)="unpick()">
-          {{ 'restore.cancel' | t }}
-        </ion-button>
-        <ion-button expand="block" fill="outline" color="danger"
-                    [disabled]="working() !== null" (click)="asking.set(true)">
-          <ion-icon slot="start" name="refresh-outline"></ion-icon>
-          {{ 'restore.start' | t }}
-        </ion-button>
-      } @else {
-        <ion-button expand="block" fill="outline" [disabled]="working() !== null"
-                    (click)="fileInput.click()">
-          <ion-icon slot="start" name="document-attach-outline"></ion-icon>
-          {{ 'restore.pick' | t }}
-        </ion-button>
-        <input #fileInput type="file" accept="application/json,.json"
-               hidden (change)="pick($event)">
-
-        <p class="hint">{{ 'restore.old' | t }}</p>
-      }
-    </section>
-  }
+      @if (!hasData()) { <p class="hint">{{ 'export.nothing' | t }}</p> }
+    }
+  </div>
 </ion-content>
 
-<!-- Replacing a whole history is the one thing here that cannot be undone.
-     It is asked the moment the file is chosen, named in the question, with
-     the warning inside it.
+<!-- Asked the moment the file is chosen, naming it, the warning inside (8h). -->
+<ion-modal class="confirm-sheet" [isOpen]="asking()" (didDismiss)="asking() && unpick()">
+  <ng-template>
+    <div class="confirm-dialog">
+      <span class="badge"><ion-icon name="refresh-outline"></ion-icon></span>
+      <h2>{{ 'ui.export.replaceWith' | t:{ file: picked()?.name ?? '' } }}</h2>
+      <div class="ui-list facts">
+        <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'ui.export.savedOn' | t }}</span></span><b>{{ pickedFacts().date }}</b></div>
+        <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'export.movements' | t }}</span></span><b>{{ pickedFacts().movements }}</b></div>
+        <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'nav.accounts' | t }}</span></span><b>{{ pickedFacts().accounts }}</b></div>
+      </div>
+      <div class="ui-banner bad warning"><ion-icon name="alert-circle-outline"></ion-icon><span>{{ 'restore.warning' | t }}</span></div>
+      <div class="buttons">
+        <button type="button" class="ui-btn ghost" (click)="chooseAnother()">{{ 'restore.cancel' | t }}</button>
+        <button type="button" class="ui-btn danger" [disabled]="working() !== null" (click)="restore()">{{ 'ui.export.yesReplace' | t }}</button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
 
-     Always here, opened by the flag. Wrapping it in an @if never showed at
-     all: an ion-modal presents when isOpen goes from false to true, and one
-     created with it already true has nothing to transition from. -->
-<app-confirm [open]="asking()" icon="warning-outline" tone="danger"
-             [title]="'restore.sure' | t"
-             [body]="restoreQuestion()"
-             [confirmLabel]="'restore.confirm' | t"
-             [busy]="working() === 'restore'"
-             (confirmed)="restore()"
-             (cancelled)="unpick()"></app-confirm>
-
-<!-- While the database is being read or written the page is out of reach, and
-     says so rather than looking frozen. -->
 @if (busy(); as state) {
-  <app-busy-overlay [label]="state.label" [detail]="state.detail" [percent]="state.percent"
-                    [warning]="'busy.wait' | t"></app-busy-overlay>
+  <app-busy-overlay [icon]="working() === 'restore' ? 'refresh-outline' : ''" [label]="state.label" [detail]="state.detail"
+                    [percent]="state.percent" [warning]="'busy.wait' | t"></app-busy-overlay>
+}
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
 }

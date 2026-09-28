@@ -1,160 +1,134 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ 'nav.account' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- Copia en Google Drive (mockups 8j-8q): signed out, one card and one
+     button; signed in, the account, the copy in Drive, saving it on its own,
+     changing account and signing out. -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'ui.export.drive' | t }}</h1>
+  </header>
 
-<ion-content [fullscreen]="true" class="account">
-  @if (google.user(); as user) {
-    <!-- Signed in: who, and what is kept. -->
-    <section class="who">
-      <app-avatar class="face" [photoUrl]="user.photoUrl"
-                  [name]="user.name" [email]="user.email"></app-avatar>
-      <h2>{{ user.name || user.email }}</h2>
-      @if (user.name && user.email) {
-        <p class="email">{{ user.email }}</p>
-      }
-      <ion-button fill="clear" size="small" (click)="signOut()">
-        {{ 'cloud.signOut' | t }}
-      </ion-button>
-    </section>
+  <div class="ui-main">
+    @if (google.user(); as user) {
+      <section class="ui-hero who">
+        <app-avatar class="face" [photoUrl]="user.photoUrl" [name]="user.name" [email]="user.email"></app-avatar>
+        <span class="ui-tx">
+          <b class="ui-one">{{ user.name || user.email }}</b>
+          @if (user.name && user.email) { <small class="ui-one">{{ user.email }}</small> }
+        </span>
+      </section>
 
-    <!-- What Drive holds. Stated before either button, because both buttons
-         are about replacing one side with the other. -->
-    <section class="copy">
-      <h3>{{ 'cloud.copy' | t }}</h3>
-
-      @if (!looked()) {
-        <div class="looking"><ion-spinner></ion-spinner></div>
-      } @else if (copy(); as held) {
-        <div class="held">
-          <ion-icon name="cloud-done-outline"></ion-icon>
-          <div>
-            <p class="when">{{ when(held.modifiedTime) }}</p>
-            <p class="detail">
-              {{ size(held.size) }}
-              @if (held.rows !== null) {
-                · {{ 'cloud.rows' | t:{ count: held.rows } }}
-              }
-            </p>
-          </div>
+      <!-- What Drive holds, stated before either button. -->
+      <section class="ui-card copy">
+        <div class="chead">
+          <span class="ui-lab">{{ 'ui.drive.yourCopy' | t }}</span>
+          <span class="ui-info" role="button" (click)="info.set(i18n.t('cloud.where'))"><ion-icon name="information"></ion-icon></span>
         </div>
-      } @else {
-        <p class="none">{{ 'cloud.none' | t }}</p>
-      }
+        @if (!looked()) {
+          <div class="looking"><ion-spinner></ion-spinner></div>
+        } @else if (copy(); as held) {
+          <div class="ui-mini">
+            <div><span class="ui-lab">{{ 'ui.drive.savedAt' | t }}</span><b>{{ whenShort(held.modifiedTime) }}</b></div>
+            <div><span class="ui-lab">{{ 'ui.drive.holds' | t }}</span><b>@if (held.rows !== null) { {{ 'cloud.rows' | t:{ count: held.rows.toLocaleString(i18n.dateLocale()) } }} } @else { {{ size(held.size) }} }</b></div>
+          </div>
+        } @else {
+          <p class="none">{{ 'cloud.none' | t }}</p>
+        }
+        @if (cloud.state() === 'working' || busy()) {
+          <div class="progress">
+            <span>{{ busy() || ('cloud.uploading' | t) }}</span>
+            <span class="ui-pbar"><i [style.width.%]="60"></i></span>
+          </div>
+        } @else {
+          <div class="two">
+            <button type="button" class="ui-btn" (click)="save()"><ion-icon name="cloud-upload-outline"></ion-icon>{{ 'ui.drive.saveNow' | t }}</button>
+            <button type="button" class="ui-btn ghost" [disabled]="!copy()" (click)="confirmingRestore.set(true)">
+              <ion-icon name="cloud-download-outline"></ion-icon>{{ 'ui.drive.bring' | t }}
+            </button>
+          </div>
+        }
+      </section>
 
       <!-- Saving on its own, and what it costs. -->
-      <div class="auto">
-        <label class="row">
-          <span class="name">{{ 'cloud.auto' | t }}</span>
-          <ion-toggle [checked]="cloud.auto()"
-                      (ionChange)="cloud.setAuto($any($event.detail).checked)"></ion-toggle>
-        </label>
-        <p class="hint">{{ 'cloud.auto.hint' | t:{ size: autoSize() } }}</p>
+      <div class="ui-list">
+        <div class="ui-row plain">
+          <span class="ui-tx">
+            <b class="wrap">{{ 'cloud.auto' | t }}
+              <span class="ui-info" role="button" (click)="info.set(i18n.t('cloud.auto.hint', { size: autoSize() }))"><ion-icon name="information"></ion-icon></span>
+            </b>
+            <small class="wrap">{{ 'ui.drive.autoLine' | t }}</small>
+          </span>
+          <button type="button" class="ui-switch" [class.on]="cloud.auto()" role="switch" [attr.aria-checked]="cloud.auto()"
+                  [attr.aria-label]="'cloud.auto' | t" (click)="cloud.setAuto(!cloud.auto())"></button>
+        </div>
       </div>
 
-      <div class="actions">
-        <ion-button expand="block" (click)="save()">
-          <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
-          {{ 'cloud.save' | t }}
-        </ion-button>
-
-        @if (copy()) {
-          <ion-button expand="block" fill="outline" (click)="confirmingRestore.set(true)">
-            <ion-icon slot="start" name="cloud-download-outline"></ion-icon>
-            {{ 'cloud.restore' | t }}
-          </ion-button>
-        }
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="changeAccount()">
+          <app-badge shape="ci" [size]="40" builtin="swap-horizontal" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.drive.change' | t }}</b><small class="wrap">{{ 'ui.drive.change.line' | t }}</small></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+        <button type="button" class="ui-row" (click)="signOut()">
+          <app-badge shape="ci" [size]="40" builtin="log-out" fixed="#ff6b6b"></app-badge>
+          <span class="ui-tx"><b class="ui-r">{{ 'cloud.signOut' | t }}</b><small class="wrap">{{ 'ui.drive.signOut.line' | t }}</small></span>
+        </button>
       </div>
 
-      @if (confirmingRestore()) {
-        <div class="warn">
-          <p>{{ 'cloud.restore.sure' | t }}</p>
-          <div class="pair">
-            <ion-button fill="clear" (click)="confirmingRestore.set(false)">
-              {{ 'entry.cancel' | t }}
-            </ion-button>
-            <ion-button color="danger" (click)="restore()">
-              {{ 'cloud.restore.confirm' | t }}
-            </ion-button>
-          </div>
+      @if (failure()) { <div class="ui-banner bad">{{ failure() }}</div> }
+    } @else {
+      <!-- Signed out, which is the ordinary state and is said as such (8k). -->
+      <div class="invite">
+        <app-badge shape="ci" [size]="72" builtin="logo-google" fixed="#6378ff"></app-badge>
+        <h2>{{ 'ui.drive.title' | t }}</h2>
+        <p class="lead">{{ 'cloud.lead' | t }}</p>
+        <div class="ui-list points">
+          <div class="ui-row plain"><app-badge shape="ci" [size]="36" builtin="phone-portrait" fixed="#34c98b"></app-badge><span class="ui-tx"><span class="t wrap">{{ 'cloud.point.local' | t }}</span></span></div>
+          <div class="ui-row plain"><app-badge shape="ci" [size]="36" builtin="lock-closed" fixed="#34c98b"></app-badge><span class="ui-tx"><span class="t wrap">{{ 'ui.drive.point.folder' | t }}</span></span></div>
+          <div class="ui-row plain"><app-badge shape="ci" [size]="36" builtin="server" fixed="#34c98b"></app-badge><span class="ui-tx"><span class="t wrap">{{ 'ui.drive.point.server' | t }}</span></span></div>
         </div>
-      }
-
-      @if (cloud.wouldReplace()) {
-        <div class="warn">
-          <p>{{ 'cloud.replace.sure' | t }}</p>
-          <p class="why">{{ cloud.replaceMessage() }}</p>
-          <div class="pair">
-            <ion-button fill="clear" (click)="cloud.decline()">
-              {{ 'entry.cancel' | t }}
-            </ion-button>
-            <ion-button color="danger" (click)="saveAnyway()">
-              {{ 'cloud.replace.do' | t }}
-            </ion-button>
-          </div>
-        </div>
-      }
-
-      @if (cloud.kept(); as name) {
-        <p class="good">
-          <ion-icon name="archive-outline"></ion-icon>
-          {{ 'cloud.kept' | t:{ name } }}
-        </p>
-      }
-
-      @if (done()) {
-        <p class="good"><ion-icon name="checkmark-circle-outline"></ion-icon> {{ done() }}</p>
-      }
-      @if (failure()) {
-        <p class="bad"><ion-icon name="alert-circle-outline"></ion-icon> {{ failure() }}</p>
-      }
-
-      <p class="hint">{{ 'cloud.where' | t }}</p>
-    </section>
-  } @else {
-    <!-- Signed out, which is the ordinary state and is said as such. -->
-    <section class="invite">
-      <div class="mark"><ion-icon name="cloud-outline"></ion-icon></div>
-      <h2>{{ 'cloud.title' | t }}</h2>
-      <p class="lead">{{ 'cloud.lead' | t }}</p>
-
-      <ul class="points">
-        <li><ion-icon name="phone-portrait-outline"></ion-icon> {{ 'cloud.point.local' | t }}</li>
-        <li><ion-icon name="lock-closed-outline"></ion-icon> {{ 'cloud.point.private' | t }}</li>
-        <li><ion-icon name="hand-left-outline"></ion-icon> {{ 'cloud.point.manual' | t }}</li>
-      </ul>
-
-      @if (google.available) {
-        <button type="button" class="google" [disabled]="google.working()" (click)="signIn()">
-          @if (google.working()) {
-            <ion-spinner name="crescent"></ion-spinner>
-          } @else {
-            <span class="g">G</span>
-          }
+        @if (google.error()) { <div class="ui-banner bad">{{ google.error() }}</div> }
+        <button type="button" class="google" [disabled]="google.working() || !google.available" (click)="signIn()">
+          @if (google.working()) { <ion-spinner name="crescent"></ion-spinner> } @else { <span class="g">G</span> }
           {{ 'cloud.signIn' | t }}
         </button>
-      } @else {
-        <p class="unavailable">
-          <ion-icon name="information-circle-outline"></ion-icon>
-          {{ (google.unavailableBecause === 'browser'
-                ? 'cloud.unavailable.browser' : 'cloud.unavailable') | t }}
-        </p>
-      }
-
-      @if (google.error()) {
-        <p class="bad"><ion-icon name="alert-circle-outline"></ion-icon> {{ google.error() }}</p>
-      }
-    </section>
-  }
+      </div>
+    }
+  </div>
 </ion-content>
 
-@if (busy()) {
-  <app-busy-overlay [label]="busy()" [detail]="busyDetail()"></app-busy-overlay>
+<!-- Bringing the copy from Drive replaces everything here (8n). -->
+<app-confirm [open]="confirmingRestore()" icon="cloud-download-outline" tone="danger"
+             [title]="'ui.drive.bring.ask' | t" [body]="restoreBody()" [confirmLabel]="'cloud.restore.confirm' | t"
+             (confirmed)="restore()" (cancelled)="confirmingRestore.set(false)"></app-confirm>
+
+<!-- Replacing a copy another device wrote asks first (8o). -->
+<ion-modal class="confirm-sheet" [isOpen]="cloud.wouldReplace() !== null" (didDismiss)="cloud.wouldReplace() && cloud.decline()">
+  <ng-template>
+    <div class="confirm-dialog">
+      <span class="badge gold"><ion-icon name="cloud-outline"></ion-icon></span>
+      <h2>{{ 'cloud.replace.sure' | t }}</h2>
+      <p>{{ replaceBody() }}</p>
+      @if (cloud.wouldReplace()?.rows; as rows) {
+        <div class="ui-list facts">
+          <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'ui.drive.holds' | t }}</span></span><b>{{ 'cloud.rows' | t:{ count: rows.toLocaleString(i18n.dateLocale()) } }}</b></div>
+        </div>
+      }
+      <p class="kept"><ion-icon name="shield-checkmark-outline"></ion-icon>{{ 'cloud.replace.kept' | t }}</p>
+      <div class="buttons">
+        <button type="button" class="ui-btn ghost" (click)="cloud.decline()">{{ 'entry.cancel' | t }}</button>
+        <button type="button" class="ui-btn" (click)="saveAnyway()">{{ 'cloud.replace.do' | t }}</button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+@if (busy() && cloud.state() !== 'working') {
+  <app-busy-overlay [label]="busy()" [detail]="busyDetail()" icon="refresh-outline"></app-busy-overlay>
+}
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
 }
