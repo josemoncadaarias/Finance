@@ -20,7 +20,7 @@ is redone, and superseded by Jose's review of 2026-09-28.
 | `00-azul-opciones` | The accent: Zafiro (recommended), Cobalto, Índigo, and today's |
 | `1a`–`1n` | Group 1 (v5): Inicio (transfers apart, the donut with a capped legend), one account with products (its two quick buttons), one account with a long name (ellipsis and sliding), the "+" sheet, the movement form for spending, writing a note, a transfer, a move between products, two currencies, the account, product and category lists, editing and deleting |
 | `2a`–`2r` | Group 2 (v4): Cuentas (net worth, sorting, a multi-currency account, a card, one set aside), where net worth comes from, currencies and rates, typing a rate, adding a currency, a new account by hand and from a statement (reading it, and the form it fills), editing a card (top and bottom, the limit and its history), deleting, the icon, colour and own image, the archived, no accounts yet, an account whose face is its own image (`2q`) and its colour behind that image (`2r`) |
-| `b08`–`b13` | Categories (v3 draft, group 3) (expense, product), and the editor: colour by family, icon, own image, a product category |
+| `3a`–`3j` | Group 3 (v4): Categorías closed and open, which list for a new one, editing (Para locked), a new one, the investment-return switch, the face's icon, colour and own image, the archived |
 | `c01`–`c11` | Products and yields: the list, an account's sheet with tabs (Productos, Días, Movimientos, Tasas), one day, a product, a CDT, a new rate, a product's own movement, adding an account |
 | `d01`–`d05` | Report (money, yields), reading a statement, Por revisar (and choosing several) |
 | `d06`–`d07` | Avisos del banco, without and with permission |
