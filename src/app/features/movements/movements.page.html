@@ -203,7 +203,13 @@
                   }
                   <span class="ui-tx">
                     <b>{{ movement.transaction.description || movement.label }}</b>
-                    <small class="ui-one">{{ lineOf(movement) }}</small>
+                    <small class="ui-one">
+                      <!-- Corrected by hand: the one flag of the old importer still worth showing. -->
+                      @if (movement.transaction.locked) {
+                        <ion-icon name="lock-closed-outline" class="locked" [title]="'summary.correctedByHand' | t"
+                                  [attr.aria-label]="'summary.correctedByHand' | t"></ion-icon>
+                      }{{ lineOf(movement) }}
+                    </small>
                   </span>
                   <span class="ui-am" [class]="toneOf(movement.flow)">
                     {{ signed(movement.transaction.amount_minor, movement.currency) }}

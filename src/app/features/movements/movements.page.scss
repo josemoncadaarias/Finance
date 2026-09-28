@@ -119,3 +119,6 @@
   h2 { color: var(--app-tx); font-size: 17px; margin: 0 0 6px; }
   p { margin: 0; font-size: 14px; }
 }
+
+/* "Corregido a mano": a small lock before the line under the title. */
+.movement .locked { font-size: 12px; vertical-align: -1px; margin-right: 4px; color: var(--app-yel); }

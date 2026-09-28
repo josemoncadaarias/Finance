@@ -61,6 +61,7 @@ export interface ProposalAnswer {
     .ui-row.plain .grow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 13px; border: 0; background: none; color: var(--app-tx); padding: 0; font: inherit; text-align: left; cursor: pointer; }
     .tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 6px; font-weight: 500; }
     .tag.learned { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
+    .guessed-sign { margin: 8px 0 0; }
     .tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }
     .as-came { display: block; }
   `],
@@ -105,6 +106,12 @@ export interface ProposalAnswer {
                 <app-badge [size]="36" builtin="copy-outline" fixed="#f6b93b"></app-badge>
                 <span class="ui-tx"><small>{{ 'ui.review.maybeThis' | t }}</small><b>{{ sameAs() }}</b></span>
               </div>
+            }
+
+            <!-- The statement carried no running balance: whether it is money
+                 in or out was read from the words, and may be wrong. -->
+            @if (guessed()) {
+              <div class="ui-banner warn guessed-sign"><ion-icon name="help-circle-outline"></ion-icon><span>{{ 'review.guessed' | t }}</span></div>
             }
 
             @if (pendingLabel(); as sum) { <p class="pending">{{ sum }}</p> }
@@ -245,6 +252,8 @@ export class ProposalFormComponent implements OnInit {
   readonly evidence = input('');
   /** The movement it may already be, in words. */
   readonly sameAs = input<string | null>(null);
+  /** Whether money in or out was read from the words rather than proved. */
+  readonly guessed = input(false);
   readonly accounts = input<readonly AccountRow[]>([]);
   readonly categories = input<readonly CategoryRow[]>([]);
   readonly busy = input(false);

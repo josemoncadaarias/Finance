@@ -255,6 +255,9 @@
                     @if (line.pairedWith) {
                       <small class="flag"><ion-icon name="git-compare-outline"></ion-icon>{{ line.pairedWith }}</small>
                     }
+                    @if (line.guessed) {
+                      <small class="flag"><ion-icon name="help-circle-outline"></ion-icon>{{ 'ui.review.signGuessed' | t }}</small>
+                    }
                   </span>
                   <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
                     {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
@@ -380,7 +383,7 @@
 <ion-modal class="entry-sheet" [isOpen]="openLine() !== null" (didDismiss)="openLine.set(null)">
   <ng-template>
     @if (openLine(); as line) {
-      <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs"
+      <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs" [guessed]="line.guessed"
                          [accounts]="accounts()" [categories]="categories()" [busy]="working()"
                          (answered)="answer(line, $event)" (discard)="discardOpen()"
                          (cancelled)="openLine.set(null)"></app-proposal-form>
