@@ -2221,6 +2221,21 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   drawn; a product set aside from net worth says quietly that the money
   then counts as leaving (rule 5). Every note row is labelled "Nota",
   group 1's included.
+- **One end of a movement, compact** (Jose, 2026-09-28, v6 - applies to
+  every movement form, group 1's included): the side ("Desde", "Hacia",
+  "Pasa a") in a narrow column at the left; the account on one line and,
+  under it, its product on another, each with its own icon at the same
+  size - the account in a circle, the product in a rounded square - and no
+  box around the product. The two icons read as two things because they
+  are two lines and two shapes. "Invertir" sits on the dividing line
+  between the two ends.
+- **An explanation is an (i), not a paragraph**: a small (i) beside what it
+  explains opens a bubble on tap (`4t01b`); a one-off outcome, such as the
+  amount cleared after "Invertir", is a short notice that goes away by
+  itself; an error marks the thing that is wrong ("Bolsillo Viajes · elige
+  otro producto" in red), without a line of its own.
+- **Long account and product names slide** in every end and every list
+  (`marquee.service.ts`, shown in `4t12` and `4t13`).
 - (The black areas in the contact sheets sent before were empty slots,
   not screens: nothing was missed. The sheets are now as wide as what
   they hold.)

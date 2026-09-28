@@ -10,7 +10,7 @@
 //   each product that uses it, marked as the account's;
 // - the orphan withdrawal is said quietly, inside its row.
 import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint } from './lib.mjs';
-import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route } from './screens-1.mjs';
+import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot } from './screens-1.mjs';
 
 const S = {};
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
@@ -222,7 +222,7 @@ S['4s-cdt'] = productPage('cdt', 'CDT 90 días', 'CDT', `${kindPick(true).replac
   ${val('Vence el', 'Sábado 12 dic 2026')}</div>
  <div class="list" style="margin-top:12px">${toggle('Cuenta para el patrimonio', '', false)}</div>`, CDT);
 
-const intoProduct = `<div class="row">${accIcon('verde', 38)}<div class="tx"><span class="k">Pasa a</span><b>Ahorro Verde</b>${prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros')}</div>${down()}</div>`;
+const intoProduct = end(accIcon('verde', 38), 'Pasa a', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros'));
 S['4t-cdt-al-vencer'] = productPage('cdt', 'CDT 90 días', 'Al vencer', `<div class="list">
   ${val('Rendimiento bruto', '245.312,11')}${val('Retenido', '−17.171,85')}${val('Neto', '+228.140,26')}
   <div class="row" style="background:var(--s2)"><div class="tx"><span class="k">Recibes al vencer</span><b style="font-size:17px">10.228.140,26</b></div></div></div>
@@ -295,7 +295,12 @@ S['4zz-gasto-del-producto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="
 // fills what the origin - the product, if it has them - holds today.
 const xTop = (t = 'Transferir', right = '') => top(t, { left: 'x', right });
 const quiet = t => `<div class="hint" style="margin:8px 4px 0;display:flex;gap:6px">${ic('information-circle-outline', '', 'width:16px;height:16px;flex:none;margin-top:1px')}<span>${t}</span></div>`;
-const pEnd = (acc, k, label, name, pk, pname) => end(accIcon(acc, 38), k, name, pk ? prod(P[pk][0], P[pk][1], pname) : '');
+const pEnd = (acc, k, label, name, pk, pname, o = {}) => end(accIcon(acc, 38), k, name, pk ? prod(P[pk][0], P[pk][1], pname, o.info, o.bad) : '');
+// v6: an explanation is an (i) beside what it explains, opened as a bubble
+// on tap - never a paragraph that takes its own lines on the form.
+const tip = (t, topPx, arrowLeft = 190) => `<div style="position:absolute;left:24px;right:24px;top:${topPx}px;background:#26324f;border:1px solid #3a4a72;border-radius:14px;padding:11px 13px;font-size:13px;line-height:1.4;color:#e3e8f4;box-shadow:0 10px 26px rgba(0,0,0,.5);z-index:5">
+ <span style="position:absolute;top:-7px;left:${arrowLeft}px;width:12px;height:12px;background:#26324f;border-left:1px solid #3a4a72;border-top:1px solid #3a4a72;transform:rotate(45deg)"></span>${t}</div>`;
+const toast = t => `<div style="position:absolute;left:24px;right:24px;bottom:318px;background:#26324f;border:1px solid #3a4a72;border-radius:14px;padding:10px 13px;font-size:13px;color:#e3e8f4;display:flex;gap:8px;align-items:center;box-shadow:0 10px 26px rgba(0,0,0,.5)">${ic('swap-vertical-outline', 'p', 'width:17px;height:17px;flex:none')}<span>${t}</span></div>`;
 const tr = ({ amt = '500.000', all, from, to, info = '', noteText, noteHint, title, right, sign = '⇄' }) => `${xTop(title, right)}<main style="padding-top:8px">${typeSeg('Transferir')}
  ${amount(sign, 'p', amt)}${all ? allBtn(all) : '<div style="height:8px"></div>'}
  ${route(from, to)}${info}
@@ -306,9 +311,11 @@ const tr = ({ amt = '500.000', all, from, to, info = '', noteText, noteHint, tit
 //    not change, the money only sits in another product.
 S['4t01-transferir-entre-productos'] = tr({ amt: '2.000.000', all: '2.000.000',
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
-  info: quiet('El saldo de la cuenta no cambia: la misma plata queda en otro producto. Desde mañana cada uno rinde sobre su nuevo saldo.'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros', { info: true }),
   noteText: 'Retiro bolsillo viajes' });
+
+// ...and its (i) opened: the explanation as a bubble, gone on the next tap.
+S['4t01b-transferir-entre-productos-ayuda'] = S['4t01-transferir-entre-productos'] + tip('El saldo de la cuenta no cambia: la misma plata queda en otro producto. Desde mañana cada uno rinde sobre su nuevo saldo.', 402, 196);
 
 // 2. Choosing the product money leaves from: the account's products with
 //    what each holds, the current one ticked, and another account.
@@ -345,8 +352,7 @@ S['4t06-transferir-entre-cuentas-con-productos'] = tr({ amt: '300.000', all: '2.
 //    that money then counts as leaving.
 S['4t07-transferir-a-producto-fuera-del-patrimonio'] = tr({ amt: '10.000.000', all: '52.000.000',
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
-  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cdt', 'CDT 90 días'),
-  info: quiet('CDT 90 días está fuera del patrimonio: esta plata cuenta como si saliera de tu patrimonio.'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cdt', 'CDT 90 días', { info: true }),
   noteText: 'Apertura CDT 90 días', noteHint: '' });
 
 // 8. From a product to an account in another currency: what leaves, what
@@ -367,14 +373,12 @@ S['4t08-transferir-producto-otra-moneda'] = `${xTop()}<main style="padding-top:8
 S['4t09-transferir-invertida'] = tr({ amt: '0', all: '52.000.000',
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
   to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  info: quiet('Se volteó: el monto que había puesto "Pasar todo" se borró, porque el otro lado puede tener menos.'),
-  noteText: 'Recarga bolsillo viajes' });
+  noteText: 'Recarga bolsillo viajes' }).replace('</main>', `</main>${toast('Se volteó: el monto de "Pasar todo" se borró, porque este lado puede tener menos.')}`);
 
 // 10. The same product on both ends: said where it is, and Guardar waits.
 S['4t10-transferir-mismo-producto'] = tr({ amt: '500.000', all: '2.000.000',
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
-  info: `<div class="hint" style="margin:8px 4px 0;color:var(--red);display:flex;gap:6px">${ic('alert-circle-outline', '', 'width:16px;height:16px;flex:none;margin-top:1px')}<span>Elige dos productos distintos</span></div>`,
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes · elige otro producto', { bad: true }),
   noteText: 'Retiro bolsillo viajes' }).replace('<div style="grid-column:span 4" class="ok">Guardar</div>', '<div style="grid-column:span 4;opacity:.45" class="ok">Guardar</div>');
 
 // 11. Correcting one: the same form, with its bin; deleting takes both legs.
@@ -382,5 +386,17 @@ S['4t11-editar-transferencia-entre-productos'] = tr({ title: 'Editar transferenc
   from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
   to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
   noteText: 'Retiro bolsillo viajes', noteHint: '' }).replace('Hoy · domingo 27 sept', 'Viernes 25 sept');
+
+// 12. Long names: one line each, "…" at the end, and the slide the app
+//     already has (marquee.service.ts) shows the rest - second frame.
+const longEnds = slide => route(
+  end(ci('business-outline', PALETTE.violeta, 38), 'Desde', 'Banco del Parque: cuenta de nómina y ahorro programado', prod('lock-closed-outline', C.gold, 'Bolsillo para el viaje a Cartagena en enero de 2027'), slide ? -170 : ''),
+  end(accIcon('verde', 38), 'Hacia', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros')));
+const longForm = slide => `${xTop()}<main style="padding-top:8px">${typeSeg('Transferir')}
+ ${amount('⇄', 'p', '750.000')}${allBtn('3.200.000')}${longEnds(slide)}
+ <div class="list" style="margin-top:10px">${dayRow}${note('Regreso de la plata del viaje que no se hizo este año')}</div>
+ </main>${keys('Guardar')}`;
+S['4t12-transferir-nombres-largos'] = longForm(false);
+S['4t13-transferir-nombres-largos-deslizando'] = longForm(true);
 
 export default S;

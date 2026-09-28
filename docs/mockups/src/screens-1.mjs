@@ -115,8 +115,15 @@ const dayRow = `<div class="row">${ic('calendar-outline', 'mu')}<div class="tx">
 
 // Each end of a movement: its account and, when the account has products,
 // the product under it, changeable right there (the same row everywhere).
-const prod = (i, c, t) => `<span class="chip i" style="padding:3px 9px 3px 3px;font-size:12.5px;margin-top:5px;max-width:100%">${sq(i, c, 22)}<span class="one">${t}</span>${down()}</span>`;
-const end = (icon, k, name, product = '') => `<div class="row">${icon}<div class="tx"><span class="k">${k}</span><b class="one">${name}</b>${product}</div>${down()}</div>`;
+// v6 (Jose): one end of a movement is its account on one line and, under
+// it, its product on another - each with its own icon at the same size, the
+// account in a circle and the product in a rounded square, so the two are
+// never read as one. No box around the product, no label line of its own.
+const infoDot = `<span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--s3);color:#aab6d3;flex:none">${ic('information', '', 'width:13px;height:13px')}</span>`;
+const prod = (i, c, t, info = false, bad = false) => `<div style="display:flex;align-items:center;gap:9px;margin-top:7px">${sq(i, bad ? '#ff6b6b' : c, 28)}<span class="one" style="font-size:14.5px;color:${bad ? 'var(--red)' : '#cfd6e6'}">${t}</span>${info ? infoDot : ''}</div>`;
+const SHORT = { 'Desde dónde': 'Desde', 'Hacia dónde': 'Hacia' };
+const small = icon => icon.replace(/width:\d+px;height:\d+px/, 'width:28px;height:28px');
+const end = (icon, k, name, product = '', slide = '') => `<div class="row" style="gap:10px;padding:10px 14px"><span class="mu" style="width:42px;flex:none;font-size:12.5px">${SHORT[k] ?? k}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:9px">${small(icon)}<b class="one" style="font-weight:500;font-size:15.3px;${slide ? 'text-overflow:clip' : ''}">${slide ? `<span style="display:inline-block;transform:translateX(${slide}px)">${name}</span>` : name}</b></div>${product}</div>${down()}</div>`;
 
 S['1f-gasto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Gasto')}
  ${amount('−', 'r', '164.200')}
@@ -142,8 +149,8 @@ S['1g-escribiendo-nota'] = `${top('Nuevo gasto', { left: 'x' })}<main style="pad
 // amount it fills. Each end names its account and, when the account has
 // products, the product under it, changeable right there.
 const allBtn = v => `<div style="text-align:center;margin:-2px 0 10px"><span class="chip" style="padding:5px 12px;font-size:12.8px">Pasar todo · ${v}</span></div>`;
-const route = (from, to) => `<div class="list" style="position:relative;overflow:visible">${from}<div style="height:1px;background:var(--line);margin-left:66px"></div>${to}
-  <span style="position:absolute;right:52px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:var(--s3);border:1px solid #2c3d63;color:var(--pr);display:grid;place-items:center">${ic('swap-vertical-outline', '', 'width:20px;height:20px')}</span></div>`;
+const route = (from, to) => `<div class="list" style="overflow:visible">${from}<div style="position:relative;height:1px;background:var(--line);margin-left:14px">
+  <span style="position:absolute;right:48px;top:-19px;width:38px;height:38px;border-radius:50%;background:var(--s3);border:1px solid #2c3d63;color:var(--pr);display:grid;place-items:center;z-index:2">${ic('swap-vertical-outline', '', 'width:20px;height:20px')}</span></div>${to}</div>`;
 
 S['1h-transferencia'] = `${top('Transferir', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Transferir')}
  ${amount('⇄', 'p', '800.000')}${allBtn('52.000.000')}
@@ -200,4 +207,4 @@ S['1n-editar-y-borrar'] = `${top('Editar movimiento', { left: 'x', right: `<div 
   <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, borrar</div></div></div>`;
 
 export default S;
-export { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route };
+export { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot };
