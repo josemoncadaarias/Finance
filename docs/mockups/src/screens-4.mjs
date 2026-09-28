@@ -240,10 +240,7 @@ S['4v-cdt-pagos'] = productPage('cdt', 'CDT 90 días', 'Pagos', `<div class="lis
 // from, with each product's icon.
 const NEW = ['Producto', 'Saldo', 'Tasa'];
 S['4w-nuevo-producto-saldo'] = `${saveBar('Agregar un producto')}<main><div style="height:12px"></div>${faceP(sq('car-outline', C.org, 56), 'Bolsillo Carro', true)}${pick(NEW, 'Saldo')}
- <div class="h" style="margin-top:0">¿De dónde sale este saldo?</div>
- <div class="list">
-  <div class="row">${ci('swap-horizontal', C.blu, 36)}<div class="tx"><b>De otro producto</b><small>Se registra una transferencia desde ese producto: su saldo baja en lo mismo y queda en los movimientos.</small></div><span class="tick on">${ic('checkmark')}</span></div>
-  <div class="row">${ci('create-outline', C.gry, 36)}<div class="tx"><b>Lo escribo a mano</b><small>El saldo queda tal cual lo escribes, sin sacar plata de otro producto. Úsalo para un ajuste.</small></div><span class="tick"></span></div></div>
+ <div class="list"><div class="row">${ci('swap-horizontal', C.blu, 38)}<div class="tx"><span class="k">¿De dónde sale este saldo?</span><b>De otro producto</b><small>Queda como una transferencia desde ese producto.</small></div>${down()}</div></div>
  <div class="list" style="margin-top:12px">${val('Sale de', 'Cuenta de ahorros', down(), '', psq('cuenta', 36))}
   ${val('Monto', '1.500.000,00', '<span class="chip" style="padding:4px 10px;font-size:12.5px">Pasar todo · 52.000.000</span>')}
   ${val('Empieza a rendir desde', 'Mañana · lunes 28 sept', down())}</div>
@@ -253,35 +250,42 @@ S['4w-nuevo-producto-saldo'] = `${saveBar('Agregar un producto')}<main><div styl
 // The ONE movement form (group 1): on an account with products it shows the
 // product with its icon, asks what it changes, and keeps the note with its
 // usual text and its suggestions, as every movement does.
-const scope = (opts, on) => `<div class="h">¿Qué cambia?</div><div class="list">${opts
-  .map(([t, h]) => `<div class="row" style="padding:9px 14px"><span class="tick ${t === on ? 'on' : ''}">${t === on ? ic('checkmark') : ''}</span><div class="tx"><b style="font-size:14.5px">${t}</b>${t === on ? `<small>${h}</small>` : ''}</div></div>`).join('')}</div>`;
+// "¿Qué cambia?" takes ONE row (v5b, Jose: save space): the choice made,
+// and a sheet with the options and what each does, opened from it.
+const scopeRow = on => `<div class="row">${ci('git-compare-outline', C.pur, 38)}<div class="tx"><span class="k">¿Qué cambia?</span><b>${on}</b></div>${down()}</div>`;
 const IN = [['Solo el producto', 'Solo cambia los rendimientos del producto, no el saldo de la cuenta ni tu patrimonio.'], ['Producto y patrimonio', 'Queda como un movimiento normal de la cuenta, con su categoría y su producto.'], ['Hacer efectivo', 'Pasas a la cuenta plata que el producto ya tenía: sube el saldo y tu patrimonio, y baja lo acumulado del producto.']];
 const OUT = [['Solo el producto', 'Solo cambia los rendimientos del producto, no el saldo de la cuenta ni tu patrimonio.'], ['Producto y patrimonio', 'Queda como un movimiento normal de la cuenta, con su categoría y su producto.'], ['Solo el patrimonio', 'Devuelves al producto plata que salió de la cuenta: baja el saldo y tu patrimonio, y sube lo acumulado del producto.']];
+// The note is the person's own words about THIS movement - never the
+// category. Labelled "Nota" so the two are never read as one.
+const noteRow = (text, hint = 'la de siempre') => `<div class="row">${ic('create-outline', 'mu')}<div class="tx"><span class="k">Nota</span><b class="one">${text}</b><small>${hint}</small></div><span class="mu">${ic('close-circle', '', 'width:19px;height:19px')}</span></div>`;
+const catRow = (k, name) => `<div class="row">${catIcon(k, 38)}<div class="tx"><span class="k">Categoría</span><b>${name}</b></div><span class="mu">${ic('create-outline', '', 'width:19px;height:19px')}</span>${down()}</div>`;
+
 S['4x-ingreso-del-producto'] = `${top('Nuevo ingreso', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Ingreso')}
  ${amount('+', 'g', '18.400')}
  <div class="list">${end(accIcon('verde', 38), 'Hacia dónde', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros'))}
-  <div class="row">${catIcon('cashback', 38)}<div class="tx"><span class="k">Categoría</span><b>Cashback</b></div><span class="mu">${ic('create-outline', '', 'width:19px;height:19px')}</span>${down()}</div></div>
- ${scope(IN, 'Solo el producto')}
- <div class="list" style="margin-top:10px">${dayRow}${note('Cashback de septiembre')}</div>
- </main><div class="save">Guardar</div>`;
+  ${catRow('cashback', 'Cashback')}${scopeRow('Solo el producto')}</div>
+ <div class="list" style="margin-top:10px">${dayRow}${noteRow('Compras con la tarjeta en agosto')}</div>
+ </main>${keys('Guardar')}`;
 
-// Writing its note: the same panel as any movement - the note on top, the
-// matches under it, the keyboard below.
-S['4y-nota-del-producto'] = `${top('Nuevo ingreso', { left: 'x' })}<main style="padding-top:10px">
+S['4y-que-cambia'] = S['4x-ingreso-del-producto'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div style="text-align:center">${centred(ci('git-compare-outline', C.pur, 46), 8)}<h2 style="font-size:19px">¿Qué cambia?</h2></div>
+ <div class="list" style="margin-top:12px">${IN.map(([t, h], n) => `<div class="row"><div class="tx"><b>${t}</b><small>${h}</small></div>${n === 0 ? `<span class="tick on">${ic('checkmark')}</span>` : '<span class="tick"></span>'}</div>`).join('')}</div></div>`;
+
+// Writing the note: the same panel as any movement - the note on top, the
+// notes already written that match under it, the keyboard below.
+S['4z-nota-del-producto'] = `${top('Nuevo ingreso', { left: 'x' })}<main style="padding-top:10px">
  <div class="card" style="padding:12px 14px;border-color:var(--pr)"><div style="display:flex;justify-content:space-between;align-items:center"><span class="lab">Nota</span><span class="p b" style="font-size:14px">Listo</span></div>
-  <div style="font-size:17px;margin-top:6px">Cashback<span style="border-left:2px solid var(--pr);margin-left:1px"></span></div></div>
- <div class="list" style="margin-top:8px">${['Cashback de septiembre', 'Cashback de agosto', 'Cashback tarjeta'].map(t => `<div class="row plain">${ic('time-outline', 'mu', 'width:18px;height:18px')}<div class="tx"><b style="font-size:14.5px">${t.replace('Cashback', '<u>Cashback</u>')}</b></div>${ic('arrow-up-outline', 'mu', 'transform:rotate(-45deg);width:18px;height:18px')}</div>`).join('')}</div>
- <div class="hint">La nota de siempre para este producto y esta categoría ya viene escrita; al escribir aparecen las que se parecen.</div></main>
+  <div style="font-size:17px;margin-top:6px">Compras con<span style="border-left:2px solid var(--pr);margin-left:1px"></span></div></div>
+ <div class="list" style="margin-top:8px">${['Compras con la tarjeta en agosto', 'Compras con la tarjeta en julio', 'Compras con débito del bolsillo'].map(t => `<div class="row plain">${ic('time-outline', 'mu', 'width:18px;height:18px')}<div class="tx"><b style="font-size:14.5px">${t.replace('Compras con', '<u>Compras con</u>')}</b></div>${ic('arrow-up-outline', 'mu', 'transform:rotate(-45deg);width:18px;height:18px')}</div>`).join('')}</div></main>
  <div style="position:absolute;left:0;right:0;bottom:0;height:300px;background:#1b1f27;padding:8px 4px 20px">
   ${['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'].map((r, n) => `<div style="display:flex;justify-content:center;gap:5px;margin-top:9px;padding:0 ${n === 2 ? 34 : 0}px">${[...r].map(k => `<span style="width:34px;height:46px;border-radius:7px;background:#2e333d;display:grid;place-items:center;font-size:19px;color:#e6e8ee">${k}</span>`).join('')}</div>`).join('')}
   <div style="display:flex;gap:5px;margin-top:9px;padding:0 6px"><span style="width:60px;height:46px;border-radius:7px;background:#3a404c"></span><span style="flex:1;height:46px;border-radius:7px;background:#2e333d"></span><span style="width:60px;height:46px;border-radius:7px;background:#3a404c"></span></div></div>`;
 
-S['4z-gasto-del-producto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Gasto')}
+S['4zz-gasto-del-producto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Gasto')}
  ${amount('−', 'r', '6.900')}
  <div class="list">${end(accIcon('verde', 38), 'Desde dónde', 'Ahorro Verde', prod(P.viajes[0], P.viajes[1], 'Bolsillo Viajes'))}
-  <div class="row">${catIcon('correccion', 38)}<div class="tx"><span class="k">Categoría</span><b>Corrección del banco</b></div><span class="mu">${ic('create-outline', '', 'width:19px;height:19px')}</span>${down()}</div></div>
- ${scope(OUT, 'Solo el producto')}
- <div class="list" style="margin-top:10px">${dayRow}${note('Ajuste contra el banco')}</div>
- </main><div class="save">Guardar</div>`;
+  ${catRow('correccion', 'Corrección del banco')}${scopeRow('Solo el producto')}</div>
+ <div class="list" style="margin-top:10px">${dayRow}${noteRow('Diferencia con el extracto de septiembre')}</div>
+ </main>${keys('Guardar')}`;
 
 export default S;

@@ -2206,6 +2206,14 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
 - **A product's own movement keeps its note**, with everything the note
   does today: the usual one written for that product and category, and
   the matches under it while typing (`4x`, `4y`).
+- **A choice with explanations takes one row, and its options open in a
+  sheet** (Jose, 2026-09-28: save space, minimal): "¿Qué cambia?" and
+  "¿De dónde sale este saldo?" show only what is chosen; the options and
+  what each does are one tap away (`4y`).
+- **The note is not the category.** Every note row is labelled "Nota" and
+  holds the person's own words about that movement; the usual note and
+  the matches while typing are notes written before, never category
+  names (`4x`, `4z`).
 - (The black areas in the contact sheets sent before were empty slots,
   not screens: nothing was missed. The sheets are now as wide as what
   they hold.)
