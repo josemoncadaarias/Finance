@@ -2057,7 +2057,7 @@ then does the next start. The groups and where each stands:
 | 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | **Approved** by Jose, 2026-09-28 (the colour of the app drawn, not yet confirmed on its own) |
-| 9 | Income-tax simulator | `docs/mockups/9*` (v4) | Sent 2026-09-28, waiting |
+| 9 | Income-tax simulator | `docs/mockups/9*` (v4) | **Approved** by Jose, 2026-09-28 |
 
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
 
