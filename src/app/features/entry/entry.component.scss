@@ -49,6 +49,7 @@
   }
 
   .bin ion-icon { color: var(--app-red); font-size: 23px; }
+  button:focus:not(:focus-visible) { outline: none; }
 }
 
 .entry-scroll {

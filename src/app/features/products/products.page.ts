@@ -21,20 +21,22 @@
  */
 
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import {
-  IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-  IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-  IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonSearchbar,
-} from '@ionic/angular';
+import { IonContent, IonIcon, IonSpinner, IonModal, IonDatetime } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import type { Progress } from '../../core/database/export/progress';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
+import { AccountsFacesComponent } from '../../shared/ui/accounts-faces.component';
+import { TabBarComponent } from '../../shared/ui/tab-bar.component';
+import { ComposeService } from '../../core/ui/compose.service';
+import { AccentService } from '../../core/theme/accent.service';
+import { productIcon, productSeed } from '../../core/icons/product-face';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
@@ -57,11 +59,10 @@ import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
-import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
 import { ProductEntryComponent, type ProductEntryRequest } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, NavigationStart, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { FilterService } from '../../core/filters/filter.service';
@@ -164,16 +165,254 @@ interface Payment {
   templateUrl: './products.page.html',
   styleUrls: ['./products.page.scss'],
   imports: [
-    BusyOverlayComponent,
-    IconComponent, ProductEntryComponent, EntryComponent, ConfirmComponent, AccountPickerComponent,
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent,
-    IonContent, IonHeader, IonFooter, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-    IonList, IonItem, IonCheckbox, IonLabel, IonNote, IonSpinner, IonMenuButton, IonModal,
-    IonInput, IonTextarea, IonSelect, IonSelectOption, IonToggle, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonSearchbar,
+    BusyOverlayComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
+    ProductEntryComponent, EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
+    IonContent, IonIcon, IonSpinner, IonModal, IonDatetime,
   ],
 })
 export class ProductsPage {
   readonly database = inject(DatabaseService);
+  private readonly compose = inject(ComposeService);
+  private readonly accent = inject(AccentService);
+
+  // ---------------------------------------------------------------------------
+  // The redesign (mockups 4a-4zz): selectors in place of one long scroll
+  // ---------------------------------------------------------------------------
+
+  /** An account's page: Productos | Movimientos | Pagos | Días. */
+  readonly pageTab = signal<'products' | 'movements' | 'payments' | 'days'>('products');
+
+  /** A product's form: Producto | Saldo | Tasa | Bonificación; a CDT: CDT | Al vencer | Pagos. */
+  readonly productTab = signal<'product' | 'balance' | 'rate' | 'bonus' | 'cdt' | 'matures' | 'cdtPayments'>('product');
+
+  readonly productTabs = computed(() => {
+    if (this.productKind() === 'cdt') {
+      return [
+        { id: 'cdt' as const, label: 'products.product.kind.cdt' },
+        { id: 'matures' as const, label: 'ui.yields.tab.matures' },
+        { id: 'cdtPayments' as const, label: 'ui.yields.payments' },
+      ];
+    }
+    const tabs = [
+      { id: 'product' as const, label: 'ui.yields.tab.product' },
+      { id: 'balance' as const, label: 'ui.yields.tab.balance' },
+      { id: 'rate' as const, label: 'ui.yields.tab.rate' },
+    ];
+    if (this.editingProduct()) tabs.push({ id: 'bonus' as never, label: 'ui.yields.tab.bonus' });
+    return tabs;
+  });
+
+  readonly choosingFunding = signal(false);
+  readonly choosingFundingFrom = signal(false);
+  readonly choosingCdtInto = signal(false);
+  readonly choosingPayout = signal(false);
+  readonly choosingCdtCategory = signal(false);
+  readonly choosingDeleteTo = signal(false);
+  readonly choosingNewUsual = signal(false);
+
+  readonly accentColor = computed(() => this.accent.accent().color);
+
+  async setPageTab(line: ProductLine, tab: 'products' | 'movements' | 'payments' | 'days'): Promise<void> {
+    this.pageTab.set(tab);
+    // A list opens with only its first section open (Jose, 2026-09-28).
+    if (tab === 'movements' && !this.showMovements()) await this.toggleMovements(line);
+    if (tab === 'payments') {
+      this.showPayments.set(true);
+      const first = this.paymentsByMonth()[0];
+      if (first && this.openWorkings().size === 0) this.openWorkings.set(new Set([first.key]));
+    }
+    if (tab === 'days') {
+      this.showDays.set(true);
+      const first = this.daysByMonth()[0];
+      if (first && this.openMonths().size === 0) this.openMonths.set(new Set([first.key]));
+    }
+    await this.sheet()?.scrollToTop(0);
+  }
+
+  setProductKind(kind: YieldProduct['kind']): void {
+    this.productKind.set(kind);
+    this.productTab.set(kind === 'cdt' ? 'cdt' : 'product');
+  }
+
+  faceOf(product: YieldProduct): string {
+    return productIcon(product);
+  }
+
+  seedOf(product: YieldProduct): number {
+    return productSeed(product);
+  }
+
+  /** The face a product being typed will wear, from its name. */
+  draftFace(): string {
+    return productIcon({ name: this.productName(), kind: this.productKind(), is_default: this.productIsDefault() ? 1 : null });
+  }
+
+  productById(line: ProductLine, id: number | null): YieldProduct | null {
+    return id === null ? null : line.products.find(product => product.id === id)
+      ?? this.editableProducts().find(product => product.id === id) ?? null;
+  }
+
+  incomeCategoryById(id: number | null): CategoryRow | null {
+    return this.incomeCategories().find(category => category.id === id)
+      ?? this.allCategories().find(category => category.id === id) ?? null;
+  }
+
+  /** The grey line of an account on the list: how many products, paused, a condition. */
+  accountLine(line: ProductLine): string {
+    const parts: string[] = [];
+    const count = line.products.length;
+    parts.push(count === 1 ? this.i18n.t('ui.count.product') : this.i18n.t('ui.count.products', { count }));
+    if (!line.enabled) parts.push(this.i18n.t('products.paused'));
+    if (line.rate?.requires_monthly_spend_minor) parts.push(this.i18n.t('products.conditional'));
+    if (line.products.length === 1 && line.products[0].kind === 'cdt') parts.push('CDT');
+    if (line.account.currency_code !== 'COP') parts.push(this.i18n.t('products.noWithholding'));
+    return parts.join(' · ');
+  }
+
+  /** "vence el 12 dic", for an account that is one CDT still to pay. */
+  nextCdtOf(line: ProductLine): string | null {
+    const cdt = line.products.find(product => product.kind === 'cdt' && product.opened_on && product.term_months);
+    if (!cdt || !cdt.opened_on || !cdt.term_months) return null;
+    const matures = cdtMaturity(cdt.opened_on, cdt.term_months);
+    return matures >= today() ? this.i18n.t('ui.yields.matures', { date: this.dayText(matures) }) : null;
+  }
+
+  /** "El habitual · 9,25 % E.A.", under a product on the account's page. */
+  productRowLine(product: YieldProduct): string {
+    const parts: string[] = [];
+    if (product.is_default === 1) parts.push(this.i18n.t('products.products.usual'));
+    if (product.include_in_net_worth === 0) parts.push(this.i18n.t('products.products.setAside'));
+    parts.push(this.productSummary(product));
+    if (!product.withholding && product.kind !== 'cdt') parts.push(this.i18n.t('ui.yields.noWithholding'));
+    return parts.join(' · ');
+  }
+
+  countOf(count: number): string {
+    return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count });
+  }
+
+  /** "Hoy · domingo 27", "Martes 15": a day as a heading. */
+  dayHeading(iso: string, fallback: string): string {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return fallback;
+    const text = this.weekdayDay(iso as IsoDate);
+    return iso === today() ? this.i18n.t('ui.today.day', { day: text.toLowerCase() }) : text;
+  }
+
+  /** "Domingo 27", "Sábado 12 dic": the day, its weekday first. */
+  weekdayDay(iso: IsoDate): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const sameMonth = iso.slice(0, 7) === today().slice(0, 7);
+    const text = sameMonth ? `${weekday} ${day}` : `${weekday} ${this.dayText(iso)}`;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  /** "Jueves 10 sept 2026". */
+  longDate(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const weekday = date.toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long' });
+    const text = `${weekday} ${this.dayText(iso as IsoDate)} ${year}`;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  toneOfFlow(flow: string): string {
+    return flow === 'in' ? 'ui-g' : flow === 'out' ? 'ui-r' : 'ui-p';
+  }
+
+  signedMoney(minor: number, currency: string): string {
+    return `${minor > 0 ? '+' : minor < 0 ? '−' : ''}${this.money(Math.abs(minor), currency)}`;
+  }
+
+  /** "Cuenta de ahorros · sobre 52.000.000,00 · 9,25 % E.A." */
+  paymentLine(line: ProductLine, payment: Payment): string {
+    const parts: string[] = [];
+    if (line.products.length > 1) parts.push(this.productLabel(line, payment.productId));
+    parts.push(this.i18n.t('ui.yields.on', { amount: this.money(payment.balanceMinor, line.account.currency_code) }));
+    parts.push(this.rateText(payment.rateScaled));
+    if (payment.payout === 'monthly' && payment.days > 1) parts.push(this.i18n.t('products.payments.ofDays', { count: payment.days }));
+    if (payment.component !== 'base') parts.push(payment.component);
+    return parts.join(' · ');
+  }
+
+  /** The payments of the product being edited: a CDT's list (4v). */
+  readonly productPayments = computed(() => {
+    const product = this.editingProduct();
+    if (!product) return [];
+    return this.payments().filter(payment => payment.productId === product.id);
+  });
+
+  /** What the product a new one is funded from holds today. */
+  fundingHeld(line: ProductLine): number {
+    const from = this.productFundingFrom();
+    return from === null ? 0 : Math.max(0, this.balanceIn(line, from));
+  }
+
+  decimalText(minor: number): string {
+    return this.money(minor);
+  }
+
+  setDate(which: 'from' | 'earns' | 'cdt', value: string): void {
+    if (!value) return;
+    if (which === 'from') void this.setProductFrom(value);
+    else if (which === 'earns') this.productEarnsFrom.set(value);
+    else this.cdtOpenedOn.set(value as IsoDate);
+  }
+
+  closePick(which: string): void {
+    if (which === 'funding') this.choosingFundingFrom.set(false);
+    else if (which === 'cdtInto') this.choosingCdtInto.set(false);
+    else if (which === 'deleteTo') this.choosingDeleteTo.set(false);
+    else this.choosingNewUsual.set(false);
+  }
+
+  pickProduct(which: string, id: number): void {
+    if (which === 'funding') this.productFundingFrom.set(id);
+    else if (which === 'cdtInto') this.cdtInto.set(id);
+    else if (which === 'deleteTo') this.productDeleteTo.set(id);
+    else this.productNewUsual.set(id);
+    this.closePick(which);
+  }
+
+  /** Gasto, Ingreso or Transferir, switched on the product form. */
+  switchEntry(kind: 'income' | 'expense' | 'transfer'): void {
+    const line = this.openLine();
+    const current = this.productEntry();
+    if (!line || !current) return;
+    if (kind === 'transfer') { this.openMove(line); return; }
+    this.productEntry.set({ kind, account: current.account, products: current.products });
+  }
+
+  /**
+   * The "+" of the bar, while an account's page is open: Gasto and Ingreso
+   * open the form on this account and its products, Transferir moves money
+   * between them - or, with one product, from this account to another.
+   */
+  /** Any tab of the bar leaves the account's page. */
+  private readonly leaveOnNavigation = inject(Router).events.subscribe(event => {
+    if (event instanceof NavigationStart && this.openLine() !== null) this.closeDetail();
+  });
+
+  private readonly composeOnThisAccount = effect(() => {
+    const line = this.openLine();
+    untracked(() => {
+      if (!line) { this.compose.handler = null; this.compose.context.set(null); return; }
+      this.compose.context.set(line.account.id);
+      this.compose.handler = kind => {
+        const shown = this.openLine();
+        if (!shown) return false;
+        if (kind === 'transfer') {
+          if (shown.products.length > 1) this.openMove(shown);
+          else this.openTransfer(shown);
+        } else {
+          this.openEntry(shown, kind);
+        }
+        return true;
+      };
+    });
+  });
   private readonly i18n = inject(I18nService);
   readonly customIcons = inject(CustomIconsService);
   readonly status = this.database.status;
@@ -490,8 +729,10 @@ export class ProductsPage {
   /** The date pickers' language, following the app's. */
   readonly dateLocale = computed(() => this.i18n.dateLocale());
 
-  readonly movementsPeriodLabel = computed(() =>
-    periodLabel(this.movementsPeriod(), this.i18n.dateLocale(), this.i18n.t('period.all')));
+  readonly movementsPeriodLabel = computed(() => {
+    const label = periodLabel(this.movementsPeriod(), this.i18n.dateLocale(), this.i18n.t('period.all'));
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  });
   readonly movementsAtNewest = computed(() => includesToday(this.movementsPeriod()));
   readonly movementsCanStep = computed(() => {
     const kind = this.movementsPeriod().kind;
@@ -740,6 +981,9 @@ export class ProductsPage {
   private busy = false;
 
   ngOnDestroy(): void {
+    this.leaveOnNavigation.unsubscribe();
+    this.compose.handler = null;
+    this.compose.context.set(null);
     void this.keyboardClosed?.remove();
   }
 
@@ -1213,9 +1457,10 @@ export class ProductsPage {
   /** `2026-09` as a month someone reads, in their own language. */
   monthText(key: string): string {
     const [year, month] = key.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(
+    const text = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(
       this.i18n.language() === 'en' ? 'en-GB' : 'es-CO',
-      { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      { month: 'long', year: 'numeric', timeZone: 'UTC' }).replace(' de ', ' ');
+    return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
   /** The product a day belongs to, for a list that mixes several. */
@@ -1234,6 +1479,7 @@ export class ProductsPage {
     this.resetForm();
     if (!sameAccount) {
       // Another account: its movements start collapsed, every product shown.
+      this.pageTab.set('products');
       this.showMovements.set(false);
       // The ids belong to the account that was open. Carried into another
       // account they match nothing, and every list comes up empty for good -
@@ -1514,8 +1760,10 @@ export class ProductsPage {
 
     // Coming back from one of its rates keeps the origin the product had.
 
+    const fromRate = this.form() === 'rate';
     this.editingProduct.set(product);
     this.confirmingProductDelete.set(false);
+    if (!fromRate) this.productTab.set(product?.kind === 'cdt' ? 'cdt' : 'product');
     this.error.set('');
 
     // The account's products and rates, fresh. Only the settings screen used
@@ -2693,7 +2941,7 @@ export class ProductsPage {
     const [year, month, day] = iso.split('-').map(Number);
     return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
       this.i18n.language() === 'en' ? 'en-GB' : 'es-CO',
-      { day: 'numeric', month: 'short', timeZone: 'UTC' });
+      { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(' de ', ' ').replace('.', '');
   }
 
   longDayText(iso: IsoDate): string {

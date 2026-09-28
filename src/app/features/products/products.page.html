@@ -1,1624 +1,1285 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ 'products.title' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <!-- Recomputing from scratch is for after a rate changed. Not a headline
-           action: the ordinary path is that the screen is already up to date. -->
-      <ion-button [disabled]="working()" (click)="picking.set(true)">
-        <ion-icon slot="icon-only" name="add-outline"></ion-icon>
-      </ion-button>
-      <ion-button [disabled]="working()" (click)="recalculate()">
-        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
-      </ion-button>
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- Cuentas, its Rendimientos face (mockups 4a-4zz): the accounts that earn,
+     what each has been paid, and one account's page with its products, its
+     movements, what the bank pays and how each day was worked out. -->
+<ion-content #page [fullscreen]="true" [scrollEvents]="true" (ionScroll)="pageJump.measure()">
+  <div class="ui-bigtitle">
+    <h1>{{ 'accounts.title' | t }}</h1>
+    <!-- Recomputing from scratch is for after a rate changed: the ordinary
+         path is that the screen is already up to date. -->
+    <button type="button" class="ui-round" [disabled]="working()" (click)="recalculate()"
+            [attr.aria-label]="'ui.recalculate' | t" [title]="'ui.recalculate' | t">
+      <ion-icon name="refresh-outline"></ion-icon>
+    </button>
+  </div>
 
-<ion-content [fullscreen]="true">
-  @if (status() === 'opening') {
-    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
-  } @else if (status() === 'failed') {
-    <div class="state error">
-      <h2>{{ 'state.failed' | t }}</h2>
-      <p>{{ database.error()?.message }}</p>
-    </div>
-  } @else if (lines().length === 0 && !loading() && !working()) {
-    <div class="state">
-      <ion-icon name="bed-outline"></ion-icon>
-      <h2>{{ 'products.empty.title' | t }}</h2>
-      <p>{{ 'products.empty.body' | t }}</p>
-    </div>
-  } @else {
+  <div class="ui-main">
+    <app-accounts-faces on="yields"></app-accounts-faces>
 
-    <!-- The headline, and immediately under it the sentence that keeps this
-         screen honest: none of this is net worth. -->
-    <section class="total">
-      <p class="label">{{ 'products.total' | t }}</p>
-      <p class="amount">{{ money(copTotalMinor()) }} <span class="unit">COP</span></p>
-      <p class="caption">{{ 'products.total.hint' | t }}</p>
-
-      @if (working()) {
-        <p class="upto"><ion-spinner name="dots"></ion-spinner> {{ 'products.calculating' | t }}</p>
-      } @else if (lastAccrued(); as day) {
-        <p class="upto">
-          {{ 'products.earnedOn' | t:{ date: dayText(day) } }}
-          <strong>{{ money(earnedLastDayMinor()) }}</strong>
-        </p>
-      } @else {
-        <p class="upto">{{ 'products.notYet' | t }}</p>
-      }
-
-      <!-- The summary of what every account earned: the same screen as the
-           money summary, reading the yields instead. -->
-      <div class="ways">
-        <button type="button" class="to-summary" (click)="openYieldsReport(null)">
-          <ion-icon name="stats-chart-outline"></ion-icon>
-          <span>{{ 'report.yields.open' | t }}</span>
-          <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
+    @if (status() === 'opening') {
+      <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
+    } @else if (status() === 'failed') {
+      <div class="state"><h2>{{ 'state.failed' | t }}</h2><p>{{ database.error()?.message }}</p></div>
+    } @else if (lines().length === 0 && !loading() && !working()) {
+      <div class="empty">
+        <app-badge shape="ci" [size]="72" builtin="trending-up" fixed="#34c98b"></app-badge>
+        <h2>{{ 'products.empty.title' | t }}</h2>
+        <p>{{ 'products.empty.body' | t }}</p>
+        <button type="button" class="ui-btn" (click)="picking.set(true)">
+          <ion-icon name="add"></ion-icon>{{ 'products.add' | t }}
         </button>
       </div>
-    </section>
-
-    @if (error()) { <p class="failed">{{ error() }}</p> }
-
-    @if (unknownWithholdingDays() > 0) {
-      <p class="warn">
-        <ion-icon name="alert-circle-outline"></ion-icon>
-        {{ 'products.withholdingUnknown' | t:{ days: unknownWithholdingDays() } }}
-      </p>
-    }
-
-    <ion-list [inset]="true">
-      @for (line of copLines(); track line.account.id) {
-        <ion-item button detail="true" (click)="open(line)">
-          @if (imageOf(line.account); as logo) {
-            <img slot="start" class="logo" [src]="logo" alt="">
-          } @else {
-            <ion-icon slot="start" [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
-          }
-          <ion-label>
-            <h3>{{ line.account.name }}</h3>
-            <p>
-              @if (!line.enabled) {
-                {{ 'products.paused' | t }} ·
-              }
-              <span class="money">{{ line.account.currency_code }}</span>
-              {{ rateText(line.rate?.annual_rate_scaled) }}
-              @if (line.rate?.requires_monthly_spend_minor) {
-                · {{ 'products.conditional' | t }}
-              }
-              @if (line.products.length > 1) {
-                · {{ 'products.products.count' | t:{ count: line.products.length } }}
-              }
-            </p>
-          </ion-label>
-          <!-- Only what the bank has paid: what is still owed is not money yet. -->
-          <ion-note slot="end">
-            <span class="net">{{ money(line.availableMinor) }}</span>
-            @if (line.lastDayMinor > 0) {
-              <span class="perDay">+{{ money(line.lastDayMinor) }}</span>
-            }
-          </ion-note>
-        </ion-item>
-      }
-    </ion-list>
-
-    <!-- Foreign currencies never join the total: two currencies do not add up
-         without choosing a rate, and choosing one here would invent a figure. -->
-    @if (foreignLines().length > 0) {
-      <p class="section">{{ 'products.foreign' | t }}</p>
-      <ion-list [inset]="true">
-        @for (line of foreignLines(); track line.account.id) {
-          <ion-item button detail="true" (click)="open(line)">
-            @if (imageOf(line.account); as logo) {
-            <img slot="start" class="logo" [src]="logo" alt="">
-          } @else {
-            <ion-icon slot="start" [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
-          }
-            <ion-label>
-              <h3>{{ line.account.name }}</h3>
-              <p>
-                <span class="money">{{ line.account.currency_code }}</span>
-                {{ rateText(line.rate?.annual_rate_scaled) }} · {{ 'products.noWithholding' | t }}
-              </p>
-            </ion-label>
-            <ion-note slot="end">
-              <span class="net">{{ money(line.availableMinor, line.account.currency_code) }}</span>
-              @if (line.lastDayMinor > 0) {
-                <span class="perDay">+{{ money(line.lastDayMinor, line.account.currency_code) }}</span>
-              }
-            </ion-note>
-          </ion-item>
-        }
-      </ion-list>
-    }
-  }
-
-  <!-- Adding an account. The list is every account not already here, so the
-       brokers can be added deliberately and never by accident. -->
-  <ion-modal [isOpen]="picking()" (didDismiss)="picking.set(false)">
-    <ng-template>
-      <ion-header>
-        <ion-toolbar>
-          <ion-buttons slot="start">
-            <ion-button (click)="picking.set(false)" [attr.aria-label]="'summary.close' | t">
-              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-            </ion-button>
-          </ion-buttons>
-          <ion-title>{{ 'products.add' | t }}</ion-title>
-          <ion-buttons slot="end">
-            <app-language-button></app-language-button>
-          </ion-buttons>
-        </ion-toolbar>
-      </ion-header>
-
-      <ion-content class="sheet">
-        <p class="hint">{{ 'products.add.hint' | t }}</p>
-        @if (candidates().length === 0) {
-          <p class="hint">{{ 'products.add.none' | t }}</p>
+    } @else {
+      <!-- The headline, and under it the sentence that keeps this screen
+           honest: none of this is net worth. -->
+      <section class="ui-hero total">
+        <span class="ui-lab">{{ 'products.total' | t }}</span>
+        <div class="ui-big ui-g">{{ money(copTotalMinor()) }} <small>COP</small></div>
+        <p class="ui-sub">{{ 'products.total.hint' | t }}</p>
+        @if (working()) {
+          <p class="upto"><ion-spinner name="dots"></ion-spinner> {{ 'products.calculating' | t }}</p>
+        } @else if (lastAccrued(); as day) {
+          <p class="upto">{{ 'products.earnedOn' | t:{ date: dayText(day) } }}
+            <b class="ui-g">+{{ money(earnedLastDayMinor()) }}</b></p>
         } @else {
-          <ion-list [inset]="true">
-            @for (account of candidates(); track account.id) {
-              <ion-item button [disabled]="saving()" (click)="enrol(account)">
-                @if (imageOf(account); as logo) {
-                  <img slot="start" class="logo" [src]="logo" alt="">
-                } @else {
-                  <ion-icon slot="start" [name]="iconOf(account)" [style.color]="account.color"></ion-icon>
-                }
-                <ion-label>
-                  <h3>{{ account.name }}</h3>
-                  <p>{{ account.currency_code }}</p>
-                </ion-label>
-              </ion-item>
-            }
-          </ion-list>
+          <p class="upto">{{ 'products.notYet' | t }}</p>
         }
-      </ion-content>
-    </ng-template>
-  </ion-modal>
+        <button type="button" class="ui-chip way" (click)="openYieldsReport(null)">
+          <ion-icon name="bar-chart-outline"></ion-icon>{{ 'report.yields.open' | t }}
+        </button>
+      </section>
 
-  <!-- The detail. Full height rather than a draggable sheet, because the day
-       list has to scroll from the moment it opens. -->
-  <!-- The period of the products' movements: the summary's own choices. -->
-  <ion-modal class="period-sheet" [isOpen]="showMovementsPeriodSheet()"
-             (didDismiss)="showMovementsPeriodSheet.set(false)">
-    <ng-template>
-      <!-- The same small sheet the summary uses. -->
-      <div class="period-picker">
-        <div class="head">
-          <h2>{{ 'summary.period' | t }}</h2>
-          <button type="button" (click)="showMovementsPeriodSheet.set(false)"
-                  [attr.aria-label]="'summary.close' | t">
-            <ion-icon name="close-outline"></ion-icon>
-          </button>
+      @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+      @if (unknownWithholdingDays() > 0) {
+        <div class="ui-banner warn">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+          <span>{{ 'products.withholdingUnknown' | t:{ days: unknownWithholdingDays() } }}</span>
         </div>
-        <ion-radio-group [value]="choosingMovementsRange() ? 'range' : movementsPeriod().kind"
-                         (ionChange)="chooseMovementsPeriod($any($event.detail).value)">
-          @for (option of periodKinds; track option.kind) {
-            <ion-item lines="full">
-              <ion-radio [value]="option.kind" justify="start" labelPlacement="end">
-                {{ $any(option.label) | t }}
-              </ion-radio>
-            </ion-item>
+      }
+
+      @if (copLines().length > 0) {
+        <h3 class="ui-h">{{ 'ui.yields.inPesos' | t }}</h3>
+        <div class="ui-list">
+          @for (line of copLines(); track line.account.id) {
+            <ng-container *ngTemplateOutlet="accountRow; context: { line: line }"></ng-container>
           }
-        </ion-radio-group>
+        </div>
+      }
 
-        @if (choosingMovementsRange()) {
-          <div class="range">
-            <div class="ends">
-              <button type="button" [class.on]="movementsRangeSide() === 'from'"
-                      (click)="movementsRangeSide.set('from')">
-                <span class="lead">{{ 'summary.from' | t }}</span>
-                <span class="day">{{ dayShown(movementsRangeStart()) }}</span>
-              </button>
-              <button type="button" [class.on]="movementsRangeSide() === 'to'"
-                      (click)="movementsRangeSide.set('to')">
-                <span class="lead">{{ 'summary.to' | t }}</span>
-                <span class="day">{{ dayShown(movementsRangeEnd()) }}</span>
-              </button>
-            </div>
+      <!-- Foreign currencies never join the total: two currencies do not add
+           up without choosing a rate. -->
+      @if (foreignLines().length > 0) {
+        <h3 class="ui-h">{{ 'products.foreign' | t }}</h3>
+        <div class="ui-list">
+          @for (line of foreignLines(); track line.account.id) {
+            <ng-container *ngTemplateOutlet="accountRow; context: { line: line }"></ng-container>
+          }
+        </div>
+      }
 
-            @if (movementsRangeSide() === 'from') {
-              <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
-                            [value]="movementsRangeStart()" [max]="todayDay"
-                            (ionChange)="movementsRangeStart.set($any($event.detail).value); movementsRangeSide.set('to')"></ion-datetime>
-            } @else {
-              <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
-                            [value]="movementsRangeEnd()" [max]="todayDay"
-                            (ionChange)="movementsRangeEnd.set($any($event.detail).value)"></ion-datetime>
-            }
-
-            <ion-button expand="block" (click)="applyMovementsRange()"
-                        [disabled]="!movementsRangeStart() || !movementsRangeEnd()">
-              {{ 'summary.apply' | t }}
-            </ion-button>
-          </div>
-        }
+      <div class="ui-list add-account">
+        <button type="button" class="ui-row plain" (click)="picking.set(true)">
+          <ion-icon name="add" class="ui-p"></ion-icon>
+          <span class="ui-tx"><b class="ui-p">{{ 'products.add' | t }}</b></span>
+        </button>
       </div>
-    </ng-template>
-  </ion-modal>
-
-  <!-- A withdrawal whose movement was deleted: said plainly, and deletable. -->
-  <ion-modal class="confirm-sheet" [isOpen]="orphanWithdrawal() !== null" (didDismiss)="orphanWithdrawal.set(null)">
-    <ng-template>
-      @if (orphanWithdrawal(); as withdrawal) {
-        <div class="confirm-dialog">
-          <span class="badge"><ion-icon name="unlink-outline"></ion-icon></span>
-          <h2>{{ 'products.movements.orphanTitle' | t }}</h2>
-          <p>{{ 'products.movements.orphanBody' | t:{
-                 amount: money(withdrawal.amount_minor, openLine()?.account?.currency_code ?? 'COP'),
-                 date: longDayText(withdrawal.on_date) } }}</p>
-          @if (error()) {
-            <p class="error">{{ error() }}</p>
-          }
-          <div class="buttons">
-            <ion-button fill="outline" color="medium" (click)="orphanWithdrawal.set(null)">
-              {{ 'entry.cancel' | t }}
-            </ion-button>
-            <ion-button color="danger" [disabled]="saving()" (click)="removeOrphanWithdrawal()">
-              {{ 'products.movements.orphanDelete' | t }}
-            </ion-button>
-          </div>
-        </div>
-      }
-    </ng-template>
-  </ion-modal>
-
-  <!-- A movement of the account, corrected or deleted on the same screen the
-       summary uses. -->
-  <ion-modal class="entry-sheet" [isOpen]="movementEdit() !== null" (didDismiss)="movementEdit.set(null)">
-    <ng-template>
-      @if (movementEdit(); as request) {
-        <app-entry [request]="request" (saved)="movementSaved()" (cancelled)="movementEdit.set(null)"></app-entry>
-      }
-    </ng-template>
-  </ion-modal>
-
-  <ion-modal class="entry-sheet" [isOpen]="productEntry() !== null" (didDismiss)="productEntry.set(null)">
-    <ng-template>
-      @if (productEntry(); as request) {
-        <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"
-                           (elsewhere)="openElsewhere($event)"></app-product-entry>
-      }
-    </ng-template>
-  </ion-modal>
-
-  <ion-modal [isOpen]="openLine() !== null" (didDismiss)="closeDetail()">
-    <ng-template>
-      @if (openLine(); as line) {
-        <ion-header>
-          <ion-toolbar>
-            <!-- Back while a form is open, out while it is not. The two are
-                 different intentions and used to share one button. -->
-            <ion-buttons slot="start">
-              @if (form() === 'none') {
-                <ion-button (click)="closeDetail()" [attr.aria-label]="'summary.close' | t">
-                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-                </ion-button>
-              } @else {
-                <ion-button (click)="back()" [attr.aria-label]="'entry.cancel' | t">
-                  <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
-                </ion-button>
-              }
-            </ion-buttons>
-
-            <!-- The account, with its own icon and colour: the same row that
-                 was tapped to get here, so it is obviously the same thing.
-                 Nothing under it - a toolbar has no room for a second line,
-                 and both things that were there are already on the screen: the
-                 figure below in full size, the form's name as its heading. -->
-            <!-- Tapped, it changes account without leaving: the same list the
-                 movement form shows, offering only accounts with products
-                 (Jose, 2026-09-24). Not while a form is open, which would be
-                 lost. -->
-            <ion-title>
-              <button type="button" class="who" [class.can-switch]="canSwitchAccount()"
-                      [disabled]="!canSwitchAccount()" (click)="pickingAccount.set(true)">
-                @if (imageOf(line.account); as logo) {
-                  <img class="logo" [src]="logo" alt="">
-                } @else {
-                  <ion-icon [name]="iconOf(line.account)" [style.color]="line.account.color"></ion-icon>
-                }
-                <span class="name marquee-loop">{{ line.account.name }}</span>
-                @if (canSwitchAccount()) {
-                  <ion-icon class="switch" name="chevron-down-outline"></ion-icon>
-                }
-              </button>
-            </ion-title>
-
-            <!-- The flag and the cloud go wherever a screen can be read, and
-                 these sheets cover the whole screen. This one is not a picker
-                 that closes in two seconds: it is where a product's rates and
-                 entries are corrected, so it is a place where a copy becomes
-                 worth making. -->
-            <ion-buttons slot="end">
-              <app-cloud-button></app-cloud-button>
-              <app-language-button></app-language-button>
-            </ion-buttons>
-
-          </ion-toolbar>
-        </ion-header>
-
-        <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
-                            [selectedId]="line.account.id" [heading]="'summary.account' | t"
-                            (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)">
-        </app-account-picker>
-
-        <ion-content #sheet class="sheet" [scrollEvents]="true" (ionScroll)="onSheetScroll()">
-          <!-- Inside the sheet, because the sheet covers the screen. This was
-               being written to a paragraph on the page underneath, so a form
-               that refused to save looked like a dead button. -->
-          @if (error()) {
-            <p class="failed">
-              <ion-icon name="alert-circle-outline"></ion-icon>
-              {{ error() }}
-            </p>
-          }
-
-          @if (form() === 'none') {
-            <section class="total inner">
-              <p class="amount">{{ money(line.availableMinor, line.account.currency_code) }}</p>
-              <p class="caption">{{ 'products.detail.total' | t }}</p>
-
-              <!-- The figure someone came here to check against the bank. It
-                   was derivable only by opening a day, which is the same as
-                   not showing it. -->
-              @if (line.earnsNextMinor > 0) {
-                <p class="earnsOn">
-                  {{ 'products.earnsOn' | t }}
-                  <strong>{{ money(line.earnsNextMinor, line.account.currency_code) }}</strong>
-                </p>
-                <!-- Only on a day when money moved: the figure above is what
-                     is earning from here on, and today's own yield was worked
-                     out on what was there when yesterday closed. Saying that
-                     every day would be noise; saying it on the day it applies
-                     is the difference between a screen that looks wrong and
-                     one that explains itself. -->
-                @if (line.earnsOnMinor > 0 && line.earnsOnMinor !== line.earnsNextMinor) {
-                  <p class="earnsOn-hint">
-                    {{ 'products.earnsOn.today' | t:{ amount: money(line.earnsOnMinor, line.account.currency_code) } }}
-                  </p>
-                }
-              }
-
-              <!-- Off until the arithmetic behind it is right.
-                   
-                   The comparison was "what the products say they hold" against
-                   "what the account holds", and those two are not supposed to
-                   agree. A product's balance is read off the bank and so
-                   includes every yield the bank has already paid into it; the
-                   account's balance in this app deliberately does not, because
-                   what they have earned is kept out of net worth. So the products are
-                   normally the larger of the two by exactly that, and
-                   the check called that a fault every time.
-                   
-                   `drift()` and its tests stay, because the arithmetic they
-                   do is still needed - what is missing is subtracting the
-                   earnings before judging the remainder. Showing a warning that
-                   is wrong most of the time is worse than showing none. -->
-
-              <!-- What the bank has not handed over yet is money you are owed,
-                   not money you have. Saying so is the difference between a
-                   figure someone trusts and one they have to argue with. -->
-              @if (line.earned.pendingMinor > 0 && line.earned.paidOn) {
-                <p class="pending">
-                  <ion-icon name="time-outline"></ion-icon>
-                  {{ 'products.pending' | t:{
-                       amount: money(line.earned.pendingMinor, line.account.currency_code),
-                       date: dayText(line.earned.paidOn) } }}
-                </p>
-              }
-              <!-- Of the figure above, the part this app worked out itself.
-                   It was an inset list with one row in it, which took the
-                   height of a section to say one number - Jose, 2026-09-22:
-                   "esa parte que dice Rendido me parece que esta ocupando un
-                   espacio exageradamente grande". A label and a value, like
-                   the line above it. -->
-              <p class="accrued">
-                {{ 'products.part.accrued' | t }}
-                <strong>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</strong>
-              </p>
-
-              <!-- Two ways out, side by side: this account's yields summarised,
-                   and its movements on the summary screen. -->
-              <div class="ways">
-                <button type="button" class="to-summary" (click)="openYieldsReport(line.account.id)">
-                  <ion-icon name="stats-chart-outline"></ion-icon>
-                  <span>{{ 'report.yields.open' | t }}</span>
-                </button>
-                <button type="button" class="to-summary" (click)="goToSummary(line)">
-                  <ion-icon name="pie-chart-outline"></ion-icon>
-                  <span>{{ 'products.toSummary' | t }}</span>
-                </button>
-              </div>
-            </section>
-
-            <!-- How much is in each one, which the account's own figure
-                 cannot say: that figure is a summary of everything inside it.
-                 Shown even with a single product, because "how is this one
-                 doing" is a fair question about one product too.
-                 
-                 A negative figure is left visible and marked. It means money
-                 left the account against this product and was never moved in
-                 from the one that really had it - the savings account at zero,
-                 a transfer out of it, and the move from the alcancía beside it
-                 forgotten. The negative is the reminder. -->
-            <!-- The way in beside the list it adds to, rather than a row of
-                 its own: one less band on a screen that has many. -->
-            <div class="section-row">
-              <p class="section">{{ 'products.products' | t }}</p>
-              <button type="button" class="add" (click)="openProduct(null)">
-                <ion-icon name="add-outline"></ion-icon>
-                {{ 'products.products.add' | t }}
-              </button>
-            </div>
-            <ion-list [inset]="true">
-              <!-- The same list as the account's settings: one place to learn
-                   how a product reads, and the same actions from both. -->
-              @for (product of line.products; track product.id) {
-                <ion-item button detail="true" (click)="openProduct(product)">
-                  <ion-label>
-                    <h3>{{ product.name }}</h3>
-                    <p>
-                      @if (product.is_default === 1) {
-                        <span class="usual">{{ 'products.products.usual' | t }}</span> ·
-                      }
-                      @if (product.include_in_net_worth === 0) {
-                        <span class="usual">{{ 'products.products.setAside' | t }}</span> ·
-                      }
-                      {{ productSummary(product) }}
-                    </p>
-                    @if (yieldIn(line, product.id) !== 0) {
-                      <p>{{ 'products.products.includesYield' | t:{ amount: money(yieldIn(line, product.id), line.account.currency_code) } }}</p>
-                    }
-                  </ion-label>
-                  <ion-note slot="end" class="held"
-                            [class.owed]="balanceIn(line, product.id) < 0">
-                    {{ money(balanceIn(line, product.id), line.account.currency_code) }}
-                  </ion-note>
-                  @if (line.products.length > 1) {
-                    <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
-                                [attr.aria-label]="'products.product.delete' | t"
-                                (click)="$event.stopPropagation(); deleteFromList(product)">
-                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                    </ion-button>
-                  }
-                </ion-item>
-              }
-            </ion-list>
-
-            @if (line.products.length > 1) {
-              <p class="hint">{{ 'products.products.total' | t:{
-                   amount: money(totalHeld(line), line.account.currency_code) } }}</p>
-            }
-
-            <!-- Spending and income are in the footer, always within reach:
-                 the summary screen keeps them there and this screen is just
-                 as long. -->
-
-            <!-- Moving money between this account's own products, where there
-                 is more than one. A transfer to another account is the round
-                 button in the bottom bar, beside Gasto and Ingreso; the second
-                 button that used to sit here did the same and was removed
-                 (Jose, 2026-09-24). -->
-            @if (line.products.length > 1) {
-              <div class="actions">
-                <ion-button expand="block" fill="outline" (click)="openMove(line)">
-                  <ion-icon slot="start" name="swap-horizontal-outline"></ion-icon>
-                  {{ 'products.move' | t }}
-                </ion-button>
-              </div>
-            }
-
-            <!-- Every movement of this account's products, as one history: to
-                 look back, and to correct or delete one. Collapsed until asked
-                 for, like the list behind the donut on the summary. -->
-            <button type="button" class="section-head" (click)="toggleMovements(line)"
-                    [class.open]="showMovements()" [attr.aria-expanded]="showMovements()">
-              <ion-icon class="fold"
-                        [name]="showMovements() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-              <span class="title">{{ 'products.movements' | t }}</span>
-            </button>
-            @if (showMovements()) {
-              <p class="hint">{{ 'products.movements.hint' | t }}</p>
-              <!-- Drawn the way the summary draws its movements: the same three
-                   views, the same note and fold button, the same groups. -->
-              <div class="product-movements">
-                <!-- Which stretch of time, stepped and chosen as on the summary. -->
-                <div class="period-stepper">
-                  <ion-button fill="clear" (click)="stepMovementsPeriod(-1)" [disabled]="!movementsCanStep()"
-                              [attr.aria-label]="'summary.previousPeriod' | t">
-                    <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
-                  </ion-button>
-                  <ion-button fill="clear" class="period-button" (click)="showMovementsPeriodSheet.set(true)">
-                    <span class="label">{{ movementsPeriodLabel() }}</span>
-                    <ion-icon name="calendar-outline"></ion-icon>
-                  </ion-button>
-                  <ion-button fill="clear" (click)="stepMovementsPeriod(1)"
-                              [disabled]="!movementsCanStep() || movementsAtNewest()"
-                              [attr.aria-label]="'summary.nextPeriod' | t">
-                    <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
-                  </ion-button>
-                </div>
-
-                <!-- Which products these movements are about: the same
-                     control, the same sheet and the same answer the yields
-                     below use. It was a dropdown in a list of its own, which
-                     is a second way of asking one question. -->
-                @if (line.products.length > 1) {
-                  <div class="months-controls">
-                    <button type="button" class="which" (click)="pickingProducts.set(true)">
-                      <ion-icon name="funnel-outline"></ion-icon>
-                      <span class="text">{{ chosenProductsLabel() }}</span>
-                      <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-                    </button>
-                  </div>
-                }
-
-                <div class="views">
-                  @for (view of movementViews; track view.id) {
-                    <button type="button" [class.on]="movementsView() === view.id" (click)="movementsView.set(view.id)">
-                      <ion-icon [name]="view.icon"></ion-icon>
-                      <span>{{ view.label | t }}</span>
-                    </button>
-                  }
-                </div>
-
-                <!-- Search, as on the summary screen: the note, the category,
-                     the product, the other account (Jose, 2026-09-24). -->
-                <div class="search-row" #movementsSearchRow>
-                  <ion-searchbar [placeholder]="'products.search.in' | t:{ period: movementsPeriodLabel() }"
-                                 [value]="movementsSearch()"
-                                 (ionInput)="movementsSearch.set($any($event.target).value ?? '')"
-                                 (ionFocus)="startSearching()" (ionBlur)="searching.set(false)"
-                                 [debounce]="150" showCancelButton="never"></ion-searchbar>
-                </div>
-
-                @if (movementsView() !== 'largest') {
-                  <div class="list-controls">
-                    <span class="within-note">
-                      {{ (movementsView() === 'category' ? 'summary.within.category' : 'summary.within.date') | t }}
-                    </span>
-                    <button type="button" class="collapse" (click)="toggleAllGroups()"
-                            [attr.aria-expanded]="!allGroupsCollapsed()"
-                            [attr.aria-label]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                            [title]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-                      <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                    </button>
-                  </div>
-                }
-              </div>
-              @if (shownMovements().length === 0) {
-                <p class="hint">
-                  @if (movementsSearch().trim() !== '') {
-                    {{ 'summary.empty.search' | t:{ period: movementsPeriodLabel(), search: movementsSearch() } }}
-                  } @else {
-                    {{ 'products.movements.noneInPeriod' | t:{ period: movementsPeriodLabel() } }}
-                  }
-                </p>
-              } @else {
-                <div class="product-movements">
-                  @for (group of movementGroups(); track group.key) {
-                    <div class="group">
-                      @if (movementsView() !== 'largest') {
-                        <div class="group-head" (click)="toggleGroup(group.key)">
-                          <ion-icon class="chevron"
-                                    [name]="isGroupCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-                          @if (group.icon !== null || group.customIconId !== null) {
-                            <app-icon class="cat" [builtin]="group.icon" [customId]="group.customIconId" size="1.05rem"></app-icon>
-                          }
-                          <span class="title">{{ group.title }}</span>
-                          <ion-badge>{{ group.items.length }}</ion-badge>
-                          <span class="total" [class]="group.flow">
-                            {{ money(group.totalMinor, line.account.currency_code) }}
-                          </span>
-                        </div>
-                      }
-
-                      @if (movementsView() === 'largest' || !isGroupCollapsed(group.key)) {
-                        <div class="group-body" [class]="group.flow" [class.flat]="movementsView() === 'largest'">
-                          @for (movement of group.items; track movement.key) {
-                            <ion-item lines="full" class="movement" button [detail]="false"
-                                      (click)="openMovement(line, movement)">
-                              <span class="dot" [class]="movementFlow(movement)" slot="start"></span>
-                              @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
-                                <app-icon slot="start" class="row-cat" [builtin]="movement.transaction.category_icon"
-                                          [customId]="movement.transaction.category_custom_icon_id" size="1.15rem"></app-icon>
-                              } @else if (movement.type === 'entry') {
-                                <!-- A product's own income is filed under an ordinary category, so it
-                                     wears that category's picture - an image of Jose's own where
-                                     there is one. Drawn as a plain icon, a category with a real
-                                     logo came out as the generic tag. -->
-                                <app-icon slot="start" class="row-cat"
-                                          [builtin]="entryIcon($any(movement.entry))"
-                                          [customId]="kindIconId($any(movement.entry))" size="1.15rem"></app-icon>
-                              } @else {
-                                <ion-icon slot="start" class="row-cat" [name]="movementIcon(movement)"></ion-icon>
-                              }
-                              <ion-label>
-                                <h3>{{ movementTitle(line, movement) }}</h3>
-                                <p>{{ movementDetail(line, movement) }}</p>
-                              </ion-label>
-                              <ion-note slot="end" [class]="movementFlow(movement)">
-                                {{ money(movement.amountMinor, line.account.currency_code) }}
-                              </ion-note>
-                            </ion-item>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            }
-
-            <!-- What the bank hands over. The list to hold beside the bank's
-                 own app: same date, same rate, same figure. -->
-            <button type="button" class="section-head" (click)="showPayments.set(!showPayments())"
-                    [class.open]="showPayments()" [attr.aria-expanded]="showPayments()">
-              <ion-icon class="fold"
-                        [name]="showPayments() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-              <span class="title">{{ 'products.payments' | t }}</span>
-              @if (payments().length > 0) {
-                <span class="count">{{ payments().length }}</span>
-              }
-            </button>
-            @if (showPayments()) {
-            @if (payments().length === 0) {
-              <p class="hint">{{ 'products.days.none' | t }}</p>
-            } @else {
-              <p class="hint">{{ (paysEveryDay() ? 'products.payments.daily' : 'products.payments.hint') | t }}</p>
-              <div class="months-controls">
-                <!-- Which products this list is about, beside the control
-                     that opens it. -->
-                @if (line.products.length > 1) {
-                  <button type="button" class="which" (click)="pickingProducts.set(true)">
-                    <ion-icon name="funnel-outline"></ion-icon>
-                    <span class="text">{{ chosenProductsLabel() }}</span>
-                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-                  </button>
-                } @else {
-                  <span></span>
-                }
-                <button type="button" (click)="togglePaymentMonths()"
-                        [attr.aria-expanded]="!allPaymentMonthsClosed()">
-                  <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                  {{ (allPaymentMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
-                </button>
-              </div>
-              @for (month of paymentsByMonth(); track month.key) {
-                <!-- Laid out as the day list below: a month that folds, how many
-                     payments it holds, and each one with its product, rate and
-                     the balance it was paid on. -->
-                <ion-list [inset]="true">
-                  <ion-item button detail="false" class="month" (click)="toggleWorking(month.key)"
-                            [attr.aria-expanded]="isWorkingOpen(month.key)">
-                    <ion-icon slot="start"
-                              [name]="isWorkingOpen(month.key) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-                    <ion-label>
-                      <h3>{{ monthText(month.key) }}</h3>
-                      <p>{{ 'products.payments.count' | t:{ count: month.payments.length } }}</p>
-                    </ion-label>
-                    <ion-note slot="end">
-                      <span class="net">{{ money(month.netMinor, line.account.currency_code) }}</span>
-                    </ion-note>
-                  </ion-item>
-
-                  @if (isWorkingOpen(month.key)) {
-                    @for (payment of month.payments; track payment.key) {
-                      <!-- A payment that is one day can be corrected against
-                           the bank, which for an account that pays daily is
-                           the only way in: its day list is hidden because it
-                           would say the same thing twice. -->
-                      <ion-item [button]="payment.day !== null" detail="false"
-                                (click)="payment.day && openDayForm(payment.day)">
-                        <ion-label>
-                          <h3>
-                            {{ dayText(payment.on) }}
-                            @if (line.products.length > 1) {
-                              <span class="product">{{ productLabel(line, payment.productId) }}</span>
-                            }
-                          </h3>
-                          <p>
-                            {{ rateText(payment.rateScaled) }}
-                            {{ 'products.on' | t }}
-                            {{ money(payment.balanceMinor, line.account.currency_code) }}
-                            @if (payment.payout === 'monthly' && payment.days > 1) {
-                              · {{ 'products.payments.ofDays' | t:{ count: payment.days } }}
-                            }
-                            @if (payment.component !== 'base') {
-                              · {{ payment.component }}
-                            }
-                          </p>
-                        </ion-label>
-                        <ion-note slot="end">
-                          <span class="net">{{ money(payment.netMinor, line.account.currency_code) }}</span>
-                          @if (payment.pending) {
-                            <span class="tag unknown">{{ 'products.payments.pending' | t }}</span>
-                          } @else if (payment.withheldMinor > 0) {
-                            <span class="tag">−{{ money(payment.withheldMinor, line.account.currency_code) }}</span>
-                          }
-                        </ion-note>
-                      </ion-item>
-                    }
-                  }
-                </ion-list>
-              }
-            }
-            }
-
-            <!-- How each of those figures was reached. Detail, kept closed -
-                 and not shown at all when it would only repeat the list above,
-                 which is every account whose bank pays daily. -->
-            @if (!paysEveryDay()) {
-            <button type="button" class="section-head" (click)="showDays.set(!showDays())"
-                    [class.open]="showDays()" [attr.aria-expanded]="showDays()">
-              <ion-icon class="fold"
-                        [name]="showDays() ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-              <span class="title">{{ 'products.days' | t }}</span>
-              @if (openDays().length > 0) {
-                <span class="count">{{ openDays().length }}</span>
-              }
-            </button>
-            }
-            @if (showDays() && !paysEveryDay()) {
-            @if (openDays().length === 0) {
-              <p class="hint">{{ 'products.days.none' | t }}</p>
-            } @else {
-              <p class="hint">{{ 'products.days.hint' | t }}</p>
-              <div class="months-controls">
-                <!-- Which products this list is about, beside the control
-                     that opens it. -->
-                @if (line.products.length > 1) {
-                  <button type="button" class="which" (click)="pickingProducts.set(true)">
-                    <ion-icon name="funnel-outline"></ion-icon>
-                    <span class="text">{{ chosenProductsLabel() }}</span>
-                    <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-                  </button>
-                } @else {
-                  <span></span>
-                }
-                <button type="button" (click)="toggleDayMonths()"
-                        [attr.aria-expanded]="!allDayMonthsClosed()">
-                  <ion-icon [name]="allDayMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                  {{ (allDayMonthsClosed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
-                </button>
-              </div>
-              @for (month of daysByMonth(); track month.key) {
-                <ion-list [inset]="true">
-                  <ion-item button detail="false" class="month" (click)="toggleMonth(month.key)"
-                            [attr.aria-expanded]="isMonthOpen(month.key)">
-                    <ion-icon slot="start"
-                              [name]="isMonthOpen(month.key) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-                    <ion-label>
-                      <h3>{{ monthText(month.key) }}</h3>
-                      <p>{{ 'products.days.count' | t:{ count: month.dayCount } }}</p>
-                    </ion-label>
-                    <ion-note slot="end">
-                      <span class="net">{{ money(month.netMinor, line.account.currency_code) }}</span>
-                    </ion-note>
-                  </ion-item>
-
-                  @if (isMonthOpen(month.key)) {
-                    @for (day of month.days; track day.on_date) {
-                  <ion-item button detail="false" (click)="openDayForm(day)">
-                    <ion-label>
-                      <h3>
-                        {{ dayText(day.on_date) }}
-                        @if (line.products.length > 1) {
-                          <span class="product">{{ productNameOf(line, day) }}</span>
-                        }
-                      </h3>
-                      <p>
-                        {{ rateText(day.annual_rate_scaled) }}
-                        {{ 'products.on' | t }}
-                        {{ money(day.balance_minor, line.account.currency_code) }}
-                      </p>
-                    </ion-label>
-                    <ion-note slot="end">
-                      <span class="net">{{ money(netOf(day), line.account.currency_code) }}</span>
-                      @if (day.locked === 1) {
-                        <span class="tag corrected">{{ 'products.corrected' | t }}</span>
-                      } @else if (day.withholding_unknown === 1) {
-                        <span class="tag unknown">{{ 'products.unknown' | t }}</span>
-                      } @else if (day.withholding_minor > 0) {
-                        <span class="tag">−{{ money(day.withholding_minor, line.account.currency_code) }}</span>
-                      }
-                    </ion-note>
-                  </ion-item>
-                    }
-                  }
-                </ion-list>
-              }
-            }
-            }
-
-            <!-- Stopping the account, well away from anything else: it is
-                 silent when it happens - the figures simply stop moving. -->
-            <div class="danger">
-              @if (line.enabled) {
-                @if (confirmingStop()) {
-                  <p class="hint warn">{{ 'products.settings.stop.sure' | t }}</p>
-                  <div class="actions">
-                    <ion-button expand="block" fill="clear"
-                                (click)="confirmingStop.set(false)">
-                      {{ 'entry.cancel' | t }}
-                    </ion-button>
-                    <ion-button expand="block" color="danger"
-                                [disabled]="saving()" (click)="stopAccruing()">
-                      {{ 'products.settings.stop.confirm' | t }}
-                    </ion-button>
-                  </div>
-                } @else {
-                  <ion-button expand="block" fill="clear" color="danger"
-                              [disabled]="saving()" (click)="stopAccruing()">
-                    {{ 'products.settings.stop' | t }}
-                  </ion-button>
-                }
-              } @else {
-                <ion-button expand="block" fill="clear"
-                            [disabled]="saving()" (click)="resumeAccruing()">
-                  {{ 'products.settings.resume' | t }}
-                </ion-button>
-              }
-            </div>
-
-          }
-
-          <!-- One day, opened to be checked against a statement -->
-          @if (form() === 'day') {
-            @if (openDay(); as day) {
-              <h2>
-                {{ longDayText(day.on_date) }}
-                @if (line.products.length > 1) {
-                  <span class="product">{{ productNameOf(line, day) }}</span>
-                }
-              </h2>
-              <p class="hint">{{ 'products.day.hint' | t }}</p>
-
-              <!-- How the figure was reached, in the order it was reached. -->
-              <ion-list [inset]="true">
-                <ion-item lines="full">
-                  <ion-label>{{ 'products.day.base' | t }}</ion-label>
-                  <ion-note slot="end">{{ money(day.balance_minor, line.account.currency_code) }}</ion-note>
-                </ion-item>
-                <ion-item lines="full">
-                  <ion-label>{{ 'products.day.rate' | t }}</ion-label>
-                  <ion-note slot="end">{{ rateText(day.annual_rate_scaled) }}</ion-note>
-                </ion-item>
-                <ion-item lines="full">
-                  <ion-label>{{ 'products.day.gross' | t }}</ion-label>
-                  <ion-note slot="end">{{ money(day.gross_minor, line.account.currency_code) }}</ion-note>
-                </ion-item>
-                <ion-item lines="full">
-                  <ion-label>{{ 'products.day.tax' | t }}</ion-label>
-                  <ion-note slot="end">
-                    @if (day.withholding_unknown === 1) {
-                      {{ 'products.unknown' | t }}
-                    } @else {
-                      −{{ money(day.withholding_minor, line.account.currency_code) }}
-                    }
-                  </ion-note>
-                </ion-item>
-                <ion-item lines="none">
-                  <ion-label><strong>{{ 'products.day.net' | t }}</strong></ion-label>
-                  <ion-note slot="end"><strong>{{ money(day.net_minor, line.account.currency_code) }}</strong></ion-note>
-                </ion-item>
-              </ion-list>
-
-              <ion-list [inset]="true">
-                <ion-item>
-                  <ion-input [label]="'products.day.actual' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="amount()"
-                             (ionInput)="amount.set(amountTyped($event.target, true))"></ion-input>
-                </ion-item>
-              </ion-list>
-
-              @if (day.locked === 1) {
-                <p class="hint warn">{{ 'products.day.locked' | t }}</p>
-              }
-
-              <div class="actions">
-                <ion-button expand="block" fill="clear" (click)="form.set('none')">
-                  {{ 'entry.cancel' | t }}
-                </ion-button>
-                @if (day.locked === 1) {
-                  <ion-button expand="block" fill="outline" color="medium"
-                              [disabled]="saving()" (click)="undoDay()">
-                    {{ 'products.day.undo' | t }}
-                  </ion-button>
-                }
-                <ion-button expand="block" [disabled]="saving()" (click)="saveDay()">
-                  {{ 'entry.save' | t }}
-                </ion-button>
-              </div>
-
-              <!-- Deleting a yield the bank never paid. It is a correction to
-                   zero rather than a removed row: the engine walks the
-                   calendar and would write the day again on the next pass. -->
-              @if (netOf(day) !== 0 || day.locked !== 1) {
-                <div class="danger">
-                  <ion-button expand="block" fill="clear" color="danger"
-                              [disabled]="saving()" (click)="confirmingZeroDay.set(true)">
-                    <ion-icon slot="start" name="trash-outline"></ion-icon>
-                    {{ 'products.day.zero' | t }}
-                  </ion-button>
-                </div>
-              }
-            }
-          }
-
-          <!-- One product: its name, where its balance comes from, and how
-               much it holds. -->
-          @if (form() === 'product') {
-            <h2>{{ editingProduct()?.name ?? ('products.products.add' | t) }}</h2>
-
-            <ion-list [inset]="true">
-              <ion-item>
-                <ion-input [label]="'products.product.name' | t" labelPlacement="stacked"
-                           [value]="productName()"
-                           (ionInput)="productName.set($any($event.target).value)"
-                           [placeholder]="'products.product.namePlaceholder' | t"></ion-input>
-              </ion-item>
-              <!-- The kind is chosen once, when the product is created: a CDT
-                   and a savings product are different things with different
-                   forms, not one thing with a switch. -->
-              @if (!editingProduct()) {
-                <ion-item>
-                  <ion-select [label]="'products.product.kind' | t" labelPlacement="stacked"
-                              [value]="productKind()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="productKind.set($any($event.detail).value)">
-                    <ion-select-option value="high_yield">{{ 'products.product.kind.high_yield' | t }}</ion-select-option>
-                    <ion-select-option value="cdt">{{ 'products.product.kind.cdt' | t }}</ion-select-option>
-                  </ion-select>
-                </ion-item>
-              } @else {
-                <ion-item>
-                  <ion-label>{{ 'products.product.kind' | t }}</ion-label>
-                  <ion-note slot="end">{{ (productKind() === 'cdt' ? 'products.product.kind.cdt' : 'products.product.kind.high_yield') | t }}</ion-note>
-                </ion-item>
-              }
-              <!-- Per product: inside one account some products are withheld
-                   and others are not. -->
-              <ion-item>
-                <ion-toggle [checked]="productWithholds()"
-                            (ionChange)="productWithholds.set($any($event.detail).checked)">
-                  {{ 'products.product.withholding' | t }}
-                </ion-toggle>
-              </ion-item>
-              <!-- The usual product always counts: every movement that names no
-                   product lands in it. -->
-              @if (!productIsDefault()) {
-                <ion-item>
-                  <ion-toggle [checked]="productCounts()"
-                              (ionChange)="productCounts.set($any($event.detail).checked)">
-                    {{ 'products.product.netWorth' | t }}
-                  </ion-toggle>
-                </ion-item>
-              }
-            </ion-list>
-            <p class="hint">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</p>
-            @if (!productIsDefault()) {
-              <p class="hint">{{ (productCounts() ? 'products.product.netWorthOn' : 'products.product.netWorthOff') | t }}</p>
-            }
-
-            @if (productKind() === 'cdt') {
-              <p class="hint">{{ 'products.product.cdtHint' | t }}</p>
-
-              <ion-list [inset]="true">
-                <ion-item>
-                  <ion-input [label]="'products.cdt.amount' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="productAmount()"
-                             (ionInput)="productAmount.set(amountTyped($event.target))"></ion-input>
-                </ion-item>
-              </ion-list>
-
-              <!-- A CDT's money came from somewhere: nearly always another
-                   product, recorded as a transfer; or typed in. -->
-              @if (fundingAsked()) {
-                <p class="section">{{ 'products.product.fundingQuestion' | t }}</p>
-                <ion-list [inset]="true" class="funding">
-                  <ion-radio-group [value]="productFunding()" (ionChange)="productFunding.set($any($event.detail).value)">
-                    <ion-item>
-                      <ion-radio value="product" labelPlacement="end" justify="start">
-                        <span class="choice">
-                          <strong>{{ 'products.product.fundingProduct' | t }}</strong>
-                          <small>{{ 'products.product.fundingProductHint' | t }}</small>
-                        </span>
-                      </ion-radio>
-                    </ion-item>
-                    <ion-item [lines]="productFunding() === 'product' ? 'full' : 'none'">
-                      <ion-radio value="manual" labelPlacement="end" justify="start">
-                        <span class="choice">
-                          <strong>{{ 'products.product.fundingManual' | t }}</strong>
-                          <small>{{ 'products.product.fundingManualHint' | t }}</small>
-                        </span>
-                      </ion-radio>
-                    </ion-item>
-                  </ion-radio-group>
-                  @if (productFunding() === 'product') {
-                    <ion-item lines="none">
-                      <ion-select [label]="'products.move.from' | t" [value]="productFundingFrom()"
-                                  interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                  (ionChange)="productFundingFrom.set($any($event.detail).value)">
-                        @for (other of line.products; track other.id) {
-                          <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
-                        }
-                      </ion-select>
-                    </ion-item>
-                  }
-                </ion-list>
-              }
-
-              <ion-list [inset]="true">
-                <ion-item>
-                  <ion-input [label]="'products.cdt.openedOn' | t" labelPlacement="stacked"
-                             type="date" [value]="cdtOpenedOn()"
-                             (ionInput)="cdtOpenedOn.set($any($event.target).value)"></ion-input>
-                </ion-item>
-                <ion-item>
-                  <ion-input [label]="'products.cdt.term' | t" labelPlacement="stacked"
-                             inputmode="numeric" [value]="cdtTerm()"
-                             (ionInput)="cdtTerm.set(unsigned($event.target))"></ion-input>
-                </ion-item>
-                <ion-item>
-                  <ion-input [label]="'products.rate.percent' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="cdtRate()"
-                             (ionInput)="cdtRate.set(unsigned($event.target))"
-                             placeholder="10,5"></ion-input>
-                </ion-item>
-                <ion-item>
-                  <ion-select [label]="'products.cdt.category' | t" labelPlacement="stacked"
-                              [value]="cdtCategory()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="cdtCategory.set($any($event.detail).value)">
-                    @for (category of incomeCategories(); track category.id) {
-                      <ion-select-option [value]="category.id">{{ category.name }}</ion-select-option>
-                    }
-                  </ion-select>
-                </ion-item>
-                <ion-item>
-                  <ion-select [label]="'products.cdt.into' | t" labelPlacement="stacked"
-                              [value]="cdtInto()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                              (ionChange)="cdtInto.set($any($event.detail).value)">
-                    @for (target of cdtTargets(); track target.id) {
-                      <ion-select-option [value]="target.id">
-                        {{ target.name }}@if (target.is_default === 1) { · {{ 'products.product.usual' | t }} }
-                      </ion-select-option>
-                    }
-                  </ion-select>
-                </ion-item>
-              </ion-list>
-
-              <!-- What it will pay, worked out the way the engine will, while it
-                   is being typed - so the dates and figures can be held against
-                   the bank's own before anything is saved. -->
-              @if (cdtPreviewNow(); as preview) {
-                <div class="breakdown">
-                  <div>
-                    <span>{{ 'products.cdt.maturesOn' | t }}</span>
-                    <strong>{{ longDayText(preview.maturesOn) }}</strong>
-                  </div>
-                  <div>
-                    <span>{{ 'products.cdt.gross' | t:{ days: preview.days } }}</span>
-                    <strong>{{ money(preview.grossMinor, line.account.currency_code) }}</strong>
-                  </div>
-                  <div>
-                    @if (preview.withheldMinor === null) {
-                      <span>{{ 'products.cdt.withheldUnknown' | t }}</span>
-                      <strong>—</strong>
-                    } @else {
-                      <span>{{ 'products.cdt.withheld' | t }}</span>
-                      <strong>−{{ money(preview.withheldMinor, line.account.currency_code) }}</strong>
-                    }
-                  </div>
-                  <div>
-                    <span>{{ 'products.cdt.net' | t }}</span>
-                    <strong>{{ money(preview.netMinor, line.account.currency_code) }}</strong>
-                  </div>
-                  <div class="sum">
-                    <span>{{ 'products.cdt.receive' | t }}</span>
-                    <strong>{{ money(preview.receiveMinor, line.account.currency_code) }}</strong>
-                  </div>
-                </div>
-                <p class="hint">{{ 'products.cdt.closes' | t:{ target: cdtTargetName() } }}</p>
-              }
-            } @else {
-              <p class="hint">{{ 'products.products.addHint' | t }}</p>
-
-              <ion-list [inset]="true">
-                <ion-item lines="full">
-                  <ion-checkbox slot="start" [checked]="productIsDefault()"
-                                (ionChange)="productIsDefault.set($any($event.detail).checked)">
-                  </ion-checkbox>
-                  <ion-label>
-                    <h3>{{ 'products.product.makeDefault' | t }}</h3>
-                    <p>{{ 'products.product.makeDefault.hint' | t }}</p>
-                  </ion-label>
-                </ion-item>
-              </ion-list>
-
-              <!-- Every product's balance is the one the person types in, and
-                   income, expenses and transfers keep it square from there. -->
-                <ion-list [inset]="true">
-                  <ion-item>
-                    <ion-input [label]="'products.product.amount' | t" labelPlacement="stacked"
-                               inputmode="decimal" [value]="productAmount()"
-                               (ionInput)="productAmount.set(amountTyped($event.target))"></ion-input>
-                  </ion-item>
-                  <ion-item>
-                    <ion-input [label]="'products.product.from' | t" labelPlacement="stacked"
-                               type="date" [value]="productFrom()"
-                               (ionInput)="setProductFrom($any($event.target).value)"></ion-input>
-                  </ion-item>
-                  <!-- The day this product starts earning. Its own, since what
-                       earns is the product; it used to be one date per account
-                       that overruled every product in it. -->
-                  <ion-item>
-                    <ion-input [label]="'products.product.earnsFrom' | t" labelPlacement="stacked"
-                               type="date" [value]="productEarnsFrom()"
-                               (ionInput)="productEarnsFrom.set($any($event.target).value)"></ion-input>
-                  </ion-item>
-                </ion-list>
-                <p class="hint">{{ 'products.product.earnsFrom.hint' | t }}</p>
-                <!-- Money in a new product came from somewhere: nearly always
-                     another product, recorded as a transfer; or typed in. -->
-                @if (fundingAsked()) {
-                  <p class="section">{{ 'products.product.fundingQuestion' | t }}</p>
-                  <ion-list [inset]="true" class="funding">
-                    <ion-radio-group [value]="productFunding()" (ionChange)="productFunding.set($any($event.detail).value)">
-                      <ion-item>
-                        <ion-radio value="product" labelPlacement="end" justify="start">
-                          <span class="choice">
-                            <strong>{{ 'products.product.fundingProduct' | t }}</strong>
-                            <small>{{ 'products.product.fundingProductHint' | t }}</small>
-                          </span>
-                        </ion-radio>
-                      </ion-item>
-                      <ion-item [lines]="productFunding() === 'product' ? 'full' : 'none'">
-                        <ion-radio value="manual" labelPlacement="end" justify="start">
-                          <span class="choice">
-                            <strong>{{ 'products.product.fundingManual' | t }}</strong>
-                            <small>{{ 'products.product.fundingManualHint' | t }}</small>
-                          </span>
-                        </ion-radio>
-                      </ion-item>
-                    </ion-radio-group>
-                    @if (productFunding() === 'product') {
-                      <ion-item lines="none">
-                        <ion-select [label]="'products.move.from' | t" [value]="productFundingFrom()"
-                                    interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                    (ionChange)="productFundingFrom.set($any($event.detail).value)">
-                          @for (other of line.products; track other.id) {
-                            <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
-                          }
-                        </ion-select>
-                      </ion-item>
-                    }
-                  </ion-list>
-                }
-                <p class="hint">{{ 'products.product.amountHint' | t }}</p>
-                <p class="hint">{{ 'products.product.fromHint' | t }}</p>
-
-                <!-- Where today's figure comes from, spelled out. A product's
-                     balance is one thing typed on a date plus everything that
-                     has moved through it since, and with only the answer on
-                     screen there is no way to tell which half is wrong when it
-                     looks wrong. -->
-                @if (editingProduct(); as product) {
-                  <div class="breakdown">
-                    <div>
-                      <span>{{ 'products.product.stated' | t:{ date: dayText(productFrom()) } }}</span>
-                      <strong>{{ money(statedNow(), line.account.currency_code) }}</strong>
-                    </div>
-                    <div>
-                      <span>{{ 'products.product.movedSince' | t }}</span>
-                      <strong>{{ money(productMoved(), line.account.currency_code) }}</strong>
-                    </div>
-                    <div>
-                      <span>{{ 'products.product.yieldSince' | t }}</span>
-                      <strong>{{ money(productYieldIn(), line.account.currency_code) }}</strong>
-                    </div>
-                    <div class="sum">
-                      <span>{{ 'products.product.today' | t }}</span>
-                      <strong [class.owed]="statedNow() + productMoved() + productYieldIn() < 0">
-                        {{ money(statedNow() + productMoved() + productYieldIn(), line.account.currency_code) }}
-                      </strong>
-                    </div>
-                  </div>
-                }
-
-              <!-- The product's rate and how it is paid, here with the product
-                   rather than in a list of the account's rates: a product is
-                   what a person opens, and the rate is part of it. -->
-              <p class="section">{{ 'products.product.rateSection' | t }}</p>
-              <ion-list [inset]="true">
-                <!-- A new product's rate comes first, at 0%: how often the
-                     bank pays is only a question once there is something to
-                     pay. -->
-                @if (!editingProduct()) {
-                  <ion-item>
-                    <ion-input [label]="'products.rate.percent' | t" labelPlacement="stacked"
-                               inputmode="decimal" [value]="productRate()"
-                               (ionInput)="productRate.set(unsigned($event.target))"
-                               placeholder="0"></ion-input>
-                  </ion-item>
-                }
-                @if (editingProduct() || productRateAboveZero()) {
-                  <ion-item>
-                    <ion-select [label]="'products.settings.payout' | t" labelPlacement="stacked"
-                                [value]="productPayout()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                (ionChange)="productPayout.set($any($event.detail).value)">
-                      <ion-select-option value="daily">{{ 'products.payout.daily' | t }}</ion-select-option>
-                      <ion-select-option value="monthly">{{ 'products.payout.byMonths' | t }}</ion-select-option>
-                    </ion-select>
-                  </ion-item>
-                  @if (productPayout() === 'monthly') {
-                    <ion-item>
-                      <ion-input [label]="'products.payout.months' | t" labelPlacement="stacked"
-                                 inputmode="numeric" [value]="productMonths()"
-                                 (ionInput)="productMonths.set(unsigned($event.target))"
-                                 [helperText]="'products.payout.monthsHint' | t"></ion-input>
-                    </ion-item>
-                    @if (paydayPreview()) {
-                      <ion-item lines="none">
-                        <ion-label class="ion-text-wrap"><p>{{ paydayPreview() }}</p></ion-label>
-                      </ion-item>
-                    }
-                  }
-                }
-              </ion-list>
-
-              @if (editingProduct()) {
-                @if (productBaseRates().length === 0) {
-                  <p class="hint warn">{{ 'products.product.noRateHint' | t }}</p>
-                } @else {
-                  <ion-list [inset]="true">
-                    @for (rate of productBaseRates(); track rate.id) {
-                      <ion-item button detail="true" (click)="startRateForm(rate)">
-                        <ion-label>
-                          <h3>{{ rateText(rate.annual_rate_scaled) }}</h3>
-                          <p>
-                            @switch (rateStatus(rate)) {
-                              @case ('current') { <span class="is on">{{ 'products.rates.current' | t }}</span> }
-                              @case ('future') { <span class="is soon">{{ 'products.rates.future' | t }}</span> }
-                              @default { <span class="is off">{{ 'products.rates.ended' | t }}</span> }
-                            }
-                            @if (rateEndsOn(rate); as ends) {
-                              {{ 'products.rates.between' | t:{ from: dayText(rate.valid_from), to: dayText(ends) } }}
-                            } @else {
-                              {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }}
-                            }
-                          </p>
-                        </ion-label>
-                        <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
-                                    (click)="$event.stopPropagation(); removeRate(rate)">
-                          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                        </ion-button>
-                      </ion-item>
-                    }
-                  </ion-list>
-                }
-                <div class="actions">
-                  <ion-button expand="block" fill="outline" (click)="startRateForm(null)">
-                    <ion-icon slot="start" name="add-outline"></ion-icon>
-                    {{ 'products.product.changeRate' | t }}
-                  </ion-button>
-                </div>
-
-                <p class="section">{{ 'products.product.bonus' | t }}</p>
-                <p class="hint">{{ 'products.product.bonusHint' | t }}</p>
-                @if (productBonusRates().length > 0) {
-                  <ion-list [inset]="true">
-                    @for (rate of productBonusRates(); track rate.id) {
-                      <ion-item button detail="true" (click)="startRateForm(rate)">
-                        <ion-label>
-                          <h3>{{ rateText(rate.annual_rate_scaled) }}</h3>
-                          <p>
-                            @switch (rateStatus(rate)) {
-                              @case ('current') { <span class="is on">{{ 'products.rates.current' | t }}</span> }
-                              @case ('future') { <span class="is soon">{{ 'products.rates.future' | t }}</span> }
-                              @default { <span class="is off">{{ 'products.rates.ended' | t }}</span> }
-                            }
-                            @if ((rate.payout_months ?? 1) > 1) {
-                              {{ 'products.rate.conditionMonths' | t:{
-                                   amount: money(rate.requires_monthly_spend_minor ?? 0), count: rate.payout_months } }}
-                            } @else {
-                              {{ 'products.rate.condition' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0) } }}
-                            }
-                          </p>
-                        </ion-label>
-                        <ion-button slot="end" fill="clear" color="medium" [disabled]="saving()"
-                                    (click)="$event.stopPropagation(); removeRate(rate)">
-                          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                        </ion-button>
-                      </ion-item>
-                    }
-                  </ion-list>
-                }
-                <div class="actions">
-                  <ion-button expand="block" fill="outline" (click)="startRateForm(null, true)">
-                    <ion-icon slot="start" name="add-outline"></ion-icon>
-                    {{ 'products.product.addBonus' | t }}
-                  </ion-button>
-                </div>
-              }
-            }
-
-            <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="closeProduct()">
-                {{ 'entry.cancel' | t }}
-              </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveProduct()">
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-
-            @if (editingProduct(); as removing) {
-              @if (editableProducts().length > 1) {
-                <div class="actions">
-                  <ion-button expand="block" fill="clear" color="danger"
-                              [disabled]="saving()" (click)="startDeleteProduct()">
-                    <ion-icon slot="start" name="trash-outline"></ion-icon>
-                    {{ 'products.product.delete' | t }}
-                  </ion-button>
-                </div>
-
-                <!-- Asked in a dialog of its own, centred. A product carries a
-                     balance and a history, and both go to a product the person
-                     chose - a question like that should not read as a footnote
-                     under the form. -->
-                <ion-modal class="confirm-sheet" [isOpen]="confirmingProductDelete()"
-                           (didDismiss)="productDeleteClosed()">
-                  <ng-template>
-                    <div class="confirm-dialog">
-                      <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
-                      <h2>{{ 'products.product.deleteConfirm' | t:{ name: removing.name } }}</h2>
-
-                      <!-- Asked when there is a balance OR a history: with no
-                           balance, a product's movements and earned days still
-                           have to go somewhere, or they point at nothing. -->
-                      @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
-                        @if (productDeleteHeld() !== 0) {
-                          <p>{{ 'products.product.deleteBalance' | t:{ amount: money(productDeleteHeld(), line.account.currency_code) } }}</p>
-                        } @else {
-                          <p>{{ 'products.product.deleteHistory' | t:{ count: productDeleteHistory() } }}</p>
-                        }
-                        <ion-list>
-                          <ion-item lines="none">
-                            <ion-select [label]="'products.product.deleteTo' | t" labelPlacement="stacked"
-                                        [value]="productDeleteTo()" interface="alert"
-                                        [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                        (ionChange)="productDeleteTo.set($any($event.detail).value)">
-                              @for (other of otherProducts(); track other.id) {
-                                <ion-select-option [value]="other.id">
-                                  {{ other.name }}@if (other.is_default === 1) { · {{ 'products.product.usual' | t }} }
-                                </ion-select-option>
-                              }
-                            </ion-select>
-                          </ion-item>
-                        </ion-list>
-                      }
-
-                      <!-- The usual product is where money lands when nothing
-                           says otherwise, so removing it asks which one takes
-                           over - with a balance or without one. -->
-                      @if (removing.is_default === 1) {
-                        <p>{{ 'products.product.deleteUsual' | t }}</p>
-                        <ion-list>
-                          <ion-item lines="none">
-                            <ion-select [label]="'products.product.newUsual' | t" labelPlacement="stacked"
-                                        [value]="productNewUsual()" interface="alert"
-                                        [interfaceOptions]="{ cssClass: 'select-alert' }"
-                                        (ionChange)="productNewUsual.set($any($event.detail).value)">
-                              @for (other of otherProducts(); track other.id) {
-                                <ion-select-option [value]="other.id">{{ other.name }}</ion-select-option>
-                              }
-                            </ion-select>
-                          </ion-item>
-                        </ion-list>
-                      }
-
-                      <!-- Only when there is a balance to move: with nothing in
-                           it, a sentence about where the balance goes read as a
-                           question about money that is not there. -->
-                      @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
-                        <p class="note">{{ (removing.kind === 'cdt' ? 'products.product.deleteKeepsCdt' : 'products.product.deleteKeeps') | t:{ target: productDeleteTargetName() } }}</p>
-                      }
-                      @if (error()) {
-                        <p class="error">{{ error() }}</p>
-                      }
-
-                      <div class="buttons">
-                        <ion-button fill="outline" color="medium" (click)="confirmingProductDelete.set(false)">
-                          {{ 'entry.cancel' | t }}
-                        </ion-button>
-                        <ion-button color="danger" [disabled]="saving() || productDeleteTo() === null || (removing.is_default === 1 && productNewUsual() === null)"
-                                    (click)="deleteProduct()">
-                          {{ 'products.product.deleteYes' | t }}
-                        </ion-button>
-                      </div>
-                    </div>
-                  </ng-template>
-                </ion-modal>
-              }
-            }
-          }
-
-          <!-- A rate of the product being edited, from a date. A change is a new
-               rate, never an edit of the one before it; correcting is for a
-               rate that was typed wrong. No name and no list of products: the
-               rate belongs to the product it was opened from. -->
-          @if (form() === 'rate') {
-            <h2>{{ (editingRate() ? 'products.rate.fix' : (rateIsBonus() ? 'products.product.addBonus' : 'products.product.changeRate')) | t }}</h2>
-            <p class="hint">
-              {{ (editingRate() ? 'products.rate.fix.hint' : 'products.rates.hint') | t }}
-            </p>
-
-            <ion-list [inset]="true">
-              <ion-item>
-                <ion-input [label]="'products.rate.percent' | t" labelPlacement="stacked"
-                           inputmode="decimal" [value]="ratePercent()"
-                           (ionInput)="ratePercent.set(unsigned($event.target))"
-                           placeholder="10,5"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'products.rate.from' | t" labelPlacement="stacked"
-                           type="date" [value]="rateFrom()"
-                           (ionInput)="rateFrom.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-input [label]="'products.rate.until' | t" labelPlacement="stacked"
-                           type="date" [value]="rateUntil()"
-                           (ionInput)="rateUntil.set($any($event.target).value)"></ion-input>
-              </ion-item>
-              @if (rateIsBonus()) {
-                <ion-item>
-                  <ion-input [label]="'products.rate.spend' | t" labelPlacement="stacked"
-                             inputmode="decimal" [value]="rateSpend()"
-                             (ionInput)="rateSpend.set(amountTyped($event.target))"
-                             placeholder="400.000"></ion-input>
-                </ion-item>
-                <ion-item>
-                  <ion-input [label]="'products.rate.bonusMonths' | t" labelPlacement="stacked"
-                             inputmode="numeric" [value]="rateMonths()"
-                             (ionInput)="rateMonths.set(unsigned($event.target))"
-                             [helperText]="'products.rate.bonusMonthsHint' | t"></ion-input>
-                </ion-item>
-              }
-            </ion-list>
-
-            <div class="actions">
-              <ion-button expand="block" fill="clear" (click)="openProduct(editingProduct())">
-                {{ 'entry.cancel' | t }}
-              </ion-button>
-              <ion-button expand="block" [disabled]="saving()" (click)="saveRate()">
-                {{ 'entry.save' | t }}
-              </ion-button>
-            </div>
-          }
-
-
-          <!-- Up and down, the row the movements and the categories carry. No
-               fold button here: each section has its own, and one that folded
-               "everything" would have to pick which everything. -->
-          @if (showSheetUp() || showSheetDown()) {
-            <div class="jump" slot="fixed">
-              <button type="button" [class.gone]="!showSheetUp()" (click)="sheetToTop()"
-                      [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
-                <ion-icon name="arrow-up-outline"></ion-icon>
-              </button>
-
-              <!-- Closing the groups from wherever the list has got to. Its
-                   other button is at the head of the section, which is a long
-                   way up once there is enough list to want it closed. -->
-              @if (foldableGroups()) {
-                <button type="button" class="fold" (click)="foldAllGroups()"
-                        [attr.aria-expanded]="!allGroupsCollapsed()"
-                        [attr.aria-label]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                        [title]="(allGroupsCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-                  <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                </button>
-              }
-
-              <button type="button" [class.gone]="!showSheetDown()" (click)="sheetToBottom()"
-                      [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
-                <ion-icon name="arrow-down-outline"></ion-icon>
-              </button>
-            </div>
-          }
-        </ion-content>
-
-        <!-- The two buttons the screen is for, standing still at the bottom
-             the way the summary screen's do. Outside ion-content, so the
-             scroll ends above them and nothing is ever hidden behind them.
-             Only while the sheet is showing the account: a form of its own has
-             its own Save, and a second pair of buttons under it would ask the
-             user which one finishes the job. -->
-        @if (form() === 'none') {
-          <ion-footer class="compose-bar" [class.away]="searching()">
-            <div class="compose">
-              <button type="button" class="big expense" (click)="openEntry(line, 'expense')">
-                <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
-                <span class="what">{{ 'summary.expense' | t }}</span>
-              </button>
-              <button type="button" class="big income" (click)="openEntry(line, 'income')">
-                <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
-                <span class="what">{{ 'summary.income' | t }}</span>
-              </button>
-              <!-- The same round transfer as on the summary screen, from this
-                   account to where it usually sends money (Jose, 2026-09-24). -->
-              <button type="button" class="swap" (click)="openTransfer(line)"
-                      [attr.aria-label]="'summary.newTransfer' | t" [title]="'summary.newTransfer' | t">
-                <ion-icon name="swap-horizontal-outline"></ion-icon>
-              </button>
-            </div>
-          </ion-footer>
-        }
-      }
-    </ng-template>
-  </ion-modal>
+      <div class="ui-page-end"></div>
+    }
+  </div>
+
+  <app-jump #pageJump [content]="page"></app-jump>
 </ion-content>
 
-<!-- While the yields are being worked out the screen is out of reach, and says
-     so rather than looking frozen. -->
-@if (busyState(); as state) {
-  <app-busy-overlay [label]="state.label" [detail]="state.detail"
-                    [percent]="state.percent"></app-busy-overlay>
-}
+<ng-template #accountRow let-line="line">
+  <button type="button" class="ui-row" (click)="open(line)">
+    <app-badge shape="ci" [size]="42" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
+               [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
+    <span class="ui-tx">
+      <b class="ui-one">{{ line.account.name }}</b>
+      <small class="ui-one">{{ accountLine(line) }}</small>
+    </span>
+    <span class="am">
+      <b>{{ money(line.availableMinor, line.account.currency_code) }}@if (line.account.currency_code !== 'COP') { {{ line.account.currency_code }} }</b>
+      @if (line.lastDayMinor > 0) {
+        <small class="ui-g">+{{ money(line.lastDayMinor, line.account.currency_code) }}</small>
+      } @else if (nextCdtOf(line); as next) {
+        <small>{{ next }}</small>
+      }
+    </span>
+    <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+  </button>
+</ng-template>
 
-<!-- Which products the yields are read for. A short question, so a short
-     sheet: the products, each with a tick, and "all of them" above them. -->
-<ion-modal class="product-sheet" [isOpen]="pickingProducts()"
-           (didDismiss)="pickingProducts.set(false)">
+<!-- Adding an account (4b): every account not already here, so the brokers
+     can be added deliberately and never by accident. -->
+<ion-modal class="ui-sheet" [isOpen]="picking()" (didDismiss)="picking.set(false)">
   <ng-template>
-    <div class="product-picker">
-      <div class="head">
-        <h2>{{ 'products.products.which' | t }}</h2>
-        <button type="button" (click)="pickingProducts.set(false)"
-                [attr.aria-label]="'summary.close' | t">
-          <ion-icon name="close-outline"></ion-icon>
-        </button>
-      </div>
-
-      <p class="hint">{{ 'products.products.hint' | t }}</p>
-
-      @if (openLine(); as line) {
-        <ion-list [inset]="true">
-          <ion-item button lines="full" (click)="chooseAllProducts()"
-                    [class.selected]="allProductsChosen()">
-            <ion-label><h3>{{ 'products.products.all' | t }}</h3></ion-label>
-            @if (allProductsChosen()) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
-            }
-          </ion-item>
-
-          @for (product of line.products; track product.id) {
-            <ion-item button lines="full" (click)="toggleProduct(product.id)"
-                      [class.selected]="!allProductsChosen() && isProductChosen(product.id)">
-              <ion-label>
-                <h3>{{ product.name }}</h3>
-                @if (product.is_default === 1) { <p>{{ 'entry.product.usual' | t }}</p> }
-              </ion-label>
-              @if (!allProductsChosen() && isProductChosen(product.id)) {
-                <ion-icon slot="end" class="tick" name="checkmark-circle"
-                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
-              }
-            </ion-item>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'products.add' | t }}</h2>
+      <p class="hint center">{{ 'products.add.hint' | t }}</p>
+      @if (candidates().length === 0) {
+        <p class="hint center">{{ 'products.add.none' | t }}</p>
+      } @else {
+        <div class="ui-list">
+          @for (account of candidates(); track account.id) {
+            <button type="button" class="ui-row" [disabled]="saving()" (click)="enrol(account)">
+              <app-badge shape="ci" [size]="42" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
+                         [tone]="account.color" [seed]="account.id" fallback="wallet"></app-badge>
+              <span class="ui-tx"><b class="ui-one">{{ account.name }}</b></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
           }
-        </ion-list>
+        </div>
       }
     </div>
   </ng-template>
 </ion-modal>
 
-<!-- Clearing a yield the bank never paid. -->
+<!-- The period of the products' movements: the summary's own sheet (5h). -->
+<ion-modal class="ui-sheet" [isOpen]="showMovementsPeriodSheet()" (didDismiss)="showMovementsPeriodSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body period-sheet-body">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'summary.period' | t }}</h2>
+      <div class="kinds">
+        @for (option of periodKinds; track option.kind) {
+          <button type="button" class="ui-chip" [class.wide]="option.kind === 'range'"
+                  [class.on]="choosingMovementsRange() ? option.kind === 'range' : movementsPeriod().kind === option.kind"
+                  (click)="chooseMovementsPeriod(option.kind)">{{ $any(option.label) | t }}</button>
+        }
+      </div>
+      @if (choosingMovementsRange()) {
+        <div class="range">
+          <div class="ends">
+            <button type="button" [class.on]="movementsRangeSide() === 'from'" (click)="movementsRangeSide.set('from')">
+              <span class="lead">{{ 'summary.from' | t }}</span>
+              <span class="day">{{ dayShown(movementsRangeStart()) }}</span>
+            </button>
+            <button type="button" [class.on]="movementsRangeSide() === 'to'" (click)="movementsRangeSide.set('to')">
+              <span class="lead">{{ 'summary.to' | t }}</span>
+              <span class="day">{{ dayShown(movementsRangeEnd()) }}</span>
+            </button>
+          </div>
+          @if (movementsRangeSide() === 'from') {
+            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                          [value]="movementsRangeStart()" [max]="todayDay"
+                          (ionChange)="movementsRangeStart.set($any($event.detail).value); movementsRangeSide.set('to')"></ion-datetime>
+          } @else {
+            <ion-datetime presentation="date" [locale]="dateLocale()" [firstDayOfWeek]="1"
+                          [value]="movementsRangeEnd()" [max]="todayDay"
+                          (ionChange)="movementsRangeEnd.set($any($event.detail).value)"></ion-datetime>
+          }
+        </div>
+      }
+      <button type="button" class="ui-btn apply"
+              [disabled]="choosingMovementsRange() && (!movementsRangeStart() || !movementsRangeEnd())"
+              (click)="choosingMovementsRange() ? applyMovementsRange() : showMovementsPeriodSheet.set(false)">
+        {{ 'summary.apply' | t }}
+      </button>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- A withdrawal whose movement was deleted: said plainly, and deletable. -->
+<ion-modal class="confirm-sheet" [isOpen]="orphanWithdrawal() !== null" (didDismiss)="orphanWithdrawal.set(null)">
+  <ng-template>
+    @if (orphanWithdrawal(); as withdrawal) {
+      <div class="confirm-dialog">
+        <span class="badge medium"><ion-icon name="unlink-outline"></ion-icon></span>
+        <h2>{{ 'products.movements.orphanTitle' | t }}</h2>
+        <p>{{ 'products.movements.orphanBody' | t:{
+               amount: money(withdrawal.amount_minor, openLine()?.account?.currency_code ?? 'COP'),
+               date: longDayText(withdrawal.on_date) } }}</p>
+        @if (error()) { <p class="error">{{ error() }}</p> }
+        <div class="buttons">
+          <button type="button" class="ui-btn ghost" (click)="orphanWithdrawal.set(null)">{{ 'entry.cancel' | t }}</button>
+          <button type="button" class="ui-btn danger" [disabled]="saving()" (click)="removeOrphanWithdrawal()">{{ 'products.movements.orphanDelete' | t }}</button>
+        </div>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- A movement of the account, corrected or deleted on the one movement form. -->
+<ion-modal class="entry-sheet" [isOpen]="movementEdit() !== null" (didDismiss)="movementEdit.set(null)">
+  <ng-template>
+    @for (request of [movementEdit()]; track request) {
+      @if (request) {
+        <app-entry [request]="request" (saved)="movementSaved()" (cancelled)="movementEdit.set(null)"
+                   (switchTo)="movementEdit.set($event)"></app-entry>
+      }
+    }
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="entry-sheet" [isOpen]="productEntry() !== null" (didDismiss)="productEntry.set(null)">
+  <ng-template>
+    @for (request of [productEntry()]; track request) {
+      @if (request) {
+        <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"
+                           (switchTo)="switchEntry($event)" (elsewhere)="openElsewhere($event)"></app-product-entry>
+      }
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- One account's page. It sits inside the Cuentas tab, over the list but not
+     over the bar: the "+" opens the movement form on this account. A
+     product's form covers the whole screen, with its own Guardar. -->
+<ion-modal class="account-page" [class.full]="form() === 'product' || form() === 'rate'"
+           [isOpen]="openLine() !== null" (didDismiss)="closeDetail()">
+  <ng-template>
+    @if (openLine(); as line) {
+      @if (form() === 'product' || form() === 'rate') {
+        <ng-container *ngTemplateOutlet="productForm; context: { line: line }"></ng-container>
+      } @else {
+        <div class="ui-frame">
+          <header class="ui-titlebar">
+            <button type="button" class="back" (click)="closeDetail()" [attr.aria-label]="'ui.back' | t">
+              <ion-icon name="chevron-back"></ion-icon>
+            </button>
+            <!-- Tapped, it changes account without leaving (Jose, 2026-09-24). -->
+            <button type="button" class="who" [disabled]="!canSwitchAccount()" (click)="pickingAccount.set(true)">
+              <app-badge shape="ci" [size]="32" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
+                         [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
+              <span class="name marquee-loop">{{ line.account.name }}</span>
+              @if (canSwitchAccount()) { <ion-icon class="down" name="chevron-down-outline"></ion-icon> }
+            </button>
+          </header>
+
+          <ion-content #sheet [scrollEvents]="true" (ionScroll)="onSheetScroll(); sheetJump.measure()">
+            <div class="ui-main">
+              @if (error()) {
+                <div class="ui-banner bad"><ion-icon name="alert-circle-outline"></ion-icon><span>{{ error() }}</span></div>
+              }
+
+              <section class="ui-hero figure">
+                <div class="top">
+                  <div class="what">
+                    <span class="ui-lab">{{ 'products.detail.total' | t }}</span>
+                    <div class="ui-big ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</div>
+                  </div>
+                  <!-- The way back to Inicio is the house; beside it, the summary. -->
+                  <div class="quick">
+                    <button type="button" class="ui-round solid" (click)="goToSummary(line)"
+                            [attr.aria-label]="'products.toSummary' | t" [title]="'products.toSummary' | t">
+                      <ion-icon name="home-outline"></ion-icon>
+                    </button>
+                    <button type="button" class="ui-round solid" (click)="openYieldsReport(line.account.id)"
+                            [attr.aria-label]="'report.yields.open' | t" [title]="'report.yields.open' | t">
+                      <ion-icon name="bar-chart-outline"></ion-icon>
+                    </button>
+                  </div>
+                </div>
+                <div class="ui-mini tiles">
+                  <div>
+                    <span class="ui-lab">{{ 'products.part.accrued' | t }}</span>
+                    <b>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</b>
+                  </div>
+                  <div>
+                    <span class="ui-lab">{{ 'ui.yields.cashedOut' | t }}</span>
+                    <b>{{ line.earned.withdrawn_minor ? money(-abs(line.earned.withdrawn_minor), line.account.currency_code) : money(0, line.account.currency_code) }}</b>
+                  </div>
+                </div>
+                @if (line.earnsNextMinor > 0) {
+                  <p class="earns">
+                    {{ 'products.earnsOn' | t }} <b>{{ money(line.earnsNextMinor, line.account.currency_code) }}</b>.
+                    @if (line.earnsOnMinor > 0 && line.earnsOnMinor !== line.earnsNextMinor) {
+                      {{ 'products.earnsOn.today' | t:{ amount: money(line.earnsOnMinor, line.account.currency_code) } }}
+                    }
+                  </p>
+                }
+                @if (line.earned.pendingMinor > 0 && line.earned.paidOn) {
+                  <p class="earns">
+                    <ion-icon name="time-outline"></ion-icon>
+                    {{ 'products.pending' | t:{ amount: money(line.earned.pendingMinor, line.account.currency_code), date: dayText(line.earned.paidOn) } }}
+                  </p>
+                }
+              </section>
+
+              <!-- A selector, never one long scroll (Jose, 2026-09-28). -->
+              <div class="ui-seg tabs">
+                <button type="button" [class.on]="pageTab() === 'products'" (click)="setPageTab(line, 'products')">{{ 'products.products' | t }}</button>
+                <button type="button" [class.on]="pageTab() === 'movements'" (click)="setPageTab(line, 'movements')">{{ 'products.movements' | t }}</button>
+                <button type="button" [class.on]="pageTab() === 'payments'" (click)="setPageTab(line, 'payments')">{{ 'ui.yields.payments' | t }}</button>
+                @if (!paysEveryDay()) {
+                  <button type="button" [class.on]="pageTab() === 'days'" (click)="setPageTab(line, 'days')">{{ 'ui.yields.days' | t }}</button>
+                }
+              </div>
+
+              @switch (pageTab()) {
+                @case ('products') {
+                  <div class="ui-list">
+                    @for (product of line.products; track product.id) {
+                      <button type="button" class="ui-row" (click)="openProduct(product)">
+                        <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+                        <span class="ui-tx">
+                          <b class="ui-one">{{ product.name }}</b>
+                          <small class="ui-one">{{ productRowLine(product) }}</small>
+                          @if (yieldIn(line, product.id) !== 0) {
+                            <small class="ui-one">{{ 'products.products.includesYield' | t:{ amount: money(yieldIn(line, product.id), line.account.currency_code) } }}</small>
+                          }
+                        </span>
+                        <span class="ui-am" [class.ui-r]="balanceIn(line, product.id) < 0">{{ money(balanceIn(line, product.id), line.account.currency_code) }}</span>
+                        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                      </button>
+                    }
+                    @if (line.products.length > 1) {
+                      <div class="ui-row plain sum">
+                        <span class="ui-tx">
+                          <b>{{ 'ui.yields.allProducts' | t }}</b>
+                          <small class="wrap">{{ 'ui.yields.allProducts.hint' | t:{ amount: money(line.availableMinor, line.account.currency_code) } }}</small>
+                        </span>
+                        <span class="ui-am">{{ money(totalHeld(line), line.account.currency_code) }}</span>
+                      </div>
+                    }
+                    <button type="button" class="ui-row plain" (click)="openProduct(null)">
+                      <ion-icon name="add" class="ui-p"></ion-icon>
+                      <span class="ui-tx"><b class="ui-p">{{ 'ui.yields.addProduct' | t }}</b></span>
+                    </button>
+                  </div>
+                  <p class="hint">{{ 'ui.yields.eachApart' | t }}</p>
+
+                  <!-- Stopping the account, well away from anything else: it is
+                       silent when it happens - the figures simply stop moving. -->
+                  <div class="ui-list danger">
+                    @if (line.enabled) {
+                      <button type="button" class="ui-row plain" [disabled]="saving()" (click)="stopAccruing()">
+                        <ion-icon name="pause-circle-outline"></ion-icon>
+                        <span class="ui-tx"><b class="ui-r">{{ 'products.settings.stop' | t }}</b></span>
+                      </button>
+                    } @else {
+                      <button type="button" class="ui-row plain" [disabled]="saving()" (click)="resumeAccruing()">
+                        <ion-icon name="play-circle-outline" class="ui-p"></ion-icon>
+                        <span class="ui-tx"><b class="ui-p">{{ 'products.settings.resume' | t }}</b></span>
+                      </button>
+                    }
+                  </div>
+                }
+
+                @case ('movements') {
+                  <div class="ui-period">
+                    <button type="button" class="arrow" (click)="stepMovementsPeriod(-1)" [disabled]="!movementsCanStep()"
+                            [attr.aria-label]="'summary.previousPeriod' | t">
+                      <ion-icon name="chevron-back-outline"></ion-icon>
+                    </button>
+                    <button type="button" class="label" (click)="showMovementsPeriodSheet.set(true)">
+                      <ion-icon name="calendar-outline"></ion-icon>
+                      <span>{{ movementsPeriodLabel() }}</span>
+                      <ion-icon class="down" name="chevron-down-outline"></ion-icon>
+                    </button>
+                    <button type="button" class="arrow" (click)="stepMovementsPeriod(1)"
+                            [disabled]="!movementsCanStep() || movementsAtNewest()" [attr.aria-label]="'summary.nextPeriod' | t">
+                      <ion-icon name="chevron-forward-outline"></ion-icon>
+                    </button>
+                  </div>
+
+                  <div class="ui-search" #movementsSearchRow>
+                    <ion-icon name="search-outline"></ion-icon>
+                    <input type="search" [placeholder]="('products.search.in' | t:{ period: movementsPeriodLabel() }) + '…'"
+                           [value]="movementsSearch()" (input)="movementsSearch.set($any($event.target).value ?? '')"
+                           (focus)="startSearching()" (blur)="searching.set(false)" enterkeyhint="search">
+                    @if (movementsSearch()) {
+                      <button type="button" (click)="movementsSearch.set('')" [attr.aria-label]="'ui.close' | t">
+                        <ion-icon name="close-circle"></ion-icon>
+                      </button>
+                    }
+                  </div>
+
+                  <div class="views">
+                    @for (view of movementViews; track view.id) {
+                      <button type="button" class="ui-chip" [class.on]="movementsView() === view.id"
+                              (click)="movementsView.set(view.id)">{{ view.label | t }}</button>
+                    }
+                    <span class="grow"></span>
+                    @if (movementsView() !== 'largest') {
+                      <button type="button" class="ui-fold" (click)="toggleAllGroups()"
+                              [attr.aria-label]="(allGroupsCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t">
+                        <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                      </button>
+                    }
+                  </div>
+                  @if (line.products.length > 1) {
+                    <div class="views">
+                      <button type="button" class="ui-chip which" (click)="pickingProducts.set(true)">
+                        <ion-icon name="funnel-outline"></ion-icon>{{ chosenProductsLabel() }}
+                        <ion-icon name="chevron-down-outline"></ion-icon>
+                      </button>
+                    </div>
+                  }
+
+                  @if (shownMovements().length === 0) {
+                    <p class="hint">
+                      @if (movementsSearch().trim() !== '') {
+                        {{ 'summary.empty.search' | t:{ period: movementsPeriodLabel(), search: movementsSearch() } }}
+                      } @else {
+                        {{ 'products.movements.noneInPeriod' | t:{ period: movementsPeriodLabel() } }}
+                      }
+                    </p>
+                  } @else {
+                    @for (group of movementGroups(); track group.key) {
+                      <div class="ui-list ui-group">
+                        @if (movementsView() !== 'largest') {
+                          <div class="ui-row head" (click)="toggleGroup(group.key)">
+                            @if (movementsView() === 'category' && (group.icon !== null || group.customIconId !== null)) {
+                              <app-badge [size]="30" [builtin]="group.icon" [customId]="group.customIconId" [seed]="group.items.length"></app-badge>
+                            }
+                            <span class="ui-tx">
+                              <b class="ui-one">{{ movementsView() === 'date' ? dayHeading(group.key, group.title) : group.title }}</b>
+                              <small>{{ countOf(group.items.length) }}</small>
+                            </span>
+                            <span class="total" [class]="toneOfFlow(group.flow)">{{ signedMoney(group.totalMinor, line.account.currency_code) }}</span>
+                            <ion-icon class="ui-chev" [name]="isGroupCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+                          </div>
+                        }
+                        @if (movementsView() === 'largest' || !isGroupCollapsed(group.key)) {
+                          @for (movement of group.items; track movement.key) {
+                            @if (movement.type === 'withdrawal') {
+                              <!-- The orphan withdrawal, said plainly and quietly inside its row. -->
+                              <div class="ui-row movement orphan">
+                                <app-badge [size]="42" builtin="remove" fixed="#8c9bb5"></app-badge>
+                                <span class="ui-tx">
+                                  <b class="ui-one">{{ 'ui.yields.orphan.title' | t:{ amount: money(movement.withdrawal.amount_minor, line.account.currency_code) } }}</b>
+                                  <small class="wrap">{{ 'ui.yields.orphan.line' | t }}</small>
+                                  <button type="button" class="link" (click)="orphanWithdrawal.set(movement.withdrawal)">{{ 'ui.yields.orphan.delete' | t }}</button>
+                                </span>
+                                <span class="ui-am ui-mu">−{{ money(abs(movement.withdrawal.amount_minor), line.account.currency_code) }}</span>
+                              </div>
+                            } @else {
+                              <button type="button" class="ui-row movement" (click)="openMovement(line, movement)">
+                                @if (movement.type === 'transaction' && movement.transaction.transfer_id === null) {
+                                  <app-badge [size]="42" [builtin]="movement.transaction.category_icon"
+                                             [customId]="movement.transaction.category_custom_icon_id"
+                                             [tone]="movement.transaction.category_color" [seed]="movement.transaction.category_id"></app-badge>
+                                } @else if (movement.type === 'entry') {
+                                  <app-badge [size]="42" [builtin]="entryIcon($any(movement.entry))"
+                                             [customId]="kindIconId($any(movement.entry))" [seed]="movement.entry.category_id"></app-badge>
+                                } @else {
+                                  <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+                                }
+                                <span class="ui-tx">
+                                  <b class="ui-one">{{ movementTitle(line, movement) }}</b>
+                                  <small class="ui-one">{{ movementDetail(line, movement) }}</small>
+                                </span>
+                                <span class="ui-am" [class]="toneOfFlow(movementFlow(movement))">{{ signedMoney(movement.amountMinor, line.account.currency_code) }}</span>
+                              </button>
+                            }
+                          }
+                        }
+                      </div>
+                    }
+                  }
+                }
+
+                @case ('payments') {
+                  @if (payments().length === 0) {
+                    <p class="hint">{{ 'products.days.none' | t }}</p>
+                  } @else {
+                    <div class="views">
+                      @if (line.products.length > 1) {
+                        <button type="button" class="ui-chip which" (click)="pickingProducts.set(true)">
+                          <ion-icon name="funnel-outline"></ion-icon>{{ chosenProductsLabel() }}
+                          <ion-icon name="chevron-down-outline"></ion-icon>
+                        </button>
+                      }
+                      <span class="grow"></span>
+                      <button type="button" class="ui-chip" (click)="togglePaymentMonths()">
+                        <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                        {{ (allPaymentMonthsClosed() ? 'ui.openAll' : 'ui.closeAll') | t }}
+                      </button>
+                    </div>
+                    @for (month of paymentsByMonth(); track month.key) {
+                      <div class="ui-list ui-group">
+                        <div class="ui-row head" (click)="toggleWorking(month.key)">
+                          <span class="ui-tx">
+                            <b>{{ monthText(month.key) }}</b>
+                            <small>{{ month.payments.length === 1 ? ('ui.count.payment' | t) : ('ui.count.payments' | t:{ count: month.payments.length }) }}</small>
+                          </span>
+                          <span class="total ui-g">+{{ money(month.netMinor, line.account.currency_code) }}</span>
+                          <ion-icon class="ui-chev" [name]="isWorkingOpen(month.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                        </div>
+                        @if (isWorkingOpen(month.key)) {
+                          @for (payment of month.payments; track payment.key) {
+                            <!-- A payment that is one day can be corrected against the bank. -->
+                            <button type="button" class="ui-row" [disabled]="payment.day === null"
+                                    (click)="payment.day && openDayForm(payment.day)">
+                              @let product = productById(line, payment.productId);
+                              @if (product) { <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
+                              <span class="ui-tx">
+                                <b class="ui-one">{{ weekdayDay(payment.on) }}</b>
+                                <small class="ui-one">{{ paymentLine(line, payment) }}</small>
+                              </span>
+                              <span class="am">
+                                <b class="ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</b>
+                                @if (payment.pending) { <small class="ui-y">{{ 'products.payments.pending' | t }}</small> }
+                                @else if (payment.withheldMinor > 0) { <small>−{{ money(payment.withheldMinor, line.account.currency_code) }}</small> }
+                              </span>
+                            </button>
+                          }
+                        }
+                      </div>
+                    }
+                    <p class="hint">{{ (paysEveryDay() ? 'products.payments.daily' : 'products.payments.hint') | t }}</p>
+                  }
+                }
+
+                @case ('days') {
+                  @if (openDays().length === 0) {
+                    <p class="hint">{{ 'products.days.none' | t }}</p>
+                  } @else {
+                    <div class="views">
+                      @if (line.products.length > 1) {
+                        <button type="button" class="ui-chip which" (click)="pickingProducts.set(true)">
+                          <ion-icon name="funnel-outline"></ion-icon>{{ chosenProductsLabel() }}
+                          <ion-icon name="chevron-down-outline"></ion-icon>
+                        </button>
+                      }
+                      <span class="grow"></span>
+                      <button type="button" class="ui-chip" (click)="toggleDayMonths()">
+                        <ion-icon [name]="allDayMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+                        {{ (allDayMonthsClosed() ? 'ui.openAll' : 'ui.closeAll') | t }}
+                      </button>
+                    </div>
+                    @for (month of daysByMonth(); track month.key) {
+                      <div class="ui-list ui-group">
+                        <div class="ui-row head" (click)="toggleMonth(month.key)">
+                          <span class="ui-tx">
+                            <b>{{ monthText(month.key) }}</b>
+                            <small>{{ month.dayCount === 1 ? ('ui.count.day' | t) : ('ui.count.days' | t:{ count: month.dayCount }) }}</small>
+                          </span>
+                          <span class="total ui-g">+{{ money(month.netMinor, line.account.currency_code) }}</span>
+                          <ion-icon class="ui-chev" [name]="isMonthOpen(month.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                        </div>
+                        @if (isMonthOpen(month.key)) {
+                          @for (day of month.days; track day.on_date + '|' + day.product_id + '|' + day.component) {
+                            <button type="button" class="ui-row" (click)="openDayForm(day)">
+                              @let product = productById(line, day.product_id);
+                              @if (product) { <app-badge [size]="36" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
+                              <span class="ui-tx">
+                                <b class="ui-one">{{ weekdayDay(day.on_date) }}</b>
+                                <small class="ui-one">{{ 'ui.yields.dayLine' | t:{ amount: money(day.balance_minor, line.account.currency_code), rate: rateText(day.annual_rate_scaled) } }}</small>
+                              </span>
+                              <span class="am">
+                                <b class="ui-g">+{{ money(netOf(day), line.account.currency_code) }}</b>
+                                @if (day.locked === 1) { <small class="ui-p">{{ 'products.corrected' | t }}</small> }
+                                @else if (day.withholding_unknown === 1) { <small class="ui-y">{{ 'products.unknown' | t }}</small> }
+                                @else if (day.withholding_minor > 0) { <small>−{{ money(day.withholding_minor, line.account.currency_code) }}</small> }
+                              </span>
+                              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                            </button>
+                          }
+                        }
+                      </div>
+                    }
+                    <p class="hint">{{ 'products.days.hint' | t }}</p>
+                  }
+                }
+              }
+              <div class="ui-page-end"></div>
+            </div>
+            <app-jump #sheetJump [content]="sheet" [hidden]="searching()"></app-jump>
+          </ion-content>
+          <!-- The page lives inside the Cuentas tab: the bar stays, with its "+". -->
+          <app-tab-bar></app-tab-bar>
+        </div>
+
+        <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
+                            [selectedId]="line.account.id" [heading]="'summary.account' | t"
+                            (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)"></app-account-picker>
+
+        <!-- One day, checked against a statement (4g). -->
+        <ion-modal class="ui-sheet" [isOpen]="form() === 'day'" (didDismiss)="form() === 'day' && form.set('none')">
+          <ng-template>
+            @if (openDay(); as day) {
+              <div class="ui-sheet-body day-sheet">
+                <div class="grab"></div>
+                @let product = productById(line, day.product_id);
+                @if (product) { <div class="sheet-icon"><app-badge [size]="48" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge></div> }
+                <h2 class="center">{{ weekdayDay(day.on_date) }}@if (line.products.length > 1) { · {{ productNameOf(line, day) }} }</h2>
+                <p class="hint center">{{ 'products.day.hint' | t }}</p>
+                <div class="ui-list">
+                  <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'products.day.base' | t }}</span></span><b>{{ money(day.balance_minor, line.account.currency_code) }}</b></div>
+                  <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'products.day.rate' | t }}</span></span><b>{{ rateText(day.annual_rate_scaled) }}</b></div>
+                  <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'products.day.gross' | t }}</span></span><b>{{ money(day.gross_minor, line.account.currency_code) }}</b></div>
+                  <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'products.day.tax' | t }}</span></span>
+                    <b [class.ui-r]="day.withholding_minor > 0">@if (day.withholding_unknown === 1) { {{ 'products.unknown' | t }} } @else { {{ day.withholding_minor > 0 ? '−' : '' }}{{ money(day.withholding_minor, line.account.currency_code) }} }</b></div>
+                  <div class="ui-row plain"><span class="ui-tx"><span class="t">{{ 'products.day.net' | t }}</span></span><b class="ui-g">{{ money(day.net_minor, line.account.currency_code) }}</b></div>
+                </div>
+                <div class="ui-inputs">
+                  <label class="ui-input">
+                    <span>{{ 'products.day.actual' | t }}</span>
+                    <input inputmode="decimal" [value]="amount()" (input)="amount.set(amountTyped($event.target, true))">
+                  </label>
+                </div>
+                @if (day.locked === 1) { <p class="hint">{{ 'products.day.locked' | t }}</p> }
+                @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+                <div class="buttons two">
+                  @if (day.locked === 1) {
+                    <button type="button" class="ui-btn ghost" [disabled]="saving()" (click)="undoDay()">{{ 'products.day.undo' | t }}</button>
+                  } @else {
+                    <button type="button" class="ui-btn ghost" (click)="form.set('none')">{{ 'entry.cancel' | t }}</button>
+                  }
+                  <button type="button" class="ui-btn" [disabled]="saving()" (click)="saveDay()">{{ 'entry.save' | t }}</button>
+                </div>
+                <!-- A correction to zero rather than a removed row: the engine
+                     walks the calendar and would write the day again. -->
+                @if (netOf(day) !== 0 || day.locked !== 1) {
+                  <button type="button" class="ui-btn danger zero" [disabled]="saving()" (click)="confirmingZeroDay.set(true)">
+                    {{ 'products.day.zero' | t }}
+                  </button>
+                }
+              </div>
+            }
+          </ng-template>
+        </ion-modal>
+      }
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- One product (4j-4w): its name, a selector between its parts, and its own
+     Guardar. A CDT is CDT | Al vencer | Pagos. -->
+<ng-template #productForm let-line="line">
+  <div class="ui-frame product-form">
+    <header class="ui-titlebar">
+      <button type="button" class="back" (click)="closeProduct()" [attr.aria-label]="'ui.back' | t">
+        <ion-icon name="chevron-back"></ion-icon>
+      </button>
+      <h1>{{ editingProduct()?.name ?? ('ui.yields.addProduct' | t) }}</h1>
+      <button type="button" class="ui-pill" [disabled]="saving()" (click)="saveProduct()">
+        <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+      </button>
+    </header>
+
+    <div class="scroll">
+      @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+
+      <div class="identity">
+        <app-badge [size]="60" [builtin]="productKind() === 'cdt' ? 'lock-closed' : draftFace()" [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
+        <label class="ui-card name">
+          <span class="ui-lab">{{ 'accounts.currency.name' | t }}</span>
+          <input type="text" [value]="productName()" [placeholder]="'products.product.namePlaceholder' | t"
+                 (input)="productName.set($any($event.target).value ?? '')">
+        </label>
+      </div>
+
+      <div class="ui-seg tabs">
+        @for (tab of productTabs(); track tab.id) {
+          <button type="button" [class.on]="productTab() === tab.id" (click)="productTab.set(tab.id)">{{ $any(tab.label) | t }}</button>
+        }
+      </div>
+
+      @switch (productTab()) {
+        @case ('product') {
+          @if (!editingProduct()) {
+            <div class="ui-seg">
+              <button type="button" [class.on]="productKind() === 'high_yield'" (click)="setProductKind('high_yield')">{{ 'products.product.kind.high_yield' | t }}</button>
+              <button type="button" [class.on]="productKind() === 'cdt'" (click)="setProductKind('cdt')">{{ 'products.product.kind.cdt' | t }}</button>
+            </div>
+          } @else {
+            <div class="ui-seg locked">
+              <button type="button" disabled [class.on]="productKind() === 'high_yield'">{{ 'products.product.kind.high_yield' | t }}</button>
+              <button type="button" disabled [class.on]="productKind() === 'cdt'">{{ 'products.product.kind.cdt' | t }}</button>
+            </div>
+          }
+          <div class="ui-list switches">
+            <div class="ui-row plain">
+              <span class="ui-tx">
+                <b class="wrap">{{ 'products.product.withholding' | t }}</b>
+                <small class="wrap">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</small>
+              </span>
+              <button type="button" class="ui-switch" [class.on]="productWithholds()" role="switch" [attr.aria-checked]="productWithholds()"
+                      (click)="productWithholds.set(!productWithholds())"></button>
+            </div>
+            <!-- The usual product always counts: every movement that names no product lands in it. -->
+            @if (!productIsDefault()) {
+              <div class="ui-row plain">
+                <span class="ui-tx">
+                  <b class="wrap">{{ 'products.product.netWorth' | t }}</b>
+                  <small class="wrap">{{ (productCounts() ? 'products.product.netWorthOn' : 'products.product.netWorthOff') | t }}</small>
+                </span>
+                <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
+                        (click)="productCounts.set(!productCounts())"></button>
+              </div>
+            }
+            <div class="ui-row plain">
+              <span class="ui-tx">
+                <b class="wrap">{{ 'ui.yields.makeUsual' | t }}</b>
+                <small class="wrap">{{ 'products.product.makeDefault.hint' | t }}</small>
+              </span>
+              <button type="button" class="ui-switch" [class.on]="productIsDefault()" role="switch" [attr.aria-checked]="productIsDefault()"
+                      (click)="productIsDefault.set(!productIsDefault())"></button>
+            </div>
+          </div>
+          <ng-container *ngTemplateOutlet="deleteProductRow"></ng-container>
+        }
+
+        @case ('balance') {
+          @if (editingProduct(); as product) {
+            <!-- A product's balance said as a sum: what it has today first. -->
+            <div class="ui-card sum-card">
+              <span class="ui-lab">{{ 'ui.yields.hasToday' | t }}</span>
+              <div class="ui-big" [class.ui-r]="statedNow() + productMoved() + productYieldIn() < 0">{{ money(statedNow() + productMoved() + productYieldIn(), line.account.currency_code) }}</div>
+              <div class="line"><span>{{ 'ui.yields.readAtBank' | t:{ date: dayText(productFrom()) } }}</span><b>{{ money(statedNow(), line.account.currency_code) }}</b></div>
+              <div class="line"><span>+ {{ 'ui.yields.movedSince' | t }}</span><b>{{ money(productMoved(), line.account.currency_code) }}</b></div>
+              <div class="line"><span>+ {{ 'ui.yields.earnedSince' | t }}</span><b class="ui-g">+{{ money(productYieldIn(), line.account.currency_code) }}</b></div>
+            </div>
+            <h3 class="ui-h">{{ 'ui.yields.theBalance' | t }}</h3>
+          } @else if (fundingAsked()) {
+            <!-- Money in a new product came from somewhere: nearly always another product. -->
+            <div class="ui-list">
+              <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
+                <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
+                <span class="ui-tx">
+                  <small>{{ 'products.product.fundingQuestion' | t }}</small>
+                  <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
+                  <small class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProductHint' : 'products.product.fundingManualHint') | t }}</small>
+                </span>
+                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+              </button>
+            </div>
+            @if (productFunding() === 'product') {
+              <div class="ui-list">
+                <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
+                  @let from = productById(line, productFundingFrom());
+                  @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
+                  <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
+                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                </button>
+                <label class="ui-field">
+                  <span class="in">
+                    <span class="lab">{{ 'ui.yields.amount' | t }}</span>
+                    <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+                  </span>
+                  @if (fundingHeld(line) > 0) {
+                    <button type="button" class="ui-chip" (click)="productAmount.set(decimalText(fundingHeld(line)))">
+                      {{ 'products.move.all' | t }} · {{ money(fundingHeld(line), line.account.currency_code) }}
+                    </button>
+                  }
+                </label>
+                <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
+              </div>
+            }
+          }
+          @if (editingProduct() || !fundingAsked() || productFunding() === 'manual') {
+            <div class="ui-list">
+              <label class="ui-field">
+                <span class="in">
+                  <span class="lab">{{ 'ui.yields.balance' | t }}</span>
+                  <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+                </span>
+                <span class="unit">{{ line.account.currency_code }}</span>
+              </label>
+              <ng-container *ngTemplateOutlet="dateField; context: { label: 'ui.yields.closeOf', value: productFrom(), set: 'from' }"></ng-container>
+            </div>
+            <p class="hint">{{ 'ui.yields.balanceHint' | t }}</p>
+            <div class="ui-list">
+              <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
+            </div>
+            <p class="hint">{{ 'products.product.earnsFrom.hint' | t }}</p>
+          }
+        }
+
+        @case ('rate') {
+          <div class="ui-list">
+            @if (!editingProduct()) {
+              <label class="ui-field">
+                <span class="in">
+                  <span class="lab">{{ 'products.rate.percent' | t }}</span>
+                  <input inputmode="decimal" placeholder="0" [value]="productRate()" (input)="productRate.set(unsigned($event.target))">
+                </span>
+              </label>
+            }
+            @if (editingProduct() || productRateAboveZero()) {
+              <button type="button" class="ui-field" (click)="choosingPayout.set(true)">
+                <span class="in">
+                  <span class="lab">{{ 'ui.yields.howOften' | t }}</span>
+                  <span class="val">{{ (productPayout() === 'daily' ? 'products.payout.daily' : 'products.payout.byMonths') | t }}</span>
+                </span>
+                <ion-icon name="chevron-down-outline"></ion-icon>
+              </button>
+              @if (productPayout() === 'monthly') {
+                <label class="ui-field">
+                  <span class="in">
+                    <span class="lab">{{ 'products.payout.months' | t }}</span>
+                    <input inputmode="numeric" [value]="productMonths()" (input)="productMonths.set(unsigned($event.target))">
+                    <span class="hint">{{ paydayPreview() || ('products.payout.monthsHint' | t) }}</span>
+                  </span>
+                </label>
+              }
+            }
+            @if (editingProduct()) {
+              @for (rate of productBaseRates(); track rate.id) {
+                <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
+                  <span class="ui-tx">
+                    <b>{{ rateText(rate.annual_rate_scaled) }}</b>
+                    <small>
+                      @if (rateEndsOn(rate); as ends) { {{ 'products.rates.between' | t:{ from: dayText(rate.valid_from), to: dayText(ends) } }} }
+                      @else { {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }} }
+                    </small>
+                  </span>
+                  <span class="state" [class]="rateStatus(rate)">
+                    @switch (rateStatus(rate)) {
+                      @case ('current') { {{ 'products.rates.current' | t }} }
+                      @case ('future') { {{ 'products.rates.future' | t }} }
+                      @default { {{ 'products.rates.ended' | t }} }
+                    }
+                  </span>
+                  <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                </button>
+              }
+              <button type="button" class="ui-row plain" (click)="startRateForm(null)">
+                <ion-icon name="add" class="ui-p"></ion-icon>
+                <span class="ui-tx"><b class="ui-p">{{ 'products.product.changeRate' | t }}</b></span>
+              </button>
+            }
+          </div>
+          @if (editingProduct() && productBaseRates().length === 0) {
+            <div class="ui-banner warn">{{ 'products.product.noRateHint' | t }}</div>
+          }
+          <p class="hint">{{ 'products.rates.hint' | t }}</p>
+        }
+
+        @case ('bonus') {
+          <div class="ui-list">
+            @for (rate of productBonusRates(); track rate.id) {
+              <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
+                <span class="ui-tx">
+                  <b>+{{ rateText(rate.annual_rate_scaled) }}</b>
+                  <small class="wrap">
+                    @if ((rate.payout_months ?? 1) > 1) {
+                      {{ 'products.rate.conditionMonths' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0), count: rate.payout_months } }}
+                    } @else {
+                      {{ 'products.rate.condition' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0) } }}
+                    }
+                    · {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }}
+                  </small>
+                </span>
+                <span class="state" [class]="rateStatus(rate)">
+                  @switch (rateStatus(rate)) {
+                    @case ('current') { {{ 'products.rates.current' | t }} }
+                    @case ('future') { {{ 'products.rates.future' | t }} }
+                    @default { {{ 'products.rates.ended' | t }} }
+                  }
+                </span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
+            <button type="button" class="ui-row plain" (click)="startRateForm(null, true)">
+              <ion-icon name="add" class="ui-p"></ion-icon>
+              <span class="ui-tx"><b class="ui-p">{{ 'products.product.addBonus' | t }}</b></span>
+            </button>
+          </div>
+          <p class="hint">{{ 'products.product.bonusHint' | t }}</p>
+        }
+
+        @case ('cdt') {
+          @if (!editingProduct()) {
+            <div class="ui-seg">
+              <button type="button" [class.on]="productKind() === 'high_yield'" (click)="setProductKind('high_yield')">{{ 'products.product.kind.high_yield' | t }}</button>
+              <button type="button" [class.on]="productKind() === 'cdt'" (click)="setProductKind('cdt')">{{ 'products.product.kind.cdt' | t }}</button>
+            </div>
+          } @else {
+            <div class="ui-seg locked">
+              <button type="button" disabled>{{ 'products.product.kind.high_yield' | t }}</button>
+              <button type="button" disabled class="on">{{ 'products.product.kind.cdt' | t }}</button>
+            </div>
+          }
+          <p class="hint">{{ 'products.product.cdtHint' | t }}</p>
+          @if (fundingAsked()) {
+            <div class="ui-list">
+              <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
+                <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
+                <span class="ui-tx">
+                  <small>{{ 'products.product.fundingQuestion' | t }}</small>
+                  <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
+                </span>
+                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+              </button>
+              @if (productFunding() === 'product') {
+                <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
+                  @let from = productById(line, productFundingFrom());
+                  @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
+                  <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
+                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          }
+          <div class="ui-list">
+            <label class="ui-field">
+              <span class="in">
+                <span class="lab">{{ 'products.cdt.amount' | t }}</span>
+                <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+              </span>
+              <span class="unit">{{ line.account.currency_code }}</span>
+            </label>
+            <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.cdt.openedOn', value: cdtOpenedOn(), set: 'cdt' }"></ng-container>
+            <div class="ui-field pair">
+              <label class="in">
+                <span class="lab">{{ 'products.cdt.term' | t }}</span>
+                <input inputmode="numeric" [value]="cdtTerm()" (input)="cdtTerm.set(unsigned($event.target))">
+              </label>
+              <label class="in right">
+                <span class="lab">{{ 'ui.yields.rate' | t }}</span>
+                <input inputmode="decimal" placeholder="10,5" [value]="cdtRate()" (input)="cdtRate.set(unsigned($event.target))">
+              </label>
+            </div>
+            @if (cdtPreviewNow(); as preview) {
+              <div class="ui-field">
+                <span class="in">
+                  <span class="lab">{{ 'products.cdt.maturesOn' | t }}</span>
+                  <span class="val">{{ longDate(preview.maturesOn) }}</span>
+                </span>
+              </div>
+            }
+          </div>
+          @if (!productIsDefault()) {
+            <div class="ui-list switches">
+              <div class="ui-row plain">
+                <span class="ui-tx"><b class="wrap">{{ 'products.product.netWorth' | t }}</b></span>
+                <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
+                        (click)="productCounts.set(!productCounts())"></button>
+              </div>
+            </div>
+          }
+          <ng-container *ngTemplateOutlet="deleteProductRow"></ng-container>
+        }
+
+        @case ('matures') {
+          @if (cdtPreviewNow(); as preview) {
+            <div class="ui-list">
+              <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.gross' | t:{ days: preview.days } }}</span><span class="val">{{ money(preview.grossMinor, line.account.currency_code) }}</span></span></div>
+              <div class="ui-field"><span class="in">
+                <span class="lab">{{ (preview.withheldMinor === null ? 'products.cdt.withheldUnknown' : 'products.cdt.withheld') | t }}</span>
+                <span class="val">@if (preview.withheldMinor === null) { — } @else { −{{ money(preview.withheldMinor, line.account.currency_code) }} }</span>
+              </span></div>
+              <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.net' | t }}</span><span class="val">+{{ money(preview.netMinor, line.account.currency_code) }}</span></span></div>
+              <div class="ui-field total"><span class="in"><span class="lab">{{ 'products.cdt.receive' | t }}</span><span class="val big">{{ money(preview.receiveMinor, line.account.currency_code) }}</span></span></div>
+            </div>
+          } @else {
+            <p class="hint">{{ 'ui.yields.cdtFillFirst' | t }}</p>
+          }
+          <div class="ui-list ends">
+            <div class="ui-row end">
+              <span class="side">{{ 'ui.yields.goesTo' | t }}</span>
+              <div class="what">
+                <span class="acc">
+                  <app-badge shape="ci" [size]="28" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
+                             [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
+                  <b class="ui-one">{{ line.account.name }}</b>
+                </span>
+                <button type="button" class="prod" (click)="choosingCdtInto.set(true)">
+                  <span class="hang"></span>
+                  @let into = productById(line, cdtInto());
+                  @if (into) { <app-badge [size]="24" [builtin]="faceOf(into)" [seed]="seedOf(into)"></app-badge> }
+                  <span class="ui-one">{{ cdtTargetName() }}</span>
+                </button>
+              </div>
+              <ion-icon class="ui-chev" name="chevron-down-outline" (click)="choosingCdtInto.set(true)"></ion-icon>
+            </div>
+            <button type="button" class="ui-row plain" (click)="choosingCdtCategory.set(true)">
+              @let category = incomeCategoryById(cdtCategory());
+              <app-badge [size]="38" [builtin]="category?.builtin_icon" [customId]="category?.custom_icon_id"
+                         [tone]="category?.color" [seed]="category?.id ?? 0"></app-badge>
+              <span class="ui-tx"><small>{{ 'ui.yields.withCategory' | t }}</small><b class="ui-one">{{ category?.name ?? '—' }}</b></span>
+              <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+            </button>
+          </div>
+          <p class="hint">{{ 'products.cdt.closes' | t:{ target: cdtTargetName() } }}</p>
+        }
+
+        @case ('cdtPayments') {
+          <div class="ui-list">
+            @for (payment of productPayments(); track payment.key) {
+              <div class="ui-row">
+                <app-badge [size]="42" builtin="lock-closed" [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ longDate(payment.on) }}</b>
+                  <small class="ui-one">{{ 'ui.yields.sumOfDays' | t:{ count: payment.days } }}@if (payment.pending) { · {{ 'ui.yields.notYetPaid' | t }} }</small>
+                </span>
+                <span class="ui-am ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</span>
+              </div>
+            } @empty {
+              <div class="ui-row plain"><span class="ui-tx"><small class="wrap">{{ 'products.days.none' | t }}</small></span></div>
+            }
+          </div>
+          <p class="hint">{{ 'ui.yields.cdtPaymentsHint' | t }}</p>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- A rate of the product being edited, from a date (4n, 4p). A change is a
+       new rate, never an edit of the one before it. -->
+  <ion-modal class="ui-sheet" [isOpen]="form() === 'rate'" (didDismiss)="form() === 'rate' && openProduct(editingProduct())">
+    <ng-template>
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <h2 class="center">{{ (editingRate() ? 'products.rate.fix' : (rateIsBonus() ? 'products.product.addBonus' : 'products.product.changeRate')) | t }}</h2>
+        <div class="ui-inputs">
+          <label class="ui-input">
+            <span>{{ (rateIsBonus() ? 'ui.yields.extraRate' : 'products.rate.percent') | t }}</span>
+            <input inputmode="decimal" placeholder="10,5" [value]="ratePercent()" (input)="ratePercent.set(unsigned($event.target))">
+          </label>
+          @if (rateIsBonus()) {
+            <label class="ui-input">
+              <span>{{ 'products.rate.spend' | t }}</span>
+              <input inputmode="decimal" placeholder="400.000" [value]="rateSpend()" (input)="rateSpend.set(amountTyped($event.target))">
+            </label>
+          }
+          <div class="pair">
+            @if (rateIsBonus()) {
+              <label class="ui-input">
+                <span>{{ 'products.rate.bonusMonths' | t }}</span>
+                <input inputmode="numeric" [value]="rateMonths()" (input)="rateMonths.set(unsigned($event.target))">
+              </label>
+            }
+            <label class="ui-input date">
+              <span>{{ 'products.rate.from' | t }}</span>
+              <input type="date" [value]="rateFrom()" (input)="rateFrom.set($any($event.target).value)"
+                     (click)="$any($event.target).showPicker?.()">
+            </label>
+            @if (!rateIsBonus()) {
+              <label class="ui-input date">
+                <span>{{ 'products.rate.until' | t }}</span>
+                <input type="date" [value]="rateUntil()" (input)="rateUntil.set($any($event.target).value)"
+                       (click)="$any($event.target).showPicker?.()">
+              </label>
+            }
+          </div>
+        </div>
+        <p class="hint">{{ (rateIsBonus() ? 'products.rate.bonusMonthsHint' : editingRate() ? 'products.rate.fix.hint' : 'products.rates.hint') | t }}</p>
+        @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+        <div class="buttons two">
+          @if (editingRate(); as rate) {
+            <button type="button" class="ui-btn danger" [disabled]="saving()" (click)="removeRate(rate)">{{ 'ui.delete' | t }}</button>
+          } @else {
+            <button type="button" class="ui-btn ghost" (click)="openProduct(editingProduct())">{{ 'entry.cancel' | t }}</button>
+          }
+          <button type="button" class="ui-btn" [disabled]="saving()" (click)="saveRate()">{{ 'entry.save' | t }}</button>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- ¿De dónde sale este saldo? -->
+  <ion-modal class="ui-sheet" [isOpen]="choosingFunding()" (didDismiss)="choosingFunding.set(false)">
+    <ng-template>
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <h2 class="center">{{ 'products.product.fundingQuestion' | t }}</h2>
+        <div class="ui-list">
+          @for (option of ['product', 'manual']; track option) {
+            <button type="button" class="ui-row plain" (click)="productFunding.set($any(option)); choosingFunding.set(false)">
+              <span class="ui-tx">
+                <b class="wrap">{{ (option === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
+                <small class="wrap">{{ (option === 'product' ? 'products.product.fundingProductHint' : 'products.product.fundingManualHint') | t }}</small>
+              </span>
+              <span class="ui-tick" [class.on]="productFunding() === option">@if (productFunding() === option) { <ion-icon name="checkmark"></ion-icon> }</span>
+            </button>
+          }
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <ng-container *ngTemplateOutlet="productList; context: { open: choosingFundingFrom(), title: 'ui.yields.leavesFrom', chosen: productFundingFrom(), products: line.products, line: line, pick: 'funding' }"></ng-container>
+  <ng-container *ngTemplateOutlet="productList; context: { open: choosingCdtInto(), title: 'ui.yields.goesTo', chosen: cdtInto(), products: cdtTargets(), line: line, pick: 'cdtInto' }"></ng-container>
+
+  <!-- How often the bank pays. -->
+  <ion-modal class="ui-sheet" [isOpen]="choosingPayout()" (didDismiss)="choosingPayout.set(false)">
+    <ng-template>
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <h2 class="center">{{ 'ui.yields.howOften' | t }}</h2>
+        <div class="ui-list">
+          @for (option of ['daily', 'monthly']; track option) {
+            <button type="button" class="ui-row plain" (click)="productPayout.set($any(option)); choosingPayout.set(false)">
+              <span class="ui-tx"><b>{{ (option === 'daily' ? 'products.payout.daily' : 'products.payout.byMonths') | t }}</b></span>
+              <span class="ui-tick" [class.on]="productPayout() === option">@if (productPayout() === option) { <ion-icon name="checkmark"></ion-icon> }</span>
+            </button>
+          }
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- The category a CDT's payment is filed under. -->
+  <ion-modal class="ui-sheet tall" [isOpen]="choosingCdtCategory()" (didDismiss)="choosingCdtCategory.set(false)">
+    <ng-template>
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <div class="sheet-head">
+          <button type="button" class="link left" (click)="choosingCdtCategory.set(false)">{{ 'entry.cancel' | t }}</button>
+          <h2>{{ 'ui.yields.withCategory' | t }}</h2>
+          <span class="right"></span>
+        </div>
+        <div class="ui-list">
+          @for (category of incomeCategories(); track category.id) {
+            <button type="button" class="ui-row" (click)="cdtCategory.set(category.id); choosingCdtCategory.set(false)">
+              <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                         [tone]="category.color" [seed]="category.id"></app-badge>
+              <span class="ui-tx"><b class="ui-one">{{ category.name }}</b></span>
+              @if (cdtCategory() === category.id) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+            </button>
+          }
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Deleting a product (4q, 4r): its balance and its history go to a product the person chose. -->
+  @if (editingProduct(); as removing) {
+    <ion-modal class="confirm-sheet" [isOpen]="confirmingProductDelete()" (didDismiss)="productDeleteClosed()">
+      <ng-template>
+        <div class="confirm-dialog">
+          <span class="badge"><ion-icon name="trash-outline"></ion-icon></span>
+          <h2>{{ 'products.product.deleteConfirm' | t:{ name: removing.name } }}</h2>
+          @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
+            @if (productDeleteHeld() !== 0) {
+              <p>{{ 'products.product.deleteBalance' | t:{ amount: money(productDeleteHeld(), line.account.currency_code) } }}</p>
+            } @else {
+              <p>{{ 'products.product.deleteHistory' | t:{ count: productDeleteHistory() } }}</p>
+            }
+            <div class="ui-list pick-row">
+              <button type="button" class="ui-row plain" (click)="choosingDeleteTo.set(true)">
+                @let to = productById(line, productDeleteTo());
+                @if (to) { <app-badge [size]="36" [builtin]="faceOf(to)" [seed]="seedOf(to)"></app-badge> }
+                <span class="ui-tx"><small>{{ 'products.product.deleteTo' | t }}</small><b class="ui-one">{{ to?.name ?? '—' }}</b></span>
+                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+              </button>
+            </div>
+          }
+          @if (removing.is_default === 1) {
+            <p>{{ 'products.product.deleteUsual' | t }}</p>
+            <div class="ui-list pick-row">
+              <button type="button" class="ui-row plain" (click)="choosingNewUsual.set(true)">
+                @let usual = productById(line, productNewUsual());
+                @if (usual) { <app-badge [size]="36" [builtin]="faceOf(usual)" [seed]="seedOf(usual)"></app-badge> }
+                <span class="ui-tx"><small>{{ 'products.product.newUsual' | t }}</small><b class="ui-one">{{ usual?.name ?? '—' }}</b></span>
+                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+              </button>
+            </div>
+          }
+          @if (productDeleteHeld() !== 0 || productDeleteHistory() > 0) {
+            <p class="note">{{ (removing.kind === 'cdt' ? 'products.product.deleteKeepsCdt' : 'products.product.deleteKeeps') | t:{ target: productDeleteTargetName() } }}</p>
+          }
+          @if (error()) { <p class="error">{{ error() }}</p> }
+          <div class="buttons">
+            <button type="button" class="ui-btn ghost" (click)="confirmingProductDelete.set(false)">{{ 'entry.cancel' | t }}</button>
+            <button type="button" class="ui-btn danger"
+                    [disabled]="saving() || productDeleteTo() === null || (removing.is_default === 1 && productNewUsual() === null)"
+                    (click)="deleteProduct()">{{ 'products.product.deleteYes' | t }}</button>
+          </div>
+        </div>
+      </ng-template>
+    </ion-modal>
+    <ng-container *ngTemplateOutlet="productList; context: { open: choosingDeleteTo(), title: 'products.product.deleteTo', chosen: productDeleteTo(), products: otherProducts(), line: line, pick: 'deleteTo' }"></ng-container>
+    <ng-container *ngTemplateOutlet="productList; context: { open: choosingNewUsual(), title: 'products.product.newUsual', chosen: productNewUsual(), products: otherProducts(), line: line, pick: 'newUsual' }"></ng-container>
+  }
+</ng-template>
+
+<ng-template #deleteProductRow>
+  @if (editingProduct() && editableProducts().length > 1) {
+    <div class="ui-list danger">
+      <button type="button" class="ui-row plain" [disabled]="saving()" (click)="startDeleteProduct()">
+        <ion-icon name="trash-outline"></ion-icon>
+        <span class="ui-tx"><b class="ui-r">{{ 'products.product.delete' | t }}</b></span>
+      </button>
+    </div>
+  }
+</ng-template>
+
+<!-- A date as a row: the day said in words, the phone's own picker under it. -->
+<ng-template #dateField let-label="label" let-value="value" let-set="set">
+  <label class="ui-field date">
+    <span class="in">
+      <span class="lab">{{ $any(label) | t }}</span>
+      <span class="val">{{ value ? longDate(value) : '—' }}</span>
+    </span>
+    <ion-icon name="chevron-down-outline"></ion-icon>
+    <input type="date" class="native" [value]="value" (input)="setDate(set, $any($event.target).value)"
+           (click)="$any($event.target).showPicker?.()">
+  </label>
+</ng-template>
+
+<!-- A list of the account's products to pick one from, with what each holds. -->
+<ng-template #productList let-open="open" let-title="title" let-chosen="chosen" let-products="products" let-line="line" let-pick="pick">
+  <ion-modal class="ui-sheet" [isOpen]="open" (didDismiss)="closePick(pick)">
+    <ng-template>
+      <div class="ui-sheet-body">
+        <div class="grab"></div>
+        <div class="sheet-head wide">
+          <button type="button" class="link left" (click)="closePick(pick)">{{ 'entry.cancel' | t }}</button>
+          <h2 class="ui-one">{{ $any(title) | t }} · {{ line.account.name }}</h2>
+          <span class="right"></span>
+        </div>
+        <div class="ui-list">
+          @for (product of products; track product.id) {
+            <button type="button" class="ui-row" (click)="pickProduct(pick, product.id)">
+              <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ product.name }}</b>
+                <small>@if (product.is_default === 1) { {{ 'entry.product.usual' | t }} · }{{ money(balanceIn(line, product.id), line.account.currency_code) }}</small>
+              </span>
+              @if (chosen === product.id) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+            </button>
+          }
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+</ng-template>
+
+<!-- While the yields are being worked out the screen is out of reach, and says so. -->
+@if (busyState(); as state) {
+  <app-busy-overlay [label]="state.label" [detail]="state.detail" [percent]="state.percent"></app-busy-overlay>
+}
+
+<!-- Which products the lists are read for ("Qué productos ver"). -->
+<ion-modal class="ui-sheet" [isOpen]="pickingProducts()" (didDismiss)="pickingProducts.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <span class="left"></span>
+        <h2>{{ 'products.products.which' | t }}</h2>
+        <button type="button" class="link right" (click)="pickingProducts.set(false)">{{ 'ui.done' | t }}</button>
+      </div>
+      <p class="hint center">{{ 'products.products.hint' | t }}</p>
+      @if (openLine(); as line) {
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="chooseAllProducts()">
+            <app-badge shape="ci" [size]="42" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
+                       [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
+            <span class="ui-tx"><b>{{ 'products.products.all' | t }}</b></span>
+            @if (allProductsChosen()) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+          @for (product of line.products; track product.id) {
+            <button type="button" class="ui-row" (click)="toggleProduct(product.id)">
+              <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ product.name }}</b>
+                @if (product.is_default === 1) { <small>{{ 'entry.product.usual' | t }}</small> }
+              </span>
+              @if (!allProductsChosen() && isProductChosen(product.id)) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Clearing a yield the bank never paid (4h). -->
 <app-confirm [open]="confirmingZeroDay()" [title]="'products.day.zero.ask' | t"
-             [body]="'products.day.zero.body' | t" [busy]="saving()"
+             [body]="'products.day.zero.body' | t" [busy]="saving()" icon="remove-circle-outline"
              [confirmLabel]="'products.day.zero.yes' | t"
              (confirmed)="zeroDay()" (cancelled)="confirmingZeroDay.set(false)"></app-confirm>
+
+<!-- Stopping the account (4i). -->
+<app-confirm [open]="confirmingStop()" [title]="'products.settings.stop' | t"
+             [body]="'products.settings.stop.sure' | t" [busy]="saving()" icon="pause-circle-outline"
+             [confirmLabel]="'products.settings.stop.confirm' | t"
+             (confirmed)="stopAccruing()" (cancelled)="confirmingStop.set(false)"></app-confirm>

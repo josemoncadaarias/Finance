@@ -40,6 +40,13 @@ export class ComposeService {
    */
   readonly context = signal<number | null>(null);
 
+  /**
+   * A screen that answers the "+" itself: an account's page on the products
+   * screen opens the form on that account and its products. Answers true
+   * when it took the question.
+   */
+  handler: ((kind: EntryKind) => boolean) | null = null;
+
   /** Bumped when a movement has been saved, for screens that want to know. */
   readonly saved = signal(0);
 
@@ -49,6 +56,7 @@ export class ComposeService {
 
   open(kind: EntryKind, extra: Partial<EntryRequest> = {}): void {
     this.sheet.set(false);
+    if (this.handler?.(kind)) return;
     // A transfer leaves the account on show, to wherever it usually sends
     // money (Jose, 2026-09-25).
     this.entry.set({

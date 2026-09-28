@@ -2260,3 +2260,166 @@ ion-modal.confirm-sheet .confirm-dialog {
   .badge.gold { background: rgba(var(--app-yel-rgb), 0.18); color: var(--app-yel); font-weight: 700; font-size: 14px; }
   .ui-inputs .error { margin: -4px 4px 0; text-align: left; }
 }
+
+.ui-sheet-body {
+  h2.center { text-align: center; margin: 4px 0 12px; font-size: 19px; }
+  .sheet-icon { display: flex; justify-content: center; margin: 4px 0 8px; }
+  .ui-row.plain .ui-tx small { display: block; line-height: 1.35; margin-top: 2px; }
+}
+
+/* ---- One account's page on the products screen (4c-4i) -------------------
+   It sits inside the Cuentas tab: the modal stops above the floating bar, so
+   the bar and its "+" stay. A product's form covers the whole screen. */
+ion-modal.account-page {
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
+  --backdrop-opacity: 0;
+  --box-shadow: none;
+  align-items: flex-start;
+
+  .ui-frame > ion-content { flex: 1; --background: var(--app-bg); }
+
+  .ui-titlebar .who {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    background: none;
+    color: var(--app-tx);
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+
+    .name { font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .down { font-size: 18px; color: var(--app-chev); flex: none; }
+    &:disabled { opacity: 1; cursor: default; }
+  }
+
+  .figure {
+    .top { display: flex; align-items: flex-start; gap: 8px; }
+    .what { flex: 1; min-width: 0; }
+    .quick { display: flex; gap: 8px; flex: none; }
+    .quick ion-icon { font-size: 22px; }
+    .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .ui-mini b { display: block; font-size: 16px; font-weight: 700; margin-top: 2px; }
+    .earns { margin: 12px 0 0; font-size: 13.5px; color: var(--app-mu); line-height: 1.45; b { color: var(--app-tx); } ion-icon { vertical-align: -2px; } }
+  }
+
+  .tabs { margin: 12px 0; }
+  .tabs button { padding-left: 4px; padding-right: 4px; }
+
+  .hint { margin: 10px 4px 0; font-size: 13.5px; line-height: 1.45; color: var(--app-mu); }
+
+  .ui-period { margin-bottom: 10px; }
+  .ui-search { margin-bottom: 10px; }
+  .views { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .views .grow { flex: 1; }
+  .views .ui-chip { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 16px; } }
+
+  .ui-group { margin-bottom: 10px; }
+  .ui-group .total { font-weight: 600; font-size: 15px; flex: none; }
+
+  .am {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex: none;
+    text-align: right;
+    b { font-weight: 600; font-size: 15px; }
+    small { font-size: 12px; color: var(--app-mu); }
+  }
+
+  .ui-row .ui-am { font-weight: 600; }
+
+  .sum { background: var(--app-s2); .ui-tx b { font-weight: 600; } .ui-am { font-weight: 700; } }
+  .ui-row.plain > ion-icon { font-size: 22px; flex: none; }
+
+  .danger { margin-top: 16px; ion-icon { color: var(--app-red); } }
+
+  .orphan {
+    align-items: flex-start;
+    .link { border: 0; background: none; color: var(--app-pr); font: inherit; font-size: 13.5px; padding: 4px 0 0; cursor: pointer; }
+  }
+
+  /* A product's form. */
+  .product-form > .scroll { display: flex; flex-direction: column; gap: 12px; }
+  .product-form .tabs { margin: 0; }
+  .product-form .hint { margin: -4px 4px 0; }
+  .product-form .ui-h { margin: 4px 4px -4px; }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .name {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 12px 14px;
+      cursor: text;
+      &:focus-within { border-color: var(--app-pr); box-shadow: 0 0 0 1px var(--app-pr) inset; }
+      .ui-lab { letter-spacing: 1.2px; }
+      input { border: 0; outline: none; background: none; color: var(--app-tx); font: inherit; font-size: 16.5px; padding: 0; width: 100%; &::placeholder { color: var(--app-mu); } }
+    }
+  }
+
+  .ui-seg.locked button:disabled { opacity: 1; }
+  .ui-seg.locked button:not(.on) { opacity: 0.45; }
+
+  .switches .ui-row.plain { padding: 13px 14px; }
+  .switches .ui-tx b { font-weight: 600; }
+
+  .sum-card {
+    .ui-big { margin-bottom: 10px; }
+    .line { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; color: var(--app-mu); margin-top: 4px; }
+    .line b { color: var(--app-tx); font-weight: 600; flex: none; }
+    .line b.ui-g { color: var(--app-grn); }
+  }
+
+  .ui-field.date { position: relative; cursor: pointer; }
+  .ui-field.date .native { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+  .ui-field.pair { gap: 16px; }
+  .ui-field.pair .in.right { align-items: flex-end; text-align: right; }
+  .ui-field.pair .in.right input { text-align: right; }
+  .ui-field.total { background: var(--app-s2); .val.big { font-size: 19px; } }
+  .ui-field .ui-chip { flex: none; }
+
+  .state {
+    flex: none;
+    font-size: 11.5px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--app-s3);
+    color: var(--app-mu);
+    &.current { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
+    &.future { background: rgba(var(--app-pr-rgb), 0.16); color: var(--app-pr); }
+  }
+
+  /* The ends of "Al vencer" (4t), drawn as the movement form draws them. */
+  .ends .end { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .ends .side { width: 52px; flex: none; color: var(--app-mu); font-size: 14.5px; }
+  .ends .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .ends .acc, .ends .prod { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: var(--app-tx); padding: 0; font: inherit; text-align: left; min-width: 0; width: 100%; }
+  .ends .acc b { font-size: 16px; font-weight: 600; min-width: 0; }
+  .ends .prod { position: relative; padding-left: 34px; font-size: 15px; cursor: pointer; }
+  .ends .hang { position: absolute; left: 13px; top: -6px; width: 14px; height: 18px; border-left: 2px solid var(--app-s3); border-bottom: 2px solid var(--app-s3); border-bottom-left-radius: 8px; }
+}
+
+/* A dialog's sheet: two buttons side by side, and a quiet danger under them. */
+.ui-sheet-body {
+  .buttons.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .ui-btn.zero { margin-top: 10px; }
+  .ui-inputs { margin-top: 12px; }
+  .ui-inputs .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ui-input.date input { color-scheme: dark; }
+  .day-sheet .ui-row.plain b { flex: none; font-weight: 600; }
+}
+
+ion-modal.confirm-sheet .confirm-dialog .pick-row { width: 100%; text-align: left; }
