@@ -33,8 +33,8 @@ export const C = { red: P.coral, grn: P.esmeralda, blu: ACCENT, yel: P.ambar, pu
 export const tint = (hex, a = .16) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 
 // Categories are rounded squares, accounts are circles: the shape says which.
-export const sq = (i, c, size = 42) => `<span class="sq" style="width:${size}px;height:${size}px;background:${tint(c)};color:${c}">${ic(i)}</span>`;
-export const ci = (i, c, size = 42) => `<span class="ci" style="width:${size}px;height:${size}px;background:${tint(c)};color:${c}">${ic(i)}</span>`;
+export const sq = (i, c, size = 42) => `<span class="sq" style="display:grid;width:${size}px;height:${size}px;background:${tint(c)};color:${c}">${ic(i)}</span>`;
+export const ci = (i, c, size = 42) => `<span class="ci" style="display:grid;width:${size}px;height:${size}px;background:${tint(c)};color:${c}">${ic(i)}</span>`;
 export const chev = () => ic('chevron-forward-outline', 'chev');
 export const down = () => ic('chevron-down-outline', 'chev');
 export const tick = on => on ? `<span class="tick on">${ic('checkmark')}</span>` : '<span class="tick"></span>';
@@ -154,6 +154,7 @@ nav .dot{position:absolute;top:5px;right:26px;width:9px;height:9px;border-radius
 .hint{font-size:12.5px;color:var(--mu);margin:6px 4px 0;line-height:1.4}
 .boxno{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--s3);color:#b9c3d8;margin-left:4px;vertical-align:1px}
 .typed{border-left:3px solid ${C.gold};}
+.one{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .float-ctl{position:absolute;right:16px;bottom:110px;display:flex;flex-direction:column;gap:8px}
 `;
 

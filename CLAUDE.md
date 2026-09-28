@@ -2043,6 +2043,60 @@ usual note offered for a new movement, and everything else. So:
   competitor's teal. Jose asked for a blue "un tris diferente" so the app
   is not taken for someone else's.
 
+**How the redesign is agreed: group by group** (Jose, 2026-09-28). One
+group of screens at a time is drawn, sent, corrected and approved; only
+then does the next start. The groups and where each stands:
+
+| Group | Screens | Mockups | Status |
+|---|---|---|---|
+| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v4) | Sent 2026-09-28, waiting for Jose |
+| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `b0*` (v3 draft) | To redo |
+| 3 | Categories and their editor | `b08`-`b13` (v3 draft) | To redo |
+| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `c*` (v3 draft) | To redo |
+| 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
+| 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
+| 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
+| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
+| 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
+
+**Rules from Jose's review of v3 (2026-09-28), for every group:**
+
+- **Long text never breaks the layout.** Names, notes, labels and
+  descriptions stay on one line where they are a title or a row, end in
+  "…" and slide to show themselves with the marquee the app already has
+  (`marquee.service.ts`); a header gives the name all the width it can.
+  v3 broke "Todas las cuentas" into three lines; that is the failure to
+  avoid everywhere.
+- **Minimal.** Nothing on screen that does not serve the person: no
+  labels like "idea nueva", no decoration, no second way to do the same
+  thing.
+- **Save space the way the app does today.** The category is ONE button
+  (the chosen one, and a pencil beside it), never a spread of chips. The
+  note keeps its suggestions under it, and while it is being written it
+  rises to the top and hides the rest of the form so the note, the
+  suggestions and the phone's keyboard are all in view ("Listo" returns).
+- **One movement form, one style, for everything**: spending, income, a
+  transfer between accounts and a move between products look and work
+  the same, each with its note, its date and "Pasar todo" / "Invertir"
+  where they apply. A move between products is a transfer whose two ends
+  are products of one account. The "+" is the one way in, and the form
+  switches between Gasto, Ingreso and Transferir; no screen keeps its own
+  Gasto / Ingreso / Transferir buttons (the products sheet did, in v3).
+- **Categories are only expense and income.** Product categories became
+  income categories in migration 037; there is no third list.
+- **The category editor opens on Ícono**, then Color, then Imagen propia.
+- **A rate lives inside its product** on screen: it is added and edited
+  from the product, never as a loose list with a "which products" picker.
+  In the data a rate can also belong to the whole account (`product_id`
+  NULL, used by every product without its own); on screen such a rate
+  shows inside each product it applies to, marked as the account's. Making
+  every rate strictly per product would change data and is Jose's call.
+- **Icons in dialogs and sheets are centred with their title**, never
+  left against a centred text.
+- **The orphan withdrawal** ("Retiro sin su movimiento") exists in the app
+  today and stays, but said plainly and quietly inside the row, not as an
+  alarming card.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |

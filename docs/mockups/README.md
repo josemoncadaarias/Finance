@@ -1,4 +1,4 @@
-# Mockups of the redesign (v3, 2026-09-27)
+# Mockups of the redesign
 
 Pictures of how every screen would look, drawn to agree the direction with
 Jose before any code changes. **They are not the app** and every figure in
@@ -6,13 +6,19 @@ them is invented. What each screen must still do is
 `docs/08-redesign-checklist.md`; where a mockup leaves something out, the
 checklist wins.
 
+## Status
+
+Agreed group by group (see the table in CLAUDE.md, "How the redesign is
+agreed"). Files starting with a digit are the current version of their
+group (v4 and later); `b*`, `c*`, `d*` are v3 drafts, kept until their group
+is redone, and superseded by Jose's review of 2026-09-28.
+
 ## The files
 
 | File | Screen |
 |---|---|
 | `00-azul-opciones` | The accent: Zafiro (recommended), Cobalto, Índigo, and today's |
-| `a01`–`a07` | Inicio (all accounts, amounts hidden, one card with its movements list, a new user), "Estás viendo", the period, the "+" sheet |
-| `a08`–`a14` | Movement form: an account with products (the product on show and changed on its own), the product sheet, the account list, the category list, a transfer in two currencies, a move between products, editing with delete |
+| `1a`–`1n` | Group 1 (v4): Inicio, amounts hidden, one account with a long name (ellipsis and sliding), the "+" sheet, the movement form for spending, writing a note, a transfer, a move between products, two currencies, the account, product and category lists, editing and deleting |
 | `b01`–`b04` | Cuentas, how net worth is built, currencies and today's rate, adding a currency |
 | `b05`–`b07` | New account (from a PDF or by hand), editing a card, its icon and colour (`b06b`), the limit history |
 | `b08`–`b13` | Categories (expense, product), and the editor: colour by family, icon, own image, a product category |
