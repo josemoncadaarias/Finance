@@ -1700,8 +1700,16 @@ button.ui-row:active { background: var(--app-s2); }
   color: var(--app-tx);
 }
 
-/* The page scrolls clear of the floating bar. */
+/* The page scrolls clear of the floating bar. Every screen under the bar
+   gets that room at its foot from here, whatever its markup (Jose,
+   2026-09-28: the Google button, the notifications permission and the
+   tax disclaimer ended under the bar on his phone). `.ui-page-end` stays
+   for the account page, which is a modal with a bar of its own. */
+ion-router-outlet > .ion-page > ion-content {
+  --padding-bottom: calc(110px + var(--ion-safe-area-bottom, 0px));
+}
 .ui-page-end { height: calc(110px + var(--ion-safe-area-bottom, 0px)); }
+ion-router-outlet > .ion-page > ion-content .ui-page-end { height: 0; }
 
 /* A short notice that goes away by itself. */
 .ui-toast {
