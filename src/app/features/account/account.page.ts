@@ -106,6 +106,8 @@ export class AccountPage {
 
   readonly busy = signal('');
   readonly busyDetail = signal('');
+  /** How far a download has got, 0 to 1, or null while it cannot be told. */
+  readonly busyFraction = signal<number | null>(null);
   readonly failure = signal('');
   readonly done = signal('');
 
@@ -188,7 +190,10 @@ export class AccountPage {
       if (!token) throw new DriveError(this.i18n.t('cloud.error.signedOut'));
 
       this.busyDetail.set(this.i18n.t('cloud.downloading'));
-      const text = await download(token, held.id);
+      const text = await download(token, held.id, got => {
+        this.busyFraction.set(got.total > 0 ? got.loaded / got.total : 0);
+      });
+      this.busyFraction.set(null);
 
       const backup = parseBackup(text);
       await restoreBackup(this.database.driver, backup, MIGRATION_SOURCES, progress => {
@@ -241,6 +246,17 @@ export class AccountPage {
       // The token went stale; the next thing asked for will fetch a new one.
       this.google.forgetToken();
     }
-    this.failure.set(error instanceof Error ? error.message : String(error));
+    this.failure.set(this.cloud.say(error));
   }
+
+  percentOf(fraction: number): string {
+    return `${Math.floor(Math.min(Math.max(fraction, 0), 1) * 100)} %`;
+  }
+
+  /** The bar under the copy: what stage, how far, and the megabytes. */
+  readonly bar = computed(() => {
+    const now = this.cloud.progress();
+    if (now) return { label: this.i18n.t(`cloud.progress.${now.stage}`), fraction: now.fraction, detail: now.detail };
+    return { label: this.busy(), fraction: this.busyFraction(), detail: this.busyDetail() };
+  });
 }

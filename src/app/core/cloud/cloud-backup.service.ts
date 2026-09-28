@@ -110,6 +110,14 @@ export class CloudBackupService {
 
   readonly state = signal<SaveState>('idle');
   readonly detail = signal('');
+
+  /**
+   * How far a save has got, 0 to 1, and in which stage - read by the bar on
+   * the Google screen. Reading the database is the first 40%, the upload the
+   * rest, byte by byte (Jose, 2026-09-28: the bar sat still at one place and
+   * nobody could tell whether anything was happening).
+   */
+  readonly progress = signal<{ stage: 'checking' | 'reading' | 'uploading'; fraction: number; detail: string } | null>(null);
   readonly failure = signal('');
 
   /**
@@ -336,6 +344,7 @@ export class CloudBackupService {
 
     this.state.set('working');
     this.failure.set('');
+    this.progress.set({ stage: 'checking', fraction: 0.02, detail: '' });
     try {
       const token = await this.google.accessToken();
       if (!token) throw new DriveError('signed out');
@@ -382,13 +391,35 @@ export class CloudBackupService {
 
       const backup = await exportBackup(this.database.driver, progress => {
         this.detail.set(`${progress.done} / ${progress.total}`);
+        this.progress.set({
+          stage: 'reading',
+          fraction: 0.05 + 0.35 * (progress.total > 0 ? progress.done / progress.total : 0),
+          detail: '',
+        });
       });
       const rows = Object.values(backup.tables)
         .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 
-      const written = await upload(token, toJson(backup), {
-        schemaVersion: backup.schemaVersion, rows,
-      }, abort.signal);
+      const json = toJson(backup);
+      const send = () => upload(token, json, { schemaVersion: backup.schemaVersion, rows }, abort.signal, sent => {
+        this.progress.set({
+          stage: 'uploading',
+          fraction: 0.4 + 0.6 * (sent.total > 0 ? sent.loaded / sent.total : 0),
+          detail: this.i18n.t('cloud.progress.mb', { done: megabytes(sent.loaded, this.i18n.dateLocale()), total: megabytes(sent.total, this.i18n.dateLocale()) }),
+        });
+      });
+      let written: CloudCopy;
+      try {
+        written = await send();
+      } catch (error) {
+        // A connection that dropped once is tried once more, after a breath:
+        // on a phone that is most failures, and the person should not have to
+        // press the button again for it.
+        if (!(error instanceof DriveError) || (error.kind !== 'network' && error.kind !== 'stalled') || abort.signal.aborted) throw error;
+        this.progress.set({ stage: 'uploading', fraction: 0.4, detail: this.i18n.t('cloud.progress.retry') });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        written = await send();
+      }
       this.copy.set(written);
       // From here on this device continues that copy, whatever it does next.
       rememberSeen(written.modifiedTime);
@@ -412,6 +443,7 @@ export class CloudBackupService {
     } finally {
       if (this.inFlight === abort) this.inFlight = null;
       this.detail.set('');
+      this.progress.set(null);
     }
   }
 
@@ -427,6 +459,24 @@ export class CloudBackupService {
       // The token went stale; the next thing asked for fetches a new one.
       this.google.forgetToken();
     }
-    this.failure.set(error instanceof Error ? error.message : String(error));
+    this.failure.set(this.say(error));
   }
+
+  /** A failure in words: what happened, and that nothing on the phone was lost. */
+  say(error: unknown): string {
+    if (error instanceof DriveError) {
+      if (error.kind === 'network') return this.i18n.t('cloud.error.network');
+      if (error.kind === 'stalled') return this.i18n.t('cloud.error.stalled');
+      if (error.kind === 'auth') return this.i18n.t('cloud.error.auth');
+      return this.i18n.t('cloud.error.server', { detail: error.message });
+    }
+    const text = error instanceof Error ? error.message : String(error);
+    if (/failed to fetch|network|load failed/i.test(text)) return this.i18n.t('cloud.error.network');
+    return text;
+  }
+}
+
+/** "12,4" megabytes, for the line under the bar. */
+function megabytes(bytes: number, locale: string): string {
+  return (bytes / 1_048_576).toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 }

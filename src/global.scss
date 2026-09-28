@@ -1756,7 +1756,15 @@ button.ui-row:active { background: var(--app-s2); }
   background: var(--app-s3);
   overflow: hidden;
   display: flex;
-  i { display: block; height: 100%; background: var(--app-pr); }
+  i { display: block; height: 100%; background: var(--app-pr); transition: width 0.3s ease; }
+
+  /* Nothing to measure yet: a piece that runs across, so it never looks stuck. */
+  &.moving i { animation: ui-pbar-run 1.3s ease-in-out infinite; transition: none; }
+}
+
+@keyframes ui-pbar-run {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
 }
 
 /* ---- Sheets from the bottom, with their grab handle -------------------- */
