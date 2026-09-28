@@ -190,12 +190,50 @@ S['2m-cara-color'] = `${top('Ícono y color', { left: 'x', right: `<span class="
    return `<div style="aspect-ratio:1;border-radius:50%;background:${tint(c, .2)};color:${c};display:grid;place-items:center;position:relative;${on ? `box-shadow:0 0 0 2px var(--bg),0 0 0 4px ${c}` : ''}">${ic('card-outline', '', 'width:45%;height:45%')}${on ? `<span style="position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:${c};color:#0b1222;display:grid;place-items:center">${ic('checkmark', '', 'width:12px;height:12px')}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
  </main>`;
 
+// Images the person uploaded: invented logos (no real brand), drawn so they
+// read as pictures and never as colours. The first has a transparent
+// background, so the account's colour shows behind it.
+const LOGOS = [
+  (z, bg = 'transparent') => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:${bg};flex:none"><path d="M9 25c5-9 11-9 22-3" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="28" cy="14" r="4" fill="#fff"/></svg>`,
+  z => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:#fff;flex:none"><text x="20" y="26" text-anchor="middle" font-family="Arial" font-weight="900" font-size="15" fill="#0b4fd1">BA</text><rect x="9" y="29" width="22" height="3" rx="1.5" fill="#f5b400"/></svg>`,
+  z => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:#1d1d1f;flex:none"><path d="M20 8l3.5 8 8.5.8-6.4 5.6 1.9 8.4L20 26.4l-7.5 4.4 1.9-8.4L8 16.8l8.5-.8z" fill="#ffcc33"/></svg>`,
+  z => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:#12a150;flex:none"><path d="M12 27c0-9 7-15 17-15-1 10-7 16-17 15z" fill="#fff"/></svg>`,
+  z => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:linear-gradient(135deg,#7b2ff7,#f107a3);flex:none"><text x="20" y="27" text-anchor="middle" font-family="Arial" font-weight="900" font-size="18" fill="#fff">n</text></svg>`,
+  z => `<svg width="${z}" height="${z}" viewBox="0 0 40 40" style="border-radius:50%;background:#e30613;flex:none"><circle cx="20" cy="20" r="9" fill="none" stroke="#fff" stroke-width="4"/><circle cx="20" cy="20" r="3" fill="#fff"/></svg>`,
+];
+const logoOn = (z, color) => LOGOS[0](z, color);
+
 S['2n-cara-imagen-propia'] = `${top('Ícono y color', { left: 'x', right: `<span class="p" style="font-weight:500">Listo</span>` })}<main style="padding-top:10px">
- ${preview(`<span class="ci" style="display:grid;width:58px;height:58px;background:#fff;color:#e11;font-weight:900;font-size:12px;place-items:center">LOGO</span>`)}${faceTabs('Imagen propia')}
- <div class="card" style="margin-top:12px;text-align:center;border-style:dashed;border-color:#34466b">${centred(ci('image-outline', C.blu, 50), 8)}<b>Subir una imagen</b>
-  <div class="sub">El logo de tu banco, por ejemplo. Se guarda dentro de tu copia de seguridad.</div></div>
- <div class="lab" style="margin:14px 2px 8px">Tus imágenes</div>
- <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px">${['#fff', '#ffd400', '#e30613', '#6d28d9', '#0ea5e9', '#111'].map((c, n) => `<div style="aspect-ratio:1;border-radius:50%;background:${c};border:1px solid #2a3a5c;${n === 0 ? 'box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--pr)' : ''}"></div>`).join('')}</div>
+ ${preview(logoOn(58, PALETTE.coral))}${faceTabs('Imagen propia')}
+ <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px;border-style:dashed;border-color:#34466b">${ci('cloud-upload-outline', C.blu, 46)}<div class="tx"><b>Subir una imagen</b><small>PNG, JPG, WEBP o SVG, hasta 100 kB. Sirve para el logo de tu banco.</small></div></div>
+ <div class="lab" style="margin:16px 2px 10px">Tus imágenes</div>
+ <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;justify-items:center">${LOGOS.map((l, n) => `<div style="position:relative;border-radius:50%;${n === 0 ? `box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--pr)` : ''}">${n === 0 ? logoOn(52, PALETTE.coral) : l(52)}${n === 0 ? `<span style="position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:var(--pr);color:#fff;display:grid;place-items:center">${ic('checkmark', '', 'width:12px;height:12px')}</span>` : ''}</div>`).join('')}</div>
+ <div class="p" style="margin-top:12px;font-size:13.5px">Ver 4 imágenes más</div>
+ <div class="hint" style="margin-top:12px">Se guardan dentro de tu copia de seguridad, y cualquier cuenta o categoría puede usarlas.</div>
+ </main>`;
+
+// An account whose face is its own image: the same pencil opens the same
+// editor, so the image can be changed for another, for an icon, or given
+// another colour.
+S['2q-editar-cuenta-con-imagen'] = `${saveBar('Editar cuenta')}<main style="padding-top:80px"><div style="height:12px"></div>
+ ${face(logoOn(60, PALETTE.coral), 'Tarjeta Coral')}
+ ${typePick(1)}
+ <div class="list" style="margin-top:12px">
+  ${val('Moneda', 'COP · Peso colombiano', ic('lock-closed-outline', 'mu', 'width:18px;height:18px'))}
+  ${val('Saldo inicial', '0,00', '<span class="mu" style="font-size:13px">COP</span>')}
+  ${val('Abierta el', '12 mar 2024', down())}</div>
+ <div class="h">Cupo</div>
+ <div class="list">${val('Cupo total', '8.000.000,00', '<span class="mu" style="font-size:13px">COP</span>')}${val('Vigente desde', 'Viernes 1 ago 2026', down())}</div>
+ </main>`;
+
+// The colour with an own image: it fills behind the image (a logo with a
+// transparent background takes it) and stays the account's colour
+// everywhere else. Each swatch is the image on that colour.
+S['2r-cara-color-con-imagen'] = `${top('Ícono y color', { left: 'x', right: `<span class="p" style="font-weight:500">Listo</span>` })}<main style="padding-top:10px">
+ ${preview(logoOn(58, PALETTE.cielo))}${faceTabs('Color')}
+ ${fams.map(([t, cs]) => `<div class="lab" style="margin:14px 2px 8px">${t}</div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px;justify-items:center">${cs.map(n => { const c = PALETTE[n]; const on = n === 'cielo';
+   return `<div style="position:relative;border-radius:50%;${on ? `box-shadow:0 0 0 2px var(--bg),0 0 0 4px ${c}` : ''}">${logoOn(50, c)}${on ? `<span style="position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:${c};color:#0b1222;display:grid;place-items:center">${ic('checkmark', '', 'width:12px;height:12px')}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
+ <div class="hint" style="margin-top:12px">Con imagen propia, el color va detrás de la imagen y sigue siendo el color de la cuenta en el resto de la app.</div>
  </main>`;
 
 // Archived accounts, opened below the list: history only.

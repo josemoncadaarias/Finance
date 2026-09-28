@@ -2138,6 +2138,12 @@ redrawn):
   not offer it today.
 - **"Nueva cuenta" is a button in the screen's title bar**; the "+" in the
   bottom bar stays the way to a new movement.
+- **An account's own image is edited like any icon** (Jose, 2026-09-28):
+  the same pencil opens the same editor, where the image is changed for
+  another or for an icon, and the Color tab still works - the colour fills
+  behind the image (a logo with a transparent background takes it) and
+  stays the account's colour elsewhere (`2q`, `2r`). "Tus imágenes" shows
+  the pictures uploaded, never plain colours (`2n` looked like colours).
 
 ### The ideas, by what they would take
 
