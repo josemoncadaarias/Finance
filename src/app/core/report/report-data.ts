@@ -66,6 +66,24 @@ export interface ReportData {
     clipped: boolean;
   } | null;
 
+  /**
+   * What "Tu saldo a futuro" reads: the balance in view today and the
+   * movements of the six whole months before this one and of this one so
+   * far, filtered like everything else here. Null where it was not loaded -
+   * a period that does not reach today has no future to speak of.
+   *
+   * The balance is the one the summary shows beside the account: net worth
+   * in pesos at today's rates for every account, the account's own balance
+   * for one. The months before it are walked back from it with each
+   * movement's own figure, the same one every other section adds up.
+   */
+  future?: {
+    nowMinor: number;
+    /** The first day of the six whole months, `YYYY-MM-01`. */
+    since: string;
+    movements: readonly Movement[];
+  } | null;
+
   /** Today, so a part-finished period can be recognised as one. */
   today: string;
 

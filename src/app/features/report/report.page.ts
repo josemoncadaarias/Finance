@@ -12,21 +12,21 @@
  */
 
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
-import {
-  IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonSpinner,
-  IonBackButton, IonToast,
-} from '@ionic/angular';
+import { IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { MoneyPipe } from '../../shared/money.pipe';
 import { formatMoney } from '../../core/database/money';
-import { IconComponent } from '../../core/icons/icon.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
+import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import { ToastService } from '../../shared/ui/toast.service';
+import { AccentService } from '../../core/theme/accent.service';
+import { PALETTE } from '../../core/theme/palette';
+import { includesToday, periodLabel as labelOfPeriod } from '../../core/filters/period';
 import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
 import { ReportService } from '../../core/report/report.service';
 import { MovementsStore } from '../movements/movements.store';
@@ -47,16 +47,49 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   templateUrl: './report.page.html',
   styleUrls: ['./report.page.scss'],
   imports: [
-    TranslatePipe, MoneyPipe, IconComponent, CloudButtonComponent, LanguageButtonComponent,
-    ScopeSheetsComponent,
-    IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonSpinner,
-    IonBackButton, IonToast,
+    TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, BusyOverlayComponent,
+    IonContent, IonIcon, IonSpinner,
   ],
 })
 export class ReportPage {
   private readonly report = inject(ReportService);
   private readonly yieldsReport = inject(YieldsReportService);
-  private readonly filter = inject(FilterService);
+  readonly filter = inject(FilterService);
+  private readonly toast = inject(ToastService);
+  private readonly accent = inject(AccentService);
+  readonly accentColor = computed(() => this.accent.accent().color);
+  readonly info = signal<string | null>(null);
+
+  /** "Todas las cuentas", "Todas las cuentas que rinden", or the one on show. */
+  readonly accountLabel = computed(() => {
+    const account = this.store.selectedAccount();
+    if (account) return account.name;
+    return this.i18n.t(this.mode() === 'yields' ? 'report.yields.allAccounts' : 'summary.allAccounts');
+  });
+
+  readonly periodTitle = computed(() => {
+    const text = labelOfPeriod(this.filter.period(), this.i18n.dateLocale(), this.i18n.t('period.all'));
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  });
+
+  readonly atNewest = computed(() => includesToday(this.filter.period()));
+  readonly canStep = computed(() => {
+    const kind = this.filter.period().kind;
+    return kind !== 'all' && kind !== 'range';
+  });
+
+  /** "Van 27 de 30 días", while the period is not over. */
+  readonly daysGoneLine = computed(() => {
+    const period = this.filter.period();
+    if (!period.from || !period.to || !includesToday(period)) return null;
+    const day = 86_400_000;
+    const at = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const total = Math.round((at(period.to) - at(period.from)) / day) + 1;
+    const gone = Math.round((today - at(period.from)) / day) + 1;
+    return gone < total ? this.i18n.t('ui.report.daysGone', { gone, total }) : null;
+  });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -97,7 +130,7 @@ export class ReportPage {
   readonly working = signal(true);
 
   readonly exporting = signal(false);
-  readonly notice = signal('');
+  readonly exportName = signal('');
 
   /** The period and account this is about, for the line under the title. */
   readonly about = computed(() => {
@@ -168,11 +201,12 @@ export class ReportPage {
     await new Promise(resolve => setTimeout(resolve));
     try {
       const name = yields ? yieldsFileName(yields) : reportFileName(data!);
+      this.exportName.set(name);
       const bytes = yields ? yieldsWorkbook(yields, this.blocks()) : reportWorkbook(data!);
       const saved = await saveFile(new Blob([bytes], { type: XLSX_MIME }), name);
-      if (saved) this.notice.set(this.i18n.t('report.saved'));
+      if (saved) this.toast.say(this.i18n.t('report.saved'));
     } catch (error) {
-      this.notice.set(error instanceof Error ? error.message : String(error));
+      this.toast.say(error instanceof Error ? error.message : String(error));
     } finally {
       this.exporting.set(false);
     }
@@ -207,7 +241,7 @@ export class ReportPage {
   }
 
   private money(minor: number, currency: string): string {
-    return formatMoney(minor, currency);
+    return formatMoney(minor, currency, { withSymbol: false });
   }
 
   /** How wide to draw a row's bar. Kept off zero so a tiny share still shows. */
@@ -303,6 +337,82 @@ export class ReportPage {
     return block.points.find(point => point.label === label) ?? null;
   }
 
+  /** The trends showing both series ("Ingresos y gastos"), by block id. */
+  private readonly both = signal<ReadonlySet<string>>(new Set());
+
+  isBoth(id: string): boolean {
+    return this.both().has(id);
+  }
+
+  setBoth(id: string, on: boolean): void {
+    this.both.update(current => {
+      const next = new Set(current);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
+  /** Two bars a month fit six months (mockup 5q). */
+  recentPoints(block: Extract<Block, { kind: 'trend' }>): Extract<Block, { kind: 'trend' }>['points'] {
+    return block.points.slice(-6);
+  }
+
+  /** A bar of a pair, against the tallest of either series on show. */
+  pairHeight(block: Extract<Block, { kind: 'trend' }>, value: Value | undefined): string {
+    const peak = this.recentPoints(block).reduce((most, point) => Math.max(most,
+      point.value.kind === 'money' ? Math.abs(point.value.minor) : 0,
+      point.second?.kind === 'money' ? Math.abs(point.second.minor) : 0), 0);
+    if (!value || value.kind !== 'money' || peak <= 0) return '2%';
+    return `${Math.max(Math.round((Math.abs(value.minor) / peak) * 100), 2)}%`;
+  }
+
+  /** What was left in a month: income less spending. */
+  leftOf(point: { value: Value; second?: Value }): string {
+    if (point.value.kind !== 'money' || point.second?.kind !== 'money') return '';
+    return this.show({ ...point.value, minor: point.second.minor - point.value.minor });
+  }
+
+  /**
+   * The balance line (mockup 5r) in a 300 x 130 box: x by date, y by value,
+   * the recorded part solid and the projected part dashed from today.
+   */
+  lineOf(block: Extract<Block, { kind: 'trend' }>): {
+    solid: string; dashed: string; todayX: number; pickedX: number | null;
+    dots: { label: string; x: number; y: number; picked: boolean }[];
+    firstLabel: string; lastLabel: string;
+  } {
+    const points = block.points.filter(point => point.on && point.value.kind === 'money');
+    const time = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    const first = time(points[0]?.on ?? '2000-01-01');
+    const last = time(points.at(-1)?.on ?? '2000-01-02');
+    const values = points.map(point => (point.value as { minor: number }).minor);
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const span = high - low || 1;
+    const at = (point: typeof points[number]) => ({
+      x: 6 + ((time(point.on!) - first) / Math.max(last - first, 1)) * 288,
+      y: 108 - (((point.value as { minor: number }).minor - low) / span) * 96,
+    });
+    const coords = points.map(at);
+    const path = (from: number, to: number) => coords.slice(from, to)
+      .map((c, index) => `${index === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const today = points.findIndex(point => point.projected) - 1;
+    const split = today >= 0 ? today : points.length - 1;
+    const pickedLabel = (this.pickedPoint(block) ?? this.lastPoint(block))?.label ?? null;
+    const pickedAt = points.findIndex(point => point.label === pickedLabel);
+    const month = (iso: string | undefined) => (iso ? new Date(`${iso}T12:00:00Z`)
+      .toLocaleDateString(this.i18n.dateLocale(), { month: 'short', timeZone: 'UTC' }).replace('.', '') : '');
+    return {
+      solid: path(0, split + 1),
+      dashed: path(split, points.length),
+      todayX: coords[split]?.x ?? 0,
+      pickedX: pickedAt >= 0 ? coords[pickedAt].x : null,
+      dots: points.map((point, index) => ({ label: point.label, ...coords[index], picked: index === pickedAt })),
+      firstLabel: month(points[0]?.on),
+      lastLabel: month(points.at(-1)?.on),
+    };
+  }
+
   /** How much of a bar its lighter part fills. */
   partOf(point: { value: Value; part?: Value }): string {
     if (point.value.kind !== 'money' || point.part?.kind !== 'money' || point.value.minor === 0) return '0';
@@ -346,13 +456,11 @@ export class ReportPage {
       if (!next.delete(id)) next.add(id);
       return next;
     });
-    this.remeasure();
   }
 
   toggleAll(): void {
     const closed = this.allClosed();
     this.open.set(closed ? new Set(this.blocks().map(block => block.id)) : new Set());
-    this.remeasure();
   }
 
   /** How much is behind a closed section, so it can be chosen without opening. */
@@ -369,53 +477,124 @@ export class ReportPage {
     return label.split(' ')[0].slice(0, 3);
   }
 
-  private readonly list = viewChild<IonContent>('list');
-  private readonly atTop = signal(true);
-  private readonly atBottom = signal(true);
-
-  readonly showUp = computed(() => !this.atTop());
-  readonly showDown = computed(() => !this.atBottom());
-
-  async onScroll(): Promise<void> {
-    const element = await this.list()?.getScrollElement();
-    if (!element) return;
-
-    const top = element.scrollTop <= 4;
-    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
-    if (top !== this.atTop()) this.atTop.set(top);
-    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
-  }
-
-  /**
-   * Reads the position again after the page has changed height.
-   *
-   * Folding a section changes how tall the page is and no scroll event says
-   * so, which would leave a "go down" button pointing at nothing.
-   */
-  private remeasure(): void {
-    setTimeout(() => void this.onScroll(), 0);
-  }
-
-  toTop(): void {
-    void this.list()?.scrollToTop(300);
-  }
-
-  toBottom(): void {
-    void this.list()?.scrollToBottom(300);
-  }
-
-  /**
-   * Which arrow a note wears.
-   *
-   * A method rather than a ternary in the template: the icon test reads names
-   * out of bound attributes to check they exist, and a comparison written
-   * inline had it checking for an icon called "good".
-   */
   noteIcon(tone: string | undefined): string {
     return tone === 'good' ? 'trending-down-outline' : 'trending-up-outline';
   }
 
   /** True where the point stands above the block's own average. */
+  // -------------------------------------------------------------------------
+  // The redesign (mockups 5a-5t)
+  // -------------------------------------------------------------------------
+
+  /** Each section's own picture, by what it is about. */
+  iconOf(block: Block): string {
+    const id = block.id;
+    const pick: [RegExp, string][] = [
+      [/ahead/, 'telescope-outline'], [/infla/, 'flame-outline'], [/compar|before|previous|against/, 'git-compare-outline'],
+      [/change|jump/, 'flash-outline'], [/where|categor|went/, 'pie-chart-outline'],
+      [/recurr|repeat|charge/, 'repeat-outline'], [/month|trend|cumul/, 'bar-chart-outline'],
+      [/account|best|top/, 'trophy-outline'], [/largest|biggest/, 'arrow-up-outline'],
+      [/note|worth/, 'bulb-outline'], [/growth|balance/, 'trending-up-outline'],
+    ];
+    for (const [pattern, icon] of pick) if (pattern.test(id)) return icon;
+    return block.kind === 'figures' ? 'stats-chart-outline' : block.kind === 'note' ? 'bulb-outline'
+      : block.kind === 'trend' ? 'bar-chart-outline' : block.kind === 'comparison' ? 'git-compare-outline' : 'list-outline';
+  }
+
+  colorOf(block: Block): string {
+    const colours = [PALETTE.zafiro, PALETTE.violeta, PALETTE.ambar, PALETTE.mandarina, PALETTE.cielo, PALETTE.esmeralda, PALETTE.rosa, PALETTE.turquesa];
+    const index = this.blocks().findIndex(one => one.id === block.id);
+    return colours[Math.max(index, 0) % colours.length];
+  }
+
+  /** What a closed section says under its title: its key figure (5b). */
+  keyOf(block: Block): string {
+    switch (block.kind) {
+      case 'figures': {
+        const share = block.figures.find(figure => figure.value.kind === 'percent');
+        const first = share ?? block.figures.find(figure => figure.value.kind === 'money' && figure.value.minor !== 0) ?? block.figures[0];
+        return first ? `${first.label} ${this.show(first.value)}` : '';
+      }
+      case 'comparison': {
+        const row = block.rows.find(one => one.changePercent !== null) ?? block.rows[0];
+        return row ? `${row.label} ${row.changePercent === null ? '' : this.changeLabel(row.changePercent)}`.trim() : '';
+      }
+      case 'ranked': {
+        const row = block.rows[0];
+        if (!row) return '';
+        return row.share !== undefined ? `${row.label} ${this.percent(Math.round(row.share))}` : `${row.label} · ${this.show(row.value)}`;
+      }
+      case 'trend': {
+        if (block.shape === 'line') {
+          const end = block.points.at(-1);
+          return end ? this.i18n.t('ui.report.ahead', { amount: this.short(end.value) }) : '';
+        }
+        if (block.average && block.averageLabel) return `${block.averageLabel} ${this.short(block.average)}`;
+        const last = block.points.at(-1);
+        return last ? this.short(last.value) : '';
+      }
+      default: {
+        const count = block.lines.length;
+        return count === 1 ? this.i18n.t('ui.report.note') : this.i18n.t('ui.report.notes', { count });
+      }
+    }
+  }
+
+  /** "5,4 M", "352 mil": a figure short enough for a line under a title. */
+  private short(value: Value): string {
+    if (value.kind !== 'money') return this.show(value);
+    const units = Math.abs(value.minor) / 100;
+    const sign = value.minor < 0 ? '−' : '';
+    const locale = this.i18n.dateLocale();
+    if (units >= 1_000_000) return sign + this.i18n.t('chart.millions', { n: (units / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 }) });
+    if (units >= 1_000) return sign + this.i18n.t('chart.thousands', { n: Math.round(units / 1_000).toLocaleString(locale) });
+    return this.show(value);
+  }
+
+  toneClass(tone: string | undefined): string {
+    return tone === 'good' ? 'ui-g' : tone === 'bad' ? 'ui-r' : tone === 'warn' ? 'ui-y' : '';
+  }
+
+  flowClass(flow: string | undefined): string {
+    return flow === 'in' || flow === 'received' ? 'ui-g' : '';
+  }
+
+  /** A long ranking shows its first five, and "Ver las N restantes". */
+  readonly rowLimit = 5;
+  private readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  isExpanded(id: string): boolean {
+    return this.expanded().has(id);
+  }
+
+  expand(id: string): void {
+    this.expanded.update(current => new Set([...current, id]));
+  }
+
+  shownRows(block: Extract<Block, { kind: 'ranked' }>): Extract<Block, { kind: 'ranked' }>['rows'] {
+    return this.isExpanded(block.id) ? block.rows : block.rows.slice(0, this.rowLimit);
+  }
+
+  barColor(index: number): string {
+    const colours = [PALETTE.mandarina, PALETTE.esmeralda, PALETTE.arena, PALETTE.coral, PALETTE.cielo, PALETTE.violeta, PALETTE.rosa, PALETTE.oro];
+    return colours[index % colours.length];
+  }
+
+  /** Where the average line sits, as a share of the tallest bar. */
+  avgBottom(block: Extract<Block, { kind: 'trend' }>): string {
+    const peak = this.peakOf(block);
+    if (peak <= 0 || block.average?.kind !== 'money') return '0';
+    return `calc(20px + (100% - 20px) * ${Math.min(Math.abs(block.average.minor) / peak, 1)})`;
+  }
+
+  lastPoint(block: Extract<Block, { kind: 'trend' }>): Extract<Block, { kind: 'trend' }>['points'][number] | null {
+    return block.points.at(-1) ?? null;
+  }
+
+  capital(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
   isAbove(block: Extract<Block, { kind: 'trend' }>, label: string): boolean {
     return block.aboveAverage?.includes(label) ?? false;
   }

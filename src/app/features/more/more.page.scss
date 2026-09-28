@@ -1,0 +1,32 @@
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 6px;
+  color: var(--app-tx);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+
+  .face { width: 50px; height: 50px; font-size: 20px; flex: none; }
+  .name { font-size: 16px; }
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--app-red);
+  flex: none;
+}
+
+small.waiting { color: #c3cdfa !important; }
+
+:host-context(:root:not(.ion-palette-dark)) small.waiting { color: var(--app-pr) !important; }
+
+.lang {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}

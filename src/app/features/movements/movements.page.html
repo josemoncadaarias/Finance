@@ -1,76 +1,45 @@
-<!-- Reading a statement: what it is doing, how far it has got, and a way
-     out. On a phone this takes tens of seconds, and a spinner inside a
-     button is indistinguishable from an app that has hung. -->
-@if (reading()) {
-  <app-busy-overlay [label]="readingLabel()" [detail]="readingDetail()"
-                    [percent]="readingPercent()"
-                    [cancelLabel]="'statement.stage.stop' | t"
-                    (cancelled)="cancelReading()"></app-busy-overlay>
-}
-
-<ion-header [translucent]="true">
-  <!-- Account: a control that looks like one, not a title -->
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-
-    <!-- What you are looking at, said plainly: the account's own icon, its
-         name, and what that selection includes. -->
-    <button type="button" class="identity" (click)="scope.openAccounts()">
-      <span class="badge" [class.all]="filter.allAccounts()"
-            [class.image]="accountImage() !== undefined">
-        @if (accountImage(); as url) {
-          <img [src]="url" alt="">
-        } @else {
-          <ion-icon [name]="outlined(accountIcon())"></ion-icon>
-        }
+<ion-header class="ui-header">
+  <!-- What you are looking at: the account's own badge, its name on one line
+       (it slides when it does not fit), and what that selection includes.
+       The whole row opens the list of accounts (mockup 1a). -->
+  <button type="button" class="identity" (click)="scope.openAccounts()">
+    @if (store.selectedAccount(); as account) {
+      <app-badge shape="ci" [size]="40" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
+                 [tone]="account.color" [seed]="account.id" fallback="wallet"></app-badge>
+    } @else {
+      <span class="all-badge small"><ion-icon name="layers-outline"></ion-icon></span>
+    }
+    <span class="who">
+      <span class="name">
+        <b class="text marquee-loop">{{ accountLabel() }}</b>
+        <ion-icon name="chevron-down-outline"></ion-icon>
       </span>
-      <span class="who">
-        <!-- The name is wrapped rather than sitting loose beside the
-             chevron. `text-overflow` clips a block's inline content, and a
-             bare text node inside a flex box is an anonymous flex item, which
-             it never touches - so "Cuenta leidy bancolombia prestamos" ran
-             straight across the search and language buttons. -->
-        <span class="name">
-          <span class="text marquee-loop">{{ accountLabel() }}</span>
-          <ion-icon name="chevron-down-outline"></ion-icon>
-        </span>
-        <span class="hint marquee-loop">{{ accountHint() }}</span>
-      </span>
+      <span class="hint marquee-loop">{{ accountHint() }}</span>
+    </span>
+  </button>
+
+  <!-- The period: one full row, round arrows at its edges, the period in the
+       middle opening its sheet. -->
+  <div class="ui-period">
+    <button type="button" class="arrow" (click)="filter.step(-1)" [disabled]="!canStep()"
+            [attr.aria-label]="'summary.previousPeriod' | t">
+      <ion-icon name="chevron-back-outline"></ion-icon>
     </button>
-
-    <ion-buttons slot="end">
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
-
-  <!-- Period: arrows to step, and the label itself opens the picker -->
-  <ion-toolbar class="stepper">
-    <ion-buttons slot="start">
-      <ion-button (click)="filter.step(-1)" [disabled]="!canStep()" [attr.aria-label]="'summary.previousPeriod' | t">
-        <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-
-    <ion-button fill="clear" class="period-button" (click)="scope.openPeriod()">
-      <span class="label">{{ label() }}</span>
+    <button type="button" class="label" (click)="scope.openPeriod()">
       <ion-icon name="calendar-outline"></ion-icon>
-    </ion-button>
-
-    <ion-buttons slot="end">
-      <ion-button (click)="filter.step(1)" [disabled]="!canStep() || atNewest()"
-                  [attr.aria-label]="'summary.nextPeriod' | t">
-        <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
+      <span>{{ label() }}</span>
+      <ion-icon class="down" name="chevron-down-outline"></ion-icon>
+    </button>
+    <button type="button" class="arrow" (click)="filter.step(1)" [disabled]="!canStep() || atNewest()"
+            [attr.aria-label]="'summary.nextPeriod' | t">
+      <ion-icon name="chevron-forward-outline"></ion-icon>
+    </button>
+  </div>
 </ion-header>
-
 
 <ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()"
              appSwipe (swiped)="onSwipe($event)">
+  <main class="ui-main">
 
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
@@ -81,45 +50,28 @@
     </div>
   } @else {
 
-    <!-- How much there is, right now. Not the period's arithmetic: the
-         question someone opens the app with. -->
+    <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
-      <!-- What it says and what it is, on one line: the label used a whole
-           line of a phone to hold four small words, and the figure another.
-           They belong together and now read as one sentence. -->
-      <section class="standing" [class]="standing.kind">
-        <!-- The label and the figure are one sentence and sit on one line.
-             What a card still has room for is a different sentence, so it
-             goes underneath: stacked beside the label it read as if "debes
-             hoy" were followed immediately by "disponible", which is very
-             nearly the opposite of what it says. -->
-        <div class="line">
-          <span class="tag">{{ standing.label }}</span>
-
-          <span class="figure" [class.owed]="standing.amountMinor < 0">
-            {{ standing.amountMinor | money:standing.currency }}
-            <!-- Only while several accounts are on show. With one chosen,
-                 the bar at the top already says which currency it is in, and
-                 the same word twice on one screen is one word too many. -->
-            @if (filter.allAccounts() && standing.currency !== 'COP') {
-              <small>{{ standing.currency }}</small>
-            }
-          </span>
-
-          <!-- What can be done with the account this figure is about, as two
-               round buttons beside it: editing it - a card with a pencil,
-               because it is the account that opens, not "something" - and,
-               for an account that earns, its yields, under the same piggy
-               bank the drawer uses. Icons rather than pills with words: a word
-               cost a line of its own for something used once in a while. -->
+      <section class="ui-hero figures">
+        <div class="top">
+          <div class="what">
+            <div class="ui-lab">{{ standing.label }}</div>
+            <div class="ui-big" [class.ui-y]="standing.kind === 'credit' && standing.amountMinor < 0"
+                 [class.ui-r]="standing.kind !== 'credit' && standing.amountMinor < 0">
+              @if (standing.kind === 'net-worth') { $ }{{ standing.amountMinor | money:standing.currency }}
+              @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+            </div>
+          </div>
+          <!-- One account's quick buttons: editing it, and for an account that
+               earns, its products and yields. -->
           @if (store.selectedAccount(); as account) {
-            <span class="account-actions">
-              <button type="button" class="round-action" (click)="scope.editAccount(account)"
+            <span class="quick">
+              <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
                       [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
                 <ion-icon name="account-edit"></ion-icon>
               </button>
               @if (earning().has(account.id)) {
-                <button type="button" class="round-action" (click)="toProducts(account.id)"
+                <button type="button" class="ui-round solid" (click)="toProducts(account.id)"
                         [attr.aria-label]="'summary.toProducts' | t" [title]="'summary.toProducts' | t">
                   <ion-icon name="piggy-bank"></ion-icon>
                 </button>
@@ -128,150 +80,82 @@
           }
         </div>
 
-        @if (standing.detail) {
-          <p class="detail">{{ standing.detail }}</p>
+        @if (standing.kind === 'credit' && standing.detail) {
+          <div class="ui-sub">{{ standing.detail }}</div>
+          @if (usedShare(standing); as share) {
+            <div class="ui-pbar credit"><i [style.width.%]="share"></i></div>
+          }
+        }
+
+        <div class="ui-mini tiles">
+          @for (tile of tiles(); track tile.key; let last = $last; let odd = $odd) {
+            <div [class.alone]="last && tiles().length % 2 === 1">
+              <span class="ui-lab">
+                @if (tile.transfer) { <ion-icon name="swap-horizontal"></ion-icon> }{{ tile.label }}
+              </span>
+              <b [class]="tile.tone">{{ tile.amount | money:store.currency() }}</b>
+            </div>
+          }
+        </div>
+
+        @if (store.movedBetween() > 0) {
+          <div class="ui-sub moved-line">
+            <ion-icon name="swap-horizontal" class="ui-p"></ion-icon>
+            <span class="ui-one">{{ 'ui.movedBetween' | t:{ amount: (store.movedBetween() | money:'COP') } }}</span>
+          </div>
         }
       </section>
     }
 
-    <!-- And what happened during the period being looked at.
-         The way to the summary sits on this line because this line is what
-         the summary is about: these dates, this account. It asks nothing when
-         tapped - everything it would ask is already chosen above. -->
-
-    <section class="totals">
-      <div>
-        <span class="tag">{{ 'summary.in' | t }}</span>
-        <span class="value in">{{ store.totals().inMinor | money:store.currency() }}</span>
-      </div>
-      <div>
-        <span class="tag">{{ 'summary.out' | t }}</span>
-        <span class="value out">{{ store.totals().outMinor | money:store.currency() }}</span>
-      </div>
-      @if (store.totals().movedMinor > 0) {
-        <div>
-          <span class="tag">{{ 'summary.moved' | t }}</span>
-          <span class="value moved">{{ store.totals().movedMinor | money:store.currency() }}</span>
-        </div>
-      }
-      <!-- What arrived from another of your own accounts. Beside income, not
-           in the ring: it was not spent and it was not earned. -->
-      @if (store.totals().receivedMinor > 0) {
-        <div>
-          <span class="tag">{{ 'summary.received' | t }}</span>
-          <span class="value moved">{{ store.totals().receivedMinor | money:store.currency() }}</span>
-        </div>
-      }
-    </section>
-
-    <!-- Two halves when a statement can be imported, one whole when it
-         cannot: a lone button holding half the line with nothing beside it
-         reads as a button whose other half failed to load. -->
-    <div class="period-tag" [class.alone]="filter.allAccounts()">
-      <!-- The period used to be said here too, and it is already said in the
-           middle of the bar above, in blue, where it is also the way to change
-           it. Saying it twice only cost this line its room. What is left is
-           what that bar does NOT say: the currency these totals are in, and
-           only when it is not the usual one. -->
-      <!-- The way to the summary of what this line names. It opens the report
-           rather than writing a file: reading it is the usual thing to want,
-           and the spreadsheet is a button inside it for when it is not. -->
-      <button type="button" class="to-report" routerLink="/report">
-        <ion-icon name="stats-chart-outline"></ion-icon>
-        <span class="say">{{ 'report.open' | t }}</span>
-      </button>
-
-      <!-- A statement belongs to one account, so this only exists while one
-           is being looked at. It sits on this line for the same reason the
-           summary does: this line names what it is about. -->
-      @if (!filter.allAccounts()) {
-        <input #statementFile type="file" accept="application/pdf,.pdf" hidden
-               (change)="onStatementPicked($any($event.target))" />
-        <button type="button" class="to-report" [disabled]="reading()"
-                (click)="statementFile.click()">
-          @if (reading()) {
-            <ion-spinner name="dots"></ion-spinner>
-          } @else {
-            <ion-icon name="document-attach-outline"></ion-icon>
-          }
-          <span class="say">{{ 'statement.import.short' | t }}</span>
-        </button>
-      }
-    </div>
-
-    <!-- Chart or list: two states, so two halves of one control. It used to be
-         three buttons - a pill with the same icon on either side of it - which
-         all did the same thing and none of which said which way it went. -->
-    <div class="switcher">
-      <button type="button" [class.on]="!filter.showList()"
-              [attr.aria-pressed]="!filter.showList()"
+    <!-- Chart or list: two faces of one selector. -->
+    <div class="ui-seg faces">
+      <button type="button" [class.on]="!filter.showList()" [attr.aria-pressed]="!filter.showList()"
               (click)="filter.showList() && filter.toggleList()">
-        <ion-icon name="pie-chart-outline"></ion-icon>
-        <span>{{ 'summary.chart' | t }}</span>
+        <ion-icon name="pie-chart-outline"></ion-icon><span>{{ 'summary.chart' | t }}</span>
       </button>
-
-      <button type="button" [class.on]="filter.showList()"
-              [attr.aria-pressed]="filter.showList()"
+      <button type="button" [class.on]="filter.showList()" [attr.aria-pressed]="filter.showList()"
               (click)="!filter.showList() && filter.toggleList()">
-        <ion-icon name="list-outline"></ion-icon>
-        <span>{{ 'summary.movements' | t }}</span>
-        <span class="count">{{ store.visible().length }}</span>
+        <ion-icon name="list-outline"></ion-icon><span>{{ 'summary.movements' | t }} · {{ store.visible().length }}</span>
       </button>
     </div>
 
-    <!-- The spinner only when there is nothing behind it. A reload after
-         saving an edit used to swap the whole list for it, and the list came
-         back scrolled to the top - so correcting one movement lost your place
-         among four thousand of them. -->
     @if (store.loading() && store.groups().length === 0) {
       <div class="state"><ion-spinner></ion-spinner></div>
     } @else if (filter.showList()) {
 
-      <!-- One control. Each view is a question, and each answers it in the
-           only order that makes sense for it. -->
-      <div class="views">
-        @for (view of views; track view.id) {
-          <button type="button" [class.on]="filter.grouping() === view.id"
-                  (click)="setGrouping(view.id)">
-            <ion-icon [name]="view.icon"></ion-icon>
-            <span>{{ $any(view.label) | t }}</span>
+      <!-- Search, where its results are. -->
+      <div class="ui-search" #searchRow>
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="('summary.search.in' | t:{ period: shortLabel() }) + '…'"
+               [value]="filter.search()" (input)="filter.search.set($any($event.target).value ?? '')"
+               (focus)="startSearching()" (blur)="searching.set(false)" enterkeyhint="search">
+        @if (filter.search()) {
+          <button type="button" (click)="filter.search.set('')" [attr.aria-label]="'ui.close' | t">
+            <ion-icon name="close-circle"></ion-icon>
           </button>
         }
       </div>
 
-      <!-- Search, where its results are: it only ever searched the movements,
-           and from the header it meant opening this list afterwards to see
-           them (Jose, 2026-09-24). The count on the tab above says how many
-           match as it is typed. -->
-      <div class="search-row" #searchRow>
-        <ion-searchbar [placeholder]="'summary.search.in' | t:{ period: label() }" [value]="filter.search()"
-                       (ionInput)="filter.search.set($any($event.target).value ?? '')"
-                       (ionFocus)="startSearching()" (ionBlur)="searching.set(false)"
-                       [debounce]="150" showCancelButton="never"></ion-searchbar>
-      </div>
-
-      @if (filter.grouping() !== 'largest') {
-        <div class="list-controls">
-          <span class="within-note">{{ withinNote() }}</span>
-          <!-- Two chevrons pulling apart to open, closing together to shut.
-               The shape says which way the list is about to go, so the words
-               are not needed - and a single chevron is not usable here, since
-               on a scrolling list "up" and "down" already mean something else.
-
-               The label stays for anyone who cannot see the shape, and as the
-               tooltip on a pointer. -->
-          <button type="button" class="collapse" (click)="store.toggleAll()"
+      <!-- The three ways of reading the list, and folding them all. -->
+      <div class="views">
+        @for (view of views; track view.id) {
+          <button type="button" class="ui-chip" [class.on]="filter.grouping() === view.id"
+                  (click)="setGrouping(view.id)">{{ $any(view.label) | t }}</button>
+        }
+        <span class="grow"></span>
+        @if (filter.grouping() !== 'largest') {
+          <button type="button" class="ui-fold" (click)="foldAll()"
                   [attr.aria-expanded]="!store.allCollapsed()"
-                  [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-                  [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
+                  [attr.aria-label]="(store.allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t"
+                  [title]="(store.allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t">
             <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
           </button>
-        </div>
-      }
+        }
+      </div>
 
       @if (filter.categoryFilter(); as category) {
         <div class="chip-row">
-          <button type="button" class="chip" (click)="filter.clearCategory()">
+          <button type="button" class="ui-chip on" (click)="filter.clearCategory()">
             {{ category }}
             <ion-icon name="close-outline"></ion-icon>
           </button>
@@ -290,191 +174,98 @@
           </p>
         </div>
       } @else {
-        <ion-list>
-          <!-- Each group is wrapped, and that wrapper is what makes the
-               heading behave. A sticky element sticks within its containing
-               block, so with every heading a direct child of one long list they
-               all stopped at the top and stacked on top of each other. Inside
-               its own group, a heading is pushed out by the next one. -->
-          @for (group of shownGroups(); track group.key) {
-            <div class="group">
+        @for (group of shownGroups(); track group.key) {
+          <div class="ui-list ui-group">
             @if (filter.grouping() !== 'largest') {
-            <div class="group-head" (click)="store.toggleGroup(group.key)">
-              <ion-icon class="chevron"
-                        [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
-              <!-- One icon for the heading, drawn the one way. Reading the
-                   built-in name alone drew nothing for a category wearing an
-                   image, and the branch that fixed that drew nothing either
-                   until the images had finished loading. -->
-              @if (group.icon !== null || group.customIconId !== null) {
-                <app-icon class="cat" [builtin]="group.icon"
-                          [customId]="group.customIconId" size="1.05rem"></app-icon>
-              }
-              <span class="title" [class.by-date]="filter.grouping() === 'date'">{{ group.title }}</span>
-              <ion-badge>{{ group.count }}</ion-badge>
-              <span class="total" [class]="group.flow">
-                {{ group.totalBaseMinor | money:store.currency() }}
-              </span>
-            </div>
+              <div class="ui-row head" (click)="toggle(group.key)">
+                @if (filter.grouping() === 'category' && (group.icon !== null || group.customIconId !== null)) {
+                  <app-badge [size]="30" [builtin]="group.icon" [customId]="group.customIconId"
+                             [tone]="groupColor(group)" [seed]="groupSeed(group)"
+                             [shape]="group.flow === 'moved' || group.flow === 'received' ? 'ci' : 'sq'"></app-badge>
+                }
+                <span class="ui-tx">
+                  <b>{{ filter.grouping() === 'date' ? dayHeading(group.key) : group.title }}</b>
+                  <small>{{ countOf(group.count) }}</small>
+                </span>
+                <span class="total" [class]="toneOf(group.flow)">{{ signed(group.totalBaseMinor) }}</span>
+                <ion-icon class="ui-chev" [name]="store.isCollapsed(group.key) ? 'chevron-down-outline' : 'chevron-up-outline'"></ion-icon>
+              </div>
             }
 
             @if (filter.grouping() === 'largest' || !store.isCollapsed(group.key)) {
-              <div class="group-body" [class]="group.flow"
-                   [class.flat]="filter.grouping() === 'largest'">
               @for (movement of group.movements.slice(0, rowsShownIn(group.key)); track movement.transaction.id) {
-                <ion-item lines="full" class="movement" button
-                          (click)="edit(movement.transaction)">
-                  <span class="dot" [class]="movement.flow" slot="start"></span>
-                  <!-- Whichever of the two the heading is not already
-                       saying. Grouped by day that is the category; grouped by
-                       category every row shares it, so the account is what
-                       tells one row from the next. -->
-                  @if (filter.grouping() === 'date') {
-                    <app-icon slot="start" class="row-cat" [builtin]="movement.icon"
-                              [customId]="movement.customIconId" size="1.15rem"></app-icon>
+                <button type="button" class="ui-row movement" (click)="edit(movement.transaction)">
+                  @if (movement.transaction.transfer_id !== null) {
+                    <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
                   } @else {
-                    <app-icon slot="start" class="row-cat" [builtin]="movement.accountIcon"
-                              [customId]="movement.accountCustomIconId"
-                              fallback="wallet" size="1.15rem"></app-icon>
+                    <app-badge [size]="42" [builtin]="movement.icon" [customId]="movement.customIconId"
+                               [tone]="movement.color" [seed]="movement.seed"></app-badge>
                   }
-                  <ion-label>
-                    @if (filter.grouping() === 'largest') {
-                      <h3>{{ movement.transaction.description || movement.label }}</h3>
-                      <p>{{ movement.label }} · {{ movement.accountName }} · {{ movement.transaction.occurred_on }}</p>
-                    } @else if (filter.grouping() === 'date') {
-                      <h3>{{ movement.label }}</h3>
-                      <p>
-                        {{ movement.transaction.description || movement.accountName }}
-                        @if (movement.transaction.locked) {
-                          <ion-icon name="lock-closed-outline" class="locked"
-                                    [title]="'summary.correctedByHand' | t"></ion-icon>
-                        }
-                      </p>
-                    } @else {
-                      <h3>{{ movement.transaction.description || movement.label }}</h3>
-                      <p>{{ movement.accountName }} · {{ movement.transaction.occurred_on }}</p>
-                    }
-                  </ion-label>
-                  <ion-note slot="end" [class]="movement.flow">
-                    {{ movement.transaction.amount_minor | money:movement.currency }}
-                    @if (filter.allAccounts() && movement.currency !== 'COP') {
-                      <small>{{ movement.currency }}</small>
-                    }
-                  </ion-note>
-                </ion-item>
+                  <span class="ui-tx">
+                    <b>{{ movement.transaction.description || movement.label }}</b>
+                    <small class="ui-one">
+                      <!-- Corrected by hand: the one flag of the old importer still worth showing. -->
+                      @if (movement.transaction.locked) {
+                        <ion-icon name="lock-closed-outline" class="locked" [title]="'summary.correctedByHand' | t"
+                                  [attr.aria-label]="'summary.correctedByHand' | t"></ion-icon>
+                      }{{ lineOf(movement) }}
+                    </small>
+                  </span>
+                  <span class="ui-am" [class]="toneOf(movement.flow)">
+                    {{ signed(movement.transaction.amount_minor, movement.currency) }}
+                    @if (filter.allAccounts() && movement.currency !== 'COP') { <small>{{ movement.currency }}</small> }
+                  </span>
+                </button>
               }
               @if (group.movements.length > rowsShownIn(group.key)) {
                 <div class="more inner">
                   <button type="button" (click)="showMoreIn(group.key)">
-                    {{ 'summary.showMore' | t:{
-                         count: group.movements.length - rowsShownIn(group.key) } }}
+                    {{ 'summary.showMore' | t:{ count: group.movements.length - rowsShownIn(group.key) } }}
                   </button>
                 </div>
               }
-              </div>
             }
-            </div>
-          }
+          </div>
+        }
 
-          @if (hiddenGroups() > 0) {
-            <div class="more">
-              <button type="button" (click)="showMore()">
-                {{ 'summary.showMoreGroups' | t:{ count: hiddenGroups() } }}
-              </button>
-            </div>
-          }
-        </ion-list>
+        @if (hiddenGroups() > 0) {
+          <div class="more">
+            <button type="button" (click)="showMore()">
+              {{ 'summary.showMoreGroups' | t:{ count: hiddenGroups() } }}
+            </button>
+          </div>
+        }
       }
 
     } @else {
-      <app-donut [slices]="store.slices()"
-                 [inMinor]="store.totals().inMinor"
-                 [outMinor]="store.totals().outMinor"
-                 [movedMinor]="store.totals().movedMinor"
-                 [currency]="store.currency()"
-                 [highlighted]="filter.categoryFilter()"
-                 (sliceTapped)="filter.openCategory($event)"></app-donut>
+      <div class="chart">
+        <app-spending-chart [slices]="store.slices()" [currency]="store.currency()"
+                            [spentMinor]="store.totals().outMinor"
+                            [highlighted]="filter.categoryFilter()"
+                            (tapped)="filter.openCategory($event)"></app-spending-chart>
+      </div>
     }
   }
+    <div class="ui-page-end"></div>
+  </main>
 
-  <!-- Getting around a long list, without the scrolling.
-
-       Each button is here only while it has something to do, so the cluster
-       says where you are as much as it moves you: at the top there is only a
-       way down, at the bottom only a way back, and on a list that fits on the
-       screen there is nothing at all. Folding is missing at the top on
-       purpose - the list's own fold control is right there.
-
-       `slot="fixed"` is what keeps them still: content in the default slot
-       is inside the scrolling box, and `position: fixed` there is measured
-       against whichever ancestor Ionic is transforming during a page
-       transition - which is why the first attempt scrolled away with the
-       list. -->
-@if (scrollable() && !searching()) {
-    <div class="jump" slot="fixed">
-      <!-- A row, one button tall, rather than the column this started as. The
-           column stood three buttons high and lay across three group totals -
-           the amounts are on the right, which is where a control at the bottom
-           right has to live. One row covers the bottom edge only, and the list
-           is padded so the last row can always be scrolled clear of it.
-
-           A button that has nothing to do keeps its place instead of leaving
-           it, so the other two never move sideways under the thumb. -->
-      <button type="button" [class.gone]="!showJumpUp()" (click)="toTop()"
-              [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
-        <ion-icon name="arrow-up-outline"></ion-icon>
-      </button>
-
-      <button type="button" class="fold" [class.gone]="!showFold()" (click)="foldAll()"
-              [attr.aria-label]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t"
-              [title]="(store.allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t">
-        <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-      </button>
-
-      <button type="button" [class.gone]="!showJumpDown()" (click)="toBottom()"
-              [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-      </button>
+  <!-- Getting around a long list: up only once it has left the top, down only
+       while there is more below. `slot="fixed"` keeps them still. -->
+  @if (!searching() && (showJumpUp() || showJumpDown())) {
+    <div class="ui-jump" slot="fixed">
+      @if (showJumpUp()) {
+        <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
+          <ion-icon name="arrow-up-outline"></ion-icon>
+        </button>
+      }
+      @if (showJumpDown()) {
+        <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
+          <ion-icon name="arrow-down-outline"></ion-icon>
+        </button>
+      }
     </div>
   }
-
 </ion-content>
-
-<!-- Out of the way while the search is being typed into: with the keyboard up
-     it was the bar, not the results, that filled what was left of the screen. -->
-<ion-footer class="compose-bar" [class.away]="searching()">
-  <!-- The two buttons the whole app is really for. They say what they do:
-       a bare coloured circle asks the user to remember which side is which. -->
-  <div class="compose">
-    <button type="button" class="big expense" (click)="add('expense')">
-      <span class="mark"><ion-icon name="arrow-up-outline"></ion-icon></span>
-      <span class="what">{{ 'summary.expense' | t }}</span>
-    </button>
-    <button type="button" class="big income" (click)="add('income')">
-      <span class="mark"><ion-icon name="arrow-down-outline"></ion-icon></span>
-      <span class="what">{{ 'summary.income' | t }}</span>
-    </button>
-    <!-- Moving money between one's own accounts, beside the other two ways
-         money moves, and smaller than them: it neither earns nor spends.
-         It used to sit in the header, where it crowded the account and the
-         search (Jose, 2026-09-24). -->
-    <button type="button" class="swap" (click)="add('transfer')"
-            [attr.aria-label]="'summary.newTransfer' | t" [title]="'summary.newTransfer' | t">
-      <ion-icon name="swap-horizontal-outline"></ion-icon>
-    </button>
-  </div>
-</ion-footer>
-
-
-<!-- Recording or correcting a movement: this screen's own, not part of the
-     shared scope sheets. -->
-<ion-modal class="entry-sheet" [isOpen]="entry() !== null" (didDismiss)="entry.set(null)">
-  <ng-template>
-    @if (entry(); as request) {
-      <app-entry [request]="request" (saved)="onSaved()" (cancelled)="entry.set(null)"></app-entry>
-    }
-  </ng-template>
-</ion-modal>
 
 <!-- The dates, the account, and the account editor: one definition, shared
      with the financial summary. -->

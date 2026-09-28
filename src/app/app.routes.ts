@@ -13,6 +13,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/report/report.page').then(m => m.ReportPage),
   },
   {
+    path: 'currencies',
+    loadComponent: () => import('./features/currencies/currencies.page').then(m => m.CurrenciesPage),
+  },
+  {
     path: 'accounts',
     loadComponent: () => import('./features/accounts/accounts.page').then(m => m.AccountsPage),
   },
@@ -46,6 +50,11 @@ export const routes: Routes = [
   {
     path: 'account',
     loadComponent: () => import('./features/account/account.page').then(m => m.AccountPage),
+  },
+  {
+    // Más: everything the drawer held that is not a tab.
+    path: 'more',
+    loadComponent: () => import('./features/more/more.page').then(m => m.MorePage),
   },
   { path: '', redirectTo: 'movements', pathMatch: 'full' },
 ];

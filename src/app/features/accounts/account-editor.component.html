@@ -1,246 +1,253 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-button (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
-        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+<!-- Creating an account and correcting one (mockups 2f-2k, 2q). -->
+<div class="ui-frame editor">
+  <header class="ui-titlebar">
+    <button type="button" class="x" (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+      <ion-icon name="close"></ion-icon>
+    </button>
+    <h1>{{ title() }}</h1>
+    <button type="button" class="ui-pill" [disabled]="!canSave() || saving()" (click)="save()">
+      <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+    </button>
+  </header>
 
-    <h1 class="title">{{ title() }}</h1>
-
-    <ion-buttons slot="end">
-      <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
-        <ion-icon slot="start" name="checkmark-outline"></ion-icon>
-        {{ 'entry.save' | t }}
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
-  @if (error()) {
-    <p class="error">{{ error() }}</p>
-  }
-
-  <!-- The face and the name, together: this is what the account is -->
-  <section class="identity">
-    <app-icon-picker [catalog]="accountIcons" [builtin]="builtinIcon()"
-                     [custom]="customIconId()" (chosen)="onIcon($event)"></app-icon-picker>
-
-    <ion-input class="name" [value]="name()" [placeholder]="'accounts.namePlaceholder' | t"
-               (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
-  </section>
-
-  <ion-list [inset]="true">
-    <ion-item>
-      <ion-select [label]="'accounts.type' | t" [value]="type()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                  (ionChange)="type.set($any($event.detail).value)">
-        @for (option of types; track option) {
-          <ion-select-option [value]="option">{{ $any('accounts.type.' + option) | t }}</ion-select-option>
-        }
-      </ion-select>
-    </ion-item>
-
-    <!-- The currency of an existing account is what every stored amount means,
-         so it is shown but never editable. -->
-    @if (isNew()) {
-      <ion-item>
-        <ion-select [label]="'accounts.currency' | t" [value]="currency()" interface="alert" [interfaceOptions]="{ cssClass: 'select-alert' }"
-                    (ionChange)="currency.set($any($event.detail).value)">
-          @for (option of currencies(); track option.code) {
-            <ion-select-option [value]="option.code">{{ option.code }} · {{ option.name }}</ion-select-option>
-          }
-        </ion-select>
-      </ion-item>
-
-      <!-- A currency the app does not know yet, added from where it is
-           missed - in a dialog that can be cancelled, not as three fields
-           dropped into the middle of this form. -->
-      <ion-item button lines="full" (click)="addingCurrency.set(true)">
-        <ion-icon slot="start" name="add-outline"></ion-icon>
-        <ion-label color="primary">{{ 'accounts.currency.add' | t }}</ion-label>
-      </ion-item>
-    } @else {
-      <ion-item lines="full">
-        <ion-label>
-          <h3>{{ 'accounts.currency' | t }}</h3>
-          <p>{{ 'accounts.currency.locked' | t }}</p>
-        </ion-label>
-        <ion-note slot="end">{{ currency() }}</ion-note>
-      </ion-item>
+  <div class="scroll">
+    @if (error()) {
+      <div class="ui-banner bad">{{ error() }}</div>
     }
-
-    <ion-item>
-      <ion-input [label]="'accounts.opening' | t" inputmode="decimal"
-                 [value]="openingBalance().text"
-                 (ionInput)="onAmount('opening', $any($event.target).value ?? '')"></ion-input>
-      <ion-note slot="end">{{ currency() }}</ion-note>
-    </ion-item>
-
-    <ion-item button (click)="showDate.set('opened')">
-      <ion-label>{{ 'accounts.openedOn' | t }}</ion-label>
-      <ion-note slot="end">{{ dateLabel(openedOn()) }}</ion-note>
-    </ion-item>
-  </ion-list>
-
-  <!-- What used to need a code change -->
-  <ion-list [inset]="true">
-    <ion-item>
-      <ion-toggle [checked]="includeInNetWorth()"
-                  (ionChange)="includeInNetWorth.set($any($event.detail).checked)">
-        <div>
-          <p class="strong">{{ 'accounts.countsToNetWorth' | t }}</p>
-          <p class="hint">{{ 'accounts.countsToNetWorth.hint' | t }}</p>
-        </div>
-      </ion-toggle>
-    </ion-item>
 
     <!-- A statement belongs to an account, so this is where it is opened
          from. What it reads is proposed, never saved: the review screen is
-         where a person answers it. Rule 22.
-
-         On an account that does not exist yet it fills this form in first -
-         the bank's name, what the account held when the period began, the
-         day - and its movements wait until there is an account to belong
-         to. -->
+         where a person answers it (rule 22). On an account that does not
+         exist yet it fills this form in first, and its movements wait until
+         there is an account to belong to. -->
     <input #statementFile type="file" accept="application/pdf,.pdf" hidden
            (change)="onStatementPicked($any($event.target))" />
 
-    <ion-item button [disabled]="reading()" (click)="statementFile.click()">
-      <ion-icon slot="start" name="document-attach-outline"></ion-icon>
-      <ion-label>
-        <p class="strong">{{ 'statement.import' | t }}</p>
-        <p class="hint">{{ (isNew() ? 'statement.import.newHint' : 'statement.import.hint') | t }}</p>
-      </ion-label>
-      @if (reading()) { <ion-spinner slot="end"></ion-spinner> }
-    </ion-item>
-
-    @if (statementSaid(); as said) {
-      <ion-item lines="none" class="from-statement">
-        <ion-icon slot="start" name="sparkles-outline"></ion-icon>
-        <ion-label class="ion-text-wrap"><p class="hint">{{ said }}</p></ion-label>
-      </ion-item>
-    }
-
-    @if (!isNew()) {
-
-      <ion-item>
-        <ion-toggle [checked]="archived()"
-                    (ionChange)="archived.set($any($event.detail).checked)">
-          <div>
-            <p class="strong">{{ 'accounts.archive' | t }}</p>
-            <p class="hint">{{ 'accounts.archive.hint' | t }}</p>
-          </div>
-        </ion-toggle>
-      </ion-item>
-    }
-  </ion-list>
-
-  <!-- A credit card's limit, with the history behind it -->
-  @if (isCredit()) {
-    <ion-list [inset]="true">
-      <ion-item>
-        <ion-input [label]="'accounts.creditLimit' | t" inputmode="decimal"
-                   [value]="creditLimit().text"
-                   (ionInput)="onAmount('limit', $any($event.target).value ?? '')"></ion-input>
-        <ion-note slot="end">{{ currency() }}</ion-note>
-      </ion-item>
-
-      <ion-item button (click)="showDate.set('limit')">
-        <ion-label>{{ 'accounts.limitFrom' | t }}</ion-label>
-        <ion-note slot="end">{{ dateLabel(limitEffectiveOn()) }}</ion-note>
-      </ion-item>
-    </ion-list>
-
-    <p class="explain">{{ 'accounts.creditLimit.hint' | t }}</p>
-
-    @if (limitHistory().length > 0) {
-      <section class="history">
-        <h3>{{ 'accounts.limitHistory' | t }}</h3>
-        <ion-list [inset]="true">
-          @for (change of limitHistory(); track change.id) {
-            <ion-item lines="full">
-              <ion-label>
-                <h3>{{ money(change.limit_minor) }}</h3>
-                <p>{{ dateLabel(change.effective_on) }}@if (change.note) { · {{ change.note }} }</p>
-              </ion-label>
-              @if (change.source === 'import') {
-                <ion-note slot="end">{{ 'accounts.fromBackup' | t }}</ion-note>
-              }
-            </ion-item>
-          }
-        </ion-list>
-      </section>
-    }
-  }
-
-  <!-- Deleting an account is the one act here that cannot be undone, so it
-       sits apart from everything else, says what it will take with it, and
-       asks before doing any of it. An account created by mistake - by an
-       import that did not recognise a renamed one, say - is otherwise
-       permanent, which is the situation this was built for. -->
-  @if (!isNew()) {
-    <section class="danger-zone">
-      @if (confirmingDelete()) {
-        <p class="warn strong">{{ 'accounts.delete.confirm' | t:{ account: name() } }}</p>
-        <p class="warn">{{ 'accounts.delete.confirmBody' | t }}</p>
-        <div class="actions">
-          <ion-button expand="block" fill="clear" (click)="confirmingDelete.set(false)">
-            {{ 'entry.cancel' | t }}
-          </ion-button>
-          <ion-button expand="block" color="danger" [disabled]="saving()"
-                      (click)="deleteAccount()">
-            {{ 'accounts.delete' | t }}
-          </ion-button>
+    @if (isNew()) {
+      @if (statementSaid(); as said) {
+        <div class="ui-card from-statement">
+          <ion-icon name="sparkles-outline"></ion-icon>
+          <p>{{ said }}</p>
         </div>
       } @else {
-        <ion-button expand="block" fill="clear" color="danger" (click)="askToDelete()">
-          <ion-icon slot="start" name="trash-outline"></ion-icon>
-          {{ 'accounts.delete' | t }}
-        </ion-button>
-        <p class="warn">
-          @if (movements() > 0) {
-            {{ 'accounts.delete.withMovements' | t:{ count: movements() } }}
-          } @else {
-            {{ 'accounts.delete.empty' | t }}
-          }
-        </p>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="statementFile.click()">
+            <app-badge shape="ci" [size]="42" builtin="document-text" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ 'statement.import' | t }}</b>
+              <small class="wrap">{{ 'statement.import.newHint' | t }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+        <h3 class="ui-h center">{{ 'ui.account.orWrite' | t }}</h3>
       }
-    </section>
-  }
-</ion-content>
+    }
 
-<ion-footer class="pad">
-  @if (missing(); as hint) {
-    <p class="missing">{{ hint }}</p>
-  }
-</ion-footer>
+    <!-- The face and the name, together: this is what the account is. -->
+    <div class="identity">
+      <button type="button" class="face" (click)="editingFace.set(true)" [attr.aria-label]="'face.title' | t">
+        <app-badge shape="ci" [size]="64" [builtin]="builtinIcon()" [customId]="customIconId()"
+                   [tone]="color()" [seed]="editing()?.id ?? 0" fallback="wallet"></app-badge>
+        <span class="pen"><ion-icon name="create-outline"></ion-icon></span>
+      </button>
+      <label class="ui-card name" [class.focus]="nameFocused()">
+        <span class="ui-lab">{{ 'accounts.currency.name' | t }}</span>
+        <input type="text" [value]="name()" [placeholder]="'accounts.namePlaceholder' | t"
+               (input)="name.set($any($event.target).value ?? '')"
+               (focus)="nameFocused.set(true)" (blur)="nameFocused.set(false)">
+      </label>
+    </div>
 
-<ion-modal [isOpen]="showDate() !== null" (didDismiss)="showDate.set(null)"
-           [initialBreakpoint]="0.6" [breakpoints]="[0, 0.6, 1]">
+    <div class="types">
+      @for (option of types; track option) {
+        <button type="button" [class.on]="type() === option" [style.--tone]="typeColor(option)" (click)="type.set(option)">
+          <app-badge shape="ci" [size]="34" [builtin]="typeIcon(option)" [fixed]="typeColor(option)"></app-badge>
+          <span>{{ $any('ui.type.' + option) | t }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="ui-list">
+      @if (isNew()) {
+        <button type="button" class="ui-field" (click)="pickingCurrency.set(true)">
+          <span class="in">
+            <span class="lab">{{ 'accounts.currency' | t }}</span>
+            <span class="val">{{ currency() }} · {{ currencyName() }}</span>
+          </span>
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+        <button type="button" class="ui-field add" (click)="addingCurrency.set(true)">
+          <ion-icon name="add" class="accent"></ion-icon>
+          <span class="in"><span class="val accent">{{ 'accounts.currency.add' | t }}</span></span>
+        </button>
+      } @else {
+        <!-- What every stored amount means: shown, never editable. -->
+        <div class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'accounts.currency' | t }}</span>
+            <span class="val">{{ currency() }} · {{ currencyName() }}</span>
+            <span class="hint">{{ 'accounts.currency.locked' | t }}</span>
+          </span>
+          <ion-icon name="lock-closed-outline"></ion-icon>
+        </div>
+      }
+      <label class="ui-field">
+        <span class="in">
+          <span class="lab">{{ 'accounts.opening' | t }}</span>
+          <input inputmode="decimal" [value]="openingBalance().text || '0,00'"
+                 (input)="onAmount('opening', $any($event.target).value ?? '')">
+        </span>
+        <span class="unit">{{ currency() }}</span>
+      </label>
+      <button type="button" class="ui-field" (click)="showDate.set('opened')">
+        <span class="in">
+          <span class="lab">{{ 'accounts.openedOn' | t }}</span>
+          <span class="val">{{ longDate(openedOn()) }}</span>
+        </span>
+        <ion-icon name="chevron-down-outline"></ion-icon>
+      </button>
+    </div>
+
+    <!-- A credit card's limit, with the history behind it. -->
+    @if (isCredit()) {
+      <h3 class="ui-h">{{ 'ui.account.limit' | t }}</h3>
+      <div class="ui-list">
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'accounts.creditLimit' | t }}</span>
+            <input inputmode="decimal" [value]="creditLimit().text || '0,00'"
+                   (input)="onAmount('limit', $any($event.target).value ?? '')">
+          </span>
+          <span class="unit">{{ currency() }}</span>
+        </label>
+        <button type="button" class="ui-field" (click)="showDate.set('limit')">
+          <span class="in">
+            <span class="lab">{{ 'accounts.limitFrom' | t }}</span>
+            <span class="val">{{ longDate(limitEffectiveOn()) }}</span>
+          </span>
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </button>
+      </div>
+      <p class="explain">{{ 'accounts.creditLimit.hint' | t }}</p>
+
+      @if (limitHistory().length > 0) {
+        <h3 class="ui-h">{{ 'accounts.limitHistory' | t }}</h3>
+        <div class="ui-list">
+          @for (change of limitHistory(); track change.id) {
+            <div class="ui-field">
+              <span class="in">
+                <span class="val">{{ money(change.limit_minor) }}</span>
+                <span class="hint">{{ 'ui.account.since' | t:{ date: dateLabel(change.effective_on) } }}@if (change.note) { · {{ change.note }} }</span>
+              </span>
+              @if (change.source === 'import') {
+                <span class="unit">{{ 'accounts.fromBackup' | t }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <div class="ui-list switches">
+      <div class="ui-row plain">
+        <span class="ui-tx">
+          <b class="wrap">{{ 'accounts.countsToNetWorth' | t }}</b>
+          @if (isNew()) { <small class="wrap">{{ 'accounts.countsToNetWorth.hint' | t }}</small> }
+        </span>
+        <button type="button" class="ui-switch" [class.on]="includeInNetWorth()" role="switch"
+                [attr.aria-checked]="includeInNetWorth()" [attr.aria-label]="'accounts.countsToNetWorth' | t"
+                (click)="includeInNetWorth.set(!includeInNetWorth())"></button>
+      </div>
+      @if (!isNew()) {
+        <div class="ui-row plain">
+          <span class="ui-tx">
+            <b class="wrap">{{ 'accounts.archive' | t }}</b>
+            <small class="wrap">{{ 'accounts.archive.hint' | t }}</small>
+          </span>
+          <button type="button" class="ui-switch" [class.on]="archived()" role="switch"
+                  [attr.aria-checked]="archived()" [attr.aria-label]="'accounts.archive' | t"
+                  (click)="archived.set(!archived())"></button>
+        </div>
+        <button type="button" class="ui-row" (click)="statementFile.click()">
+          <app-badge shape="ci" [size]="42" builtin="document-text" fixed="#9b7bff"></app-badge>
+          <span class="ui-tx">
+            <b class="wrap">{{ 'statement.import' | t }}</b>
+            <small class="wrap">{{ 'statement.import.hint' | t }}</small>
+          </span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+      }
+    </div>
+
+    <!-- Deleting an account is the one act here that cannot be undone, so it
+         sits apart, says what it will take with it, and asks first. -->
+    @if (!isNew()) {
+      <div class="ui-list danger">
+        <button type="button" class="ui-row plain" (click)="askToDelete()">
+          <ion-icon name="trash-outline"></ion-icon>
+          <span class="ui-tx">
+            <b class="wrap ui-r">{{ 'accounts.delete' | t }}</b>
+            <small class="wrap">{{ deleteLine() }}</small>
+          </span>
+        </button>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- The currency of a new account (the one list, with a tick). -->
+<ion-modal class="ui-sheet" [isOpen]="pickingCurrency()" (didDismiss)="pickingCurrency.set(false)">
   <ng-template>
-    <ion-content class="sheet">
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="pickingCurrency.set(false)">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ 'accounts.currency' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        @for (option of currencies(); track option.code) {
+          <button type="button" class="ui-row" (click)="currency.set(option.code); pickingCurrency.set(false)">
+            <span class="code-badge">{{ option.code }}</span>
+            <span class="ui-tx"><b>{{ option.name }}</b></span>
+            @if (currency() === option.code) {
+              <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span>
+            }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="ui-sheet" [isOpen]="showDate() !== null" (didDismiss)="showDate.set(null)">
+  <ng-template>
+    <div class="ui-sheet-body date-sheet">
+      <div class="grab"></div>
       <ion-datetime presentation="date" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
                     [showDefaultButtons]="true"
                     [doneText]="'entry.doneDate' | t" [cancelText]="'entry.cancel' | t"
                     [value]="showDate() === 'opened' ? openedOn() : limitEffectiveOn()"
                     (ionChange)="pickDate($any($event.detail).value)"
                     (ionCancel)="showDate.set(null)"></ion-datetime>
-    </ion-content>
+    </div>
   </ng-template>
 </ion-modal>
+
+<app-face-editor [open]="editingFace()" shape="ci" [catalog]="accountIcons" [name]="name()"
+                 [line]="faceLine()" [amount]="faceAmount()" [amountTone]="faceTone()"
+                 [seed]="editing()?.id ?? 0" [startBuiltin]="builtinIcon()" [startCustom]="customIconId()"
+                 [startColor]="color()" [startTab]="customIconId() !== null ? 'image' : 'icon'"
+                 (done)="onFace($event)" (cancelled)="editingFace.set(false)"></app-face-editor>
+
+<app-confirm [open]="confirmingDelete()" [title]="'accounts.delete.confirm' | t:{ account: name() }"
+             [body]="deleteLine()" [busy]="saving()" [confirmLabel]="'ui.delete' | t"
+             (confirmed)="deleteAccount()" (cancelled)="confirmingDelete.set(false)"></app-confirm>
 
 <!-- Removing an account takes its whole history with it, which is a wait. -->
 @if (busyLabel()) {
   <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
-}
-
-<!-- Reading a statement, which on a phone is tens of seconds. -->
-@if (reading()) {
-  <app-busy-overlay [label]="readingLabel()" [detail]="readingDetail()"
-                    [percent]="readingPercent()"
-                    [cancelLabel]="'statement.stage.stop' | t"
-                    (cancelled)="cancelReading()"></app-busy-overlay>
 }
 
 <app-currency-dialog [open]="addingCurrency()"

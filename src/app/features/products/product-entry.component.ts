@@ -28,16 +28,15 @@ import {
   Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import {
-  IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-  IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
-} from '@ionic/angular';
+import { IonIcon, IonDatetime, IonModal, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { AccentService } from '../../core/theme/accent.service';
 import type { SqlDriver } from '../../core/database/sql-driver';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -52,11 +51,11 @@ import { CategoriesRepository, type UsedCategory } from '../../core/database/rep
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import type { AccountRow, CategoryKind, CategoryRow } from '../../core/database/types';
-import { IconComponent } from '../../core/icons/icon.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { productIcon, productSeed } from '../../core/icons/product-face';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ProductKindEditorComponent } from '../categories/product-kind-editor.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
-import { InfoHintComponent } from '../../shared/info-hint.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { todayIso } from '../../core/yields/days';
@@ -82,28 +81,12 @@ export interface ProductEntryRequest {
 @Component({
   selector: 'app-product-entry',
   imports: [
-    TranslatePipe, IconComponent, CategoryEditorComponent, BusyOverlayComponent, InfoHintComponent, ConfirmComponent,
-    AccountPickerComponent,
-    IonHeader, IonToolbar, IonButton, IonButtons, IonIcon, IonTextarea, IonDatetime, IonModal,
-    IonList, IonItem, IonLabel, IonFooter, IonContent, IonSearchbar, IonInput, IonToggle, IonSpinner,
+    TranslatePipe, BadgeComponent, CategoryEditorComponent, BusyOverlayComponent, ConfirmComponent,
+    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner,
   ],
   templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
   styleUrls: ['../entry/entry.component.scss'],
-  styles: [`
-    .scope-label {
-      margin: 0; padding: 0 1rem 0.35rem; text-align: center;
-      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--ion-color-medium);
-    }
-    .order.scope { justify-content: center; flex-wrap: wrap; padding: 0 1rem 0.5rem; }
-    /* Room below it: the category grid waiting for a pick draws its outline
-       outside itself, and without this the outline ran across the sentence. */
-    .scope-hint {
-      margin: 0; padding: 0 1rem 1rem; text-align: center;
-      font-size: 0.8rem; line-height: 1.35; color: var(--ion-color-medium);
-    }
-  `],
 })
 export class ProductEntryComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
@@ -137,6 +120,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** Open while another account is being chosen. */
   readonly pickingAccount = signal(false);
+  private readonly accent = inject(AccentService);
+  readonly accentColor = computed(() => this.accent.accent().color);
 
   /** Set while its products are being fetched, which is one query. */
   readonly switching = signal(false);
@@ -491,10 +476,10 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** The movement form's keypad, key for key: backspace, and "=" on the bar. */
   readonly keys = [
-    '1', '2', '3', '+',
-    '4', '5', '6', '-',
-    '7', '8', '9', '×',
-    ',', '0', '<', '÷',
+    '7', '8', '9', '÷',
+    '4', '5', '6', '×',
+    '1', '2', '3', '-',
+    ',', '0', '=', '+',
   ];
 
   /** True while an arithmetic operator is waiting for its second number. */
@@ -506,8 +491,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   readonly title = computed(() => {
     const kind = this.request().kind;
     if (this.isEditing()) return this.i18n.t(kind === 'expense' ? 'products.entry.editExpense' : 'products.entry.editIncome');
-    if (kind === 'transfer') return this.i18n.t('products.move.title');
-    return this.i18n.t(kind === 'expense' ? 'products.entry.newExpense' : 'products.entry.newIncome');
+    if (kind === 'transfer') return this.i18n.t('ui.new.transfer');
+    return this.i18n.t(kind === 'expense' ? 'entry.newExpense' : 'entry.newIncome');
   });
 
   readonly productName = computed(() => this.nameOf(this.productId()));
@@ -592,12 +577,84 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return sum ? `${formatMoney(sum.leftMinor, this.currency(), { withSymbol: false })} ${sum.operator}` : '';
   });
 
+  /** "Hoy · domingo 27 sept", as on the movement form. */
   readonly dateLabel = computed(() => {
     const iso = this.onDate();
-    if (iso === todayIso()) return this.i18n.t('period.today');
     const [year, month, day] = iso.split('-').map(Number);
-    return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const short = monthName(date, locale).slice(0, 4).replace(/\.$/, '');
+    let text = `${weekday} ${day} ${short}`;
+    if (year !== new Date().getFullYear()) text += ` ${year}`;
+    if (iso === todayIso()) return this.i18n.t('ui.today.day', { day: text });
+    if (iso === shiftDay(todayIso(), -1)) return this.i18n.t('ui.yesterday.day', { day: text });
+    return text.charAt(0).toUpperCase() + text.slice(1);
   });
+
+  readonly quickDayLabel = computed(() =>
+    this.i18n.t(this.onDate() === todayIso() ? 'period.yesterday' : 'period.today'));
+
+  quickDay(): void {
+    this.onDate.set(this.onDate() === todayIso() ? shiftDay(todayIso(), -1) : todayIso());
+  }
+
+  /** Gasto, Ingreso or Transferir: the products screen opens the same form on the other kind. */
+  readonly switchTo = output<'income' | 'expense' | 'transfer'>();
+
+  switchKind(kind: 'income' | 'expense' | 'transfer'): void {
+    if (this.isEditing() || kind === this.request().kind) return;
+    this.switchTo.emit(kind);
+  }
+
+  readonly usualNoteShown = signal(false);
+  readonly info = signal<string | null>(null);
+
+  showInfo(text: string): void {
+    this.info.set(text);
+  }
+
+  productOf(id: number | null): YieldProduct | null {
+    return this.products().find(one => one.id === id) ?? null;
+  }
+
+  faceOf(product: YieldProduct): string {
+    return productIcon(product);
+  }
+
+  seedOf(product: YieldProduct): number {
+    return productSeed(product);
+  }
+
+  /** "Desde" where money leaves, "Hacia" where it arrives. */
+  sideLabel(side: 'from' | 'to'): string {
+    if (side === 'to' || this.request().kind === 'income') return this.i18n.t('ui.side.to');
+    return this.i18n.t('entry.from');
+  }
+
+  /** The icon of "¿Qué cambia?", after what is chosen. */
+  scopeIcon(): string {
+    return 'git-compare-outline';
+  }
+
+  grow(field: HTMLTextAreaElement): void {
+    field.style.height = 'auto';
+    field.style.height = `${field.scrollHeight}px`;
+  }
+
+  isOperatorKey(key: string): boolean {
+    return isOperator(key);
+  }
+
+  /** A note used before, split around what is typed, to underline it. */
+  hintParts(hint: string): [string, string, string] {
+    const typed = this.note().trim();
+    const plain = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (typed === '' || hint.length !== plain(hint).length) return [hint, '', ''];
+    const at = plain(hint).indexOf(plain(typed));
+    if (at < 0) return [hint, '', ''];
+    return [hint.slice(0, at), hint.slice(at, at + typed.length), hint.slice(at + typed.length)];
+  }
 
   readonly missing = computed<string | null>(() => {
     if (this.pending() !== null) return this.i18n.t('entry.need.finishSum');
@@ -663,6 +720,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     const found = await usualNote(this.database.driver, context, todayIso());
     if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
     this.note.set(found ?? '');
+    this.usualNoteShown.set(found !== null && found !== '');
     const field = this.noteField();
     if (field) field.nativeElement.value = found ?? '';
   }
@@ -789,7 +847,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   readonly fromBalanceText = computed(() => {
     const held = this.fromBalance();
-    return held === null ? '' : formatMoney(held, this.currency());
+    return held === null ? '' : formatMoney(held, this.currency(), { withSymbol: false });
   });
 
   /** The whole of it as the amount: withdraw everything, or top it all up. */
@@ -825,6 +883,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   async onNoteInput(value: string): Promise<void> {
     this.noteIsTheirs = true;
+    this.usualNoteShown.set(false);
     this.note.set(value);
 
     const typed = value.trim();
@@ -876,6 +935,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   clearNote(pressed?: Event): void {
     pressed?.preventDefault();
     this.noteIsTheirs = true;
+    this.usualNoteShown.set(false);
     this.note.set('');
     this.noteSuggestions.set([]);
     this.noteQuery++;
@@ -1143,4 +1203,10 @@ function readCategoryOrder(): 'use' | 'name' {
 /** Lowercased and without accents, for searching. */
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+function shiftDay(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(year, month - 1, day + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

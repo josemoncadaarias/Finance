@@ -87,6 +87,19 @@ export interface Movement {
   accountIcon: string | null;
   accountCustomIconId: number | null;
   flow: Flow;
+  /**
+   * What the redesign draws with: the colour of what the row is about (its
+   * category, or the far account of a transfer) and the id it is handed a
+   * palette colour by while on the default; the account's own; and the
+   * product the movement sits in. Display only - no figure reads them.
+   */
+  color?: string | null;
+  seed?: number | null;
+  accountColor?: string | null;
+  accountSeed?: number;
+  productName?: string | null;
+  /** The far end of a transfer, as the label names it. */
+  otherName?: string | null;
 }
 
 export interface MovementGroup {
@@ -356,7 +369,12 @@ export interface Slice {
   label: string;
   icon: string | null;
   customIconId: number | null;
+  /** The colour the category is drawn in, and its id; display only. */
+  color?: string | null;
+  seed?: number | null;
   amountMinor: number;
+  /** How many movements make it up. */
+  count?: number;
   /** Rounded to a whole number, the way these figures are read. */
   percent: number;
   flow: Flow;
@@ -391,15 +409,24 @@ export function slicesOf(movements: readonly Movement[], basis: AmountBasis = 'b
     const slice = byLabel.get(key);
     if (slice) {
       slice.amountMinor += signed;
+      if (slice.count !== undefined) slice.count += 1;
     } else {
-      byLabel.set(key, {
+      const fresh: Slice = {
         label: movement.label,
         icon: movement.icon,
         customIconId: movement.customIconId,
         amountMinor: signed,
         percent: 0,
         flow: movement.flow === 'refund' ? 'out' : movement.flow,
-      });
+      };
+      // Only when the row carries them, so a slice built from plain rows is
+      // exactly what it always was.
+      if (movement.seed !== undefined) {
+        fresh.color = movement.color ?? null;
+        fresh.seed = movement.seed;
+        fresh.count = 1;
+      }
+      byLabel.set(key, fresh);
     }
   }
 

@@ -16,12 +16,7 @@
 import {
   Component, HostListener, computed, inject, input, output, signal, type OnInit,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import {
-  IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-  IonInput, IonLabel, IonSelect, IonSelectOption, IonToggle, IonList, IonNote,
-  IonFooter, IonModal, IonDatetime, IonSpinner,
-} from '@ionic/angular';
+import { IonIcon, IonModal, IonDatetime } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -30,20 +25,21 @@ import { Router } from '@angular/router';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { StatementsService, type ReadStatement } from '../../core/statements/statements.service';
-import {
-  StatementCancelled, StatementLocked, StatementUnreadable, warmUpPdfReader,
-  type ReadingProgress,
-} from '../../core/statements/pdf-text';
+import { warmUpPdfReader } from '../../core/statements/pdf-text';
+import { StatementFlowService } from '../../core/statements/statement-flow.service';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { FaceEditorComponent, type FaceChoice } from '../../shared/ui/face-editor.component';
+import { ToastService } from '../../shared/ui/toast.service';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { CreditLimitsRepository, type CreditLimitChange } from '../../core/database/repositories/credit-limits.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
-import { IconPickerComponent, type IconChoice } from '../../core/icons/icon-picker.component';
 import { ACCOUNT_ICONS } from '../../core/icons/icon-catalog';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { formatMoney } from '../../core/database/money';
-import { monthName } from '../../core/filters/period';
+import { shortDay } from '../../core/filters/period';
 import type { AccountRow, AccountType } from '../../core/database/types';
 
 const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
@@ -51,12 +47,8 @@ const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
 @Component({
   selector: 'app-account-editor',
   imports: [
-    CurrencyDialogComponent,
-    FormsModule, TranslatePipe, IconPickerComponent,
-    BusyOverlayComponent,
-    IonContent, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonItem,
-    IonInput, IonLabel, IonSelect, IonSelectOption, IonToggle, IonList, IonNote,
-    IonFooter, IonModal, IonDatetime, IonSpinner,
+    CurrencyDialogComponent, TranslatePipe, BusyOverlayComponent, ConfirmComponent,
+    BadgeComponent, FaceEditorComponent, IonIcon, IonModal, IonDatetime,
   ],
   templateUrl: './account-editor.component.html',
   styleUrls: ['./account-editor.component.scss'],
@@ -73,42 +65,17 @@ export class AccountEditorComponent implements OnInit {
   private readonly statements = inject(StatementsService);
   private readonly router = inject(Router);
 
-  /** True while a statement is being read, which takes a moment on a phone. */
-  readonly reading = signal(false);
+  private readonly flow = inject(StatementFlowService);
+  private readonly toast = inject(ToastService);
 
-  /** The same progress and the same way out as the summary screen's. */
-  readonly readingPart = signal(0);
-  readonly readingStage = signal<ReadingProgress['stage']>('opening');
-  readonly readingPage = signal<{ page: number; pages: number } | null>(null);
-  private stopReading: AbortController | null = null;
+  /** Open while the face - icon, colour, image - is being chosen (2l-2n). */
+  readonly editingFace = signal(false);
+  readonly nameFocused = signal(false);
+  readonly pickingCurrency = signal(false);
+  readonly color = signal<string | null>(null);
 
-  readonly readingPercent = computed(() => Math.min(99, Math.round(this.readingPart() * 100)));
-  readonly readingLabel = computed(
-    () => this.i18n.t(`statement.stage.${this.readingStage()}` as 'statement.stage.opening'));
-  readonly readingDetail = computed(() => {
-    const at = this.readingPage();
-    return at === null ? '' : this.i18n.t('statement.stage.page', at);
-  });
-
-  cancelReading(): void {
-    this.stopReading?.abort();
-  }
-
-  private watching() {
-    this.stopReading = new AbortController();
-    this.readingPart.set(0);
-    this.readingStage.set('opening');
-    this.readingPage.set(null);
-    return {
-      signal: this.stopReading.signal,
-      onProgress: (progress: ReadingProgress) => {
-        this.readingPart.set(progress.part);
-        this.readingStage.set(progress.stage);
-        this.readingPage.set(progress.page && progress.pages
-          ? { page: progress.page, pages: progress.pages } : null);
-      },
-    };
-  }
+  /** What the account holds today, for "Así se verá". */
+  private readonly held = signal<{ balance: number; available: number | null } | null>(null);
 
   /**
    * A statement read for an account that does not exist yet.
@@ -155,6 +122,14 @@ export class AccountEditorComponent implements OnInit {
   private async readMovementCount(id: number): Promise<void> {
     this.movements.set(await new AccountsRepository(this.database.driver).movementCount(id));
   }
+
+  /** What deleting takes with it, said before it is done. */
+  readonly deleteLine = computed(() => {
+    const count = this.movements();
+    if (count === 0) return this.i18n.t('accounts.delete.empty');
+    if (count === 1) return this.i18n.t('accounts.delete.withMovements.one');
+    return this.i18n.t('accounts.delete.withMovements', { count: count.toLocaleString(this.i18n.dateLocale()) });
+  });
 
   /** Asks first. The second press is the one that does it. */
   askToDelete(): void {
@@ -234,7 +209,16 @@ export class AccountEditorComponent implements OnInit {
       'SELECT code, name FROM currencies ORDER BY code'));
 
     const account = this.editing();
-    if (!account) return;
+    if (!account) {
+      // Chosen as "Es de una cuenta nueva" from the "+": the statement was
+      // read there, and this form is where it is filled in from.
+      const pending = this.statements.pendingNewAccount();
+      if (pending !== null) {
+        this.statements.pendingNewAccount.set(null);
+        this.fillFrom(pending);
+      }
+      return;
+    }
 
     void this.readMovementCount(account.id);
 
@@ -243,6 +227,11 @@ export class AccountEditorComponent implements OnInit {
     this.currency.set(account.currency_code);
     this.builtinIcon.set(account.builtin_icon);
     this.customIconId.set(account.custom_icon_id);
+    this.color.set(account.color);
+    void new AccountsRepository(this.database.driver).balances({ includeArchived: true }).then(rows => {
+      const row = rows.find(r => r.account.id === account.id);
+      if (row) this.held.set({ balance: row.balance_minor, available: row.available_credit_minor });
+    });
     this.includeInNetWorth.set(account.include_in_net_worth === 1);
     this.archived.set(account.archived === 1);
     this.openingBalance.set(AmountBuffer.from(account.opening_balance_minor));
@@ -290,10 +279,60 @@ export class AccountEditorComponent implements OnInit {
     this.addingCurrency.set(false);
   }
 
-  onIcon(choice: IconChoice): void {
-    this.builtinIcon.set(choice.builtin_icon);
+  onFace(choice: FaceChoice): void {
+    this.builtinIcon.set(choice.builtin_icon ?? (choice.custom_icon_id === null ? 'wallet' : this.builtinIcon()));
     this.customIconId.set(choice.custom_icon_id);
+    this.color.set(choice.color);
+    this.editingFace.set(false);
   }
+
+  readonly currencyName = computed(() =>
+    this.currencies().find(c => c.code === this.currency())?.name ?? '');
+
+  typeIcon(type: AccountType): string {
+    switch (type) {
+      case 'credit': return 'card';
+      case 'cash': return 'cash';
+      case 'investment': return 'trending-up';
+      default: return 'wallet';
+    }
+  }
+
+  typeColor(type: AccountType): string {
+    switch (type) {
+      case 'credit': return '#f6b93b';
+      case 'cash': return '#a3d65c';
+      case 'investment': return '#e8c15a';
+      default: return '#6378ff';
+    }
+  }
+
+  /** "Jueves 31 jul 2026", or "Hoy · domingo 27 sept". */
+  longDate(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const short = shortDay(iso, locale);
+    const text = iso === todayIso() ? `${this.i18n.t('ui.today')} · ${weekday} ${short}` : `${weekday} ${short} ${year}`;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  /** The grey line of "Así se verá": what a card has left, or the currency. */
+  readonly faceLine = computed(() => {
+    const held = this.held();
+    if (this.type() === 'credit' && held?.available !== null && held?.available !== undefined) {
+      return this.i18n.t('ui.picker.available', { amount: formatMoney(held.available, this.currency(), { withSymbol: false }) });
+    }
+    return this.i18n.t(`accounts.type.${this.type()}` as 'accounts.type.debit');
+  });
+
+  readonly faceAmount = computed(() => {
+    const held = this.held();
+    return held === null ? '' : formatMoney(held.balance, this.currency(), { withSymbol: false });
+  });
+
+  readonly faceTone = computed<'plain' | 'owes'>(() => ((this.held()?.balance ?? 0) < 0 ? 'owes' : 'plain'));
 
   pickDate(value: string | null): void {
     if (value) {
@@ -305,8 +344,7 @@ export class AccountEditorComponent implements OnInit {
   }
 
   dateLabel(iso: string): string {
-    const [year, month, day] = iso.split('-').map(Number);
-    return `${day} ${monthName(new Date(year, month - 1, day), this.i18n.dateLocale())} ${year}`;
+    return `${shortDay(iso, this.i18n.dateLocale())} ${iso.slice(0, 4)}`;
   }
 
   money(minor: number): string {
@@ -338,6 +376,7 @@ export class AccountEditorComponent implements OnInit {
         type: this.type(),
         builtin_icon: this.builtinIcon(),
         custom_icon_id: this.customIconId(),
+        ...(this.color() !== null ? { color: this.color()! } : {}),
         include_in_net_worth: this.includeInNetWorth(),
         opening_balance_minor: this.openingBalance().minor,
         opened_on: this.openedOn(),
@@ -433,52 +472,33 @@ export class AccountEditorComponent implements OnInit {
     // nothing the second time: the value has not changed.
     input.value = '';
     if (!file) return;
-    if (account) await this.readStatement(account.id, file);
-    else await this.readForNewAccount(file);
+    if (account) await this.readStatement(account.id, file, input);
+    else await this.readForNewAccount(file, input);
   }
 
   /**
    * A statement opened while the account is still being made.
    *
    * It fills the form in rather than saving anything: the bank's name, what
-   * the account held when the period began, and the day it began. Jose asked
-   * for this so that making an account is not typing out what the PDF in his
-   * hand already says - and every field it fills is a field he can correct
-   * before pressing save, because it is just the form.
+   * the account held when the period began, and the day it began. Every field
+   * it fills is a field that can be corrected before pressing save.
    */
-  private async readForNewAccount(file: File, password?: string): Promise<void> {
-    this.reading.set(true);
+  private async readForNewAccount(file: File, input: HTMLInputElement): Promise<void> {
     this.error.set('');
-    try {
-      const read = await this.statements.read(file, password, this.watching());
-      this.fromStatement.set(read);
+    const read = await this.flow.run(file, (password, watch) => this.statements.read(file, password, watch));
+    if (read === 'again') { input.click(); return; }
+    if (read === null) return;
+    this.fillFrom(read);
+  }
 
-      // Only what is still empty, and only what the statement actually said:
-      // a form half filled in by hand is not overwritten by a file.
-      if (read.account.name && this.name().trim() === '') this.name.set(read.account.name);
-      if (read.account.opening_minor !== null && this.openingBalance().minor === 0) {
-        this.openingBalance.set(AmountBuffer.from(read.account.opening_minor));
-      }
-      if (read.account.opened_on) this.openedOn.set(read.account.opened_on);
-    } catch (problem) {
-      if (problem instanceof StatementLocked) {
-        const typed = window.prompt(this.i18n.t('statement.password'));
-        if (typed) {
-          this.reading.set(false);
-          await this.readForNewAccount(file, typed);
-          return;
-        }
-        this.error.set(this.i18n.t('statement.password.hint'));
-      } else if (problem instanceof StatementCancelled) {
-        // Asked for, and granted.
-      } else if (problem instanceof StatementUnreadable) {
-        this.error.set(`${this.i18n.t('statement.unreadable')} (${problem.reason})`);
-      } else {
-        this.error.set(problem instanceof Error ? problem.message : String(problem));
-      }
-    } finally {
-      this.reading.set(false);
+  /** Only what is still empty, and only what the statement actually said. */
+  private fillFrom(read: ReadStatement): void {
+    this.fromStatement.set(read);
+    if (read.account.name && this.name().trim() === '') this.name.set(read.account.name);
+    if (read.account.opening_minor !== null && this.openingBalance().minor === 0) {
+      this.openingBalance.set(AmountBuffer.from(read.account.opening_minor));
     }
+    if (read.account.opened_on) this.openedOn.set(read.account.opened_on);
   }
 
   /** Lets the sheet finish closing, then goes. */
@@ -487,41 +507,20 @@ export class AccountEditorComponent implements OnInit {
     await this.router.navigateByUrl(url);
   }
 
-  private async readStatement(accountId: number, file: File, password?: string): Promise<void> {
-    this.reading.set(true);
+  private async readStatement(accountId: number, file: File, input: HTMLInputElement): Promise<void> {
     this.error.set('');
-    try {
-      // It used to be given a minute and then declared broken, because a
-      // reading that never came back looked exactly like a slow one. It says
-      // where it has got to now and it can be stopped by hand, so there is
-      // nothing left for a stopwatch to decide.
-      await this.statements.importInto(accountId, file, password, this.watching());
-      this.database.dataChanged();
-      this.cancelled.emit();
-      await this.leaveFor('/review');
-    } catch (problem) {
-      if (problem instanceof StatementLocked) {
-        // Asked for only when the file itself says it needs one, rather than
-        // of everybody every time.
-        const typed = window.prompt(this.i18n.t('statement.password'));
-        if (typed) {
-          this.reading.set(false);
-          await this.readStatement(accountId, file, typed);
-          return;
-        }
-        this.error.set(this.i18n.t('statement.password.hint'));
-      } else if (problem instanceof StatementCancelled) {
-        // Asked for, and granted.
-      } else if (problem instanceof StatementUnreadable) {
-        // The sentence a person can act on, and behind it what actually
-        // happened, so a failure can be reported rather than only suffered.
-        this.error.set(`${this.i18n.t('statement.unreadable')} (${problem.reason})`);
-      } else {
-        this.error.set(problem instanceof Error ? problem.message : String(problem));
-      }
-    } finally {
-      this.reading.set(false);
-    }
+    const done = await this.flow.run(file, (password, watch) =>
+      this.statements.importInto(accountId, file, password, watch));
+    if (done === 'again') { input.click(); return; }
+    if (done === null) return;
+    this.database.dataChanged();
+    this.cancelled.emit();
+    await this.leaveFor('/review');
+    const read = done.proposed === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count: done.proposed });
+    const known = done.knownAlready > 0
+      ? this.i18n.t('ui.import.done.known', { count: done.knownAlready })
+      : this.i18n.t('ui.import.done.none');
+    this.toast.say(this.i18n.t('ui.import.done', { read, known }));
   }
 }
 

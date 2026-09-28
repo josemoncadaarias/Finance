@@ -17,10 +17,7 @@
  */
 
 import { Component, computed, inject, signal } from '@angular/core';
-import {
-  IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonContent,
-  IonList, IonItem, IonLabel, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonToggle,
-} from '@ionic/angular';
+import { IonModal, IonDatetime } from '@ionic/angular';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -30,7 +27,8 @@ import { MovementsStore } from '../../features/movements/movements.store';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from '../../features/accounts/account-editor.component';
-import { IconComponent } from '../../core/icons/icon.component';
+import { AccountPickerComponent } from '../account-picker/account-picker.component';
+import { formatMoney } from '../../core/database/money';
 import { todayIso } from '../../core/yields/days';
 import type { AccountRow } from '../../core/database/types';
 
@@ -38,11 +36,7 @@ import type { AccountRow } from '../../core/database/types';
   selector: 'app-scope-sheets',
   templateUrl: './scope-sheets.component.html',
   styleUrls: ['./scope-sheets.component.scss'],
-  imports: [
-    TranslatePipe, IconComponent, AccountEditorComponent,
-    IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonIcon, IonContent,
-    IonList, IonItem, IonLabel, IonBadge, IonRadio, IonRadioGroup, IonDatetime, IonToggle,
-  ],
+  imports: [TranslatePipe, AccountEditorComponent, AccountPickerComponent, IonModal, IonDatetime],
 })
 export class ScopeSheetsComponent {
   readonly filter = inject(FilterService);
@@ -76,8 +70,14 @@ export class ScopeSheetsComponent {
     this.showPeriodSheet.set(true);
   }
 
+  /** Net worth today, read when the account list opens. */
+  readonly netWorth = signal<number | null>(null);
+
   openAccounts(): void {
     this.showAccountSheet.set(true);
+    if (this.database.status() === 'ready') {
+      void new AccountsRepository(this.database.driver).netWorthMinor().then(minor => this.netWorth.set(minor));
+    }
 
     // Read when the sheet opens rather than kept in step: it is one query,
     // and the answer only matters while this list is on screen.
@@ -149,6 +149,32 @@ export class ScopeSheetsComponent {
     const id = this.filter.accountId();
     document.getElementById(`account-option-${id ?? 'all'}`)?.scrollIntoView({ block: 'center' });
   }
+
+  /** "Patrimonio 48.312.740,55 · 7 cuentas", under "Todas las cuentas". */
+  readonly allDetail = computed(() => {
+    const worth = this.netWorth();
+    const counted = this.store.accounts()
+      .filter(a => !a.archived && (this.filter.includeExcluded() || a.include_in_net_worth === 1)).length;
+    const accounts = this.i18n.t(counted === 1 ? 'ui.count.account' : 'ui.count.accounts', { count: counted });
+    if (worth !== null) {
+      return `${this.i18n.t('ui.netWorth')} ${formatMoney(worth, 'COP', { withSymbol: false })} · ${accounts}`;
+    }
+    return accounts;
+  });
+
+  /** What the "include what is set aside" switch would bring in. */
+  readonly setAsideLine = computed(() => {
+    const parts: string[] = [];
+    const hidden = this.store.hiddenCount();
+    if (this.filter.allAccounts() && hidden > 0) {
+      parts.push(this.i18n.t(hidden === 1 ? 'summary.includeSetAside.hint.one' : 'summary.includeSetAside.hint', { count: hidden }));
+    }
+    const products = this.store.setAsideProducts();
+    if (products > 0) {
+      parts.push(this.i18n.t(products === 1 ? 'summary.includeSetAside.products.one' : 'summary.includeSetAside.products', { count: products }));
+    }
+    return parts.join(' · ');
+  });
 
   pickAccount(id: number | null): void {
     this.filter.selectAccount(id);

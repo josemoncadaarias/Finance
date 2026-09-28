@@ -96,6 +96,15 @@ export interface DetailedTransaction extends TransactionRow {
   other_account_id: number | null;
   /** 1 when this movement's product sits outside net worth. */
   product_set_aside: 0 | 1;
+  /**
+   * What the redesign draws with, and nothing counts: the colours the account,
+   * the category and the far account wear, and the name of this movement's
+   * product ("Cuenta de ahorros → Tarjeta Coral").
+   */
+  account_color?: string | null;
+  category_color?: string | null;
+  other_account_color?: string | null;
+  product_name?: string | null;
   /** The product on the other side of a transfer, and whether it sits outside net worth. */
   other_product_name: string | null;
   other_product_set_aside: 0 | 1;
@@ -374,16 +383,20 @@ export class TransactionsRepository {
               a.name AS account_name,
               a.builtin_icon AS account_builtin_icon,
               a.custom_icon_id AS account_custom_icon_id,
+              a.color AS account_color,
               a.currency_code,
               a.archived AS account_archived,
               a.type AS account_type,
               c.name AS category_name,
               c.builtin_icon AS category_icon,
               c.custom_icon_id AS category_custom_icon_id,
+              c.color AS category_color,
               other.name AS other_account_name,
               other.builtin_icon AS other_account_builtin_icon,
               other.custom_icon_id AS other_account_custom_icon_id,
               other.id AS other_account_id,
+              other.color AS other_account_color,
+              own_product.name AS product_name,
               CASE WHEN own_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS product_set_aside,
               other_product.name AS other_product_name,
               CASE WHEN other_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_product_set_aside

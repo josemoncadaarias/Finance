@@ -1,310 +1,141 @@
-.state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 4rem 2rem;
-  text-align: center;
-  color: var(--ion-color-medium);
+/* Cuentas, its Saldos face (mockups 2a, 2b, 2o, 2p). The shared pieces are in
+   global.scss. */
 
-  h2 { margin: 0; font-size: 1.1rem; color: var(--ion-text-color); }
-  p { margin: 0; max-width: 30ch; line-height: 1.5; }
+app-accounts-faces { margin-bottom: 12px; }
 
-  &.error h2 { color: var(--ion-color-danger); }
-}
+.worth {
+  .ui-big small { font-size: 14px; color: var(--app-mu); font-weight: 500; }
+  .ui-sub { margin: 2px 0 10px; }
 
-.networth {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 1.5rem 1.25rem 1rem;
-
-  .label {
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  .amount {
-    font-size: 2rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-
-    small { font-size: 0.9rem; font-weight: 400; color: var(--ion-color-medium); }
-  }
-
-  .caveat {
-    margin: 0.35rem 0 0;
-    font-size: 0.78rem;
-    color: var(--ion-color-medium);
-  }
-}
-
-.group-head {
-  --min-height: 2.5rem;
-  --background: var(--ion-color-light);
-
-  h2 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-  p { font-size: 0.75rem; }
-}
-
-ion-item.nested {
-  --padding-start: 2.25rem;
-}
-
-ion-icon[slot='start'] {
-  color: var(--ion-color-medium);
-  &.archived { opacity: 0.45; }
-}
-
-ion-note[slot='end'] {
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-
-  small { font-size: 0.72rem; opacity: 0.7; margin-left: 0.15rem; }
-}
-
-.positive { color: var(--ion-color-success); }
-.negative { color: var(--ion-color-danger); }
-.zero { color: var(--ion-color-medium); }
-
-ion-badge { margin-left: 0.4rem; font-weight: 400; }
-
-/*
- * The last thing on the screen, and it has to clear the phone.
- *
- * Android keeps the bottom strip for its gesture bar or its three buttons,
- * and a page that simply ends there ends underneath them: Jose could not see
- * "ver cuentas archivadas" at all. The safe-area inset is what the phone says
- * that strip is worth.
- */
-.archived-toggle {
-  display: flex;
-  justify-content: center;
-  padding: 0.5rem 1rem calc(2rem + var(--ion-safe-area-bottom, 0px));
-
-  button {
+  .where {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 6px;
+    ion-icon { font-size: 17px; }
+  }
+
+  .missing {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    border: 0;
     background: none;
-    border: none;
-    color: var(--ion-color-primary);
-    font-size: 0.85rem;
-    padding: 0.5rem;
+    padding: 0;
+    color: var(--app-yel);
+    font: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.35;
+    ion-icon { font-size: 18px; flex: none; }
+  }
+}
+
+.sort { margin: 12px 0; }
+
+.accounts {
+  .account {
+    padding: 0;
+    gap: 0;
+  }
+
+  .open {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 11px 4px 11px 14px;
+    border: 0;
+    background: none;
+    color: var(--app-tx);
+    font: inherit;
+    text-align: left;
     cursor: pointer;
   }
-}
 
-/* A user-supplied icon renders as an image; a built-in one as a glyph. */
-.own-icon {
-  width: 1.6rem;
-  height: 1.6rem;
-  object-fit: contain;
-  border-radius: 4px;
-  margin-inline-end: 0.9rem;
-
-  &.archived { opacity: 0.45; }
-}
-
-/* Editing is its own act, so it gets its own target rather than sharing the
-   tap that opens the movements. */
-.edit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  margin-inline-start: 0.35rem;
-  border: none;
-  border-radius: 50%;
-  background: none;
-  color: var(--ion-color-medium);
-  cursor: pointer;
-
-  ion-icon { font-size: 1.15rem; }
-  &:active { background: var(--ion-color-light); }
-}
-
-/* How the list is ordered: what is in each account, or its name. */
-.sorting {
-  display: flex;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0 1rem 0.5rem;
-
-  button {
-    padding: 0.35rem 0.85rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium);
-    font-size: 0.78rem;
-    cursor: pointer;
-
-    &.on {
-      border-color: var(--ion-color-primary);
-      background: rgba(var(--ion-color-primary-rgb), 0.12);
-      color: var(--ion-color-primary);
-      font-weight: 600;
-    }
-  }
-}
-
-/*
- * Archived accounts, entirely apart from the live ones.
- *
- * Their money is gone — spent, moved, or in an account that no longer exists —
- * so they are excluded from net worth and must not sit in the same list as
- * real balances. Their figures are drawn muted for the same reason: they are a
- * record of what was, not of what is.
- */
-.archived-section {
-  margin-top: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--ion-color-light-shade);
-
-  h2 {
-    margin: 0 1.5rem 0.15rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  p {
-    margin: 0 1.5rem 0.5rem;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    color: var(--ion-color-medium);
-  }
-
-  ion-item { --background: transparent; opacity: 0.72; }
-  ion-note.past { color: var(--ion-color-medium); font-variant-numeric: tabular-nums; }
-  ion-icon.archived { color: var(--ion-color-medium); }
-}
-
-/* The total, explained — and the warning when part of it cannot be valued. */
-.networth .explain,
-.networth .missing-rate {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.35rem;
-  border: none;
-  background: none;
-  font-size: 0.78rem;
-  cursor: pointer;
-
-  ion-icon { font-size: 0.95rem; }
-}
-
-.networth .explain { color: var(--ion-color-primary); }
-.networth .missing-rate { color: var(--ion-color-warning); }
-
-.sheet {
-  --padding-start: 1rem;
-  --padding-end: 1rem;
-  --padding-top: 0.5rem;
-
-  h2 { margin: 0 0.5rem 0.25rem; font-size: 1.05rem; }
-
-  .rates h3 {
-    margin: 0.75rem 0.5rem 0.15rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  .explainer {
-    margin: 0.35rem 0.5rem 0.75rem;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    color: var(--ion-color-medium);
-  }
-
-  ion-item h3 { font-size: 0.92rem; }
-  ion-item p { font-size: 0.76rem; color: var(--ion-color-medium); }
-  ion-item p.warn { color: var(--ion-color-warning); }
-  ion-note { font-variant-numeric: tabular-nums; font-size: 0.9rem; }
-
-  .sum {
-    --background: var(--ion-color-light);
-    h3 { font-weight: 600; }
-    ion-note { font-weight: 600; font-size: 1rem; }
-  }
-}
-
-/* The currencies, at the foot of the screen where accounts are. */
-.currencies {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--ion-color-light-shade);
-
-  h2 {
-    margin: 0 1.5rem 0.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  .hint {
-    margin: 0.25rem 1.5rem 0;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    color: var(--ion-color-medium);
-  }
-
-  ion-item h3 { font-size: 0.92rem; }
-  ion-item p { font-size: 0.76rem; color: var(--ion-color-medium); }
-}
-
-/* The official rate, and the way to go and get it. */
-.trm {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0 0.5rem 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--ion-color-light-shade);
-  border-radius: 10px;
-  background: var(--ion-color-light);
-
-  .trm-what { flex: 1; min-width: 0; }
-
-  .figure {
-    margin: 0;
-    font-size: 0.95rem;
+  .ui-am {
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-text-color);
-
-    &.none { font-weight: 400; color: var(--ion-color-medium); }
+    small { color: var(--app-mu); font-size: 12px; font-weight: 500; }
   }
 
-  .when { margin: 0.1rem 0 0; font-size: 0.72rem; color: var(--ion-color-medium); }
-  .warn { margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--ion-color-warning); }
-  .ok { margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--ion-color-success); }
+  .pen {
+    border: 0;
+    background: none;
+    color: var(--app-mu);
+    width: 44px;
+    align-self: stretch;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex: none;
+    ion-icon { font-size: 20px; }
+  }
 
-  ion-button {
-    --border-radius: 999px;
-    text-transform: none;
-    letter-spacing: 0;
+  .group-head .ui-tx b { font-weight: 500; }
+
+  .nested .open { padding-left: 30px; }
+  .ui-row.nested::before { left: 82px; }
+
+  .code {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
     flex: none;
   }
+
+  .credit { margin-top: 6px; max-width: 150px; i { background: var(--app-yel); } }
+
+  .dim .ui-am, .dim .ui-tx b { color: var(--app-mu); }
 }
 
-/*
- * The page ends above the phone's own buttons.
- *
- * Whatever is last - the archived toggle, or the archived list once it is
- * open - has to clear the strip Android keeps for its gesture bar. Without
- * this the last row sits under them and cannot be tapped at all.
- */
-ion-content {
-  --padding-bottom: calc(1rem + var(--ion-safe-area-bottom, 0px));
+.more { margin-top: 12px; }
+
+.archived-hint {
+  margin: 8px 4px 10px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--app-mu);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 90px 16px 0;
+  gap: 8px;
+
+  h2 { margin: 10px 0 0; font-size: 20px; font-weight: 700; }
+  p { margin: 0 0 16px; color: var(--app-mu); font-size: 14px; line-height: 1.45; }
+}
+
+.state {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--app-mu);
+}
+
+.breakdown {
+  h2.center { text-align: center; margin: 4px 0 2px; font-size: 19px; }
+  .hint.center { text-align: center; margin: 0 0 12px; }
+  .total { background: var(--app-s2); b { font-weight: 700; } .ui-am { font-weight: 700; } }
+  .total::before { display: none; }
+  .ui-am { font-weight: 600; }
+  .see {
+    display: block;
+    margin: 14px auto 6px;
+    border: 0;
+    background: none;
+    color: var(--app-pr);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 }

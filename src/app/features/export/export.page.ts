@@ -11,16 +11,17 @@
  *     against the bank — and cannot restore anything.
  */
 
-import { Component, computed, effect, inject, signal } from '@angular/core';
-import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton,
-} from '@ionic/angular';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
+import { Location } from '@angular/common';
+import { Router } from '@angular/router';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { ToastService } from '../../shared/ui/toast.service';
+import { GoogleAccountService } from '../../core/cloud/google-account.service';
+import { CloudBackupService } from '../../core/cloud/cloud-backup.service';
 import {
   exportMovements, toCsv, exportFileName, type CsvWords,
 } from '../../core/database/export/export-csv';
@@ -38,17 +39,46 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
   selector: 'app-export',
   templateUrl: './export.page.html',
   styleUrls: ['./export.page.scss'],
-  imports: [
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, BusyOverlayComponent,
-    ConfirmComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonMenuButton,
-  ],
+  imports: [TranslatePipe, BusyOverlayComponent, BadgeComponent, IonContent, IonIcon, IonSpinner, IonModal],
 })
 export class ExportPage {
   readonly database = inject(DatabaseService);
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
   readonly status = this.database.status;
+  readonly google = inject(GoogleAccountService);
+  private readonly cloud = inject(CloudBackupService);
+  private readonly location = inject(Location);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  readonly info = signal<string | null>(null);
+
+  back(): void {
+    this.location.back();
+  }
+
+  toDrive(): void {
+    void this.router.navigateByUrl('/account');
+  }
+
+  /** "Se guarda sola · hoy 8:12 a. m.", under the Drive row. */
+  readonly driveLine = computed(() => {
+    if (this.google.user() === null) return this.i18n.t('more.drive.signedOut');
+    const copy = this.cloud.copy();
+    const when = copy ? new Date(copy.modifiedTime).toLocaleString(this.i18n.dateLocale(), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+    const auto = this.cloud.auto() ? this.i18n.t('ui.export.savesItself') : this.i18n.t('ui.export.byHand');
+    return when ? `${auto} · ${when}` : auto;
+  });
+
+  /** What the chosen file holds, for the question (8h). */
+  readonly pickedFacts = signal<{ date: string; movements: string; accounts: string }>({ date: '', movements: '', accounts: '' });
+
+  /** "Escoger otro": the question goes, the picker comes back. */
+  private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+
+  chooseAnother(): void {
+    this.unpick();
+    setTimeout(() => this.fileInput()?.nativeElement.click(), 300);
+  }
 
   readonly working = signal<'csv' | 'backup' | 'restore' | null>(null);
 
@@ -182,7 +212,10 @@ export class ExportPage {
       // On the phone the share sheet can be closed without choosing anywhere,
       // and writing it there goes in pieces, which is what the bar counts.
       const saved = await saveFile(blob, file.name, progress => this.report('busy.saving', progress));
-      if (saved) this.lastFile.set(file.name);
+      if (saved) {
+        this.lastFile.set(file.name);
+        this.toast.say(this.i18n.t('ui.export.saved', { file: file.name }));
+      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
@@ -226,6 +259,15 @@ export class ExportPage {
         date: backup.exportedAt.slice(0, 10),
         counts,
       }));
+      const summary = backupSummary(backup);
+      const rowsOf = (table: string) => summary.find(entry => entry.table === table)?.rows ?? 0;
+      const locale = this.i18n.dateLocale();
+      const [y, m, d] = backup.exportedAt.slice(0, 10).split('-').map(Number);
+      this.pickedFacts.set({
+        date: new Date(y, m - 1, d).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', ''),
+        movements: this.i18n.t('ui.count.movements', { count: rowsOf('transactions').toLocaleString(locale) }),
+        accounts: this.i18n.t('ui.count.accounts', { count: rowsOf('accounts').toLocaleString(locale) }),
+      });
       this.picked.set(file);
       // Asked for here, the moment the file is known, rather than after
       // scrolling to a button: choosing the file IS the decision, and Jose

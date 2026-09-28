@@ -16,13 +16,13 @@
  */
 
 import { Component, input, output } from '@angular/core';
-import { IonModal, IonButton, IonIcon } from '@ionic/angular';
+import { IonModal, IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-confirm',
-  imports: [TranslatePipe, IonModal, IonButton, IonIcon],
+  imports: [TranslatePipe, IonModal, IonIcon],
   template: `
     <ion-modal class="confirm-sheet" [isOpen]="open()" (didDismiss)="cancelled.emit()">
       <ng-template>
@@ -37,12 +37,13 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           <div class="buttons">
             <!-- Cancel first, and quiet. The destructive one is never the
                  button a thumb lands on by default. -->
-            <ion-button fill="outline" color="medium" (click)="cancelled.emit()">
+            <button type="button" class="ui-btn ghost" (click)="cancelled.emit()">
               {{ 'entry.cancel' | t }}
-            </ion-button>
-            <ion-button [color]="tone()" [disabled]="busy()" (click)="confirmed.emit()">
+            </button>
+            <button type="button" class="ui-btn" [class.danger]="tone() === 'danger'" [class.ghost]="tone() === 'medium'"
+                    [disabled]="busy()" (click)="confirmed.emit()">
               {{ confirmLabel() }}
-            </ion-button>
+            </button>
           </div>
         </div>
       </ng-template>

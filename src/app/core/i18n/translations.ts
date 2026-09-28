@@ -19,16 +19,19 @@
  * Spanish word on it.
  */
 
+import { UI_ES, UI_EN } from './translations-ui';
+
 export type Language = 'es' | 'en';
 
 export const LANGUAGES: { code: Language; name: string; flag: string }[] = [
   // Spanish is named in Spanish and English in English: someone lost in the
   // wrong language has to recognise their own on sight.
   { code: 'es', name: 'Español', flag: 'co' },
-  { code: 'en', name: 'English', flag: 'gb' },
+  { code: 'en', name: 'English', flag: 'us' },
 ];
 
 export const SPANISH = {
+  ...UI_ES,
   // --- navigation -------------------------------------------------------
   'nav.summary': 'Inicio',
   'nav.summary.hint': 'Gastos, ingresos y saldo',
@@ -70,7 +73,7 @@ export const SPANISH = {
 
   'summary.view.date': 'Por día',
   'summary.view.category': 'Por categoría',
-  'summary.view.largest': 'Los más grandes',
+  'summary.view.largest': 'Más grandes',
   'summary.within.date': 'Dentro de cada día, lo más reciente primero',
   'summary.within.category': 'Dentro de cada categoría, de mayor a menor',
   'summary.collapseAll': 'Colapsar todo',
@@ -133,7 +136,8 @@ export const SPANISH = {
   'report.about.categories-versus': 'Cada categoría en este periodo y en el anterior, ordenadas por lo que cuestan ahora.',
   'report.about.recurring': 'Las categorías que aparecen en la mayoría de los meses: el gasto que ya está decidido antes de empezar el mes.',
   'report.about.repeated': 'El mismo cobro, con el mismo nombre y un monto parecido, que llega mes tras mes: suscripciones y cuentas fijas.',
-  'report.about.by-month': 'El gasto de cada mes del periodo. El mes en curso no entra en el promedio.',
+  'report.about.by-month': 'El gasto de cada mes del periodo, y si quieres lo que entró al lado. El mes en curso no entra en el promedio.',
+  'report.about.ahead': 'Línea continua: tu saldo real. Punteada: una proyección a 90 días con lo que tu saldo cambió en promedio en los últimos {months} meses, no un hecho.',
   'report.about.accounts': 'Desde qué cuenta salió el gasto del periodo.',
   'report.about.biggest': 'Los gastos más grandes del periodo, uno por uno.',
   'report.yields.about.headline': 'Lo que ganaste en el periodo: los intereses de tus productos y las ganancias o pérdidas registradas en tus inversiones. La plata que metes o sacas no cuenta.',
@@ -190,7 +194,15 @@ export const SPANISH = {
   'report.versus.sameDays': 'Los mismos {days} días de cada periodo, para que la comparación sea justa.',
   'report.versus.categories': 'Categorías, antes y ahora',
 
-  'report.byMonth': 'Gasto mes a mes',
+  'report.byMonth': 'Mes a mes',
+  'report.byMonth.spending': 'Gastos',
+  'report.byMonth.income': 'Ingresos',
+  'report.byMonth.both': 'Ingresos y gastos',
+  'report.byMonth.left': 'Te quedó',
+  'report.ahead': 'Tu saldo a futuro',
+  'report.ahead.today': 'hoy',
+  'report.ahead.projected': 'proyectado',
+  'report.ahead.perMonth': 'Cambio promedio al mes',
   'report.byMonth.average': 'Promedio mensual',
   'report.byMonth.above': 'Por encima del promedio: {months}.',
   'report.byMonth.tap': 'Toca una barra para ver su valor.',
@@ -1059,6 +1071,7 @@ export const SPANISH = {
 export type TranslationKey = keyof typeof SPANISH;
 
 export const ENGLISH: Record<TranslationKey, string> = {
+  ...UI_EN,
   'nav.summary': 'Home',
   'nav.summary.hint': 'Spending, income and balance',
   'nav.accounts': 'Accounts',
@@ -1161,7 +1174,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'report.about.categories-versus': 'Each category this period and the one before, in order of what it costs now.',
   'report.about.recurring': 'The categories that turn up in most months: the spending already decided before the month starts.',
   'report.about.repeated': 'The same charge, by the same name and at about the same size, month after month: subscriptions and fixed bills.',
-  'report.about.by-month': 'The spending of each month of the period. The month still running is left out of the average.',
+  'report.about.by-month': 'The spending of each month of the period, and what came in beside it if you want. The month still running is left out of the average.',
+  'report.about.ahead': 'Solid line: your real balance. Dashed: a 90-day projection at what your balance changed by on average over the last {months} months, not a fact.',
   'report.about.accounts': 'Which account the period’s spending came out of.',
   'report.about.biggest': 'The biggest expenses of the period, one by one.',
   'report.yields.about.headline': 'What you earned over the period: interest from your products and the gains or losses recorded on your investments. Money you put in or take out does not count.',
@@ -1218,7 +1232,15 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'report.versus.sameDays': 'The same {days} days of each period, so the comparison is a fair one.',
   'report.versus.categories': 'Categories, before and now',
 
-  'report.byMonth': 'Spending month by month',
+  'report.byMonth': 'Month by month',
+  'report.byMonth.spending': 'Spending',
+  'report.byMonth.income': 'Income',
+  'report.byMonth.both': 'Income and spending',
+  'report.byMonth.left': 'Left over',
+  'report.ahead': 'Your balance ahead',
+  'report.ahead.today': 'today',
+  'report.ahead.projected': 'projected',
+  'report.ahead.perMonth': 'Average change a month',
   'report.byMonth.average': 'Monthly average',
   'report.byMonth.above': 'Above the average: {months}.',
   'report.byMonth.tap': 'Tap a bar to read its figure.',

@@ -1,515 +1,91 @@
-/* The screen where a reading is answered. Nothing here is decorative: every
-   line has to be readable at a glance and correctable with one tap. */
+/* Movimientos por revisar (mockups 6a-6z). Shared pieces are in global.scss. */
 
-ion-title small {
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: var(--ion-color-primary);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  vertical-align: middle;
-}
+.ui-titlebar { background: transparent; border-bottom: 0; }
 
-.state {
-  display: flex;
-  justify-content: center;
-  padding: 3rem 0;
-}
-
-.failed {
-  margin: 0.8rem 1rem 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.6rem;
-  background: rgba(var(--ion-color-danger-rgb), 0.12);
-  color: var(--ion-color-danger);
-  font-size: 0.85rem;
-
-  ion-icon { vertical-align: -2px; margin-right: 0.3rem; }
-}
-
-/* Nothing waiting: the ordinary state, and it explains itself. */
-.empty {
-  padding: 3.5rem 2rem;
-  text-align: center;
-  color: var(--ion-color-medium);
-
-  ion-icon { font-size: 2.6rem; opacity: 0.5; }
-  .lead { margin: 0.8rem 0 0.3rem; font-size: 1rem; color: var(--ion-text-color); }
-  .hint { margin: 0; font-size: 0.82rem; line-height: 1.5; }
-}
-
-/* What the statement said about itself, above the list it produced. */
-.just-read {
-  margin: 0.9rem 1rem 0;
-  padding: 0.7rem 0.9rem;
-  border-radius: 0.7rem;
-  background: var(--ion-color-step-100);
-  font-size: 0.8rem;
-  line-height: 1.5;
-
-  p { margin: 0; }
-  .lead { font-weight: 600; }
-  .also { color: var(--ion-color-medium); }
-  .balances {
-    margin-top: 0.35rem;
-    color: var(--ion-color-medium);
-    font-size: 0.76rem;
-    line-height: 1.45;
-  }
-
-  /* The explanation is a mark on the line, not three lines under it. */
-  .why {
-    padding: 0 0 0 0.2rem;
-    border: 0;
-    background: none;
-    color: var(--ion-color-medium);
-    vertical-align: -2px;
-
-    ion-icon { font-size: 1rem; }
-  }
-
-  /* A statement that does not add up is worth stopping at. */
-  &.off {
-    background: rgba(var(--ion-color-warning-rgb), 0.14);
-    .balances { color: var(--ion-color-warning-shade); font-weight: 600; }
-  }
-}
-
-/* Two figures and the gap between them: what the bank says the account holds
-   and what the app says, at the statement's own last day. */
-.squaring {
-  margin: 0.9rem 1rem 0;
-  padding: 0.9rem 1rem 1rem;
-  border: 1px solid var(--ion-color-step-150);
-  border-radius: 0.8rem;
-
-  h2 {
-    margin: 0 0 0.6rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  dl {
-    margin: 0;
-    font-size: 0.85rem;
-
-    div {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.25rem 0;
-    }
-    dt { margin: 0; color: var(--ion-color-medium); }
-    dd { margin: 0; font-variant-numeric: tabular-nums; }
-
-    /* The figure the question is about. */
-    .gap {
-      margin-top: 0.2rem;
-      padding-top: 0.45rem;
-      border-top: 1px solid var(--ion-color-step-150);
-      font-weight: 600;
-
-      dt { color: var(--ion-text-color); }
-    }
-  }
-
-  .hint {
-    margin: 0.6rem 0 0;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    color: var(--ion-color-medium);
-  }
-
-  .ways {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.9rem;
-    margin-top: 0.8rem;
-
-    .save {
-      padding: 0.5rem 1rem;
-      border: 0;
-      border-radius: 999px;
-      background: var(--ion-color-primary);
-      color: #fff;
-      font-size: 0.82rem;
-      font-weight: 600;
-
-      &:disabled { opacity: 0.45; }
-    }
-
-    .quiet {
-      padding: 0.3rem 0;
-      border: 0;
-      background: none;
-      color: var(--ion-color-medium);
-      font-size: 0.8rem;
-    }
-  }
-
-  .typed { margin-top: 0.5rem; }
-}
-
-/* What to look at, and in what order. Two groups of small pills rather than
-   a row of six: they answer two different questions. */
-/* Two questions, each answered by one of a set - which is a segmented
-   control and not a row of loose pills. Drawn as one: a track holding
-   segments of equal width, the chosen one lifted out of it. Left as pills
-   they read as three unrelated buttons of three different widths, one of
-   them filled in for no reason a first-time reader can see. */
-.looking {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0.9rem 0 0;
-  padding: 0 1.1rem;
-
-  .group {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 0.2rem;
-    padding: 0.2rem;
-    border-radius: 999px;
-    background: var(--ion-color-step-100, var(--ion-color-light));
-  }
-
-  .group button {
-    min-width: 0;
-    padding: 0.42rem 0.5rem;
-    border: 0;
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-color-medium-shade);
-    font-size: 0.78rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: background 0.15s ease, color 0.15s ease;
-
-    &.on {
-      background: var(--ion-background-color, #fff);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
-      color: var(--ion-color-primary);
-      font-weight: 600;
-    }
-  }
-}
-
-/* Room under everything for the jump control, which floats over this corner.
-   Whatever the list ends with was ending behind the two arrows. */
-ion-content { --padding-bottom: calc(4.5rem + var(--ion-safe-area-bottom, 0px)); }
-
-.hidden-by-filter {
-  margin: 0.2rem 0 0;
-  padding: 0 1.2rem;
-  font-size: 0.76rem;
-  color: var(--ion-color-medium);
-
-  button {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ion-color-primary);
-    font-size: inherit;
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-}
-
-/* The repeated shops, above the list they save work on. */
-.repeated {
-  margin-top: 0.6rem;
-
-  h2 {
-    margin: 0;
-    padding: 0 1.2rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-  .hint {
-    margin: 0.15rem 0 0;
-    padding: 0 1.2rem;
-    font-size: 0.78rem;
-    color: var(--ion-color-medium);
-  }
-
-  ion-item h3 {
-    font-size: 0.88rem;
-    white-space: normal;
-  }
-  ion-item p { font-size: 0.75rem; }
-
-  .category {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 10rem;
-    padding: 0.3rem 0.65rem;
-    border: 1px solid var(--ion-color-step-200);
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-text-color);
-    font-size: 0.78rem;
-
-    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .more { font-size: 0.8rem; color: var(--ion-color-medium); }
-    &:disabled { opacity: 0.45; }
-  }
-}
-
-.batch > header {
-  padding: 1.1rem 1.2rem 0;
-
-  h2 {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-  .hint {
-    margin: 0.15rem 0 0;
-    font-size: 0.78rem;
-    color: var(--ion-color-medium);
-
-    .waiting { color: var(--ion-color-warning-shade); }
-  }
-}
-
-.line {
-  --padding-top: 0.6rem;
-  --padding-bottom: 0.6rem;
-
-  /* A row that cannot be written yet is not an error: it is a question. */
-  &.unready { --background: rgba(var(--ion-color-warning-rgb), 0.07); }
-
-  .head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.6rem;
-  }
-
-  /* The day, in the app's words, with the phone's own calendar over it. */
-  .on {
-    position: relative;
-    display: inline-block;
-    color: var(--ion-color-medium);
-    font-size: 0.8rem;
-
-    .said { pointer-events: none; }
-
-    input {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      opacity: 0;
-      border: 0;
-      background: none;
-    }
-  }
-
-  .amount {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-color-success);
-
-    &.out { color: var(--ion-text-color); }
-  }
-
-  .what {
-    margin: 0.2rem 0 0;
-    font-size: 0.92rem;
-    white-space: normal;
-  }
-
-  .evidence {
-    margin: 0.15rem 0 0;
-    font-size: 0.72rem;
-    line-height: 1.4;
-    color: var(--ion-color-medium);
-    white-space: normal;
-  }
-
-  /* What the app noticed. Each one is a question, so none of them is red. */
-  .flag {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.3rem;
-    margin: 0.35rem 0 0;
-    font-size: 0.75rem;
-    line-height: 1.4;
-    white-space: normal;
-
-    ion-icon { flex: none; margin-top: 0.1rem; font-size: 0.9rem; }
-
-    &.same { color: var(--ion-color-warning-shade); }
-    &.pair { color: var(--ion-color-primary); }
-    &.guessed { color: var(--ion-color-medium); }
-    &.needs { color: var(--ion-color-warning-shade); font-weight: 600; }
-  }
-
-  .fields {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.4rem 0.6rem;
-    margin-top: 0.5rem;
-  }
-
-  .pick {
-    --padding-start: 0.6rem;
-    --padding-end: 0.4rem;
-    min-height: 1.9rem;
-    max-width: 60%;
-    border: 1px solid var(--ion-color-step-200);
-    border-radius: 999px;
-    font-size: 0.78rem;
-  }
-
-  /* The category, with its own picture, as everywhere else in the app. */
-  .category {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 70%;
-    padding: 0.25rem 0.6rem;
-    border: 1px solid var(--ion-color-step-200);
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-text-color);
-    font-size: 0.78rem;
-
-    span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .more { font-size: 0.8rem; color: var(--ion-color-medium); }
-  }
-
-  .learned {
-    font-size: 0.7rem;
-    color: var(--ion-color-medium);
-
-    /* A word out of the app's own table, not a memory of this person: worth
-       a second look, so it is said in the colour the screen uses for that. */
-    &.guessed { color: var(--ion-color-warning-shade, var(--ion-color-medium)); }
-  }
-
-  .turn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.55rem;
-    border: 1px solid var(--ion-color-step-200);
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-color-medium);
-    font-size: 0.72rem;
-  }
-
-  .typed { margin-top: 0.4rem; }
-}
-
-/* Accept and discard, the same size and the same distance apart on every row,
-   so neither is ever hit by accident. */
-.answer {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  align-self: flex-start;
-  margin-top: 0.3rem;
-
-  button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.1rem;
-    height: 2.1rem;
-    border: 0;
-    border-radius: 50%;
-    background: var(--ion-color-step-100);
-    color: var(--ion-color-medium);
-    font-size: 1.05rem;
-
-    &:disabled { opacity: 0.35; }
-    &.ok { background: rgba(var(--ion-color-success-rgb), 0.15); color: var(--ion-color-success-shade); }
-    &.no.sure { background: var(--ion-color-danger); color: #fff; }
-  }
-}
-
-/* In the header, so the way out of a long list is visible before the list.
-   One thing to do, and two quieter ways out of it: three buttons of a size
-   read as three equal choices, which they are not. */
-.batch-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.9rem;
-  margin: 0.7rem 0 0.2rem;
-
-  .save {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    border: 0;
-    border-radius: 999px;
-    background: var(--ion-color-primary);
-    color: #fff;
-    font-size: 0.82rem;
-    font-weight: 600;
-
-    ion-icon { font-size: 1rem; }
-    &:disabled { opacity: 0.45; }
-  }
-
-  /* The far side, away from the one thing somebody came here to do. */
-  .more {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    margin-left: auto;
-    border: 0;
-    border-radius: 50%;
-    background: var(--ion-color-step-100);
-    color: var(--ion-color-medium);
-    font-size: 1.15rem;
-
-    &:disabled { opacity: 0.45; }
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   Choosing several at once.
-   --------------------------------------------------------------------------- */
-
-/* Its own line above the two pickers, at the right, and never one of them. */
-.looking .select-start {
-  justify-self: end;
-  padding: 0.3rem 0;
-  border: 0;
-  background: none;
-  font-size: 0.82rem;
-  cursor: pointer;
+.account-row { display: flex; justify-content: center; margin-bottom: 10px; }
+.account {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  color: var(--ion-color-primary);
-  font-weight: 600;
-
-  ion-icon { font-size: 1rem; }
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 12px 6px 6px;
+  border-radius: 16px;
+  ion-icon { font-size: 16px; flex: none; color: var(--app-chev); }
 }
 
-/* The bar is taller than the jump arrows it replaces. */
-ion-content.selecting { --padding-bottom: calc(8rem + var(--ion-safe-area-bottom, 0px)); }
+.ui-search { margin-bottom: 10px; }
 
-/* The search sits in the same column as the pickers, edge to edge. */
-.looking .search-row { padding: 0; }
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  .grow { flex: 1; }
+  .ui-chip { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 16px; } }
+  .view { min-width: 0; span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+}
+
+.seen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 2px 10px;
+  color: var(--app-mu);
+  font-size: 13.5px;
+  span { flex: 1; }
+  ion-icon { font-size: 16px; }
+  button { border: 0; background: none; color: var(--app-pr); font: inherit; cursor: pointer; }
+}
+
+.batch {
+  margin-bottom: 10px;
+
+  .bhead { display: flex; align-items: center; gap: 12px; }
+  .bhead b { font-size: 16px; font-weight: 600; }
+  .check {
+    width: 28px; height: 28px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer;
+    background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn);
+    &.off { background: rgba(var(--app-yel-rgb), 0.2); color: var(--app-yel); }
+  }
+  .off { display: flex; gap: 6px; align-items: flex-start; color: var(--app-yel); font-size: 13.5px; margin: 10px 0 0; ion-icon { font-size: 17px; flex: none; } }
+  .count { margin: 10px 0 0; font-size: 14.5px; }
+  .needs { margin: 6px 0 0; color: var(--app-yel); font-size: 14px; }
+  .bactions { display: flex; gap: 10px; margin-top: 12px; .ui-btn { flex: 1; } }
+}
+
+.squaring {
+  margin-bottom: 10px;
+  .shead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; b { flex: 1; font-weight: 600; } }
+  .sline { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; color: var(--app-mu); padding: 4px 0; b { color: var(--app-tx); } }
+  .ui-btn { margin-top: 10px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; .ui-btn { margin-top: 10px; } }
+}
+
+.ui-group { margin-bottom: 10px; }
+.ui-group .total { font-weight: 600; font-size: 15px; flex: none; }
+
+.shop .cat { display: inline-flex; align-items: center; gap: 6px; max-width: 45%; flex: none; ion-icon { font-size: 15px; } }
+
+.line { cursor: pointer; align-items: flex-start; }
+.line .ui-am { font-weight: 600; flex: none; }
+.line .ui-tx small { display: block; }
+.line .flag { display: flex; gap: 6px; align-items: flex-start; color: var(--app-yel); white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
+.picked { background: rgba(var(--app-pr-rgb), 0.12); }
+
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
+.tag.learned { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
+.tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 16px 0;
+  gap: 8px;
+  h2 { margin: 10px 0 0; font-size: 20px; font-weight: 700; }
+  p { margin: 0 0 16px; color: var(--app-mu); font-size: 14px; line-height: 1.45; }
+  .ui-btn { max-width: 18rem; }
+}
+
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }

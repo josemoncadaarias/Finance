@@ -18,14 +18,10 @@ import {
   Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import {
-  IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-  IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
-  IonSearchbar, IonNote,
-} from '@ionic/angular';
+import { IonIcon, IonDatetime, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -50,9 +46,11 @@ import {
   apply, isOperator, operatorFromKey, type Operator, type Pending,
 } from './calculator';
 import { outlined } from '../../core/icons/icon-catalog';
-import { IconComponent } from '../../core/icons/icon.component';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { productIcon, productSeed } from '../../core/icons/product-face';
+import { AccentService } from '../../core/theme/accent.service';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -85,12 +83,9 @@ export interface EntryRequest {
 @Component({
   selector: 'app-entry',
   imports: [
-    IconComponent,
-    CommonModule, TranslatePipe,
-    IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
+    CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent,
     CategoryEditorComponent, ConfirmComponent,
-    IonItem, IonInput, IonTextarea, IonDatetime, IonModal, IonList, IonLabel, IonFooter,
-    IonSearchbar, IonNote,
+    IonIcon, IonDatetime, IonModal,
   ],
   templateUrl: './entry.component.html',
   styleUrls: ['./entry.component.scss'],
@@ -102,6 +97,11 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly request = input.required<EntryRequest>();
   readonly saved = output<void>();
   readonly cancelled = output<void>();
+  /**
+   * Gasto, Ingreso or Transferir chosen at the top of the form: the host opens
+   * the form again for that kind, carrying the amount, the day and the note.
+   */
+  readonly switchTo = output<EntryRequest>();
 
   readonly amount = signal(new AmountBuffer());
   /** Only used when a transfer crosses currencies. */
@@ -224,11 +224,12 @@ export class EntryComponent implements OnInit, OnDestroy {
    * the screen beside the figure - while '=' is only needed when a sum is
    * being added up, which is when it appears beside the save button instead.
    */
+  /** The keypad as the mockups draw it (1f): backspace is beside the amount. */
   readonly keys = [
-    '1', '2', '3', '+',
-    '4', '5', '6', '-',
-    '7', '8', '9', '×',
-    ',', '0', '<', '÷',
+    '7', '8', '9', '÷',
+    '4', '5', '6', '×',
+    '1', '2', '3', '-',
+    ',', '0', '=', '+',
   ];
 
   /** Set when the screen is editing an existing transfer rather than a movement. */
@@ -322,11 +323,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.editingTarget() ? this.targetAmount() : this.amount());
 
   readonly title = computed(() => {
-    if (this.betweenProducts()) {
-      return this.i18n.t(this.isEditing() ? 'entry.editProductTransfer' : 'entry.productTransfer');
-    }
+    if (this.betweenProducts() && this.isEditing()) return this.i18n.t('entry.editTransfer');
     if (this.isEditing()) return this.i18n.t(this.isTransfer() ? 'entry.editTransfer' : 'entry.editMovement');
-    if (this.isTransfer()) return this.i18n.t('entry.transfer');
+    if (this.isTransfer()) return this.i18n.t('ui.new.transfer');
     return this.i18n.t(this.kind() === 'expense' ? 'entry.newExpense' : 'entry.newIncome');
   });
 
@@ -427,14 +426,28 @@ export class EntryComponent implements OnInit, OnDestroy {
     return [...found].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   });
 
+  /** "Hoy · domingo 27 sept", "Viernes 25 sept" (mockup 1f). */
   readonly dateLabel = computed(() => {
     const iso = this.occurredOn();
-    if (iso === todayIso()) return this.i18n.t('period.today');
-
     const [year, month, day] = iso.split('-').map(Number);
-    const name = monthName(new Date(year, month - 1, day), this.i18n.dateLocale());
-    return `${day} ${name} ${year}`;
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const short = monthName(date, locale).slice(0, 4).replace(/\.$/, '');
+    let text = `${weekday} ${day} ${short.length > 3 ? short.slice(0, 4) : short}`;
+    if (year !== new Date().getFullYear()) text += ` ${year}`;
+    if (iso === todayIso()) return this.i18n.t('ui.today.day', { day: text });
+    if (iso === shiftIso(todayIso(), -1)) return this.i18n.t('ui.yesterday.day', { day: text });
+    return text.charAt(0).toUpperCase() + text.slice(1);
   });
+
+  /** The chip beside the day: "Ayer" from today, "Hoy" from any other day. */
+  readonly quickDayLabel = computed(() =>
+    this.i18n.t(this.occurredOn() === todayIso() ? 'period.yesterday' : 'period.today'));
+
+  quickDay(): void {
+    this.occurredOn.set(this.occurredOn() === todayIso() ? shiftIso(todayIso(), -1) : todayIso());
+  }
 
   /**
    * What is still missing, in the order it should be fixed.
@@ -504,7 +517,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   readonly fromHoldsText = computed(() => {
     const held = this.fromHolds();
-    return held === null ? '' : formatMoney(held, this.currency());
+    return held === null ? '' : formatMoney(held, this.currency(), { withSymbol: false });
   });
 
   /**
@@ -555,7 +568,15 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (from === null) return null;
     if (this.isTransfer()) {
       const to = this.toAccountId();
-      return to === null ? null : { kind: 'transfer', fromAccountId: from, toAccountId: to };
+      if (to === null) return null;
+      if (to === from && this.splitAccount()) {
+        const fromProduct = this.productId();
+        const toProduct = this.toProductId();
+        const usual = defaultProduct(this.products());
+        if (fromProduct === null || toProduct === null || usual === null) return null;
+        return { kind: 'betweenProducts', accountId: from, fromProductId: fromProduct, toProductId: toProduct, usualProductId: usual };
+      }
+      return { kind: 'transfer', fromAccountId: from, toAccountId: to };
     }
     const category = this.categoryId();
     return category === null ? null
@@ -577,6 +598,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const found = await usualNote(this.database.driver, context, todayIso());
     if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
     this.note.set(found ?? '');
+    this.usualNoteShown.set(found !== null && found !== '');
     const field = this.noteField();
     if (field) field.nativeElement.value = found ?? '';
   }
@@ -819,6 +841,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   async onNoteInput(value: string): Promise<void> {
     this.noteIsTheirs = true;
+    this.usualNoteShown.set(false);
     this.note.set(value);
 
     const typed = value.trim();
@@ -891,6 +914,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     pressed?.preventDefault();
     this.noteIsTheirs = true;
     this.note.set('');
+    this.usualNoteShown.set(false);
     this.noteSuggestions.set([]);
     this.noteQuery++;
     this.emptyTheField();
@@ -1216,7 +1240,32 @@ export class EntryComponent implements OnInit, OnDestroy {
       : far.chosen;
     this.toProducts.set(far.products);
     this.toProductId.set(farChosen);
+
+    // Between two products of one account: the route this account's money
+    // most often takes, for a new move - from a product that is not the usual
+    // one into the one it most often goes to (as the product form starts).
+    if (this.isTransfer() && this.accountId() !== null && this.toAccountId() === this.accountId()
+        && here.products.length > 1) {
+      await this.readRoutePairs(this.accountId()!, here.products);
+      if (this.editingTransferId() === null && !this.routeSet) {
+        this.routeSet = true;
+        const usual = defaultProduct(here.products);
+        const best = this.routePairs().find(pair => pair.from !== usual);
+        if (best) {
+          this.productId.set(best.from);
+          this.toProductId.set(best.to);
+        } else if (usual !== null) {
+          const other = here.products.find(product => product.id !== usual)?.id ?? null;
+          if (other !== null) { this.productId.set(other); this.toProductId.set(usual); }
+        }
+      }
+    } else {
+      this.routePairs.set([]);
+    }
   }
+
+  /** The route between products is chosen once; after that the person's choices stand. */
+  private routeSet = false;
 
   /** The products recorded on each leg of the transfer being corrected. */
   private nearLegProductId: number | null = null;
@@ -1261,13 +1310,14 @@ export class EntryComponent implements OnInit, OnDestroy {
     else this.productId.set(id);
 
     // Between two products of one account the other side cannot be this same
-    // one, so it moves to another - with two products, the only other. The
-    // side just chosen is never the one that moves. The products' own form
-    // does the same.
+    // one, so it moves - to the product the route most often uses with the one
+    // just chosen (Jose, 2026-09-28), and failing that to another. The side
+    // just chosen is never the one that moves. Everything that follows the
+    // ends follows it too: the usual note and "Pasar todo".
     if (this.betweenProducts()) {
       const other = toSide ? this.productId() : this.toProductId();
       if (other === id) {
-        const next = this.products().find(product => product.id !== id)?.id ?? null;
+        const next = this.partnerOf(id, toSide ? 'to' : 'from');
         if (toSide) this.productId.set(next);
         else this.toProductId.set(next);
       }
@@ -1398,6 +1448,205 @@ export class EntryComponent implements OnInit, OnDestroy {
     await transfers.create(transfer);
   }
 
+  // ---------------------------------------------------------------------------
+  // The redesign's drawing (mockups 1f-1n, 4t01-4t13)
+  // ---------------------------------------------------------------------------
+
+  private readonly accent = inject(AccentService);
+  readonly accentColor = computed(() => this.accent.accent().color);
+
+  /** The one form, opened again for another kind with what was written. */
+  switchKind(kind: EntryKind): void {
+    if (this.isEditing()) return;
+    const current = this.isTransfer() ? 'transfer' : this.kind();
+    if (kind === current) return;
+    this.switchTo.emit({
+      kind,
+      preferredAccountId: this.accountId() ?? this.request().preferredAccountId,
+      preferredSide: kind === 'transfer' ? 'from' : undefined,
+      start: {
+        amountMinor: this.amount().minor,
+        onDate: this.occurredOn(),
+        note: this.noteIsTheirs ? this.note() : '',
+      },
+    });
+  }
+
+  /** A note used before, split around what is being typed, to underline it (1g). */
+  hintParts(hint: string): [string, string, string] {
+    const typed = this.note().trim();
+    if (typed === '') return [hint, '', ''];
+    const at = hint.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .indexOf(typed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+    if (at < 0 || hint.length !== hint.normalize('NFD').replace(/[\u0300-\u036f]/g, '').length) return [hint, '', ''];
+    return [hint.slice(0, at), hint.slice(at, at + typed.length), hint.slice(at + typed.length)];
+  }
+
+  isOperatorKey(key: string): boolean {
+    return isOperator(key);
+  }
+
+  /** "Desde" where money leaves, "Hacia" where it arrives. */
+  sideLabel(side: 'from' | 'to'): string {
+    if (side === 'to' || (!this.isTransfer() && this.kind() === 'income')) return this.i18n.t('ui.side.to');
+    return this.i18n.t('entry.from');
+  }
+
+  productOf(products: readonly YieldProduct[], id: number | null): YieldProduct | null {
+    return products.find(product => product.id === id) ?? null;
+  }
+
+  faceOf(product: YieldProduct): string {
+    return productIcon(product);
+  }
+
+  seedOf(product: YieldProduct): number {
+    return productSeed(product);
+  }
+
+  /** What an (i) beside a product says, when there is something to say. */
+  productNote(side: 'from' | 'to'): string | null {
+    const product = side === 'to'
+      ? this.productOf(this.toProducts(), this.toProductId())
+      : this.productOf(this.products(), this.productId());
+    if (!product || !this.isTransfer()) return null;
+    if (product.include_in_net_worth === 0) return this.i18n.t('ui.info.setAside');
+    if (product.kind === 'cdt') return this.i18n.t('ui.info.cdt');
+    if (this.betweenProducts() && side === 'to') return this.i18n.t('ui.info.betweenProducts');
+    return null;
+  }
+
+  readonly info = signal<string | null>(null);
+
+  showInfo(text: string): void {
+    this.info.set(text);
+  }
+
+  /** "tasa 3.935,15": the rate the two amounts of a transfer imply. */
+  readonly rateText = computed(() => {
+    const out = this.amount().minor;
+    const into = this.targetAmount().minor;
+    if (out <= 0 || into <= 0) return '';
+    const rate = out >= into ? out / into : into / out;
+    return this.i18n.t('ui.rate', {
+      rate: rate.toLocaleString(this.i18n.dateLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    });
+  });
+
+  /** Grows the note with what is written in it. */
+  grow(field: HTMLTextAreaElement): void {
+    field.style.height = 'auto';
+    field.style.height = `${field.scrollHeight}px`;
+  }
+
+  /** True while the note on show is the usual one the app wrote. */
+  readonly usualNoteShown = signal(false);
+
+  /** What each account holds, for the account list. */
+  private readonly accountBalances = signal<ReadonlyMap<number, { balance: number; available: number | null }>>(new Map());
+
+  private readonly readBalances = effect(() => {
+    if (this.picking() === null || this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      const rows = await new AccountsRepository(this.database.driver).balances();
+      this.accountBalances.set(new Map(rows.map(row =>
+        [row.account.id, { balance: row.balance_minor, available: row.available_credit_minor }])));
+    });
+  });
+
+  balanceLine(account: AccountRow): string {
+    const held = this.accountBalances().get(account.id);
+    if (!held) return account.currency_code;
+    const money = (minor: number) => formatMoney(minor, account.currency_code, { withSymbol: false });
+    const suffix = account.currency_code === 'COP' ? '' : ` ${account.currency_code}`;
+    if (account.type === 'credit' && held.available !== null) {
+      return this.i18n.t('ui.picker.available', { amount: money(held.available) }) + suffix;
+    }
+    return money(held.balance) + suffix;
+  }
+
+  /** What each product of the sheet on show holds today. */
+  private readonly productHoldings = signal<ReadonlyMap<number, number>>(new Map());
+
+  private readonly readProductHoldings = effect(() => {
+    const account = this.pickingProduct();
+    if (account === null || this.database.status() !== 'ready') return;
+    const list = this.productSide() === 'to' ? this.toProducts() : this.products();
+    void untracked(async () => {
+      const held = new Map<number, number>();
+      for (const product of list) {
+        held.set(product.id, await whatItHolds(this.database.driver, account.id, product.id, todayIso()));
+      }
+      this.productHoldings.set(held);
+    });
+  });
+
+  productLine(product: YieldProduct): string {
+    const held = this.productHoldings().get(product.id);
+    const currency = this.pickingProduct()?.currency_code ?? this.currency();
+    const figure = held === undefined ? '' : formatMoney(held, currency, { withSymbol: false });
+    if (product.is_default === 1) {
+      return figure ? `${this.i18n.t('entry.product.usual')} · ${figure}` : this.i18n.t('entry.product.usual');
+    }
+    return figure;
+  }
+
+  /** "Sale de · Ahorro Verde", "Entra a · Ahorro Verde". */
+  readonly productSheetTitle = computed(() => {
+    const account = this.pickingProduct()?.name ?? '';
+    const into = this.productSide() === 'to' || (!this.isTransfer() && this.kind() === 'income');
+    return `${this.i18n.t(into ? 'entry.product.into' : 'entry.product.from')} · ${account}`;
+  });
+
+  readonly deleteBody = computed(() => {
+    if (this.betweenProducts()) {
+      return this.i18n.t('entry.deleteTransfer.hintProducts', { account: this.account()?.name ?? '' });
+    }
+    if (this.isTransfer()) {
+      return `${this.i18n.t('entry.deleteTransfer.hint', {
+        from: this.account()?.name ?? '', to: this.toAccount()?.name ?? '' })} ${this.i18n.t('entry.delete.body')}`;
+    }
+    return this.i18n.t('entry.delete.body');
+  });
+
+  /**
+   * How often money has moved from each product of this account to each
+   * other one: the account's own moves between its products, a leg naming no
+   * product being the usual one's.
+   */
+  private readonly routePairs = signal<{ from: number; to: number; times: number }[]>([]);
+
+  private async readRoutePairs(accountId: number, products: readonly YieldProduct[]): Promise<void> {
+    const usual = (products.find(product => product.is_default === 1) ?? products[0])?.id ?? null;
+    if (usual === null) { this.routePairs.set([]); return; }
+    const rows = await this.database.driver.query<{ from_id: number | null; to_id: number | null; times: number }>(
+      `SELECT f.product_id AS from_id, t.product_id AS to_id, COUNT(*) AS times
+       FROM transactions f
+       JOIN transactions t ON t.transfer_id = f.transfer_id AND t.id <> f.id
+       WHERE f.account_id = ? AND t.account_id = f.account_id AND f.transfer_leg = 'from'
+       GROUP BY f.product_id, t.product_id
+       ORDER BY times DESC`, [accountId]);
+    const exists = (id: number) => products.some(product => product.id === id);
+    this.routePairs.set(rows
+      .map(row => ({ from: row.from_id ?? usual, to: row.to_id ?? usual, times: row.times }))
+      .filter(pair => pair.from !== pair.to && exists(pair.from) && exists(pair.to)));
+  }
+
+  /**
+   * The product the other end most often is, when `id` sits on `side`: where
+   * money from it usually goes, or where money into it usually comes from.
+   * With no history, the usual product, or the first other one.
+   */
+  private partnerOf(id: number, side: 'from' | 'to'): number | null {
+    const found = this.routePairs()
+      .filter(pair => (side === 'from' ? pair.from : pair.to) === id)
+      .sort((a, b) => b.times - a.times)[0];
+    if (found) return side === 'from' ? found.to : found.from;
+    const usual = this.products().find(product => product.is_default === 1)?.id ?? null;
+    if (usual !== null && usual !== id) return usual;
+    return this.products().find(product => product.id !== id)?.id ?? null;
+  }
+
   /** Open while the delete is being confirmed. Nothing is gone until it is. */
   readonly confirmingDelete = signal(false);
 
@@ -1471,6 +1720,12 @@ function readAccountOrder(): 'use' | 'name' {
   } catch {
     return 'name';
   }
+}
+
+function shiftIso(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(year, month - 1, day + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function todayIso(): string {

@@ -1,37 +1,61 @@
-<ion-modal [isOpen]="open()" (didDismiss)="closed.emit()">
+<ion-modal class="ui-sheet" [isOpen]="open()" (didDismiss)="closed.emit()">
   <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="closed.emit()">{{ 'entry.cancel' | t }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="closed.emit()">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ heading() ?? ('entry.fromWhere' | t) }}</h2>
+        <span class="right"></span>
+      </div>
 
-    <ion-content class="picker">
-      <h2>{{ heading() ?? ('entry.fromWhere' | t) }}</h2>
+      @if (showAll()) {
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="chosenAll.emit()">
+            <span class="all-badge"><ion-icon name="layers-outline"></ion-icon></span>
+            <span class="ui-tx">
+              <b>{{ 'ui.allAccounts' | t }}</b>
+              @if (allDetail()) { <small>{{ allDetail() }}</small> }
+            </span>
+            @if (selectedId() === null) {
+              <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span>
+            }
+          </button>
+        </div>
+      }
 
-      <div class="order-pills">
+      <div class="ui-seg order">
         <button type="button" [class.on]="order() === 'use'" (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
         <button type="button" [class.on]="order() === 'name'" (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
       </div>
 
-      <ion-list>
+      <div class="ui-list">
         @for (option of ordered(); track option.id) {
-          <ion-item button lines="full" (click)="choose(option)" [class.selected]="selectedId() === option.id">
-            <app-icon slot="start" [builtin]="option.builtin_icon"
-                      [customId]="option.custom_icon_id" fallback="wallet"></app-icon>
-            <ion-label>
-              <h3>{{ option.name }}</h3>
-              <p>{{ option.currency_code }}</p>
-            </ion-label>
+          <button type="button" class="ui-row" (click)="choose(option)">
+            <app-badge shape="ci" [size]="42" [builtin]="option.builtin_icon" [customId]="option.custom_icon_id"
+                       [tone]="option.color" [seed]="option.id" fallback="wallet"></app-badge>
+            <span class="ui-tx">
+              <b>{{ option.name }}</b>
+              <small>{{ lineOf(option) }}</small>
+            </span>
             @if (selectedId() === option.id) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              <span class="ui-tick on" [attr.aria-label]="'entry.selected' | t"><ion-icon name="checkmark"></ion-icon></span>
             }
-          </ion-item>
+          </button>
         }
-      </ion-list>
-    </ion-content>
+      </div>
+
+      @if (offerNew()) {
+        <div class="ui-list new">
+          <button type="button" class="ui-row" (click)="newAccount.emit()">
+            <app-badge shape="ci" [size]="40" builtin="add" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx">
+              <b>{{ 'ui.import.newAccount' | t }}</b>
+              <small>{{ 'ui.import.newAccount.hint' | t }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+      }
+    </div>
   </ng-template>
 </ion-modal>

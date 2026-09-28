@@ -142,7 +142,36 @@ export interface TrendBlock {
     value: Value;
     /** How much of the value is of another kind - what was estimated - drawn lighter inside the bar. */
     part?: Value;
+    /** The same point of a second series (income beside spending), when the block has one. */
+    second?: Value;
+    /** The day the point stands for, when the points are days on a line rather than months. */
+    on?: string;
+    /** A point worked out ahead of today rather than on record: drawn dashed, and said. */
+    projected?: boolean;
   }[];
+  /**
+   * A second series beside the first (Jose, 2026-09-28: "Mes a mes" with
+   * Gastos | Ingresos y gastos). The screen offers the first alone or both;
+   * the spreadsheet writes both columns.
+   */
+  series?: {
+    /** What the first series is: "Gastos". */
+    first: string;
+    /** What `second` is: "Ingresos". */
+    second: string;
+    /** The two together, for the switch: "Ingresos y gastos". */
+    both: string;
+    /** What is left, second minus first: "Te quedó". */
+    left: string;
+  };
+  /**
+   * Drawn as a line over dated points instead of bars - a balance over time,
+   * with its projected tail dashed ("Tu saldo a futuro").
+   */
+  shape?: 'line';
+  /** How the line marks today, and how a projected point is said. */
+  todayLabel?: string;
+  projectedLabel?: string;
   /** What `part` is, when a point carries one. */
   partLabel?: string;
   /** The line drawn across it, when there is one worth drawing. */

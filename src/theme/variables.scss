@@ -2,34 +2,129 @@
 // https://ionicframework.com/docs/theming/
 
 /*
- * The light palette, spelled out.
+ * The redesign's surfaces (docs/mockups, 2026-09-28), as tokens every screen
+ * reads: `--app-*` for the app's own classes in global.scss, and Ionic's own
+ * variables set from them so its components agree.
  *
- * Ionic only ships definitions for `--ion-text-color` and
- * `--ion-background-color` inside its DARK palettes. In light there is no
- * definition at all: Ionic's own components fall back to values baked into
- * their shadow DOM, so they look right — but any rule this app writes that
- * reads `var(--ion-text-color)` resolves to nothing, and `color` quietly falls
- * back to whatever it inherits.
+ * Dark is the navy the mockups are drawn in: the page `#070d1a`, cards
+ * `#111b2f`, three steps of surface above it. Light is the same structure in
+ * daylight. The accent - everything pressable - is painted by AccentService
+ * on the root element (`--ion-color-primary`, `--app-pr`, `--app-pr2`), Zafiro
+ * until someone chooses another.
  *
- * That is why the account name in the toolbar came out invisible in light and
- * fine in dark, and why the sticky group headings had no background to hide
- * the rows sliding underneath them. It was never a colour that was wrong; it
- * was a colour that did not exist.
- *
- * Defined on `:root`, which the dark palette overrides through the higher
- * specificity of `:root.ion-palette-dark`.
+ * Ionic only ships `--ion-text-color` and `--ion-background-color` inside its
+ * DARK palettes; in light they must be spelled out here, or any rule reading
+ * them resolves to nothing (the invisible account name in the toolbar).
  */
 :root {
-  --ion-text-color: #000000;
-  --ion-text-color-rgb: 0, 0, 0;
+  --app-pr: #6378ff;
+  --app-pr2: #4a5ef0;
+  --app-pr-rgb: 99, 120, 255;
 
-  --ion-background-color: #ffffff;
-  --ion-background-color-rgb: 255, 255, 255;
+  --app-bg: #f2f4f9;
+  --app-bg-rgb: 242, 244, 249;
+  --app-top: #ffffff;
+  --app-s1: #ffffff;
+  --app-s2: #eef1f7;
+  --app-s3: #e1e6f0;
+  --app-line: #e5e9f1;
+  --app-border: #e3e8f1;
+  --app-tx: #101828;
+  --app-mu: #5d6a82;
+  --app-chev: #98a2b3;
+  --app-sheet: #ffffff;
+  --app-sheet-border: #e3e8f1;
+  --app-kp: #eef1f7;
+  --app-key: #ffffff;
+  --app-nav: rgba(255, 255, 255, 0.97);
+  --app-nav-border: #dde3ee;
+  --app-nav-mu: #7a869c;
+  --app-shadow: rgba(16, 24, 40, 0.14);
+  --app-scrim: rgba(16, 24, 40, 0.45);
+  --app-grab: #cfd6e2;
+  --app-red: #e5484d;
+  --app-grn: #1f9d6a;
+  --app-yel: #c98a0c;
+  --app-red-rgb: 229, 72, 77;
+  --app-grn-rgb: 31, 157, 106;
+  --app-yel-rgb: 201, 138, 12;
 
-  /* The surface a list sits on. Named separately from the page because a
-     sticky heading has to cover rows, and in light those rows are white on
-     a background that is also white — without this the heading is
-     transparent exactly where it most needs not to be. */
-  --ion-item-background: #ffffff;
-  --ion-card-background: #ffffff;
+  --ion-text-color: var(--app-tx);
+  --ion-text-color-rgb: 16, 24, 40;
+  --ion-background-color: var(--app-bg);
+  --ion-background-color-rgb: var(--app-bg-rgb);
+  --ion-toolbar-background: var(--app-top);
+  --ion-item-background: var(--app-s1);
+  --ion-card-background: var(--app-s1);
+  --ion-color-medium: var(--app-mu);
+
+  --ion-color-danger: #e5484d;
+  --ion-color-danger-rgb: 229, 72, 77;
+  --ion-color-danger-shade: #c93f44;
+  --ion-color-danger-tint: #e85a5f;
+  --ion-color-success: #1f9d6a;
+  --ion-color-success-rgb: 31, 157, 106;
+  --ion-color-success-shade: #1b8a5d;
+  --ion-color-success-tint: #35a779;
+  --ion-color-warning: #c98a0c;
+  --ion-color-warning-rgb: 201, 138, 12;
+  --ion-color-warning-shade: #b1790b;
+  --ion-color-warning-tint: #ce9624;
+}
+
+:root.ion-palette-dark {
+  --app-bg: #070d1a;
+  --app-bg-rgb: 7, 13, 26;
+  --app-top: #0d1527;
+  --app-s1: #111b2f;
+  --app-s2: #18243d;
+  --app-s3: #213050;
+  --app-line: #1f2c47;
+  --app-border: #17223b;
+  --app-tx: #eef2f9;
+  --app-mu: #8e9ab2;
+  --app-chev: #5f6d88;
+  --app-sheet: #0f192c;
+  --app-sheet-border: #22314f;
+  --app-kp: #0a1222;
+  --app-key: #16213a;
+  --app-nav: rgba(17, 27, 47, 0.97);
+  --app-nav-border: #25355a;
+  --app-nav-mu: #7f8ba5;
+  --app-shadow: rgba(0, 0, 0, 0.55);
+  --app-scrim: rgba(2, 6, 14, 0.68);
+  --app-grab: #34445f;
+  --app-red: #ff6b6b;
+  --app-grn: #34c98b;
+  --app-yel: #f6b93b;
+  --app-red-rgb: 255, 107, 107;
+  --app-grn-rgb: 52, 201, 139;
+  --app-yel-rgb: 246, 185, 59;
+
+  --ion-text-color: var(--app-tx);
+  --ion-text-color-rgb: 238, 242, 249;
+  --ion-background-color: var(--app-bg);
+  --ion-background-color-rgb: var(--app-bg-rgb);
+  --ion-toolbar-background: var(--app-top);
+  --ion-item-background: var(--app-s1);
+  --ion-card-background: var(--app-s1);
+  --ion-color-medium: var(--app-mu);
+  --ion-color-step-50: #111b2f;
+  --ion-color-step-100: #18243d;
+  --ion-color-step-150: #213050;
+  --ion-color-step-200: #2a3857;
+  --ion-border-color: #1f2c47;
+
+  --ion-color-danger: #ff6b6b;
+  --ion-color-danger-rgb: 255, 107, 107;
+  --ion-color-danger-shade: #e05e5e;
+  --ion-color-danger-tint: #ff7a7a;
+  --ion-color-success: #34c98b;
+  --ion-color-success-rgb: 52, 201, 139;
+  --ion-color-success-shade: #2eb17a;
+  --ion-color-success-tint: #48ce97;
+  --ion-color-warning: #f6b93b;
+  --ion-color-warning-rgb: 246, 185, 59;
+  --ion-color-warning-shade: #d8a334;
+  --ion-color-warning-tint: #f7c04f;
 }

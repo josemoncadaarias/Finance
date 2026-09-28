@@ -1,519 +1,381 @@
-<ion-header class="entry-header">
-  <ion-toolbar [class]="kind()">
-    <ion-buttons slot="start">
-      <ion-button (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
-        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+<!-- The one movement form (mockups 1f-1n, 4t01-4t13): one frame for spending,
+     income, a transfer between accounts and a move between products. -->
+<div class="entry" [class.writing-note]="writingNote()">
+  <header class="entry-top">
+    <button type="button" class="x" (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+      <ion-icon name="close"></ion-icon>
+    </button>
+    <h1>{{ title() }}</h1>
+    @if (isEditing()) {
+      <button type="button" class="bin" (click)="askToDelete()"
+              [attr.aria-label]="(isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t"
+              [title]="(isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t">
+        <ion-icon name="trash-outline"></ion-icon>
+      </button>
+    }
+  </header>
 
-    <h1 class="title">{{ title() }}</h1>
+  <div class="entry-scroll">
+    <div class="entry-body">
 
-    <ion-buttons slot="end">
-      <ion-button class="save" [disabled]="!canSave() || saving()" (click)="save()">
-        <ion-icon slot="start" name="checkmark-outline"></ion-icon>
-        {{ 'entry.save' | t }}
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+      <!-- Gasto, Ingreso or Transferir: the form switches between them, keeping
+           what was already written. A movement being corrected keeps its kind. -->
+      @if (!writingNote()) {
+        <div class="ui-seg kinds">
+          <button type="button" [class.on]="!isTransfer() && kind() === 'expense'" class="red"
+                  [disabled]="isEditing() && !(!isTransfer() && kind() === 'expense')" (click)="switchKind('expense')">
+            <ion-icon name="arrow-up"></ion-icon><span>{{ 'ui.new.expense' | t }}</span>
+          </button>
+          <button type="button" [class.on]="!isTransfer() && kind() === 'income'" class="grn"
+                  [disabled]="isEditing() && !(!isTransfer() && kind() === 'income')" (click)="switchKind('income')">
+            <ion-icon name="arrow-down"></ion-icon><span>{{ 'ui.new.income' | t }}</span>
+          </button>
+          <button type="button" [class.on]="isTransfer()" class="blu"
+                  [disabled]="isEditing() && !isTransfer()" (click)="switchKind('transfer')">
+            <ion-icon name="swap-horizontal"></ion-icon><span>{{ 'ui.new.transfer' | t }}</span>
+          </button>
+        </div>
 
-<!-- A plain scroller, not an ion-content: this form is presented as an
-     auto-height sheet, and ion-content expands to fill whatever it is given,
-     which is exactly the height this form should not be claiming. -->
-<div class="entry-scroll">
-  <!-- Everything above the keypad is one column, so that on a tall screen the
-       spare height becomes space between the sections instead of a hole. On a
-       short one the column overflows and scrolls exactly as before. -->
-  <div class="entry-body" [class.writing-note]="writingNote()">
-  <!-- The sum in progress, when there is one -->
-  @if (pendingLabel(); as sum) {
-    <p class="pending">{{ sum }}</p>
-  }
+        @if (pendingLabel(); as sum) {
+          <p class="pending">{{ sum }}</p>
+        }
 
-  <!-- The amount, and nothing competing with it -->
-  <section class="amount" [class]="kind()">
-    @if (crossesCurrency()) {
-      <div class="pair">
-        <button type="button" class="side" [class.active]="!editingTarget()"
-                (click)="focusAmount(false)">
-          <span class="lead">{{ 'entry.leaves' | t }}</span>
-          <span class="figure">{{ amount().isEmpty ? '0' : amount().text }}</span>
-          <span class="unit">{{ currency() }}</span>
-        </button>
-        <ion-icon name="arrow-forward-outline"></ion-icon>
-        <button type="button" class="side" [class.active]="editingTarget()"
-                (click)="focusAmount(true)">
-          <span class="lead">{{ 'entry.arrives' | t }}</span>
-          <span class="figure">{{ targetAmount().isEmpty ? '0' : targetAmount().text }}</span>
-          <span class="unit">{{ targetCurrency() }}</span>
+        <!-- The amount, and nothing competing with it. -->
+        @if (crossesCurrency()) {
+          <div class="pair">
+            <button type="button" class="side" [class.active]="!editingTarget()" (click)="focusAmount(false)">
+              <span class="ui-lab">{{ 'entry.leaves' | t }}</span>
+              <b>{{ amount().isEmpty ? '0' : amount().text }}</b>
+              <small>{{ currency() }}</small>
+            </button>
+            <ion-icon class="arrow" name="arrow-forward"></ion-icon>
+            <button type="button" class="side" [class.active]="editingTarget()" (click)="focusAmount(true)">
+              <span class="ui-lab">{{ 'entry.arrives' | t }}</span>
+              <b>{{ targetAmount().isEmpty ? '0' : targetAmount().text }}</b>
+              <small>{{ targetCurrency() }}@if (rateText()) { · {{ rateText() }} }</small>
+            </button>
+          </div>
+        } @else {
+          <section class="amount">
+            <span class="sign" [class]="kind()">{{ isTransfer() ? '⇄' : kind() === 'expense' ? '−' : '+' }}</span>
+            <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
+            <span class="currency">{{ currency() }}</span>
+            <button type="button" class="erase" (click)="press('<')" (contextmenu)="$event.preventDefault(); clearAmount()"
+                    [attr.aria-label]="'entry.erase' | t" [title]="'entry.erase' | t">
+              <ion-icon name="backspace-outline"></ion-icon>
+            </button>
+          </section>
+        }
+
+        <!-- Everything the origin holds, in one tap, with the figure on it. -->
+        @if (isTransfer() && fromHolds() !== null) {
+          <div class="all-row">
+            <button type="button" class="ui-chip all" (click)="moveEverything()">
+              {{ 'products.move.all' | t }} · {{ fromHoldsText() }}
+            </button>
+          </div>
+        }
+
+        @if (error()) {
+          <p class="error">{{ error() }}</p>
+        }
+
+        <!-- Where the money comes from and goes to: each end its account on one
+             line and, hanging from it, its product (v7). -->
+        <div class="ui-list ends">
+          <ng-container *ngTemplateOutlet="endTpl; context: { side: 'from' }"></ng-container>
+          @if (isTransfer()) {
+            <div class="turn">
+              <button type="button" class="swap" (click)="swapAccounts()"
+                      [attr.aria-label]="'entry.swap' | t" [title]="'entry.swap' | t">
+                <ion-icon name="swap-vertical-outline"></ion-icon>
+              </button>
+            </div>
+            <ng-container *ngTemplateOutlet="endTpl; context: { side: 'to' }"></ng-container>
+          } @else {
+            <!-- The category is ONE button: the chosen one, and a pencil beside it. -->
+            <div class="ui-row pick category" [class.waiting]="categoryId() === null">
+              <button type="button" class="grow" (click)="openCategories()">
+                @if (selectedCategory(); as category) {
+                  <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                             [tone]="category.color" [seed]="category.id"></app-badge>
+                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b>{{ category.name }}</b></span>
+                } @else {
+                  <app-badge [size]="42" builtin="pricetag-outline" fixed="#f6b93b"></app-badge>
+                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b class="ui-y">{{ 'entry.need.category' | t }}</b></span>
+                }
+              </button>
+              <button type="button" class="edit" (click)="editChosenCategory()"
+                      [attr.aria-label]="(categoryId() === null ? 'entry.newCategory' : 'entry.editCategory') | t">
+                <ion-icon [name]="categoryId() === null ? 'add' : 'create-outline'"></ion-icon>
+              </button>
+              <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openCategories()"></ion-icon>
+            </div>
+            <ng-container *ngTemplateOutlet="dayTpl"></ng-container>
+            <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
+          }
+        </div>
+
+        @if (isTransfer()) {
+          <div class="ui-list details">
+            <ng-container *ngTemplateOutlet="dayTpl"></ng-container>
+            <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
+          </div>
+        }
+      } @else {
+        <!-- Writing the note: it rises to the top and the rest of the form
+             steps aside, so the note, the notes used before and the phone's
+             keyboard are all in view. "Listo" returns. -->
+        <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
+        @if (noteSuggestions().length > 0) {
+          <div class="ui-list hints">
+            @for (hint of noteSuggestions(); track hint) {
+              <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
+                <ion-icon name="time-outline"></ion-icon>
+                @let parts = hintParts(hint);
+                <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
+                <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+              </button>
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- The keypad, and saving at the bottom where a thumb rests. -->
+  @if (!writingNote()) {
+    <footer class="pad">
+      @if (missing(); as hint) {
+        <p class="missing">{{ hint }}</p>
+      }
+      <div class="ui-kp">
+        @for (key of keys; track key) {
+          <button type="button" (click)="press(key)" [class.op]="isOperatorKey(key)"
+                  [class.on]="pending()?.operator === key">
+            {{ key === '-' ? '−' : key }}
+          </button>
+        }
+        <button type="button" class="save" [disabled]="!canSave() || saving()" (click)="save()">
+          {{ 'entry.save' | t }}
         </button>
       </div>
-    } @else {
-      <span class="sign">{{ kind() === 'expense' ? '−' : kind() === 'income' ? '+' : '⇄' }}</span>
-      <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
-      <span class="currency">{{ currency() }}</span>
-    }
+    </footer>
+  }
+</div>
 
-    <!-- Backspace stays the everyday one; clearing outright is for starting
-         an amount over rather than deleting seven digits. -->
-    @if (!activeBuffer().isEmpty) {
-      <button type="button" class="clear-all" (click)="clearAmount()"
-              [attr.aria-label]="'entry.clearAmount' | t">
+<!-- One end of a movement: the side, the account, and hanging from it the
+     product when the account has several. Every end the same, spending,
+     income, a transfer and a move between products alike. -->
+<ng-template #endTpl let-side="side">
+  @let acc = side === 'to' ? toAccount() : account();
+  @let prods = side === 'to' ? toProducts() : products();
+  @let chosen = side === 'to' ? toProductId() : productId();
+  @let split = side === 'to' ? splitTarget() : splitAccount();
+  <div class="ui-row end" [class.needed]="acc === null">
+    <span class="side">{{ sideLabel(side) }}</span>
+    <div class="what">
+      <button type="button" class="acc" (click)="openAccountSheet(side)">
+        @if (acc) {
+          <app-badge shape="ci" [size]="28" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id"
+                     [tone]="acc.color" [seed]="acc.id" fallback="wallet"></app-badge>
+          <b class="ui-one">{{ acc.name }}</b>
+        } @else {
+          <b class="ui-y">{{ 'entry.pickAccount' | t }}</b>
+        }
+      </button>
+      @if (split && acc) {
+        @let product = productOf(prods, chosen);
+        <button type="button" class="prod" (click)="openProductSheet(side)">
+          <span class="hang"></span>
+          @if (product) {
+            <app-badge [size]="24" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+            <span class="ui-one">{{ product.name }}</span>
+            @if (productNote(side); as said) {
+              <span class="ui-info" role="button" (click)="$event.stopPropagation(); showInfo(said)" [attr.aria-label]="'ui.info' | t">
+                <ion-icon name="information"></ion-icon>
+              </span>
+            }
+          }
+        </button>
+      }
+    </div>
+    <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openAccountSheet(side)"></ion-icon>
+  </div>
+</ng-template>
+
+<ng-template #dayTpl>
+  <div class="ui-row day">
+    <button type="button" class="grow" (click)="showDate.set(true)">
+      <ion-icon name="calendar-outline"></ion-icon>
+      <span class="ui-tx"><b>{{ dateLabel() }}</b></span>
+    </button>
+    <button type="button" class="ui-chip quick" (click)="quickDay()">{{ quickDayLabel() }}</button>
+  </div>
+</ng-template>
+
+<ng-template #noteTpl>
+  <div class="ui-row note" [class.writing]="writingNote()" #noteBox>
+    @if (!writingNote()) { <ion-icon name="create-outline"></ion-icon> }
+    <span class="ui-tx">
+      <span class="k">
+        {{ 'ui.note' | t }}
+        @if (writingNote()) { <button type="button" class="done" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button> }
+      </span>
+      <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" rows="1"
+                (focus)="startNote()" (blur)="endNote()"
+                (input)="onNoteInput($any($event.target).value ?? ''); grow($any($event.target))"></textarea>
+      @if (!writingNote() && usualNoteShown()) { <small>{{ 'ui.note.usual' | t }}</small> }
+    </span>
+    @if (note() !== '' && !writingNote()) {
+      <button type="button" class="clear-note" (pointerdown)="clearNote($event)" (click)="clearNote()"
+              [attr.aria-label]="'entry.clearNote' | t">
         <ion-icon name="close-circle"></ion-icon>
       </button>
     }
-
-    <button type="button" class="erase" (click)="press('<')"
-            [attr.aria-label]="'entry.erase' | t">
-      <ion-icon name="backspace-outline"></ion-icon>
-    </button>
-  </section>
-
-  @if (error()) {
-    <p class="error">{{ error() }}</p>
-  }
-
-  <!-- Accounts and date -->
-  @if (isTransfer()) {
-    <div class="route">
-      <!-- The box takes the tap, not only the words in it. The button stays
-           where it is: it is what a keyboard reaches and what a screen reader
-           announces. -->
-      <div class="leg" (click)="openAccountSheet('from')">
-        <button type="button" class="face" (click)="openAccountSheet('from')">
-          <span class="lead">{{ 'entry.from' | t }}</span>
-          <span class="who">
-            <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
-                      fallback="wallet"></app-icon>
-            <!-- Between two products of one account the product is what is being
-                 chosen, so it is the name on the button and the account is the
-                 line underneath. Between accounts it is the other way round: the
-                 product belongs to the account and is written under it. -->
-            <span class="name">
-              {{ betweenProducts() ? productName(products(), productId()) : (account()?.name ?? ('entry.pick' | t)) }}
-            </span>
-          </span>
-        </button>
-
-        <!-- The product, on its own: changing it should not mean choosing the
-             account again. -->
-        @if (betweenProducts()) {
-          <button type="button" class="part" (click)="openAccountSheet('from')">
-            {{ account()?.name ?? '' }}
-          </button>
-        } @else if (splitAccount()) {
-          <button type="button" class="part" (click)="$event.stopPropagation(); openProductSheet('from')">
-            {{ productName(products(), productId()) }}
-            <ion-icon name="chevron-down-outline"></ion-icon>
-          </button>
-        }
-      </div>
-
-      <!-- Down the screen rather than across it: two accounts side by side
-           left each name a third of the width, and the money plainly travels
-           from the one above to the one below. The arrow only says which
-           way; turning it around is the button beside it, in plain sight -
-           the arrow itself used to be that button, and nobody could tell. -->
-      <div class="between">
-        <!-- Everything the origin holds, in one tap, with the figure on it. -->
-        @if (fromHolds() !== null) {
-          <button type="button" class="all" (click)="moveEverything()">
-            <span class="say">{{ 'products.move.all' | t }}</span>
-            <span class="figure">{{ fromHoldsText() }}</span>
-          </button>
-        }
-        <ion-icon class="way" name="arrow-down-outline"></ion-icon>
-        <button type="button" class="swap" (click)="swapAccounts()">
-          <ion-icon name="swap-vertical-outline"></ion-icon>
-          <span>{{ 'entry.swap' | t }}</span>
-        </button>
-      </div>
-
-      <div class="leg" (click)="openAccountSheet('to')" [class.needed]="toAccountId() === null">
-        <button type="button" class="face" (click)="openAccountSheet('to')">
-          <span class="lead">{{ 'entry.to' | t }}</span>
-          <span class="who">
-            <app-icon [builtin]="toAccount()?.builtin_icon" [customId]="toAccount()?.custom_icon_id"
-                      fallback="wallet"></app-icon>
-            <span class="name">
-              {{ betweenProducts() ? productName(toProducts(), toProductId()) : (toAccount()?.name ?? ('entry.pick' | t)) }}
-            </span>
-          </span>
-        </button>
-
-        @if (betweenProducts()) {
-          <button type="button" class="part" (click)="openAccountSheet('to')">
-            {{ toAccount()?.name ?? '' }}
-          </button>
-        } @else if (splitTarget()) {
-          <button type="button" class="part" (click)="$event.stopPropagation(); openProductSheet('to')">
-            {{ productName(toProducts(), toProductId()) }}
-            <ion-icon name="chevron-down-outline"></ion-icon>
-          </button>
-        }
-      </div>
-    </div>
-
-
-    <div class="context single">
-      <button type="button" class="day-chip" (click)="showDate.set(true)">
-        <ion-icon name="calendar-outline"></ion-icon>
-        <span>{{ dateLabel() }}</span>
-      </button>
-    </div>
-  } @else {
-    <div class="context stacked">
-      <button type="button" class="with-part account" (click)="openAccountSheet('from')">
-        <app-icon [builtin]="account()?.builtin_icon" [customId]="account()?.custom_icon_id"
-                  fallback="wallet"></app-icon>
-        <span class="stack">
-          <span>{{ account()?.name ?? ('entry.pickAccount' | t) }}</span>
-        </span>
-      </button>
-
-      <!-- The product and the day on one line: two short answers, and the
-           room a second row costs is room the note and the categories want. -->
-      <div class="chips">
-        @if (splitAccount()) {
-          <button type="button" class="product-chip" (click)="openProductSheet('from')">
-            {{ productName(products(), productId()) }}
-            <ion-icon name="chevron-down-outline"></ion-icon>
-          </button>
-        }
-        <button type="button" class="day-chip" (click)="showDate.set(true)">
-          <ion-icon name="calendar-outline"></ion-icon>
-          <span>{{ dateLabel() }}</span>
-        </button>
-      </div>
-    </div>
-
-
-    <!-- The category on one line: what is chosen, and the way to change it.
-         Eight tiles and a heading above them took four rows of a phone to
-         answer a question with one answer - and the answer was already being
-         repeated in the heading. -->
-    <div class="category-row" [class.waiting]="categoryId() === null">
-      <button type="button" class="chosen" (click)="openCategories()">
-        @if (selectedCategory(); as category) {
-          <span class="lead">{{ 'entry.category' | t }}</span>
-          <span class="what">
-            <app-icon [builtin]="category.builtin_icon"
-                      [customId]="category.custom_icon_id" size="1.15rem"></app-icon>
-            <span class="name">{{ category.name }}</span>
-          </span>
-          <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-        } @else {
-          <!-- Nothing chosen: the invitation IS the label, so naming the field
-               above it would only say the same word twice. -->
-          <ion-icon class="mark" name="pricetag-outline"></ion-icon>
-          <span class="invite">{{ 'entry.need.category' | t }}</span>
-          <ion-icon class="more" name="chevron-down-outline"></ion-icon>
-        }
-      </button>
-
-      <!-- Correcting the one chosen, or making one when none is. -->
-      <button type="button" class="edit" (click)="editChosenCategory()"
-              [attr.aria-label]="(categoryId() === null ? 'entry.newCategory' : 'entry.editCategory') | t">
-        <ion-icon [name]="categoryId() === null ? 'add-outline' : 'create-outline'"></ion-icon>
-      </button>
-    </div>
-  }
-
-  <!-- The note, and under it the notes already written that match.
-       One block: while it is being written the two belong together, and a
-       row of their own for the way out put a band of empty screen between
-       them. "Listo" sits on the line that names the field. -->
-  <div class="note-panel" [class.writing]="writingNote()" #noteBox>
-    @if (writingNote()) {
-      <div class="note-head">
-        <span>{{ 'entry.note' | t }}</span>
-        <button type="button" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button>
-      </div>
-    }
-
-    <div class="note">
-      <!-- A plain textarea, not ion-textarea.
-           Ionic's builds its own five-deep structure inside itself, and making
-           the field fill a box that grows meant handing the height down every
-           one of those levels from outside the component. Three attempts, three
-           screenshots from Jose showing the same three lines with a scrollbar.
-           This element has no inside to fight: it IS the field. -->
-      <textarea #noteField [placeholder]="'entry.note' | t" [value]="note()"
-                rows="2"
-                (focus)="startNote()" (blur)="endNote()"
-                (input)="onNoteInput($any($event.target).value ?? '')"></textarea>
-      @if (note() !== '') {
-        <button type="button" class="clear-note"
-                (pointerdown)="clearNote($event)" (click)="clearNote()"
-                [attr.aria-label]="'entry.clearNote' | t">
-          <ion-icon name="close-circle"></ion-icon>
-        </button>
-      }
-    </div>
-
-    @if (writingNote() && noteSuggestions().length > 0) {
-      <div class="note-hints">
-        @for (hint of noteSuggestions(); track hint) {
-          <button type="button" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
-            <ion-icon name="time-outline"></ion-icon>
-            <span>{{ hint }}</span>
-          </button>
-        }
-      </div>
-    }
   </div>
+</ng-template>
 
-  @if (isEditing()) {
-    <div class="danger-zone">
-      <ion-button expand="block" fill="clear" color="danger" (click)="askToDelete()">
-        <ion-icon slot="start" name="trash-outline"></ion-icon>
-        {{ (isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t }}
-      </ion-button>
-      @if (betweenProducts()) {
-        <p class="warn">{{ 'entry.deleteTransfer.hintProducts' | t:{ account: account()?.name ?? '' } }}</p>
-      } @else if (isTransfer()) {
-        <p class="warn">{{ 'entry.deleteTransfer.hint' | t:{ from: account()?.name ?? '', to: toAccount()?.name ?? '' } }}</p>
-      }
-    </div>
-  }
-  </div>
-</div>
-
-<!-- The keypad is for an amount, and while a note is being written the phone's
-     own keyboard is up in its place. Keeping it there only pushed the note and
-     its suggestions off the screen. -->
-<ion-footer class="pad" [hidden]="writingNote()">
-  <!-- What is missing, then the keypad -->
-  @if (missing(); as hint) {
-    <p class="missing">{{ hint }}</p>
-  }
-
-  <!-- Saving, at the bottom.
-       The one in the toolbar stays for when the keypad is away - writing a
-       note - but a thumb on a phone rests here, not at the top of the screen. -->
-  <div class="entry-actions" [class]="kind()">
-    @if (midSum()) {
-      <button type="button" class="equals" (click)="press('=')"
-              [attr.aria-label]="'entry.equals' | t">=</button>
-    }
-    <button type="button" class="do-save" [disabled]="!canSave() || saving()" (click)="save()">
-      <ion-icon name="checkmark-outline"></ion-icon>
-      {{ 'entry.save' | t }}
-    </button>
-  </div>
-
-  <!-- Four columns: the digits, and the arithmetic anyone does at a counter -->
-  <div class="keypad">
-    @for (key of keys; track key) {
-      <button type="button" (click)="press(key)"
-              [class.operator]="key === '+' || key === '-' || key === '×' || key === '÷'"
-              [class.equals]="key === '='"
-              [class.on]="pending()?.operator === key">
-        @if (key === '<') {
-          <ion-icon name="backspace-outline"></ion-icon>
-        } @else {
-          {{ key }}
-        }
-      </button>
-    }
-  </div>
-</ion-footer>
-
-<!-- `didDismiss` clears only its own state. It used to call the same handler
-     as Cancel, which also clears the product sheet - and choosing an account
-     dismisses this modal, so the product sheet was being closed by the very
-     act that opened it. -->
-<ion-modal [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
+<!-- Where the money leaves from or arrives at: the one account list, drawn
+     the one way (1k), with the products of the account chosen as a second
+     step (1l). -->
+<ion-modal class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
   <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="sheet">
-      <!-- Two steps in one sheet: the account, then which of its products -
-           and the second step only exists for an account that has more than
-           one. Asked here rather than on the form because it is the same
-           question narrowed, and because a form with a row of products on it
-           looked like a setting that had been left lying around. -->
-      <!-- Where money arrives for an income and a transfer's far end, where it
-           leaves from for an expense and a transfer's near one. -->
-      <h2>{{ (picking() === 'to' || kind() === 'income' ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
-
-      <!-- The same two orders the categories offer, drawn the same way. By
-           name here, because the accounts are a list to be predicted rather
-           than a handful with a long tail behind it. -->
-      <div class="order">
-        <button type="button" [class.on]="accountOrder() === 'use'"
-                (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
-        <button type="button" [class.on]="accountOrder() === 'name'"
-                (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ (picking() === 'to' || (!isTransfer() && kind() === 'income') ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
+        <span class="right"></span>
       </div>
-
-      <ion-list>
+      <div class="ui-seg order">
+        <button type="button" [class.on]="accountOrder() === 'use'" (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="accountOrder() === 'name'" (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
+      <div class="ui-list">
         @for (option of orderedAccounts(); track option.id) {
-          <ion-item button lines="full" (click)="pickAccount(option.id)"
-                    [class.selected]="(picking() === 'to' ? toAccountId() : accountId()) === option.id">
-            <app-icon slot="start" [builtin]="option.builtin_icon"
-                      [customId]="option.custom_icon_id" fallback="wallet"></app-icon>
-            <ion-label>
-              <h3>{{ option.name }}</h3>
-              <p>{{ option.currency_code }}</p>
-            </ion-label>
-            <!-- The same mark the account sheet uses. A tinted row is a shade
-                 apart from its neighbours in the light palette and nothing at
-                 all in the dark one; a tick either is there or is not. -->
+          <button type="button" class="ui-row" (click)="pickAccount(option.id)">
+            <app-badge shape="ci" [size]="42" [builtin]="option.builtin_icon" [customId]="option.custom_icon_id"
+                       [tone]="option.color" [seed]="option.id" fallback="wallet"></app-badge>
+            <span class="ui-tx"><b>{{ option.name }}</b><small>{{ balanceLine(option) }}</small></span>
             @if ((picking() === 'to' ? toAccountId() : accountId()) === option.id) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
+              <span class="ui-tick on" [attr.aria-label]="'entry.selected' | t"><ion-icon name="checkmark"></ion-icon></span>
             }
-          </ion-item>
+          </button>
         }
-      </ion-list>
-    </ion-content>
+      </div>
+    </div>
   </ng-template>
 </ion-modal>
 
-<!-- The products of one account, once the account is settled.
-     
-     A sheet of its own, sized to what it holds, rather than a second page
-     inside the account sheet: three products do not need a whole screen, and
-     the account sheet opening full height to show three lines was the part
-     that felt out of proportion. The title names the account, so it is never
-     a list of words with no owner. -->
-<ion-modal class="product-sheet" [isOpen]="pickingProduct() !== null"
-           (didDismiss)="pickingProduct.set(null)">
+<ion-modal class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
   <ng-template>
-    <div class="product-picker">
-      <div class="head">
-        <h2>{{ 'entry.product.ofAccount' | t:{ account: pickingProduct()?.name ?? '' } }}</h2>
-        <button type="button" (click)="pickingProduct.set(null)" [attr.aria-label]="'summary.close' | t">
-          <ion-icon name="close-outline"></ion-icon>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <div class="sheet-head wide">
+        <button type="button" class="link left" (click)="pickingProduct.set(null)">{{ 'entry.cancel' | t }}</button>
+        <h2 class="ui-one">{{ productSheetTitle() }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        @for (product of (productSide() === 'to' ? toProducts() : products()); track product.id) {
+          <button type="button" class="ui-row" (click)="chooseProduct(product.id)">
+            <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
+            <span class="ui-tx">
+              <b>{{ product.name }}</b>
+              <small>{{ productLine(product) }}</small>
+            </span>
+            @if ((productSide() === 'to' ? toProductId() : productId()) === product.id) {
+              <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span>
+            }
+          </button>
+        }
+        <!-- Another account, from the list itself (1l, 4t02). -->
+        <button type="button" class="ui-row" (click)="chooseAnotherAccount()">
+          <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+          <span class="ui-tx"><b class="ui-p">{{ 'entry.product.otherAccount' | t }}</b></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
         </button>
       </div>
-      <ion-list [inset]="true">
-        @for (product of (productSide() === 'to' ? toProducts() : products()); track product.id) {
-          <ion-item button lines="full" (click)="chooseProduct(product.id)"
-                    [class.selected]="(productSide() === 'to' ? toProductId() : productId()) === product.id">
-            <ion-label>
-              <h3>{{ product.name }}</h3>
-              @if (product.is_default === 1) { <p>{{ 'entry.product.usual' | t }}</p> }
-            </ion-label>
-            @if ((productSide() === 'to' ? toProductId() : productId()) === product.id) {
-              <ion-icon slot="end" class="tick" name="checkmark-circle"
-                        [attr.aria-label]="'entry.selected' | t"></ion-icon>
-            }
-          </ion-item>
-        }
-      </ion-list>
-      <!-- The way out of a transfer between products: this time the money
-           really is going to another account. -->
-      @if (isTransfer()) {
-        <ion-button expand="block" fill="clear" (click)="chooseAnotherAccount()">
-          {{ 'entry.product.otherAccount' | t }}
-        </ion-button>
-      }
     </div>
   </ng-template>
 </ion-modal>
 
 <!-- Making a category, or correcting the one chosen, without leaving the
      movement: the same editor the categories screen uses. -->
-<ion-modal class="editor-sheet" [isOpen]="editingCategory() !== null"
-           (didDismiss)="editingCategory.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="editingCategory() !== null" (didDismiss)="editingCategory.set(null)">
   <ng-template>
     @if (editingCategory(); as open) {
       <app-category-editor [editing]="open.category" [startKind]="open.kind"
-                           (saved)="categorySaved()"
-                           (cancelled)="editingCategory.set(null)"></app-category-editor>
+                           (saved)="categorySaved()" (cancelled)="editingCategory.set(null)"></app-category-editor>
     }
   </ng-template>
 </ion-modal>
 
-<!-- Every category, searchable. The way in for the long tail. -->
-<ion-modal [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
+<!-- Every category, searchable (1m). -->
+<ion-modal class="ui-sheet tall" [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="sheet">
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
       <div class="sheet-head">
+        <button type="button" class="link left" (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</button>
         <h2>{{ 'entry.pickCategory' | t }}</h2>
-        <button type="button" class="add" (click)="newCategory()">
-          <ion-icon name="add-outline"></ion-icon>
-          {{ 'entry.newCategory' | t }}
+        <button type="button" class="icon right" (click)="newCategory()" [attr.aria-label]="'entry.newCategory' | t">
+          <ion-icon name="add"></ion-icon>
         </button>
       </div>
-
-      <ion-searchbar [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
-                     (ionInput)="categorySearch.set($any($event.target).value ?? '')"
-                     [debounce]="0" autofocus="true"></ion-searchbar>
-
-      <!-- Which order, said out loud. Two is the whole useful set: what you
-           reach for most, and where a name sits when you know it. -->
-      <div class="order">
-        <button type="button" [class.on]="categoryOrder() === 'use'"
-                (click)="setCategoryOrder('use')">{{ 'entry.order.use' | t }}</button>
-        <button type="button" [class.on]="categoryOrder() === 'name'"
-                (click)="setCategoryOrder('name')">{{ 'entry.order.name' | t }}</button>
+      <div class="ui-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="'entry.searchCategory' | t" [value]="categorySearch()"
+               (input)="categorySearch.set($any($event.target).value ?? '')">
       </div>
-
+      <div class="ui-seg order">
+        <button type="button" [class.on]="categoryOrder() === 'use'" (click)="setCategoryOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="categoryOrder() === 'name'" (click)="setCategoryOrder('name')">{{ 'entry.order.name' | t }}</button>
+      </div>
       @if (foundCategories().length === 0) {
         <p class="nothing">{{ 'entry.noCategory' | t:{ search: categorySearch() } }}</p>
       } @else {
-        <ion-list>
+        <div class="ui-list">
           @for (category of foundCategories(); track category.id) {
-            <ion-item button lines="full" (click)="pickCategory(category.id)"
-                      [class.selected]="categoryId() === category.id">
-              <app-icon slot="start" [builtin]="category.builtin_icon"
-                        [customId]="category.custom_icon_id"></app-icon>
-              <ion-label>{{ category.name }}</ion-label>
-              <!-- On every row, zero included: a hidden count is what made
-                   the order look like no order. -->
-              <ion-note slot="end">
-                @if (category.times > 0) {
-                  {{ 'entry.timesUsed' | t:{ count: category.times } }}
-                } @else {
-                  {{ 'entry.neverUsed' | t }}
-                }
-              </ion-note>
+            <button type="button" class="ui-row" (click)="pickCategory(category.id)">
+              <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                         [tone]="category.color" [seed]="category.id"></app-badge>
+              <span class="ui-tx">
+                <b>{{ category.name }}</b>
+                <small>{{ category.times > 0 ? (category.times === 1 ? ('entry.timesUsed.one' | t) : ('entry.timesUsed' | t:{ count: category.times })) : ('entry.neverUsed' | t) }}</small>
+              </span>
               @if (categoryId() === category.id) {
-                <ion-icon slot="end" class="tick" name="checkmark-circle"
-                          [attr.aria-label]="'entry.selected' | t"></ion-icon>
+                <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span>
               }
-            </ion-item>
+            </button>
           }
-        </ion-list>
+        </div>
       }
-    </ion-content>
+    </div>
   </ng-template>
 </ion-modal>
 
-<ion-modal [isOpen]="showDate()" (didDismiss)="showDate.set(false)"
-           [initialBreakpoint]="0.6" [breakpoints]="[0, 0.6, 1]">
+<ion-modal class="ui-sheet" [isOpen]="showDate()" (didDismiss)="showDate.set(false)">
   <ng-template>
-    <ion-content class="sheet">
-      <!-- Ionic defaults to the browser's locale and a Sunday week; both are
-           wrong here. -->
+    <div class="ui-sheet-body date-sheet">
+      <div class="grab"></div>
       <ion-datetime presentation="date" [value]="occurredOn()" [locale]="i18n.dateLocale()"
                     [firstDayOfWeek]="1" [showDefaultButtons]="true"
                     [doneText]="'entry.doneDate' | t" [cancelText]="'entry.cancel' | t"
                     (ionChange)="pickDate($any($event.detail).value)"
                     (ionCancel)="showDate.set(false)"></ion-datetime>
-    </ion-content>
+    </div>
   </ng-template>
 </ion-modal>
 
 <!-- Nothing is deleted on one tap. Jose lost a movement to a mis-tap. -->
 <app-confirm [open]="confirmingDelete()" [title]="deleteTitle()"
-             [body]="'entry.delete.body' | t" [busy]="saving()"
+             [body]="deleteBody()" [busy]="saving()"
              [confirmLabel]="'entry.delete.yes' | t"
              (confirmed)="remove()" (cancelled)="confirmingDelete.set(false)"></app-confirm>
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
+}

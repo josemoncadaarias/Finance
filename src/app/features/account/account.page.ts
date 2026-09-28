@@ -14,11 +14,9 @@
  * day of entries disappears.
  */
 
-import { Component, computed, inject, signal } from '@angular/core';
-import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton,
-  IonSpinner, IonIcon, IonButton, IonToggle,
-} from '@ionic/angular';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Location } from '@angular/common';
+import { IonContent, IonSpinner, IonIcon, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -30,7 +28,9 @@ import { parseBackup, restoreBackup } from '../../core/database/export/restore-b
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { ToastService } from '../../shared/ui/toast.service';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { AvatarComponent } from '../../core/cloud/avatar.component';
 
@@ -39,9 +39,8 @@ import { AvatarComponent } from '../../core/cloud/avatar.component';
   templateUrl: './account.page.html',
   styleUrls: ['./account.page.scss'],
   imports: [
-    TranslatePipe, LanguageButtonComponent, BusyOverlayComponent, AvatarComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton,
-    IonSpinner, IonIcon, IonButton, IonToggle,
+    TranslatePipe, BusyOverlayComponent, AvatarComponent, BadgeComponent, ConfirmComponent,
+    IonContent, IonSpinner, IonIcon, IonModal,
   ],
 })
 export class AccountPage {
@@ -49,7 +48,57 @@ export class AccountPage {
   /** Saving lives in the service, because the toolbar button asks for it too. */
   readonly cloud = inject(CloudBackupService);
   private readonly database = inject(DatabaseService);
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
+  private readonly location = inject(Location);
+  private readonly toast = inject(ToastService);
+  readonly info = signal<string | null>(null);
+
+  back(): void {
+    this.location.back();
+  }
+
+  /** Another Google account: out of this one, then Android's own chooser (8q). */
+  async changeAccount(): Promise<void> {
+    this.clear();
+    await this.google.signOut();
+    this.cloud.copy.set(null);
+    this.looked.set(false);
+    if (await this.google.signIn()) await this.look();
+  }
+
+  /** "Hoy 8:12 a. m.", or the day. */
+  whenShort(iso: string): string {
+    const at = new Date(iso);
+    const locale = this.i18n.dateLocale();
+    const time = at.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+    if (at.toDateString() === new Date().toDateString()) {
+      const today = this.i18n.t('ui.today');
+      return `${today.charAt(0).toUpperCase() + today.slice(1)} ${time}`;
+    }
+    return `${at.toLocaleDateString(locale, { day: 'numeric', month: 'short' }).replace('.', '')} ${time}`;
+  }
+
+  readonly restoreBody = computed(() => {
+    const held = this.copy();
+    if (!held) return this.i18n.t('cloud.restore.sure');
+    return this.i18n.t('ui.drive.bring.body', {
+      when: this.whenShort(held.modifiedTime).toLowerCase(),
+      rows: held.rows === null ? this.size(held.size) : this.i18n.t('cloud.rows', { count: held.rows.toLocaleString(this.i18n.dateLocale()) }),
+    });
+  });
+
+  readonly replaceBody = computed(() => {
+    const other = this.cloud.wouldReplace();
+    if (!other) return '';
+    const when = new Date(other.when).toLocaleString(this.i18n.dateLocale(), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    return this.i18n.t('cloud.replace.body', { when });
+  });
+
+  /** The old copy set aside, said as a short notice (8p). */
+  private readonly sayKept = effect(() => {
+    const name = this.cloud.kept();
+    if (name) this.toast.say(this.i18n.t('cloud.kept', { name }));
+  });
 
   /** What Drive holds. The service owns it, so both agree on one answer. */
   readonly copy = this.cloud.copy;
@@ -149,7 +198,7 @@ export class AccountPage {
        // continues that copy and saving over it is never a question.
       rememberSeen(held.modifiedTime);
       this.database.dataChanged();
-      this.done.set(this.i18n.t('cloud.restored'));
+      this.toast.say(this.i18n.t('cloud.restored'));
     } catch (error) {
       this.report(error);
     } finally {

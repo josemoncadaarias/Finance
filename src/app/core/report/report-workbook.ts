@@ -315,8 +315,13 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
   sectionHead(sheet, block);
   sheet.row += 2;
 
-  // What of each figure was estimated, in a column of its own and named.
-  if (block.partLabel) {
+  // What of each figure was estimated, in a column of its own and named;
+  // or the second series beside the first; or which points are projected.
+  if (block.series) {
+    sheet.text(1, 'headRight', block.series.first);
+    sheet.text(2, 'headRight', block.series.second);
+    sheet.row += 1;
+  } else if (block.partLabel) {
     sheet.text(2, 'headRight', block.partLabel);
     sheet.row += 1;
   }
@@ -327,6 +332,9 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
     if (number !== null) sheet.number(1, 'money', number);
     const part = point.part ? asNumber(point.part) : null;
     if (part !== null) sheet.number(2, 'money', part);
+    const second = point.second ? asNumber(point.second) : null;
+    if (second !== null) sheet.number(2, 'money', second);
+    if (point.projected && block.projectedLabel) sheet.text(2, 'note', block.projectedLabel);
     sheet.row += 1;
   }
 
@@ -336,7 +344,9 @@ function writeTrend(sheet: Sheet, block: Extract<Block, { kind: 'trend' }>, word
       kind: 'bar',
       title: block.title,
       categories: { col: 0, fromRow: firstRow, toRow: sheet.row - 1 },
-      series: [{ name: block.title, col: 1 }],
+      series: block.series
+        ? [{ name: block.series.first, col: 1 }, { name: block.series.second, col: 2 }]
+        : [{ name: block.title, col: 1 }],
       at: { col: 5, row: firstRow - 1, width: 8, height: Math.max(block.points.length + 2, 14) },
     });
   }

@@ -1406,7 +1406,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 540 tests that run against a real
+by 553 tests that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -1959,6 +1959,695 @@ except through a slow "advanced" flow or ADB. Colombia is not in the first
 wave. A verified Play developer account is what registers Jose - one more
 reason for it, since the APKs from GitHub are sideloaded.
 
+## Ideas waiting for Jose's word
+
+**Nothing in this section is decided or built.** It is a list of
+proposals, so a session on either PC can pick one up without mistaking
+it for a decision. Before starting any of them: ask Jose, and move the
+line into the rules above once he has answered. The full reasoning is in
+`docs/07-competitor-lukas.md`, a study of Lukas (Jotatech, Medellín), made
+on 2026-09-27 from its store listing, its privacy policy and fourteen
+screenshots Jose took of it.
+
+**What Lukas is, in one paragraph**: a one-person Colombian expense
+tracker with AI entry (voice, receipt photo, pasted text via Gemini and
+OpenAI), budgets and goals, ONE currency and NO accounts, ads on the
+free tier, Pro by subscription through RevenueCat, and ten third-party
+services including Supabase in the US holding users' data. We win on
+yields, multi-currency, accounts, cards, statements that check
+themselves, the tax simulator and privacy (no server, no ads, no
+trackers). It wins on how the app FEELS, and that is the main lesson.
+
+### The design direction Jose asked for (2026-09-27)
+
+Jose: Lukas's access to its options and menus "es muy fluida y mejor... a
+eso me refiero con diseño profesional, agradable y bonito para el
+usuario". Not decided in detail; the principles, drawn from its screens:
+
+- Everything reachable in two taps, always visible. **This reverses the
+  drawer decision** recorded on `ion-menu` in `app.component.html`
+  (Android's own buttons own the bottom edge). Lukas's answer is a bar
+  that FLOATS above them, four big targets. Proposed tabs: Inicio,
+  Cuentas (with products and yields inside), Reporte, Más. To decide.
+- One row shape everywhere: round tinted icon, title, grey second line
+  with the current value, chevron or switch. Colour carries meaning (red
+  spending, green income).
+- One accent colour for everything pressable.
+- Every empty screen or section: an icon, one sentence, one action.
+- Choices open from the bottom, as a sheet with a grab handle.
+- A settings screen grouped under small uppercase headings.
+- The rule "a control on two screens has one definition in global.scss"
+  is what makes all this possible: build the row, the card, the sheet
+  and the empty state once, there.
+
+**Jose liked the mockups (2026-09-27), on one condition: every function
+the app has today stays.** "Solo estamos cambiando apariencias y accesos":
+the A–Z / most-used orders, the current account ticked in the list, the
+usual note offered for a new movement, and everything else. So:
+
+- **The redesign touches looks and access only**: no repository, query,
+  engine, migration or figure changes, and no data changes. The colours
+  already exist (`accounts.color`, `categories.color`).
+- **`docs/08-redesign-checklist.md` is the inventory of what every screen
+  does today.** A screen is not done until each of its lines is checked in
+  a browser and on the phone. Anything missing is a bug, not a
+  simplification.
+- **Screen by screen**, each shipped before the next.
+- **The mockups are in the repository**: `docs/mockups/` (56 screens, v3,
+  2026-09-27), with an index in its README and the source that draws them
+  in `docs/mockups/src/`. EVERY screen is there - Jose's word: "todas y
+  cada una de las pantallas deben ser rediseñadas" - including creating
+  and editing accounts, currencies, an account's products with their days,
+  movements and rates, a product, a CDT, Por revisar, Avisos del banco,
+  the report, Importar y exportar, signing in and changing the Google
+  account, and the income-tax simulator.
+- **The income-tax simulator is redesigned too** (Jose, 2026-09-27). Looks
+  and access only: rule 19, its engine, its rows and its spreadsheet stay
+  exactly as they are.
+- **An account with products keeps its product on show in the movement
+  form, and the product changes on its own** without choosing the account
+  again (`a08`, `a09`). Said twice by Jose; it is in the checklist.
+- **The look**: a navy background (page `#070d1a`, cards `#111b2f`, the
+  main card of a screen in a gradient of the accent); every category and
+  account in its own colour on a tinted background, **categories in
+  rounded squares and accounts in circles**; sixteen colours at one
+  lightness (`PALETTE` in `docs/mockups/src/lib.mjs`).
+- **The colour picker was redone** after Jose found the first one
+  "rudimentario": every swatch is the category (or account) itself, drawn
+  in that colour, grouped in families (warm; greens and blues; violets
+  and neutrals), with "Así se verá" on top showing the real row. Colour,
+  icon and own image are three tabs of one editor (`b06b`, `b10`-`b12`).
+- **The accent is to be chosen by Jose** (`00-azul-opciones`). Recommended:
+  **Zafiro `#6378ff`**, the wallet of the app's own icon lifted for a dark
+  background - its own colour, not Ionic's default `#4d8dff` and not a
+  competitor's teal. Jose asked for a blue "un tris diferente" so the app
+  is not taken for someone else's.
+
+**How the redesign is agreed: group by group** (Jose, 2026-09-28). One
+group of screens at a time is drawn, sent, corrected and approved; only
+then does the next start. The groups and where each stands:
+
+| Group | Screens | Mockups | Status |
+|---|---|---|---|
+| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
+| 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
+| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
+| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 7 | Avisos del banco | `docs/mockups/7*` (v4) | **Approved** by Jose, 2026-09-28 |
+| 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `docs/mockups/8*` (v5) | **Approved** by Jose, 2026-09-28 (the colour of the app drawn, not yet confirmed on its own) |
+| 9 | Income-tax simulator | `docs/mockups/9*` (v4) | **Approved** by Jose, 2026-09-28 |
+
+**Built, all nine groups, on 2026-09-28** (branch `claude/redesign-all-screens`,
+merged to `main` through its own PR). The app as it was before is kept on the
+branch **`app-before-redesign`**: to go back, run "Store bundle" from that
+branch in the Actions tab (it is `workflow_dispatch`, so any branch can be
+built; the version code still rises, so Play takes it as an update). What
+changed in the shape of the app, for the next session:
+
+- **The drawer is gone.** `app-tab-bar` (`shared/ui/tab-bar.component.ts`)
+  floats over Android's buttons: Inicio, Cuentas, the "+", Reporte, Más.
+  `/more` is Más (replaces the drawer; the Google card, Tus datos,
+  Herramientas, Preferencias with Idioma and Apariencia, where the accent is
+  chosen - Zafiro by default, `core/theme/accent.service.ts`).
+  `/currencies` is Monedas y tasas. Screens reached from Más have a back
+  arrow in a `ui-titlebar` and no menu button.
+- **The "+" is the one way to a new movement** (`core/ui/compose.service.ts`, and
+  `compose-host` draws the sheet and the form). A screen that must route it
+  elsewhere sets `compose.handler` (the products account page does, to the
+  product form) and `compose.context` (the account on show).
+- **Every new control is in `global.scss`** under `ui-*` (card, hero, row,
+  seg, chip, tag, btn, round, info bubble, switch, tick, banner, period,
+  group, jump, titlebar, pill, frame, field, input, toast, selection bar).
+  The redesign's words are in `core/i18n/translations-ui.ts` (`ui.*`,
+  `face.*`, `more.*`, `accent.*`), spread into both dictionaries.
+- **`app-badge`** draws every icon (category in a rounded square, account in
+  a circle, in its own colour; `displayColor` gives the default grey a
+  palette colour by id, for display only). `app-jump` is the two arrows of
+  every long list but Inicio. `shared/ui/face-editor` is Ícono / Color /
+  Imagen propia for accounts and categories.
+- **Two report sections are new** (rule 20): "Mes a mes" carries income
+  beside spending (`TrendBlock.series`, a switch on screen, two columns in
+  the spreadsheet), and "Tu saldo a futuro" (`balanceAhead`,
+  `ReportData.future`, `TrendBlock.shape: 'line'`) walks the balance back
+  from today's and projects 90 days at the average of the last six whole
+  months, dashed and called a projection. Both audits still agree on Jose's
+  backup (2,210 and 112 checks).
+- **The tax simulator opens with every section closed**, each showing the
+  casilla that sums it up; its engine, rows and spreadsheet are untouched.
+- Not built, deliberately: a product's own face (no column holds one - the
+  icon is derived, `core/icons/product-face.ts`); anything in "Ideas waiting
+  for Jose's word".
+- Checked in a browser against Jose's backup, screen by screen, against the
+  mockups; **not yet on the phone**. What a phone may show differently: the
+  long press that starts choosing, the keyboard with the note raised, the
+  marquee, the floating bar over Android's own buttons.
+
+**Rules from Jose's review of v3 (2026-09-28), for every group:**
+
+- **Long text never breaks the layout.** Names, notes, labels and
+  descriptions stay on one line where they are a title or a row, end in
+  "…" and slide to show themselves with the marquee the app already has
+  (`marquee.service.ts`); a header gives the name all the width it can.
+  v3 broke "Todas las cuentas" into three lines; that is the failure to
+  avoid everywhere.
+- **Minimal.** Nothing on screen that does not serve the person: no
+  labels like "idea nueva", no decoration, no second way to do the same
+  thing.
+- **Save space the way the app does today.** The category is ONE button
+  (the chosen one, and a pencil beside it), never a spread of chips. The
+  note keeps its suggestions under it, and while it is being written it
+  rises to the top and hides the rest of the form so the note, the
+  suggestions and the phone's keyboard are all in view ("Listo" returns).
+- **One movement form, one style, for everything**: spending, income, a
+  transfer between accounts and a move between products look and work
+  the same, each with its note, its date and "Pasar todo" / "Invertir"
+  where they apply. A move between products is a transfer whose two ends
+  are products of one account. The "+" is the one way in, and the form
+  switches between Gasto, Ingreso and Transferir; no screen keeps its own
+  Gasto / Ingreso / Transferir buttons (the products sheet did, in v3).
+- **Categories are only expense and income.** Product categories became
+  income categories in migration 037; there is no third list.
+- **The category editor opens on Ícono**, then Color, then Imagen propia.
+- **A rate lives inside its product** on screen: it is added and edited
+  from the product, never as a loose list with a "which products" picker.
+  **Every rate belongs to exactly one product, and has since migration 030
+  (2026-09-11)**: it copied each whole-account rate onto every product that
+  used it - the rule the engine already followed, so no day moved - and
+  deleted the whole-account rows; every screen that saves a rate passes the
+  product (`products.page.ts`, three places, checked 2026-09-28). The
+  remark written here that a rate "can also belong to the whole account"
+  was wrong, read off migration 016's comment without reading 030; Jose,
+  2026-09-28: "una tasa solo aplica a un producto específico". `4m`, which
+  drew such a rate, is gone. What only a local session can confirm: that
+  his backup holds no `yield_rates` row with `product_id` NULL.
+- **Icons in dialogs and sheets are centred with their title**, never
+  left against a centred text.
+- **The orphan withdrawal** ("Retiro sin su movimiento") exists in the app
+  today and stays, but said plainly and quietly inside the row, not as an
+  alarming card.
+
+**And from his review of group 1 v4 (2026-09-28):**
+
+- **Transfers are always on show beside income and spending, never inside
+  them**, as the app does today (`totalsOf`: Movido / Recibido). One
+  account: Entró, Salió, and in blue Recibido and Enviado (from and to the
+  person's own accounts). All accounts: a transfer nets to nothing, and one
+  line says how much moved between them. A transfer in a list carries the
+  swap icon, in blue, with where it came from or went to.
+- **One account's quick buttons stay beside its balance**: edit the
+  account (the drawn card with a pencil) and, for an account that earns,
+  its products and yields (the piggy bank).
+- **The "+" lives in the middle of the floating bar**, never floating over
+  the page, where it covered balances.
+- **No eye to hide amounts** (idea 3/H rejected): the name in the header
+  has the row to itself.
+- **"Invertir" is a round icon on the line between the two ends**, no
+  label and no row of its own; "Pasar todo" with its figure sits under the
+  amount it fills.
+- **Every end of a movement names its account and, under it, its
+  product** when the account has products - spending, income, a transfer
+  and a move between products alike - changeable right there. Lists say
+  the product too ("Cuenta de ahorros → Tarjeta Coral").
+- **The donut keeps one size whatever the month holds.** Beside it, the
+  five largest categories and "Otras N", names ending in "…", percentages
+  in a column of their own; the total spent sits inside the ring. Every
+  category with its figure is the list under it.
+
+**Group 2 (v4, approved 2026-09-28)** and the three changes of ACCESS in
+it, all accepted by Jose (everything else is today's screen redrawn):
+
+- **Currencies and today's rates in one screen, "Monedas y tasas"**,
+  reached from a row under the accounts. Today the currencies list sits
+  at the foot of the accounts screen and the TRM, its refresh and the
+  typed rates live inside "¿De dónde sale?"; that sheet now shows the
+  rate each line used and links to the new screen.
+- **An account's colour can be chosen** (Ícono, Color, Imagen propia, the
+  order of the category editor). `accounts.color` exists; the editor does
+  not offer it today.
+- **"Nueva cuenta" is a button in the screen's title bar**; the "+" in the
+  bottom bar stays the way to a new movement.
+- **An account's own image is edited like any icon** (Jose, 2026-09-28):
+  the same pencil opens the same editor, where the image is changed for
+  another or for an icon, and the Color tab still works - the colour fills
+  behind the image (a logo with a transparent background takes it) and
+  stays the account's colour elsewhere (`2q`, `2r`). "Tus imágenes" shows
+  the pictures uploaded, never plain colours (`2n` looked like colours).
+
+**Group 3 (v4, approved 2026-09-28)**: today's categories screen redrawn -
+two folding lists with their counts (closed on opening), "Abrir todas /
+Cerrar todas", Más usadas / A-Z, "Nueva categoría" asking which list, the
+archived with the list each belonged to, the two arrows on a long list -
+and the editor in the account form's shape: the face with its pencil, the
+name, "Para" (locked with the reason once used), "Usada en", "Ganancia o
+pérdida de inversión", archive. The face opens the same Ícono / Color /
+Imagen propia editor as an account, in rounded squares. Choosing a
+category's colour is new on screen (`categories.color` exists), as it was
+for accounts. No search on this screen, as today (the picker has one).
+The product categories' own editor (reached from a product's form) belongs
+to group 4.
+
+**Group 4 as sent (v4, 2026-09-28)**: everything the products screen
+does today, with these changes of ACCESS for Jose to accept or refuse:
+
+- **Products and yields are the second face of the Cuentas tab**
+  ("Cuentas | Rendimientos", added to `2a` as well), plus the piggy bank
+  beside one account in Inicio. The drawer item goes with the drawer.
+- **An account's page lives inside that tab, not over it**, so the bar and
+  its "+" stay. Its own compose bar (Gasto, Ingreso, the round transfer)
+  and "Mover entre productos" go: the "+" opens the one movement form on
+  that account, and a move between products is a Transferir whose ends
+  are products. A product's own income or expense keeps "¿Qué cambia?"
+  (Solo el producto / Producto y patrimonio / Hacer efectivo / Solo el
+  patrimonio) as a section of that one form (`4q`).
+- **The page is one scroll, as today**: the figure (Rendimiento
+  disponible, Rendido, Pasado al patrimonio, Rinde sobre and the "cerró
+  ayer" note, the two ways out), the products, the movements (three views,
+  period, search, the orphan withdrawal said in its row), what the bank
+  pays by month (with "Qué productos ver"), how each day was worked out,
+  and stopping the account. No tabs.
+- **Rates stay where they already are, inside the product form**, with
+  payout frequency, Vigente / Ya no aplica, "Cambiar la tasa desde una
+  fecha" and the spending bonus. (A rate "of the account" was drawn here
+  and removed: there is no such thing - see the rule above.)
+- "Recalcular" is the round arrow in the title bar of the Rendimientos
+  face.
+
+**And from his review of group 4 v4 (2026-09-28), for every group:**
+
+- **Separate information with a selector, never one long scroll.** The
+  way Inicio switches Gráfico / Movimientos: an account's page is
+  Productos | Movimientos | Pagos | Días; a product's form is Producto |
+  Saldo | Tasa | Bonificación (a new one: Producto | Saldo | Tasa); a CDT
+  is CDT | Al vencer | Pagos. The face and the name stay above it.
+- **The way back to Inicio is the house**: a round button beside the
+  figure, like Inicio's own pair (edit and piggy bank), next to the one
+  for the summary.
+- **A product's balance is said as a sum**: "Tiene hoy" first, then the
+  balance read at the bank (at the close of its day), plus what came in
+  and went out since, plus what it earned since. Then the one figure the
+  person types and its day, and apart, the day it starts earning. Words
+  only - the fields and the data stay as they are.
+- **Every account, product and category shows its icon**, wherever it is
+  named or chosen: "Pasa a", "Sale de", "Pasar el saldo a", the list to
+  pick from, the payments and the days.
+- **A product's own movement keeps its note**, with everything the note
+  does today: the usual one written for that product and category, and
+  the matches under it while typing (`4x`, `4y`).
+- **A choice with explanations takes one row, and its options open in a
+  sheet** (Jose, 2026-09-28: save space, minimal): "¿Qué cambia?" and
+  "¿De dónde sale este saldo?" show only what is chosen; the options and
+  what each does are one tap away (`4y`).
+- **The note is not the category.** Every note row is labelled "Nota" and
+  holds the person's own words about that movement; the usual note and
+  the matches while typing are notes written before, never category
+  names (`4x`, `4z`).
+- **Transfers with products** (`4t01`-`4t11`, asked for by Jose): the one
+  transfer form, which today already carries a product on each end
+  (`productId`, `toProductId` in `entry.component.ts`) and refuses the
+  same product on both ("Elige dos productos distintos"). Every case is
+  drawn; a product set aside from net worth says quietly that the money
+  then counts as leaving (rule 5). Every note row is labelled "Nota",
+  group 1's included.
+- **One end of a movement, compact** (Jose, 2026-09-28, v6 - applies to
+  every movement form, group 1's included): the side ("Desde", "Hacia",
+  "Pasa a") in a narrow column at the left; the account on one line and,
+  under it, its product on another, each with its own icon at the same
+  size - the account in a circle, the product in a rounded square - and no
+  box around the product. The two icons read as two things because they
+  are two lines and two shapes. "Invertir" sits on the dividing line
+  between the two ends. **The product hangs from its account** (v7, Jose:
+  it read as two accounts): a line comes down from the account's circle
+  and turns into the product, which is indented, smaller and lighter -
+  one account, and inside it one product.
+- **An explanation is an (i), not a paragraph**: a small (i) beside what it
+  explains opens a bubble on tap (`4t01b`); a one-off outcome, such as the
+  amount cleared after "Invertir", is a short notice that goes away by
+  itself.
+- **Nothing is said when "Invertir" is pressed, and the same product never
+  reaches both ends** (Jose, 2026-09-28). The form starts where it does
+  today - "Desde" is the account on show (or the most used) with the
+  product money most often leaves from (not the usual one), "Hacia" the
+  same account with the usual product - and choosing, on one side, the
+  product the other side holds keeps that choice and moves the OTHER side
+  to the product the route most often uses. No red text, no disabled
+  Guardar (`4t10a`, `4t10b`). Verified today: `chooseProduct` in
+  `entry.component.ts` already moves the other side, but to the first
+  other product in the list. **Decided by Jose, 2026-09-28: it moves to
+  the product most used for that route in that scenario** (the same
+  reading `routeBetweenProducts` makes), and everything that depends on
+  the ends follows it - the usual note for the new route, and "Pasar todo"
+  with the figure of the new origin. To build with the movement form.
+- **Every note row, every end and every list uses the same icons as the
+  account and product lists**, and the product hangs from its account.
+- **Long account and product names slide** in every end and every list
+  (`marquee.service.ts`, shown in `4t12` and `4t13`).
+- (The black areas in the contact sheets sent before were empty slots,
+  not screens: nothing was missed. The sheets are now as wide as what
+  they hold.)
+
+**Group 5 as sent (v4, 2026-09-28)**: every section the report has today,
+in its order, on both faces (Movimientos | Rendimientos), with these
+changes of ACCESS for Jose to accept or refuse:
+
+- **The report is the Reporte tab of the floating bar**, not an item in
+  the summary's menu. It still inherits the account and the dates from
+  `FilterService`, shown as two chips under the switch: the account, and
+  the period with its arrows; tapping the period opens a sheet (Día,
+  Semana, Mes, Trimestre, Año, Todo, Entre dos fechas, and "Incluir lo
+  apartado del patrimonio").
+- **Each closed section shows its key figure** ("Ahorrado 38 %", "Gastos
+  -6 %", "Vivienda 27 %"), so the whole report reads in one screen
+  closed. (v4 proposed one open at a time; v5 keeps today's several
+  open and "Abrir todas / Cerrar todas".)
+- **What a section shows (`Block.about`) is an (i) beside its title**,
+  opening a bubble, not a visible line (the rule of group 4); the
+  caveats that change a figure's meaning ("los mismos 27 días", "parte
+  es estimada") stay visible.
+- **Export is the download icon in the title bar**, with the progress
+  card while the .xlsx is built.
+- "Van 27 de 30 días del periodo" stays on top when the period is not
+  over. The drawing of each kind of block (figures, ranked with bars,
+  comparison, trend with a tapped bar and its average, note) is today's.
+
+**And from his review of group 5 v4 (2026-09-28), v5 sent:**
+
+- **An explanation that belongs to a figure is shown whole**, wrapping
+  onto a second line, never cut with "…": the line under each figure
+  ("al año, por encima de la inflación"), the average balances of
+  "Contra el periodo anterior" (a line of their own under the change).
+  The marquee is for names; an explanation is read, not watched.
+- **A section's title is never cut**: closed, it is the title (wrapping
+  if it must) and, under it, its key figure in grey or its colour - the
+  one row shape of the Lukas study.
+- **"Qué cuenta rindió más" is ordered by what each earned, in pesos**
+  (a dollar account by its peso value), and says so.
+- **The period has its own row, with round 44px arrows at its edges**
+  and the month in the middle, which opens the period sheet; the account
+  is the row above. Taken from Lukas: the arrows were small and next to
+  the month, easy to miss.
+- **Two ideas from Lukas, drawn inside the report's own kinds of block
+  (proposed, not decided):** "Mes a mes" carries a selector, Gastos |
+  Ingresos y gastos, the second being income and spending side by side
+  per month (a trend with two series, as the spreadsheet already
+  draws); and a new section, **"Tu saldo a futuro"**, the balance of the
+  last months and, dashed, 90 days ahead at the average income and
+  spending of the last six months, saying it is a projection and never
+  writing a movement (rules 20 and 22; idea 7 of the table below).
+  Lukas's line chart of spending was left out: it is "Mes a mes" drawn
+  another way, and the rule is no second way to see the same thing.
+
+**And from his second look at group 5 (2026-09-28), for every group:**
+
+- **The account picker under the switch is centred**, as wide as its
+  name (on the report; Inicio's header already carries it).
+- **A long name slides wherever it is listed**, not only in the
+  movement form: a category in "En qué se fue", an account in a ranking
+  or a comparison - one line, "…", and the marquee (`5s`).
+- **Every screen with a long list has the two arrows, and folding lists
+  have "Abrir todas / Cerrar todas"**, as the app does today on the
+  summary, the report, categories and review (up only once the list has
+  left the top, down only while there is more below; `showJumpUp`,
+  `showJumpDown` in `movements.page.ts`). Drawn now on Inicio (`1a`-`1d`),
+  Cuentas and Monedas y tasas (`2a`, `2c`), Rendimientos and an account's
+  Movimientos, Pagos and Días (`4a`, `4d`-`4f`) - the accounts and
+  products screens are new to it - and every report screen. They are
+  38px, see-through and pressed against the right edge so they cover
+  little. So the report keeps today's behaviour after all: several
+  sections can be open at once, with "Cerrar todas" beside "Van 27 de 30
+  días"; the closed ones still show their key figure.
+
+**Every list of movements, on any screen, is in folding sections**
+(Jose, 2026-09-28). By day or by category (by month for payments and
+days), each heading with its icon when it is a category, the title, how
+many, the total and its chevron - what `movements.page.html` already
+draws (`toggleGroup`, `toggleAll`). "Más grandes" stays one flat list.
+**One change of behaviour, asked for by Jose: a list opens with only its
+first section open** - the most recent day, or the largest category -
+and the rest closed; today every section opens open. The one round
+button at the end of the grouping row (two chevrons apart: open all;
+together: close all, as today) does them all at once. Drawn in `1b`,
+`1c`, `1o` (by category), `1p` (all open), `4d` and `4d2` (a day further
+down opened); the same shape goes to Por revisar and every later group.
+
+**And two more from Jose (2026-09-28):**
+
+- **A transfer figure alone sits centred.** Under Entró and Salió, Recibido
+  and Enviado show only when they exist; when only one does, it sits in the
+  middle at half the width (`1q`), and the all-accounts line "movido entre
+  tus cuentas" is centred too.
+- **The period is one full row wherever a list goes by period** - Inicio
+  and an account's Movimientos in Rendimientos alike (`periodBar` in
+  `lib.mjs`, one definition): round 40px arrows at the edges, the period
+  in the middle opening the period sheet, and the search on its own full
+  row under it (`4d`, `4d2`). The report's is the same shape.
+
+**The Cuentas tab's two faces are "Saldos | Rendimientos"** (Jose,
+2026-09-28: the tab and one of its faces were both called "Cuentas" and
+it was not clear what each showed). Saldos is every account with today's
+balance and net worth - what the tab opens on - and a row opens that
+account in Inicio; Rendimientos is only the accounts that earn, with what
+they have been paid, and a row opens the account's page (Productos,
+Movimientos, Pagos, Días). Each face carries its icon (wallet, rising
+line). `2s-recorrido-cuentas.jpg` draws the four steps.
+
+**Group 6 as sent (v4, 2026-09-28)**: everything Por revisar and reading a
+statement do today, with these changes of ACCESS for Jose to accept or
+refuse:
+
+- **Por revisar lives in the Más tab** (the bar stays), reached from Más
+  and by itself after a statement is read.
+- **Importing starts from the "+"**: "Importar extracto" asks "¿De qué
+  cuenta es?" - the one account list, with "Es de una cuenta nueva" at its
+  foot, which is the account form filled from the statement (`2g`, `2h`).
+  Today the ways in are the summary screen, for the account on show, and
+  the account form.
+- **A batch is one card**: where it came from, how many, how many still
+  need something, the statement's own check (green, or amber when it does
+  not square), "Guardar los N" and a "···" holding "Descartar estos
+  movimientos" and "No ver más estos movimientos en pantalla".
+- **Its rows are in folding sections by day, the first open** (the rule
+  for every list of movements); "Comercios que se repiten" is a folding
+  section of its own at the top. Search on its own row; Todos / Les falta
+  algo / Con aviso with their counts; Por fecha / Por monto; open-all;
+  Seleccionar. A row: category icon ("?" in amber while it has none), the
+  description on one line (sliding), the category with "aprendida" or
+  "sugerida", and "puede ser el mismo" / "otra mitad de un traslado" as a
+  short line under it.
+- **A row is answered in a sheet, not inline**: tapping it opens what the
+  statement said (as read, in its own box), Gasto / Ingreso, the amount,
+  Fecha, Cuenta, Categoría and Nota, with Descartar and "Guardar este
+  movimiento". Today the category, date and sign are changed inside the
+  row itself. A missing piece is the row marked in amber, and Guardar
+  waits; "maybe the same" shows the movement it may be, with its icon.
+- **Squaring with the bank** is a card inside the batch (the app, the
+  statement, the gap; "Igualar al extracto", "Escribir otro", "Dejar
+  así"), its explanation behind an (i), and the question before it
+  changes anything.
+- Reading keeps its four stages, the page, the percentage and Cancelar,
+  and says nothing is saved until the end; the password and the unreadable
+  file are dialogs.
+
+**And from his review of group 6 v4 (2026-09-28), v5 sent:**
+
+- **A count is never a bare number, anywhere**: it says what it counts -
+  "3 movimientos" under a day's title (`mgroup` in `lib.mjs`, so every
+  list of every group), "16 categorías" on the categories screen, "6
+  cobros" in the report, "2 comercios · 7 movimientos".
+- **Choosing several works on rows, days and shops.** While choosing, a
+  day's heading and a shop in "Comercios que se repiten" carry their own
+  tick: it takes every movement of that day or that shop, open or closed;
+  half-ticked when only some are ("1 de 2 elegidos"). "Todos" takes
+  everything the account, the filter and the search leave on view, and
+  the bar says "8 movimientos elegidos · de 18 a la vista". Today only
+  rows are ticked; the heading and shop ticks are new.
+- **A movement is checked in the one movement form**, not a small sheet:
+  its keypad to change the amount, the account, the category, the day and
+  the note - the same note as every other screen, rising while it is
+  written with the notes used before under it, plus what the statement
+  said, to keep it as it came. What the statement said sits on top in one
+  line (its (i) opens it whole); Descartar is the bin in the title bar.
+  Editing the note there is new.
+- **What to show and the order are one chip with its icon** ("Todos · por
+  fecha"), opening one sheet: Mostrar (Todos, Les falta algo, Con aviso,
+  each with its icon and what it holds) and Ordenar (Por fecha, Por
+  monto). A filter on lights its chip and one quiet line says "Ves 3 de 18
+  movimientos · Ver todos".
+- **The account is on top, centred, with "Todas las cuentas" first** in
+  its list, then each account with what it has waiting. Importing a
+  statement asks "¿De qué cuenta es?" without "Todas", since a statement
+  belongs to one account.
+- **Minimal: no green notices.** That the statement squares is a small
+  green check beside the file (its bubble explains); when it does not, the
+  mark turns amber with one line, "No cuadra por 45.900,00". "Leí 18
+  movimientos" is a short notice that goes by itself.
+
+**And his second look at group 6 (2026-09-28):**
+
+- **Every figure on a button or a line names what it counts**: "Guardar
+  15 movimientos listos", "3 movimientos necesitan algo", "Guardar 7
+  movimientos", and the screen's title is "Movimientos por revisar". On
+  Inicio the donut's last line is "7 categorías más", not "Otras 7".
+- **Every list that chooses which account to LOOK AT starts with "Todas
+  las cuentas"**, the general view, ticked when on: Inicio's header (`1r`,
+  with net worth), the report's chip (`5t`) and Por revisar (`6n`). A list
+  that chooses where a movement comes from or goes to, or whose statement
+  it is, has no "Todas" - a movement and a statement belong to one account
+  (`1k`, `6t`).
+- `6-recorrido-importar.jpg` draws importing step by step: the "+",
+  "¿De qué cuenta es?", the reading, the review.
+
+**Group 7 as sent (v4, 2026-09-28)**: everything Avisos del banco does
+today (rule 22, step one), with these changes of ACCESS for Jose to accept
+or refuse:
+
+- **It lives in the Más tab** (the bar stays); its "···" holds "Borrar lo
+  guardado" and "Olvidar todo", each asked first.
+- **The two lists are two faces of one selector**, each saying what it
+  holds: "5 apps" and "24 avisos guardados". Today they are one scroll.
+- **Apps**: each with its icon, name, "18 avisos · package", "se guarda"
+  when ticked, and its switch; "Apps ocultas" folds at the foot with
+  "Mostrar" on each. "Marca las de tus bancos" carries its (i).
+- **Avisos guardados**: by day in folding sections, the most recent open,
+  each notice whole with its app and hour; "Tal cual llegó" with its (i);
+  an app chip with "Todas las apps" first (new: today the search is the
+  only way to narrow them).
+- **Choosing several apps** takes the whole row; the bar says "2 apps
+  elegidas · de 5 apps a la vista" with Guardar, No guardar and Ocultar
+  (Ocultar asked first).
+- **Without permission**: the three promises as rows, "Abrir los ajustes
+  de Android", Android's own wording behind an (i) under it, and "Ya lo
+  di, volver a revisar". Nothing yet is an icon and one sentence.
+- **No "Esto solo existe en Android" screen** (Jose, 2026-09-28): where
+  the phone cannot read notifications - an iPhone, the browser - Más
+  simply does not offer the entry, rather than a dead end saying no. The
+  feature keeps its general name, because on an iPhone the same place is
+  where purchases would come in another way: from memory, not verified -
+  iOS 17.4's FinanceKit lets an approved app read Apple Wallet
+  transactions (Apple grants that entitlement case by case, and it began
+  in the United States), and the Shortcuts app can run an automation when
+  a Wallet card is used, which some budget apps rely on. Whichever it is,
+  those purchases would land as proposals in Movimientos por revisar,
+  like a statement or a notice (rule 22). To look up properly the day
+  there is an iOS build.
+
+**Group 8 as sent (v4, 2026-09-28)**: everything the drawer, Importar y
+exportar and the Google screen do today, with these changes of ACCESS for
+Jose to accept or refuse:
+
+- **Más replaces the drawer.** On top, the Google card (name, "Copia en
+  Drive · hoy 8:12"), then rows under small headings, each with its value:
+  Tus datos (Movimientos por revisar with how many wait, Categorías, Avisos
+  del banco, Importar y exportar), Herramientas (Simulador de renta) and
+  Preferencias (Idioma, Apariencia). Monedas y tasas stays under Cuentas
+  only - one way in, not two.
+- **A red dot on the Más tab and on Por revisar** says something is
+  waiting, where the drawer's count used to.
+- **Language and appearance are sheets** from their rows, each option with
+  a tick. **Each language carries its flag** (Jose, 2026-09-28), in a
+  circle like any icon and small beside the value on Más: Colombia for
+  Español, the United States for English. **Appearance adds the colour of the app** (v5, after Jose asked
+  whether it had one - verified: today it is only Automático / Claro /
+  Oscuro, `theme.*` in translations.ts): six accents drawn as the button
+  itself (Zafiro, the default, Océano, Turquesa, Esmeralda, Violeta,
+  Coral); a preference like the theme, no data. **Accepted by Jose,
+  2026-09-28: Zafiro by default, and each person changes it if they want.**
+- **Importar y exportar**: the backup and the CSV each a card with one
+  button; what each holds and warns is behind an (i). Restoring still asks
+  the moment the file is chosen, naming the file, the warning inside the
+  dialog, "Escoger otro" putting the picker back; then its progress.
+- **Google**: signed out, one card and one button; signed in, the account
+  card, the copy in Drive (when, how much, from which device), "Guardar
+  ahora" and "Traer la copia", "Guardar la copia sola" with its (i),
+  "Cambiar de cuenta" (Android's own chooser) and "Cerrar sesión".
+  Replacing a copy another device wrote asks first and says when that copy
+  was written and what it holds; the old one kept aside is a short notice.
+- **No browser screen** (Jose, 2026-09-28: "no se en que momento saldrá o
+  si tan siquiera es útil"). Where Google sign-in cannot work - the
+  browser (`GoogleAccountService.available`) - Más shows no Google card
+  and Importar y exportar no Drive row: nothing to open, as in group 7.
+- **Every word the app says is shown whole**, wrapping onto a second line
+  (Jose, again, 2026-09-28): a row's title and the line under it, a hint,
+  a notice. Only a name - the person's, an address, an account - ends in
+  "…" and slides.
+
+**Group 9 as sent (v4, 2026-09-28)**: everything the simulator does today
+(the checklist's "Renta"), and nothing of rule 19 touched - the engine,
+the rows, the casillas, the formulas and the spreadsheet are as they are.
+The changes of ACCESS, for Jose to accept or refuse:
+
+- **Reached from Más → Herramientas** (the bar stays, Más lit). Its title
+  bar is back, "Simulador de renta / Formulario 210" and the download icon
+  for the .xlsx (its explanation an (i) bubble, then the busy dialog and a
+  short notice naming the file). The Drive and language buttons leave the
+  header: both live in Más.
+- **The year is a full row with round arrows**, "Guardado" / "Guardando…"
+  under it. **The verdict is a big card on top and, once scrolled, one
+  line pinned under the year** (A pagar / A favor / En paz and the figure),
+  so it is never out of view; "Aparta X cada mes" and the tax and
+  withholding line sit in the big card.
+- **One screen of folding sections, not a selector and not a wizard**
+  (rule 19: seeing twenty boxes move is how the form explains itself).
+  Closed, each section shows its icon, title and the casilla that sums it
+  up ("Csl. 34 · 230.280.000", "Csl. 134 · a pagar 4.812.000"), so the
+  whole return reads closed; "15 secciones" with "Abrir todas / Cerrar
+  todas". Today every section opens open except Parámetros and Notas;
+  proposed: all closed on opening.
+- **A row**: the label whole (wrapping), its casilla as a small chip, the
+  hint behind an (i); a typed box framed in gold with its unit ($, %, UVT,
+  meses, personas), a worked-out one on grey, a total in bold. The key of
+  the two looks stays, as samples, never shaped like a button.
+- **Tipo de trabajo is one row** showing the choice and what it means; the
+  three kinds, each explained, open in a sheet.
+- **Bringing figures in**: "Traer el salario de 2026" opens the income
+  categories of the year with their totals and counts; "Traer los
+  rendimientos de 2026" with "Deshacer" beside it; what was brought is one
+  line under the button (the notice), the long hint an (i).
+- **Casilla 59** keeps its two answers as a switch; the year's percentage
+  carries its standing ("Referencia 2025") with the source behind an (i).
+  **Parámetros del año** lists each parameter with its standing and source,
+  and a figure from a later year is a red banner, as today.
+- **A year without UVT** says so under the verdict with "Ir a Parámetros
+  del año" (new: today it is only the sentence).
+- The rate table lights the band the return falls in; the twelve months of
+  withholding are a grid of typed boxes; notes are listed whole with the
+  sources as links; the disclaimer closes the form.
+- **The two arrows sit side by side above the bar**, in a deeper fade:
+  stacked on the right they covered the value column.
+
+### The ideas, by what they would take
+
+| # | Idea | Size | Touches | Status |
+|---|---|---|---|---|
+| D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | Proposed |
+| 21 | Settings screen, grouped, value on each row | Medium | Drawer | Proposed |
+| 20 | Empty state on every screen and section | Small, many places | - | Proposed |
+| 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
+| 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
+| 4 | Biometric or PIN lock (free) | Small, plugin | iOS rule | Proposed |
+| 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
+| 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
+| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
+| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed |
+| 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
+| 7 | Month-end projection, as a report section | Small | Rule 20 | Proposed |
+| 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed |
+| 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | Proposed |
+| 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
+| 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
+| 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
+| 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
+| F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
+| H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
+| P | Choose the accent | Small | Design | **Decided** by Jose, 2026-09-28: Zafiro by default, changeable in Apariencia |
+| - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
+| - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
+
+A suggested order, if Jose agrees: the small ones that make the app feel
+finished (20, 3, 23, 17), then the design shell (D with 21), then the
+budget family (2/16, 1, 7), then the rest.
+
 ## Pending from Jose
 
 - [ ] Keep a copy of the corporate laptop's `debug.keystore` somewhere safe
@@ -1987,3 +2676,6 @@ reason for it, since the APKs from GitHub are sideloaded.
 - `docs/04-stack-guide.md` — stack primer for someone coming from .NET/Angular
 - `docs/05-data-model.md` — the SQLite schema and the reasoning behind it
 - `docs/06-schema.md` — the schema drawn: ER diagram, delete rules, constraints
+- `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
+- `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
+- `docs/mockups/` — the redesign drawn, every screen (index in its README)

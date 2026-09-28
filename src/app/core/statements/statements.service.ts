@@ -58,6 +58,12 @@ export class StatementsService {
   readonly lastImport = signal<ImportedStatement | null>(null);
 
   /**
+   * A statement read from the "+" for an account that does not exist yet,
+   * waiting for the account form to open with it (mockups `2g`, `2h`).
+   */
+  readonly pendingNewAccount = signal<ReadStatement | null>(null);
+
+  /**
    * Reads a statement without writing anything.
    *
    * For the account that does not exist yet: the form is filled in from what

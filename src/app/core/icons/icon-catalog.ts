@@ -98,6 +98,8 @@ export function everyCatalogIcon(): string[] {
  */
 export function outlined(name: string | null | undefined): string {
   const base = (name ?? 'pricetag').trim();
+  // A brand's logo has no outlined drawing of its own.
+  if (base.startsWith('logo-')) return base;
   return base.endsWith('-outline') ? base : `${base}-outline`;
 }
 

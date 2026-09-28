@@ -19,7 +19,7 @@ import {
 import { daysElapsed, type ReportData } from './report-data';
 import { fill } from './report-words';
 import {
-  versusBefore, categoriesVersusBefore, recurringSpending, repeatedCharges, spendingByMonth, unusualJumps,
+  versusBefore, categoriesVersusBefore, recurringSpending, repeatedCharges, spendingByMonth, balanceAhead, unusualJumps,
 } from './sections-over-time';
 
 
@@ -322,6 +322,7 @@ export const SECTIONS: readonly Section<ReportData>[] = [
   recurringSpending,
   repeatedCharges,
   spendingByMonth,
+  balanceAhead,
   spendingByAccount,
   biggestMovements,
 ];

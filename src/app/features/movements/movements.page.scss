@@ -1,695 +1,124 @@
-/* The account on screen, as an identity rather than a title: icon, name, and
-   what the selection covers. The same control opens the picker. */
+/* Inicio (mockups 1a-1r). The shared pieces are in global.scss; this is what
+   is Inicio's own. */
+
+.ui-header {
+  background: var(--app-top);
+  padding: calc(8px + var(--ion-safe-area-top, 0px)) 16px 12px;
+  border-bottom: 1px solid var(--app-line);
+  box-shadow: none;
+
+  &::after { display: none; }
+}
+
 .identity {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex: 1;
-  min-width: 0;
-
-  /* Ionic's toolbar content area is a block, not a flex container, so the
-     `flex: 1` above is inert - and a <button> with width auto shrinks to fit
-     its content even when it is itself a flex container. Measured, this came
-     out 406px wide inside a 280px slot, printed across the search and
-     language buttons. The width is stated outright, and the box clips
-     whatever is still too long for it. */
+  gap: 10px;
   width: 100%;
-  overflow: hidden;
-
-  padding: 0.4rem 0.5rem 0.4rem 0.85rem;
-  border: none;
+  min-height: 44px;
+  border: 0;
   background: none;
-  cursor: pointer;
+  color: var(--app-tx);
+  padding: 0;
   text-align: left;
+  font-family: inherit;
+  cursor: pointer;
 
-  .badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex: none;
-    border-radius: 50%;
-    background: rgba(var(--ion-color-primary-rgb), 0.16);
-    color: var(--ion-color-primary);
+  .all-badge.small { width: 40px; height: 40px; }
 
-    ion-icon { font-size: 1.35rem; }
-
-    /* A logo fills its circle rather than floating inside it: the point of
-       a real bank logo is that it is recognised at a glance. */
-    img {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    &.image { background: none; }
-
-    /* All accounts is a different kind of thing, not a nameless account. */
-    &.all {
-      background: rgba(var(--ion-color-medium-rgb), 0.18);
-      color: var(--ion-color-medium-shade);
-    }
-  }
-
-  .who { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+  .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
   .name {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 4px;
     min-width: 0;
-    font-size: 1.12rem;
-    font-weight: 600;
-    color: var(--ion-text-color);
 
-    /* The clipping lives on the text, not on the row that holds it. */
     .text {
-      min-width: 0;
+      font-size: 18px;
+      font-weight: 700;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      min-width: 0;
     }
 
-    ion-icon { font-size: 0.8rem; opacity: 0.6; flex: none; }
+    ion-icon { font-size: 18px; color: var(--app-chev); flex: none; }
   }
 
   .hint {
-    font-size: 0.72rem;
-    line-height: 1.15;
-    letter-spacing: 0.02em;
-    color: var(--ion-color-medium);
+    font-size: 12.5px;
+    color: var(--app-mu);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
-
-  &:active { opacity: 0.7; }
 }
 
-ion-toolbar.stepper {
-  --min-height: 2.6rem;
+.ui-period { margin-top: 10px; }
+
+.figures {
+  .top { display: flex; align-items: flex-start; gap: 8px; }
+  .what { flex: 1; min-width: 0; }
+  .ui-big { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; small { font-size: 14px; color: var(--app-mu); } }
+  .quick { display: flex; gap: 8px; flex: none; }
+  .quick ion-icon { font-size: 22px; }
+  .credit { margin-top: 8px; i { background: var(--app-yel); } }
+  .tiles { margin-top: 12px; }
+  .tiles .ui-lab ion-icon { font-size: 13px; vertical-align: -2px; margin-right: 4px; }
+  .moved-line {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    ion-icon { font-size: 17px; flex: none; }
+  }
+}
+
+.faces { margin: 12px 0; }
+
+.ui-search { margin-bottom: 0; }
+
+.views {
   display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
 
-  .period-button {
-    --padding-start: 0.75rem;
-    --padding-end: 0.75rem;
-    /* Centred between the two arrows. `margin: 0 auto` alone did nothing:
-       the button is inline, so there was no width for the auto margins to
-       share out, and the label sat against the left arrow. */
-    display: block;
-    width: max-content;
-    margin: 0 auto;
-    font-size: 0.9rem;
+  .ui-chip { padding: 7px 10px; font-size: 13px; }
+  .grow { flex: 1; }
+}
 
-    .label {
-      text-transform: capitalize;
-      letter-spacing: 0;
-      font-weight: 500;
-      margin-inline-end: 0.4rem;
-    }
+.chip-row { margin-top: 10px; }
 
-    ion-icon { font-size: 1rem; opacity: 0.75; }
+.movement .ui-tx b { font-size: 15.3px; }
+
+.more {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+
+  button {
+    border: 0;
+    border-radius: 12px;
+    background: var(--app-s2);
+    color: var(--app-pr);
+    padding: 8px 14px;
+    font-size: 13.5px;
+    font-family: inherit;
+    cursor: pointer;
   }
 }
 
 .state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 3.5rem 2rem;
   text-align: center;
-  color: var(--ion-color-medium);
+  padding: 40px 16px;
+  color: var(--app-mu);
 
-  h2 { margin: 0; font-size: 1.05rem; color: var(--ion-text-color); }
-  p { margin: 0; max-width: 32ch; line-height: 1.5; }
-  &.error h2 { color: var(--ion-color-danger); }
+  h2 { color: var(--app-tx); font-size: 17px; margin: 0 0 6px; }
+  p { margin: 0; font-size: 14px; }
 }
 
-/* The standing figure: what there is now, before any arithmetic about a
-   period. Given the size that says "read this first". */
-/*
- * What there is right now: what it is on the left, how much on the right.
- *
- * It was a centred column - label, then figure, then detail, then a pill that
- * said "Editar cuenta" - which spent four lines of a phone on one fact. The
- * label and the figure are one sentence, so they sit on one line, and the way
- * to edit the account is the pencil at the end of it.
- */
-.standing {
-  padding: 0.9rem 1rem 0.75rem;
-
-  .line {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .tag {
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-    min-width: 0;
-  }
-
-  /* The second sentence, on its own line and whole.
-     It used to sit under the label and be cut short - "Disponible 800.531,00
-     de 1.100.00..." - which is the half of it that matters least. */
-  .detail {
-    margin: 0.3rem 0 0;
-    font-size: 0.72rem;
-    line-height: 1.3;
-    color: var(--ion-color-medium);
-  }
-
-  .figure {
-    /* Pushed to the right, and never squeezed: the label beside it wraps or
-       clips first, because a balance with a digit missing is worse than a
-       heading with a word missing. */
-    margin-left: auto;
-    flex: none;
-    font-size: 1.6rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-text-color);
-
-    small {
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--ion-color-medium);
-      margin-left: 0.2rem;
-    }
-  }
-
-  /* A card's debt is its normal state, not a balance gone wrong. */
-  &.credit .figure.owed { color: var(--ion-color-warning); }
-  &.balance .figure.owed { color: var(--ion-color-danger); }
-}
-
-/* Separates what is true now from what happened during the period. */
-/*
- * Which period is being read, and the way to its summary.
- *
- * It was a centred caption. It is now a row, because it gained a second job:
- * the button beside it exports exactly what this line names. Left and right
- * against the same 1rem gutter as everything else on the screen, so the two
- * ends line up with the totals below and the toolbar above.
- */
-.period-tag {
-  /* Laid out exactly as the chart-or-list pair below it: two of a width, the
-     same gap, the same gutter. They sit one above the other and anything that
-     does not match between them reads as a mistake. A little more air under
-     them, so the two rows are two rows rather than a block of four. */
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.35rem;
-  margin: 0.2rem 0 0;
-  padding: 0.6rem 1rem 0.65rem;
-  border-top: 1px solid var(--ion-color-light-shade);
-
-  /* Every account at once: a statement belongs to one, so there is nothing
-     to import into and only the summary is here. It takes the middle at the
-     width of one of the pair rather than half a line with a gap beside it,
-     which reads as a button whose other half failed to load. */
-  &.alone {
-    grid-template-columns: minmax(0, 12rem);
-    justify-content: center;
-  }
-
-  .what {
-    /* Centred with the two buttons rather than pushed against the far
-       side: three things in the middle of a line read as one row, and one
-       of them against each edge reads as two. */
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  /* The same small pill the products screen uses to add a product: one shape
-     for "a way out of this section", wherever it appears. */
-  /* The same button as the pair below, in everything but its colour: these
-     two go somewhere and those two change what is on show. */
-  .to-report {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    min-width: 0;
-    padding: 0.6rem 0.5rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-primary);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-
-    ion-icon { font-size: 1.05rem; flex: none; }
-    ion-spinner { width: 1.05rem; height: 1.05rem; flex: none; }
-
-    /* On a narrow phone the words go and the icon stays: a pill that wraps
-       onto two lines, or one that pushes the caption off centre, is worse
-       than one that is only its icon. */
-    .say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    &[disabled] { opacity: 0.6; }
-  }
-}
-
-/*
- * What happened during the period: in, out, moved, and what arrived from
- * another of your own accounts.
- *
- * A row of four, spread across the screen, ran off the right edge on Jose's
- * account - the fourth figure was cut in half and the third lost its last
- * digits. Peso figures here reach eleven characters, and four of those do not
- * fit across a phone however they are spaced.
- *
- * So they wrap: two to a line on a phone, four across where there is room.
- * Each cell keeps its own edges, which is also what lets the figures line up
- * under one another instead of drifting with the width of the words above.
- */
-.totals {
-  /* Wrapping and centred rather than a grid: with three figures a grid leaves
-     the third in the left-hand cell with a hole beside it, which reads as a
-     missing fourth. Centred, a row of one is a row of one. */
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem 0.75rem;
-  /* Clear of the line above it, which now carries a button: at 0.4rem the
-     first figure sat right under "Resumen" and read as belonging to it. */
-  padding: 0.8rem 1rem 0.6rem;
-
-  div {
-    flex: 1 1 8rem;
-    max-width: 14rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-    min-width: 0;
-  }
-
-  .tag {
-    font-size: 0.68rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-  }
-
-  .value {
-    font-size: 1.02rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.in { color: var(--ion-color-success); }
-.out { color: var(--ion-color-danger); }
-.moved { color: var(--ion-color-medium); }
-
-/*
- * Chart or list, as one control with two halves.
- *
- * It was a pill flanked by the same icon twice, three buttons doing the one
- * thing, and which of the two you were about to get had to be worked out from
- * an icon that changed. Two halves, the one you are on lit: the same shape as
- * the three views below it, which is the other control on this screen.
- */
-.switcher {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.35rem;
-  padding: 0.25rem 1rem 0.75rem;
-
-  button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.6rem 0.5rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    min-width: 0;
-
-    ion-icon { font-size: 1.05rem; flex: none; }
-    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    &.on {
-      border-color: var(--ion-color-primary);
-      background: var(--ion-color-primary);
-      color: var(--ion-color-primary-contrast);
-      font-weight: 600;
-    }
-
-    /* How many there are, as part of the label rather than a badge stuck on. */
-    .count {
-      flex: none;
-      padding-inline-start: 0.5rem;
-      border-inline-start: 1px solid currentColor;
-      font-variant-numeric: tabular-nums;
-      opacity: 0.85;
-    }
-  }
-}
-
-/* One row of views. Three questions, each answering itself. */
-.views {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.35rem;
-  padding: 0 1rem 0.5rem;
-
-  button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-    padding: 0.5rem 0.3rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 8px;
-    background: var(--ion-color-light);
-    color: var(--ion-color-medium);
-    font-size: 0.74rem;
-    line-height: 1.15;
-    text-align: center;
-    cursor: pointer;
-
-    ion-icon { font-size: 1.05rem; }
-
-    &.on {
-      border-color: var(--ion-color-primary);
-      background: rgba(var(--ion-color-primary-rgb), 0.12);
-      color: var(--ion-color-primary);
-      font-weight: 600;
-    }
-  }
-}
-
-.list-controls {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 1rem 0.5rem;
-
-  /* Says out loud what the ordering inside a group is, instead of leaving it
-     to be inferred from a control that no longer exists. */
-  .within-note {
-    font-size: 0.72rem;
-    color: var(--ion-color-medium);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-/* Icon alone, in a circle wide enough for a thumb. The shape carries the
-     meaning, so the words would only be repeating it - and this control sits
-     beside a line of small grey text that is already doing the explaining. */
-  .collapse {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 2.15rem;
-    height: 2.15rem;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
-    color: var(--ion-color-primary);
-    cursor: pointer;
-    transition: background 0.15s ease;
-
-    ion-icon {
-      font-size: 1.15rem;
-    }
-
-    /* Held down it deepens rather than moving: the list underneath is about to
-       change height, and a control that jumps on top of that reads as a
-       glitch rather than as a press. */
-    &:active {
-      background: rgba(var(--ion-color-primary-rgb), 0.22);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--ion-color-primary);
-      outline-offset: 2px;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .collapse { transition: none; }
-  }
-}
-
-/* The rest of a long list, offered rather than drawn. Centred and quiet: it
-   is the end of what is on screen, not a call to action. */
-.more {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 1rem 1.5rem;
-
-  button {
-    padding: 0.55rem 1.1rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: none;
-    color: var(--ion-color-primary);
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-}
-
-/* The same button inside a group, tucked closer: it belongs to the rows
-   above it rather than to the end of the screen. */
-.more.inner {
-  padding: 0.5rem 1rem 0.75rem;
-}
-
-.chip-row { padding: 0 1rem 0.5rem; }
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: var(--ion-color-light);
-  border: none;
-  border-radius: 999px;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-/*
- * A group is a section, not a row that happens to sit above other rows.
- *
- * Before this, the heading and the movements under it had nearly the same
- * weight and the same width, so a day heading read as one more movement. Three
- * things separate them now: the heading is smaller and spaced like a label
- * rather than like content, the movements are inset behind a rule that runs
- * the height of the group, and there is real air between one group and the
- * next.
- */
-/* One box per group. Without it every heading shares the list as its
-   containing block, so each one stops at the top of the screen and the next
-   arrives on top of it - the totals ending up stacked over one another, worse
-   in the light theme where they have no shadow to hide behind. */
-.group {
-  position: relative;
-}
-
-/* Bottom right, clear of the safe area, over the list rather than in it.
-   Ionic places a `slot="fixed"` child itself, so this only says where.
-
-   A column, because they come and go one at a time and a row would shift the
-   others sideways underneath the thumb as it did. */
-
-/* The category's icon on a row, when the day is what groups the list.
-   Narrow and muted: the amount and the description are what is being read,
-   and the icon is there to be recognised out of the corner of an eye. */
-.movement app-icon.row-cat {
-  margin-inline-end: 0.55rem;
-  color: var(--ion-color-medium);
-  opacity: 0.85;
-}
-
-
-/* Room under the last row for the floating cluster, so anything the buttons
-   would otherwise cover can be scrolled clear of them. */
-ion-list { padding-bottom: 4.5rem; }
-
-.group-head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1rem 0.4rem;
-  margin-top: 0.75rem;
-  cursor: pointer;
-  font-size: 0.78rem;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-
-  /* Opaque, over the surface the rows are drawn on - not the page behind
-     them. In light both are white and the difference never showed; the
-     moment a row slid under a heading with no background of its own, the
-     two sets of figures were printed on top of each other. */
-  background: var(--ion-item-background, var(--ion-background-color));
-
-  /* And a hairline, so a heading resting on a row still reads as a heading.
-     It is the edge that says the list continues below this, which is the one
-     thing a floating title has to communicate. */
-  border-bottom: 1px solid var(--ion-color-light-shade);
-
-  .chevron { color: var(--ion-color-medium); font-size: 0.9rem; }
-  .cat { color: var(--ion-color-medium); flex: none; }
-
-  .title {
-    flex: 1;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* A day is already a proper noun in Spanish; uppercasing the whole label
-     avoids "8 De Septiembre", which capitalize produced. */
-  .title.by-date { text-transform: uppercase; }
-
-  .total {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    font-weight: 600;
-    font-size: 0.85rem;
-  }
-
-  ion-badge {
-    font-size: 0.68rem;
-    --padding-start: 0.4rem;
-    --padding-end: 0.4rem;
-  }
-}
-
-/*
- * Everything inside the group, held together by one rule down its left.
- *
- * The rule carries the group's own colour — red for a day or a category that
- * spent, green for one that earned, grey for money only moved — so a section
- * says what it is before a figure is read. Colour is the only thing it says;
- * the amount beside the heading is still the authority.
- */
-.group-body {
-  margin-left: 1rem;
-  margin-right: 0.75rem;
-  border-left: 3px solid var(--ion-color-medium);
-  border-radius: 3px;
-  overflow: hidden;
-
-  &.out { border-left-color: var(--ion-color-danger); }
-  &.in { border-left-color: var(--ion-color-success); }
-  &.moved, &.refund { border-left-color: var(--ion-color-medium); }
-
-  /* The flat view has no heading, so it needs no bracket either. */
-  &.flat { margin: 0; border-left: none; border-radius: 0; }
-
-  ion-item.movement {
-    --padding-start: 0.75rem;
-    --background: var(--ion-color-light);
-    --inner-border-width: 0 0 1px 0;
-  }
-
-  ion-item.movement:last-child { --inner-border-width: 0; }
-}
-
-ion-badge { font-weight: 400; }
-
-.movement {
-  --padding-start: 1rem;
-
-  .dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    margin-inline-end: 0.5rem;
-    flex: none;
-
-    &.in { background: var(--ion-color-success); }
-    &.out { background: var(--ion-color-danger); }
-    &.moved { background: var(--ion-color-medium); }
-  }
-
-  h3 { font-size: 0.95rem; }
-  p { font-size: 0.8rem; }
-
-  .locked { font-size: 0.7rem; vertical-align: middle; margin-left: 0.25rem; }
-}
-
-ion-note[slot='end'] {
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-
-  small { font-size: 0.7rem; opacity: 0.7; margin-left: 0.15rem; }
-}
-
-/* The two buttons the app is really for: always within thumb reach.
-   They live in a footer rather than floating over the list - a translucent
-   strip crossing the middle of a row reads as a rendering fault. */
-
-/*
- * Editing the account the balance belongs to.
- *
- * A round target at the end of that line rather than a pill on a line of its
- * own. Bigger than the pencil it used to carry - 2.4rem is a comfortable
- * thumb - and quiet enough not to compete with the figure beside it.
- */
-/* The account's own buttons, beside its balance: blue, like every other
-   thing on this screen that can be pressed, where the grey outline they had
-   read as disabled. One or two of them, kept together. */
-.standing .account-actions {
-  display: inline-flex;
-  gap: 0.4rem;
-  flex: none;
-}
-
-.standing .round-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 2.4rem;
-  height: 2.4rem;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.45);
-  border-radius: 50%;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  color: var(--ion-color-primary);
-  cursor: pointer;
-
-  ion-icon { font-size: 1.25rem; }
-  &:active { background: rgba(var(--ion-color-primary-rgb), 0.22); }
-}
+/* "Corregido a mano": a small lock before the line under the title. */
+.movement .locked { font-size: 12px; vertical-align: -1px; margin-right: 4px; color: var(--app-yel); }

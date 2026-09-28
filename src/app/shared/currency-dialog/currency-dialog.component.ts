@@ -15,8 +15,8 @@
  * in global.scss), so a question looks the same wherever it is asked.
  */
 
-import { Component, effect, inject, input, output, signal } from '@angular/core';
-import { IonModal, IonButton, IonIcon, IonInput } from '@ionic/angular';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { IonModal, IonIcon } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -24,42 +24,39 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-currency-dialog',
-  imports: [TranslatePipe, IonModal, IonButton, IonIcon, IonInput],
+  imports: [TranslatePipe, IonModal, IonIcon],
   template: `
     <!-- Always in the page and opened by the flag: an ion-modal created
          already open never shows (see confirm-dialogs.test.mjs). -->
     <ion-modal class="confirm-sheet" [isOpen]="open()" (didDismiss)="cancelled.emit()">
       <ng-template>
         <div class="confirm-dialog">
-          <span class="badge primary"><ion-icon name="cash-outline"></ion-icon></span>
+          <span class="badge green"><ion-icon name="cash-outline"></ion-icon></span>
           <h2>{{ 'accounts.currency.add' | t }}</h2>
-          <p>{{ 'accounts.currencies.hint' | t }}</p>
 
-          <div class="fields">
-            <ion-input fill="outline" labelPlacement="stacked" maxlength="3"
-                       [label]="'accounts.currency.code' | t"
-                       [placeholder]="'accounts.currency.codeHint' | t"
-                       [value]="code()"
-                       (ionInput)="code.set($any($event.target).value ?? '')"></ion-input>
-            <ion-input fill="outline" labelPlacement="stacked"
-                       [label]="'accounts.currency.name' | t"
-                       [value]="name()"
-                       (ionInput)="name.set($any($event.target).value ?? '')"></ion-input>
-            <ion-input fill="outline" labelPlacement="stacked"
-                       [label]="'accounts.currency.symbol' | t"
-                       [value]="symbol()"
-                       (ionInput)="symbol.set($any($event.target).value ?? '')"></ion-input>
+          <div class="ui-inputs">
+            <label class="ui-input" [class.bad]="codeBad()">
+              <span>{{ 'accounts.currency.code' | t }}</span>
+              <input maxlength="3" autocapitalize="characters" [placeholder]="'accounts.currency.codeHint' | t"
+                     [value]="code()" (input)="code.set($any($event.target).value ?? '')">
+            </label>
+            @if (codeBad()) { <p class="error">{{ error() }}</p> }
+            <label class="ui-input">
+              <span>{{ 'accounts.currency.name' | t }}</span>
+              <input [value]="name()" (input)="name.set($any($event.target).value ?? '')">
+            </label>
+            <label class="ui-input">
+              <span>{{ 'accounts.currency.symbol' | t }}</span>
+              <input [value]="symbol()" (input)="symbol.set($any($event.target).value ?? '')">
+            </label>
           </div>
 
-          @if (error()) { <p class="error">{{ error() }}</p> }
+          @if (error() && !codeBad()) { <p class="error">{{ error() }}</p> }
 
           <div class="buttons">
-            <ion-button fill="outline" color="medium" (click)="cancelled.emit()">
-              {{ 'entry.cancel' | t }}
-            </ion-button>
-            <ion-button color="primary" [disabled]="saving()" (click)="save()">
-              {{ 'entry.save' | t }}
-            </ion-button>
+            <button type="button" class="ui-btn ghost" (click)="cancelled.emit()">{{ 'entry.cancel' | t }}</button>
+            <button type="button" class="ui-btn" [disabled]="saving() || code().trim() === '' || name().trim() === ''"
+                    (click)="save()">{{ 'entry.save' | t }}</button>
           </div>
         </div>
       </ng-template>
@@ -80,6 +77,9 @@ export class CurrencyDialogComponent {
   readonly symbol = signal('');
   readonly error = signal('');
   readonly saving = signal(false);
+
+  /** The code is what was refused: its box turns red and says why (2e). */
+  readonly codeBad = computed(() => this.error() !== '' && this.error() !== this.i18n.t('accounts.currency.needName'));
 
   constructor() {
     // Every opening starts empty: a half-typed currency abandoned yesterday

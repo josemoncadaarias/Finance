@@ -1,0 +1,418 @@
+// Group 4 (v4, 2026-09-28): products and yields. Everything the products
+// screen does today (features/products), drawn with the rules of groups 1-3:
+// - reached from the Cuentas tab ("Cuentas | Rendimientos") and from the
+//   piggy bank beside one account in Inicio;
+// - an account's page is ONE scroll, as today: the figure, its products,
+//   its movements, what the bank pays, how each day was worked out, and
+//   stopping it - no tabs, and no Gasto / Ingreso / Transferir of its own:
+//   the "+" of the bar opens the one movement form on this account;
+// - rates live inside their product; a rate of the whole account shows in
+//   each product that uses it, marked as the account's;
+// - the orphan withdrawal is said quietly, inside its row.
+import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint, jump, mgroup, groupRow, periodBar } from './lib.mjs';
+import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot } from './screens-1.mjs';
+
+const S = {};
+const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
+const centred = (html, gap = 12) => html.replace('display:grid', `display:grid;margin:0 auto ${gap}px`);
+const scrolled = (header, topPx, by, body, after = '') => `<div style="position:absolute;left:0;right:0;top:${topPx}px;bottom:0;overflow:hidden"><main style="margin-top:-${by}px">${body}</main></div><div style="position:absolute;left:0;right:0;top:0">${header}</div>${after}`;
+const amber = t => `<div class="banner" style="background:${tint(C.yel, .12)};color:#f3d58a;margin-top:10px">${ic('alert-circle-outline')}<span>${t}</span></div>`;
+const PIG = `<svg viewBox='60 78 400 400' width='22' height='22'><g fill='none' stroke='currentColor' stroke-width='25' stroke-linecap='round' stroke-linejoin='round'><ellipse cx='288' cy='280' rx='144' ry='112'/><rect x='88' y='248' width='56' height='64' rx='24'/><path d='M232 180l28-64 56 44'/><path d='M216 388v52M360 388v52'/><path d='M300 192h68'/></g><circle cx='212' cy='252' r='16' fill='currentColor'/></svg>`;
+
+// ---------------------------------------------------------------- the list
+// Cuentas has two faces: the balances (group 2) and what the accounts earn.
+const faces = on => `<div class="seg" style="margin-top:2px">${[['Saldos', 'wallet-outline'], ['Rendimientos', 'trending-up-outline']].map(([t, i]) => `<div class="${t === on || (on === 'Cuentas' && t === 'Saldos') ? 'on' : ''}">${ic(i)}${t}</div>`).join('')}</div>`;
+const listHead = `<div class="bar-top">${st}<div class="tt" style="gap:10px"><h1 style="flex:1">Cuentas</h1>
+ <div class="btn-r">${ic('refresh-outline')}</div></div><div style="margin-top:10px">${faces('Rendimientos')}</div></div>`;
+
+const line = (icon, name, sub, amt, today) => `<div class="row">${icon}<div class="tx"><b class="one">${name}</b><small class="one">${sub}</small></div><div class="am">${amt}<small class="${today.startsWith('+') ? 'g' : 'mu'}">${today}</small></div>${chev()}</div>`;
+
+S['4a-rendimientos'] = `${listHead}<main>
+ <div class="card hero"><div class="lab">Rendimiento acumulado</div><div class="big g">1.284.310,55 <span style="font-size:14px;font-weight:500" class="mu">COP</span></div>
+  <div class="sub">Rendimientos y cashback que todavía no son parte de tu patrimonio.</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><span class="sub">Rindió el 27 sept:</span><b class="g">+14.188,72</b></div>
+  <div style="margin-top:12px"><span class="chip" style="background:rgba(7,13,26,.35);color:#dfe4ff">${ic('stats-chart-outline')}Resumen de rendimientos</span></div></div>
+ ${amber('3 días sin retefuente calculada: faltan parámetros por confirmar.')}
+ <div class="h">En pesos</div>
+ <div class="list">
+  ${line(accIcon('verde'), 'Ahorro Verde', '3 productos', '924.118,20', '+12.453,40')}
+  ${line(accIcon('naranja'), 'Cajita Naranja', '2 productos · con condición mensual', '301.440,10', '+1.735,32')}
+  ${line(ci('business-outline', PALETTE.violeta), 'Banco del Parque: CDT de la prima de diciembre', '1 producto · CDT', '52.700,00', 'vence el 12 dic')}
+  ${line(accIcon('azul'), 'Banco Azul', '1 producto · pausada', '0,00', '—')}</div>
+ <div class="h">En otras monedas</div>
+ <div class="list">${line(accIcon('dolar'), 'Cuenta Dólar', 'USD · sin retefuente', '6,05 USD', '+0,01')}</div>
+ <div class="list" style="margin-top:12px"><div class="row">${ci('add', C.blu, 40)}<div class="tx"><b class="p">Agregar una cuenta</b><small>Solo las cuentas que agregues aquí generan rendimientos. Las que se mueven con el mercado no deberían estar.</small></div></div></div>
+ <div style="height:110px"></div></main><div class="fade"></div>${tabs('Cuentas')}`;
+
+S['4b-agregar-cuenta'] = S['4a-rendimientos'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div class="sh" style="flex-direction:column;align-items:stretch;gap:4px"><h2 style="text-align:center">Agregar una cuenta</h2><div class="sub" style="text-align:center">Se calcula desde que la agregues, con su saldo y su tasa.</div></div>
+ <div class="list">${['efectivo', 'global', 'ambar'].map(k => `<div class="row">${accIcon(k)}<div class="tx"><b>${ACC[k][2]}</b></div>${chev()}</div>`).join('')}</div></div>`;
+
+// ---------------------------------------------------------- one account
+// v5 (Jose's review of v4): a page inside Cuentas, with its figure on top
+// and then a selector - Productos | Movimientos | Pagos | Días - the way
+// Inicio switches between Gráfico and Movimientos, so the information is
+// separated instead of one long scroll. Beside the figure, two round
+// buttons like Inicio's: the house (its movements in Inicio) and the
+// summary. The "+" of the bar opens the one movement form on this account.
+const pageHead = `<div class="bar-top">${st}<div class="tt" style="gap:10px">${ic('chevron-back-outline', 'back')}
+ <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0">${accIcon('verde', 34)}<b class="one" style="font-size:18px">Ahorro Verde</b>${down()}</div></div></div>`;
+const roundBtn = i => `<span style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--pr);color:#fff;flex:none">${ic(i, '', 'width:21px;height:21px')}</span>`;
+const figure = `<div class="card hero"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1;min-width:0"><div class="lab">Rendimiento disponible</div><div class="big g">924.118,20</div></div>
+  <div style="display:flex;gap:8px">${roundBtn('home-outline')}${roundBtn('stats-chart-outline')}</div></div>
+  <div class="mini" style="margin-top:8px"><div><span class="lab">Rendido</span><b>1.101.906,03</b></div><div><span class="lab">Pasado al patrimonio</span><b>−177.787,83</b></div></div>
+  <div class="sub" style="margin-top:10px">Rinde sobre <b style="color:var(--tx)">55.240.546,90</b>. Lo de hoy se pagó sobre el cierre de ayer, 55.226.495,33.</div></div>`;
+const pick = (opts, on) => `<div class="seg" style="margin:12px 0">${opts.map(t => `<div class="${t === on ? 'on' : ''}" style="font-size:13px;padding:9px 2px">${t}</div>`).join('')}</div>`;
+const PAGE = ['Productos', 'Movimientos', 'Pagos', 'Días'];
+const page = (on, body) => `${pageHead}<main>${figure}${pick(PAGE, on)}${body}<div style="height:110px"></div></main><div class="fade"></div>${tabs('Cuentas')}`;
+
+const P = { cuenta: ['wallet-outline', C.grn], mercado: ['basket-outline', C.lim], viajes: ['airplane-outline', C.cya], cdt: ['lock-closed-outline', C.gold] };
+const psq = (k, z = 42) => sq(P[k][0], P[k][1], z);
+const prodRow = (k, name, sub, amt) => `<div class="row">${psq(k)}<div class="tx"><b class="one">${name}</b><small class="one">${sub}</small></div><div class="am">${amt}</div>${chev()}</div>`;
+S['4c-cuenta-productos'] = page('Productos', `<div class="list">
+  ${prodRow('cuenta', 'Cuenta de ahorros', 'El habitual · 9,25 % E.A.', '52.000.000,00')}
+  ${prodRow('mercado', 'Bolsillo Mercado', '9,25 % E.A.', '1.240.546,90')}
+  ${prodRow('viajes', 'Bolsillo Viajes', '11,00 % E.A. · sin retefuente', '2.000.000,00')}
+  ${prodRow('cdt', 'CDT 90 días', 'CDT · vence el 12 dic · Fuera del patrimonio', '10.000.000,00')}
+  <div class="row" style="background:var(--s2)"><div class="tx"><b>Entre todos los productos</b><small>De este saldo, 924.118,20 son rendimientos que pagó el banco</small></div><div class="am" style="font-weight:700">65.240.546,90</div></div>
+  <div class="row">${ic('add', 'p', 'width:19px;height:19px')}<div class="tx"><b class="p" style="font-size:14.5px">Agregar un producto</b></div></div></div>
+ <div class="hint">El banco paga cada producto aparte y lo muestra aparte.</div>
+ <div class="list" style="margin-top:14px"><div class="row">${ic('pause-circle-outline', 'r')}<div class="tx"><b class="r">Dejar de calcular esta cuenta</b></div></div></div>`);
+
+const move = (icon, t, s2, a, cls = '') => `<div class="row">${icon}<div class="tx"><b class="one">${t}</b><small class="one">${s2}</small></div><div class="am ${cls}">${a}</div></div>`;
+S['4d-cuenta-movimientos'] = page('Movimientos', `${periodBar('Septiembre 2026', 0)}
+ <div class="search" style="margin-top:10px">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o producto…</span></div>
+ ${groupRow()}
+ ${mgroup('Hoy · domingo 27', 2, '+518.400,00', 'g', true, move(ci('swap-horizontal', C.blu, 42), 'Retiro bolsillo viajes', 'Bolsillo Viajes → Cuenta de ahorros', '500.000,00', 'p') + move(catIcon('cashback'), 'Cashback de septiembre', 'Cashback · Cuenta de ahorros · solo el producto', '+18.400,00', 'g'))}
+ ${mgroup('Martes 15', 2, '−214.200,00', 'r', false)}
+ ${mgroup('Viernes 11', 1, '+2.000.000,00', 'g', false)}
+ ${mgroup('Lunes 7', 3, '−96.000,00', 'r', false)}`);
+// A day opened further down, holding the orphan withdrawal, said in its row.
+S['4d2-cuenta-movimientos-dia-abierto'] = page('Movimientos', `${periodBar('Septiembre 2026', 0)}
+ <div class="search" style="margin-top:10px">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o producto…</span></div>
+ ${groupRow()}
+ ${mgroup('Hoy · domingo 27', 2, '+518.400,00', 'g', false)}
+ ${mgroup('Martes 15', 2, '−214.200,00', 'r', true, move(catIcon('mercado'), 'Mercado quincena', 'Mercado · Bolsillo Mercado', '−164.200,00', 'r') + `<div class="row">${sq('remove-outline', C.gry)}<div class="tx"><b class="one">Retiro de 50.000,00</b><small>Quedó sin el movimiento de la cuenta que lo acompañaba, y sigue restándole al producto.</small><span class="p" style="font-size:13.5px;display:block;margin-top:4px">Borrar retiro</span></div><div class="am mu">−50.000,00</div></div>`)}
+ ${mgroup('Viernes 11', 1, '+2.000.000,00', 'g', false)}`);
+
+const month = (t, n, a, open) => `<div class="row" style="background:var(--s2)"><div class="tx"><b>${t}</b><small>${n}</small></div><div class="am g">${a}</div>${ic(open ? 'chevron-down-outline' : 'chevron-forward-outline', 'mu', 'width:18px;height:18px')}</div>`;
+const filters = `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span class="chip">${ic('funnel-outline', '', 'width:17px;height:17px')}Todos los productos ${down()}</span><span class="chip">${ic('chevron-expand-outline', '', 'width:17px;height:17px')}Abrir todos</span></div>`;
+S['4e-cuenta-pagos'] = page('Pagos', `${filters}
+ <div class="list" style="margin-top:10px">${month('Septiembre 2026', '27 pagos', '+342.118,44', true)}
+  ${move(psq('cuenta'), 'Domingo 27', 'Cuenta de ahorros · sobre 52.000.000,00', '+11.723,02', 'g')}
+  ${move(psq('viajes'), 'Domingo 27', 'Bolsillo Viajes · sobre 2.000.000,00', '+578,10', 'g')}
+  ${move(psq('cdt'), 'Sábado 12 dic', 'CDT 90 días · suma de 90 días · aún no lo paga', '+228.140,26', 'mu')}
+  ${month('Agosto 2026', '31 pagos', '+381.004,10', false)}</div>
+ <div class="hint">Lo que el banco realmente abona: la lista para comparar contra la app del banco.</div>`);
+
+const day = (k, d, base, net, extra = '') => `<div class="row">${psq(k, 34)}<div class="tx"><b>${d}</b><small class="one">Sobre ${base} · 9,25 % E.A.${extra}</small></div><div class="am g">${net}</div>${chev()}</div>`;
+S['4f-cuenta-dias'] = page('Días', `${filters}
+ <div class="list" style="margin-top:10px">${month('Septiembre 2026', '27 días', '+342.118,44', true)}
+  ${day('cuenta', 'Domingo 27', '52.000.000,00', '+11.723,02')}
+  ${day('cuenta', 'Sábado 26', '52.000.000,00', '+11.725,80', ' · corregido a mano')}
+  ${day('mercado', 'Sábado 26', '1.240.546,90', '+279,63')}
+  ${month('Agosto 2026', '31 días', '+381.004,10', false)}</div>
+ <div class="hint">El detalle de dónde sale cada pago. Toca un día para verlo y corregirlo.</div>`);
+
+const dayLine = (k, v, cls = '') => `<div class="row"><div class="tx"><span class="mu" style="font-size:14px">${k}</span></div><b class="${cls}">${v}</b></div>`;
+S['4g-un-dia'] = S['4f-cuenta-dias'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div style="text-align:center">${centred(psq('cuenta', 46), 8)}<h2 style="font-size:19px">Sábado 26 sept · Cuenta de ahorros</h2></div><div class="sub" style="text-align:center;margin:4px 0 12px">Así se llegó a la cifra de ese día. Si el banco pagó otra cosa, escríbela abajo.</div>
+ <div class="list">${dayLine('Base del día', '52.000.000,00')}${dayLine('Tasa aplicada', '9,25 % E.A.')}${dayLine('Rendimiento bruto', '12.605,40')}${dayLine('Retefuente (7 %)', '−882,38', 'r')}${dayLine('Neto', '11.723,02', 'g')}</div>
+ <div class="field on" style="margin-top:12px"><div class="lab">Lo que realmente pagó el banco</div><div class="v">11.725,80</div></div>
+ <div class="hint">Este día está corregido a mano: el cálculo automático ya no lo toca.</div>
+ <div style="display:flex;gap:10px;margin-top:14px"><div class="btn ghost" style="flex:1">Volver al cálculo</div><div class="btn danger" style="flex:1">Borrar esta ganancia</div></div></div>`;
+
+S['4h-dia-en-cero'] = S['4f-cuenta-dias'] + `<div class="scrim"></div><div class="dialog" style="text-align:center">
+ ${centred(ci('remove-circle-outline', C.red, 54))}<b style="font-size:18px">¿El banco no pagó nada ese día?</b>
+ <div class="sub" style="margin-top:6px">El día queda en cero y no se vuelve a calcular. Puedes deshacerlo después.</div>
+ <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, dejarlo en cero</div></div></div>`;
+
+S['4i-dejar-de-calcular'] = S['4c-cuenta-productos'] + `<div class="scrim"></div><div class="dialog" style="text-align:center">
+ ${centred(ci('pause-circle-outline', C.red, 54))}<b style="font-size:18px">Dejar de calcular esta cuenta</b>
+ <div class="sub" style="margin-top:6px">¿Seguro? La cuenta deja de calcular rendimientos. Lo ya calculado se conserva y puedes volver a activarla cuando quieras.</div>
+ <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Sí, dejar de calcular</div></div></div>`;
+
+// ------------------------------------------------------------- a product
+// v5: the product form is separated too - Producto | Saldo | Tasa |
+// Bonificación - and every account, product and category shows its icon.
+const saveBar = t => `<div class="bar-top">${st}<div class="tt">${ic('chevron-back-outline', 'back')}<h1 class="one" style="flex:1;min-width:0">${t}</h1><div class="chip" style="padding:7px 14px;background:linear-gradient(135deg,var(--pr),var(--pr2));border:0;color:#fff;font-weight:500">${ic('checkmark', '', 'width:18px;height:18px')}Guardar</div></div></div>`;
+const val = (k, v, extra = '', sub = '', icon = '') => `<div class="row">${icon}<div class="tx"><span class="k">${k}</span><b class="one">${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>${extra}</div>`;
+const toggle = (t, h, on) => `<div class="row"><div class="tx"><b>${t}</b>${h ? `<small>${h}</small>` : ''}</div>${sw(on)}</div>`;
+const kindPick = cdt => `<div class="seg" style="margin-top:12px"><div class="${cdt ? '' : 'on'}">Alto rendimiento</div><div class="${cdt ? 'on' : ''}">CDT</div></div>`;
+const faceP = (icon, name, on = false) => `<div style="display:flex;align-items:center;gap:14px"><div style="position:relative;flex:none">${icon}<span style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:var(--pr);display:grid;place-items:center;color:#fff">${ic('create-outline', '', 'width:13px;height:13px')}</span></div>
+  <div class="field ${on ? 'on' : ''}" style="flex:1;min-width:0"><div class="lab">Nombre</div><div class="v one">${name}</div></div></div>`;
+// The product's page: its face and name always on top, then the selector.
+const PROD = ['Producto', 'Saldo', 'Tasa', 'Bonificación'];
+const productPage = (k, name, on, body, tabsList = PROD) => `${saveBar(name)}<main><div style="height:12px"></div>${faceP(psq(k, 56), name)}${pick(tabsList, on)}${body}<div style="height:30px"></div></main>`;
+
+S['4j-producto'] = productPage('viajes', 'Bolsillo Viajes', 'Producto', `${kindPick(false).replace('margin-top:12px', 'margin-top:0')}
+ <div class="list" style="margin-top:12px">
+  ${toggle('Le aplica retefuente', 'En alta rentabilidad solo se retiene el 7 % el día que el interés llega a 0,055 UVT', false)}
+  ${toggle('Cuenta para el patrimonio', '', true)}
+  ${toggle('Que sea el habitual', 'A este entra y de este sale la plata mientras no digas otra cosa.', false)}</div>
+ <div class="list" style="margin-top:14px"><div class="row">${ic('trash-outline', 'r')}<div class="tx"><b class="r">Eliminar este producto</b></div></div></div>`);
+
+// Saldo, made simple: the answer first (what it has today) and how it is
+// reached, as a sum; then the one figure the person types and its day.
+const sumLine = (k, v, cls = '') => `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:14px"><span class="mu">${k}</span><b class="${cls}" style="white-space:nowrap">${v}</b></div>`;
+S['4k-producto-saldo'] = productPage('viajes', 'Bolsillo Viajes', 'Saldo', `<div class="card"><div class="lab">Tiene hoy</div><div class="big" style="font-size:28px">2.009.841,20</div>
+  <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:4px">
+  ${sumLine('Saldo que leíste en el banco (cierre del 10 sept)', '2.000.000,00')}
+  ${sumLine('+ Lo que entró y salió desde ese día', '0,00')}
+  ${sumLine('+ Lo que rindió desde ese día', '+9.841,20', 'g')}</div></div>
+ <div class="h">El saldo que leíste en el banco</div>
+ <div class="list">
+  ${val('Saldo', '2.000.000,00', '<span class="mu" style="font-size:13px">COP</span>')}
+  ${val('Al cierre del día', 'Jueves 10 sept 2026', down())}</div>
+ <div class="hint">Escríbelo tal como lo ves en la app del banco: ya trae adentro lo que te han pagado. Lo que pase después de ese día se suma solo.</div>
+ <div class="list" style="margin-top:12px">${val('Empieza a rendir desde', 'Jueves 10 sept 2026', down())}</div>
+ <div class="hint">Antes de ese día la app no calcula nada para este producto.</div>`);
+
+const rate = (pct, when, state, cls) => `<div class="row"><div class="tx"><b>${pct}</b><small>${when}</small></div><span class="tag" style="background:${tint(cls, .16)};color:${cls}">${state}</span>${chev()}</div>`;
+const addRow = t => `<div class="row">${ic('add', 'p', 'width:19px;height:19px')}<div class="tx"><b class="p" style="font-size:14.5px">${t}</b></div></div>`;
+S['4l-producto-tasa'] = productPage('viajes', 'Bolsillo Viajes', 'Tasa', `<div class="list">
+  ${val('¿Cada cuánto paga el banco?', 'Todos los días', down())}
+  ${rate('11,00 % E.A.', 'Desde el 1 sept 2026', 'Vigente', C.grn)}
+  ${rate('10,50 % E.A.', 'Del 10 jul al 31 ago 2026', 'Ya no aplica', C.gry)}
+  ${addRow('Cambiar la tasa desde una fecha')}</div>
+ <div class="hint">Una tasa nueva no borra la anterior: manda la más reciente hasta su fecha.</div>`);
+
+// (No 4m: every rate belongs to one product since migration 030, 2026-09-11.)
+
+S['4n-nueva-tasa'] = S['4l-producto-tasa'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <h2 style="text-align:center;font-size:19px;margin-bottom:12px">Cambiar la tasa desde una fecha</h2>
+ <div class="field on"><div class="lab">Tasa efectiva anual, % E.A.</div><div class="v">11,75</div></div>
+ <div style="display:flex;gap:10px;margin-top:10px"><div class="field" style="flex:1"><div class="lab">Válida desde</div><div class="v">1 oct 2026</div></div><div class="field" style="flex:1"><div class="lab">Hasta</div><div class="v mu">Sin fecha</div></div></div>
+ <div class="hint">Si la tasa quedó mal escrita, ábrela y corrígela: se recalculan los días desde su fecha. Si CAMBIÓ, agrega una nueva desde el día en que cambió.</div>
+ <div style="display:flex;gap:10px;margin-top:14px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn" style="flex:1">Guardar</div></div></div>`;
+
+S['4o-producto-bonificacion'] = productPage('viajes', 'Bolsillo Viajes', 'Bonificación', `<div class="list">
+  ${rate('+5,50 % E.A.', 'Si gastas 400.000 en el mes · desde el 1 sept', 'Vigente', C.grn)}
+  ${addRow('Agregar bonificación por gasto')}</div>
+ <div class="hint">Una tasa extra que el banco paga solo si gastas cierto monto con esta cuenta. Si no llegas al monto, no se paga.</div>`);
+
+S['4p-bonificacion-nueva'] = S['4o-producto-bonificacion'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <h2 style="text-align:center;font-size:19px;margin-bottom:12px">Agregar bonificación por gasto</h2>
+ <div class="field on"><div class="lab">Tasa extra, % E.A.</div><div class="v">5,50</div></div>
+ <div class="field" style="margin-top:10px"><div class="lab">Gasto mínimo con esta cuenta</div><div class="v">400.000,00</div></div>
+ <div style="display:flex;gap:10px;margin-top:10px"><div class="field" style="flex:1"><div class="lab">Cada cuántos meses</div><div class="v">1</div></div><div class="field" style="flex:1"><div class="lab">Válida desde</div><div class="v">1 oct 2026</div></div></div>
+ <div class="hint">Se suman los gastos de esta cuenta en ese período. Si llegan al mínimo, la bonificación se paga el último día del período; si no, no se paga.</div>
+ <div style="display:flex;gap:10px;margin-top:14px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn" style="flex:1">Guardar</div></div></div>`;
+
+// Deleting: the product that receives the balance, with its icon, chosen
+// from the account's own list.
+S['4q-eliminar-producto'] = S['4j-producto'] + `<div class="scrim"></div><div class="dialog" style="text-align:center">
+ ${centred(sq('trash-outline', C.red, 54))}<b style="font-size:18px">¿Eliminar Bolsillo Viajes?</b>
+ <div class="sub" style="margin-top:6px">Este producto tiene 2.009.841,20. ¿A qué producto pasa ese saldo?</div>
+ <div class="list" style="margin-top:12px;text-align:left">${val('Pasar el saldo a', 'Cuenta de ahorros', down(), '', psq('cuenta', 36))}</div>
+ <div class="sub" style="margin-top:8px;text-align:left">Su saldo pasa a Cuenta de ahorros como un movimiento, junto con sus movimientos y lo que ha ganado. El saldo inicial de Cuenta de ahorros no se toca.</div>
+ <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn danger" style="flex:1">Eliminar</div></div></div>`;
+
+const productList = (title, on, other = true) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div class="sh"><span class="p">Cancelar</span><h2 style="text-align:center">${title}</h2><span style="width:62px"></span></div>
+ <div class="list">${[['cuenta', 'Cuenta de ahorros', 'El habitual · 52.000.000,00'], ['mercado', 'Bolsillo Mercado', '1.240.546,90']].map(([k, t, s2]) => `<div class="row">${psq(k)}<div class="tx"><b>${t}</b><small>${s2}</small></div>${k === on ? `<span class="tick on">${ic('checkmark')}</span>` : ''}</div>`).join('')}
+ ${other ? `<div class="row">${ci('swap-horizontal', C.blu, 42)}<div class="tx"><b class="p">Escoger otra cuenta</b></div>${chev()}</div>` : ''}</div></div>`;
+S['4r-eliminar-elegir-producto'] = S['4j-producto'] + productList('Pasar el saldo a', 'cuenta', false);
+
+// A CDT, separated as well: CDT | Al vencer | Pagos.
+const CDT = ['CDT', 'Al vencer', 'Pagos'];
+S['4s-cdt'] = productPage('cdt', 'CDT 90 días', 'CDT', `${kindPick(true).replace('margin-top:12px', 'margin-top:0')}
+ <div class="hint">Un CDT no rinde día a día: el día que vence paga todo su plazo de una vez, con el 7 % retenido, y se cierra solo.</div>
+ <div class="list" style="margin-top:12px">
+  ${val('Monto', '10.000.000,00', '<span class="mu" style="font-size:13px">COP</span>')}
+  ${val('Abierto el', 'Domingo 13 sept 2026', down())}
+  <div class="row"><div class="tx"><span class="k">Plazo</span><b>90 días</b></div><div class="tx" style="flex:none;text-align:right"><span class="k">Tasa</span><b>10,40 % E.A.</b></div></div>
+  ${val('Vence el', 'Sábado 12 dic 2026')}</div>
+ <div class="list" style="margin-top:12px">${toggle('Cuenta para el patrimonio', '', false)}</div>`, CDT);
+
+const intoProduct = end(accIcon('verde', 38), 'Pasa a', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros'));
+S['4t-cdt-al-vencer'] = productPage('cdt', 'CDT 90 días', 'Al vencer', `<div class="list">
+  ${val('Rendimiento bruto', '245.312,11')}${val('Retenido', '−17.171,85')}${val('Neto', '+228.140,26')}
+  <div class="row" style="background:var(--s2)"><div class="tx"><span class="k">Recibes al vencer</span><b style="font-size:17px">10.228.140,26</b></div></div></div>
+ <div class="list" style="margin-top:12px">${intoProduct}
+  <div class="row">${catIcon('cashback', 38)}<div class="tx"><span class="k">Con la categoría</span><b>Rendimientos</b></div>${down()}</div></div>
+ <div class="hint">Ese día el CDT se cierra solo: el monto y el rendimiento neto pasan a Cuenta de ahorros.</div>`, CDT);
+
+S['4u-cdt-elegir-destino'] = S['4t-cdt-al-vencer'] + productList('Pasa a · Ahorro Verde', 'cuenta');
+
+S['4v-cdt-pagos'] = productPage('cdt', 'CDT 90 días', 'Pagos', `<div class="list">
+  ${move(psq('cdt'), 'Sábado 12 dic 2026', 'Suma de 90 días · aún no lo paga', '+228.140,26', 'mu')}</div>
+ <div class="hint">Lo que el banco abona por este CDT: uno solo, el día que vence.</div>`, CDT);
+
+// A new product: the same selector; its Saldo asks where the money comes
+// from, with each product's icon.
+const NEW = ['Producto', 'Saldo', 'Tasa'];
+S['4w-nuevo-producto-saldo'] = `${saveBar('Agregar un producto')}<main><div style="height:12px"></div>${faceP(sq('car-outline', C.org, 56), 'Bolsillo Carro', true)}${pick(NEW, 'Saldo')}
+ <div class="list"><div class="row">${ci('swap-horizontal', C.blu, 38)}<div class="tx"><span class="k">¿De dónde sale este saldo?</span><b>De otro producto</b><small>Queda como una transferencia desde ese producto.</small></div>${down()}</div></div>
+ <div class="list" style="margin-top:12px">${val('Sale de', 'Cuenta de ahorros', down(), '', psq('cuenta', 36))}
+  ${val('Monto', '1.500.000,00', '<span class="chip" style="padding:4px 10px;font-size:12.5px">Pasar todo · 52.000.000</span>')}
+  ${val('Empieza a rendir desde', 'Mañana · lunes 28 sept', down())}</div>
+ <div style="height:30px"></div></main>`;
+
+// ------------------------------------------------- a product's own movement
+// The ONE movement form (group 1): on an account with products it shows the
+// product with its icon, asks what it changes, and keeps the note with its
+// usual text and its suggestions, as every movement does.
+// "¿Qué cambia?" takes ONE row (v5b, Jose: save space): the choice made,
+// and a sheet with the options and what each does, opened from it.
+const scopeRow = on => `<div class="row">${ci('git-compare-outline', C.pur, 38)}<div class="tx"><span class="k">¿Qué cambia?</span><b>${on}</b></div>${down()}</div>`;
+const IN = [['Solo el producto', 'Solo cambia los rendimientos del producto, no el saldo de la cuenta ni tu patrimonio.'], ['Producto y patrimonio', 'Queda como un movimiento normal de la cuenta, con su categoría y su producto.'], ['Hacer efectivo', 'Pasas a la cuenta plata que el producto ya tenía: sube el saldo y tu patrimonio, y baja lo acumulado del producto.']];
+const OUT = [['Solo el producto', 'Solo cambia los rendimientos del producto, no el saldo de la cuenta ni tu patrimonio.'], ['Producto y patrimonio', 'Queda como un movimiento normal de la cuenta, con su categoría y su producto.'], ['Solo el patrimonio', 'Devuelves al producto plata que salió de la cuenta: baja el saldo y tu patrimonio, y sube lo acumulado del producto.']];
+// The note is the person's own words about THIS movement - never the
+// category. Labelled "Nota" so the two are never read as one.
+const noteRow = (text, hint = 'la de siempre') => `<div class="row">${ic('create-outline', 'mu')}<div class="tx"><span class="k">Nota</span><b class="one">${text}</b><small>${hint}</small></div><span class="mu">${ic('close-circle', '', 'width:19px;height:19px')}</span></div>`;
+const catRow = (k, name) => `<div class="row">${catIcon(k, 38)}<div class="tx"><span class="k">Categoría</span><b>${name}</b></div><span class="mu">${ic('create-outline', '', 'width:19px;height:19px')}</span>${down()}</div>`;
+
+S['4x-ingreso-del-producto'] = `${top('Nuevo ingreso', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Ingreso')}
+ ${amount('+', 'g', '18.400')}
+ <div class="list">${end(accIcon('verde', 38), 'Hacia dónde', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros'))}
+  ${catRow('cashback', 'Cashback')}${scopeRow('Solo el producto')}</div>
+ <div class="list" style="margin-top:10px">${dayRow}${noteRow('Compras con la tarjeta en agosto')}</div>
+ </main>${keys('Guardar')}`;
+
+S['4y-que-cambia'] = S['4x-ingreso-del-producto'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div style="text-align:center">${centred(ci('git-compare-outline', C.pur, 46), 8)}<h2 style="font-size:19px">¿Qué cambia?</h2></div>
+ <div class="list" style="margin-top:12px">${IN.map(([t, h], n) => `<div class="row"><div class="tx"><b>${t}</b><small>${h}</small></div>${n === 0 ? `<span class="tick on">${ic('checkmark')}</span>` : '<span class="tick"></span>'}</div>`).join('')}</div></div>`;
+
+// Writing the note: the same panel as any movement - the note on top, the
+// notes already written that match under it, the keyboard below.
+S['4z-nota-del-producto'] = `${top('Nuevo ingreso', { left: 'x' })}<main style="padding-top:10px">
+ <div class="card" style="padding:12px 14px;border-color:var(--pr)"><div style="display:flex;justify-content:space-between;align-items:center"><span class="lab">Nota</span><span class="p b" style="font-size:14px">Listo</span></div>
+  <div style="font-size:17px;margin-top:6px">Compras con<span style="border-left:2px solid var(--pr);margin-left:1px"></span></div></div>
+ <div class="list" style="margin-top:8px">${['Compras con la tarjeta en agosto', 'Compras con la tarjeta en julio', 'Compras con débito del bolsillo'].map(t => `<div class="row plain">${ic('time-outline', 'mu', 'width:18px;height:18px')}<div class="tx"><b style="font-size:14.5px">${t.replace('Compras con', '<u>Compras con</u>')}</b></div>${ic('arrow-up-outline', 'mu', 'transform:rotate(-45deg);width:18px;height:18px')}</div>`).join('')}</div></main>
+ <div style="position:absolute;left:0;right:0;bottom:0;height:300px;background:#1b1f27;padding:8px 4px 20px">
+  ${['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'].map((r, n) => `<div style="display:flex;justify-content:center;gap:5px;margin-top:9px;padding:0 ${n === 2 ? 34 : 0}px">${[...r].map(k => `<span style="width:34px;height:46px;border-radius:7px;background:#2e333d;display:grid;place-items:center;font-size:19px;color:#e6e8ee">${k}</span>`).join('')}</div>`).join('')}
+  <div style="display:flex;gap:5px;margin-top:9px;padding:0 6px"><span style="width:60px;height:46px;border-radius:7px;background:#3a404c"></span><span style="flex:1;height:46px;border-radius:7px;background:#2e333d"></span><span style="width:60px;height:46px;border-radius:7px;background:#3a404c"></span></div></div>`;
+
+S['4zz-gasto-del-producto'] = `${top('Nuevo gasto', { left: 'x' })}<main style="padding-top:8px">${typeSeg('Gasto')}
+ ${amount('−', 'r', '6.900')}
+ <div class="list">${end(accIcon('verde', 38), 'Desde dónde', 'Ahorro Verde', prod(P.viajes[0], P.viajes[1], 'Bolsillo Viajes'))}
+  ${catRow('correccion', 'Corrección del banco')}${scopeRow('Solo el producto')}</div>
+ <div class="list" style="margin-top:10px">${dayRow}${noteRow('Diferencia con el extracto de septiembre')}</div>
+ </main>${keys('Guardar')}`;
+
+// ------------------------------------------ transfers with products
+// Every case of the ONE transfer form (group 1) where products are involved.
+// Each end names its account and, when the account has products, the
+// product under it with its icon, changeable right there. "Pasar todo"
+// fills what the origin - the product, if it has them - holds today.
+const xTop = (t = 'Transferir', right = '') => top(t, { left: 'x', right });
+const quiet = t => `<div class="hint" style="margin:8px 4px 0;display:flex;gap:6px">${ic('information-circle-outline', '', 'width:16px;height:16px;flex:none;margin-top:1px')}<span>${t}</span></div>`;
+const pEnd = (acc, k, label, name, pk, pname, o = {}) => end(accIcon(acc, 38), k, name, pk ? prod(P[pk][0], P[pk][1], pname, o.info, o.bad) : '');
+// v6: an explanation is an (i) beside what it explains, opened as a bubble
+// on tap - never a paragraph that takes its own lines on the form.
+const tip = (t, topPx, arrowLeft = 190) => `<div style="position:absolute;left:24px;right:24px;top:${topPx}px;background:#26324f;border:1px solid #3a4a72;border-radius:14px;padding:11px 13px;font-size:13px;line-height:1.4;color:#e3e8f4;box-shadow:0 10px 26px rgba(0,0,0,.5);z-index:5">
+ <span style="position:absolute;top:-7px;left:${arrowLeft}px;width:12px;height:12px;background:#26324f;border-left:1px solid #3a4a72;border-top:1px solid #3a4a72;transform:rotate(45deg)"></span>${t}</div>`;
+const toast = t => `<div style="position:absolute;left:24px;right:24px;bottom:318px;background:#26324f;border:1px solid #3a4a72;border-radius:14px;padding:10px 13px;font-size:13px;color:#e3e8f4;display:flex;gap:8px;align-items:center;box-shadow:0 10px 26px rgba(0,0,0,.5)">${ic('swap-vertical-outline', 'p', 'width:17px;height:17px;flex:none')}<span>${t}</span></div>`;
+const tr = ({ amt = '500.000', all, from, to, info = '', noteText, noteHint, title, right, sign = '⇄' }) => `${xTop(title, right)}<main style="padding-top:8px">${typeSeg('Transferir')}
+ ${amount(sign, 'p', amt)}${all ? allBtn(all) : '<div style="height:8px"></div>'}
+ ${route(from, to)}${info}
+ <div class="list" style="margin-top:10px">${dayRow}${note(noteText, noteHint)}</div>
+ </main>${keys('Guardar')}`;
+
+// 1. Between two products of the same account: the account's balance does
+//    not change, the money only sits in another product.
+S['4t01-transferir-entre-productos'] = tr({ amt: '2.000.000', all: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros', { info: true }),
+  noteText: 'Retiro bolsillo viajes' });
+
+// ...and its (i) opened: the explanation as a bubble, gone on the next tap.
+S['4t01b-transferir-entre-productos-ayuda'] = S['4t01-transferir-entre-productos'] + tip('El saldo de la cuenta no cambia: la misma plata queda en otro producto. Desde mañana cada uno rinde sobre su nuevo saldo.', 402, 196);
+
+// 2. Choosing the product money leaves from: the account's products with
+//    what each holds, the current one ticked, and another account.
+const pList = (title, rows, on) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div class="sh"><span class="p">Cancelar</span><h2 style="text-align:center" class="one">${title}</h2><span style="width:62px"></span></div>
+ <div class="list">${rows.map(([k, t, s2]) => `<div class="row">${psq(k)}<div class="tx"><b>${t}</b><small>${s2}</small></div>${k === on ? `<span class="tick on">${ic('checkmark')}</span>` : ''}</div>`).join('')}
+ <div class="row">${ci('swap-horizontal', C.blu, 42)}<div class="tx"><b class="p">Escoger otra cuenta</b></div>${chev()}</div></div></div>`;
+const VERDE = [['cuenta', 'Cuenta de ahorros', 'El habitual · 52.000.000,00'], ['mercado', 'Bolsillo Mercado', '1.240.546,90'], ['viajes', 'Bolsillo Viajes', '2.000.000,00']];
+S['4t02-transferir-elegir-producto-origen'] = S['4t01-transferir-entre-productos'] + pList('Sale de · Ahorro Verde', VERDE, 'viajes');
+
+// 3. From a product to an account without products (paying the card).
+S['4t03-transferir-producto-a-cuenta'] = tr({ amt: '800.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: end(accIcon('coral', 38), 'Hacia dónde', 'Tarjeta Coral'),
+  noteText: 'Pago tarjeta de crédito' });
+
+// 4. From an account without products into one with products: the product
+//    it lands in, the usual one to begin with.
+S['4t04-transferir-cuenta-a-producto'] = tr({ amt: '1.000.000', all: '12.480.300',
+  from: end(accIcon('azul', 38), 'Desde', 'Banco Azul'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'mercado', 'Bolsillo Mercado'),
+  noteText: 'Plata del mercado de octubre' });
+
+// 5. Choosing the product money lands in.
+S['4t05-transferir-elegir-producto-destino'] = S['4t04-transferir-cuenta-a-producto'] + pList('Entra a · Ahorro Verde', VERDE, 'mercado');
+
+// 6. Between two accounts that both have products: a product on each end.
+S['4t06-transferir-entre-cuentas-con-productos'] = tr({ amt: '300.000', all: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: end(accIcon('naranja', 38), 'Hacia dónde', 'Cajita Naranja', prod('car-outline', C.org, 'Meta carro')),
+  noteText: 'Ahorro para el carro' });
+
+// 7. Into a product set aside from net worth (a CDT): said quietly, since
+//    that money then counts as leaving.
+S['4t07-transferir-a-producto-fuera-del-patrimonio'] = tr({ amt: '10.000.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cdt', 'CDT 90 días', { info: true }),
+  noteText: 'Apertura CDT 90 días', noteHint: '' });
+
+// 8. From a product to an account in another currency: what leaves, what
+//    arrives and the rate, as any transfer between two currencies.
+S['4t08-transferir-producto-otra-moneda'] = `${xTop()}<main style="padding-top:8px">${typeSeg('Transferir')}
+ <div style="display:flex;gap:8px;align-items:center;margin:10px 0 8px">
+  <div class="card" style="flex:1;text-align:center;padding:9px;border-color:var(--pr)"><div class="lab">Sale</div><div style="font-size:23px;font-weight:700;margin-top:2px">1.000.000</div><div class="mu" style="font-size:12px">COP</div></div>
+  <span class="p">${ic('arrow-forward-outline')}</span>
+  <div class="card" style="flex:1;text-align:center;padding:9px"><div class="lab">Llega</div><div style="font-size:23px;font-weight:700;margin-top:2px">254,12</div><div class="mu" style="font-size:12px">USD · tasa 3.935,15</div></div></div>
+ ${allBtn('52.000.000')}
+ ${route(pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'), end(accIcon('dolar', 38), 'Hacia dónde', 'Cuenta Dólar'))}
+ <div class="list" style="margin-top:10px">${dayRow}${note('Ahorro en dólares')}</div>
+ </main>${keys('Guardar')}`;
+
+// 9. After "Invertir": the ends swap, each keeping its product, and an
+//    amount that "Pasar todo" wrote goes back to nothing (the other side
+//    may hold less); "Pasar todo" now shows what the new origin holds.
+S['4t09-transferir-invertida'] = tr({ amt: '0', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  noteText: 'Recarga bolsillo viajes' });
+
+// 10. The same product on both ends: said where it is, and Guardar waits.
+// 10. The same product can never be on both ends, and nothing is said
+//     about it (Jose): choosing, in "Hacia", the product that "Desde" holds
+//     keeps that choice and moves "Desde" to the product money most often
+//     leaves from - the route the form already starts with. First frame:
+//     choosing Bolsillo Viajes for "Hacia"; second: the form after it.
+S['4t10a-transferir-elige-el-mismo-producto'] = S['4t01-transferir-entre-productos'] + pList('Entra a · Ahorro Verde', VERDE, 'cuenta').replace('<b>Bolsillo Viajes</b>', '<b>Bolsillo Viajes</b>') + `<span style="position:absolute;left:190px;top:780px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.5)"></span>`;
+S['4t10b-transferir-el-otro-lado-se-mueve'] = tr({ amt: '2.000.000', all: '52.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  noteText: 'Recarga bolsillo viajes' });
+
+// 11. Correcting one: the same form, with its bin; deleting takes both legs.
+S['4t11-editar-transferencia-entre-productos'] = tr({ title: 'Editar transferencia', right: `<div class="btn-r" style="color:var(--red)">${ic('trash-outline')}</div>`, amt: '2.000.000',
+  from: pEnd('verde', 'Desde', '', 'Ahorro Verde', 'viajes', 'Bolsillo Viajes'),
+  to: pEnd('verde', 'Hacia dónde', '', 'Ahorro Verde', 'cuenta', 'Cuenta de ahorros'),
+  noteText: 'Retiro bolsillo viajes', noteHint: '' }).replace('Hoy · domingo 27 sept', 'Viernes 25 sept');
+
+// 12. Long names: one line each, "…" at the end, and the slide the app
+//     already has (marquee.service.ts) shows the rest - second frame.
+const longEnds = slide => route(
+  end(ci('business-outline', PALETTE.violeta, 38), 'Desde', 'Banco del Parque: cuenta de nómina y ahorro programado', prod('lock-closed-outline', C.gold, 'Bolsillo para el viaje a Cartagena en enero de 2027'), slide ? -170 : ''),
+  end(accIcon('verde', 38), 'Hacia', 'Ahorro Verde', prod(P.cuenta[0], P.cuenta[1], 'Cuenta de ahorros')));
+const longForm = slide => `${xTop()}<main style="padding-top:8px">${typeSeg('Transferir')}
+ ${amount('⇄', 'p', '750.000')}${allBtn('3.200.000')}${longEnds(slide)}
+ <div class="list" style="margin-top:10px">${dayRow}${note('Regreso de la plata del viaje que no se hizo este año')}</div>
+ </main>${keys('Guardar')}`;
+S['4t12-transferir-nombres-largos'] = longForm(false);
+S['4t13-transferir-nombres-largos-deslizando'] = longForm(true);
+
+// Long lists carry the two arrows.
+S['4a-rendimientos'] += jump(112, 'down');
+S['4d-cuenta-movimientos'] += jump(112, 'down');
+S['4d2-cuenta-movimientos-dia-abierto'] += jump(112, 'down');
+S['4e-cuenta-pagos'] += jump(112, 'down');
+S['4f-cuenta-dias'] += jump(112, 'down');
+
+export default S;

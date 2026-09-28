@@ -18,14 +18,11 @@
  */
 
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import {
-  IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonContent,
-  IonSearchbar, IonList, IonItem, IonLabel, IonNote, IonIcon,
-} from '@ionic/angular';
+import { IonModal, IonIcon } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { CategoriesRepository, type UsedCategory } from '../../core/database/repositories/categories.repository';
-import { IconComponent } from '../../core/icons/icon.component';
+import { BadgeComponent } from '../ui/badge.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** Ignores case and accents: nobody types an accent while hurrying. */
@@ -50,11 +47,7 @@ function readOrder(): 'use' | 'name' {
 
 @Component({
   selector: 'app-category-sheet',
-  imports: [
-    TranslatePipe, IconComponent,
-    IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonContent,
-    IonSearchbar, IonList, IonItem, IonLabel, IonNote, IonIcon,
-  ],
+  imports: [TranslatePipe, BadgeComponent, IonModal, IonIcon],
   templateUrl: './category-sheet.component.html',
   styleUrls: ['./category-sheet.component.scss'],
 })

@@ -1,0 +1,138 @@
+<ion-content [fullscreen]="true">
+  <div class="ui-bigtitle"><h1>{{ 'more.title' | t }}</h1></div>
+
+  <main class="ui-main">
+    @if (google.available) {
+      @if (google.user(); as user) {
+        <button type="button" class="ui-hero profile" (click)="go('/account')">
+          <app-avatar class="face" [photoUrl]="user.photoUrl" [name]="user.name" [email]="user.email"></app-avatar>
+          <span class="ui-tx">
+            <b class="name">{{ user.name || user.email }}</b>
+            <small>{{ driveLine() }}</small>
+          </span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+      } @else {
+        <button type="button" class="ui-hero profile" (click)="go('/account')">
+          <app-badge shape="ci" [size]="50" builtin="logo-google" [fixed]="accent.accent().color"></app-badge>
+          <span class="ui-tx">
+            <b class="wrap">{{ 'more.drive.signedOut.title' | t }}</b>
+            <small>{{ 'more.drive.signedOut' | t }}</small>
+          </span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+      }
+    }
+
+    <div class="ui-h">{{ 'more.yourData' | t }}</div>
+    <div class="ui-list">
+      <button type="button" class="ui-row" (click)="go('/review')">
+        <app-badge [size]="40" builtin="checkmark-done-outline" [fixed]="accent.accent().color"></app-badge>
+        <span class="ui-tx">
+          <b class="wrap">{{ 'more.review' | t }}</b>
+          <small [class.waiting]="waiting() > 0">{{ reviewLine() }}</small>
+        </span>
+        @if (waiting() > 0) { <i class="dot"></i> }
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="go('/categories')">
+        <app-badge [size]="40" builtin="pricetags-outline" fixed="#9b7bff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.categories' | t }}</b><small>{{ categoriesLine() }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      @if (notificationsSupported()) {
+        <button type="button" class="ui-row" (click)="go('/notifications')">
+          <app-badge [size]="40" builtin="notifications-outline" fixed="#f6b93b"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'more.notifications' | t }}</b><small>{{ notificationsLine() }}</small></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+      }
+      <button type="button" class="ui-row" (click)="go('/export')">
+        <app-badge [size]="40" builtin="swap-vertical-outline" fixed="#2ec4b6"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.export' | t }}</b><small>{{ 'more.export.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-h">{{ 'more.tools' | t }}</div>
+    <div class="ui-list">
+      <button type="button" class="ui-row" (click)="go('/tax')">
+        <app-badge [size]="40" builtin="calculator-outline" fixed="#ff9152"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.tax' | t }}</b><small>{{ 'more.tax.hint' | t:{ year } }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-h">{{ 'more.preferences' | t }}</div>
+    <div class="ui-list">
+      <button type="button" class="ui-row" (click)="languageSheet.set(true)">
+        <app-badge [size]="40" builtin="language-outline" fixed="#4cb8f5"></app-badge>
+        <span class="ui-tx">
+          <b class="wrap">{{ 'more.language' | t }}</b>
+          <small class="lang"><app-flag [code]="i18n.current().flag" [size]="16"></app-flag>{{ i18n.current().name }}</small>
+        </span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="appearanceSheet.set(true)">
+        <app-badge [size]="40" builtin="contrast-outline" fixed="#f2709c"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.appearance' | t }}</b><small>{{ appearanceLine() }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-page-end"></div>
+  </main>
+</ion-content>
+
+<ion-modal class="ui-sheet" [isOpen]="languageSheet()" (didDismiss)="languageSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'more.language' | t }}</h2>
+      <div class="ui-list">
+        @for (option of i18n.languages; track option.code) {
+          <button type="button" class="ui-row" (click)="setLanguage(option.code)">
+            <app-flag [code]="option.flag" [size]="38"></app-flag>
+            <span class="ui-tx">
+              <b>{{ option.name }}</b>
+              @if (i18n.language() === option.code) { <small class="wrap-s">{{ 'more.language.keeps' | t }}</small> }
+            </span>
+            @if (i18n.language() === option.code) { <ion-icon class="ui-p check" name="checkmark"></ion-icon> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="ui-sheet" [isOpen]="appearanceSheet()" (didDismiss)="appearanceSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body appearance">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'more.appearance' | t }}</h2>
+      <div class="ui-h first">{{ 'appearance.theme' | t }}</div>
+      <div class="themes">
+        @for (option of themes; track option.value) {
+          <button type="button" [class.on]="theme.choice() === option.value" (click)="setTheme(option.value)">
+            <ion-icon [name]="option.icon"></ion-icon>
+            <span>{{ $any(option.label) | t }}</span>
+          </button>
+        }
+      </div>
+      <p class="hint">{{ 'appearance.theme.hint' | t }}</p>
+      <div class="ui-h">{{ 'appearance.accent' | t }}</div>
+      <div class="accents">
+        @for (option of accents; track option.id) {
+          <button type="button" [class.on]="accent.choice() === option.id" [style.border-color]="accent.choice() === option.id ? option.color : null"
+                  (click)="accent.set(option.id)">
+            <span class="swatch" [style.background]="option.color">
+              @if (accent.choice() === option.id) { <ion-icon name="checkmark"></ion-icon> }
+            </span>
+            <span class="name">{{ $any(option.label) | t }}</span>
+          </button>
+        }
+      </div>
+      <p class="hint">{{ 'appearance.accent.hint' | t }}</p>
+    </div>
+  </ng-template>
+</ion-modal>

@@ -1,173 +1,119 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ 'categories.title' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
+<!-- Categorías (mockups 3a-3c, 3j): two folding lists with their counts,
+     closed on opening, the two orders, "Abrir todas / Cerrar todas", and the
+     archived with the list each belonged to. -->
+<ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="jump.measure()">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'categories.title' | t }}</h1>
+    <button type="button" class="ui-pill line" (click)="startNew()">
+      <ion-icon name="add"></ion-icon>{{ 'categories.new' | t }}
+    </button>
+  </header>
 
-  <!-- The two things that act on the whole screen, held still above it: adding
-       a category, and opening or closing every list. The three "new category"
-       buttons this replaces were the same button written three times, and each
-       one only reached the list it sat in - so the one you wanted was behind
-       however much scrolling that list needed.
-
-       A toolbar of the header, not an element between the header and the
-       content: ion-content covers the whole page, so anything left outside
-       both takes up room and is never seen. -->
-  <ion-toolbar class="page-actions">
-    <div class="bar">
-      <button type="button" class="new" (click)="startNew()">
-        <ion-icon name="add-outline"></ion-icon>
-        {{ 'categories.new' | t }}
-      </button>
-
-      <button type="button" class="fold" (click)="foldAll()"
-              [attr.aria-expanded]="!allCollapsed()">
-        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-        {{ (allCollapsed() ? 'summary.expandAll' : 'summary.collapseAll') | t }}
-      </button>
-    </div>
-  </ion-toolbar>
-
-  <!-- Its own toolbar rather than a third thing inside the one above: a
-       toolbar sizes itself to one row, and the pills were landing on top of
-       the buttons. -->
-  <ion-toolbar class="page-actions">
-    <div class="order order-pills">
-      <button type="button" [class.on]="order() === 'use'"
-              (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
-      <button type="button" [class.on]="order() === 'name'"
-              (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
-    </div>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content #list [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
-  @if (status() === 'opening') {
-    <div class="state"><ion-spinner></ion-spinner><p>{{ 'state.opening' | t }}</p></div>
-  } @else if (status() === 'failed') {
-    <div class="state error">
-      <h2>{{ 'state.failed' | t }}</h2>
-      <p>{{ database.error()?.message }}</p>
-    </div>
-  } @else if (loading()) {
-    <div class="state"><ion-spinner></ion-spinner></div>
-  } @else {
-
-    <!-- Two lists, because they are never chosen together. Money out and
-         money in are the same pair the movement form opens with, so they wear
-         the same marks and the same two colours here: red with an arrow going
-         out, green with one coming in. A heading in small grey capitals said
-         nothing the compose bar has not already taught. -->
-    @for (side of [
-      { kind: 'expense', title: 'categories.expenses', rows: expenses(), mark: 'arrow-up-outline' },
-      { kind: 'income', title: 'categories.incomes', rows: incomes(), mark: 'arrow-down-outline' }
-    ]; track side.kind) {
-      <section class="side" [class]="side.kind">
-        <!-- Closed to begin with. Three headings and their counts fit on one
-             screen; the expenses alone do not, and open they pushed the third
-             heading off the bottom edge. -->
-        <div class="head">
-          <button type="button" class="fold" (click)="toggle($any(side.kind))">
-            <span class="mark"><ion-icon [name]="$any(side.mark)"></ion-icon></span>
-            <h2>{{ $any(side.title) | t }}</h2>
-            <span class="count">{{ side.rows.length }}</span>
-            <ion-icon class="chevron"
-                      [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
-          </button>
-        </div>
-
-        @if (!isOpen($any(side.kind))) {
-          <!-- folded away -->
-        } @else if (side.rows.length === 0) {
-          <p class="empty">{{ 'categories.empty' | t }}</p>
-        } @else {
-          <ion-list [inset]="true">
-            @for (category of side.rows; track category.id) {
-              <ion-item button lines="full" (click)="edit(category)" [detail]="true">
-                <app-icon slot="start" [builtin]="category.builtin_icon"
-                          [customId]="category.custom_icon_id"></app-icon>
-                <ion-label>{{ category.name }}</ion-label>
-                <ion-note slot="end">{{ 'categories.inUse' | t:{ count: category.times } }}</ion-note>
-              </ion-item>
-            }
-          </ion-list>
-        }
-      </section>
-    }
-
-    @if (archivedCount() > 0) {
-      <div class="archived-toggle">
-        <button type="button" (click)="toggleArchived()">
-          <ion-icon name="archive-outline"></ion-icon>
-          {{ (showArchived() ? 'categories.hideArchived' : 'categories.showArchived')
-             | t:{ count: archivedCount() } }}
-        </button>
+  <div class="ui-main">
+    <div class="tools">
+      <div class="ui-seg">
+        <button type="button" [class.on]="order() === 'use'" (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
+        <button type="button" [class.on]="order() === 'name'" (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
       </div>
+      <button type="button" class="ui-chip fold-all" (click)="foldAll()" [attr.aria-expanded]="!allCollapsed()">
+        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+        {{ (allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t }}
+      </button>
+    </div>
 
-      @if (showArchived()) {
-        <section class="side archived-section">
-          <h2>{{ 'accounts.archivedTitle' | t }}</h2>
-          <p class="hint">{{ 'categories.archivedHint' | t }}</p>
+    @if (status() === 'opening' || loading()) {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (status() === 'failed') {
+      <div class="state"><h2>{{ 'state.failed' | t }}</h2><p>{{ database.error()?.message }}</p></div>
+    } @else {
+      @for (side of [
+        { kind: 'expense', title: 'categories.expenses', rows: expenses(), mark: 'arrow-up', tone: '#ff6b6b' },
+        { kind: 'income', title: 'categories.incomes', rows: incomes(), mark: 'arrow-down', tone: '#34c98b' }
+      ]; track side.kind) {
+        <section class="side">
+          <button type="button" class="ui-card head" (click)="toggle($any(side.kind))"
+                  [attr.aria-expanded]="isOpen($any(side.kind))">
+            <app-badge shape="ci" [size]="38" [builtin]="side.mark" [fixed]="side.tone"></app-badge>
+            <h2>{{ $any(side.title) | t }}</h2>
+            <span class="ui-tag">{{ countOf(side.rows.length) }}</span>
+            <ion-icon class="ui-chev" [name]="isOpen($any(side.kind)) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+          </button>
 
-          <ion-list [inset]="true">
-            @for (category of archived(); track category.id) {
-              <ion-item button lines="full" (click)="edit(category)" [detail]="true">
-                <app-icon slot="start" class="archived"
-                          [builtin]="category.builtin_icon"
-                          [customId]="category.custom_icon_id"></app-icon>
-                <ion-label>{{ category.name }}</ion-label>
-                <ion-badge color="medium">{{ $any('categories.kind.' + category.kind) | t }}</ion-badge>
-              </ion-item>
+          @if (isOpen($any(side.kind))) {
+            @if (side.rows.length === 0) {
+              <p class="empty">{{ 'categories.empty' | t }}</p>
+            } @else {
+              <div class="ui-list rows">
+                @for (category of side.rows; track category.id) {
+                  <button type="button" class="ui-row" (click)="edit(category)">
+                    <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                               [tone]="category.color" [seed]="category.id"></app-badge>
+                    <span class="ui-tx">
+                      <b class="ui-one">{{ category.name }}</b>
+                      <small>{{ usedIn(category.times) }}</small>
+                    </span>
+                    <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                  </button>
+                }
+              </div>
             }
-          </ion-list>
+          }
         </section>
       }
+
+      @if (archivedCount() > 0) {
+        <button type="button" class="ui-card head archived-toggle" (click)="toggleArchived()">
+          <app-badge shape="sq" [size]="38" builtin="archive" fixed="#8c9bb5"></app-badge>
+          <h2 class="small">{{ archivedLabel() }}</h2>
+          <ion-icon class="ui-chev" [name]="showArchived() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+        </button>
+
+        @if (showArchived()) {
+          <p class="hint">{{ 'categories.archivedHint' | t }}</p>
+          <div class="ui-list rows past">
+            @for (category of archived(); track category.id) {
+              <button type="button" class="ui-row" (click)="edit(category)">
+                <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+                           fixed="#8c9bb5"></app-badge>
+                <span class="ui-tx"><b class="ui-one">{{ category.name }}</b></span>
+                <span class="kind" [class.in]="category.kind === 'income'">{{ $any('categories.kind.' + category.kind) | t }}</span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
+          </div>
+        }
+      }
+      <div class="ui-page-end"></div>
     }
-  }
+  </div>
 
-  <!-- Up, fold, down: the same row the movements screen carries, over a list
-       that is just as long. -->
-  @if (scrollable()) {
-    <div class="jump" slot="fixed">
-      <button type="button" [class.gone]="!showJumpUp()" (click)="toTop()"
-              [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
-        <ion-icon name="arrow-up-outline"></ion-icon>
-      </button>
-
-      <button type="button" [class.gone]="!showJumpDown()" (click)="toBottom()"
-              [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-      </button>
-    </div>
-  }
+  <app-jump #jump [content]="list"></app-jump>
 </ion-content>
 
-<!-- Which of the three, asked once, rather than three buttons asked for ever.
-     Creating a category is a rare act beside finding one, so it is the tap
-     that can afford to be spent. -->
-<ion-modal class="editor-sheet" [isOpen]="choosingList()" (didDismiss)="choosingList.set(false)">
+<!-- Which list, asked once (3c). -->
+<ion-modal class="ui-sheet" [isOpen]="choosingList()" (didDismiss)="choosingList.set(false)">
   <ng-template>
-    <div class="which-list">
-      <h2>{{ 'categories.new.where' | t }}</h2>
-      <button type="button" (click)="newIn('expense')">
-        <ion-icon name="trending-down-outline"></ion-icon>
-        <span>{{ 'categories.kind.expense' | t }}</span>
-      </button>
-      <button type="button" (click)="newIn('income')">
-        <ion-icon name="trending-up-outline"></ion-icon>
-        <span>{{ 'categories.kind.income' | t }}</span>
-      </button>
+    <div class="ui-sheet-body which-list">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'categories.new.where' | t }}</h2>
+      <div class="two">
+        <button type="button" (click)="newIn('expense')">
+          <app-badge shape="ci" [size]="50" builtin="arrow-up" fixed="#ff6b6b"></app-badge>
+          <b>{{ 'categories.expenses' | t }}</b>
+        </button>
+        <button type="button" (click)="newIn('income')">
+          <app-badge shape="ci" [size]="50" builtin="arrow-down" fixed="#34c98b"></app-badge>
+          <b>{{ 'categories.incomes' | t }}</b>
+        </button>
+      </div>
     </div>
   </ng-template>
 </ion-modal>
 
-<ion-modal class="editor-sheet" [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="editor() !== null" (didDismiss)="editor.set(null)">
   <ng-template>
     @if (editor(); as request) {
       <app-category-editor [editing]="request.category" [startKind]="request.kind"
@@ -177,7 +123,7 @@
 </ion-modal>
 
 <!-- The same editor the product's own movement form opens. -->
-<ion-modal class="editor-sheet" [isOpen]="kindEditor() !== null" (didDismiss)="kindEditor.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="kindEditor() !== null" (didDismiss)="kindEditor.set(null)">
   <ng-template>
     @if (kindEditor(); as open) {
       <app-product-kind-editor [editing]="open.kind"

@@ -146,3 +146,15 @@ test('currentPeriod is the period around today', () => {
   const today = on('2026-09-08');
   assert.deepEqual(currentPeriod('month', today), periodContaining('month', today));
 });
+
+test('a quarter is three calendar months, and steps three at a time', () => {
+  assert.deepEqual(periodContaining('quarter', on('2026-09-28')),
+    { kind: 'quarter', from: '2026-07-01', to: '2026-09-30' });
+  assert.deepEqual(periodContaining('quarter', on('2026-01-01')),
+    { kind: 'quarter', from: '2026-01-01', to: '2026-03-31' });
+  assert.deepEqual(shiftPeriod(periodContaining('quarter', on('2026-09-28')), 1),
+    { kind: 'quarter', from: '2026-10-01', to: '2026-12-31' });
+  assert.deepEqual(shiftPeriod(periodContaining('quarter', on('2026-01-15')), -1),
+    { kind: 'quarter', from: '2025-10-01', to: '2025-12-31' });
+  assert.equal(periodLabel(periodContaining('quarter', on('2026-08-08'))), 'julio – septiembre 2026');
+});
