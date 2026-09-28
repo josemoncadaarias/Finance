@@ -2052,7 +2052,7 @@ then does the next start. The groups and where each stands:
 | 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
-| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v4) | Sent 2026-09-28, waiting for Jose |
+| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
 | 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
 | 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
@@ -2184,6 +2184,31 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   that without a data change; to verify before building.
 - "Recalcular" is the round arrow in the title bar of the Rendimientos
   face.
+
+**And from his review of group 4 v4 (2026-09-28), for every group:**
+
+- **Separate information with a selector, never one long scroll.** The
+  way Inicio switches Gráfico / Movimientos: an account's page is
+  Productos | Movimientos | Pagos | Días; a product's form is Producto |
+  Saldo | Tasa | Bonificación (a new one: Producto | Saldo | Tasa); a CDT
+  is CDT | Al vencer | Pagos. The face and the name stay above it.
+- **The way back to Inicio is the house**: a round button beside the
+  figure, like Inicio's own pair (edit and piggy bank), next to the one
+  for the summary.
+- **A product's balance is said as a sum**: "Tiene hoy" first, then the
+  balance read at the bank (at the close of its day), plus what came in
+  and went out since, plus what it earned since. Then the one figure the
+  person types and its day, and apart, the day it starts earning. Words
+  only - the fields and the data stay as they are.
+- **Every account, product and category shows its icon**, wherever it is
+  named or chosen: "Pasa a", "Sale de", "Pasar el saldo a", the list to
+  pick from, the payments and the days.
+- **A product's own movement keeps its note**, with everything the note
+  does today: the usual one written for that product and category, and
+  the matches under it while typing (`4x`, `4y`).
+- (The black areas in the contact sheets sent before were empty slots,
+  not screens: nothing was missed. The sheets are now as wide as what
+  they hold.)
 
 ### The ideas, by what they would take
 
