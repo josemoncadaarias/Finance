@@ -1377,6 +1377,55 @@ backup restore against iOS's own SQLite backend.
      `sameMovementAs` runs for statements, so a purchase Jose typed before
      the SMS arrived is offered as "ya registrado", not proposed again.
 
+   **Ideas from Lukas's "atajos"** (Jose, 2026-09-28, from a screenshot of
+   Lukas's list of banks, each with "Instalar atajo"). **Proposed, nothing
+   built, nothing decided.** Mockups `docs/mockups/10a`-`10f`.
+
+   - **What an "atajo" is, verified**: an automation in Apple's Shortcuts
+     app, which an iPhone app hands the person to install. iPhone lets no
+     app read another app's notifications, so this is Apple's only door.
+     Its triggers (Apple's Shortcuts guide, looked up 2026-09-28) include
+     a MESSAGE arriving from a sender or containing a phrase, an EMAIL, and
+     an Apple Wallet TRANSACTION; there is NO "notification received"
+     trigger in any iOS version. Since iOS 17 these run without asking each
+     time. So Lukas's SMS banks (Bancolombia SMS) work by "when a message
+     from this sender arrives, pass its text to Lukas". How it reads an
+     app's notification (its ARQ card: "requiere el teléfono desbloqueado,
+     usa IA") was not verified - assumed a different trigger plus reading
+     the screen, since no notification trigger exists.
+   - **It is iPhone-only, and Android does not need it**: on Android the
+     app itself reads notifications (`NotificationCatcher`, built), and
+     SMS arrive as notifications too - plus the SMS inbox under Play's
+     money-management exception (above). The Android equivalent of a
+     "shortcut per bank" is a switch per bank, which this app already has.
+   - **What to take from Lukas: the presentation, not the mechanism.** One
+     card per bank, clearly on or off, each saying what it does. Proposed:
+     1. **"Tus bancos"** (`10a`): Avisos del banco reorganised around banks
+        instead of raw apps - each bank the person turned on, with its
+        channels (App, SMS, Correo), its last reading and how many it
+        proposed; below, "Encontrados en tu celular": senders and apps the
+        phone HAS received money-looking messages from, with "Activar".
+        Still no built-in list of banks: every name comes from the phone.
+     2. **Choosing SMS senders** (`10b`), never the whole messaging app.
+     3. **Teaching the app a bank's message** (`10c`): the mold of this
+        rule, shown - the amount, merchant and card highlighted in the text,
+        "Guardar y recordar", and the next one is read alone.
+     4. **Saving from a notification of this app's own** (`10d`): "Gasto de
+        45.900 en EXITO · Guardar / Revisar / Descartar" over the bank's.
+        The biggest one: it means reading in the background on the Java
+        side, against "nothing working in the background" above, and it
+        needs Jose's word on that trade-off. Never saved without the tap.
+     5. **Por revisar says where each was seen** (`10e`): "visto por aviso
+        y SMS", one purchase seen twice being one proposal (the sightings
+        design above), "Guardar 3 movimientos listos".
+     6. **On the day there is an iPhone version** (`10f`): "Instalar atajo"
+        for SMS senders, handing the text to the app through an App Intent.
+   - **Suggested order, if Jose agrees**: first the step this rule already
+     asks for - look at the raw notifications and SMS his banks send for a
+     few days; then 1, 2, 3 and 5 (they are the reading this rule designed,
+     given a face); 4 only after that works and if he accepts the
+     background cost; 6 with the iPhone version.
+
    **Several rows answered at once** (Jose, 2026-09-25, built). The review
    screen and the notifications screen share one gesture and one bar:
    "Seleccionar", or a long press on a row (the `contextmenu` event, which
@@ -3009,6 +3058,9 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Try the redesign on the phone and report what reads wrong: the list
       in "Start here" (Drive progress, long press, keypad, Registrar otro,
       sheets, the accent in the light theme).
+- [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
+      which to build and in what order, and whether a notification of the
+      app's own (`10d`) is worth reading in the background.
 - [ ] Say whether the keypad should start closed, and whether he misses the
       "=" key (both small changes). He liked it folding away (2026-09-28)
       and asked for the arrow that brings it back, done in #6.
