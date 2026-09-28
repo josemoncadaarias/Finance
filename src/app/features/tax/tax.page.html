@@ -1,101 +1,111 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>{{ text.title }}</ion-title>
-    <ion-buttons slot="end">
-      <app-cloud-button></app-cloud-button>
-      <app-language-button></app-language-button>
-    </ion-buttons>
-  </ion-toolbar>
+<!-- Simulador de renta (mockups 9a-9y). Looks and access only: the engine,
+     the rows, the casillas and the spreadsheet are rule 19's, untouched.
+     One screen of folding sections, never a wizard - seeing twenty boxes move
+     is how the form explains itself. -->
+<ion-header class="tax-head">
+  <div class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+    <div class="titles">
+      <h1>{{ text.title }}</h1>
+      <small>{{ 'ui.tax.form' | t }}</small>
+    </div>
+    <button type="button" class="ui-round" (click)="downloadExcel()" [disabled]="!!busyLabel()"
+            [attr.aria-label]="text.excelButton" [title]="text.excelButton">
+      <ion-icon name="download-outline"></ion-icon>
+    </button>
+    <span class="ui-info excel-info" role="button" (click)="info.set(text.excelHint + ' ' + excelFileName())"
+          [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+  </div>
 
-  <!-- The year, stepped like the period on the movements screen. A return is
-       one year and nothing else, so the whole form belongs to it. -->
-  <ion-toolbar class="stepper">
-    <ion-buttons slot="start">
-      <ion-button (click)="stepYear(-1)" [attr.aria-label]="text.previousYear">
-        <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+  <!-- The year, a full row with round arrows. A return is one year and
+       nothing else, so the whole form belongs to it. -->
+  <div class="year-row">
+    <button type="button" class="arrow" (click)="stepYear(-1)" [attr.aria-label]="text.previousYear">
+      <ion-icon name="chevron-back-outline"></ion-icon>
+    </button>
     <div class="year">
       <strong>{{ fill(text.yearLabel, { year: year() }) }}</strong>
-      <span class="save" [class.on]="saveState() !== 'idle'">
-        @if (saveState() === 'saving') { {{ text.saving }} }
-        @if (saveState() === 'saved') { {{ text.saved }} }
+      <span class="save">
+        @if (saveState() === 'saving') { <ion-icon name="sync-outline"></ion-icon>{{ text.saving }} }
+        @else { <ion-icon class="ok" name="checkmark-done-outline"></ion-icon>{{ text.saved }} }
       </span>
     </div>
-    <ion-buttons slot="end">
-      <ion-button (click)="stepYear(1)" [attr.aria-label]="text.nextYear">
-        <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
+    <button type="button" class="arrow" (click)="stepYear(1)" [attr.aria-label]="text.nextYear">
+      <ion-icon name="chevron-forward-outline"></ion-icon>
+    </button>
+  </div>
+
+  <!-- Once the big verdict has scrolled away it stays here, one line. -->
+  @if (scrolled() && status() !== 'opening') {
+    <div class="pinned" [class.owes]="owes()" [class.refund]="refund()">
+      <span class="tag">{{ verdictTag() | t }}</span>
+      <b>{{ money(owes() ? result().toPayMinor : result().inFavourMinor) }}</b>
+    </div>
+  }
 </ion-header>
 
-<ion-content #form [fullscreen]="true" [scrollEvents]="true" (ionScroll)="onScroll()">
+<ion-content #form [scrollEvents]="true" (ionScroll)="onScroll(); jump.measure()">
   @if (status() === 'opening') {
     <div class="state"><ion-spinner></ion-spinner></div>
   } @else {
+  <div class="ui-main">
 
-    <!-- The answer, always in view. Every box below exists to move this, and
-         watching it move while typing is how the form explains itself. -->
-    <section class="verdict" [class.owes]="owes()" [class.refund]="refund()">
-      <span class="tag">
-        @if (owes()) { {{ text.toPay }} }
-        @else if (refund()) { {{ text.inFavour }} }
-        @else { {{ text.settled }} }
-      </span>
-      <span class="figure">
-        {{ money(owes() ? result().toPayMinor : result().inFavourMinor) }}
-      </span>
+    <!-- The answer. Every box below exists to move this. -->
+    <section #hero class="verdict" [class.owes]="owes()" [class.refund]="refund()">
+      <span class="tag">{{ verdictTag() | t }}</span>
+      <span class="figure">{{ money(owes() ? result().toPayMinor : result().inFavourMinor) }}</span>
       @if (owes()) {
-        <span class="advice">{{ fill(text.savePerMonth, { amount: money(result().savePerMonthMinor) }) }}</span>
+        <span class="advice"><ion-icon name="wallet-outline"></ion-icon>{{ fill(text.savePerMonth, { amount: plain(result().savePerMonthMinor) }) }}</span>
       }
       <span class="detail">
-        {{ fill(text.taxLine, { tax: money(result().taxMinor), withheld: money(result().withheldMinor) }) }}
+        {{ fill(text.taxLine, { tax: plain(result().taxMinor), withheld: plain(result().withheldMinor) }) }}
       </span>
     </section>
 
     @if (inputs().uvtMinor === 0) {
-      <p class="missing">
+      <div class="ui-banner warn missing">
         <ion-icon name="alert-circle-outline"></ion-icon>
-        {{ fill(text.uvtMissing, { year: year() }) }}
-      </p>
+        <span>{{ fill(text.uvtMissing, { year: year() }) }}</span>
+      </div>
+      <div class="to-params">
+        <button type="button" class="ui-chip" (click)="goToParameters()">
+          <ion-icon name="options-outline"></ion-icon>{{ 'ui.tax.toParameters' | t }}
+        </button>
+      </div>
     }
 
-    <!-- How to read every box below: a key, not controls. It was two pills,
-         and pills read as tabs - Jose tapped them and nothing happened, which
-         is what a tab that does nothing looks like. So each look is shown as
-         a small sample of itself beside what it means, and nothing here is
-         shaped like something to press. -->
+    <!-- How to read every box below: a key, not controls. -->
     <p class="legend">
       <span class="key"><span class="sample typed"></span>{{ text.legendTyped }}</span>
       <span class="key"><span class="sample computed"></span>{{ text.legendComputed }}</span>
     </p>
 
-    <!-- The whole simulation as a spreadsheet, shaped like the one Jose kept
-         before this screen existed. -->
-    <div class="excel">
-      <button type="button" (click)="downloadExcel()">
-        <ion-icon name="download-outline"></ion-icon>
-        {{ text.excelButton }}
+    <div class="lead">
+      <span class="ui-lab">{{ 'ui.tax.sections' | t:{ count: sections.length } }}</span>
+      <button type="button" class="ui-chip" (click)="toggleAll()">
+        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+        {{ (allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t }}
       </button>
-      <p class="hint">{{ excelNotice() || text.excelHint }}</p>
     </div>
 
     @for (section of sections; track section.id) {
-      <section class="card">
-        <button type="button" class="head" (click)="toggle(section.id)"
-                [attr.aria-expanded]="isOpen(section.id)">
-          <span class="titles">
-            <span class="title">
+      <section class="card" [class.open]="isOpen(section.id)" [attr.id]="'tax-' + section.id">
+        <button type="button" class="head" (click)="toggle(section.id)" [attr.aria-expanded]="isOpen(section.id)">
+          <app-badge [size]="isOpen(section.id) ? 36 : 40" [builtin]="iconOf(section.id)" [fixed]="colorOf(section.id)"></app-badge>
+          <span class="ui-tx">
+            <b class="wrap">
               {{ section.title }}
               @if (section.titleGloss) { <span class="gloss">({{ section.titleGloss }})</span> }
-            </span>
-            @if (section.subtitle) { <span class="subtitle">{{ section.subtitle }}</span> }
+            </b>
+            @if (isOpen(section.id)) {
+              @if (section.subtitle) { <small class="wrap">{{ section.subtitle }}</small> }
+            } @else if (keyOf(section.id); as key) {
+              <small class="wrap key" [class.warn]="key.warn">{{ key.text }}</small>
+            }
           </span>
-          <ion-icon [name]="isOpen(section.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+          <ion-icon class="ui-chev" [name]="isOpen(section.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
         </button>
 
         @if (isOpen(section.id)) {
@@ -111,11 +121,14 @@
                         {{ $any(row).label }}
                         @if ($any(row).gloss) { <span class="gloss">({{ $any(row).gloss }})</span> }
                         @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
+                        @if ($any(row).hint) {
+                          <span class="ui-info" role="button" (click)="$event.preventDefault(); info.set($any(row).hint)"
+                                [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                        }
                       </span>
-                      @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
                     </span>
-                    <span class="field" [class.percent]="$any(row).format === 'percent'">
-                      @if ($any(row).format === 'money') { <span class="unit">$</span> }
+                    <span class="field">
+                      @if ($any(row).format === 'money') { <span class="unit pre">$</span> }
                       <input type="text"
                              [attr.inputmode]="$any(row).format === 'money' || $any(row).format === 'percent' ? 'decimal' : 'numeric'"
                              [value]="fieldText(row)"
@@ -124,6 +137,7 @@
                              (blur)="endDraft($any(row).key)">
                       @if ($any(row).format === 'percent') { <span class="unit">%</span> }
                       @if ($any(row).format === 'uvt') { <span class="unit">UVT</span> }
+                      @if ($any(row).format === 'count') { <span class="unit">{{ countUnit($any(row).key) | t }}</span> }
                     </span>
                   </label>
                 }
@@ -135,15 +149,22 @@
                         {{ $any(row).label }}
                         @if ($any(row).gloss) { <span class="gloss">({{ $any(row).gloss }})</span> }
                         @if ($any(row).box) { <span class="box">{{ text.box }} {{ $any(row).box }}</span> }
+                        @if ($any(row).hint) {
+                          <span class="ui-info" role="button" (click)="info.set($any(row).hint)"
+                                [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                        }
                       </span>
-                      @if ($any(row).hint) { <span class="hint">{{ $any(row).hint }}</span> }
                     </span>
-                    <span class="value">{{ computedText(row) }}</span>
+                    <span class="value" [class.owes]="$any(row).key === 'toPayMinor' && owes()">{{ computedText(row) }}</span>
                   </div>
                 }
 
                 @case ('note') {
-                  <p class="note">{{ $any(row).text }}</p>
+                  @if (section.id === 'notes') {
+                    <p class="bullet">{{ $any(row).text }}</p>
+                  } @else {
+                    <p class="note">{{ $any(row).text }}</p>
+                  }
                 }
 
                 @case ('special') {
@@ -151,18 +172,17 @@
 
                     @case ('references') {
                       <!-- Where this year's parameters come from, and how far
-                           each can be trusted. Borrowed and estimated figures
-                           are labelled rather than hidden: a figure that says
-                           it is an estimate beats a zero that looks exact. -->
+                           each can be trusted. A figure from a later year is
+                           the wrong figure, said loudly. -->
                       <div class="references">
-                        <p class="hint">{{ text.referencesIntro }}</p>
-                        <!-- A figure from a later year is not an approximation,
-                             it is the wrong figure - said loudly rather than as
-                             one more grey caption. -->
                         @if (anyFromLater()) {
-                          <p class="later-warning">
-                            <ion-icon name="warning-outline"></ion-icon>
-                            {{ laterWarning() }}
+                          <div class="ui-banner bad">
+                            <ion-icon name="warning-outline"></ion-icon><span>{{ laterWarning() }}</span>
+                          </div>
+                        } @else {
+                          <p class="caption">{{ 'ui.tax.whereFrom' | t }}
+                            <span class="ui-info" role="button" (click)="info.set(text.referencesIntro)"
+                                  [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
                           </p>
                         }
                         @for (ref of references(); track ref.label) {
@@ -170,128 +190,121 @@
                             <span class="standing" [class]="ref.sourced.standing"
                                   [class.later]="fromLater(ref.sourced)">{{ standingLabel(ref.sourced) }}</span>
                             <span class="body">
-                              <span>{{ ref.label }}: <strong>{{ ref.shown }}</strong></span>
-                              <span class="source">{{ sourceOf(ref.sourced) }}</span>
+                              <b>{{ ref.label }}: {{ ref.shown }}</b>
+                              <small>{{ sourceOf(ref.sourced) }}</small>
                             </span>
                           </div>
                         }
+                        <span class="ui-lab values">{{ 'ui.tax.values' | t }}</span>
                       </div>
                     }
 
                     @case ('inflationReference') {
-                      <div class="references">
-                        <div class="reference">
-                          <span class="standing" [class]="parameters().inflationary.standing"
-                                [class.later]="fromLater(parameters().inflationary)">{{ standingLabel(parameters().inflationary) }}</span>
-                          <span class="body">
-                            <span><strong>{{ percent(parameters().inflationary.value) }}</strong></span>
-                            <span class="source">{{ sourceOf(parameters().inflationary) }}</span>
-                          </span>
-                        </div>
+                      <div class="standing-line">
+                        <span class="standing" [class]="parameters().inflationary.standing"
+                              [class.later]="fromLater(parameters().inflationary)">{{ standingLabel(parameters().inflationary) }}</span>
+                        <small>{{ 'ui.tax.publishedLater' | t }}</small>
+                        <span class="ui-info" role="button" (click)="info.set(sourceOf(parameters().inflationary))"
+                              [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
                       </div>
                     }
 
                     @case ('inflationaryMode') {
-                      <!-- Two ways to answer one box: work it out from the
-                           yields, or write down what the certificate says.
-                           A segmented control rather than two buttons side by
-                           side: it reads as one question with two answers, and
-                           the chosen one is plainly the chosen one. -->
+                      <!-- Two ways to answer one box: one question, two answers. -->
                       <div class="mode">
-                        <span class="caption">{{ text.inflationaryModeTitle }}</span>
-                        <div class="options" role="radiogroup"
-                             [attr.aria-label]="text.inflationaryModeTitle">
+                        <span class="caption">{{ 'ui.tax.inflationary' | t }} <span class="box">{{ text.box }} 59</span>
+                          <span class="ui-info" role="button"
+                                (click)="info.set(inputs().capitalNonTaxableTyped === true ? text.inflationaryModeTypedHint : text.inflationaryModeWorkedHint)"
+                                [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                        </span>
+                        <div class="ui-seg" role="radiogroup" [attr.aria-label]="text.inflationaryModeTitle">
                           <button type="button" role="radio"
                                   [class.on]="inputs().capitalNonTaxableTyped !== true"
                                   [attr.aria-checked]="inputs().capitalNonTaxableTyped !== true"
-                                  (click)="setInflationaryTyped(false)">
-                            {{ text.inflationaryModeWorked }}
-                          </button>
+                                  (click)="setInflationaryTyped(false)">{{ text.inflationaryModeWorked }}</button>
                           <button type="button" role="radio"
                                   [class.on]="inputs().capitalNonTaxableTyped === true"
                                   [attr.aria-checked]="inputs().capitalNonTaxableTyped === true"
-                                  (click)="setInflationaryTyped(true)">
-                            {{ text.inflationaryModeTyped }}
-                          </button>
+                                  (click)="setInflationaryTyped(true)">{{ text.inflationaryModeTyped }}</button>
                         </div>
-                        <p class="hint">
-                          {{ inputs().capitalNonTaxableTyped === true
-                             ? text.inflationaryModeTypedHint : text.inflationaryModeWorkedHint }}
-                        </p>
                       </div>
                     }
 
                     @case ('employment') {
-                      <div class="employment">
-                        <div class="kinds" role="radiogroup">
-                          @for (kind of employmentKinds; track kind) {
-                            <button type="button" role="radio"
-                                    [class.on]="inputs().employment === kind"
-                                    [attr.aria-checked]="inputs().employment === kind"
-                                    (click)="setEmployment(kind)">
-                              {{ employmentText[kind].title }}
-                            </button>
-                          }
-                        </div>
-                        <p class="hint">{{ employmentText[inputs().employment].detail }}</p>
-                      </div>
+                      <button type="button" class="employment" (click)="employmentSheet.set(true)">
+                        <span class="ui-tx">
+                          <small>{{ 'ui.tax.employment' | t }}</small>
+                          <b>{{ employmentText[inputs().employment].title }}</b>
+                          <small class="wrap detail">{{ employmentText[inputs().employment].detail }}</small>
+                        </span>
+                        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                      </button>
                     }
 
                     @case ('sources') {
                       <div class="sources">
-                        <span class="caption">{{ text.sourcesTitle }}</span>
-                        <ul>
-                          @for (source of sources; track source.url) {
-                            <li><a [href]="source.url" target="_blank" rel="noopener">{{ source.label }}</a></li>
-                          }
-                        </ul>
+                        <span class="ui-lab">{{ 'ui.tax.sourcesCount' | t:{ count: sources.length } }}</span>
+                        @for (source of sources; track source.url) {
+                          <a [href]="source.url" target="_blank" rel="noopener">
+                            <ion-icon name="open-outline"></ion-icon><span>{{ source.label }}</span>
+                          </a>
+                        }
                       </div>
                     }
 
                     @case ('salaryPrefill') {
                       <div class="prefill">
-                        <button type="button" (click)="openSalary()">
-                          <ion-icon name="download-outline"></ion-icon>
-                          {{ fill(text.salaryButton, { year: year() }) }}
-                        </button>
+                        <div class="buttons">
+                          <button type="button" class="ui-chip" (click)="openSalary()">
+                            <ion-icon name="download-outline"></ion-icon>{{ fill(text.salaryButton, { year: year() }) }}
+                          </button>
+                          <span class="ui-info" role="button" (click)="info.set(text.salaryHint)"
+                                [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                        </div>
                         @if (salaryNotice()) {
-                          <p class="notice">{{ salaryNotice() }}</p>
-                        } @else {
-                          <p class="hint">{{ text.salaryHint }}</p>
+                          <p class="notice"><ion-icon name="pricetag-outline"></ion-icon><span>{{ salaryNotice() }}</span></p>
                         }
                       </div>
                     }
 
                     @case ('yieldsPrefill') {
                       <div class="prefill">
-                        <button type="button" (click)="useYields()">
-                          <ion-icon name="download-outline"></ion-icon>
-                          {{ fill(text.yieldsButton, { year: year() }) }}
-                        </button>
+                        <div class="buttons">
+                          <button type="button" class="ui-chip" (click)="useYields()">
+                            <ion-icon name="download-outline"></ion-icon>{{ fill(text.yieldsButton, { year: year() }) }}
+                          </button>
+                          @if (!beforeYields()) {
+                            <span class="ui-info" role="button" (click)="info.set(text.yieldsHint)"
+                                  [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                          }
+                        </div>
                         <!-- Back to what the boxes held before the first bring-in. -->
                         @if (beforeYields()) {
-                          <button type="button" class="undo" (click)="undoYields()">
-                            <ion-icon name="arrow-undo-outline"></ion-icon>
-                            {{ text.yieldsUndo }}
-                          </button>
+                          <div class="buttons">
+                            <button type="button" class="ui-chip" (click)="undoYields()">
+                              <ion-icon name="arrow-undo-outline"></ion-icon>{{ text.yieldsUndo }}
+                            </button>
+                            <span class="ui-info" role="button" (click)="info.set(text.yieldsHint)"
+                                  [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+                          </div>
                         }
                         @if (yieldsNotice()) {
-                          <p class="notice">{{ yieldsNotice() }}</p>
-                        } @else {
-                          <p class="hint">{{ text.yieldsHint }}</p>
+                          <p class="notice"><ion-icon name="trending-up-outline"></ion-icon><span>{{ yieldsNotice() }}</span></p>
                         }
                       </div>
                     }
 
                     @case ('rateTable') {
                       <div class="bands">
-                        <span class="caption">{{ text.rateTableTitle }}</span>
-                        @for (band of bands; track band.fromUvt; let i = $index) {
-                          <div class="band" [class.on]="activeBand() === i">
-                            <span>{{ fill(text.rateBand, { from: band.fromUvt.toLocaleString('es-CO') }) }}</span>
-                            <strong>{{ band.rateScaled / 10000 }}%</strong>
-                          </div>
-                        }
+                        <span class="ui-lab">{{ text.rateTableTitle }}</span>
+                        <div class="table">
+                          @for (band of bands; track band.fromUvt; let i = $index) {
+                            <div class="band" [class.on]="activeBand() === i">
+                              <span>{{ fill(text.rateBand, { from: band.fromUvt.toLocaleString('es-CO') }) }}</span>
+                              <b>{{ band.rateScaled / 10000 }}%</b>
+                            </div>
+                          }
+                        </div>
                       </div>
                     }
 
@@ -319,6 +332,7 @@
                                    (change)="onExtraLabel(slot, $any($event.target).value)">
                             <input type="text" class="amount" inputmode="decimal"
                                    [value]="extraText(slot)"
+                                   (focus)="takeOver($event.target)"
                                    (input)="onExtra(slot, typed($event.target, 'money'))"
                                    (blur)="endDraft('extra' + slot)">
                           </div>
@@ -336,57 +350,74 @@
     }
 
     <p class="disclaimer">{{ text.disclaimer }}</p>
-
-    <!-- The movements list's floating controls, for a form that runs to
-         fifteen sections. `slot="fixed"` keeps them still while the form
-         scrolls; the fold button never hides, and an arrow with nothing to do
-         keeps its place so the others do not shift. -->
-    <div class="jump" slot="fixed">
-      <button type="button" [class.gone]="atTop()" (click)="toTop()"
-              [attr.aria-label]="text.toTop" [title]="text.toTop">
-        <ion-icon name="arrow-up-outline"></ion-icon>
-      </button>
-
-      <button type="button" class="fold" (click)="toggleAll()"
-              [attr.aria-expanded]="!allCollapsed()"
-              [attr.aria-label]="allCollapsed() ? text.expandAll : text.collapseAll"
-              [title]="allCollapsed() ? text.expandAll : text.collapseAll">
-        <ion-icon [name]="allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-      </button>
-
-      <button type="button" [class.gone]="atBottom()" (click)="toBottom()"
-              [attr.aria-label]="text.toBottom" [title]="text.toBottom">
-        <ion-icon name="arrow-down-outline"></ion-icon>
-      </button>
-    </div>
+    <div class="ui-page-end"></div>
+  </div>
   }
+
+  <app-jump #jump [content]="form" [row]="true"></app-jump>
 </ion-content>
 
-<!-- Which category the salary is recorded under. A small sheet, sized to its
-     list: the person says which one it is rather than the app guessing from a
-     name. -->
-<ion-modal class="product-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)">
+<!-- The kind of work: one row on the form, the three kinds explained here. -->
+<ion-modal class="ui-sheet" [isOpen]="employmentSheet()" (didDismiss)="employmentSheet.set(false)"
+           [initialBreakpoint]="1" [breakpoints]="[0, 1]">
   <ng-template>
-    <div class="product-picker">
-      <h2>{{ text.salarySheetTitle }}</h2>
+    <div class="ui-sheet-body">
+      <h2 class="center">{{ 'ui.tax.employment' | t }}</h2>
+      <div class="ui-list kinds">
+        @for (kind of employmentKinds; track kind) {
+          <button type="button" class="ui-row plain" (click)="setEmployment(kind); employmentSheet.set(false)">
+            <app-badge shape="ci" [size]="38" [builtin]="employmentIcon[kind]" [fixed]="colorOf('situation')"></app-badge>
+            <span class="ui-tx">
+              <b>{{ employmentText[kind].title }}</b>
+              <small class="wrap">{{ employmentText[kind].detail }}</small>
+            </span>
+            @if (inputs().employment === kind) { <ion-icon class="check ui-p" name="checkmark-outline"></ion-icon> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Which category the salary is recorded under: the person says which. -->
+<ion-modal class="ui-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)"
+           [initialBreakpoint]="1" [breakpoints]="[0, 1]">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <h2 class="center">{{ text.salarySheetTitle }}</h2>
+      <p class="hint center">{{ 'ui.tax.incomeOf' | t:{ year: year() } }}</p>
       @if (salaryOptions().length === 0) {
-        <p class="empty">{{ fill(text.salaryEmpty, { year: year() }) }}</p>
+        <p class="hint center">{{ fill(text.salaryEmpty, { year: year() }) }}</p>
       } @else {
-        <ion-list [inset]="true">
+        <div class="ui-list">
           @for (option of salaryOptions(); track option.id) {
-            <ion-item button lines="full" (click)="useSalary(option)">
-              <ion-label>{{ option.name }}</ion-label>
-              <ion-note slot="end">{{ money(option.totalMinor) }}</ion-note>
-            </ion-item>
+            <button type="button" class="ui-row plain" (click)="useSalary(option)">
+              <app-badge [size]="38" [builtin]="option.icon" [customId]="option.customIconId"
+                         [tone]="option.color" [seed]="option.id" fallback="cash"></app-badge>
+              <span class="ui-tx">
+                <b>{{ option.name }}</b>
+                <small>{{ option.count === 1 ? ('ui.tax.movementsOne' | t) : ('ui.tax.movements' | t:{ count: option.count }) }}</small>
+              </span>
+              <span class="ui-am">{{ plain(option.totalMinor) }}</span>
+            </button>
           }
-        </ion-list>
+        </div>
       }
-      <ion-button expand="block" fill="clear" (click)="salarySheet.set(false)">{{ text.close }}</ion-button>
+      <button type="button" class="ui-btn ghost close" (click)="salarySheet.set(false)">{{ text.close }}</button>
     </div>
   </ng-template>
 </ion-modal>
 
 <!-- Writing the spreadsheet holds the screen; it says so. -->
 @if (busyLabel()) {
-  <app-busy-overlay [label]="busyLabel()"></app-busy-overlay>
+  <app-busy-overlay icon="grid-outline" [label]="busyLabel()"></app-busy-overlay>
+}
+
+@if (toast(); as said) {
+  <div class="ui-toast"><ion-icon name="checkmark-circle"></ion-icon><span>{{ said }}</span></div>
+}
+
+@if (info(); as said) {
+  <div class="info-scrim" (click)="info.set(null)"></div>
+  <div class="info-bubble" (click)="info.set(null)">{{ said }}</div>
 }

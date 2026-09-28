@@ -16,16 +16,14 @@
  * with the DIAN's own terms kept in Spanish so they still match the form.
  */
 
-import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
-import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-  IonMenuButton, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonNote,
-} from '@ionic/angular';
+import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { Location } from '@angular/common';
+import { IonContent, IonHeader, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
 import { groupTypedAmount } from '../../core/database/typed-amount';
 import { parsePercentToScaled } from '../../core/yields/yield-math';
@@ -48,6 +46,8 @@ import type { EmploymentKind, TaxInputs } from '../../core/tax/types';
 import { taxWorkbook, XLSX_MIME } from '../../core/tax/tax-workbook';
 import { saveFile } from '../../core/files/save-file';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import { JumpComponent } from '../../shared/ui/jump.component';
 
 /** A category the salary could be recorded under, with what it holds this year. */
 interface SalaryOption {
@@ -55,16 +55,43 @@ interface SalaryOption {
   name: string;
   totalMinor: number;
   count: number;
+  icon: string | null;
+  customIconId: number | null;
+  color: string | undefined;
 }
+
+/** What a closed section says of itself, and whether it is a warning. */
+interface SectionKey {
+  text: string;
+  warn?: boolean;
+}
+
+/** Each section's icon and colour (mockups 9a, 9b). */
+const SECTION_FACE: Record<string, { icon: string; color: string }> = {
+  situation: { icon: 'person', color: '#6378ff' },
+  parameters: { icon: 'options', color: '#8a94ad' },
+  labour: { icon: 'briefcase', color: '#6378ff' },
+  fees: { icon: 'laptop', color: '#38a8e8' },
+  capital: { icon: 'trending-up', color: '#34c98b' },
+  other: { icon: 'cash', color: '#8bc34a' },
+  general: { icon: 'layers', color: '#9b7bff' },
+  capped: { icon: 'shield-checkmark', color: '#7c6cf0' },
+  uncapped: { icon: 'people', color: '#e86a9a' },
+  tax: { icon: 'calculator', color: '#f0883a' },
+  withholding: { icon: 'receipt', color: '#2ec4b6' },
+  settle: { icon: 'flag', color: '#f0566a' },
+  planning: { icon: 'calendar', color: '#f5b83d' },
+  voluntary: { icon: 'leaf', color: '#34c98b' },
+  notes: { icon: 'document-text', color: '#8a94ad' },
+};
 
 @Component({
   selector: 'app-tax',
   templateUrl: './tax.page.html',
   styleUrls: ['./tax.page.scss'],
   imports: [
-    LanguageButtonComponent, CloudButtonComponent, BusyOverlayComponent,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon,
-    IonMenuButton, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonNote,
+    TranslatePipe, BusyOverlayComponent, BadgeComponent, JumpComponent,
+    IonContent, IonHeader, IonIcon, IonSpinner, IonModal,
   ],
 })
 export class TaxPage {
@@ -72,6 +99,7 @@ export class TaxPage {
   readonly status = this.database.status;
 
   private readonly i18n = inject(I18nService);
+  private readonly location = inject(Location);
   private readonly yieldsReport = inject(YieldsReportService);
 
   /**
@@ -123,6 +151,12 @@ export class TaxPage {
 
   readonly saveState = signal<'idle' | 'saving' | 'saved'>('idle');
   readonly salarySheet = signal(false);
+  readonly employmentSheet = signal(false);
+  /** The (i) bubble on show, if any. */
+  readonly info = signal<string | null>(null);
+  /** A short notice that goes by itself: the spreadsheet saved. */
+  readonly toast = signal<string | null>(null);
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
   readonly salaryOptions = signal<SalaryOption[]>([]);
   readonly salaryNotice = signal('');
   readonly yieldsNotice = signal('');
@@ -149,8 +183,8 @@ export class TaxPage {
    */
   private readonly drafts = signal<ReadonlyMap<string, string>>(new Map());
 
-  private readonly closed = signal<ReadonlySet<string>>(
-    new Set(TAX_FORM.filter(section => section.collapsed).map(section => section.id)));
+  /** Every section closed on opening (mockup 9a): the whole return reads closed. */
+  private readonly closed = signal<ReadonlySet<string>>(new Set(TAX_FORM.map(section => section.id)));
 
   private pending: { year: number; inputs: TaxInputs } | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -277,29 +311,22 @@ export class TaxPage {
   // ---------------------------------------------------------------------------
 
   /**
-   * The same floating controls as the movements list: to the top, fold or
-   * open everything, to the bottom.
-   *
-   * Unlike the list, the fold control stays in view all the time - this form
-   * has no fold button of its own at the top to stand in for it, and Jose
-   * asked for it fixed. The arrows keep their place when they have nothing to
-   * do, so the button between them never moves under the thumb.
+   * The two arrows are the shared `app-jump`, side by side above the bar so
+   * they leave the value column alone (mockup 9e). What is measured here is
+   * only whether the big verdict has scrolled away, so its one-line copy can
+   * take its place under the year.
    */
   private readonly content = viewChild<IonContent>('form');
-  readonly atTop = signal(true);
-  readonly atBottom = signal(false);
+  private readonly hero = viewChild<ElementRef<HTMLElement>>('hero');
+  readonly scrolled = signal(false);
 
-  /** Re-reads the position, writing a signal only when an answer changes. */
   private async measure(): Promise<void> {
     const content = this.content();
+    const hero = this.hero()?.nativeElement;
     if (!content) return;
-
     const element = await content.getScrollElement();
-    const top = element.scrollTop <= 4;
-    const bottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 4;
-
-    if (top !== this.atTop()) this.atTop.set(top);
-    if (bottom !== this.atBottom()) this.atBottom.set(bottom);
+    const past = hero ? element.scrollTop > hero.offsetTop + hero.offsetHeight - 8 : element.scrollTop > 200;
+    if (past !== this.scrolled()) this.scrolled.set(past);
   }
 
   /** Folding changes how tall the form is, and no scroll event says so. */
@@ -311,14 +338,97 @@ export class TaxPage {
     void this.measure();
   }
 
-  async toTop(): Promise<void> {
-    await this.content()?.scrollToTop(300);
-    await this.measure();
+  back(): void {
+    this.location.back();
   }
 
-  async toBottom(): Promise<void> {
-    await this.content()?.scrollToBottom(300);
-    await this.measure();
+  /** "A pagar", "A favor" or "En paz", for the verdict and its pinned line. */
+  readonly verdictTag = computed((): TranslationKey =>
+    this.owes() ? 'ui.tax.toPay' : this.refund() ? 'ui.tax.inFavour' : 'ui.tax.settled');
+
+  /** A year without UVT: open Parámetros del año and scroll to it. */
+  async goToParameters(): Promise<void> {
+    if (!this.isOpen('parameters')) this.toggle('parameters');
+    await new Promise(resolve => setTimeout(resolve, 30));
+    const target = document.getElementById('tax-parameters');
+    const content = this.content();
+    if (target && content) await content.scrollToPoint(0, target.offsetTop - 8, 300);
+  }
+
+  iconOf(id: string): string {
+    return SECTION_FACE[id]?.icon ?? 'document-text';
+  }
+
+  colorOf(id: string): string {
+    return SECTION_FACE[id]?.color ?? '#8a94ad';
+  }
+
+  readonly employmentIcon: Record<EmploymentKind, string> = {
+    ordinary: 'briefcase', integral: 'ribbon', independent: 'laptop',
+  };
+
+  /** The unit printed inside a box that counts. */
+  countUnit(key: string): TranslationKey {
+    return key === 'monthsWorked' ? 'ui.tax.months' : 'ui.tax.persons';
+  }
+
+  /**
+   * What a closed section says of itself (mockups 9a, 9b): the casilla that
+   * sums it up, or the one thing worth knowing about it, so the whole return
+   * reads with every section closed.
+   */
+  keyOf(id: string): SectionKey | null {
+    const t = (key: string, values?: Record<string, string | number>) => this.i18n.t(key as TranslationKey, values);
+    const result = this.result();
+    const inputs = this.inputs();
+
+    if (id === 'situation') {
+      const dependents = inputs.dependents ?? 0;
+      const who = dependents === 0 ? t('ui.tax.noDependents')
+        : dependents === 1 ? t('ui.tax.dependentsOne') : t('ui.tax.dependents', { count: dependents });
+      return { text: `${this.employmentText[inputs.employment].title} · ${who}` };
+    }
+    if (id === 'parameters') {
+      if (inputs.uvtMinor === 0) return { text: t('ui.tax.noUvt', { year: this.year() }), warn: true };
+      const p = this.parameters();
+      const all = [p.uvt, p.minimumWage, p.inflationary];
+      const borrowed = all.filter(one => one.standing === 'reference');
+      const estimated = all.filter(one => one.standing === 'estimate').length;
+      const uvt = t('ui.tax.uvt', { uvt: this.format(inputs.uvtMinor, 'money') });
+      const parts = [uvt];
+      if (borrowed.length > 0) {
+        const from = borrowed[0].fromYear;
+        parts.push(borrowed.length === 1 ? t('ui.tax.refOne', { year: from })
+          : t('ui.tax.refMany', { count: borrowed.length, year: from }));
+      }
+      if (estimated > 0) parts.push(estimated === 1 ? t('ui.tax.estOne') : t('ui.tax.estMany', { count: estimated }));
+      if (parts.length === 1) parts.push(t('ui.tax.allOfficial'));
+      return { text: parts.join(' · '), warn: this.anyFromLater() };
+    }
+    if (id === 'settle') {
+      if (this.owes()) return { text: `${this.text.box} 134 · ${t('ui.tax.keyToPay', { amount: this.plain(result.toPayMinor) })}` };
+      return { text: `${this.text.box} 137 · ${t('ui.tax.keyInFavour', { amount: this.plain(result.inFavourMinor) })}` };
+    }
+    if (id === 'planning') return { text: t('ui.tax.keySave', { amount: this.plain(result.savePerMonthMinor) }) };
+    if (id === 'voluntary') return { text: t('ui.tax.keyRecommended', { amount: this.plain(result.voluntaryOptimalMinor) }) };
+    if (id === 'notes') {
+      const section = this.sections.find(one => one.id === 'notes');
+      const notes = section?.rows.filter(row => row.kind === 'note').length ?? 0;
+      return { text: t('ui.tax.keyNotes', { notes, sources: this.sources.length }) };
+    }
+
+    // Everything else: the last total carrying a casilla.
+    const section = this.sections.find(one => one.id === id);
+    const total = [...(section?.rows ?? [])].reverse()
+      .find(row => row.kind === 'computed' && row.total && row.box);
+    if (!total || total.kind !== 'computed') return section?.subtitle ? { text: section.subtitle } : null;
+    const value = (result as unknown as Record<ResultKey, number>)[total.key];
+    return { text: `${this.text.box} ${total.box} · ${this.format(value, total.format)}` };
+  }
+
+  /** The spreadsheet's name, said in the (i) beside its button. */
+  excelFileName(): string {
+    return fill(this.text.excelFile, { year: this.year() });
   }
 
   // ---------------------------------------------------------------------------
@@ -500,6 +610,9 @@ export class TaxPage {
         name: category.name,
         totalMinor: byId.get(category.id)?.total_base_minor ?? 0,
         count: byId.get(category.id)?.count ?? 0,
+        icon: category.builtin_icon ?? null,
+        customIconId: category.custom_icon_id ?? null,
+        color: category.color,
       }))
       .filter(option => option.totalMinor > 0)
       .sort((a, b) => b.totalMinor - a.totalMinor));
@@ -520,7 +633,7 @@ export class TaxPage {
     this.inputs.update(inputs => ({ ...inputs, monthlySalaryMinor: monthly }));
     this.endDraft('monthlySalaryMinor');
     this.salaryNotice.set(fill(this.text.salaryUsed, {
-      total: this.money(option.totalMinor), category: option.name, months,
+      total: this.plain(option.totalMinor), category: option.name, months,
     }));
     this.salarySheet.set(false);
     this.schedule();
@@ -600,11 +713,11 @@ export class TaxPage {
     for (let at = 0; at < 4; at++) this.endDraft(`extra${at}`);
 
     const said = [fill(this.text.yieldsUsed, {
-      gross: this.money(year.workedMinor),
+      gross: this.plain(year.workedMinor),
       days: year.workedDays,
-      estimated: this.money(year.estimatedMinor),
-      cashback: this.money(totals.cashbackMinor),
-      withheld: this.money(totals.withheldMinor),
+      estimated: this.plain(year.estimatedMinor),
+      cashback: this.plain(totals.cashbackMinor),
+      withheld: this.plain(totals.withheldMinor),
     })];
     // Always said, and without names: every investment account is left out,
     // not only the few that happen to have a product here (Jose, 2026-09-25).
@@ -643,16 +756,32 @@ export class TaxPage {
     await new Promise(resolve => setTimeout(resolve));
     try {
       const saved = await saveFile(new Blob([taxWorkbook(this.inputs(), new Date(), this.i18n.language())], { type: XLSX_MIME }), name);
-      if (saved) this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
+      if (saved) {
+        this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
+        this.say(this.i18n.t('ui.tax.saved', { file: name }));
+      }
     } catch (error) {
       this.excelNotice.set(error instanceof Error ? error.message : String(error));
+      this.info.set(this.excelNotice());
     } finally {
       this.busyLabel.set('');
     }
   }
 
+  /** The verdict's figure: "$ 4.812.000". */
   money(minor: number): string {
-    return formatMoney(minor, 'COP');
+    return '$ ' + this.format(minor, 'money');
+  }
+
+  /** A figure inside a sentence: whole pesos, no symbol ("401.000"). */
+  plain(minor: number): string {
+    return this.format(minor, 'money');
+  }
+
+  private say(text: string): void {
+    this.toast.set(text);
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toast.set(null), 2600);
   }
 
   /**
@@ -771,7 +900,6 @@ export class TaxPage {
 
   private format(value: number, format: FieldFormat, computedValue = false): string {
     if (format === 'money') {
-      if (computedValue) return formatMoney(value, 'COP');
       if (value % 100 === 0) return formatMoney(value / 100, 'COP', { minorUnits: 0, withSymbol: false });
       return formatMoney(value, 'COP', { withSymbol: false });
     }
