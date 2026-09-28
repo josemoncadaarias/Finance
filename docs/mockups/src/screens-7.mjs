@@ -105,11 +105,12 @@ S['7i-sin-permiso'] = `${top('Avisos del banco')}<main style="padding-top:18px">
 S['7j-sin-permiso-ayuda'] = S['7i-sin-permiso'] + `<div style="position:absolute;left:24px;right:24px;bottom:236px;background:#26324f;border:1px solid #3a4a72;border-radius:14px;padding:11px 13px;font-size:13px;line-height:1.4;color:#e3e8f4;box-shadow:0 10px 26px rgba(0,0,0,.5)">
  <span style="position:absolute;bottom:-7px;right:110px;width:12px;height:12px;background:#26324f;border-right:1px solid #3a4a72;border-bottom:1px solid #3a4a72;transform:rotate(45deg)"></span>Android no sabe pedir menos: va a decir que la app puede leer TODOS los avisos del celular. Lo que la app hace con ellos es lo de arriba.</div>`;
 
-// 9. Nothing yet, and a phone where it cannot exist.
+// 9. Nothing yet.
 const empty = (i, c, t, s) => `${top('Avisos del banco')}<main style="padding-top:90px;text-align:center">${centred(ci(i, c, 84), 16)}
  <b style="font-size:19px">${t}</b><div class="sub" style="margin:8px 24px 0;line-height:1.45">${s}</div></main>${tabs('Más')}`;
 S['7k-todavia-nada'] = empty('hourglass-outline', C.blu, 'Todavía no ha llegado ningún aviso', 'Deja el celular un rato y vuelve: aquí aparecen las apps a medida que manden avisos.');
-S['7l-solo-android'] = empty('logo-android', C.grn, 'Esto solo existe en Android', 'iOS no deja que una app lea los avisos de otra, y el navegador tampoco tiene avisos. El resto de la app funciona igual.');
+// (No "only on Android" screen: where the phone cannot read notifications,
+// Más simply does not offer this entry - see CLAUDE.md, group 7.)
 
 // 10. A search that finds nothing says so.
 S['7m-busqueda-sin-nada'] = page(`${faces(1)}${chipApps('Todas las apps')}<div class="search" style="margin-top:10px;border-color:var(--pr)">${ic('search-outline')}<span>nequi</span>${ic('close-circle', 'mu', 'margin-left:auto;width:18px;height:18px')}</div>

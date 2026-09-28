@@ -2466,8 +2466,19 @@ or refuse:
   (Ocultar asked first).
 - **Without permission**: the three promises as rows, "Abrir los ajustes
   de Android", Android's own wording behind an (i) under it, and "Ya lo
-  di, volver a revisar". Nothing yet, and "Esto solo existe en Android",
-  are an icon and one sentence.
+  di, volver a revisar". Nothing yet is an icon and one sentence.
+- **No "Esto solo existe en Android" screen** (Jose, 2026-09-28): where
+  the phone cannot read notifications - an iPhone, the browser - Más
+  simply does not offer the entry, rather than a dead end saying no. The
+  feature keeps its general name, because on an iPhone the same place is
+  where purchases would come in another way: from memory, not verified -
+  iOS 17.4's FinanceKit lets an approved app read Apple Wallet
+  transactions (Apple grants that entitlement case by case, and it began
+  in the United States), and the Shortcuts app can run an automation when
+  a Wallet card is used, which some budget apps rely on. Whichever it is,
+  those purchases would land as proposals in Movimientos por revisar,
+  like a statement or a notice (rule 22). To look up properly the day
+  there is an iOS build.
 
 ### The ideas, by what they would take
 
