@@ -290,13 +290,12 @@
             }
           </button>
         }
-        @if (isTransfer()) {
-          <button type="button" class="ui-row" (click)="chooseAnotherAccount()">
-            <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
-            <span class="ui-tx"><b class="ui-p">{{ 'entry.product.otherAccount' | t }}</b></span>
-            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-          </button>
-        }
+        <!-- Another account, from the list itself (1l, 4t02). -->
+        <button type="button" class="ui-row" (click)="chooseAnotherAccount()">
+          <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+          <span class="ui-tx"><b class="ui-p">{{ 'entry.product.otherAccount' | t }}</b></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
       </div>
     </div>
   </ng-template>

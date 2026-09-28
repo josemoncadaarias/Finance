@@ -235,6 +235,15 @@
             }
           </button>
         }
+        <!-- Another account, from the list itself (1l): the same account list
+             the account line opens. -->
+        @if (!isTransfer() && canSwitch()) {
+          <button type="button" class="ui-row" (click)="pickingProduct.set(null); pickingAccount.set(true)">
+            <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+            <span class="ui-tx"><b class="ui-p">{{ 'entry.product.otherAccount' | t }}</b></span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
       </div>
     </div>
   </ng-template>

@@ -36,6 +36,7 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { AccentService } from '../../core/theme/accent.service';
 import type { SqlDriver } from '../../core/database/sql-driver';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -119,6 +120,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** Open while another account is being chosen. */
   readonly pickingAccount = signal(false);
+  private readonly accent = inject(AccentService);
+  readonly accentColor = computed(() => this.accent.accent().color);
 
   /** Set while its products are being fetched, which is one query. */
   readonly switching = signal(false);
