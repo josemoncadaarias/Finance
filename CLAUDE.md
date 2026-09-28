@@ -2049,7 +2049,7 @@ then does the next start. The groups and where each stands:
 
 | Group | Screens | Mockups | Status |
 |---|---|---|---|
-| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v4) | Sent 2026-09-28, waiting for Jose |
+| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `b0*` (v3 draft) | To redo |
 | 3 | Categories and their editor | `b08`-`b13` (v3 draft) | To redo |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `c*` (v3 draft) | To redo |
@@ -2097,6 +2097,33 @@ then does the next start. The groups and where each stands:
   today and stays, but said plainly and quietly inside the row, not as an
   alarming card.
 
+**And from his review of group 1 v4 (2026-09-28):**
+
+- **Transfers are always on show beside income and spending, never inside
+  them**, as the app does today (`totalsOf`: Movido / Recibido). One
+  account: Entró, Salió, and in blue Recibido and Enviado (from and to the
+  person's own accounts). All accounts: a transfer nets to nothing, and one
+  line says how much moved between them. A transfer in a list carries the
+  swap icon, in blue, with where it came from or went to.
+- **One account's quick buttons stay beside its balance**: edit the
+  account (the drawn card with a pencil) and, for an account that earns,
+  its products and yields (the piggy bank).
+- **The "+" lives in the middle of the floating bar**, never floating over
+  the page, where it covered balances.
+- **No eye to hide amounts** (idea 3/H rejected): the name in the header
+  has the row to itself.
+- **"Invertir" is a round icon on the line between the two ends**, no
+  label and no row of its own; "Pasar todo" with its figure sits under the
+  amount it fills.
+- **Every end of a movement names its account and, under it, its
+  product** when the account has products - spending, income, a transfer
+  and a move between products alike - changeable right there. Lists say
+  the product too ("Cuenta de ahorros → Tarjeta Coral").
+- **The donut keeps one size whatever the month holds.** Beside it, the
+  five largest categories and "Otras N", names ending in "…", percentages
+  in a column of their own; the total spent sits inside the ring. Every
+  category with its figure is the list under it.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -2105,7 +2132,7 @@ then does the next start. The groups and where each stands:
 | 21 | Settings screen, grouped, value on each row | Medium | Drawer | Proposed |
 | 20 | Empty state on every screen and section | Small, many places | - | Proposed |
 | 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
-| 3 | Privacy mode: eye in the header hides amounts | Small (`formatMoney`) | - | Proposed |
+| 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
 | 4 | Biometric or PIN lock (free) | Small, plugin | iOS rule | Proposed |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
@@ -2120,7 +2147,7 @@ then does the next start. The groups and where each stands:
 | 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
 | 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
 | F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
-| H | Hide amounts with the eye (same as 3) | Small | - | Proposed, liked by Jose |
+| H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
 | P | Choose the accent: Zafiro recommended | Small | Design | Waiting for Jose |
 | - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
 | - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |

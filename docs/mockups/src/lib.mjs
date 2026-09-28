@@ -116,6 +116,7 @@ nav div .ic{width:23px;height:23px}nav .on{background:${tint(ACCENT, .2)};color:
 nav .dot{position:absolute;top:5px;right:26px;width:9px;height:9px;border-radius:50%;background:var(--red);border:2px solid #111b2f}
 .fab{position:absolute;right:20px;bottom:104px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;display:grid;place-items:center;box-shadow:0 8px 22px ${tint(ACCENT, .5)}}
 .fab .ic{width:30px;height:30px}
+nav .plus{flex:none;width:52px;height:52px;padding:0;margin:0 4px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;display:grid;place-items:center;box-shadow:0 6px 18px ${tint(ACCENT, .45)}}nav .plus .ic{width:28px;height:28px}
 .fade{position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(transparent,var(--bg) 55%)}
 .scrim{position:absolute;inset:0;background:rgba(2,6,14,.68)}
 .sheet{position:absolute;left:0;right:0;bottom:0;background:#0f192c;border-radius:26px 26px 0 0;padding:10px 16px 26px;border-top:1px solid #22314f}
@@ -160,8 +161,10 @@ nav .dot{position:absolute;top:5px;right:26px;width:9px;height:9px;border-radius
 
 export const status = `<div class="status"><span>9:41</span><span>5G ▮▮▮ 87%</span></div>`;
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
-export const tabs = (on, dot = false) => `<nav>${[['home-outline', 'Inicio'], ['wallet-outline', 'Cuentas'], ['stats-chart-outline', 'Reporte'], ['grid-outline', 'Más']]
-  .map(([i, l]) => `<div class="${l === on ? 'on' : ''}">${ic(i)}${l}${dot && l === 'Más' ? '<span class="dot"></span>' : ''}</div>`).join('')}</nav>`;
+// The "+" sits in the middle of the bar itself (v5): floating over the page it
+// covered balances and amounts at the end of a list.
+export const tabs = (on, dot = false) => `<nav>${[['home-outline', 'Inicio'], ['wallet-outline', 'Cuentas'], ['+'], ['stats-chart-outline', 'Reporte'], ['grid-outline', 'Más']]
+  .map(([i, l]) => i === '+' ? `<div class="plus">${ic('add')}</div>` : `<div class="${l === on ? 'on' : ''}">${ic(i)}${l}${dot && l === 'Más' ? '<span class="dot"></span>' : ''}</div>`).join('')}</nav>`;
 export const top = (title, { sub = '', left = 'back', right = '', extra = '' } = {}) => `<div class="bar-top">${st}
  <div class="tt">${left === 'back' ? ic('chevron-back-outline', 'back') : left === 'x' ? ic('close', 'back') : left}
  <h1>${title}${sub ? `<small>${sub}</small>` : ''}</h1>${right}</div>${extra}</div>`;

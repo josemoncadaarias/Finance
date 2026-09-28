@@ -10,7 +10,7 @@ checklist wins.
 
 Agreed group by group (see the table in CLAUDE.md, "How the redesign is
 agreed"). Files starting with a digit are the current version of their
-group (v4 and later); `b*`, `c*`, `d*` are v3 drafts, kept until their group
+group (v4 and later). The "+" sits in the middle of the floating bar from v5, in every file that draws the bar; `b*`, `c*`, `d*` are v3 drafts, kept until their group
 is redone, and superseded by Jose's review of 2026-09-28.
 
 ## The files
@@ -18,7 +18,7 @@ is redone, and superseded by Jose's review of 2026-09-28.
 | File | Screen |
 |---|---|
 | `00-azul-opciones` | The accent: Zafiro (recommended), Cobalto, Índigo, and today's |
-| `1a`–`1n` | Group 1 (v4): Inicio, amounts hidden, one account with a long name (ellipsis and sliding), the "+" sheet, the movement form for spending, writing a note, a transfer, a move between products, two currencies, the account, product and category lists, editing and deleting |
+| `1a`–`1n` | Group 1 (v5): Inicio (transfers apart, the donut with a capped legend), one account with products (its two quick buttons), one account with a long name (ellipsis and sliding), the "+" sheet, the movement form for spending, writing a note, a transfer, a move between products, two currencies, the account, product and category lists, editing and deleting |
 | `b01`–`b04` | Cuentas, how net worth is built, currencies and today's rate, adding a currency |
 | `b05`–`b07` | New account (from a PDF or by hand), editing a card, its icon and colour (`b06b`), the limit history |
 | `b08`–`b13` | Categories (expense, product), and the editor: colour by family, icon, own image, a product category |

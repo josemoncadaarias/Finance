@@ -291,7 +291,7 @@ formulas and the spreadsheet do not change (rule 19).
 
 ## Added by the redesign, each needing Jose's word separately
 
-Not part of "only looks": the eye that hides amounts, frequent movements in
+Not part of "only looks" (the eye that hid amounts was rejected, 2026-09-28): frequent movements in
 the "+" sheet, the biometric lock, the welcome steps for a new user,
 "Eliminar mis datos", the version on screen, fortnight periods. They are in
 the table in CLAUDE.md, "Ideas waiting for Jose's word".
