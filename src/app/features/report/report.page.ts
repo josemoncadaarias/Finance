@@ -414,11 +414,11 @@ export class ReportPage {
   iconOf(block: Block): string {
     const id = block.id;
     const pick: [RegExp, string][] = [
-      [/infla/, 'flame-outline'], [/compar|before|previous|antes|against/, 'git-compare-outline'],
-      [/change|jump|cambi/, 'flash-outline'], [/where|categor|went/, 'pie-chart-outline'],
-      [/recurr|repeat|monthly-charge|charge/, 'repeat-outline'], [/month|trend|cumul|acum/, 'bar-chart-outline'],
-      [/account|cuenta|best|top/, 'trophy-outline'], [/largest|biggest|grande/, 'arrow-up-outline'],
-      [/note|worth|nota/, 'bulb-outline'], [/growth|balance|saldo/, 'trending-up-outline'],
+      [/infla/, 'flame-outline'], [/compar|before|previous|against/, 'git-compare-outline'],
+      [/change|jump/, 'flash-outline'], [/where|categor|went/, 'pie-chart-outline'],
+      [/recurr|repeat|charge/, 'repeat-outline'], [/month|trend|cumul/, 'bar-chart-outline'],
+      [/account|best|top/, 'trophy-outline'], [/largest|biggest/, 'arrow-up-outline'],
+      [/note|worth/, 'bulb-outline'], [/growth|balance/, 'trending-up-outline'],
     ];
     for (const [pattern, icon] of pick) if (pattern.test(id)) return icon;
     return block.kind === 'figures' ? 'stats-chart-outline' : block.kind === 'note' ? 'bulb-outline'

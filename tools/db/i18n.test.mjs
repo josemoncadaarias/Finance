@@ -40,6 +40,9 @@ test('no phrase is left empty or accidentally identical', () => {
     'csv.no',
     // A colour's name, the same word in both.
     'accent.coral',
+    'ui.notifications.apps',
+    'ui.notifications.appsOne',
+    'ui.notifications.app',
     // The banks say cashback in Spanish too. "Reembolso" would be a word
     // nobody uses for the thing that comes back off the card.
     'products.kind.cashback',
