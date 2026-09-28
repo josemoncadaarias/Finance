@@ -171,9 +171,10 @@ export const jump = (bottom = 112, show = 'both') => `<div class="float-ctl" sty
 // how many, the total, the chevron. It opens with only the first (the most
 // recent day, or the largest category) open; "Abrir todos / Cerrar todos"
 // does them all at once.
-export const mgroup = (title, count, total, cls, open, rows = '', icon = '') => `<div class="list" style="margin-top:8px"><div class="row" style="background:var(--s2);padding:11px 14px;gap:10px">${icon}<div class="tx"><b class="one" style="font-size:14.5px">${title}</b></div><span style="background:var(--s3);border-radius:10px;padding:1px 8px;font-size:12px;color:#aab6d3">${count}</span><span class="${cls}" style="font-weight:600;font-size:14px;white-space:nowrap">${total}</span>${ic(open ? 'chevron-up-outline' : 'chevron-down-outline', 'mu', 'width:18px;height:18px')}</div>${open ? rows : ''}</div>`;
-// As today: one round button, two chevrons pulling apart (open all) or
-// closing together (close all); the shape says which, no words needed.
+// A count is never a bare number: it says what it counts ("3 movimientos"),
+// on its own grey line under the title (Jose, 2026-09-28).
+const counted = n => typeof n === 'number' ? `${n} ${n === 1 ? 'movimiento' : 'movimientos'}` : n;
+export const mgroup = (title, count, total, cls, open, rows = '', icon = '', tickHtml = '') => `<div class="list" style="margin-top:8px"><div class="row" style="background:var(--s2);padding:9px 14px;gap:10px">${tickHtml}${icon}<div class="tx"><b class="one" style="font-size:14.5px">${title}</b>${count !== '' ? `<small style="font-size:12px">${counted(count)}</small>` : ''}</div><span class="${cls}" style="font-weight:600;font-size:14px;white-space:nowrap">${total}</span>${ic(open ? 'chevron-up-outline' : 'chevron-down-outline', 'mu', 'width:18px;height:18px')}</div>${open ? rows : ''}</div>`;
 export const foldAll = (allOpen = false) => `<span style="width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid #26324f;display:grid;place-items:center;flex:none">${ic(allOpen ? 'chevron-collapse-outline' : 'chevron-expand-outline', '', 'width:19px;height:19px')}</span>`;
 // The three ways to group, and the fold-all at the end of the same row.
 export const groupRow = (on = 'Por día', allOpen = false) => `<div style="display:flex;gap:6px;margin-top:10px;align-items:center">${['Por día', 'Por categoría', 'Más grandes'].map(t => `<div class="chip ${t === on ? 'on' : ''}" style="padding:7px 10px;font-size:13px">${t}</div>`).join('')}<span style="flex:1"></span>${on === 'Más grandes' ? '' : foldAll(allOpen)}</div>`;

@@ -25,7 +25,7 @@ const orderClosed = order.replace('chevron-collapse-outline', 'chevron-expand-ou
 const side = (kind, count, open) => {
   const [i, c, t] = kind === 'g' ? ['arrow-up', C.red, 'Gastos'] : ['arrow-down', C.grn, 'Ingresos'];
   return `<div class="row" style="background:var(--s1);border-radius:18px;border:1px solid #17223b;margin-top:10px">${ci(i, c, 36)}<div class="tx"><b style="font-size:16.5px">${t}</b></div>
-   <span class="chip" style="padding:3px 10px;font-size:12.5px">${count}</span>${ic(open ? 'chevron-down-outline' : 'chevron-forward-outline', 'mu', 'width:19px;height:19px')}</div>`;
+   <span class="chip" style="padding:3px 10px;font-size:12.5px">${count} categorías</span>${ic(open ? 'chevron-down-outline' : 'chevron-forward-outline', 'mu', 'width:19px;height:19px')}</div>`;
 };
 const row = (k, n) => `<div class="row">${catIcon(k)}<div class="tx"><b class="one">${CAT[k][2]}</b><small>${n === 0 ? 'Sin usar' : n === 1 ? 'En 1 movimiento' : `En ${n} movimientos`}</small></div>${chev()}</div>`;
 const longRow = `<div class="row">${sq('paw-outline', PALETTE.arena)}<div class="tx"><b class="one">Mascotas: comida, veterinario y peluquería</b><small>En 7 movimientos</small></div>${chev()}</div>`;

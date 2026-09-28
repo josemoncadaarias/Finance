@@ -2054,7 +2054,7 @@ then does the next start. The groups and where each stands:
 | 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 5 | Report (money and yields) | `docs/mockups/5*` (v5) | **Approved** by Jose, 2026-09-28, with both ideas from Lukas drawn |
-| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v4) | Sent 2026-09-28, waiting |
+| 6 | Por revisar, reading a statement | `docs/mockups/6*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
 | 8 | Más, Importar y exportar, Google (sign in, change account, sign out) | `d08`-`d13` (v3 draft) | To redo |
 | 9 | Income-tax simulator | `d14`-`d16` (v3 draft) | To redo |
@@ -2396,6 +2396,40 @@ refuse:
 - Reading keeps its four stages, the page, the percentage and Cancelar,
   and says nothing is saved until the end; the password and the unreadable
   file are dialogs.
+
+**And from his review of group 6 v4 (2026-09-28), v5 sent:**
+
+- **A count is never a bare number, anywhere**: it says what it counts -
+  "3 movimientos" under a day's title (`mgroup` in `lib.mjs`, so every
+  list of every group), "16 categorías" on the categories screen, "6
+  cobros" in the report, "2 comercios · 7 movimientos".
+- **Choosing several works on rows, days and shops.** While choosing, a
+  day's heading and a shop in "Comercios que se repiten" carry their own
+  tick: it takes every movement of that day or that shop, open or closed;
+  half-ticked when only some are ("1 de 2 elegidos"). "Todos" takes
+  everything the account, the filter and the search leave on view, and
+  the bar says "8 movimientos elegidos · de 18 a la vista". Today only
+  rows are ticked; the heading and shop ticks are new.
+- **A movement is checked in the one movement form**, not a small sheet:
+  its keypad to change the amount, the account, the category, the day and
+  the note - the same note as every other screen, rising while it is
+  written with the notes used before under it, plus what the statement
+  said, to keep it as it came. What the statement said sits on top in one
+  line (its (i) opens it whole); Descartar is the bin in the title bar.
+  Editing the note there is new.
+- **What to show and the order are one chip with its icon** ("Todos · por
+  fecha"), opening one sheet: Mostrar (Todos, Les falta algo, Con aviso,
+  each with its icon and what it holds) and Ordenar (Por fecha, Por
+  monto). A filter on lights its chip and one quiet line says "Ves 3 de 18
+  movimientos · Ver todos".
+- **The account is on top, centred, with "Todas las cuentas" first** in
+  its list, then each account with what it has waiting. Importing a
+  statement asks "¿De qué cuenta es?" without "Todas", since a statement
+  belongs to one account.
+- **Minimal: no green notices.** That the statement squares is a small
+  green check beside the file (its bubble explains); when it does not, the
+  mark turns amber with one line, "No cuadra por 45.900,00". "Leí 18
+  movimientos" is a short notice that goes by itself.
 
 ### The ideas, by what they would take
 
