@@ -109,7 +109,7 @@ export class MovementsStore {
   readonly currency = computed(() => this.selectedAccount()?.currency_code ?? 'COP');
 
   constructor() {
-    // Groups arrive closed. Reading `groups()` here is what makes this fire
+    // Groups arrive closed but the first. Reading `groups()` here is what makes this fire
     // on a new question and not on someone opening one of them: the collapse
     // set is written, never read, by this effect.
     effect(() => this.closeNewGroups());
@@ -165,7 +165,9 @@ export class MovementsStore {
       if (question !== this.lastQuestion) {
         this.lastQuestion = question;
         this.knownKeys = new Set(keys);
-        this.collapsed.set(new Set(keys));
+        // Only the first section open - the most recent day, or the largest
+        // category - and the rest closed (Jose, 2026-09-28).
+        this.collapsed.set(new Set(keys.slice(1)));
         return;
       }
 
@@ -277,6 +279,8 @@ export class MovementsStore {
         kind: 'credit',
         label: this.i18n.t('summary.owedToday'),
         amountMinor: balance.balance_minor,
+        availableMinor: balance.available_credit_minor,
+        limitMinor: limit,
         currency,
         detail: balance.available_credit_minor === null || limit === null
           ? null
@@ -317,7 +321,9 @@ export class MovementsStore {
         [...scope]);
       this.setAsideProducts.set(setAside?.total ?? 0);
 
-      this.rows.set(await this.movementsFor(this.filter.period(), accounts));
+      const read = await this.readPeriod(this.filter.period(), accounts);
+      this.rows.set(read.movements);
+      this.movedBetween.set(this.filter.accountId() === null ? read.movedBetween : 0);
     } finally {
       this.loading.set(false);
     }
@@ -334,6 +340,22 @@ export class MovementsStore {
    * differently would invent a change that never happened.
    */
   async movementsFor(period: Period, accounts?: readonly AccountRow[]): Promise<Movement[]> {
+    return (await this.readPeriod(period, accounts)).movements;
+  }
+
+  /**
+   * How much moved between the accounts being looked at, in the period.
+   *
+   * Across several accounts a transfer between two of them is left out of
+   * every list and total - nothing entered or left - and the redesign still
+   * says, in one line, how much moved between them (mockup `1a`; Jose,
+   * 2026-09-28). The leaving legs, in pesos. Zero with one account in view.
+   */
+  readonly movedBetween = signal(0);
+
+  private async readPeriod(
+    period: Period, accounts?: readonly AccountRow[],
+  ): Promise<{ movements: Movement[]; movedBetween: number }> {
     const driver = this.database.driver;
     const scope = this.filter.scopeFor(accounts ?? this.accounts());
 
@@ -363,7 +385,13 @@ export class MovementsStore {
         (leaveOut && row.other_product_set_aside === 1);
     });
 
-    return visible.map(row => toMovement(row, this.i18n));
+    const movedBetween = detailed
+      .filter(row => row.transfer_id !== null && row.amount_minor < 0
+        && row.other_account_id !== null && inScope.has(row.other_account_id)
+        && !(leaveOut && (row.product_set_aside === 1 || row.other_product_set_aside === 1)))
+      .reduce((sum, row) => sum + Math.abs(row.amount_base_minor), 0);
+
+    return { movements: visible.map(row => toMovement(row, this.i18n)), movedBetween };
   }
 }
 
@@ -406,6 +434,12 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
     accountIcon: row.account_builtin_icon,
     accountCustomIconId: row.account_custom_icon_id,
     flow: flowOf(row, row.account_type),
+    color: isTransfer ? row.other_account_color ?? null : row.category_color ?? null,
+    seed: isTransfer ? row.other_account_id : row.category_id,
+    accountColor: row.account_color ?? null,
+    accountSeed: row.account_id,
+    productName: row.product_name ?? null,
+    otherName: isTransfer ? other : null,
   };
 }
 
@@ -430,4 +464,7 @@ export interface Standing {
   currency: string;
   /** A second line, when one figure is not the whole answer. */
   detail: string | null;
+  /** A card's room left and its limit, for the bar under the debt. */
+  availableMinor?: number | null;
+  limitMinor?: number | null;
 }

@@ -1,72 +1,36 @@
 /**
- * The shell: a navigation drawer and whatever page is open.
- *
- * See `app.component.html` for why navigation is a drawer and not a tab bar.
+ * The shell: whatever page is open, the floating bar under it, and what the
+ * "+" opens. See `app.component.html`.
  */
 
 import { Component, effect, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { filter, map } from 'rxjs';
-import {
-  IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-  IonContent, IonList, IonItem, IonIcon, IonLabel, MenuController,
-} from '@ionic/angular';
+import { IonApp, IonRouterOutlet } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { DRAWN_ICONS } from './core/icons/drawn-icons';
 import * as allIcons from 'ionicons/icons';
-import { TranslatePipe } from './core/i18n/translate.pipe';
-import { LanguageButtonComponent } from './core/i18n/language-button.component';
-import { ThemeButtonComponent } from './core/theme/theme-button.component';
 import { ThemeService } from './core/theme/theme.service';
+import { AccentService } from './core/theme/accent.service';
 import { DatabaseService } from './core/database/database.service';
 import { GoogleAccountService } from './core/cloud/google-account.service';
 import { CloudBackupService } from './core/cloud/cloud-backup.service';
 import { ForeignConversionService } from './core/rates/foreign-conversion.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
-import { AvatarComponent } from './core/cloud/avatar.component';
 import { MarqueeService } from './core/ui/marquee.service';
-
-interface Section {
-  path: string;
-  /** Translation keys, resolved by the template. */
-  label: string;
-  /** One line saying what the screen answers, for someone new to the app. */
-  hint: string;
-  icon: string;
-}
+import { TabBarComponent } from './shared/ui/tab-bar.component';
+import { ComposeHostComponent } from './shared/ui/compose-host.component';
+import { StatementFlowComponent } from './shared/ui/statement-flow.component';
+import { ToastComponent } from './shared/ui/toast.component';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
   imports: [
-    RouterLink, TranslatePipe, LanguageButtonComponent, ThemeButtonComponent, AvatarComponent,
-    IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle,
-    IonContent, IonList, IonItem, IonIcon, IonLabel,
+    IonApp, IonRouterOutlet,
+    TabBarComponent, ComposeHostComponent, StatementFlowComponent, ToastComponent,
   ],
 })
 export class AppComponent {
-  private readonly menu = inject(MenuController);
-  private readonly router = inject(Router);
-
-  /**
-   * The screen on show, as a signal of every navigation that finished.
-   *
-   * `router.url` read in the template is only read when the drawer happens to
-   * be drawn again - which it is after a tap on the drawer itself, and not
-   * after a screen sends the app somewhere. So "Ver sus movimientos en Inicio"
-   * on the products screen landed on the summary with the drawer still
-   * marking "Productos y rendimientos"; Jose, 2026-09-24. A signal redraws the
-   * drawer whoever navigated: the drawer, a button, a statement import.
-   */
-  private readonly url = toSignal(
-    this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map(event => event.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
   private readonly database = inject(DatabaseService);
 
   /**
@@ -80,29 +44,14 @@ export class AppComponent {
   /**
    * Injected for its side effect: the service paints the theme in an effect of
    * its own, and nothing else asks for it at startup. Without this the app
-   * would open in whatever the stylesheet defaults to and correct itself only
-   * once the drawer was opened.
+   * would open in whatever the stylesheet defaults to.
    */
   private readonly theme = inject(ThemeService);
 
-  // No import and no screen reviewing what one assumed: since
-  // 2026-09-12 everything is entered by hand, and a backup is the way data
-  // moves between the browser and the phone.
-  readonly sections: Section[] = [
-    { path: '/movements', label: 'nav.summary', hint: 'nav.summary.hint', icon: 'pie-chart-outline' },
-    { path: '/report', label: 'nav.report', hint: 'nav.report.hint', icon: 'stats-chart-outline' },
-    { path: '/accounts', label: 'nav.accounts', hint: 'nav.accounts.hint', icon: 'wallet-outline' },
-    { path: '/categories', label: 'nav.categories', hint: 'nav.categories.hint', icon: 'pricetags-outline' },
-    { path: '/products', label: 'nav.products', hint: 'nav.products.hint', icon: 'piggy-bank' },
-    { path: '/tax', label: 'nav.tax', hint: 'nav.tax.hint', icon: 'calculator-outline' },
-    { path: '/review', label: 'nav.review', hint: 'nav.review.hint', icon: 'checkmark-done-outline' },
-    { path: '/notifications', label: 'nav.notifications', hint: 'nav.notifications.hint', icon: 'notifications-outline' },
-    { path: '/export', label: 'nav.export', hint: 'nav.export.hint', icon: 'swap-vertical-outline' },
-    { path: '/account', label: 'nav.account', hint: 'nav.account.hint', icon: 'person-circle-outline' },
-  ];
+  /** The colour of the app, painted before the first frame. */
+  private readonly accent = inject(AccentService);
 
-  /** Public so the drawer can show who is signed in. */
-  readonly google = inject(GoogleAccountService);
+  private readonly google = inject(GoogleAccountService);
   /**
    * Injected here and nowhere used: starting it is the point.
    *
@@ -135,21 +84,5 @@ export class AppComponent {
       this.database.dataVersion();
       if (this.database.status() === 'ready') void this.customIcons.load();
     });
-  }
-
-  /**
-   * Whether this is the screen on show.
-   *
-   * By whole path segment, not by prefix. "/accounts" begins with "/account",
-   * so a prefix test lit both "Cuentas" and "Cuenta" whenever the accounts
-   * screen was open - two sections apparently current at once.
-   */
-  isCurrent(path: string): boolean {
-    const url = this.url().split(/[?#]/)[0];
-    return url === path || url.startsWith(path + '/');
-  }
-
-  close(): void {
-    void this.menu.close();
   }
 }

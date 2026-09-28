@@ -1,60 +1,18 @@
 <ion-app>
   <!--
-    Navigation lives in a drawer rather than a bar across the bottom.
-
-    On an Android phone the bottom edge already belongs to the system: three
-    buttons, or a gesture bar, sitting exactly where a tab bar wants to be.
-    Fighting for that strip means either a cramped target or a mis-tap that
-    leaves the app. A drawer costs one tap to open and gives the screen its
-    whole height back — which is also where the app Jose used before puts it.
+    Navigation is a bar that FLOATS above the bottom edge (group 8 of the
+    redesign, approved by Jose on 2026-09-28): Inicio, Cuentas, the "+",
+    Reporte, Más. It replaced the drawer, which had been chosen because
+    Android's own buttons own the bottom strip - the bar keeps its own margin
+    and the safe-area inset under it, so it never shares that strip.
   -->
-  <ion-menu contentId="main" side="start" type="overlay">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Finance</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content>
-      <ion-list lines="none" class="nav">
-        @for (item of sections; track item.path) {
-          <ion-item button [routerLink]="item.path" routerDirection="root"
-                    [class.on]="isCurrent(item.path)" (click)="close()">
-            <!-- Signed in, the account entry shows whose account it is: the
-                 photo where the generic person was, the name where the word
-                 "Cuenta" was. It is how anyone opening the drawer can tell at
-                 a glance that the app is connected, and to which account. -->
-            @if (item.path === '/account' && google.user(); as user) {
-              <app-avatar slot="start" class="face" [photoUrl]="user.photoUrl"
-                          [name]="user.name" [email]="user.email"></app-avatar>
-              <ion-label>
-                <h3>{{ user.name || user.email }}</h3>
-                <p>{{ 'nav.account.signedIn' | t }}</p>
-              </ion-label>
-            } @else {
-              <ion-icon slot="start" [name]="item.icon"></ion-icon>
-              <ion-label>
-                <h3>{{ $any(item.label) | t }}</h3>
-                <p>{{ $any(item.hint) | t }}</p>
-              </ion-label>
-            }
-          </ion-item>
-        }
-      </ion-list>
-
-      <!-- The same controls as the ones in the toolbars, spelled out. This is
-           where a setting is looked for; a toolbar is where it is noticed. -->
-      <div class="language">
-        <p class="section">{{ 'nav.language' | t }}</p>
-        <app-language-button [wide]="true"></app-language-button>
-      </div>
-
-      <div class="language">
-        <p class="section">{{ 'nav.theme' | t }}</p>
-        <app-theme-button [wide]="true"></app-theme-button>
-      </div>
-    </ion-content>
-  </ion-menu>
-
   <ion-router-outlet id="main"></ion-router-outlet>
+
+  <app-tab-bar></app-tab-bar>
+
+  <!-- What the "+" opens, on every screen: one sheet, one movement form, and
+       importing a statement. -->
+  <app-compose-host></app-compose-host>
+  <app-statement-flow></app-statement-flow>
+  <app-toast></app-toast>
 </ion-app>

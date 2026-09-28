@@ -47,5 +47,10 @@ export const routes: Routes = [
     path: 'account',
     loadComponent: () => import('./features/account/account.page').then(m => m.AccountPage),
   },
+  {
+    // Más: everything the drawer held that is not a tab.
+    path: 'more',
+    loadComponent: () => import('./features/more/more.page').then(m => m.MorePage),
+  },
   { path: '', redirectTo: 'movements', pathMatch: 'full' },
 ];

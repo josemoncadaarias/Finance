@@ -38,6 +38,8 @@ test('no phrase is left empty or accidentally identical', () => {
     'accounts.currency.codeHint',
     // "no" is spelled the same in Spanish and English.
     'csv.no',
+    // A colour's name, the same word in both.
+    'accent.coral',
     // The banks say cashback in Spanish too. "Reembolso" would be a word
     // nobody uses for the thing that comes back off the card.
     'products.kind.cashback',

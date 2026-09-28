@@ -19,16 +19,19 @@
  * Spanish word on it.
  */
 
+import { UI_ES, UI_EN } from './translations-ui';
+
 export type Language = 'es' | 'en';
 
 export const LANGUAGES: { code: Language; name: string; flag: string }[] = [
   // Spanish is named in Spanish and English in English: someone lost in the
   // wrong language has to recognise their own on sight.
   { code: 'es', name: 'Español', flag: 'co' },
-  { code: 'en', name: 'English', flag: 'gb' },
+  { code: 'en', name: 'English', flag: 'us' },
 ];
 
 export const SPANISH = {
+  ...UI_ES,
   // --- navigation -------------------------------------------------------
   'nav.summary': 'Inicio',
   'nav.summary.hint': 'Gastos, ingresos y saldo',
@@ -70,7 +73,7 @@ export const SPANISH = {
 
   'summary.view.date': 'Por día',
   'summary.view.category': 'Por categoría',
-  'summary.view.largest': 'Los más grandes',
+  'summary.view.largest': 'Más grandes',
   'summary.within.date': 'Dentro de cada día, lo más reciente primero',
   'summary.within.category': 'Dentro de cada categoría, de mayor a menor',
   'summary.collapseAll': 'Colapsar todo',
@@ -1059,6 +1062,7 @@ export const SPANISH = {
 export type TranslationKey = keyof typeof SPANISH;
 
 export const ENGLISH: Record<TranslationKey, string> = {
+  ...UI_EN,
   'nav.summary': 'Home',
   'nav.summary.hint': 'Spending, income and balance',
   'nav.accounts': 'Accounts',

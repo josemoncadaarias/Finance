@@ -11,57 +11,46 @@
 import { Component, ElementRef, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import {
-  IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-  IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
-  IonBadge, IonFooter, IonMenuButton,
-} from '@ionic/angular';
+import { IonContent, IonHeader, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { LanguageButtonComponent } from '../../core/i18n/language-button.component';
-import { CloudButtonComponent } from '../../core/cloud/cloud-button.component';
 import { FilterService } from '../../core/filters/filter.service';
 import {
   PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName,
 } from '../../core/filters/period';
 import { MovementsStore } from './movements.store';
-import { DonutComponent } from './donut.component';
+import { SpendingChartComponent } from './spending-chart.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SwipeDirective } from '../../shared/swipe.directive';
-import { EntryComponent, type EntryKind, type EntryRequest } from '../entry/entry.component';
-import type { Grouping } from './group-movements';
+import type { EntryKind } from '../entry/entry.component';
+import type { Flow, Grouping, Movement, MovementGroup } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
-import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
-import { IconComponent } from '../../core/icons/icon.component';
 import { todayIso } from '../../core/yields/days';
-import { StatementsService } from '../../core/statements/statements.service';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
-import {
-  StatementCancelled, StatementLocked, StatementUnreadable, warmUpPdfReader,
-  type ReadingProgress,
-} from '../../core/statements/pdf-text';
+import { ComposeService } from '../../core/ui/compose.service';
+import { AccentService } from '../../core/theme/accent.service';
+import { formatMoney } from '../../core/database/money';
+import { BadgeComponent } from '../../shared/ui/badge.component';
+import type { Standing } from './movements.store';
 
 @Component({
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
-    IconComponent,
-    CommonModule, FormsModule, RouterLink, MoneyPipe, DonutComponent, SwipeDirective, EntryComponent,
-    TranslatePipe, LanguageButtonComponent, CloudButtonComponent, ScopeSheetsComponent, BusyOverlayComponent,
-    IonContent, IonHeader, IonToolbar, IonButton, IonButtons, IonIcon,
-    IonList, IonItem, IonLabel, IonNote, IonSpinner, IonModal, IonSearchbar,
-    IonBadge, IonFooter, IonMenuButton,
+    CommonModule, FormsModule, MoneyPipe, SpendingChartComponent, SwipeDirective, BadgeComponent,
+    TranslatePipe, ScopeSheetsComponent,
+    IonContent, IonHeader, IonIcon, IonSpinner,
   ],
 })
 export class MovementsPage {
@@ -73,7 +62,8 @@ export class MovementsPage {
   readonly status = this.database.status;
   readonly periodKinds = PERIOD_KINDS;
 
-  private readonly statements = inject(StatementsService);
+  private readonly compose = inject(ComposeService);
+  private readonly accent = inject(AccentService);
   private readonly router = inject(Router);
 
   /**
@@ -97,105 +87,6 @@ export class MovementsPage {
     await this.router.navigate(['/products'], { queryParams: { account: accountId } });
   }
 
-  /** True while a statement is being read, which takes a moment on a phone. */
-  readonly reading = signal(false);
-
-  /**
-   * How far along that reading is, and a way to stop it.
-   *
-   * On a phone it is not "a moment": a long statement took Jose forty seconds
-   * with nothing on the screen but a spinner inside a button, which reads as
-   * an app that has hung. So it says which part it is in and how far it has
-   * got, and it can be abandoned - nothing is written until the very end, so
-   * stopping leaves the database exactly as it was.
-   */
-  readonly readingPart = signal(0);
-  readonly readingStage = signal<ReadingProgress['stage']>('opening');
-  readonly readingPage = signal<{ page: number; pages: number } | null>(null);
-  private stopReading: AbortController | null = null;
-
-  readonly readingPercent = computed(() => Math.min(99, Math.round(this.readingPart() * 100)));
-
-  readonly readingLabel = computed(
-    () => this.i18n.t(`statement.stage.${this.readingStage()}` as 'statement.stage.opening'));
-
-  readonly readingDetail = computed(() => {
-    const at = this.readingPage();
-    return at === null ? '' : this.i18n.t('statement.stage.page', at);
-  });
-
-  cancelReading(): void {
-    this.stopReading?.abort();
-  }
-
-  /** What the reading reports back, in the shape the overlay draws. */
-  private watching() {
-    this.stopReading = new AbortController();
-    this.readingPart.set(0);
-    this.readingStage.set('opening');
-    this.readingPage.set(null);
-    return {
-      signal: this.stopReading.signal,
-      onProgress: (progress: ReadingProgress) => {
-        this.readingPart.set(progress.part);
-        this.readingStage.set(progress.stage);
-        this.readingPage.set(progress.page && progress.pages
-          ? { page: progress.page, pages: progress.pages } : null);
-      },
-    };
-  }
-
-  /**
-   * Opens a statement for the account being looked at.
-   *
-   * On this screen because this is where somebody IS an account: the summary
-   * names one, and a statement is about one. It is not offered while every
-   * account is on show, because then there is nothing to import into.
-   */
-  async onStatementPicked(input: HTMLInputElement): Promise<void> {
-    const accountId = this.filter.accountId();
-    const file = input.files?.[0];
-    // Cleared straight away, or picking the same file twice in a row fires
-    // nothing the second time: the value has not changed.
-    input.value = '';
-    if (accountId === null || !file) return;
-
-    this.reading.set(true);
-    try {
-      await this.statements.importInto(accountId, file, undefined, this.watching());
-      this.database.dataChanged();
-      await this.router.navigateByUrl('/review');
-    } catch (problem) {
-      if (problem instanceof StatementLocked) {
-        const typed = window.prompt(this.i18n.t('statement.password'));
-        if (typed) {
-          try {
-            await this.statements.importInto(accountId, file, typed, this.watching());
-            this.database.dataChanged();
-            await this.router.navigateByUrl('/review');
-          } catch (second) {
-            this.statementFailed(second);
-          }
-        }
-      } else {
-        this.statementFailed(problem);
-      }
-    } finally {
-      this.reading.set(false);
-    }
-  }
-
-  private statementFailed(problem: unknown): void {
-    // Asked for, and granted: there is nothing to report about that.
-    if (problem instanceof StatementCancelled) return;
-    const said = problem instanceof StatementUnreadable
-      ? `${this.i18n.t('statement.unreadable')} (${problem.reason})`
-      : problem instanceof Error ? problem.message : String(problem);
-    // This screen has no error line of its own, and a statement that cannot be
-    // read is not a reason to invent one: the alert says it and goes.
-    window.alert(said);
-  }
-
   /** The three ways of reading the list, each with its ordering settled. */
   readonly views: { id: Grouping; label: string; icon: string }[] = [
     { id: 'date', label: 'summary.view.date', icon: 'calendar-outline' },
@@ -207,14 +98,13 @@ export class MovementsPage {
   /** Icon names arrive with or without their suffix; this settles it. */
   readonly outlined = outlined;
 
-  /** Non-null while the entry screen is open, describing what it is editing. */
-  readonly entry = signal<EntryRequest | null>(null);
-
   /** Today, so a picker opens somewhere useful rather than in 1970. */
   readonly today = todayIso();
 
-  readonly label = computed(() =>
-    periodLabel(this.filter.period(), this.i18n.dateLocale(), this.i18n.t('period.all')));
+  readonly label = computed(() => {
+    const text = periodLabel(this.filter.period(), this.i18n.dateLocale(), this.i18n.t('period.all'));
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  });
   readonly atNewest = computed(() => includesToday(this.filter.period()));
   readonly canStep = computed(() => {
     const kind = this.filter.period().kind;
@@ -350,10 +240,7 @@ export class MovementsPage {
   }
 
   /** True when the list is long enough for any of this to be worth showing. */
-  readonly scrollable = computed(() =>
-    this.filter.showList()
-    && this.filter.grouping() !== 'largest'
-    && this.store.groups().length > 1);
+  readonly scrollable = computed(() => this.status() === 'ready');
 
   /**
    * The floating fold control.
@@ -378,6 +265,8 @@ export class MovementsPage {
     if (account) {
       const parts = [account.currency_code];
       if (account.type === 'credit') parts.push(this.i18n.t('summary.creditCard'));
+      const products = this.productCounts().get(account.id) ?? 0;
+      if (products > 1) parts.push(this.i18n.t('ui.count.products', { count: products }).toLowerCase());
       if (!account.include_in_net_worth) parts.push(this.i18n.t('summary.setAside'));
       if (account.archived) parts.push(this.i18n.t('summary.archived'));
       return parts.join(' · ');
@@ -395,6 +284,16 @@ export class MovementsPage {
 
   constructor() {
     this.listenForKeyboard();
+
+    // The list changed size without a scroll: read the position again, or
+    // the arrow down would wait for the first scroll to appear.
+    effect(() => {
+      this.shownGroups();
+      this.filter.showList();
+      this.store.standing();
+      setTimeout(() => void this.measure(), 60);
+      setTimeout(() => void this.measure(), 600);
+    });
     // Account and category icons come from the user's data, so which names
     // are needed is not known until runtime. Ionicons draws nothing for a name
     // it was never given - which is exactly why the two main buttons rendered
@@ -519,34 +418,161 @@ export class MovementsPage {
   }
 
   add(kind: EntryKind): void {
-    // A transfer leaves the account on show, to wherever it usually sends
-    // money - the same as from the products screen (Jose, 2026-09-25).
-    this.entry.set({
-      kind, preferredAccountId: this.filter.accountId(),
-      preferredSide: kind === 'transfer' ? 'from' : undefined,
-    });
+    this.compose.open(kind);
   }
 
   /**
-   * Opens a movement for correction.
-   *
-   * Tapping either leg of a transfer opens the whole transfer — both accounts
-   * and both amounts — because that is the act that was recorded. The entry
-   * screen rewrites the two legs together; there is no way to change one side
-   * on its own, which is what would leave money arriving from nowhere.
+   * Opens a movement for correction. Either leg of a transfer opens the whole
+   * transfer - both accounts and both amounts - because that is the act that
+   * was recorded (ComposeService.edit).
    */
   edit(transaction: TransactionRow): void {
-    this.entry.set({
-      kind: transaction.transfer_id !== null
-        ? 'transfer'
-        : transaction.amount_minor >= 0 ? 'income' : 'expense',
-      editing: transaction,
-    });
+    this.compose.edit(transaction);
   }
 
-  onSaved(): void {
-    this.entry.set(null);
+  // ---- The redesign's drawing (mockups 1a-1r) ---------------------------
+
+  readonly accentColor = computed(() => this.accent.accent().color);
+
+  /** How many products each account holds, for "COP · 3 productos". */
+  readonly productCounts = signal<ReadonlyMap<number, number>>(new Map());
+
+  private readonly productWatch = effect(() => {
+    this.database.dataVersion();
+    if (this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      const rows = await this.database.driver.query<{ account_id: number; n: number }>(
+        'SELECT account_id, COUNT(*) AS n FROM products GROUP BY account_id');
+      this.productCounts.set(new Map(rows.map(row => [row.account_id, row.n])));
+    });
+  });
+
+  /**
+   * The small figures on the card: Entró and Salió, and in the accent,
+   * Recibido and Enviado from and to one's own accounts - each only when it
+   * holds something, and one left alone sits in the middle (mockup 1q).
+   * Across every account Entró and Salió are always there.
+   */
+  readonly tiles = computed(() => {
+    const totals = this.store.totals();
+    const all = this.filter.allAccounts();
+    const tiles: { key: string; label: string; amount: number; tone: string; transfer: boolean }[] = [];
+    const keepIn = all || totals.inMinor > 0 || totals.outMinor === 0;
+    const keepOut = all || totals.outMinor > 0 || totals.inMinor === 0;
+    if (keepIn) tiles.push({ key: 'in', label: this.i18n.t('summary.in'), amount: totals.inMinor, tone: 'ui-g', transfer: false });
+    if (keepOut) tiles.push({ key: 'out', label: this.i18n.t('summary.out'), amount: totals.outMinor, tone: 'ui-r', transfer: false });
+    if (!all && totals.receivedMinor > 0) {
+      tiles.push({ key: 'received', label: this.i18n.t('summary.received'), amount: totals.receivedMinor, tone: 'ui-p', transfer: true });
+    }
+    if (!all && totals.movedMinor > 0) {
+      tiles.push({ key: 'sent', label: this.i18n.t('ui.sent'), amount: totals.movedMinor, tone: 'ui-p', transfer: true });
+    }
+    return tiles;
+  });
+
+  /** How much of a card's limit the debt takes, for the bar under it. */
+  usedShare(standing: Standing): number | null {
+    const limit = standing.limitMinor ?? null;
+    if (!limit || limit <= 0) return null;
+    return Math.min(100, Math.max(2, Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100)));
   }
+
+  toggle(key: string): void {
+    this.store.toggleGroup(key);
+    setTimeout(() => void this.measure(), 0);
+  }
+
+  countOf(count: number): string {
+    return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count });
+  }
+
+  /** A figure with its sign: "+768.000,00", "−32.000,00". */
+  signed(minor: number, currency = this.store.currency()): string {
+    const text = formatMoney(Math.abs(minor), currency, { withSymbol: false });
+    if (minor > 0) return `+${text}`;
+    if (minor < 0) return `\u2212${text}`;
+    return text;
+  }
+
+  toneOf(flow: Flow): string {
+    if (flow === 'in') return 'ui-g';
+    if (flow === 'out' || flow === 'refund') return 'ui-r';
+    return 'ui-p';
+  }
+
+  groupColor(group: MovementGroup): string | null {
+    return group.movements[0]?.color ?? null;
+  }
+
+  groupSeed(group: MovementGroup): number | null {
+    return group.movements[0]?.seed ?? null;
+  }
+
+  /**
+   * The grey line under a movement: whatever its title does not already say.
+   * A transfer says where it went ("Cuenta de ahorros → Tarjeta Coral") or
+   * where it came from ("Desde Ahorro Verde · Cuenta de ahorros").
+   */
+  lineOf(movement: Movement): string {
+    const t = movement.transaction;
+    const all = this.filter.allAccounts();
+    const parts: string[] = [];
+    if (t.transfer_id !== null) {
+      const here = movement.productName ?? movement.accountName;
+      if (t.amount_minor < 0) {
+        parts.push(`${here} \u2192 ${movement.otherName ?? movement.label}`);
+      } else {
+        parts.push(t.description ? movement.label : movement.accountName);
+        if (movement.productName) parts.push(movement.productName);
+      }
+    } else {
+      if (this.filter.grouping() === 'category') {
+        parts.push(this.dayHeading(t.occurred_on));
+        if (all) parts.push(movement.accountName);
+      } else {
+        if (t.description) parts.push(movement.label);
+        if (all || !t.description) parts.push(movement.accountName);
+        if (movement.productName) parts.push(movement.productName);
+      }
+      if (this.filter.grouping() === 'largest') parts.push(this.dayHeading(t.occurred_on));
+    }
+    if (t.locked) parts.push(this.i18n.t('ui.row.corrected'));
+    return parts.join(' · ');
+  }
+
+  /**
+   * A day as a heading: "Hoy · domingo 27", "Viernes 25"; the month joins it
+   * when the period runs over more than one, and the year when it is not
+   * this one.
+   */
+  dayHeading(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const period = this.filter.period();
+    const oneMonth = period.from !== null && period.to !== null && period.from.slice(0, 7) === period.to.slice(0, 7);
+    let text = `${weekday} ${day}`;
+    if (!oneMonth) text += locale.startsWith('es') ? ` de ${monthName(date, locale)}` : ` ${monthName(date, locale)}`;
+    if (year !== new Date().getFullYear()) text += ` ${year}`;
+    const today = this.today;
+    const yesterday = shiftDay(today, -1);
+    if (iso === today) return this.i18n.t('ui.today.day', { day: text });
+    if (iso === yesterday) return this.i18n.t('ui.yesterday.day', { day: text });
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  /** "septiembre": the period, short, for the search's hint. */
+  readonly shortLabel = computed(() => {
+    const period = this.filter.period();
+    return period.kind === 'month' ? this.label().split(' ')[0].toLowerCase() : this.label();
+  });
+}
+
+function shiftDay(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(year, month - 1, day + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /** Today as an ISO day, in local time. */
