@@ -109,6 +109,14 @@ S['5h-elegir-periodo'] = S['5a-reporte-movimientos'] + `<div class="scrim"></div
  <div class="list" style="margin-top:12px"><div class="row"><div class="tx"><b>Incluir lo apartado del patrimonio</b><small>1 cuenta y 1 producto que no cuentan para el patrimonio</small></div>${sw(false)}</div></div>
  <div class="btn" style="margin-top:14px">Aplicar</div></div>`;
 
+// 7b. The account, from the chip: "Todas las cuentas" first, then each one.
+const viewRow = (icon, name, sub, on = false) => `<div class="row">${icon}<div class="tx"><b class="one">${name}</b><small>${sub}</small></div>${on ? ic('checkmark', 'p', 'width:20px;height:20px') : ''}</div>`;
+S['5t-elegir-cuenta'] = S['5a-reporte-movimientos'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div style="display:flex;align-items:center"><span class="p" style="font-size:14.5px;width:70px">Cancelar</span><b style="flex:1;text-align:center;font-size:17px">Ver</b><span style="width:70px"></span></div>
+ <div class="list" style="margin-top:12px">${viewRow(ci('layers-outline', C.blu, 40), 'Todas las cuentas', '7 cuentas juntas', true)}</div>
+ <div class="seg" style="margin-top:10px;padding:3px"><div class="on" style="font-size:13px;padding:6px">Más usadas</div><div style="font-size:13px;padding:6px">A-Z</div></div>
+ <div class="list" style="margin-top:10px">${viewRow(accIcon('verde', 40), 'Ahorro Verde', 'Cuenta de ahorros')}${viewRow(accIcon('coral', 40), 'Tarjeta Coral', 'Tarjeta de crédito')}${viewRow(accIcon('azul', 40), 'Banco Azul', 'Cuenta de ahorros')}${viewRow(accIcon('efectivo', 40), 'Efectivo', 'Efectivo')}</div></div>`;
+
 // 8. The spreadsheet, being made.
 S['5i-exportando'] = S['5a-reporte-movimientos'] + `<div class="scrim"></div><div class="dialog" style="text-align:center">
  ${centred(ci('document-text-outline', C.grn, 56))}<b style="font-size:18px">Armando el resumen…</b>

@@ -41,13 +41,13 @@ const figures = `<div class="card hero"><div class="lab">Patrimonio hoy</div><di
   <div class="sub" style="margin-top:9px;display:flex;align-items:center;gap:6px">${ic('swap-horizontal', 'p', 'width:17px;height:17px')}<span class="one">3.400.000,00 movido entre tus cuentas</span></div></div>`.replace('class="sub" style="margin-top:9px;display:flex;', 'class="sub" style="margin-top:9px;display:flex;justify-content:center;');
 
 // The donut keeps its size whatever the month holds: the legend beside it is
-// the five largest and "Otras N", names cut with "…", percentages in a column
+// the five largest and "N categorías más", names cut with "…", percentages in a column
 // of their own. Every category, with its figure, is the list right below.
 const chart = `<div class="card" style="display:flex;align-items:center;gap:16px">
   <div style="position:relative;flex:none">${donut([[27, C.org], [17, C.grn], [15, C.red], [10, C.cya], [8, C.yel], [23, C.gry]], 124)}
    <div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center"><div><div class="lab" style="font-size:10.5px">Gastaste</div><b style="font-size:14px">5,24 M</b></div></div></div>
   <div style="flex:1;min-width:0">${[['vivienda', 'Vivienda y arriendo del apartamento', '27'], ['mercado', 'Mercado', '17'], ['rest', 'Restaurantes', '15'], ['transp', 'Transporte', '10'], ['servicios', 'Servicios', '8']].map(([k, t, p]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13.5px">${catIcon(k, 24)}<span class="one" style="flex:1">${t}</span><span class="mu" style="width:34px;text-align:right;font-variant-numeric:tabular-nums">${p}%</span></div>`).join('')}
-   <div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13.5px"><span style="width:24px;height:24px;border-radius:8px;background:var(--s3);display:grid;place-items:center;font-size:11px" class="mu">+7</span><span class="one mu" style="flex:1">Otras 7</span><span class="mu" style="width:34px;text-align:right">23%</span></div></div></div>`;
+   <div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13.5px"><span style="width:24px;height:24px;border-radius:8px;background:var(--s3);display:grid;place-items:center;font-size:11px" class="mu">+7</span><span class="one mu" style="flex:1">7 categorías más</span><span class="mu" style="width:34px;text-align:right">23%</span></div></div></div>`;
 
 const line = (k, title, sub, amt, cls) => `<div class="row">${catIcon(k)}<div class="tx"><b>${title}</b><small class="one">${sub}</small></div><div class="am ${cls}">${amt}</div></div>`;
 // A transfer in the list: the swap in blue, where it came from or went to, and
@@ -211,6 +211,17 @@ S['1k-elegir-cuenta'] = S['1f-gasto'] + `<div class="scrim"></div><div class="sh
  <div class="seg" style="margin-bottom:10px"><div class="on">Más usadas</div><div>A–Z</div></div>
  <div class="list">${[['verde', '55.240.546,90', true], ['long', 'Disponible 3.872.900'], ['azul', '12.480.300,00'], ['efectivo', '180.000,00'], ['naranja', '501.714,50'], ['dolar', '87,34 USD']]
    .map(([k, s, on]) => `<div class="row">${accIcon(k === 'long' ? 'coral' : k)}<div class="tx"><b>${k === 'long' ? LONG : ACC[k][2]}</b><small>${s}</small></div>${on ? tick(true) : ''}</div>`).join('')}</div></div>`;
+
+// The account on show, chosen from Inicio's header: "Todas las cuentas"
+// first - the general view, with net worth - then each account. (The
+// movement form's own list, 1k, has no "Todas": a movement comes from one.)
+const viewRow = (icon, name, sub, on = false) => `<div class="row">${icon}<div class="tx"><b class="one">${name}</b><small>${sub}</small></div>${on ? tick(true) : ''}</div>`;
+S['1r-inicio-elegir-cuenta'] = S['1a-inicio'] + `<div class="scrim"></div><div class="sheet" style="top:130px"><div class="grab"></div>
+ <div class="sh"><span class="p">Cancelar</span><h2 style="text-align:center">Ver</h2><span style="width:62px"></span></div>
+ <div class="list" style="margin-bottom:10px">${viewRow(ci('layers-outline', C.blu, 42), 'Todas las cuentas', 'Patrimonio 48.312.740,55 · 7 cuentas', true)}</div>
+ <div class="seg" style="margin-bottom:10px"><div class="on">Más usadas</div><div>A–Z</div></div>
+ <div class="list">${[['verde', '55.240.546,90'], ['long', 'Debes 4.127.100,00'], ['azul', '12.480.300,00'], ['efectivo', '180.000,00'], ['naranja', '501.714,50']]
+   .map(([k, s]) => viewRow(accIcon(k === 'long' ? 'coral' : k), k === 'long' ? LONG : ACC[k][2], s)).join('')}</div></div>`;
 
 S['1l-elegir-producto'] = S['1f-gasto'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
  <div class="sh"><h2>Productos de Ahorro Verde</h2></div>

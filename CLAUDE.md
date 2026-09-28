@@ -2431,6 +2431,21 @@ refuse:
   mark turns amber with one line, "No cuadra por 45.900,00". "Leí 18
   movimientos" is a short notice that goes by itself.
 
+**And his second look at group 6 (2026-09-28):**
+
+- **Every figure on a button or a line names what it counts**: "Guardar
+  15 movimientos listos", "3 movimientos necesitan algo", "Guardar 7
+  movimientos", and the screen's title is "Movimientos por revisar". On
+  Inicio the donut's last line is "7 categorías más", not "Otras 7".
+- **Every list that chooses which account to LOOK AT starts with "Todas
+  las cuentas"**, the general view, ticked when on: Inicio's header (`1r`,
+  with net worth), the report's chip (`5t`) and Por revisar (`6n`). A list
+  that chooses where a movement comes from or goes to, or whose statement
+  it is, has no "Todas" - a movement and a statement belong to one account
+  (`1k`, `6t`).
+- `6-recorrido-importar.jpg` draws importing step by step: the "+",
+  "¿De qué cuenta es?", the reading, the review.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |

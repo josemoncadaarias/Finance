@@ -23,7 +23,7 @@ const bubble = (top, arrowRight, text) => `<div style="position:absolute;left:24
  <span style="position:absolute;top:-7px;right:${arrowRight}px;width:12px;height:12px;background:#26324f;border-left:1px solid #3a4a72;border-top:1px solid #3a4a72;transform:rotate(45deg)"></span>${text}</div>`;
 
 // Por revisar lives in the Más tab: its title, and the bar below stays.
-const head = () => top('Por revisar');
+const head = () => top('Movimientos por revisar');
 const page = (body, after = '') => `${head()}<main>${body}<div style="height:110px"></div></main><div class="fade"></div>${tabs('Más')}${after}`;
 const scrolled = (by, body, after = '') => `<div style="position:absolute;left:0;right:0;top:88px;bottom:0;overflow:hidden"><main style="margin-top:-${by}px">${body}<div style="height:110px"></div></main></div><div style="position:absolute;left:0;right:0;top:0">${head()}</div><div class="fade"></div>${tabs('Más')}${after}`;
 
@@ -47,8 +47,8 @@ const offMark = `<span style="width:26px;height:26px;border-radius:50%;backgroun
 const batch = ({ mark = okMark, body = '', extra = '' } = {}) => `<div class="card" style="margin-top:12px;padding:12px 14px">
  <div style="display:flex;gap:10px;align-items:center">${ci('document-text-outline', C.pur, 40)}<div style="flex:1;min-width:0"><b class="one" style="display:block;font-size:15px">Extracto de Banco Azul</b><small class="one mu" style="display:block;font-size:12.5px">extracto-banco-azul-septiembre-2026.pdf</small></div>${mark}</div>
  ${extra}
- <div style="display:flex;gap:14px;margin-top:9px;font-size:13px;flex-wrap:wrap"><span>18 movimientos por confirmar</span><span style="color:#f3d58a">${ic('ellipse', '', 'width:8px;height:8px;vertical-align:1px;margin-right:5px')}3 necesitan algo</span></div>
- <div style="display:flex;gap:8px;margin-top:11px"><div class="btn" style="flex:1;height:42px;font-size:14px">${ic('checkmark-done-outline', '', 'width:18px;height:18px')}Guardar los 15 listos</div><span class="btn-r" style="width:42px;height:42px;background:var(--s2)">${ic('ellipsis-horizontal')}</span></div>
+ <div style="display:flex;gap:14px;margin-top:9px;font-size:13px;flex-wrap:wrap"><span>18 movimientos por confirmar</span><span style="color:#f3d58a">${ic('ellipse', '', 'width:8px;height:8px;vertical-align:1px;margin-right:5px')}3 movimientos necesitan algo</span></div>
+ <div style="display:flex;gap:8px;margin-top:11px"><div class="btn" style="flex:1;height:42px;font-size:14px">${ic('checkmark-done-outline', '', 'width:18px;height:18px')}Guardar 15 movimientos listos</div><span class="btn-r" style="width:42px;height:42px;background:var(--s2)">${ic('ellipsis-horizontal')}</span></div>
  ${body}</div>`;
 
 // One proposal: its icon (the category, or "?" while it has none), what it
@@ -145,7 +145,7 @@ S['6h-puede-ser-el-mismo'] = form({ line: '23/09 COMPRA CINE COLOMBIA −64.000,
 //    many out of how many, and what can be done to them.
 const bar = (n, of, save) => `<div style="position:absolute;left:12px;right:12px;bottom:26px;background:#15213a;border:1px solid #2a3b60;border-radius:22px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.6)">
   <div style="display:flex;align-items:center;gap:10px"><span style="width:40px;height:40px;border-radius:50%;background:var(--s3);display:grid;place-items:center">${ic('close')}</span><div style="flex:1;min-width:0"><b style="display:block">${n} movimientos elegidos</b><small class="mu" style="font-size:12px">de ${of} a la vista</small></div><span class="p" style="font-size:13.5px">Todos</span><span class="mu" style="font-size:13.5px">·</span><span class="p" style="font-size:13.5px">Ninguno</span></div>
-  <div style="display:flex;gap:8px;margin-top:10px"><span class="chip" style="flex:1;justify-content:center;padding:9px 6px">${ic('pricetag-outline', '', 'width:16px;height:16px')}Categoría</span><span class="chip" style="padding:9px 12px;color:var(--red)">${ic('trash-outline', '', 'width:16px;height:16px')}</span><span class="chip" style="flex:1;justify-content:center;padding:9px 6px;background:var(--pr);border-color:var(--pr);color:#fff;font-weight:600">Guardar ${save}</span></div></div>`;
+  <div style="display:flex;gap:8px;margin-top:10px"><span class="chip" style="justify-content:center;padding:9px 10px">${ic('pricetag-outline', '', 'width:16px;height:16px')}Categoría</span><span class="chip" style="padding:9px 12px;color:var(--red)">${ic('trash-outline', '', 'width:16px;height:16px')}</span><span class="chip" style="flex:1.6;justify-content:center;padding:9px 6px;background:var(--pr);border-color:var(--pr);color:#fff;font-weight:600">Guardar ${save} movimientos</span></div></div>`;
 const pickA = { exito: 'on', seguro: 'on', alkosto: 'on' };
 S['6i-seleccionar-por-dia'] = `${head()}<main>${tools('Todos', true)}${batch()}${repeated(false, ['off', 'off'])}
  ${day('Viernes 26 de septiembre', 3, '−1.741.500,00', 'r', true, ['exito', 'seguro', 'alkosto'], pickA, 'on')}
