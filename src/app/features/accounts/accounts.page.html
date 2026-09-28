@@ -144,9 +144,10 @@
 </ion-modal>
 
 <!-- Where the total comes from, line by line (2b). -->
-<ion-modal class="ui-sheet tall" [isOpen]="showBreakdown()" (didDismiss)="showBreakdown.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet tall" [isOpen]="showBreakdown()" (didDismiss)="showBreakdown.set(false)">
   <ng-template>
-    <div class="ui-sheet-body breakdown">
+    <div class="ui-sheet-body ion-content-scroll-host breakdown">
+      <button type="button" class="sheet-cancel" (click)="showBreakdown.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'accounts.breakdown.title' | t }}</h2>
       <p class="hint center">{{ 'accounts.breakdown.body' | t }}</p>

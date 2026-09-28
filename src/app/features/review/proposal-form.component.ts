@@ -79,7 +79,8 @@ export interface ProposalAnswer {
 
       <div class="entry-scroll">
         <div class="entry-body">
-          @if (!writingNote()) {
+          <!-- While the note is written the rest steps aside by CSS (.writing-note);
+           the note is never drawn a second time, or the phone drops its keyboard. -->
             <div class="ui-seg kinds">
               <button type="button" class="red" [class.on]="sign() < 0" (click)="sign.set(-1)">
                 <ion-icon name="arrow-up"></ion-icon><span>{{ 'ui.new.expense' | t }}</span>
@@ -162,25 +163,6 @@ export interface ProposalAnswer {
               </div>
               <ng-container [ngTemplateOutlet]="noteTpl"></ng-container>
             </div>
-          } @else {
-            <ng-container [ngTemplateOutlet]="noteTpl"></ng-container>
-            <div class="ui-list hints">
-              @for (hint of hints(); track hint) {
-                <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
-                  <ion-icon name="time-outline"></ion-icon>
-                  <span class="ui-tx"><b class="hint-text">{{ hint }}</b></span>
-                  <ion-icon class="use" name="arrow-up-outline"></ion-icon>
-                </button>
-              }
-              @if (original()) {
-                <button type="button" class="ui-row" (pointerdown)="useNote(original(), $event)" (click)="useNote(original())">
-                  <ion-icon name="document-text-outline"></ion-icon>
-                  <span class="ui-tx"><b class="hint-text">{{ original() }}</b><small>{{ 'ui.review.asItCame' | t }}</small></span>
-                  <ion-icon class="use" name="arrow-up-outline"></ion-icon>
-                </button>
-              }
-            </div>
-          }
         </div>
       </div>
 
@@ -216,6 +198,24 @@ export interface ProposalAnswer {
           </button>
         }
       </div>
+      @if (writingNote() && (hints().length > 0 || original())) {
+        <div class="hints">
+          @for (hint of hints(); track hint) {
+            <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
+              <ion-icon name="time-outline"></ion-icon>
+              <span class="ui-tx"><b class="hint-text">{{ hint }}</b></span>
+              <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+            </button>
+          }
+          @if (original()) {
+            <button type="button" class="ui-row" (pointerdown)="useNote(original(), $event)" (click)="useNote(original())">
+              <ion-icon name="document-text-outline"></ion-icon>
+              <span class="ui-tx"><b class="hint-text">{{ original() }}</b><small>{{ 'ui.review.asItCame' | t }}</small></span>
+              <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+            </button>
+          }
+        </div>
+      }
     </ng-template>
 
     <app-account-picker [open]="pickingAccount()" [accounts]="accounts()" [selectedId]="account()?.id ?? null"
@@ -226,9 +226,9 @@ export interface ProposalAnswer {
                         (picked)="categoryId.set($event); from.set('typed'); pickingCategory.set(false)"
                         (cancelled)="pickingCategory.set(false)"></app-category-sheet>
 
-    <ion-modal class="ui-sheet" [isOpen]="pickingDate()" (didDismiss)="pickingDate.set(false)">
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingDate()" (didDismiss)="pickingDate.set(false)">
       <ng-template>
-        <div class="ui-sheet-body date-sheet">
+        <div class="ui-sheet-body ion-content-scroll-host date-sheet">
           <div class="grab"></div>
           <ion-datetime presentation="date" [value]="day()" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
                         [showDefaultButtons]="true" [doneText]="'entry.doneDate' | t" [cancelText]="'entry.cancel' | t"

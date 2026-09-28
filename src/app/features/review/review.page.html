@@ -307,9 +307,10 @@
 </ion-content>
 
 <!-- Mostrar and Ordenar, one sheet (6k). -->
-<ion-modal class="ui-sheet" [isOpen]="choosingView()" (didDismiss)="choosingView.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingView()" (didDismiss)="choosingView.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="choosingView.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h3 class="ui-h first">{{ 'ui.review.show' | t }}</h3>
       <div class="ui-list">
@@ -350,10 +351,11 @@
 </ion-modal>
 
 <!-- The two answers that are not "save", with the batch named (6n). -->
-<ion-modal class="ui-sheet" [isOpen]="batchMenu() !== null" (didDismiss)="batchMenu.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="batchMenu() !== null" (didDismiss)="batchMenu.set(null)">
   <ng-template>
     @if (batchMenu(); as batch) {
-      <div class="ui-sheet-body">
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="batchMenu.set(null)">{{ 'entry.cancel' | t }}</button>
         <div class="grab"></div>
         <h2 class="center">{{ batch.title }}</h2>
         <div class="ui-list">

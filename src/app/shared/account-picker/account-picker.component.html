@@ -1,6 +1,6 @@
-<ion-modal class="ui-sheet" [isOpen]="open()" (didDismiss)="closed.emit()">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="open()" (didDismiss)="closed.emit()">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="closed.emit()">{{ 'entry.cancel' | t }}</button>

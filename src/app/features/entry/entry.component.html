@@ -20,7 +20,9 @@
 
       <!-- Gasto, Ingreso or Transferir: the form switches between them, keeping
            what was already written. A movement being corrected keeps its kind. -->
-      @if (!writingNote()) {
+      <!-- While the note is written, everything but the note steps aside by
+           CSS (.writing-note): the note is never drawn a second time, since a
+           textarea drawn again loses the focus and the phone its keyboard. -->
         <div class="ui-seg kinds">
           <button type="button" [class.on]="!isTransfer() && kind() === 'expense'" class="red"
                   [disabled]="isEditing() && !(!isTransfer() && kind() === 'expense')" (click)="switchKind('expense')">
@@ -122,24 +124,6 @@
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           </div>
         }
-      } @else {
-        <!-- Writing the note: it rises to the top and the rest of the form
-             steps aside, so the note, the notes used before and the phone's
-             keyboard are all in view. "Listo" returns. -->
-        <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
-        @if (noteSuggestions().length > 0) {
-          <div class="ui-list hints">
-            @for (hint of noteSuggestions(); track hint) {
-              <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
-                <ion-icon name="time-outline"></ion-icon>
-                @let parts = hintParts(hint);
-                <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
-                <ion-icon class="use" name="arrow-up-outline"></ion-icon>
-              </button>
-            }
-          </div>
-        }
-      }
     </div>
   </div>
 
@@ -234,14 +218,27 @@
       </button>
     }
   </div>
+  <!-- The notes written before that match, under the note while it is written. -->
+  @if (writingNote() && noteSuggestions().length > 0) {
+    <div class="hints">
+      @for (hint of noteSuggestions(); track hint) {
+        <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
+          <ion-icon name="time-outline"></ion-icon>
+          @let parts = hintParts(hint);
+          <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
+          <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+        </button>
+      }
+    </div>
+  }
 </ng-template>
 
 <!-- Where the money leaves from or arrives at: the one account list, drawn
      the one way (1k), with the products of the account chosen as a second
      step (1l). -->
-<ion-modal class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picking() !== null" (didDismiss)="picking.set(null)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="closeAccountSheet()">{{ 'entry.cancel' | t }}</button>
@@ -268,9 +265,9 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingProduct() !== null" (didDismiss)="pickingProduct.set(null)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head wide">
         <button type="button" class="link left" (click)="pickingProduct.set(null)">{{ 'entry.cancel' | t }}</button>
@@ -313,9 +310,9 @@
 </ion-modal>
 
 <!-- Every category, searchable (1m). -->
-<ion-modal class="ui-sheet tall" [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet tall" [isOpen]="browsingCategories()" (didDismiss)="browsingCategories.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="browsingCategories.set(false)">{{ 'entry.cancel' | t }}</button>
@@ -356,9 +353,9 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="showDate()" (didDismiss)="showDate.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="showDate()" (didDismiss)="showDate.set(false)">
   <ng-template>
-    <div class="ui-sheet-body date-sheet">
+    <div class="ui-sheet-body ion-content-scroll-host date-sheet">
       <div class="grab"></div>
       <ion-datetime presentation="date" [value]="occurredOn()" [locale]="i18n.dateLocale()"
                     [firstDayOfWeek]="1" [showDefaultButtons]="true"

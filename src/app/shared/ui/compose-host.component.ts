@@ -25,15 +25,17 @@ import { AccountPickerComponent } from '../account-picker/account-picker.compone
 import { BadgeComponent } from './badge.component';
 import { ToastService } from './toast.service';
 import { AccentService } from '../../core/theme/accent.service';
+import { MOVE_COLOR } from '../../core/theme/palette';
 
 @Component({
   selector: 'app-compose-host',
   standalone: true,
   imports: [IonModal, IonIcon, TranslatePipe, EntryComponent, AccountPickerComponent, BadgeComponent],
   template: `
-    <ion-modal class="ui-sheet" [isOpen]="compose.sheet()" (didDismiss)="compose.sheet.set(false)">
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="compose.sheet()" (didDismiss)="compose.sheet.set(false)">
       <ng-template>
-        <div class="ui-sheet-body plus-sheet">
+        <div class="ui-sheet-body ion-content-scroll-host plus-sheet">
+          <button type="button" class="sheet-cancel" (click)="compose.sheet.set(false)">{{ 'entry.cancel' | t }}</button>
           <div class="grab"></div>
           <div class="kinds">
             <button type="button" (click)="compose.open('expense')">
@@ -45,7 +47,7 @@ import { AccentService } from '../../core/theme/accent.service';
               <b>{{ 'ui.new.income' | t }}</b>
             </button>
             <button type="button" (click)="compose.open('transfer')">
-              <app-badge shape="ci" [size]="50" builtin="swap-horizontal" [fixed]="accent.accent().color"></app-badge>
+              <app-badge shape="ci" [size]="50" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
               <b>{{ 'ui.new.transfer' | t }}</b>
             </button>
           </div>
@@ -83,6 +85,9 @@ import { AccentService } from '../../core/theme/accent.service';
   `],
 })
 export class ComposeHostComponent {
+  /** A transfer's own blue, whatever the accent. */
+  readonly MOVE = MOVE_COLOR;
+
   readonly compose = inject(ComposeService);
   private readonly database = inject(DatabaseService);
   private readonly statements = inject(StatementsService);

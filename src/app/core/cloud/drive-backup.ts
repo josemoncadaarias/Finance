@@ -41,15 +41,110 @@ export interface CloudCopy {
   rows: number | null;
 }
 
+/** What went wrong, so the screen can say it in words a person reads. */
+export type DriveFailure = 'network' | 'stalled' | 'auth' | 'server';
+
 export class DriveError extends Error {
   /** True when Google refused the token rather than the request. */
   readonly unauthorised: boolean;
+  readonly kind: DriveFailure;
 
-  constructor(message: string, unauthorised = false) {
+  constructor(message: string, unauthorised = false, kind: DriveFailure = unauthorised ? 'auth' : 'server') {
     super(message);
     this.name = 'DriveError';
     this.unauthorised = unauthorised;
+    this.kind = kind;
   }
+}
+
+/**
+ * How long a question to Drive may take before it is given up on. The small
+ * ones (is there a copy, set one aside) answer in a second; a minute of
+ * silence is a connection that has gone, and the screen must not sit there
+ * saying "saving" for ever.
+ */
+const ASK_TIMEOUT_MS = 30_000;
+
+/**
+ * And how long the big transfer may go without moving a single byte. Not a
+ * limit on the whole: 25 MB on a slow connection legitimately takes minutes,
+ * and it is fine as long as it keeps moving.
+ */
+const STALL_MS = 45_000;
+
+/** A fetch that gives up after a while, and says "no connection" as one. */
+async function ask(url: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(ASK_TIMEOUT_MS) });
+  } catch (error) {
+    throw asNetworkError(error);
+  }
+}
+
+/** "Failed to fetch" and its cousins, as the one thing they mean. */
+function asNetworkError(error: unknown): DriveError {
+  if (error instanceof DriveError) return error;
+  const name = error instanceof Error ? error.name : '';
+  if (name === 'TimeoutError') return new DriveError('timeout', false, 'stalled');
+  return new DriveError(error instanceof Error ? error.message : String(error), false, 'network');
+}
+
+/** How far a transfer has got, in bytes. */
+export interface Transfer {
+  loaded: number;
+  total: number;
+}
+
+/**
+ * The big transfer, over XMLHttpRequest because fetch cannot say how far an
+ * upload has got - and a bar that cannot move is exactly what Jose saw sit at
+ * the same place for minutes. Given up on when no byte has moved for
+ * `STALL_MS`, or when the caller aborts.
+ */
+function transfer(
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  body: string | null,
+  options: { signal?: AbortSignal; onUpload?: (t: Transfer) => void; onDownload?: (t: Transfer) => void },
+): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
+
+    let stalled = false;
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+    const moved = () => {
+      if (watchdog) clearTimeout(watchdog);
+      watchdog = setTimeout(() => { stalled = true; xhr.abort(); }, STALL_MS);
+    };
+    const finish = () => {
+      if (watchdog) clearTimeout(watchdog);
+      options.signal?.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => xhr.abort();
+    options.signal?.addEventListener('abort', onAbort);
+
+    xhr.upload.onprogress = event => {
+      moved();
+      if (event.lengthComputable) options.onUpload?.({ loaded: event.loaded, total: event.total });
+    };
+    xhr.onprogress = event => {
+      moved();
+      if (event.lengthComputable) options.onDownload?.({ loaded: event.loaded, total: event.total });
+    };
+    xhr.onload = () => { finish(); resolve({ status: xhr.status, text: xhr.responseText }); };
+    xhr.onerror = () => { finish(); reject(new DriveError('network', false, 'network')); };
+    xhr.onabort = () => {
+      finish();
+      if (stalled) reject(new DriveError('stalled', false, 'stalled'));
+      else reject(new DOMException('aborted', 'AbortError'));
+    };
+
+    moved();
+    xhr.send(body);
+  });
 }
 
 async function check(response: Response): Promise<Response> {
@@ -58,6 +153,15 @@ async function check(response: Response): Promise<Response> {
   throw new DriveError(
     `Drive ${response.status}: ${body.slice(0, 200)}`,
     response.status === 401 || response.status === 403,
+  );
+}
+
+/** The same check as `check`, for what `transfer` answered. */
+function checked(answer: { status: number; text: string }): string {
+  if (answer.status >= 200 && answer.status < 300) return answer.text;
+  throw new DriveError(
+    `Drive ${answer.status}: ${answer.text.slice(0, 200)}`,
+    answer.status === 401 || answer.status === 403,
   );
 }
 
@@ -72,7 +176,7 @@ export async function findCopy(token: string): Promise<CloudCopy | null> {
     pageSize: '10',
   });
 
-  const response = await check(await fetch(`${FILES}?${query}`, {
+  const response = await check(await ask(`${FILES}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   }));
 
@@ -115,7 +219,7 @@ export async function setAside(token: string, copy: CloudCopy): Promise<string> 
   const stamp = copy.modifiedTime.slice(0, 16).replace(/[:T]/g, '-');
   const name = `finance-backup-replaced-${stamp}.json`;
 
-  const response = await check(await fetch(`${FILES}/${copy.id}/copy?fields=id,name`, {
+  const response = await check(await ask(`${FILES}/${copy.id}/copy?fields=id,name`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -141,6 +245,8 @@ export async function upload(
   about: { schemaVersion: number; rows: number },
   /** Aborted when a newer copy is on its way: no point finishing a stale one. */
   abort?: AbortSignal,
+  /** How far the bytes have got, for the bar on the screen. */
+  onProgress?: (t: Transfer) => void,
 ): Promise<CloudCopy> {
   const existing = await findCopy(token);
 
@@ -165,17 +271,12 @@ export async function upload(
     ? `${UPLOAD}/${existing.id}?uploadType=multipart&fields=id,modifiedTime,size`
     : `${UPLOAD}?uploadType=multipart&fields=id,modifiedTime,size`;
 
-  const response = await check(await fetch(url, {
-    method: existing ? 'PATCH' : 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': `multipart/related; boundary=${boundary}`,
-    },
-    body,
-    signal: abort,
-  }));
+  const text = checked(await transfer(existing ? 'PATCH' : 'POST', url, {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': `multipart/related; boundary=${boundary}`,
+  }, body, { signal: abort, onUpload: onProgress }));
 
-  const written = await response.json() as { id: string; modifiedTime: string; size?: string };
+  const written = JSON.parse(text) as { id: string; modifiedTime: string; size?: string };
   return {
     id: written.id,
     modifiedTime: written.modifiedTime,
@@ -186,9 +287,8 @@ export async function upload(
 }
 
 /** The text of the copy Drive holds, ready for the ordinary restore. */
-export async function download(token: string, id: string): Promise<string> {
-  const response = await check(await fetch(`${FILES}/${id}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }));
-  return response.text();
+export async function download(token: string, id: string, onProgress?: (t: Transfer) => void): Promise<string> {
+  return checked(await transfer('GET', `${FILES}/${id}?alt=media`, {
+    Authorization: `Bearer ${token}`,
+  }, null, { onDownload: onProgress }));
 }

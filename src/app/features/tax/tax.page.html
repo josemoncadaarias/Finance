@@ -359,9 +359,10 @@
 
 <!-- The kind of work: one row on the form, the three kinds explained here. -->
 <ion-modal class="ui-sheet" [isOpen]="employmentSheet()" (didDismiss)="employmentSheet.set(false)"
-           [initialBreakpoint]="1" [breakpoints]="[0, 1]">
+           [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="employmentSheet.set(false)">{{ 'entry.cancel' | t }}</button>
       <h2 class="center">{{ 'ui.tax.employment' | t }}</h2>
       <div class="ui-list kinds">
         @for (kind of employmentKinds; track kind) {
@@ -381,9 +382,9 @@
 
 <!-- Which category the salary is recorded under: the person says which. -->
 <ion-modal class="ui-sheet" [isOpen]="salarySheet()" (didDismiss)="salarySheet.set(false)"
-           [initialBreakpoint]="1" [breakpoints]="[0, 1]">
+           [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <h2 class="center">{{ text.salarySheetTitle }}</h2>
       <p class="hint center">{{ 'ui.tax.incomeOf' | t:{ year: year() } }}</p>
       @if (salaryOptions().length === 0) {

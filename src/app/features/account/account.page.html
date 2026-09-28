@@ -36,9 +36,12 @@
           <p class="none">{{ 'cloud.none' | t }}</p>
         }
         @if (cloud.state() === 'working' || busy()) {
+          <!-- The real distance: reading the data, then the upload byte by byte. -->
+          @let now = bar();
           <div class="progress">
-            <span>{{ busy() || ('cloud.uploading' | t) }}</span>
-            <span class="ui-pbar"><i [style.width.%]="60"></i></span>
+            <span class="line"><span>{{ now.label || ('cloud.uploading' | t) }}</span>@if (now.fraction !== null) {<b>{{ percentOf(now.fraction) }}</b>}</span>
+            <span class="ui-pbar" [class.moving]="now.fraction === null"><i [style.width.%]="now.fraction === null ? 35 : now.fraction * 100"></i></span>
+            @if (now.detail) { <small>{{ now.detail }}</small> }
           </div>
         } @else {
           <div class="two">
@@ -125,7 +128,8 @@
 </ion-modal>
 
 @if (busy() && cloud.state() !== 'working') {
-  <app-busy-overlay [label]="busy()" [detail]="busyDetail()" icon="refresh-outline"></app-busy-overlay>
+  <app-busy-overlay [label]="busy()" [detail]="busyDetail()" icon="refresh-outline"
+                    [percent]="busyFraction() === null ? null : busyFraction()! * 100"></app-busy-overlay>
 }
 
 @if (info(); as said) {

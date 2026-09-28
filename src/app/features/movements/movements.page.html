@@ -100,7 +100,7 @@
 
         @if (store.movedBetween() > 0) {
           <div class="ui-sub moved-line">
-            <ion-icon name="swap-horizontal" class="ui-p"></ion-icon>
+            <ion-icon name="swap-horizontal" class="ui-t"></ion-icon>
             <span class="ui-one">{{ 'ui.movedBetween' | t:{ amount: (store.movedBetween() | money:'COP') } }}</span>
           </div>
         }
@@ -196,7 +196,7 @@
               @for (movement of group.movements.slice(0, rowsShownIn(group.key)); track movement.transaction.id) {
                 <button type="button" class="ui-row movement" (click)="edit(movement.transaction)">
                   @if (movement.transaction.transfer_id !== null) {
-                    <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="accentColor()"></app-badge>
+                    <app-badge shape="ci" [size]="42" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
                   } @else {
                     <app-badge [size]="42" [builtin]="movement.icon" [customId]="movement.customIconId"
                                [tone]="movement.color" [seed]="movement.seed"></app-badge>

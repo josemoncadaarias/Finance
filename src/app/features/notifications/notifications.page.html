@@ -232,9 +232,10 @@
 </ion-content>
 
 <!-- Borrar lo guardado, Olvidar todo (7g). -->
-<ion-modal class="ui-sheet" [isOpen]="menuOpen()" (didDismiss)="menuOpen.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="menuOpen()" (didDismiss)="menuOpen.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="menuOpen.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'notifications.title' | t }}</h2>
       <div class="ui-list">
@@ -252,9 +253,9 @@
 </ion-modal>
 
 <!-- Which app's notices to read, "Todas las apps" first. -->
-<ion-modal class="ui-sheet" [isOpen]="pickingApp()" (didDismiss)="pickingApp.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingApp()" (didDismiss)="pickingApp.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
       <div class="grab"></div>
       <div class="sheet-head">
         <button type="button" class="link left" (click)="pickingApp.set(false)">{{ 'entry.cancel' | t }}</button>

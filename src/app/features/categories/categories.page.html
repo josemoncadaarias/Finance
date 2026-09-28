@@ -94,9 +94,10 @@
 </ion-content>
 
 <!-- Which list, asked once (3c). -->
-<ion-modal class="ui-sheet" [isOpen]="choosingList()" (didDismiss)="choosingList.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingList()" (didDismiss)="choosingList.set(false)">
   <ng-template>
-    <div class="ui-sheet-body which-list">
+    <div class="ui-sheet-body ion-content-scroll-host which-list">
+      <button type="button" class="sheet-cancel" (click)="choosingList.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'categories.new.where' | t }}</h2>
       <div class="two">

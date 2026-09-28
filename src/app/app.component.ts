@@ -4,7 +4,8 @@
  */
 
 import { Component, effect, inject } from '@angular/core';
-import { IonApp, IonRouterOutlet } from '@ionic/angular';
+import { Router, NavigationStart } from '@angular/router';
+import { IonApp, IonRouterOutlet, ModalController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { DRAWN_ICONS } from './core/icons/drawn-icons';
 import * as allIcons from 'ionicons/icons';
@@ -67,6 +68,24 @@ export class AppComponent {
 
   /** Text cut short with "…" slides to show the rest of itself, on every screen. */
   private readonly marquee = inject(MarqueeService);
+
+  /**
+   * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:
+   * "Ver monedas y tasas" went to the page and left the list of accounts
+   * lying over it). Going to another screen closes whatever is open; staying
+   * on the same one - a query string changing - leaves it alone.
+   */
+  private readonly modals = inject(ModalController);
+  private readonly closeOnLeaving = inject(Router).events.subscribe(event => {
+    if (!(event instanceof NavigationStart)) return;
+    const from = location.pathname;
+    if (event.url.split('?')[0] === from) return;
+    void (async () => {
+      for (let open = await this.modals.getTop(); open; open = await this.modals.getTop()) {
+        if (!(await open.dismiss())) break;
+      }
+    })();
+  });
 
   constructor() {
     this.marquee.start();

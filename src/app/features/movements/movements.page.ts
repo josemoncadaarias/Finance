@@ -42,6 +42,7 @@ import { AccentService } from '../../core/theme/accent.service';
 import { formatMoney } from '../../core/database/money';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
+import { MOVE_COLOR } from '../../core/theme/palette';
 
 @Component({
   selector: 'app-movements',
@@ -54,6 +55,9 @@ import type { Standing } from './movements.store';
   ],
 })
 export class MovementsPage {
+  /** A transfer's own blue, whatever the accent. */
+  readonly MOVE = MOVE_COLOR;
+
   readonly filter = inject(FilterService);
   readonly store = inject(MovementsStore);
   readonly database = inject(DatabaseService);
@@ -462,10 +466,10 @@ export class MovementsPage {
     if (keepIn) tiles.push({ key: 'in', label: this.i18n.t('summary.in'), amount: totals.inMinor, tone: 'ui-g', transfer: false });
     if (keepOut) tiles.push({ key: 'out', label: this.i18n.t('summary.out'), amount: totals.outMinor, tone: 'ui-r', transfer: false });
     if (!all && totals.receivedMinor > 0) {
-      tiles.push({ key: 'received', label: this.i18n.t('summary.received'), amount: totals.receivedMinor, tone: 'ui-p', transfer: true });
+      tiles.push({ key: 'received', label: this.i18n.t('summary.received'), amount: totals.receivedMinor, tone: 'ui-t', transfer: true });
     }
     if (!all && totals.movedMinor > 0) {
-      tiles.push({ key: 'sent', label: this.i18n.t('ui.sent'), amount: totals.movedMinor, tone: 'ui-p', transfer: true });
+      tiles.push({ key: 'sent', label: this.i18n.t('ui.sent'), amount: totals.movedMinor, tone: 'ui-t', transfer: true });
     }
     return tiles;
   });
@@ -497,7 +501,7 @@ export class MovementsPage {
   toneOf(flow: Flow): string {
     if (flow === 'in') return 'ui-g';
     if (flow === 'out' || flow === 'refund') return 'ui-r';
-    return 'ui-p';
+    return 'ui-t';
   }
 
   groupColor(group: MovementGroup): string | null {

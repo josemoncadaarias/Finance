@@ -48,6 +48,10 @@
   --app-red-rgb: 229, 72, 77;
   --app-grn-rgb: 31, 157, 106;
   --app-yel-rgb: 201, 138, 12;
+  /* Money moved between the person's own accounts. Never the accent: with
+     Coral chosen, a transfer painted in the accent read as spending. */
+  --app-move: #4458d8;
+  --app-move-rgb: 68, 88, 216;
 
   --ion-text-color: var(--app-tx);
   --ion-text-color-rgb: 16, 24, 40;
@@ -100,6 +104,8 @@
   --app-red-rgb: 255, 107, 107;
   --app-grn-rgb: 52, 201, 139;
   --app-yel-rgb: 246, 185, 59;
+  --app-move: #7b8cff;
+  --app-move-rgb: 123, 140, 255;
 
   --ion-text-color: var(--app-tx);
   --ion-text-color-rgb: 238, 242, 249;

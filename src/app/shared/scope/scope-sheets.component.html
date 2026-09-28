@@ -12,9 +12,10 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="showPeriodSheet()" (didDismiss)="showPeriodSheet.set(false)">
   <ng-template>
-    <div class="ui-sheet-body period-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host period-sheet-body">
+      <button type="button" class="sheet-cancel" (click)="showPeriodSheet.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'summary.period' | t }}</h2>
 

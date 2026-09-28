@@ -540,6 +540,15 @@ export const SPANISH = {
   'cloud.auto.hint': 'La copia sube cuando sales de la app, que es cuando no estorba; si Android corta la app antes de terminar, se sube al volver a abrirla. Cada subida es la base completa (unos {size}), así que con datos móviles quizá prefieras apagarlo y usar el botón de la nube cuando quieras.',
   'cloud.failed': 'No se pudo guardar la copia',
   'cloud.error.signedOut': 'Se cerró la sesión de Google. Entra otra vez.',
+  'cloud.error.network': 'No hubo conexión con Google Drive y la copia no se subió. Tus datos siguen en el teléfono; vuelve a intentarlo con Guardar ahora cuando tengas internet.',
+  'cloud.error.stalled': 'La subida se quedó quieta mucho tiempo y se canceló. Tus datos siguen en el teléfono; vuelve a intentarlo con una conexión más estable.',
+  'cloud.error.auth': 'Google no aceptó la sesión. Toca Guardar ahora otra vez; si sigue, cierra sesión y vuelve a entrar.',
+  'cloud.error.server': 'Google Drive respondió con un error ({detail}). Tus datos siguen en el teléfono.',
+  'cloud.progress.checking': 'Revisando la copia que hay en Drive',
+  'cloud.progress.reading': 'Leyendo tus datos',
+  'cloud.progress.uploading': 'Subiendo a Drive',
+  'cloud.progress.mb': '{done} de {total} MB',
+  'cloud.progress.retry': 'Se cortó la conexión; intentando otra vez',
   'cloud.where': 'La copia es el mismo archivo que guarda "Importar y exportar". Puedes borrarla cuando quieras desde los permisos de tu cuenta de Google.',
 
   // --- what the app has read and nobody has answered yet ------------------
@@ -1574,6 +1583,15 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cloud.auto.hint': 'The copy goes up when you leave the app, which is when it is in the way of nothing; if Android stops the app before it finishes, it goes up when you open the app again. Every upload is the whole database (about {size}), so on mobile data you may prefer to switch this off and use the cloud button when you want to.',
   'cloud.failed': 'The copy could not be saved',
   'cloud.error.signedOut': 'The Google session ended. Sign in again.',
+  'cloud.error.network': 'There was no connection to Google Drive and the copy was not uploaded. Your data is still on the phone; try Save now again once you are online.',
+  'cloud.error.stalled': 'The upload stood still for too long and was cancelled. Your data is still on the phone; try again on a steadier connection.',
+  'cloud.error.auth': 'Google did not accept the session. Tap Save now again; if it keeps failing, sign out and back in.',
+  'cloud.error.server': 'Google Drive answered with an error ({detail}). Your data is still on the phone.',
+  'cloud.progress.checking': 'Checking the copy in Drive',
+  'cloud.progress.reading': 'Reading your data',
+  'cloud.progress.uploading': 'Uploading to Drive',
+  'cloud.progress.mb': '{done} of {total} MB',
+  'cloud.progress.retry': 'The connection dropped; trying again',
   'cloud.where': 'The copy is the same file "Import and export" writes. You can delete it whenever you like from your Google account permissions.',
 
   // --- what the app has read and nobody has answered yet ------------------

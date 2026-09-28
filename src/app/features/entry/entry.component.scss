@@ -97,7 +97,7 @@
     align-self: center;
     &.expense { color: var(--app-red); }
     &.income { color: var(--app-grn); }
-    &.transfer { color: var(--app-pr); }
+    &.transfer { color: var(--app-move); }
   }
 
   .value {
@@ -486,3 +486,16 @@
   --background: transparent;
 }
 
+
+/* ---- Writing the note ------------------------------------------------------
+   The note stays where it is and the rest steps aside, so it rises to the
+   top with the notes used before under it and the keyboard below. Nothing is
+   drawn again: a textarea drawn again loses its focus, and on the phone the
+   keyboard with it, which is what closed the note the moment it opened. */
+.entry.writing-note {
+  .entry-body > :not(.ui-list) { display: none; }
+  .entry-body > .ui-list:not(:has(.note)) { display: none; }
+  .entry-body > .ui-list > :not(.note):not(.hints) { display: none; }
+  .entry-body > .ui-list { background: none; border: 0; }
+  .hints { margin-top: 10px; background: var(--app-s1); border-radius: 16px; border: 1px solid var(--app-border); }
+}

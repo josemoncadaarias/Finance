@@ -84,9 +84,10 @@
   </main>
 </ion-content>
 
-<ion-modal class="ui-sheet" [isOpen]="languageSheet()" (didDismiss)="languageSheet.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="languageSheet()" (didDismiss)="languageSheet.set(false)">
   <ng-template>
-    <div class="ui-sheet-body">
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="languageSheet.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'more.language' | t }}</h2>
       <div class="ui-list">
@@ -105,9 +106,10 @@
   </ng-template>
 </ion-modal>
 
-<ion-modal class="ui-sheet" [isOpen]="appearanceSheet()" (didDismiss)="appearanceSheet.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="appearanceSheet()" (didDismiss)="appearanceSheet.set(false)">
   <ng-template>
-    <div class="ui-sheet-body appearance">
+    <div class="ui-sheet-body ion-content-scroll-host appearance">
+      <button type="button" class="sheet-cancel" (click)="appearanceSheet.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'more.appearance' | t }}</h2>
       <div class="ui-h first">{{ 'appearance.theme' | t }}</div>
