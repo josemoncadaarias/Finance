@@ -17,7 +17,8 @@ const centred = (html, gap = 12) => html.replace('display:grid', `display:grid;m
 // The screen's own title bar: the name, and the one action it has (a new
 // account). The "+" in the bar below stays the way to a new MOVEMENT.
 const head = `<div class="bar-top">${st}<div class="tt" style="gap:10px"><h1 style="flex:1">Cuentas</h1>
- <div class="chip" style="padding:7px 12px;color:var(--pr)">${ic('add', '', 'width:18px;height:18px')}Nueva cuenta</div></div></div>`;
+ <div class="chip" style="padding:7px 12px;color:var(--pr)">${ic('add', '', 'width:18px;height:18px')}Nueva cuenta</div></div>
+ <div class="seg" style="margin-top:10px"><div class="on">Cuentas</div><div>Rendimientos</div></div></div>`;
 
 // A row of the list: tapping it opens its movements in Inicio (as today); the
 // pencil beside the amount edits it.
@@ -237,7 +238,7 @@ S['2r-cara-color-con-imagen'] = `${top('Ícono y color', { left: 'x', right: `<s
  </main>`;
 
 // Archived accounts, opened below the list: history only.
-S['2o-archivadas'] = scrolled(head, 88, 560, `<div style="height:12px"></div>${hero(false)}${list}
+S['2o-archivadas'] = scrolled(head, 146, 560, `<div style="height:12px"></div>${hero(false)}${list}
  <div class="list" style="margin-top:12px">
   <div class="row">${sq('cash-outline', C.lim, 40)}<div class="tx"><b>Monedas y tasas</b><small class="one">COP, USD, EUR · TRM del 27 sept</small></div>${chev()}</div>
   <div class="row">${sq('archive-outline', C.gry, 40)}<div class="tx"><b>Ocultar 1 cuenta archivada</b></div>${ic('chevron-up-outline', 'mu', 'width:18px;height:18px')}</div></div>

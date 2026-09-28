@@ -2051,8 +2051,8 @@ then does the next start. The groups and where each stands:
 |---|---|---|---|
 | 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
 | 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | **Approved** by Jose, 2026-09-28, with its three changes of access |
-| 3 | Categories and their editor | `docs/mockups/3*` (v4) | Sent 2026-09-28, waiting for Jose |
-| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `c*` (v3 draft) | To redo |
+| 3 | Categories and their editor | `docs/mockups/3*` (v4) | **Approved** by Jose, 2026-09-28 |
+| 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `docs/mockups/4*` (v4) | Sent 2026-09-28, waiting for Jose |
 | 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
 | 6 | Por revisar, reading a statement | `d03`-`d05` (v3 draft) | To redo |
 | 7 | Avisos del banco | `d06`-`d07` (v3 draft) | To redo |
@@ -2144,7 +2144,7 @@ it, all accepted by Jose (everything else is today's screen redrawn):
   stays the account's colour elsewhere (`2q`, `2r`). "Tus imágenes" shows
   the pictures uploaded, never plain colours (`2n` looked like colours).
 
-**Group 3 as sent (v4, 2026-09-28)**: today's categories screen redrawn -
+**Group 3 (v4, approved 2026-09-28)**: today's categories screen redrawn -
 two folding lists with their counts (closed on opening), "Abrir todas /
 Cerrar todas", Más usadas / A-Z, "Nueva categoría" asking which list, the
 archived with the list each belonged to, the two arrows on a long list -
@@ -2156,6 +2156,34 @@ category's colour is new on screen (`categories.color` exists), as it was
 for accounts. No search on this screen, as today (the picker has one).
 The product categories' own editor (reached from a product's form) belongs
 to group 4.
+
+**Group 4 as sent (v4, 2026-09-28)**: everything the products screen
+does today, with these changes of ACCESS for Jose to accept or refuse:
+
+- **Products and yields are the second face of the Cuentas tab**
+  ("Cuentas | Rendimientos", added to `2a` as well), plus the piggy bank
+  beside one account in Inicio. The drawer item goes with the drawer.
+- **An account's page lives inside that tab, not over it**, so the bar and
+  its "+" stay. Its own compose bar (Gasto, Ingreso, the round transfer)
+  and "Mover entre productos" go: the "+" opens the one movement form on
+  that account, and a move between products is a Transferir whose ends
+  are products. A product's own income or expense keeps "¿Qué cambia?"
+  (Solo el producto / Producto y patrimonio / Hacer efectivo / Solo el
+  patrimonio) as a section of that one form (`4q`).
+- **The page is one scroll, as today**: the figure (Rendimiento
+  disponible, Rendido, Pasado al patrimonio, Rinde sobre and the "cerró
+  ayer" note, the two ways out), the products, the movements (three views,
+  period, search, the orphan withdrawal said in its row), what the bank
+  pays by month (with "Qué productos ver"), how each day was worked out,
+  and stopping the account. No tabs.
+- **Rates stay where they already are, inside the product form**, with
+  payout frequency, Vigente / Ya no aplica, "Cambiar la tasa desde una
+  fecha" and the spending bonus. A product using the account's rate shows
+  it marked "de la cuenta" and offers "Darle una tasa propia desde una
+  fecha" (`4k`) - assumed, not checked, that today's form can already do
+  that without a data change; to verify before building.
+- "Recalcular" is the round arrow in the title bar of the Rendimientos
+  face.
 
 ### The ideas, by what they would take
 
