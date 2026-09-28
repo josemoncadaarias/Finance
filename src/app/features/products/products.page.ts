@@ -392,7 +392,11 @@ export class ProductsPage {
    */
   /** Any tab of the bar leaves the account's page. */
   private readonly leaveOnNavigation = inject(Router).events.subscribe(event => {
-    if (event instanceof NavigationStart && this.openLine() !== null) this.closeDetail();
+    // Only when leaving this screen: taking `?account=` off the address is a
+    // navigation too, and closing on it shut the account the piggy bank had
+    // just opened (Jose, 2026-09-28).
+    if (event instanceof NavigationStart && this.openLine() !== null
+        && event.url.split('?')[0] !== '/products') this.closeDetail();
   });
 
   private readonly composeOnThisAccount = effect(() => {

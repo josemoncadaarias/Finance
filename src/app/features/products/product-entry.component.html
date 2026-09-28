@@ -16,7 +16,8 @@
 
   <div class="entry-scroll">
     <div class="entry-body">
-      @if (!writingNote()) {
+      <!-- While the note is written the rest steps aside by CSS (.writing-note);
+           the note is never drawn a second time, or the phone drops its keyboard. -->
         <div class="ui-seg kinds">
           <button type="button" class="red" [class.on]="request().kind === 'expense'"
                   [disabled]="isEditing() && request().kind !== 'expense'" (click)="switchKind('expense')">
@@ -103,21 +104,6 @@
           </div>
           <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
         </div>
-      } @else {
-        <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
-        @if (noteSuggestions().length > 0) {
-          <div class="ui-list hints">
-            @for (hint of noteSuggestions(); track hint) {
-              @let parts = hintParts(hint);
-              <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
-                <ion-icon name="time-outline"></ion-icon>
-                <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
-                <ion-icon class="use" name="arrow-up-outline"></ion-icon>
-              </button>
-            }
-          </div>
-        }
-      }
     </div>
   </div>
 
@@ -184,6 +170,18 @@
       </button>
     }
   </div>
+  @if (writingNote() && noteSuggestions().length > 0) {
+    <div class="hints">
+      @for (hint of noteSuggestions(); track hint) {
+        @let parts = hintParts(hint);
+        <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
+          <ion-icon name="time-outline"></ion-icon>
+          <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
+          <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+        </button>
+      }
+    </div>
+  }
 </ng-template>
 
 <!-- ¿Qué cambia? (4y): each choice says what it does. -->
