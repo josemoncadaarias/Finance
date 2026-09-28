@@ -2049,8 +2049,8 @@ then does the next start. The groups and where each stands:
 
 | Group | Screens | Mockups | Status |
 |---|---|---|---|
-| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | v4 reviewed by Jose; v5 sent 2026-09-28, waiting |
-| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `b0*` (v3 draft) | To redo |
+| 1 | Inicio, the "+" sheet, the movement form (every kind), its pickers, edit and delete | `docs/mockups/1*` (v5) | **Approved** by Jose, 2026-09-28 |
+| 2 | Cuentas, creating and editing an account, its icon and colour, currencies, net worth | `docs/mockups/2*` (v4) | Sent 2026-09-28, waiting for Jose |
 | 3 | Categories and their editor | `b08`-`b13` (v3 draft) | To redo |
 | 4 | Products and yields: how they are reached, an account's products, days, movements, a product with its rates, a CDT | `c*` (v3 draft) | To redo |
 | 5 | Report (money and yields) | `d01`-`d02` (v3 draft) | To redo |
@@ -2123,6 +2123,21 @@ then does the next start. The groups and where each stands:
   five largest categories and "Otras N", names ending in "…", percentages
   in a column of their own; the total spent sits inside the ring. Every
   category with its figure is the list under it.
+
+**Group 2 as sent (v4, 2026-09-28)**, and the three changes of ACCESS in
+it, which Jose has to accept or refuse (everything else is today's screen
+redrawn):
+
+- **Currencies and today's rates in one screen, "Monedas y tasas"**,
+  reached from a row under the accounts. Today the currencies list sits
+  at the foot of the accounts screen and the TRM, its refresh and the
+  typed rates live inside "¿De dónde sale?"; that sheet now shows the
+  rate each line used and links to the new screen.
+- **An account's colour can be chosen** (Ícono, Color, Imagen propia, the
+  order of the category editor). `accounts.color` exists; the editor does
+  not offer it today.
+- **"Nueva cuenta" is a button in the screen's title bar**; the "+" in the
+  bottom bar stays the way to a new movement.
 
 ### The ideas, by what they would take
 

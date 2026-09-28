@@ -1,97 +1,9 @@
-// Accounts, currencies, categories and the colour picker.
+// Categories and their editor (v3 draft; group 3). Accounts and currencies
+// moved to screens-2.mjs (group 2).
 import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, bigTitle, tint } from './lib.mjs';
 
 const S = {};
 const fams = [['Cálidos', ['coral', 'cereza', 'mandarina', 'ambar', 'oro', 'arena']], ['Verdes y azules', ['lima', 'esmeralda', 'menta', 'turquesa', 'cielo', 'zafiro']], ['Violetas y neutros', ['violeta', 'orquidea', 'rosa', 'pizarra']]];
-
-S['b01-cuentas'] = `${bigTitle('Cuentas', `<div class="btn-r">${ic('swap-vertical-outline')}</div><div class="btn-r">${ic('add')}</div>`)}<main style="padding-top:8px">
- <div class="card hero"><div class="lab">Patrimonio hoy</div><div class="big">$ 48.312.740,55</div>
-  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="chip" style="background:rgba(7,13,26,.35);padding:5px 10px;font-size:12.5px">TRM 3.912,40 · oficial hoy ${ic('refresh-outline')}</span><span class="chip" style="background:rgba(7,13,26,.35);padding:5px 10px;font-size:12.5px;color:#cdd5ff">¿De dónde sale?</span></div>
-  <div class="note" style="margin-top:8px">Los brókers muestran lo que metiste, no lo que valen hoy.</div></div>
- <div class="h">Para el día a día<span class="p">Por monto</span></div><div class="list">
-  <div class="row">${accIcon('azul')}<div class="tx"><b>Banco Azul</b><small>Cuenta bancaria · COP</small></div><div class="am">12.480.300,00</div></div>
-  <div class="row">${accIcon('efectivo')}<div class="tx"><b>Efectivo</b><small>COP</small></div><div class="am">180.000,00</div></div>
-  <div class="row">${accIcon('global')}<div class="tx"><b>Global Viajes</b><small>2 monedas</small></div><div class="am">2.106.000,00<small class="mu">+ 120,00 USD</small></div></div></div>
- <div class="h">Tarjetas</div><div class="list"><div class="row">${accIcon('coral')}<div class="tx"><b>Tarjeta Coral</b><small>3.872.900 disponible de 8.000.000</small>
-  <div class="pbar" style="margin-top:7px"><i style="width:52%;background:var(--yel)"></i></div></div><div class="am y">−4.127.100,00</div></div></div>
- <div class="h">Ganan rendimientos</div><div class="list">
-  <div class="row">${accIcon('verde')}<div class="tx"><b>Ahorro Verde</b><small>3 productos · hoy +924,31</small></div><div class="am">55.240.546,90</div></div>
-  <div class="row">${accIcon('ambar')}<div class="tx"><b>Fiducia Ámbar</b><small>Inversión · ${tag('aparte del patrimonio', C.gry)}</small></div><div class="am mu">8.400.000,00</div></div></div>
- <div class="list" style="margin-top:12px"><div class="row">${sq('cash-outline', C.lim, 40)}<div class="tx"><b>Monedas y tasas</b><small>COP, USD, EUR · falta la tasa de EUR</small></div>${chev()}</div>
-  <div class="row">${sq('archive-outline', C.gry, 40)}<div class="tx"><b>Ver 1 cuenta archivada</b><small>Historial nada más; no cuenta para el patrimonio</small></div>${chev()}</div></div>
- </main><div class="fade"></div>${tabs('Cuentas')}`;
-
-S['b02-de-donde-sale'] = S['b01-cuentas'] + `<div class="scrim"></div><div class="sheet" style="top:140px"><div class="grab"></div>
- <div class="sh"><h2>Cómo se arma el patrimonio</h2><span class="p">Cerrar</span></div>
- <div class="sub" style="margin-bottom:10px">Cada cuenta que cuenta, con lo que aporta al total. Las de otra moneda van a la tasa de hoy.</div>
- <div class="list">${[['azul', '12.480.300,00', ''], ['verde', '55.240.546,90', ''], ['global', '2.575.480,00', '2.106.000 + 120 USD × 3.912,40'], ['dolar', '341.708,00', '87,34 USD × 3.912,40'], ['coral', '−4.127.100,00', 'deuda']]
-  .map(([k, a, s]) => `<div class="row">${accIcon(k, 36)}<div class="tx"><b>${ACC[k][2]}</b>${s ? `<small>${s}</small>` : ''}</div><div class="am ${a.startsWith('−') ? 'y' : ''}">${a}</div></div>`).join('')}
-  <div class="row plain"><div class="tx"><b>Total</b></div><div class="am b">48.312.740,55</div></div></div>
- <div class="banner" style="background:${tint(C.yel, .12)};color:#f3d58a;margin-top:10px">${ic('alert-circle-outline')}<span>Falta la tasa de EUR: esa plata no está sumando. Fiducia Ámbar está apartada del patrimonio.</span></div></div>`;
-
-S['b03-monedas'] = `${top('Monedas y tasas', { right: `<div class="btn-r">${ic('add')}</div>` })}<main>
- <div class="card hero"><div class="lab">Tasa de hoy · USD</div><div class="big">3.912,40</div>
-  <div class="sub">TRM oficial del 27 sept · Superfinanciera</div>
-  <div style="display:flex;gap:8px;margin-top:10px"><div class="chip" style="background:rgba(7,13,26,.35)">${ic('refresh-outline')} Actualizar</div><div class="chip" style="background:rgba(7,13,26,.35)">${ic('create-outline')} Escribirla a mano</div></div></div>
- <div class="h">Tus monedas</div><div class="list">
-  ${[['COP', 'Peso colombiano', '$', 'En 9 cuentas · la principal', C.grn], ['USD', 'Dólar estadounidense', 'US$', 'En 3 cuentas · 3.912,40 hoy', C.cya], ['EUR', 'Euro', '€', 'En 1 cuenta · sin tasa: no se puede valorar', C.yel]]
-   .map(([c, n, s, h, col]) => `<div class="row"><span class="sq" style="width:42px;height:42px;background:${tint(col)};color:${col};font-weight:700;font-size:12.5px">${c}</span><div class="tx"><b>${n} <span class="mu" style="font-weight:400">${s}</span></b><small>${h}</small></div>${chev()}</div>`).join('')}</div>
- <div class="hint">El código de una moneda en uso no se puede cambiar: todos los montos guardados están en esa moneda.</div>
- <div class="banner" style="background:${tint(C.blu, .12)};color:#c3cdfa;margin-top:12px">${ic('cloud-offline-outline')}<span>Sin internet se queda la última tasa que había, y se dice.</span></div></main>`;
-
-S['b04-agregar-moneda'] = S['b03-monedas'] + `<div class="scrim"></div><div class="dialog">
- <b style="font-size:18px">Agregar una moneda</b><div class="sub" style="margin:4px 0 14px">Luego podrás crear cuentas en ella.</div>
- <div class="field on"><div class="lab">Código</div><div class="v">CAD</div></div><div class="hint">Tres letras: CAD, MXN, BRL…</div>
- <div class="field" style="margin-top:10px"><div class="lab">Nombre</div><div class="v">Dólar canadiense</div></div>
- <div class="field" style="margin-top:10px"><div class="lab">Símbolo</div><div class="v">C$</div></div>
- <div style="display:flex;gap:10px;margin-top:16px"><div class="btn ghost" style="flex:1">Cancelar</div><div class="btn" style="flex:1">Guardar</div></div></div>`;
-
-const typePick = on => `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${[['wallet-outline', C.blu, 'Bancaria'], ['card-outline', C.yel, 'Tarjeta'], ['cash-outline', C.lim, 'Efectivo'], ['trending-up-outline', C.gold, 'Inversión']]
-  .map(([i, c, t], n) => `<div style="background:${n === on ? tint(c, .16) : 'var(--s1)'};border:1px solid ${n === on ? c : '#1f2c47'};border-radius:16px;padding:10px 4px;text-align:center;font-size:12.5px">${ci(i, c, 36).replace('display:grid', 'display:grid;margin:0 auto 6px')}${t}</div>`).join('')}</div>`;
-
-S['b05-nueva-cuenta'] = `${top('Nueva cuenta', { left: 'x' })}<main style="padding-top:10px">
- <div class="card" style="display:flex;gap:12px;align-items:center;border-color:${tint(C.pur, .5)};background:${tint(C.pur, .1)}">${ci('document-text-outline', C.pur)}<div class="tx"><b>Llenarla desde un extracto PDF</b><small>Nombre, moneda y movimientos, y el saldo cuadra con el banco</small></div>${chev()}</div>
- <div style="text-align:center;margin:12px 0" class="mu">o escríbela tú</div>
- <div style="display:flex;align-items:center;gap:14px"><div style="position:relative">${ci('wallet-outline', C.blu, 64)}<span style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:var(--pr);display:grid;place-items:center">${ic('create-outline', '', 'width:13px;height:13px')}</span></div>
-  <div class="field on" style="flex:1"><div class="lab">Nombre</div><div class="v mu">Nombre de la cuenta</div></div></div>
- <div class="lab" style="margin:14px 4px 8px">Tipo</div>${typePick(0)}
- <div class="list" style="margin-top:12px">
-  <div class="row plain"><div class="tx"><span class="k">MONEDA</span><b>COP · Peso colombiano</b></div><span class="p" style="font-size:13px">+ Otra</span>${chev()}</div>
-  <div class="row plain"><div class="tx"><span class="k">SALDO INICIAL</span><b>0,00</b></div></div>
-  <div class="row plain"><div class="tx"><span class="k">ABIERTA EL</span><b>Hoy</b></div>${chev()}</div></div>
- <div class="list" style="margin-top:12px"><div class="row plain"><div class="tx"><b>Cuenta para el patrimonio</b><small>Apágalo para brókers o plata apartada</small></div>${sw(true)}</div></div>
- </main><div class="save">Crear cuenta</div>`;
-
-S['b06-editar-tarjeta'] = `${top('Editar cuenta')}<main style="padding-top:10px">
- <div style="display:flex;align-items:center;gap:14px"><div style="position:relative">${accIcon('coral', 64)}<span style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:var(--pr);display:grid;place-items:center">${ic('create-outline', '', 'width:13px;height:13px')}</span></div>
-  <div class="field" style="flex:1"><div class="lab">Nombre</div><div class="v">Tarjeta Coral</div></div></div>
- <div class="lab" style="margin:14px 4px 8px">Tipo</div>${typePick(1)}
- <div class="list" style="margin-top:12px">
-  <div class="row plain"><div class="tx"><span class="k">MONEDA</span><b>COP · Peso colombiano</b><small>No se puede cambiar: tiene movimientos</small></div>${ic('lock-closed-outline', 'mu')}</div>
-  <div class="row plain"><div class="tx"><span class="k">CUPO TOTAL · VIGENTE DESDE 1 AGO</span><b>8.000.000,00</b></div><span class="p" style="font-size:13px">Historial (3)</span>${chev()}</div>
-  <div class="row plain"><div class="tx"><span class="k">SALDO INICIAL</span><b>0,00</b></div></div>
-  <div class="row plain"><div class="tx"><span class="k">ABIERTA EL</span><b>12 de marzo de 2024</b></div>${chev()}</div></div>
- <div class="hint">Cambiar el cupo no mueve plata: la deuda sigue igual y solo cambia lo disponible.</div>
- <div class="list" style="margin-top:12px"><div class="row plain"><div class="tx"><b>Cuenta para el patrimonio</b></div>${sw(true)}</div>
-  <div class="row plain"><div class="tx"><b>Archivar</b><small>Se esconde de las listas; su historial se conserva</small></div>${sw(false)}</div>
-  <div class="row plain">${ic('document-text-outline', 'p')}<div class="tx"><b class="p">Importar un extracto PDF</b></div>${chev()}</div>
-  <div class="row plain">${ic('trash-outline', 'r')}<div class="tx"><b class="r">Eliminar esta cuenta</b><small>Se borran también sus 32 movimientos</small></div></div></div>
- </main><div class="save">Guardar</div>`;
-
-S['b06b-editar-cuenta-icono-color'] = `${top('Ícono y color', { left: 'x' })}<main style="padding-top:10px">
- <div class="card" style="display:flex;align-items:center;gap:14px;padding:14px">${ci('card-outline', PALETTE.ambar, 58)}
-  <div style="flex:1"><div class="lab">Así se verá</div><b style="font-size:17px">Tarjeta Coral</b><div class="sub">Disponible 3.872.900</div></div><span class="y b">−4.127.100</span></div>
- <div class="tabs" style="margin-top:6px"><div class="on">Color</div><div>Ícono</div><div>Logo de tu banco</div></div>
- ${fams.map(([t, cs]) => `<div class="lab" style="margin:12px 2px 8px">${t}</div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px">${cs.map(n => { const c = PALETTE[n]; const on = n === 'ambar';
-   return `<div style="aspect-ratio:1;border-radius:50%;background:${tint(c, .2)};color:${c};display:grid;place-items:center;position:relative;${on ? `box-shadow:0 0 0 2px var(--bg),0 0 0 4px ${c}` : ''}">${ic('card-outline', '', 'width:45%;height:45%')}${on ? `<span style="position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:${c};color:#0b1222;display:grid;place-items:center">${ic('checkmark', '', 'width:12px;height:12px')}</span>` : ''}</div>`; }).join('')}</div>`).join('')}
- <div class="hint" style="margin-top:12px">Las cuentas van en círculo y las categorías en cuadrado: así se distinguen de un vistazo. El color ya existe en tus datos; esto solo lo deja escoger.</div>
- </main><div class="save">Listo</div>`;
-
-S['b07-historial-cupos'] = S['b06-editar-tarjeta'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
- <div class="sh"><h2>Historial de cupos</h2><span class="p">${ic('add')}</span></div>
- <div class="list">${[['8.000.000,00', '1 ago 2026', 'Cambio de cupo', C.grn], ['6.500.000,00', '15 ene 2025', 'Cambio de cupo', C.cya], ['800.000,00', '12 mar 2024', 'Cupo inicial · del backup', C.gry]]
-  .map(([a, d, t, c]) => `<div class="row">${ci('trending-up-outline', c, 38)}<div class="tx"><b>${a}</b><small>${t} · desde ${d}</small></div>${chev()}</div>`).join('')}</div>
- <div class="hint">Cada fila es el cupo desde ese día. Nunca es un movimiento.</div></div>`;
 
 S['b08-categorias'] = `${top('Categorías', { right: `<div class="btn-r">${ic('add')}</div>` })}<main>
  <div class="seg"><div class="on red">Gastos · 16</div><div>Ingresos · 6</div><div>De productos · 3</div></div>
