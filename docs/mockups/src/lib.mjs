@@ -178,6 +178,12 @@ export const foldAll = (allOpen = false) => `<span style="width:36px;height:36px
 // The three ways to group, and the fold-all at the end of the same row.
 export const groupRow = (on = 'Por día', allOpen = false) => `<div style="display:flex;gap:6px;margin-top:10px;align-items:center">${['Por día', 'Por categoría', 'Más grandes'].map(t => `<div class="chip ${t === on ? 'on' : ''}" style="padding:7px 10px;font-size:13px">${t}</div>`).join('')}<span style="flex:1"></span>${on === 'Más grandes' ? '' : foldAll(allOpen)}</div>`;
 
+// The period, one full row wherever a list is shown by period (Inicio, an
+// account's movements): round arrows at the edges big enough for a thumb,
+// the period in the middle, which opens the period sheet.
+const pArrow = d => `<span style="width:40px;height:40px;border-radius:50%;background:var(--s2);display:grid;place-items:center;flex:none">${ic(`chevron-${d}-outline`, '', 'width:21px;height:21px;color:#c9d2e6')}</span>`;
+export const periodBar = (label = 'Septiembre 2026', mt = 10) => `<div class="month" style="margin-top:${mt}px;padding:4px">${pArrow('back')}<span>${ic('calendar-outline', '', 'width:18px;height:18px;color:var(--pr)')}${label}${ic('chevron-down-outline', '', 'width:15px;height:15px;color:var(--pr)')}</span>${pArrow('forward')}</div>`;
+
 export const status = `<div class="status"><span>9:41</span><span>5G ▮▮▮ 87%</span></div>`;
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 // The "+" sits in the middle of the bar itself (v5): floating over the page it

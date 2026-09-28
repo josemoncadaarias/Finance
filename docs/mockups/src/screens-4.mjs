@@ -9,7 +9,7 @@
 // - rates live inside their product; a rate of the whole account shows in
 //   each product that uses it, marked as the account's;
 // - the orphan withdrawal is said quietly, inside its row.
-import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint, jump, mgroup, groupRow } from './lib.mjs';
+import { ic, ci, sq, C, CAT, ACC, PALETTE, catIcon, accIcon, chev, down, tag, sw, top, tabs, status, tint, jump, mgroup, groupRow, periodBar } from './lib.mjs';
 import { typeSeg, amount, keys, prod, end, dayRow, note, allBtn, route, infoDot } from './screens-1.mjs';
 
 const S = {};
@@ -80,14 +80,16 @@ S['4c-cuenta-productos'] = page('Productos', `<div class="list">
  <div class="list" style="margin-top:14px"><div class="row">${ic('pause-circle-outline', 'r')}<div class="tx"><b class="r">Dejar de calcular esta cuenta</b></div></div></div>`);
 
 const move = (icon, t, s2, a, cls = '') => `<div class="row">${icon}<div class="tx"><b class="one">${t}</b><small class="one">${s2}</small></div><div class="am ${cls}">${a}</div></div>`;
-S['4d-cuenta-movimientos'] = page('Movimientos', `<div style="display:flex;gap:8px;align-items:center"><span class="chip">${ic('calendar-outline', '', 'width:17px;height:17px')}Septiembre ${down()}</span><div class="search" style="flex:1;margin:0">${ic('search-outline')}<span class="one">Buscar en septiembre…</span></div></div>
+S['4d-cuenta-movimientos'] = page('Movimientos', `${periodBar('Septiembre 2026', 0)}
+ <div class="search" style="margin-top:10px">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o producto…</span></div>
  ${groupRow()}
  ${mgroup('Hoy · domingo 27', 2, '+518.400,00', 'g', true, move(ci('swap-horizontal', C.blu, 42), 'Retiro bolsillo viajes', 'Bolsillo Viajes → Cuenta de ahorros', '500.000,00', 'p') + move(catIcon('cashback'), 'Cashback de septiembre', 'Cashback · Cuenta de ahorros · solo el producto', '+18.400,00', 'g'))}
  ${mgroup('Martes 15', 2, '−214.200,00', 'r', false)}
  ${mgroup('Viernes 11', 1, '+2.000.000,00', 'g', false)}
  ${mgroup('Lunes 7', 3, '−96.000,00', 'r', false)}`);
 // A day opened further down, holding the orphan withdrawal, said in its row.
-S['4d2-cuenta-movimientos-dia-abierto'] = page('Movimientos', `<div style="display:flex;gap:8px;align-items:center"><span class="chip">${ic('calendar-outline', '', 'width:17px;height:17px')}Septiembre ${down()}</span><div class="search" style="flex:1;margin:0">${ic('search-outline')}<span class="one">Buscar en septiembre…</span></div></div>
+S['4d2-cuenta-movimientos-dia-abierto'] = page('Movimientos', `${periodBar('Septiembre 2026', 0)}
+ <div class="search" style="margin-top:10px">${ic('search-outline')}<span class="one">Buscar en septiembre: nota, categoría o producto…</span></div>
  ${groupRow()}
  ${mgroup('Hoy · domingo 27', 2, '+518.400,00', 'g', false)}
  ${mgroup('Martes 15', 2, '−214.200,00', 'r', true, move(catIcon('mercado'), 'Mercado quincena', 'Mercado · Bolsillo Mercado', '−164.200,00', 'r') + `<div class="row">${sq('remove-outline', C.gry)}<div class="tx"><b class="one">Retiro de 50.000,00</b><small>Quedó sin el movimiento de la cuenta que lo acompañaba, y sigue restándole al producto.</small><span class="p" style="font-size:13.5px;display:block;margin-top:4px">Borrar retiro</span></div><div class="am mu">−50.000,00</div></div>`)}

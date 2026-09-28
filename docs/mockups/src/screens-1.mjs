@@ -7,7 +7,7 @@
 //   a move between products, each with its note;
 // - writing a note lifts the note to the top and hides the rest, with the
 //   suggestions under it and the phone's keyboard below.
-import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint, jump, mgroup, groupRow } from './lib.mjs';
+import { ic, ci, sq, C, CAT, ACC, catIcon, accIcon, chev, down, tick, tag, sw, top, tabs, status, M, donut, tint, jump, mgroup, groupRow, periodBar } from './lib.mjs';
 
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
 const LONG = 'Tarjeta de crédito Rappi Visa Platinum';
@@ -23,7 +23,7 @@ const header = ({ acc = null, sliding = false } = {}) => {
  <div class="tt" style="gap:10px">${icon}
   <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:4px"><b class="one" style="font-size:18px;${sliding ? 'text-overflow:clip' : ''}">${sliding ? `<span style="display:inline-block;transform:translateX(-96px)">${name}</span>` : name}</b>${down()}</div>
    <div class="one sub" style="font-size:12.5px">${sub}</div></div></div>
- <div class="month">${ic('chevron-back-outline')}<span>Septiembre 2026</span>${ic('chevron-forward-outline')}</div></div>`;
+ ${periodBar()}</div>`;
 };
 
 // What came in and went out, and, apart and in blue, what only moved between
@@ -32,10 +32,13 @@ const header = ({ acc = null, sliding = false } = {}) => {
 // but it is always on show. Across all accounts it nets to nothing, and the
 // line says how much moved rather than hiding it.
 const fig = (lab, v, cls = '', icon = '') => `<div><span class="lab">${icon}${lab}</span><b class="${cls}">${v}</b></div>`;
-const moved = (a, b) => `<div class="mini" style="margin-top:8px">${fig('Recibido', a, 'p', `${ic('swap-horizontal', '', 'width:13px;height:13px;vertical-align:-2px;margin-right:4px')}`)}${fig('Enviado', b, 'p', `${ic('swap-horizontal', '', 'width:13px;height:13px;vertical-align:-2px;margin-right:4px')}`)}</div>`;
+// Only the figures that exist; one alone sits centred, at half the width.
+const moved = (a, b) => { const sw = `${ic('swap-horizontal', '', 'width:13px;height:13px;vertical-align:-2px;margin-right:4px')}`;
+  const tiles = [a && fig('Recibido', a, 'p', sw), b && fig('Enviado', b, 'p', sw)].filter(Boolean);
+  return `<div class="mini" style="margin-top:8px;justify-content:center">${tiles.length === 1 ? tiles[0].replace('<div>', '<div style="flex:0 0 calc(50% - 4px);text-align:center">') : tiles.join('')}</div>`; };
 const figures = `<div class="card hero"><div class="lab">Patrimonio hoy</div><div class="big">$ 48.312.740,55</div>
   <div class="mini" style="margin-top:12px">${fig('Entró', '8.450.000,00', 'g')}${fig('Salió', '5.236.418,00', 'r')}</div>
-  <div class="sub" style="margin-top:9px;display:flex;align-items:center;gap:6px">${ic('swap-horizontal', 'p', 'width:17px;height:17px')}<span class="one">3.400.000,00 movido entre tus cuentas</span></div></div>`;
+  <div class="sub" style="margin-top:9px;display:flex;align-items:center;gap:6px">${ic('swap-horizontal', 'p', 'width:17px;height:17px')}<span class="one">3.400.000,00 movido entre tus cuentas</span></div></div>`.replace('class="sub" style="margin-top:9px;display:flex;', 'class="sub" style="margin-top:9px;display:flex;justify-content:center;');
 
 // The donut keeps its size whatever the month holds: the legend beside it is
 // the five largest and "Otras N", names cut with "…", percentages in a column
@@ -95,6 +98,8 @@ const oneCard = sliding => `${header({ acc: 'long', sliding })}<main>
  ${mgroup('Lunes 21', 1, '−59.000,00', 'r', false)}
  </main><div class="fade"></div>${tabs('Inicio')}`;
 S['1c-inicio-una-cuenta-nombre-largo'] = oneCard(false);
+// Only money received from another own account this month: the one tile, centred.
+S['1q-inicio-una-transferencia'] = S['1b-inicio-cuenta-con-productos'].replace(moved('2.000.000,00', '800.000,00'), moved('2.000.000,00', ''));
 // The same list by category: each heading with its icon, the largest open.
 const catHead = k => catIcon(k, 30);
 S['1o-inicio-por-categoria'] = oneCard(false).replace(/ <div style="display:flex;gap:6px;margin-top:10px[\s\S]*?<\/main>/, `${groupRow('Por categoría')}
@@ -233,6 +238,7 @@ S['1n-editar-y-borrar'] = `${top('Editar movimiento', { left: 'x', right: `<div 
 
 // Long lists carry the two arrows.
 S['1o-inicio-por-categoria'] += jump(112, 'down');
+S['1q-inicio-una-transferencia'] += jump(112, 'down');
 S['1p-inicio-todo-abierto'] += jump(112, 'both');
 S['1a-inicio'] += jump(112, 'down');
 S['1b-inicio-cuenta-con-productos'] += jump(112, 'down');

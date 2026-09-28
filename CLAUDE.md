@@ -2339,6 +2339,18 @@ together: close all, as today) does them all at once. Drawn in `1b`,
 `1c`, `1o` (by category), `1p` (all open), `4d` and `4d2` (a day further
 down opened); the same shape goes to Por revisar and every later group.
 
+**And two more from Jose (2026-09-28):**
+
+- **A transfer figure alone sits centred.** Under Entró and Salió, Recibido
+  and Enviado show only when they exist; when only one does, it sits in the
+  middle at half the width (`1q`), and the all-accounts line "movido entre
+  tus cuentas" is centred too.
+- **The period is one full row wherever a list goes by period** - Inicio
+  and an account's Movimientos in Rendimientos alike (`periodBar` in
+  `lib.mjs`, one definition): round 40px arrows at the edges, the period
+  in the middle opening the period sheet, and the search on its own full
+  row under it (`4d`, `4d2`). The report's is the same shape.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
