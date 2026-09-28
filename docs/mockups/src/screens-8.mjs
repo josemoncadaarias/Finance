@@ -24,6 +24,16 @@ const dialog = (icon, title, body, no, yes, danger = false) => `<div class="scri
 const row = (icon, t, s, right = chev()) => `<div class="row">${icon}<div class="tx"><b style="white-space:normal;line-height:1.3">${t}</b>${s ? `<small>${s}</small>` : ''}</div>${right}</div>`;
 const photo = (size = 50) => `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--pr),${C.pur});display:grid;place-items:center;font-weight:700;font-size:${Math.round(size * .4)}px;flex:none">J</div>`;
 
+// Each language with its flag, drawn in a circle like any icon: Colombia
+// for Spanish (the app's own country), the United States for English.
+const flag = (kind, size = 38) => {
+  const body = kind === 'co'
+    ? '<rect width="30" height="15" fill="#FCD116"/><rect y="15" width="30" height="7.5" fill="#003893"/><rect y="22.5" width="30" height="7.5" fill="#CE1126"/>'
+    : [...Array(7)].map((_, i) => `<rect y="${i * 4.62}" width="30" height="2.31" fill="#B22234"/>`).join('') + '<rect y="2.31" width="30" height="0" fill="#fff"/><rect width="14" height="16.2" fill="#3C3B6E"/>'
+      + [...Array(9)].map((_, i) => `<circle cx="${2 + (i % 3) * 5}" cy="${2.7 + Math.floor(i / 3) * 5}" r=".9" fill="#fff"/>`).join('');
+  return `<svg viewBox="0 0 30 30" width="${size}" height="${size}" style="border-radius:50%;flex:none;background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.15)">${body}</svg>`;
+};
+
 // 1. Más: whose Google account it is, then everything the drawer held that
 //    is not a tab, grouped, each row saying its current value. The dot on
 //    the tab says something waits in "Movimientos por revisar".
@@ -38,14 +48,15 @@ S['8a-mas'] = `${bigTitle('Más')}<main style="padding-top:6px">
  <div class="h">Herramientas</div><div class="list">
   ${row(sq('calculator-outline', C.org, 40), 'Simulador de renta', 'Formulario 210 · año 2026')}</div>
  <div class="h">Preferencias</div><div class="list">
-  ${row(sq('language-outline', C.cya, 40), 'Idioma', 'Español')}
+  ${row(sq('language-outline', C.cya, 40), 'Idioma', `<span style="display:inline-flex;gap:6px;align-items:center">${flag('co', 16)}Español</span>`)}
   ${row(sq('contrast-outline', C.pnk, 40), 'Apariencia', 'Automático · color Zafiro')}</div>
  <div style="height:110px"></div></main><div class="fade"></div>${tabs('Más', true)}`;
 
 // 2. Language and appearance: a sheet each, the current one ticked.
 const choice = (title, opts) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="display:block;text-align:center;font-size:17px;margin-bottom:12px">${title}</b>
  <div class="list">${opts.map(([i, c, t, s, on]) => row(ci(i, c, 38), t, s, on ? ic('checkmark', 'p', 'width:20px;height:20px') : '')).join('')}</div></div>`;
-S['8b-idioma'] = S['8a-mas'] + choice('Idioma', [['text-outline', C.cya, 'Español', 'Los nombres de tus cuentas y categorías no cambian', true], ['text-outline', C.blu, 'English', '', false]]);
+S['8b-idioma'] = S['8a-mas'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="display:block;text-align:center;font-size:17px;margin-bottom:12px">Idioma</b>
+ <div class="list">${row(flag('co'), 'Español', 'Los nombres de tus cuentas y categorías no cambian', ic('checkmark', 'p', 'width:20px;height:20px'))}${row(flag('us'), 'English', '', '')}</div></div>`;
 // Appearance: the theme as today (Automático, Claro, Oscuro) and, new, the
 // colour of the app - the accent of everything pressable - one of a few
 // blues and neighbours, each drawn as the app's own button in that colour.

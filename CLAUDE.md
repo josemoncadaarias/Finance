@@ -2493,7 +2493,9 @@ Jose to accept or refuse:
 - **A red dot on the Más tab and on Por revisar** says something is
   waiting, where the drawer's count used to.
 - **Language and appearance are sheets** from their rows, each option with
-  a tick. **Appearance adds the colour of the app** (v5, after Jose asked
+  a tick. **Each language carries its flag** (Jose, 2026-09-28), in a
+  circle like any icon and small beside the value on Más: Colombia for
+  Español, the United States for English. **Appearance adds the colour of the app** (v5, after Jose asked
   whether it had one - verified: today it is only Automático / Claro /
   Oscuro, `theme.*` in translations.ts): six accents drawn as the button
   itself (Zafiro, the default, Océano, Turquesa, Esmeralda, Violeta,
