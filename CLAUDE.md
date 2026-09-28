@@ -2228,7 +2228,10 @@ does today, with these changes of ACCESS for Jose to accept or refuse:
   size - the account in a circle, the product in a rounded square - and no
   box around the product. The two icons read as two things because they
   are two lines and two shapes. "Invertir" sits on the dividing line
-  between the two ends.
+  between the two ends. **The product hangs from its account** (v7, Jose:
+  it read as two accounts): a line comes down from the account's circle
+  and turns into the product, which is indented, smaller and lighter -
+  one account, and inside it one product.
 - **An explanation is an (i), not a paragraph**: a small (i) beside what it
   explains opens a bubble on tap (`4t01b`); a one-off outcome, such as the
   amount cleared after "Invertir", is a short notice that goes away by

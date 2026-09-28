@@ -120,7 +120,13 @@ const dayRow = `<div class="row">${ic('calendar-outline', 'mu')}<div class="tx">
 // account in a circle and the product in a rounded square, so the two are
 // never read as one. No box around the product, no label line of its own.
 const infoDot = `<span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--s3);color:#aab6d3;flex:none">${ic('information', '', 'width:13px;height:13px')}</span>`;
-const prod = (i, c, t, info = false, bad = false) => `<div style="display:flex;align-items:center;gap:9px;margin-top:7px">${sq(i, bad ? '#ff6b6b' : c, 28)}<span class="one" style="font-size:14.5px;color:${bad ? 'var(--red)' : '#cfd6e6'}">${t}</span>${info ? infoDot : ''}</div>`;
+// v7 (Jose: it read as two accounts): the product hangs from its account -
+// a line comes down from the account's circle and turns into the product,
+// which is indented, smaller and lighter. One account, and inside it, one
+// product.
+const prod = (i, c, t, info = false, bad = false) => `<div style="display:flex;align-items:center;gap:8px;margin-top:3px;padding-left:13px;padding-right:34px">
+  <span style="width:13px;height:19px;border-left:2px solid #3a4b73;border-bottom:2px solid #3a4b73;border-bottom-left-radius:9px;margin-top:-15px;flex:none"></span>
+  ${sq(i, bad ? '#ff6b6b' : c, 24)}<span class="one" style="font-size:14px;color:${bad ? 'var(--red)' : '#b9c3d8'}">${t}</span>${info ? infoDot : ''}</div>`;
 const SHORT = { 'Desde dónde': 'Desde', 'Hacia dónde': 'Hacia' };
 const small = icon => icon.replace(/width:\d+px;height:\d+px/, 'width:28px;height:28px');
 const end = (icon, k, name, product = '', slide = '') => `<div class="row" style="gap:10px;padding:10px 14px"><span class="mu" style="width:42px;flex:none;font-size:12.5px">${SHORT[k] ?? k}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:9px">${small(icon)}<b class="one" style="font-weight:500;font-size:15.3px;${slide ? 'text-overflow:clip' : ''}">${slide ? `<span style="display:inline-block;transform:translateX(${slide}px)">${name}</span>` : name}</b></div>${product}</div>${down()}</div>`;
