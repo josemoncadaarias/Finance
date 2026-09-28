@@ -2104,6 +2104,45 @@ changed in the shape of the app, for the next session:
   long press that starts choosing, the keyboard with the note raised, the
   marquee, the floating bar over Android's own buttons.
 
+**First round from the phone (Jose, 2026-09-28), and the rules it left:**
+
+- **A textarea is never drawn a second time while it is being typed in.**
+  The note moved to another place in the template when writing began, lost
+  its focus, the phone closed its keyboard and the note closed itself. The
+  note now stays where it is and the rest of the form steps aside by CSS
+  (`.writing-note` in `entry.component.scss`, shared by the product form and
+  the review form).
+- **Nothing that holds words may shrink to fit** (`flex-shrink: 0` on
+  `.ui-list`, `.ui-card` and the rest, end of global.scss). A scrolling flex
+  column squeezed each card to the screen on a phone with larger text, and
+  the new account form lost its last rows. To check any screen: the audit
+  in a session's scratchpad renders it at 120% zoom on a short viewport and
+  lists every element whose content overflows a box that clips it.
+- **Every bottom sheet slides down and says "Cancelar"** (breakpoints 0 and
+  1, `[handle]="false"` because the sheets draw their own grab, the body
+  marked `ion-content-scroll-host` so a list still scrolls; `.sheet-cancel`
+  in global.scss). Full-screen forms do not slide: a slip would lose what
+  was typed. Going to another screen closes any open sheet
+  (`closeOnLeaving` in `app.component.ts`); a change of query string alone
+  does not.
+- **A list of sections opens on its first one** everywhere, through
+  `core/ui/first-open.ts` (`FirstOpen`), which keeps only what the person
+  changed. Inicio has its own in `movements.store.ts`.
+- **A transfer has its own blue, never the accent** (`--app-move`, `.ui-t`,
+  `MOVE_COLOR`): with Coral chosen, Recibido and every transfer read as
+  spending.
+- **The Drive copy reports real progress** (`CloudBackupService.progress`:
+  reading the data is the first 40%, the upload the rest, over
+  XMLHttpRequest because fetch cannot report an upload). Asking Drive gives
+  up after 30 s and the upload after 45 s without a byte moving; a dropped
+  connection is retried once; "Failed to fetch" reaches the screen in words.
+  Not verified on the phone yet: the browser cannot sign in to Google.
+- **In a cloud session `ng serve` may fail to open the database** (a Stencil
+  "Couldn't find host element for jeep-sqlite" error after the dependency
+  cache is rebuilt). Serving `ng build --configuration development` from
+  `www/` with a small static server that falls back to index.html works,
+  and keeps `window.ng` for driving the page.
+
 **Rules from Jose's review of v3 (2026-09-28), for every group:**
 
 - **Long text never breaks the layout.** Names, notes, labels and

@@ -2519,3 +2519,15 @@ ion-modal.confirm-sheet .confirm-dialog .kept { display: flex; gap: 6px; align-i
 .ui-sheet-body:has(> .sheet-cancel) > h2,
 .ui-sheet-body:has(> .sheet-cancel) > .sheet-head h2 { padding-left: 78px; padding-right: 78px; }
 .ui-sheet-body:has(> .sheet-cancel):not(:has(> h2)):not(:has(> .sheet-head)) > .grab { margin-bottom: 40px; }
+
+/* Nothing that holds words is ever squeezed to fit (Jose, 2026-09-28: with
+   the phone's larger text the account form's cards were cut in half). A
+   scrolling column of flex children shrinks each one to the screen instead
+   of scrolling, and a card that clips its overflow then loses its bottom
+   rows. The page scrolls; the card keeps its height. */
+.ui-list, .ui-card, .ui-hero, .ui-banner, .ui-mini, .ui-seg, .ui-period,
+.ui-search, .ui-inputs, .ui-group, .selection-bar,
+.ui-frame > .scroll > *, .editor > .scroll > *, .product-form > .scroll > *,
+.entry-body > * {
+  flex-shrink: 0;
+}
