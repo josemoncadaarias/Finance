@@ -118,6 +118,9 @@ these):
   Android's buttons.
 - Whether the accent colour visibly changes things for him in the light
   theme (it does in a browser; transfers keep their own blue since #2).
+- **Debts and plans** (loans, card dates, paying ahead, limits, goals):
+  analysed and drawn (`docs/mockups/11*`), not started - see "Debts and
+  plans" under "Ideas waiting for Jose's word". Debts come first.
 - The open questions of rule 21 (which report sections are paid, lifetime
   option, what sits between the app and Google Play) and the list in
   "Pending from Jose".
@@ -3030,6 +3033,173 @@ The changes of ACCESS, for Jose to accept or refuse:
 - **The two arrows sit side by side above the bar**, in a deeper fade:
   stacked on the right they covered the value column.
 
+### Debts and plans (proposed 2026-09-29, nothing built, nothing decided)
+
+Asked for by Jose on 2026-09-29, from screenshots of Lukas's "Planes", as
+analysis and proposals only: "cuando yo diga comenzamos con el desarrollo".
+**Nothing below starts without his word.** His order of importance: **debts
+first** ("mas importante aun para la app antes que nada"), then plans.
+Mockups: `docs/mockups/11a`-`11o`, every name and figure invented; the loan's
+figures are worked out (60,000,000 at 16.5% E.A., 60 monthly payments, 23
+paid), the order of `11g` is illustrative and its totals are not.
+
+**What he asked for, in his words**: credits and loans with their rates;
+optional cut-off and payment dates on credit cards; for a loan, its payments
+and how often; "todo lo que haga falta ... para tener un sistema de
+presupuestos completo"; and in the end showing the person what they owe,
+what they will pay in interest, recommendations for paying capital ahead
+(to save time or money), and a summary. From Lukas: spending limits per
+category over a period and savings goals, seen and analysed on a screen of
+their own.
+
+**What the app has today, verified in the code and his backup of
+2026-09-28**: nothing about loans. `accounts.type` is one of `debit`,
+`credit`, `cash`, `investment` (001); a card is a liability with a limit
+history (rules 4 and 11) and no dates, rate or installments. His backup has
+one active card (Rappi Card, limit 1,100,000.00), one archived, and an
+account "Cuenta leidy bancolombia prestamos" of type debit - assumed, not
+asked: money lent to someone, which is what "Te deben" below would hold.
+
+**Facts looked up on 2026-09-29, to build on** (each to be confirmed again
+on the day, the figures change monthly):
+- **Paying ahead is a right**: Ley 1555 de 2012 - any credit in pesos can be
+  paid ahead, in part or in full, with no penalty, and **the debtor chooses**
+  whether a partial payment lowers the term or the installment. It does not
+  apply above 880 SMMLV of balance (there the contract decides). Sources:
+  funcionpublica.gov.co (norma 48301), superfinanciera.gov.co.
+- **Usury ceiling**: the Superfinanciera certifies the interés bancario
+  corriente each month; usury is 1.5 times it. September 2026, consumo y
+  ordinario: IBC 19.49% E.A., usury 29.24% E.A. (Resolución 1260 de 2026,
+  as reported by actualicese.com and portafolio.co). The app ships the
+  months it knows and a newer one is typed or fetched - rule 1, like the
+  TRM and the IPC.
+- **Cards**: the cut-off day closes the cycle; the payment day is usually
+  about 20 days later; paying the full statement means no current interest,
+  paying the minimum leaves the rest earning interest; a purchase at one
+  installment carries no interest, at two or more it does from the first;
+  international purchases are often deferred by default (24 or 36). Sources:
+  bbva.com.co, blog.nu.com.co, arqfinance.com (fecha de corte y de pago).
+- **Rates**: banks quote E.A. or M.V.; monthly = (1 + E.A.) ^ (1/12) - 1,
+  the same shape as rule 15's daily rate. A mortgage may be in UVR (the
+  balance moves with inflation) - later, and only if Jose has one.
+- From memory, to verify before it is written anywhere: seguro de vida
+  deudor charged per installment; the cuota de manejo of a card; the 4x1000
+  on each payment. The tax deduction for mortgage interest exists but the
+  simulator stands apart - **never wired into it**.
+
+**The model proposed** (to be decided; nothing of it exists):
+- **A loan is an account** of a new type, `loan` - a liability like a card,
+  so it is in Saldos and net worth for free and never a second place money
+  lives. Money LENT is the same type with the sign reversed (an asset), "Te
+  deben". A new table holds its terms: principal, disbursed on, number of
+  installments and their frequency, the day they fall, the system (fixed
+  installment - French - first; fixed capital later if asked), insurance and
+  fees per installment, the account it is paid from. Its **rate is a
+  history** (from a date, E.A. or M.V. as the bank says it, stored as E.A.),
+  as with yields, so a variable rate or a renegotiation is one more row.
+- **The installment is both computed and typed** (rule 7): the app works it
+  out and the person types what the bank says; the difference is shown
+  ("the difference is the insurance: it matches").
+- **Paying an installment is ONE form and several ledger lines**: the
+  capital is a transfer into the loan account (it lowers the debt, rule 3's
+  "not spent"), the interest and the insurance are expenses under their own
+  categories (Intereses, Seguros - two new starter categories, rule 23). All
+  three editable before saving; what was saved is what the bank charged, and
+  the schedule is worked out again from there. So spending in the report
+  counts the interest and never the capital - which is the truth, and what
+  Lukas cannot tell apart.
+- **The schedule is worked out, never stored** - a pure function of the
+  terms, the rate history and the payments made (the same rule as the
+  report: one engine, `core/loans/`, tested by `run-tests.mjs`). What is
+  stored is what happened.
+- **A loan started before the app**: "23 installments already paid" is a
+  record, not 23 movements (rule 15's lesson: a record is not an event); the
+  person states today's balance and the schedule continues from it.
+- **Cards gain optional fields**: cut-off day, payment day, the rate of
+  installment purchases (a history, like a loan's), the monthly fee, the
+  account it is paid from. With the two days the app can say the statement
+  (what closed at the last cut-off), what goes to the next one, and "pay X
+  before D and pay no interest" - from the movements, since the app has
+  them all. A purchase on a card may carry its number of installments; the
+  statement then shows each one's capital and interest. Real statements
+  differ from the app's arithmetic; the typed figure wins (rule 7) and a
+  statement import (rule 22) is the natural check.
+- **Nothing is ever written by the app on its own**: a due installment is a
+  reminder and a pre-filled form, never a movement (rule 22, Jose: "no
+  inventando un gasto que aun no ha ocurrido").
+
+**The screens proposed** (`11a`-`11j`, `11o`):
+- **Cuentas gets a third face, "Deudas"** (`11a`): what is owed today, what
+  is paid this month and how much of it is interest, when everything ends
+  and the interest still to pay, one recommendation, the debts and, apart,
+  what is owed TO the person. "Nueva deuda" in the title bar asks what kind
+  (`11b`).
+- **A loan's page**: Resumen | Cuotas | Abonar (`11d`-`11f`) - the balance,
+  capital and interest paid, the next installment and its interest, the
+  interest left, the total cost, the rate beside usury and the IBC; the
+  schedule by year with paid ones ticked; and **paying capital ahead**:
+  an amount, once or every month, and the two answers side by side - reduce
+  the term (saves more) or the installment - with what each saves and the
+  line of Ley 1555 reminding the person to tell the bank which.
+- **Several debts** (`11g`): "Salir de las deudas" with an extra amount per
+  month and two orders - **avalanche** (highest rate first: least interest)
+  and **snowball** (smallest balance first: one closed soonest) - what each
+  saves and when each debt ends. A recommendation with the person's own
+  figures, never advice beyond them.
+- **Cards** (`11h`, `11i`): the dates in the card's form, optional; its page
+  Factura | Movimientos | A cuotas - the statement to pay and the days left,
+  what the minimum would cost in interest, what went in after the cut-off,
+  the installments this statement charges.
+- **Paying an installment** (`11j`): the transfer form with its split shown.
+- **Inicio says only what needs attention** (`11o`): "Esta semana" - a card
+  to pay, an installment due, a limit passed; nothing when there is nothing.
+- **Reminders** ("3 days before paying") are local notifications, no server
+  (idea 6/12 of the table below).
+
+**Plans: limits and goals** (`11k`-`11n`), Lukas's "Planes":
+- **Where**: proposed as a second face of the Reporte tab, "Análisis |
+  Planes", since a limit is read beside the month's analysis; Inicio shows
+  only a limit close or past (`11o`). To decide - the alternative is a row
+  in Más.
+- **A limit**: an amount per category (or several), per period (month
+  first; the periods of `period.ts`), renewing by itself, optionally one
+  account, a local notice at 80%. It measures with the report's own
+  `totalsOf` over the same movements (rule 20: never a second computation of
+  the same figure). It says the pace ("23,300 a day left") and the same day
+  of the month before; the form offers the average of the last three months.
+- **A goal**: an amount and a date, tied to **an account or a product where
+  the money actually sits** - its progress IS that balance, so there are no
+  separate "contributions" to register twice (Lukas records aportes by hand;
+  here that would be money counted in two places). It says how much a month
+  is needed and whether the pace arrives in time. An emergency fund may be
+  set as "N months of your spending", read from the report.
+- **This touches two rules, for Jose to lift or keep**: rule 20 says "No
+  budgets" (there was no table and inventing one was its own project - this
+  is that project, now asked for; the report would then carry a "Límites"
+  section only if he says so), and rule 15's "five things and no sixth"
+  concerns products and yields - a goal points at a product without being
+  part of it, so the five stay five.
+
+**Suggested order, if Jose agrees**: (1) card dates and the statement
+(small: optional columns, one pure function, the card's page); (2) loans:
+the account type, the terms, the schedule engine with its tests against a
+bank's own table, the installment form; (3) paying ahead and the two
+answers; (4) the Deudas face and Inicio's "Esta semana"; (5) several debts;
+(6) limits; (7) goals; (8) reminders. Paid or free (rule 21) is his to say:
+proposed free for one loan and card dates, paid for several debts, the
+strategies and plans.
+
+**Questions for Jose before the first line**:
+1. Does he have loans today, and which (consumo, vehicle, mortgage, UVR)?
+   Their real terms are the best test data - a bank's own amortization table
+   to reproduce to the peso, as the yields were.
+2. Is "Cuenta leidy bancolombia prestamos" money he lent? Should it become
+   a "Te deben" loan?
+3. Deudas as a third face of Cuentas, or its own place?
+4. Planes in Reporte, or in Más?
+5. Lifting rule 20's "No budgets" for limits, and whether the report gets a
+   section for them.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3043,10 +3213,10 @@ The changes of ACCESS, for Jose to accept or refuse:
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
-| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed |
+| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed and drawn (`11k`, `11m`), "Debts and plans" |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
-| 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed |
+| 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed and drawn (`11l`, `11n`), "Debts and plans" |
 | 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | Proposed |
 | 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
 | 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
@@ -3055,6 +3225,7 @@ The changes of ACCESS, for Jose to accept or refuse:
 | F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
 | H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
 | P | Choose the accent | Small | Design | **Decided** by Jose, 2026-09-28: Zafiro by default, changeable in Apariencia |
+| L | Loans, card dates, paying ahead, debt strategies | Large, new type and tables | Rules 4, 7, 11, 22 | Proposed and drawn (`11a`-`11j`), first in Jose's order |
 | - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
 | - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
 
@@ -3089,6 +3260,8 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
+- [ ] Debts and plans (mockups `11a`-`11o`): the five questions at the end
+      of "Debts and plans", and when to start - debts first.
 - [ ] Say whether the keypad should start closed, and whether he misses the
       "=" key (both small changes). He liked it folding away (2026-09-28)
       and asked for the arrow that brings it back, done in #6.
@@ -3103,4 +3276,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans)
