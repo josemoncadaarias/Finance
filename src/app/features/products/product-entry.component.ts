@@ -94,12 +94,13 @@ export interface ProductEntryRequest {
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-product-entry',
   imports: [
     TranslatePipe, BadgeComponent, CategoryEditorComponent, BusyOverlayComponent, ConfirmComponent,
-    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent, ScopeSheetComponent,
+    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent, ScopeSheetComponent, AutoGrowDirective,
   ],
   templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -729,11 +730,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   /** The icon of "¿Qué cambia?", after what is chosen. */
   scopeIcon(): string {
     return SCOPE_ICON;
-  }
-
-  grow(field: HTMLTextAreaElement): void {
-    field.style.height = 'auto';
-    field.style.height = `${field.scrollHeight}px`;
   }
 
   isOperatorKey(key: string): boolean {

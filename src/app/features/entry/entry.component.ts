@@ -92,12 +92,13 @@ export interface EntryRequest {
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-entry',
   imports: [
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
-    CategoryEditorComponent, ConfirmComponent, KeypadComponent,
+    CategoryEditorComponent, ConfirmComponent, KeypadComponent, AutoGrowDirective,
     IonIcon, IonDatetime, IonModal,
   ],
   templateUrl: './entry.component.html',
@@ -1707,12 +1708,6 @@ export class EntryComponent implements OnInit, OnDestroy {
       rate: rate.toLocaleString(this.i18n.dateLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     });
   });
-
-  /** Grows the note with what is written in it. */
-  grow(field: HTMLTextAreaElement): void {
-    field.style.height = 'auto';
-    field.style.height = `${field.scrollHeight}px`;
-  }
 
   /** True while the note on show is the usual one the app wrote. */
   readonly usualNoteShown = signal(false);

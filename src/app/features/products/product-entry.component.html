@@ -149,12 +149,12 @@
         {{ 'ui.note' | t }}
         @if (writingNote()) { <button type="button" class="done" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button> }
       </span>
-      <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" rows="1"
+      <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" [appAutoGrow]="note()" rows="1"
                 (focus)="startNote()" (blur)="endNote()"
-                (input)="onNoteInput($any($event.target).value ?? ''); grow($any($event.target))"></textarea>
+                (input)="onNoteInput($any($event.target).value ?? '')"></textarea>
       @if (!writingNote() && usualNoteShown()) { <small>{{ 'ui.note.usual' | t }}</small> }
     </span>
-    @if (note() !== '' && !writingNote()) {
+    @if (note() !== '') {
       <button type="button" class="clear-note" (pointerdown)="clearNote($event)" (click)="clearNote()"
               [attr.aria-label]="'entry.clearNote' | t">
         <ion-icon name="close-circle"></ion-icon>
