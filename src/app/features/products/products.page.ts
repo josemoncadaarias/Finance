@@ -61,7 +61,7 @@ import { AccountPickerComponent } from '../../shared/account-picker/account-pick
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { todayIso } from '../../core/yields/days';
-import { ProductEntryComponent, type ProductEntryRequest } from './product-entry.component';
+import { ProductEntryComponent, type ProductEntryRequest, type Elsewhere } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
 import { ActivatedRoute, NavigationStart, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -1586,14 +1586,14 @@ export class ProductsPage {
    * gone - opening one modal while another is still leaving is the same trap
    * the account form fell into (`leaveFor`).
    */
-  async openElsewhere(event: {
-    kind: 'income' | 'expense'; accountId: number; amountMinor: number; onDate: string; note: string;
-  }): Promise<void> {
+  async openElsewhere(event: Elsewhere): Promise<void> {
     this.productEntry.set(null);
     await new Promise(resolve => setTimeout(resolve, 350));
     this.movementEdit.set({
       kind: event.kind,
       preferredAccountId: event.accountId,
+      preferredSide: event.kind === 'transfer' ? 'from' : undefined,
+      route: event.route,
       start: { amountMinor: event.amountMinor, onDate: event.onDate, note: event.note },
     });
   }

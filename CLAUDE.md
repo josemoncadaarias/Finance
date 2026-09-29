@@ -2476,6 +2476,17 @@ changed in the shape of the app, for the next session:
   box overlaps the bar's; every screen, the Google sign-in, the
   notifications permission, the tax disclaimer and an account page's four
   tabs came out clear.
+- **A move between products can change account on either end** (Jose,
+  2026-09-29: the old app allowed it from the products sheet's round
+  transfer, and the redesign's "+" there only let the product change). The
+  account of each end of the product form's move opens the one account
+  list with every account; choosing another hands the move to the ordinary
+  movement form as a transfer between accounts (`transferElsewhere`,
+  `EntryRequest.route`), the untouched end keeping its product and the
+  amount, day and a note the person typed going along (the usual note of
+  the move does not: the new route offers its own). `EntryRequest.start` is
+  now read for a transfer too - switching Gasto to Transferir used to drop
+  what was typed.
 - **A long press works on a group as on a row**: on the review screen a
   shop, the shops' heading and a day's heading start choosing with all their
   rows ticked (`pressedMany`).

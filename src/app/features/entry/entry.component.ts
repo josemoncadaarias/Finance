@@ -82,6 +82,13 @@ export interface EntryRequest {
    * only the form was not.
    */
   start?: { amountMinor: number; onDate: string; note: string; again?: boolean };
+  /**
+   * Both ends of a transfer, already chosen: the products screen's move
+   * between products hands itself here when one end is pointed at another
+   * account (Jose, 2026-09-29: the account could be changed there before the
+   * redesign, and only the product could after it).
+   */
+  route?: { from: number; to: number; fromProductId?: number | null; toProductId?: number | null };
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
@@ -766,13 +773,23 @@ export class EntryComponent implements OnInit, OnDestroy {
     }
 
     if (this.isTransfer()) {
-      const route = await this.defaultRoute(accounts);
-      this.accountId.set(route.from);
-      this.toAccountId.set(route.to);
-      return;
+      const given = this.request().route;
+      const exists = (id: number) => accounts.some(account => account.id === id);
+      if (given && exists(given.from) && exists(given.to)) {
+        this.accountId.set(given.from);
+        this.toAccountId.set(given.to);
+        // Read by loadProducts as the products already on screen.
+        this.productId.set(given.fromProductId ?? null);
+        this.toProductId.set(given.toProductId ?? null);
+        this.routeSet = true;
+      } else {
+        const route = await this.defaultRoute(accounts);
+        this.accountId.set(route.from);
+        this.toAccountId.set(route.to);
+      }
+    } else {
+      this.accountId.set(await this.defaultAccount(accounts));
     }
-
-    this.accountId.set(await this.defaultAccount(accounts));
 
     const start = this.request().start;
     if (start) {
