@@ -373,7 +373,17 @@
     font-size: 12px;
   }
 
-  &.writing textarea { font-size: 18px; font-weight: 400; margin-top: 6px; }
+  &.writing textarea {
+    font-size: 18px;
+    font-weight: 400;
+    margin-top: 6px;
+    // A very long note scrolls inside, above the keyboard, instead of pushing
+    // "Listo" off the top; otherwise the box is as tall as what it holds.
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  // The X stays beside the note while it is written, level with its text.
+  &.writing { align-items: flex-end; }
 
   textarea {
     display: block;

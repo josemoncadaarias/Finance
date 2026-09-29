@@ -2487,6 +2487,16 @@ changed in the shape of the app, for the next session:
   the move does not: the new route offers its own). `EntryRequest.start` is
   now read for a transfer too - switching Gasto to Transferir used to drop
   what was typed.
+- **A note's box is as tall as what it holds** (Jose, 2026-09-29, from the
+  phone: a long usual note showed one line, and while writing it scrolled
+  inside that line, so reaching its end with the cursor was a fight).
+  `shared/ui/auto-grow.directive.ts` (`[appAutoGrow]="note()"`) measures the
+  textarea whenever its text changes - typed, written by the app, cleared -
+  and when its width does, in the movement form, a product's own movement
+  and a proposal being checked. While writing it stops at 40% of the screen
+  and scrolls inside. **The note's X stays while it is being written**, and
+  clears it without taking the focus (answered on `pointerdown`), in all
+  three forms.
 - **A long press works on a group as on a row**: on the review screen a
   shop, the shops' heading and a day's heading start choosing with all their
   rows ticked (`pressedMany`).

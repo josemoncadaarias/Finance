@@ -39,10 +39,11 @@ export interface ProposalAnswer {
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 @Component({
   selector: 'app-proposal-form',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, KeypadComponent],
+  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, KeypadComponent, AutoGrowDirective],
   styleUrls: ['../entry/entry.component.scss'],
   styles: [`
     .said {
@@ -181,12 +182,14 @@ import { KeypadComponent } from '../../shared/ui/keypad.component';
             {{ 'ui.note' | t }}
             @if (writingNote()) { <button type="button" class="done" (click)="finishNote()">{{ 'entry.noteDone' | t }}</button> }
           </span>
-          <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" rows="1"
+          <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" [appAutoGrow]="note()" rows="1"
                     (focus)="writingNote.set(true)" (input)="onNote($any($event.target).value ?? '')"></textarea>
           @if (!writingNote() && note() === original() && note() !== '') { <small>{{ 'ui.review.fromStatement' | t }}</small> }
         </span>
-        @if (note() !== '' && !writingNote()) {
-          <button type="button" class="clear-note" (click)="note.set('')" [attr.aria-label]="'entry.clearNote' | t">
+        @if (note() !== '') {
+          <!-- On the press, keeping the note's focus: see clearNote in the movement form. -->
+          <button type="button" class="clear-note" (pointerdown)="clearNote($event)" (click)="clearNote()"
+                  [attr.aria-label]="'entry.clearNote' | t">
             <ion-icon name="close-circle"></ion-icon>
           </button>
         }
@@ -397,6 +400,20 @@ export class ProposalFormComponent implements OnInit {
     const field = this.noteField();
     if (field) field.nativeElement.value = note;
     this.hints.set([]);
+  }
+
+  /**
+   * The note's own X, there while it is written too. Answered on the press
+   * with the default prevented, so the note keeps its focus and the keyboard
+   * stays (the movement form's clearNote says why).
+   */
+  clearNote(pressed?: Event): void {
+    pressed?.preventDefault();
+    this.noteQuery++;
+    this.note.set('');
+    this.hints.set([]);
+    const field = this.noteField();
+    if (field) field.nativeElement.value = '';
   }
 
   /** The X: while the note is being written it only leaves the note. */
