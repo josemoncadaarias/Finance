@@ -65,6 +65,17 @@ import { AmountBuffer } from '../entry/amount-buffer';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import { apply, isOperator, operatorFromKey, type Operator, type Pending } from '../entry/calculator';
 
+/** What the form hands to the ordinary movement form when it cannot record it itself. */
+export interface Elsewhere {
+  kind: 'income' | 'expense' | 'transfer';
+  accountId: number;
+  amountMinor: number;
+  onDate: string;
+  note: string;
+  /** For a transfer: both ends, and the product kept on the end not changed. */
+  route?: { from: number; to: number; fromProductId?: number | null; toProductId?: number | null };
+}
+
 export interface ProductEntryRequest {
   kind: 'income' | 'expense' | 'transfer';
   account: AccountRow;
@@ -108,9 +119,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
    * from another account should not mean closing this and starting again
    * on another screen.
    */
-  readonly elsewhere = output<{
-    kind: 'income' | 'expense'; accountId: number; amountMinor: number; onDate: string; note: string;
-  }>();
+  readonly elsewhere = output<Elsewhere>();
 
   /**
    * The account this is about, and its products.
@@ -126,6 +135,14 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** Open while another account is being chosen. */
   readonly pickingAccount = signal(false);
+  /** In a move, which end's account is being chosen. */
+  readonly pickingSide = signal<'from' | 'to'>('from');
+
+  /** Opens the account list for one end of the form. */
+  pickAccountFor(side: 'from' | 'to'): void {
+    this.pickingSide.set(side);
+    this.pickingAccount.set(true);
+  }
   private readonly accent = inject(AccentService);
   readonly accentColor = computed(() => this.accent.accent().color);
 
@@ -149,19 +166,47 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   private readonly withoutProducts = signal<AccountRow[]>([]);
 
   /**
-   * The one list the picker shows: every account for an income or an
-   * expense, only the ones with products for a move between products.
+   * The one list the picker shows: every account. For a move, another
+   * account on either end turns it into a transfer between accounts, which
+   * the ordinary movement form writes (Jose, 2026-09-29: before the redesign
+   * the account of a transfer could be changed from the products screen).
    */
-  readonly offered = computed(() =>
-    this.isTransfer() ? this.withProducts() : [...this.withProducts(), ...this.withoutProducts()]);
+  readonly offered = computed(() => [...this.withProducts(), ...this.withoutProducts()]);
 
   /** Whether there is anywhere else to point this form at. */
   readonly canSwitch = computed(() => this.offered().length > 1);
 
   /** Stays on this form for an account with products, hands over otherwise. */
   chooseAccount(account: AccountRow): void {
-    if (this.withProducts().some(one => one.id === account.id)) void this.switchAccount(account);
+    if (this.isTransfer()) this.transferElsewhere(account);
+    else if (this.withProducts().some(one => one.id === account.id)) void this.switchAccount(account);
     else this.goElsewhere(account);
+  }
+
+  /**
+   * A move whose one end is pointed at another account is a transfer between
+   * accounts: handed, with both ends and what was written, to the ordinary
+   * movement form, where either end can still be changed. The end that was
+   * not touched keeps its product.
+   */
+  transferElsewhere(account: AccountRow): void {
+    this.pickingAccount.set(false);
+    const here = this.accountId();
+    if (account.id === here) return;
+    const fromSide = this.pickingSide() === 'from';
+    this.elsewhere.emit({
+      kind: 'transfer',
+      accountId: account.id,
+      amountMinor: this.amount().minor,
+      onDate: this.onDate(),
+      // The usual note of a move between products is not this transfer's:
+      // only what the person wrote goes along, and the other form offers the
+      // usual note of the new route.
+      note: this.noteIsTheirs ? this.note() : '',
+      route: fromSide
+        ? { from: account.id, to: here, toProductId: this.toProductId() }
+        : { from: here, to: account.id, fromProductId: this.productId() },
+    });
   }
 
   /** Hands what was written to the ordinary movement form, on that account. */

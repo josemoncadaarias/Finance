@@ -119,7 +119,7 @@
   <div class="ui-row end">
     <span class="side">{{ sideLabel(side) }}</span>
     <div class="what">
-      <button type="button" class="acc" [disabled]="isTransfer() || !canSwitch()" (click)="pickingAccount.set(true)">
+      <button type="button" class="acc" [disabled]="!canSwitch()" (click)="pickAccountFor(side === 'to' ? 'to' : 'from')">
         <app-badge shape="ci" [size]="28" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id"
                    [tone]="acc.color" [seed]="acc.id" fallback="wallet"></app-badge>
         <b class="ui-one">{{ acc.name }}</b>
@@ -287,7 +287,7 @@
 <!-- Which account this is about: the one account list. Choosing one without
      products hands what was written to the ordinary movement form. -->
 <app-account-picker [open]="pickingAccount()" [accounts]="offered()" [selectedId]="accountId()"
-                    [heading]="(request().kind === 'expense' ? 'entry.fromWhere' : request().kind === 'income' ? 'entry.toWhere' : 'summary.account') | t"
+                    [heading]="(request().kind === 'expense' || (isTransfer() && pickingSide() === 'from') ? 'entry.fromWhere' : 'entry.toWhere') | t"
                     (chosen)="chooseAccount($event)" (closed)="pickingAccount.set(false)">
 </app-account-picker>
 
