@@ -2485,6 +2485,33 @@ changed in the shape of the app, for the next session:
   up after 30 s and the upload after 45 s without a byte moving; a dropped
   connection is retried once; "Failed to fetch" reaches the screen in words.
   Not verified on the phone yet: the browser cannot sign in to Google.
+- **KNOWN BUG, not fixed yet - waiting for Jose's go (2026-09-29): the Drive
+  copy can hang for ever at "Revisando la copia que hay en Drive · 2 %".**
+  Seen several times on his phone; only closing the whole app clears it.
+  Analysis from the code (not yet reproduced, a browser cannot sign in):
+  - The bar shows 2 % from the moment `CloudBackupService.save()` starts,
+    and the first thing it does is `google.accessToken()`. The token lasts
+    about an hour; when it is gone, `accessToken()` calls
+    `signIn({ silent: true })`, which is `SocialLogin.login(...)` with **no
+    time limit**. The 30 s and 45 s limits of PR #2 only cover the calls to
+    Drive that come after it.
+  - Likely trigger: "Guardar la copia sola" saves when the app goes to the
+    background. Android's sign-in (Credential Manager, the 'bottom' style)
+    may never answer an app that is not in front, so that promise never
+    settles.
+  - While it hangs, `state` stays `'working'`, and `save()` returns at once
+    whenever the state is working - so every later save, by hand or on its
+    own, is refused until the app restarts.
+  - Proposed fix, for when Jose says go: a time limit (about 20 s) around
+    the silent sign-in and around the whole save (a watchdog that returns
+    the state to idle and says what happened); on returning to the app
+    (`appStateChange` active) a save left 'working' is abandoned and the
+    screen is back to normal; a "Cancelar" under the bar while it runs;
+    never ask Google for a token from the background - an automatic save
+    whose token has expired waits for the app to be in front again. Check
+    on the phone: leave the app for more than an hour with the automatic
+    copy on, come back, and the bar must finish or fail in words, never
+    hang.
 - **In a cloud session `ng serve` may fail to open the database** (a Stencil
   "Couldn't find host element for jeep-sqlite" error after the dependency
   cache is rebuilt). Serving `ng build --configuration development` from
@@ -3058,6 +3085,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Try the redesign on the phone and report what reads wrong: the list
       in "Start here" (Drive progress, long press, keypad, Registrar otro,
       sheets, the accent in the light theme).
+- [ ] Say when to fix the Drive copy that hangs at 2 % (known bug in "Start here").
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
