@@ -56,7 +56,9 @@
   &.extra { background: rgba(52, 201, 139, 0.08); }
   .num { width: 28px; text-align: center; font-weight: 600; margin-top: 2px; flex: none; ion-icon { color: var(--app-grn); font-size: 22px; } }
   .pair { display: flex; justify-content: space-between; gap: 10px; }
-  .state { font-size: 22px; flex: none; margin-top: 2px; color: var(--app-mu);
+  &.still { cursor: default; pointer-events: none; }
+  .go { font-size: 18px; flex: none; margin-top: 4px; color: var(--app-mu); }
+  .mark { font-size: 22px; flex: none; margin-top: 2px; color: var(--app-mu);
     &.paid, &.before { color: var(--app-grn); } &.next { color: var(--app-pr); } &.overdue { color: var(--app-red); } }
 }
 
@@ -90,3 +92,12 @@
 .uvr-note { margin: 0 4px; font-size: 13px; }
 
 .option .grid .part { font-size: 13px; color: var(--app-mu); font-weight: 500; padding-left: 10px; }
+
+.paid-sheet {
+  .ui-tx small { color: var(--app-mu); font-size: 12.5px; }
+  .figures { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; font-size: 14.5px;
+    .pair { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+    .total { border-top: 1px solid var(--app-s3); padding-top: 8px; }
+    .uvr { color: var(--app-mu); font-size: 12.5px; line-height: 1.4; } }
+  .danger { width: 100%; margin-top: 12px; color: var(--app-red); }
+}

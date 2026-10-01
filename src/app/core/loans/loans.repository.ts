@@ -354,6 +354,14 @@ export class LoansRepository {
   }
 
   /** A payment undone: its record and every movement it wrote. */
+  /** The account a payment's capital left from, or null when none is on record. */
+  async paidFrom(transferId: number | null): Promise<AccountRow | null> {
+    if (transferId === null) return null;
+    return await this.db.queryOne<AccountRow>(
+      `SELECT a.* FROM transactions t JOIN accounts a ON a.id = t.account_id
+        WHERE t.transfer_id = ? AND t.transfer_leg = 'from'`, [transferId]) ?? null;
+  }
+
   async deletePayment(id: number): Promise<void> {
     await this.db.transaction(async () => {
       const row = await this.db.queryOne<{ id: number; transfer_id: number | null; interest_tx_id: number | null; insurance_tx_id: number | null; late_tx_id: number | null; uvr_adjust_tx_id: number | null }>(

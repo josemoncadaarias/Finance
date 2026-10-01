@@ -3450,6 +3450,19 @@ in the repository; their figures are written into the tests.
   the movement form uses. The loan's "Cada" is a sheet of options with
   ticks. Checked: no `<select>` and no `type="date"` input is left in
   `src/app`.
+- **What a row of Cuotas does** (Jose, 2026-10-01: a circle looked
+  tappable and did nothing). A paid installment, or a payment ahead, opens
+  a sheet with what was paid - the day, the account it left from
+  (`LoansRepository.paidFrom`), capital, interest, insurance, default
+  interest, the UVR adjustment and the total - and "Deshacer este pago". The
+  installment due next (the first late one, or else the next) opens its
+  payment. A future one carries no circle and does nothing: in a real loan
+  the schedule is the bank's arithmetic, and what changes it is a payment
+  (each figure editable when it is recorded), a payment ahead or a new
+  rate. A figure the bank charged differently is corrected by undoing the
+  payment and recording it again. The row's icon was class `state`, which
+  also took the page's empty-state padding (80px of blank under it); it is
+  `mark` now.
 - Checked in a browser on Jose's backup with invented loans (a free
   investment with its disbursement into Rappi cuenta, an installment paid
   and deleted from Inicio; a cyclic UVR mortgage of 100,000,000, its first

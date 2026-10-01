@@ -111,7 +111,7 @@
               @for (r of y.rows; track $index) {
                 @if (r.type === 'installment') {
                   <button type="button" class="ui-row inst" [class.next]="r.state === 'next'" [class.late]="r.state === 'overdue'"
-                          (click)="r.state === 'paid' && askUndo(r)">
+                          [class.still]="r.state !== 'paid' && !payable(r)" (click)="tapRow(r)">
                     <span class="num" [class.ui-mu]="r.state === 'paid' || r.state === 'before'">{{ r.number }}</span>
                     <span class="ui-tx">
                       <b>{{ short(r.dueOn) }} · {{ money(r.totalMinor) }}</b>
@@ -125,10 +125,13 @@
                       }
                       @if (r.state === 'before') { <small>{{ 'loans.beforeApp' | t }}</small> }
                     </span>
-                    <ion-icon class="state" [class]="r.state" [name]="stateIcon(r.state)"></ion-icon>
+                    @if (r.state !== 'future') {
+                      <ion-icon class="mark" [class]="r.state" [name]="stateIcon(r.state)"></ion-icon>
+                    }
+                    @if (r.state === 'paid' || payable(r)) { <ion-icon class="go" name="chevron-forward-outline"></ion-icon> }
                   </button>
                 } @else {
-                  <button type="button" class="ui-row inst extra" (click)="askUndo(r)">
+                  <button type="button" class="ui-row inst extra" (click)="tapRow(r)">
                     <span class="num"><ion-icon name="arrow-down-circle"></ion-icon></span>
                     <span class="ui-tx">
                       <b>{{ short(r.paidOn) }} · {{ (r.mode === 'payoff' ? 'loans.payoff.row' : 'loans.ahead.row') | t }} · <span class="ui-g">{{ money(r.amountMinor) }}</span></b>
@@ -252,6 +255,44 @@
   <ng-template>
     @if (loan(); as loan) {
       <app-loan-editor [editing]="loan" (saved)="editing.set(false)" (cancelled)="editing.set(false)" (deleted)="onDeleted()"></app-loan-editor>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- A paid installment or payment ahead: what was paid, and undoing it. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="detail() !== null" (didDismiss)="detail.set(null)">
+  <ng-template>
+    @if (detail(); as d) {
+      <div class="ui-sheet-body ion-content-scroll-host paid-sheet">
+        <button type="button" class="sheet-cancel" (click)="detail.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <h3 class="ui-h first">
+          @if (d.row.type === 'installment') { {{ 'loans.next.label' | t:{ number: d.row.number, of: loan()?.terms?.installments ?? 0 } }} }
+          @else { {{ (d.payment.kind === 'payoff' ? 'loans.payoff.title' : 'loans.ahead.title') | t }} }
+        </h3>
+        <div class="ui-list">
+          <div class="ui-row plain">
+            <app-badge shape="ci" [size]="38" builtin="calendar-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><small>{{ 'loans.detail.paidOn' | t }}</small><b>{{ long(d.payment.paidOn) }}</b></span>
+          </div>
+          @if (d.from; as a) {
+            <div class="ui-row plain">
+              <app-badge [size]="38" [builtin]="a.builtin_icon" [customId]="a.custom_icon_id" [tone]="a.color" [seed]="a.id"></app-badge>
+              <span class="ui-tx"><small>{{ 'loans.detail.from' | t }}</small><b class="ui-one">{{ a.name }}</b></span>
+            </div>
+          }
+        </div>
+        <div class="ui-card figures">
+          <div class="pair"><span>{{ 'loans.pay.capital' | t }}</span><span>{{ money(d.payment.capitalMinor) }}</span></div>
+          @if (d.payment.interestMinor > 0) { <div class="pair"><span>{{ 'loans.pay.interest' | t }}</span><span class="ui-y">{{ money(d.payment.interestMinor) }}</span></div> }
+          @if (d.payment.insuranceMinor > 0) { <div class="pair"><span>{{ 'loans.pay.insurance' | t }}</span><span>{{ money(d.payment.insuranceMinor) }}</span></div> }
+          @if (d.payment.lateMinor > 0) { <div class="pair"><span>{{ 'loans.pay.late' | t }}</span><span class="ui-r">{{ money(d.payment.lateMinor) }}</span></div> }
+          <div class="pair total"><b>{{ 'loans.detail.total' | t }}</b><b>{{ money(totalOf(d.payment)) }}</b></div>
+          @if (d.payment.uvrAdjustMinor > 0) { <small class="uvr">{{ 'loans.pay.uvrAdjust' | t:{ amount: money(d.payment.uvrAdjustMinor) } }}</small> }
+        </div>
+        <p class="note">{{ 'loans.detail.note' | t }}</p>
+        <button type="button" class="ui-btn ghost danger" (click)="undoFromDetail()"><ion-icon name="arrow-undo-outline"></ion-icon>{{ 'loans.detail.undo' | t }}</button>
+      </div>
     }
   </ng-template>
 </ion-modal>
