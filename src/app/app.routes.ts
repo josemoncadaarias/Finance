@@ -46,6 +46,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/plans/plans.page').then(m => m.PlansPage),
   },
   {
+    path: 'plans/goal/:id',
+    loadComponent: () => import('./features/plans/goal.page').then(m => m.GoalPage),
+  },
+  {
     path: 'plans/:id',
     loadComponent: () => import('./features/plans/limit.page').then(m => m.LimitPage),
   },

@@ -12,6 +12,10 @@
       <button type="button" class="ui-chip new" (click)="newLimit()">
         <ion-icon name="add"></ion-icon>{{ 'plans.new' | t }}
       </button>
+    } @else {
+      <button type="button" class="ui-chip new" (click)="newGoal()">
+        <ion-icon name="add"></ion-icon>{{ 'goals.new' | t }}
+      </button>
     }
   </header>
 
@@ -26,11 +30,64 @@
     </div>
 
     @if (face() === 'goals') {
-      <div class="ui-card notice">
-        <app-badge shape="ci" [size]="52" builtin="flag-outline" fixed="#34c98b"></app-badge>
-        <b>{{ 'plans.goals.soon.title' | t }}</b>
-        <p class="ui-sub">{{ 'plans.goals.soon.body' | t }}</p>
-      </div>
+      @if (!goals.loaded()) {
+        <div class="state"><ion-spinner></ion-spinner></div>
+      } @else if (goals.live().length === 0) {
+        <!-- 15b -->
+        <div class="ui-card notice">
+          <app-badge shape="ci" [size]="52" builtin="flag-outline" fixed="#34c98b"></app-badge>
+          <b>{{ 'goals.empty.title' | t }}</b>
+          <p class="ui-sub">{{ 'goals.empty.body' | t }}</p>
+          <button type="button" class="ui-btn first" (click)="newGoal()">{{ 'goals.empty.action' | t }}</button>
+        </div>
+        <h3 class="ui-h">{{ 'goals.empty.start' | t }}</h3>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="newGoal('emergency')">
+            <app-badge [size]="40" builtin="shield-checkmark-outline" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b>{{ 'goals.emergency.name' | t }}</b>
+              <small class="wrap">{{ 'goals.empty.emergency' | t:{ amount: money(goals.emergencyFor(6)) } }}</small></span>
+            <span class="ui-chip add"><ion-icon name="add"></ion-icon>{{ 'goals.tag' | t }}</span>
+          </button>
+          <button type="button" class="ui-row" (click)="newGoal()">
+            <app-badge [size]="40" builtin="flag-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b>{{ 'goals.empty.other' | t }}</b><small class="wrap">{{ 'goals.empty.otherHint' | t }}</small></span>
+            <span class="ui-chip add"><ion-icon name="add"></ion-icon>{{ 'goals.tag' | t }}</span>
+          </button>
+        </div>
+      } @else {
+        <!-- 15c -->
+        @if (goals.inCourse().length > 0) {
+          <section class="ui-hero total">
+            <span class="ui-lab">{{ 'goals.total.label' | t }}</span>
+            <div class="ui-big">{{ money(goals.totals().saved) }} <small>{{ 'plans.of' | t:{ amount: money(goals.totals().amount) } }}</small></div>
+            <span class="gbar"><i [style.width.%]="goalsPercent()"></i></span>
+            <p class="ui-sub">
+              {{ 'goals.total.inCourse' | t:{ count: goals.inCourse().length } }}@if (goals.late().length) { · {{ 'goals.total.late' | t:{ count: goals.late().length } }} }
+            </p>
+          </section>
+          <h3 class="ui-h">{{ 'goals.section.inCourse' | t:{ count: goals.inCourse().length } }}</h3>
+          @for (g of goals.inCourse(); track g.terms.id) {
+            <ng-container *ngTemplateOutlet="goalCard; context: { $implicit: g }"></ng-container>
+          }
+        }
+        @if (goals.reached().length > 0) {
+          <h3 class="ui-h">{{ 'goals.section.reached' | t:{ count: goals.reached().length } }}</h3>
+          @for (g of goals.reached(); track g.terms.id) {
+            <ng-container *ngTemplateOutlet="goalCard; context: { $implicit: g }"></ng-container>
+          }
+        }
+        @let archived = goals.goals().length - goals.live().length;
+        @if (archived > 0) {
+          <button type="button" class="ui-chip archived" (click)="showReached.set(!showReached())">
+            <ion-icon name="archive-outline"></ion-icon>{{ 'goals.archived' | t:{ count: archived } }}
+          </button>
+          @if (showReached()) {
+            @for (g of goals.goals(); track g.terms.id) {
+              @if (g.terms.archived) { <ng-container *ngTemplateOutlet="goalCard; context: { $implicit: g }"></ng-container> }
+            }
+          }
+        }
+      }
     } @else if (!limits.loaded()) {
       <div class="state"><ion-spinner></ion-spinner></div>
     } @else if (view().limits.length === 0) {
@@ -168,6 +225,33 @@
     }
   </button>
 </ng-template>
+
+<!-- One goal's card (15c). -->
+<ng-template #goalCard let-g>
+  <button type="button" class="ui-card limit goal" (click)="openGoal(g)">
+    <span class="top">
+      <app-badge [size]="42" [builtin]="g.terms.icon" [fixed]="g.terms.color ?? '#34c98b'"></app-badge>
+      <span class="ui-tx">
+        <span class="name">
+          <b class="ui-one">{{ g.terms.name }}</b>
+          <span class="ui-tag state-tag" [class]="g.status.state">{{ $any('goals.state.' + g.status.state) | t }}</span>
+        </span>
+        <small class="ui-one">{{ goalWhere(g) }}</small>
+      </span>
+      <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+    </span>
+    <span class="figures"><span><b>{{ money(g.status.savedMinor) }}</b> {{ 'plans.of' | t:{ amount: money(g.terms.amountMinor) } }}</span>
+      <b class="pct" [class]="g.status.state">{{ g.status.percent }} %</b></span>
+    <span class="gbar small"><i [style.width.%]="g.status.percent" [class]="g.status.state"></i></span>
+    <small class="line">{{ goalLine(g) }}</small>
+  </button>
+</ng-template>
+
+<ion-modal class="entry-sheet" [isOpen]="editingGoal() !== null" (didDismiss)="editingGoal.set(null)">
+  <ng-template>
+    <app-goal-editor [goalId]="editingGoal() || null" [kind]="newGoalKind()" (done)="editingGoal.set(null)"></app-goal-editor>
+  </ng-template>
+</ion-modal>
 
 <ion-modal class="entry-sheet" [isOpen]="editing() !== null" (didDismiss)="editing.set(null)">
   <ng-template>

@@ -3522,6 +3522,47 @@ How it is made:
   afterwards. **Not seen on the phone**: the phone notification itself
   (permission prompt, its icon) and how the sheet reads there.
 
+**Part 3, plans - goals: BUILT (2026-10-01)**, from mockups `15a`-`15m`,
+approved by Jose, with the two things he added on the way: a goal can keep
+its money in **several accounts or products**, and in **all of them**.
+- `goals` + `goal_places` (migration 054): a figure in pesos, an optional
+  month, `kind` ('custom' or 'emergency', with the `months` it was worked
+  out from), `all_accounts`, `reached_on`, `archived`; each place an account
+  or one of its products, counting all it holds or only what came in since it
+  was added (`start_minor`, in the account's currency). A place belongs to
+  one goal at most (unique index), and a whole account and one of its
+  products are never both taken. Both tables travel in the backup.
+- **What a goal has is what its places hold** - never contributions typed
+  apart - in pesos at today's rate (`savedOn` in `goals.repository.ts`): an
+  account by its ledger balance, a product by the figure the products screen
+  shows. "Todas tus cuentas" is what the accounts counted in net worth hold
+  (cards, loans and products set outside net worth left out; debts NOT
+  subtracted - Jose was told and did not object), less what the other goals'
+  places inside them hold. Only one goal can be "all accounts".
+- `core/goals/goals.ts` is pure and tested (`goals.test.mjs`): what is left,
+  what each month needs to the date, the pace (what came in a month over the
+  last three months), the month the pace arrives (none past ten years:
+  "tardarías más de 10 años"), states on time / late / no date / reached. A
+  goal reached is marked once and stays reached after the money is used. An
+  emergency fund is N months of the average spent over the whole months
+  before this one (up to six, from the first with spending), the summary's
+  own rule; its page offers to catch up when that moves over 5 %.
+- Screens: Presupuestos → Metas (empty state with "Fondo de emergencia" and
+  "Otra meta", the total, in course, reached, archived), the editor
+  (`goal-editor`: name and face, figure or months, month, places sheet with
+  "Todas tus cuentas" and the breakdown of what other goals take off, "Qué
+  cuenta" per place), `/plans/goal/:id` (hero, pace, "Para llegar" when late:
+  pay in or move the date, places with their share, six months against the
+  line, Cambiar / Aportar, archive once reached, delete). Aportar opens the
+  one transfer form into the place holding most, from the account that
+  usually feeds it, with what this month needs. Más's Presupuestos line
+  counts goals and the late ones; Inicio shows a late goal as one row.
+- Checked in a browser on Jose's backup with an invented emergency fund over
+  all accounts (14.2 M spent a month, 85.4 M for six months, reached since
+  the accounts hold 333 M) and an invented trip over ARQ EUR and Bancolombia
+  (late, "más de 10 años", Aportar opening Rappi cuenta → Bancolombia with
+  the usual note); both deleted afterwards. Not seen on the phone.
+
 **Also fixed the same day (PRs #21, #23 and #24)**: a product with a typed
 balance given money the day it was created earned nothing (Jose's new
 Pibank product "Impuesto de renta": 0 typed on 29 Sep at 20:02, 200,000
@@ -3606,7 +3647,9 @@ budget family (2/16, 1, 7), then the rest.
       UVR statement, turns up, check the figures against it. Then part 3, plans.
 - [ ] Limits (plans, step 1) are built: try them on the phone - the phone
       notification asks for permission the first time, check it arrives and
-      how its icon looks. Then step 2, goals.
+      how its icon looks.
+- [ ] Goals (plans, step 2) are built: try them on the phone (Más →
+      Presupuestos → Metas) and say what reads wrong.
 - [ ] Pibank's new product: press "Recalcular" (Productos y rendimientos,
       the round arrow) once the update is installed, so the 1 Oct payment
       is worked out again with the 200,000.

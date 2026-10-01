@@ -10,7 +10,7 @@
 
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
 
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -24,13 +24,17 @@ import type { CategoryRow } from '../../core/database/types';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { LimitBarComponent } from '../../shared/ui/limit-bar.component';
 import { LimitEditorComponent } from './limit-editor.component';
+import { GoalEditorComponent } from './goal-editor.component';
+import { GoalsService, type GoalView } from '../../core/goals/goals.service';
+import type { GoalKind } from '../../core/goals/goals';
+import { goalLine, placesLine } from './goal-words';
 import { lineOf, monthLabel, plain, ratio, shortDay, toneOf } from './plans-words';
 
 @Component({
   selector: 'app-plans',
   templateUrl: './plans.page.html',
   styleUrls: ['./plans.page.scss'],
-  imports: [TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, GoalEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class PlansPage {
   readonly limits = inject(LimitsService);
@@ -39,7 +43,14 @@ export class PlansPage {
   private readonly location = inject(Location);
   private readonly filter = inject(FilterService);
 
-  readonly face = signal<'limits' | 'goals'>('limits');
+  readonly goals = inject(GoalsService);
+  private readonly route = inject(ActivatedRoute);
+
+  readonly face = signal<'limits' | 'goals'>(this.route.snapshot.queryParamMap.get('face') === 'goals' ? 'goals' : 'limits');
+  /** The goal editor: null closed, 0 a new goal, otherwise that goal. */
+  readonly editingGoal = signal<number | null>(this.route.snapshot.queryParamMap.get('new') ? 0 : null);
+  readonly newGoalKind = signal<GoalKind>('custom');
+  readonly showReached = signal(false);
   readonly avisos = signal(false);
   /** The editor: null closed, 0 a new limit, otherwise that limit. */
   readonly editing = signal<number | null>(null);
@@ -83,6 +94,28 @@ export class PlansPage {
       .sort((a, b) => b.averageMinor - a.averageMinor)
       .slice(0, 3));
   }
+
+  newGoal(kind: GoalKind = 'custom'): void {
+    this.newGoalKind.set(kind);
+    this.editingGoal.set(0);
+  }
+
+  openGoal(g: GoalView): void {
+    void this.router.navigateByUrl(`/plans/goal/${g.terms.id}`);
+  }
+
+  goalLine(g: GoalView): string {
+    return goalLine(g.status, g.terms.dueMonth, g.terms.kind === 'emergency' ? g.terms.months : null, this.i18n);
+  }
+
+  goalWhere(g: GoalView): string {
+    return placesLine(g.places, g.terms.allAccounts, this.i18n);
+  }
+
+  readonly goalsPercent = computed(() => {
+    const t = this.goals.totals();
+    return t.amount > 0 ? Math.min(100, Math.round((t.saved / t.amount) * 100)) : 0;
+  });
 
   back(): void {
     this.location.back();

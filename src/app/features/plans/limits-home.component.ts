@@ -10,7 +10,9 @@ import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { LimitsService, type LimitView } from '../../core/limits/limits.service';
+import { GoalsService, type GoalView } from '../../core/goals/goals.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { LimitBarComponent } from '../../shared/ui/limit-bar.component';
 import { plain, ratio } from './plans-words';
@@ -49,8 +51,18 @@ import { plain, ratio } from './plans-words';
         </button>
       }
     }
-    @if (close().length > 0) {
+    @if (close().length > 0 || goals.late().length > 0) {
       <div class="ui-list">
+        @for (g of goals.late(); track g.terms.id) {
+          <button type="button" class="ui-row" (click)="openGoal(g)">
+            <app-badge [size]="40" [builtin]="g.terms.icon" [fixed]="g.terms.color ?? '#34c98b'"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ 'goals.home.late' | t:{ name: g.terms.name } }}</b>
+              <small class="ui-one late">{{ lateLine(g) }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
         @for (l of close(); track l.terms.id) {
           <button type="button" class="ui-row" (click)="open(l)">
             <app-badge [size]="40" [builtin]="l.categories[0]?.builtin_icon" [customId]="l.categories[0]?.custom_icon_id"
@@ -86,6 +98,7 @@ import { plain, ratio } from './plans-words';
     .ui-tx > b { font-size: 15.5px; }
     small { color: var(--app-mu); font-size: 13px; }
     .strong { font-weight: 600; }
+    .late { color: var(--app-yel); }
     .warn {
       width: 44px; height: 44px; border-radius: 50%; flex: none; display: grid; place-items: center;
       background: rgba(var(--app-red-rgb), 0.2); color: var(--app-red); font-size: 22px;
@@ -94,6 +107,8 @@ import { plain, ratio } from './plans-words';
 })
 export class LimitsHomeComponent {
   readonly limits = inject(LimitsService);
+  readonly goals = inject(GoalsService);
+  private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
 
   /** From 80 % and not over: one quiet row each. */
@@ -101,6 +116,16 @@ export class LimitsHomeComponent {
 
   money = plain;
   ratio = ratio;
+
+  openGoal(g: GoalView): void {
+    void this.router.navigateByUrl(`/plans/goal/${g.terms.id}`);
+  }
+
+  lateLine(g: GoalView): string {
+    const s = g.status;
+    if (s.monthsLeft === 0) return this.i18n.t('goals.line.overdue', { left: plain(s.remainingMinor) });
+    return this.i18n.t('goals.home.lateLine', { needed: plain(s.neededPerMonthMinor ?? 0) });
+  }
 
   go(url: string): void {
     void this.router.navigateByUrl(url);
