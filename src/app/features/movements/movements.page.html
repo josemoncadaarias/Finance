@@ -50,6 +50,9 @@
     </div>
   } @else {
 
+    <!-- A limit gone over, or close: only when something needs attention (14f, 14i, 14m). -->
+    <app-limits-home></app-limits-home>
+
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
       <section class="ui-hero figures">

@@ -1,0 +1,82 @@
+/* Planes (14b, 14c, 14g, 14l, 14p). The shared pieces are in global.scss. */
+
+.ui-titlebar {
+  .bell {
+    border: 0;
+    background: none;
+    color: var(--app-pr);
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    cursor: pointer;
+    flex: none;
+    ion-icon { font-size: 23px; }
+  }
+  .new { color: var(--app-pr); flex: none; ion-icon { font-size: 18px; } }
+}
+
+.faces { margin: 0 0 12px; ion-icon { font-size: 17px; margin-right: 6px; vertical-align: -3px; } }
+.ui-period { margin-bottom: 12px; .label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--app-pr); font-weight: 600; } }
+.state { text-align: center; padding: 40px 16px; }
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 20px;
+  b { font-size: 17px; }
+  .ui-sub { margin: 0 0 8px; }
+  .first { max-width: 240px; }
+}
+
+.ui-row .add { color: var(--app-pr); padding: 6px 10px; flex: none; ion-icon { font-size: 16px; } }
+
+.ui-hero {
+  .ui-big small { font-size: 15px; font-weight: 500; color: var(--app-mu); }
+  .ui-sub { margin: 8px 0 0; }
+  &.red {
+    background: linear-gradient(145deg, rgba(var(--app-red-rgb), 0.35) 0%, rgba(var(--app-red-rgb), 0.12) 55%, var(--app-s1) 100%);
+    border-color: rgba(var(--app-red-rgb), 0.5);
+    .head { display: flex; align-items: center; gap: 8px; ion-icon { color: var(--app-red); font-size: 22px; flex: none; } }
+    .ui-lab { color: var(--app-red); opacity: 0.85; }
+    .ui-big small { color: var(--app-red); opacity: 0.8; }
+  }
+  &.red.total { border-width: 1.5px; }
+  .chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .dark { background: rgba(var(--app-bg-rgb), 0.35); ion-icon { font-size: 17px; } }
+}
+
+/* One limit's card. */
+.limit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  margin-top: 10px;
+  padding: 14px;
+  cursor: pointer;
+
+  .top { display: flex; gap: 10px; align-items: center; }
+  .ui-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .name { display: flex; gap: 6px; align-items: center; min-width: 0; }
+  small { color: var(--app-mu); font-size: 13px; }
+  .pct { font-size: 17px; flex: none; }
+  .line { display: block; margin-top: 7px; line-height: 1.35; white-space: normal; }
+
+  &.passed {
+    border-color: rgba(var(--app-red-rgb), 0.55);
+    background: rgba(var(--app-red-rgb), 0.08);
+  }
+}
+
+.passed-tag { background: rgba(var(--app-red-rgb), 0.2); color: var(--app-red); flex: none; }
+
+.avisos {
+  .ui-row { cursor: default; }
+  .note { color: var(--app-mu); font-size: 13px; line-height: 1.4; margin: 12px 4px 0; }
+}

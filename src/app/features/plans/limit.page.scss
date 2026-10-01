@@ -1,0 +1,62 @@
+/* One limit's page (14e, 14k). The shared pieces are in global.scss. */
+
+.limit-head {
+  .who {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    b { font-size: 18px; }
+    small { color: var(--app-mu); font-size: 13px; }
+  }
+  .pen {
+    border: 0;
+    background: none;
+    color: var(--app-pr);
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    cursor: pointer;
+    flex: none;
+    ion-icon { font-size: 22px; }
+  }
+}
+
+.ui-period { margin-bottom: 12px; .label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--app-pr); font-weight: 600; } }
+
+.ui-hero {
+  .ui-big small { font-size: 15px; font-weight: 500; color: var(--app-mu); }
+  .ui-sub { margin: 8px 0 0; }
+  &.red {
+    background: linear-gradient(145deg, rgba(var(--app-red-rgb), 0.35) 0%, rgba(var(--app-red-rgb), 0.12) 55%, var(--app-s1) 100%);
+    border-color: rgba(var(--app-red-rgb), 0.5);
+    .ui-lab { color: var(--app-red); opacity: 0.85; }
+  }
+}
+
+.use { color: var(--app-pr); flex: none; }
+
+.chart {
+  padding: 14px;
+  .plot { position: relative; display: flex; gap: 6px; height: 110px; align-items: flex-end; }
+  .slot { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  i { display: block; width: 70%; border-radius: 6px 6px 2px 2px; background: rgba(var(--app-pr-rgb), 0.55); min-height: 2px; }
+  i.over { background: var(--app-red); }
+  .months { display: flex; gap: 6px; margin-top: 4px; small { flex: 1; text-align: center; color: var(--app-mu); font-size: 11.5px; } }
+  .line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px dashed var(--app-yel);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .ui-sub { margin: 8px 0 0; }
+}
+
+.am { flex: none; font-variant-numeric: tabular-nums; }
+.nothing { margin: 0 4px; }
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }
+.danger { margin-top: 16px; color: var(--app-red); }

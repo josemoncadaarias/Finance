@@ -1,0 +1,126 @@
+<!-- One limit's page (14e, 14k). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar limit-head">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    @if (view(); as v) {
+      <app-badge [size]="40" [builtin]="v.categories[0]?.builtin_icon" [customId]="v.categories[0]?.custom_icon_id"
+                 [tone]="v.categories[0]?.color" [seed]="v.categories[0]?.id"></app-badge>
+      <span class="who">
+        <b class="ui-one">{{ v.name }}</b>
+        <small class="ui-one">{{ sub() }}</small>
+      </span>
+      <button type="button" class="pen" (click)="editing.set(true)" [attr.aria-label]="'plans.changeLimit' | t">
+        <ion-icon name="create-outline"></ion-icon>
+      </button>
+    }
+  </header>
+
+  <div class="ui-main">
+    @if (view(); as v) {
+      @let st = s()!;
+      <div class="ui-period">
+        <button type="button" class="arrow" (click)="step(-1)" [disabled]="atOldest()" [attr.aria-label]="'summary.previousPeriod' | t">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+        </button>
+        <span class="label"><ion-icon name="calendar-outline"></ion-icon><span>{{ label() }}</span></span>
+        <button type="button" class="arrow" (click)="step(1)" [disabled]="atNewest()" [attr.aria-label]="'summary.nextPeriod' | t">
+          <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+
+      @if (st.state === 'passed') {
+        <section class="ui-hero red">
+          <span class="ui-lab">{{ 'plans.page.overBy' | t }}</span>
+          <div class="ui-big ui-r">$ {{ money(st.overMinor) }}</div>
+          <app-limit-bar class="big" [percent]="ratio(st)" state="passed"></app-limit-bar>
+          <p class="ui-sub">
+            {{ 'plans.page.spentOf' | t:{ spent: money(st.spentMinor), amount: money(st.amountMinor) } }}
+            @if (st.passedWith; as p) {
+              {{ (p.description ? 'plans.page.passedWith' : 'plans.page.passedOn') | t:{ date: long(p.occurredOn), what: p.description ?? '', amount: money(-p.amountMinor) } }}
+            }
+          </p>
+        </section>
+      } @else {
+        <section class="ui-hero">
+          <span class="ui-lab">{{ 'plans.page.spent' | t }}</span>
+          <div class="ui-big">{{ money(st.spentMinor) }} <small>{{ 'plans.of' | t:{ amount: money(st.amountMinor) } }}</small></div>
+          <app-limit-bar class="big" [percent]="ratio(st)" [state]="st.state"></app-limit-bar>
+          <p class="ui-sub">
+            @if (st.daysLeft > 0) {
+              {{ 'plans.page.pace' | t:{ left: money(st.remainingMinor), count: st.daysLeft, perDay: money(st.perDayMinor) } }}
+              @if (st.lastMonthSoFarMinor > 0) { {{ 'plans.page.lastMonth' | t:{ amount: money(st.lastMonthSoFarMinor) } }} }
+            } @else {
+              {{ line() }}
+            }
+          </p>
+        </section>
+      }
+
+      @if (suggestion(); as sg) {
+        <h3 class="ui-h">{{ 'plans.page.next' | t }}</h3>
+        <div class="ui-list">
+          <div class="ui-row">
+            <app-badge shape="ci" [size]="40" builtin="trending-up-outline" fixed="#4cb8f5"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ 'plans.page.average' | t:{ amount: money(sg.average) } }}</b>
+              <small class="wrap">{{ 'plans.page.realistic' | t:{ amount: money(sg.figure) } }}</small>
+            </span>
+            <button type="button" class="ui-chip use" (click)="use(sg.figure)">{{ 'plans.page.use' | t }}</button>
+          </div>
+        </div>
+      }
+
+      <h3 class="ui-h">{{ 'plans.page.months' | t }}</h3>
+      <div class="ui-card chart">
+        <div class="plot">
+          <span class="line" [style.bottom.%]="lineAt()"></span>
+          @for (b of bars(); track b.label) {
+            <span class="slot" [title]="money(b.spent)"><i [class.over]="b.over" [style.height.%]="b.height"></i></span>
+          }
+        </div>
+        <div class="months">
+          @for (b of bars(); track b.label) { <small>{{ b.label }}</small> }
+        </div>
+        <p class="ui-sub">
+          {{ 'plans.page.lineIs' | t }}
+          @if (lastOver(); as o) { {{ 'plans.page.lastOver' | t:{ month: o.month, amount: o.by } }} }
+        </p>
+      </div>
+
+      <h3 class="ui-h">{{ 'plans.page.counts' | t:{ count: st.rows.length } }}</h3>
+      @if (st.rows.length > 0) {
+        <div class="ui-list">
+          @for (r of st.rows; track r.id) {
+            @let c = limits.categories().get(r.categoryId);
+            <div class="ui-row">
+              <app-badge [size]="38" [builtin]="c?.builtin_icon" [customId]="c?.custom_icon_id" [tone]="c?.color" [seed]="c?.id"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ r.description || c?.name }}</b>
+                <small class="ui-one">{{ short(r.occurredOn) }} · {{ accountName(r.accountId) }}</small>
+              </span>
+              <b class="am" [class.ui-r]="r.amountMinor < 0" [class.ui-g]="r.amountMinor > 0">{{ r.amountMinor < 0 ? '-' : '+' }}{{ money(r.amountMinor < 0 ? -r.amountMinor : r.amountMinor) }}</b>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="ui-sub nothing">{{ 'plans.page.nothing' | t }}</p>
+      }
+
+      <button type="button" class="ui-btn ghost danger" (click)="deleting.set(true)">{{ 'plans.page.delete' | t }}</button>
+    } @else if (limits.loaded()) {
+      <p class="state">{{ 'plans.page.gone' | t }}</p>
+    }
+    <div class="ui-page-end"></div>
+  </div>
+</ion-content>
+
+<ion-modal class="entry-sheet" [isOpen]="editing()" (didDismiss)="editing.set(false)">
+  <ng-template>
+    <app-limit-editor [limitId]="view()?.terms?.id ?? null" (done)="editing.set(false)"></app-limit-editor>
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="deleting()" [title]="'plans.page.delete.title' | t" [body]="'plans.page.delete.body' | t"
+             [confirmLabel]="'plans.page.delete' | t" (confirmed)="remove()" (cancelled)="deleting.set(false)"></app-confirm>

@@ -44,6 +44,7 @@ import { formatMoney } from '../../core/database/money';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
 import { MOVE_COLOR } from '../../core/theme/palette';
+import { LimitsHomeComponent } from '../plans/limits-home.component';
 
 @Component({
   selector: 'app-movements',
@@ -51,7 +52,7 @@ import { MOVE_COLOR } from '../../core/theme/palette';
   styleUrls: ['./movements.page.scss'],
   imports: [
     CommonModule, FormsModule, MoneyPipe, SpendingChartComponent, SwipeDirective, BadgeComponent,
-    TranslatePipe, ScopeSheetsComponent,
+    TranslatePipe, ScopeSheetsComponent, LimitsHomeComponent,
     IonContent, IonHeader, IonIcon, IonSpinner,
   ],
 })

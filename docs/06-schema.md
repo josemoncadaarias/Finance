@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 34 tables and how they relate. The authority is always
+The 36 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -259,6 +259,17 @@ erDiagram
         INTEGER late_tx_id FK
         INTEGER uvr_adjust_tx_id FK
     }
+    spending_limits {
+        INTEGER id PK
+        INTEGER amount_minor
+        TEXT period
+        INTEGER account_id FK
+        INTEGER warn_at_80
+    }
+    spending_limit_categories {
+        INTEGER limit_id PK, FK
+        INTEGER category_id PK, FK, UK
+    }
     uvr_values {
         TEXT day PK
         INTEGER value_scaled
@@ -350,6 +361,9 @@ erDiagram
     transfers      ||--o{ loan_payments    : "carried the capital of"
     transfers      ||--o| loans            : "disbursed"
     transactions   ||--o{ loan_payments    : "carried the interest of"
+    accounts       ||--o{ spending_limits  : "is the only account of"
+    spending_limits ||--o{ spending_limit_categories : "covers"
+    categories     ||--o| spending_limit_categories : "is limited by"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
@@ -446,6 +460,13 @@ pointing at the movement it became so it is never counted twice.
 ships empty. Until a figure is entered and marked confirmed, the accrual runs
 without withholding and says so.
 
+`spending_limits` and `spending_limit_categories` (migration 053) are the
+plans' limits: a figure in pesos a month for one or several categories, on
+every account or on one. Nothing is stored per month - what was spent is
+worked out from the movements each time, with the summary's own rule. A
+category belongs to one limit at most (`UNIQUE`), so the total of every limit
+never counts a peso twice.
+
 ### 4. Import bookkeeping
 
 `import_batches`, `review_queue`, `settings`. Not finance — the paper trail of
@@ -468,6 +489,7 @@ The rule differs per relationship, and each choice is deliberate.
 | an import batch | its review items go with it | they describe that run |
 | an import batch (transactions) | transactions survive, unlinked | the money outlived the paperwork |
 | an account | its rates and accruals go with it | they mean nothing without it |
+| an account or a category | a limit on it, or that category in a limit, goes with it | a limit on nothing limits nothing |
 
 ---
 

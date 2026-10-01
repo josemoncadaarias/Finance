@@ -126,7 +126,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (613, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (626, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -723,8 +723,9 @@ backup restore against iOS's own SQLite backend.
      Either the same days on both sides, or a projection that says it is one.
    - **No tax section.** Stated by Jose: the simulator covers it and stands
      apart.
-   - **No budgets.** There is no such table and inventing one is its own
-     project, so "over budget" is not an indicator this report can carry.
+   - **No budgets** - lifted by Jose on 2026-10-01: spending limits exist now
+     (Planes, "Debts and plans"), but the report has no section for them
+     until he asks for one.
    - The order of work: the spreadsheet first (several sheets, which the
      writer does not do yet - it has `sheet1` fixed in four places), then the
      screen, then the analysis worth having, then a real Excel chart if it
@@ -3448,22 +3449,61 @@ in the repository; their figures are written into the tests.
   its UVR adjustment); everything written was deleted afterwards and the
   balances checked back.
 
-**Part 3, plans - limits: DRAWN for Jose's word (2026-10-01)**,
-`docs/mockups/14a`-`14p`. What Jose has asked for so far, not to be lost
-when it is built:
+**Part 3, plans - limits: BUILT (2026-10-01)**, from mockups `14a`-`14p`,
+approved by Jose. What he asked for along the way, all of it in:
 - A passed limit stands out: a red card on top (Planes, Inicio, the
   limit's page), its own card marked "Pasado" with the bar running past
-  the mark, how much over and since when (`14g`-`14k`).
+  the mark, how much over and since when.
 - The total of all limits passed: the same tinted red, never solid red
   (v1 was "demasiado invasivo"), and each passed limit still shows its
-  own red card under it (`14l`-`14o`).
+  own red card under it.
 - The notice at saving a movement that crosses a limit or the total has
   "No volver a mostrar esto"; the bell in Planes opens Avisos to turn
-  each notice (at saving, the phone notification, the 80 %) off and on
-  (`14p`). The red cards are not notices and stay while over.
-- **Offer a limit for next month from the average of the last three
-  months**, with "Usar" (`14e`, `14k`); Jose asked for it not to be
-  forgotten. The new-limit form offers the same average (`14d`).
+  each notice (at saving, the phone notification, the 80 %) off and on.
+  The red cards are not notices and stay while over.
+- **A limit for next month from the average of the last three months**,
+  with "Usar", on the limit's page; the new-limit form offers the same
+  average ("Usar tu promedio").
+
+How it is made:
+- `spending_limits` + `spending_limit_categories` (migration 053): a figure
+  in pesos a month, one or several categories (each in one limit at most,
+  so the total never counts a peso twice), every account counted in net
+  worth or one account, a switch for the 80 % notice. Both tables travel
+  in the backup. Rule 20's "No budgets" is lifted by this.
+- `core/limits/limits.ts` is pure and tested (`limits.test.mjs`): what was
+  spent is the summary's own rule (`totalsOf`: expenses less refunds on a
+  card, never income or transfers), in pesos at each movement's rate.
+  States: green, amber ahead of the month's pace or from 80 %, red past
+  it. The movement that took it over, six months of history, the average
+  of the three whole months before, `crossings` for the notices.
+- `LimitsService` reads it all once per data change and is what Planes,
+  a limit's page, Inicio (`limits-home`), Más (its "Planes" row) and the
+  red dot on the bar read. It also compares each reading with the last
+  of the same month: a level crossed (80 %, past it, the total past it)
+  raises the sheet at saving (`limit-alert`, mounted in the app shell)
+  and the phone's notification (`@capacitor/local-notifications`, native
+  only), each once a month per limit and level (kept in `localStorage`)
+  and each only when switched on (`settings`, `limits.notice.*`). A limit
+  changed by the person, or a new one, is never a crossing.
+- Screens: `/plans` (Límites | Metas - goals say "llegan pronto"), the
+  month with its arrows (twelve back), the form as a full sheet, Avisos
+  as a bottom sheet, `/plans/:id` (pace, next month, the months before
+  against the limit, what counts, delete). Más → Tus finanzas → Planes.
+- Checked in a browser on Jose's backup with invented limits and three
+  invented expenses (a limit passed, the total passed, the sheet, "No
+  volver a mostrar", Inicio, Más, Avisos); everything written was deleted
+  afterwards. **Not seen on the phone**: the phone notification itself
+  (permission prompt, its icon) and how the sheet reads there.
+
+**Also fixed the same day (PR #21)**: a product with a typed balance given
+money the day it was created earned nothing (Jose's new Pibank product: 0
+typed on 29 Sep, 200,000 moved in the same day, nothing paid on 1 Oct).
+Every movement dated on the figure's day was taken as already inside it;
+now only those recorded before the figure was typed are, as entries
+already were (`sameDayAfter` in `accrual.ts`). On his backup, every yield
+worked out from scratch with both engines: 373 of 373 days identical. The
+days already worked out on his phone stay until "Recalcular".
 
 ### The ideas, by what they would take
 
@@ -3478,7 +3518,7 @@ when it is built:
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
-| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | Proposed and drawn (`11k`, `11m`), "Debts and plans" |
+| 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | **Built** as limits, 2026-10-01 |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
 | 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed and drawn (`11l`, `11n`), "Debts and plans" |
@@ -3529,6 +3569,12 @@ budget family (2/16, 1, 7), then the rest.
       (Más → Deudas y tarjetas → Nueva deuda) and say what reads wrong. If a
       real statement with a payment ahead between installments, or a real
       UVR statement, turns up, check the figures against it. Then part 3, plans.
+- [ ] Limits (plans, step 1) are built: try them on the phone - the phone
+      notification asks for permission the first time, check it arrives and
+      how its icon looks. Then step 2, goals.
+- [ ] Pibank's new product: press "Recalcular" (Productos y rendimientos,
+      the round arrow) once the update is installed, so the 1 Oct payment
+      is worked out again with the 200,000.
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the
