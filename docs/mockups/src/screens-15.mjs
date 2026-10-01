@@ -35,7 +35,7 @@ const goalCard = (icon, color, name, where, saved, of, p, line, state) => {
    <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:14px"><span><b>${saved}</b> <span class="mu">de ${of}</span></span><b style="color:${c}">${p} %</b></div>
    ${bar(p, c)}<div class="sub" style="margin-top:7px;white-space:normal">${line}</div></div>`;
 };
-const viaje = goalCard('airplane-outline', C.cya, 'Viaje a Cartagena', place('Banco Azul', C.blu, 'wallet-outline', 'Cajita Viaje', 'cube-outline'),
+const viaje = goalCard('airplane-outline', C.cya, 'Viaje a Cartagena', `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--mu)">${sq('cube-outline', C.blu, 20)}Cajita Viaje · ${ci('globe-outline', C.tea, 20)}Global Viajes</span>`,
   '2.350.000', '6.000.000', 39, 'Faltan 3.650.000 para junio de 2027: <b style="color:var(--tx)">456.250 al mes</b>. A tu ritmo llegas en mayo.', 'ok');
 const fondo = goalCard('shield-checkmark-outline', C.grn, 'Fondo de emergencia', place('Ahorro Verde', C.grn, 'leaf-outline', ''),
   '8.400.000', '19.800.000', 42, '6 meses de tus gastos · sin fecha. A tu ritmo (600.000 al mes) llegas en mayo de 2028.', 'ok');
@@ -86,8 +86,13 @@ S['15d-nueva-meta'] = S['15c-metas'] + formSheet(`
  <div style="text-align:center;font-size:36px;font-weight:700;margin:2px 0 2px">6.000.000</div>
  <div class="list" style="margin-top:10px">
   ${row(ci('calendar-outline', C.blu, 38), `${lab('Para cuándo')}Junio de 2027`, 'Opcional: sin fecha, te dice cuándo llegas a tu ritmo', down())}
-  ${row(ci('wallet-outline', C.blu, 38), `${lab('Dónde está la plata')}Banco Azul · Cajita Viaje`, 'Tiene hoy 2.350.000', down())}
-  ${row(ci('git-commit-outline', C.blu, 38), `${lab('Qué cuenta')}Todo lo que tiene`, '', down())}</div>
+</div>
+ <div class="h" style="margin-top:14px">Dónde está la plata · 2 lugares</div>
+ <div class="list">
+  ${row(sq('cube-outline', C.blu, 38), `${lab('Banco Azul')}Cajita Viaje`, 'Cuenta todo lo que tiene · 1.750.000', down())}
+  ${row(ci('globe-outline', C.tea, 38), `${lab('Cuenta en dólares')}Global Viajes`, 'Cuenta todo lo que tiene · USD 150 = 600.000 hoy', down())}
+  ${row(ci('add', C.blu, 38), '<span class="p">Agregar otra cuenta o bolsillo</span>', '', '')}</div>
+ <div class="sub" style="text-align:right;margin:8px 4px 0">Juntas tienen hoy <b style="color:var(--tx)">2.350.000</b></div>
  <div class="banner" style="background:${tint(C.blu, .12)};color:#c9d3ff;margin-top:12px">${ic('bulb-outline')}<span>Te faltan 3.650.000: <b>456.250 al mes</b> durante 8 meses.</span></div>
  <div class="btn" style="margin-top:12px">Guardar meta</div>`);
 
@@ -101,21 +106,23 @@ S['15e-donde-esta'] = S['15c-metas'] + formSheet(`
  <div class="chip" style="width:100%;margin-bottom:10px;color:var(--mu)">${ic('search-outline')}Buscar cuenta o bolsillo…</div>
  <div class="list">
   ${accRow('azul', C.blu, 'wallet-outline', 'Banco Azul', '4.812.300 en total')}
-  ${prodRow(C.blu, 'cube-outline', 'Cajita Viaje', '2.350.000', '', true)}
+  ${prodRow(C.blu, 'cube-outline', 'Cajita Viaje', '1.750.000', '', true)}
   ${prodRow(C.blu, 'cube-outline', 'Cajita Matrícula', '3.200.000', `<span class="tag" style="background:${tint(C.grn, .18)};color:${C.grn}">Meta: Matrícula</span>`)}
   ${accRow('verde', C.grn, 'leaf-outline', 'Ahorro Verde', '8.400.000', `<span class="tag" style="background:${tint(C.grn, .18)};color:${C.grn}">Meta: Fondo</span>`)}
   ${accRow('naranja', C.org, 'cube-outline', 'Cajita Naranja', '3.640.000 en total')}
   ${prodRow(C.org, 'cube-outline', 'Bolsillo Portátil', '2.900.000', `<span class="tag" style="background:${tint(C.yel, .18)};color:${C.yel}">Meta: Portátil</span>`)}
-  ${accRow('efectivo', C.lim, 'cash-outline', 'Efectivo', '182.000')}</div>
- <div class="note" style="margin:10px 2px 0">Una cuenta o un bolsillo es de una sola meta, para que ningún peso cuente dos veces. Las tarjetas y los préstamos no aparecen.</div>`, 90);
+  <div class="row" style="background:${tint(C.blu, .1)}">${ci('globe-outline', C.tea, 38)}<div class="tx"><b class="one">Global Viajes</b><small>USD 150 · 600.000 hoy</small></div>${tick(true)}</div>
+  ${accRow('efectivo', C.lim, 'cash-outline', 'Efectivo', '182.000', tick(false))}</div>
+ <div class="note" style="margin:10px 2px 0">Escoge todas las que quieras: la meta suma lo que tengan. Cada una es de una sola meta, para que ningún peso cuente dos veces. Las tarjetas y los préstamos no aparecen.</div>
+ <div class="btn" style="margin-top:12px">Listo · 2 elegidas · 2.350.000</div>`, 90);
 
 // 6. "Qué cuenta": the whole balance, or only what comes in from today -
 //    for a place that already holds money meant for something else.
 S['15f-que-cuenta'] = S['15d-nueva-meta'] + `<div class="scrim" style="z-index:30"></div><div class="sheet" style="top:auto;bottom:0;padding-bottom:28px;z-index:31"><div class="grab"></div>
  <span class="p" style="font-size:15px">Cancelar</span>
- <b style="display:block;font-size:18px;text-align:center;margin:4px 0 12px">¿Qué cuenta para esta meta?</b>
+ <b style="display:block;font-size:18px;text-align:center;margin:4px 0 12px">¿Qué cuenta de la Cajita Viaje?</b>
  <div class="list">
-  <div class="row" style="background:${tint(C.blu, .1)}">${ci('albums-outline', C.blu, 38)}<div class="tx"><b>Todo lo que tiene</b><small style="white-space:normal">Los 2.350.000 de hoy ya cuentan. Para un bolsillo que es solo de esta meta.</small></div>${tick(true)}</div>
+  <div class="row" style="background:${tint(C.blu, .1)}">${ci('albums-outline', C.blu, 38)}<div class="tx"><b>Todo lo que tiene</b><small style="white-space:normal">Los 1.750.000 de hoy ya cuentan. Para un bolsillo que es solo de esta meta.</small></div>${tick(true)}</div>
   <div class="row">${ci('arrow-down-circle-outline', C.grn, 38)}<div class="tx"><b>Solo lo que entre desde hoy</b><small style="white-space:normal">Empieza en 0. Para una cuenta que ya tiene plata para otras cosas.</small></div>${tick(false)}</div></div>
  <div class="note" style="margin:12px 2px 0">Si sacas plata de ahí, la meta baja: es lo que de verdad tienes guardado.</div></div>`;
 
@@ -141,20 +148,24 @@ const mBar = (m, h, c) => `<div style="flex:1;display:flex;flex-direction:column
 const mv = (icon, t, s, a, cls = 'g') => `<div class="row">${icon}<div class="tx"><b class="one">${t}</b><small>${s}</small></div><div class="am ${cls}">${a}</div></div>`;
 const transferIc = ci('swap-horizontal', '#4cb8f5', 38);
 const twoBtns = (a, b) => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><div class="btn ghost">${a}</div><div class="btn">${b}</div></div>`;
-S['15h-meta-a-tiempo'] = `${goalTop('airplane-outline', C.cya, 'Viaje a Cartagena', 'Banco Azul · Cajita Viaje')}<main>
+S['15h-meta-a-tiempo'] = `${goalTop('airplane-outline', C.cya, 'Viaje a Cartagena', 'Cajita Viaje y Global Viajes')}<main>
  <div class="card hero"><div style="display:flex;justify-content:space-between;align-items:center"><div class="lab">Llevas</div><span class="tag" style="background:rgba(7,13,26,.35);color:#bff0d6">A tiempo</span></div>
   <div class="big">2.350.000 <span class="mu" style="font-size:15px;font-weight:500">de 6.000.000</span></div>
   ${bar(39, '#fff', 10)}<div class="sub" style="margin-top:8px;white-space:normal">Faltan 3.650.000 para junio de 2027: <b style="color:var(--tx)">456.250 al mes</b> durante 8 meses.</div></div>
  <div class="list" style="margin-top:10px">${row(ci('speedometer-outline', C.grn, 40), 'A tu ritmo llegas en mayo de 2027', 'Entraron 500.000 al mes en los últimos 3 meses', '')}</div>
+ <div class="h">Dónde está · 2 lugares</div>
+ <div class="list">
+  <div class="row">${sq('cube-outline', C.blu, 38)}<div class="tx"><b class="one">Cajita Viaje</b><small>Banco Azul · todo lo que tiene</small></div><div style="text-align:right"><b>1.750.000</b><div class="sub">74 %</div></div></div>
+  <div class="row">${ci('globe-outline', C.tea, 38)}<div class="tx"><b class="one">Global Viajes</b><small>USD 150 a la TRM de hoy · todo</small></div><div style="text-align:right"><b>600.000</b><div class="sub">26 %</div></div></div></div>
  <div class="h">Cómo ha crecido ${infoDot}</div>
  <div class="card" style="padding:14px"><div style="position:relative;display:flex;gap:6px">
   <div style="position:absolute;left:0;right:0;top:0;border-top:2px dashed ${C.grn}"></div>
   ${mBar('may', 6, tint(C.cya, .55))}${mBar('jun', 12, tint(C.cya, .55))}${mBar('jul', 18, tint(C.cya, .55))}${mBar('ago', 26, tint(C.cya, .55))}${mBar('sep', 32, tint(C.cya, .55))}${mBar('oct', 39, C.cya)}</div>
-  <div class="sub" style="margin-top:8px">El saldo de la Cajita Viaje al cierre de cada mes. La línea es tu meta.</div></div>
+  <div class="sub" style="margin-top:8px">Lo que tenían juntas al cierre de cada mes. La línea es tu meta.</div></div>
  <div class="h">Lo que entró · últimos 3</div>
  <div class="list">
   ${mv(transferIc, 'Ahorro viaje', '1 oct · desde Banco Azul', '+500.000')}
-  ${mv(transferIc, 'Ahorro viaje', '1 sep · desde Banco Azul', '+500.000')}
+  ${mv(transferIc, 'Dólares viaje', '15 sep · Global Viajes', '+USD 50')}
   ${mv(sq('sparkles-outline', C.gold, 38), 'Rendimientos', 'septiembre · la cajita rinde', '+12.400')}</div>
  ${twoBtns(`${ic('create-outline')}Cambiar`, `${ic('add')}Aportar`)}
  <div class="btn ghost" style="margin-top:10px;color:var(--red)">Borrar esta meta</div>
