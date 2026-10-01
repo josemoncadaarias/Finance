@@ -56,3 +56,21 @@ input[type='date'] { color-scheme: dark; }
 .field-hint { margin: -2px 16px 10px; font-size: 13px; }
 
 .ui-seg.full.three button { padding-left: 4px; padding-right: 4px; font-size: 14px; }
+
+/* The disbursement's UVR: the value, where it comes from, what the loan is in UVR. */
+.uvr-day {
+  .uvr-line { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .uvr-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ui-tag.official { background: rgba(52, 201, 139, 0.16); color: var(--app-grn); }
+  .ui-tag.typed { background: rgba(var(--app-pr-rgb), 0.18); color: var(--app-pr); }
+  .ui-tag.derived, .ui-tag.projected { background: rgba(246, 185, 59, 0.16); color: var(--app-yel); }
+  .hint.warn { color: var(--app-yel); }
+  .uvr-input {
+    display: flex; align-items: center; gap: 10px; margin-top: 6px;
+    input {
+      flex: 1; min-width: 0; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-s2);
+      color: var(--app-tx); font: inherit; font-size: 16px; font-weight: 600; padding: 8px 10px;
+    }
+  }
+  .link { align-self: flex-start; border: 0; background: none; color: var(--app-pr); font: inherit; font-size: 14px; padding: 6px 0 0; cursor: pointer; }
+}

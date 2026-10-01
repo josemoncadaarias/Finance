@@ -601,10 +601,8 @@
                 <h2 class="center">{{ 'products.payment.title' | t }}@if (line.products.length > 1 && product) { · {{ product.name }} }</h2>
                 <p class="hint center">{{ 'products.payment.hint' | t:{ count: payment.days, date: longDate(payment.dueOn) } }}</p>
                 <div class="ui-inputs">
-                  <label class="ui-input">
-                    <span>{{ 'products.payment.on' | t }}</span>
-                    <input type="date" [min]="payment.dueOn" [value]="paymentOn()" (change)="paymentOn.set($any($event.target).value)">
-                  </label>
+                  <app-date-field look="box" [label]="'products.payment.on' | t" [min]="payment.dueOn" [value]="paymentOn()"
+                                  (changed)="paymentOn.set($any($event) ?? paymentOn())"></app-date-field>
                   @if (paymentClosed(payment)) {
                     <label class="ui-input">
                       <span>{{ 'products.day.actual' | t }}</span>
@@ -1076,17 +1074,11 @@
                 <input inputmode="numeric" [value]="rateMonths()" (input)="rateMonths.set(unsigned($event.target))">
               </label>
             }
-            <label class="ui-input date">
-              <span>{{ 'products.rate.from' | t }}</span>
-              <input type="date" [value]="rateFrom()" (input)="rateFrom.set($any($event.target).value)"
-                     (click)="$any($event.target).showPicker?.()">
-            </label>
+            <app-date-field look="box" [label]="'products.rate.from' | t" [value]="rateFrom()"
+                            (changed)="rateFrom.set($any($event) ?? rateFrom())"></app-date-field>
             @if (!rateIsBonus()) {
-              <label class="ui-input date">
-                <span>{{ 'products.rate.until' | t }}</span>
-                <input type="date" [value]="rateUntil()" (input)="rateUntil.set($any($event.target).value)"
-                       (click)="$any($event.target).showPicker?.()">
-              </label>
+              <app-date-field look="box" [label]="'products.rate.until' | t" [value]="rateUntil() || null" [min]="rateFrom()"
+                              [clearable]="true" (changed)="rateUntil.set($any($event) ?? '')"></app-date-field>
             }
           </div>
         </div>
@@ -1234,17 +1226,9 @@
   }
 </ng-template>
 
-<!-- A date as a row: the day said in words, the phone's own picker under it. -->
+<!-- A date as a row: the day said in words, the app's calendar in a sheet. -->
 <ng-template #dateField let-label="label" let-value="value" let-set="set">
-  <label class="ui-field date">
-    <span class="in">
-      <span class="lab">{{ $any(label) | t }}</span>
-      <span class="val">{{ value ? longDate(value) : '—' }}</span>
-    </span>
-    <ion-icon name="chevron-down-outline"></ion-icon>
-    <input type="date" class="native" [value]="value" (input)="setDate(set, $any($event.target).value)"
-           (click)="$any($event.target).showPicker?.()">
-  </label>
+  <app-date-field [label]="$any(label) | t" [value]="value || null" (changed)="setDate(set, $any($event) ?? '')"></app-date-field>
 </ng-template>
 
 <!-- A list of the account's products to pick one from, with what each holds. -->

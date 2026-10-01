@@ -9,7 +9,7 @@
  */
 
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import { IonIcon } from '@ionic/angular';
+import { IonIcon, IonModal } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -24,6 +24,7 @@ import {
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
+import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { parseDecimal, plain, uvrText } from './card-words';
 import { UVR_SCALE, type UvrLookup } from '../../core/loans/uvr';
@@ -38,7 +39,7 @@ export const LOAN_FACES: [string, string][] = [
   selector: 'app-loan-editor',
   templateUrl: './loan-editor.component.html',
   styleUrls: ['./loan-editor.component.scss'],
-  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, AccountPickerComponent, IonIcon],
+  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, IonIcon, IonModal],
 })
 export class LoanEditorComponent implements OnInit {
   private readonly database = inject(DatabaseService);
@@ -70,6 +71,15 @@ export class LoanEditorComponent implements OnInit {
   readonly bankUvrText = signal('');
   readonly balanceUvrText = signal('');
   private readonly series = signal<UvrLookup | null>(null);
+  /** The disbursement's UVR is being typed from the contract. */
+  readonly typingUvr = signal(false);
+  /** How often installments fall: chosen in a sheet, not the phone's bare list. */
+  readonly choosingPeriod = signal(false);
+  readonly periods = [1, 2, 3, 6, 12];
+
+  uvrShown(value: number): string {
+    return uvrText(value);
+  }
   readonly installments = signal('');
   readonly periodMonths = signal(1);
   readonly disbursedOn = signal(this.today);
@@ -175,12 +185,6 @@ export class LoanEditorComponent implements OnInit {
   readonly knownUvr = computed(() => {
     const at = this.series()?.(this.disbursedOn());
     return at ? uvrText(at.value) : '';
-  });
-
-  readonly disbursementUvrLine = computed(() => {
-    const at = this.disbursementUvr();
-    if (!at) return this.i18n.t('loans.uvr.none');
-    return this.i18n.t(`loans.uvr.kind.${at.kind}` as 'loans.uvr.kind.official', { value: uvrText(at.value) });
   });
 
   /** The principal in UVR, at the disbursement's UVR. */

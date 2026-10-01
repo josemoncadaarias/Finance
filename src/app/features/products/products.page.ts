@@ -20,6 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
+import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
@@ -171,7 +172,7 @@ interface Payment {
   templateUrl: './products.page.html',
   styleUrls: ['./products.page.scss'],
   imports: [
-    BusyOverlayComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
+    BusyOverlayComponent, DateFieldComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
     ProductEntryComponent, EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
     IonContent, IonIcon, IonSpinner, IonModal, IonDatetime,
   ],
