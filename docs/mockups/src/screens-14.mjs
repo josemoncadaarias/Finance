@@ -104,8 +104,9 @@ const pill = (icon, t) => `<span class="chip" style="background:rgba(7,13,26,.35
 // The bar goes past its end: the limit is a mark, and what is over it shows past the mark.
 const overBar = (p) => `<div style="position:relative;margin-top:10px"><div class="pbar" style="height:10px"><i style="width:${100 * 100 / p}%;background:${C.yel}"></i><i style="width:${100 - 100 * 100 / p}%;background:repeating-linear-gradient(45deg,${C.red} 0 6px,${tint(C.red, .55)} 6px 12px)"></i></div>
  <span style="position:absolute;left:${100 * 100 / p}%;top:-5px;width:2px;height:20px;background:#fff;border-radius:2px"></span></div>`;
-const passedCard = `<div class="card" style="margin-top:10px;padding:14px;border-color:${tint(C.red, .55)};background:${tint(C.red, .08)}"><div style="display:flex;gap:10px;align-items:center">${catIcon('mercado', 40)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><b class="one">Mercado</b><span class="tag" style="background:${tint(C.red, .2)};color:${C.red}">Pasado</span></div><div class="sub">1.362.000 de 1.200.000</div></div><b class="r" style="font-size:17px">113 %</b>${chev()}</div>
- ${overBar(113)}<div class="sub" style="margin-top:8px;white-space:normal"><b class="r">162.000 de más</b> · desde el 18 oct</div></div>`;
+const passedOf = (k, name, spent, of, p, by, since) => `<div class="card" style="margin-top:10px;padding:14px;border-color:${tint(C.red, .55)};background:${tint(C.red, .08)}"><div style="display:flex;gap:10px;align-items:center">${catIcon(k, 40)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><b class="one">${name}</b><span class="tag" style="background:${tint(C.red, .2)};color:${C.red}">Pasado</span></div><div class="sub">${spent} de ${of}</div></div><b class="r" style="font-size:17px">${p} %</b>${chev()}</div>
+ ${overBar(p)}<div class="sub" style="margin-top:8px;white-space:normal"><b class="r">${by} de más</b> · desde el ${since}</div></div>`;
+const passedCard = passedOf('mercado', 'Mercado', '1.362.000', '1.200.000', 113, '162.000', '18 oct');
 
 // Jose (2026-10-01): the notice at saving can tire; it carries its own
 // "don't show this again", and Planes' Avisos turns it back on.
@@ -176,7 +177,6 @@ S['14k-limite-pasado-detalle'] = `<div class="bar-top">${st}<div class="tt" styl
 // Jose (2026-10-01): passing the total of every limit says so too, a step
 // above one limit - but the solid red of v1 was too invasive. v2: the same
 // tinted red as one limit, saying it is the total and which limits passed.
-const overRow = (k, name, by) => `<div class="row">${catIcon(k, 38)}<div class="tx"><b class="one">${name}</b><small class="r">${by} de más</small></div>${chev()}</div>`;
 const totalHero = inner => redHero(inner).replace('class="card hero" style="', 'class="card hero" style="border-width:1.5px;');
 
 // A. Planes: the top card is the total, in the red of a passed limit.
@@ -187,7 +187,8 @@ S['14l-total-pasado-planes'] = page(planHead(), `
   <div class="sub" style="margin-top:8px;white-space:normal">Llevas 2.084.000 de 1.900.000 entre todos tus límites, y quedan 12 días del mes.</div>
   <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${pill('list-outline', 'Ver en qué se fue')}${pill('create-outline', 'Ajustar límites')}</div>`)}
  <div class="h">Se pasaron · 2 límites</div>
- <div class="list">${overRow('mercado', 'Mercado', '162.000')}${overRow('rest', 'Restaurantes', '58.000')}</div>
+ ${passedCard}
+ ${passedOf('rest', 'Restaurantes', '458.000', '400.000', 115, '58.000', '15 oct')}
  <div class="h">Van bien · 1 límite</div>
  ${limit('transp', 'Transporte', '264.000', '300.000', 88, 'Quedan 36.000', 'y')}`).replace(tabs('Más'), tabs('Más', true));
 
