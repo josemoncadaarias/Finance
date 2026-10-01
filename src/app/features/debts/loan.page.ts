@@ -198,6 +198,11 @@ export class LoanPage {
   }
 
   // ------------------------------------------------------------ words
+  /** A loan in UVR: what the UVR adds to the capital, in pesos, by the time it is paid (projected). */
+  uvrGrowth(s: LoanSchedule): number {
+    return Math.max(0, s.toPayMinor - s.interestLeftMinor - s.insuranceLeftMinor - s.balanceMinor);
+  }
+
   /** A UVR figure, four decimals unless said. */
   uvr(value: number, digits = 4): string {
     return uvrText(value, digits);

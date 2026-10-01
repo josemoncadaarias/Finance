@@ -195,9 +195,18 @@
               <span>{{ 'loans.option.ends' | t }}</span><b>{{ monthYear(c.base.lastDueOn) }}</b>
               <span>{{ 'loans.option.interest' | t }}</span><b class="ui-y">{{ money(c.base.interestLeftMinor) }}</b>
               <span>{{ 'loans.option.total' | t }}</span><b>{{ money(c.base.toPayMinor) }}</b>
+              @if (c.base.balanceUvr !== undefined) {
+                <span class="part">{{ 'loans.uvr.part.owed' | t }}</span><b class="part">{{ money(c.base.balanceMinor) }}</b>
+                <span class="part">{{ 'loans.uvr.part.interest' | t }}</span><b class="part">{{ money(c.base.interestLeftMinor) }}</b>
+                @if (c.base.insuranceLeftMinor > 0) {
+                  <span class="part">{{ 'loans.uvr.part.insurance' | t }}</span><b class="part">{{ money(c.base.insuranceLeftMinor) }}</b>
+                }
+                <span class="part">{{ 'loans.uvr.part.growth' | t }}</span><b class="part">{{ money(uvrGrowth(c.base)) }}</b>
+              }
             </div>
           </div>
           <p class="note">{{ 'loans.option.note' | t }}</p>
+          @if (c.base.balanceUvr !== undefined) { <p class="note">{{ 'loans.uvr.totalNote' | t }}</p> }
         }
 
         @if (ladder().length > 0) {

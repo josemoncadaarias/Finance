@@ -1,0 +1,32 @@
+@if (look() === 'box') {
+  <button type="button" class="ui-input date-box" (click)="open.set(true)">
+    <span>{{ label() }}</span>
+    <b class="val" [class.empty]="!value()">{{ shown() }}</b>
+    <ion-icon class="cal" name="calendar-outline"></ion-icon>
+  </button>
+} @else {
+  <button type="button" class="ui-field date-row" (click)="open.set(true)">
+    <ion-icon class="cal" name="calendar-outline"></ion-icon>
+    <span class="in">
+      <span class="lab">{{ label() }}</span>
+      <span class="val" [class.empty]="!value()">{{ shown() }}</span>
+    </span>
+    <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+  </button>
+}
+
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="open()" (didDismiss)="open.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host date-sheet">
+      <div class="grab"></div>
+      @if (label()) { <h2 class="date-title">{{ label() }}</h2> }
+      <ion-datetime presentation="date" [value]="start()" [locale]="i18n.dateLocale()" [firstDayOfWeek]="1"
+                    [min]="min() ?? undefined" [max]="max() ?? undefined"
+                    [showDefaultButtons]="true" [doneText]="'entry.doneDate' | t" [cancelText]="'entry.cancel' | t"
+                    (ionChange)="pick($any($event.detail).value)" (ionCancel)="open.set(false)"></ion-datetime>
+      @if (clearable() && value()) {
+        <button type="button" class="ui-btn ghost clear" (click)="clear()">{{ 'ui.date.clear' | t }}</button>
+      }
+    </div>
+  </ng-template>
+</ion-modal>

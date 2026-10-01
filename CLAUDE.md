@@ -3427,6 +3427,20 @@ in the repository; their figures are written into the tests.
     the UVR beyond what `inflation_months` already fetches; a payment ahead
     planned "every month" is converted to UVR at today's value for the
     simulation.
+- **From Jose's look on the phone (2026-10-01)**: the disbursement's UVR is
+  one figure with a tag (Oficial, La de tu contrato, Calculada, Proyectada),
+  "Tus X son Y UVR" under it, and "Escribir la de mi contrato" opening the
+  box only when wanted. On a loan in UVR, "Sin abonar" breaks its total into
+  what is owed today, the interest and **what the UVR adds** (the capital
+  paid later in pesos worth more, projected), with a note saying why - his
+  question was why 100 million plus 42 of interest made 192.
+- **No bare phone control anywhere**: `shared/ui/date-field` is every date
+  that is not the movement form's own (the loan's dates, a new rate's day,
+  a product's dates, a rate's from and until - clearable -, the day a
+  payment was really made): the day in words, and the same calendar sheet
+  the movement form uses. The loan's "Cada" is a sheet of options with
+  ticks. Checked: no `<select>` and no `type="date"` input is left in
+  `src/app`.
 - Checked in a browser on Jose's backup with invented loans (a free
   investment with its disbursement into Rappi cuenta, an installment paid
   and deleted from Inicio; a cyclic UVR mortgage of 100,000,000, its first

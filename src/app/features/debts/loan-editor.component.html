@@ -49,12 +49,31 @@
         </span>
       </div>
       @if (unit() === 'UVR') {
-        <div class="ui-field col">
+        <div class="ui-field col uvr-day">
           <span class="in">
             <span class="lab">{{ 'loans.uvr.disbursement' | t }}</span>
-            <input inputmode="decimal" [value]="disbursementUvrText()" [placeholder]="knownUvr() || '0,0000'"
-                   (input)="disbursementUvrText.set($any($event.target).value)">
-            <span class="hint">{{ disbursementUvrLine() }}@if (principalUvr()) { · {{ 'loans.uvr.principal' | t:{ amount: principalUvr() } }} }</span>
+            @if (disbursementUvr(); as at) {
+              <span class="uvr-line">
+                <b class="uvr-value">{{ uvrShown(at.value) }}</b>
+                <span class="ui-tag" [class]="'ui-tag ' + at.kind">{{ $any('loans.uvr.tag.' + at.kind) | t }}</span>
+              </span>
+              @if (principalUvr()) {
+                <span class="hint">{{ 'loans.uvr.principalLine' | t:{ pesos: money(principal().minor), amount: principalUvr() } }}</span>
+              }
+            } @else {
+              <span class="hint warn">{{ 'loans.uvr.none' | t }}</span>
+            }
+            @if (typingUvr() || disbursementUvrText() || !disbursementUvr()) {
+              <span class="uvr-input">
+                <input inputmode="decimal" [value]="disbursementUvrText()" [placeholder]="knownUvr() || '0,0000'"
+                       (input)="disbursementUvrText.set($any($event.target).value)">
+                @if (disbursementUvrText()) {
+                  <button type="button" class="link" (click)="disbursementUvrText.set(''); typingUvr.set(false)">{{ 'loans.uvr.useKnown' | t }}</button>
+                }
+              </span>
+            } @else {
+              <button type="button" class="link" (click)="typingUvr.set(true)">{{ 'loans.uvr.typeOwn' | t }}</button>
+            }
           </span>
         </div>
       }
@@ -92,9 +111,9 @@
         <div class="ui-field">
           <span class="in"><span class="lab">{{ 'loans.form.newRate' | t }}</span>
             <input inputmode="decimal" [value]="newRateText()" placeholder="0,00" (input)="newRateText.set($any($event.target).value)"></span>
-          <span class="in"><span class="lab">{{ 'loans.form.newRateFrom' | t }}</span>
-            <input type="date" [value]="newRateFrom()" (change)="newRateFrom.set($any($event.target).value)"></span>
+          <span class="unit">%</span>
         </div>
+        <app-date-field [label]="'loans.form.newRateFrom' | t" [value]="newRateFrom()" [min]="disbursedOn()" (changed)="newRateFrom.set($event ?? newRateFrom())"></app-date-field>
       </div>
     }
 
@@ -127,25 +146,14 @@
           <span class="in"><span class="lab">{{ 'loans.form.count' | t }}</span>
             <input inputmode="numeric" [value]="installments()" placeholder="60" (input)="installments.set($any($event.target).value)"></span>
         </label>
-        <label class="ui-field">
+        <button type="button" class="ui-field pick" (click)="choosingPeriod.set(true)">
           <span class="in"><span class="lab">{{ 'loans.form.every' | t }}</span>
-            <select [value]="periodMonths()" (change)="periodMonths.set(+$any($event.target).value)">
-              @for (m of [1, 2, 3, 6, 12]; track m) {
-                <option [value]="m" [selected]="m === periodMonths()">{{ $any('loans.every.' + m) | t }}</option>
-              }
-            </select></span>
-        </label>
+            <b class="name">{{ $any('loans.every.' + periodMonths()) | t }}</b></span>
+          <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+        </button>
       </div>
-      <div class="two">
-        <label class="ui-field">
-          <span class="in"><span class="lab">{{ 'loans.form.disbursed' | t }}</span>
-            <input type="date" [value]="disbursedOn()" (change)="disbursedOn.set($any($event.target).value)"></span>
-        </label>
-        <label class="ui-field">
-          <span class="in"><span class="lab">{{ 'loans.form.firstDue' | t }}</span>
-            <input type="date" [value]="firstDueOn()" (change)="firstDueOn.set($any($event.target).value)"></span>
-        </label>
-      </div>
+      <app-date-field [label]="'loans.form.disbursed' | t" [value]="disbursedOn()" (changed)="disbursedOn.set($event ?? disbursedOn())"></app-date-field>
+      <app-date-field [label]="'loans.form.firstDue' | t" [value]="firstDueOn()" [min]="disbursedOn()" (changed)="firstDueOn.set($event ?? firstDueOn())"></app-date-field>
     </div>
 
     <div class="ui-list">
@@ -269,3 +277,25 @@
                     [selectedId]="picking() === 'into' ? disbursedInto() : paidFrom()"
                     [heading]="(picking() === 'into' ? 'entry.toWhere' : 'entry.fromWhere') | t"
                     (chosen)="chooseAccount($event)" (closed)="picking.set(null)"></app-account-picker>
+
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingPeriod()" (didDismiss)="choosingPeriod.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="choosingPeriod.set(false)">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ 'loans.form.everyTitle' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        @for (m of periods; track m) {
+          <button type="button" class="ui-row" (click)="periodMonths.set(m); choosingPeriod.set(false)">
+            <app-badge [size]="40" builtin="calendar-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b>{{ $any('loans.every.title.' + m) | t }}</b><small>{{ $any('loans.every.hint.' + m) | t }}</small></span>
+            @if (m === periodMonths()) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
