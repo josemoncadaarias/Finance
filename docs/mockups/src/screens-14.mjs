@@ -167,4 +167,54 @@ S['14k-limite-pasado-detalle'] = `<div class="bar-top">${st}<div class="tt" styl
   ${mv(catIcon('mercado', 38), 'Fruver', '16 oct · Efectivo', '-38.000')}</div>
  <div style="height:110px"></div></main><div class="fade"></div>${tabs('Más')}`;
 
+// ------------------------------------------------------------ the total passed
+// Jose (2026-10-01): passing the total of every limit should stand out even
+// more than one limit. A solid red card, not a tinted one; Inicio's first
+// thing; a full-height sheet at the moment it happens; the red dot on Más.
+const solidRed = inner => `<div class="card" style="background:linear-gradient(145deg,#e0525c 0%,#b3343f 60%,#7a1f2b 100%);border:0;color:#fff;box-shadow:0 10px 30px ${tint(C.red, .35)}">${inner}</div>`;
+const whiteBar = p => `<div style="position:relative;margin-top:12px"><div class="pbar" style="height:10px;background:rgba(255,255,255,.25)"><i style="width:${100 * 100 / p}%;background:#fff"></i><i style="width:${100 - 100 * 100 / p}%;background:repeating-linear-gradient(45deg,#ffd0d0 0 6px,rgba(255,255,255,.35) 6px 12px)"></i></div>
+ <span style="position:absolute;left:${100 * 100 / p}%;top:-5px;width:3px;height:20px;background:#3a0b12;border-radius:2px"></span></div>`;
+const whitePill = (icon, t) => `<span class="chip" style="background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.35)">${ic(icon)}${t}</span>`;
+const overRow = (k, name, by) => `<div class="row">${catIcon(k, 38)}<div class="tx"><b class="one">${name}</b><small class="r">${by} de más</small></div>${chev()}</div>`;
+
+// A. Planes: the top card itself turns solid red, says by how much and which limits.
+S['14l-total-pasado-planes'] = page(planHead(), `
+ ${solidRed(`<div style="display:flex;gap:8px;align-items:center">${ic('warning', '', 'width:24px;height:24px;color:#fff')}<div class="lab" style="color:#ffe1e1">Pasaste el total de tus límites</div></div>
+  <div class="big" style="color:#fff">$ 2.084.000 <span style="font-size:15px;font-weight:500;color:#ffe1e1">de 1.900.000</span></div>
+  ${whiteBar(110)}
+  <div style="margin-top:10px;font-size:14px;line-height:1.4;color:#fff">Vas <b>184.000 por encima</b> y quedan 12 días del mes. Lo que gastes en estas categorías desde hoy suma a lo que te pasaste.</div>
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${whitePill('list-outline', 'Ver en qué se fue')}${whitePill('create-outline', 'Ajustar límites')}</div>`)}
+ <div class="h">Se pasaron · 2 límites</div>
+ <div class="list">${overRow('mercado', 'Mercado', '162.000')}${overRow('rest', 'Restaurantes', '58.000')}</div>
+ <div class="h">Van bien</div>
+ ${limit('transp', 'Transporte', '264.000', '300.000', 88, 'Quedan 36.000', 'y')}`, ).replace(tabs('Más'), tabs('Más', true));
+
+// B. Inicio: the first thing on screen, before net worth, solid red.
+S['14m-total-pasado-inicio'] = `<div class="bar-top">${st}<div class="tt" style="gap:10px">${ci('layers-outline', C.blu, 40)}<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:4px"><b class="one" style="font-size:18px">Todas las cuentas</b>${down()}</div><div class="one sub" style="font-size:12.5px">7 cuentas, todas incluidas</div></div></div>${periodBar('Octubre 2026')}</div><main>
+ ${solidRed(`<div style="display:flex;gap:12px;align-items:center">${ci('warning', '#ffffff', 44).replace(/background:[^;]+;/, 'background:rgba(255,255,255,.2);')}<div style="flex:1;min-width:0"><b style="display:block;font-size:16.5px">Pasaste el total de tus límites</b><div style="font-size:14px;color:#ffe1e1">184.000 de más · 2 límites pasados · quedan 12 días</div></div>${ic('chevron-forward-outline', '', 'color:#fff')}</div>${whiteBar(110)}`)}
+ <div class="card hero" style="margin-top:10px"><div class="lab">Patrimonio hoy</div><div class="big">$ 48.150.740,55</div></div>
+ <div class="seg" style="margin:12px 0"><div class="on">${ic('pie-chart-outline')}Gráfico</div><div>${ic('list-outline')}Movimientos · 58</div></div>
+ <div style="height:110px"></div></main><div class="fade"></div>${tabs('Inicio', true)}`;
+
+// C. The moment it happens: not a small sheet, the whole screen, once.
+S['14n-total-al-guardar'] = `<div style="position:absolute;inset:0;background:linear-gradient(170deg,#e0525c 0%,#a72f3b 55%,#5c1520 100%);color:#fff;padding:60px 22px 30px;display:flex;flex-direction:column">
+ <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <span style="width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 0 0 14px rgba(255,255,255,.08)">${ic('warning', '', 'width:50px;height:50px;color:#fff')}</span>
+  <b style="font-size:24px;margin-top:26px;line-height:1.25">Con este gasto pasaste el total de tus límites</b>
+  <div style="font-size:15.5px;margin-top:10px;color:#ffe1e1">Llevas 2.084.000 de 1.900.000 este mes</div>
+  <div style="font-size:30px;font-weight:700;margin-top:18px">184.000 de más</div>
+  <div style="font-size:14px;color:#ffe1e1;margin-top:4px">y quedan 12 días</div>
+  <div style="width:100%">${whiteBar(110)}</div>
+  <div style="font-size:13.5px;color:#ffe1e1;margin-top:18px">El gasto ya quedó guardado. Esto solo te avisa.</div></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="btn" style="background:rgba(255,255,255,.18);color:#fff">Entendido</div><div class="btn" style="background:#fff;color:#a72f3b">Ver mis límites</div></div></div>`;
+
+// D. The phone's notification, the strongest of the three.
+S['14o-total-notificacion'] = S['14j-limite-notificacion'].replace(
+  '<div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start">',
+  `<div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start;border:1px solid ${tint(C.red, .6)};margin-bottom:10px">
+  ${sq('warning', C.red, 38)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;color:#8e9ab2;font-size:12.5px"><span>Finance</span><span>ahora</span></div>
+  <b style="display:block;color:#ff8a8a;margin-top:2px">Pasaste el total de tus límites</b>
+  <div style="color:#c9d0e2;font-size:14px;margin-top:2px">184.000 de más este mes · quedan 12 días</div></div></div>
+ <div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start">`);
+
 export default S;
