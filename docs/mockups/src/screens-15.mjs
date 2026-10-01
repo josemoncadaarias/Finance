@@ -116,6 +116,27 @@ S['15e-donde-esta'] = S['15c-metas'] + formSheet(`
  <div class="note" style="margin:10px 2px 0">Escoge todas las que quieras: la meta suma lo que tengan. Cada una es de una sola meta, para que ningún peso cuente dos veces. Las tarjetas y los préstamos no aparecen.</div>
  <div class="btn" style="margin-top:12px">Listo · 2 elegidas · 2.350.000</div>`, 90);
 
+// 5b. "Todas tus cuentas" (Jose, 2026-10-01): the goal is everything held in
+//     the accounts that count in net worth, less what other goals already
+//     hold - so no peso counts twice. Cards and loans are not money held.
+S['15m-todas-las-cuentas'] = S['15c-metas'] + formSheet(`
+ <div class="sh"><span class="p" style="font-size:15px">Cancelar</span><h2 style="text-align:center">Dónde está la plata</h2><span style="width:62px"></span></div>
+ <div class="list" style="margin-top:6px">
+  <div class="row" style="background:${tint(C.blu, .1)}">${ci('layers-outline', C.blu, 40)}<div class="tx"><b>Todas tus cuentas</b><small style="white-space:normal">Lo que tienes en las cuentas que cuentan en tu patrimonio: 19.240.000</small></div>${tick(true)}</div></div>
+ <div class="card" style="margin-top:10px;padding:14px">
+  <div style="display:flex;justify-content:space-between"><span class="mu">Tienes en tus cuentas</span><b>19.240.000</b></div>
+  <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="mu">Ya es de Viaje a Cartagena</span><b>- 2.350.000</b></div>
+  <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="mu">Ya es de Portátil nuevo</span><b>- 2.900.000</b></div>
+  <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="mu">Ya es de Matrícula</span><b>- 3.200.000</b></div>
+  <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #26324f;font-size:17px"><b>Cuenta para esta meta</b><b style="color:var(--pr)">10.790.000</b></div></div>
+ <div class="note" style="margin:10px 2px 0">Lo que ya es de otras metas no se cuenta otra vez. Las tarjetas y los préstamos no entran: son deudas, no plata guardada. Los dólares, a la TRM de hoy.</div>
+ <div class="h" style="margin-top:12px">O escoge una por una</div>
+ <div class="list">
+  ${accRow('azul', C.blu, 'wallet-outline', 'Banco Azul', '4.812.300 en total', tick(false))}
+  ${accRow('verde', C.grn, 'leaf-outline', 'Ahorro Verde', '6.000.000', tick(false))}
+  ${accRow('efectivo', C.lim, 'cash-outline', 'Efectivo', '182.000', tick(false))}</div>
+ <div class="btn" style="margin-top:12px">Listo · todas tus cuentas</div>`, 70);
+
 // 6. "Qué cuenta": the whole balance, or only what comes in from today -
 //    for a place that already holds money meant for something else.
 S['15f-que-cuenta'] = S['15d-nueva-meta'] + `<div class="scrim" style="z-index:30"></div><div class="sheet" style="top:auto;bottom:0;padding-bottom:28px;z-index:31"><div class="grab"></div>
