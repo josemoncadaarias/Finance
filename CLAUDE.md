@@ -3233,6 +3233,22 @@ strategies and plans.
 5. Lifting rule 20's "No budgets" for limits, and whether the report gets a
    section for them.
 
+**Jose's answers (2026-10-01), and where it all lives** - decided:
+- His only debt is Rappi Card; no loans, and "Cuenta leidy bancolombia
+  prestamos" is an ordinary bank account. So loans are built and proved on
+  INVENTED test data (a sample backup), and cards on his card.
+- **Rule 20's "No budgets" is lifted**: limits are wanted.
+- **Debts**: a third face of Cuentas, "Saldos | Rendimientos | Deudas", and
+  a row in Más. **Más gets a group "Tus finanzas"**: Deudas y tarjetas,
+  Productos y rendimientos (a second way in, asked for), Planes.
+- **Planes**: in Más (and Inicio warns of a limit passed). Proposed to be
+  also a face of Reporte only if it ends up being charts; to see then.
+- **Work goes part by part, each shown as screens first**. Part 1 is the
+  card: its two optional days and the statement worked out from its
+  movements, in every state (`docs/mockups/12a`-`12i`: Más, Deudas with one
+  card and no loans, the form, the statement due, part paid, paid, overdue,
+  without days, with nothing owed). Then loans, then plans.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3293,8 +3309,8 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
-- [ ] Debts and plans (mockups `11a`-`11o`): the five questions at the end
-      of "Debts and plans", and when to start - debts first.
+- [ ] Debts and plans, part 1 (mockups `12a`-`12i`): approve the card's
+      screens before they are built.
 - [ ] Say whether the keypad should start closed, and whether he misses the
       "=" key (both small changes). He liked it folding away (2026-09-28)
       and asked for the arrow that brings it back, done in #6.
