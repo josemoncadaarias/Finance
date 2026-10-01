@@ -1,0 +1,212 @@
+<!-- Planes (14b, 14c, 14g, 14l, 14p). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'plans.title' | t }}</h1>
+    <button type="button" class="bell" (click)="avisos.set(true)" [attr.aria-label]="'plans.notices.title' | t" [title]="'plans.notices.title' | t">
+      <ion-icon name="notifications-outline"></ion-icon>
+    </button>
+    @if (face() === 'limits') {
+      <button type="button" class="ui-chip new" (click)="newLimit()">
+        <ion-icon name="add"></ion-icon>{{ 'plans.new' | t }}
+      </button>
+    }
+  </header>
+
+  <div class="ui-main">
+    <div class="ui-seg faces">
+      <button type="button" [class.on]="face() === 'limits'" (click)="face.set('limits')">
+        <ion-icon name="speedometer-outline"></ion-icon>{{ 'plans.face.limits' | t }}
+      </button>
+      <button type="button" [class.on]="face() === 'goals'" (click)="face.set('goals')">
+        <ion-icon name="flag-outline"></ion-icon>{{ 'plans.face.goals' | t }}
+      </button>
+    </div>
+
+    @if (face() === 'goals') {
+      <div class="ui-card notice">
+        <app-badge shape="ci" [size]="52" builtin="flag-outline" fixed="#34c98b"></app-badge>
+        <b>{{ 'plans.goals.soon.title' | t }}</b>
+        <p class="ui-sub">{{ 'plans.goals.soon.body' | t }}</p>
+      </div>
+    } @else if (!limits.loaded()) {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    } @else if (view().limits.length === 0) {
+      <div class="ui-card notice">
+        <app-badge shape="ci" [size]="52" builtin="speedometer-outline" fixed="#9b7bff"></app-badge>
+        <b>{{ 'plans.empty.title' | t }}</b>
+        <p class="ui-sub">{{ 'plans.empty.body' | t }}</p>
+        <button type="button" class="ui-btn first" (click)="newLimit()">{{ 'plans.empty.action' | t }}</button>
+      </div>
+      @if (most().length > 0) {
+        <h3 class="ui-h">{{ 'plans.empty.most' | t }}</h3>
+        <div class="ui-list">
+          @for (m of most(); track m.category.id) {
+            <button type="button" class="ui-row" (click)="newLimit(m.category.id)">
+              <app-badge [size]="40" [builtin]="m.category.builtin_icon" [customId]="m.category.custom_icon_id"
+                         [tone]="m.category.color" [seed]="m.category.id"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ m.category.name }}</b>
+                <small>{{ 'plans.perMonth' | t:{ amount: money(m.averageMinor) } }}</small>
+              </span>
+              <span class="ui-chip add"><ion-icon name="add"></ion-icon>{{ 'plans.addLimit' | t }}</span>
+            </button>
+          }
+        </div>
+      }
+    } @else {
+      <div class="ui-period">
+        <button type="button" class="arrow" (click)="step(-1)" [disabled]="atOldest()" [attr.aria-label]="'summary.previousPeriod' | t">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+        </button>
+        <span class="label"><ion-icon name="calendar-outline"></ion-icon><span>{{ label() }}</span></span>
+        <button type="button" class="arrow" (click)="step(1)" [disabled]="atNewest()" [attr.aria-label]="'summary.nextPeriod' | t">
+          <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+
+      @let total = view().total!;
+      @if (total.state === 'passed') {
+        <!-- Every limit together went over (14l). -->
+        <section class="ui-hero red total">
+          <div class="head"><ion-icon name="warning-outline"></ion-icon><span class="ui-lab">{{ 'plans.total.passed.label' | t }}</span></div>
+          <div class="ui-big ui-r">$ {{ money(total.overMinor) }} <small>{{ 'plans.over' | t }}</small></div>
+          <app-limit-bar class="big" [percent]="ratio(total)" state="passed"></app-limit-bar>
+          <p class="ui-sub">
+            @if (total.daysLeft > 0) {
+              {{ 'plans.total.passed.body' | t:{ spent: money(total.spentMinor), amount: money(total.amountMinor), count: total.daysLeft } }}
+            } @else {
+              {{ 'plans.total.passed.bodyPast' | t:{ spent: money(total.spentMinor), amount: money(total.amountMinor) } }}
+            }
+          </p>
+          <div class="chips">
+            <button type="button" class="ui-chip dark" (click)="seeWhere()"><ion-icon name="list-outline"></ion-icon>{{ 'plans.seeWhere' | t }}</button>
+            <button type="button" class="ui-chip dark" (click)="open(worst()!)"><ion-icon name="create-outline"></ion-icon>{{ 'plans.adjust' | t }}</button>
+          </div>
+        </section>
+      } @else if (worst(); as w) {
+        <!-- One limit, or several, went over; the total did not (14g). -->
+        <section class="ui-hero red">
+          <div class="head">
+            <ion-icon name="alert-circle"></ion-icon>
+            <span class="ui-lab">
+              @if (view().passed.length === 1) { {{ 'plans.passed.label' | t:{ name: w.name } }} }
+              @else { {{ 'plans.passed.label.many' | t:{ count: view().passed.length } }} }
+            </span>
+          </div>
+          <div class="ui-big ui-r">$ {{ money(overSum()) }} <small>{{ 'plans.over' | t }}</small></div>
+          <p class="ui-sub">
+            @if (view().passed.length > 1) {
+              {{ 'plans.passed.body.many' | t:{ spent: money(total.spentMinor), amount: money(total.amountMinor) } }}
+            } @else if (w.status.daysLeft > 0) {
+              {{ 'plans.passed.body' | t:{ amount: money(w.status.amountMinor), count: w.status.daysLeft, name: w.name } }}
+            } @else {
+              {{ 'plans.passed.bodyPast' | t:{ amount: money(w.status.amountMinor) } }}
+            }
+          </p>
+          <div class="chips">
+            <button type="button" class="ui-chip dark" (click)="open(w)"><ion-icon name="list-outline"></ion-icon>{{ 'plans.seeWhere' | t }}</button>
+            <button type="button" class="ui-chip dark" (click)="editing.set(w.terms.id)"><ion-icon name="create-outline"></ion-icon>{{ 'plans.changeLimit' | t }}</button>
+          </div>
+        </section>
+      } @else {
+        <!-- Every limit together (14c). -->
+        <section class="ui-hero total">
+          <span class="ui-lab">{{ 'plans.total.label' | t }}</span>
+          <div class="ui-big">{{ money(total.spentMinor) }} <small>{{ 'plans.of' | t:{ amount: money(total.amountMinor) } }}</small></div>
+          <app-limit-bar class="big" [percent]="ratio(total)" [state]="total.state"></app-limit-bar>
+          <p class="ui-sub">
+            @if (total.daysLeft > 0) {
+              {{ 'plans.total.left' | t:{ count: total.daysLeft, perDay: money(total.perDayMinor) } }}
+            } @else {
+              {{ 'plans.total.closed' | t:{ left: money(total.remainingMinor) } }}
+            }
+          </p>
+        </section>
+      }
+
+      @if (view().passed.length > 0) {
+        <h3 class="ui-h">{{ 'plans.section.passed' | t:{ count: view().passed.length } }}</h3>
+        @for (l of view().passed; track l.terms.id) {
+          <ng-container *ngTemplateOutlet="card; context: { $implicit: l }"></ng-container>
+        }
+        @if (view().fine.length > 0) {
+          <h3 class="ui-h">{{ 'plans.section.fine' | t:{ count: view().fine.length } }}</h3>
+        }
+      }
+      @for (l of view().fine; track l.terms.id) {
+        <ng-container *ngTemplateOutlet="card; context: { $implicit: l }"></ng-container>
+      }
+    }
+    <div class="ui-page-end"></div>
+  </div>
+</ion-content>
+
+<!-- One limit's card: plain, or red and marked "Pasado" (14c, 14g). -->
+<ng-template #card let-l>
+  <button type="button" class="ui-card limit" [class.passed]="l.status.state === 'passed'" (click)="open(l)">
+    <span class="top">
+      <app-badge [size]="40" [builtin]="l.categories[0]?.builtin_icon" [customId]="l.categories[0]?.custom_icon_id"
+                 [tone]="l.categories[0]?.color" [seed]="l.categories[0]?.id"></app-badge>
+      <span class="ui-tx">
+        <span class="name">
+          <b class="ui-one">{{ l.name }}</b>
+          @if (l.status.state === 'passed') { <span class="ui-tag passed-tag">{{ 'plans.passed.tag' | t }}</span> }
+        </span>
+        <small class="ui-one">{{ money(l.status.spentMinor) }} {{ 'plans.of' | t:{ amount: money(l.status.amountMinor) } }}@if (l.account) { · {{ l.account.name }} }</small>
+      </span>
+      <b class="pct" [class]="tone(l.status.state)">{{ l.status.percent }} %</b>
+      <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+    </span>
+    <app-limit-bar [percent]="ratio(l.status)" [state]="l.status.state"></app-limit-bar>
+    @if (l.status.state === 'passed') {
+      <small class="line"><b class="ui-r">{{ 'plans.overBy' | t:{ amount: money(l.status.overMinor) } }}</b>@if (since(l)) { · {{ 'plans.since' | t:{ date: since(l) } }} }</small>
+    } @else {
+      <small class="line">{{ line(l) }}</small>
+    }
+  </button>
+</ng-template>
+
+<ion-modal class="entry-sheet" [isOpen]="editing() !== null" (didDismiss)="editing.set(null)">
+  <ng-template>
+    <app-limit-editor [limitId]="editing() || null" [startOn]="startOn()"
+                      (done)="editing.set(null)"></app-limit-editor>
+  </ng-template>
+</ion-modal>
+
+<!-- Avisos (14p): each notice turned off and back on. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="avisos()" (didDismiss)="avisos.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host avisos">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="avisos.set(false)">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ 'plans.notices.title' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        <div class="ui-row">
+          <app-badge [size]="38" builtin="save-outline" fixed="#ef5b66"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'plans.notices.atSave' | t }}</b><small class="wrap">{{ 'plans.notices.atSave.hint' | t }}</small></span>
+          <button type="button" class="ui-switch" [class.on]="limits.notices().atSave" role="switch"
+                  [attr.aria-checked]="limits.notices().atSave" (click)="setNotice('atSave')"></button>
+        </div>
+        <div class="ui-row">
+          <app-badge [size]="38" builtin="phone-portrait-outline" fixed="#4cb8f5"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'plans.notices.phone' | t }}</b><small class="wrap">{{ 'plans.notices.phone.hint' | t }}</small></span>
+          <button type="button" class="ui-switch" [class.on]="limits.notices().phone" role="switch"
+                  [attr.aria-checked]="limits.notices().phone" (click)="setNotice('phone')"></button>
+        </div>
+        <div class="ui-row">
+          <app-badge [size]="38" builtin="speedometer-outline" fixed="#f6b93b"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ 'plans.notices.at80' | t }}</b><small class="wrap">{{ 'plans.notices.at80.hint' | t }}</small></span>
+          <button type="button" class="ui-switch" [class.on]="limits.notices().at80" role="switch"
+                  [attr.aria-checked]="limits.notices().at80" (click)="setNotice('at80')"></button>
+        </div>
+      </div>
+      <p class="note">{{ 'plans.notices.note' | t }}</p>
+    </div>
+  </ng-template>
+</ion-modal>

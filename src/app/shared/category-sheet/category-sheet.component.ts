@@ -72,6 +72,9 @@ export class CategorySheetComponent {
    */
   readonly kind = input<'expense' | 'income' | 'both'>('expense');
 
+  /** Categories not to offer: those a limit already covers, on the limit's form. */
+  readonly hidden = input<readonly number[]>([]);
+
   readonly picked = output<number>();
   readonly cancelled = output<void>();
 
@@ -101,9 +104,11 @@ export class CategorySheetComponent {
 
   readonly found = computed<UsedCategory[]>(() => {
     const term = fold(this.search());
+    const hidden = new Set(this.hidden());
+    const offered = hidden.size ? this.categories().filter(category => !hidden.has(category.id)) : this.categories();
     const found = term === ''
-      ? this.categories()
-      : this.categories().filter(category => fold(category.name).includes(term));
+      ? offered
+      : offered.filter(category => fold(category.name).includes(term));
 
     if (this.order() === 'use') return found;
     // `localeCompare` so "Éxito" files under E and not after Z.

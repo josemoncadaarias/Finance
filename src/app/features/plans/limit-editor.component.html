@@ -1,0 +1,83 @@
+<!-- A limit's form (14d). -->
+<div class="ui-frame editor">
+  <header class="ui-titlebar">
+    <button type="button" class="x" (click)="done.emit()" [attr.aria-label]="'entry.cancel' | t">
+      <ion-icon name="close"></ion-icon>
+    </button>
+    <h1>{{ (isNew() ? 'plans.form.new' : 'plans.form.edit') | t }}</h1>
+    <button type="button" class="ui-pill" [disabled]="!canSave()" (click)="save()">
+      <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+    </button>
+  </header>
+
+  <div class="scroll">
+    @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+
+    <div class="figure">
+      <span class="ui-lab">{{ 'plans.form.amount' | t }}</span>
+      <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" (input)="onAmount($any($event.target).value)"
+             [attr.aria-label]="'plans.form.amount' | t">
+      @if (average(); as avg) {
+        <button type="button" class="ui-chip avg" (click)="useAverage()">
+          <ion-icon name="bulb-outline"></ion-icon>{{ 'plans.form.useAverage' | t:{ amount: money(avg) } }}
+        </button>
+      }
+    </div>
+
+    <div class="ui-list">
+      @for (c of chosen(); track c.id; let first = $first) {
+        <div class="ui-field pick">
+          <app-badge [size]="38" [builtin]="c.builtin_icon" [customId]="c.custom_icon_id" [tone]="c.color" [seed]="c.id"></app-badge>
+          <span class="in">
+            @if (first) { <span class="lab">{{ (chosen().length > 1 ? 'plans.form.categories' : 'plans.form.category') | t }}</span> }
+            <b class="name">{{ c.name }}</b>
+          </span>
+          <button type="button" class="clear" (click)="removeCategory(c.id)" [attr.aria-label]="'plans.form.removeCategory' | t">
+            <ion-icon name="close-circle"></ion-icon>
+          </button>
+        </div>
+      }
+      <button type="button" class="ui-field pick add" (click)="choosingCategory.set(true)">
+        <app-badge [size]="38" builtin="add" [fixed]="'#9b7bff'"></app-badge>
+        <span class="in">
+          @if (chosen().length === 0) { <span class="lab">{{ 'plans.form.category' | t }}</span> }
+          <b class="name" [class.none]="chosen().length === 0">{{ (chosen().length === 0 ? 'plans.form.pickCategory' : 'plans.form.addCategory') | t }}</b>
+        </span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="ui-list">
+      <div class="ui-field pick still">
+        <app-badge shape="ci" [size]="38" builtin="calendar-outline" fixed="#4cb8f5"></app-badge>
+        <span class="in"><span class="lab">{{ 'plans.form.every' | t }}</span><b class="name">{{ 'plans.form.month' | t }}</b></span>
+      </div>
+      <button type="button" class="ui-field pick" (click)="choosingAccount.set(true)">
+        @if (account(); as a) {
+          <app-badge shape="ci" [size]="38" [builtin]="a.builtin_icon" [customId]="a.custom_icon_id" [tone]="a.color" [seed]="a.id" fallback="wallet"></app-badge>
+        } @else {
+          <app-badge shape="ci" [size]="38" builtin="layers-outline" fixed="#4cb8f5"></app-badge>
+        }
+        <span class="in">
+          <span class="lab">{{ 'plans.form.accounts' | t }}</span>
+          <b class="name">{{ account()?.name ?? ('ui.allAccounts' | t) }}</b>
+        </span>
+        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+      </button>
+      <div class="ui-field pick still">
+        <app-badge shape="ci" [size]="38" builtin="notifications-outline" fixed="#f6b93b"></app-badge>
+        <span class="in"><b class="name wrap">{{ 'plans.form.warn80' | t }}</b><span class="hint">{{ 'plans.form.warn80.hint' | t }}</span></span>
+        <button type="button" class="ui-switch" [class.on]="warnAt80()" role="switch" [attr.aria-checked]="warnAt80()"
+                (click)="warnAt80.set(!warnAt80())"></button>
+      </div>
+    </div>
+    <p class="ui-sub foot">{{ 'plans.form.foot' | t }}</p>
+  </div>
+</div>
+
+<app-category-sheet [open]="choosingCategory()" kind="expense" [hidden]="hidden()"
+                    (picked)="addCategory($event)" (cancelled)="choosingCategory.set(false)"></app-category-sheet>
+
+<app-account-picker [open]="choosingAccount()" [accounts]="accounts()" [selectedId]="accountId()" [showAll]="true"
+                    [heading]="'plans.form.accounts' | t"
+                    (chosen)="chooseAccount($event)" (chosenAll)="chooseAccount(null)" (closed)="choosingAccount.set(false)"></app-account-picker>

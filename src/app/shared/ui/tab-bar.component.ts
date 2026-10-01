@@ -8,7 +8,7 @@
  * the middle - never over the page, where it covered balances (mockup `1a`).
  *
  * A red dot on Más says something waits in "Movimientos por revisar", where
- * the drawer's count used to.
+ * the drawer's count used to, or that a limit of this month was gone over.
  */
 
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -21,6 +21,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ComposeService } from '../../core/ui/compose.service';
 import { DatabaseService } from '../../core/database/database.service';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
+import { LimitsService } from '../../core/limits/limits.service';
 
 type Tab = 'home' | 'accounts' | 'report' | 'more';
 
@@ -29,7 +30,7 @@ const TAB_OF: [string, Tab][] = [
   ['/accounts', 'accounts'], ['/products', 'accounts'], ['/debts', 'accounts'], ['/currencies', 'accounts'],
   ['/report', 'report'],
   ['/more', 'more'], ['/review', 'more'], ['/categories', 'more'], ['/notifications', 'more'],
-  ['/export', 'more'], ['/account', 'more'], ['/tax', 'more'],
+  ['/export', 'more'], ['/account', 'more'], ['/tax', 'more'], ['/plans', 'more'],
 ];
 
 @Component({
@@ -53,7 +54,7 @@ const TAB_OF: [string, Tab][] = [
       </button>
       <button type="button" [class.on]="tab() === 'more'" (click)="go('/more')">
         <ion-icon name="grid-outline"></ion-icon><span>{{ 'ui.tab.more' | t }}</span>
-        @if (waiting() > 0) { <i class="dot"></i> }
+        @if (waiting() > 0 || limitPassed()) { <i class="dot"></i> }
       </button>
     </nav>
   `,
@@ -150,6 +151,9 @@ export class TabBarComponent {
 
   /** Movements a statement proposed and nobody has answered yet. */
   readonly waiting = signal(0);
+  /** A limit of this month gone over also lights the dot (mockup `14l`). */
+  private readonly limits = inject(LimitsService);
+  readonly limitPassed = computed(() => this.limits.current().passed.length > 0);
 
   constructor() {
     effect(() => {

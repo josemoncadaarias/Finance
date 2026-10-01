@@ -41,6 +41,12 @@
         <span class="ui-tx"><b class="wrap">{{ 'more.products' | t }}</b><small>{{ 'more.products.hint' | t }}</small></span>
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
+      <button type="button" class="ui-row" (click)="go('/plans')">
+        <app-badge [size]="40" builtin="speedometer-outline" fixed="#9b7bff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.plans' | t }}</b><small [class.late]="plansLate()">{{ plansLine() }}</small></span>
+        @if (plansLate()) { <i class="dot"></i> }
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
     </div>
 
     <div class="ui-h">{{ 'more.yourData' | t }}</div>

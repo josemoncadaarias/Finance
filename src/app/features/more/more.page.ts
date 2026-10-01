@@ -35,6 +35,7 @@ import { isoDay } from '../../core/filters/period';
 import { plain, shortDate } from '../debts/card-words';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
+import { LimitsService } from '../../core/limits/limits.service';
 
 @Component({
   selector: 'app-more',
@@ -50,6 +51,18 @@ export class MorePage {
   readonly cloud = inject(CloudBackupService);
   readonly theme = inject(ThemeService);
   readonly accent = inject(AccentService);
+  private readonly limits = inject(LimitsService);
+
+  /** Planes: how this month's limits go, or what a limit is for (14a). */
+  readonly plansLate = computed(() => this.limits.current().passed.length > 0);
+  readonly plansLine = computed(() => {
+    const v = this.limits.current();
+    if (v.limits.length === 0) return this.i18n.t('more.plans.hint');
+    const parts: string[] = [];
+    if (v.passed.length) parts.push(this.i18n.t('more.plans.passed', { count: v.passed.length }));
+    if (v.fine.length) parts.push(this.i18n.t('more.plans.fine', { count: v.fine.length }));
+    return parts.join(' · ');
+  });
 
   readonly themes = THEMES;
   readonly accents = ACCENTS;

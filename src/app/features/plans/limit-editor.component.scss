@@ -1,0 +1,45 @@
+/* A limit's form (14d). The frame, title bar, lists and fields are in global.scss. */
+
+:host { display: block; height: 100%; }
+
+.editor > .scroll { display: flex; flex-direction: column; gap: 12px; }
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 2px;
+  .big {
+    width: 100%;
+    border: 0;
+    background: none;
+    color: var(--app-tx);
+    font: inherit;
+    font-size: 36px;
+    font-weight: 700;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .avg { color: var(--app-pr); ion-icon { font-size: 16px; } }
+}
+
+.ui-field.pick {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .name { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name.none { color: var(--app-mu); font-weight: 500; }
+  .name.wrap { white-space: normal; }
+  .hint { color: var(--app-mu); font-size: 12.5px; }
+  &.still { cursor: default; }
+  &.add .name { color: var(--app-pr); }
+}
+
+.clear { border: 0; background: none; color: var(--app-mu); font-size: 22px; padding: 4px; cursor: pointer; display: flex; }
+.foot { margin: 0 4px; font-size: 12.5px; }

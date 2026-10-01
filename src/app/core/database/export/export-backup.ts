@@ -70,6 +70,9 @@ export const TABLES = [
   'loans',
   'loan_rates',
   'loan_payments',
+  // The plans' limits (migration 053): after the accounts and categories.
+  'spending_limits',
+  'spending_limit_categories',
   'tax_parameters',
   'credit_limit_changes',
   // What the app has read and nobody has answered yet, and what it has learned

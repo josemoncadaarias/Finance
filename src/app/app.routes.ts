@@ -42,6 +42,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/debts/card.page').then(m => m.CardPage),
   },
   {
+    path: 'plans',
+    loadComponent: () => import('./features/plans/plans.page').then(m => m.PlansPage),
+  },
+  {
+    path: 'plans/:id',
+    loadComponent: () => import('./features/plans/limit.page').then(m => m.LimitPage),
+  },
+  {
     path: 'tax',
     loadComponent: () => import('./features/tax/tax.page').then(m => m.TaxPage),
   },
