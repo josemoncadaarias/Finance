@@ -2,7 +2,7 @@
 // for Jose's word). Planes lives in Más -> Tus finanzas (decided), and Inicio
 // says only when a limit is close or passed. Goals are step 2. Every name and
 // figure is invented.
-import { ic, ci, sq, C, tabs, status, tint, catIcon, chev, down, sw, periodBar, bigTitle } from './lib.mjs';
+import { ic, ci, sq, C, tabs, status, tint, catIcon, chev, down, sw, tick, periodBar, bigTitle } from './lib.mjs';
 import { infoDot } from './screens-1.mjs';
 
 const S = {};
@@ -13,7 +13,7 @@ const bar = (p, c, h = 8) => `<div class="pbar" style="height:${h}px;margin-top:
 const page = (head, body, after = '') => `${head}<main>${body}<div style="height:110px"></div></main><div class="fade"></div>${tabs('Más')}${after}`;
 const amber = t => `<div class="banner" style="background:${tint(C.yel, .12)};color:#f3d58a;margin-top:10px">${ic('alert-circle-outline')}<span>${t}</span></div>`;
 
-const planHead = (on = 'Límites') => `<div class="bar-top">${st}<div class="tt" style="gap:10px">${ic('chevron-back-outline', 'back')}<h1 style="flex:1">Planes</h1>
+const planHead = (on = 'Límites') => `<div class="bar-top">${st}<div class="tt" style="gap:10px">${ic('chevron-back-outline', 'back')}<h1 style="flex:1">Planes</h1>${ic('notifications-outline', 'p')}
  <div class="chip" style="padding:7px 12px;color:var(--pr)">${ic('add', '', 'width:18px;height:18px')}Nuevo límite</div></div>
  ${seg([['Límites', 'speedometer-outline'], ['Metas', 'flag-outline']], on)}${periodBar('Octubre 2026', 8)}</div>`;
 
@@ -107,6 +107,10 @@ const overBar = (p) => `<div style="position:relative;margin-top:10px"><div clas
 const passedCard = `<div class="card" style="margin-top:10px;padding:14px;border-color:${tint(C.red, .55)};background:${tint(C.red, .08)}"><div style="display:flex;gap:10px;align-items:center">${catIcon('mercado', 40)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><b class="one">Mercado</b><span class="tag" style="background:${tint(C.red, .2)};color:${C.red}">Pasado</span></div><div class="sub">1.362.000 de 1.200.000</div></div><b class="r" style="font-size:17px">113 %</b>${chev()}</div>
  ${overBar(113)}<div class="sub" style="margin-top:8px;white-space:normal"><b class="r">162.000 de más</b> · desde el 18 oct</div></div>`;
 
+// Jose (2026-10-01): the notice at saving can tire; it carries its own
+// "don't show this again", and Planes' Avisos turns it back on.
+const dontShow = `<div style="display:flex;gap:10px;align-items:center;padding:10px 4px 12px">${tick(false)}<div style="flex:1"><b style="font-size:14.5px;font-weight:500">No volver a mostrar esto</b><div class="sub" style="font-size:12.5px;white-space:normal">Lo vuelves a activar en Planes → Avisos</div></div></div>`;
+
 // A. Planes: the passed limit is a red card on top, like an overdue card,
 //    with what to do; its own card says "Pasado" and its bar runs past the mark.
 S['14g-limite-pasado-planes'] = page(planHead(), `
@@ -130,6 +134,7 @@ S['14h-limite-al-guardar'] = `<div class="bar-top">${st}<div class="tt" style="g
   <div class="r" style="font-weight:600;margin-bottom:6px">162.000 de más · quedan 12 días</div></div>
  ${overBar(113)}
  <div class="note" style="margin:12px 2px">El gasto ya quedó guardado. Esto solo te avisa.</div>
+ ${dontShow}
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px"><div class="btn ghost">Entendido</div><div class="btn">Ver el límite</div></div></div>`;
 
 // C. Inicio: a passed limit is a red card at the top, not a quiet row.
@@ -168,53 +173,55 @@ S['14k-limite-pasado-detalle'] = `<div class="bar-top">${st}<div class="tt" styl
  <div style="height:110px"></div></main><div class="fade"></div>${tabs('Más')}`;
 
 // ------------------------------------------------------------ the total passed
-// Jose (2026-10-01): passing the total of every limit should stand out even
-// more than one limit. A solid red card, not a tinted one; Inicio's first
-// thing; a full-height sheet at the moment it happens; the red dot on Más.
-const solidRed = inner => `<div class="card" style="background:linear-gradient(145deg,#e0525c 0%,#b3343f 60%,#7a1f2b 100%);border:0;color:#fff;box-shadow:0 10px 30px ${tint(C.red, .35)}">${inner}</div>`;
-const whiteBar = p => `<div style="position:relative;margin-top:12px"><div class="pbar" style="height:10px;background:rgba(255,255,255,.25)"><i style="width:${100 * 100 / p}%;background:#fff"></i><i style="width:${100 - 100 * 100 / p}%;background:repeating-linear-gradient(45deg,#ffd0d0 0 6px,rgba(255,255,255,.35) 6px 12px)"></i></div>
- <span style="position:absolute;left:${100 * 100 / p}%;top:-5px;width:3px;height:20px;background:#3a0b12;border-radius:2px"></span></div>`;
-const whitePill = (icon, t) => `<span class="chip" style="background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.35)">${ic(icon)}${t}</span>`;
+// Jose (2026-10-01): passing the total of every limit says so too, a step
+// above one limit - but the solid red of v1 was too invasive. v2: the same
+// tinted red as one limit, saying it is the total and which limits passed.
 const overRow = (k, name, by) => `<div class="row">${catIcon(k, 38)}<div class="tx"><b class="one">${name}</b><small class="r">${by} de más</small></div>${chev()}</div>`;
+const totalHero = inner => redHero(inner).replace('class="card hero" style="', 'class="card hero" style="border-width:1.5px;');
 
-// A. Planes: the top card itself turns solid red, says by how much and which limits.
+// A. Planes: the top card is the total, in the red of a passed limit.
 S['14l-total-pasado-planes'] = page(planHead(), `
- ${solidRed(`<div style="display:flex;gap:8px;align-items:center">${ic('warning', '', 'width:24px;height:24px;color:#fff')}<div class="lab" style="color:#ffe1e1">Pasaste el total de tus límites</div></div>
-  <div class="big" style="color:#fff">$ 2.084.000 <span style="font-size:15px;font-weight:500;color:#ffe1e1">de 1.900.000</span></div>
-  ${whiteBar(110)}
-  <div style="margin-top:10px;font-size:14px;line-height:1.4;color:#fff">Vas <b>184.000 por encima</b> y quedan 12 días del mes. Lo que gastes en estas categorías desde hoy suma a lo que te pasaste.</div>
-  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${whitePill('list-outline', 'Ver en qué se fue')}${whitePill('create-outline', 'Ajustar límites')}</div>`)}
+ ${totalHero(`<div style="display:flex;gap:8px;align-items:center">${ic('warning-outline', 'r', 'width:22px;height:22px')}<div class="lab" style="color:#ffb4b4">Pasaste el total de tus límites</div></div>
+  <div class="big r">$ 184.000 <span style="font-size:15px;font-weight:500;color:#ffb4b4">de más</span></div>
+  ${overBar(110)}
+  <div class="sub" style="margin-top:8px;white-space:normal">Llevas 2.084.000 de 1.900.000 entre todos tus límites, y quedan 12 días del mes.</div>
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${pill('list-outline', 'Ver en qué se fue')}${pill('create-outline', 'Ajustar límites')}</div>`)}
  <div class="h">Se pasaron · 2 límites</div>
  <div class="list">${overRow('mercado', 'Mercado', '162.000')}${overRow('rest', 'Restaurantes', '58.000')}</div>
- <div class="h">Van bien</div>
- ${limit('transp', 'Transporte', '264.000', '300.000', 88, 'Quedan 36.000', 'y')}`, ).replace(tabs('Más'), tabs('Más', true));
+ <div class="h">Van bien · 1 límite</div>
+ ${limit('transp', 'Transporte', '264.000', '300.000', 88, 'Quedan 36.000', 'y')}`).replace(tabs('Más'), tabs('Más', true));
 
-// B. Inicio: the first thing on screen, before net worth, solid red.
+// B. Inicio: one card on top for the total, never one per limit.
 S['14m-total-pasado-inicio'] = `<div class="bar-top">${st}<div class="tt" style="gap:10px">${ci('layers-outline', C.blu, 40)}<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:4px"><b class="one" style="font-size:18px">Todas las cuentas</b>${down()}</div><div class="one sub" style="font-size:12.5px">7 cuentas, todas incluidas</div></div></div>${periodBar('Octubre 2026')}</div><main>
- ${solidRed(`<div style="display:flex;gap:12px;align-items:center">${ci('warning', '#ffffff', 44).replace(/background:[^;]+;/, 'background:rgba(255,255,255,.2);')}<div style="flex:1;min-width:0"><b style="display:block;font-size:16.5px">Pasaste el total de tus límites</b><div style="font-size:14px;color:#ffe1e1">184.000 de más · 2 límites pasados · quedan 12 días</div></div>${ic('chevron-forward-outline', '', 'color:#fff')}</div>${whiteBar(110)}`)}
+ ${totalHero(`<div style="display:flex;gap:12px;align-items:center">${ci('warning-outline', C.red, 44)}<div style="flex:1;min-width:0"><b style="display:block">Pasaste el total de tus límites</b><div class="sub"><b class="r">184.000 de más</b> · 2 límites pasados</div></div>${chev()}</div>${overBar(110)}`)}
  <div class="card hero" style="margin-top:10px"><div class="lab">Patrimonio hoy</div><div class="big">$ 48.150.740,55</div></div>
  <div class="seg" style="margin:12px 0"><div class="on">${ic('pie-chart-outline')}Gráfico</div><div>${ic('list-outline')}Movimientos · 58</div></div>
  <div style="height:110px"></div></main><div class="fade"></div>${tabs('Inicio', true)}`;
 
-// C. The moment it happens: not a small sheet, the whole screen, once.
-S['14n-total-al-guardar'] = `<div style="position:absolute;inset:0;background:linear-gradient(170deg,#e0525c 0%,#a72f3b 55%,#5c1520 100%);color:#fff;padding:60px 22px 30px;display:flex;flex-direction:column">
- <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-  <span style="width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 0 0 14px rgba(255,255,255,.08)">${ic('warning', '', 'width:50px;height:50px;color:#fff')}</span>
-  <b style="font-size:24px;margin-top:26px;line-height:1.25">Con este gasto pasaste el total de tus límites</b>
-  <div style="font-size:15.5px;margin-top:10px;color:#ffe1e1">Llevas 2.084.000 de 1.900.000 este mes</div>
-  <div style="font-size:30px;font-weight:700;margin-top:18px">184.000 de más</div>
-  <div style="font-size:14px;color:#ffe1e1;margin-top:4px">y quedan 12 días</div>
-  <div style="width:100%">${whiteBar(110)}</div>
-  <div style="font-size:13.5px;color:#ffe1e1;margin-top:18px">El gasto ya quedó guardado. Esto solo te avisa.</div></div>
- <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="btn" style="background:rgba(255,255,255,.18);color:#fff">Entendido</div><div class="btn" style="background:#fff;color:#a72f3b">Ver mis límites</div></div></div>`;
+// C. The moment it happens: the same sheet as one limit, with "no volver a mostrar".
+S['14n-total-al-guardar'] = S['14h-limite-al-guardar']
+  .replace('Con este gasto pasaste tu límite de Mercado', 'Con este gasto pasaste el total de tus límites')
+  .replace('<b style="color:var(--tx)">1.362.000</b> de 1.200.000 este mes.', '<b style="color:var(--tx)">2.084.000</b> de 1.900.000 entre todos tus límites.')
+  .replace('162.000 de más · quedan 12 días', '184.000 de más · 2 límites pasados')
+  .replace(overBar(113), overBar(110))
+  .replace('Ver el límite', 'Ver mis límites');
 
-// D. The phone's notification, the strongest of the three.
+// D. The phone's notification: like any other, its title in red.
 S['14o-total-notificacion'] = S['14j-limite-notificacion'].replace(
   '<div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start">',
-  `<div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start;border:1px solid ${tint(C.red, .6)};margin-bottom:10px">
-  ${sq('warning', C.red, 38)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;color:#8e9ab2;font-size:12.5px"><span>Finance</span><span>ahora</span></div>
+  `<div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+  ${sq('wallet', C.blu, 38)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;color:#8e9ab2;font-size:12.5px"><span>Finance</span><span>ahora</span></div>
   <b style="display:block;color:#ff8a8a;margin-top:2px">Pasaste el total de tus límites</b>
-  <div style="color:#c9d0e2;font-size:14px;margin-top:2px">184.000 de más este mes · quedan 12 días</div></div></div>
+  <div style="color:#c9d0e2;font-size:14px;margin-top:2px">184.000 de más este mes · 2 límites pasados</div></div></div>
  <div style="background:rgba(30,38,62,.92);border-radius:22px;padding:14px;display:flex;gap:12px;align-items:flex-start">`);
+
+// E. Avisos (the bell in Planes): every warning can be turned off and back on.
+S['14p-planes-avisos'] = S['14c-planes-limites'] + `<div class="scrim"></div><div class="sheet" style="top:auto;bottom:0;padding-bottom:28px"><div class="grab"></div>
+ <div style="text-align:center;margin-bottom:6px">${ci('notifications-outline', C.blu, 48).replace('display:grid', 'display:grid;margin:0 auto 8px')}<b style="font-size:18px">Avisos de tus límites</b></div>
+ <div class="list" style="margin-top:12px">
+  ${row(sq('save-outline', C.red, 38), 'Al guardar un movimiento', 'Cuando ese gasto pasa un límite o el total', sw(false))}
+  ${row(sq('phone-portrait-outline', C.blu, 38), 'Notificación del celular', 'Aunque la app esté cerrada', sw(true))}
+  ${row(sq('speedometer-outline', C.yel, 38), 'Avisar antes, al 80 %', 'Una vez por límite cada mes', sw(true))}</div>
+ <div class="note" style="margin:12px 2px 0">En Inicio y en Planes la tarjeta roja sigue mientras estés pasado: no es un aviso, es cómo vas.</div></div>`;
 
 export default S;
