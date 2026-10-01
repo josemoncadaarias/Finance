@@ -1271,6 +1271,46 @@ test('a movement BEFORE the figure was stated is already inside it', async () =>
     'counting it again would be counting it twice');
 });
 
+test('money moved in on the figure\'s own day, after it was typed, earns from the next day', async () => {
+  // Jose's Pibank, 2026-10-01: a product created with 0 on the 29th and
+  // given 200,000 the same day earned nothing, the 200,000 taken as already
+  // inside the 0.
+  const { db, yields, engine, transactions, ids } = await setup();
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+  const [product] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 0 });
+  await db.run("UPDATE product_balances SET created_at = '2026-09-09T10:00:00Z' WHERE product_id = ?", [product.id]);
+  const id = await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-09', amount_minor: 20_000_000, source: 'manual',
+  });
+  await db.run("UPDATE transactions SET created_at = '2026-09-09T10:05:00Z' WHERE id = ?", [id]);
+
+  await engine.accrue(ids.rappi, '2026-09-11');
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+  assert.equal(on('2026-09-10').balance_minor, 20_000_000, 'the 200,000 earns from the 10th');
+  assert.ok(on('2026-09-10').net_minor > 0);
+});
+
+test('money moved on the figure\'s own day BEFORE it was typed stays inside it', async () => {
+  const { db, yields, engine, transactions, ids } = await setup();
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
+  const [product] = await yields.products(ids.rappi);
+  await db.run("UPDATE products SET source = 'manual' WHERE id = ?", [product.id]);
+  const id = await transactions.create({
+    account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-09', amount_minor: 20_000_000, source: 'manual',
+  });
+  await db.run("UPDATE transactions SET created_at = '2026-09-09T09:00:00Z' WHERE id = ?", [id]);
+  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 100_000_000 });
+  await db.run("UPDATE product_balances SET created_at = '2026-09-09T10:00:00Z' WHERE product_id = ?", [product.id]);
+
+  await engine.accrue(ids.rappi, '2026-09-10');
+  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 100_000_000);
+});
+
 test('a second product does not take the movements as well', async () => {
   const { db, yields, engine, transactions, ids } = await setup();
   await yields.enrol({
