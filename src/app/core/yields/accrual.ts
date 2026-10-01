@@ -39,7 +39,8 @@ import type {
 import type { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
 import type { OnProgress } from '../database/export/progress';
 import {
-  accrueDay, accruePayment, bandFor, rateWhenConditionMissed, ruleForProduct, type RateBand, type WithholdingRule,
+  accrueDay, accruePayment, bandFor, rateWhenConditionMissed, ruleForProduct, sharedWithholding,
+  type AccruedDay, type RateBand, type WithholdingRule,
 } from './yield-math';
 import { addDays, addMonthsClamped, daysBetween, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
 
@@ -187,18 +188,22 @@ export class AccrualEngine {
     // Every product's stated balances, and what has moved through each of
     // them, in one question each rather than two per product.
     const histories = await this.yields.productBalancesOf(ids);
-    const asked = new Map<number, { since: Map<number, IsoDate>; absorbs: number | null }>();
+    const asked = new Map<number, { since: Map<number, IsoDate>; absorbs: number | null; typedAt: Map<number, string | null> }>();
     for (const accountId of ids) {
       const products = productsOf.get(accountId)!;
       const opening = openings.get(accountId) ?? on;
       const since = new Map<number, IsoDate>();
+      const typedAt = new Map<number, string | null>();
       for (const product of products) {
         if (product.source !== 'manual') continue;
         // No balance at all means no start date has been chosen, so counting
         // starts where this module started: the day the account was enrolled.
-        since.set(product.id, (histories.get(product.id) ?? []).at(-1)?.valid_from ?? opening);
+        const figure = (histories.get(product.id) ?? []).at(-1);
+        since.set(product.id, figure?.valid_from ?? opening);
+        // On the figure's own day, only what was recorded after it was typed.
+        typedAt.set(product.id, figure?.created_at ?? null);
       }
-      asked.set(accountId, { since, absorbs: absorbsUnassigned(products) });
+      asked.set(accountId, { since, absorbs: absorbsUnassigned(products), typedAt });
     }
     const moved = await this.yields.movedInProductsOf(asked);
 
@@ -304,6 +309,31 @@ export class AccrualEngine {
       const balancesOf = new Map<number, ProductBalance[]>();
       for (const product of products) {
         balancesOf.set(product.id, await this.yields.productBalances(product.id));
+      }
+      // What moved through a typed product on the very day its figure is
+      // dated, but after the figure was typed: it is not inside the figure.
+      // A product created with 0 and given 200,000 the same day earned
+      // nothing at all, because the day's movements were all taken as
+      // already counted (Jose, Pibank, 2026-10-01). The same rule an entry on
+      // a product already follows.
+      const sameDayAfter = new Map<string, number>();
+      for (const product of products) {
+        if (product.source !== 'manual') continue;
+        const typed = (balancesOf.get(product.id) ?? []).filter(entry => entry.created_at);
+        if (typed.length === 0) continue;
+        const days = [...new Set(typed.map(entry => entry.valid_from))];
+        const scope = product.id === takesUnassigned ? '(product_id IS NULL OR product_id = ?)' : 'product_id = ?';
+        const moves = await this.db.query<{ on_date: IsoDate; amount_minor: number; created_at: string }>(
+          `SELECT occurred_on AS on_date, amount_minor, created_at FROM transactions
+           WHERE account_id = ? AND ${scope} AND occurred_on IN (${days.map(() => '?').join(', ')})`,
+          [accountId, product.id, ...days]);
+        for (const move of moves) {
+          // The figure of that day, the last one typed if there were several.
+          const figure = typed.filter(entry => entry.valid_from === move.on_date).at(-1)!;
+          if (move.created_at < figure.created_at!) continue;
+          const key = `${product.id}|${move.on_date}`;
+          sameDayAfter.set(key, (sameDayAfter.get(key) ?? 0) + move.amount_minor);
+        }
       }
       // Anything that lands on a product inside the range being worked
       // out has to be part of it from that day on. The starting figure
@@ -499,6 +529,36 @@ export class AccrualEngine {
           earnedOf.set(Number(product), (earnedOf.get(Number(product)) ?? 0) + owed);
         }
 
+        // What one day of one product pays, written and credited.
+        const record = (productId: number, component: string, payout: 'daily' | 'monthly', paidOn: IsoDate, accrued: AccruedDay) => {
+          written.push({
+            product_id: productId,
+            account_id: accountId,
+            component,
+            payout,
+            on_date: day,
+            paid_on: paidOn,
+            balance_minor: accrued.balance_minor,
+            annual_rate_scaled: accrued.annual_rate_scaled,
+            gross_minor: accrued.gross_minor,
+            withholding_minor: accrued.withholding_minor,
+            net_minor: accrued.net_minor,
+            withholding_unknown: accrued.withholding_unknown ? 1 : 0,
+          });
+          creditTo(productId, payout, paidOn, accrued.net_minor);
+          result.daysWritten += 1;
+          result.netMinor += accrued.net_minor;
+          result.withheldMinor += accrued.withholding_minor;
+          if (accrued.withholding_unknown) result.daysWithUnknownWithholding += 1;
+        };
+
+        // A savings product's withholding waits for the rest of the account's
+        // products of the day: the threshold is measured on what the whole
+        // account pays that day, not on each product (Dale's September 2026
+        // statement: 7 % of both alcancías together, each one alone under the
+        // threshold; Jose, 2026-10-01).
+        const sharing: { productId: number; component: string; payout: 'daily' | 'monthly'; paidOn: IsoDate; accrued: AccruedDay }[] = [];
+
         for (const product of products) {
           // A product earns nothing before the day it starts earning from, and
           // nothing on that day either: that day's own earning lands on the
@@ -525,7 +585,7 @@ export class AccrualEngine {
           // of one account moved neither.
           const held = product.source === 'manual'
             ? statedOn(balancesOf.get(product.id) ?? [], day,
-                       movedInto.get(product.id) ?? [], true)
+                       movedInto.get(product.id) ?? [], true, sameDayAfter, product.id)
             : balanceOn(balances, day);
 
           /*
@@ -554,7 +614,7 @@ export class AccrualEngine {
           // Every component earns on the same base and is worked out apart:
           // each has its own rate, its own condition and its own payday, and
           // the withholding threshold in articulo 1.2.4.2.87 is measured per
-          // payment. Two components are two payments.
+          // payment: one component of the whole account's day (`sharing`).
           for (const [component, bands] of componentsInForce(ratesFor(rates, product.id), day)) {
             const lockedDay = locked.get(`${product.id}|${component}|${day}`);
 
@@ -598,31 +658,28 @@ export class AccrualEngine {
             // worked out: a CDT's whole term at once, on its balance the day it
             // matures.
             const withholdingRule = ruleForProduct(product.kind, rule);
+            const shared = !cdt && product.withholding === 1 && withholdingRule !== null;
             const accrued = cdt
               ? accruePayment(base, band, daysBetween(product.opened_on!, day), withholdingRule, product.withholding === 1)
-              : accrueDay(base, band, withholdingRule, product.withholding === 1);
-
-            written.push({
-              product_id: product.id,
-              account_id: accountId,
-              component,
-              payout,
-              on_date: day,
-              paid_on: paidOn,
-              balance_minor: accrued.balance_minor,
-              annual_rate_scaled: accrued.annual_rate_scaled,
-              gross_minor: accrued.gross_minor,
-              withholding_minor: accrued.withholding_minor,
-              net_minor: accrued.net_minor,
-              withholding_unknown: accrued.withholding_unknown ? 1 : 0,
-            });
-
-            creditTo(product.id, payout, paidOn, accrued.net_minor);
-            result.daysWritten += 1;
-            result.netMinor += accrued.net_minor;
-            result.withheldMinor += accrued.withholding_minor;
-            if (accrued.withholding_unknown) result.daysWithUnknownWithholding += 1;
+              : accrueDay(base, band, withholdingRule, product.withholding === 1 && !shared);
+            if (shared) {
+              sharing.push({ productId: product.id, component, payout, paidOn, accrued });
+              continue;
+            }
+            record(product.id, component, payout, paidOn, accrued);
           }
+        }
+
+        // The account's day as one payment per component: the threshold on
+        // the sum, and the withholding shared out so its total is exact.
+        for (const component of new Set(sharing.map(one => one.component))) {
+          const parts = sharing.filter(one => one.component === component);
+          const withheld = sharedWithholding(parts.map(one => one.accrued.gross_minor), rule!);
+          parts.forEach((one, i) => record(one.productId, one.component, one.payout, one.paidOn, {
+            ...one.accrued,
+            withholding_minor: withheld[i],
+            net_minor: one.accrued.gross_minor - withheld[i],
+          }));
         }
 
         // At the close of the day, so what arrived earns from the next one.
@@ -864,6 +921,8 @@ function statedOn(
   day: IsoDate,
   balances: DayBalance[],
   takesMovements: boolean,
+  sameDayAfter: ReadonlyMap<string, number> = new Map(),
+  productId = 0,
 ): number {
   let stated = 0;
   let statedFrom: IsoDate | null = null;
@@ -881,13 +940,11 @@ function statedOn(
   // figure follows, and the same rule an entry on a product follows. Money
   // that arrives today earns from tomorrow.
   //
-  // What moved through the product ON the figure's own day goes on top of it,
-  // as the yields screen has always added it ("Lo que entró y salió desde ese
-  // día"): a product created with 0 and given 200,000 the same day holds
-  // 200,000, and earned nothing while the engine took the day's movements as
-  // already inside the figure (Jose, Pibank, 2026-10-01). Yields paid that day
-  // and entries are another matter, and keep their own rule (`afterFigure`).
-  return stated + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, addDays(statedFrom, -1)));
+  // What moved on the figure's own day after it was typed is not inside it,
+  // so it goes on top. On the figure's day itself this leaves what the day
+  // started with: the figure less what moved that day before it was typed.
+  return stated + (sameDayAfter.get(`${productId}|${statedFrom}`) ?? 0)
+    + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
 }
 
 /**

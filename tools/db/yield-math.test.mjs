@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   EA_SCALE, DAYS_IN_YEAR, dailyRate, dailyYieldMinor, bandFor,
   withholdingMinor, accrueDay, parsePercentToScaled, scaledPercentToString,
+  sharedWithholding,
 } from '../../src/app/core/yields/yield-math.ts';
 
 /** 11.45% E.A., the way a bank quotes it, in the scale the app stores. */
@@ -186,4 +187,23 @@ test('a CDT has no threshold: 7% of every peso of yield', async () => {
   assert.equal(withholdingMinor(9_999_999, ruleForProduct('high_yield', RULE)), 0,
     'the savings rule is exactly what it was');
   assert.equal(ruleForProduct('cdt', null), null, 'missing parameters are still unknown, not zero');
+});
+
+// Dale's statement of September 2026, the 25th: two alcancías under the
+// threshold each, 7 % of the two together withheld, 388.30 in all.
+const DALE = { uvtValueMinor: 5_237_400, thresholdUvt: 0.055, percentScaled: pct(7), base: 'all' };
+
+test('the threshold is measured on what the whole account pays that day', () => {
+  assert.deepEqual(sharedWithholding([277_345, 277_373], DALE), [19_414, 19_416]);
+  assert.equal(sharedWithholding([277_345, 277_373], DALE).reduce((a, b) => a + b, 0), 38_830);
+  // One alone under the threshold withholds nothing.
+  assert.deepEqual(sharedWithholding([277_345], DALE), [0]);
+});
+
+test('the shares always add up to the withholding of the total', () => {
+  for (const parts of [[101, 102, 103], [333_333, 1, 2], [288_057, 0], [150_000, 150_001, 7]]) {
+    const total = parts.reduce((a, b) => a + b, 0);
+    const shares = sharedWithholding(parts, DALE);
+    assert.equal(shares.reduce((a, b) => a + b, 0), total >= 288_057 ? Math.round(total * 0.07) : 0, String(parts));
+  }
 });

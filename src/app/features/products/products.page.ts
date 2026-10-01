@@ -709,6 +709,9 @@ export class ProductsPage {
   /** The date that balance had before it was edited, to redo the days between. */
   readonly editingBalanceFrom = signal<string | null>(null);
 
+  /** When that balance was typed: on its own day, what was recorded before it is inside it. */
+  private readonly editingBalanceTypedAt = signal<string | null>(null);
+
   /**
    * What has moved through this product since the date in the form.
    *
@@ -726,8 +729,12 @@ export class ProductsPage {
     if (!line || !product) { this.productMoved.set(0); return; }
 
     const { yields } = this.repos();
+    // The stored figure's own day splits by when it was typed; a figure being
+    // typed now has everything already recorded that day inside it.
+    const typedAt = this.productFrom() === this.editingBalanceFrom()
+      ? this.editingBalanceTypedAt() : new Date().toISOString();
     this.productMoved.set(await yields.movedInProductSince(
-      line.account.id, product.id, this.productFrom(), product.id === line.products[0]?.id));
+      line.account.id, product.id, this.productFrom(), product.id === line.products[0]?.id, typedAt));
   }
 
   /** The date field changed, so the figure under it has to follow. */
@@ -1936,6 +1943,7 @@ export class ProductsPage {
       this.productFrom.set(current?.valid_from ?? today());
       this.editingBalanceId.set(current?.id ?? null);
       this.editingBalanceFrom.set(current?.valid_from ?? null);
+      this.editingBalanceTypedAt.set(current?.created_at ?? null);
       await this.readProductMoved();
       this.productYieldIn.set(
         (await yields.landedByProduct(line.account.id, today())).total.get(product?.id ?? -1) ?? 0);

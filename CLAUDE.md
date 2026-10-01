@@ -429,9 +429,10 @@ backup restore against iOS's own SQLite backend.
    **A product's balance dated D is its balance at the CLOSE of D** - it
    holds everything paid on D, so only what lands after D goes on top of it,
    plus an entry written on D at or after the moment the figure was typed.
-   **Movements of the ledger through the product are the exception**: those
-   dated D go on top, as the screen has always added them (2026-10-01, see
-   "Also fixed the same day" under Debts and plans).
+   **And a movement of the ledger through the product dated D follows the
+   entry's rule**: inside the figure when it was recorded before the figure
+   was typed, on top when after - in the engine and on the screen alike
+   (2026-10-01, see "Also fixed the same day" under Debts and plans).
    The yields screen always read a figure that way; the engine did not, and
    put everything it had worked out since the walk began on top of the
    newest figure. That is harmless for a figure dated before the walk
@@ -534,11 +535,24 @@ backup restore against iOS's own SQLite backend.
    anything that has not been taught about the table. Decision by Jose,
    2026-09-16.
 
-17. **An account can be several products, and the tax is per product.** Dale is
-   two "alcancias" and the bank pays each separately, so each is its own pago o
-   abono en cuenta and the 0.055 UVT threshold is measured on each. Adding them
-   up before taxing charged 386.73 pesos a day of withholding that was not
-   owed. A product either follows the account balance (`ledger`, at most one per
+17. **An account can be several products, and the threshold is the account's.**
+   Dale is two "alcancias" and the bank pays each separately - but it measures
+   the 0.055 UVT threshold on what the whole account pays in the day, and
+   withholds 7 % of each one's own yield. Read off Dale's September 2026
+   statement on 2026-10-01 (Jose: "no se hace sobre un producto en particular,
+   si no la suma de las ganancias de todos los productos"): each alcancía pays
+   about 2,773 a day, under the 2,880.57 threshold, and one withholding a day
+   of 7 % of the two together is charged (388.30 on the 25th = 7 % of 2,773.45
+   + 2,773.73). The rule of 2026-09-10 - each product measured alone - was
+   wrong, and left every day from the 26th 0.06 above the bank. Now the
+   threshold is tested on the day's sum per component (each component is its
+   own payment) of the account's savings products that withhold, and the
+   withholding is shared out so the parts add up exactly to the bank's
+   (`sharedWithholding` in `yield-math.ts`); a CDT keeps its own rule. On
+   Jose's backup it changed Dale's days from the 25th and nothing else, and
+   every day from the 25th to the 30th equals the statement to the centavo.
+   Days the bank withheld in batches before that (eleven charges on the 18th,
+   none on the 19th-22nd) sit in days Jose locked by hand and are not redone. A product either follows the account balance (`ledger`, at most one per
    account, holding whatever the others left) or carries a figure typed in and
    dated, because a movement never says which product it landed in - so the app
    compares the two and reports the drift rather than accruing on a stale
@@ -3499,22 +3513,22 @@ How it is made:
   afterwards. **Not seen on the phone**: the phone notification itself
   (permission prompt, its icon) and how the sheet reads there.
 
-**Also fixed the same day (PRs #21 and #23)**: a product with a typed
+**Also fixed the same day (PRs #21, #23 and #24)**: a product with a typed
 balance given money the day it was created earned nothing (Jose's new
-Pibank product "Impuesto de renta": 0 typed on 29 Sep, 200,000 moved in the
-same day, 0.00 paid on 1 Oct "sobre 0,00"). The engine took every movement
-dated on the figure's day as already inside the figure, while the yields
-screen has always added them on top ("Lo que entró y salió desde ese día").
-#21 counted only those recorded after the figure was typed; it did not
-reach his case, so #23 makes the engine follow the screen exactly: **what
-moved through a typed product on its figure's own day goes on top of the
-figure** (`statedOn` in `accrual.ts`). Yields paid that day and entries keep
-their own rule (`afterFigure`). On his backup of 2026-09-28, every yield
-worked out from scratch before and after: no yield moved; two bases came
-into line with what the screen already showed (Global66 USD 2.00 -> 4.00,
-Plenti 0 -> 0.02, both earning 0). The days already on his phone stay
-until "Recalcular". Days (Días) now name the product on each line when the
-account has several, as Pagos already did.
+Pibank product "Impuesto de renta": 0 typed on 29 Sep at 20:02, 200,000
+moved in at 20:08, 0.00 paid on 1 Oct). The engine took every movement dated
+on the figure's day as already inside the figure. #21 counted on top only
+those recorded after the figure was typed, which fixed it (57.19 paid on
+1 Oct). #23 went further and counted the whole day on top, as the screen
+did - and that double-counted Global66 USD (a 2.00 figure of the 9th and its
+2.00 deposit of the same day, recorded before the figure: 4.00) and Plenti.
+#24 goes back to #21's rule and makes the screen ("Tiene hoy", the product
+form's breakdown) follow it too (`movedInProductSince`/`movedInProductsOf`
+take the figure's `created_at`). Checked on his backup of 2026-10-01: no
+yield moves but Dale's (rule 17), and Global66 USD and Plenti earn on 2.00
+and 0 again. Global66 USD's 0 on 1 Oct is right: 2 dollars at 3.1 % E.A.
+earn about a third of a cent in September. Days (Días) now name the product
+on each line when the account has several, as Pagos already did.
 
 ### The ideas, by what they would take
 

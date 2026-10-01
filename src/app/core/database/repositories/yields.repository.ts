@@ -73,9 +73,9 @@ export interface YieldRate {
 /**
  * A pot of money inside one account that earns on its own.
  *
- * Dale is two of them. The bank pays each separately, so each is its own
- * pago o abono en cuenta and the withholding threshold is measured per
- * product. Adding them up first would charge withholding that is not owed.
+ * Dale is two of them. The bank pays each separately, but measures the
+ * withholding threshold on what the whole account pays in the day, and each
+ * gives up 7 % of its own yield (Dale's September 2026 statement).
  *
  * `source` says where the balance comes from: `ledger` follows the account's
  * own balance, `manual` is a figure typed in and dated, because a movement
@@ -815,12 +815,16 @@ export class YieldsRepository {
   /**
    * What has moved through a product since a date, that date included.
    *
-   * One rule, and the one Jose stated: movements before the date a product's
-   * balance was set do not touch it, and everything from that date on does.
-   * An earlier attempt split the day the balance was set by the clock-time it
-   * was written at, which was more precise and less predictable - and being
-   * able to say what the screen will show matters more here than a few hours
-   * of exactness.
+   * Movements before the date a product's balance was set do not touch it,
+   * and everything after that date does. ON that date, what was recorded
+   * before the figure was typed is inside it and what was recorded after goes
+   * on top - the rule an entry on a product follows, and the engine's
+   * (`accrual.ts`). Counting the whole day on top (2026-09-22 to 10-01) made
+   * Global66 USD hold 4.00 for 2.00: its 2.00 deposit of the 9th was already
+   * inside the 2.00 figure of the 9th. Counting none of it left Jose's new
+   * Pibank product at 0 with the 200,000 moved in after it was created. The
+   * clock-time is what tells the two apart. `typedAt` is when the figure was
+   * typed; without it the whole day counts, as before.
    *
    * There is no upper bound. A movement dated next week has been recorded, and
    * the account's own balance counts it, so a product that did not would be
@@ -834,6 +838,7 @@ export class YieldsRepository {
     productId: number,
     since: IsoDate,
     takesUnassigned: boolean,
+    typedAt: string | null = null,
   ): Promise<number> {
     const which = takesUnassigned
       ? '(product_id IS NULL OR product_id = ?)'
@@ -841,8 +846,9 @@ export class YieldsRepository {
 
     const row = await this.db.queryOne<{ total: number | null }>(
       `SELECT SUM(amount_minor) AS total FROM transactions
-       WHERE account_id = ? AND ${which} AND occurred_on >= ?`,
-      [accountId, productId, since]);
+       WHERE account_id = ? AND ${which}
+         AND (occurred_on > ? OR (occurred_on = ? AND (? IS NULL OR created_at >= ?)))`,
+      [accountId, productId, since, since, typedAt, typedAt]);
     return row?.total ?? 0;
   }
 
@@ -926,7 +932,7 @@ export class YieldsRepository {
    * account each, so the answer is keyed by product.
    */
   async movedInProductsOf(
-    accounts: ReadonlyMap<number, { since: ReadonlyMap<number, IsoDate>; absorbs: number | null }>,
+    accounts: ReadonlyMap<number, { since: ReadonlyMap<number, IsoDate>; absorbs: number | null; typedAt?: ReadonlyMap<number, string | null> }>,
   ): Promise<Map<number, number>> {
     const out = new Map<number, number>();
     const asked = [...accounts].filter(([, entry]) => entry.since.size > 0);
@@ -934,23 +940,28 @@ export class YieldsRepository {
 
     const ids = asked.map(([accountId]) => accountId);
     const earliest = asked.flatMap(([, entry]) => [...entry.since.values()]).sort()[0];
-    const rowsOf = new Map<number, { product_id: number | null; on_date: IsoDate; total: number }[]>();
-    for (const row of await this.db.query<{ account_id: number; product_id: number | null; on_date: IsoDate; total: number }>(
-      `SELECT account_id, product_id, occurred_on AS on_date, SUM(amount_minor) AS total
+    // By day, and the figure's own day split by when each movement was
+    // recorded (`movedInProductSince` says why).
+    type Moved = { account_id: number; product_id: number | null; on_date: IsoDate; total: number; at: string | null };
+    const rowsOf = new Map<number, Moved[]>();
+    for (const row of await this.db.query<Moved>(
+      `SELECT account_id, product_id, occurred_on AS on_date, SUM(amount_minor) AS total, created_at AS at
        FROM transactions
        WHERE account_id IN ${placeholders(ids)} AND occurred_on >= ?
-       GROUP BY account_id, product_id, occurred_on`,
+       GROUP BY account_id, product_id, occurred_on, created_at`,
       [...ids, earliest])) {
       const rows = rowsOf.get(row.account_id);
       if (rows) rows.push(row); else rowsOf.set(row.account_id, [row]);
     }
 
-    for (const [accountId, { since, absorbs }] of asked) {
+    for (const [accountId, { since, absorbs, typedAt }] of asked) {
       const rows = rowsOf.get(accountId) ?? [];
       for (const [productId, from] of since) {
+        const typed = typedAt?.get(productId) ?? null;
         let total = 0;
         for (const row of rows) {
           if (row.on_date < from) continue;
+          if (row.on_date === from && typed !== null && (row.at === null || row.at < typed)) continue;
           const belongs = row.product_id === productId || (row.product_id === null && productId === absorbs);
           if (belongs) total += row.total;
         }
