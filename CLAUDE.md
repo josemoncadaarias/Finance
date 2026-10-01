@@ -3288,6 +3288,42 @@ insurance as expenses under Intereses and Seguros - each figure editable,
 the schedule worked out again from what was paid; overdue and paid-off
 states. Paying capital ahead is part 3.
 
+**v2, after Jose's review (2026-10-01)**: in Cuotas each installment shows
+capital, interest, insurance and what is left owed on lines of their own;
+and paying ahead is drawn now too (`13l`-`13r`), as he asked to research
+how loans work in Colombia and include it with exact figures. Looked up the
+same day (web; the norms to re-read before building):
+- **Ley 1555 de 2012**: any credit in pesos can be paid ahead, all or in
+  part, with no penalty; on a partial payment **the debtor chooses** a
+  shorter term or a lower installment. Not above 880 SMMLV of balance.
+  **Ley 546 de 1999** gives housing credits the same right.
+- **Superfinanciera**: the bank must apply an extra payment as the debtor
+  asks, even on another day than the installment's, and must not apply it
+  to future installments when the debtor says where it goes.
+- **Systems** approved for housing: fixed installment in pesos, constant
+  capital in pesos, and three in UVR (constant installment, constant
+  capital, cyclic decreasing). Consumer and vehicle loans are usually the
+  fixed installment. Proposed: fixed installment and constant capital in
+  pesos first; UVR later, it needs the UVR series.
+- **Rates**: fixed or variable (IBR or DTF plus points); a variable one is
+  a rate history the person updates. Usury is 1.5 times the IBC certified
+  each month; it caps both the ordinary and the default interest
+  (September 2026: 29.24% E.A.; August 29.66%).
+- **Seguro de vida deudor** is charged on the balance still owed, so it
+  falls as the loan is paid: the form offers a fixed figure or a % of the
+  balance.
+- What the app draws, all from one schedule engine: an extra payment once,
+  every month, or in the primas (June and December); for each, when the
+  loan ends, the installments left, the interest and the total still to
+  pay, and the saving - with reduce-the-term against reduce-the-installment
+  side by side; how much several amounts save; paying it all today (the
+  balance plus the interest since the last installment, approximate - the
+  bank's figure counts); default interest typed only when charged. The
+  test loan's figures were worked out by a script (5,000,000 ahead with
+  installment 24: ends May 2029, 5 installments sooner, interest 8,362,859
+  instead of 11,049,708, saving 2,896,849 with the insurance; lowering the
+  installment instead: 1,306,833, saving 1,272,397).
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3348,7 +3384,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
-- [ ] Debts part 2 (loans): approve the screens `13a`-`13k`.
+- [ ] Debts part 2 (loans): approve the screens `13a`-`13r` (v2).
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the
