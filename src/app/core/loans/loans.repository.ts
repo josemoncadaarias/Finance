@@ -15,6 +15,7 @@ import { CategoriesRepository } from '../database/repositories/categories.reposi
 import { TransactionsRepository } from '../database/repositories/transactions.repository';
 import { TransfersRepository } from '../database/repositories/transfers.repository';
 import type { AccountRow } from '../database/types';
+import { loanPaymentOf, undoLoanPayment } from './payment-links';
 import { theoreticalBalance, type ExtraMode, type LoanPayment, type LoanSystem, type LoanTerms } from './schedule';
 
 export interface LoanInput {
@@ -38,6 +39,11 @@ export interface LoanInput {
   paidFromAccountId: number | null;
   paidBefore: number;
   balanceAfterBeforeMinor: number | null;
+  /**
+   * The account the money arrived in, for a loan the app follows from its
+   * disbursement: the debt then comes from that transfer. Null records none.
+   */
+  disbursedIntoAccountId: number | null;
 }
 
 export interface LoanRow {
@@ -45,6 +51,7 @@ export interface LoanRow {
   rateQuoted: 'ea' | 'mv';
   rateKind: 'fixed' | 'variable';
   paidFromAccountId: number | null;
+  disbursedIntoAccountId: number | null;
   terms: LoanTerms;
   payments: (LoanPayment & { id: number; transferId: number | null })[];
 }
@@ -84,6 +91,8 @@ interface TermsRow {
   paid_from_account_id: number | null;
   paid_before: number;
   balance_after_before_minor: number | null;
+  disbursement_transfer_id: number | null;
+  disbursed_into: number | null;
 }
 
 export class LoansRepository {
@@ -103,7 +112,10 @@ export class LoansRepository {
   /** Every loan with its terms, rates and payments: four queries, whatever there is. */
   async all(): Promise<LoanRow[]> {
     const [terms, rates, payments, accounts] = await Promise.all([
-      this.db.query<TermsRow>('SELECT * FROM loans'),
+      this.db.query<TermsRow>(
+        `SELECT l.*, (SELECT t.account_id FROM transactions t
+                       WHERE t.transfer_id = l.disbursement_transfer_id AND t.transfer_leg = 'to') AS disbursed_into
+         FROM loans l`),
       this.db.query<{ account_id: number; valid_from: string; annual_rate_scaled: number }>(
         'SELECT account_id, valid_from, annual_rate_scaled FROM loan_rates ORDER BY valid_from'),
       this.db.query<{
@@ -119,6 +131,7 @@ export class LoansRepository {
       rateQuoted: t.rate_quoted,
       rateKind: t.rate_kind,
       paidFromAccountId: t.paid_from_account_id,
+      disbursedIntoAccountId: t.disbursed_into ?? null,
       terms: {
         principalMinor: t.principal_minor,
         system: t.system,
@@ -153,14 +166,15 @@ export class LoansRepository {
   async create(input: LoanInput): Promise<number> {
     return this.db.transaction(async () => {
       const start = startOf(input);
+      const opening = disburses(input) ? 0 : -start.balanceMinor;
       const accountId = await new AccountsRepository(this.db, this.now).create({
         name: input.name.trim(),
         type: 'debit',
         currency_code: 'COP',
         builtin_icon: input.builtinIcon,
         color: input.color,
-        opening_balance_minor: -start.balanceMinor,
-        opening_balance_base_minor: -start.balanceMinor,
+        opening_balance_minor: opening,
+        opening_balance_base_minor: opening,
         opened_on: start.on,
       });
       const timestamp = this.now();
@@ -175,8 +189,31 @@ export class LoansRepository {
         'INSERT INTO loan_rates (account_id, valid_from, annual_rate_scaled, created_at) VALUES (?, ?, ?, ?)',
         [accountId, input.disbursedOn, input.annualRateScaled, timestamp],
       );
+      await this.setDisbursement(accountId, input);
       return accountId;
     });
+  }
+
+  /**
+   * The disbursement transfer as the input says: written again from scratch
+   * (amount, day and account may all have changed), or removed.
+   */
+  private async setDisbursement(accountId: number, input: LoanInput): Promise<void> {
+    const row = await this.db.queryOne<{ disbursement_transfer_id: number | null }>(
+      'SELECT disbursement_transfer_id FROM loans WHERE account_id = ?', [accountId]);
+    const transfers = new TransfersRepository(this.db, this.now);
+    if (row?.disbursement_transfer_id != null) await transfers.delete(row.disbursement_transfer_id);
+    let transferId: number | null = null;
+    if (disburses(input)) {
+      transferId = await transfers.create({
+        occurred_on: input.disbursedOn,
+        description: input.name.trim() || null,
+        from: { account_id: accountId, amount_minor: input.principalMinor },
+        to: { account_id: input.disbursedIntoAccountId!, amount_minor: input.principalMinor },
+        source: 'manual',
+      });
+    }
+    await this.db.run('UPDATE loans SET disbursement_transfer_id = ? WHERE account_id = ?', [transferId, accountId]);
   }
 
   /** The terms, the base rate and the account's name, face and opening debt. */
@@ -187,8 +224,8 @@ export class LoansRepository {
         name: input.name.trim(),
         builtin_icon: input.builtinIcon,
         color: input.color,
-        opening_balance_minor: -start.balanceMinor,
-        opening_balance_base_minor: -start.balanceMinor,
+        opening_balance_minor: disburses(input) ? 0 : -start.balanceMinor,
+        opening_balance_base_minor: disburses(input) ? 0 : -start.balanceMinor,
         opened_on: start.on,
       });
       const timestamp = this.now();
@@ -207,6 +244,7 @@ export class LoansRepository {
         await this.db.run('UPDATE loan_rates SET valid_from = ?, annual_rate_scaled = ? WHERE id = ?',
           [input.disbursedOn, input.annualRateScaled, first.id]);
       }
+      await this.setDisbursement(accountId, input);
     });
   }
 
@@ -269,15 +307,21 @@ export class LoansRepository {
   /** A payment undone: its record and every movement it wrote. */
   async deletePayment(id: number): Promise<void> {
     await this.db.transaction(async () => {
-      const row = await this.db.queryOne<{ transfer_id: number | null; interest_tx_id: number | null; insurance_tx_id: number | null; late_tx_id: number | null }>(
-        'SELECT transfer_id, interest_tx_id, insurance_tx_id, late_tx_id FROM loan_payments WHERE id = ?', [id]);
+      const row = await this.db.queryOne<{ id: number; transfer_id: number | null; interest_tx_id: number | null; insurance_tx_id: number | null; late_tx_id: number | null }>(
+        'SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id FROM loan_payments WHERE id = ?', [id]);
       if (!row) return;
-      await this.db.run('DELETE FROM loan_payments WHERE id = ?', [id]);
-      for (const tx of [row.interest_tx_id, row.insurance_tx_id, row.late_tx_id]) {
-        if (tx !== null) await this.db.run('DELETE FROM transactions WHERE id = ?', [tx]);
-      }
-      if (row.transfer_id !== null) await new TransfersRepository(this.db, this.now).delete(row.transfer_id);
+      const transferId = await undoLoanPayment(this.db, row);
+      if (transferId !== null) await this.db.run('DELETE FROM transfers WHERE id = ?', [transferId]);
     });
+  }
+
+  /** The payment a movement or a transfer belongs to: which loan, which installment. */
+  async paymentOf(link: { transferId?: number | null; transactionId?: number | null }): Promise<{ id: number; loanName: string; kind: LoanPayment['kind']; number: number | null } | null> {
+    const found = await loanPaymentOf(this.db, link);
+    if (!found) return null;
+    return this.db.queryOne<{ id: number; loanName: string; kind: LoanPayment['kind']; number: number | null }>(
+      `SELECT p.id, a.name AS loanName, p.kind, p.number FROM loan_payments p
+       JOIN accounts a ON a.id = p.account_id WHERE p.id = ?`, [found.id]);
   }
 
   /** The expense category of that name, made if it is missing. */
@@ -305,6 +349,11 @@ function startOf(input: LoanInput): { on: string; balanceMinor: number } {
   const last = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 0)).getUTCDate();
   const on = `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`;
   return { on, balanceMinor: input.balanceAfterBeforeMinor ?? theoreticalBalance(terms, input.paidBefore) };
+}
+
+/** Whether the loan records its disbursement: only one the app follows from the start. */
+function disburses(input: LoanInput): boolean {
+  return input.disbursedIntoAccountId !== null && input.paidBefore <= 0;
 }
 
 function termValues(input: LoanInput): unknown[] {

@@ -239,6 +239,7 @@ erDiagram
         TEXT first_due_on
         INTEGER paid_from_account_id FK
         INTEGER paid_before
+        INTEGER disbursement_transfer_id FK
     }
     loan_rates {
         INTEGER id PK
@@ -341,6 +342,7 @@ erDiagram
     loans          ||--o{ loan_rates       : "charges"
     loans          ||--o{ loan_payments    : "was paid by"
     transfers      ||--o{ loan_payments    : "carried the capital of"
+    transfers      ||--o| loans            : "disbursed"
     transactions   ||--o{ loan_payments    : "carried the interest of"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
@@ -503,6 +505,7 @@ outright:
 | `idx_loans_paid_from` | the loans an account pays |
 | `idx_loan_payments_account` | what was paid on one loan, by date |
 | `idx_loan_payments_transfer` | the payment a transfer carried |
+| `idx_loans_disbursement` | the loan a transfer disbursed |
 | `idx_yield_rates_account` | finding the rate in force on a date |
 | `idx_yield_rates_product` | and the rates belonging to one product |
 | `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each product |

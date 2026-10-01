@@ -29,6 +29,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { formatMoney } from '../../core/database/money';
 import { BadgeComponent } from '../ui/badge.component';
+import { foldText } from '../../core/text/fold-text';
 
 /** The account list's order, the key every picker in the app shares. */
 export function readAccountOrder(): 'use' | 'name' {
@@ -81,6 +82,8 @@ export class AccountPickerComponent {
   readonly closed = output<void>();
 
   readonly order = signal<'use' | 'name'>(readAccountOrder());
+  /** What was typed into the search, cleared each time the list opens. */
+  readonly search = signal('');
   private readonly useCounts = signal<Map<number, number>>(new Map());
   private readonly balances = signal<Map<number, { balance: number; available: number | null }>>(new Map());
   readonly productCounts = signal<Map<number, number>>(new Map());
@@ -88,6 +91,9 @@ export class AccountPickerComponent {
   constructor() {
     // What each account is used for and holds, read when the list opens, so
     // a closed picker costs nothing. Two queries, whatever the count.
+    effect(() => {
+      if (this.open()) this.search.set('');
+    });
     effect(() => {
       if (!this.open() || this.database.status() !== 'ready') return;
       const accounts = new AccountsRepository(this.database.driver);
@@ -108,7 +114,8 @@ export class AccountPickerComponent {
 
   /** `localeCompare` so "Éxito" files under E and not after Z. */
   readonly ordered = computed(() => {
-    const list = [...this.accounts()];
+    const wanted = foldText(this.search());
+    const list = this.accounts().filter(a => wanted === '' || foldText(a.name).includes(wanted));
     if (this.order() === 'name') return list.sort((a, b) => a.name.localeCompare(b.name, 'es'));
     const times = this.useCounts();
     return list.sort((a, b) => {

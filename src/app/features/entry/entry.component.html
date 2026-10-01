@@ -278,6 +278,11 @@
         <h2>{{ (picking() === 'to' || (!isTransfer() && kind() === 'income') ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
         <span class="right"></span>
       </div>
+      <div class="ui-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="'ui.picker.search' | t" [value]="accountSearch()"
+               (input)="accountSearch.set($any($event.target).value ?? '')">
+      </div>
       <div class="ui-seg order">
         <button type="button" [class.on]="accountOrder() === 'use'" (click)="setAccountOrder('use')">{{ 'entry.order.use' | t }}</button>
         <button type="button" [class.on]="accountOrder() === 'name'" (click)="setAccountOrder('name')">{{ 'entry.order.name' | t }}</button>
@@ -292,6 +297,9 @@
               <span class="ui-tick on" [attr.aria-label]="'entry.selected' | t"><ion-icon name="checkmark"></ion-icon></span>
             }
           </button>
+        }
+        @if (orderedAccounts().length === 0 && accountSearch()) {
+          <p class="nothing">{{ 'ui.picker.nothing' | t:{ search: accountSearch() } }}</p>
         }
       </div>
     </div>

@@ -562,6 +562,16 @@ export const UI_ES = {
   'loans.need.count': 'Escribe cuántas cuotas',
   'loans.need.dates': 'La primera cuota va después del desembolso',
   'loans.ladder.fewerOne': '1 cuota antes',
+  'loans.delete.installment': 'Es el pago de la cuota {number} de {loan}. Se borra el pago completo: el abono a capital, los intereses y el seguro, y la cuota vuelve a quedar por pagar.',
+  'loans.delete.extra': 'Es un abono a {loan}. Se borra completo, y el préstamo vuelve a deber ese capital.',
+  'loans.form.pickAccount': 'Escoge una cuenta',
+  'loans.form.into': '¿A qué cuenta llegó la plata?',
+  'loans.form.into.none': 'No registrarlo (opcional)',
+  'loans.form.into.clear': 'No registrar a qué cuenta llegó',
+  'loans.form.into.hint': 'Si lo escoges, se registra la transferencia del préstamo a esa cuenta el día del desembolso. Déjalo vacío si esa plata ya está en el saldo de tu cuenta.',
+  'loans.form.into.hintOn': 'El día del desembolso entra el monto del préstamo a esa cuenta, y de ahí sale la deuda.',
+  'ui.picker.search': 'Buscar cuenta',
+  'ui.picker.nothing': 'Ninguna cuenta con "{search}"',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -1121,4 +1131,14 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'loans.need.count': 'Write how many installments',
   'loans.need.dates': 'The first installment comes after the disbursement',
   'loans.ladder.fewerOne': '1 installment sooner',
+  'loans.delete.installment': 'This is the payment of installment {number} of {loan}. The whole payment goes: the capital, the interest and the insurance, and the installment is due again.',
+  'loans.delete.extra': 'This is a payment ahead on {loan}. It goes whole, and the loan owes that capital again.',
+  'loans.form.pickAccount': 'Choose an account',
+  'loans.form.into': 'Which account did the money go to?',
+  'loans.form.into.none': 'Don\'t record it (optional)',
+  'loans.form.into.clear': 'Don\'t record where it went',
+  'loans.form.into.hint': 'If you choose one, the transfer from the loan into that account is recorded on the disbursement day. Leave it empty if that money is already in your account\'s balance.',
+  'loans.form.into.hintOn': 'On the disbursement day the loan\'s amount goes into that account, and that is where the debt comes from.',
+  'ui.picker.search': 'Search accounts',
+  'ui.picker.nothing': 'No account with "{search}"',
 };

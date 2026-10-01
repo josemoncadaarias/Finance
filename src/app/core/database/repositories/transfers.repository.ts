@@ -9,6 +9,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate, RateSource, TransactionRow, TransferRow } from '../types';
 import { TransactionsRepository } from './transactions.repository';
+import { loanPaymentOf, undoLoanPayment } from '../../loans/payment-links';
 
 export interface TransferLegInput {
   account_id: number;
@@ -222,8 +223,17 @@ export class TransfersRepository {
     });
   }
 
-  /** Deleting the header takes both legs with it, via ON DELETE CASCADE. */
+  /**
+   * Deleting the header takes both legs with it, via ON DELETE CASCADE. The
+   * capital of a loan payment takes the rest of that payment too - its
+   * interest, insurance and default interest - so no expense is left paying
+   * an installment that is no longer paid.
+   */
   async delete(id: number): Promise<void> {
-    await this.db.run('DELETE FROM transfers WHERE id = ?', [id]);
+    await this.db.transaction(async () => {
+      const payment = await loanPaymentOf(this.db, { transferId: id });
+      if (payment) await undoLoanPayment(this.db, payment);
+      await this.db.run('DELETE FROM transfers WHERE id = ?', [id]);
+    });
   }
 }

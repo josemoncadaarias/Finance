@@ -23,6 +23,7 @@ import {
 } from '../../core/loans/schedule';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { plain } from './card-words';
 
@@ -36,7 +37,7 @@ export const LOAN_FACES: [string, string][] = [
   selector: 'app-loan-editor',
   templateUrl: './loan-editor.component.html',
   styleUrls: ['./loan-editor.component.scss'],
-  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, IonIcon],
+  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, AccountPickerComponent, IonIcon],
 })
 export class LoanEditorComponent implements OnInit {
   private readonly database = inject(DatabaseService);
@@ -66,6 +67,10 @@ export class LoanEditorComponent implements OnInit {
   readonly insuranceRateText = signal('');
   readonly bankInstallment = signal(new AmountBuffer());
   readonly paidFrom = signal<number | null>(null);
+  /** Where the money arrived, for a loan followed from its disbursement; optional. */
+  readonly disbursedInto = signal<number | null>(null);
+  /** Which account is being chosen, in the one account list of the app. */
+  readonly picking = signal<'from' | 'into' | null>(null);
   readonly paidBeforeText = signal<string | null>(null);
   readonly balanceStated = signal(new AmountBuffer());
   readonly newRateFrom = signal(this.today);
@@ -77,6 +82,15 @@ export class LoanEditorComponent implements OnInit {
   readonly confirmingDelete = signal(false);
 
   readonly isNew = computed(() => this.editing() === null);
+
+  readonly payer = computed(() => this.payers().find(a => a.id === this.paidFrom()) ?? null);
+  readonly into = computed(() => this.payers().find(a => a.id === this.disbursedInto()) ?? null);
+
+  chooseAccount(account: AccountRow): void {
+    if (this.picking() === 'into') this.disbursedInto.set(account.id);
+    else this.paidFrom.set(account.id);
+    this.picking.set(null);
+  }
 
   /** The typed rate, as E.A. scaled, whichever way it was typed. */
   readonly annualRateScaled = computed(() => {
@@ -197,6 +211,7 @@ export class LoanEditorComponent implements OnInit {
     this.insuranceRateText.set(t.insuranceRateScaled ? percentText(t.insuranceRateScaled, 4) : '');
     if (t.bankInstallmentMinor) this.bankInstallment.set(AmountBuffer.from(t.bankInstallmentMinor));
     this.paidFrom.set(loan.paidFromAccountId);
+    this.disbursedInto.set(loan.disbursedIntoAccountId);
     this.paidBeforeText.set(String(t.paidBefore));
     if (t.balanceAfterBeforeMinor !== null) this.balanceStated.set(AmountBuffer.from(t.balanceAfterBeforeMinor));
   }
@@ -239,6 +254,7 @@ export class LoanEditorComponent implements OnInit {
       paidFromAccountId: this.paidFrom(),
       paidBefore: this.paidBefore(),
       balanceAfterBeforeMinor: this.paidBefore() > 0 && this.balanceStated().minor > 0 ? this.balanceStated().minor : null,
+      disbursedIntoAccountId: this.paidBefore() > 0 ? null : this.disbursedInto(),
     };
     try {
       const loans = new LoansRepository(this.database.driver);

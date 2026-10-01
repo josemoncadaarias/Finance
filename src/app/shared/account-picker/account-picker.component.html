@@ -23,6 +23,12 @@
         </div>
       }
 
+      <div class="ui-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" [placeholder]="'ui.picker.search' | t" [value]="search()"
+               (input)="search.set($any($event.target).value ?? '')">
+      </div>
+
       <div class="ui-seg order">
         <button type="button" [class.on]="order() === 'use'" (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>
         <button type="button" [class.on]="order() === 'name'" (click)="setOrder('name')">{{ 'entry.order.name' | t }}</button>
@@ -41,6 +47,9 @@
               <span class="ui-tick on" [attr.aria-label]="'entry.selected' | t"><ion-icon name="checkmark"></ion-icon></span>
             }
           </button>
+        }
+        @if (ordered().length === 0 && search()) {
+          <p class="nothing">{{ 'ui.picker.nothing' | t:{ search: search() } }}</p>
         }
       </div>
 

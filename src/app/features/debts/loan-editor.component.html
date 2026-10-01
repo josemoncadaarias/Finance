@@ -133,14 +133,39 @@
           <span class="hint">{{ (insuranceKind() === 'fixed' ? 'loans.form.insurance.fixedHint' : 'loans.form.insurance.balanceHint') | t }}</span>
         </span>
       </div>
-      <label class="ui-field">
-        <span class="in"><span class="lab">{{ 'loans.form.paidFrom' | t }}</span>
-          <select (change)="paidFrom.set(+$any($event.target).value || null)">
-            @for (a of payers(); track a.id) {
-              <option [value]="a.id" [selected]="a.id === paidFrom()">{{ a.name }}</option>
+      <button type="button" class="ui-field pick" (click)="picking.set('from')">
+        @if (payer(); as a) {
+          <app-badge shape="ci" [size]="36" [builtin]="a.builtin_icon" [customId]="a.custom_icon_id"
+                     [tone]="a.color" [seed]="a.id" fallback="wallet"></app-badge>
+        }
+        <span class="in">
+          <span class="lab">{{ 'loans.form.paidFrom' | t }}</span>
+          <b class="name">{{ payer()?.name ?? ('loans.form.pickAccount' | t) }}</b>
+        </span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      @if (paidBefore() === 0) {
+        <div class="ui-field pick">
+          <button type="button" class="pick-main" (click)="picking.set('into')">
+            @if (into(); as a) {
+              <app-badge shape="ci" [size]="36" [builtin]="a.builtin_icon" [customId]="a.custom_icon_id"
+                         [tone]="a.color" [seed]="a.id" fallback="wallet"></app-badge>
             }
-          </select></span>
-      </label>
+            <span class="in">
+              <span class="lab">{{ 'loans.form.into' | t }}</span>
+              <b class="name" [class.none]="!into()">{{ into()?.name ?? ('loans.form.into.none' | t) }}</b>
+            </span>
+          </button>
+          @if (into()) {
+            <button type="button" class="clear" (click)="disbursedInto.set(null)" [attr.aria-label]="'loans.form.into.clear' | t">
+              <ion-icon name="close-circle"></ion-icon>
+            </button>
+          } @else {
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          }
+        </div>
+        <p class="ui-sub field-hint">{{ (into() ? 'loans.form.into.hintOn' : 'loans.form.into.hint') | t }}</p>
+      }
     </div>
 
     @if (worked(); as w) {
@@ -187,3 +212,8 @@
 <app-confirm [open]="confirmingDelete()" [title]="'loans.form.delete.confirm' | t:{ loan: name() }"
              [body]="'loans.form.delete.body' | t" [busy]="saving()" [confirmLabel]="'ui.delete' | t"
              (confirmed)="remove()" (cancelled)="confirmingDelete.set(false)"></app-confirm>
+
+<app-account-picker [open]="picking() !== null" [accounts]="payers()"
+                    [selectedId]="picking() === 'into' ? disbursedInto() : paidFrom()"
+                    [heading]="(picking() === 'into' ? 'entry.toWhere' : 'entry.fromWhere') | t"
+                    (chosen)="chooseAccount($event)" (closed)="picking.set(null)"></app-account-picker>
