@@ -37,7 +37,7 @@ const goalCard = (icon, color, name, where, saved, of, p, line, state) => {
 };
 const viaje = goalCard('airplane-outline', C.cya, 'Viaje a Cartagena', `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--mu)">${sq('cube-outline', C.blu, 20)}Cajita Viaje · ${ci('globe-outline', C.tea, 20)}Global Viajes</span>`,
   '2.350.000', '6.000.000', 39, 'Faltan 3.650.000 para junio de 2027: <b style="color:var(--tx)">456.250 al mes</b>. A tu ritmo llegas en mayo.', 'ok');
-const fondo = goalCard('shield-checkmark-outline', C.grn, 'Fondo de emergencia', place('Ahorro Verde', C.grn, 'leaf-outline', ''),
+const fondo = goalCard('shield-checkmark-outline', C.grn, 'Fondo de emergencia', `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--mu)">${ci('leaf-outline', C.grn, 20)}Ahorro Verde · ${ci('logo-usd', C.cya, 20)}Cuenta Dólar</span>`,
   '8.400.000', '19.800.000', 42, '6 meses de tus gastos · sin fecha. A tu ritmo (600.000 al mes) llegas en mayo de 2028.', 'ok');
 const portatil = goalCard('laptop-outline', C.pur, 'Portátil nuevo', place('Cajita Naranja', C.org, 'cube-outline', 'Bolsillo Portátil', 'cube-outline'),
   '2.900.000', '4.500.000', 64, 'Para diciembre necesitas <b style="color:var(--tx)">800.000 al mes</b>; vas a 350.000. A ese ritmo llegas en marzo de 2027.', 'late');
@@ -136,8 +136,13 @@ S['15g-fondo-emergencia'] = S['15c-metas'] + formSheet(`
   <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="mu">× 6 meses</span><b></b></div>
   <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #26324f;font-size:18px"><b>Tu meta</b><b style="color:var(--pr)">19.800.000</b></div></div>
  <div class="list" style="margin-top:10px">
-  ${row(ci('wallet-outline', C.grn, 38), `${lab('Dónde está la plata')}Ahorro Verde`, 'Tiene hoy 8.400.000', down())}
   ${row(ci('calendar-outline', C.blu, 38), `${lab('Para cuándo')}Sin fecha`, 'Te dice cuándo llegas a tu ritmo', down())}</div>
+ <div class="h" style="margin-top:14px">Dónde está la plata · 2 lugares</div>
+ <div class="list">
+  ${row(ci('leaf-outline', C.grn, 38), `${lab('Cuenta de ahorros')}Ahorro Verde`, 'Cuenta todo lo que tiene · 6.000.000', down())}
+  ${row(ci('logo-usd', C.cya, 38), `${lab('Cuenta en dólares')}Cuenta Dólar`, 'Cuenta todo lo que tiene · USD 600 = 2.400.000 hoy', down())}
+  ${row(ci('add', C.blu, 38), '<span class="p">Agregar otra cuenta o bolsillo</span>', '', '')}</div>
+ <div class="sub" style="text-align:right;margin:8px 4px 0">Juntas tienen hoy <b style="color:var(--tx)">8.400.000</b></div>
  <div class="note" style="margin:10px 2px 0">El promedio de tus gastos de los últimos 6 meses, como en el Reporte: sin transferencias ni pagos de tarjeta. Si tus gastos cambian, la meta te ofrece ponerse al día.</div>
  <div class="btn" style="margin-top:12px">Guardar meta</div>`, 80);
 
