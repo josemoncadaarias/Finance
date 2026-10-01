@@ -45,5 +45,6 @@
   "044_movements_the_app_proposes.sql": "781884620ae2a4c7576f125678cafe9dd8600ba7adb6e7d1100b0d47fd38eaf5",
   "045_a_guess_is_not_a_memory.sql": "506056ba17b030adc0e654242c7a8a1d262983cac1c975460a5198159550d7fb",
   "046_the_consumer_price_index.sql": "750dd17ff227da9aa8e1f8defc2f5287494f967194addd69158ff48b4016a882",
-  "047_a_category_can_be_an_investment_return.sql": "1ce0ab212eaf92996af0eeb4e06dc954e5b996d6589bb8ca6adb307aa65860a9"
+  "047_a_category_can_be_an_investment_return.sql": "1ce0ab212eaf92996af0eeb4e06dc954e5b996d6589bb8ca6adb307aa65860a9",
+  "048_a_monthly_payment_lands_the_next_day.sql": "4bf2f0a3bf4ab90897c90eeb6dfb0804cc140c471a2fa254673206ef59efb0ed"
 }

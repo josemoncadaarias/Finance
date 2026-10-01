@@ -270,7 +270,7 @@ test('a bonus judged every two months counts the spending of both', async () => 
   assert.equal(result.daysConditionNotMet, 0);
   assert.ok(result.netMinor > 0);
   const days = await yields.days(ids.uala);
-  assert.ok(days.every(day => day.paid_on === '2026-08-31'), 'all of it paid at the end of the two months');
+  assert.ok(days.every(day => day.paid_on === '2026-09-01'), 'all of it paid the day after the two months');
 });
 
 test('what was paid on a day leaves out what is only paid at the end of the month', async () => {
@@ -285,6 +285,11 @@ test('what was paid on a day leaves out what is only paid at the end of the mont
 
   await engine.accrue(ids.uala, '2026-09-30');
   paid = await yields.paidOn(ids.uala, '2026-09-30');
+  assert.equal(paid.filter(day => day.component === 'monthly').length, 0, 'the last day still earns, it is not payday');
+
+  // Paid on the 1st: every day of September, the 30th included (Jose, 2026-09-30).
+  await engine.accrue(ids.uala, '2026-10-01');
+  paid = await yields.paidOn(ids.uala, '2026-10-01');
   assert.equal(paid.filter(day => day.component === 'monthly').length, 30, 'on payday the whole month arrives');
   assert.equal(paid.filter(day => day.component === 'daily').length, 1);
 });
@@ -1978,7 +1983,8 @@ test('a movement dated ahead of the start date counts, whatever today is', async
 //
 // Some products hand the yield over every two, six, twelve or twenty-four
 // months. The months are counted from the month the rate starts in, and a
-// payment lands on the last day of its final month.
+// payment lands on the day after its final month (2026-09-30: it used to be
+// that last day itself).
 // ---------------------------------------------------------------------------
 
 async function quarterly(upTo) {
@@ -1999,9 +2005,9 @@ test('a rate paid every three months holds the yield until the end of the third 
   const inQuarter = days.filter(day => day.on_date <= '2026-09-30');
   const quarter = inQuarter.reduce((sum, day) => sum + day.net_minor, 0);
 
-  assert.equal(on('2026-07-01').paid_on, '2026-09-30');
-  assert.equal(on('2026-08-15').paid_on, '2026-09-30');
-  assert.equal(on('2026-10-01').paid_on, '2026-12-31', 'the next payment covers October to December');
+  assert.equal(on('2026-07-01').paid_on, '2026-10-01');
+  assert.equal(on('2026-08-15').paid_on, '2026-10-01');
+  assert.equal(on('2026-10-01').paid_on, '2027-01-01', 'the next payment covers October to December');
 
   assert.equal(new Set(inQuarter.map(day => day.balance_minor)).size, 1,
     'nothing compounds at the end of July or August');
@@ -2014,7 +2020,7 @@ test('what is owed in the middle of a period says when it will be paid', async (
   const earned = await yields.earned(ids.rappi, '2026-08-15');
 
   assert.equal(earned.pendingMinor, owed, 'July and half of August are owed, not paid');
-  assert.equal(earned.paidOn, '2026-09-30');
+  assert.equal(earned.paidOn, '2026-10-01');
   assert.equal(earned.availableMinor, earned.totalMinor - owed);
 });
 
@@ -2432,4 +2438,73 @@ test('what the screen shows at the close of a day is what the next day earns on'
       [alcancia.id, today]))[0].s;
     assert.equal(baseOn.get(next), stated + landed - later, `close of ${today} against the base of ${next}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// A payment corrected by hand (Jose, 2026-09-30)
+//
+// A monthly payment is made on the 1st with every day of the month in it, and
+// the bank sometimes pays on the 5th or the 6th instead, for the same days.
+// ---------------------------------------------------------------------------
+
+async function monthly(upTo) {
+  const context = await setup();
+  const { yields, engine, ids } = context;
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-08-31', withholding: false });
+  await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-01', annual_rate_scaled: pct(9), payout: 'monthly' });
+  await engine.accrue(ids.rappi, upTo);
+  return context;
+}
+
+test('a monthly payment is made on the 1st, with the last day of the month in it', async () => {
+  const { yields, ids } = await monthly('2026-10-03');
+  const days = await yields.days(ids.rappi);
+  const september = days.filter(day => day.on_date <= '2026-09-30');
+  assert.equal(september.length, 30);
+  assert.ok(september.every(day => day.paid_on === '2026-10-01'), 'all thirty days, the 30th included, paid on the 1st');
+  const paid = september.reduce((sum, day) => sum + day.net_minor, 0);
+  const on = date => days.find(day => day.on_date === date);
+  assert.equal(on('2026-10-01').balance_minor, on('2026-09-30').balance_minor + paid,
+    'October earns on it from its first day, as before');
+});
+
+test('a payment moved to the 5th lands on the 5th and covers the same days', async () => {
+  const { yields, engine, ids } = await monthly('2026-10-10');
+  const [product] = await yields.products(ids.rappi);
+  const before = await yields.days(ids.rappi);
+  const paid = before.filter(day => day.on_date <= '2026-09-30').reduce((sum, day) => sum + day.net_minor, 0);
+
+  await yields.movePayment(ids.rappi, product.id, 'base', '2026-10-01', '2026-10-01', '2026-10-05');
+  await yields.clearDays(ids.rappi, '2026-10-01');
+  await engine.accrue(ids.rappi, '2026-10-10');
+
+  const days = await yields.days(ids.rappi);
+  const on = date => days.find(day => day.on_date === date);
+  assert.ok(days.filter(day => day.on_date <= '2026-09-30').every(day => day.paid_on === '2026-10-05'));
+  assert.equal(on('2026-10-04').balance_minor, on('2026-09-30').balance_minor, 'not yet paid on the 4th');
+  assert.equal(on('2026-10-05').balance_minor, on('2026-09-30').balance_minor + paid, 'paid on the 5th');
+  assert.deepEqual((await yields.paymentDates(ids.rappi)).map(row => ({ ...row })),
+    [{ product_id: product.id, component: 'base', due_on: '2026-10-01', paid_on: '2026-10-05' }]);
+
+  // Moved back to the 1st, the correction is forgotten.
+  await yields.movePayment(ids.rappi, product.id, 'base', '2026-10-01', '2026-10-05', '2026-10-01');
+  assert.deepEqual(await yields.paymentDates(ids.rappi), []);
+});
+
+test('what the bank paid for a month is spread over its days and kept', async () => {
+  const { yields, engine, ids } = await monthly('2026-10-03');
+  const [product] = await yields.products(ids.rappi);
+  await yields.correctPayment(product.id, 'base', '2026-10-01', 1_234_567);
+
+  const september = async () => (await yields.days(ids.rappi)).filter(day => day.on_date <= '2026-09-30');
+  const total = rows => rows.reduce((sum, day) => sum + (day.actual_net_minor ?? day.net_minor), 0);
+  assert.equal(total(await september()), 1_234_567);
+  assert.ok((await september()).every(day => day.locked === 1));
+
+  await yields.clearDays(ids.rappi);
+  await engine.accrue(ids.rappi, '2026-10-03');
+  assert.equal(total(await september()), 1_234_567, 'a recompute leaves it as typed');
+
+  await yields.unlockPayment(product.id, 'base', '2026-10-01');
+  assert.ok((await september()).every(day => day.locked === 0 && day.actual_net_minor === null));
 });

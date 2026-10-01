@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 29 tables and how they relate. The authority is always
+The 30 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -222,6 +222,13 @@ erDiagram
         INTEGER amount_minor
         INTEGER transaction_id FK
     }
+    yield_payments {
+        INTEGER product_id PK, FK
+        INTEGER account_id FK
+        TEXT component PK
+        TEXT due_on PK
+        TEXT paid_on
+    }
     tax_simulations {
         INTEGER year PK
         TEXT inputs
@@ -300,6 +307,8 @@ erDiagram
     categories     ||--o{ products     : "a CDT's yield is recorded as"
     accounts       ||--o{ product_cashouts : "moved into"
     transactions   ||--o| product_cashouts : "became"
+    products  ||--o{ yield_payments   : "paid on another day"
+    accounts       ||--o{ yield_payments   : "paid on another day"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
@@ -457,6 +466,7 @@ outright:
 | `idx_products_default` | the product money lands in by default; **partial**, so an account has at most one |
 | `idx_product_balances` | what a product held on a date |
 | `idx_yield_days_account` | every product's days for one account |
+| `idx_yield_payments_account` | the paydays corrected by hand for one account |
 | `idx_yield_rates_account` | finding the rate in force on a date |
 | `idx_yield_rates_product` | and the rates belonging to one product |
 | `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each product |

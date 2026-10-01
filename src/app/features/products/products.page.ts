@@ -46,7 +46,7 @@ import { TransfersRepository } from '../../core/database/repositories/transfers.
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import {
   YieldsRepository, type EarnedBalance, type ProductEntry, type YieldAccount, type YieldDay,
-  type YieldProduct, type YieldRate,
+  type YieldProduct, type YieldRate, type PaymentDate,
 } from '../../core/database/repositories/yields.repository';
 import { ProductKindsRepository, type ProductKind } from '../../core/database/repositories/product-kinds.repository';
 import { AccrualEngine, paidOnFor } from '../../core/yields/accrual';
@@ -158,6 +158,10 @@ interface Payment {
 
   /** The last day the payment covers, and its rate and balance - what the day list reads. */
   lastOn: IsoDate;
+  /** The day the app works it out to be paid; `on` differs when the person moved it. */
+  dueOn: IsoDate;
+  /** Whether any of its days carries what the bank paid instead of what was worked out. */
+  corrected: boolean;
   rateScaled: number;
   balanceMinor: number;
 }
@@ -441,6 +445,8 @@ export class ProductsPage {
   /** The account whose detail sheet is open. */
   readonly openLine = signal<ProductLine | null>(null);
   private readonly allDays = signal<YieldDay[]>([]);
+  /** The paydays corrected by hand for the open account. */
+  private readonly paymentDates = signal<PaymentDate[]>([]);
 
   /**
    * Which products the yields are being read for, by id. Null is all of them.
@@ -516,7 +522,96 @@ export class ProductsPage {
   }
 
   /** Which form is showing inside the detail sheet. */
-  readonly form = signal<'none' | 'day' | 'rate' | 'product'>('none');
+  readonly form = signal<'none' | 'day' | 'payment' | 'rate' | 'product'>('none');
+
+  /** The monthly payment being corrected, and the day typed for it. */
+  readonly openPayment = signal<Payment | null>(null);
+  readonly paymentOn = signal<IsoDate>(today());
+
+  /**
+   * A payment of several days, checked against the bank (Jose, 2026-09-30):
+   * what it paid and the day it paid it. A payment of one day opens the day.
+   */
+  openPaymentForm(payment: Payment): void {
+    if (payment.payout === 'daily' && payment.day) { this.openDayForm(payment.day); return; }
+    this.resetForm();
+    this.openPayment.set(payment);
+    this.amount.set(decimalOf(payment.netMinor));
+    this.paymentOn.set(payment.on);
+    this.form.set('payment');
+  }
+
+  /** What the bank paid can be typed once every day of the payment has happened. */
+  paymentClosed(payment: Payment): boolean {
+    return today() >= payment.dueOn;
+  }
+
+  async savePayment(): Promise<void> {
+    const line = this.openLine();
+    const payment = this.openPayment();
+    if (!line || !payment) return;
+
+    const on = this.paymentOn();
+    if (!on || on < payment.dueOn) {
+      this.error.set(this.i18n.t('products.payment.tooEarly', { date: this.longDate(payment.dueOn) }));
+      return;
+    }
+    const closed = this.paymentClosed(payment);
+    const minor = closed ? this.parsed() : null;
+    if (closed && (minor === null || minor < 0)) {
+      this.error.set(this.i18n.t('products.error.amount'));
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+      if (on !== payment.on) {
+        await yields.movePayment(line.account.id, payment.productId, payment.component, payment.dueOn, payment.on, on);
+      }
+      if (minor !== null && minor !== payment.netMinor) {
+        await yields.correctPayment(payment.productId, payment.component, on, minor);
+      }
+      // What lands on another day, or another figure, changes what every day
+      // after it earns on: those days are worked out again.
+      await yields.clearDays(line.account.id, on < payment.on ? on : payment.on);
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      this.database.dataChanged();
+      this.form.set('none');
+      await this.afterOwnChange(line.account.id);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /** Forgets both corrections: the payment goes back to the day and figure worked out. */
+  async undoPayment(): Promise<void> {
+    const line = this.openLine();
+    const payment = this.openPayment();
+    if (!line || !payment) return;
+
+    this.saving.set(true);
+    try {
+      const { db, yields, tax } = this.repos();
+      await yields.unlockPayment(payment.productId, payment.component, payment.on);
+      if (payment.on !== payment.dueOn) {
+        await yields.movePayment(line.account.id, payment.productId, payment.component, payment.dueOn, payment.on, payment.dueOn);
+      }
+      await yields.clearDays(line.account.id, payment.dueOn < payment.on ? payment.dueOn : payment.on);
+      await accrueAndSettle(db, yields, tax, line.account.id, today());
+      await yields.markAccrued(today(), { onlyIfKnown: true });
+      this.database.dataChanged();
+      this.form.set('none');
+      await this.afterOwnChange(line.account.id);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
 
   readonly openDay = signal<YieldDay | null>(null);
   readonly amount = signal('');
@@ -1316,6 +1411,9 @@ export class ProductsPage {
     const out = new Map<string, Payment>();
 
     const todayIso = today();
+    // A payment moved by hand is found by the day it was made.
+    const moved = new Map(this.paymentDates()
+      .map(row => [`${row.product_id}|${row.component}|${row.paid_on}`, row.due_on]));
 
     for (const day of this.openDays()) {
       const monthly = day.payout === 'monthly';
@@ -1330,7 +1428,9 @@ export class ProductsPage {
         key, productId: day.product_id, component: day.component, payout: day.payout, on,
         netMinor: 0, withheldMinor: 0, pending: monthly && on > todayIso, days: 0, day: null,
         lastOn: day.on_date, rateScaled: day.annual_rate_scaled, balanceMinor: day.balance_minor,
+        dueOn: moved.get(`${day.product_id}|${day.component}|${on}`) ?? on, corrected: false,
       };
+      if (day.locked === 1) payment.corrected = true;
       payment.netMinor += netOf(day);
       payment.withheldMinor += day.withholding_minor;
       payment.days += 1;
@@ -1513,6 +1613,7 @@ export class ProductsPage {
     // Newest first: the day someone came here to check is almost always a
     // recent one, and the list can run to thousands.
     const days = (await yields.days(line.account.id)).reverse();
+    this.paymentDates.set(await yields.paymentDates(line.account.id));
     this.allDays.set(days);
     // The month someone came here to look at is almost always this one.
     // Closed, both of them. They opened on their latest month, which is fine
