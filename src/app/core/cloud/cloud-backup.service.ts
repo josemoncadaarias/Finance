@@ -20,10 +20,31 @@ import { Capacitor } from '@capacitor/core';
 import { DatabaseService } from '../database/database.service';
 import { I18nService } from '../i18n/i18n.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
-import { GoogleAccountService } from './google-account.service';
+import { GoogleAccountService, SilentTimeout } from './google-account.service';
 import { DriveError, findCopy, setAside, upload, type CloudCopy } from './drive-backup';
 
 export type SaveState = 'idle' | 'working' | 'done' | 'failed';
+
+/** Why a save in flight was given up on: a newer one, the person, or nothing moving. */
+type GiveUp = 'newer' | 'cancelled' | 'stuck';
+
+/**
+ * How long a save may go without a step forward before it is called stuck.
+ * Every stage moves well within it - Google's sign-in has 20 s, each question
+ * to Drive 30 s, the upload 45 s without a byte - so this only catches what
+ * none of them can: a promise that never settles at all.
+ */
+const STUCK_MS = 90_000;
+
+/** The promise, unless the signal goes first: a save given up on stops waiting at once. */
+function until<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException('aborted', 'AbortError'));
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new DOMException('aborted', 'AbortError'));
+    signal.addEventListener('abort', stop, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop));
+  });
+}
 
 /** Where the "save on its own" choice is remembered. */
 const AUTO_KEY = 'finance.cloud.auto';
@@ -163,6 +184,12 @@ export class CloudBackupService {
   /** The data version the copy in Drive was made from. */
   private savedVersion = -1;
 
+  /** Whether the app is in front. Google is never asked for a token while it is not. */
+  private active = true;
+
+  /** When the save in flight last took a step, for the watchdog. */
+  private lastMoved = 0;
+
   constructor() {
     // Leaving the app is the moment nobody is looking at the screen, so it is
     // the moment to spend a second reading the database out. It is also the
@@ -172,8 +199,14 @@ export class CloudBackupService {
     // time gets made now.
     if (Capacitor.isNativePlatform()) {
       void App.addListener('appStateChange', ({ isActive }) => {
+        this.active = isActive;
         if (!isActive) this.saveIfBehind();
-        else this.catchUp();
+        else {
+          // A save left hanging while the app was away must not lock every
+          // later one out: give it up, and the copy is made again below.
+          this.giveUpIfStuck();
+          this.catchUp();
+        }
       });
     }
     this.catchUp();
@@ -204,7 +237,7 @@ export class CloudBackupService {
    * neither his Drive nor his quota fills up with dated copies.
    */
   private waitThenSave(): void {
-    this.inFlight?.abort();
+    this.inFlight?.abort('newer' satisfies GiveUp);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -245,8 +278,30 @@ export class CloudBackupService {
   private stopWaiting(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    this.inFlight?.abort();
+    this.inFlight?.abort('newer' satisfies GiveUp);
     this.inFlight = null;
+  }
+
+  /**
+   * The person's "Cancelar" under the bar. Nothing on the phone changes and
+   * the copy in Drive stays as it was; the next change, or the next time the
+   * app is opened, tries again.
+   */
+  cancel(): void {
+    this.inFlight?.abort('cancelled' satisfies GiveUp);
+  }
+
+  /** A save that has not moved for too long is given up on, and said to have been. */
+  private giveUpIfStuck(): void {
+    if (this.state() === 'working' && Date.now() - this.lastMoved > STUCK_MS) {
+      this.inFlight?.abort('stuck' satisfies GiveUp);
+    }
+  }
+
+  /** A step of the save, on the bar and to the watchdog. */
+  private step(stage: 'checking' | 'reading' | 'uploading', fraction: number, detail = ''): void {
+    this.lastMoved = Date.now();
+    this.progress.set({ stage, fraction, detail });
   }
 
   /** True when there is an account signed in and a database to save. */
@@ -334,6 +389,11 @@ export class CloudBackupService {
 
   async save(options: { anyway?: boolean; auto?: boolean } = {}): Promise<boolean> {
     if (this.state() === 'working' || !this.canSave()) return false;
+    // Asking Google for a token is a sign-in, and Android may never answer
+    // one for an app that is not in front. An automatic save with no token at
+    // hand waits: the database stays marked as behind, and coming back to the
+    // app makes the copy.
+    if (options.auto && !this.active && !this.google.hasToken()) return false;
 
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     const abort = new AbortController();
@@ -344,9 +404,10 @@ export class CloudBackupService {
 
     this.state.set('working');
     this.failure.set('');
-    this.progress.set({ stage: 'checking', fraction: 0.02, detail: '' });
+    this.step('checking', 0.02);
+    const watchdog = setInterval(() => this.giveUpIfStuck(), 5_000);
     try {
-      const token = await this.google.accessToken();
+      const token = await until(this.google.accessToken(), abort.signal);
       if (!token) throw new DriveError('signed out');
 
       /*
@@ -361,7 +422,8 @@ export class CloudBackupService {
        * decision - and the 25 MB export below is not even started until that
        * is settled.
        */
-      const theirs = await findCopy(token);
+      this.step('checking', 0.03);
+      const theirs = await until(findCopy(token), abort.signal);
       this.copy.set(theirs);
 
       const strange = theirs !== null && theirs.modifiedTime !== readSeen();
@@ -386,27 +448,24 @@ export class CloudBackupService {
        * not already say.
        */
       if (strange && theirs !== null) {
-        this.kept.set(await setAside(token, theirs));
+        this.step('checking', 0.04);
+        this.kept.set(await until(setAside(token, theirs), abort.signal));
       }
 
-      const backup = await exportBackup(this.database.driver, progress => {
+      const backup = await until(exportBackup(this.database.driver, progress => {
         this.detail.set(`${progress.done} / ${progress.total}`);
-        this.progress.set({
-          stage: 'reading',
-          fraction: 0.05 + 0.35 * (progress.total > 0 ? progress.done / progress.total : 0),
-          detail: '',
-        });
-      });
+        this.step('reading', 0.05 + 0.35 * (progress.total > 0 ? progress.done / progress.total : 0));
+      }), abort.signal);
       const rows = Object.values(backup.tables)
         .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 
       const json = toJson(backup);
       const send = () => upload(token, json, { schemaVersion: backup.schemaVersion, rows }, abort.signal, sent => {
-        this.progress.set({
-          stage: 'uploading',
-          fraction: 0.4 + 0.6 * (sent.total > 0 ? sent.loaded / sent.total : 0),
-          detail: this.i18n.t('cloud.progress.mb', { done: megabytes(sent.loaded, this.i18n.dateLocale()), total: megabytes(sent.total, this.i18n.dateLocale()) }),
-        });
+        this.step(
+          'uploading',
+          0.4 + 0.6 * (sent.total > 0 ? sent.loaded / sent.total : 0),
+          this.i18n.t('cloud.progress.mb', { done: megabytes(sent.loaded, this.i18n.dateLocale()), total: megabytes(sent.total, this.i18n.dateLocale()) }),
+        );
       });
       let written: CloudCopy;
       try {
@@ -416,8 +475,8 @@ export class CloudBackupService {
         // on a phone that is most failures, and the person should not have to
         // press the button again for it.
         if (!(error instanceof DriveError) || (error.kind !== 'network' && error.kind !== 'stalled') || abort.signal.aborted) throw error;
-        this.progress.set({ stage: 'uploading', fraction: 0.4, detail: this.i18n.t('cloud.progress.retry') });
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        this.step('uploading', 0.4, this.i18n.t('cloud.progress.retry'));
+        await until(new Promise(resolve => setTimeout(resolve, 3000)), abort.signal);
         written = await send();
       }
       this.copy.set(written);
@@ -431,16 +490,23 @@ export class CloudBackupService {
       this.settle('done');
       return true;
     } catch (error) {
-      // Given up on because a newer one is coming: not a failure, and saying
-      // so in red would be a lie about what happened.
+      // Given up on because a newer one is coming, or because the person
+      // said so: not a failure, and saying so in red would be a lie about what
+      // happened. Given up on because nothing moved: that one is said.
       if (abort.signal.aborted) {
-        this.state.set('idle');
+        if (abort.signal.reason === ('stuck' satisfies GiveUp)) {
+          this.failure.set(this.i18n.t('cloud.error.stuck'));
+          this.settle('failed');
+        } else {
+          this.state.set('idle');
+        }
         return false;
       }
       this.note(error);
       this.settle('failed');
       return false;
     } finally {
+      clearInterval(watchdog);
       if (this.inFlight === abort) this.inFlight = null;
       this.detail.set('');
       this.progress.set(null);
@@ -464,6 +530,7 @@ export class CloudBackupService {
 
   /** A failure in words: what happened, and that nothing on the phone was lost. */
   say(error: unknown): string {
+    if (error instanceof SilentTimeout) return this.i18n.t('cloud.error.slowGoogle');
     if (error instanceof DriveError) {
       if (error.kind === 'network') return this.i18n.t('cloud.error.network');
       if (error.kind === 'stalled') return this.i18n.t('cloud.error.stalled');
