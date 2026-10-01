@@ -486,6 +486,18 @@ backup restore against iOS's own SQLite backend.
    - The rule is written against the **daily** interest even though most banks
      deposit monthly. That is why the module accrues by day.
 
+   **A monthly payment is made on the 1st of the next month, with every day of
+   the month in it, the last one included** (Jose, 2026-09-30; `paidOnFor`
+   returns the day after the period, `periodEndFor` the period's last day,
+   migration 048 moved the days already written). It lands at the START of
+   its payday, so the new month earns on it from its first day exactly as
+   before: on his backup all 305 days came out identical. **A payment can be
+   corrected from Pagos** - the day the bank really paid it (`yield_payments`,
+   by the payday the app works out; the 5th or the 6th happens, for the same
+   days) and, once the period is over, the figure it paid (spread over its
+   days in proportion and locked, `correctPayment`). Both are undone with
+   "Volver a lo calculado". A daily payment still opens its day.
+
    **A CDT is never accrued day by day and has no threshold.** It is paid
    once per period - every month, or every N months per its rate, even if the
    rate says daily - on the balance it holds on payday, at

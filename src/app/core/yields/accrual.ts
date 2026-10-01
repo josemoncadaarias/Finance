@@ -232,6 +232,9 @@ export class AccrualEngine {
     // the month, or the N months of a bonus paid every N.
     const last = await this.yields.lastAccruedDay(accountId);
     const rates = await this.yields.rateHistory(accountId);
+    // The day the bank actually paid, where the person corrected it.
+    const paidInstead = new Map((await this.yields.paymentDates(accountId))
+      .map(row => [`${row.product_id}|${row.component}|${row.due_on}`, row.paid_on]));
 
     // An account always has at least one product. Without one there is
     // nothing to accrue on, and saying so beats writing zeroes.
@@ -482,6 +485,20 @@ export class AccrualEngine {
           if (anchorOf(product.id, day)?.valid_from === day) earnedOf.set(product.id, 0);
         }
 
+        // Payday: a payment lands at the start of the day it is made, and
+        // earns from that day on - like money deposited that day. Paid on the
+        // 1st, it is the month's whole yield, last day included, and the new
+        // month earns on it from its first day. A figure typed on or after the
+        // payday already holds it.
+        for (const [key, owed] of waiting) {
+          const [product, paidOn] = key.split('|');
+          if (paidOn > day) continue;
+          waiting.delete(key);
+          const anchor = anchorOf(Number(product), day);
+          if (anchor && paidOn <= anchor.valid_from) continue;
+          earnedOf.set(Number(product), (earnedOf.get(Number(product)) ?? 0) + owed);
+        }
+
         for (const product of products) {
           // A product earns nothing before the day it starts earning from, and
           // nothing on that day either: that day's own earning lands on the
@@ -560,7 +577,10 @@ export class AccrualEngine {
             if (cdt && !(product.opened_on && product.term_months
                 && addMonthsClamped(product.opened_on, product.term_months) === day)) continue;
             const payout = cdt ? 'monthly' : band.payout;
-            const paidOn = cdt ? day : paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
+            const due = cdt ? day : paidOnFor(payout, band.payoutMonths, band.payoutFrom, day);
+            const paidOn = payout === 'monthly' && !cdt
+              ? paidInstead.get(`${product.id}|${component}|${due}`) ?? due
+              : due;
 
             if (band.requiresMonthlySpendMinor != null) {
               const period = spendPeriodFor(band.payout, band.payoutMonths, band.payoutFrom, day);
@@ -617,15 +637,6 @@ export class AccrualEngine {
           if (fixed.on_date !== day || usedLocked.has(key)) continue;
           if (!products.some(product => product.id === fixed.product_id)) continue;
           creditTo(fixed.product_id, 'monthly', day, fixed.actual_net_minor ?? fixed.net_minor);
-        }
-
-        // Payday: everything worked out for a payment that falls today lands at
-        // once, and starts earning tomorrow.
-        for (const [key, owed] of waiting) {
-          const [product, paidOn] = key.split('|');
-          if (paidOn !== day) continue;
-          earnedOf.set(Number(product), (earnedOf.get(Number(product)) ?? 0) + owed);
-          waiting.delete(key);
         }
 
         // The day a figure was read ends with that figure: what was paid today
@@ -798,14 +809,20 @@ interface ConditionalBand extends RateBand {
 /**
  * The day the yield of `day` is handed over.
  *
- * The same day for a daily component. For a monthly one, the last day of the
+ * The same day for a daily component. For a monthly one, the day after the
  * payment period `day` falls in: periods of `months` months, counted from the
- * month the rate starts in. With one month that is simply the end of the
- * month, which is how every monthly rate was paid before a payment could cover
- * more than one.
+ * month the rate starts in. With one month that is simply the first of the
+ * next month. Until 2026-09-30 it was the last day of the period itself.
  */
 export function paidOnFor(payout: 'daily' | 'monthly', months: number, rateFrom: IsoDate, day: IsoDate): IsoDate {
   if (payout === 'daily') return day;
+  // The day after the period: its last day still earns, and is paid with the
+  // rest (Jose, 2026-09-30: "el pago se haría el primer día del mes siguiente").
+  return nextDay(periodEndFor(months, rateFrom, day));
+}
+
+/** The last day of the payment period `day` falls in. */
+export function periodEndFor(months: number, rateFrom: IsoDate, day: IsoDate): IsoDate {
   const every = Math.max(1, months);
   const index = (iso: IsoDate) => Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
   const start = index(rateFrom);
@@ -828,7 +845,7 @@ export function spendPeriodFor(
 ): { from: IsoDate; to: IsoDate } {
   if (payout === 'daily') return { from: startOfMonth(day), to: endOfMonth(day) };
   const every = Math.max(1, months);
-  const to = paidOnFor('monthly', every, rateFrom, day);
+  const to = periodEndFor(every, rateFrom, day);
   const first = Number(to.slice(0, 4)) * 12 + Number(to.slice(5, 7)) - 1 - (every - 1);
   return { from: `${Math.floor(first / 12)}-${String((first % 12) + 1).padStart(2, '0')}-01`, to };
 }

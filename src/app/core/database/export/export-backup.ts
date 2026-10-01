@@ -62,6 +62,7 @@ export const TABLES = [
   'product_kinds',
   'product_entries',
   'product_cashouts',
+  'yield_payments',
   'tax_parameters',
   'credit_limit_changes',
   // What the app has read and nobody has answered yet, and what it has learned

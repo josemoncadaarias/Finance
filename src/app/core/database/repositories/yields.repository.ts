@@ -1254,6 +1254,86 @@ export class YieldsRepository {
       [actualNetMinor, this.now(), productId, on]);
   }
 
+  // -------------------------------------------------------------------------
+  // Payments: what the bank hands over at once, corrected by hand
+  // -------------------------------------------------------------------------
+
+  /** The paydays the person corrected, for one account. */
+  async paymentDates(accountId: number): Promise<PaymentDate[]> {
+    return this.db.query<PaymentDate>(
+      'SELECT product_id, component, due_on, paid_on FROM yield_payments WHERE account_id = ?', [accountId]);
+  }
+
+  /**
+   * Moves a payment to the day the bank actually made it (Jose, 2026-09-30:
+   * some months pay on the 5th or the 6th for the same days).
+   *
+   * `dueOn` is the day the app works the payment out to be made; a payment
+   * moved back to it forgets the correction. Every day of the payment already
+   * written says the new day too, corrected days included, so nothing has to
+   * be worked out again to read it right.
+   */
+  async movePayment(accountId: number, productId: number, component: string,
+                    dueOn: IsoDate, fromPaid: IsoDate, toPaid: IsoDate): Promise<void> {
+    await this.db.transaction(async () => {
+      if (toPaid === dueOn) {
+        await this.db.run(
+          'DELETE FROM yield_payments WHERE product_id = ? AND component = ? AND due_on = ?',
+          [productId, component, dueOn]);
+      } else {
+        const now = this.now();
+        await this.db.run(
+          `INSERT INTO yield_payments (product_id, account_id, component, due_on, paid_on, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (product_id, component, due_on) DO UPDATE SET paid_on = excluded.paid_on, updated_at = excluded.updated_at`,
+          [productId, accountId, component, dueOn, toPaid, now, now]);
+      }
+      await this.db.run(
+        `UPDATE yield_days SET paid_on = ?
+         WHERE product_id = ? AND component = ? AND payout = 'monthly' AND paid_on = ?`,
+        [toPaid, productId, component, fromPaid]);
+    });
+  }
+
+  /**
+   * Sets what the bank paid for a whole payment, and locks its days.
+   *
+   * The figure is spread over the days it covers in proportion to what each
+   * one worked out, the remainder on the last, so every screen that adds the
+   * days up - the day list, the summary, what is available - reads exactly
+   * what was typed, and a recompute leaves it alone.
+   */
+  async correctPayment(productId: number, component: string, paidOn: IsoDate, totalMinor: number): Promise<void> {
+    const days = await this.db.query<{ on_date: IsoDate; net_minor: number }>(
+      `SELECT on_date, net_minor FROM yield_days
+       WHERE product_id = ? AND component = ? AND paid_on = ? ORDER BY on_date`,
+      [productId, component, paidOn]);
+    if (days.length === 0) return;
+    const worked = days.reduce((sum, day) => sum + day.net_minor, 0);
+    const now = this.now();
+    await this.db.transaction(async () => {
+      let given = 0;
+      for (const [index, day] of days.entries()) {
+        const last = index === days.length - 1;
+        const share = last ? totalMinor - given
+          : worked > 0 ? Math.floor(totalMinor * day.net_minor / worked) : 0;
+        given += share;
+        await this.db.run(
+          `UPDATE yield_days SET actual_net_minor = ?, locked = 1, computed_at = ?
+           WHERE product_id = ? AND component = ? AND on_date = ?`,
+          [share, now, productId, component, day.on_date]);
+      }
+    });
+  }
+
+  /** Gives every day of a payment back to the engine. */
+  async unlockPayment(productId: number, component: string, paidOn: IsoDate): Promise<void> {
+    await this.db.run(
+      `UPDATE yield_days SET locked = 0, actual_net_minor = NULL
+       WHERE product_id = ? AND component = ? AND paid_on = ?`,
+      [productId, component, paidOn]);
+  }
+
   /**
    * Gives a day back to the engine, correction and all.
    *
@@ -1554,6 +1634,7 @@ export class YieldsRepository {
          GROUP BY account_id`,
         part('entries', 'product_entries', 'updated_at'),
         part('taken', 'product_cashouts', 'created_at'),
+        part('payments', 'yield_payments', 'updated_at'),
         part('days', 'yield_days', 'computed_at'),
       ].join(' UNION ALL '));
 
@@ -1857,6 +1938,14 @@ export class YieldsRepository {
     }
     return out;
   }
+}
+
+/** A payday the person corrected: the day worked out, and the day it was made. */
+export interface PaymentDate {
+  product_id: number;
+  component: string;
+  due_on: IsoDate;
+  paid_on: IsoDate;
 }
 
 /** Where the fingerprint of the last accrual is kept. */

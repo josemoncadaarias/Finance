@@ -502,9 +502,9 @@
                         </div>
                         @if (isWorkingOpen(month.key)) {
                           @for (payment of month.payments; track payment.key) {
-                            <!-- A payment that is one day can be corrected against the bank. -->
-                            <button type="button" class="ui-row" [disabled]="payment.day === null"
-                                    (click)="payment.day && openDayForm(payment.day)">
+                            <!-- Every payment can be corrected against the bank: a day by
+                                 its day, a month by its total and the day it was paid. -->
+                            <button type="button" class="ui-row" (click)="openPaymentForm(payment)">
                               @let product = productById(line, payment.productId);
                               @if (product) { <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
                               <span class="ui-tx">
@@ -514,6 +514,7 @@
                               <span class="am">
                                 <b class="ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</b>
                                 @if (payment.pending) { <small class="ui-y">{{ 'products.payments.pending' | t }}</small> }
+                                @else if (payment.corrected || payment.on !== payment.dueOn) { <small class="ui-p">{{ 'products.payment.corrected' | t }}</small> }
                                 @else if (payment.withheldMinor > 0) { <small>−{{ money(payment.withheldMinor, line.account.currency_code) }}</small> }
                               </span>
                             </button>
@@ -588,6 +589,44 @@
         <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
                             [selectedId]="line.account.id" [heading]="'summary.account' | t"
                             (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)"></app-account-picker>
+
+        <!-- One payment of several days: what the bank paid, and when. -->
+        <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="form() === 'payment'" (didDismiss)="form() === 'payment' && form.set('none')">
+          <ng-template>
+            @if (openPayment(); as payment) {
+              <div class="ui-sheet-body ion-content-scroll-host day-sheet">
+                <div class="grab"></div>
+                @let product = productById(line, payment.productId);
+                @if (product) { <div class="sheet-icon"><app-badge [size]="48" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge></div> }
+                <h2 class="center">{{ 'products.payment.title' | t }}@if (line.products.length > 1 && product) { · {{ product.name }} }</h2>
+                <p class="hint center">{{ 'products.payment.hint' | t:{ count: payment.days, date: longDate(payment.dueOn) } }}</p>
+                <div class="ui-inputs">
+                  <label class="ui-input">
+                    <span>{{ 'products.payment.on' | t }}</span>
+                    <input type="date" [min]="payment.dueOn" [value]="paymentOn()" (change)="paymentOn.set($any($event.target).value)">
+                  </label>
+                  @if (paymentClosed(payment)) {
+                    <label class="ui-input">
+                      <span>{{ 'products.day.actual' | t }}</span>
+                      <input inputmode="decimal" [value]="amount()" (input)="amount.set(amountTyped($event.target, true))">
+                    </label>
+                  } @else {
+                    <p class="hint">{{ 'products.payment.notYet' | t }}</p>
+                  }
+                </div>
+                @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+                <div class="buttons two">
+                  @if (payment.corrected || payment.on !== payment.dueOn) {
+                    <button type="button" class="ui-btn ghost" [disabled]="saving()" (click)="undoPayment()">{{ 'products.day.undo' | t }}</button>
+                  } @else {
+                    <button type="button" class="ui-btn ghost" (click)="form.set('none')">{{ 'entry.cancel' | t }}</button>
+                  }
+                  <button type="button" class="ui-btn" [disabled]="saving()" (click)="savePayment()">{{ 'entry.save' | t }}</button>
+                </div>
+              </div>
+            }
+          </ng-template>
+        </ion-modal>
 
         <!-- One day, checked against a statement (4g). -->
         <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="form() === 'day'" (didDismiss)="form() === 'day' && form.set('none')">
