@@ -30,6 +30,9 @@ import { AccentService, ACCENTS } from '../../core/theme/accent.service';
 import { BankNotifications } from '../../core/notifications/bank-notifications';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { FlagComponent } from '../../shared/ui/flag.component';
+import { loadCards, type CardSummary } from '../../core/cards/card-data';
+import { isoDay } from '../../core/filters/period';
+import { plain, shortDate } from '../debts/card-words';
 
 @Component({
   selector: 'app-more',
@@ -53,6 +56,7 @@ export class MorePage {
   readonly categories = signal<{ active: number; archived: number }>({ active: 0, archived: 0 });
   readonly notificationsSupported = signal(false);
   readonly markedApps = signal(0);
+  readonly cards = signal<CardSummary[]>([]);
 
   readonly languageSheet = signal(false);
   readonly appearanceSheet = signal(false);
@@ -80,7 +84,23 @@ export class MorePage {
       `SELECT SUM(CASE WHEN archived = 0 THEN 1 ELSE 0 END) AS active,
               SUM(CASE WHEN archived = 1 THEN 1 ELSE 0 END) AS archived FROM categories`);
     this.categories.set({ active: row?.active ?? 0, archived: row?.archived ?? 0 });
+    this.cards.set(await loadCards(db, isoDay(new Date())));
   }
+
+  /** "Debes 742.300 · paga antes del 10 oct", from the cards' own statements. */
+  readonly debtsLine = computed(() => {
+    const cards = this.cards().filter(card => card.account.currency_code === 'COP');
+    const owed = cards.reduce((total, card) => total + card.statement.debtMinor, 0);
+    if (owed === 0) return this.i18n.t('more.debts.none');
+    const next = cards.map(card => card.statement)
+      .filter(s => s.state === 'due' || s.state === 'partial' || s.state === 'overdue')
+      .sort((a, b) => a.dueOn!.localeCompare(b.dueOn!))[0];
+    return next
+      ? this.i18n.t('more.debts.due', { amount: plain(owed), date: shortDate(next.dueOn!, this.i18n) })
+      : this.i18n.t('more.debts.owed', { amount: plain(owed) });
+  });
+
+  readonly debtsLate = computed(() => this.cards().some(card => card.statement.state === 'overdue'));
 
   readonly reviewLine = computed(() => {
     const n = this.waiting();

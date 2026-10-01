@@ -1,0 +1,54 @@
+<!-- Cuentas, its Deudas face (12b). -->
+<ion-content [fullscreen]="true">
+  <div class="ui-bigtitle"><h1>{{ 'accounts.title' | t }}</h1></div>
+
+  <div class="ui-main">
+    <app-accounts-faces on="debts"></app-accounts-faces>
+
+    @if (cards(); as cards) {
+      <section class="ui-hero owed">
+        <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
+        <div class="ui-big">$ {{ owedMinor() | money }}</div>
+        <p class="ui-sub">{{ (cards.length === 0 ? 'cards.none.all' : 'cards.onlyCards') | t }}</p>
+      </section>
+
+      <h3 class="ui-h">{{ 'cards.title' | t }}</h3>
+      @if (cards.length > 0) {
+        <div class="ui-list">
+          @for (card of cards; track card.account.id) {
+            <button type="button" class="ui-row card" (click)="open(card)">
+              <app-badge shape="ci" [size]="42" [builtin]="card.account.builtin_icon" [customId]="card.account.custom_icon_id"
+                         [tone]="card.account.color" [seed]="card.account.id" fallback="card"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ card.account.name }}</b>
+                <small class="ui-one">{{ used(card) }}</small>
+                @if (line(card); as line) {
+                  <small class="wrap" [class.ui-y]="card.statement.state === 'due' || card.statement.state === 'partial'"
+                         [class.ui-r]="card.statement.state === 'overdue'"
+                         [class.ui-g]="card.statement.state === 'paid'">{{ line }}</small>
+                }
+              </span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="ui-card empty">
+          <app-badge shape="ci" [size]="46" builtin="card-outline" fixed="#f6b93b"></app-badge>
+          <b>{{ 'cards.empty' | t }}</b>
+          <p class="ui-sub">{{ 'cards.empty.hint' | t }}</p>
+        </div>
+      }
+
+      <h3 class="ui-h">{{ 'loans.title' | t }}</h3>
+      <div class="ui-card empty">
+        <app-badge shape="ci" [size]="46" builtin="cash-outline" fixed="#9b7bff"></app-badge>
+        <b>{{ 'loans.none' | t }}</b>
+        <p class="ui-sub">{{ 'loans.soon' | t }}</p>
+      </div>
+      <div class="ui-page-end"></div>
+    } @else {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    }
+  </div>
+</ion-content>

@@ -131,6 +131,28 @@
       </div>
       <p class="explain">{{ 'accounts.creditLimit.hint' | t }}</p>
 
+      <!-- Its two days, both optional (12c). -->
+      <h3 class="ui-h">{{ 'cards.dates' | t }}</h3>
+      <div class="ui-list days">
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'cards.statementDay' | t }}</span>
+            <input inputmode="numeric" maxlength="2" [placeholder]="'cards.none' | t" [value]="statementDay()"
+                   (input)="onDay('statement', $any($event.target))">
+          </span>
+          <span class="unit">{{ 'cards.statementDay.unit' | t }}</span>
+        </label>
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'cards.dueDay' | t }}</span>
+            <input inputmode="numeric" maxlength="2" [placeholder]="'cards.none' | t" [value]="dueDay()"
+                   (input)="onDay('due', $any($event.target))">
+          </span>
+          <span class="unit">{{ (sameMonth() ? 'cards.dueDay.same' : 'cards.dueDay.unit') | t }}</span>
+        </label>
+      </div>
+      <p class="explain">{{ 'cards.dates.hint' | t }}</p>
+
       @if (limitHistory().length > 0) {
         <h3 class="ui-h">{{ 'accounts.limitHistory' | t }}</h3>
         <div class="ui-list">

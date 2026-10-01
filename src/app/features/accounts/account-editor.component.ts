@@ -162,6 +162,12 @@ export class AccountEditorComponent implements OnInit {
   readonly limitHistory = signal<CreditLimitChange[]>([]);
   readonly limitEffectiveOn = signal(todayIso());
 
+  /** A card's cut-off and payment days, both optional; '' is none. */
+  readonly statementDay = signal('');
+  readonly dueDay = signal('');
+  /** Paid in the month it closes when the payment day comes after the cut-off. */
+  readonly sameMonth = computed(() => Number(this.dueDay()) > Number(this.statementDay()) && this.statementDay() !== '');
+
   readonly currencies = signal<{ code: string; name: string }[]>([]);
 
   /** Open while a currency the app does not know yet is being added. */
@@ -190,6 +196,15 @@ export class AccountEditorComponent implements OnInit {
   });
 
   readonly canSave = computed(() => this.missing() === null);
+
+  /** Keeps a day field to digits, at most two, at most 31. */
+  onDay(which: 'statement' | 'due', input: HTMLInputElement): void {
+    let text = input.value.replace(/\D/g, '').slice(0, 2);
+    if (Number(text) > 31) text = '31';
+    if (text === '0' || text === '00') text = '';
+    input.value = text;
+    (which === 'statement' ? this.statementDay : this.dueDay).set(text);
+  }
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
@@ -240,6 +255,8 @@ export class AccountEditorComponent implements OnInit {
     if (account.credit_limit_minor !== null) {
       this.creditLimit.set(AmountBuffer.from(account.credit_limit_minor));
     }
+    this.statementDay.set(account.statement_day === null ? '' : String(account.statement_day));
+    this.dueDay.set(account.due_day === null ? '' : String(account.due_day));
     await this.loadLimitHistory();
   }
 
@@ -380,6 +397,8 @@ export class AccountEditorComponent implements OnInit {
         include_in_net_worth: this.includeInNetWorth(),
         opening_balance_minor: this.openingBalance().minor,
         opened_on: this.openedOn(),
+        statement_day: this.isCredit() ? dayOf(this.statementDay()) : null,
+        due_day: this.isCredit() ? dayOf(this.dueDay()) : null,
       };
 
       if (account) {
@@ -522,6 +541,12 @@ export class AccountEditorComponent implements OnInit {
       : this.i18n.t('ui.import.done.none');
     this.toast.say(this.i18n.t('ui.import.done', { read, known }));
   }
+}
+
+/** A day of the month typed in, or null for none or nonsense. */
+function dayOf(text: string): number | null {
+  const day = Number(text.trim());
+  return text.trim() !== '' && Number.isInteger(day) && day >= 1 && day <= 31 ? day : null;
 }
 
 function todayIso(): string {

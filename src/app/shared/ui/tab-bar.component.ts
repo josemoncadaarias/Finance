@@ -26,7 +26,7 @@ type Tab = 'home' | 'accounts' | 'report' | 'more';
 
 const TAB_OF: [string, Tab][] = [
   ['/movements', 'home'],
-  ['/accounts', 'accounts'], ['/products', 'accounts'], ['/currencies', 'accounts'],
+  ['/accounts', 'accounts'], ['/products', 'accounts'], ['/debts', 'accounts'], ['/currencies', 'accounts'],
   ['/report', 'report'],
   ['/more', 'more'], ['/review', 'more'], ['/categories', 'more'], ['/notifications', 'more'],
   ['/export', 'more'], ['/account', 'more'], ['/tax', 'more'],

@@ -24,6 +24,20 @@
       }
     }
 
+    <div class="ui-h">{{ 'more.finances' | t }}</div>
+    <div class="ui-list">
+      <button type="button" class="ui-row" (click)="go('/debts')">
+        <app-badge [size]="40" builtin="card-outline" fixed="#f6b93b"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.debts' | t }}</b><small [class.late]="debtsLate()">{{ debtsLine() }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="go('/products')">
+        <app-badge [size]="40" builtin="trending-up-outline" fixed="#34c98b"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.products' | t }}</b><small>{{ 'more.products.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
     <div class="ui-h">{{ 'more.yourData' | t }}</div>
     <div class="ui-list">
       <button type="button" class="ui-row" (click)="go('/review')">
