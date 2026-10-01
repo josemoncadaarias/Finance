@@ -1,0 +1,246 @@
+<!-- A goal's form (15d-15g, 15m). -->
+<div class="ui-frame editor">
+  <header class="ui-titlebar">
+    <button type="button" class="x" (click)="done.emit()" [attr.aria-label]="'entry.cancel' | t">
+      <ion-icon name="close"></ion-icon>
+    </button>
+    <h1>{{ (emergency() ? 'goals.emergency.name' : isNew() ? 'goals.form.new' : 'goals.form.edit') | t }}</h1>
+    <button type="button" class="ui-pill" [disabled]="!canSave()" (click)="save()">
+      <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+    </button>
+  </header>
+
+  <div class="scroll">
+    @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+
+    <div class="who">
+      <button type="button" class="face" (click)="choosingFace.set(true)" [attr.aria-label]="'goals.form.face' | t">
+        <app-badge [size]="52" [builtin]="face().icon" [fixed]="face().color"></app-badge>
+      </button>
+      <label class="name-box">
+        <span class="ui-lab">{{ 'goals.form.name' | t }}</span>
+        <input [value]="name()" (input)="name.set($any($event.target).value)" [placeholder]="'goals.form.namePlaceholder' | t" maxlength="60">
+      </label>
+    </div>
+
+    @if (emergency()) {
+      <p class="ui-sub center">{{ 'goals.emergency.lead' | t }}</p>
+      <div class="months">
+        @for (m of [3, 6, 9, 12]; track m) {
+          <button type="button" class="ui-chip" [class.on]="months() === m" (click)="setMonths(m)">{{ 'goals.emergency.months' | t:{ count: m } }}</button>
+        }
+      </div>
+      <div class="ui-card sum">
+        <div class="pair"><span class="ui-mu">{{ 'goals.emergency.spend' | t }}</span><b>{{ money(goals.monthlySpendMinor()) }}</b></div>
+        <div class="pair"><span class="ui-mu">× {{ 'goals.emergency.months' | t:{ count: months() ?? 0 } }}</span></div>
+        <div class="pair total"><b>{{ 'goals.emergency.target' | t }}</b>
+          <input class="target" inputmode="decimal" [value]="amount().text" (input)="onAmount($any($event.target).value)" [attr.aria-label]="'goals.emergency.target' | t">
+        </div>
+      </div>
+      <p class="ui-sub foot">{{ 'goals.emergency.note' | t }}</p>
+    } @else {
+      <div class="figure">
+        <span class="ui-lab">{{ 'goals.form.amount' | t }}</span>
+        <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" (input)="onAmount($any($event.target).value)"
+               [attr.aria-label]="'goals.form.amount' | t">
+      </div>
+    }
+
+    <div class="ui-list">
+      <button type="button" class="ui-field pick" (click)="choosingMonth.set(true)">
+        <app-badge shape="ci" [size]="38" builtin="calendar-outline" fixed="#6378ff"></app-badge>
+        <span class="in">
+          <span class="lab">{{ 'goals.form.when' | t }}</span>
+          <b class="name">{{ monthText(dueMonth()) }}</b>
+          <span class="hint">{{ 'goals.form.when.hint' | t }}</span>
+        </span>
+        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+      </button>
+    </div>
+
+    <h3 class="ui-h">{{ allAccounts() ? ('goals.form.where' | t) : ('goals.form.whereCount' | t:{ count: chosen().length }) }}</h3>
+    <div class="ui-list">
+      @if (allAccounts()) {
+        <button type="button" class="ui-field pick" (click)="openPlaces()">
+          <app-badge shape="ci" [size]="38" builtin="layers-outline" fixed="#6378ff"></app-badge>
+          <span class="in"><b class="name">{{ 'goals.allAccounts' | t }}</b><span class="hint wrap">{{ 'goals.all.hint' | t }}</span></span>
+          <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+        </button>
+      }
+      @for (c of chosen(); track c.accountId + ':' + c.productId) {
+        @let a = account(c.accountId);
+        <div class="ui-field pick">
+          <button type="button" class="open" (click)="counting.set(c)">
+            @if (c.productId !== null) {
+              <app-badge [size]="38" builtin="cube-outline" [tone]="a?.color" [seed]="a?.id"></app-badge>
+            } @else {
+              <app-badge shape="ci" [size]="38" [builtin]="a?.builtin_icon" [customId]="a?.custom_icon_id" [tone]="a?.color" [seed]="a?.id" fallback="wallet"></app-badge>
+            }
+            <span class="in">
+              @if (c.productId !== null) { <span class="lab">{{ a?.name }}</span> }
+              <b class="name">{{ c.productId !== null ? productName(c.productId) : a?.name }}</b>
+              <span class="hint wrap">
+                {{ (c.counts === 'all' ? 'goals.counts.all.short' : 'goals.counts.fromStart.short') | t }} · {{ nativeText(c) }}
+                @if (a && a.currency_code !== 'COP') { = {{ money(spot(c.accountId, c.productId)?.pesos ?? 0) }} {{ 'goals.today' | t }} }
+              </span>
+            </span>
+          </button>
+          <button type="button" class="clear" (click)="remove(c)" [attr.aria-label]="'goals.form.removePlace' | t">
+            <ion-icon name="close-circle"></ion-icon>
+          </button>
+        </div>
+      }
+      <button type="button" class="ui-field pick add" (click)="openPlaces()">
+        <app-badge shape="ci" [size]="38" builtin="add" fixed="#6378ff"></app-badge>
+        <span class="in"><b class="name">{{ (chosen().length || allAccounts() ? 'goals.form.change' : 'goals.form.pick') | t }}</b></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+    @if (chosen().length > 0 || allAccounts()) {
+      <p class="ui-sub together">{{ 'goals.form.together' | t }} <b>{{ money(together()) }}</b></p>
+    }
+
+    @if (perMonth(); as p) {
+      <div class="ui-banner info">
+        <ion-icon name="bulb-outline"></ion-icon>
+        <span>{{ 'goals.form.perMonth' | t:{ left: money(p.left), each: money(p.each), count: p.months } }}</span>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- The face: an icon in its colour. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingFace()" (didDismiss)="choosingFace.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="choosingFace.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'goals.form.face' | t }}</h3>
+      <div class="faces">
+        @for (f of faces; track f.icon) {
+          <button type="button" class="pickface" [class.on]="f.icon === face().icon" (click)="face.set(f); choosingFace.set(false)">
+            <app-badge [size]="48" [builtin]="f.icon" [fixed]="f.color"></app-badge>
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Para cuándo. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingMonth()" (didDismiss)="choosingMonth.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="choosingMonth.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'goals.form.when' | t }}</h3>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="chooseMonth(null)">
+          <span class="ui-tx"><b>{{ 'goals.form.noDate' | t }}</b><small class="wrap">{{ 'goals.form.when.hint' | t }}</small></span>
+          @if (dueMonth() === null) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+        @for (m of monthChoices(); track m) {
+          <button type="button" class="ui-row" (click)="chooseMonth(m)">
+            <span class="ui-tx"><b>{{ monthText(m) }}</b></span>
+            @if (dueMonth() === m) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Dónde está la plata (15e, 15m): every account, or one by one. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingPlaces()" (didDismiss)="choosingPlaces.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host places-sheet">
+      <button type="button" class="sheet-cancel" (click)="choosingPlaces.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'goals.form.where' | t }}</h3>
+      <div class="ui-list">
+        <button type="button" class="ui-row" [class.picked]="picking().all" [disabled]="!!allTakenBy()" (click)="toggleAll()">
+          <app-badge shape="ci" [size]="40" builtin="layers-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx">
+            <b>{{ 'goals.allAccounts' | t }}</b>
+            <small class="wrap">
+              @if (allTakenBy(); as other) { {{ 'goals.takenBy' | t:{ name: other } }} }
+              @else { {{ 'goals.all.hint' | t }} }
+            </small>
+          </span>
+          <span class="ui-tick" [class.on]="picking().all">@if (picking().all) { <ion-icon name="checkmark"></ion-icon> }</span>
+        </button>
+      </div>
+      @if (picking().all && allNow(); as all) {
+        <div class="ui-card sum">
+          <div class="pair"><span class="ui-mu">{{ 'goals.all.have' | t }}</span><b>{{ money(all.everything) }}</b></div>
+          @for (o of all.others; track o.name) {
+            <div class="pair"><span class="ui-mu">{{ 'goals.all.other' | t:{ name: o.name } }}</span><b>- {{ money(o.pesos) }}</b></div>
+          }
+          <div class="pair total"><b>{{ 'goals.all.counts' | t }}</b><b class="pr">{{ money(together()) }}</b></div>
+        </div>
+        <p class="ui-sub foot">{{ 'goals.all.note' | t }}</p>
+      }
+      <h3 class="ui-h">{{ 'goals.form.oneByOne' | t }}</h3>
+      <div class="ui-list">
+        @for (u of usable(); track u.account.id) {
+          @let taken = takenBy(u.account.id, null);
+          <button type="button" class="ui-row" [class.picked]="isPicked(u.account.id, null)" [disabled]="!!taken" (click)="toggle(u.account.id, null)">
+            <app-badge shape="ci" [size]="38" [builtin]="u.account.builtin_icon" [customId]="u.account.custom_icon_id" [tone]="u.account.color" [seed]="u.account.id" fallback="wallet"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ u.account.name }}</b>
+              <small class="ui-one">
+                @if (spot(u.account.id, null); as s) { {{ u.account.currency_code === 'COP' ? '' : u.account.currency_code + ' ' }}{{ money(s.nativeMinor) }} }
+              </small>
+            </span>
+            @if (taken) { <span class="ui-tag goal-tag">{{ 'goals.goalTag' | t:{ name: taken } }}</span> }
+            @else { <span class="ui-tick" [class.on]="isPicked(u.account.id, null)">@if (isPicked(u.account.id, null)) { <ion-icon name="checkmark"></ion-icon> }</span> }
+          </button>
+          @for (p of u.products; track p.id) {
+            @let ptaken = takenBy(u.account.id, p.id);
+            <button type="button" class="ui-row product" [class.picked]="isPicked(u.account.id, p.id)" [disabled]="!!ptaken" (click)="toggle(u.account.id, p.id)">
+              <span class="hang"></span>
+              <app-badge [size]="32" builtin="cube-outline" [tone]="u.account.color" [seed]="u.account.id"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ p.name }}</b>
+                <small class="ui-one">@if (spot(u.account.id, p.id); as s) { {{ money(s.nativeMinor) }} }</small>
+              </span>
+              @if (ptaken) { <span class="ui-tag goal-tag">{{ 'goals.goalTag' | t:{ name: ptaken } }}</span> }
+              @else { <span class="ui-tick" [class.on]="isPicked(u.account.id, p.id)">@if (isPicked(u.account.id, p.id)) { <ion-icon name="checkmark"></ion-icon> }</span> }
+            </button>
+          }
+        }
+      </div>
+      <p class="ui-sub foot">{{ 'goals.form.placesNote' | t }}</p>
+      <button type="button" class="ui-btn done" [disabled]="!picking().all && picking().keys.size === 0" (click)="donePlaces()">
+        @if (picking().all) { {{ 'goals.form.doneAll' | t }} }
+        @else { {{ 'goals.form.done' | t:{ count: picking().keys.size, amount: money(pickedPesos()) } }} }
+      </button>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Qué cuenta de un lugar (15f). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="counting() !== null" (didDismiss)="counting.set(null)">
+  <ng-template>
+    @if (counting(); as c) {
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="counting.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <h3 class="ui-h first">{{ 'goals.counts.title' | t:{ name: c.productId !== null ? productName(c.productId) : account(c.accountId)?.name ?? '' } }}</h3>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="setCounts('all')">
+            <app-badge shape="ci" [size]="38" builtin="albums-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b>{{ 'goals.counts.all' | t }}</b><small class="wrap">{{ 'goals.counts.all.hint' | t }}</small></span>
+            @if (c.counts === 'all') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+          <button type="button" class="ui-row" (click)="setCounts('from_start')">
+            <app-badge shape="ci" [size]="38" builtin="arrow-down-circle-outline" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b>{{ 'goals.counts.fromStart' | t }}</b><small class="wrap">{{ 'goals.counts.fromStart.hint' | t }}</small></span>
+            @if (c.counts === 'from_start') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        </div>
+        <p class="ui-sub foot">{{ 'goals.counts.note' | t }}</p>
+      </div>
+    }
+  </ng-template>
+</ion-modal>

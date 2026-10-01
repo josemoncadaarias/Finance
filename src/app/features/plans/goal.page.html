@@ -1,0 +1,145 @@
+<!-- One goal's page (15h-15k). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar limit-head">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    @if (view(); as v) {
+      <app-badge [size]="40" [builtin]="v.terms.icon" [fixed]="v.terms.color ?? '#34c98b'"></app-badge>
+      <span class="who">
+        <b class="ui-one">{{ v.terms.name }}</b>
+        <small class="ui-one">{{ sub() }}</small>
+      </span>
+      <button type="button" class="pen" (click)="editing.set(true)" [attr.aria-label]="'goals.form.edit' | t">
+        <ion-icon name="create-outline"></ion-icon>
+      </button>
+    }
+  </header>
+
+  <div class="ui-main">
+    @if (view(); as v) {
+      @let st = s()!;
+      @if (st.state === 'reached') {
+        <section class="ui-hero won">
+          <app-badge shape="ci" [size]="60" builtin="trophy-outline" fixed="#34c98b"></app-badge>
+          <b class="title">{{ 'goals.page.reached' | t }}</b>
+          <div class="ui-big ui-g">{{ money(v.terms.amountMinor) }}</div>
+          <p class="ui-sub">{{ 'goals.page.reachedOn' | t:{ date: long(v.terms.reachedOn) } }}</p>
+        </section>
+        <div class="ui-list">
+          <div class="ui-row">
+            <app-badge shape="ci" [size]="40" builtin="wallet-outline" fixed="#6378ff"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'goals.page.stays' | t }}</b><small class="wrap">{{ 'goals.page.staysHint' | t:{ amount: money(st.savedMinor) } }}</small></span>
+          </div>
+        </div>
+        <p class="ui-sub note">{{ 'goals.page.reachedNote' | t }}</p>
+        <div class="two">
+          <button type="button" class="ui-btn ghost" (click)="archive()"><ion-icon name="archive-outline"></ion-icon>{{ (v.terms.archived ? 'goals.page.unarchive' : 'goals.page.archive') | t }}</button>
+          <button type="button" class="ui-btn" (click)="newGoal()"><ion-icon name="add"></ion-icon>{{ 'goals.new' | t }}</button>
+        </div>
+      } @else {
+        <section class="ui-hero" [class.late]="st.state === 'late'">
+          <div class="head"><span class="ui-lab">{{ 'goals.page.have' | t }}</span>
+            <span class="ui-tag state-tag" [class.late]="st.state === 'late'">{{ $any('goals.state.' + st.state) | t }}</span></div>
+          <div class="ui-big">{{ money(st.savedMinor) }} <small>{{ 'plans.of' | t:{ amount: money(v.terms.amountMinor) } }}</small></div>
+          <span class="gbar"><i [style.width.%]="st.percent" [class.late]="st.state === 'late'"></i></span>
+          <p class="ui-sub">{{ line() }}</p>
+        </section>
+
+        <div class="ui-list">
+          <div class="ui-row">
+            <app-badge shape="ci" [size]="40" builtin="speedometer-outline" [fixed]="st.state === 'late' ? '#f6b93b' : '#34c98b'"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ paceTitle() }}</b>
+              <small class="wrap">{{ 'goals.page.pace' | t:{ amount: money(st.paceMinor > 0 ? st.paceMinor : 0) } }}</small></span>
+          </div>
+        </div>
+
+        @if (st.state === 'late') {
+          <h3 class="ui-h">{{ 'goals.page.toArrive' | t }}</h3>
+          <div class="ui-list">
+            <button type="button" class="ui-row" (click)="payIn()">
+              <app-badge shape="ci" [size]="40" builtin="add-circle-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ 'goals.page.payMonth' | t:{ amount: money(st.neededPerMonthMinor ?? 0) } }}</b><small class="wrap">{{ 'goals.page.payMonthHint' | t }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
+            @if (st.arrivalMonth) {
+              <div class="ui-row">
+                <app-badge shape="ci" [size]="40" builtin="calendar-outline" fixed="#f6b93b"></app-badge>
+                <span class="ui-tx"><b class="wrap">{{ 'goals.page.moveTo' | t:{ month: monthLabelOf(st.arrivalMonth) } }}</b><small class="wrap">{{ 'goals.page.moveHint' | t }}</small></span>
+                <button type="button" class="ui-chip use" (click)="moveDate()">{{ 'goals.page.move' | t }}</button>
+              </div>
+            }
+          </div>
+        }
+
+        @if (refresh(); as r) {
+          <div class="ui-list">
+            <div class="ui-row">
+              <app-badge shape="ci" [size]="40" builtin="refresh-outline" fixed="#4cb8f5"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ 'goals.page.refresh' | t:{ amount: money(r) } }}</b><small class="wrap">{{ 'goals.page.refreshHint' | t }}</small></span>
+              <button type="button" class="ui-chip use" (click)="useRefresh()">{{ 'plans.page.use' | t }}</button>
+            </div>
+          </div>
+        }
+      }
+
+      <h3 class="ui-h">{{ v.terms.allAccounts ? ('goals.allAccounts' | t) : ('goals.page.where' | t:{ count: v.places.length }) }}</h3>
+      @if (v.terms.allAccounts) {
+        <p class="ui-sub note">{{ 'goals.all.note' | t }}</p>
+      } @else {
+        <div class="ui-list">
+          @for (p of v.places; track p.place.id) {
+            <div class="ui-row">
+              @if (p.product) {
+                <app-badge [size]="38" builtin="cube-outline" [tone]="p.account?.color" [seed]="p.account?.id"></app-badge>
+              } @else {
+                <app-badge shape="ci" [size]="38" [builtin]="p.account?.builtin_icon" [customId]="p.account?.custom_icon_id" [tone]="p.account?.color" [seed]="p.account?.id" fallback="wallet"></app-badge>
+              }
+              <span class="ui-tx">
+                <b class="ui-one">{{ p.product?.name ?? p.account?.name }}</b>
+                <small class="ui-one">@if (p.product) { {{ p.account?.name }} · }{{ (p.place.counts === 'all' ? 'goals.counts.all.short' : 'goals.counts.fromStart.short') | t }}</small>
+              </span>
+              <span class="am"><b>{{ money(p.pesos) }}</b><small>{{ share(p) }} %</small></span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (bars().length > 0) {
+        <h3 class="ui-h">{{ 'goals.page.grew' | t }}</h3>
+        <div class="ui-card chart">
+          <div class="plot">
+            <span class="line goal" [style.bottom.%]="lineAt()"></span>
+            @for (b of bars(); track b.label) {
+              <span class="slot" [title]="money(b.saved)"><i [class.now]="b.now" [style.height.%]="b.height"></i></span>
+            }
+          </div>
+          <div class="months">
+            @for (b of bars(); track b.label) { <small>{{ b.label }}</small> }
+          </div>
+          <p class="ui-sub">{{ 'goals.page.chartIs' | t }}</p>
+        </div>
+      }
+
+      @if (st.state !== 'reached') {
+        <div class="two">
+          <button type="button" class="ui-btn ghost" (click)="editing.set(true)"><ion-icon name="create-outline"></ion-icon>{{ 'goals.page.change' | t }}</button>
+          <button type="button" class="ui-btn" (click)="payIn()"><ion-icon name="add"></ion-icon>{{ 'goals.page.payIn' | t }}</button>
+        </div>
+      }
+      <button type="button" class="ui-btn ghost danger" (click)="deleting.set(true)">{{ 'goals.page.delete' | t }}</button>
+    } @else if (goals.loaded()) {
+      <p class="state">{{ 'goals.page.gone' | t }}</p>
+    }
+    <div class="ui-page-end"></div>
+  </div>
+</ion-content>
+
+<ion-modal class="entry-sheet" [isOpen]="editing()" (didDismiss)="editing.set(false)">
+  <ng-template>
+    <app-goal-editor [goalId]="view()?.terms?.id ?? null" (done)="editing.set(false)"></app-goal-editor>
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="deleting()" [title]="'goals.page.delete.title' | t" [body]="'goals.page.delete.body' | t"
+             [confirmLabel]="'goals.page.delete' | t" (confirmed)="remove()" (cancelled)="deleting.set(false)"></app-confirm>

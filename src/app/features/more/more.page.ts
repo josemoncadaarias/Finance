@@ -36,6 +36,7 @@ import { plain, shortDate } from '../debts/card-words';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
 import { LimitsService } from '../../core/limits/limits.service';
+import { GoalsService } from '../../core/goals/goals.service';
 
 @Component({
   selector: 'app-more',
@@ -52,15 +53,21 @@ export class MorePage {
   readonly theme = inject(ThemeService);
   readonly accent = inject(AccentService);
   private readonly limits = inject(LimitsService);
+  private readonly goals = inject(GoalsService);
 
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);
   readonly plansLine = computed(() => {
     const v = this.limits.current();
-    if (v.limits.length === 0) return this.i18n.t('more.plans.hint');
+    const goals = this.goals.inCourse().length;
+    if (v.limits.length === 0 && goals === 0) return this.i18n.t('more.plans.hint');
     const parts: string[] = [];
     if (v.passed.length) parts.push(this.i18n.t('more.plans.passed', { count: v.passed.length }));
     if (v.fine.length) parts.push(this.i18n.t('more.plans.fine', { count: v.fine.length }));
+    if (goals) {
+      const late = this.goals.late().length;
+      parts.push(this.i18n.t('more.plans.goals', { count: goals }) + (late ? ', ' + this.i18n.t('more.plans.goalsLate', { count: late }) : ''));
+    }
     return parts.join(' · ');
   });
 

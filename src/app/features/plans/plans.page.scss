@@ -80,3 +80,18 @@
   .ui-row { cursor: default; }
   .note { color: var(--app-mu); font-size: 13px; line-height: 1.4; margin: 12px 4px 0; }
 }
+
+/* Goals (15c). */
+.gbar { display: flex; height: 9px; border-radius: 5px; background: var(--app-s3); overflow: hidden; margin-top: 10px;
+  i { display: block; height: 100%; border-radius: 5px; background: var(--app-pr);
+    &.late { background: var(--app-yel); } &.reached { background: var(--app-grn); } } }
+.ui-hero .gbar { background: rgba(255, 255, 255, 0.12); i { background: #fff; } }
+.goal {
+  .figures { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; color: var(--app-mu); b { color: var(--app-tx); } }
+  .pct { color: var(--app-pr) !important; &.late { color: var(--app-yel) !important; } &.reached { color: var(--app-grn) !important; } }
+  .line { white-space: normal; }
+}
+.state-tag { background: rgba(52, 201, 139, 0.16); color: var(--app-grn);
+  &.late { background: rgba(246, 185, 59, 0.2); color: var(--app-yel); }
+  &.noDate { background: var(--app-s3); color: var(--app-mu); } }
+.archived { margin: 14px auto 0; display: flex; color: var(--app-mu); }

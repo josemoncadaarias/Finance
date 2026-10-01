@@ -51,5 +51,6 @@
   "050_loans.sql": "4779ba7f8a51982d5cbc6dc31c3f24e04a0f76d0929ec48dc48817ee925ad5ab",
   "051_a_loan_can_record_its_disbursement.sql": "1c94e0ecf98a56a788371b89b0d2710759755625eaba2b3528bf9f3fc8b7e5e4",
   "052_loans_in_uvr.sql": "90d1ba48604fba729187b4f3fbf364e22dc3afa5e568eb531bcca058cb77a3e2",
-  "053_spending_limits.sql": "ebca6c62a8ef95425accd7f424a565bf14f3a78b0f591499da0a662a83ce791c"
+  "053_spending_limits.sql": "ebca6c62a8ef95425accd7f424a565bf14f3a78b0f591499da0a662a83ce791c",
+  "054_goals.sql": "e51d37979cd808cad301d47eabb9174595790326b7dc299f62103e57c0889cea"
 }

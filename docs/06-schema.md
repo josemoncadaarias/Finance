@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 36 tables and how they relate. The authority is always
+The 38 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -270,6 +270,26 @@ erDiagram
         INTEGER limit_id PK, FK
         INTEGER category_id PK, FK, UK
     }
+    goals {
+        INTEGER id PK
+        TEXT name
+        INTEGER amount_minor
+        TEXT due_month
+        TEXT kind
+        INTEGER months
+        INTEGER all_accounts
+        TEXT started_on
+        TEXT reached_on
+        INTEGER archived
+    }
+    goal_places {
+        INTEGER id PK
+        INTEGER goal_id FK
+        INTEGER account_id FK
+        INTEGER product_id FK
+        TEXT counts
+        INTEGER start_minor
+    }
     uvr_values {
         TEXT day PK
         INTEGER value_scaled
@@ -364,6 +384,9 @@ erDiagram
     accounts       ||--o{ spending_limits  : "is the only account of"
     spending_limits ||--o{ spending_limit_categories : "covers"
     categories     ||--o| spending_limit_categories : "is limited by"
+    goals          ||--o{ goal_places  : "keeps its money in"
+    accounts       ||--o{ goal_places  : "holds a goal's money"
+    products       ||--o{ goal_places  : "holds a goal's money"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
@@ -467,6 +490,16 @@ worked out from the movements each time, with the summary's own rule. A
 category belongs to one limit at most (`UNIQUE`), so the total of every limit
 never counts a peso twice.
 
+`goals` and `goal_places` (migration 054) are the plans' goals: a figure in
+pesos, an optional month, and where the money sits - accounts, products, or
+every account counted in net worth (`all_accounts`). Nothing about the money
+is stored: a goal has what its places hold. A place belongs to one goal at
+most (a unique index on the account and the product), and "every account"
+takes off what the other goals' places hold, so no peso counts twice. A
+place counting only what came in since it was added keeps what it held then
+in `start_minor`. `reached_on` is written once, so a goal reached stays
+reached after the money is used.
+
 ### 4. Import bookkeeping
 
 `import_batches`, `review_queue`, `settings`. Not finance — the paper trail of
@@ -525,6 +558,8 @@ outright:
 | `idx_accounts_group_currency` | unique; one currency per group |
 | `idx_categories_name_kind` | unique; the importer matches categories this way |
 | `idx_products_account` | the products of an account, in order |
+| `goal_places_one_goal` | unique on the account and the product: a place belongs to one goal at most |
+| `goal_places_goal` | the places of a goal |
 | `idx_account_aliases_account` | the names a backup uses for one account |
 | `idx_products_default` | the product money lands in by default; **partial**, so an account has at most one |
 | `idx_product_balances` | what a product held on a date |

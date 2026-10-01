@@ -1,0 +1,34 @@
+/* One goal's page (15h-15k). The title bar, the chart and the rest come from limit.page.scss. */
+
+.ui-hero {
+  .head { display: flex; justify-content: space-between; align-items: center; }
+  .ui-big small { font-size: 15px; font-weight: 500; color: var(--app-mu); }
+  .ui-sub { margin: 8px 0 0; }
+  &.late {
+    background: linear-gradient(145deg, rgba(246, 185, 59, 0.3) 0%, rgba(246, 185, 59, 0.1) 55%, var(--app-s1) 100%);
+    border-color: rgba(246, 185, 59, 0.45);
+    .ui-lab { color: var(--app-yel); }
+  }
+  &.won {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(145deg, rgba(52, 201, 139, 0.35) 0%, rgba(52, 201, 139, 0.12) 55%, var(--app-s1) 100%);
+    border-color: rgba(52, 201, 139, 0.5);
+    .title { font-size: 19px; margin-top: 6px; }
+  }
+}
+.state-tag { background: rgba(7, 13, 26, 0.35); color: #bff0d6; &.late { color: #f3d58a; } }
+.gbar { display: flex; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 10px;
+  i { display: block; height: 100%; background: #fff; border-radius: 5px; &.late { background: var(--app-yel); } } }
+
+.am { display: flex; flex-direction: column; align-items: flex-end; flex: none; font-variant-numeric: tabular-nums;
+  small { color: var(--app-mu); font-size: 12.5px; } }
+.note { margin: 4px 4px 10px; font-size: 12.5px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.chart {
+  i.now { background: var(--app-pr); }
+  .line.goal { border-top-color: var(--app-grn); }
+}

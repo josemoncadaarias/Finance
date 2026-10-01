@@ -73,6 +73,9 @@ export const TABLES = [
   // The plans' limits (migration 053): after the accounts and categories.
   'spending_limits',
   'spending_limit_categories',
+  // Goals and where their money sits (migration 054): after accounts and products.
+  'goals',
+  'goal_places',
   'tax_parameters',
   'credit_limit_changes',
   // What the app has read and nobody has answered yet, and what it has learned
