@@ -305,6 +305,31 @@ export class AccrualEngine {
       for (const product of products) {
         balancesOf.set(product.id, await this.yields.productBalances(product.id));
       }
+      // What moved through a typed product on the very day its figure is
+      // dated, but after the figure was typed: it is not inside the figure.
+      // A product created with 0 and given 200,000 the same day earned
+      // nothing at all, because the day's movements were all taken as
+      // already counted (Jose, Pibank, 2026-10-01). The same rule an entry on
+      // a product already follows.
+      const sameDayAfter = new Map<string, number>();
+      for (const product of products) {
+        if (product.source !== 'manual') continue;
+        const typed = (balancesOf.get(product.id) ?? []).filter(entry => entry.created_at);
+        if (typed.length === 0) continue;
+        const days = [...new Set(typed.map(entry => entry.valid_from))];
+        const scope = product.id === takesUnassigned ? '(product_id IS NULL OR product_id = ?)' : 'product_id = ?';
+        const moves = await this.db.query<{ on_date: IsoDate; amount_minor: number; created_at: string }>(
+          `SELECT occurred_on AS on_date, amount_minor, created_at FROM transactions
+           WHERE account_id = ? AND ${scope} AND occurred_on IN (${days.map(() => '?').join(', ')})`,
+          [accountId, product.id, ...days]);
+        for (const move of moves) {
+          // The figure of that day, the last one typed if there were several.
+          const figure = typed.filter(entry => entry.valid_from === move.on_date).at(-1)!;
+          if (move.created_at < figure.created_at!) continue;
+          const key = `${product.id}|${move.on_date}`;
+          sameDayAfter.set(key, (sameDayAfter.get(key) ?? 0) + move.amount_minor);
+        }
+      }
       // Anything that lands on a product inside the range being worked
       // out has to be part of it from that day on. The starting figure
       // above only covers what happened BEFORE the range, so without this
@@ -525,7 +550,7 @@ export class AccrualEngine {
           // of one account moved neither.
           const held = product.source === 'manual'
             ? statedOn(balancesOf.get(product.id) ?? [], day,
-                       movedInto.get(product.id) ?? [], true)
+                       movedInto.get(product.id) ?? [], true, sameDayAfter, product.id)
             : balanceOn(balances, day);
 
           /*
@@ -864,6 +889,8 @@ function statedOn(
   day: IsoDate,
   balances: DayBalance[],
   takesMovements: boolean,
+  sameDayAfter: ReadonlyMap<string, number> = new Map(),
+  productId = 0,
 ): number {
   let stated = 0;
   let statedFrom: IsoDate | null = null;
@@ -880,7 +907,12 @@ function statedOn(
   // on what was there when the day started - which is the same rule the stated
   // figure follows, and the same rule an entry on a product follows. Money
   // that arrives today earns from tomorrow.
-  return stated + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
+  //
+  // What moved on the figure's own day after it was typed is not inside it,
+  // so it goes on top. On the figure's day itself this leaves what the day
+  // started with: the figure less what moved that day before it was typed.
+  return stated + (sameDayAfter.get(`${productId}|${statedFrom}`) ?? 0)
+    + (balanceOn(balances, addDays(day, -1)) - balanceOn(balances, statedFrom));
 }
 
 /**
