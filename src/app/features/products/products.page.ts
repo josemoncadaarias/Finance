@@ -343,6 +343,12 @@ export class ProductsPage {
     return parts.join(' · ');
   }
 
+  /** A day's line on Días: which product earned, on what and at what rate, as a payment's says it. */
+  dayLine(line: ProductLine, day: { product_id: number; balance_minor: number; annual_rate_scaled: number }): string {
+    const on = this.i18n.t('ui.yields.dayLine', { amount: this.money(day.balance_minor, line.account.currency_code), rate: this.rateText(day.annual_rate_scaled) });
+    return line.products.length > 1 ? `${this.productLabel(line, day.product_id)} · ${on}` : on;
+  }
+
   /** The payments of the product being edited: a CDT's list (4v). */
   readonly productPayments = computed(() => {
     const product = this.editingProduct();

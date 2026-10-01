@@ -1294,7 +1294,9 @@ test('money moved in on the figure\'s own day, after it was typed, earns from th
   assert.ok(on('2026-09-10').net_minor > 0);
 });
 
-test('money moved on the figure\'s own day BEFORE it was typed stays inside it', async () => {
+test('money moved on the figure\'s own day counts on top of it, whenever it was typed, as the screen says', async () => {
+  // The yields screen adds everything from the figure's day on ("Lo que
+  // entró y salió desde ese día"); the engine has to earn on that same sum.
   const { db, yields, engine, transactions, ids } = await setup();
   await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
@@ -1304,11 +1306,11 @@ test('money moved on the figure\'s own day BEFORE it was typed stays inside it',
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-09', amount_minor: 20_000_000, source: 'manual',
   });
   await db.run("UPDATE transactions SET created_at = '2026-09-09T09:00:00Z' WHERE id = ?", [id]);
-  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 100_000_000 });
+  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 0 });
   await db.run("UPDATE product_balances SET created_at = '2026-09-09T10:00:00Z' WHERE product_id = ?", [product.id]);
 
   await engine.accrue(ids.rappi, '2026-09-10');
-  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 100_000_000);
+  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 20_000_000);
 });
 
 test('a second product does not take the movements as well', async () => {
