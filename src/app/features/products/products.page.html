@@ -560,7 +560,7 @@
                               @if (product) { <app-badge [size]="36" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
                               <span class="ui-tx">
                                 <b class="ui-one">{{ weekdayDay(day.on_date) }}</b>
-                                <small class="ui-one">{{ 'ui.yields.dayLine' | t:{ amount: money(day.balance_minor, line.account.currency_code), rate: rateText(day.annual_rate_scaled) } }}</small>
+                                <small class="ui-one">{{ dayLine(line, day) }}</small>
                               </span>
                               <span class="am">
                                 <b class="ui-g">+{{ money(netOf(day), line.account.currency_code) }}</b>

@@ -429,6 +429,9 @@ backup restore against iOS's own SQLite backend.
    **A product's balance dated D is its balance at the CLOSE of D** - it
    holds everything paid on D, so only what lands after D goes on top of it,
    plus an entry written on D at or after the moment the figure was typed.
+   **Movements of the ledger through the product are the exception**: those
+   dated D go on top, as the screen has always added them (2026-10-01, see
+   "Also fixed the same day" under Debts and plans).
    The yields screen always read a figure that way; the engine did not, and
    put everything it had worked out since the walk began on top of the
    newest figure. That is harmless for a figure dated before the walk
@@ -3496,14 +3499,22 @@ How it is made:
   afterwards. **Not seen on the phone**: the phone notification itself
   (permission prompt, its icon) and how the sheet reads there.
 
-**Also fixed the same day (PR #21)**: a product with a typed balance given
-money the day it was created earned nothing (Jose's new Pibank product: 0
-typed on 29 Sep, 200,000 moved in the same day, nothing paid on 1 Oct).
-Every movement dated on the figure's day was taken as already inside it;
-now only those recorded before the figure was typed are, as entries
-already were (`sameDayAfter` in `accrual.ts`). On his backup, every yield
-worked out from scratch with both engines: 373 of 373 days identical. The
-days already worked out on his phone stay until "Recalcular".
+**Also fixed the same day (PRs #21 and #23)**: a product with a typed
+balance given money the day it was created earned nothing (Jose's new
+Pibank product "Impuesto de renta": 0 typed on 29 Sep, 200,000 moved in the
+same day, 0.00 paid on 1 Oct "sobre 0,00"). The engine took every movement
+dated on the figure's day as already inside the figure, while the yields
+screen has always added them on top ("Lo que entró y salió desde ese día").
+#21 counted only those recorded after the figure was typed; it did not
+reach his case, so #23 makes the engine follow the screen exactly: **what
+moved through a typed product on its figure's own day goes on top of the
+figure** (`statedOn` in `accrual.ts`). Yields paid that day and entries keep
+their own rule (`afterFigure`). On his backup of 2026-09-28, every yield
+worked out from scratch before and after: no yield moved; two bases came
+into line with what the screen already showed (Global66 USD 2.00 -> 4.00,
+Plenti 0 -> 0.02, both earning 0). The days already on his phone stay
+until "Recalcular". Days (Días) now name the product on each line when the
+account has several, as Pagos already did.
 
 ### The ideas, by what they would take
 
