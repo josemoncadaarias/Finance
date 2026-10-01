@@ -3448,6 +3448,23 @@ in the repository; their figures are written into the tests.
   its UVR adjustment); everything written was deleted afterwards and the
   balances checked back.
 
+**Part 3, plans - limits: DRAWN for Jose's word (2026-10-01)**,
+`docs/mockups/14a`-`14p`. What Jose has asked for so far, not to be lost
+when it is built:
+- A passed limit stands out: a red card on top (Planes, Inicio, the
+  limit's page), its own card marked "Pasado" with the bar running past
+  the mark, how much over and since when (`14g`-`14k`).
+- The total of all limits passed: the same tinted red, never solid red
+  (v1 was "demasiado invasivo"), and each passed limit still shows its
+  own red card under it (`14l`-`14o`).
+- The notice at saving a movement that crosses a limit or the total has
+  "No volver a mostrar esto"; the bell in Planes opens Avisos to turn
+  each notice (at saving, the phone notification, the 80 %) off and on
+  (`14p`). The red cards are not notices and stay while over.
+- **Offer a limit for next month from the average of the last three
+  months**, with "Usar" (`14e`, `14k`); Jose asked for it not to be
+  forgotten. The new-limit form offers the same average (`14d`).
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
