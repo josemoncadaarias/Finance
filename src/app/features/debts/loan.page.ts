@@ -21,6 +21,7 @@ import { fromIsoDay, isoDay } from '../../core/filters/period';
 import { ComposeService } from '../../core/ui/compose.service';
 import { usualPayer } from '../../core/cards/card-data';
 import { LoansRepository, type LoanRow } from '../../core/loans/loans.repository';
+import type { AccountRow } from '../../core/database/types';
 import {
   EA_SCALE, loanSchedule, payoffToday, type ExtraRow, type InstallmentRow, type LoanSchedule, type PlannedExtra,
 } from '../../core/loans/schedule';
@@ -65,6 +66,9 @@ export class LoanPage {
   readonly filter = signal<'all' | 'left' | 'paid'>('all');
   readonly openYears = signal<Set<string> | null>(null);
   readonly undoing = signal<{ id: number; label: string } | null>(null);
+
+  /** A paid installment or payment ahead, opened to see what was paid (the sheet in Cuotas). */
+  readonly detail = signal<{ row: InstallmentRow | ExtraRow; payment: LoanRow['payments'][number]; from: AccountRow | null } | null>(null);
   readonly busy = signal(false);
 
   // Paying ahead
@@ -342,12 +346,49 @@ export class LoanPage {
     });
   }
 
-  askUndo(row: InstallmentRow | ExtraRow): void {
+  /**
+   * What a row of Cuotas does when tapped: a paid one opens what was paid,
+   * the one due next (or late) opens its payment. A future one is only
+   * information - in a real loan the schedule is the bank's arithmetic, and
+   * what changes it is a payment, a payment ahead or a new rate.
+   */
+  async tapRow(row: InstallmentRow | ExtraRow): Promise<void> {
+    if (row.type === 'installment' && row.state !== 'paid') {
+      if (this.payable(row)) await this.payInstallment();
+      return;
+    }
+    const payment = this.paymentOf(row);
+    if (!payment) return;
+    const from = await new LoansRepository(this.database.driver).paidFrom(payment.transferId);
+    this.detail.set({ row, payment, from });
+  }
+
+  /** Only the installment due next - the first one late, or else the next one - can be paid. */
+  payable(row: InstallmentRow): boolean {
+    return (row.state === 'next' || row.state === 'overdue') && row.number === this.schedule()?.next?.number;
+  }
+
+  private paymentOf(row: InstallmentRow | ExtraRow): LoanRow['payments'][number] | undefined {
     const loan = this.loan();
-    if (!loan) return;
-    const payment = row.type === 'installment'
+    if (!loan) return undefined;
+    return row.type === 'installment'
       ? loan.payments.find(p => p.kind === 'installment' && p.number === row.number)
       : loan.payments.find(p => p.kind !== 'installment' && p.paidOn === row.paidOn && p.capitalMinor === row.amountMinor);
+  }
+
+  /** "Deshacer este pago" in the sheet: the same question as before, asked over it. */
+  undoFromDetail(): void {
+    const open = this.detail();
+    this.detail.set(null);
+    if (open) this.askUndo(open.row);
+  }
+
+  totalOf(p: LoanRow['payments'][number]): number {
+    return p.capitalMinor + p.interestMinor + p.insuranceMinor + p.lateMinor;
+  }
+
+  askUndo(row: InstallmentRow | ExtraRow): void {
+    const payment = this.paymentOf(row);
     if (!payment) return;
     this.undoing.set({
       id: payment.id,
