@@ -3470,6 +3470,11 @@ in the repository; their figures are written into the tests.
   its UVR adjustment); everything written was deleted afterwards and the
   balances checked back.
 
+**Named "Presupuestos" and "Topes" on screen** (Jose, 2026-10-01: more
+generic than Lukas's "Planes", and "tope de gasto" is how it is said in
+Colombia; English "Budgets" and "Caps"). Only the words changed: the code,
+keys, routes and tables still say plans and limits.
+
 **Part 3, plans - limits: BUILT (2026-10-01)**, from mockups `14a`-`14p`,
 approved by Jose. What he asked for along the way, all of it in:
 - A passed limit stands out: a red card on top (Planes, Inicio, the
