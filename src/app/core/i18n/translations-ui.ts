@@ -407,6 +407,8 @@ export const UI_ES = {
   'cards.caveat': 'Calculado con tus movimientos. Intereses, cuotas y cobros del banco pueden hacer que su factura sea distinta.',
   'cards.gone': 'Esta tarjeta ya no existe.',
   'cards.dueDay.same': 'del mismo mes',
+  'more.accounts': 'Cuentas',
+  'more.accounts.hint': 'Saldos y patrimonio',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -811,4 +813,6 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'cards.caveat': 'Worked out from your movements. Interest, installments and bank fees can make the bank\'s statement differ.',
   'cards.gone': 'This card no longer exists.',
   'cards.dueDay.same': 'of the same month',
+  'more.accounts': 'Accounts',
+  'more.accounts.hint': 'Balances and net worth',
 };

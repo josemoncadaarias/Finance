@@ -26,6 +26,11 @@
 
     <div class="ui-h">{{ 'more.finances' | t }}</div>
     <div class="ui-list">
+      <button type="button" class="ui-row" (click)="go('/accounts')">
+        <app-badge [size]="40" builtin="wallet-outline" [fixed]="accent.accent().color"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.accounts' | t }}</b><small>{{ 'more.accounts.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
       <button type="button" class="ui-row" (click)="go('/debts')">
         <app-badge [size]="40" builtin="card-outline" fixed="#f6b93b"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.debts' | t }}</b><small [class.late]="debtsLate()">{{ debtsLine() }}</small></span>

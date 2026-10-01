@@ -3324,6 +3324,21 @@ same day (web; the norms to re-read before building):
   instead of 11,049,708, saving 2,896,849 with the insurance; lowering the
   installment instead: 1,306,833, saving 1,272,397).
 
+**And from his next look (2026-10-01), built or drawn:**
+- **Inicio's quick buttons go where-it-leads first, edit last** (built): a
+  card shows the receipt (its debt and statement, `/debts/:id`), an earning
+  account the piggy bank, then the account's edit button.
+- **Más → Tus finanzas starts with Cuentas** (built), then Deudas y
+  tarjetas, then Productos y rendimientos; the Google card stays on top.
+- In Cuotas the payment ahead says "Queda debiendo" on its own line (`13p`).
+- **How the loan screens lead to one another**: `13s-recorrido-prestamo.jpg`
+  (drawn by `docs/mockups/src/flow-13.mjs`). Everything lives on the loan's
+  page, Resumen | Cuotas | Abonar; Abonar is ONE scrolling tab - the amount
+  and how often on top, the two answers, how much each amount saves, and at
+  its foot "Registrar el abono" (the transfer form) and "Pagar todo el
+  préstamo"; an overdue installment turns the Resumen red and "Pagar la
+  cuota" opens the transfer with the default interest.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |

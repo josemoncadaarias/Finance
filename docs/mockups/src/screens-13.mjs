@@ -194,14 +194,16 @@ S['13l-abonar-una-vez'] = page(loanHead('Abonar'), `
 // The same question for several amounts at once.
 const row2 = (a, b, c, d) => `<div class="row" style="padding:10px 14px"><b style="width:86px">${a}</b><div class="tx"><b>${b}</b><small>${c}</small></div><div class="am g">${d}</div></div>`;
 S['13m-abonar-cuanto'] = page(loanHead('Abonar'), `
- ${abonoHead('5.000.000', 'Con la cuota 24, el sábado 10 de octubre', 'Una vez')}
+ ${opt(false, 'remove-outline', 'Sin abonar', '', [['Terminas', 'oct 2029'], ['Intereses que pagarás', '11.049.708', 'y'], ['Total que pagarás', '54.799.441']])}
  <div class="h">Cuánto ahorras según lo que abones ${infoDot}</div>
  <div class="list">
   ${row2('1.000.000', 'Terminas sept 2029', '1 cuota antes', '621.370')}
   ${row2('2.000.000', 'Terminas ago 2029', '2 cuotas antes', '1.221.223')}
   ${row2('5.000.000', 'Terminas may 2029', '5 cuotas antes', '2.896.849')}
   ${row2('10.000.000', 'Terminas dic 2028', '10 cuotas antes', '5.306.039')}</div>
- <div class="note" style="margin:10px 4px">Reduciendo el plazo. Cuanto antes abones, más ahorras: al principio de un crédito casi toda la cuota son intereses.</div>`);
+ <div class="note" style="margin:10px 4px">Reduciendo el plazo. Toca una fila para verla arriba. Cuanto antes abones, más ahorras.</div>
+ <div class="btn" style="margin-top:6px">${ic('swap-horizontal')}Registrar el abono de 5.000.000</div>
+ <div style="text-align:center;margin-top:12px"><span class="chip" style="color:var(--pr)">${ic('flag-outline')}Pagar todo el préstamo</span></div>`).replace('<main>', '<main style="padding-top:4px">');
 
 // Every month, or every June and December (the primas).
 S['13n-abonar-en-primas'] = page(loanHead('Abonar'), `
@@ -229,7 +231,7 @@ S['13p-cuotas-con-abono'] = page(loanHead('Cuotas'), `
  <div style="display:flex;gap:8px;align-items:center;margin-top:2px"><span class="chip on">Todas · 55</span><span class="chip">Faltan 31</span><span class="chip">Pagadas 24</span></div>
  ${year('2026', '12 cuotas · 1 abono', true,
    cuota(24, '10 oct', '1.481.066', '540.447', '898.619', '41.297.113', 'paid')
- + `<div class="row" style="padding:10px 14px;gap:10px;background:${tint(C.grn, .08)}"><span style="width:28px;display:grid;place-items:center">${ic('arrow-down-circle', 'g')}</span><div class="tx"><b style="font-size:14.5px">10 oct · abono a capital</b><small>Para reducir el plazo · queda debiendo 36.297.113</small></div><div class="am g" style="font-size:14px">5.000.000</div></div>`
+ + `<div class="row" style="padding:10px 14px;gap:10px;background:${tint(C.grn, .08)}"><span style="width:28px;display:grid;place-items:center">${ic('arrow-down-circle', 'g')}</span><div class="tx"><b style="font-size:14.5px">10 oct · abono a capital · <span class="g">5.000.000</span></b><small>Para reducir el plazo</small><small style="display:flex;justify-content:space-between"><span>Queda debiendo</span><span>36.297.113</span></small></div><span style="width:24px"></span></div>`
  + cuota(25, '10 nov', '1.481.066', '464.897', '974.169', '35.322.944', 'next'))}
  ${year('2027', '12 cuotas · intereses 4.395.534', false)}
  ${year('2028 – 2029', '17 cuotas · terminas en mayo de 2029', false)}

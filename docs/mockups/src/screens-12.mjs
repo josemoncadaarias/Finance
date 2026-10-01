@@ -15,7 +15,9 @@ const bar = p => `<div class="pbar" style="height:8px;margin-top:10px"><i style=
 
 // 1. Más: a new group, "Tus finanzas", with the three ways in.
 S['12a-mas-tus-finanzas'] = `${bigTitle('Más')}<main style="padding-top:6px">
+ <div class="card hero" style="display:flex;gap:12px;align-items:center;padding:14px">${ci('person', C.blu, 46)}<div class="tx" style="flex:1"><b>Jose</b><div class="sub">Copia en Drive · hoy 8:12</div></div>${chev()}</div>
  <div class="h">Tus finanzas</div><div class="list">
+  ${row(sq('wallet-outline', C.blu, 40), 'Cuentas', 'Saldos y patrimonio')}
   ${row(sq('card-outline', C.yel, 40), 'Deudas y tarjetas', 'Debes 742.300 · pagas antes del 10 oct')}
   ${row(sq('trending-up-outline', C.grn, 40), 'Productos y rendimientos', 'Rendimiento disponible 4,95 M')}
   ${row(sq('flag-outline', C.pur, 40), 'Planes', 'Límites de gasto y metas de ahorro')}</div>
