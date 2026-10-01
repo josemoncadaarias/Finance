@@ -62,20 +62,27 @@
               @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
             </div>
           </div>
-          <!-- One account's quick buttons: editing it, and for an account that
-               earns, its products and yields. -->
+          <!-- One account's quick buttons: first where it leads - a card's
+               debt, an earning account's products and yields - then editing
+               it (Jose, 2026-10-01). -->
           @if (store.selectedAccount(); as account) {
             <span class="quick">
-              <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
-                      [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
-                <ion-icon name="account-edit"></ion-icon>
-              </button>
+              @if (account.type === 'credit') {
+                <button type="button" class="ui-round solid" (click)="toDebt(account.id)"
+                        [attr.aria-label]="'summary.toDebt' | t" [title]="'summary.toDebt' | t">
+                  <ion-icon name="receipt-outline"></ion-icon>
+                </button>
+              }
               @if (earning().has(account.id)) {
                 <button type="button" class="ui-round solid" (click)="toProducts(account.id)"
                         [attr.aria-label]="'summary.toProducts' | t" [title]="'summary.toProducts' | t">
                   <ion-icon name="piggy-bank"></ion-icon>
                 </button>
               }
+              <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
+                      [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
+                <ion-icon name="account-edit"></ion-icon>
+              </button>
             </span>
           }
         </div>

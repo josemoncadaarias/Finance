@@ -87,6 +87,11 @@ export class MovementsPage {
   });
 
   /** Straight into this account's yields, its sheet already open. */
+  /** A card's debt and its statement (debts, part 1). */
+  async toDebt(accountId: number): Promise<void> {
+    await this.router.navigate(['/debts', accountId]);
+  }
+
   async toProducts(accountId: number): Promise<void> {
     await this.router.navigate(['/products'], { queryParams: { account: accountId } });
   }

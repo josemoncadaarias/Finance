@@ -286,6 +286,7 @@ export const SPANISH = {
 
   'summary.editAccount': 'Editar esta cuenta',
   'summary.toProducts': 'Ver sus productos y rendimientos',
+  'summary.toDebt': 'Ver su deuda y su factura',
   'summary.period': 'Periodo',
   'summary.from': 'Desde',
   'summary.to': 'Hasta',
@@ -1339,6 +1340,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'summary.editAccount': 'Edit this account',
   'summary.toProducts': 'See its products and yields',
+  'summary.toDebt': 'See its debt and statement',
   'summary.period': 'Period',
   'summary.from': 'From',
   'summary.to': 'To',
