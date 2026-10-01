@@ -63,6 +63,11 @@ export const TABLES = [
   'product_entries',
   'product_cashouts',
   'yield_payments',
+  // A loan's terms, its rate history and what was paid (migration 050):
+  // after the accounts, the transfers and the movements they point at.
+  'loans',
+  'loan_rates',
+  'loan_payments',
   'tax_parameters',
   'credit_limit_changes',
   // What the app has read and nobody has answered yet, and what it has learned

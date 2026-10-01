@@ -47,5 +47,6 @@
   "046_the_consumer_price_index.sql": "750dd17ff227da9aa8e1f8defc2f5287494f967194addd69158ff48b4016a882",
   "047_a_category_can_be_an_investment_return.sql": "1ce0ab212eaf92996af0eeb4e06dc954e5b996d6589bb8ca6adb307aa65860a9",
   "048_a_monthly_payment_lands_the_next_day.sql": "4bf2f0a3bf4ab90897c90eeb6dfb0804cc140c471a2fa254673206ef59efb0ed",
-  "049_a_card_has_a_cut_off_and_a_payment_day.sql": "cff92b7836ca770f28f1bbb18ae666579159f06d6416766f75bae7782d61aabe"
+  "049_a_card_has_a_cut_off_and_a_payment_day.sql": "cff92b7836ca770f28f1bbb18ae666579159f06d6416766f75bae7782d61aabe",
+  "050_loans.sql": "4779ba7f8a51982d5cbc6dc31c3f24e04a0f76d0929ec48dc48817ee925ad5ab"
 }

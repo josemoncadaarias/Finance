@@ -89,9 +89,28 @@ export interface EntryRequest {
    * redesign, and only the product could after it).
    */
   route?: { from: number; to: number; fromProductId?: number | null; toProductId?: number | null };
+  /**
+   * A loan's installment or payment ahead (debts, part 2). The amount is what
+   * leaves the account; the form shows how it splits - capital into the loan,
+   * interest, insurance and default interest as spending - each figure
+   * editable, and writes it whole through LoansRepository.recordPayment.
+   */
+  loan?: LoanEntry;
+}
+
+export interface LoanEntry {
+  accountId: number;
+  kind: 'installment' | 'extra' | 'payoff';
+  number: number | null;
+  /** "Cuota 24 de 60", said by the page that opened the form. */
+  title: string;
+  interestMinor: number;
+  insuranceMinor: number;
+  mode: 'term' | 'installment' | null;
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { LoansRepository } from '../../core/loans/loans.repository';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
 @Component({
@@ -558,6 +577,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   readonly missing = computed<string | null>(() => {
     if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
+    if (this.loanEntry() && this.loanCapital() < 0) return this.i18n.t('loans.pay.tooLittle');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
 
     if (this.isTransfer()) {
@@ -799,6 +819,57 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.note.set(start.note);
       if (start.again) this.again.set(true);
     }
+    const loan = this.request().loan;
+    if (loan) {
+      this.loanInterest.set(AmountBuffer.from(loan.interestMinor));
+      this.loanInsurance.set(AmountBuffer.from(loan.insuranceMinor));
+      this.loanMode.set(loan.mode ?? 'term');
+      this.keypadOpen.set(false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // A loan's payment (debts, part 2; mockups 13g, 13h, 13o, 13r)
+  // ---------------------------------------------------------------------------
+
+  /** The loan this payment is for, while it still goes into that loan. */
+  readonly loanEntry = computed(() => {
+    const loan = this.request().loan ?? null;
+    return loan && this.isTransfer() && this.toAccountId() === loan.accountId ? loan : null;
+  });
+  readonly loanInterest = signal(new AmountBuffer());
+  readonly loanInsurance = signal(new AmountBuffer());
+  readonly loanLate = signal(new AmountBuffer());
+  readonly loanMode = signal<'term' | 'installment'>('term');
+  /** What is left for the capital once interest, insurance and default interest are taken. */
+  readonly loanCapital = computed(() =>
+    this.effectiveMinor() - this.loanInterest().minor - this.loanInsurance().minor - this.loanLate().minor);
+
+  onLoanFigure(which: 'interest' | 'insurance' | 'late', text: string): void {
+    const buffer = new AmountBuffer();
+    for (const character of text) {
+      if (/[0-9]/.test(character)) buffer.push(character);
+      else if (character === ',') buffer.separator();
+    }
+    (which === 'interest' ? this.loanInterest : which === 'insurance' ? this.loanInsurance : this.loanLate).set(buffer);
+  }
+
+  private async saveLoanPayment(loan: LoanEntry): Promise<void> {
+    await new LoansRepository(this.database.driver).recordPayment({
+      loanAccountId: loan.accountId,
+      fromAccountId: this.accountId()!,
+      kind: loan.kind,
+      number: loan.number,
+      paidOn: this.occurredOn(),
+      capitalMinor: this.loanCapital(),
+      interestMinor: this.loanInterest().minor,
+      insuranceMinor: this.loanInsurance().minor,
+      lateMinor: this.loanLate().minor,
+      extraMode: loan.kind === 'extra' ? this.loanMode() : null,
+      note: this.note().trim() || null,
+      interestCategory: this.i18n.t('loans.category.interest'),
+      insuranceCategory: this.i18n.t('loans.category.insurance'),
+    });
   }
 
   /**
@@ -1296,7 +1367,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.error.set('');
 
     try {
-      if (this.isTransfer()) await this.saveTransfer();
+      const loan = this.loanEntry();
+      if (loan) await this.saveLoanPayment(loan);
+      else if (this.isTransfer()) await this.saveTransfer();
       else if (this.asksScope() && this.scope() !== 'both') await this.saveScoped();
       else await this.saveMovement();
 

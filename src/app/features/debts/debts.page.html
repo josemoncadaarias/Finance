@@ -1,6 +1,11 @@
 <!-- Cuentas, its Deudas face (12b). -->
 <ion-content [fullscreen]="true">
-  <div class="ui-bigtitle"><h1>{{ 'accounts.title' | t }}</h1></div>
+  <div class="ui-bigtitle">
+    <h1>{{ 'accounts.title' | t }}</h1>
+    <button type="button" class="ui-pill line" (click)="choosing.set(true)">
+      <ion-icon name="add"></ion-icon>{{ 'loans.newDebt' | t }}
+    </button>
+  </div>
 
   <div class="ui-main">
     <app-accounts-faces on="debts"></app-accounts-faces>
@@ -9,7 +14,14 @@
       <section class="ui-hero owed">
         <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
         <div class="ui-big">$ {{ owedMinor() | money }}</div>
-        <p class="ui-sub">{{ (cards.length === 0 ? 'cards.none.all' : 'cards.onlyCards') | t }}</p>
+        @if (thisMonth().pay > 0) {
+          <div class="ui-mini month">
+            <div><span class="ui-lab">{{ 'loans.thisMonth' | t }}</span><b>{{ thisMonth().pay | money }}</b></div>
+            <div><span class="ui-lab">{{ 'loans.thisMonth.interest' | t }}</span><b class="ui-y">{{ thisMonth().interest | money }}</b></div>
+          </div>
+        } @else {
+          <p class="ui-sub">{{ (cards.length === 0 && loans().length === 0 ? 'cards.none.all' : loans().length === 0 ? 'cards.onlyCards' : 'loans.nothingThisMonth') | t }}</p>
+        }
       </section>
 
       <h3 class="ui-h">{{ 'cards.title' | t }}</h3>
@@ -41,14 +53,69 @@
       }
 
       <h3 class="ui-h">{{ 'loans.title' | t }}</h3>
-      <div class="ui-card empty">
-        <app-badge shape="ci" [size]="46" builtin="cash-outline" fixed="#9b7bff"></app-badge>
-        <b>{{ 'loans.none' | t }}</b>
-        <p class="ui-sub">{{ 'loans.soon' | t }}</p>
-      </div>
+      @if (loans().length > 0) {
+        <div class="ui-list">
+          @for (l of loans(); track l.loan.account.id) {
+            <button type="button" class="ui-row card" (click)="openLoan(l)">
+              <app-badge shape="ci" [size]="42" [builtin]="l.loan.account.builtin_icon" [customId]="l.loan.account.custom_icon_id"
+                         [tone]="l.loan.account.color" [seed]="l.loan.account.id" fallback="cash"></app-badge>
+              <span class="ui-tx">
+                <b class="ui-one">{{ l.loan.account.name }}</b>
+                <small class="ui-one">{{ loanSub(l) }}</small>
+                @if (loanLine(l); as line) {
+                  <small class="wrap" [class.ui-y]="l.s.next?.state === 'next'" [class.ui-r]="l.s.next?.state === 'overdue'" [class.ui-g]="l.s.done">{{ line }}</small>
+                }
+              </span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="ui-card empty">
+          <app-badge shape="ci" [size]="46" builtin="cash-outline" fixed="#9b7bff"></app-badge>
+          <b>{{ 'loans.none' | t }}</b>
+          <p class="ui-sub">{{ 'loans.none.hint' | t }}</p>
+          <button type="button" class="ui-chip add" (click)="newLoan.set(true)"><ion-icon name="add"></ion-icon>{{ 'loans.add' | t }}</button>
+        </div>
+      }
       <div class="ui-page-end"></div>
     } @else {
       <div class="state"><ion-spinner></ion-spinner></div>
     }
   </div>
 </ion-content>
+
+<!-- "Nueva deuda": a loan or a card (13b). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosing()" (didDismiss)="choosing.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body">
+      <button type="button" class="sheet-cancel" (click)="choosing.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'loans.newDebt.title' | t }}</h2>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="startLoan()">
+          <app-badge shape="ci" [size]="42" builtin="cash-outline" fixed="#9b7bff"></app-badge>
+          <span class="ui-tx"><b>{{ 'loans.newDebt.loan' | t }}</b><small class="wrap">{{ 'loans.newDebt.loan.hint' | t }}</small></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+        <button type="button" class="ui-row" (click)="startCard()">
+          <app-badge shape="ci" [size]="42" builtin="card-outline" fixed="#f6b93b"></app-badge>
+          <span class="ui-tx"><b>{{ 'loans.newDebt.card' | t }}</b><small class="wrap">{{ 'loans.newDebt.card.hint' | t }}</small></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="entry-sheet" [isOpen]="newLoan()" (didDismiss)="newLoan.set(false)">
+  <ng-template>
+    <app-loan-editor (saved)="onLoanSaved($event)" (cancelled)="newLoan.set(false)"></app-loan-editor>
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="entry-sheet" [isOpen]="newCard()" (didDismiss)="newCard.set(false)">
+  <ng-template>
+    <app-account-editor [editing]="null" startType="credit" (saved)="newCard.set(false)" (cancelled)="newCard.set(false)"></app-account-editor>
+  </ng-template>
+</ion-modal>

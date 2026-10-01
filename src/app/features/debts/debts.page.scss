@@ -22,3 +22,6 @@ app-accounts-faces { margin-bottom: 12px; }
 }
 
 .state { text-align: center; padding: 40px 16px; }
+
+.month { margin-top: 10px; > div { background: rgba(7, 13, 26, 0.35); } }
+.empty .add { display: inline-flex; align-items: center; gap: 6px; color: var(--app-pr); margin-top: 6px; }

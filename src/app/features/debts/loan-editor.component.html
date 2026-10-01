@@ -1,0 +1,189 @@
+<!-- A loan's form (13c, 13d). -->
+<div class="ui-frame editor">
+  <header class="ui-titlebar">
+    <button type="button" class="x" (click)="cancelled.emit()" [attr.aria-label]="'entry.cancel' | t">
+      <ion-icon name="close"></ion-icon>
+    </button>
+    <h1>{{ (isNew() ? 'loans.form.new' : 'loans.form.edit') | t }}</h1>
+    <button type="button" class="ui-pill" [disabled]="missing() !== null || saving()" (click)="save()">
+      <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+    </button>
+  </header>
+
+  <div class="scroll">
+    @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
+
+    <div class="ui-list">
+      <label class="ui-field">
+        <app-badge shape="ci" [size]="44" [builtin]="face()[0]" [fixed]="face()[1]"></app-badge>
+        <span class="in">
+          <span class="lab">{{ 'loans.form.name' | t }}</span>
+          <input [value]="name()" (input)="name.set($any($event.target).value)" [placeholder]="'loans.form.name.hint' | t">
+        </span>
+      </label>
+      <div class="faces">
+        @for (f of faces; track f[0]) {
+          <button type="button" class="face" [class.on]="f[0] === face()[0]" (click)="face.set(f)">
+            <app-badge shape="ci" [size]="36" [builtin]="f[0]" [fixed]="f[1]"></app-badge>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="ui-list">
+      <label class="ui-field">
+        <span class="in">
+          <span class="lab">{{ 'loans.form.principal' | t }}</span>
+          <input inputmode="decimal" [value]="principal().text" placeholder="0" (input)="onAmount('principal', $any($event.target).value)">
+        </span>
+        <span class="unit">COP</span>
+      </label>
+      <div class="ui-field col">
+        <span class="in">
+          <span class="lab">{{ 'loans.form.rate' | t }}</span>
+          <span class="rate-row">
+            <input inputmode="decimal" [value]="rateText()" placeholder="0,00" (input)="rateText.set($any($event.target).value)">
+            <span class="unit">%</span>
+            <span class="ui-seg mini">
+              <button type="button" [class.on]="rateQuoted() === 'ea'" (click)="rateQuoted.set('ea')">E.A.</button>
+              <button type="button" [class.on]="rateQuoted() === 'mv'" (click)="rateQuoted.set('mv')">M.V.</button>
+            </span>
+          </span>
+          @if (rateLine()) { <span class="hint">{{ rateLine() }}</span> }
+        </span>
+      </div>
+      <div class="ui-field col">
+        <span class="ui-seg full">
+          <button type="button" [class.on]="rateKind() === 'fixed'" (click)="rateKind.set('fixed')">{{ 'loans.form.fixed' | t }}</button>
+          <button type="button" [class.on]="rateKind() === 'variable'" (click)="rateKind.set('variable')">{{ 'loans.form.variable' | t }}</button>
+        </span>
+      </div>
+    </div>
+
+    @if (!isNew() && rateKind() === 'variable') {
+      <h3 class="ui-h">{{ 'loans.form.rateChanges' | t }}</h3>
+      <div class="ui-list">
+        @for (r of laterRates(); track r.validFrom) {
+          <div class="ui-field">
+            <span class="in"><span class="val">{{ rateOf(r.annualRateScaled) }} % E.A.</span><span class="hint">{{ 'loans.form.from' | t:{ date: r.validFrom } }}</span></span>
+            <button type="button" class="ui-pill line" (click)="removeRate(r.validFrom)"><ion-icon name="trash-outline"></ion-icon></button>
+          </div>
+        }
+        <div class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.form.newRate' | t }}</span>
+            <input inputmode="decimal" [value]="newRateText()" placeholder="0,00" (input)="newRateText.set($any($event.target).value)"></span>
+          <span class="in"><span class="lab">{{ 'loans.form.newRateFrom' | t }}</span>
+            <input type="date" [value]="newRateFrom()" (change)="newRateFrom.set($any($event.target).value)"></span>
+        </div>
+      </div>
+    }
+
+    <div class="ui-list">
+      <div class="ui-field col">
+        <span class="in">
+          <span class="lab">{{ 'loans.form.system' | t }}</span>
+          <span class="ui-seg full">
+            <button type="button" [class.on]="system() === 'fixed_installment'" (click)="system.set('fixed_installment')">{{ 'loans.system.fixed' | t }}</button>
+            <button type="button" [class.on]="system() === 'constant_capital'" (click)="system.set('constant_capital')">{{ 'loans.system.capital' | t }}</button>
+          </span>
+        </span>
+      </div>
+      <div class="two">
+        <label class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.form.count' | t }}</span>
+            <input inputmode="numeric" [value]="installments()" placeholder="60" (input)="installments.set($any($event.target).value)"></span>
+        </label>
+        <label class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.form.every' | t }}</span>
+            <select [value]="periodMonths()" (change)="periodMonths.set(+$any($event.target).value)">
+              @for (m of [1, 2, 3, 6, 12]; track m) {
+                <option [value]="m" [selected]="m === periodMonths()">{{ $any('loans.every.' + m) | t }}</option>
+              }
+            </select></span>
+        </label>
+      </div>
+      <div class="two">
+        <label class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.form.disbursed' | t }}</span>
+            <input type="date" [value]="disbursedOn()" (change)="disbursedOn.set($any($event.target).value)"></span>
+        </label>
+        <label class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.form.firstDue' | t }}</span>
+            <input type="date" [value]="firstDueOn()" (change)="firstDueOn.set($any($event.target).value)"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="ui-list">
+      <div class="ui-field col">
+        <span class="in">
+          <span class="lab">{{ 'loans.form.insurance' | t }}</span>
+          <span class="rate-row">
+            @if (insuranceKind() === 'fixed') {
+              <input inputmode="decimal" [value]="insurance().text" placeholder="0" (input)="onAmount('insurance', $any($event.target).value)">
+            } @else {
+              <input inputmode="decimal" [value]="insuranceRateText()" placeholder="0,05" (input)="insuranceRateText.set($any($event.target).value)">
+              <span class="unit">%</span>
+            }
+            <span class="ui-seg mini">
+              <button type="button" [class.on]="insuranceKind() === 'fixed'" (click)="insuranceKind.set('fixed')">{{ 'loans.form.insurance.fixed' | t }}</button>
+              <button type="button" [class.on]="insuranceKind() === 'balance'" (click)="insuranceKind.set('balance')">{{ 'loans.form.insurance.balance' | t }}</button>
+            </span>
+          </span>
+          <span class="hint">{{ (insuranceKind() === 'fixed' ? 'loans.form.insurance.fixedHint' : 'loans.form.insurance.balanceHint') | t }}</span>
+        </span>
+      </div>
+      <label class="ui-field">
+        <span class="in"><span class="lab">{{ 'loans.form.paidFrom' | t }}</span>
+          <select (change)="paidFrom.set(+$any($event.target).value || null)">
+            @for (a of payers(); track a.id) {
+              <option [value]="a.id" [selected]="a.id === paidFrom()">{{ a.name }}</option>
+            }
+          </select></span>
+      </label>
+    </div>
+
+    @if (worked(); as w) {
+      <div class="ui-card installment">
+        <div class="line"><span class="ui-sub">{{ 'loans.form.worked' | t }}</span><b>{{ money(w.totalMinor) }}</b></div>
+        <p class="ui-sub">{{ 'loans.form.worked.parts' | t:{ payment: money(w.paymentMinor), insurance: money(w.insuranceMinor) } }}</p>
+        <label class="line">
+          <span class="ui-sub">{{ 'loans.form.bank' | t }}</span>
+          <input class="fig" inputmode="decimal" [value]="bankInstallment().text" placeholder="0" (input)="onAmount('bank', $any($event.target).value)">
+        </label>
+        @if (bankLine()) { <p class="ui-sub ok">{{ bankLine() }}</p> }
+      </div>
+    }
+
+    @if (dueAlready() > 0) {
+      <h3 class="ui-h">{{ 'loans.form.begun' | t }}</h3>
+      <div class="ui-card installment">
+        <label class="line">
+          <span class="ui-sub">{{ 'loans.form.paidBefore' | t }}</span>
+          <input class="fig" inputmode="numeric" [value]="paidBefore()" (input)="paidBeforeText.set($any($event.target).value)">
+        </label>
+        <p class="ui-sub">{{ 'loans.form.paidBefore.hint' | t }}</p>
+        @if (owedWorked() !== null) {
+          <div class="line"><span class="ui-sub">{{ 'loans.form.owedWorked' | t }}</span><b>{{ money(owedWorked()) }}</b></div>
+          <label class="line">
+            <span class="ui-sub">{{ 'loans.form.owedBank' | t }}</span>
+            <input class="fig" inputmode="decimal" [value]="balanceStated().text" placeholder="0" (input)="onAmount('balance', $any($event.target).value)">
+          </label>
+        }
+      </div>
+    }
+
+    @if (missing(); as m) { <p class="missing">{{ m }}</p> }
+
+    @if (!isNew()) {
+      <button type="button" class="ui-btn danger" (click)="confirmingDelete.set(true)">
+        <ion-icon name="trash-outline"></ion-icon>{{ 'loans.form.delete' | t }}
+      </button>
+    }
+    <div class="ui-page-end"></div>
+  </div>
+</div>
+
+<app-confirm [open]="confirmingDelete()" [title]="'loans.form.delete.confirm' | t:{ loan: name() }"
+             [body]="'loans.form.delete.body' | t" [busy]="saving()" [confirmLabel]="'ui.delete' | t"
+             (confirmed)="remove()" (cancelled)="confirmingDelete.set(false)"></app-confirm>

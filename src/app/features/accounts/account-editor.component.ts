@@ -59,6 +59,8 @@ export class AccountEditorComponent implements OnInit {
 
   /** The account being corrected, or null when creating one. */
   readonly editing = input<AccountRow | null>(null);
+  /** The kind a new account starts as: Deudas opens it as a card. */
+  readonly startType = input<AccountType | null>(null);
   readonly saved = output<void>();
   readonly cancelled = output<void>();
 
@@ -224,6 +226,7 @@ export class AccountEditorComponent implements OnInit {
       'SELECT code, name FROM currencies ORDER BY code'));
 
     const account = this.editing();
+    if (!account && this.startType()) this.type.set(this.startType()!);
     if (!account) {
       // Chosen as "Es de una cuenta nueva" from the "+": the statement was
       // read there, and this form is where it is filled in from.

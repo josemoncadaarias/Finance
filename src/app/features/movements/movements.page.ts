@@ -36,6 +36,7 @@ import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component'
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { todayIso } from '../../core/yields/days';
+import { LoansRepository } from '../../core/loans/loans.repository';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
 import { ComposeService } from '../../core/ui/compose.service';
 import { AccentService } from '../../core/theme/accent.service';
@@ -83,14 +84,19 @@ export class MovementsPage {
     void untracked(async () => {
       const enrolled = await new YieldsRepository(this.database.driver).accounts();
       this.earning.set(new Set(enrolled.map(entry => entry.account_id)));
+      this.loanIds.set(new Set(await new LoansRepository(this.database.driver).ids()));
     });
   });
 
-  /** Straight into this account's yields, its sheet already open. */
-  /** A card's debt and its statement (debts, part 1). */
+  /** The accounts that are loans: their quick button opens the loan (debts, part 2). */
+  readonly loanIds = signal<ReadonlySet<number>>(new Set());
+
+  /** A card's debt and its statement, or a loan's page. */
   async toDebt(accountId: number): Promise<void> {
-    await this.router.navigate(['/debts', accountId]);
+    await this.router.navigate(this.loanIds().has(accountId) ? ['/debts/loan', accountId] : ['/debts', accountId]);
   }
+
+  /** Straight into this account's yields, its sheet already open. */
 
   async toProducts(accountId: number): Promise<void> {
     await this.router.navigate(['/products'], { queryParams: { account: accountId } });

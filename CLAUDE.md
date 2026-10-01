@@ -118,15 +118,15 @@ these):
   Android's buttons.
 - Whether the accent colour visibly changes things for him in the light
   theme (it does in a browser; transfers keep their own blue since #2).
-- **Debts and plans** (loans, card dates, paying ahead, limits, goals):
-  analysed and drawn (`docs/mockups/11*`), not started - see "Debts and
-  plans" under "Ideas waiting for Jose's word". Debts come first.
+- **Debts and plans**: card dates (part 1) and loans with paying ahead
+  (part 2) are built; plans (limits and goals) are next, when Jose says -
+  see "Debts and plans" under "Ideas waiting for Jose's word".
 - The open questions of rule 21 (which report sections are paid, lifetime
   option, what sits between the app and Google Play) and the list in
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (573, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (594, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -3339,6 +3339,44 @@ same day (web; the norms to re-read before building):
   préstamo"; an overdue installment turns the Resumen red and "Pagar la
   cuota" opens the transfer with the default interest.
 
+**Part 2, loans: BUILT (2026-10-01)**, approved by Jose on `13a`-`13s`.
+- **A loan is an account** (type `debit`: the CHECK on `accounts.type`
+  cannot be widened without rebuilding the table) whose balance is minus
+  the debt, so Saldos and net worth carry it for free; what makes it a
+  loan is its row in `loans` (migration 050): principal, system (fixed
+  installment or constant capital), the rate as typed (E.A. or M.V.),
+  installments and how many months apart, disbursement and first
+  installment, insurance (fixed or a monthly share of the balance), the
+  installment the bank states, the account it is paid from, and how many
+  installments were paid before the app with the balance the bank gave
+  then. `loan_rates` is the E.A. history (a variable rate is one more
+  row); `loan_payments` is what was paid, pointing at the movements it
+  wrote. All three travel in the backup. COP only.
+- **The schedule is worked out, never stored** (`core/loans/schedule.ts`,
+  pure, `loan-schedule.test.mjs` reproduces every figure of the mockups to
+  the centavo): the bank's installment (less fixed insurance) drives it;
+  installments paid before the app are a record, not movements; an extra
+  payment lowers the term or the installment, as the person chose (Ley
+  1555); a planned extra once, monthly or in the primas; paying it all
+  today is the balance plus the interest since the last due date.
+- **Paying is the one transfer form** (`EntryRequest.loan`): the capital
+  is the transfer from the payer into the loan, interest, insurance and
+  late interest are expenses under "Intereses" and "Seguros" (created the
+  first time), every figure editable, all written in one transaction by
+  `LoansRepository.recordPayment`. Tapping a paid installment undoes it,
+  movements included.
+- Screens: `/debts/loan/:id` (Resumen | Cuotas | Abonar), the loan editor
+  from "Nueva deuda" in Deudas, Inicio's receipt button and Cuentas'
+  pencil lead to the loan's page.
+- Checked in a browser on Jose's backup with the invented car loan of the
+  mockups (form, Resumen, primas, payoff, paying installment 24 from Rappi
+  cuenta, a 5M abono shortening the term, undoing both); the loan and the
+  two categories were deleted afterwards.
+- Known limits: interest on an extra paid between installments is not
+  prorated; deleting a loan's transfer from Inicio leaves its interest and
+  insurance expenses (undo it from Cuotas instead); UVR systems later; the
+  disbursement arriving in a bank account is not recorded.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3399,7 +3437,8 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
-- [ ] Debts part 2 (loans): approve the screens `13a`-`13r` (v2).
+- [ ] Debts part 2 (loans) is built: try a loan on the phone (Más → Deudas y
+      tarjetas → Nueva deuda) and say what reads wrong. Then part 3, plans.
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the

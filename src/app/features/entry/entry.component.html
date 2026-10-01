@@ -61,7 +61,7 @@
           <!-- Touching the amount brings the keypad back; erasing is a key of it. -->
           <section class="amount" (click)="keypadOpen.set(true)">
             <span class="sign" [class]="kind()">{{ isTransfer() ? '⇄' : kind() === 'expense' ? '−' : '+' }}</span>
-            <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
+            <span class="value" [class.long]="amount().text.length > 9" [class.longer]="amount().text.length > 12">{{ amount().isEmpty ? '0' : amount().text }}</span>
             <span class="currency">{{ currency() }}</span>
           </section>
         }
@@ -122,6 +122,45 @@
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           }
         </div>
+
+        <!-- A loan's payment: how it splits (13g, 13h, 13o, 13r). -->
+        @if (loanEntry(); as loan) {
+          <h3 class="ui-h loan-h">{{ loan.title }}</h3>
+          <div class="ui-list loan-split">
+            <div class="ui-row">
+              <app-badge shape="ci" [size]="36" builtin="swap-horizontal" fixed="#5b8def"></app-badge>
+              <span class="ui-tx"><b>{{ 'loans.pay.capital' | t }}</b><small>{{ 'loans.pay.capital.hint' | t }}</small></span>
+              <span class="ui-am ui-t">{{ money(loanCapital()) }}</span>
+            </div>
+            @if (loan.kind !== 'extra') {
+              <label class="ui-row">
+                <app-badge [size]="36" builtin="trending-up-outline" fixed="#f6b93b"></app-badge>
+                <span class="ui-tx"><b>{{ 'loans.pay.interest' | t }}</b><small>{{ 'loans.pay.spending' | t:{ category: ('loans.category.interest' | t) } }}</small></span>
+                <input class="fig" inputmode="decimal" [value]="loanInterest().text || '0'" (input)="onLoanFigure('interest', $any($event.target).value)">
+              </label>
+              @if (loan.kind === 'installment') {
+                <label class="ui-row">
+                  <app-badge [size]="36" builtin="shield-checkmark-outline" fixed="#9b7bff"></app-badge>
+                  <span class="ui-tx"><b>{{ 'loans.pay.insurance' | t }}</b><small>{{ 'loans.pay.spending' | t:{ category: ('loans.category.insurance' | t) } }}</small></span>
+                  <input class="fig" inputmode="decimal" [value]="loanInsurance().text || '0'" (input)="onLoanFigure('insurance', $any($event.target).value)">
+                </label>
+                <label class="ui-row">
+                  <app-badge [size]="36" builtin="time-outline" fixed="#ff6b6b"></app-badge>
+                  <span class="ui-tx"><b>{{ 'loans.pay.late' | t }}</b><small>{{ 'loans.pay.late.hint' | t }}</small></span>
+                  <input class="fig" inputmode="decimal" [value]="loanLate().text || '0'" (input)="onLoanFigure('late', $any($event.target).value)">
+                </label>
+              }
+            } @else {
+              <div class="ui-seg loan-mode">
+                <button type="button" [class.on]="loanMode() === 'term'" (click)="loanMode.set('term')">{{ 'loans.mode.term' | t }}</button>
+                <button type="button" [class.on]="loanMode() === 'installment'" (click)="loanMode.set('installment')">{{ 'loans.mode.installment' | t }}</button>
+              </div>
+            }
+          </div>
+          @if (loan.kind === 'extra') {
+            <p class="loan-warn">{{ (loanMode() === 'term' ? 'loans.tellBank.term' : 'loans.tellBank.installment') | t }}</p>
+          }
+        }
 
         @if (isTransfer()) {
           <div class="ui-list details">
