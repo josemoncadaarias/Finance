@@ -42,6 +42,9 @@
             <span class="line"><span>{{ now.label || ('cloud.uploading' | t) }}</span>@if (now.fraction !== null) {<b>{{ percentOf(now.fraction) }}</b>}</span>
             <span class="ui-pbar" [class.moving]="now.fraction === null"><i [style.width.%]="now.fraction === null ? 35 : now.fraction * 100"></i></span>
             @if (now.detail) { <small>{{ now.detail }}</small> }
+            @if (cloud.state() === 'working') {
+              <button type="button" class="ui-btn ghost stop" (click)="cloud.cancel()">{{ 'ui.cancel' | t }}</button>
+            }
           </div>
         } @else {
           <div class="two">
