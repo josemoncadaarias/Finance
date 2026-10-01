@@ -67,7 +67,7 @@
                it (Jose, 2026-10-01). -->
           @if (store.selectedAccount(); as account) {
             <span class="quick">
-              @if (account.type === 'credit') {
+              @if (account.type === 'credit' || loanIds().has(account.id)) {
                 <button type="button" class="ui-round solid" (click)="toDebt(account.id)"
                         [attr.aria-label]="'summary.toDebt' | t" [title]="'summary.toDebt' | t">
                   <ion-icon name="receipt-outline"></ion-icon>
@@ -79,10 +79,12 @@
                   <ion-icon name="piggy-bank"></ion-icon>
                 </button>
               }
-              <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
-                      [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
-                <ion-icon name="account-edit"></ion-icon>
-              </button>
+              @if (!loanIds().has(account.id)) {
+                <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
+                        [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
+                  <ion-icon name="account-edit"></ion-icon>
+                </button>
+              }
             </span>
           }
         </div>

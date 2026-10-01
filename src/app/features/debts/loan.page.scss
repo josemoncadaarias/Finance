@@ -1,0 +1,88 @@
+/* One loan (13e-13r). The shared pieces are in global.scss. */
+
+.loan-head {
+  .who { flex: 1; min-width: 0; display: flex; flex-direction: column;
+    b { font-size: 18px; } small { color: var(--app-mu); font-size: 13px; } }
+  .pen { border: 0; background: none; color: var(--app-pr); width: 36px; height: 36px; display: grid; place-items: center;
+    padding: 0; cursor: pointer; flex: none; ion-icon { font-size: 22px; } }
+}
+
+.tabs { margin: 0 0 12px; }
+.ui-lab { display: block; }
+
+.late {
+  margin-bottom: 12px;
+  background: linear-gradient(145deg, rgba(var(--app-red-rgb), 0.35) 0%, rgba(var(--app-red-rgb), 0.12) 55%, var(--app-s1) 100%);
+  border-color: rgba(var(--app-red-rgb), 0.5);
+  .ui-sub { margin: 6px 0 12px; }
+}
+.pay, .pay-line { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 17px; } }
+.pay-line { margin-top: 10px; color: var(--app-pr); }
+
+.owed {
+  .mid { font-size: 22px; font-weight: 700; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .split { display: flex; height: 10px; margin-top: 10px; i { height: 100%; } .cap { background: var(--app-grn); } .int { background: var(--app-yel); } }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12.5px;
+    i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+    .cap { background: var(--app-grn); } .int { background: var(--app-yel); } }
+}
+
+.next {
+  margin-top: 12px;
+  .line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+  .fig { font-size: 22px; font-variant-numeric: tabular-nums; }
+  p { margin: 6px 0 0; }
+}
+
+.facts { margin-top: 12px;
+  > div { background: var(--app-s1); border: 1px solid var(--app-border); padding: 11px 13px; }
+  small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; } }
+
+.tip { margin-top: 12px; background: rgba(var(--app-pr-rgb), 0.12); border-radius: 16px; padding: 12px 14px; width: 100%; text-align: left; border: 0; font: inherit; color: var(--app-tx); cursor: pointer;
+  display: flex; gap: 10px; align-items: flex-start; ion-icon { color: var(--app-pr); font-size: 20px; flex: none; } span { white-space: normal; line-height: 1.4; } }
+
+.notice { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px;
+  b { font-size: 17px; } .ui-sub { margin: 0 0 6px; } &.good { border-color: rgba(52, 201, 139, 0.5); }
+  .ui-chip { display: inline-flex; align-items: center; gap: 6px; } }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; &.center { justify-content: center; margin: 8px 0 12px; } }
+
+.year { margin-top: 8px;
+  .head { background: var(--app-s2); border: 0; width: 100%; font: inherit; color: var(--app-tx); text-align: left; cursor: pointer; }
+}
+.inst { width: 100%; border: 0; background: none; font: inherit; color: var(--app-tx); text-align: left; align-items: flex-start; gap: 10px;
+  &.next { background: rgba(var(--app-pr-rgb), 0.1); }
+  &.late { background: rgba(var(--app-red-rgb), 0.1); }
+  &.extra { background: rgba(52, 201, 139, 0.08); }
+  .num { width: 28px; text-align: center; font-weight: 600; margin-top: 2px; flex: none; ion-icon { color: var(--app-grn); font-size: 22px; } }
+  .pair { display: flex; justify-content: space-between; gap: 10px; }
+  .state { font-size: 22px; flex: none; margin-top: 2px; color: var(--app-mu);
+    &.paid, &.before { color: var(--app-grn); } &.next { color: var(--app-pr); } &.overdue { color: var(--app-red); } }
+}
+
+.note { color: var(--app-mu); font-size: 12.5px; line-height: 1.4; margin: 10px 4px 0; &.law { margin: 14px 4px; } }
+.ui-hero + .ui-banner, .note.law + .ui-hero { margin-top: 12px; }
+
+.ahead { text-align: center;
+  .big-in { width: 100%; border: 0; background: none; color: var(--app-tx); font: inherit; font-size: 34px; font-weight: 700; text-align: center; outline: none; }
+  .ui-seg { margin: 0; }
+  .center { margin: 8px 0 0; }
+}
+.ui-banner.ok { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; background: rgba(52, 201, 139, 0.12);
+  ion-icon { color: var(--app-grn); font-size: 20px; flex: none; } span { white-space: normal; line-height: 1.4; } }
+
+.option { margin-top: 12px; background: var(--app-s1); border: 1px solid var(--app-border); border-radius: 20px; padding: 14px;
+  &.good { border-color: var(--app-grn); background: rgba(52, 201, 139, 0.08); }
+  .top { display: flex; align-items: center; gap: 8px; b { flex: 1; } }
+  .ui-tag { background: rgba(52, 201, 139, 0.18); color: var(--app-grn); font-size: 12px; padding: 3px 8px; border-radius: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 10px; font-size: 14px;
+    span { color: var(--app-mu); } b { text-align: right; font-variant-numeric: tabular-nums; } }
+  .ui-btn { margin-top: 12px; width: 100%; }
+}
+
+.ladder { width: 100%; border: 0; background: none; font: inherit; color: var(--app-tx); text-align: left; cursor: pointer;
+  .amt { width: 96px; flex: none; } }
+
+.center { text-align: center; margin-top: 14px; .ui-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--app-pr); } }
+.ui-h { margin: 16px 4px 6px; }
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }

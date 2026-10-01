@@ -1,0 +1,239 @@
+<!-- One loan: Resumen | Cuotas | Abonar (13e-13r). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar loan-head">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    @if (loan(); as loan) {
+      <app-badge shape="ci" [size]="40" [builtin]="loan.account.builtin_icon" [customId]="loan.account.custom_icon_id"
+                 [tone]="loan.account.color" [seed]="loan.account.id" fallback="cash"></app-badge>
+      <span class="who"><b class="ui-one">{{ loan.account.name }}</b><small class="ui-one">{{ rateLine() }}</small></span>
+      <button type="button" class="pen" (click)="editing.set(true)" [attr.aria-label]="'loans.form.edit' | t">
+        <ion-icon name="create-outline"></ion-icon>
+      </button>
+    }
+  </header>
+
+  <div class="ui-main">
+    @if (loan(); as loan) {
+      @let s = schedule()!;
+      <div class="ui-seg tabs">
+        <button type="button" [class.on]="tab() === 'summary'" (click)="tab.set('summary')">{{ 'loans.tab.summary' | t }}</button>
+        <button type="button" [class.on]="tab() === 'installments'" (click)="tab.set('installments')">{{ 'loans.tab.installments' | t }}</button>
+        <button type="button" [class.on]="tab() === 'ahead'" (click)="tab.set('ahead')" [disabled]="s.done">{{ 'loans.tab.ahead' | t }}</button>
+      </div>
+
+      <!-- ============================ Resumen ============================ -->
+      @if (tab() === 'summary') {
+        @if (s.done) {
+          <div class="ui-card notice good">
+            <app-badge shape="ci" [size]="50" builtin="checkmark" fixed="#34c98b"></app-badge>
+            <b>{{ 'loans.done.title' | t }}</b>
+            <p class="ui-sub">{{ 'loans.done.body' | t:{ capital: money(loan.terms.principalMinor), interest: money(s.interestPaidMinor), insurance: money(s.insuranceTotalMinor) } }}</p>
+            <button type="button" class="ui-chip" (click)="archive()"><ion-icon name="archive-outline"></ion-icon>{{ 'loans.done.archive' | t }}</button>
+          </div>
+        } @else {
+          @if (s.overdue.length > 0) {
+            @let late = s.overdue[0];
+            <section class="ui-hero late">
+              <span class="ui-lab">{{ 'loans.next.label' | t:{ number: late.number, of: loan.terms.installments } }}</span>
+              <div class="ui-big ui-r">$ {{ money(late.totalMinor) }}</div>
+              <p class="ui-sub">{{ 'loans.overdue.body' | t:{ date: long(late.dueOn), when: when(late.dueOn) } }}</p>
+              <button type="button" class="ui-chip pay" (click)="payInstallment()"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.pay.action' | t }}</button>
+            </section>
+          }
+          <section [class]="s.overdue.length > 0 ? 'ui-card owed' : 'ui-hero owed'">
+            <span class="ui-lab">{{ 'loans.owed' | t }}</span>
+            <div [class]="s.overdue.length > 0 ? 'mid' : 'ui-big'">$ {{ money(s.balanceMinor) }}</div>
+            <p class="ui-sub">{{ 'loans.paidOf' | t:{ paid: s.paidCount, of: s.totalCount } }}</p>
+            <span class="ui-pbar split"><i class="cap" [style.width.%]="share(s.capitalPaidMinor)"></i><i class="int" [style.width.%]="share(s.interestPaidMinor)"></i></span>
+            <div class="legend">
+              <span><i class="cap"></i>{{ 'loans.capitalPaid' | t:{ amount: money(s.capitalPaidMinor) } }}</span>
+              <span><i class="int"></i>{{ 'loans.interestPaid' | t:{ amount: money(s.interestPaidMinor) } }}</span>
+            </div>
+          </section>
+
+          @if (s.next && s.overdue.length === 0) {
+            @let n = s.next;
+            <div class="ui-card next">
+              <span class="ui-lab">{{ 'loans.next.label' | t:{ number: n.number, of: loan.terms.installments } }}</span>
+              <div class="line"><b class="fig">{{ money(n.totalMinor) }}</b><span class="ui-sub">{{ short(n.dueOn) }} · {{ when(n.dueOn) }}</span></div>
+              <p class="ui-sub">{{ 'loans.next.parts' | t:{ capital: money(n.capitalMinor), interest: money(n.interestMinor), insurance: money(n.insuranceMinor) } }}</p>
+              <button type="button" class="ui-chip pay-line" (click)="payInstallment()"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.pay.action' | t }}</button>
+            </div>
+          }
+
+          <div class="ui-mini facts">
+            <div><span class="ui-lab">{{ 'loans.kpi.interestLeft' | t }}</span><b class="ui-y">{{ money(s.interestLeftMinor) }}</b>
+              <small class="ui-sub">{{ 'loans.kpi.inCount' | t:{ count: s.totalCount - s.paidCount } }}</small></div>
+            <div><span class="ui-lab">{{ 'loans.kpi.ends' | t }}</span><b>{{ monthYear(s.lastDueOn) }}</b>
+              <small class="ui-sub">{{ 'loans.kpi.installment' | t:{ number: s.totalCount } }}</small></div>
+            <div><span class="ui-lab">{{ 'loans.kpi.interestTotal' | t }}</span><b>{{ money(s.interestTotalMinor) }}</b>
+              <small class="ui-sub">{{ 'loans.kpi.ofLent' | t:{ share: shareOfPrincipal(s.interestTotalMinor) } }}</small></div>
+            <div><span class="ui-lab">{{ 'loans.kpi.insuranceTotal' | t }}</span><b>{{ money(s.insuranceTotalMinor) }}</b>
+              <small class="ui-sub">{{ 'loans.kpi.insuranceEach' | t }}</small></div>
+          </div>
+
+          @if (suggestion(); as sg) {
+            <button type="button" class="ui-banner tip" (click)="toAhead()">
+              <ion-icon name="bulb-outline"></ion-icon>
+              <span>{{ 'loans.suggest' | t:{ amount: sg.amount, end: sg.end, fewer: sg.fewer, saves: sg.saves } }} <b>{{ 'loans.suggest.see' | t }}</b></span>
+            </button>
+          }
+        }
+      }
+
+      <!-- ============================ Cuotas ============================ -->
+      @if (tab() === 'installments') {
+        <div class="chips">
+          <button type="button" class="ui-chip" [class.on]="filter() === 'all'" (click)="filter.set('all')">{{ 'loans.filter.all' | t:{ count: s.totalCount } }}</button>
+          <button type="button" class="ui-chip" [class.on]="filter() === 'left'" (click)="filter.set('left')">{{ 'loans.filter.left' | t:{ count: s.totalCount - s.paidCount } }}</button>
+          <button type="button" class="ui-chip" [class.on]="filter() === 'paid'" (click)="filter.set('paid')">{{ 'loans.filter.paid' | t:{ count: s.paidCount } }}</button>
+        </div>
+        @for (y of years(); track y.year; let i = $index) {
+          <div class="ui-list year">
+            <button type="button" class="ui-row head" (click)="toggleYear(y.year, i)">
+              <span class="ui-tx"><b>{{ y.year }}</b>
+                <small>{{ 'loans.year.line' | t:{ count: y.count, interest: money(y.interest) } }}@if (y.extras > 0) { · {{ 'loans.year.extras' | t:{ count: y.extras } }} }</small></span>
+              <ion-icon class="ui-chev" [name]="isOpen(y.year, i) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </button>
+            @if (isOpen(y.year, i)) {
+              @for (r of y.rows; track $index) {
+                @if (r.type === 'installment') {
+                  <button type="button" class="ui-row inst" [class.next]="r.state === 'next'" [class.late]="r.state === 'overdue'"
+                          (click)="r.state === 'paid' && askUndo(r)">
+                    <span class="num" [class.ui-mu]="r.state === 'paid' || r.state === 'before'">{{ r.number }}</span>
+                    <span class="ui-tx">
+                      <b>{{ short(r.dueOn) }} · {{ money(r.totalMinor) }}</b>
+                      <small class="pair"><span>{{ 'loans.pay.capital' | t }}</span><span>{{ money(r.capitalMinor) }}</span></small>
+                      <small class="pair"><span>{{ 'loans.pay.interest' | t }}</span><span class="ui-y">{{ money(r.interestMinor) }}</span></small>
+                      @if (r.insuranceMinor > 0) { <small class="pair"><span>{{ 'loans.pay.insurance' | t }}</span><span>{{ money(r.insuranceMinor) }}</span></small> }
+                      @if (r.lateMinor > 0) { <small class="pair"><span>{{ 'loans.pay.late' | t }}</span><span class="ui-r">{{ money(r.lateMinor) }}</span></small> }
+                      <small class="pair"><span>{{ 'loans.left' | t }}</span><span>{{ money(r.balanceAfterMinor) }}</span></small>
+                      @if (r.state === 'before') { <small>{{ 'loans.beforeApp' | t }}</small> }
+                    </span>
+                    <ion-icon class="state" [class]="r.state" [name]="stateIcon(r.state)"></ion-icon>
+                  </button>
+                } @else {
+                  <button type="button" class="ui-row inst extra" (click)="askUndo(r)">
+                    <span class="num"><ion-icon name="arrow-down-circle"></ion-icon></span>
+                    <span class="ui-tx">
+                      <b>{{ short(r.paidOn) }} · {{ (r.mode === 'payoff' ? 'loans.payoff.row' : 'loans.ahead.row') | t }} · <span class="ui-g">{{ money(r.amountMinor) }}</span></b>
+                      @if (r.mode !== 'payoff') { <small>{{ (r.mode === 'term' ? 'loans.mode.term' : 'loans.mode.installment') | t }}</small> }
+                      <small class="pair"><span>{{ 'loans.left' | t }}</span><span>{{ money(r.balanceAfterMinor) }}</span></small>
+                    </span>
+                  </button>
+                }
+              }
+            }
+          </div>
+        }
+        <p class="note">{{ 'loans.installments.note' | t }}</p>
+      }
+
+      <!-- ============================ Abonar ============================ -->
+      @if (tab() === 'ahead' && !s.done) {
+        <div class="ui-card ahead">
+          <span class="ui-lab">{{ 'loans.ahead.label' | t }}</span>
+          <input class="big-in" inputmode="decimal" [value]="aheadAmount().text" placeholder="0" (input)="onAhead($any($event.target).value)">
+          <div class="chips center">
+            @for (a of amounts; track a) {
+              <button type="button" class="ui-chip" [class.on]="aheadMinor() === a" (click)="pickAmount(a)">{{ millions(a) }} M</button>
+            }
+          </div>
+          <div class="ui-seg">
+            <button type="button" [class.on]="every() === 'once'" (click)="every.set('once')">{{ 'loans.every.once' | t }}</button>
+            <button type="button" [class.on]="every() === 'monthly'" (click)="every.set('monthly')">{{ 'loans.every.monthly' | t }}</button>
+            <button type="button" [class.on]="every() === 'primas'" (click)="every.set('primas')">{{ 'loans.every.primas' | t }}</button>
+          </div>
+          <p class="ui-sub center">{{ $any('loans.every.' + every() + '.hint') | t:{ number: s.next?.number ?? '', date: long(s.next?.dueOn) } }}</p>
+        </div>
+
+        @if (compare(); as c) {
+          <div class="ui-banner ok">
+            <ion-icon name="checkmark-circle"></ion-icon>
+            <span>{{ 'loans.verdict' | t:{ amount: money(aheadMinor()), end: monthYear(c.term.s.lastDueOn), fewer: c.term.fewer, interest: money(c.term.s.interestLeftMinor), before: money(c.base.interestLeftMinor), saves: money(c.term.saves) } }}</span>
+          </div>
+          <div class="option good">
+            <div class="top"><app-badge shape="ci" [size]="32" builtin="hourglass-outline" fixed="#34c98b"></app-badge><b>{{ 'loans.mode.term' | t }}</b><span class="ui-tag">{{ 'loans.option.best' | t }}</span></div>
+            <div class="grid">
+              <span>{{ 'loans.option.ends' | t }}</span><b>{{ monthYear(c.term.s.lastDueOn) }}</b>
+              <span>{{ 'loans.option.left' | t }}</span><b>{{ c.term.s.totalCount - c.term.s.paidCount }}</b>
+              <span>{{ 'loans.option.interest' | t }}</span><b class="ui-y">{{ money(c.term.s.interestLeftMinor) }}</b>
+              <span>{{ 'loans.option.total' | t }}</span><b>{{ money(c.term.s.toPayMinor) }}</b>
+              <span>{{ 'loans.option.saves' | t }}</span><b class="ui-g">{{ money(c.term.saves) }}</b>
+            </div>
+            <button type="button" class="ui-btn" (click)="payAhead('term')"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.ahead.register' | t:{ amount: money(aheadMinor()) } }}</button>
+          </div>
+          <div class="option">
+            <div class="top"><app-badge shape="ci" [size]="32" builtin="trending-down-outline" fixed="#5b8def"></app-badge><b>{{ 'loans.mode.installment' | t }}</b></div>
+            <div class="grid">
+              <span>{{ 'loans.option.ends' | t }}</span><b>{{ monthYear(c.lower.s.lastDueOn) }}</b>
+              <span>{{ 'loans.option.newInstallment' | t }}</span><b>{{ money(c.lower.installment) }}</b>
+              <span>{{ 'loans.option.interest' | t }}</span><b class="ui-y">{{ money(c.lower.s.interestLeftMinor) }}</b>
+              <span>{{ 'loans.option.total' | t }}</span><b>{{ money(c.lower.s.toPayMinor) }}</b>
+              <span>{{ 'loans.option.saves' | t }}</span><b class="ui-g">{{ money(c.lower.saves) }}</b>
+            </div>
+            <button type="button" class="ui-btn line" (click)="payAhead('installment')"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.ahead.register' | t:{ amount: money(aheadMinor()) } }}</button>
+          </div>
+          <div class="option">
+            <div class="top"><app-badge shape="ci" [size]="32" builtin="remove-outline" fixed="#8c9bb5"></app-badge><b>{{ 'loans.option.none' | t }}</b></div>
+            <div class="grid">
+              <span>{{ 'loans.option.ends' | t }}</span><b>{{ monthYear(c.base.lastDueOn) }}</b>
+              <span>{{ 'loans.option.interest' | t }}</span><b class="ui-y">{{ money(c.base.interestLeftMinor) }}</b>
+              <span>{{ 'loans.option.total' | t }}</span><b>{{ money(c.base.toPayMinor) }}</b>
+            </div>
+          </div>
+          <p class="note">{{ 'loans.option.note' | t }}</p>
+        }
+
+        @if (ladder().length > 0) {
+          <h3 class="ui-h">{{ 'loans.ladder.title' | t }}</h3>
+          <div class="ui-list">
+            @for (l of ladder(); track l.amount) {
+              <button type="button" class="ui-row ladder" (click)="pickAmount(l.amount); every.set('once')">
+                <b class="amt">{{ whole(l.amount) }}</b>
+                <span class="ui-tx"><b>{{ 'loans.ladder.ends' | t:{ end: monthYear(l.end) } }}</b><small>{{ fewerLine(l.fewer) }}</small></span>
+                <span class="ui-am ui-g">{{ money(l.saves) }}</span>
+              </button>
+            }
+          </div>
+          <p class="note">{{ 'loans.ladder.note' | t }}</p>
+        }
+
+        <p class="note law">{{ 'loans.law' | t }}</p>
+
+        @if (!payingAll()) {
+          <div class="center"><button type="button" class="ui-chip" (click)="payingAll.set(true)"><ion-icon name="flag-outline"></ion-icon>{{ 'loans.payoff.open' | t }}</button></div>
+        } @else if (payoff(); as p) {
+          <section class="ui-hero">
+            <span class="ui-lab">{{ 'loans.payoff.label' | t:{ date: short(today) } }}</span>
+            <div class="ui-big">$ {{ money(p.totalMinor) }}</div>
+            <p class="ui-sub">{{ 'loans.payoff.body' | t:{ balance: money(p.balanceMinor), interest: money(p.interestMinor), since: short(p.sinceOn) } }}</p>
+            <button type="button" class="ui-chip pay" (click)="payEverything()"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.payoff.action' | t }}</button>
+          </section>
+          <div class="ui-banner ok"><ion-icon name="checkmark-circle"></ion-icon>
+            <span>{{ 'loans.payoff.saves' | t:{ interest: money(s.interestLeftMinor - p.interestMinor), insurance: money(s.insuranceLeftMinor) } }}</span></div>
+          <p class="note">{{ 'loans.payoff.note' | t }}</p>
+        }
+      }
+      <div class="ui-page-end"></div>
+    } @else if (loan() === null) {
+      <p class="state">{{ 'loans.gone' | t }}</p>
+    } @else {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    }
+  </div>
+</ion-content>
+
+<ion-modal class="entry-sheet" [isOpen]="editing()" (didDismiss)="editing.set(false)">
+  <ng-template>
+    @if (loan(); as loan) {
+      <app-loan-editor [editing]="loan" (saved)="editing.set(false)" (cancelled)="editing.set(false)" (deleted)="onDeleted()"></app-loan-editor>
+    }
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="undoing() !== null" [title]="undoing()?.label ?? ''" [body]="'loans.undo.body' | t"
+             [busy]="busy()" [confirmLabel]="'loans.undo.action' | t" icon="arrow-undo-outline"
+             (confirmed)="undo()" (cancelled)="undoing.set(null)"></app-confirm>

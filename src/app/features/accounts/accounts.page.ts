@@ -24,6 +24,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { RatesService } from '../../core/rates/rates.service';
 import type { NetWorth } from '../../core/database/repositories/accounts.repository';
 import { AccountEditorComponent } from './account-editor.component';
+import { LoansRepository } from '../../core/loans/loans.repository';
 import type { AccountBalance, AccountRow, GroupedBalance } from '../../core/database/types';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { formatMoney } from '../../core/database/money';
@@ -62,6 +63,8 @@ export class AccountsPage {
 
 
   readonly grouped = signal<GroupedBalance[] | null>(null);
+  /** The accounts that are loans: their pencil opens the loan's own form. */
+  readonly loanIds = signal<ReadonlySet<number>>(new Set());
   readonly netWorthMinor = signal(0);
   readonly showArchived = signal(false);
 
@@ -201,6 +204,7 @@ export class AccountsPage {
       accounts.netWorth(),
     ]);
     this.grouped.set(grouped);
+    this.loanIds.set(new Set(await new LoansRepository(this.database.driver).ids()));
     this.worth.set(worth);
     this.netWorthMinor.set(worth.totalMinor);
     await this.loadCurrencies();
@@ -292,6 +296,7 @@ export class AccountsPage {
       });
     }
     if (account.archived) return '';
+    if (this.loanIds().has(account.id)) return this.i18n.t('loans.kind');
     if (!account.include_in_net_worth) return this.i18n.t('ui.account.setAside');
     if (this.missingRates().includes(account.currency_code) && balance.balance_minor !== 0) {
       return this.i18n.t('ui.account.noRate');
@@ -328,6 +333,10 @@ export class AccountsPage {
   isCard(id: number): boolean { return this.accountOf(id)?.type === 'credit'; }
 
   edit(account: AccountRow | null): void {
+    if (account && this.loanIds().has(account.id)) {
+      void this.router.navigate(['/debts/loan', account.id]);
+      return;
+    }
     this.editor.set({ account });
   }
 

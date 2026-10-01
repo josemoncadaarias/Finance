@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 30 tables and how they relate. The authority is always
+The 33 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -231,6 +231,32 @@ erDiagram
         TEXT due_on PK
         TEXT paid_on
     }
+    loans {
+        INTEGER account_id PK, FK
+        INTEGER principal_minor
+        TEXT system
+        INTEGER installments
+        TEXT first_due_on
+        INTEGER paid_from_account_id FK
+        INTEGER paid_before
+    }
+    loan_rates {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT valid_from UK
+        INTEGER annual_rate_scaled
+    }
+    loan_payments {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT kind
+        INTEGER number
+        TEXT paid_on
+        INTEGER transfer_id FK
+        INTEGER interest_tx_id FK
+        INTEGER insurance_tx_id FK
+        INTEGER late_tx_id FK
+    }
     tax_simulations {
         INTEGER year PK
         TEXT inputs
@@ -311,6 +337,11 @@ erDiagram
     transactions   ||--o| product_cashouts : "became"
     products  ||--o{ yield_payments   : "paid on another day"
     accounts       ||--o{ yield_payments   : "paid on another day"
+    accounts       ||--o| loans            : "is a loan with"
+    loans          ||--o{ loan_rates       : "charges"
+    loans          ||--o{ loan_payments    : "was paid by"
+    transfers      ||--o{ loan_payments    : "carried the capital of"
+    transactions   ||--o{ loan_payments    : "carried the interest of"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
@@ -469,6 +500,9 @@ outright:
 | `idx_product_balances` | what a product held on a date |
 | `idx_yield_days_account` | every product's days for one account |
 | `idx_yield_payments_account` | the paydays corrected by hand for one account |
+| `idx_loans_paid_from` | the loans an account pays |
+| `idx_loan_payments_account` | what was paid on one loan, by date |
+| `idx_loan_payments_transfer` | the payment a transfer carried |
 | `idx_yield_rates_account` | finding the rate in force on a date |
 | `idx_yield_rates_product` | and the rates belonging to one product |
 | `idx_yield_rates_shared`, `idx_yield_rates_own` | unique; one rate per component, band and date — counted apart for the account and for each product |

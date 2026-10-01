@@ -102,6 +102,10 @@
 
   .value {
     font-size: 44px;
+    // A long figure with its cents (a loan's installment) gets smaller
+    // rather than cut short.
+    &.long { font-size: 34px; }
+    &.longer { font-size: 28px; }
     font-weight: 700;
     letter-spacing: -0.5px;
     font-variant-numeric: tabular-nums;
@@ -509,3 +513,23 @@
   .entry-body > .ui-list { background: none; border: 0; }
   .hints { margin-top: 10px; background: var(--app-s1); border-radius: 16px; border: 1px solid var(--app-border); }
 }
+
+/* A loan's payment and how it splits (13g). */
+.loan-h { margin: 14px 4px 6px; }
+.loan-split {
+  .ui-row { gap: 12px; }
+  .ui-am { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fig {
+    width: 120px;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-s2);
+    color: var(--app-tx);
+    font: inherit;
+    font-weight: 600;
+    text-align: right;
+    padding: 6px 8px;
+  }
+  .loan-mode { margin: 8px 12px 10px; }
+}
+.loan-warn { color: var(--app-yel); font-size: 13px; line-height: 1.4; margin: 8px 4px 0; }

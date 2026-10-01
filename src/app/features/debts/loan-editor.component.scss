@@ -1,0 +1,43 @@
+/* A loan's form (13c, 13d). The frame, title bar, lists and fields are in global.scss. */
+
+:host { display: block; height: 100%; }
+
+.editor > .scroll { display: flex; flex-direction: column; gap: 12px; }
+.ui-h { margin: 6px 4px -4px; }
+
+.faces { display: flex; gap: 10px; padding: 4px 14px 12px; flex-wrap: wrap; }
+.face {
+  border: 2px solid transparent; border-radius: 50%; padding: 2px; background: none; cursor: pointer;
+  &.on { border-color: var(--app-pr); }
+}
+
+.ui-field.col { align-items: stretch; }
+.rate-row {
+  display: flex; align-items: center; gap: 8px;
+  input { flex: 1; min-width: 0; }
+}
+.ui-seg.mini { margin: 0; flex: none; button { padding: 6px 10px; font-size: 13px; } }
+.ui-seg.full { margin: 4px 0 0; width: 100%; display: flex; button { flex: 1; } }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; }
+
+select {
+  border: 0; background: none; color: var(--app-tx); font: inherit; font-size: 16px; font-weight: 600; padding: 0; width: 100%;
+  option { color: #111; }
+}
+input[type='date'] { color-scheme: dark; }
+:host-context(:root:not(.ion-palette-dark)) input[type='date'] { color-scheme: light; }
+
+.installment {
+  display: flex; flex-direction: column; gap: 6px;
+  .line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  p { margin: 0; }
+  .ok { color: var(--app-grn); }
+  .fig {
+    width: 140px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-s2);
+    color: var(--app-tx); font: inherit; font-weight: 600; text-align: right; padding: 6px 8px;
+  }
+}
+
+.missing { color: var(--app-yel); font-size: 13.5px; margin: 0 4px; }
+.ui-btn.danger { align-self: stretch; }
