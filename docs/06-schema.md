@@ -39,6 +39,8 @@ erDiagram
         INTEGER opening_balance_minor
         INTEGER opening_balance_base_minor
         TEXT opened_on
+        INTEGER statement_day
+        INTEGER due_day
         INTEGER archived
     }
     categories {

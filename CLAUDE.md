@@ -126,7 +126,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (553, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (573, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -3249,6 +3249,31 @@ strategies and plans.
   card and no loans, the form, the statement due, part paid, paid, overdue,
   without days, with nothing owed). Then loans, then plans.
 
+**Part 1, the card: BUILT (2026-10-01).** Approved by Jose with two
+conditions: Más keeps the Google account card on top, and "Pagar" opens the
+transfer FROM the account that pays this card most, TO the card, with what is
+left of the statement and the usual note.
+- `accounts.statement_day` and `accounts.due_day` (migration 049), both
+  optional, typed in the card's form under "Fechas de la tarjeta". A day past
+  a short month's end is its last day.
+- `core/cards/statement.ts` (pure, `card-statement.test.mjs`): the last
+  cut-off is the latest cut-off day BEFORE today (the cut-off day is open
+  until it ends); the statement is the debt at its close; what is left is the
+  statement less everything that came into the card after it; it is due on
+  the first payment day after the cut-off. States: noDates, clear,
+  nothingDue, due, partial, paid, overdue. Nothing is stored.
+- `core/cards/card-data.ts`: the card's movements, `usualPayer` (most
+  transfers into the card, newest winning a tie) and `loadCards`.
+- Screens: `/debts` (Cuentas' third face, "Saldos | Rendimientos | Deudas")
+  and `/debts/:id` (the card: Factura, and Movimientos opens Inicio on it);
+  Más has "Tus finanzas" (Deudas y tarjetas, Productos y rendimientos) above
+  Tus datos. Planes is not shown until it is built. Loans say "muy pronto".
+- Checked in a browser on Jose's backup with invented days (25 and 10: a
+  statement of 491,125.00 due 10 Oct; Pagar opened Rappi cuenta → Rappi Card,
+  491,125, "Pago tarjeta de crédito RappiCard"); the days were cleared after.
+  The bank's statement can differ (interest, installments, fees): the page
+  says so.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3309,8 +3334,8 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
-- [ ] Debts and plans, part 1 (mockups `12a`-`12i`): approve the card's
-      screens before they are built.
+- [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
+      days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the
       "=" key (both small changes). He liked it folding away (2026-09-28)
       and asked for the arrow that brings it back, done in #6.

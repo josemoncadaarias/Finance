@@ -53,6 +53,9 @@ export interface NewAccount {
   /** Same amount in the base currency. Defaults to the account-currency value. */
   opening_balance_base_minor?: number;
   opened_on: IsoDate;
+  /** Credit cards only: the day the statement closes and the day it is paid by. */
+  statement_day?: number | null;
+  due_day?: number | null;
   sort_order?: number;
 }
 
@@ -77,7 +80,7 @@ export interface SetAsideOption {
 
 const COLUMNS = `id, name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
   credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
-  archived, sort_order, created_at, updated_at`;
+  statement_day, due_day, archived, sort_order, created_at, updated_at`;
 
 export class AccountsRepository {
   /**
@@ -151,28 +154,31 @@ export class AccountsRepository {
 
   async create(account: NewAccount): Promise<number> {
     const timestamp = this.now();
+    const values: Record<string, unknown> = {
+      name: account.name,
+      type: account.type,
+      currency_code: account.currency_code,
+      group_id: account.group_id ?? null,
+      builtin_icon: account.builtin_icon ?? null,
+      custom_icon_id: account.custom_icon_id ?? null,
+      color: account.color ?? '#607D8B',
+      credit_limit_minor: account.credit_limit_minor ?? null,
+      include_in_net_worth: account.include_in_net_worth === false ? 0 : 1,
+      opening_balance_minor: account.opening_balance_minor ?? 0,
+      opening_balance_base_minor: account.opening_balance_base_minor ?? account.opening_balance_minor ?? 0,
+      opened_on: account.opened_on,
+      sort_order: account.sort_order ?? 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    // Named only when given, so the same call still writes into a database
+    // older than migration 049 - which is what restoring an old backup does.
+    if (account.statement_day != null) values['statement_day'] = account.statement_day;
+    if (account.due_day != null) values['due_day'] = account.due_day;
+    const columns = Object.keys(values);
     const result = await this.db.run(
-      `INSERT INTO accounts (name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
-         credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
-         sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        account.name,
-        account.type,
-        account.currency_code,
-        account.group_id ?? null,
-        account.builtin_icon ?? null,
-        account.custom_icon_id ?? null,
-        account.color ?? '#607D8B',
-        account.credit_limit_minor ?? null,
-        account.include_in_net_worth === false ? 0 : 1,
-        account.opening_balance_minor ?? 0,
-        account.opening_balance_base_minor ?? account.opening_balance_minor ?? 0,
-        account.opened_on,
-        account.sort_order ?? 0,
-        timestamp,
-        timestamp,
-      ],
+      `INSERT INTO accounts (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
+      Object.values(values),
     );
     return result.lastId!;
   }
@@ -310,6 +316,8 @@ export class AccountsRepository {
     if (changes.opening_balance_minor !== undefined) set('opening_balance_minor', changes.opening_balance_minor);
     if (changes.opening_balance_base_minor !== undefined) set('opening_balance_base_minor', changes.opening_balance_base_minor);
     if (changes.opened_on !== undefined) set('opened_on', changes.opened_on);
+    if (changes.statement_day !== undefined) set('statement_day', changes.statement_day);
+    if (changes.due_day !== undefined) set('due_day', changes.due_day);
     if (changes.sort_order !== undefined) set('sort_order', changes.sort_order);
     if (changes.group_id !== undefined) set('group_id', changes.group_id);
     if (changes.include_in_net_worth !== undefined) set('include_in_net_worth', changes.include_in_net_worth ? 1 : 0);

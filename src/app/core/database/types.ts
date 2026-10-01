@@ -73,6 +73,9 @@ export interface AccountRow {
   /** The same opening balance in the base currency, frozen at opening day. */
   opening_balance_base_minor: number;
   opened_on: IsoDate;
+  /** Credit cards only, both optional: the day the statement closes and the day it is paid by. */
+  statement_day: number | null;
+  due_day: number | null;
   archived: SqlBool;
   sort_order: number;
   created_at: IsoDateTime;

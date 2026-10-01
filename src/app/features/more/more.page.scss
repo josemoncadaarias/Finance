@@ -22,6 +22,7 @@
 }
 
 small.waiting { color: #c3cdfa !important; }
+small.late { color: var(--app-red) !important; }
 
 :host-context(:root:not(.ion-palette-dark)) small.waiting { color: var(--app-pr) !important; }
 

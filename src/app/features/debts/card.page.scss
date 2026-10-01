@@ -1,0 +1,61 @@
+/* One card's page (12d-12i). The shared pieces are in global.scss. */
+
+.card-head {
+  .who {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    b { font-size: 18px; }
+    small { color: var(--app-mu); font-size: 13px; }
+  }
+  .pen {
+    border: 0;
+    background: none;
+    color: var(--app-pr);
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    cursor: pointer;
+    flex: none;
+    ion-icon { font-size: 22px; }
+  }
+}
+
+.faces { margin: 0 0 12px; }
+
+.bill {
+  .ui-big small { font-size: 15px; font-weight: 500; color: var(--app-mu); }
+  .ui-sub { margin: 8px 0 12px; }
+  .paid { display: block; height: 8px; margin-top: 10px; i { background: var(--app-yel); } }
+  &.late {
+    background: linear-gradient(145deg, rgba(var(--app-red-rgb), 0.35) 0%, rgba(var(--app-red-rgb), 0.12) 55%, var(--app-s1) 100%);
+    border-color: rgba(var(--app-red-rgb), 0.5);
+  }
+  .pay { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 17px; } }
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 18px;
+  b { font-size: 17px; }
+  .ui-sub { margin: 0 0 6px; }
+  &.good { border-color: rgba(52, 201, 139, 0.5); }
+  .ui-chip { display: inline-flex; align-items: center; gap: 6px; }
+}
+
+.facts {
+  margin-top: 12px;
+  > div { background: var(--app-s1); border: 1px solid var(--app-border); padding: 11px 13px; }
+  small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; }
+}
+
+.caveat { color: var(--app-mu); font-size: 12.5px; line-height: 1.4; margin: 12px 4px 0; }
+
+.state { text-align: center; padding: 40px 16px; color: var(--app-mu); }

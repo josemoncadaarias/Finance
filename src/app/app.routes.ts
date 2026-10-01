@@ -29,6 +29,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/products/products.page').then(m => m.ProductsPage),
   },
   {
+    // Cuentas, its Deudas face, and one card's page.
+    path: 'debts',
+    loadComponent: () => import('./features/debts/debts.page').then(m => m.DebtsPage),
+  },
+  {
+    path: 'debts/:id',
+    loadComponent: () => import('./features/debts/card.page').then(m => m.CardPage),
+  },
+  {
     path: 'tax',
     loadComponent: () => import('./features/tax/tax.page').then(m => m.TaxPage),
   },

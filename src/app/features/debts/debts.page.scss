@@ -1,0 +1,24 @@
+/* Cuentas, its Deudas face (12b). The shared pieces are in global.scss. */
+
+app-accounts-faces { margin-bottom: 12px; }
+
+.owed .ui-sub { margin: 2px 0 0; }
+
+.card {
+  align-items: flex-start;
+  .ui-chev { align-self: center; }
+  small.wrap { white-space: normal; line-height: 1.3; margin-top: 2px; }
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 18px;
+  b { font-size: 15px; }
+  .ui-sub { margin: 0; }
+}
+
+.state { text-align: center; padding: 40px 16px; }

@@ -1,0 +1,131 @@
+<!-- One card's page (12d-12i). -->
+
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar card-head">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    @if (card(); as card) {
+      <app-badge shape="ci" [size]="40" [builtin]="card.account.builtin_icon" [customId]="card.account.custom_icon_id"
+                 [tone]="card.account.color" [seed]="card.account.id" fallback="card"></app-badge>
+      <span class="who">
+        <b class="ui-one">{{ card.account.name }}</b>
+        <small class="ui-one">{{ sub() }}</small>
+      </span>
+      <button type="button" class="pen" (click)="editing.set(true)" [attr.aria-label]="'accounts.edit.action' | t">
+        <ion-icon name="create-outline"></ion-icon>
+      </button>
+    }
+  </header>
+  <div class="ui-main">
+    @if (card(); as card) {
+      @let st = s()!;
+      <div class="ui-seg faces">
+        <button type="button" class="on">{{ 'cards.face.statement' | t }}</button>
+        <button type="button" (click)="movements()">{{ 'cards.face.movements' | t }}</button>
+      </div>
+
+      @switch (st.state) {
+        @case ('noDates') {
+          <div class="ui-card notice">
+            <app-badge shape="ci" [size]="50" builtin="calendar-outline" fixed="#4cb8f5"></app-badge>
+            <b>{{ 'cards.noDates.title' | t }}</b>
+            <p class="ui-sub">{{ 'cards.noDates.body' | t }}</p>
+            <button type="button" class="ui-chip" (click)="editing.set(true)">
+              <ion-icon name="calendar-outline"></ion-icon>{{ 'cards.noDates.action' | t }}
+            </button>
+          </div>
+        }
+        @case ('clear') {
+          <div class="ui-card notice good">
+            <app-badge shape="ci" [size]="50" builtin="happy-outline" fixed="#34c98b"></app-badge>
+            <b>{{ 'cards.clear.title' | t }}</b>
+            @if (card.account.credit_limit_minor) {
+              <p class="ui-sub">{{ 'cards.clear.body' | t:{ limit: money(card.account.credit_limit_minor) } }}</p>
+            }
+          </div>
+        }
+        @case ('nothingDue') {
+          <div class="ui-card notice good">
+            <app-badge shape="ci" [size]="50" builtin="checkmark" fixed="#34c98b"></app-badge>
+            <b>{{ 'cards.nothingDue.title' | t }}</b>
+            <p class="ui-sub">{{ 'cards.nothingDue.body' | t:{ cut: short(st.cutOn), next: short(st.nextCutOn) } }}</p>
+          </div>
+        }
+        @case ('paid') {
+          <div class="ui-card notice good">
+            <app-badge shape="ci" [size]="50" builtin="checkmark" fixed="#34c98b"></app-badge>
+            <b>{{ 'cards.paid.title' | t }}</b>
+            <p class="ui-sub">{{ 'cards.paid.body' | t:{ amount: money(st.statementMinor), date: short(st.lastPaidOn), next: short(st.nextCutOn) } }}</p>
+          </div>
+        }
+        @default {
+          <section class="ui-hero bill" [class.late]="st.state === 'overdue'">
+            <span class="ui-lab">{{ 'cards.statementOf' | t:{ date: short(st.cutOn) } }}</span>
+            <div class="ui-big" [class.ui-r]="st.state === 'overdue'">
+              $ {{ money(st.remainingMinor) }}
+              @if (st.paidMinor > 0) { <small>{{ 'cards.of' | t:{ amount: money(st.statementMinor) } }}</small> }
+            </div>
+            @if (st.paidMinor > 0) {
+              <span class="ui-pbar paid"><i [style.width.%]="paidPct()"></i></span>
+            }
+            <p class="ui-sub">
+              @switch (st.state) {
+                @case ('due') { {{ 'cards.due.body' | t:{ date: long(st.dueOn), when: when() } }} }
+                @case ('partial') { {{ 'cards.partial.body' | t:{ paid: money(st.paidMinor), on: short(st.lastPaidOn), left: money(st.remainingMinor), date: long(st.dueOn), when: when() } }} }
+                @case ('overdue') { {{ 'cards.overdue.body' | t:{ date: long(st.dueOn), when: when() } }} }
+              }
+            </p>
+            <button type="button" class="ui-chip pay" (click)="pay()">
+              <ion-icon name="swap-horizontal"></ion-icon>{{ (st.paidMinor > 0 ? 'cards.payRest' : 'cards.pay') | t }}
+            </button>
+          </section>
+        }
+      }
+
+      @if (st.state !== 'clear') {
+        <div class="ui-mini facts">
+          <div>
+            <span class="ui-lab">{{ 'cards.total' | t }}</span>
+            <b>{{ money(st.debtMinor) }}</b>
+            @if (card.account.credit_limit_minor) {
+              <small class="ui-sub">{{ 'cards.ofLimit' | t:{ limit: money(card.account.credit_limit_minor) } }}</small>
+            }
+          </div>
+          @if (st.state === 'noDates') {
+            @if (available() !== null) {
+              <div>
+                <span class="ui-lab">{{ 'cards.available' | t }}</span>
+                <b>{{ money(available()!) }}</b>
+                <small class="ui-sub">{{ 'cards.available.hint' | t }}</small>
+              </div>
+            }
+          } @else {
+            <div>
+              <span class="ui-lab">{{ 'cards.afterCut' | t }}</span>
+              <b>{{ money(st.afterCutMinor) }}</b>
+              <small class="ui-sub">{{ 'cards.afterCut.hint' | t }}</small>
+            </div>
+          }
+        </div>
+      }
+      @if (st.state !== 'noDates' && st.state !== 'clear') {
+        <p class="caveat">{{ 'cards.caveat' | t }}</p>
+      }
+      <div class="ui-page-end"></div>
+    } @else if (card() === null) {
+      <p class="state">{{ 'cards.gone' | t }}</p>
+    } @else {
+      <div class="state"><ion-spinner></ion-spinner></div>
+    }
+  </div>
+</ion-content>
+
+<ion-modal class="entry-sheet" [isOpen]="editing()" (didDismiss)="editing.set(false)">
+  <ng-template>
+    @if (card(); as card) {
+      <app-account-editor [editing]="card.account" (saved)="editing.set(false)"
+                          (cancelled)="editing.set(false)"></app-account-editor>
+    }
+  </ng-template>
+</ion-modal>
