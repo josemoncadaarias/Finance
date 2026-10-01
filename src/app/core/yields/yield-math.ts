@@ -145,6 +145,28 @@ export function withholdingMinor(grossMinor: number, rule: WithholdingRule | nul
   return Math.round(taxable * (rule.percentScaled / EA_SCALE));
 }
 
+/**
+ * One day's withholding of an account whose products pay separately but are
+ * measured together: the threshold is tested on what they all pay that day,
+ * and what is withheld is shared out so its total is exact.
+ *
+ * Read off Dale's September 2026 statement (Jose, 2026-10-01): two alcancías
+ * paying about 2,773 each - each under the 0.055 UVT threshold (about 2,880)
+ * - and one withholding a day of 7 % of the two together (388.30 on the 25th
+ * = 7 % of 2,773.45 + 2,773.73). Each product gives up its own share, 7 % of
+ * its own yield, and the rounding left over goes to the largest, so the parts
+ * add up to the bank's figure to the centavo.
+ */
+export function sharedWithholding(grossMinor: readonly number[], rule: WithholdingRule): number[] {
+  const total = grossMinor.reduce((sum, gross) => sum + Math.max(0, gross), 0);
+  const withheld = withholdingMinor(total, rule) ?? 0;
+  if (withheld === 0 || total === 0) return grossMinor.map(() => 0);
+  const shares = grossMinor.map(gross => Math.round(Math.max(0, gross) * withheld / total));
+  const largest = grossMinor.indexOf(Math.max(...grossMinor));
+  shares[largest] += withheld - shares.reduce((sum, share) => sum + share, 0);
+  return shares;
+}
+
 /** One day of accrual, as it is written to `yield_days`. */
 export interface AccruedDay {
   balance_minor: number;

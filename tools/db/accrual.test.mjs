@@ -685,10 +685,12 @@ test('what a foreign-currency account earns stays in its own currency', async ()
 // ---------------------------------------------------------------------------
 // Products
 //
-// The reason this exists: Dale is two "alcancias" and the bank pays each of
-// them separately. The withholding threshold in articulo 1.2.4.2.87 applies to
-// a payment, so adding them up before taxing charges withholding that is not
-// owed. These are the real balances, read on 2026-09-10.
+// Dale is two "alcancias" and the bank pays each of them separately - but it
+// measures the withholding threshold of articulo 1.2.4.2.87 on the two
+// together, and each gives up 7 % of its own yield. Its September 2026
+// statement says so every day from the 23rd (388.30 = 7 % of 2,773.45 +
+// 2,773.73 on the 25th); the app first measured each one alone and withheld
+// nothing (corrected 2026-10-01). These are the real balances of 2026-09-10.
 // ---------------------------------------------------------------------------
 
 /** Invented tax figures, entered the way the real ones are. */
@@ -704,7 +706,7 @@ async function withRealisticWithholding(tax) {
   }
 }
 
-test('two products are taxed apart, and it changes the answer', async () => {
+test('two products are paid apart and withheld together', async () => {
   const { db, accounts, yields, tax, engine } = await setup();
   await withRealisticWithholding(tax);
 
@@ -745,20 +747,21 @@ test('two products are taxed apart, and it changes the answer', async () => {
   const days = await yields.days(dale, '2026-09-11', '2026-09-11');
   assert.equal(days.length, 2, 'one row per product per day');
 
-  // 2,762.25 and 2,762.53: both under the threshold, so nothing is withheld.
+  // 2,762.25 and 2,762.53: each under the threshold, together over it, so
+  // each gives up 7 % of its own and the two add up to 7 % of the day.
   assert.deepEqual(days.map(day => day.gross_minor).sort(), [276225, 276253]);
+  assert.equal(days.reduce((sum, day) => sum + day.withholding_minor, 0), Math.round(552478 * 0.07));
   for (const day of days) {
-    assert.equal(day.withholding_minor, 0, 'neither product reaches 0.055 UVT');
-    assert.equal(day.net_minor, day.gross_minor);
+    assert.ok(Math.abs(day.withholding_minor - day.gross_minor * 0.07) <= 1, 'its own share');
+    assert.equal(day.net_minor, day.gross_minor - day.withholding_minor);
   }
 
   // Same gross to the cent, and the whole withholding gone. That difference is
   // the point of the exercise.
   const grossTogether = days.reduce((sum, day) => sum + day.gross_minor, 0);
   assert.equal(grossTogether, 552478);
-  assert.equal((await yields.earned(dale)).totalMinor, 552478);
-  assert.ok(grossTogether > asOne.net_minor,
-    'splitting keeps money the account was being charged');
+  // Split or not, the account gives up the same withholding that day.
+  assert.equal(days.reduce((sum, day) => sum + day.withholding_minor, 0), asOne.withholding_minor);
 });
 
 test('an account keeps one product unless someone splits it', async () => {
@@ -842,12 +845,11 @@ test('a figure typed for a product is the bank figure, yields included', async (
   assert.deepEqual(days.map(day => day.balance_minor).sort((a, b) => a - b),
     [1_009_645_100, 1_009_746_725]);
 
-  // Which is what Jose reads off Dale: 2,762.25 and 2,762.53, both under the
-  // 2,880.57 the threshold works out to, so neither is withheld.
+  // Which is what Jose reads off Dale: 2,762.25 and 2,762.53, each under the
+  // 2,880.57 the threshold works out to - and over it together, which is
+  // where Dale measures it (its September 2026 statement).
   assert.deepEqual(days.map(day => day.gross_minor).sort((a, b) => a - b), [276225, 276253]);
-  for (const day of days) {
-    assert.equal(day.withholding_minor, 0);
-  }
+  assert.equal(days.reduce((sum, day) => sum + day.withholding_minor, 0), Math.round(552478 * 0.07));
 
   // And tomorrow each product earns on the figure typed in, and nothing more:
   // a balance read on the 10th already holds what was paid on the 10th.
@@ -1294,9 +1296,7 @@ test('money moved in on the figure\'s own day, after it was typed, earns from th
   assert.ok(on('2026-09-10').net_minor > 0);
 });
 
-test('money moved on the figure\'s own day counts on top of it, whenever it was typed, as the screen says', async () => {
-  // The yields screen adds everything from the figure's day on ("Lo que
-  // entró y salió desde ese día"); the engine has to earn on that same sum.
+test('money moved on the figure\'s own day BEFORE it was typed stays inside it', async () => {
   const { db, yields, engine, transactions, ids } = await setup();
   await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09', withholding: false });
   await yields.setRate({ account_id: ids.rappi, valid_from: '2026-09-09', annual_rate_scaled: pct(9) });
@@ -1306,11 +1306,11 @@ test('money moved on the figure\'s own day counts on top of it, whenever it was 
     account_id: ids.rappi, category_id: ids.gastos, occurred_on: '2026-09-09', amount_minor: 20_000_000, source: 'manual',
   });
   await db.run("UPDATE transactions SET created_at = '2026-09-09T09:00:00Z' WHERE id = ?", [id]);
-  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 0 });
+  await yields.setProductBalance({ product_id: product.id, valid_from: '2026-09-09', amount_minor: 100_000_000 });
   await db.run("UPDATE product_balances SET created_at = '2026-09-09T10:00:00Z' WHERE product_id = ?", [product.id]);
 
   await engine.accrue(ids.rappi, '2026-09-10');
-  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 20_000_000);
+  assert.equal((await yields.days(ids.rappi))[0].balance_minor, 100_000_000);
 });
 
 test('a second product does not take the movements as well', async () => {
