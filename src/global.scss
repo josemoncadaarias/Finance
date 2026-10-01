@@ -2548,3 +2548,9 @@ body:has(ion-modal.entry-sheet.show-modal) .ui-toast {
   top: calc(64px + var(--ion-safe-area-top, 0px));
   bottom: auto;
 }
+
+/* The account list's search, and what it says when nothing matches. */
+.ui-sheet-body > .ui-search { margin: 0 0 10px; flex-shrink: 0; }
+.ui-sheet-body .ui-list > .nothing {
+  text-align: center; color: var(--app-mu); font-size: 14px; padding: 18px 8px; margin: 0;
+}

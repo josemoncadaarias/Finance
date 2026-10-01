@@ -110,6 +110,7 @@ export interface LoanEntry {
 }
 
 import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { foldText } from '../../core/text/fold-text';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
@@ -285,8 +286,13 @@ export class EntryComponent implements OnInit, OnDestroy {
   /** How many movements each account carries, for the "most used" order. */
   private readonly useCounts = signal<Map<number, number>>(new Map());
 
+  /** The account list's search, emptied whenever the list opens. */
+  readonly accountSearch = signal('');
+  private readonly clearAccountSearch = effect(() => { if (this.picking() !== null) this.accountSearch.set(''); });
+
   readonly orderedAccounts = computed(() => {
-    const all = this.accounts();
+    const wanted = foldText(this.accountSearch());
+    const all = this.accounts().filter(a => wanted === '' || foldText(a.name).includes(wanted));
     if (this.accountOrder() === 'name') {
       // `localeCompare` so "Éxito" files under E and not after Z.
       return [...all].sort((a, b) => a.name.localeCompare(b.name, 'es'));
@@ -755,7 +761,15 @@ export class EntryComponent implements OnInit, OnDestroy {
     // products to show and the row decided there was nothing to ask.
     await this.loadAccountsAndCategories();
     await this.loadProducts();
+    const editing = this.request().editing;
+    if (editing) {
+      this.loanPayment.set(await new LoansRepository(this.database.driver)
+        .paymentOf({ transferId: this.editingTransferId(), transactionId: editing.id }));
+    }
   }
+
+  /** The loan payment the movement being corrected belongs to: deleting it undoes the whole payment. */
+  readonly loanPayment = signal<{ id: number; loanName: string; kind: 'installment' | 'extra' | 'payoff'; number: number | null } | null>(null);
 
   private async loadAccountsAndCategories(): Promise<void> {
     if (this.database.status() !== 'ready') return;
@@ -841,6 +855,15 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly loanInsurance = signal(new AmountBuffer());
   readonly loanLate = signal(new AmountBuffer());
   readonly loanMode = signal<'term' | 'installment'>('term');
+  /** A loan in UVR: how much the UVR moved the debt by the payment's day; written with the payment. */
+  readonly loanUvrAdjust = signal(0);
+  private readonly readUvrAdjust = effect(() => {
+    const loan = this.loanEntry();
+    const day = this.occurredOn();
+    if (!loan || this.database.status() !== 'ready') { untracked(() => this.loanUvrAdjust.set(0)); return; }
+    void new LoansRepository(this.database.driver).uvrAdjustment(loan.accountId, day)
+      .then(amount => this.loanUvrAdjust.set(amount)).catch(() => this.loanUvrAdjust.set(0));
+  });
   /** What is left for the capital once interest, insurance and default interest are taken. */
   readonly loanCapital = computed(() =>
     this.effectiveMinor() - this.loanInterest().minor - this.loanInsurance().minor - this.loanLate().minor);
@@ -869,6 +892,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       note: this.note().trim() || null,
       interestCategory: this.i18n.t('loans.category.interest'),
       insuranceCategory: this.i18n.t('loans.category.insurance'),
+      uvrCategory: this.i18n.t('loans.category.uvr'),
     });
   }
 
@@ -1842,6 +1866,12 @@ export class EntryComponent implements OnInit, OnDestroy {
   });
 
   readonly deleteBody = computed(() => {
+    const payment = this.loanPayment();
+    if (payment) {
+      return payment.kind === 'installment' && payment.number !== null
+        ? this.i18n.t('loans.delete.installment', { number: payment.number, loan: payment.loanName })
+        : this.i18n.t('loans.delete.extra', { loan: payment.loanName });
+    }
     if (this.betweenProducts()) {
       return this.i18n.t('entry.deleteTransfer.hintProducts', { account: this.account()?.name ?? '' });
     }

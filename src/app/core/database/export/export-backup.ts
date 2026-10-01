@@ -55,6 +55,8 @@ export const TABLES = [
   'exchange_rates',
   // The DANE's index, as fetched or typed (migration 046).
   'inflation_months',
+  // The UVR as published or typed (migration 052).
+  'uvr_values',
   'yield_days',
   'cashback_rules',
   'cashback_entries',

@@ -159,3 +159,50 @@ test('dates and rates', () => {
   assert.equal(monthlyFromEa(165_000), 12_808);
   assert.equal(Math.abs(eaFromMonthly(12_808) - 165_000) < 5, true);
 });
+
+// A payment ahead made between two installments (Jose's reference package,
+// 2026-10-01, sheet Abono_mitad_mes - simulated, built on the
+// Superfinanciera's rule that a partial prepayment is liquidated to its day):
+// 100,000,000 owed after the installment of 10 Sep 2026 at 18% E.A., 5,000,000
+// paid on 25 Sep, next installment 10 Oct. Interest by stretches 1,330,904.08,
+// where treating the payment as made on the 10th would give less.
+const MIDMONTH = {
+  principalMinor: 120_000_000_00, system: 'fixed_installment', installments: 120, periodMonths: 1,
+  disbursedOn: '2025-09-10', firstDueOn: '2025-10-10', insuranceKind: 'fixed', insuranceMinor: 0,
+  insuranceRateScaled: 0, bankInstallmentMinor: null, paidBefore: 12, balanceAfterBeforeMinor: 100_000_000_00,
+  rates: [{ validFrom: '2025-09-10', annualRateScaled: 180_000 }],
+};
+const ahead = (paidOn, mode = 'term') => ({
+  kind: 'extra', number: null, paidOn, capitalMinor: 5_000_000_00, interestMinor: 0,
+  insuranceMinor: 0, lateMinor: 0, extraMode: mode,
+});
+
+test('a payment ahead between installments: the next interest counts the days on each balance', () => {
+  const s = loanSchedule(MIDMONTH, [ahead('2026-09-25')], '2026-09-26');
+  assert.equal(s.next.number, 13);
+  assert.equal(s.next.dueOn, '2026-10-10');
+  assert.equal(s.next.interestMinor, 1_330_904_08);
+  assert.equal(s.balanceMinor, 95_000_000_00);
+  // The installment after it is back on the whole month, on what is left.
+  const after = s.rows.find(r => r.type === 'installment' && r.number === 14);
+  assert.equal(after.interestMinor, Math.round(s.next.balanceAfterMinor * (Math.pow(1.18, 1 / 12) - 1)));
+});
+
+test('a payment ahead between installments, lowering the installment: the same interest', () => {
+  const s = loanSchedule(MIDMONTH, [ahead('2026-09-25', 'installment')], '2026-09-26');
+  assert.equal(s.next.interestMinor, 1_330_904_08);
+});
+
+test('a payment ahead on an installment\'s own day counts the next period as a whole month', () => {
+  const s = loanSchedule(MIDMONTH, [ahead('2026-09-10')], '2026-09-26');
+  assert.equal(s.next.interestMinor, Math.round(95_000_000_00 * (Math.pow(1.18, 1 / 12) - 1)));
+});
+
+test('paying it all after a payment ahead counts each stretch at its own balance', () => {
+  const plain = payoffToday(MIDMONTH, [], '2026-09-25');
+  const withAhead = payoffToday(MIDMONTH, [ahead('2026-09-25')], '2026-09-25');
+  assert.equal(withAhead.balanceMinor, 95_000_000_00);
+  // Up to the 25th the 100 million earned interest whole: the payment ahead
+  // does not take back interest already run.
+  assert.equal(withAhead.interestMinor, plain.interestMinor);
+});

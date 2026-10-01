@@ -38,3 +38,19 @@ export function cardLine(s: CardStatement, i18n: I18nService, currency = 'COP'):
       return '';
   }
 }
+
+/** A UVR figure: "2.866,7706", four decimals by default (as the Banco de la República publishes it). */
+export function uvrText(value: number, digits = 4): string {
+  return new Intl.NumberFormat('es-CO', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+}
+
+/** A decimal typed by hand, with a comma or a point: "418,0925", "2.866,77", "418.0925". */
+export function parseDecimal(text: string): number | null {
+  let t = text.trim().replace(/\s/g, '');
+  if (t === '') return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  // Without a comma, several points, or one point before exactly three digits, are thousands.
+  else if ((t.match(/\./g) ?? []).length > 1 || /^\d+\.\d{3}$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}

@@ -41,3 +41,18 @@ input[type='date'] { color-scheme: dark; }
 
 .missing { color: var(--app-yel); font-size: 13.5px; margin: 0 4px; }
 .ui-btn.danger { align-self: stretch; }
+
+/* An account chosen from the one account list: its face, its name, a chevron. */
+.ui-field.pick {
+  width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  .name { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name.none { color: var(--app-mu); font-weight: 500; }
+}
+.pick-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer;
+}
+.clear { border: 0; background: none; color: var(--app-mu); font-size: 22px; padding: 4px; cursor: pointer; display: flex; }
+.field-hint { margin: -2px 16px 10px; font-size: 13px; }
+
+.ui-seg.full.three button { padding-left: 4px; padding-right: 4px; font-size: 14px; }

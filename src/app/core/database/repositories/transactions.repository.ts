@@ -13,6 +13,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { Confidence, IsoDate, RateSource, TransactionRow, TransactionSource, TransferLeg } from '../types';
 import { convertToBaseMinor } from '../money';
+import { loanPaymentOf, undoLoanPayment } from '../../loans/payment-links';
 
 export interface NewTransaction {
   account_id: number;
@@ -314,6 +315,13 @@ export class TransactionsRepository {
       'SELECT import_fingerprint, import_seq FROM transactions WHERE id = ?', [id]);
 
     await this.db.transaction(async () => {
+      // One piece of a loan payment is the whole payment: its record, its
+      // other expenses and the transfer of its capital go with it.
+      const payment = await loanPaymentOf(this.db, { transactionId: id });
+      if (payment) {
+        const transferId = await undoLoanPayment(this.db, payment);
+        if (transferId !== null) await this.db.run('DELETE FROM transfers WHERE id = ?', [transferId]);
+      }
       // A cash-in is this movement plus the same amount out of, or into, what a
       // product gathered. Left behind, that half would move the product's
       // balance on its own, so it goes with the movement.
