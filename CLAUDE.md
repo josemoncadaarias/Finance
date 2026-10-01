@@ -126,7 +126,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (594, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (613, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -3372,10 +3372,67 @@ same day (web; the norms to re-read before building):
   mockups (form, Resumen, primas, payoff, paying installment 24 from Rappi
   cuenta, a 5M abono shortening the term, undoing both); the loan and the
   two categories were deleted afterwards.
-- Known limits: interest on an extra paid between installments is not
-  prorated; deleting a loan's transfer from Inicio leaves its interest and
-  insurance expenses (undo it from Cuotas instead); UVR systems later; the
-  disbursement arriving in a bank account is not recorded.
+- Known limits when it was built, all four closed the same day (below).
+
+**What loans did not do yet, done (2026-10-01)**, from Jose's reference
+package (`Paquete_pruebas_prestamos_Colombia.xlsx` and its PDF: the
+Banco de la República's UVR of 16 Sep - 15 Oct 2026, official; the rest
+simulated on the Superfinanciera's rules). The files are his and are not
+in the repository; their figures are written into the tests.
+- **A piece of a payment removed from anywhere undoes the whole payment**
+  (`core/loans/payment-links.ts`, called by the transfers and the
+  transactions repositories): the capital, the interest, the insurance, the
+  default interest and the UVR adjustment go together, and the movement
+  form's delete dialog says "Es el pago de la cuota N de X".
+- **Where the money arrived** (migration 051, optional, only for a loan the
+  app follows from its start): the loan opens at zero and a transfer from
+  the loan into that account on the disbursement day makes the debt.
+- **The account lists of the loan form are the app's one account list**
+  (`shared/account-picker`: icons, Más usadas / A-Z), and **every account
+  list now searches** (that one and the movement form's own; Jose: "la que
+  permite buscar, ordenar...").
+- **A payment ahead between installments is liquidated to its day**
+  (Superfinanciera): the next installment's interest is the balance before
+  it for the days up to the payment plus the balance after it for the rest,
+  at the daily rate (1 + E.A.) ^ (1/365) - 1 (`splitInterest`). The
+  package's case to the centavo: 1,330,904.08. Paying it all counts each
+  stretch the same way. A payment on an installment's own day changes
+  nothing.
+- **Loans in UVR** (migration 052; `core/loans/uvr.ts`, the UVR half of
+  `schedule.ts`). `loans.unit` 'UVR': the schedule walks in millionths of a
+  UVR at the real rate and turns each figure into pesos at its own day's
+  UVR. All three systems of the Superfinanciera: constant installment,
+  constant capital, and the cyclic decreasing one (inside each year the
+  installment falls by 1 - ((1 + d) ^ (1/12) - 1), d the contract's yearly
+  decrease, `loans.decrease_scaled`; each year starts at the level that
+  ends it where the constant installment would). `loan-uvr.test.mjs`
+  reproduces the package's twelve months of each, in UVR and in pesos to
+  the centavo.
+  - **The UVR itself**: `uvr_values` ships the bulletin's thirty values;
+    any other day is worked out by the Banco de la República's own rule,
+    UVR(t) = UVR(15) x (1 + i) ^ (t/d), i the IPC variation the app already
+    keeps (`inflation_months`), and says 'derived' - or 'projected' where
+    that month's IPC is not published, which is every future installment.
+    Checked: from the 15th of September (418.0383) and August's 0.39 %, the
+    rule gives all thirty published values exactly. A value typed from a
+    contract wins (`setUvr`, 'typed'); the loan form shows the
+    disbursement's UVR and where it came from.
+  - **The ledger**: the loan's account opens at the pesos disbursed, and
+    every payment also writes the debt's growth by the UVR since the last
+    movement as an "Ajuste UVR" movement of the loan's own account
+    (`uvrAdjustmentOf`), shown in the payment form. Between payments,
+    Saldos shows the debt as of the last movement; the loan's page shows
+    it at today's UVR.
+  - Not done: the IPC of a month newer than the app has is not fetched for
+    the UVR beyond what `inflation_months` already fetches; a payment ahead
+    planned "every month" is converted to UVR at today's value for the
+    simulation.
+- Checked in a browser on Jose's backup with invented loans (a free
+  investment with its disbursement into Rappi cuenta, an installment paid
+  and deleted from Inicio; a cyclic UVR mortgage of 100,000,000, its first
+  installment 2,930.6621 UVR = 1,229,906.86 as in the package, paid with
+  its UVR adjustment); everything written was deleted afterwards and the
+  balances checked back.
 
 ### The ideas, by what they would take
 
@@ -3437,8 +3494,10 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
-- [ ] Debts part 2 (loans) is built: try a loan on the phone (Más → Deudas y
-      tarjetas → Nueva deuda) and say what reads wrong. Then part 3, plans.
+- [ ] Debts part 2 (loans) is built, UVR included: try a loan on the phone
+      (Más → Deudas y tarjetas → Nueva deuda) and say what reads wrong. If a
+      real statement with a payment ahead between installments, or a real
+      UVR statement, turns up, check the figures against it. Then part 3, plans.
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the

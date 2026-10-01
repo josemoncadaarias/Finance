@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 33 tables and how they relate. The authority is always
+The 34 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -257,6 +257,12 @@ erDiagram
         INTEGER interest_tx_id FK
         INTEGER insurance_tx_id FK
         INTEGER late_tx_id FK
+        INTEGER uvr_adjust_tx_id FK
+    }
+    uvr_values {
+        TEXT day PK
+        INTEGER value_scaled
+        TEXT source
     }
     tax_simulations {
         INTEGER year PK

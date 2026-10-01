@@ -28,7 +28,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { LoanEditorComponent } from './loan-editor.component';
-import { longDay, plain, shortDate } from './card-words';
+import { longDay, plain, shortDate, uvrText } from './card-words';
 
 type Tab = 'summary' | 'installments' | 'ahead';
 type Every = PlannedExtra['every'];
@@ -151,7 +151,9 @@ export class LoanPage {
     const pct = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(ea * 100 / EA_SCALE);
     return this.i18n.t('loans.head', {
       rate: pct,
-      system: this.i18n.t(loan.terms.system === 'fixed_installment' ? 'loans.system.fixed.short' : 'loans.system.capital.short'),
+      system: (loan.terms.unit === 'UVR' ? 'UVR · ' : '') + this.i18n.t(loan.terms.decreaseScaled
+        ? 'loans.system.cyclic.short'
+        : loan.terms.system === 'fixed_installment' ? 'loans.system.fixed.short' : 'loans.system.capital.short'),
     });
   });
 
@@ -196,6 +198,11 @@ export class LoanPage {
   }
 
   // ------------------------------------------------------------ words
+  /** A UVR figure, four decimals unless said. */
+  uvr(value: number, digits = 4): string {
+    return uvrText(value, digits);
+  }
+
   money(minor: number | null | undefined): string {
     return plain(Math.round(minor ?? 0));
   }

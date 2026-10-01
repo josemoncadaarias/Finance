@@ -29,7 +29,11 @@
  * bank's own figures can differ by a few pesos, and the typed ones win.
  */
 
+import type { UvrLookup, UvrValue } from './uvr';
+
 export const EA_SCALE = 1_000_000;
+/** A loan in UVR runs in millionths of a UVR. */
+export const UVR_MICRO = 1_000_000;
 
 export type LoanSystem = 'fixed_installment' | 'constant_capital';
 export type ExtraMode = 'term' | 'installment';
@@ -51,6 +55,20 @@ export interface LoanTerms {
   balanceAfterBeforeMinor: number | null;
   /** E.A. history, any order. */
   rates: { validFrom: string; annualRateScaled: number }[];
+  /**
+   * A loan in UVR: the schedule runs in UVR and is shown in pesos at each
+   * day's UVR. Its stated balance and installment (balanceAfterBeforeMinor,
+   * bankInstallmentMinor) are then in millionths of a UVR; the principal and
+   * the insurance stay in pesos, as the bank states them.
+   */
+  unit?: 'COP' | 'UVR';
+  /**
+   * Cyclic decreasing installment (UVR): the yearly rate the installment
+   * falls by inside each year, scaled by 1,000,000. Null for every other.
+   */
+  decreaseScaled?: number | null;
+  /** The UVR of a day, for a loan in UVR. */
+  uvr?: UvrLookup;
 }
 
 export interface LoanPayment {
@@ -62,6 +80,8 @@ export interface LoanPayment {
   insuranceMinor: number;
   lateMinor: number;
   extraMode: ExtraMode | null;
+  /** For a loan in UVR: the capital paid, in millionths of a UVR. */
+  capitalUvrMicro?: number | null;
 }
 
 /** A payment ahead not made yet, to see what it would do. */
@@ -86,6 +106,18 @@ export interface InstallmentRow {
   totalMinor: number;
   balanceAfterMinor: number;
   state: RowState;
+  /** For a loan in UVR: the same installment in UVR, and the UVR it was turned into pesos at. */
+  uvr?: InstallmentUvr;
+}
+
+export interface InstallmentUvr {
+  value: number;
+  kind: UvrValue['kind'];
+  capital: number;
+  interest: number;
+  /** Capital and interest: the installment as the bank states it in UVR. */
+  installment: number;
+  balanceAfter: number;
 }
 
 export interface ExtraRow {
@@ -121,6 +153,9 @@ export interface LoanSchedule {
   /** The installment due next, as the schedule works it out. */
   installmentMinor: number;
   done: boolean;
+  /** For a loan in UVR: today's UVR and what is owed in UVR. */
+  uvrToday?: UvrValue | null;
+  balanceUvr?: number;
 }
 
 /** The installment of a French loan, capital and interest. */
@@ -169,9 +204,80 @@ function insuranceFor(terms: LoanTerms, balanceMinor: number): number {
     : Math.round(balanceMinor * terms.insuranceRateScaled * terms.periodMonths / EA_SCALE);
 }
 
+/** The installment of a French loan, unrounded: the level a cyclic installment is set from. */
+function annuityExact(balance: number, rate: number, count: number): number {
+  if (count <= 0) return balance;
+  if (rate === 0) return balance / count;
+  return balance * rate / (1 - Math.pow(1 + rate, -count));
+}
+
+/**
+ * Cyclic decreasing installment (UVR; Superfinanciera): inside each year the
+ * installment falls by the same factor every period, and each year starts
+ * at the level that leaves the same balance at its end as the constant
+ * installment would. So the first one of `left` periods is the constant
+ * installment times sum(v^k) / sum(v^k g^(k-1)).
+ */
+function decreaseOf(terms: LoanTerms): number | null {
+  if (terms.system !== 'fixed_installment' || !terms.decreaseScaled) return null;
+  return 1 - (Math.pow(1 + terms.decreaseScaled / EA_SCALE, terms.periodMonths / 12) - 1);
+}
+
+function cycleLength(terms: LoanTerms): number {
+  return Math.max(1, Math.round(12 / terms.periodMonths));
+}
+
+function cycleShare(rate: number, left: number, g: number): number {
+  const v = 1 / (1 + rate);
+  let plain = 0;
+  let falling = 0;
+  for (let k = 1; k <= left; k++) {
+    plain += Math.pow(v, k);
+    falling += Math.pow(v, k) * Math.pow(g, k - 1);
+  }
+  return plain / falling;
+}
+
+/**
+ * The capital-and-interest installment of a fixed or cyclic loan, period by
+ * period. `level` is the constant installment the cycle is set against;
+ * `restart` sets it again (a new rate, a payment ahead lowering the
+ * installment) from the period about to be counted.
+ */
+class Pace {
+  private level: number;
+  private anchor = 1;
+  private pending = false;
+  readonly g: number | null;
+  private readonly length: number;
+
+  constructor(terms: LoanTerms, level: number) {
+    this.g = decreaseOf(terms);
+    this.length = cycleLength(terms);
+    this.level = level;
+  }
+
+  /** The installment of `number`, capital and interest. */
+  at(number: number, rate: number): number {
+    if (this.g === null) return Math.round(this.level);
+    const k = ((number - 1) % this.length) + 1;
+    if (k === 1) this.anchor = 1;
+    if (this.pending) { this.anchor = k; this.pending = false; }
+    return Math.round(this.level * cycleShare(rate, this.length - this.anchor + 1, this.g) * Math.pow(this.g, k - this.anchor));
+  }
+
+  /** A new constant installment from the next period on. */
+  restart(balance: number, rate: number, remaining: number): void {
+    this.level = this.g === null ? annuity(balance, rate, remaining) : annuityExact(balance, rate, remaining);
+    this.pending = true;
+  }
+}
+
 /** The capital-and-interest installment the person agreed, if the bank's figure says it. */
 function agreedPayment(terms: LoanTerms): number | null {
-  if (terms.bankInstallmentMinor === null || terms.insuranceKind !== 'fixed') return null;
+  if (decreaseOf(terms) !== null) return null;
+  if (terms.bankInstallmentMinor === null || (terms.unit !== 'UVR' && terms.insuranceKind !== 'fixed')) return null;
+  if (terms.unit === 'UVR') return terms.bankInstallmentMinor;
   const pay = terms.bankInstallmentMinor - terms.insuranceMinor;
   return pay > 0 ? pay : null;
 }
@@ -182,7 +288,8 @@ function theoretical(terms: LoanTerms, count: number): { balance: number; rows: 
   let previous = terms.disbursedOn;
   let rateScaled = rateOn(terms, previous);
   let rate = periodRate(rateScaled, terms.periodMonths);
-  let pay = agreedPayment(terms) ?? annuity(balance, rate, terms.installments);
+  const pace = new Pace(terms, agreedPayment(terms) ?? (decreaseOf(terms) !== null
+    ? annuityExact(balance, rate, terms.installments) : annuity(balance, rate, terms.installments)));
   const capitalEach = Math.round(terms.principalMinor / terms.installments);
   const rows: InstallmentRow[] = [];
   for (let number = 1; number <= count && balance > 0; number++) {
@@ -191,8 +298,9 @@ function theoretical(terms: LoanTerms, count: number): { balance: number; rows: 
     if (nowRate !== rateScaled) {
       rateScaled = nowRate;
       rate = periodRate(rateScaled, terms.periodMonths);
-      pay = annuity(balance, rate, terms.installments - number + 1);
+      pace.restart(balance, rate, terms.installments - number + 1);
     }
+    const pay = pace.at(number, rate);
     const interest = Math.round(balance * rate);
     const insurance = insuranceFor(terms, balance);
     let capital = terms.system === 'constant_capital' ? capitalEach : pay - interest;
@@ -209,6 +317,11 @@ function theoretical(terms: LoanTerms, count: number): { balance: number; rows: 
 }
 
 export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: string, planned: PlannedExtra | null = null): LoanSchedule {
+  return terms.unit === 'UVR' ? uvrSchedule(terms, payments, today, planned) : walk(terms, payments, today, planned);
+}
+
+/** The schedule in the loan's own unit: pesos in minor units, or millionths of a UVR. */
+function walk(terms: LoanTerms, payments: LoanPayment[], today: string, planned: PlannedExtra | null = null): LoanSchedule {
   const before = theoretical(terms, terms.paidBefore);
   const rows: ScheduleRow[] = [...before.rows];
   let balance = terms.paidBefore > 0 ? (terms.balanceAfterBeforeMinor ?? before.balance) : terms.principalMinor;
@@ -220,8 +333,10 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
   let previous = terms.paidBefore > 0 ? dueDate(terms.firstDueOn, terms.periodMonths, terms.paidBefore) : terms.disbursedOn;
   let rateScaled = rateOn(terms, previous);
   let rate = periodRate(rateScaled, terms.periodMonths);
-  let pay = agreedPayment(terms) ?? annuity(terms.principalMinor, periodRate(rateOn(terms, terms.disbursedOn), terms.periodMonths), terms.installments);
-  if (rateScaled !== rateOn(terms, terms.disbursedOn)) pay = annuity(balance, rate, terms.installments - terms.paidBefore);
+  const firstRate = periodRate(rateOn(terms, terms.disbursedOn), terms.periodMonths);
+  const pace = new Pace(terms, agreedPayment(terms) ?? (decreaseOf(terms) !== null
+    ? annuityExact(terms.principalMinor, firstRate, terms.installments) : annuity(terms.principalMinor, firstRate, terms.installments)));
+  if (rateScaled !== rateOn(terms, terms.disbursedOn)) pace.restart(balance, rate, terms.installments - terms.paidBefore);
   let capitalEach = Math.round(balance / Math.max(1, terms.installments - terms.paidBefore));
   let lastNumber = terms.installments;
 
@@ -240,7 +355,7 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
     rows.push({ type: 'extra', paidOn, amountMinor: taken, mode, planned, balanceAfterMinor: balance });
     const remaining = lastNumber - afterNumber;
     if (mode === 'installment' && remaining > 0) {
-      if (terms.system === 'fixed_installment') pay = annuity(balance, rate, remaining);
+      if (terms.system === 'fixed_installment') pace.restart(balance, rate, remaining);
       else capitalEach = Math.round(balance / remaining);
     }
   };
@@ -265,8 +380,9 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
     if (nowRate !== rateScaled) {
       rateScaled = nowRate;
       rate = periodRate(rateScaled, terms.periodMonths);
-      if (terms.system === 'fixed_installment') pay = annuity(balance, rate, Math.max(1, lastNumber - number + 1));
+      if (terms.system === 'fixed_installment') pace.restart(balance, rate, Math.max(1, lastNumber - number + 1));
     }
+    const pay = pace.at(number, rate);
     const paid = byNumber.get(number);
     let row: InstallmentRow;
     if (paid) {
@@ -368,6 +484,116 @@ export function splitInterest(pieces: readonly { on: string; balanceBefore: numb
   return Math.round(total);
 }
 
+/**
+ * A loan in UVR: the schedule is walked in millionths of a UVR - the rate
+ * is the real one, over the UVR - and every figure is then turned into pesos
+ * at the UVR of its own day: an installment at its due date's, what is owed
+ * at today's. A paid installment shows what was paid. Insurance is in pesos,
+ * fixed or a share of the balance in pesos.
+ */
+function uvrSchedule(terms: LoanTerms, payments: LoanPayment[], today: string, planned: PlannedExtra | null): LoanSchedule {
+  const lookup = terms.uvr ?? (() => null);
+  const fallback = lookup(today)?.value ?? 1;
+  const value = (day: string) => lookup(day)?.value ?? fallback;
+  const toUnits = (pesosMinor: number, day: string) => Math.round(pesosMinor / 100 / value(day) * UVR_MICRO);
+  const toPesos = (units: number, day: string) => Math.round(units / UVR_MICRO * value(day) * 100);
+  const uvrOf = (units: number) => units / UVR_MICRO;
+
+  const unitTerms: LoanTerms = {
+    ...unitTermsOf(terms, value),
+  };
+  const unitPayments = payments.map(p => ({
+    ...p,
+    capitalMinor: p.capitalUvrMicro ?? toUnits(p.capitalMinor, p.paidOn),
+    interestMinor: toUnits(p.interestMinor, p.paidOn),
+    insuranceMinor: 0,
+    lateMinor: 0,
+  }));
+  const unitPlanned = planned ? { ...planned, amountMinor: toUnits(planned.amountMinor, today) } : null;
+  const u = walk(unitTerms, unitPayments, today, unitPlanned);
+
+  const paidByNumber = new Map<number, LoanPayment>();
+  for (const p of payments) if (p.kind === 'installment' && p.number !== null) paidByNumber.set(p.number, p);
+
+  let interestPaid = 0, interestLeft = 0, insuranceLeft = 0, insuranceTotal = 0, toPay = 0, capitalPaid = 0;
+  const rows: ScheduleRow[] = u.rows.map(row => {
+    if (row.type === 'extra') {
+      const amount = toPesos(row.amountMinor, row.paidOn);
+      if (row.planned) toPay += amount; else capitalPaid += amount;
+      return { ...row, amountMinor: amount, balanceAfterMinor: toPesos(row.balanceAfterMinor, row.paidOn) };
+    }
+    const at = lookup(row.dueOn) ?? { value: fallback, kind: 'projected' as const };
+    const uvr: InstallmentUvr = {
+      value: at.value, kind: at.kind,
+      capital: uvrOf(row.capitalMinor), interest: uvrOf(row.interestMinor),
+      installment: uvrOf(row.capitalMinor + row.interestMinor), balanceAfter: uvrOf(row.balanceAfterMinor),
+    };
+    const paid = row.state === 'paid' ? paidByNumber.get(row.number) : undefined;
+    if (paid) {
+      interestPaid += paid.interestMinor;
+      insuranceTotal += paid.insuranceMinor;
+      capitalPaid += paid.capitalMinor;
+      return {
+        ...row, capitalMinor: paid.capitalMinor, interestMinor: paid.interestMinor, insuranceMinor: paid.insuranceMinor,
+        lateMinor: paid.lateMinor, totalMinor: paid.capitalMinor + paid.interestMinor + paid.insuranceMinor + paid.lateMinor,
+        balanceAfterMinor: toPesos(row.balanceAfterMinor, row.dueOn), uvr,
+      };
+    }
+    const capital = toPesos(row.capitalMinor, row.dueOn);
+    const interest = toPesos(row.interestMinor, row.dueOn);
+    const before = toPesos(row.balanceAfterMinor + row.capitalMinor, row.dueOn);
+    const insurance = insuranceFor(terms, before);
+    insuranceTotal += insurance;
+    if (row.state === 'before') {
+      interestPaid += interest;
+      capitalPaid += capital;
+    } else {
+      interestLeft += interest;
+      insuranceLeft += insurance;
+      toPay += capital + interest + insurance;
+    }
+    return {
+      ...row, capitalMinor: capital, interestMinor: interest, insuranceMinor: insurance,
+      totalMinor: capital + interest + insurance, balanceAfterMinor: toPesos(row.balanceAfterMinor, row.dueOn), uvr,
+    };
+  });
+
+  const installments = rows.filter((r): r is InstallmentRow => r.type === 'installment');
+  const byNumber = new Map(installments.map(r => [r.number, r]));
+  const overdue = u.overdue.map(r => byNumber.get(r.number)!);
+  const next = u.next ? byNumber.get(u.next.number) ?? null : null;
+  const firstOpen = installments.find(r => r.state !== 'before' && r.state !== 'paid') ?? null;
+  return {
+    rows,
+    balanceMinor: toPesos(u.balanceMinor, today),
+    paidCount: u.paidCount,
+    totalCount: u.totalCount,
+    next,
+    overdue,
+    lastDueOn: u.lastDueOn,
+    capitalPaidMinor: capitalPaid,
+    interestPaidMinor: interestPaid,
+    interestLeftMinor: interestLeft,
+    insuranceLeftMinor: insuranceLeft,
+    interestTotalMinor: interestPaid + interestLeft,
+    insuranceTotalMinor: insuranceTotal,
+    toPayMinor: toPay,
+    installmentMinor: firstOpen ? firstOpen.totalMinor : 0,
+    done: u.done,
+    uvrToday: lookup(today),
+    balanceUvr: uvrOf(u.balanceMinor),
+  };
+}
+
+/** A loan in UVR as the walk sees it: the principal in UVR, no insurance (it is in pesos). */
+function unitTermsOf(terms: LoanTerms, value: (day: string) => number): LoanTerms {
+  return {
+    ...terms,
+    principalMinor: Math.round(terms.principalMinor / 100 / value(terms.disbursedOn) * UVR_MICRO),
+    insuranceKind: 'fixed', insuranceMinor: 0, insuranceRateScaled: 0, uvr: undefined,
+  };
+}
+
 /** What is owed after everything recorded, whatever the projection says. */
 function currentBalance(terms: LoanTerms, theoreticalBefore: number, payments: LoanPayment[]): number {
   let balance = terms.paidBefore > 0 ? (terms.balanceAfterBeforeMinor ?? theoreticalBefore) : terms.principalMinor;
@@ -413,11 +639,29 @@ export function dueBy(terms: Pick<LoanTerms, 'firstDueOn' | 'periodMonths' | 'in
 
 /** What the original schedule says is owed after `count` installments. */
 export function theoreticalBalance(terms: LoanTerms, count: number): number {
+  if (terms.unit === 'UVR') {
+    const units = theoreticalUnits(terms, count);
+    const day = count > 0 ? dueDate(terms.firstDueOn, terms.periodMonths, count) : terms.disbursedOn;
+    return Math.round(units / UVR_MICRO * (terms.uvr?.(day)?.value ?? 0) * 100);
+  }
   return theoretical({ ...terms, paidBefore: 0 }, count).balance;
 }
 
+/** A loan in UVR: what the original schedule says is owed after `count` installments, in millionths of a UVR. */
+export function theoreticalUnits(terms: LoanTerms, count: number): number {
+  const value = (day: string) => terms.uvr?.(day)?.value ?? 1;
+  return theoretical({ ...unitTermsOf(terms, value), paidBefore: 0 }, count).balance;
+}
+
 /** The first installment, capital and interest, as the schedule works it out (insurance apart). */
-export function firstInstallment(terms: LoanTerms): { paymentMinor: number; insuranceMinor: number } {
+export function firstInstallment(terms: LoanTerms): { paymentMinor: number; insuranceMinor: number; uvr?: number } {
+  if (terms.unit === 'UVR') {
+    const s = uvrSchedule({ ...terms, bankInstallmentMinor: null, paidBefore: 0, balanceAfterBeforeMinor: null }, [], terms.disbursedOn, null);
+    const row = s.rows.find((r): r is InstallmentRow => r.type === 'installment');
+    return row
+      ? { paymentMinor: row.capitalMinor + row.interestMinor, insuranceMinor: row.insuranceMinor, uvr: row.uvr?.installment }
+      : { paymentMinor: 0, insuranceMinor: 0 };
+  }
   const rows = theoretical({ ...terms, bankInstallmentMinor: null }, 1).rows;
   const row = rows[0];
   return row

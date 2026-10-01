@@ -154,3 +154,52 @@ test('a loan begun before the app never records a disbursement', async () => {
   assert.equal(await w.balance(old), -42_195_732_51);
   assert.equal(await w.balance(w.bank), 100_000_000_00);
 });
+
+// Loans in UVR, on the official values migration 052 ships (Boletin 24 de 2026).
+const HOUSE = {
+  ...CAR, name: 'Hipoteca', paidBefore: 0, principalMinor: 100_000_000_00, annualRateScaled: 80_000,
+  installments: 120, disbursedOn: '2026-09-16', firstDueOn: '2026-10-15', insuranceMinor: 0,
+  unit: 'UVR', decreaseScaled: null,
+};
+
+test('a loan in UVR opens at what was disbursed, and its schedule runs in UVR', async () => {
+  const w = await world();
+  const id = await w.loans.create({ ...HOUSE, paidFromAccountId: w.bank });
+  assert.equal(await w.balance(id), -100_000_000_00);
+  const loan = (await w.loans.all()).find(l => l.account.id === id);
+  assert.equal(loan.terms.unit, 'UVR');
+  assert.equal(loan.terms.uvr('2026-09-16').kind, 'official');
+  const s = loanSchedule(loan.terms, loan.payments, '2026-10-01');
+  // 100,000,000 at the 16 Sep UVR of 418.0925.
+  assert.ok(Math.abs(s.balanceUvr - 100_000_000 / 418.0925) < 1e-5);
+  assert.equal(s.next.uvr.kind, 'official', 'the 15 Oct UVR is in the bulletin');
+});
+
+test('paying an installment of a loan in UVR also writes how much the UVR moved the debt', async () => {
+  const w = await world();
+  const id = await w.loans.create({ ...HOUSE, paidFromAccountId: w.bank });
+  let loan = (await w.loans.all()).find(l => l.account.id === id);
+  const next = loanSchedule(loan.terms, loan.payments, '2026-10-01').next;
+  const expected = Math.round((100_000_000 / 418.0925) * 419.6686 * 100) - 100_000_000_00;
+  assert.ok(Math.abs(await w.loans.uvrAdjustment(id, '2026-10-15') - expected) <= 1);
+  const paymentId = await w.loans.recordPayment(payment({ id, bank: w.bank }, {
+    number: 1, paidOn: '2026-10-15', capitalMinor: next.capitalMinor, interestMinor: next.interestMinor,
+    insuranceMinor: 0, uvrCategory: 'Ajuste UVR',
+  }));
+  // The account now says the debt in pesos at the 15 Oct UVR, after the capital.
+  loan = (await w.loans.all()).find(l => l.account.id === id);
+  const s = loanSchedule(loan.terms, loan.payments, '2026-10-15');
+  assert.ok(Math.abs(s.balanceUvr - next.uvr.balanceAfter) < 1e-4);
+  assert.ok(Math.abs(-(await w.balance(id)) - Math.round(s.balanceUvr * 419.6686 * 100)) <= 2);
+  assert.equal(loan.payments[0].uvrAdjustMinor > 0, true);
+  // Undone whole, the adjustment with it.
+  await w.loans.deletePayment(paymentId);
+  assert.equal(await w.balance(id), -100_000_000_00);
+});
+
+test('a UVR typed from the contract wins over the worked-out one', async () => {
+  const w = await world();
+  const id = await w.loans.create({ ...HOUSE, disbursedOn: '2026-08-20', firstDueOn: '2026-09-20', disbursementUvrScaled: 4_170_000, paidFromAccountId: w.bank });
+  const loan = (await w.loans.all()).find(l => l.account.id === id);
+  assert.deepEqual(loan.terms.uvr('2026-08-20'), { value: 417, kind: 'typed' });
+});

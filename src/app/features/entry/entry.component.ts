@@ -855,6 +855,15 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly loanInsurance = signal(new AmountBuffer());
   readonly loanLate = signal(new AmountBuffer());
   readonly loanMode = signal<'term' | 'installment'>('term');
+  /** A loan in UVR: how much the UVR moved the debt by the payment's day; written with the payment. */
+  readonly loanUvrAdjust = signal(0);
+  private readonly readUvrAdjust = effect(() => {
+    const loan = this.loanEntry();
+    const day = this.occurredOn();
+    if (!loan || this.database.status() !== 'ready') { untracked(() => this.loanUvrAdjust.set(0)); return; }
+    void new LoansRepository(this.database.driver).uvrAdjustment(loan.accountId, day)
+      .then(amount => this.loanUvrAdjust.set(amount)).catch(() => this.loanUvrAdjust.set(0));
+  });
   /** What is left for the capital once interest, insurance and default interest are taken. */
   readonly loanCapital = computed(() =>
     this.effectiveMinor() - this.loanInterest().minor - this.loanInsurance().minor - this.loanLate().minor);
@@ -883,6 +892,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       note: this.note().trim() || null,
       interestCategory: this.i18n.t('loans.category.interest'),
       insuranceCategory: this.i18n.t('loans.category.insurance'),
+      uvrCategory: this.i18n.t('loans.category.uvr'),
     });
   }
 

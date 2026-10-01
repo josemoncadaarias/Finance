@@ -52,7 +52,7 @@ test('no phrase is left empty or accidentally identical', () => {
     // an accountant would use in either language.
     'report.headline.balance', 'report.categories.total',
     // A loan's capital, and a variable rate: the same word in both.
-    'loans.pay.capital', 'loans.form.variable',
+    'loans.pay.capital', 'loans.form.variable', 'loans.uvr.pesos',
   ]);
   const identical = Object.keys(SPANISH)
     .filter(key => SPANISH[key] === ENGLISH[key] && !sameOnPurpose.has(key));

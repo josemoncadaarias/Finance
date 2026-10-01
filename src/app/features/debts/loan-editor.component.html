@@ -40,7 +40,27 @@
       </label>
       <div class="ui-field col">
         <span class="in">
-          <span class="lab">{{ 'loans.form.rate' | t }}</span>
+          <span class="lab">{{ 'loans.uvr.unit' | t }}</span>
+          <span class="ui-seg full">
+            <button type="button" [class.on]="unit() === 'COP'" (click)="unit.set('COP')">{{ 'loans.uvr.pesos' | t }}</button>
+            <button type="button" [class.on]="unit() === 'UVR'" (click)="unit.set('UVR')">UVR</button>
+          </span>
+          @if (unit() === 'UVR') { <span class="hint">{{ 'loans.uvr.unitHint' | t }}</span> }
+        </span>
+      </div>
+      @if (unit() === 'UVR') {
+        <div class="ui-field col">
+          <span class="in">
+            <span class="lab">{{ 'loans.uvr.disbursement' | t }}</span>
+            <input inputmode="decimal" [value]="disbursementUvrText()" [placeholder]="knownUvr() || '0,0000'"
+                   (input)="disbursementUvrText.set($any($event.target).value)">
+            <span class="hint">{{ disbursementUvrLine() }}@if (principalUvr()) { · {{ 'loans.uvr.principal' | t:{ amount: principalUvr() } }} }</span>
+          </span>
+        </div>
+      }
+      <div class="ui-field col">
+        <span class="in">
+          <span class="lab">{{ (unit() === 'UVR' ? 'loans.uvr.rate' : 'loans.form.rate') | t }}</span>
           <span class="rate-row">
             <input inputmode="decimal" [value]="rateText()" placeholder="0,00" (input)="rateText.set($any($event.target).value)">
             <span class="unit">%</span>
@@ -82,12 +102,26 @@
       <div class="ui-field col">
         <span class="in">
           <span class="lab">{{ 'loans.form.system' | t }}</span>
-          <span class="ui-seg full">
-            <button type="button" [class.on]="system() === 'fixed_installment'" (click)="system.set('fixed_installment')">{{ 'loans.system.fixed' | t }}</button>
-            <button type="button" [class.on]="system() === 'constant_capital'" (click)="system.set('constant_capital')">{{ 'loans.system.capital' | t }}</button>
+          <span class="ui-seg full" [class.three]="unit() === 'UVR'">
+            <button type="button" [class.on]="system() === 'fixed_installment' && !(unit() === 'UVR' && cyclic())" (click)="setSystem('fixed_installment')">{{ 'loans.system.fixed' | t }}</button>
+            <button type="button" [class.on]="system() === 'constant_capital'" (click)="setSystem('constant_capital')">{{ (unit() === 'UVR' ? 'loans.system.capitalShort' : 'loans.system.capital') | t }}</button>
+            @if (unit() === 'UVR') {
+              <button type="button" [class.on]="system() === 'fixed_installment' && cyclic()" (click)="setSystem('fixed_installment', true)">{{ 'loans.system.cyclic' | t }}</button>
+            }
           </span>
+          @if (unit() === 'UVR') {
+            <span class="hint">{{ $any('loans.system.hint.' + (cyclic() && system() === 'fixed_installment' ? 'cyclic' : system())) | t }}</span>
+          }
         </span>
       </div>
+      @if (unit() === 'UVR' && cyclic() && system() === 'fixed_installment') {
+        <label class="ui-field">
+          <span class="in"><span class="lab">{{ 'loans.uvr.decrease' | t }}</span>
+            <input inputmode="decimal" [value]="decreaseText()" placeholder="5,00" (input)="decreaseText.set($any($event.target).value)">
+            <span class="hint">{{ 'loans.uvr.decreaseHint' | t }}</span></span>
+          <span class="unit">%</span>
+        </label>
+      }
       <div class="two">
         <label class="ui-field">
           <span class="in"><span class="lab">{{ 'loans.form.count' | t }}</span>
@@ -172,10 +206,20 @@
       <div class="ui-card installment">
         <div class="line"><span class="ui-sub">{{ 'loans.form.worked' | t }}</span><b>{{ money(w.totalMinor) }}</b></div>
         <p class="ui-sub">{{ 'loans.form.worked.parts' | t:{ payment: money(w.paymentMinor), insurance: money(w.insuranceMinor) } }}</p>
-        <label class="line">
-          <span class="ui-sub">{{ 'loans.form.bank' | t }}</span>
-          <input class="fig" inputmode="decimal" [value]="bankInstallment().text" placeholder="0" (input)="onAmount('bank', $any($event.target).value)">
-        </label>
+        @if (unit() === 'UVR') {
+          <p class="ui-sub">{{ 'loans.uvr.worked' | t:{ amount: w.uvrText } }}</p>
+          @if (!cyclic() || system() !== 'fixed_installment') {
+            <label class="line">
+              <span class="ui-sub">{{ 'loans.uvr.bank' | t }}</span>
+              <input class="fig" inputmode="decimal" [value]="bankUvrText()" placeholder="0,0000" (input)="bankUvrText.set($any($event.target).value)">
+            </label>
+          }
+        } @else {
+          <label class="line">
+            <span class="ui-sub">{{ 'loans.form.bank' | t }}</span>
+            <input class="fig" inputmode="decimal" [value]="bankInstallment().text" placeholder="0" (input)="onAmount('bank', $any($event.target).value)">
+          </label>
+        }
         @if (bankLine()) { <p class="ui-sub ok">{{ bankLine() }}</p> }
       </div>
     }
@@ -189,11 +233,19 @@
         </label>
         <p class="ui-sub">{{ 'loans.form.paidBefore.hint' | t }}</p>
         @if (owedWorked() !== null) {
-          <div class="line"><span class="ui-sub">{{ 'loans.form.owedWorked' | t }}</span><b>{{ money(owedWorked()) }}</b></div>
-          <label class="line">
-            <span class="ui-sub">{{ 'loans.form.owedBank' | t }}</span>
-            <input class="fig" inputmode="decimal" [value]="balanceStated().text" placeholder="0" (input)="onAmount('balance', $any($event.target).value)">
-          </label>
+          @if (unit() === 'UVR') {
+            <div class="line"><span class="ui-sub">{{ 'loans.uvr.owedWorked' | t }}</span><b>{{ owedWorkedUvr() }}</b></div>
+            <label class="line">
+              <span class="ui-sub">{{ 'loans.uvr.owedBank' | t }}</span>
+              <input class="fig" inputmode="decimal" [value]="balanceUvrText()" placeholder="0,0000" (input)="balanceUvrText.set($any($event.target).value)">
+            </label>
+          } @else {
+            <div class="line"><span class="ui-sub">{{ 'loans.form.owedWorked' | t }}</span><b>{{ money(owedWorked()) }}</b></div>
+            <label class="line">
+              <span class="ui-sub">{{ 'loans.form.owedBank' | t }}</span>
+              <input class="fig" inputmode="decimal" [value]="balanceStated().text" placeholder="0" (input)="onAmount('balance', $any($event.target).value)">
+            </label>
+          }
         }
       </div>
     }

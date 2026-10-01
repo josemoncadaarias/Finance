@@ -45,6 +45,9 @@
           <section [class]="s.overdue.length > 0 ? 'ui-card owed' : 'ui-hero owed'">
             <span class="ui-lab">{{ 'loans.owed' | t }}</span>
             <div [class]="s.overdue.length > 0 ? 'mid' : 'ui-big'">$ {{ money(s.balanceMinor) }}</div>
+            @if (s.balanceUvr !== undefined && s.uvrToday) {
+              <p class="ui-sub">{{ 'loans.uvr.owedIn' | t:{ amount: uvr(s.balanceUvr, 2), value: uvr(s.uvrToday.value) } }}</p>
+            }
             <p class="ui-sub">{{ 'loans.paidOf' | t:{ paid: s.paidCount, of: s.totalCount } }}</p>
             <span class="ui-pbar split"><i class="cap" [style.width.%]="share(s.capitalPaidMinor)"></i><i class="int" [style.width.%]="share(s.interestPaidMinor)"></i></span>
             <div class="legend">
@@ -59,6 +62,9 @@
               <span class="ui-lab">{{ 'loans.next.label' | t:{ number: n.number, of: loan.terms.installments } }}</span>
               <div class="line"><b class="fig">{{ money(n.totalMinor) }}</b><span class="ui-sub">{{ short(n.dueOn) }} · {{ when(n.dueOn) }}</span></div>
               <p class="ui-sub">{{ 'loans.next.parts' | t:{ capital: money(n.capitalMinor), interest: money(n.interestMinor), insurance: money(n.insuranceMinor) } }}</p>
+              @if (n.uvr; as u) {
+                <p class="ui-sub">{{ 'loans.uvr.worked' | t:{ amount: uvr(u.installment) } }} · {{ 'loans.uvr.atValue' | t:{ value: uvr(u.value) } }}</p>
+              }
               <button type="button" class="ui-chip pay-line" (click)="payInstallment()"><ion-icon name="swap-horizontal"></ion-icon>{{ 'loans.pay.action' | t }}</button>
             </div>
           }
@@ -73,6 +79,10 @@
             <div><span class="ui-lab">{{ 'loans.kpi.insuranceTotal' | t }}</span><b>{{ money(s.insuranceTotalMinor) }}</b>
               <small class="ui-sub">{{ 'loans.kpi.insuranceEach' | t }}</small></div>
           </div>
+
+          @if (s.balanceUvr !== undefined) {
+            <p class="ui-sub uvr-note">{{ 'loans.uvr.projectedNote' | t }}</p>
+          }
 
           @if (suggestion(); as sg) {
             <button type="button" class="ui-banner tip" (click)="toAhead()">
@@ -110,6 +120,9 @@
                       @if (r.insuranceMinor > 0) { <small class="pair"><span>{{ 'loans.pay.insurance' | t }}</span><span>{{ money(r.insuranceMinor) }}</span></small> }
                       @if (r.lateMinor > 0) { <small class="pair"><span>{{ 'loans.pay.late' | t }}</span><span class="ui-r">{{ money(r.lateMinor) }}</span></small> }
                       <small class="pair"><span>{{ 'loans.left' | t }}</span><span>{{ money(r.balanceAfterMinor) }}</span></small>
+                      @if (r.uvr; as u) {
+                        <small>{{ 'loans.uvr.inUvr' | t:{ installment: uvr(u.installment), balance: uvr(u.balanceAfter, 2) } }} · {{ 'loans.uvr.atValue' | t:{ value: uvr(u.value) } }}</small>
+                      }
                       @if (r.state === 'before') { <small>{{ 'loans.beforeApp' | t }}</small> }
                     </span>
                     <ion-icon class="state" [class]="r.state" [name]="stateIcon(r.state)"></ion-icon>

@@ -157,6 +157,9 @@
               </div>
             }
           </div>
+          @if (loanUvrAdjust() !== 0) {
+            <p class="loan-warn">{{ 'loans.pay.uvrAdjust' | t:{ amount: money(loanUvrAdjust()) } }}</p>
+          }
           @if (loan.kind === 'extra') {
             <p class="loan-warn">{{ (loanMode() === 'term' ? 'loans.tellBank.term' : 'loans.tellBank.installment') | t }}</p>
           }

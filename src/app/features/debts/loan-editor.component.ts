@@ -19,13 +19,14 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { isoDay } from '../../core/filters/period';
 import { LoansRepository, type LoanInput, type LoanRow } from '../../core/loans/loans.repository';
 import {
-  EA_SCALE, dueBy, eaFromMonthly, firstInstallment, monthlyFromEa, theoreticalBalance, type LoanTerms,
+  EA_SCALE, UVR_MICRO, dueBy, eaFromMonthly, firstInstallment, monthlyFromEa, theoreticalBalance, theoreticalUnits, type LoanTerms,
 } from '../../core/loans/schedule';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { AmountBuffer } from '../entry/amount-buffer';
-import { plain } from './card-words';
+import { parseDecimal, plain, uvrText } from './card-words';
+import { UVR_SCALE, type UvrLookup } from '../../core/loans/uvr';
 
 /** The faces a loan can wear, each with its colour. */
 export const LOAN_FACES: [string, string][] = [
@@ -58,6 +59,17 @@ export class LoanEditorComponent implements OnInit {
   readonly rateQuoted = signal<'ea' | 'mv'>('ea');
   readonly rateKind = signal<'fixed' | 'variable'>('fixed');
   readonly system = signal<'fixed_installment' | 'constant_capital'>('fixed_installment');
+  /** Pesos, or a housing loan in UVR. */
+  readonly unit = signal<'COP' | 'UVR'>('COP');
+  /** UVR only: the cyclic decreasing installment, and how much it falls a year. */
+  readonly cyclic = signal(false);
+  readonly decreaseText = signal('');
+  /** The UVR of the disbursement day as typed from the contract; empty takes the one the app knows. */
+  readonly disbursementUvrText = signal('');
+  /** UVR only: the installment and the balance as the bank's statement states them, in UVR. */
+  readonly bankUvrText = signal('');
+  readonly balanceUvrText = signal('');
+  private readonly series = signal<UvrLookup | null>(null);
   readonly installments = signal('');
   readonly periodMonths = signal(1);
   readonly disbursedOn = signal(this.today);
@@ -119,7 +131,14 @@ export class LoanEditorComponent implements OnInit {
     const n = this.count();
     if (ea === null || n === null || this.principal().minor <= 0) return null;
     if (this.firstDueOn() <= this.disbursedOn()) return null;
+    const uvr = this.unit() === 'UVR';
+    if (uvr && this.disbursementUvr() === null) return null;
+    if (uvr && this.cyclic() && this.system() === 'fixed_installment' && this.decreaseScaled() === null) return null;
+    const bankUvr = parseDecimal(this.bankUvrText());
     return {
+      unit: this.unit(),
+      decreaseScaled: uvr && this.cyclic() && this.system() === 'fixed_installment' ? this.decreaseScaled() : null,
+      uvr: uvr ? this.uvrOf : undefined,
       principalMinor: this.principal().minor,
       system: this.system(),
       installments: n,
@@ -129,11 +148,50 @@ export class LoanEditorComponent implements OnInit {
       insuranceKind: this.insuranceKind(),
       insuranceMinor: this.insuranceKind() === 'fixed' ? this.insurance().minor : 0,
       insuranceRateScaled: this.insuranceKind() === 'balance' ? (percentScaled(this.insuranceRateText()) ?? 0) : 0,
-      bankInstallmentMinor: this.bankInstallment().minor > 0 ? this.bankInstallment().minor : null,
+      bankInstallmentMinor: uvr
+        ? (bankUvr && !this.cyclic() ? Math.round(bankUvr * UVR_MICRO) : null)
+        : (this.bankInstallment().minor > 0 ? this.bankInstallment().minor : null),
       paidBefore: 0,
       balanceAfterBeforeMinor: null,
       rates: [{ validFrom: this.disbursedOn(), annualRateScaled: ea }],
     };
+  });
+
+  /** The UVR of a day, with the disbursement's typed value laid over what the app knows. */
+  readonly uvrOf = (day: string) => {
+    const typed = parseDecimal(this.disbursementUvrText());
+    if (typed && day === this.disbursedOn()) return { value: Math.round(typed * UVR_SCALE) / UVR_SCALE, kind: 'typed' as const };
+    return this.series()?.(day) ?? null;
+  };
+
+  /** The disbursement day's UVR, and where it comes from. */
+  readonly disbursementUvr = computed(() => {
+    this.disbursementUvrText();
+    this.series();
+    return this.uvrOf(this.disbursedOn());
+  });
+
+  /** The UVR the app knows for the disbursement day, shown in the field until one is typed. */
+  readonly knownUvr = computed(() => {
+    const at = this.series()?.(this.disbursedOn());
+    return at ? uvrText(at.value) : '';
+  });
+
+  readonly disbursementUvrLine = computed(() => {
+    const at = this.disbursementUvr();
+    if (!at) return this.i18n.t('loans.uvr.none');
+    return this.i18n.t(`loans.uvr.kind.${at.kind}` as 'loans.uvr.kind.official', { value: uvrText(at.value) });
+  });
+
+  /** The principal in UVR, at the disbursement's UVR. */
+  readonly principalUvr = computed(() => {
+    const at = this.disbursementUvr();
+    return at && this.principal().minor > 0 ? uvrText(this.principal().minor / 100 / at.value, 2) : '';
+  });
+
+  readonly decreaseScaled = computed(() => {
+    const typed = percentScaled(this.decreaseText());
+    return typed !== null && typed > 0 ? typed : null;
   });
 
   /** The installment worked out: capital and interest, and insurance on top. */
@@ -141,11 +199,19 @@ export class LoanEditorComponent implements OnInit {
     const terms = this.terms();
     if (!terms) return null;
     const first = firstInstallment(terms);
-    return { ...first, totalMinor: first.paymentMinor + first.insuranceMinor };
+    return { ...first, totalMinor: first.paymentMinor + first.insuranceMinor, uvrText: first.uvr !== undefined ? uvrText(first.uvr) : '' };
   });
 
   readonly bankLine = computed(() => {
     const worked = this.worked();
+    if (this.unit() === 'UVR') {
+      const typed = parseDecimal(this.bankUvrText());
+      if (!worked || worked.uvr === undefined || !typed) return '';
+      const gap = typed - worked.uvr;
+      return Math.abs(gap) < 0.01
+        ? this.i18n.t('loans.form.bank.matches')
+        : this.i18n.t('loans.uvr.bankGap', { amount: uvrText(Math.abs(gap)), sign: gap > 0 ? '+' : '−' });
+    }
     const bank = this.bankInstallment().minor;
     if (!worked || bank <= 0) return '';
     const gap = bank - worked.totalMinor;
@@ -171,6 +237,17 @@ export class LoanEditorComponent implements OnInit {
     return terms && this.paidBefore() > 0 ? theoreticalBalance(terms, this.paidBefore()) : null;
   });
 
+  /** UVR only: what the original schedule says is owed after the installments already paid, in UVR. */
+  readonly owedWorkedUvr = computed(() => {
+    const terms = this.terms();
+    return terms && terms.unit === 'UVR' && this.paidBefore() > 0 ? uvrText(theoreticalUnits(terms, this.paidBefore()) / UVR_MICRO) : '';
+  });
+
+  setSystem(system: 'fixed_installment' | 'constant_capital', cyclic = false): void {
+    this.system.set(system);
+    this.cyclic.set(cyclic);
+  }
+
   readonly laterRates = computed(() => (this.editing()?.terms.rates ?? []).slice(1));
 
   readonly missing = computed<string | null>(() => {
@@ -179,6 +256,8 @@ export class LoanEditorComponent implements OnInit {
     if (this.annualRateScaled() === null) return this.i18n.t('loans.need.rate');
     if (this.count() === null) return this.i18n.t('loans.need.count');
     if (this.firstDueOn() <= this.disbursedOn()) return this.i18n.t('loans.need.dates');
+    if (this.unit() === 'UVR' && this.disbursementUvr() === null) return this.i18n.t('loans.need.uvr');
+    if (this.unit() === 'UVR' && this.cyclic() && this.decreaseScaled() === null) return this.i18n.t('loans.need.decrease');
     return null;
   });
 
@@ -188,6 +267,7 @@ export class LoanEditorComponent implements OnInit {
     // A loan in pesos is paid from an account in pesos.
     this.payers.set(accounts.filter(a => a.type !== 'credit' && a.currency_code === 'COP' && !loanIds.has(a.id)));
 
+    this.series.set(await new LoansRepository(this.database.driver).uvr());
     const loan = this.editing();
     if (!loan) {
       this.paidFrom.set((this.payers().find(a => a.type === 'debit') ?? this.payers()[0])?.id ?? null);
@@ -209,11 +289,20 @@ export class LoanEditorComponent implements OnInit {
     this.insuranceKind.set(t.insuranceKind);
     this.insurance.set(AmountBuffer.from(t.insuranceMinor));
     this.insuranceRateText.set(t.insuranceRateScaled ? percentText(t.insuranceRateScaled, 4) : '');
-    if (t.bankInstallmentMinor) this.bankInstallment.set(AmountBuffer.from(t.bankInstallmentMinor));
+    if (t.bankInstallmentMinor && t.unit !== 'UVR') this.bankInstallment.set(AmountBuffer.from(t.bankInstallmentMinor));
     this.paidFrom.set(loan.paidFromAccountId);
     this.disbursedInto.set(loan.disbursedIntoAccountId);
+    this.unit.set(t.unit ?? 'COP');
+    this.cyclic.set(!!t.decreaseScaled);
+    if (t.decreaseScaled) this.decreaseText.set(percentText(t.decreaseScaled, 2));
+    if (t.unit === 'UVR') {
+      if (t.bankInstallmentMinor) this.bankUvrText.set(uvrText(t.bankInstallmentMinor / UVR_MICRO));
+      if (t.balanceAfterBeforeMinor !== null) this.balanceUvrText.set(uvrText(t.balanceAfterBeforeMinor / UVR_MICRO));
+      const at = this.series()?.(t.disbursedOn);
+      if (at?.kind === 'typed') this.disbursementUvrText.set(uvrText(at.value));
+    }
     this.paidBeforeText.set(String(t.paidBefore));
-    if (t.balanceAfterBeforeMinor !== null) this.balanceStated.set(AmountBuffer.from(t.balanceAfterBeforeMinor));
+    if (t.balanceAfterBeforeMinor !== null && t.unit !== 'UVR') this.balanceStated.set(AmountBuffer.from(t.balanceAfterBeforeMinor));
   }
 
   onAmount(which: 'principal' | 'insurance' | 'bank' | 'balance', text: string): void {
@@ -253,8 +342,12 @@ export class LoanEditorComponent implements OnInit {
       bankInstallmentMinor: terms.bankInstallmentMinor,
       paidFromAccountId: this.paidFrom(),
       paidBefore: this.paidBefore(),
-      balanceAfterBeforeMinor: this.paidBefore() > 0 && this.balanceStated().minor > 0 ? this.balanceStated().minor : null,
+      balanceAfterBeforeMinor: this.statedBalance(),
       disbursedIntoAccountId: this.paidBefore() > 0 ? null : this.disbursedInto(),
+      unit: terms.unit,
+      decreaseScaled: terms.decreaseScaled ?? null,
+      disbursementUvrScaled: this.unit() === 'UVR' && parseDecimal(this.disbursementUvrText())
+        ? Math.round(parseDecimal(this.disbursementUvrText())! * UVR_SCALE) : null,
     };
     try {
       const loans = new LoansRepository(this.database.driver);
@@ -271,6 +364,16 @@ export class LoanEditorComponent implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** The balance the bank stated after the installments already paid: pesos, or millionths of a UVR. */
+  private statedBalance(): number | null {
+    if (this.paidBefore() <= 0) return null;
+    if (this.unit() === 'UVR') {
+      const typed = parseDecimal(this.balanceUvrText());
+      return typed ? Math.round(typed * UVR_MICRO) : null;
+    }
+    return this.balanceStated().minor > 0 ? this.balanceStated().minor : null;
   }
 
   async removeRate(validFrom: string): Promise<void> {

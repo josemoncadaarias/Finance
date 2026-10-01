@@ -16,7 +16,8 @@ import { TransactionsRepository } from '../database/repositories/transactions.re
 import { TransfersRepository } from '../database/repositories/transfers.repository';
 import type { AccountRow } from '../database/types';
 import { loanPaymentOf, undoLoanPayment } from './payment-links';
-import { theoreticalBalance, type ExtraMode, type LoanPayment, type LoanSystem, type LoanTerms } from './schedule';
+import { loanSchedule, theoreticalBalance, UVR_MICRO, type ExtraMode, type LoanPayment, type LoanSystem, type LoanTerms } from './schedule';
+import { uvrLookup, type UvrLookup } from './uvr';
 
 export interface LoanInput {
   name: string;
@@ -44,6 +45,12 @@ export interface LoanInput {
    * disbursement: the debt then comes from that transfer. Null records none.
    */
   disbursedIntoAccountId: number | null;
+  /** 'UVR' for a loan denominated in UVR; then balanceAfterBeforeMinor and bankInstallmentMinor are millionths of a UVR. */
+  unit?: 'COP' | 'UVR';
+  /** The cyclic system's yearly decrease, scaled by 1,000,000; null for every other. */
+  decreaseScaled?: number | null;
+  /** The UVR of the disbursement day as the contract states it, scaled by 10,000: kept as typed. */
+  disbursementUvrScaled?: number | null;
 }
 
 export interface LoanRow {
@@ -52,8 +59,10 @@ export interface LoanRow {
   rateKind: 'fixed' | 'variable';
   paidFromAccountId: number | null;
   disbursedIntoAccountId: number | null;
+  /** The loan account's balance in the ledger: minus the debt as of the last movement. */
+  ledgerMinor: number;
   terms: LoanTerms;
-  payments: (LoanPayment & { id: number; transferId: number | null })[];
+  payments: (LoanPayment & { id: number; transferId: number | null; uvrAdjustMinor: number })[];
 }
 
 /** A payment as the form writes it. */
@@ -72,6 +81,8 @@ export interface PaymentInput {
   /** The category names to file interest and insurance under, in the app's language. */
   interestCategory: string;
   insuranceCategory: string;
+  /** For a loan in UVR: the category the growth of the debt by the UVR is filed under. */
+  uvrCategory?: string;
 }
 
 interface TermsRow {
@@ -93,6 +104,8 @@ interface TermsRow {
   balance_after_before_minor: number | null;
   disbursement_transfer_id: number | null;
   disbursed_into: number | null;
+  unit: 'COP' | 'UVR';
+  decrease_scaled: number | null;
 }
 
 export class LoansRepository {
@@ -111,7 +124,7 @@ export class LoansRepository {
 
   /** Every loan with its terms, rates and payments: four queries, whatever there is. */
   async all(): Promise<LoanRow[]> {
-    const [terms, rates, payments, accounts] = await Promise.all([
+    const [terms, rates, payments, accounts, ledger] = await Promise.all([
       this.db.query<TermsRow>(
         `SELECT l.*, (SELECT t.account_id FROM transactions t
                        WHERE t.transfer_id = l.disbursement_transfer_id AND t.transfer_leg = 'to') AS disbursed_into
@@ -121,18 +134,27 @@ export class LoansRepository {
       this.db.query<{
         id: number; account_id: number; kind: LoanPayment['kind']; number: number | null; paid_on: string;
         capital_minor: number; interest_minor: number; insurance_minor: number; late_minor: number;
-        extra_mode: ExtraMode | null; transfer_id: number | null;
+        extra_mode: ExtraMode | null; transfer_id: number | null; capital_uvr_micro: number | null; uvr_adjust_minor: number;
       }>('SELECT * FROM loan_payments ORDER BY paid_on, id'),
       new AccountsRepository(this.db).list({ includeArchived: true }),
+      this.db.query<{ account_id: number; total: number }>(
+        `SELECT l.account_id, a.opening_balance_minor + COALESCE((SELECT SUM(t.amount_minor) FROM transactions t WHERE t.account_id = l.account_id), 0) AS total
+         FROM loans l JOIN accounts a ON a.id = l.account_id`),
     ]);
     const accountOf = new Map(accounts.map(a => [a.id, a]));
+    const ledgerOf = new Map(ledger.map(r => [r.account_id, r.total]));
+    const uvr = terms.some(t => t.unit === 'UVR') ? await this.uvr() : undefined;
     return terms.filter(t => accountOf.has(t.account_id)).map(t => ({
       account: accountOf.get(t.account_id)!,
       rateQuoted: t.rate_quoted,
       rateKind: t.rate_kind,
       paidFromAccountId: t.paid_from_account_id,
       disbursedIntoAccountId: t.disbursed_into ?? null,
+      ledgerMinor: ledgerOf.get(t.account_id) ?? 0,
       terms: {
+        unit: t.unit ?? 'COP',
+        decreaseScaled: t.decrease_scaled ?? null,
+        uvr: t.unit === 'UVR' ? uvr : undefined,
         principalMinor: t.principal_minor,
         system: t.system,
         installments: t.installments,
@@ -159,13 +181,16 @@ export class LoansRepository {
         insuranceMinor: p.insurance_minor,
         lateMinor: p.late_minor,
         extraMode: p.extra_mode,
+        capitalUvrMicro: p.capital_uvr_micro ?? null,
+        uvrAdjustMinor: p.uvr_adjust_minor ?? 0,
       })),
     }));
   }
 
   async create(input: LoanInput): Promise<number> {
     return this.db.transaction(async () => {
-      const start = startOf(input);
+      await this.keepTypedUvr(input);
+      const start = startOf(input, input.unit === 'UVR' ? await this.uvr() : undefined);
       const opening = disburses(input) ? 0 : -start.balanceMinor;
       const accountId = await new AccountsRepository(this.db, this.now).create({
         name: input.name.trim(),
@@ -181,8 +206,8 @@ export class LoansRepository {
       await this.db.run(
         `INSERT INTO loans (account_id, principal_minor, system, rate_quoted, rate_kind, installments, period_months,
            disbursed_on, first_due_on, insurance_kind, insurance_minor, insurance_rate_scaled, bank_installment_minor,
-           paid_from_account_id, paid_before, balance_after_before_minor, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           paid_from_account_id, paid_before, balance_after_before_minor, unit, decrease_scaled, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [accountId, ...termValues(input), timestamp, timestamp],
       );
       await this.db.run(
@@ -219,7 +244,8 @@ export class LoansRepository {
   /** The terms, the base rate and the account's name, face and opening debt. */
   async update(accountId: number, input: LoanInput): Promise<void> {
     await this.db.transaction(async () => {
-      const start = startOf(input);
+      await this.keepTypedUvr(input);
+      const start = startOf(input, input.unit === 'UVR' ? await this.uvr() : undefined);
       await new AccountsRepository(this.db, this.now).update(accountId, {
         name: input.name.trim(),
         builtin_icon: input.builtinIcon,
@@ -233,7 +259,7 @@ export class LoansRepository {
         `UPDATE loans SET principal_minor = ?, system = ?, rate_quoted = ?, rate_kind = ?, installments = ?,
            period_months = ?, disbursed_on = ?, first_due_on = ?, insurance_kind = ?, insurance_minor = ?,
            insurance_rate_scaled = ?, bank_installment_minor = ?, paid_from_account_id = ?, paid_before = ?,
-           balance_after_before_minor = ?, updated_at = ?
+           balance_after_before_minor = ?, unit = ?, decrease_scaled = ?, updated_at = ?
          WHERE account_id = ?`,
         [...termValues(input), timestamp, accountId],
       );
@@ -269,6 +295,16 @@ export class LoansRepository {
   async recordPayment(p: PaymentInput): Promise<number> {
     return this.db.transaction(async () => {
       const description = p.note?.trim() || null;
+      // A loan in UVR: the capital in UVR, and the debt's growth by the UVR
+      // since the last movement, worked out before anything is written.
+      const loan = (await this.all()).find(l => l.account.id === p.loanAccountId);
+      let capitalUvr: number | null = null;
+      let adjust = 0;
+      if (loan?.terms.unit === 'UVR' && loan.terms.uvr) {
+        const value = loan.terms.uvr(p.paidOn)?.value ?? null;
+        if (value) capitalUvr = Math.round(p.capitalMinor / 100 / value * UVR_MICRO);
+        adjust = uvrAdjustmentOf(loan, p.paidOn);
+      }
       let transferId: number | null = null;
       if (p.capitalMinor > 0) {
         transferId = await new TransfersRepository(this.db, this.now).create({
@@ -293,12 +329,25 @@ export class LoansRepository {
       const interestTx = await spend(p.interestMinor, p.interestCategory, 'trending-up-outline');
       const insuranceTx = await spend(p.insuranceMinor, p.insuranceCategory, 'shield-checkmark-outline');
       const lateTx = await spend(p.lateMinor, p.interestCategory, 'trending-up-outline');
+      // The debt grew (or, rarely, shrank) with the UVR: a movement of the loan's own account.
+      let adjustTx: number | null = null;
+      if (adjust !== 0) {
+        adjustTx = await new TransactionsRepository(this.db, this.now).create({
+          account_id: p.loanAccountId,
+          category_id: await this.categoryId(p.uvrCategory ?? 'UVR', 'trending-up-outline'),
+          occurred_on: p.paidOn,
+          amount_minor: -adjust,
+          description,
+          source: 'manual',
+        });
+      }
       const result = await this.db.run(
         `INSERT INTO loan_payments (account_id, kind, number, paid_on, capital_minor, interest_minor, insurance_minor,
-           late_minor, extra_mode, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           late_minor, extra_mode, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id, capital_uvr_micro,
+           uvr_adjust_minor, uvr_adjust_tx_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [p.loanAccountId, p.kind, p.number, p.paidOn, p.capitalMinor, p.interestMinor, p.insuranceMinor,
-          p.lateMinor, p.extraMode, transferId, interestTx, insuranceTx, lateTx, this.now()],
+          p.lateMinor, p.extraMode, transferId, interestTx, insuranceTx, lateTx, capitalUvr, adjust, adjustTx, this.now()],
       );
       return result.lastId!;
     });
@@ -307,8 +356,8 @@ export class LoansRepository {
   /** A payment undone: its record and every movement it wrote. */
   async deletePayment(id: number): Promise<void> {
     await this.db.transaction(async () => {
-      const row = await this.db.queryOne<{ id: number; transfer_id: number | null; interest_tx_id: number | null; insurance_tx_id: number | null; late_tx_id: number | null }>(
-        'SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id FROM loan_payments WHERE id = ?', [id]);
+      const row = await this.db.queryOne<{ id: number; transfer_id: number | null; interest_tx_id: number | null; insurance_tx_id: number | null; late_tx_id: number | null; uvr_adjust_tx_id: number | null }>(
+        'SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id, uvr_adjust_tx_id FROM loan_payments WHERE id = ?', [id]);
       if (!row) return;
       const transferId = await undoLoanPayment(this.db, row);
       if (transferId !== null) await this.db.run('DELETE FROM transfers WHERE id = ?', [transferId]);
@@ -324,6 +373,38 @@ export class LoansRepository {
        JOIN accounts a ON a.id = p.account_id WHERE p.id = ?`, [found.id]);
   }
 
+  /** The UVR of any day: the values published or typed, and the IPC for the rest. */
+  async uvr(): Promise<UvrLookup> {
+    const [known, ipc] = await Promise.all([
+      this.db.query<{ day: string; value_scaled: number; source: 'official' | 'typed' }>('SELECT day, value_scaled, source FROM uvr_values'),
+      this.db.query<{ month: string; index_scaled: number }>('SELECT month, index_scaled FROM inflation_months'),
+    ]);
+    return uvrLookup({
+      known: known.map(k => ({ day: k.day, valueScaled: k.value_scaled, source: k.source })),
+      ipc: ipc.map(r => ({ month: r.month, index: r.index_scaled })),
+    });
+  }
+
+  /** A UVR typed from a contract or a statement; it wins over what is worked out for that day. */
+  async setUvr(day: string, valueScaled: number): Promise<void> {
+    await this.db.run(
+      `INSERT INTO uvr_values (day, value_scaled, source, created_at) VALUES (?, ?, 'typed', ?)
+       ON CONFLICT (day) DO UPDATE SET value_scaled = excluded.value_scaled, source = 'typed'
+       WHERE uvr_values.source = 'typed' OR uvr_values.value_scaled <> excluded.value_scaled`,
+      [day, valueScaled, this.now()],
+    );
+  }
+
+  private async keepTypedUvr(input: LoanInput): Promise<void> {
+    if (input.unit === 'UVR' && input.disbursementUvrScaled) await this.setUvr(input.disbursedOn, input.disbursementUvrScaled);
+  }
+
+  /** For a loan in UVR: how much its debt in pesos grew by the UVR, up to `paidOn`, beyond what its account already says. */
+  async uvrAdjustment(accountId: number, paidOn: string): Promise<number> {
+    const loan = (await this.all()).find(l => l.account.id === accountId);
+    return loan ? uvrAdjustmentOf(loan, paidOn) : 0;
+  }
+
   /** The expense category of that name, made if it is missing. */
   private async categoryId(name: string, icon: string): Promise<number> {
     const categories = new CategoriesRepository(this.db, this.now);
@@ -333,10 +414,24 @@ export class LoansRepository {
   }
 }
 
+/**
+ * A loan in UVR: what is owed in UVR, at the UVR of `paidOn`, against the
+ * debt its account carries. The difference is how much the UVR moved the
+ * debt since the last movement. Nothing for a loan in pesos.
+ */
+export function uvrAdjustmentOf(loan: LoanRow, paidOn: string): number {
+  if (loan.terms.unit !== 'UVR' || !loan.terms.uvr) return 0;
+  const value = loan.terms.uvr(paidOn)?.value;
+  if (!value) return 0;
+  const owedUvr = loanSchedule(loan.terms, loan.payments, paidOn).balanceUvr ?? 0;
+  return Math.round(owedUvr * value * 100) - -loan.ledgerMinor;
+}
+
 /** Where the app starts following a loan: at the disbursement, or after the installments already paid. */
-function startOf(input: LoanInput): { on: string; balanceMinor: number } {
+function startOf(input: LoanInput, uvr?: UvrLookup): { on: string; balanceMinor: number } {
   if (input.paidBefore <= 0) return { on: input.disbursedOn, balanceMinor: input.principalMinor };
   const terms: LoanTerms = {
+    unit: input.unit ?? 'COP', decreaseScaled: input.decreaseScaled ?? null, uvr,
     principalMinor: input.principalMinor, system: input.system, installments: input.installments,
     periodMonths: input.periodMonths, disbursedOn: input.disbursedOn, firstDueOn: input.firstDueOn,
     insuranceKind: input.insuranceKind, insuranceMinor: input.insuranceMinor,
@@ -348,6 +443,10 @@ function startOf(input: LoanInput): { on: string; balanceMinor: number } {
   const at = new Date(Date.UTC(y, m - 1 + (input.paidBefore - 1) * input.periodMonths, 1));
   const last = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 0)).getUTCDate();
   const on = `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`;
+  if (input.unit === 'UVR' && input.balanceAfterBeforeMinor !== null) {
+    // Stated in UVR: in pesos at that day's UVR.
+    return { on, balanceMinor: Math.round(input.balanceAfterBeforeMinor / UVR_MICRO * (uvr?.(on)?.value ?? 0) * 100) };
+  }
   return { on, balanceMinor: input.balanceAfterBeforeMinor ?? theoreticalBalance(terms, input.paidBefore) };
 }
 
@@ -361,5 +460,6 @@ function termValues(input: LoanInput): unknown[] {
     input.principalMinor, input.system, input.rateQuoted, input.rateKind, input.installments, input.periodMonths,
     input.disbursedOn, input.firstDueOn, input.insuranceKind, input.insuranceMinor, input.insuranceRateScaled,
     input.bankInstallmentMinor, input.paidFromAccountId, input.paidBefore, input.balanceAfterBeforeMinor,
+    input.unit ?? 'COP', input.unit === 'UVR' && input.system === 'fixed_installment' ? (input.decreaseScaled ?? null) : null,
   ];
 }

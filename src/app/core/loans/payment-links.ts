@@ -17,6 +17,7 @@ interface PaymentLinks {
   interest_tx_id: number | null;
   insurance_tx_id: number | null;
   late_tx_id: number | null;
+  uvr_adjust_tx_id: number | null;
 }
 
 /** The loan payment a transfer or a movement belongs to, if any. */
@@ -24,17 +25,17 @@ export async function loanPaymentOf(db: SqlDriver, link: { transferId?: number |
   try {
     if (link.transferId != null) {
       const row = await db.queryOne<PaymentLinks>(
-        'SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id FROM loan_payments WHERE transfer_id = ?',
+        'SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id, uvr_adjust_tx_id FROM loan_payments WHERE transfer_id = ?',
         [link.transferId]);
       if (row) return row;
     }
     if (link.transactionId != null) {
       const id = link.transactionId;
       return await db.queryOne<PaymentLinks>(
-        `SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id FROM loan_payments
-         WHERE interest_tx_id = ? OR insurance_tx_id = ? OR late_tx_id = ?
+        `SELECT id, transfer_id, interest_tx_id, insurance_tx_id, late_tx_id, uvr_adjust_tx_id FROM loan_payments
+         WHERE interest_tx_id = ? OR insurance_tx_id = ? OR late_tx_id = ? OR uvr_adjust_tx_id = ?
             OR transfer_id = (SELECT transfer_id FROM transactions WHERE id = ?)`,
-        [id, id, id, id]);
+        [id, id, id, id, id]);
     }
     return null;
   } catch {
@@ -49,7 +50,7 @@ export async function loanPaymentOf(db: SqlDriver, link: { transferId?: number |
  */
 export async function undoLoanPayment(db: SqlDriver, payment: PaymentLinks): Promise<number | null> {
   await db.run('DELETE FROM loan_payments WHERE id = ?', [payment.id]);
-  for (const tx of [payment.interest_tx_id, payment.insurance_tx_id, payment.late_tx_id]) {
+  for (const tx of [payment.interest_tx_id, payment.insurance_tx_id, payment.late_tx_id, payment.uvr_adjust_tx_id]) {
     if (tx !== null) await db.run('DELETE FROM transactions WHERE id = ?', [tx]);
   }
   return payment.transfer_id;
