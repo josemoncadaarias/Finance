@@ -3274,6 +3274,20 @@ left of the statement and the usual note.
   The bank's statement can differ (interest, installments, fees): the page
   says so.
 
+**Part 2, loans: DRAWN for Jose's word (2026-10-01)**, `docs/mockups/13a`-`13k`,
+on an invented loan whose every figure is worked out. What it proposes:
+a loan is an account of type `loan` (a liability, so it is in Saldos and
+subtracts from net worth); its terms (amount, rate typed as E.A. or M.V.,
+number of installments and how often, disbursement and first installment,
+insurance per installment, the account it is paid from, the installment the
+bank states); one begun before the app counts its past installments as paid
+without writing movements, and its balance today is worked out and can be
+corrected; its page is Resumen | Cuotas; "Pagar la cuota" is the one
+transfer form with the split - capital as the transfer, interest and
+insurance as expenses under Intereses and Seguros - each figure editable,
+the schedule worked out again from what was paid; overdue and paid-off
+states. Paying capital ahead is part 3.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -3334,6 +3348,7 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Decide on the ideas from Lukas's atajos (rule 22, mockups `10a`-`10f`):
       which to build and in what order, and whether a notification of the
       app's own (`10d`) is worth reading in the background.
+- [ ] Debts part 2 (loans): approve the screens `13a`-`13k`.
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
 - [ ] Say whether the keypad should start closed, and whether he misses the
