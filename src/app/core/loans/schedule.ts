@@ -17,6 +17,11 @@
  * - A payment ahead is applied after the last installment due on or before
  *   its day, and either keeps the installment (a shorter term) or keeps the
  *   term (a lower installment) - the debtor's choice (Ley 1555 de 2012).
+ * - One paid between two installments is liquidated to its day (the
+ *   Superfinanciera): the next installment's interest is the balance before
+ *   it for the days up to the payment, plus the balance after it for the
+ *   rest, each at the daily rate (1 + E.A.) ^ (1 / 365) - 1. A payment on an
+ *   installment's own day changes nothing in how that period is counted.
  * - Insurance is a fixed figure per installment or a monthly share of what is
  *   still owed (seguro de vida deudor falls with the balance).
  *
@@ -220,11 +225,17 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
   let capitalEach = Math.round(balance / Math.max(1, terms.installments - terms.paidBefore));
   let lastNumber = terms.installments;
 
+  // Payments ahead made inside the period now running: the balance before
+  // each and its day, so the next installment's interest counts the days.
+  let pieces: { on: string; balanceBefore: number }[] = [];
+  let periodStart = previous;
+
   // Payments ahead made before the first installment the walk sees.
   let extraAt = 0;
   const applyExtra = (amount: number, mode: ExtraMode | 'payoff', paidOn: string, planned: boolean, afterNumber: number) => {
     const taken = Math.min(amount, balance);
     if (taken <= 0) return;
+    if (!planned && paidOn > periodStart) pieces.push({ on: paidOn, balanceBefore: balance });
     balance -= taken;
     rows.push({ type: 'extra', paidOn, amountMinor: taken, mode, planned, balanceAfterMinor: balance });
     const remaining = lastNumber - afterNumber;
@@ -271,7 +282,9 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
         balanceAfterMinor: balance, state: 'paid',
       };
     } else {
-      const interest = Math.round(balance * rate);
+      const interest = pieces.length > 0
+        ? splitInterest(pieces, periodStart, dueOn, balance, rateScaled)
+        : Math.round(balance * rate);
       const insurance = insuranceFor(terms, balance);
       let capital = terms.system === 'constant_capital' ? capitalEach : pay - interest;
       if (capital <= 0) capital = Math.min(balance, 1);
@@ -291,6 +304,8 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
       if (state === 'next') next = row;
     }
     rows.push(row);
+    pieces = [];
+    periodStart = dueOn;
 
     // Recorded payments ahead up to the next installment's day.
     const nextDue = dueDate(terms.firstDueOn, terms.periodMonths, number + 1);
@@ -337,6 +352,22 @@ export function loanSchedule(terms: LoanTerms, payments: LoanPayment[], today: s
   };
 }
 
+/**
+ * A period's interest when capital was paid inside it: each stretch between
+ * payments at the balance it held, at the daily rate of the E.A.
+ */
+export function splitInterest(pieces: readonly { on: string; balanceBefore: number }[], from: string, to: string, balanceAfter: number, annualRateScaled: number): number {
+  const daily = Math.pow(1 + annualRateScaled / EA_SCALE, 1 / 365) - 1;
+  let total = 0;
+  let cursor = from;
+  for (const piece of pieces) {
+    total += piece.balanceBefore * (Math.pow(1 + daily, days(cursor, piece.on)) - 1);
+    cursor = piece.on;
+  }
+  total += balanceAfter * (Math.pow(1 + daily, days(cursor, to)) - 1);
+  return Math.round(total);
+}
+
 /** What is owed after everything recorded, whatever the projection says. */
 function currentBalance(terms: LoanTerms, theoreticalBefore: number, payments: LoanPayment[]): number {
   let balance = terms.paidBefore > 0 ? (terms.balanceAfterBeforeMinor ?? theoreticalBefore) : terms.principalMinor;
@@ -355,9 +386,21 @@ export function payoffToday(terms: LoanTerms, payments: LoanPayment[], today: st
   const lastDue = [...installments].reverse().find(r => r.dueOn <= today)?.dueOn ?? terms.disbursedOn;
   const nextDue = installments.find(r => r.dueOn > today)?.dueOn ?? today;
   const rate = periodRate(rateOn(terms, lastDue), terms.periodMonths);
-  const elapsed = days(lastDue, today);
   const span = Math.max(1, days(lastDue, nextDue));
-  const interest = Math.round(schedule.balanceMinor * (Math.pow(1 + rate, elapsed / span) - 1));
+  // Capital paid since the last installment earned interest until its day.
+  const growth = (from: string, to: string) => Math.pow(1 + rate, days(from, to) / span) - 1;
+  const since = payments.filter(p => p.kind !== 'installment' && p.paidOn > lastDue && p.paidOn <= today)
+    .sort((a, b) => a.paidOn.localeCompare(b.paidOn));
+  let held = schedule.balanceMinor + since.reduce((sum, p) => sum + p.capitalMinor, 0);
+  let cursor = lastDue;
+  let accrued = 0;
+  for (const p of since) {
+    accrued += held * growth(cursor, p.paidOn);
+    held -= p.capitalMinor;
+    cursor = p.paidOn;
+  }
+  accrued += held * growth(cursor, today);
+  const interest = Math.round(accrued);
   return { balanceMinor: schedule.balanceMinor, interestMinor: interest, totalMinor: schedule.balanceMinor + interest, sinceOn: lastDue };
 }
 
