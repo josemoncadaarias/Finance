@@ -4,7 +4,7 @@
  *
  * Two jobs:
  *
- *   - On opening, today's dollar and euro rates are fetched, once a day. Jose
+ *   - On opening, today's rate of every currency kept (dollar, euro, any other) is fetched, once a day. Jose
  *     assumed on 2026-09-18 that the TRM refreshed whenever the app opened,
  *     and it did not: it only refreshed from a button on the accounts screen.
  *   - After every change to the database, any foreign movement without a peso
@@ -27,7 +27,6 @@
 import { Injectable, effect, inject, untracked } from '@angular/core';
 
 import { DatabaseService } from '../database/database.service';
-import { RatesRepository } from '../database/repositories/rates.repository';
 import { RatesService } from './rates.service';
 import { convertPendingForeign } from './convert-pending';
 import { rateToPesosOn } from './historical-rates';
@@ -71,32 +70,11 @@ export class ForeignConversionService {
     try {
       // The dollar: the service already keeps to once a day, and does nothing
       // if today's TRM is on record.
-      await this.rates.refresh();
-      await this.refreshEuroToday();
+      await this.rates.refreshAll();
     } catch {
       // Offline or refused: the stored rates stand, which is rule 1.
     }
     await this.run();
-  }
-
-  /**
-   * Today's euro in pesos, once a day.
-   *
-   * The dollar has its own service; the euro had nothing, so a euro movement
-   * saved offline had no rate at all to stand in for its day's.
-   */
-  private async refreshEuroToday(): Promise<void> {
-    const today = todayIso();
-    const rates = new RatesRepository(this.database.driver);
-    if ((await rates.inForce('EUR', 'COP', today))?.on_date === today) return;
-
-    const euro = await rateToPesosOn('EUR', today);
-    if (euro) {
-      await rates.set({
-        on_date: today, base_code: 'EUR', quote_code: 'COP',
-        rate_scaled: euro.rate_scaled, source: euro.source,
-      });
-    }
   }
 
   /** A pass once changes have stopped coming for a moment. */
@@ -139,11 +117,4 @@ export class ForeignConversionService {
       }
     }
   }
-}
-
-function todayIso(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
 }

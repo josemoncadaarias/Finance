@@ -2554,3 +2554,18 @@ body:has(ion-modal.entry-sheet.show-modal) .ui-toast {
 .ui-sheet-body .ui-list > .nothing {
   text-align: center; color: var(--app-mu); font-size: 14px; padding: 18px 8px; margin: 0;
 }
+
+/* A long press on a row is choosing it, never selecting its text (Jose,
+   2026-10-02: on the phone, pressing one row to start choosing painted
+   Android's blue text selection over every row below it, which read as all
+   of them chosen). Rows are buttons; their words are not for copying. What
+   is typed into keeps its own selection. */
+.ui-row, .ui-list, .selection-bar {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.ui-row input, .ui-row textarea, .ui-list input, .ui-list textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}

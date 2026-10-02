@@ -117,6 +117,7 @@ detail of each is in the section named):
 | #39 | Inicio's "Esta semana" (card and loan payments due or late); the lock on hand-edited movements no longer shown | "Debts and plans" (Inicio); rule 12 |
 | #40 | Bank messages read by their shape, for anybody (not yet wired in) | Rule 22 |
 | #41 | Bank messages become proposals in Por revisar, learning the account and category from the person's answers | Rule 22 |
+| #42 | "Monedas y TRM" (renamed) in Más → Herramientas too, every currency in pesos with one Actualizar; "Notificaciones del teléfono" (renamed) with an eye per app; no text selection on rows | Rule 4; "Current status" |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -295,6 +296,23 @@ backup restore against iOS's own SQLite backend.
    after the app opens (the TRM used to refresh only from a button on the
    accounts screen). None of it may be felt on the phone: after every save
    the pass is one query over the foreign accounts' rows that finds nothing.
+
+   **Every currency kept, not only the euro** (Jose, 2026-10-02):
+   `rateToPesosOn` values any currency the ECB publishes (pound, Swiss
+   franc, real, Mexican peso, yen...) as its dollar value times the TRM, like
+   the euro (`inUsdOn`, `rates-any-currency.test.mjs`); one it does not
+   publish has no value from there and is typed by hand. `RatesService.
+   refreshAll` is the one "Actualizar": the TRM, then every other currency in
+   `currencies` (`refreshOthers`), once a day on opening and always on the
+   button; a value typed by hand today is never written over. The screen is
+   **"Monedas y TRM"** (renamed from "Monedas y tasas" so it is not taken for
+   the yields' rates), reached from Cuentas AND from Más → Herramientas
+   (Jose asked for the second way in; it reverses "one way in" of group 8),
+   whose row lists the codes kept ("COP · USD · EUR"). Its top card shows
+   every currency in pesos with its source (TRM oficial, BCE × TRM, escrita a
+   mano) and day, amber when not today's, and "Todas al día" or "N sin el
+   valor de hoy" beside the button. Fixed with it: the list called a euro
+   from the ECB "escrita" - only `manual` is typed.
 
 4. **Credit cards as liabilities.** The balance represents the debt (negative
    or zero). The credit limit is a separate attribute. Available credit is
@@ -1574,6 +1592,15 @@ backup restore against iOS's own SQLite backend.
    row and unticked it through the button, and only the circle worked. Found
    by Jose on his phone after I had declared it done from the review screen
    alone; `selection-rows.test.mjs` fails on a button tick.
+
+   **The screen is "Notificaciones del teléfono"** (renamed by Jose on
+   2026-10-02 from "Avisos del banco": it reads any app's, not only banks'),
+   a proposal from one says "Notificación · {cuenta}", and every app carries
+   an eye beside its switch to put it away (`hide`, asking first when
+   something kept goes with it). **No row's text can be selected**
+   (global.scss, `.ui-row`/`.ui-list`): on the phone, a long press to start
+   choosing painted Android's blue text selection over every row below, which
+   read as all of them chosen; inputs keep their selection.
 
    **The notifications screen CAN be checked in a browser**, and must be:
    with `ng serve`, `window.ng.getComponent(document.querySelector(
