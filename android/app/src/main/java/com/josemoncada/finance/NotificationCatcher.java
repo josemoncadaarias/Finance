@@ -58,13 +58,22 @@ public class NotificationCatcher extends NotificationListenerService {
         // progress, a call, music playing. A bank's message is never one.
         if ((notification.flags & Notification.FLAG_ONGOING_EVENT) != 0) return;
 
-        // An app the person hid is not even counted.
-        if (NotificationStore.isHidden(this, pkg)) return;
-
         long at = posted.getPostTime();
         Bundle extras = notification.extras;
         boolean conversation = isConversation(pkg, notification, extras);
         String label = labelOf(pkg);
+
+        // An app the person hid is not even counted - except that hiding the
+        // messaging app hides that app's row, never its senders: a bank's SMS
+        // arrives through it, and each sender is ticked or hidden on its own
+        // (2026-10-02: a messaging app hidden with the rest of the noise
+        // silenced every bank that texts). Nothing a sender says is kept
+        // until it is ticked, and only senders whose messages look like money
+        // are even listed.
+        if (NotificationStore.isHidden(this, pkg)) {
+            if (conversation && extras != null) keepConversation(pkg, label, extras, at);
+            return;
+        }
         NotificationStore.noteApp(this, pkg, label, at, conversation);
 
         // A whole messaging app ticked by hand (before senders existed, or on
