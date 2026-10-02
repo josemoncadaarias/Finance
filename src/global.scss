@@ -2569,3 +2569,7 @@ body:has(ion-modal.entry-sheet.show-modal) .ui-toast {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* A dialog with one button: it takes the whole row, centred, never the left
+   half of a two-column grid (Jose, 2026-10-02, on "Monedas y TRM"'s (i)). */
+.confirm-dialog .buttons > :only-child { grid-column: 1 / -1; }
