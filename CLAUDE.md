@@ -66,7 +66,7 @@ categories, products and what the app can tell the user about them.
 
 ---
 
-## Start here: where things stand (updated 2026-09-28)
+## Start here: where things stand (updated 2026-10-02)
 
 Read this section first on any machine or in any session; everything below
 it is the detail and the reasoning.
@@ -97,6 +97,23 @@ The details of each are in "Built, all nine groups" and "First round from
 the phone" under "Ideas waiting for Jose's word" (they live there because
 that is where the redesign was planned).
 
+**What was merged from 2026-09-28 to 2026-10-02** (#7-#36, same way; the
+detail of each is in the section named):
+
+| PR | What | Where it is told |
+|---|---|---|
+| #7, #9 | Proposals only: reading bank SMS/mail and Lukas's atajos; debts and plans analysed and drawn | Rule 22; "Debts and plans" |
+| #8, #25 | The Drive copy that hung at 2 %: recorded, then fixed | "First round from the phone" |
+| #10, #11 | A move between products can change account; the note's box grows | "First round from the phone" |
+| #12, #21, #23, #24 | Yields: monthly payment on the 1st and correctable; same-day movements against a typed figure; withholding on the whole account's day | Rules 16, 17, 15 |
+| #13-#20, #26 | Debts: card dates and statement, loans (pesos and UVR, paying ahead), Cuotas rows that do what they look like | "Debts and plans" |
+| #22, #27, #28 | Presupuestos: caps (topes) and goals (metas) | "Debts and plans" |
+| #29, #30 | Demo backup generator; a category's own picture no longer stops the app; ledger + typed products no longer double-count | "How to work" below |
+| #31 | A card's statement can take the bank's own figure, with why they differ | "Part 1, the card" |
+| #32 | Inicio says whether each card is a cap or a goal | "Part 3, plans - limits" |
+| #33 | A movement dated in a month already worked out redoes that month's yields | "Current status" |
+| #34-#36 | Días/Pagos: product on every line, gross in green, rate or bonus beside the date; "Llevas acumulado en {mes}" on the yields screen | "Also fixed the same day" |
+
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
 `release-aab.yml`, `workflow_dispatch`) on that branch builds the old app
@@ -118,15 +135,23 @@ these):
   Android's buttons.
 - Whether the accent colour visibly changes things for him in the light
   theme (it does in a browser; transfers keep their own blue since #2).
-- **Debts and plans**: card dates (part 1) and loans with paying ahead
-  (part 2) are built; plans (limits and goals) are next, when Jose says -
-  see "Debts and plans" under "Ideas waiting for Jose's word".
+- **Debts and plans are all built** (cards, loans in pesos and UVR, caps,
+  goals) and seen only in a browser: the phone notification of a cap, and
+  how each screen reads on the phone, are still to be seen.
+- **After installing the update with #33, press "Recalcular" once**
+  (Cuentas → Rendimientos, the round arrow): months already worked out with
+  a late movement in them are only redone from then on.
+- **Not started, waiting for Jose's word** (proposed to him 2026-10-02):
+  Inicio's "Esta semana" (card and loan payments due, labelled like caps and
+  goals); the paywall service and screen (rule 21); the privacy policy and
+  site for Jadex Labs; several debts' strategies (avalanche, snowball); the
+  ideas from Lukas's atajos (rule 22).
 - The open questions of rule 21 (which report sections are paid, lifetime
   option, what sits between the app and Google Play) and the list in
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (626, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (652 on 2026-10-02, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -3728,6 +3753,13 @@ budget family (2/16, 1, 7), then the rest.
       is worked out again with the 200,000.
 - [ ] Debts part 1 is built: put the Rappi Card's real cut-off and payment
       days (pencil on its page) and say whether the statement matches the bank's.
+- [ ] Press "Recalcular" once after installing the update with PR #33.
+- [ ] When the Rappi Card's statement arrives, type its "pago total" on the
+      card's page if it differs, and say whether the explanation reads well.
+- [ ] Say whether "Llevas acumulado en {mes}" should be net (as built) or
+      gross, like the green figure on Días and Pagos.
+- [ ] Look on the phone at Inicio's labelled cards (topes, metas) and at
+      Días/Pagos with the rate or bonus beside each date.
 - [ ] Say whether the keypad should start closed, and whether he misses the
       "=" key (both small changes). He liked it folding away (2026-09-28)
       and asked for the arrow that brings it back, done in #6.
