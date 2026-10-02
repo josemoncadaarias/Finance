@@ -2739,7 +2739,11 @@ changed in the shape of the app, for the next session:
   left against a centred text. **And a dialog's lone button too** (Jose,
   2026-10-02: "Entendido" sat in the left half of a two-column grid): one
   rule in global.scss, `.confirm-dialog .buttons > :only-child`, makes it
-  take the whole row.
+  take the whole row. **A sheet's styles never reach "Cancelar"**: the
+  categories screen's "¿En cuál lista?" styled every button in the sheet
+  as a big card, Cancelar included, so it sat boxed against Gastos; the
+  two choices are plain list rows now (Jose, the same day: they did not
+  need to be that big).
 - **The orphan withdrawal** ("Retiro sin su movimiento") exists in the app
   today and stays, but said plainly and quietly inside the row, not as an
   alarming card.
