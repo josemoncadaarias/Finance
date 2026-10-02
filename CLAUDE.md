@@ -3638,6 +3638,13 @@ account with one product, and show the GROSS yield in green** (Jose: he
 wanted what was earned before withholding): what was paid plus what was
 withheld (`grossOf`), the withholding under it as before, and each month's
 header the gross with "Neto X" under it when anything was withheld.
+**Beside each day's and payment's date, what it was worked out at**
+(`kindOf`; Jose, 2026-10-02): the rate ("· 5,00 % E.A."), or for a spending
+bonus "Bonificación 5,50 %" when earned, "Bonificación pendiente" in a month
+still running (it is judged on what was spent so far and may still be
+earned) and "Bonificación no ganada" in a month over, or "Pago del CDT"
+with its rate. The line under it keeps the product, the balance it earned
+on and the component's own name.
 
 ### The ideas, by what they would take
 

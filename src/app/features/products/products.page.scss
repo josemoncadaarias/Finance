@@ -38,3 +38,10 @@ app-accounts-faces { margin-bottom: 12px; }
 }
 
 .state { text-align: center; padding: 40px 16px; color: var(--app-mu); }
+
+/* What a day or payment was worked out at, beside its date. */
+.day-kind { font-weight: 500; font-size: 13.5px; color: var(--app-mu);
+  &.bonus { color: #9b7bff; }
+  &.missed { color: var(--app-yel); }
+  &.cdt { color: #4cb8f5; }
+}
