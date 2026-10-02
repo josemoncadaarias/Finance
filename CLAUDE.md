@@ -120,6 +120,7 @@ detail of each is in the section named):
 | #42 | "Monedas y TRM" (renamed) in Más → Herramientas too, every currency in pesos with one Actualizar; "Notificaciones del teléfono" (renamed) with an eye per app; no text selection on rows | Rule 4; "Current status" |
 | #43, #44 | A dialog's lone button centred; "¿En cuál lista?" as plain rows | Rules from Jose's review of v3 |
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
+| #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -157,7 +158,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (701 on 2026-10-02, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (707 on 2026-10-02, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -2607,10 +2608,16 @@ changed in the shape of the app, for the next session:
   the last digit, and X to clear it all - which keep the focus, so the
   keyboard stays where it was. The digits stay the app's own
   (`AmountBuffer`); what the keyboard did is read back by `typedInto`
-  (`amount-buffer.ts`, tested): one character at the end is typed - a comma
-  OR a full stop starts the cents, since the phone offers one or the other
-  by its language - characters gone from the end are erased, anything else
-  (a paste, all typed over) is read afresh. The cursor starts in the amount
+  (`amount-buffer.ts`, tested), wherever the cursor is - **it can sit on
+  any digit, to correct one in the middle** (Jose, 2026-10-02, #46): the
+  part that changed is what lies between what stayed the same at both
+  ends, the edit is made on the digits alone (`editAmount`) and the figure
+  grouped again, the cursor kept after what was typed. A comma OR a full
+  stop typed starts the cents (the phone offers one or the other by its
+  language) when there are none yet; erasing a grouping dot erases the
+  digit before it; in pasted text a full stop is the cents only with one
+  or two digits after it and no comma. The erase key takes the digit
+  before the cursor, or the last one when the field is not in use. The cursor starts in the amount
   on a new movement (not a correction, not a loan's payment, and on a
   proposal only when it carries no amount); "Registrar otro" puts it back
   there. **The + − × ÷ sums went with the keypad** (`calculator.ts`

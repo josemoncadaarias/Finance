@@ -113,44 +113,96 @@ export class AmountBuffer {
   }
 }
 
+/** An amount after an edit, and where the cursor goes in its text. */
+export interface AmountEdit {
+  buffer: AmountBuffer;
+  caret: number;
+}
+
 /**
- * What the phone's keyboard did to the amount field, read back as a buffer.
+ * Replaces `before.text` from `start` to `end` with `inserted`, wherever the
+ * cursor was - the person may put it on any digit to correct it (Jose,
+ * 2026-10-02).
  *
- * The field always shows `before.text` with the caret at its end, so what the
- * keyboard did is plain from the new value: one character added at the end is
- * typed (a digit, or a comma or a full stop starting the cents - the phone's
- * decimal keyboard offers one or the other by its language), characters gone
- * from the end are erased. Anything else - a paste, the whole selected and
- * typed over - is read afresh: the digits, and a comma, or a full stop
- * followed by one or two digits at the end, as the cents. Thousands
- * separators are only ever the app's own, so they are skipped.
+ * The text shows full stops between thousands and a comma before the cents,
+ * so an edit is made on the digits alone and the result grouped again:
+ *   - a digit is a digit wherever it lands;
+ *   - one comma or full stop typed starts the cents - the phone's decimal
+ *     keyboard offers one or the other by its language - and only when there
+ *     are none yet;
+ *   - in pasted text a comma is the cents, and a full stop only when it has
+ *     one or two digits after it and no comma came with it;
+ *   - erasing a grouping full stop alone erases the digit before it, which is
+ *     what the backspace key meant.
  */
-export function typedInto(before: AmountBuffer, value: string): AmountBuffer {
+export function editAmount(before: AmountBuffer, start: number, end: number, inserted: string): AmountEdit {
   const shown = before.text;
-  const next = before.copy();
-  if (value.startsWith(shown) && value.length === shown.length + 1) {
-    for (const character of value.slice(shown.length)) {
-      if (/[0-9]/.test(character)) next.push(character);
-      else if (character === ',' || character === '.') next.separator();
-    }
-    return next;
-  }
-  if (shown.startsWith(value)) {
-    for (let i = value.length; i < shown.length; i++) {
-      // An erased grouping dot erases the digit before it too.
-      if (shown[i] !== '.') next.backspace();
-    }
-    return next;
-  }
-  const fresh = new AmountBuffer();
-  const comma = value.lastIndexOf(',');
-  const point = /\.\d{0,2}$/.test(value) ? value.lastIndexOf('.') : -1;
-  const cents = comma >= 0 ? comma : point;
-  [...value].forEach((character, i) => {
-    if (i === cents) fresh.separator();
-    else if (/[0-9]/.test(character)) fresh.push(character);
+  start = Math.max(0, Math.min(start, shown.length));
+  end = Math.max(start, Math.min(end, shown.length));
+  if (inserted === '' && end - start === 1 && shown[start] === '.' && start > 0) start -= 1;
+
+  // The digits and the comma, without the grouping: what `raw` holds.
+  const rawAt = (i: number) => shown.slice(0, i).replace(/\./g, '').length;
+  const raw = before.raw;
+  const from = rawAt(start);
+  const to = rawAt(end);
+
+  const single = inserted.length === 1;
+  const point = !single && !inserted.includes(',') && /\.\d{1,2}$/.test(inserted) ? inserted.lastIndexOf('.') : -1;
+  let added = '';
+  [...inserted].forEach((character, i) => {
+    if (/[0-9]/.test(character)) added += character;
+    else if (character === ',' || (single && character === '.') || i === point) added += ',';
   });
-  return fresh;
+
+  const tail = raw.slice(to);
+  // A separator already there, outside what was replaced, stays the one.
+  if ((raw.slice(0, from) + tail).includes(',')) added = added.replace(/,/g, '');
+  const head = raw.slice(0, from) + added;
+  const buffer = bufferOf(head + tail);
+  // The cursor follows what was before it: the same buffer built from the
+  // head alone says how many of its characters survived.
+  const kept = Math.min(bufferOf(head).raw.length, buffer.raw.length);
+  return { buffer, caret: textIndexOf(buffer.text, kept) };
+}
+
+/**
+ * What the phone's keyboard did to the field, read from its new value: the
+ * part that changed is what lies between what stayed the same at both ends.
+ * `caret` - where the cursor is after the edit - settles which digit it was
+ * when the same digit sits side by side ("45.900" with a 9 typed after a 9).
+ */
+export function typedInto(before: AmountBuffer, value: string, caret?: number): AmountEdit {
+  const shown = before.text;
+  const at = caret ?? value.length;
+  const prefixLimit = Math.max(0, at - Math.max(0, value.length - shown.length));
+  let p = 0;
+  while (p < shown.length && p < value.length && p < prefixLimit && shown[p] === value[p]) p++;
+  let s = 0;
+  const suffixLimit = Math.min(shown.length - p, value.length - p, Math.max(0, value.length - at));
+  while (s < suffixLimit && shown[shown.length - 1 - s] === value[value.length - 1 - s]) s++;
+  return editAmount(before, p, shown.length - s, value.slice(p, value.length - s));
+}
+
+/** The digits and at most one comma, as typed one by one. */
+function bufferOf(raw: string): AmountBuffer {
+  const buffer = new AmountBuffer();
+  for (const character of raw) {
+    if (character === ',') buffer.separator();
+    else buffer.push(character);
+  }
+  return buffer;
+}
+
+/** Where, in the grouped text, the first `count` digits and comma end. */
+function textIndexOf(text: string, count: number): number {
+  if (count <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== '.') seen++;
+    if (seen === count) return i + 1;
+  }
+  return text.length;
 }
 
 /** 1234567 -> 1.234.567, the Colombian way round. */
