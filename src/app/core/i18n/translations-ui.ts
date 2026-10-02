@@ -915,6 +915,7 @@ export const UI_ES = {
   'home.kind.capPassed': 'Tope de gasto pasado',
   'home.kind.capsTotal': 'Todos tus topes del mes',
   'home.kind.goal': 'Meta de ahorro',
+  'products.month.net': 'Neto {amount}',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -1827,4 +1828,5 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'home.kind.capPassed': 'Spending cap gone over',
   'home.kind.capsTotal': 'All your caps this month',
   'home.kind.goal': 'Savings goal',
+  'products.month.net': 'Net {amount}',
 };

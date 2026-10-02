@@ -335,7 +335,9 @@ export class ProductsPage {
   /** "Cuenta de ahorros · sobre 52.000.000,00 · 9,25 % E.A." */
   paymentLine(line: ProductLine, payment: Payment): string {
     const parts: string[] = [];
-    if (line.products.length > 1) parts.push(this.productLabel(line, payment.productId));
+    // Always which product it was, even when the account has only one
+    // (Jose, 2026-10-02: "solo dice sobre").
+    parts.push(this.productLabel(line, payment.productId));
     parts.push(this.i18n.t('ui.yields.on', { amount: this.money(payment.balanceMinor, line.account.currency_code) }));
     parts.push(this.rateText(payment.rateScaled));
     if (payment.payout === 'monthly' && payment.days > 1) parts.push(this.i18n.t('products.payments.ofDays', { count: payment.days }));
@@ -346,7 +348,17 @@ export class ProductsPage {
   /** A day's line on Días: which product earned, on what and at what rate, as a payment's says it. */
   dayLine(line: ProductLine, day: { product_id: number; balance_minor: number; annual_rate_scaled: number }): string {
     const on = this.i18n.t('ui.yields.dayLine', { amount: this.money(day.balance_minor, line.account.currency_code), rate: this.rateText(day.annual_rate_scaled) });
-    return line.products.length > 1 ? `${this.productLabel(line, day.product_id)} · ${on}` : on;
+    return `${this.productLabel(line, day.product_id)} · ${on}`;
+  }
+
+  /**
+   * What a day earned before withholding: what was paid plus what was
+   * withheld, so a day corrected against the bank keeps the same relation.
+   * Days and Pagos show this in green and the withholding under it (Jose,
+   * 2026-10-02: he wanted to see the gross yield, not the net).
+   */
+  grossOf(day: YieldDay): number {
+    return netOf(day) + day.withholding_minor;
   }
 
   /** The payments of the product being edited: a CDT's list (4v). */
@@ -1480,14 +1492,15 @@ export class ProductsPage {
   /** Payments grouped by month, so a year of daily ones stays readable. */
   readonly paymentsByMonth = computed(() => {
     const months = new Map<string, {
-      key: string; payments: Payment[]; netMinor: number;
+      key: string; payments: Payment[]; netMinor: number; withheldMinor: number;
     }>();
 
     for (const payment of this.payments()) {
       const key = payment.on.slice(0, 7);
-      const month = months.get(key) ?? { key, payments: [], netMinor: 0 };
+      const month = months.get(key) ?? { key, payments: [], netMinor: 0, withheldMinor: 0 };
       month.payments.push(payment);
       month.netMinor += payment.netMinor;
+      month.withheldMinor += payment.withheldMinor;
       months.set(key, month);
     }
     return [...months.values()];
@@ -1535,14 +1548,15 @@ export class ProductsPage {
    */
   readonly daysByMonth = computed(() => {
     const months = new Map<string, {
-      key: string; days: YieldDay[]; netMinor: number; dayCount: number;
+      key: string; days: YieldDay[]; netMinor: number; withheldMinor: number; dayCount: number;
     }>();
 
     for (const day of this.openDays()) {
       const key = day.on_date.slice(0, 7);
-      const month = months.get(key) ?? { key, days: [], netMinor: 0, dayCount: 0 };
+      const month = months.get(key) ?? { key, days: [], netMinor: 0, withheldMinor: 0, dayCount: 0 };
       month.days.push(day);
       month.netMinor += netOf(day);
+      month.withheldMinor += day.withholding_minor;
       months.set(key, month);
     }
 

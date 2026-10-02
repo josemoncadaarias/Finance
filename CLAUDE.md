@@ -3633,6 +3633,11 @@ yield moves but Dale's (rule 17), and Global66 USD and Plenti earn on 2.00
 and 0 again. Global66 USD's 0 on 1 Oct is right: 2 dollars at 3.1 % E.A.
 earn about a third of a cent in September. Days (Días) now name the product
 on each line when the account has several, as Pagos already did.
+**Since 2026-10-02 Días and Pagos name the product on every line, even in an
+account with one product, and show the GROSS yield in green** (Jose: he
+wanted what was earned before withholding): what was paid plus what was
+withheld (`grossOf`), the withholding under it as before, and each month's
+header the gross with "Neto X" under it when anything was withheld.
 
 ### The ideas, by what they would take
 
