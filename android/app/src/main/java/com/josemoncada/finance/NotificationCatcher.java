@@ -61,6 +61,9 @@ public class NotificationCatcher extends NotificationListenerService {
         long at = posted.getPostTime();
         Bundle extras = notification.extras;
         boolean conversation = isConversation(pkg, notification, extras);
+        // The one that groups a conversation's others may carry no message of
+        // its own; it is read, never counted as a message without words.
+        boolean summary = (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0;
         String label = labelOf(pkg);
 
         // An app the person hid is not even counted - except that hiding the
@@ -71,7 +74,7 @@ public class NotificationCatcher extends NotificationListenerService {
         // until it is ticked, and only senders whose messages look like money
         // are even listed.
         if (NotificationStore.isHidden(this, pkg)) {
-            if (conversation && extras != null) keepConversation(pkg, label, extras, at);
+            if (conversation && extras != null) keepConversation(pkg, label, extras, at, summary);
             return;
         }
         NotificationStore.noteApp(this, pkg, label, at, conversation);
@@ -79,7 +82,7 @@ public class NotificationCatcher extends NotificationListenerService {
         // A whole messaging app ticked by hand (before senders existed, or on
         // purpose) still keeps everything, as it always did.
         if (conversation && extras != null && !NotificationStore.isWatched(this, pkg)) {
-            keepConversation(pkg, label, extras, at);
+            keepConversation(pkg, label, extras, at, summary);
             return;
         }
         if (!NotificationStore.isWatched(this, pkg)) return;
@@ -130,7 +133,7 @@ public class NotificationCatcher extends NotificationListenerService {
      * whenever a new one arrives, so only the last one is read, with its own
      * time - the same message re-posted is the same message.
      */
-    private void keepConversation(String pkg, String label, Bundle extras, long postedAt) {
+    private void keepConversation(String pkg, String label, Bundle extras, long postedAt, boolean summary) {
         String said = "";
         String from = "";
         long at = postedAt;
@@ -156,9 +159,14 @@ public class NotificationCatcher extends NotificationListenerService {
             String big = text(extras, Notification.EXTRA_BIG_TEXT);
             if (big.length() > said.length()) said = big;
         }
+        // What kind of message arrived, never what it said: a phone that hides
+        // the words of its notifications hands the app messages with none, and
+        // the screen has to be able to say so (Jose, 2026-10-02: two bank SMS
+        // arrived and nothing told him why no sender was listed).
+        boolean money = NotificationStore.looksLikeMoney(said);
+        if (!summary) NotificationStore.noteShape(this, pkg, said.isEmpty() ? "blank" : money ? "money" : "plain");
         if (from.isEmpty() || said.isEmpty()) return;
 
-        boolean money = NotificationStore.looksLikeMoney(said);
         if (NotificationStore.isSenderHidden(this, pkg, from)) return;
         if (money) NotificationStore.noteSender(this, pkg, label, from, at);
         if (!NotificationStore.isSenderWatched(this, pkg, from)) return;

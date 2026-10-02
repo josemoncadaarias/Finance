@@ -267,6 +267,23 @@ final class NotificationStore {
         prefs(context).edit().putString(CAUGHT, all.toString()).apply();
     }
 
+    /**
+     * Counts the kind of a messaging app's message - with no words, with words
+     * but no money, or with money - and keeps nothing of what it said.
+     */
+    static void noteShape(Context context, String pkg, String shape) {
+        JSONObject apps = object(context, APPS);
+        JSONObject app = apps.optJSONObject(pkg);
+        if (app == null) return;
+        try {
+            app.put(shape, app.optInt(shape, 0) + 1);
+            apps.put(pkg, app);
+            prefs(context).edit().putString(APPS, apps.toString()).apply();
+        } catch (JSONException broken) {
+            // A count is not worth crashing a phone for.
+        }
+    }
+
     static JSONArray appsSeen(Context context) {
         JSONObject apps = object(context, APPS);
         JSONArray list = new JSONArray();

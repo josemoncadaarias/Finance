@@ -34,6 +34,14 @@ export interface SeenApp {
    * never for the whole app, which would keep every personal message.
    */
   messaging?: boolean;
+  /**
+   * For a messaging app, how many of its messages arrived with no words the
+   * app could read (the phone or the app hid them), with words but no money,
+   * and with money. Counted since 2026-10-02; nothing they said is kept.
+   */
+  blank?: number;
+  plain?: number;
+  money?: number;
 }
 
 /**

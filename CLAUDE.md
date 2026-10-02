@@ -122,6 +122,7 @@ detail of each is in the section named):
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 | #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
 | #47 | SMS chosen by sender inside the messaging app, never the whole app | Rule 22 |
+| #50 | "Mensajes de texto" says why no SMS sender is listed (no words readable, no money yet, nothing yet) | Rule 22 (SMS) |
 | #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
@@ -1450,6 +1451,18 @@ backup restore against iOS's own SQLite backend.
      conversation from a hidden app is now still read for senders - noted
      only when it looks like money, kept only when ticked. The first SMS of
      a new sender is never kept: it lists the sender, to be ticked.
+   - **"Mensajes de texto" always says why it lists no sender** (#50,
+     2026-10-02). Jose's next Ualá SMS reached the app - a messaging app
+     "Teléfono" (`com.google.an…`) appeared with "2 avisos" - and still no
+     sender was listed, while the "Por remitente" hint pointed at a section
+     that did not show. Not verified, the likeliest reason: his phone hides
+     notification content, so the message arrives with no words. The catcher
+     now counts each messaging app's messages by kind - no words (`blank`),
+     words without money (`plain`), money - never what they said (a group
+     summary is not counted), and while no sender is listed the section
+     shows one line per messaging app: in amber when its messages arrived
+     with no words ("haz que las notificaciones de {app} muestren el
+     contenido"), or that none carried money yet, or that nothing came yet.
    - The notices' days say the month ("Viernes 25 de septiembre", the year
      when not this one, "Hoy"/"Ayer" in front); "Viernes 25" alone could be
      any month.

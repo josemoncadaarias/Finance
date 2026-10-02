@@ -148,10 +148,23 @@
         }
 
         <!-- Text messages: chosen by sender, never the whole messaging app (rule 22, SMS). -->
-        @if (sortedSenders().length > 0) {
+        @if (sortedSenders().length > 0 || smsWaiting().length > 0) {
           <h3 class="ui-h sms-h">{{ 'ui.notifications.sms' | t }}
             <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.notifications.sms.hint'))"><ion-icon name="information"></ion-icon></span>
           </h3>
+        }
+        @if (smsWaiting().length > 0) {
+          <!-- No sender yet: say why, so "abajo en Mensajes de texto" never points at nothing. -->
+          <div class="ui-list sms-wait">
+            @for (line of smsWaiting(); track $index) {
+              <div class="ui-row" [class.warn]="line.warn">
+                <ion-icon [name]="line.warn ? 'eye-off-outline' : 'chatbubble-ellipses-outline'"></ion-icon>
+                <span class="ui-tx"><small>{{ line.text }}</small></span>
+              </div>
+            }
+          </div>
+        }
+        @if (sortedSenders().length > 0) {
           <div class="ui-list">
             @for (one of sortedSenders(); track one.package + one.sender) {
               <div class="ui-row app">
