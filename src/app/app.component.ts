@@ -16,6 +16,7 @@ import { GoogleAccountService } from './core/cloud/google-account.service';
 import { CloudBackupService } from './core/cloud/cloud-backup.service';
 import { ForeignConversionService } from './core/rates/foreign-conversion.service';
 import { CustomIconsService } from './core/icons/custom-icons.service';
+import { NoticeInboxService } from './core/notices/notice-inbox.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
 import { ComposeHostComponent } from './shared/ui/compose-host.component';
@@ -69,6 +70,9 @@ export class AppComponent {
 
   /** Text cut short with "…" slides to show the rest of itself, on every screen. */
   private readonly marquee = inject(MarqueeService);
+
+  /** Turns the banks' messages the phone kept into proposals. Same reason. */
+  private readonly notices = inject(NoticeInboxService);
 
   /**
    * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:

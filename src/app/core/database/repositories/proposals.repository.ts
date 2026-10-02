@@ -99,6 +99,11 @@ export class ProposalsRepository {
     const dictionary = await this.dictionary();
     const starters = await this.starterCategories();
 
+    // What was there before, so the ids handed back are this call's alone: a
+    // batch of notifications is one per app and grows over many calls.
+    const before = (await this.db.queryOne<{ top: number | null }>(
+      'SELECT MAX(id) AS top FROM movement_proposals'))?.top ?? 0;
+
     return this.db.transaction(async () => {
       let knownAlready = 0;
       const rows: unknown[][] = [];
@@ -146,7 +151,7 @@ export class ProposalsRepository {
       // What was just written, asked for by the batch rather than one id at a
       // time: a multi-row insert reports only the last of them.
       const ids = (await this.db.query<{ id: number }>(
-        'SELECT id FROM movement_proposals WHERE batch = ? ORDER BY id', [batch]))
+        'SELECT id FROM movement_proposals WHERE batch = ? AND id > ? ORDER BY id', [batch, before]))
         .map(row => row.id);
 
       await this.markKnownAgain(ids);
@@ -219,6 +224,54 @@ export class ProposalsRepository {
        WHERE status = 'pending' AND id IN (${ids.map(() => '?').join(', ')})`,
       [categoryId, this.now(), ...ids]);
     return result.changes ?? 0;
+  }
+
+  /**
+   * Every bank message already turned into a proposal, whatever was decided
+   * about it, so the same message is never proposed twice - and one thrown
+   * away never comes back.
+   */
+  async noticeKeys(): Promise<Set<string>> {
+    const rows = await this.db.query<{ evidence: string }>(
+      "SELECT evidence FROM movement_proposals WHERE source = 'notification'");
+    const keys = new Set<string>();
+    for (const row of rows) {
+      try {
+        const key = (JSON.parse(row.evidence) as { key?: unknown })?.key;
+        if (typeof key === 'string') keys.add(key);
+      } catch {
+        // A row that will not read is not a key; it cannot match anything.
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * What the person answered for messages before: which account each app's
+   * message - and each card's digits - turned out to be. Read from the
+   * proposals they accepted, so nothing new is stored and a correction made
+   * on the review screen is what is remembered.
+   */
+  async noticeAnswers(): Promise<{ package: string; digits: string | null; account_id: number }[]> {
+    const rows = await this.db.query<{ evidence: string; account_id: number | null }>(
+      `SELECT evidence, account_id FROM movement_proposals
+       WHERE source = 'notification' AND status = 'accepted' AND account_id IS NOT NULL
+       ORDER BY id DESC LIMIT 500`);
+    const answers: { package: string; digits: string | null; account_id: number }[] = [];
+    for (const row of rows) {
+      try {
+        const read = JSON.parse(row.evidence) as { package?: unknown; digits?: unknown };
+        if (typeof read.package !== 'string') continue;
+        answers.push({
+          package: read.package,
+          digits: typeof read.digits === 'string' ? read.digits : null,
+          account_id: row.account_id!,
+        });
+      } catch {
+        // Skip it rather than lose the rest.
+      }
+    }
+    return answers;
   }
 
   /** Everything still waiting, oldest first. */
@@ -529,9 +582,14 @@ export class ProposalsRepository {
    * already made, are answers and they stay.
    */
   async forget(batch: string): Promise<number> {
+    // A bank's message is still on the phone after this, and would be read
+    // again: put away, it is kept as thrown away so it never comes back.
+    const kept = await this.db.run(
+      `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
+       WHERE batch = ? AND status = 'pending' AND source = 'notification'`, [this.now(), batch]);
     const result = await this.db.run(
       "DELETE FROM movement_proposals WHERE batch = ? AND status = 'pending'", [batch]);
-    return result.changes ?? 0;
+    return (kept.changes ?? 0) + (result.changes ?? 0);
   }
 
   /** The dictionary, for the screen that shows what the app has learned. */

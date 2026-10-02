@@ -44,6 +44,9 @@ const ALLOWED = [
   // The words of both languages that say a bank's message moved money -
   // compraste, recibiste, saldo - read out of the message, never shown.
   'core/notices/read-notice.ts',
+  // The plain words of a bank's name ("banco", "cuenta") left out when an app's
+  // name is matched to an account's - never shown.
+  'core/notices/notice-proposals.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
   // Formulario 210's Spanish: the tax module's own translations file.

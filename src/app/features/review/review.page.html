@@ -115,7 +115,7 @@
         <!-- A batch is one card: where it came from, how many, the check. -->
         <section class="ui-card batch">
           <div class="bhead">
-            <app-badge shape="ci" [size]="40" builtin="document-text" fixed="#9b7bff"></app-badge>
+            <app-badge shape="ci" [size]="40" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
             <span class="ui-tx">
               <b class="ui-one">{{ batch.title }}</b>
               <small class="ui-one">{{ fileName(batch) }}</small>
