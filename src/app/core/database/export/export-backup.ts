@@ -78,6 +78,8 @@ export const TABLES = [
   'goal_places',
   'tax_parameters',
   'credit_limit_changes',
+  // What the bank's statement said a card owed (migration 055): after the accounts.
+  'card_statements',
   // What the app has read and nobody has answered yet, and what it has learned
   // about where a merchant is filed. After the movements and the categories,
   // which a proposal points at.

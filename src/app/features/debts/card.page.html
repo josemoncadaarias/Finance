@@ -61,7 +61,7 @@
         }
         @default {
           <section class="ui-hero bill" [class.late]="st.state === 'overdue'">
-            <span class="ui-lab">{{ 'cards.statementOf' | t:{ date: short(st.cutOn) } }}</span>
+            <span class="ui-lab">{{ (st.bankMinor !== null ? 'cards.statementOf.bank' : 'cards.statementOf') | t:{ date: short(st.cutOn) } }}</span>
             <div class="ui-big" [class.ui-r]="st.state === 'overdue'">
               $ {{ money(st.remainingMinor) }}
               @if (st.paidMinor > 0) { <small>{{ 'cards.of' | t:{ amount: money(st.statementMinor) } }}</small> }
@@ -109,8 +109,41 @@
           }
         </div>
       }
+      @if (canType()) {
+        <!-- What the bank's statement says, when it says something else (2026-10-02). -->
+        <div class="ui-list bank">
+          @if (st.bankMinor !== null) {
+            <div class="ui-row plain">
+              <app-badge shape="ci" [size]="40" builtin="document-text-outline" fixed="#4cb8f5"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ 'cards.bank.title' | t }}: {{ money(st.bankMinor) }}</b>
+                @for (line of bankLines(); track $index) { <small class="wrap">{{ line }}</small> }
+              </span>
+            </div>
+            <div class="actions">
+              <button type="button" class="ui-chip" (click)="openTyping()"><ion-icon name="create-outline"></ion-icon>{{ 'cards.bank.change' | t }}</button>
+              <button type="button" class="ui-chip" (click)="resetFigure()"><ion-icon name="arrow-undo-outline"></ion-icon>{{ 'cards.bank.reset' | t }}</button>
+            </div>
+          } @else {
+            <div class="ui-row plain">
+              <app-badge shape="ci" [size]="40" builtin="document-text-outline" fixed="#4cb8f5"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ 'cards.bank.ask.title' | t }}</b>
+                <small class="wrap">{{ 'cards.bank.ask.body' | t }}</small>
+                @if (cutDayHint()) { <small class="wrap ui-y">{{ cutDayHint() }}</small> }
+              </span>
+            </div>
+            <div class="actions">
+              <button type="button" class="ui-chip" (click)="openTyping()"><ion-icon name="create-outline"></ion-icon>{{ 'cards.bank.ask.action' | t }}</button>
+            </div>
+          }
+        </div>
+      }
       @if (st.state !== 'noDates' && st.state !== 'clear') {
         <p class="caveat">{{ 'cards.caveat' | t }}</p>
+        <button type="button" class="why-link" (click)="why.set(true)">
+          <ion-icon name="help-circle-outline"></ion-icon>{{ 'cards.why.link' | t }}
+        </button>
       }
       <div class="ui-page-end"></div>
     } @else if (card() === null) {
@@ -127,5 +160,53 @@
       <app-account-editor [editing]="card.account" (saved)="editing.set(false)"
                           (cancelled)="editing.set(false)"></app-account-editor>
     }
+  </ng-template>
+</ion-modal>
+
+<!-- The figure the bank's statement states for this cut-off. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="typing()" (didDismiss)="typing.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host figure-sheet">
+      <button type="button" class="sheet-cancel" (click)="typing.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'cards.bank.sheet.title' | t }}</h3>
+      <div class="ui-list">
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'cards.bank.sheet.label' | t:{ date: short(s()?.cutOn ?? null) } }}</span>
+            <input inputmode="decimal" [value]="figure().text" placeholder="0" (input)="onFigure($any($event.target).value)">
+          </span>
+          <span class="unit">{{ card()?.account?.currency_code }}</span>
+        </label>
+      </div>
+      <p class="note">{{ 'cards.bank.sheet.hint' | t }}</p>
+      <button type="button" class="ui-btn" [disabled]="figure().isEmpty" (click)="saveFigure()">
+        <ion-icon name="checkmark"></ion-icon>{{ 'cards.bank.sheet.save' | t }}
+      </button>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- Why the bank's statement and the app can say different figures. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="why()" (didDismiss)="why.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host why-sheet">
+      <button type="button" class="sheet-cancel" (click)="why.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'cards.why.title' | t }}</h3>
+      <p class="note">{{ 'cards.why.intro' | t }}</p>
+      <div class="ui-list">
+        @for (reason of reasons; track reason.key) {
+          <div class="ui-row plain">
+            <app-badge shape="ci" [size]="36" [builtin]="reason.icon" [fixed]="reason.color"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ $any('cards.why.' + reason.key + '.title') | t }}</b>
+              <small class="wrap">{{ $any('cards.why.' + reason.key + '.body') | t }}</small>
+            </span>
+          </div>
+        }
+      </div>
+      <button type="button" class="ui-btn" (click)="why.set(false)">{{ 'cards.why.close' | t }}</button>
+    </div>
   </ng-template>
 </ion-modal>

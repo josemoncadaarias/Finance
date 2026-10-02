@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 38 tables and how they relate. The authority is always
+The 39 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -290,6 +290,12 @@ erDiagram
         TEXT counts
         INTEGER start_minor
     }
+    card_statements {
+        INTEGER id PK
+        INTEGER account_id FK
+        TEXT cut_on
+        INTEGER amount_minor
+    }
     uvr_values {
         TEXT day PK
         INTEGER value_scaled
@@ -387,6 +393,7 @@ erDiagram
     goals          ||--o{ goal_places  : "keeps its money in"
     accounts       ||--o{ goal_places  : "holds a goal's money"
     products       ||--o{ goal_places  : "holds a goal's money"
+    accounts       ||--o{ card_statements : "was billed by the bank in"
     transactions   ||--o{ product_entries : "cashed in by"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
@@ -499,6 +506,12 @@ takes off what the other goals' places hold, so no peso counts twice. A
 place counting only what came in since it was added keeps what it held then
 in `start_minor`. `reached_on` is written once, so a goal reached stays
 reached after the money is used.
+
+`card_statements` (migration 055) is what the bank's own statement says a
+card owes at a cut-off, typed by the person when it differs from what the
+app works out of the movements (a purchase the bank posts after the cut-off,
+a fee nobody typed). One row per card and cut-off day (`UNIQUE`); the next
+cut-off goes back to the app's own figure. Nothing in the ledger moves.
 
 ### 4. Import bookkeeping
 
