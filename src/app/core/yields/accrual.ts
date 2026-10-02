@@ -42,6 +42,7 @@ import {
   accrueDay, accruePayment, bandFor, rateWhenConditionMissed, ruleForProduct, sharedWithholding,
   type AccruedDay, type RateBand, type WithholdingRule,
 } from './yield-math';
+import { earliestChange } from './month-marks';
 import { addDays, addMonthsClamped, daysBetween, eachDay, endOfMonth, monthOf, nextDay, startOfMonth } from './days';
 
 export interface AccrualResult {
@@ -285,8 +286,28 @@ export class AccrualEngine {
       : await this.periodJudgedWrongly(accountId, rates, resume, spentBetween);
     if (rejudge !== null && rejudge < resume) resume = rejudge;
 
+    // A movement, an entry, a typed balance or a rate dated in a month
+    // already worked out changes that month and every day after it - and
+    // resuming from the top of the last month never looked back, so a
+    // deposit dated 20 September and typed in October left September's
+    // yields on the old balance for good (measured 2026-09-24; the only cure
+    // was "Recalcular"). Each pass keeps, per account, a mark of what each
+    // month holds; the earliest month that differs now is where to resume.
+    //
+    // The first pass after this arrives has no marks to compare with, and
+    // goes back nowhere: it only writes them, so nothing already worked out
+    // is touched by the update itself. Locked days are kept whatever is
+    // redone, as with "Recalcular".
+    const marks = await this.yields.monthMarks(accountId);
+    const before = last === null ? null : await this.yields.storedMonthMarks(accountId);
+    const changed = before === null ? null : earliestChange(before, marks);
+    if (changed !== null && changed < resume) resume = changed;
+
     const from = resume < firstEver ? firstEver : resume;
-    if (from > upTo) return nothing;
+    if (from > upTo) {
+      await this.yields.rememberMonthMarks(accountId, marks);
+      return nothing;
+    }
 
     return this.db.transaction(async () => {
       await this.yields.clearDays(accountId, from);
@@ -726,6 +747,9 @@ export class AccrualEngine {
       }
 
       await this.yields.putDays(written);
+      // Inside the walk's transaction: the marks say what these days were
+      // worked out from only if the days themselves were written.
+      await this.yields.rememberMonthMarks(accountId, marks);
       return result;
     });
   }

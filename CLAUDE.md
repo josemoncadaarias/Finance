@@ -2000,18 +2000,31 @@ became 25. Not done, on purpose: accruing in the background on app start.
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.
 
-**Known and not fixed: a movement dated in a month already worked out does
-not change that month's yields** (measured 2026-09-24). The engine resumes
-from the top of the last month it worked out, so a 5,000,000 deposit dated 5
-September and typed in October left September's yield at 7,864.48 when it
-should have risen by about 30,000. Every day from October on is right, since
-the balance is read from the ledger; only the days before are stale. It matters
-more now that statements import past months. Rule 18's spending bonus is
-already re-judged; the ordinary yield is not. Until it is, the "Recalcular"
-button on the products screen works everything out again from scratch, locked
-days kept. The fix is to resume from the earliest date touched since the last
-pass, which has to see deletions too - so it waits for Jose's word, because it
-touches every yield he has.
+**A movement dated in a month already worked out changes that month's
+yields - fixed 2026-10-02** (it was known since 2026-09-24: a 5,000,000
+deposit dated 5 September and typed in October left September at 7,864.48;
+the only cure was "Recalcular"). Each pass keeps, per account, a mark of
+what every month holds (`YieldsRepository.monthMarks`, in `settings` under
+`yields.months.<id>`, so it travels in the backup): the movements, the
+products' entries and cash-outs, their typed balances and their rates, by
+the month they are dated in, plus the opening balance. Content only - counts,
+sums, dates - never `updated_at`, so a migration rewriting timestamps redoes
+nothing; a deletion changes its month's count and sum. The engine resumes
+from the earliest month that differs (`earliestChange`, `core/yields/
+month-marks.ts`); locked days stay, as with "Recalcular".
+- **The first pass after the update goes back nowhere**: with no marks on
+  record it only writes them, so nothing Jose's phone already worked out is
+  touched by the update itself (asked by Jose: "ten mucho cuidado con dañar
+  los datos"). Anything stale from before still needs "Recalcular" once.
+- **Removing a product** moves its history to another product, which rewrites
+  earlier months without changing what happened in them; it takes the marks
+  as they are afterwards, so only the current month is redone, as before.
+- Proved on Jose's backup of 2026-10-01: with nothing changed, the 393 days
+  come out identical to the code before; a 5,000,000 deposit dated 20 Sep on
+  Global66 COP (whose days are not locked) makes its September days equal to
+  a full recompute (0.20 a day became 1,054.57) and moves nothing in any other
+  account; his Rappi cuenta days, locked against the bank, do not move. Both
+  audits agree (2,237 and 112 checks). Tests: `stale-months.test.mjs`.
 
 **A claim about the screen is checked in a browser, not reasoned about**
 (2026-09-24). Twice in one afternoon a dialog was declared fixed on code that
