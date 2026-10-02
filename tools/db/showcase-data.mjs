@@ -504,8 +504,7 @@ await yields.setRate({ account_id: viajesUsd, product_id: usdP, valid_from: STAR
 await yields.enrol({ account_id: indigoBank, opening_on: START, withholding: true });
 const indigoP = await productOf(indigoBank, 'Ahorros');
 await yields.setDefaultProduct(indigoBank, indigoP);
-await yields.setProductSource(indigoP, 'manual');
-await yields.setProductBalance({ product_id: indigoP, valid_from: '2025-09-30', amount_minor: P(26_000_000), note: 'Leído en la app del banco' });
+// Ahorros follows the account: it holds whatever the CDTs and the tax pocket leave.
 await yields.setRate({ account_id: indigoBank, product_id: indigoP, valid_from: START, annual_rate_scaled: pct(8.5) });
 const cdt = await yields.addProduct({
   account_id: indigoBank, name: 'CDT 12 meses', kind: 'cdt', sort_order: 1, payout: 'monthly', payout_months: 1,

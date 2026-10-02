@@ -161,11 +161,14 @@ these):
   caps, goals, proposals waiting for review and a tax simulation. Bank
   notifications are not in it: Android keeps them outside the database.
   Building it found a bug (a category with a picture of its own stopped the
-  app from opening, fixed in `category-icons.ts`) and one case left as it
-  is: an account mixing a product that follows the account with products
-  carrying a typed figure counts money moved between them twice in
-  "Rendimiento acumulado" - every product in Jose's data is typed, so it
-  never shows for him.
+  app from opening, fixed in `category-icons.ts`) and a second one: in an
+  account mixing a product that follows the account with products carrying
+  a typed figure, the first held the WHOLE balance, so money moved into a
+  typed product was counted - and earned on - twice. It now holds what the
+  typed products leave (`heldIn` and the engine's base in `accrual.ts`,
+  `ledger-and-typed.test.mjs`). Every product in Jose's data is typed
+  (checked on his copy, 2026-10-02), so none of his figures moved; Banco
+  Índigo in the demo is the mixed case.
 
 ---
 
