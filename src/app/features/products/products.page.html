@@ -497,7 +497,10 @@
                             <b>{{ monthText(month.key) }}</b>
                             <small>{{ month.payments.length === 1 ? ('ui.count.payment' | t) : ('ui.count.payments' | t:{ count: month.payments.length }) }}</small>
                           </span>
-                          <span class="total ui-g">+{{ money(month.netMinor, line.account.currency_code) }}</span>
+                          <span class="am">
+                            <b class="ui-g">+{{ money(month.netMinor + month.withheldMinor, line.account.currency_code) }}</b>
+                            @if (month.withheldMinor > 0) { <small>{{ 'products.month.net' | t:{ amount: money(month.netMinor, line.account.currency_code) } }}</small> }
+                          </span>
                           <ion-icon class="ui-chev" [name]="isWorkingOpen(month.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
                         </div>
                         @if (isWorkingOpen(month.key)) {
@@ -512,10 +515,10 @@
                                 <small class="ui-one">{{ paymentLine(line, payment) }}</small>
                               </span>
                               <span class="am">
-                                <b class="ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</b>
+                                <b class="ui-g">+{{ money(payment.netMinor + payment.withheldMinor, line.account.currency_code) }}</b>
+                                @if (payment.withheldMinor > 0) { <small>−{{ money(payment.withheldMinor, line.account.currency_code) }}</small> }
                                 @if (payment.pending) { <small class="ui-y">{{ 'products.payments.pending' | t }}</small> }
                                 @else if (payment.corrected || payment.on !== payment.dueOn) { <small class="ui-p">{{ 'products.payment.corrected' | t }}</small> }
-                                @else if (payment.withheldMinor > 0) { <small>−{{ money(payment.withheldMinor, line.account.currency_code) }}</small> }
                               </span>
                             </button>
                           }
@@ -550,7 +553,10 @@
                             <b>{{ monthText(month.key) }}</b>
                             <small>{{ month.dayCount === 1 ? ('ui.count.day' | t) : ('ui.count.days' | t:{ count: month.dayCount }) }}</small>
                           </span>
-                          <span class="total ui-g">+{{ money(month.netMinor, line.account.currency_code) }}</span>
+                          <span class="am">
+                            <b class="ui-g">+{{ money(month.netMinor + month.withheldMinor, line.account.currency_code) }}</b>
+                            @if (month.withheldMinor > 0) { <small>{{ 'products.month.net' | t:{ amount: money(month.netMinor, line.account.currency_code) } }}</small> }
+                          </span>
                           <ion-icon class="ui-chev" [name]="isMonthOpen(month.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
                         </div>
                         @if (isMonthOpen(month.key)) {
@@ -563,10 +569,10 @@
                                 <small class="ui-one">{{ dayLine(line, day) }}</small>
                               </span>
                               <span class="am">
-                                <b class="ui-g">+{{ money(netOf(day), line.account.currency_code) }}</b>
+                                <b class="ui-g">+{{ money(grossOf(day), line.account.currency_code) }}</b>
+                                @if (day.withholding_minor > 0) { <small>−{{ money(day.withholding_minor, line.account.currency_code) }}</small> }
                                 @if (day.locked === 1) { <small class="ui-p">{{ 'products.corrected' | t }}</small> }
                                 @else if (day.withholding_unknown === 1) { <small class="ui-y">{{ 'products.unknown' | t }}</small> }
-                                @else if (day.withholding_minor > 0) { <small>−{{ money(day.withholding_minor, line.account.currency_code) }}</small> }
                               </span>
                               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
                             </button>
