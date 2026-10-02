@@ -339,16 +339,43 @@ export class ProductsPage {
     // (Jose, 2026-10-02: "solo dice sobre").
     parts.push(this.productLabel(line, payment.productId));
     parts.push(this.i18n.t('ui.yields.on', { amount: this.money(payment.balanceMinor, line.account.currency_code) }));
-    parts.push(this.rateText(payment.rateScaled));
     if (payment.payout === 'monthly' && payment.days > 1) parts.push(this.i18n.t('products.payments.ofDays', { count: payment.days }));
     if (payment.component !== 'base') parts.push(payment.component);
     return parts.join(' · ');
   }
 
   /** A day's line on Días: which product earned, on what and at what rate, as a payment's says it. */
-  dayLine(line: ProductLine, day: { product_id: number; balance_minor: number; annual_rate_scaled: number }): string {
-    const on = this.i18n.t('ui.yields.dayLine', { amount: this.money(day.balance_minor, line.account.currency_code), rate: this.rateText(day.annual_rate_scaled) });
-    return `${this.productLabel(line, day.product_id)} · ${on}`;
+  dayLine(line: ProductLine, day: { product_id: number; balance_minor: number; component?: string }): string {
+    const parts = [this.productLabel(line, day.product_id),
+      this.i18n.t('ui.yields.on', { amount: this.money(day.balance_minor, line.account.currency_code) })];
+    const component = day.component;
+    if (component && component !== 'base') parts.push(component);
+    return parts.join(' · ');
+  }
+
+  /** Product and component pairs whose rate carries a spending condition: a bonus. */
+  private readonly bonusComponents = computed(() => new Set(this.rates()
+    .filter(rate => rate.requires_monthly_spend_minor !== null)
+    .map(rate => `${rate.product_id}|${rate.component}`)));
+
+  /**
+   * What a day or a payment was worked out at, said beside its date (Jose,
+   * 2026-10-02: to know how and from what each day was worked out): the
+   * rate, or that it is a spending bonus - earned at its rate, or not earned
+   * that month - or a CDT's payment.
+   */
+  kindOf(line: ProductLine, productId: number, component: string, rateScaled: number, on: IsoDate): { text: string; tone: string } {
+    const rate = this.rateText(rateScaled);
+    if (this.productById(line, productId)?.kind === 'cdt') return { text: this.i18n.t('products.dayKind.cdt', { rate }), tone: 'cdt' };
+    if (this.bonusComponents().has(`${productId}|${component}`)) {
+      if (rateScaled > 0) return { text: this.i18n.t('products.dayKind.bonus', { rate }), tone: 'bonus' };
+      // A month still running is judged on what was spent so far: it may yet
+      // be earned, so it is pending rather than lost.
+      return on.slice(0, 7) >= today().slice(0, 7)
+        ? { text: this.i18n.t('products.dayKind.bonusPending'), tone: 'missed' }
+        : { text: this.i18n.t('products.dayKind.bonusMissed'), tone: 'missed' };
+    }
+    return { text: rate, tone: 'rate' };
   }
 
   /**

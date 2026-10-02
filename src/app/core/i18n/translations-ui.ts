@@ -916,6 +916,10 @@ export const UI_ES = {
   'home.kind.capsTotal': 'Todos tus topes del mes',
   'home.kind.goal': 'Meta de ahorro',
   'products.month.net': 'Neto {amount}',
+  'products.dayKind.bonus': 'Bonificación {rate}',
+  'products.dayKind.bonusMissed': 'Bonificación no ganada',
+  'products.dayKind.cdt': 'Pago del CDT {rate}',
+  'products.dayKind.bonusPending': 'Bonificación pendiente',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -1829,4 +1833,8 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'home.kind.capsTotal': 'All your caps this month',
   'home.kind.goal': 'Savings goal',
   'products.month.net': 'Net {amount}',
+  'products.dayKind.bonus': 'Bonus {rate}',
+  'products.dayKind.bonusMissed': 'Bonus not earned',
+  'products.dayKind.cdt': 'CDT payment {rate}',
+  'products.dayKind.bonusPending': 'Bonus pending',
 };

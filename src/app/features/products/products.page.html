@@ -511,7 +511,8 @@
                               @let product = productById(line, payment.productId);
                               @if (product) { <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
                               <span class="ui-tx">
-                                <b class="ui-one">{{ weekdayDay(payment.on) }}</b>
+                                @let pk = kindOf(line, payment.productId, payment.component, payment.rateScaled, payment.lastOn);
+                                <b class="ui-one">{{ weekdayDay(payment.on) }} <span [class]="'day-kind ' + pk.tone">· {{ pk.text }}</span></b>
                                 <small class="ui-one">{{ paymentLine(line, payment) }}</small>
                               </span>
                               <span class="am">
@@ -565,7 +566,8 @@
                               @let product = productById(line, day.product_id);
                               @if (product) { <app-badge [size]="36" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
                               <span class="ui-tx">
-                                <b class="ui-one">{{ weekdayDay(day.on_date) }}</b>
+                                @let dk = kindOf(line, day.product_id, day.component, day.annual_rate_scaled, day.on_date);
+                                <b class="ui-one">{{ weekdayDay(day.on_date) }} <span [class]="'day-kind ' + dk.tone">· {{ dk.text }}</span></b>
                                 <small class="ui-one">{{ dayLine(line, day) }}</small>
                               </span>
                               <span class="am">
