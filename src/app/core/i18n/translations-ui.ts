@@ -690,7 +690,8 @@ export const UI_ES = {
   'plans.home.passedCount.one': '1 tope pasado',
   'plans.home.daysLeft': 'quedan {count} días',
   'plans.home.daysLeft.one': 'hoy es el último día',
-  'plans.home.close': '{name} va en {percent} %',
+  'plans.home.closeLine': 'Llevas el {percent} % · quedan {left} para {count} días',
+  'plans.home.closeLine.one': 'Llevas el {percent} % · quedan {left} para hoy',
   'plans.form.new': 'Nuevo tope',
   'plans.form.edit': 'Cambiar el tope',
   'plans.form.amount': 'Cuánto al mes',
@@ -910,6 +911,10 @@ export const UI_ES = {
   'cards.why.what.title': 'Qué hacer',
   'cards.why.what.body': 'Si tu extracto dice otra cifra, escríbela en "¿Tu extracto dice otra cifra?". La app la usará para esta factura, te dirá la diferencia y pasará a "Desde el corte" lo que el banco dejó para después.',
   'cards.why.close': 'Entendido',
+  'home.kind.cap': 'Tope de gasto del mes',
+  'home.kind.capPassed': 'Tope de gasto pasado',
+  'home.kind.capsTotal': 'Todos tus topes del mes',
+  'home.kind.goal': 'Meta de ahorro',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -1597,7 +1602,8 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'plans.home.passedCount.one': '1 cap over',
   'plans.home.daysLeft': '{count} days left',
   'plans.home.daysLeft.one': 'today is the last day',
-  'plans.home.close': '{name} is at {percent} %',
+  'plans.home.closeLine': '{percent} % used · {left} left for {count} days',
+  'plans.home.closeLine.one': '{percent} % used · {left} left for today',
   'plans.form.new': 'New cap',
   'plans.form.edit': 'Change the cap',
   'plans.form.amount': 'How much a month',
@@ -1817,4 +1823,8 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'cards.why.what.title': 'What to do',
   'cards.why.what.body': 'If your statement says something else, type it in "Does your statement say something else?". The app will use it for this statement, show you the difference and move to "Since the cut-off" what the bank left for later.',
   'cards.why.close': 'Got it',
+  'home.kind.cap': 'Monthly spending cap',
+  'home.kind.capPassed': 'Spending cap gone over',
+  'home.kind.capsTotal': 'All your caps this month',
+  'home.kind.goal': 'Savings goal',
 };
