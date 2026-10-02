@@ -3352,7 +3352,10 @@ left of the statement and the usual note.
   opens a sheet with every reason (cut-off-day purchases, holds charged
   later, payments posted the next working day, fees only the bank knows,
   installments, other currencies, refunds, something typed differently, the
-  minimum against the total, what to do). Tests in `card-statement.test.mjs`
+  minimum against the total, what to do). The figure to type is the total due:
+  the minimum only avoids mora, the rest earns interest; without
+  installment purchases the two are the same figure (Jose's Rappi Card)
+  and the hint says so plainly (2026-10-02). Tests in `card-statement.test.mjs`
   hold Jose's real case. Checked in a browser on his backup of 2026-10-01;
   the typed figure was removed afterwards.
 
@@ -3585,6 +3588,12 @@ How it is made:
   only), each once a month per limit and level (kept in `localStorage`)
   and each only when switched on (`settings`, `limits.notice.*`). A limit
   changed by the person, or a new one, is never a crossing.
+  **And an expense saved into a cap already past raises the sheet again**
+  (Jose, 2026-10-02: a Restaurante expense over a cap passed earlier that
+  month said nothing, by the crossing rule alone). It reads "Sigues por
+  encima de tu tope de {name}", every time, while "Al guardar" is on; the
+  phone notification stays once a month, on the crossing (`stillOver` in
+  `limits.ts`).
 - **On Inicio every card says what it is** (Jose, 2026-10-02: a late goal
   and a cap at 96 % read as the same thing): a small coloured line on top -
   "Tope de gasto pasado" / "Todos tus topes del mes" in red, "Tope de gasto

@@ -263,3 +263,22 @@ export function crossings(before: ReadonlyMap<number | 'total', Level>, after: R
   }
   return found;
 }
+
+/**
+ * What was already past and took more spending between two readings: a
+ * purchase into a cap already passed crosses nothing, and still deserves to
+ * be told at saving (Jose, 2026-10-02: a Restaurante expense over a cap
+ * passed earlier in the month said nothing). Readings carry what was spent
+ * per key; a key missing from either side is not compared.
+ */
+export function stillOver(before: ReadonlyMap<number | 'total', number>, after: ReadonlyMap<number | 'total', number>,
+                          amounts: ReadonlyMap<number | 'total', number>): (number | 'total')[] {
+  const found: (number | 'total')[] = [];
+  for (const [key, spent] of after) {
+    const was = before.get(key);
+    const amount = amounts.get(key);
+    if (was === undefined || amount === undefined) continue;
+    if (was > amount && spent > was) found.push(key);
+  }
+  return found;
+}

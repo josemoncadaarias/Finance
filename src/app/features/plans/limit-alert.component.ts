@@ -1,6 +1,7 @@
 /**
  * The sheet when a saved movement takes a limit, or the total of every limit,
- * past it (mockups `14h`, `14n`). Once a month per limit; nothing is blocked,
+ * past it (mockups `14h`, `14n`), and again for each expense saved into one
+ * already past (Jose, 2026-10-02). Nothing is blocked,
  * the movement is already saved. "No volver a mostrar esto" turns the sheet
  * off; Avisos in Planes turns it back on (Jose, 2026-10-01).
  */
@@ -28,13 +29,13 @@ import { plain, ratio } from './plans-words';
             <span class="icon"><ion-icon name="alert-circle-outline"></ion-icon></span>
             @if (a.kind === 'total') {
               @let t = a.month.total!;
-              <b class="title">{{ 'plans.alert.total' | t }}</b>
+              <b class="title">{{ (a.again ? 'plans.alert.total.again' : 'plans.alert.total') | t }}</b>
               <p class="ui-sub">{{ 'plans.alert.total.body' | t:{ spent: money(t.spentMinor), amount: money(t.amountMinor) } }}</p>
               <p class="over">{{ 'plans.overBy' | t:{ amount: money(t.overMinor) } }} · {{ 'plans.home.passedCount' | t:{ count: t.passedCount } }}</p>
               <app-limit-bar class="big" [percent]="ratio(t)" state="passed"></app-limit-bar>
             } @else {
               @let s = a.view.status;
-              <b class="title">{{ 'plans.alert.limit' | t:{ name: a.view.name } }}</b>
+              <b class="title">{{ (a.again ? 'plans.alert.limit.again' : 'plans.alert.limit') | t:{ name: a.view.name } }}</b>
               <p class="ui-sub">{{ 'plans.alert.limit.body' | t:{ spent: money(s.spentMinor), amount: money(s.amountMinor) } }}</p>
               <p class="over">{{ 'plans.overBy' | t:{ amount: money(s.overMinor) } }}@if (s.daysLeft > 0) { · {{ 'plans.home.daysLeft' | t:{ count: s.daysLeft } }} }</p>
               <app-limit-bar class="big" [percent]="ratio(s)" state="passed"></app-limit-bar>

@@ -21,7 +21,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { formatMoney } from '../database/money';
 import { isoDay } from '../filters/period';
 import {
-  crossings, levelOf, limitStatus, monthOf, shiftMonth, totalStatus,
+  crossings, levelOf, limitStatus, stillOver, monthOf, shiftMonth, totalStatus,
   type Crossing, type Level, type LimitStatus, type LimitTerms, type SpendRow, type TotalStatus,
 } from './limits';
 import { LimitsRepository, type LimitInput, type LimitNotices } from './limits.repository';
@@ -49,8 +49,8 @@ export interface MonthView {
 
 /** What the sheet at saving says (`14h`, `14n`). */
 export type LimitAlert =
-  | { kind: 'limit'; view: LimitView }
-  | { kind: 'total'; month: MonthView };
+  | { kind: 'limit'; view: LimitView; again?: boolean }
+  | { kind: 'total'; month: MonthView; again?: boolean };
 
 const TOLD_KEY = 'finance.limits.told';
 
@@ -97,7 +97,9 @@ export class LimitsService {
   /** Categories some limit already covers: a category goes in one limit at most. */
   readonly taken = computed(() => new Map(this.limits().flatMap(limit => limit.categoryIds.map(id => [id, limit.id] as const))));
 
-  private levels: { month: string; ids: Set<number>; at: Map<number | 'total', Level> } | null = null;
+  private levels: {
+    month: string; ids: Set<number>; at: Map<number | 'total', Level>; spent: Map<number | 'total', number>;
+  } | null = null;
   /** Set while a limit itself is changed: lowering a figure under what was spent is not a purchase. */
   private quiet = false;
 
@@ -200,9 +202,15 @@ export class LimitsService {
     const view = this.current();
     const at = new Map<number | 'total', Level>(view.limits.map(l => [l.terms.id, levelOf(l.status.spentMinor, l.status.amountMinor)]));
     if (view.total) at.set('total', levelOf(view.total.spentMinor, view.total.amountMinor));
+    const spent = new Map<number | 'total', number>(view.limits.map(l => [l.terms.id, l.status.spentMinor]));
+    const amounts = new Map<number | 'total', number>(view.limits.map(l => [l.terms.id, l.status.amountMinor]));
+    if (view.total) {
+      spent.set('total', view.total.spentMinor);
+      amounts.set('total', view.total.amountMinor);
+    }
     const ids = new Set(view.limits.map(l => l.terms.id));
     const before = this.levels;
-    this.levels = { month: view.month, ids, at };
+    this.levels = { month: view.month, ids, at, spent };
     if (this.quiet) { this.quiet = false; return; }
     if (!before || before.month !== view.month) return;
     // A limit that was not there before is not a crossing, and the total is
@@ -210,7 +218,15 @@ export class LimitsService {
     const known = new Map([...before.at].filter(([key]) => key !== 'total' || sameSet(before.ids, ids)));
     for (const key of ids) if (!before.ids.has(key)) known.delete(key);
     const found = crossings(known, at).filter(c => c.key === 'total' || before.ids.has(c.key as number));
-    if (found.length) this.tell(found, view);
+    if (found.length) { this.tell(found, view); return; }
+    // Nothing crossed, but a cap already past took more: said at saving only,
+    // every time - the phone is told once a month, on the crossing.
+    if (!this.notices().atSave) return;
+    const knownSpent = new Map([...before.spent].filter(([key]) => known.has(key)));
+    const over = stillOver(knownSpent, spent, amounts);
+    const limit = view.limits.find(l => over.includes(l.terms.id));
+    if (limit) this.alert.set({ kind: 'limit', view: limit, again: true });
+    else if (over.includes('total')) this.alert.set({ kind: 'total', month: view, again: true });
   }
 
   private tell(found: Crossing[], view: MonthView): void {
