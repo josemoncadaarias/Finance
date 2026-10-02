@@ -281,7 +281,6 @@ export const SPANISH = {
   'summary.income': 'Ingreso',
   'summary.recordExpense': 'Registrar un gasto',
   'summary.recordIncome': 'Registrar un ingreso',
-  'summary.correctedByHand': 'Corregido a mano',
   'summary.allMovements': 'Todos los movimientos',
 
   'summary.editAccount': 'Editar esta cuenta',
@@ -1337,7 +1336,6 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'summary.income': 'Income',
   'summary.recordExpense': 'Record an expense',
   'summary.recordIncome': 'Record income',
-  'summary.correctedByHand': 'Corrected by hand',
   'summary.allMovements': 'All movements',
 
   'summary.editAccount': 'Edit this account',

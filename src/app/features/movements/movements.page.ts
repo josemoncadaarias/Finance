@@ -45,6 +45,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
 import { MOVE_COLOR } from '../../core/theme/palette';
 import { LimitsHomeComponent } from '../plans/limits-home.component';
+import { DueHomeComponent } from '../debts/due-home.component';
 
 @Component({
   selector: 'app-movements',
@@ -52,7 +53,7 @@ import { LimitsHomeComponent } from '../plans/limits-home.component';
   styleUrls: ['./movements.page.scss'],
   imports: [
     CommonModule, FormsModule, MoneyPipe, SpendingChartComponent, SwipeDirective, BadgeComponent,
-    TranslatePipe, ScopeSheetsComponent, LimitsHomeComponent,
+    TranslatePipe, ScopeSheetsComponent, LimitsHomeComponent, DueHomeComponent,
     IonContent, IonHeader, IonIcon, IonSpinner,
   ],
 })
@@ -552,7 +553,6 @@ export class MovementsPage {
       }
       if (this.filter.grouping() === 'largest') parts.push(this.dayHeading(t.occurred_on));
     }
-    if (t.locked) parts.push(this.i18n.t('ui.row.corrected'));
     return parts.join(' · ');
   }
 

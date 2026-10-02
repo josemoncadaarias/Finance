@@ -113,6 +113,8 @@ detail of each is in the section named):
 | #32 | Inicio says whether each card is a cap or a goal | "Part 3, plans - limits" |
 | #33 | A movement dated in a month already worked out redoes that month's yields | "Current status" |
 | #34-#36 | Días/Pagos: product on every line, gross in green, rate or bonus beside the date; "Llevas acumulado en {mes}" on the yields screen | "Also fixed the same day" |
+| #38 | An expense into a cap already past says so at saving; the card's "pago total" hint reworded | "Part 3, plans - limits"; "Part 1, the card" |
+| #39 | Inicio's "Esta semana" (card and loan payments due or late); the lock on hand-edited movements no longer shown | "Debts and plans" (Inicio); rule 12 |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -142,8 +144,7 @@ these):
   (Cuentas → Rendimientos, the round arrow): months already worked out with
   a late movement in them are only redone from then on.
 - **Not started, waiting for Jose's word** (proposed to him 2026-10-02):
-  Inicio's "Esta semana" (card and loan payments due, labelled like caps and
-  goals); the paywall service and screen (rule 21); the privacy policy and
+  the paywall service and screen (rule 21); the privacy policy and
   site for Jadex Labs; several debts' strategies (avalanche, snowball); the
   ideas from Lukas's atajos (rule 22).
 - The open questions of rule 21 (which report sections are paid, lifetime
@@ -356,6 +357,11 @@ backup restore against iOS's own SQLite backend.
    history; nothing new is ever written to them and no new work leans on them.
    A row flagged `locked` still means "Jose corrected this by hand", and that
    is the one part still worth honouring.
+   **It is no longer shown** (Jose, 2026-10-02: the lock beside an edited
+   movement on Inicio was confusing and served nothing). Verified that day:
+   nothing but that icon, the words "corregido a mano" on the row and the
+   CSV export's column read `transactions.locked`; no matching, import or
+   engine leans on it. Editing still sets it and the CSV still carries it.
 
 15. **Interest and cashback stay outside net worth.** Money earned that was
    never counted on. It accumulates outside the balance of the account that
@@ -3251,6 +3257,15 @@ on the day, the figures change monthly):
 - **Paying an installment** (`11j`): the transfer form with its split shown.
 - **Inicio says only what needs attention** (`11o`): "Esta semana" - a card
   to pay, an installment due, a limit passed; nothing when there is nothing.
+- **"Esta semana" is BUILT (2026-10-02)**: `app-due-home` on Inicio, above
+  the caps and goals, one row per card statement or loan installment that is
+  late or due within seven days (`dueSoon` in `core/debts/due-soon.ts`, pure,
+  `due-soon.test.mjs`), each with its labelled kind line - "Pago de tarjeta",
+  "Cuota de préstamo", red with "vencido/a" when late - the amount and when
+  ("vence mañana", "venció el 28 de sept, hace 4 días"). It reads what the
+  card's statement and the loan's schedule already work out; a card without
+  its two days says nothing. A row opens the card's or the loan's page.
+  Checked on the demo backup (an overdue installment and card).
 - **Reminders** ("3 days before paying") are local notifications, no server
   (idea 6/12 of the table below).
 
