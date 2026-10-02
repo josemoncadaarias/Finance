@@ -1,9 +1,10 @@
 /**
- * Monedas y tasas (mockups 2c, 2d, 2e): today's dollar, every currency the
- * app knows with the rate it is valued at, typing a rate for today, and
- * adding a currency. One screen, reached from Cuentas (Jose, 2026-09-28):
- * it used to be the foot of the accounts screen and the inside of "¿De
- * dónde sale?".
+ * Monedas y TRM (mockups 2c, 2d, 2e; renamed from "Monedas y tasas" by Jose
+ * on 2026-10-02, so it is not mistaken for the yields' rates): every
+ * currency kept in pesos today with where its value comes from and whether
+ * it is today's, one button that updates them all, typing a value for
+ * today, and adding a currency. Reached from Cuentas and from Más →
+ * Herramientas (Jose, 2026-10-02).
  *
  * Nothing here changes how rates work: the TRM is fetched as before, a typed
  * rate is dated today as before (rule 4), and history is never recalculated.
@@ -49,26 +50,37 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
       </header>
 
       <div class="ui-main">
-        <!-- The dollar has a public source; the app fetches it rather than
-             asking somebody to look it up. -->
+        <!-- Every currency kept, in pesos today, and whether each is today's
+             (Jose, 2026-10-02): one button brings them all up to date. -->
         <section class="ui-hero trm">
-          <span class="ui-lab">{{ dollarTitle() }}</span>
-          @if (rates.currentText(); as value) {
-            <div class="ui-big">{{ value }}</div>
-            <p class="ui-sub">{{ rates.current()!.source === 'trm' ? ('ui.currencies.official' | t) : ('ui.currencies.typedByHand' | t) }}</p>
-          } @else {
+          <div class="top">
+            <span class="ui-lab">{{ 'ui.currencies.inPesos' | t }}</span>
+            <span class="ui-info" role="button" (click)="why.set(true)" [attr.aria-label]="'ui.info' | t">i</span>
+          </div>
+          @for (line of foreign(); track line.code) {
+            <div class="fx">
+              <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span>
+              <span class="ui-tx">
+                <b class="ui-one">{{ line.name }}</b>
+                <small [class.behind]="!isToday(line)">{{ freshness(line) }}</small>
+              </span>
+              @if (line.rate) { <b class="fx-value">{{ rateText(line.rate.rate_scaled) }}</b> }
+              @else { <b class="fx-value ui-y">{{ 'ui.currencies.noRate' | t }}</b> }
+            </div>
+          } @empty {
             <p class="ui-sub none">{{ 'accounts.trm.none' | t }}</p>
           }
           <div class="refresh">
-            <button type="button" class="ui-chip" [disabled]="rates.state() === 'checking'" (click)="refresh()">
-              @if (rates.state() === 'checking') { <ion-spinner name="dots"></ion-spinner> }
+            <button type="button" class="ui-chip" [disabled]="busy()" (click)="refresh()">
+              @if (busy()) { <ion-spinner name="dots"></ion-spinner> }
               @else { <ion-icon name="refresh-outline"></ion-icon> }
               {{ 'accounts.trm.refresh' | t }}
             </button>
-            @switch (rates.state()) {
-              @case ('updated') { <span class="ui-g">{{ 'accounts.trm.updated' | t }}</span> }
-              @case ('offline') { <span class="ui-y">{{ 'accounts.trm.offline' | t }}</span> }
-              @case ('failed') { <span class="ui-y">{{ 'accounts.trm.failed' | t }}</span> }
+            @if (!busy()) {
+              @if (rates.state() === 'offline') { <span class="ui-y">{{ 'accounts.trm.offline' | t }}</span> }
+              @else if (rates.state() === 'failed') { <span class="ui-y">{{ 'accounts.trm.failed' | t }}</span> }
+              @else if (behindCount() === 0) { <span class="ui-g"><ion-icon name="checkmark-circle"></ion-icon> {{ 'ui.currencies.allToday' | t }}</span> }
+              @else { <span class="ui-y">{{ 'ui.currencies.behind' | t:{ count: behindCount() } }}</span> }
             }
           </div>
         </section>
@@ -87,7 +99,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
                   <b>{{ 'ui.currencies.main' | t }}</b>
                 } @else if (line.rate) {
                   <b>{{ rateText(line.rate.rate_scaled) }}</b>
-                  <small>{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'derived' ? ('ui.currencies.derived' | t) : ('ui.currencies.typed' | t) }}</small>
+                  <small>{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'manual' ? ('ui.currencies.typed' | t) : ('ui.currencies.derived' | t) }}</small>
                 } @else {
                   <b class="ui-y">{{ 'ui.currencies.noRate' | t }}</b>
                   <small>{{ 'ui.currencies.cannotValue' | t }}</small>
@@ -130,11 +142,30 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
     </ion-modal>
 
     <app-currency-dialog [open]="adding()" (saved)="added()" (cancelled)="adding.set(false)"></app-currency-dialog>
+
+    <ion-modal class="confirm-sheet" [isOpen]="why()" (didDismiss)="why.set(false)">
+      <ng-template>
+        <div class="confirm-dialog">
+          <h2>{{ 'ui.currencies.title' | t }}</h2>
+          <p>{{ 'ui.currencies.why' | t }}</p>
+          <div class="buttons">
+            <button type="button" class="ui-btn" (click)="why.set(false)">{{ 'plans.alert.ok' | t }}</button>
+          </div>
+        </div>
+      </ng-template>
+    </ion-modal>
   `,
   styles: [`
     .ui-titlebar { background: transparent; border-bottom: 0; }
-    .trm .ui-big { font-size: 32px; }
+    .trm .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .trm .none { margin: 8px 0; }
+    .fx { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+    .fx:first-of-type { border-top: 0; }
+    .fx .ui-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .fx .ui-tx small { color: var(--app-mu); font-size: 12.5px; }
+    .fx .ui-tx small.behind { color: var(--app-yel); }
+    .fx-value { font-size: 19px; font-weight: 700; flex: none; }
+    .refresh .ui-g { display: inline-flex; align-items: center; gap: 4px; }
     .refresh { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13.5px; flex-wrap: wrap; }
     .refresh .ui-chip { display: inline-flex; align-items: center; gap: 6px; }
     .refresh ion-icon { font-size: 17px; }
@@ -157,6 +188,14 @@ export class CurrenciesPage {
   readonly rates = inject(RatesService);
 
   readonly lines = signal<CurrencyLine[]>([]);
+  readonly why = signal(false);
+  readonly busy = signal(false);
+
+  /** Every currency but the peso, for the card on top. */
+  readonly foreign = computed(() => this.lines().filter(line => line.code !== 'COP'));
+
+  /** How many have no value dated today. */
+  readonly behindCount = computed(() => this.foreign().filter(line => !this.isToday(line)).length);
   readonly adding = signal(false);
   readonly typing = signal<CurrencyLine | null>(null);
   readonly draft = signal('');
@@ -164,14 +203,6 @@ export class CurrenciesPage {
   readonly draftValid = computed(() => {
     const value = parseRate(this.draft());
     return Number.isFinite(value) && value > 0;
-  });
-
-  /** "Dólar hoy · TRM del 27 sept". */
-  readonly dollarTitle = computed(() => {
-    const rate = this.rates.current();
-    const today = this.i18n.t('ui.currencies.dollarToday');
-    if (!rate) return today;
-    return `${today} · ${this.i18n.t('accounts.trm.on', { date: this.shortDate(rate.on_date) })}`;
   });
 
   constructor() {
@@ -191,9 +222,36 @@ export class CurrenciesPage {
     await this.rates.load();
   }
 
+  /** The one button: the dollar and every other currency (Jose, 2026-10-02). */
   async refresh(): Promise<void> {
-    await this.rates.refresh({ force: true });
-    await this.load();
+    this.busy.set(true);
+    try {
+      await this.rates.refreshAll({ force: true });
+      await this.load();
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  isToday(line: CurrencyLine): boolean {
+    return line.rate !== null && line.rate.on_date >= todayIso();
+  }
+
+  /** Where the value comes from and of which day: "TRM oficial · hoy". */
+  freshness(line: CurrencyLine): string {
+    const result = this.rates.others().get(line.code);
+    if (!line.rate) {
+      if (result === 'failed') return this.i18n.t('ui.currencies.unreachable');
+      return this.i18n.t('ui.currencies.noSource');
+    }
+    const from = line.rate.source === 'trm' ? 'ui.currencies.fromTrm'
+      : line.rate.source === 'manual' ? 'ui.currencies.fromHand' : 'ui.currencies.fromEcb';
+    const when = this.isToday(line)
+      ? this.i18n.t('ui.currencies.sinceToday')
+      : this.i18n.t('ui.currencies.since', { date: this.shortDate(line.rate.on_date) });
+    // A source that could not be reached is said once, under the button.
+    const extra = !this.isToday(line) && result === 'noSource' ? ` · ${this.i18n.t('ui.currencies.noSource')}` : '';
+    return `${this.i18n.t(from)} · ${when}${extra}`;
   }
 
   typeRate(line: CurrencyLine): void {

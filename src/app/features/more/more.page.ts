@@ -78,6 +78,8 @@ export class MorePage {
   readonly categories = signal<{ active: number; archived: number }>({ active: 0, archived: 0 });
   readonly notificationsSupported = signal(false);
   readonly markedApps = signal(0);
+  /** The currencies kept, as the line under "Monedas y TRM": "COP · USD · EUR". */
+  readonly currencies = signal<string[]>([]);
   readonly cards = signal<CardSummary[]>([]);
   readonly loans = signal<LoanSchedule[]>([]);
 
@@ -107,6 +109,10 @@ export class MorePage {
       `SELECT SUM(CASE WHEN archived = 0 THEN 1 ELSE 0 END) AS active,
               SUM(CASE WHEN archived = 1 THEN 1 ELSE 0 END) AS archived FROM categories`);
     this.categories.set({ active: row?.active ?? 0, archived: row?.archived ?? 0 });
+    this.currencies.set((await db.query<{ code: string }>(
+      `SELECT c.code FROM currencies c
+       ORDER BY c.code = 'COP' DESC, (SELECT COUNT(*) FROM accounts a WHERE a.currency_code = c.code) DESC, c.code`))
+      .map(one => one.code));
     this.cards.set(await loadCards(db, isoDay(new Date())));
     const today = isoDay(new Date());
     this.loans.set((await new LoansRepository(db).all()).filter(l => !l.account.archived)

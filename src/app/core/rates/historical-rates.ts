@@ -59,20 +59,32 @@ export async function trmOn(date: string, fetcher: Fetcher = fetch): Promise<num
 }
 
 /**
- * Dollars per euro on a day, scaled by 100,000 - the ECB quotes five figures.
+ * Dollars per unit of a currency on a day, scaled by 100,000 - the ECB quotes
+ * five figures. Any currency the ECB publishes against the euro (the pound,
+ * the Swiss franc, the yen, the Mexican peso, the real...); null for one it
+ * does not, which is then typed by hand.
  *
  * The ECB publishes on business days only; asked about a weekend it answers
  * with the Friday, which is the rate that was in force.
  */
-export async function eurUsdOn(date: string, fetcher: Fetcher = fetch): Promise<number | null> {
-  const payload = await json(`${ECB_ENDPOINT}/${date}?base=EUR&symbols=USD`, fetcher);
+export async function inUsdOn(currency: string, date: string, fetcher: Fetcher = fetch): Promise<number | null> {
+  const payload = await json(`${ECB_ENDPOINT}/${date}?base=${encodeURIComponent(currency)}&symbols=USD`, fetcher);
   const value = (payload as { rates?: { USD?: number } } | null)?.rates?.USD;
   return typeof value === 'number' && value > 0 ? Math.round(value * 100_000) : null;
+}
+
+/** Dollars per euro: the first currency this was written for. */
+export function eurUsdOn(date: string, fetcher: Fetcher = fetch): Promise<number | null> {
+  return inUsdOn('EUR', date, fetcher);
 }
 
 /**
  * A currency in pesos on a day, or null when there is no official figure for
  * it or no way to reach one right now.
+ *
+ * The dollar is the TRM; every other currency the ECB publishes is its
+ * dollar value times the TRM - official on both sides, derived in between
+ * (Jose, 2026-09-18 for the euro; 2026-10-02 for every currency he keeps).
  *
  * Null is an answer, not a failure: rule 3 of this project is that a currency
  * with no rate on record is reported, never guessed at.
@@ -80,19 +92,16 @@ export async function eurUsdOn(date: string, fetcher: Fetcher = fetch): Promise<
 export async function rateToPesosOn(
   currency: string, date: string, fetcher: Fetcher = fetch,
 ): Promise<RateToPesos | null> {
+  if (currency === 'COP') return null;
   if (currency === 'USD') {
     const trm = await trmOn(date, fetcher);
     return trm === null ? null : { rate_scaled: trm, source: 'trm' };
   }
 
-  if (currency === 'EUR') {
-    const [eurUsd, trm] = await Promise.all([eurUsdOn(date, fetcher), trmOn(date, fetcher)]);
-    if (eurUsd === null || trm === null) return null;
-    // Integers the whole way: 1.16480 USD/EUR (x100,000) times 4,049.3500
-    // COP/USD (x10,000), brought back to the x10,000 every rate here uses.
-    // One rounding, at the end.
-    return { rate_scaled: Math.round((eurUsd * trm) / 100_000), source: 'ecb-trm' };
-  }
-
-  return null;
+  const [inUsd, trm] = await Promise.all([inUsdOn(currency, date, fetcher), trmOn(date, fetcher)]);
+  if (inUsd === null || trm === null) return null;
+  // Integers the whole way: 1.16480 USD/EUR (x100,000) times 4,049.3500
+  // COP/USD (x10,000), brought back to the x10,000 every rate here uses.
+  // One rounding, at the end.
+  return { rate_scaled: Math.round((inUsd * trm) / 100_000), source: 'ecb-trm' };
 }

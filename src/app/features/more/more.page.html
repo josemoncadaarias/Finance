@@ -81,6 +81,11 @@
 
     <div class="ui-h">{{ 'more.tools' | t }}</div>
     <div class="ui-list">
+      <button type="button" class="ui-row" (click)="go('/currencies')">
+        <app-badge [size]="40" builtin="cash-outline" fixed="#34c98b"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'ui.currencies.title' | t }}</b><small class="wrap">{{ currencies().join(' · ') }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
       <button type="button" class="ui-row" (click)="go('/tax')">
         <app-badge [size]="40" builtin="calculator-outline" fixed="#ff9152"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.tax' | t }}</b><small>{{ 'more.tax.hint' | t:{ year } }}</small></span>

@@ -390,7 +390,7 @@ export const SPANISH = {
   'accounts.trm.on': 'TRM del {date}',
   'accounts.trm.official': 'oficial',
   'accounts.trm.typed': 'escrita a mano',
-  'accounts.trm.none': 'Todavía no hay tasa para el dólar',
+  'accounts.trm.none': 'Todavía no hay TRM para el dólar',
   'accounts.trm.refresh': 'Actualizar',
   'accounts.trm.updated': 'Actualizada ahora',
   'accounts.trm.offline': 'Sin internet: se queda la última que había.',
@@ -554,10 +554,10 @@ export const SPANISH = {
   'cloud.where': 'La copia es el mismo archivo que guarda "Importar y exportar". Puedes borrarla cuando quieras desde los permisos de tu cuenta de Google.',
 
   // --- what the app has read and nobody has answered yet ------------------
-  'nav.notifications': 'Avisos del banco',
+  'nav.notifications': 'Notificaciones del teléfono',
   'nav.notifications.hint': 'Lo que tus bancos mandan al celular, tal cual',
 
-  'notifications.title': 'Avisos del banco',
+  'notifications.title': 'Notificaciones del teléfono',
   'notifications.lead': 'Primero hay que ver qué mandan tus bancos, sin interpretar nada. Con eso decidimos qué se puede sacar de cada aviso.',
   'notifications.androidOnly': 'Esto solo existe en Android',
   'notifications.androidOnly.hint': 'iOS no deja que una app lea los avisos de otra, y el navegador tampoco tiene avisos. El resto de la app funciona igual.',
@@ -603,7 +603,7 @@ export const SPANISH = {
   'review.empty': 'No hay nada por revisar',
   'review.empty.hint': 'Cuando importes el extracto de una cuenta, lo que la app lea aparece aquí para que lo confirmes. Nada se guarda sin que tú lo apruebes.',
   'review.fromStatement': 'Extracto de {account} · {file}',
-  'review.fromNotification': 'Aviso del banco · {account}',
+  'review.fromNotification': 'Notificación · {account}',
   'review.noAccount': 'sin cuenta',
   'review.batch.count': '{count} movimientos por confirmar',
   'review.batch.count.one': '1 movimiento por confirmar',
@@ -1442,7 +1442,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.trm.on': 'TRM of {date}',
   'accounts.trm.official': 'official',
   'accounts.trm.typed': 'typed by hand',
-  'accounts.trm.none': 'No rate for the dollar yet',
+  'accounts.trm.none': 'No TRM for the dollar yet',
   'accounts.trm.refresh': 'Refresh',
   'accounts.trm.updated': 'Just updated',
   'accounts.trm.offline': 'No connection: the last one stays.',
@@ -1605,10 +1605,10 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'cloud.where': 'The copy is the same file "Import and export" writes. You can delete it whenever you like from your Google account permissions.',
 
   // --- what the app has read and nobody has answered yet ------------------
-  'nav.notifications': 'Bank notifications',
+  'nav.notifications': 'Phone notifications',
   'nav.notifications.hint': 'What your banks post to the phone, word for word',
 
-  'notifications.title': 'Bank notifications',
+  'notifications.title': 'Phone notifications',
   'notifications.lead': 'First, see what your banks actually post, reading nothing into it. What can be taken from a notification is decided from that.',
   'notifications.androidOnly': 'This only exists on Android',
   'notifications.androidOnly.hint': 'iOS does not let an app read another app\'s notifications, and a browser has none. The rest of the app works the same.',
@@ -1654,7 +1654,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'review.empty': 'Nothing to review',
   'review.empty.hint': 'When you import an account\u2019s statement, what the app reads shows up here for you to confirm. Nothing is saved until you say so.',
   'review.fromStatement': 'Statement of {account} · {file}',
-  'review.fromNotification': 'Bank notification · {account}',
+  'review.fromNotification': 'Notification · {account}',
   'review.noAccount': 'no account',
   'review.batch.count': '{count} movements to confirm',
   'review.batch.count.one': '1 movement to confirm',

@@ -17,8 +17,16 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { DatabaseService } from '../database/database.service';
 import { RatesRepository, RATE_SCALE, type Rate } from '../database/repositories/rates.repository';
 import { fetchTrm, TrmError } from './trm-client';
+import { inUsdOn, trmOn } from './historical-rates';
 
 export type RefreshState = 'idle' | 'checking' | 'updated' | 'offline' | 'failed';
+
+/**
+ * What the last refresh did for one currency other than the dollar:
+ * fetched today's, kept a rate typed by hand today, found no official
+ * source for it (typed by hand from then on), or could not reach the source.
+ */
+export type OtherResult = 'updated' | 'typed' | 'noSource' | 'failed';
 
 /** The dollar is the only rate that has a public source; the rest are typed. */
 const TRM_CURRENCY = 'USD';
@@ -127,6 +135,60 @@ export class RatesService {
       this.state.set(error instanceof TrmError && !navigator.onLine ? 'offline' : 'failed');
     }
   }
+
+  /** What the last refresh did for each currency other than the dollar. */
+  readonly others = signal<ReadonlyMap<string, OtherResult>>(new Map());
+
+  /**
+   * Today's rate for every other currency the person keeps: its value in
+   * dollars from the ECB times the TRM (`rateToPesosOn`). Once a day unless
+   * forced; a rate typed by hand today is never written over (rule 7).
+   */
+  async refreshOthers(options: { force?: boolean } = {}): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    const db = this.database.driver;
+    const rates = new RatesRepository(db);
+    const today = todayIso();
+    const results = new Map<string, OtherResult>();
+    let trm: number | null | undefined;
+    let wrote = false;
+
+    for (const code of await otherCodes(db)) {
+      const existing = await rates.inForce(code, BASE_CURRENCY, today);
+      if (existing?.on_date === today && existing.source === 'manual') { results.set(code, 'typed'); continue; }
+      if (!options.force && existing?.on_date === today) { results.set(code, 'updated'); continue; }
+      if (trm === undefined) trm = await trmOn(today);
+      if (trm === null) { results.set(code, 'failed'); continue; }
+      const inUsd = await inUsdOn(code, today);
+      if (inUsd === null) { results.set(code, navigator.onLine ? 'noSource' : 'failed'); continue; }
+      // Integers the whole way, one rounding at the end (as rateToPesosOn).
+      await rates.set({
+        on_date: today, base_code: code, quote_code: BASE_CURRENCY,
+        rate_scaled: Math.round((inUsd * trm) / 100_000), source: 'ecb-trm',
+      });
+      results.set(code, 'updated');
+      wrote = true;
+    }
+    this.others.set(results);
+    if (wrote) this.database.dataChanged();
+  }
+
+  /** The one button: the dollar, then every other currency. */
+  async refreshAll(options: { force?: boolean } = {}): Promise<void> {
+    await this.refresh(options);
+    try {
+      await this.refreshOthers(options);
+    } catch {
+      // The stored rates stand (rule 1); each currency says what it has.
+    }
+  }
+}
+
+/** Every currency the person keeps, other than the peso and the dollar. */
+async function otherCodes(db: DatabaseService['driver']): Promise<string[]> {
+  const rows = await db.query<{ code: string }>(
+    `SELECT code FROM currencies WHERE code NOT IN ('${BASE_CURRENCY}', '${TRM_CURRENCY}') ORDER BY code`);
+  return rows.map(row => row.code);
 }
 
 function todayIso(): string {

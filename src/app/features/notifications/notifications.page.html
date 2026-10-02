@@ -127,6 +127,11 @@
                   <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small>
                 </span>
                 @if (!selecting()) {
+                  <!-- Put this app away (Jose, 2026-10-02): beside its switch, not only in the selection bar. -->
+                  <button type="button" class="ui-round hide-app" (click)="$event.stopPropagation(); hide(app)"
+                          [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
+                    <ion-icon name="eye-off-outline"></ion-icon>
+                  </button>
                   <button type="button" class="ui-switch" [class.on]="app.watched" role="switch" [attr.aria-checked]="app.watched"
                           [attr.aria-label]="app.label" (click)="watch(app, !app.watched)"></button>
                 }
