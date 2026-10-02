@@ -3300,6 +3300,23 @@ left of the statement and the usual note.
   491,125, "Pago tarjeta de crédito RappiCard"); the days were cleared after.
   The bank's statement can differ (interest, installments, fees): the page
   says so.
+- **The bank's own figure can be typed** (Jose, 2026-10-02: his Rappi Card's
+  statement of 30 Sep said 34,591.00, the app 98,606.99 - two purchases he
+  recorded on the cut-off day, Claro 40,799.99 and Didi 23,216, which the
+  bank posted on the next statement; every other peso matched).
+  `card_statements` (migration 055) keeps one figure per card and cut-off
+  day; it then IS the statement (`bankFigures` in `cardStatement`), what is
+  left and "Desde el corte" are worked out from it, and the app's own figure
+  stays beside it with the difference - and, when the difference is exactly
+  the purchases recorded on the cut-off day, it says so. The next cut-off
+  goes back to the movements. Before anything is typed, purchases on the
+  cut-off day are pointed out. "¿Por qué el banco puede decir otra cifra?"
+  opens a sheet with every reason (cut-off-day purchases, holds charged
+  later, payments posted the next working day, fees only the bank knows,
+  installments, other currencies, refunds, something typed differently, the
+  minimum against the total, what to do). Tests in `card-statement.test.mjs`
+  hold Jose's real case. Checked in a browser on his backup of 2026-10-01;
+  the typed figure was removed afterwards.
 
 **Part 2, loans: DRAWN for Jose's word (2026-10-01)**, `docs/mockups/13a`-`13k`,
 on an invented loan whose every figure is worked out. What it proposes:

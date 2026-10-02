@@ -14,7 +14,7 @@ import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statem
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { cardStatement, lastCutBefore, dueAfter } from '../../src/app/core/cards/statement.ts';
-import { cardMovements, usualPayer } from '../../src/app/core/cards/card-data.ts';
+import { bankFigures, cardMovements, clearBankFigure, loadCards, setBankFigure, usualPayer } from '../../src/app/core/cards/card-data.ts';
 
 const buy = (onDate, pesos) => ({ onDate, amountMinor: -pesos * 100 });
 const pay = (onDate, pesos) => ({ onDate, amountMinor: pesos * 100 });
@@ -131,4 +131,71 @@ test('the card is paid from the account that pays it most, the newest winning a 
   const saved = await accounts.findById(c);
   assert.equal(saved.statement_day, 25);
   assert.equal(saved.due_day, 10);
+});
+
+// Jose's Rappi Card, 30 September 2026: the bank's statement says 34,591.00,
+// the movements 98,606.99 - two purchases of the cut-off day the bank posted
+// on the next statement (Claro 40,799.99 and Didi 23,216.00).
+const RAPPI = [
+  buy('2026-09-29', 1_034_591), pay('2026-09-30', 1_000_000),
+  { onDate: '2026-09-30', amountMinor: -4_079_999 }, buy('2026-09-30', 23_216),
+  buy('2026-10-01', 32_999),
+];
+const rappi = (today, figures) => cardStatement({
+  statementDay: 30, dueDay: 10, today, openingMinor: 0, movements: RAPPI, bankFigures: figures,
+});
+
+test('without the bank\'s figure the statement is what the movements say', () => {
+  const s = rappi('2026-10-02');
+  assert.equal(s.statementMinor, 9_860_699);
+  assert.equal(s.computedMinor, 9_860_699);
+  assert.equal(s.bankMinor, null);
+  assert.equal(s.differenceMinor, 0);
+  assert.equal(s.cutDayCount, 2);
+  assert.equal(s.cutDayMinor, 6_401_599);
+});
+
+test('the bank\'s figure is the statement, and the app\'s is kept beside it', () => {
+  const s = rappi('2026-10-02', new Map([['2026-09-30', 3_459_100]]));
+  assert.equal(s.statementMinor, 3_459_100);
+  assert.equal(s.remainingMinor, 3_459_100);
+  assert.equal(s.computedMinor, 9_860_699);
+  assert.equal(s.differenceMinor, 6_401_599, 'exactly the two purchases of the cut-off day');
+  assert.equal(s.cutDayMinor, s.differenceMinor);
+  assert.equal(s.state, 'due');
+  // Owed today: 98,606.99 + 32,999 = 131,605.99; of it 34,591 is this statement, the rest the next.
+  assert.equal(s.debtMinor, 13_160_599);
+  assert.equal(s.afterCutMinor, 13_160_599 - 3_459_100);
+});
+
+test('paying the bank\'s figure pays the statement', () => {
+  const movements = [...RAPPI, pay('2026-10-05', 34_591)];
+  const s = cardStatement({ statementDay: 30, dueDay: 10, today: '2026-10-06', openingMinor: 0, movements,
+    bankFigures: new Map([['2026-09-30', 3_459_100]]) });
+  assert.equal(s.state, 'paid');
+  assert.equal(s.remainingMinor, 0);
+});
+
+test('a figure belongs to its statement only: the next cut-off goes back to the movements', () => {
+  const s = rappi('2026-11-02', new Map([['2026-09-30', 3_459_100]]));
+  assert.equal(s.cutOn, '2026-10-30');
+  assert.equal(s.bankMinor, null);
+});
+
+test('the bank\'s figure is kept, replaced, travels to the card and can be cleared', async () => {
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const id = await new AccountsRepository(db).create({
+    name: 'Tarjeta', type: 'credit', currency_code: 'COP', builtin_icon: 'card', opened_on: '2026-01-01',
+    opening_balance_minor: 0, statement_day: 30, due_day: 10,
+  });
+  await setBankFigure(db, id, '2026-09-30', 100);
+  await setBankFigure(db, id, '2026-09-30', 3_459_100);
+  assert.equal((await bankFigures(db)).get(id).get('2026-09-30'), 3_459_100);
+  const [summary] = await loadCards(db, '2026-10-02');
+  assert.equal(summary.statement.bankMinor, 3_459_100);
+  await clearBankFigure(db, id, '2026-09-30');
+  assert.equal((await bankFigures(db)).size, 0);
+  const { TABLES } = await import('../../src/app/core/database/export/export-backup.ts');
+  assert.ok(TABLES.includes('card_statements'));
 });

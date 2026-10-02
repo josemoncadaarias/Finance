@@ -38,6 +38,34 @@ export async function usualPayer(db: SqlDriver, cardId: number): Promise<number 
   return row?.account_id ?? null;
 }
 
+/** The figures typed from the bank's statements, by card and cut-off day. */
+export async function bankFigures(db: SqlDriver): Promise<Map<number, Map<string, number>>> {
+  const out = new Map<number, Map<string, number>>();
+  for (const row of await db.query<{ account_id: number; cut_on: string; amount_minor: number }>(
+    'SELECT account_id, cut_on, amount_minor FROM card_statements')) {
+    const card = out.get(row.account_id) ?? new Map<string, number>();
+    card.set(row.cut_on, row.amount_minor);
+    out.set(row.account_id, card);
+  }
+  return out;
+}
+
+/** Keeps what the bank's statement says a card owes at a cut-off, replacing an earlier figure. */
+export async function setBankFigure(
+  db: SqlDriver, accountId: number, cutOn: string, amountMinor: number, now = new Date().toISOString(),
+): Promise<void> {
+  await db.run(
+    `INSERT INTO card_statements (account_id, cut_on, amount_minor, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(account_id, cut_on) DO UPDATE SET amount_minor = excluded.amount_minor, updated_at = excluded.updated_at`,
+    [accountId, cutOn, amountMinor, now, now]);
+}
+
+/** Back to what the movements say for that statement. */
+export async function clearBankFigure(db: SqlDriver, accountId: number, cutOn: string): Promise<void> {
+  await db.run('DELETE FROM card_statements WHERE account_id = ? AND cut_on = ?', [accountId, cutOn]);
+}
+
 /** Every live card with what it owes and its statement, for Deudas and Más. */
 export interface CardSummary {
   account: AccountRow;
@@ -49,6 +77,7 @@ export interface CardSummary {
 export async function loadCards(db: SqlDriver, today: string): Promise<CardSummary[]> {
   const balances = await new AccountsRepository(db).balances();
   const cards = balances.filter(b => b.account.type === 'credit' && !b.account.archived);
+  const typed = await bankFigures(db);
   return Promise.all(cards.map(async balance => ({
     account: balance.account,
     balanceMinor: balance.balance_minor,
@@ -59,6 +88,7 @@ export async function loadCards(db: SqlDriver, today: string): Promise<CardSumma
       today,
       openingMinor: balance.account.opening_balance_minor,
       movements: await cardMovements(db, balance.account.id),
+      bankFigures: typed.get(balance.account.id),
     }),
   })));
 }

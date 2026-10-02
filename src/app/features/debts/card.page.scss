@@ -59,3 +59,16 @@
 .caveat { color: var(--app-mu); font-size: 12.5px; line-height: 1.4; margin: 12px 4px 0; }
 
 .state { text-align: center; padding: 40px 16px; color: var(--app-mu); }
+
+.bank {
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px 70px; }
+}
+.why-link {
+  display: flex; align-items: center; gap: 8px; margin: 2px 4px 0; padding: 8px 0;
+  background: none; border: 0; color: var(--app-pr); font: inherit; font-size: 0.92rem; text-align: left;
+  ion-icon { font-size: 1.15rem; flex-shrink: 0; }
+}
+.figure-sheet, .why-sheet {
+  .note { color: var(--app-mu); font-size: 0.88rem; line-height: 1.45; margin: 10px 4px 14px; }
+  .ui-btn { width: 100%; margin-top: 6px; }
+}

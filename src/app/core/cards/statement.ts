@@ -14,9 +14,15 @@
  *   - it is due on the first payment day after the cut-off.
  *
  * A day past the end of a short month is that month's last day. Nothing is
- * stored: it is all read again from the movements whenever it is asked. The
- * bank's own statement can differ (interest, fees, installments); the app
- * says what the movements say.
+ * stored: it is all read again from the movements whenever it is asked.
+ *
+ * The bank's own statement can differ - a purchase of the cut-off day it
+ * posts the next day, a fee nobody typed, an installment purchase billed one
+ * installment at a time - so the person may type the figure the bank states
+ * for that cut-off (`card_statements`, 2026-10-02). It then IS the statement,
+ * what is left of it is worked out from it the same way, and the app's own
+ * figure is kept beside it to say by how much the two differ and, where it
+ * can, why.
  */
 
 export interface CardMovement {
@@ -31,6 +37,8 @@ export interface CardInput {
   today: string;
   openingMinor: number;
   movements: CardMovement[];
+  /** What the bank's statement says, typed by the person, by cut-off day. */
+  bankFigures?: ReadonlyMap<string, number>;
 }
 
 export type CardState =
@@ -54,8 +62,17 @@ export interface CardStatement {
   dueOn: string | null;
   /** The next cut-off, after today. */
   nextCutOn: string | null;
-  /** What was owed at the close of the cut-off. */
+  /** What is owed for the statement: the bank's figure when typed, else the app's. */
   statementMinor: number;
+  /** What the movements say was owed at the close of the cut-off. */
+  computedMinor: number;
+  /** The figure typed from the bank's statement for this cut-off, if any. */
+  bankMinor: number | null;
+  /** The app's figure less the bank's (positive: the app counts more). 0 without one. */
+  differenceMinor: number;
+  /** Purchases dated on the cut-off day itself, as a positive figure, and how many. */
+  cutDayMinor: number;
+  cutDayCount: number;
   /** What came into the card after the cut-off, up to today. */
   paidMinor: number;
   /** What is left of the statement. */
@@ -72,7 +89,7 @@ export function cardStatement(input: CardInput): CardStatement {
   const debtMinor = Math.max(0, -(input.openingMinor + sum(input.movements.filter(m => m.onDate <= input.today))));
   const empty: CardStatement = {
     state: 'noDates', debtMinor, cutOn: null, dueOn: null, nextCutOn: null,
-    statementMinor: 0, paidMinor: 0, remainingMinor: 0, afterCutMinor: 0, lastPaidOn: null, daysLeft: null,
+    statementMinor: 0, computedMinor: 0, bankMinor: null, differenceMinor: 0, cutDayMinor: 0, cutDayCount: 0, paidMinor: 0, remainingMinor: 0, afterCutMinor: 0, lastPaidOn: null, daysLeft: null,
   };
   if (!validDay(input.statementDay) || !validDay(input.dueDay)) return empty;
 
@@ -82,11 +99,19 @@ export function cardStatement(input: CardInput): CardStatement {
 
   const closed = input.movements.filter(m => m.onDate <= cutOn);
   const after = input.movements.filter(m => m.onDate > cutOn && m.onDate <= input.today);
-  const statementMinor = Math.max(0, -(input.openingMinor + sum(closed)));
+  const computedMinor = Math.max(0, -(input.openingMinor + sum(closed)));
+  const bankMinor = input.bankFigures?.get(cutOn) ?? null;
+  const statementMinor = bankMinor ?? computedMinor;
   const credits = after.filter(m => m.amountMinor > 0);
   const paidMinor = sum(credits);
   const remainingMinor = Math.max(0, statementMinor - paidMinor);
-  const afterCutMinor = -sum(after.filter(m => m.amountMinor < 0));
+  // What goes to the next statement. With the bank's figure, whatever the bank
+  // left out of this one (a purchase of the cut-off day it posted later) goes
+  // there too, so it is what is owed beyond what is left of this one.
+  const afterCutMinor = bankMinor === null
+    ? -sum(after.filter(m => m.amountMinor < 0))
+    : Math.max(0, debtMinor - remainingMinor);
+  const onCutDay = closed.filter(m => m.onDate === cutOn && m.amountMinor < 0);
   const lastPaidOn = credits.length > 0 ? credits.map(m => m.onDate).sort().at(-1)! : null;
   const daysLeft = daysBetween(input.today, dueOn);
 
@@ -99,8 +124,10 @@ export function cardStatement(input: CardInput): CardStatement {
   else state = 'due';
 
   return {
-    state, debtMinor, cutOn, dueOn, nextCutOn, statementMinor, paidMinor, remainingMinor,
-    afterCutMinor, lastPaidOn, daysLeft,
+    state, debtMinor, cutOn, dueOn, nextCutOn, statementMinor, computedMinor, bankMinor,
+    differenceMinor: bankMinor === null ? 0 : computedMinor - bankMinor,
+    cutDayMinor: -sum(onCutDay), cutDayCount: onCutDay.length,
+    paidMinor, remainingMinor, afterCutMinor, lastPaidOn, daysLeft,
   };
 }
 
