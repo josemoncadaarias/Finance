@@ -2736,7 +2736,10 @@ changed in the shape of the app, for the next session:
   drew such a rate, is gone. What only a local session can confirm: that
   his backup holds no `yield_rates` row with `product_id` NULL.
 - **Icons in dialogs and sheets are centred with their title**, never
-  left against a centred text.
+  left against a centred text. **And a dialog's lone button too** (Jose,
+  2026-10-02: "Entendido" sat in the left half of a two-column grid): one
+  rule in global.scss, `.confirm-dialog .buttons > :only-child`, makes it
+  take the whole row.
 - **The orphan withdrawal** ("Retiro sin su movimiento") exists in the app
   today and stays, but said plainly and quietly inside the row, not as an
   alarming card.
