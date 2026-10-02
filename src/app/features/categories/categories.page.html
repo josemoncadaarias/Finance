@@ -100,14 +100,18 @@
       <button type="button" class="sheet-cancel" (click)="choosingList.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
       <h2 class="center">{{ 'categories.new.where' | t }}</h2>
-      <div class="two">
-        <button type="button" (click)="newIn('expense')">
-          <app-badge shape="ci" [size]="50" builtin="arrow-up" fixed="#ff6b6b"></app-badge>
-          <b>{{ 'categories.expenses' | t }}</b>
+      <!-- Two plain rows, the shape of every list in the app (Jose,
+           2026-10-02: the two big cards were more than the question needs). -->
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="newIn('expense')">
+          <app-badge shape="ci" [size]="40" builtin="arrow-up" fixed="#ff6b6b"></app-badge>
+          <span class="ui-tx"><b>{{ 'categories.expenses' | t }}</b></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
         </button>
-        <button type="button" (click)="newIn('income')">
-          <app-badge shape="ci" [size]="50" builtin="arrow-down" fixed="#34c98b"></app-badge>
-          <b>{{ 'categories.incomes' | t }}</b>
+        <button type="button" class="ui-row" (click)="newIn('income')">
+          <app-badge shape="ci" [size]="40" builtin="arrow-down" fixed="#34c98b"></app-badge>
+          <span class="ui-tx"><b>{{ 'categories.incomes' | t }}</b></span>
+          <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
         </button>
       </div>
     </div>
