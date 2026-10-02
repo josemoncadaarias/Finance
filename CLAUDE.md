@@ -3547,6 +3547,12 @@ How it is made:
   only), each once a month per limit and level (kept in `localStorage`)
   and each only when switched on (`settings`, `limits.notice.*`). A limit
   changed by the person, or a new one, is never a crossing.
+- **On Inicio every card says what it is** (Jose, 2026-10-02: a late goal
+  and a cap at 96 % read as the same thing): a small coloured line on top -
+  "Tope de gasto pasado" / "Todos tus topes del mes" in red, "Tope de gasto
+  del mes" in amber, "Meta de ahorro" in the accent - and caps and goals in
+  separate lists. A cap's title is its name alone; its percent goes on the
+  line under it, so a long name never hides it (`limits-home.component.ts`).
 - Screens: `/plans` (Límites | Metas - goals say "llegan pronto"), the
   month with its arrows (twelve back), the form as a full sheet, Avisos
   as a bottom sheet, `/plans/:id` (pace, next month, the months before

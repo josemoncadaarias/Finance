@@ -2,7 +2,13 @@
  * What Inicio says about the month's limits, and only when something needs
  * attention (mockups `14f`, `14i`, `14m`): the total gone over, or each limit
  * gone over, as a red card on top; a limit from 80 % as one quiet row.
- * Nothing at all while every limit goes well.
+ * Nothing at all while every limit goes well. A goal behind its date is one
+ * row too.
+ *
+ * Every card and row says what it IS on a small line of its own - a spending
+ * cap, a savings goal - and caps and goals sit in separate lists: "Remodelar
+ * la cocina va atrasada" beside "Restaurante va en 96 %" read as the same
+ * kind of thing (Jose, 2026-10-02).
  */
 
 import { Component, computed, inject } from '@angular/core';
@@ -28,6 +34,7 @@ import { plain, ratio } from './plans-words';
         <span class="top">
           <span class="warn"><ion-icon name="warning-outline"></ion-icon></span>
           <span class="ui-tx">
+            <span class="kind cap">{{ 'home.kind.capsTotal' | t }}</span>
             <b class="wrap">{{ 'plans.total.passed.label' | t }}</b>
             <small class="wrap"><span class="ui-r strong">{{ 'plans.overBy' | t:{ amount: money(v.total.overMinor) } }}</span> · {{ 'plans.home.passedCount' | t:{ count: v.total.passedCount } }}</small>
           </span>
@@ -42,6 +49,7 @@ import { plain, ratio } from './plans-words';
             <app-badge [size]="44" [builtin]="l.categories[0]?.builtin_icon" [customId]="l.categories[0]?.custom_icon_id"
                        [tone]="l.categories[0]?.color" [seed]="l.categories[0]?.id"></app-badge>
             <span class="ui-tx">
+              <span class="kind cap">{{ 'home.kind.capPassed' | t }}</span>
               <b class="wrap">{{ 'plans.home.passed' | t:{ name: l.name } }}</b>
               <small class="wrap"><span class="ui-r strong">{{ 'plans.overBy' | t:{ amount: money(l.status.overMinor) } }}</span>@if (l.status.daysLeft > 0) { · {{ 'plans.home.daysLeft' | t:{ count: l.status.daysLeft } }} }</small>
             </span>
@@ -51,25 +59,31 @@ import { plain, ratio } from './plans-words';
         </button>
       }
     }
-    @if (close().length > 0 || goals.late().length > 0) {
+    @if (close().length > 0) {
       <div class="ui-list">
-        @for (g of goals.late(); track g.terms.id) {
-          <button type="button" class="ui-row" (click)="openGoal(g)">
-            <app-badge [size]="40" [builtin]="g.terms.icon" [fixed]="g.terms.color ?? '#34c98b'"></app-badge>
-            <span class="ui-tx">
-              <b class="ui-one">{{ 'goals.home.late' | t:{ name: g.terms.name } }}</b>
-              <small class="ui-one late">{{ lateLine(g) }}</small>
-            </span>
-            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-          </button>
-        }
         @for (l of close(); track l.terms.id) {
           <button type="button" class="ui-row" (click)="open(l)">
             <app-badge [size]="40" [builtin]="l.categories[0]?.builtin_icon" [customId]="l.categories[0]?.custom_icon_id"
                        [tone]="l.categories[0]?.color" [seed]="l.categories[0]?.id"></app-badge>
             <span class="ui-tx">
-              <b class="ui-one">{{ 'plans.home.close' | t:{ name: l.name, percent: l.status.percent } }}</b>
-              <small class="ui-one">{{ 'plans.line.close' | t:{ left: money(l.status.remainingMinor), count: l.status.daysLeft } }}</small>
+              <span class="kind cap">{{ 'home.kind.cap' | t }}</span>
+              <b class="ui-one">{{ l.name }}</b>
+              <small class="wrap">{{ 'plans.home.closeLine' | t:{ percent: l.status.percent, left: money(l.status.remainingMinor), count: l.status.daysLeft } }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
+      </div>
+    }
+    @if (goals.late().length > 0) {
+      <div class="ui-list">
+        @for (g of goals.late(); track g.terms.id) {
+          <button type="button" class="ui-row" (click)="openGoal(g)">
+            <app-badge [size]="40" [builtin]="g.terms.icon" [fixed]="g.terms.color ?? '#34c98b'"></app-badge>
+            <span class="ui-tx">
+              <span class="kind goal">{{ 'home.kind.goal' | t }}</span>
+              <b class="ui-one">{{ 'goals.home.late' | t:{ name: g.terms.name } }}</b>
+              <small class="wrap late">{{ lateLine(g) }}</small>
             </span>
             <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
           </button>
@@ -99,6 +113,14 @@ import { plain, ratio } from './plans-words';
     small { color: var(--app-mu); font-size: 13px; }
     .strong { font-weight: 600; }
     .late { color: var(--app-yel); }
+    .kind {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .kind::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+    .kind.cap { color: var(--app-yel); }
+    .red .kind.cap { color: var(--app-red); }
+    .kind.goal { color: var(--app-pr); }
     .warn {
       width: 44px; height: 44px; border-radius: 50%; flex: none; display: grid; place-items: center;
       background: rgba(var(--app-red-rgb), 0.2); color: var(--app-red); font-size: 22px;
