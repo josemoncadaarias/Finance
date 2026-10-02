@@ -18,6 +18,11 @@
  *     what this person filed the same shop under (and teaches itself on every
  *     save), so it is not repeated here.
  *   - **What it says** is read by `readNotice`, by shape, for anybody.
+ *
+ * **An SMS is its sender's, not its app's** (Jose, 2026-10-02): a message
+ * kept from a messaging app carries who sent it, and everything above - the
+ * batch, the account learned, the name matched - is about that sender inside
+ * that app. Two banks texting through the same messaging app are two sources.
  */
 
 import type { AccountRow, IsoDate } from '../database/types';
@@ -32,6 +37,8 @@ export interface KeptNotice {
   title: string;
   text: string;
   postedAt: number;
+  /** Who sent it, for a message of a messaging app. */
+  sender?: string;
 }
 
 /** What the person answered for an earlier message: the account it went to. */
@@ -45,8 +52,11 @@ export interface NoticeAnswer {
 export interface NoticeEvidence {
   kind: 'notification';
   key: string;
+  /** The source: an app's package, or `package|sender` for a message. */
   package: string;
   app: string;
+  /** Who sent it, for a message of a messaging app. */
+  sender: string | null;
   /** Shown as where the batch came from, like a statement's file. */
   file: string;
   title: string;
@@ -63,10 +73,15 @@ export interface NoticeEvidence {
 
 /** The same message, whenever it is read: the app, when, and what it said. */
 export function noticeKey(notice: KeptNotice): string {
-  return `${notice.package}|${notice.postedAt}|${notice.text.length}`;
+  return `${noticeSource(notice)}|${notice.postedAt}|${notice.text.length}`;
 }
 
-/** Proposals from one app share a batch: one card per app on the review screen. */
+/** Where a message came from: its app, or its sender inside a messaging app. */
+export function noticeSource(notice: Pick<KeptNotice, 'package' | 'sender'>): string {
+  return notice.sender ? `${notice.package}|${notice.sender}` : notice.package;
+}
+
+/** Proposals from one source share a batch: one card per app or sender on the review screen. */
 export function noticeBatch(pkg: string): string {
   return `notice:${pkg}`;
 }
@@ -101,7 +116,8 @@ export function accountFor(
 ): { accountId: number | null; from: 'learned' | 'name' | null } {
   const open = accounts.filter(account => !account.archived);
   const alive = new Set(open.map(account => account.id));
-  const mine = answers.filter(answer => answer.package === notice.package && alive.has(answer.account_id));
+  const source = noticeSource(notice);
+  const mine = answers.filter(answer => answer.package === source && alive.has(answer.account_id));
 
   // Learned: the same app and the same card digits.
   if (reading.digits) {
@@ -125,8 +141,11 @@ export function accountFor(
     const named = pool.filter(account => account.name.includes(reading.digits!));
     if (named.length === 1) return { accountId: named[0].id, from: 'name' };
   }
-  // Or the app's name in the account's: "Nequi" for the Nequi app.
-  const appWords = new Set([...wordsOf(notice.app), ...wordsOf(notice.title)]);
+  // Or the app's name in the account's: "Nequi" for the Nequi app - or, for
+  // a message, the sender's: "Bancolombia" texting through Mensajes.
+  const appWords = new Set(notice.sender
+    ? wordsOf(notice.sender)
+    : [...wordsOf(notice.app), ...wordsOf(notice.title)]);
   if (appWords.size > 0) {
     const named = pool.filter(account => wordsOf(account.name).some(word => appWords.has(word)));
     if (named.length === 1) return { accountId: named[0].id, from: 'name' };
@@ -161,7 +180,7 @@ export function proposalsFrom(
   const recent = new Map<string, number>();
   for (const notice of [...kept].sort((a, b) => a.postedAt - b.postedAt)) {
     const key = noticeKey(notice);
-    const said = `${notice.package}|${notice.title}|${notice.text}`;
+    const said = `${noticeSource(notice)}|${notice.title}|${notice.text}`;
     const before = recent.get(said);
     recent.set(said, notice.postedAt);
     if (before !== undefined && notice.postedAt - before < 3 * 60_000) continue;
@@ -177,9 +196,10 @@ export function proposalsFrom(
     const evidence: NoticeEvidence = {
       kind: 'notification',
       key,
-      package: notice.package,
+      package: noticeSource(notice),
       app: notice.app,
-      file: notice.app,
+      sender: notice.sender ?? null,
+      file: notice.sender ? `${notice.sender} · ${notice.app}` : notice.app,
       title: notice.title,
       text: notice.text,
       postedAt: notice.postedAt,
@@ -190,7 +210,7 @@ export function proposalsFrom(
       accountFrom: from,
     };
     out.push({
-      batch: noticeBatch(notice.package),
+      batch: noticeBatch(noticeSource(notice)),
       proposal: {
         source: 'notification',
         account_id: accountId,

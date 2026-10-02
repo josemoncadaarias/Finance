@@ -132,21 +132,52 @@
                           [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
                     <ion-icon name="eye-off-outline"></ion-icon>
                   </button>
-                  <button type="button" class="ui-switch" [class.on]="app.watched" role="switch" [attr.aria-checked]="app.watched"
-                          [attr.aria-label]="app.label" (click)="watch(app, !app.watched)"></button>
+                  @if (app.messaging && !app.watched) {
+                    <!-- A messaging app is never kept whole: its banks are chosen by sender below. -->
+                    <button type="button" class="ui-chip by-sender" (click)="$event.stopPropagation(); info.set(i18n.t('ui.notifications.bySender.hint'))">
+                      {{ 'ui.notifications.bySender' | t }}
+                    </button>
+                  } @else {
+                    <button type="button" class="ui-switch" [class.on]="app.watched" role="switch" [attr.aria-checked]="app.watched"
+                            [attr.aria-label]="app.label" (click)="watch(app, !app.watched)"></button>
+                  }
                 }
               </div>
             }
           </div>
         }
 
+        <!-- Text messages: chosen by sender, never the whole messaging app (rule 22, SMS). -->
+        @if (sortedSenders().length > 0) {
+          <h3 class="ui-h sms-h">{{ 'ui.notifications.sms' | t }}
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.notifications.sms.hint'))"><ion-icon name="information"></ion-icon></span>
+          </h3>
+          <div class="ui-list">
+            @for (one of sortedSenders(); track one.package + one.sender) {
+              <div class="ui-row app">
+                <app-badge shape="ci" [size]="40" builtin="chatbubble-ellipses-outline" [seed]="appSeed(one.package + one.sender)"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ one.sender }}@if (one.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
+                  <small class="ui-one">{{ senderLine(one) }}</small>
+                </span>
+                <button type="button" class="ui-round hide-app" (click)="hideSender(one)"
+                        [attr.aria-label]="'ui.notifications.hideSender' | t:{ sender: one.sender }">
+                  <ion-icon name="eye-off-outline"></ion-icon>
+                </button>
+                <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
+                        [attr.aria-label]="one.sender" (click)="watchSender(one, !one.watched)"></button>
+              </div>
+            }
+          </div>
+        }
+
         <!-- Put away, not forgotten: folded here so it can be brought back. -->
-        @if (hiddenApps().length > 0) {
+        @if (hiddenApps().length + hiddenSenders().length > 0) {
           <div class="ui-list ui-group hidden-apps">
             <div class="ui-row head" (click)="showHidden.set(!showHidden())">
               <app-badge [size]="36" builtin="eye-off" fixed="#8c9bb5"></app-badge>
               <span class="ui-tx"><b>{{ 'ui.notifications.hidden' | t }}</b>
-                <small>{{ (hiddenApps().length === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps') | t:{ count: hiddenApps().length } }}</small></span>
+                <small>{{ hiddenLine() }}</small></span>
               <ion-icon class="ui-chev" [name]="showHidden() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
             </div>
             @if (showHidden()) {
@@ -156,6 +187,13 @@
                   <span class="ui-tx"><b class="ui-one">{{ app.label }}</b>
                     <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small></span>
                   <button type="button" class="ui-chip show" (click)="unhide(app)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
+                </div>
+              }
+              @for (one of hiddenSenders(); track one.package + one.sender) {
+                <div class="ui-row">
+                  <app-badge shape="ci" [size]="36" builtin="chatbubble-ellipses-outline" fixed="#8c9bb5"></app-badge>
+                  <span class="ui-tx"><b class="ui-one">{{ one.sender }}</b><small class="ui-one">{{ senderLine(one) }}</small></span>
+                  <button type="button" class="ui-chip show" (click)="unhideSender(one)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
                 </div>
               }
             }
@@ -189,8 +227,8 @@
                   <div class="ui-row notice">
                     <app-badge [size]="36" [builtin]="appIcon(one.package, one.app)" [seed]="appSeed(one.package)"></app-badge>
                     <span class="ui-tx">
-                      <span class="from"><b>{{ one.app }}</b> · {{ hour(one.postedAt) }}</span>
-                      @if (one.title) { <span class="said strong">{{ one.title }}</span> }
+                      <span class="from"><b>{{ one.sender || one.app }}</b>@if (one.sender) { · {{ one.app }} } · {{ hour(one.postedAt) }}</span>
+                      @if (one.title && one.title !== one.sender) { <span class="said strong">{{ one.title }}</span> }
                       @if (one.text) { <span class="said">{{ one.text }}</span> }
                     </span>
                   </div>

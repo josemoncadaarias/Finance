@@ -80,3 +80,8 @@
 
 /* The eye beside each app's switch: smaller than a title-bar button. */
 .hide-app { width: 34px; height: 34px; flex: none; color: var(--app-mu); font-size: 18px; margin-right: 6px; }
+
+/* Text messages: their own heading under the apps, and the chip that says
+   a messaging app is chosen by sender. */
+.sms-h { margin: 18px 4px 8px; display: flex; align-items: center; gap: 6px; }
+.by-sender { flex: none; font-size: 12.5px; }
