@@ -66,6 +66,9 @@ the new screen is checked.
 - [ ] Gráfico / Movimientos with its count.
 - [ ] The donut with category icons, the income figure, the list by
       category with % and amounts, grouped by name AND side (`sideOf`).
+      Since #48: icons round the ring with right-angled lines, the chart's
+      own eight colours, "N categorías más" opening its rows, a slice
+      tapped named in the middle with "Ver sus movimientos".
 - [ ] Movements: Por día / Por categoría / Los más grandes, with the hint
       of the order inside each group; collapse/expand all; "Ver N más"
       (the row budget); to top / to bottom buttons.

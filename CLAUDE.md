@@ -122,6 +122,7 @@ detail of each is in the section named):
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 | #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
 | #47 | SMS chosen by sender inside the messaging app, never the whole app | Rule 22 |
+| #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -159,7 +160,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (709 on 2026-10-02, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (717 on 2026-10-02, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -2827,6 +2828,20 @@ changed in the shape of the app, for the next session:
   five largest categories and "Otras N", names ending in "…", percentages
   in a column of their own; the total spent sits inside the ring. Every
   category with its figure is the list under it.
+  **Redrawn on 2026-10-02 (#48, mockups `16i`-`16m`, chosen by Jose)**:
+  categories' own colours repeated and pictures said no colour, so the
+  chart has a palette of its own (`donut-layout.ts`: eight colours checked
+  on the dark and light card; each category takes the one nearest its own,
+  the largest first, never two alike). Up to eight slices; beyond that the
+  top seven and one grey "N categorías más", which opens at the foot of the
+  list. Every slice's icon sits round the ring in the slice's colour (a
+  picture wears it as a ring), with its percent under it, joined by a line
+  bent only at right angles. The icons spread evenly over twelve places
+  round the ring; where that makes two lines cross or one cut the ring,
+  each takes the nearest place that keeps the order instead
+  (`crossingsOf`, tested). Tapping a slice or its icon names it in the
+  middle ("Ver sus movimientos" opens it); under the ring, each category
+  with a bar of its slice's colour. Income and money moved keep their rows.
 
 **Group 2 (v4, approved 2026-09-28)** and the three changes of ACCESS in
 it, all accepted by Jose (everything else is today's screen redrawn):
