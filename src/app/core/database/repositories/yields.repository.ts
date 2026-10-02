@@ -1581,6 +1581,69 @@ export class YieldsRepository {
   }
 
   /**
+   * What an account's days are worked out from, one string per month: its
+   * movements, its products' own entries and cash-outs, their typed balances
+   * and their rates, each by the month it is dated in - plus the account's
+   * opening balance, under '0000-00', which reaches every day.
+   *
+   * Content only (counts, sums and dates), never a timestamp of change: a
+   * migration that rewrites `updated_at` on every row must not look like a
+   * change to every month. A deleted row changes its month's count and sum,
+   * so deletions are seen too.
+   */
+  async monthMarks(accountId: number): Promise<Record<string, string>> {
+    const rows = await this.db.query<{ month: string; part: string; sig: string }>(
+      `SELECT substr(occurred_on, 1, 7) AS month, 'm' AS part,
+              COUNT(*) || ':' || SUM(amount_minor) || ':' || SUM(amount_minor * COALESCE(product_id, 0)) || ':' ||
+              SUM(amount_minor * CAST(substr(occurred_on, 9, 2) AS INTEGER)) AS sig
+       FROM transactions WHERE account_id = ? GROUP BY month
+       UNION ALL
+       SELECT substr(on_date, 1, 7), 'e',
+              COUNT(*) || ':' || SUM(amount_minor) || ':' || SUM(amount_minor * COALESCE(product_id, 0)) || ':' ||
+              SUM(amount_minor * CAST(substr(on_date, 9, 2) AS INTEGER))
+       FROM product_entries WHERE account_id = ? GROUP BY 1
+       UNION ALL
+       SELECT substr(on_date, 1, 7), 'c',
+              COUNT(*) || ':' || SUM(amount_minor) || ':' || SUM(amount_minor * COALESCE(product_id, 0)) || ':' ||
+              SUM(amount_minor * CAST(substr(on_date, 9, 2) AS INTEGER))
+       FROM product_cashouts WHERE account_id = ? GROUP BY 1
+       UNION ALL
+       SELECT substr(b.valid_from, 1, 7), 'b',
+              group_concat(b.product_id || '/' || b.valid_from || '/' || b.amount_minor || '/' || COALESCE(b.created_at, ''), ';')
+       FROM (SELECT b.* FROM product_balances b JOIN products p ON p.id = b.product_id
+             WHERE p.account_id = ? ORDER BY b.product_id, b.valid_from, b.id) b GROUP BY 1
+       UNION ALL
+       SELECT substr(valid_from, 1, 7), 'r',
+              group_concat(COALESCE(product_id, '') || '/' || component || '/' || payout || '/' || COALESCE(payout_months, '') || '/' ||
+                           valid_from || '/' || COALESCE(valid_to, '') || '/' || annual_rate_scaled || '/' || min_balance_minor || '/' ||
+                           COALESCE(max_balance_minor, '') || '/' || COALESCE(requires_monthly_spend_minor, '') || '/' ||
+                           COALESCE(fallback_annual_rate_scaled, ''), ';')
+       FROM (SELECT * FROM yield_rates WHERE account_id = ? ORDER BY product_id, component, valid_from, id) GROUP BY 1
+       UNION ALL
+       SELECT '0000-00', 'o', CAST(opening_balance_minor AS TEXT) FROM accounts WHERE id = ?`,
+      [accountId, accountId, accountId, accountId, accountId, accountId]);
+    const out: Record<string, string> = {};
+    for (const row of rows.sort((a, b) => a.part.localeCompare(b.part))) {
+      out[row.month] = (out[row.month] ? out[row.month] + '|' : '') + `${row.part}=${row.sig}`;
+    }
+    return out;
+  }
+
+  /** The month marks the last accrual of this account was worked out against; null before the first. */
+  async storedMonthMarks(accountId: number): Promise<Record<string, string> | null> {
+    const row = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [MONTH_MARKS + accountId]);
+    if (!row) return null;
+    try { return JSON.parse(row.value) as Record<string, string>; } catch { return null; }
+  }
+
+  async rememberMonthMarks(accountId: number, marks: Record<string, string>): Promise<void> {
+    await this.db.run(
+      'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+      [MONTH_MARKS + accountId, JSON.stringify(marks), this.now()]);
+  }
+
+  /**
    * Records that today's accrual is done, against the data it was done on.
    *
    * `onlyIfKnown` is for the screens that accrue ONE account after changing
@@ -1961,6 +2024,10 @@ export interface PaymentDate {
 
 /** Where the fingerprint of the last accrual is kept. */
 const ACCRUAL_MARK = 'yields.accrual.mark';
+
+/** Where each account's month marks are kept, by account id. */
+const MONTH_MARKS = 'yields.months.';
+
 
 /** The fingerprint itself: what every account shares, and each account's own. */
 interface AccrualMarks {

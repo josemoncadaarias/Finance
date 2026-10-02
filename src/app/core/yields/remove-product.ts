@@ -98,5 +98,11 @@ export async function removeProductInto(
     });
   });
 
+  // The history moved to another product, which rewrites what earlier months
+  // hold without changing what happened in them: the days earned moved with
+  // it. Those months are taken as they are now, so only the current month is
+  // worked out again, as removing a product always did - otherwise the next
+  // pass would redo them from the merged rows and lose what was earned.
+  await yields.rememberMonthMarks(accountId, await yields.monthMarks(accountId));
   await engine.accrue(accountId, today);
 }
