@@ -15,7 +15,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { LimitsRepository } from '../../src/app/core/limits/limits.repository.ts';
 import {
-  averageBefore, crossings, levelOf, limitStatus, rowsOf, roundedAverage, roundedLimit, spendOf, spentIn, totalStatus,
+  averageBefore, crossings, levelOf, stillOver, limitStatus, rowsOf, roundedAverage, roundedLimit, spendOf, spentIn, totalStatus,
 } from '../../src/app/core/limits/limits.ts';
 
 const P = pesos => Math.round(pesos * 100);
@@ -115,6 +115,18 @@ test('a notice is a level crossed: 80 % or past, the total only when past, never
   assert.deepEqual(crossings(before, after), [{ key: 1, level: 80 }, { key: 2, level: 100 }, { key: 'total', level: 100 }]);
   assert.deepEqual(crossings(after, after), []);
   assert.deepEqual(crossings(new Map([['total', 0]]), new Map([['total', 80]])), []);
+});
+
+test('a cap already past that takes more spending is told again at saving; one that took none is not', () => {
+  const amounts = new Map([[1, P(100)], [2, P(100)], ['total', P(300)]]);
+  const before = new Map([[1, P(150)], [2, P(50)], ['total', P(200)]]);
+  // 1 was past and grew; 2 grew but crossed (crossings says that); the total is not past.
+  assert.deepEqual(stillOver(before, new Map([[1, P(180)], [2, P(120)], ['total', P(300)]]), amounts), [1]);
+  assert.deepEqual(stillOver(before, before, amounts), []);
+  // A refund lowering it is not told; a key new on either side is not compared.
+  assert.deepEqual(stillOver(before, new Map([[1, P(120)], [3, P(500)]]), amounts), []);
+  // Exactly the figure is not past.
+  assert.deepEqual(stillOver(new Map([[1, P(100)]]), new Map([[1, P(130)]]), amounts), []);
 });
 
 async function world() {
