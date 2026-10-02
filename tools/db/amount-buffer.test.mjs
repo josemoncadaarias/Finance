@@ -108,3 +108,42 @@ test('long amounts are grouped, and grouping never reaches the value', () => {
   assert.equal(type('999').text, '999');
   assert.equal(type('1000').text, '1.000');
 });
+
+// The phone's own keyboard types into a field showing the buffer's text
+// (Jose, 2026-10-02: the app's keypad is gone).
+import { typedInto } from '../../src/app/features/entry/amount-buffer.ts';
+
+const keyboard = (steps) => {
+  let buffer = new AmountBuffer();
+  for (const step of steps) buffer = typedInto(buffer, typeof step === 'function' ? step(buffer.text) : step);
+  return buffer;
+};
+const add = (chars) => (shown) => shown + chars;
+const drop = (n) => (shown) => shown.slice(0, shown.length - n);
+
+test('the keyboard: digits typed one by one are grouped as they come', () => {
+  const b = keyboard([add('4'), add('5'), add('9'), add('0'), add('0')]);
+  assert.equal(b.text, '45.900');
+  assert.equal(b.minor, 4590000);
+});
+
+test('the keyboard: a comma or a full stop starts the cents, whichever the phone offers', () => {
+  assert.equal(keyboard([add('45'), add(','), add('5')]).minor, 4550);
+  assert.equal(keyboard([add('45'), add('.'), add('50')]).minor, 4550);
+  assert.equal(keyboard([add('45'), add('.'), add('.'), add('5')]).minor, 4550, 'a second one does nothing');
+  assert.equal(keyboard([add('1'), add(','), add('999')]).minor, 199, 'only two cents fit');
+});
+
+test('the keyboard: erasing from the end erases digits, grouping dots and all', () => {
+  assert.equal(keyboard([add('45900'), drop(1)]).text, '4.590');
+  assert.equal(keyboard([add('1234'), drop(1)]).text, '123', '1.234 less its last digit');
+  assert.equal(keyboard([add('45'), add(','), add('5'), drop(1), drop(1)]).text, '45');
+  assert.equal(keyboard([add('45900'), () => '']).isEmpty, true);
+});
+
+test('the keyboard: anything else is read afresh', () => {
+  assert.equal(keyboard([add('45900'), '7']).minor, 700, 'all selected and typed over');
+  assert.equal(keyboard(['1.234.567,89']).minor, 123456789, 'pasted, Colombian');
+  assert.equal(keyboard(['$ 1234.5']).minor, 123450, 'pasted with a point for the cents');
+  assert.equal(keyboard(['abc']).isEmpty, true);
+});

@@ -3,7 +3,7 @@
  * products of the same account.
  *
  * The same screen as a movement or a transfer in an account - amount on a
- * keypad, the date, a note - because it is the same act, and that screen is
+ * amount, the date, a note - because it is the same act, and that screen is
  * already the one people know. Every question is about a product, never an
  * account: the account is the one on screen.
  *
@@ -63,7 +63,6 @@ import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../c
 import { todayIso } from '../../core/yields/days';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
-import { apply, isOperator, operatorFromKey, type Operator, type Pending } from '../entry/calculator';
 
 /** What the form hands to the ordinary movement form when it cannot record it itself. */
 export interface Elsewhere {
@@ -93,14 +92,15 @@ export interface ProductEntryRequest {
   again?: boolean;
 }
 
-import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { FormFootComponent } from '../../shared/ui/form-foot.component';
+import { AmountFieldComponent } from '../../shared/ui/amount-field.component';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
 @Component({
   selector: 'app-product-entry',
   imports: [
     TranslatePipe, BadgeComponent, CategoryEditorComponent, BusyOverlayComponent, ConfirmComponent,
-    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, KeypadComponent, ScopeSheetComponent, AutoGrowDirective,
+    AccountPickerComponent, NgTemplateOutlet, IonIcon, IonDatetime, IonModal, IonSpinner, FormFootComponent, AmountFieldComponent, ScopeSheetComponent, AutoGrowDirective,
   ],
   templateUrl: './product-entry.component.html',
   // The movement screen's own styles, so the two can never drift apart.
@@ -225,7 +225,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   readonly amount = signal(new AmountBuffer());
-  readonly pending = signal<Pending | null>(null);
 
   /** The product the money touches; for a transfer, the one it leaves. */
   readonly productId = signal<number | null>(null);
@@ -252,7 +251,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /**
    * True while the note is being written: the phone's keyboard is up, where
-   * this form's own keypad was, and the note and its suggestions need the room.
+   * where the foot with Guardar was, and the note and its suggestions need the room.
    * The same treatment the movement screen got.
    */
   readonly writingNote = signal(false);
@@ -396,7 +395,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     }, 250);
   }
 
-  /** Done: keyboard down, focus off, the keypad back. */
+  /** Done: keyboard down, focus off, the foot with Guardar back. */
   finishNote(): void {
     if (this.noteBlurTimer !== null) {
       clearTimeout(this.noteBlurTimer);
@@ -547,18 +546,13 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return this.kinds().find(kind => kind.id === this.productKindId()) ?? null;
   }
 
-  /** The movement form's keypad, key for key: backspace, and "=" on the bar. */
-  /** The keypad on show: open for a new movement, folded for a correction. */
-  readonly keypadOpen = signal(true);
+  private readonly amountField = viewChild(AmountFieldComponent);
 
-  /** A tap anywhere on the lists below the amount folds the keypad away. */
-  bodyTapped(event: Event): void {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  /** Enter in the amount: saves on a computer when it can, else lets the keyboard go. */
+  amountDone(): void {
+    if (this.canSave()) void this.save();
+    else this.amountField()?.blur();
   }
-
-  /** True while an arithmetic operator is waiting for its second number. */
-  readonly midSum = computed(() => this.pending() !== null);
 
   readonly isTransfer = computed(() => this.request().kind === 'transfer');
   readonly isEditing = computed(() => this.request().editing !== undefined);
@@ -647,15 +641,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return [...found].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   });
 
-  readonly pendingLabel = computed(() => {
-    const sum = this.pending();
-    if (!sum) return '';
-    const shown = (minor: number) => formatMoney(minor, this.currency(), { withSymbol: false });
-    const buffer = this.amount();
-    if (buffer.isEmpty) return `${shown(sum.leftMinor)} ${sum.operator}`;
-    return `${shown(sum.leftMinor)} ${sum.operator} ${shown(buffer.minor)} = ${shown(Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0))}`;
-  });
-
   /** "Hoy · domingo 27 sept", as on the movement form. */
   readonly dateLabel = computed(() => {
     const iso = this.onDate();
@@ -732,10 +717,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return SCOPE_ICON;
   }
 
-  isOperatorKey(key: string): boolean {
-    return isOperator(key);
-  }
-
   /** A note used before, split around what is typed, to underline it. */
   hintParts(hint: string): [string, string, string] {
     const typed = this.note().trim();
@@ -746,16 +727,9 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     return [hint.slice(0, at), hint.slice(at, at + typed.length), hint.slice(at + typed.length)];
   }
 
-  /** The amount, or the result of the sum still being typed. */
-  private readonly effectiveMinor = computed(() => {
-    const sum = this.pending();
-    const buffer = this.amount();
-    if (!sum) return buffer.minor;
-    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
-  });
+  private readonly effectiveMinor = computed(() => this.amount().minor);
 
   readonly missing = computed<string | null>(() => {
-    // A sum being added up counts as its result: saving finishes it.
     if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.isTransfer() && (this.toProductId() === null || this.toProductId() === this.productId())) {
       return this.i18n.t('products.move.sameProduct');
@@ -824,7 +798,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    this.keypadOpen.set(this.request().editing === undefined);
     // However the keyboard is closed - the Android back button included,
     // which leaves the focus where it was - the note is finished.
     if (Capacitor.isNativePlatform()) {
@@ -893,44 +866,6 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     }));
   }
 
-  press(key: string): void {
-    if (key === 'C') { this.clearAmount(); return; }
-    if (isOperator(key)) { this.operate(key); return; }
-    if (key === '=') { this.equals(); return; }
-
-    const buffer = this.amount();
-    if (key === '<') buffer.backspace();
-    else if (key === ',') buffer.separator();
-    else buffer.push(key);
-    // A new object so the signal notices: the buffer mutates in place.
-    this.amount.set(Object.assign(Object.create(AmountBuffer.prototype), buffer));
-  }
-
-  operate(operator: Operator): void {
-    const buffer = this.amount();
-    const sum = this.pending();
-    if (sum && !buffer.isEmpty) {
-      this.pending.set({ leftMinor: apply(sum.leftMinor, sum.operator, buffer.minor), operator });
-    } else if (!buffer.isEmpty) {
-      this.pending.set({ leftMinor: buffer.minor, operator });
-    } else if (sum) {
-      this.pending.set({ ...sum, operator });
-      return;
-    } else {
-      return;
-    }
-    this.amount.set(new AmountBuffer());
-  }
-
-  equals(): void {
-    const sum = this.pending();
-    if (!sum) return;
-    const buffer = this.amount();
-    const result = buffer.isEmpty ? sum.leftMinor : apply(sum.leftMinor, sum.operator, buffer.minor);
-    this.pending.set(null);
-    this.amount.set(AmountBuffer.from(Math.max(result, 0)));
-  }
-
   /** What the product money leaves holds today; null when unknown or nothing. */
   readonly fromBalance = computed(() => {
     const product = this.productId();
@@ -956,7 +891,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
 
   /** Clears the amount if it is still the one "Pasar todo" wrote. */
   private forgetFilledAll(): void {
-    if (this.filledWithAll !== null && this.pending() === null && this.amount().minor === this.filledWithAll) {
+    if (this.filledWithAll !== null && this.amount().minor === this.filledWithAll) {
       this.amount.set(new AmountBuffer());
     }
     this.filledWithAll = null;
@@ -965,14 +900,8 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   moveEverything(): void {
     const held = this.fromBalance();
     if (held === null) return;
-    this.pending.set(null);
     this.amount.set(AmountBuffer.from(held));
     this.filledWithAll = held;
-  }
-
-  clearAmount(): void {
-    this.pending.set(null);
-    this.amount.set(new AmountBuffer());
   }
 
   async onNoteInput(value: string): Promise<void> {
@@ -1145,7 +1074,10 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Digits, comma, backspace, Enter and Escape from a physical keyboard. */
+  /**
+   * The computer's keyboard: Escape closes, Enter saves while no field has
+   * the cursor, and a digit typed with the cursor nowhere goes into the amount.
+   */
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
@@ -1153,23 +1085,21 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     if (this.pickingProduct() !== null || this.showDate() || this.browsingCategories()) return;
     if ((event.target as HTMLElement | null)?.closest('ion-textarea, ion-searchbar, input, textarea')) return;
 
-    const operator = operatorFromKey(event.key);
-    if (operator) { event.preventDefault(); this.operate(operator); return; }
-    if (event.key === '=') { event.preventDefault(); this.equals(); return; }
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (this.pending() !== null) this.equals();
-      else if (this.canSave()) void this.save();
+      if (this.canSave()) void this.save();
       return;
     }
-    if (/^[0-9]$/.test(event.key)) { event.preventDefault(); this.press(event.key); return; }
-    if (event.key === ',' || event.key === '.') { event.preventDefault(); this.press(','); return; }
-    if (event.key === 'Backspace') { event.preventDefault(); this.press('<'); }
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      const next = this.amount().copy();
+      next.push(event.key);
+      this.amount.set(next);
+      this.amountField()?.focus();
+    }
   }
 
   async save(): Promise<void> {
-    // A sum still being added up is finished by saving it: there is no "=".
-    if (this.pending() !== null) this.equals();
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
@@ -1256,10 +1186,9 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
   /**
    * The next one, after a save with "Registrar otro" on: the same kind,
    * account, products and day; the amount, the category and the note empty,
-   * and the keypad open for the amount.
+   * and the cursor back in the amount.
    */
   private startNext(): void {
-    this.pending.set(null);
     this.amount.set(new AmountBuffer());
     if (!this.isTransfer()) this.categoryId.set(null);
     this.noteIsTheirs = false;
@@ -1268,7 +1197,7 @@ export class ProductEntryComponent implements OnInit, OnDestroy {
     const field = this.noteField();
     if (field) field.nativeElement.value = '';
     this.error.set('');
-    this.keypadOpen.set(true);
+    this.amountField()?.focus();
     // The next one asks the habit again, once its category is chosen.
     this.scopeTouched = false;
     this.scope.set(DEFAULT_SCOPE);

@@ -1734,32 +1734,6 @@ ion-router-outlet > .ion-page > ion-content .ui-page-end { height: 0; }
   ion-icon { font-size: 20px; color: var(--app-grn); flex: none; }
 }
 
-/* Keypad keys, the movement form's. */
-.ui-kp {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
-  background: var(--app-kp);
-  padding: 8px 8px calc(12px + var(--ion-safe-area-bottom, 0px));
-  border-top: 1px solid var(--app-line);
-
-  button {
-    height: 50px;
-    border-radius: 14px;
-    border: 0;
-    background: var(--app-key);
-    color: var(--app-tx);
-    display: grid;
-    place-items: center;
-    font-size: 22px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    &.op { background: rgba(var(--app-pr-rgb), 0.18); color: var(--app-pr); }
-    &:active { filter: brightness(1.2); }
-  }
-}
-
 /* A progress bar. */
 .ui-pbar {
   height: 7px;

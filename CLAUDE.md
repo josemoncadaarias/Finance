@@ -118,6 +118,8 @@ detail of each is in the section named):
 | #40 | Bank messages read by their shape, for anybody (not yet wired in) | Rule 22 |
 | #41 | Bank messages become proposals in Por revisar, learning the account and category from the person's answers | Rule 22 |
 | #42 | "Monedas y TRM" (renamed) in Más → Herramientas too, every currency in pesos with one Actualizar; "Notificaciones del teléfono" (renamed) with an eye per app; no text selection on rows | Rule 4; "Current status" |
+| #43, #44 | A dialog's lone button centred; "¿En cuál lista?" as plain rows | Rules from Jose's review of v3 |
+| #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -135,7 +137,7 @@ these):
   sign in to Google, so it was never seen running).
 - The long press that starts choosing (Android's `contextmenu`), now also on
   shops and days in Por revisar.
-- The keypad folding and returning, "Registrar otro", swiping sheets down,
+- The amount with the phone's own keyboard (#45), "Registrar otro", swiping sheets down,
   the note raised with the keyboard, the marquee, the floating bar over
   Android's buttons.
 - Whether the accent colour visibly changes things for him in the light
@@ -155,7 +157,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (652 on 2026-10-02, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (701 on 2026-10-02, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -2595,18 +2597,29 @@ changed in the shape of the app, for the next session:
 - **A list of sections opens on its first one** everywhere, through
   `core/ui/first-open.ts` (`FirstOpen`), which keeps only what the person
   changed. Inicio has its own in `movements.store.ts`.
-- **The keypad is one component, `shared/ui/keypad.component.ts`**, in the
-  movement form, a product's own movement and a proposal being checked
-  (Jose, 2026-09-28: take it away, or at least give every form a way to
-  erase a digit). Kept rather than the phone's number keyboard, which has no
-  + − × ÷ and writes a comma or a point by its language. It shows while the
-  amount is typed and folds away (its handle, or a tap on the form below
-  the amount); a tap on the amount, or the small "Mostrar el teclado" arrow
-  left at the foot when it is folded (PR #6, Jose), brings it back; closed
-  from the start when correcting. Erasing is a key (a long press clears); "=" is gone - the
-  sum's result is shown as it is typed and saving finishes it. Saving stays
-  at the foot, with "Registrar otro" beside it on a new movement: it saves
-  and leaves the form ready for the next one on the same account, kind and
+- **The amount is typed with the phone's own keyboard** (Jose, 2026-10-02:
+  "el teclado numérico que ofrece Android es suficiente"), replacing the
+  app's keypad of 2026-09-28. `shared/ui/amount-field.component.ts` is the
+  amount of the movement form (both sides of a transfer between
+  currencies), a product's own movement and a proposal being checked: an
+  input with `inputmode="decimal"`, the figure grouped in thousands as
+  before, and beside it two round keys while it holds something - erase
+  the last digit, and X to clear it all - which keep the focus, so the
+  keyboard stays where it was. The digits stay the app's own
+  (`AmountBuffer`); what the keyboard did is read back by `typedInto`
+  (`amount-buffer.ts`, tested): one character at the end is typed - a comma
+  OR a full stop starts the cents, since the phone offers one or the other
+  by its language - characters gone from the end are erased, anything else
+  (a paste, all typed over) is read afresh. The cursor starts in the amount
+  on a new movement (not a correction, not a loan's payment, and on a
+  proposal only when it carries no amount); "Registrar otro" puts it back
+  there. **The + − × ÷ sums went with the keypad** (`calculator.ts`
+  deleted). On a computer, Enter in the amount saves when nothing is
+  missing, and a digit typed with the cursor nowhere goes into the amount.
+  `shared/ui/form-foot.component.ts` is what is left of the keypad's foot:
+  what is missing, "Registrar otro" and Guardar.
+  "Registrar otro", on a new movement, saves and leaves the form ready for
+  the next one on the same account, kind and
   day. **It starts unticked every time a movement is opened** (Jose,
   2026-09-28): it used to be remembered on the device
   (`finance.enterAnother`, no longer read), and a form that stayed open
@@ -2618,7 +2631,7 @@ changed in the shape of the app, for the next session:
   and the page only reads that account's figures again (`savedOne`).
 - **The X while the note is being written only leaves the note** (Jose,
   2026-09-28), in the movement form, a product's own movement and a
-  proposal being checked: the form comes back as it was, with the keypad,
+  proposal being checked: the form comes back as it was, with its foot,
   and the next X closes it. Escape does the same. Tapping the X blurs the
   note first, so a blur still waiting to land (`noteBlurTimer`) counts as
   writing (`close()` in each form).
@@ -3863,9 +3876,9 @@ budget family (2/16, 1, 7), then the rest.
       gross, like the green figure on Días and Pagos.
 - [ ] Look on the phone at Inicio's labelled cards (topes, metas) and at
       Días/Pagos with the rate or bonus beside each date.
-- [ ] Say whether the keypad should start closed, and whether he misses the
-      "=" key (both small changes). He liked it folding away (2026-09-28)
-      and asked for the arrow that brings it back, done in #6.
+- [ ] Try the amount with the phone's own keyboard (#45): whether the
+      keyboard comes up by itself on a new movement, and the erase and X
+      keys beside the figure.
 
 ## Documents
 

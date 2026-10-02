@@ -15,7 +15,7 @@
   </header>
 
   <div class="entry-scroll">
-    <div class="entry-body" (click)="bodyTapped($event)">
+    <div class="entry-body">
       <!-- While the note is written the rest steps aside by CSS (.writing-note);
            the note is never drawn a second time, or the phone drops its keyboard. -->
         <div class="ui-seg kinds">
@@ -33,13 +33,9 @@
           </button>
         </div>
 
-        @if (pendingLabel(); as sum) { <p class="pending">{{ sum }}</p> }
-
-        <section class="amount" (click)="keypadOpen.set(true)">
-          <span class="sign" [class]="request().kind">{{ isTransfer() ? '⇄' : request().kind === 'expense' ? '−' : '+' }}</span>
-          <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
-          <span class="currency">{{ currency() }}</span>
-        </section>
+        <app-amount-field [buffer]="amount()" (changed)="amount.set($event)" (done)="amountDone()"
+                          [sign]="isTransfer() ? '⇄' : request().kind === 'expense' ? '−' : '+'" [tone]="request().kind"
+                          [currency]="currency()" [autofocus]="!isEditing()"></app-amount-field>
 
         @if (isTransfer() && fromBalance() !== null) {
           <div class="all-row">
@@ -104,11 +100,9 @@
   </div>
 
   @if (!writingNote()) {
-    <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
-                [missing]="missing()" [canSave]="canSave() && !saving()"
-                [operator]="pending()?.operator ?? null"
-                [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
-                (pressed)="press($event)" (save)="save()"></app-keypad>
+    <app-form-foot [missing]="missing()" [canSave]="canSave() && !saving()"
+                   [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
+                   (save)="save()"></app-form-foot>
   }
 </div>
 

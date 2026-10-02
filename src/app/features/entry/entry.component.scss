@@ -74,70 +74,6 @@
   ion-icon { font-size: 19px; }
 }
 
-.pending {
-  margin: 0;
-  text-align: center;
-  color: var(--app-mu);
-  font-size: 14px;
-}
-
-/* The amount, big and alone. */
-.amount {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 4px;
-  padding: 2px 44px 0;
-  min-height: 62px;
-
-  .sign {
-    font-size: 30px;
-    font-weight: 600;
-    align-self: center;
-    &.expense { color: var(--app-red); }
-    &.income { color: var(--app-grn); }
-    &.transfer { color: var(--app-move); }
-  }
-
-  .value {
-    font-size: 44px;
-    // A long figure with its cents (a loan's installment) gets smaller
-    // rather than cut short.
-    &.long { font-size: 34px; }
-    &.longer { font-size: 28px; }
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-
-  .currency {
-    font-size: 15px;
-    color: var(--app-mu);
-    font-weight: 500;
-  }
-
-  .erase {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 0;
-    background: none;
-    color: var(--app-mu);
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    ion-icon { font-size: 26px; }
-  }
-}
-
 /* Two currencies: what leaves and what arrives, side by side (1j). */
 .pair {
   display: flex;
@@ -453,7 +389,7 @@
   .ui-row::before { left: 46px; }
 }
 
-/* ---- The keypad and saving ------------------------------------------------ */
+/* ---- Saving ------------------------------------------------------------- */
 
 .pad {
   flex: none;
@@ -468,19 +404,6 @@
     border-top: 1px solid var(--app-line);
   }
 
-  .ui-kp button.on { background: var(--app-pr); color: #fff; }
-
-  .ui-kp .save {
-    grid-column: 1 / -1;
-    height: 52px;
-    border-radius: 16px;
-    background: linear-gradient(90deg, var(--app-pr), var(--app-pr2, var(--app-pr)));
-    color: #fff;
-    font-size: 17px;
-    font-weight: 700;
-
-    &:disabled { opacity: 0.45; filter: grayscale(0.4); }
-  }
 }
 
 /* ---- Sheets --------------------------------------------------------------- */

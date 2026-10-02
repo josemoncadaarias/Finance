@@ -3,7 +3,7 @@
  *
  * The thing a good expense app gets right is that adding an expense costs three
  * steps: amount, category, save. Everything here is arranged around not being
- * slower than that — the keypad is ready, the category grid needs no scrolling
+ * slower than that — the cursor waits in the amount, the category grid needs no scrolling
  * for the common ones, and account and date already hold the answer that is
  * right most of the time.
  *
@@ -45,9 +45,6 @@ import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../c
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
-import {
-  apply, isOperator, operatorFromKey, type Operator, type Pending,
-} from './calculator';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
@@ -109,7 +106,8 @@ export interface LoanEntry {
   mode: 'term' | 'installment' | null;
 }
 
-import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { FormFootComponent } from '../../shared/ui/form-foot.component';
+import { AmountFieldComponent } from '../../shared/ui/amount-field.component';
 import { foldText } from '../../core/text/fold-text';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
@@ -118,7 +116,7 @@ import { ToastService } from '../../shared/ui/toast.service';
   selector: 'app-entry',
   imports: [
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
-    CategoryEditorComponent, ConfirmComponent, KeypadComponent, AutoGrowDirective,
+    CategoryEditorComponent, ConfirmComponent, FormFootComponent, AmountFieldComponent, AutoGrowDirective,
     IonIcon, IonDatetime, IonModal,
   ],
   templateUrl: './entry.component.html',
@@ -140,13 +138,12 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly amount = signal(new AmountBuffer());
 
   /**
-   * Whether the keypad is on show. Open on a new movement, where the amount
-   * is the first thing typed; closed on one being corrected, where it
-   * usually is not. Touching any other part of the form folds it away, and
-   * touching the amount brings it back (Jose, 2026-09-28: it took the room
-   * the rest of the form needed).
+   * The cursor starts in the amount on a new movement, so the phone's
+   * keyboard comes up for it; not on one being corrected, nor on a loan's
+   * payment, whose amount is already the installment.
    */
-  readonly keypadOpen = signal(true);
+  readonly autofocusAmount = signal(false);
+  private readonly amountField = viewChild(AmountFieldComponent);
 
   /**
    * "Registrar otro": save and start the next movement at once, on the same
@@ -163,10 +160,17 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.again.set(on);
   }
 
-  /** A tap anywhere on the lists below the amount folds the keypad away. */
-  bodyTapped(event: Event): void {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  /** What the amount field typed, erased or cleared. */
+  setAmount(buffer: AmountBuffer, target: boolean): void {
+    this.editingTarget.set(target);
+    if (target) this.targetAmount.set(buffer);
+    else this.amount.set(buffer);
+  }
+
+  /** Enter in the amount: saves on a computer when it can, else lets the keyboard go. */
+  amountDone(): void {
+    if (this.canSave()) void this.save();
+    else this.amountField()?.blur();
   }
   /** Only used when a transfer crosses currencies. */
   readonly targetAmount = signal(new AmountBuffer());
@@ -310,31 +314,6 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** Icon names arrive with or without their suffix; this settles it. */
   readonly outlined = outlined;
-  /**
-   * A half-finished sum, when one is in progress.
-   *
-   * Splitting a bill or adding up a shop happens at the counter, and doing it
-   * in another app and typing the result back is how amounts get mistyped.
-   */
-  readonly pending = signal<Pending | null>(null);
-
-  /**
-   * The pad, four columns wide.
-   *
-   * Backspace moved into the amount display to free this column, which is
-   * where the app Jose used before puts it too - and it is the right place: it acts on what is
-   * shown there.
-   */
-  /**
-   * The keys, as they are laid out: three columns of digits and one of
-   * arithmetic.
-   *
-   * Backspace sits where '=' used to. Correcting a digit is something that
-   * happens on nearly every amount, and it was only reachable at the top of
-   * the screen beside the figure - while '=' is only needed when a sum is
-   * being added up, which is when it appears beside the save button instead.
-   */
-
   /** Set when the screen is editing an existing transfer rather than a movement. */
   readonly editingTransferId = signal<number | null>(null);
   /** Notes used before that match what is being typed. */
@@ -345,7 +324,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * keyboard is up and has taken the bottom half of the screen - exactly where
    * the note and the suggestions under it were being drawn.
    *
-   * While it is on, the app's own keypad goes away (it cannot help type a
+   * While it is on, the foot with Guardar goes away (it cannot help type a
    * note) and, on a screen too short for the rest, so does everything above
    * the note. What is left is the amount, the note, and the notes already
    * written that match it.
@@ -361,10 +340,10 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /**
    * Leaves the note for good: the keyboard down, the focus off the field, and
-   * the app's own keypad back.
+   * the foot with Guardar back.
    *
    * On Android the back button closes the keyboard and leaves the focus where
-   * it was, so nothing told the form the note was finished and the keypad
+   * it was, so nothing told the form the note was finished and the foot
    * stayed away until something else was tapped. The keyboard plugin reports
    * the close, and this is what it calls.
    */
@@ -402,7 +381,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.noteBlurTimer = null;
     }
     this.writingNote.set(true);
-    // After the keypad has gone and the keyboard has come up.
+    // After the foot has gone and the keyboard has come up.
     setTimeout(() => this.noteBox()?.nativeElement.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
   }
 
@@ -436,8 +415,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly crossesCurrency = computed(() =>
     this.isTransfer() && this.toAccount() !== null && this.currency() !== this.targetCurrency());
 
-  readonly activeBuffer = computed(() =>
-    this.editingTarget() ? this.targetAmount() : this.amount());
 
   readonly title = computed(() => {
     if (this.betweenProducts() && this.isEditing()) return this.i18n.t('entry.editTransfer');
@@ -454,7 +431,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    *
    * Four, plus the door to the rest, is exactly one row — and a single row is
    * worth more than the extra coverage a second one buys: it leaves the amount
-   * and the keypad in view, which is what the screen is for. The four most
+   * and the amount in view, which is what the screen is for. The four most
    * used carry two thirds of what gets recorded here, and everything else is
    * one tap and a search away.
    */
@@ -573,13 +550,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * button. A disabled control that says nothing is the app refusing without
    * explaining itself.
    */
-  /** The amount, or the result of the sum still being typed: saving finishes it. */
-  private readonly effectiveMinor = computed(() => {
-    const sum = this.pending();
-    const buffer = this.editingTarget() ? this.targetAmount() : this.amount();
-    if (!sum || this.editingTarget()) return this.amount().minor;
-    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
-  });
+  private readonly effectiveMinor = computed(() => this.amount().minor);
 
   readonly missing = computed<string | null>(() => {
     if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
@@ -608,9 +579,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   });
 
   readonly canSave = computed(() => this.missing() === null);
-
-  /** True while a sum is waiting for its other side. */
-  readonly midSum = computed(() => this.pending() !== null);
 
   constructor() {
     addIcons(allIcons as unknown as Record<string, string>);
@@ -657,7 +625,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** Clears the amount if it is still the one "Pasar todo" wrote. */
   private forgetFilledAll(): void {
-    if (this.filledWithAll !== null && this.pending() === null && this.amount().minor === this.filledWithAll) {
+    if (this.filledWithAll !== null && this.amount().minor === this.filledWithAll) {
       this.amount.set(new AmountBuffer());
     }
     this.filledWithAll = null;
@@ -666,7 +634,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   moveEverything(): void {
     const held = this.fromHolds();
     if (held === null) return;
-    this.pending.set(null);
     this.amount.set(AmountBuffer.from(held));
     this.filledWithAll = held;
   }
@@ -737,7 +704,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.keypadOpen.set(this.request().editing === undefined);
+    this.autofocusAmount.set(this.request().editing === undefined && !this.request().loan);
     // The phone's keyboard closing is the end of writing a note, however it
     // was closed - the back button included, which does not blur the field.
     if (Capacitor.isNativePlatform()) {
@@ -838,7 +805,6 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.loanInterest.set(AmountBuffer.from(loan.interestMinor));
       this.loanInsurance.set(AmountBuffer.from(loan.insuranceMinor));
       this.loanMode.set(loan.mode ?? 'term');
-      this.keypadOpen.set(false);
     }
   }
 
@@ -1141,13 +1107,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
 
-  /** Starts the amount over, sum and all. */
-  clearAmount(): void {
-    this.pending.set(null);
-    if (this.editingTarget()) this.targetAmount.set(new AmountBuffer());
-    else this.amount.set(new AmountBuffer());
-  }
-
   useNote(note: string, pressed?: Event): void {
     pressed?.preventDefault();
     this.noteIsTheirs = true;
@@ -1159,15 +1118,12 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The physical keyboard drives the on-screen one.
+   * The computer's keyboard: Escape closes, and Enter saves while no field
+   * has the cursor. A digit typed with the cursor nowhere goes into the
+   * amount, which takes the cursor from there - correcting a backlog of
+   * movements on a computer should not need the mouse between each one.
    *
-   * On a phone this changes nothing. On a computer — which is where a backlog
-   * of movements actually gets corrected — reaching for the mouse between
-   * every digit is the whole cost of the task. The number row and the numeric
-   * keypad both work, comma and full stop both start the cents, Enter saves
-   * and Escape closes.
-   *
-   * Typing inside the note field is left alone: there, digits are text.
+   * Typing inside any field is left to the field: in the note, digits are text.
    */
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
@@ -1187,128 +1143,19 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     if (typingText) return;
 
-    const operator = operatorFromKey(event.key);
-    if (operator) {
-      event.preventDefault();
-      this.operate(operator);
-      return;
-    }
-
-    if (event.key === '=') {
-      event.preventDefault();
-      this.equals();
-      return;
-    }
-
     if (event.key === 'Enter') {
       event.preventDefault();
-      // Mid-sum, Enter finishes the sum rather than saving half of it.
-      if (this.pending() !== null) this.equals();
-      else if (this.canSave()) void this.save();
+      if (this.canSave()) void this.save();
       return;
     }
 
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault();
-      this.press(event.key);
-      return;
+      const next = this.amount().copy();
+      next.push(event.key);
+      this.setAmount(next, false);
+      this.amountField()?.focus();
     }
-
-    if (event.key === ',' || event.key === '.') {
-      event.preventDefault();
-      this.press(',');
-      return;
-    }
-
-    if (event.key === 'Backspace') {
-      event.preventDefault();
-      this.press('<');
-      return;
-    }
-
-    // Across currencies there are two amounts; Tab moves between them.
-    if (event.key === 'Tab' && this.crossesCurrency()) {
-      event.preventDefault();
-      this.focusAmount(!this.editingTarget());
-    }
-  }
-
-  /** What the running sum looks like, for showing above the amount. */
-  readonly pendingLabel = computed(() => {
-    const sum = this.pending();
-    if (!sum) return '';
-    // With no "=" key, the result is said as the sum is typed; a second
-    // operator or saving finishes it.
-    const buffer = this.editingTarget() ? this.targetAmount() : this.amount();
-    if (buffer.isEmpty) return `${this.money(sum.leftMinor)} ${sum.operator}`;
-    const result = Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
-    return `${this.money(sum.leftMinor)} ${sum.operator} ${this.money(buffer.minor)} = ${this.money(result)}`;
-  });
-
-  /**
-   * Starts or continues an operation.
-   *
-   * Pressing a second operator finishes the first, so 2 + 3 + 4 works the way
-   * anyone expects rather than needing = between each step.
-   */
-  operate(operator: Operator): void {
-    const buffer = this.activeBuffer();
-    const sum = this.pending();
-
-    if (sum && !buffer.isEmpty) {
-      this.setActive(AmountBuffer.from(apply(sum.leftMinor, sum.operator, buffer.minor)));
-      this.pending.set({ leftMinor: apply(sum.leftMinor, sum.operator, buffer.minor), operator });
-    } else if (!buffer.isEmpty) {
-      this.pending.set({ leftMinor: buffer.minor, operator });
-    } else if (sum) {
-      // Changing your mind about which operator, before typing the other side.
-      this.pending.set({ ...sum, operator });
-      return;
-    } else {
-      return;
-    }
-
-    this.setActive(new AmountBuffer());
-  }
-
-  /** Finishes the sum and leaves the result as the amount. */
-  equals(): void {
-    const sum = this.pending();
-    const buffer = this.activeBuffer();
-    if (!sum) return;
-
-    const result = buffer.isEmpty
-      ? sum.leftMinor
-      : apply(sum.leftMinor, sum.operator, buffer.minor);
-
-    this.pending.set(null);
-    this.setActive(AmountBuffer.from(Math.max(result, 0)));
-  }
-
-  private setActive(buffer: AmountBuffer): void {
-    if (this.editingTarget()) this.targetAmount.set(buffer);
-    else this.amount.set(buffer);
-  }
-
-  press(key: string): void {
-    if (key === 'C') { this.clearAmount(); return; }
-    if (isOperator(key)) { this.operate(key); return; }
-    if (key === '=') { this.equals(); return; }
-
-    const buffer = this.activeBuffer();
-    if (key === '<') buffer.backspace();
-    else if (key === ',') buffer.separator();
-    else buffer.push(key);
-
-    // A new object so the signal notices: the buffer mutates in place.
-    const copy = Object.assign(Object.create(AmountBuffer.prototype), buffer);
-    if (this.editingTarget()) this.targetAmount.set(copy);
-    else this.amount.set(copy);
-  }
-
-  focusAmount(target: boolean): void {
-    this.keypadOpen.set(true);
-    this.editingTarget.set(target);
   }
 
   pickCategory(id: number): void {
@@ -1383,9 +1230,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   async save(): Promise<void> {
-    // A sum still being added up is finished by saving it, rather than the
-    // form refusing until '=' is pressed. Enter has always done this.
-    if (this.pending() !== null) this.equals();
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
@@ -1414,10 +1258,9 @@ export class EntryComponent implements OnInit, OnDestroy {
   /**
    * The next movement, after one saved with "Registrar otro" on: the same
    * kind, account, products and day; the amount, the category and the note
-   * empty, and the keypad open for the amount.
+   * empty, and the cursor back in the amount.
    */
   private startNext(): void {
-    this.pending.set(null);
     this.amount.set(new AmountBuffer());
     this.targetAmount.set(new AmountBuffer());
     this.editingTarget.set(false);
@@ -1428,7 +1271,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const field = this.noteField();
     if (field) field.nativeElement.value = '';
     this.error.set('');
-    this.keypadOpen.set(true);
+    this.amountField()?.focus();
     // The next one asks the habit again, once its category is chosen.
     this.scopeTouched = false;
     this.scope.set(DEFAULT_SCOPE);
@@ -1753,10 +1596,6 @@ export class EntryComponent implements OnInit, OnDestroy {
       .indexOf(typed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
     if (at < 0 || hint.length !== hint.normalize('NFD').replace(/[\u0300-\u036f]/g, '').length) return [hint, '', ''];
     return [hint.slice(0, at), hint.slice(at, at + typed.length), hint.slice(at + typed.length)];
-  }
-
-  isOperatorKey(key: string): boolean {
-    return isOperator(key);
   }
 
   /** "Desde" where money leaves, "Hacia" where it arrives. */
