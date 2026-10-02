@@ -58,11 +58,13 @@ export function iconForCategory(name: string): string {
  * Runs at startup beside the account settings, and for the same reason: an
  * icon that only arrives with the next import is an icon Jose does not have.
  * A category whose icon was changed to something outside this table is left
- * alone — that is a choice, not a placeholder.
+ * alone — that is a choice, not a placeholder. So is a picture of the
+ * person's own: such a row has no built-in icon at all, and giving it one
+ * broke the table's rule of one or the other, so the app would not open.
  */
 export async function applyCategoryIcons(driver: SqlDriver): Promise<number> {
   const rows = await driver.query<{ id: number; name: string; builtin_icon: string | null }>(
-    'SELECT id, name, builtin_icon FROM categories',
+    'SELECT id, name, builtin_icon FROM categories WHERE custom_icon_id IS NULL',
   );
 
   let updated = 0;

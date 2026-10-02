@@ -151,6 +151,21 @@ these):
   keys (`i18n.test.mjs` checks it).
 - A new control that appears on two screens is defined once in
   `src/global.scss` (the `ui-*` classes).
+- **A demo backup with every feature in use** (Jose, 2026-10-02):
+  `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
+  <folder>` writes `finance-demostracion-completa.json` - invented people
+  and money, dated 2026-10-02, built through the app's own repositories and
+  engines: every kind of account, a group, euros and dollars, pictures of
+  one's own, cards in every state, products with cashback, CDTs (one
+  matured), a spending bonus, an investment fund, three loans (one in UVR),
+  caps, goals, proposals waiting for review and a tax simulation. Bank
+  notifications are not in it: Android keeps them outside the database.
+  Building it found a bug (a category with a picture of its own stopped the
+  app from opening, fixed in `category-icons.ts`) and one case left as it
+  is: an account mixing a product that follows the account with products
+  carrying a typed figure counts money moved between them twice in
+  "Rendimiento acumulado" - every product in Jose's data is typed, so it
+  never shows for him.
 
 ---
 
