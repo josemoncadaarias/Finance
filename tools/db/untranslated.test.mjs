@@ -41,6 +41,9 @@ const ALLOWED = [
   // supermercado, peaje, nomina. They are read out of a statement, not shown
   // to anybody, so there is nothing here to translate.
   'core/proposals/common-words.ts',
+  // The words of both languages that say a bank's message moved money -
+  // compraste, recibiste, saldo - read out of the message, never shown.
+  'core/notices/read-notice.ts',
   // The CSV's default words; the screen passes translated ones.
   'core/database/export/export-csv.ts',
   // Formulario 210's Spanish: the tax module's own translations file.

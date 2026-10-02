@@ -115,6 +115,7 @@ detail of each is in the section named):
 | #34-#36 | Días/Pagos: product on every line, gross in green, rate or bonus beside the date; "Llevas acumulado en {mes}" on the yields screen | "Also fixed the same day" |
 | #38 | An expense into a cap already past says so at saving; the card's "pago total" hint reworded | "Part 3, plans - limits"; "Part 1, the card" |
 | #39 | Inicio's "Esta semana" (card and loan payments due or late); the lock on hand-edited movements no longer shown | "Debts and plans" (Inicio); rule 12 |
+| #40 | Bank messages read by their shape, for anybody (not yet wired in) | Rule 22 |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -1352,6 +1353,24 @@ backup restore against iOS's own SQLite backend.
      read of the molds and the dictionary, answered in memory, and the
      proposals written with `insertMany` - never a query per notification,
      and nothing working in the background.
+
+   **The first reading by shape is BUILT (2026-10-02)**: `readNotice` in
+   `core/notices/read-notice.ts`, pure, tested on 37 INVENTED messages of
+   every style (`read-notice.test.mjs`: Colombian, Mexican and English
+   wordings, signs and codes before or after, both decimal marks). Jose,
+   that day, in capitals: the reading must not be burned in for his banks -
+   another user's messages read differently - and a message that moved money
+   names an amount, often a balance. So it names no bank, sender or format:
+   money is a number with a sign or code beside it or its thousands grouped
+   (never a code, a card's digits, an hour or a date); the amount right after
+   "saldo/disponible/balance" with nothing in between is the balance; the
+   direction is the first movement word of either language; where is the
+   words after "en/a" (out) or "de/desde" (in); the card's digits after `*`,
+   "terminada en", "ending in". It answers `movement`, `unclear` (money, no
+   direction: the person decides), `balance`, `declined` or `none` (codes,
+   offers, reminders "vence/te recordamos que", plain chat). A bank footer
+   ("Recuerda: nunca te pediremos tu clave") does not hide a movement. Not
+   yet wired to the screens or to Android: that is the next step.
 
    **SMS and email: many banks send no push notification of their own**
    (Jose, 2026-09-28). Analysed and proposed, **nothing built, nothing
