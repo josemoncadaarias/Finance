@@ -172,6 +172,25 @@ export class NotificationsPage {
     && (this.term().length === 0 || foldText(`${one.sender} ${one.app}`).includes(this.term())))
     .sort((one, other) => Number(other.watched) - Number(one.watched) || other.last - one.last));
 
+  /**
+   * What the "Mensajes de texto" section says while it lists no sender, one
+   * line per messaging app: its messages arrive without words (the phone
+   * hides them), none has looked like money yet, or nothing has come yet.
+   */
+  readonly smsWaiting = computed(() => {
+    if (this.sortedSenders().length > 0) return [];
+    return this.apps().filter(app => app.messaging).map(app => {
+      const blank = app.blank ?? 0, plain = app.plain ?? 0, money = app.money ?? 0;
+      if (blank > 0 && money === 0) {
+        return { warn: true, text: this.i18n.t(blank === 1 ? 'ui.notifications.sms.blankOne' : 'ui.notifications.sms.blank', { count: blank, app: app.label }) };
+      }
+      if (plain > 0 && money === 0) {
+        return { warn: false, text: this.i18n.t('ui.notifications.sms.plain', { app: app.label }) };
+      }
+      return { warn: false, text: this.i18n.t('ui.notifications.sms.none', { app: app.label }) };
+    });
+  });
+
   readonly hiddenSenders = computed(() => this.senders().filter(one => one.hidden)
     .sort((one, other) => one.sender.localeCompare(other.sender)));
 
