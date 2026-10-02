@@ -84,11 +84,9 @@ the new screen is checked.
 
 - [ ] Gasto / Ingreso / Transferencia / Mover entre productos; editing
       titles for each.
-- [ ] Amount with sign; the keypad with + − × ÷ (no "=" since 2026-09-28:
-      the sum's result is shown as it is typed and saving finishes it); erase
-      one digit and, with a long press, all of it - a key of the keypad, in
-      every form; the keypad folds away and returns on the amount; "Registrar
-      otro" on a new movement.
+- [ ] Amount with sign, typed with the phone's own keyboard (since
+      2026-10-02; no + − × ÷ any more); beside it, erase one digit and X to
+      clear it all, in every form; "Registrar otro" on a new movement.
 - [ ] Keyboard use on a computer (Enter saves, Esc closes) and its hint.
 - [ ] Cross-currency: Sale / Llega, each editable, the rate kept per
       movement.

@@ -1,6 +1,6 @@
 /**
  * One proposal, checked in the shape of the movement form (mockups 6e-6h):
- * what the statement said on top, its keypad for the amount, the account,
+ * what the statement said on top, its amount, the account,
  * the category, the day and the note - the same note as every other screen,
  * rising while it is written with the notes used before under it, plus what
  * the statement said, to keep it as it came.
@@ -24,7 +24,6 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { monthName } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
 import { AmountBuffer } from '../entry/amount-buffer';
-import { apply, isOperator, type Operator, type Pending } from '../entry/calculator';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
@@ -38,12 +37,13 @@ export interface ProposalAnswer {
   category_id: number | null;
 }
 
-import { KeypadComponent } from '../../shared/ui/keypad.component';
+import { FormFootComponent } from '../../shared/ui/form-foot.component';
+import { AmountFieldComponent } from '../../shared/ui/amount-field.component';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 @Component({
   selector: 'app-proposal-form',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, KeypadComponent, AutoGrowDirective],
+  imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, FormFootComponent, AmountFieldComponent, AutoGrowDirective],
   styleUrls: ['../entry/entry.component.scss'],
   styles: [`
     .said {
@@ -80,7 +80,7 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
       </header>
 
       <div class="entry-scroll">
-        <div class="entry-body" (click)="bodyTapped($event)">
+        <div class="entry-body">
           <!-- While the note is written the rest steps aside by CSS (.writing-note);
            the note is never drawn a second time, or the phone drops its keyboard. -->
             <div class="ui-seg kinds">
@@ -117,12 +117,9 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
               <div class="ui-banner warn guessed-sign"><ion-icon name="help-circle-outline"></ion-icon><span>{{ 'review.guessed' | t }}</span></div>
             }
 
-            @if (pendingLabel(); as sum) { <p class="pending">{{ sum }}</p> }
-            <section class="amount" (click)="keypadOpen.set(true)">
-              <span class="sign" [class.expense]="sign() < 0" [class.income]="sign() > 0">{{ sign() < 0 ? '−' : '+' }}</span>
-              <span class="value">{{ amount().isEmpty ? '0' : amount().text }}</span>
-              <span class="currency">{{ currency() }}</span>
-            </section>
+            <app-amount-field [buffer]="amount()" (changed)="amount.set($event)" (done)="amountDone()"
+                              [sign]="sign() < 0 ? '−' : '+'" [tone]="sign() < 0 ? 'expense' : 'income'"
+                              [currency]="currency()" [autofocus]="autofocusAmount"></app-amount-field>
 
             <div class="ui-list ends">
               <div class="ui-row end" [class.needed]="account() === null">
@@ -167,10 +164,8 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
       </div>
 
       @if (!writingNote()) {
-        <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
-                    [missing]="missing()" [canSave]="missing() === null && !busy()"
-                    [operator]="pending()?.operator ?? null"
-                    (pressed)="press($event)" (save)="save()"></app-keypad>
+        <app-form-foot [missing]="missing()" [canSave]="missing() === null && !busy()"
+                       (save)="save()"></app-form-foot>
       }
     </div>
 
@@ -260,18 +255,20 @@ export class ProposalFormComponent implements OnInit {
 
   private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
 
-  /** Folded once the amount is read: a proposal usually has its amount already. */
-  readonly keypadOpen = signal(false);
+  /**
+   * The cursor starts in the amount only when there is none to read: a
+   * notification that said nothing but "you have a new movement".
+   */
+  autofocusAmount = false;
+  private readonly amountField = viewChild(AmountFieldComponent);
 
-  /** A tap anywhere on the lists below the amount folds the keypad away. */
-  bodyTapped(event: Event): void {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('.ui-list')) this.keypadOpen.set(false);
+  /** Enter in the amount: saves on a computer when it can, else lets the keyboard go. */
+  amountDone(): void {
+    if (this.missing() === null) this.save();
+    else this.amountField()?.blur();
   }
-  readonly isOperator = isOperator;
 
   readonly amount = signal(new AmountBuffer());
-  readonly pending = signal<Pending | null>(null);
   readonly sign = signal<1 | -1>(-1);
   readonly accountId = signal<number | null>(null);
   readonly categoryId = signal<number | null>(null);
@@ -291,15 +288,6 @@ export class ProposalFormComponent implements OnInit {
   readonly category = computed(() => this.categories().find(one => one.id === this.categoryId()) ?? null);
   readonly currency = computed(() => this.account()?.currency_code ?? 'COP');
 
-  readonly pendingLabel = computed(() => {
-    const sum = this.pending();
-    if (!sum) return '';
-    const shown = (minor: number) => formatMoney(minor, this.currency(), { withSymbol: false });
-    const buffer = this.amount();
-    if (buffer.isEmpty) return `${shown(sum.leftMinor)} ${sum.operator}`;
-    return `${shown(sum.leftMinor)} ${sum.operator} ${shown(buffer.minor)} = ${shown(Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0))}`;
-  });
-
   readonly dateLabel = computed(() => {
     const iso = this.day();
     if (!iso) return this.i18n.t('ui.review.noDate');
@@ -311,16 +299,9 @@ export class ProposalFormComponent implements OnInit {
     return text.charAt(0).toUpperCase() + text.slice(1);
   });
 
-  /** The amount, or the result of the sum still being typed. */
-  private readonly effectiveMinor = computed(() => {
-    const sum = this.pending();
-    const buffer = this.amount();
-    if (!sum) return buffer.minor;
-    return buffer.isEmpty ? sum.leftMinor : Math.max(apply(sum.leftMinor, sum.operator, buffer.minor), 0);
-  });
+  private readonly effectiveMinor = computed(() => this.amount().minor);
 
   readonly missing = computed<string | null>(() => {
-    // A sum being added up counts as its result: saving finishes it.
     if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
     if (this.categoryId() === null) return this.i18n.t('entry.need.category');
@@ -330,9 +311,7 @@ export class ProposalFormComponent implements OnInit {
 
   ngOnInit(): void {
     const proposal = this.proposal();
-    // Open only when there is no amount yet to read: a notification that said
-    // nothing but "you have a new movement".
-    this.keypadOpen.set(proposal.amount_minor === null || proposal.amount_minor === 0);
+    this.autofocusAmount = proposal.amount_minor === null || proposal.amount_minor === 0;
     if (proposal.amount_minor !== null) {
       this.amount.set(AmountBuffer.from(Math.abs(proposal.amount_minor)));
       this.sign.set(proposal.amount_minor < 0 ? -1 : 1);
@@ -343,41 +322,6 @@ export class ProposalFormComponent implements OnInit {
     this.day.set(proposal.occurred_on ?? '');
     this.note.set(proposal.description ?? '');
     this.original.set(proposal.description ?? '');
-  }
-
-  press(key: string): void {
-    if (key === 'C') { this.clear(); return; }
-    if (isOperator(key)) { this.operate(key); return; }
-    if (key === '=') { this.equals(); return; }
-    const buffer = this.amount();
-    if (key === '<') buffer.backspace();
-    else if (key === ',') buffer.separator();
-    else buffer.push(key);
-    this.amount.set(Object.assign(Object.create(AmountBuffer.prototype), buffer));
-  }
-
-  private operate(operator: Operator): void {
-    const buffer = this.amount();
-    const sum = this.pending();
-    if (sum && !buffer.isEmpty) this.pending.set({ leftMinor: apply(sum.leftMinor, sum.operator, buffer.minor), operator });
-    else if (!buffer.isEmpty) this.pending.set({ leftMinor: buffer.minor, operator });
-    else if (sum) { this.pending.set({ ...sum, operator }); return; }
-    else return;
-    this.amount.set(new AmountBuffer());
-  }
-
-  private equals(): void {
-    const sum = this.pending();
-    if (!sum) return;
-    const buffer = this.amount();
-    const result = buffer.isEmpty ? sum.leftMinor : apply(sum.leftMinor, sum.operator, buffer.minor);
-    this.pending.set(null);
-    this.amount.set(AmountBuffer.from(Math.max(result, 0)));
-  }
-
-  clear(): void {
-    this.pending.set(null);
-    this.amount.set(new AmountBuffer());
   }
 
   pickDate(value: string | null): void {
@@ -432,8 +376,6 @@ export class ProposalFormComponent implements OnInit {
   }
 
   save(): void {
-    // A sum still being added up is finished by saving it: there is no "=".
-    if (this.pending() !== null) this.equals();
     if (this.missing() !== null) return;
     this.answered.emit({
       account_id: this.accountId(),

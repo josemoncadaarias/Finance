@@ -16,7 +16,7 @@
   </header>
 
   <div class="entry-scroll">
-    <div class="entry-body" (click)="bodyTapped($event)">
+    <div class="entry-body">
 
       <!-- Gasto, Ingreso or Transferir: the form switches between them, keeping
            what was already written. A movement being corrected keeps its kind. -->
@@ -38,32 +38,30 @@
           </button>
         </div>
 
-        @if (pendingLabel(); as sum) {
-          <p class="pending">{{ sum }}</p>
-        }
-
         <!-- The amount, and nothing competing with it. -->
         @if (crossesCurrency()) {
           <div class="pair">
-            <button type="button" class="side" [class.active]="!editingTarget()" (click)="focusAmount(false)">
+            <div class="side" [class.active]="!editingTarget()" (click)="editingTarget.set(false)">
               <span class="ui-lab">{{ 'entry.leaves' | t }}</span>
-              <b>{{ amount().isEmpty ? '0' : amount().text }}</b>
+              <app-amount-field class="small" [buffer]="amount()" (changed)="setAmount($event, false)"
+                                (focused)="editingTarget.set(false)" (done)="amountDone()"
+                                [autofocus]="autofocusAmount()"></app-amount-field>
               <small>{{ currency() }}</small>
-            </button>
+            </div>
             <ion-icon class="arrow" name="arrow-forward"></ion-icon>
-            <button type="button" class="side" [class.active]="editingTarget()" (click)="focusAmount(true)">
+            <div class="side" [class.active]="editingTarget()" (click)="editingTarget.set(true)">
               <span class="ui-lab">{{ 'entry.arrives' | t }}</span>
-              <b>{{ targetAmount().isEmpty ? '0' : targetAmount().text }}</b>
+              <app-amount-field class="small" [buffer]="targetAmount()" (changed)="setAmount($event, true)"
+                                (focused)="editingTarget.set(true)" (done)="amountDone()"></app-amount-field>
               <small>{{ targetCurrency() }}@if (rateText()) { · {{ rateText() }} }</small>
-            </button>
+            </div>
           </div>
         } @else {
-          <!-- Touching the amount brings the keypad back; erasing is a key of it. -->
-          <section class="amount" (click)="keypadOpen.set(true)">
-            <span class="sign" [class]="kind()">{{ isTransfer() ? '⇄' : kind() === 'expense' ? '−' : '+' }}</span>
-            <span class="value" [class.long]="amount().text.length > 9" [class.longer]="amount().text.length > 12">{{ amount().isEmpty ? '0' : amount().text }}</span>
-            <span class="currency">{{ currency() }}</span>
-          </section>
+          <!-- The amount, typed with the phone's keyboard; erasing a digit and
+               clearing it all sit beside it (Jose, 2026-10-02). -->
+          <app-amount-field [buffer]="amount()" (changed)="setAmount($event, false)" (done)="amountDone()"
+                            [sign]="isTransfer() ? '⇄' : kind() === 'expense' ? '−' : '+'" [tone]="kind()"
+                            [currency]="currency()" [autofocus]="autofocusAmount()"></app-amount-field>
         }
 
         <!-- Everything the origin holds, in one tap, with the figure on it. -->
@@ -174,13 +172,11 @@
     </div>
   </div>
 
-  <!-- The keypad while the amount is typed, and saving at the foot always. -->
+  <!-- Saving at the foot, always. -->
   @if (!writingNote()) {
-    <app-keypad [open]="keypadOpen()" (openChange)="keypadOpen.set($event)"
-                [missing]="missing()" [canSave]="canSave() && !saving()"
-                [operator]="pending()?.operator ?? null"
-                [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
-                (pressed)="press($event)" (save)="save()"></app-keypad>
+    <app-form-foot [missing]="missing()" [canSave]="canSave() && !saving()"
+                   [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
+                   (save)="save()"></app-form-foot>
   }
 </div>
 

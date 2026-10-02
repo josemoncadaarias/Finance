@@ -1,5 +1,5 @@
 /**
- * What the keypad is holding while someone types an amount.
+ * What the amount field is holding while someone types an amount.
  *
  * Kept as the digits typed rather than as a number, for the same reason the
  * rest of the app stores integers: a running `value = value * 10 + digit` on a
@@ -93,6 +93,11 @@ export class AmountBuffer {
     this.typingFraction = false;
   }
 
+  /** The same digits in a new object, so a signal holding it notices. */
+  copy(): AmountBuffer {
+    return Object.assign(new AmountBuffer(), this);
+  }
+
   /** Fills the buffer from an existing amount, for editing. */
   static from(minor: number): AmountBuffer {
     const buffer = new AmountBuffer();
@@ -106,6 +111,46 @@ export class AmountBuffer {
     }
     return buffer;
   }
+}
+
+/**
+ * What the phone's keyboard did to the amount field, read back as a buffer.
+ *
+ * The field always shows `before.text` with the caret at its end, so what the
+ * keyboard did is plain from the new value: one character added at the end is
+ * typed (a digit, or a comma or a full stop starting the cents - the phone's
+ * decimal keyboard offers one or the other by its language), characters gone
+ * from the end are erased. Anything else - a paste, the whole selected and
+ * typed over - is read afresh: the digits, and a comma, or a full stop
+ * followed by one or two digits at the end, as the cents. Thousands
+ * separators are only ever the app's own, so they are skipped.
+ */
+export function typedInto(before: AmountBuffer, value: string): AmountBuffer {
+  const shown = before.text;
+  const next = before.copy();
+  if (value.startsWith(shown) && value.length === shown.length + 1) {
+    for (const character of value.slice(shown.length)) {
+      if (/[0-9]/.test(character)) next.push(character);
+      else if (character === ',' || character === '.') next.separator();
+    }
+    return next;
+  }
+  if (shown.startsWith(value)) {
+    for (let i = value.length; i < shown.length; i++) {
+      // An erased grouping dot erases the digit before it too.
+      if (shown[i] !== '.') next.backspace();
+    }
+    return next;
+  }
+  const fresh = new AmountBuffer();
+  const comma = value.lastIndexOf(',');
+  const point = /\.\d{0,2}$/.test(value) ? value.lastIndexOf('.') : -1;
+  const cents = comma >= 0 ? comma : point;
+  [...value].forEach((character, i) => {
+    if (i === cents) fresh.separator();
+    else if (/[0-9]/.test(character)) fresh.push(character);
+  });
+  return fresh;
 }
 
 /** 1234567 -> 1.234.567, the Colombian way round. */
