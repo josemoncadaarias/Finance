@@ -139,4 +139,86 @@ S['16g-opcion-d-media-dona'] = screen(label('Opción D · media dona'),
   `<div class="card" style="padding:18px 16px 14px"><div style="position:relative">${half()}<div style="position:absolute;left:0;right:0;bottom:2px;text-align:center"><div class="lab" style="font-size:11px">Gastaste</div><b style="font-size:30px;letter-spacing:-.5px">358 mil</b></div></div></div>
    <div class="list" style="margin-top:12px">${CATS.map((c, i) => barRow(c, SERIES[i])).join('')}${restRow(false)}</div>`);
 
+// ---------------------------------------------------------------------------
+// Option A+ (Jose, 2026-10-02, from a picture of another app he liked): the
+// space around the donut is used - each category's icon and percent sits
+// around it, a thin line from its slice to it - and the list stays under it.
+// At most EIGHT categories get a colour of their own (the validated palette
+// has eight; a ninth colour would be guessed, never checked) and the rest
+// fold into one grey "N categorías más", opened at the foot of the list.
+const P8 = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+const P8L = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+const W = 356, H = 360, CX = W / 2, CY = H / 2, RIN = 62, ROUT = 92;
+// Twelve places around the donut, clockwise from the top: four above, two on
+// each side, four below.
+const SLOTS = [[54, 30], [140, 30], [216, 30], [302, 30], [326, 132], [326, 228], [302, 330], [216, 330], [140, 330], [54, 330], [30, 228], [30, 132]]
+  .map(([x, y]) => ({ x, y, a: (Math.atan2(x - CX, -(y - CY)) * 180 / Math.PI + 360) % 360 }))
+  .sort((a, b) => a.a - b.a);
+// Each slice takes the nearest place, keeping their order round the ring.
+const place = mids => {
+  const n = mids.length, m = SLOTS.length, INF = 1e9;
+  const cost = Array.from({ length: n + 1 }, () => Array(m + 1).fill(INF)), from = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
+  for (let j = 0; j <= m; j++) cost[0][j] = 0;
+  for (let i = 1; i <= n; i++) for (let j = i; j <= m; j++) {
+    const d = Math.min(Math.abs(mids[i - 1] - SLOTS[j - 1].a), 360 - Math.abs(mids[i - 1] - SLOTS[j - 1].a));
+    const take = cost[i - 1][j - 1] + d, skip = cost[i][j - 1];
+    if (take <= skip) { cost[i][j] = take; from[i][j] = 1; } else { cost[i][j] = skip; from[i][j] = 0; }
+  }
+  const out = []; let i = n, j = m;
+  while (i > 0) { if (from[i][j] === 1) { out[i - 1] = SLOTS[j - 1]; i--; } j--; }
+  return out;
+};
+const pt = (r, deg) => [CX + r * Math.sin(deg * Math.PI / 180), CY - r * Math.cos(deg * Math.PI / 180)];
+const arc = (a0, a1, r0, r1) => { const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0), big = a1 - a0 > 180 ? 1 : 0;
+  return `M${x0} ${y0} A${r1} ${r1} 0 ${big} 1 ${x1} ${y1} L${x2} ${y2} A${r0} ${r0} 0 ${big} 0 ${x3} ${y3}Z`; };
+
+/** items: [{c, p, color, rest?}] largest first; on: index tapped or -1. */
+const framed = (items, { on = -1, total = '358 mil', count = '31 movimientos', top = 'Gastaste', sub } = {}) => {
+  let acc = 0;
+  const slices = items.map(it => { const a0 = acc / 100 * 360, a1 = (acc + it.p) / 100 * 360; acc += it.p; return { ...it, a0, a1, mid: (a0 + a1) / 2 }; });
+  const spots = place(slices.map(s => s.mid));
+  const dimmed = i => on >= 0 && i !== on;
+  const svg = slices.map((s, i) => {
+    const gap = .8, path = arc(s.a0 + gap, s.a1 - gap, RIN, i === on ? ROUT + 5 : ROUT);
+    const [lx, ly] = pt(ROUT + 4, s.mid), sp = spots[i];
+    const dx = sp.x - CX, dy = sp.y - CY, len = Math.hypot(dx, dy), ex = sp.x - dx / len * 27, ey = sp.y - dy / len * 27;
+    return `<path d="${path}" fill="${s.color}" opacity="${dimmed(i) ? .22 : 1}"/><line x1="${lx}" y1="${ly}" x2="${ex}" y2="${ey}" stroke="${s.color}" stroke-width="1.4" opacity="${dimmed(i) ? .2 : .85}"/>`;
+  }).join('');
+  const icons = slices.map((s, i) => { const sp = spots[i];
+    return `<div style="position:absolute;left:${sp.x - 28}px;top:${sp.y - 24}px;width:56px;text-align:center;opacity:${dimmed(i) ? .3 : 1}">${s.rest ? `<span class="sq" style="display:grid;place-items:center;width:32px;height:32px;margin:0 auto;background:var(--s3);color:var(--mu);font-size:11px">+${s.rest}</span>` : `<div style="width:32px;margin:0 auto">${inChart(s.c, s.color, 32)}</div>`}
+      <div style="font-size:12.5px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums;color:var(--tx)">${s.p}%</div></div>`; }).join('');
+  return `<div class="card" style="padding:12px"><div style="position:relative;width:${W}px;height:${H}px">
+    <svg width="${W}" height="${H}" style="position:absolute;inset:0">${svg}</svg>${icons}
+    <div style="position:absolute;left:${CX - 60}px;top:${CY - 40}px;width:120px;text-align:center"><div class="lab" style="font-size:10.5px">${top}</div><b style="display:block;font-size:${total.length > 8 ? 20 : 25}px;margin-top:2px;letter-spacing:-.4px">${total}</b><div class="sub" style="font-size:12px;margin-top:1px">${sub ?? count}</div></div></div></div>`;
+};
+
+const JOSE = [...CATS.map((c, i) => ({ c, p: c.p, color: SERIES[i] })), { p: 4, color: REST, rest: 2 }];
+S['16i-opcion-a-iconos-alrededor'] = screen(label('Opción A con íconos alrededor', true), `${framed(JOSE)}${listA()}`);
+S['16j-opcion-a-iconos-tocada'] = screen(label('Íconos alrededor · tocaste Salud', true),
+  `${framed(JOSE, { on: 1, top: 'Salud', total: '75.180', sub: '21 % · 4 mov.' })}${listA(1)}`);
+
+// Many categories, as in his picture: eight with a colour, the rest folded.
+const many = [
+  ['Vivienda', 'home-outline', 33, '10.238.000'], ['Restaurante', 'restaurant-outline', 20, '6.204.800'], ['Salud', 'thermometer-outline', 7, '2.171.700'],
+  ['Mercado', 'basket-outline', 6, '1.861.400'], ['Celulares', 'phone-portrait-outline', 6, '1.861.400'], ['Taxi', 'car-outline', 6, '1.861.400'],
+  ['Tecnología', 'laptop-outline', 6, '1.861.400'], ['Varios', 'ellipsis-horizontal', 5, '1.551.200'],
+].map(([name, ic, p, amt]) => ({ name, ic, p, amt }));
+const folded = [['Ropa', 'shirt-outline', 3, '930.700'], ['Peluquería', 'cut-outline', 2, '620.500'], ['Carro', 'car-sport-outline', 2, '620.500'],
+  ['Deporte', 'football-outline', 2, '620.500'], ['Viajes', 'airplane-outline', 1, '310.200'], ['Vacaciones', 'umbrella-outline', 1, '310.200']]
+  .map(([name, ic, p, amt]) => ({ name, ic, p, amt }));
+const MANY = [...many.map((c, i) => ({ c, p: c.p, color: P8[i] })), { p: 11, color: REST, rest: 6 }];
+const restRowN = (n, amt, p, open) => restRow(open).replace('+2', `+${n}`).replace('2 categorías más', `${n} categorías más`).replace('14.320', amt).replace('>4%<', `>${p}%<`).replace('width:8%', `width:${p / 33 * 100}%`);
+S['16k-opcion-a-muchas-categorias'] = screen(label('Íconos alrededor · 14 categorías', true),
+  `${framed(MANY, { total: '31,02 M', count: '412 movimientos' })}
+   <div class="list" style="margin-top:12px">${many.slice(0, 3).map((c, i) => barRow({ ...c, p: c.p }, P8[i]).replace(`width:${Math.max(c.p / 48 * 100, 3)}%`, `width:${c.p / 33 * 100}%`)).join('')}</div>`).replace('Movimientos · 31', 'Movimientos · 412');
+S['16l-opcion-a-otras-abiertas'] = screen(label('14 categorías · “6 categorías más” abierta', true),
+  `<div class="list">${many.slice(5).map((c, i) => barRow(c, P8[i + 5]).replace(`width:${Math.max(c.p / 48 * 100, 3)}%`, `width:${c.p / 33 * 100}%`)).join('')}${restRowN(6, '3.412.600', 11, true)}
+   ${folded.map(c => barRow(c, REST).replace(`width:${Math.max(c.p / 48 * 100, 3)}%`, `width:${c.p / 33 * 100}%`).replace('class="row" style="padding:10px 14px;', 'class="row" style="padding:8px 14px 8px 30px;background:var(--s2);')).join('')}</div>
+   <div class="sub" style="padding:10px 6px 0">Hasta 8 categorías con color propio; las demás van juntas en gris en la dona y se abren aquí, cada una con su cifra.</div>`).replace('Movimientos · 31', 'Movimientos · 412');
+S['16m-opcion-a-iconos-tema-claro'] = screen(label('Íconos alrededor · tema claro', true),
+  `${framed(CATS.map((c, i) => ({ c, p: c.p, color: P8L[[1, 0, 2, 3, 4][i]] })).concat([{ p: 4, color: '#a7b0c2', rest: 2 }]))}
+   <div class="list" style="margin-top:12px">${CATS.slice(0, 2).map((c, i) => barRow(c, P8L[[1, 0][i]])).join('')}</div>`)
+  .replace(/^/, `<style>:root{--bg:#f3f5fa;--top:#ffffff;--s1:#ffffff;--s2:#eef1f7;--s3:#e2e7f1;--line:#e3e8f2;--tx:#121a2b;--mu:#5d6880}
+   body{background:var(--bg)}.card,.list,.seg,.month{border-color:#e3e8f2!important}.bar-top{background:#fff}</style>`);
+
 export default S;
