@@ -559,6 +559,10 @@ export class AccrualEngine {
         // threshold; Jose, 2026-10-01).
         const sharing: { productId: number; component: string; payout: 'daily' | 'monthly'; paidOn: IsoDate; accrued: AccruedDay }[] = [];
 
+        /** What a typed product holds on this day: its figure and what moved through it since. */
+        const typedHeld = (productId: number) => statedOn(balancesOf.get(productId) ?? [], day,
+          movedInto.get(productId) ?? [], true, sameDayAfter, productId);
+
         for (const product of products) {
           // A product earns nothing before the day it starts earning from, and
           // nothing on that day either: that day's own earning lands on the
@@ -583,10 +587,16 @@ export class AccrualEngine {
           // account. Before movements could name a product, the first one
           // absorbed all of them, which is why a transfer between two products
           // of one account moved neither.
+          //
+          // And the product that follows the account holds what the others
+          // left: the account's balance less what the typed products hold of
+          // it. Taking the whole balance counted every peso moved into a typed
+          // product twice - once there and once here - and earned on both.
           const held = product.source === 'manual'
-            ? statedOn(balancesOf.get(product.id) ?? [], day,
-                       movedInto.get(product.id) ?? [], true, sameDayAfter, product.id)
-            : balanceOn(balances, day);
+            ? typedHeld(product.id)
+            : balanceOn(balances, day) - products
+                .filter(other => other.source === 'manual')
+                .reduce((sum, other) => sum + typedHeld(other.id), 0);
 
           /*
            * The floor is on the WHOLE base, not on the ledger half of it.
@@ -1062,9 +1072,13 @@ function heldIn(
   histories: ReadonlyMap<number, ProductBalance[]>,
   moved: ReadonlyMap<number, number>,
 ): void {
-  for (const product of products) {
+  // The product that follows the account holds what the typed ones left,
+  // so it is set last, from what they hold.
+  for (const product of [...products].sort((a, b) => (a.source === 'manual' ? 0 : 1) - (b.source === 'manual' ? 0 : 1))) {
     if (product.source !== 'manual') {
-      held.set(product.id, accountBalance);
+      const typed = products.filter(other => other.source === 'manual')
+        .reduce((sum, other) => sum + (held.get(other.id) ?? 0), 0);
+      held.set(product.id, accountBalance - typed);
       continue;
     }
 
