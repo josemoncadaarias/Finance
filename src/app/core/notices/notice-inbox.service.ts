@@ -1,0 +1,83 @@
+/**
+ * Turns the bank messages the phone kept into proposals, by itself.
+ *
+ * When the app opens and every time it comes back to the front - never in
+ * the background (rule 22: "nothing working in the background"). One pass
+ * reads what Android kept, what was already proposed and what the person
+ * answered before, each once, works the rest out in memory
+ * (`proposalsFrom`), and writes the new proposals one batch per app. A
+ * message already proposed, accepted or thrown away is never proposed again.
+ *
+ * Nothing here is felt: on a phone with no messages kept it is one call to
+ * Android that answers an empty list, and everywhere else (the browser, an
+ * iPhone) the plugin answers "not supported" and nothing else happens.
+ */
+
+import { Injectable, effect, inject, untracked } from '@angular/core';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+import { DatabaseService } from '../database/database.service';
+import { AccountsRepository } from '../database/repositories/accounts.repository';
+import { ProposalsRepository } from '../database/repositories/proposals.repository';
+import { BankNotifications } from '../notifications/bank-notifications';
+import { proposalsFrom } from './notice-proposals';
+
+@Injectable({ providedIn: 'root' })
+export class NoticeInboxService {
+  private readonly database = inject(DatabaseService);
+  private running: Promise<number> | null = null;
+  private started = false;
+
+  constructor() {
+    effect(() => {
+      if (this.database.status() !== 'ready' || this.started) return;
+      this.started = true;
+      // A moment after opening, past the first screen.
+      untracked(() => setTimeout(() => void this.read(), 2500));
+    });
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && this.database.status() === 'ready') void this.read();
+      });
+    }
+  }
+
+  /** Reads what is new; how many proposals it wrote. One pass at a time. */
+  read(): Promise<number> {
+    if (!this.running) {
+      this.running = this.pass().finally(() => { this.running = null; });
+    }
+    return this.running;
+  }
+
+  private async pass(): Promise<number> {
+    try {
+      const { supported } = await BankNotifications.isSupported();
+      if (!supported) return 0;
+      const { caught } = await BankNotifications.caught();
+      if (caught.length === 0) return 0;
+
+      const db = this.database.driver;
+      const proposals = new ProposalsRepository(db);
+      const [known, answers, accounts] = await Promise.all([
+        proposals.noticeKeys(), proposals.noticeAnswers(), new AccountsRepository(db).list(),
+      ]);
+      const made = proposalsFrom(caught, known, answers, accounts);
+      if (made.length === 0) return 0;
+
+      const byBatch = new Map<string, typeof made>();
+      for (const one of made) byBatch.set(one.batch, [...(byBatch.get(one.batch) ?? []), one]);
+      let written = 0;
+      for (const [batch, ones] of byBatch) {
+        written += (await proposals.propose(batch, ones.map(one => one.proposal))).ids.length;
+      }
+      if (written > 0) this.database.dataChanged();
+      return written;
+    } catch {
+      // A message that could not be read today is read on the next pass;
+      // nothing about it is worth stopping the app for.
+      return 0;
+    }
+  }
+}

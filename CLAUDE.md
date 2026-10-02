@@ -116,6 +116,7 @@ detail of each is in the section named):
 | #38 | An expense into a cap already past says so at saving; the card's "pago total" hint reworded | "Part 3, plans - limits"; "Part 1, the card" |
 | #39 | Inicio's "Esta semana" (card and loan payments due or late); the lock on hand-edited movements no longer shown | "Debts and plans" (Inicio); rule 12 |
 | #40 | Bank messages read by their shape, for anybody (not yet wired in) | Rule 22 |
+| #41 | Bank messages become proposals in Por revisar, learning the account and category from the person's answers | Rule 22 |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -1369,8 +1370,33 @@ backup restore against iOS's own SQLite backend.
    "terminada en", "ending in". It answers `movement`, `unclear` (money, no
    direction: the person decides), `balance`, `declined` or `none` (codes,
    offers, reminders "vence/te recordamos que", plain chat). A bank footer
-   ("Recuerda: nunca te pediremos tu clave") does not hide a movement. Not
-   yet wired to the screens or to Android: that is the next step.
+   ("Recuerda: nunca te pediremos tu clave") does not hide a movement.
+
+   **And wired in (2026-10-02)**: every message the phone kept (the apps
+   ticked in Avisos del banco) is read when the app opens, when it comes back
+   to the front and when Movimientos por revisar opens - never in the
+   background (`NoticeInboxService`). `proposalsFrom` (`notice-proposals.ts`,
+   pure, `notice-proposals.test.mjs`) turns a `movement` or `unclear` reading
+   into a proposal, one batch per app (`notice:<package>`, one card per app on
+   the review screen, with a bell), the amount signed by the direction, the
+   date written in the message or the day it arrived, the merchant as the
+   description; an `unclear` one carries `confidence: 'low'`, which the
+   review screen already shows as "read from the words". A message is never
+   proposed twice (its key - package, moment, length - is in the evidence;
+   `ProposalsRepository.noticeKeys`), Android's re-post of the same text
+   within three minutes is read once, and "No ver más" on a notice batch
+   marks its rows thrown away instead of deleting them, so they do not come
+   back. **The app learns, and only from the person** (Jose, the same day:
+   "toda la ayuda posible para que la app pueda aprender"): the category is
+   the dictionary's, taught by every save (as for statements); the account is
+   what the person answered for earlier messages of the same app - the same
+   card digits first, then the app when it only ever meant one account -
+   read from the accepted proposals (`noticeAnswers`), nothing new stored.
+   Before any answer, an account whose own name carries the card's digits or
+   the app's name ("Nequi"), when exactly one does; otherwise it is asked.
+   Checked in a browser with invented messages on the demo backup (rows
+   removed after). Not seen on the phone yet. Next: SMS senders inside the
+   messaging app (Java), and "Encontrados en tu celular".
 
    **SMS and email: many banks send no push notification of their own**
    (Jose, 2026-09-28). Analysed and proposed, **nothing built, nothing

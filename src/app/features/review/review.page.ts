@@ -39,6 +39,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { ComposeService } from '../../core/ui/compose.service';
 import { ProposalFormComponent, type ProposalAnswer } from './proposal-form.component';
+import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -89,6 +90,7 @@ interface Batch {
 })
 export class ReviewPage {
   private readonly database = inject(DatabaseService);
+  private readonly notices = inject(NoticeInboxService);
   readonly i18n = inject(I18nService);
   private readonly statements = inject(StatementsService);
   private readonly compose = inject(ComposeService);
@@ -843,6 +845,9 @@ export class ReviewPage {
       this.i18n.language();
       if (this.database.status() === 'ready') void this.refresh();
     });
+    // The banks' messages that arrived since the last look: read now, so
+    // opening this screen is enough. A new proposal redraws it by itself.
+    void this.notices.read();
   }
 
   async refresh(): Promise<void> {
