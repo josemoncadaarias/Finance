@@ -1122,6 +1122,16 @@ export class YieldsRepository {
     return row?.on_date ?? null;
   }
 
+  /** What each account earned, net, over the days dated from `from` to `to`: one question for all. */
+  async earnedBetween(accountIds: readonly number[], from: IsoDate, to: IsoDate): Promise<Map<number, number>> {
+    if (accountIds.length === 0) return new Map();
+    const rows = await this.db.query<{ account_id: number; total: number | null }>(
+      `SELECT account_id, SUM(COALESCE(actual_net_minor, net_minor)) AS total FROM yield_days
+       WHERE account_id IN ${placeholders(accountIds)} AND on_date BETWEEN ? AND ? GROUP BY account_id`,
+      [...accountIds, from, to]);
+    return new Map(rows.map(row => [row.account_id, row.total ?? 0]));
+  }
+
   /**
    * What the yields screen shows about the last day worked out, for several
    * accounts in four questions rather than four per account.

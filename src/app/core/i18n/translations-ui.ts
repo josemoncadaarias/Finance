@@ -920,6 +920,7 @@ export const UI_ES = {
   'products.dayKind.bonusMissed': 'Bonificación no ganada',
   'products.dayKind.cdt': 'Pago del CDT {rate}',
   'products.dayKind.bonusPending': 'Bonificación pendiente',
+  'products.earnedThisMonth': 'Llevas acumulado en {month}:',
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -1837,4 +1838,5 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'products.dayKind.bonusMissed': 'Bonus not earned',
   'products.dayKind.cdt': 'CDT payment {rate}',
   'products.dayKind.bonusPending': 'Bonus pending',
+  'products.earnedThisMonth': 'Earned so far in {month}:',
 };

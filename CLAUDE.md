@@ -3645,6 +3645,13 @@ still running (it is judged on what was spent so far and may still be
 earned) and "Bonificación no ganada" in a month over, or "Pago del CDT"
 with its rate. The line under it keeps the product, the balance it earned
 on and the component's own name.
+**The yields screen's total says what was earned so far this month** (Jose,
+2026-10-02), "Llevas acumulado en octubre: +X" - every day of the peso
+accounts dated in the month up to today, net of withholding
+(`YieldsRepository.earnedBetween`) - where it said what the last day
+alone had paid. A day's title cut short on Días or Pagos already slides
+(checked in a browser: the marquee wraps it, text and its "· Bonificación"
+part together).
 
 ### The ideas, by what they would take
 

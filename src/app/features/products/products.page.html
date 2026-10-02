@@ -38,8 +38,8 @@
         @if (working()) {
           <p class="upto"><ion-spinner name="dots"></ion-spinner> {{ 'products.calculating' | t }}</p>
         } @else if (lastAccrued(); as day) {
-          <p class="upto">{{ 'products.earnedOn' | t:{ date: dayText(day) } }}
-            <b class="ui-g">+{{ money(earnedLastDayMinor()) }}</b></p>
+          <p class="upto">{{ 'products.earnedThisMonth' | t:{ month: thisMonthName() } }}
+            <b class="ui-g">+{{ money(earnedThisMonthMinor()) }}</b></p>
         } @else {
           <p class="upto">{{ 'products.notYet' | t }}</p>
         }

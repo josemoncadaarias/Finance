@@ -88,6 +88,8 @@ interface ProductLine {
   products: YieldProduct[];
   /** What this account earned on the most recent day worked out, all products. */
   lastDayMinor: number;
+  /** What it has earned so far this month, net: every day dated in it up to today. */
+  monthMinor: number;
   /**
    * What the account is actually earning on.
    *
@@ -1112,6 +1114,18 @@ export class ProductsPage {
   readonly earnedLastDayMinor = computed(() => this.copLines()
     .reduce((sum, line) => sum + line.lastDayMinor, 0));
 
+  /**
+   * What the peso accounts have earned so far this month - every day worked
+   * out in it, net of withholding - for the line under the total (Jose,
+   * 2026-10-02: one day's yield said little; the month so far says more).
+   */
+  readonly earnedThisMonthMinor = computed(() => this.copLines()
+    .reduce((sum, line) => sum + line.monthMinor, 0));
+
+  /** "octubre", for that line. */
+  readonly thisMonthName = computed(() => new Date(`${today().slice(0, 7)}-15T12:00:00`)
+    .toLocaleDateString(this.i18n.dateLocale(), { month: 'long' }));
+
   readonly copLines = computed(() =>
     this.lines().filter(line => line.account.currency_code === 'COP'));
 
@@ -1357,6 +1371,7 @@ export class ProductsPage {
     const productsOfShown = new Map(ids.map(id => [id, productsOf.get(id) ?? []]));
 
     const lastDays = await yields.lastDaysOf(ids, today());
+    const monthOf = await yields.earnedBetween(ids, `${today().slice(0, 7)}-01`, today());
     const landedOf = await yields.landedByProducts(today(), productsOfShown);
     const heldOf = await new AccrualEngine(db, yields, tax).heldByProducts(today(), productsOfShown);
 
@@ -1384,6 +1399,7 @@ export class ProductsPage {
           enabled: entry.enabled !== 0,
           products,
           lastDayMinor: paidThatDay.reduce((sum, day) => sum + netOf(day), 0),
+          monthMinor: monthOf.get(id) ?? 0,
           // One figure per PRODUCT, not per row. A day of an account with two
           // rate components is two rows carrying the same base, and adding
           // them showed Uala earning on twice what it holds.
