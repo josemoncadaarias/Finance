@@ -154,19 +154,53 @@ const W = 356, H = 360, CX = W / 2, CY = H / 2, RIN = 62, ROUT = 92;
 const SLOTS = [[54, 30], [140, 30], [216, 30], [302, 30], [326, 132], [326, 228], [302, 330], [216, 330], [140, 330], [54, 330], [30, 228], [30, 132]]
   .map(([x, y]) => ({ x, y, a: (Math.atan2(x - CX, -(y - CY)) * 180 / Math.PI + 360) % 360 }))
   .sort((a, b) => a.a - b.a);
-// Each slice takes the nearest place, keeping their order round the ring.
+// The icons are spread round ALL the places (Jose: the biggest slice alone on
+// one side wastes the rest), evenly, in the ring's order, turned to sit as
+// close as they can to their own slices.
 const place = mids => {
-  const n = mids.length, m = SLOTS.length, INF = 1e9;
-  const cost = Array.from({ length: n + 1 }, () => Array(m + 1).fill(INF)), from = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
-  for (let j = 0; j <= m; j++) cost[0][j] = 0;
-  for (let i = 1; i <= n; i++) for (let j = i; j <= m; j++) {
-    const d = Math.min(Math.abs(mids[i - 1] - SLOTS[j - 1].a), 360 - Math.abs(mids[i - 1] - SLOTS[j - 1].a));
-    const take = cost[i - 1][j - 1] + d, skip = cost[i][j - 1];
-    if (take <= skip) { cost[i][j] = take; from[i][j] = 1; } else { cost[i][j] = skip; from[i][j] = 0; }
+  const n = mids.length, m = SLOTS.length; let best = null, bestCost = Infinity;
+  for (let k = 0; k < m; k++) {
+    const chosen = mids.map((_, i) => SLOTS[(k + Math.round(i * m / n)) % m]);
+    const cost = mids.reduce((sum, mid, i) => { const d = Math.abs(mid - chosen[i].a); return sum + Math.min(d, 360 - d); }, 0);
+    if (cost < bestCost) { bestCost = cost; best = chosen; }
   }
-  const out = []; let i = n, j = m;
-  while (i > 0) { if (from[i][j] === 1) { out[i - 1] = SLOTS[j - 1]; i--; } j--; }
-  return out;
+  return best;
+};
+// A line from a slice to its icon, in right angles only (Jose). It leaves
+// the ring moving away from the centre - such a move never crosses the ring -
+// runs along a lane of its own in the gap between the ring and the icons,
+// and comes into the icon from the side that faces the ring: under the
+// percent for the row above, over the icon for the row below, the inner
+// side for the two columns. Lanes are handed out so that the lines nearest
+// the ring are the ones that travel least, which keeps them from crossing.
+const laneOf = new Map();
+const lanes = (slices, spots) => {
+  laneOf.clear();
+  const groups = { top: [], bottom: [], left: [], right: [] };
+  slices.forEach((sl, i) => {
+    const sp = spots[i], g = sp.y < 80 ? 'top' : sp.y > 280 ? 'bottom' : sp.x < CX ? 'left' : 'right';
+    const [sx, sy] = pt(ROUT + 6, sl.mid);
+    groups[g].push({ i, travel: g === 'top' || g === 'bottom' ? Math.abs(sp.x - sx) : Math.abs(sp.y - 8 - sy), g });
+  });
+  for (const list of Object.values(groups)) list.sort((p, q) => p.travel - q.travel).forEach((it, k) => laneOf.set(it.i, { k, g: it.g }));
+};
+const route = (i, mid, sp) => {
+  const [sx, sy] = pt(ROUT + 6, mid), { k, g } = laneOf.get(i);
+  let pts;
+  if (g === 'top') { const ay = sp.y + 38, lane = ay + 6 + k * 6; pts = [[sx, sy], [sx, lane], [sp.x, lane], [sp.x, ay]]; }
+  else if (g === 'bottom') { const ay = sp.y - 28, lane = ay - 6 - k * 6; pts = [[sx, sy], [sx, lane], [sp.x, lane], [sp.x, ay]]; }
+  else { const dir = g === 'right' ? 1 : -1, ax = sp.x - dir * 22, ay = sp.y - 8, lane = ax - dir * (6 + k * 6);
+    pts = [[sx, sy], [lane, sy], [lane, ay], [ax, ay]]; }
+  // Drop legs of no length, then round the corners so it reads as one line.
+  pts = pts.filter((p, j) => j === 0 || Math.hypot(p[0] - pts[j - 1][0], p[1] - pts[j - 1][1]) > .5);
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let j = 1; j < pts.length - 1; j++) {
+    const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], [x2, y2] = pts[j + 1];
+    const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1), r = Math.min(6, l1 / 2, l2 / 2);
+    d += ` L${x1 - (x1 - x0) / l1 * r} ${y1 - (y1 - y0) / l1 * r} Q${x1} ${y1} ${x1 + (x2 - x1) / l2 * r} ${y1 + (y2 - y1) / l2 * r}`;
+  }
+  const last = pts[pts.length - 1];
+  return d + ` L${last[0]} ${last[1]}`;
 };
 const pt = (r, deg) => [CX + r * Math.sin(deg * Math.PI / 180), CY - r * Math.cos(deg * Math.PI / 180)];
 const arc = (a0, a1, r0, r1) => { const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0), big = a1 - a0 > 180 ? 1 : 0;
@@ -178,15 +212,14 @@ const framed = (items, { on = -1, total = '358 mil', count = '31 movimientos', t
   const slices = items.map(it => { const a0 = acc / 100 * 360, a1 = (acc + it.p) / 100 * 360; acc += it.p; return { ...it, a0, a1, mid: (a0 + a1) / 2 }; });
   const spots = place(slices.map(s => s.mid));
   const dimmed = i => on >= 0 && i !== on;
+  lanes(slices, spots);
   const svg = slices.map((s, i) => {
     const gap = .8, path = arc(s.a0 + gap, s.a1 - gap, RIN, i === on ? ROUT + 5 : ROUT);
-    const [lx, ly] = pt(ROUT + 4, s.mid), sp = spots[i];
-    const dx = sp.x - CX, dy = sp.y - CY, len = Math.hypot(dx, dy), ex = sp.x - dx / len * 27, ey = sp.y - dy / len * 27;
-    return `<path d="${path}" fill="${s.color}" opacity="${dimmed(i) ? .22 : 1}"/><line x1="${lx}" y1="${ly}" x2="${ex}" y2="${ey}" stroke="${s.color}" stroke-width="1.4" opacity="${dimmed(i) ? .2 : .85}"/>`;
+    return `<path d="${path}" fill="${s.color}" opacity="${dimmed(i) ? .22 : 1}"/> <path d="${route(i, s.mid, spots[i])}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linejoin="round" opacity="${dimmed(i) ? .2 : .9}"/><circle cx="${pt(ROUT + 6, s.mid)[0]}" cy="${pt(ROUT + 6, s.mid)[1]}" r="2.2" fill="${s.color}" opacity="${dimmed(i) ? .2 : 1}"/>`;
   }).join('');
   const icons = slices.map((s, i) => { const sp = spots[i];
     return `<div style="position:absolute;left:${sp.x - 28}px;top:${sp.y - 24}px;width:56px;text-align:center;opacity:${dimmed(i) ? .3 : 1}">${s.rest ? `<span class="sq" style="display:grid;place-items:center;width:32px;height:32px;margin:0 auto;background:var(--s3);color:var(--mu);font-size:11px">+${s.rest}</span>` : `<div style="width:32px;margin:0 auto">${inChart(s.c, s.color, 32)}</div>`}
-      <div style="font-size:12.5px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums;color:var(--tx)">${s.p}%</div></div>`; }).join('');
+      <div style="font-size:12.5px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--tx)">${s.p}%</div></div>`; }).join('');
   return `<div class="card" style="padding:12px"><div style="position:relative;width:${W}px;height:${H}px">
     <svg width="${W}" height="${H}" style="position:absolute;inset:0">${svg}</svg>${icons}
     <div style="position:absolute;left:${CX - 60}px;top:${CY - 40}px;width:120px;text-align:center"><div class="lab" style="font-size:10.5px">${top}</div><b style="display:block;font-size:${total.length > 8 ? 20 : 25}px;margin-top:2px;letter-spacing:-.4px">${total}</b><div class="sub" style="font-size:12px;margin-top:1px">${sub ?? count}</div></div></div></div>`;
