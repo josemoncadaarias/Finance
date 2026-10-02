@@ -122,6 +122,7 @@ detail of each is in the section named):
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 | #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
 | #47 | SMS chosen by sender inside the messaging app, never the whole app | Rule 22 |
+| #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -1442,6 +1443,16 @@ backup restore against iOS's own SQLite backend.
    - The screen: "Mensajes de texto" under the apps, each sender with "N
      mensajes con dinero · {app}", the eye and its switch; hidden ones go to
      "Ocultos" with the apps. Checked in a browser with invented senders.
+   - **Hiding the messaging app hides its row, never its senders** (#49,
+     2026-10-02). Jose's first Ualá SMS after #47 never listed its sender;
+     the likeliest reason, not verified on the phone: the messaging app was
+     among his 48 hidden apps, and a hidden app was not even looked at. A
+     conversation from a hidden app is now still read for senders - noted
+     only when it looks like money, kept only when ticked. The first SMS of
+     a new sender is never kept: it lists the sender, to be ticked.
+   - The notices' days say the month ("Viernes 25 de septiembre", the year
+     when not this one, "Hoy"/"Ayer" in front); "Viernes 25" alone could be
+     any month.
    - A message carries `sender`; its source is `package|sender`
      (`noticeSource`): one batch per sender on the review screen ("Banco Rojo
      · Mensajes"), accounts learned per sender, and before any answer the

@@ -120,13 +120,22 @@ export class NotificationsPage {
     return [...days.values()];
   });
 
+  /**
+   * "Viernes 25 de septiembre", with the year when it is not this one, and
+   * "Hoy" or "Ayer" in front: what is kept spans weeks, so a weekday and a
+   * day alone could be any month (Jose, 2026-10-02).
+   */
   private dayTitle(date: Date): string {
+    const locale = this.i18n.dateLocale();
+    const weekday = date.toLocaleDateString(locale, { weekday: 'long' });
+    const month = date.toLocaleDateString(locale, { month: 'long' });
+    let text = this.i18n.t('ui.review.dayTitle', { weekday, day: date.getDate(), month });
     const today = new Date();
-    const same = date.toDateString() === today.toDateString();
-    const weekday = date.toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long' });
-    const text = `${weekday} ${date.getDate()}`;
-    const capital = text.charAt(0).toUpperCase() + text.slice(1);
-    return same ? this.i18n.t('ui.today.day', { day: text }) : capital;
+    if (date.getFullYear() !== today.getFullYear()) text += ` ${date.getFullYear()}`;
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return this.i18n.t('ui.today.day', { day: text });
+    if (date.toDateString() === yesterday.toDateString()) return this.i18n.t('ui.yesterday.day', { day: text });
+    return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
   private readonly dayState = signal<ReadonlyMap<string, boolean>>(new Map());
