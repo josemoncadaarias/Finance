@@ -121,6 +121,7 @@ detail of each is in the section named):
 | #43, #44 | A dialog's lone button centred; "¿En cuál lista?" as plain rows | Rules from Jose's review of v3 |
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 | #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
+| #47 | SMS chosen by sender inside the messaging app, never the whole app | Rule 22 |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -158,7 +159,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (707 on 2026-10-02, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (709 on 2026-10-02, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1416,8 +1417,40 @@ backup restore against iOS's own SQLite backend.
    Before any answer, an account whose own name carries the card's digits or
    the app's name ("Nequi"), when exactly one does; otherwise it is asked.
    Checked in a browser with invented messages on the demo backup (rows
-   removed after). Not seen on the phone yet. Next: SMS senders inside the
-   messaging app (Java), and "Encontrados en tu celular".
+   removed after). Not seen on the phone yet.
+
+   **SMS, step 2: chosen by SENDER inside the messaging app (BUILT
+   2026-10-02, #47; Jose: "continua con los sms").** No new permission: an
+   SMS reaches `NotificationCatcher` as the messaging app's notification.
+   - A notification is a CONVERSATION when Android's category says message,
+     it carries `EXTRA_MESSAGES`, or it comes from the phone's default SMS
+     app. Only its newest message is read, with that message's own time, so
+     a conversation re-posted is the same message (and `keep` drops a
+     repeat of the same app, sender, words and time).
+   - Its sender (the conversation's title, the message's sender, or the
+     notification's title) is NOTED - name, count, first and last, never a
+     word - only when the message looks like money (`looksLikeMoney` in
+     `NotificationStore`: a sign or currency code beside a number, or
+     thousands grouped; checked against codes, hours, dates, phone numbers).
+     So personal chats never list their people.
+   - What a sender said is kept only when that sender is ticked
+     (`watchSender`, keys `package\u001Fsender`), and a sender can be hidden
+     (`hideSender`, which drops what was kept from it). A messaging app
+     ticked WHOLE still keeps everything, as before - on purpose, never by
+     default: the screen shows "Por remitente" instead of its switch.
+   - The screen: "Mensajes de texto" under the apps, each sender with "N
+     mensajes con dinero · {app}", the eye and its switch; hidden ones go to
+     "Ocultos" with the apps. Checked in a browser with invented senders.
+   - A message carries `sender`; its source is `package|sender`
+     (`noticeSource`): one batch per sender on the review screen ("Banco Rojo
+     · Mensajes"), accounts learned per sender, and before any answer the
+     SENDER's name matched against accounts' names. An app's own
+     notifications keep the key they always had.
+   - Not done, and why: reading the SMS inbox itself (`READ_SMS`). Play
+     refuses a bundle declaring it until its Permissions Declaration Form is
+     approved, which would stop every update to Jose's phone meanwhile - so
+     it waits for Jose to file the form. Next after that: "Encontrados en tu
+     celular" (apps not yet ticked whose notifications looked like money).
 
    **SMS and email: many banks send no push notification of their own**
    (Jose, 2026-09-28). Analysed and proposed, **nothing built, nothing
@@ -3883,6 +3916,10 @@ budget family (2/16, 1, 7), then the rest.
       gross, like the green figure on Días and Pagos.
 - [ ] Look on the phone at Inicio's labelled cards (topes, metas) and at
       Días/Pagos with the rate or bonus beside each date.
+- [ ] SMS by sender (#47): after the update, open Más → Notificaciones del
+      teléfono, wait for a bank's SMS, and tick its sender under "Mensajes de
+      texto"; say whether the bank appears there and whether its message
+      reaches Movimientos por revisar.
 - [ ] Try the amount with the phone's own keyboard (#45): whether the
       keyboard comes up by itself on a new movement, and the erase and X
       keys beside the figure.

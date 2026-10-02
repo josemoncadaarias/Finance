@@ -103,6 +103,43 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * The senders inside messaging apps that have sent something shaped like
+     * money, with no word of what they said.
+     */
+    @PluginMethod
+    public void senders(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("senders", toJs(NotificationStore.sendersSeen(getContext())));
+        call.resolve(answer);
+    }
+
+    /** Starts or stops keeping what one sender says, inside one app. */
+    @PluginMethod
+    public void watchSender(PluginCall call) {
+        String pkg = call.getString("package");
+        String sender = call.getString("sender");
+        if (pkg == null || pkg.isEmpty() || sender == null || sender.isEmpty()) {
+            call.reject("No sender");
+            return;
+        }
+        NotificationStore.watchSender(getContext(), pkg, sender, Boolean.TRUE.equals(call.getBoolean("on", true)));
+        call.resolve();
+    }
+
+    /** Hides a sender for good, or shows it again. */
+    @PluginMethod
+    public void hideSender(PluginCall call) {
+        String pkg = call.getString("package");
+        String sender = call.getString("sender");
+        if (pkg == null || pkg.isEmpty() || sender == null || sender.isEmpty()) {
+            call.reject("No sender");
+            return;
+        }
+        NotificationStore.hideSender(getContext(), pkg, sender, Boolean.TRUE.equals(call.getBoolean("on", true)));
+        call.resolve();
+    }
+
     /** Everything caught since the app last looked, still held. */
     @PluginMethod
     public void caught(PluginCall call) {

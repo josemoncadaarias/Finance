@@ -29,6 +29,30 @@ export interface SeenApp {
   watched: boolean;
   /** Put away by the person: not counted, not listed, until shown again. */
   hidden: boolean;
+  /**
+   * It posts conversations (SMS, chats): what it says is chosen by sender,
+   * never for the whole app, which would keep every personal message.
+   */
+  messaging?: boolean;
+}
+
+/**
+ * A sender inside a messaging app - a bank's SMS short code or name - that
+ * has sent something shaped like money. Learned from the phone itself, never
+ * from a list of banks; nothing it said is kept until it is ticked.
+ */
+export interface SeenSender {
+  package: string;
+  /** The messaging app's name. */
+  app: string;
+  /** As the phone shows it: "Bancolombia", "891333". */
+  sender: string;
+  /** Messages shaped like money since it was first seen. */
+  count: number;
+  first: number;
+  last: number;
+  watched: boolean;
+  hidden: boolean;
 }
 
 /** One notification, exactly as it was posted. Nothing is read into it. */
@@ -39,6 +63,8 @@ export interface CaughtNotification {
   text: string;
   /** When Android says it was posted, in milliseconds. */
   postedAt: number;
+  /** Set for a message of a messaging app: who sent it. */
+  sender?: string;
 }
 
 export interface BankNotificationsPlugin {
@@ -54,6 +80,12 @@ export interface BankNotificationsPlugin {
   watch(options: { package: string; on: boolean }): Promise<void>;
   /** Hides an app for good (and drops what was kept from it), or shows it again. */
   hide(options: { package: string; on: boolean }): Promise<void>;
+  /** Senders of messaging apps that sent something shaped like money. */
+  senders(): Promise<{ senders: SeenSender[] }>;
+  /** Starts or stops keeping what one sender says. */
+  watchSender(options: { package: string; sender: string; on: boolean }): Promise<void>;
+  /** Hides a sender (and drops what was kept from it), or shows it again. */
+  hideSender(options: { package: string; sender: string; on: boolean }): Promise<void>;
   /** Everything kept so far. */
   caught(): Promise<{ caught: CaughtNotification[] }>;
   forgetCaught(): Promise<void>;
@@ -74,6 +106,9 @@ const nothing: BankNotificationsPlugin = {
   apps: async () => ({ apps: [] }),
   watch: async () => {},
   hide: async () => {},
+  senders: async () => ({ senders: [] }),
+  watchSender: async () => {},
+  hideSender: async () => {},
   caught: async () => ({ caught: [] }),
   forgetCaught: async () => {},
   forgetEverything: async () => {},

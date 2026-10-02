@@ -1,9 +1,13 @@
 package com.josemoncada.finance;
 
 import android.app.Notification;
+import android.app.Person;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.provider.Telephony;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -27,6 +31,16 @@ import org.json.JSONObject;
  * What it keeps is deliberately narrow - see `NotificationStore`. Which apps
  * post at all, for everybody; what was said, only for the apps the person has
  * pointed at.
+ *
+ * **A text message is chosen by its SENDER, never by the app** (rule 22,
+ * Jose 2026-10-02: "continua con los sms"). Many banks send no notification
+ * of their own, only an SMS, and an SMS reaches this listener as a
+ * notification of the phone's messaging app. Ticking that whole app would
+ * keep every personal message on the phone, so a conversation is kept only
+ * when the person ticked its sender ("this sender, inside this app"). Which
+ * senders exist is learned from the phone itself, with no list of bank
+ * numbers: a sender is listed once one of its messages carried something
+ * shaped like money, and nothing it said is kept until it is ticked.
  */
 public class NotificationCatcher extends NotificationListenerService {
 
@@ -48,10 +62,18 @@ public class NotificationCatcher extends NotificationListenerService {
         if (NotificationStore.isHidden(this, pkg)) return;
 
         long at = posted.getPostTime();
-        NotificationStore.noteApp(this, pkg, labelOf(pkg), at);
-        if (!NotificationStore.isWatched(this, pkg)) return;
-
         Bundle extras = notification.extras;
+        boolean conversation = isConversation(pkg, notification, extras);
+        String label = labelOf(pkg);
+        NotificationStore.noteApp(this, pkg, label, at, conversation);
+
+        // A whole messaging app ticked by hand (before senders existed, or on
+        // purpose) still keeps everything, as it always did.
+        if (conversation && extras != null && !NotificationStore.isWatched(this, pkg)) {
+            keepConversation(pkg, label, extras, at);
+            return;
+        }
+        if (!NotificationStore.isWatched(this, pkg)) return;
         if (extras == null) return;
 
         String title = text(extras, Notification.EXTRA_TITLE);
@@ -73,6 +95,76 @@ public class NotificationCatcher extends NotificationListenerService {
             NotificationStore.keep(this, one);
         } catch (JSONException broken) {
             // One unreadable notification is not a reason to stop reading.
+        }
+    }
+
+    /**
+     * A message between people - an SMS, a chat - rather than an app saying
+     * something of its own: the category Android asks apps to mark them with,
+     * the messaging style that carries them, or the phone's own SMS app.
+     */
+    private boolean isConversation(String pkg, Notification notification, Bundle extras) {
+        if (Notification.CATEGORY_MESSAGE.equals(notification.category)) return true;
+        if (extras != null && extras.containsKey(Notification.EXTRA_MESSAGES)) return true;
+        try {
+            return pkg.equals(Telephony.Sms.getDefaultSmsPackage(this));
+        } catch (Exception unknown) {
+            return false;
+        }
+    }
+
+    /**
+     * One conversation's newest message: the sender is noted when it looks
+     * like money, and its words are kept only when that sender is ticked.
+     *
+     * A messaging app re-posts the conversation with its earlier messages
+     * whenever a new one arrives, so only the last one is read, with its own
+     * time - the same message re-posted is the same message.
+     */
+    private void keepConversation(String pkg, String label, Bundle extras, long postedAt) {
+        String said = "";
+        String from = "";
+        long at = postedAt;
+
+        Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);
+        if (messages != null && messages.length > 0 && messages[messages.length - 1] instanceof Bundle) {
+            Bundle last = (Bundle) messages[messages.length - 1];
+            said = text(last, "text");
+            long time = last.getLong("time", 0);
+            if (time > 0) at = time;
+            from = text(last, "sender");
+            if (from.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Person person = last.getParcelable("sender_person");
+                if (person != null && person.getName() != null) from = person.getName().toString().trim();
+            }
+        }
+        // A group is named by its conversation; one person, by the title.
+        String group = text(extras, Notification.EXTRA_CONVERSATION_TITLE);
+        if (!group.isEmpty()) from = group;
+        if (from.isEmpty()) from = text(extras, Notification.EXTRA_TITLE);
+        if (said.isEmpty()) {
+            said = text(extras, Notification.EXTRA_TEXT);
+            String big = text(extras, Notification.EXTRA_BIG_TEXT);
+            if (big.length() > said.length()) said = big;
+        }
+        if (from.isEmpty() || said.isEmpty()) return;
+
+        boolean money = NotificationStore.looksLikeMoney(said);
+        if (NotificationStore.isSenderHidden(this, pkg, from)) return;
+        if (money) NotificationStore.noteSender(this, pkg, label, from, at);
+        if (!NotificationStore.isSenderWatched(this, pkg, from)) return;
+
+        try {
+            JSONObject one = new JSONObject();
+            one.put("package", pkg);
+            one.put("app", label);
+            one.put("sender", from);
+            one.put("title", from);
+            one.put("text", said);
+            one.put("postedAt", at);
+            NotificationStore.keep(this, one);
+        } catch (JSONException broken) {
+            // One unreadable message is not a reason to stop reading.
         }
     }
 

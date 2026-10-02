@@ -25,7 +25,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
-  BankNotifications, type CaughtNotification, type SeenApp,
+  BankNotifications, type CaughtNotification, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
 
 @Component({
@@ -156,9 +156,58 @@ export class NotificationsPage {
 
   readonly apps = signal<SeenApp[]>([]);
   readonly caught = signal<CaughtNotification[]>([]);
+  /** Senders inside messaging apps that texted amounts of money (rule 22, SMS). */
+  readonly senders = signal<SeenSender[]>([]);
+
+  readonly sortedSenders = computed(() => this.senders().filter(one => !one.hidden
+    && (this.term().length === 0 || foldText(`${one.sender} ${one.app}`).includes(this.term())))
+    .sort((one, other) => Number(other.watched) - Number(one.watched) || other.last - one.last));
+
+  readonly hiddenSenders = computed(() => this.senders().filter(one => one.hidden)
+    .sort((one, other) => one.sender.localeCompare(other.sender)));
+
+  senderLine(one: SeenSender): string {
+    return this.i18n.t(one.count === 1 ? 'ui.notifications.senderLine.one' : 'ui.notifications.senderLine',
+      { count: one.count, app: one.app });
+  }
+
+  /** Starts or stops keeping what one sender says - never the whole messaging app. */
+  async watchSender(one: SeenSender, on: boolean): Promise<void> {
+    if (one.watched === on) return;
+    await BankNotifications.watchSender({ package: one.package, sender: one.sender, on });
+    await this.look();
+  }
+
+  /** Puts a sender away; asked first only when something it said was kept. */
+  async hideSender(one: SeenSender): Promise<void> {
+    if (this.caught().some(kept => kept.package === one.package && kept.sender === one.sender)) {
+      this.hidingSender.set(one);
+      this.asking.set('hideSender');
+      return;
+    }
+    await BankNotifications.hideSender({ package: one.package, sender: one.sender, on: true });
+    await this.look();
+  }
+
+  async unhideSender(one: SeenSender): Promise<void> {
+    await BankNotifications.hideSender({ package: one.package, sender: one.sender, on: false });
+    await this.look();
+  }
+
+  private readonly hidingSender = signal<SeenSender | null>(null);
+
+  /** "1 app · 2 remitentes": what the hidden group holds. */
+  readonly hiddenLine = computed(() => {
+    const apps = this.hiddenApps().length;
+    const senders = this.hiddenSenders().length;
+    const parts: string[] = [];
+    if (apps > 0) parts.push(this.i18n.t(apps === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps', { count: apps }));
+    if (senders > 0) parts.push(this.i18n.t(senders === 1 ? 'ui.notifications.sendersOne' : 'ui.notifications.senders', { count: senders }));
+    return parts.join(' · ');
+  });
 
   /** Which question is on screen, or null. */
-  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | null>(null);
+  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | 'hideSender' | null>(null);
   /** The apps a "hide" question is about: one, or the ticked ones. */
   private readonly hiding = signal<SeenApp[]>([]);
 
@@ -289,6 +338,7 @@ export class NotificationsPage {
       this.enabled.set(enabled);
 
       this.apps.set((await BankNotifications.apps()).apps);
+      this.senders.set((await BankNotifications.senders()).senders);
       this.caught.set((await BankNotifications.caught()).caught);
     } finally {
       this.loading.set(false);
@@ -349,6 +399,13 @@ export class NotificationsPage {
     this.asking.set(null);
     const apps = this.hiding();
     this.hiding.set([]);
+    const sender = this.hidingSender();
+    this.hidingSender.set(null);
+    if (question === 'hideSender' && sender) {
+      await BankNotifications.hideSender({ package: sender.package, sender: sender.sender, on: true });
+      await this.look();
+      return;
+    }
     if (question === 'hide') {
       await this.putAway(apps);
       return;
@@ -360,6 +417,9 @@ export class NotificationsPage {
 
   readonly askTitle = computed(() => {
     const question = this.asking();
+    if (question === 'hideSender') {
+      return this.i18n.t('ui.notifications.hideSender.sure', { sender: this.hidingSender()?.sender ?? '' });
+    }
     if (question === 'hide') {
       const apps = this.hiding();
       return apps.length === 1
@@ -372,17 +432,18 @@ export class NotificationsPage {
 
   readonly askBody = computed(() => {
     const question = this.asking();
-    if (question === 'hide') return this.i18n.t('notifications.hide.body');
+    if (question === 'hide' || question === 'hideSender') return this.i18n.t('notifications.hide.body');
     return this.i18n.t(question === 'forgetEverything'
       ? 'notifications.forgetAll.body' : 'notifications.forgetCaught.body');
   });
 
   readonly askConfirm = computed(() => this.i18n.t(
-    this.asking() === 'hide' ? 'notifications.hide.do' : 'notifications.forget.do'));
+    this.asking() === 'hide' || this.asking() === 'hideSender' ? 'notifications.hide.do' : 'notifications.forget.do'));
 
   cancelled(): void {
     this.asking.set(null);
     this.hiding.set([]);
+    this.hidingSender.set(null);
   }
 
   /** When it arrived, in the reader's own language. */

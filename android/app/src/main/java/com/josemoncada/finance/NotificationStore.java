@@ -8,6 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 /**
  * What the notification listener has seen, kept where it outlives the app.
@@ -40,6 +41,22 @@ final class NotificationStore {
     private static final String CAUGHT = "caught";
     /** Apps the person asked never to see here again - until they ask back. */
     private static final String HIDDEN = "hidden";
+    /** Senders inside a messaging app that have sent something shaped like money. */
+    private static final String SENDERS = "senders";
+    private static final String WATCHED_SENDERS = "watchedSenders";
+    private static final String HIDDEN_SENDERS = "hiddenSenders";
+    /** Between an app's package and a sender's name in one key; never typed by anybody. */
+    private static final String SEP = "\u001f";
+
+    /**
+     * Money by its shape, for any country and either language: a sign or a
+     * currency code beside a number, or a number grouped in thousands. Only
+     * used to decide whether a sender is worth LISTING; what a message means
+     * is read in TypeScript (`readNotice`), never here.
+     */
+    private static final Pattern MONEY = Pattern.compile(
+            "[$€£¥]\\s?\\d|\\d\\s?[$€£]|\\b\\d{1,3}(?:[.,]\\d{3})+\\b"
+            + "|(?i:\\b(?:COP|USD|EUR|MXN|PEN|CLP|ARS|BRL|GBP)\\b)");
 
     /** Enough to read a few days of a bank's messages, and not a diary. */
     private static final int KEEP = 300;
@@ -66,8 +83,12 @@ final class NotificationStore {
         }
     }
 
+    static boolean looksLikeMoney(String text) {
+        return text != null && MONEY.matcher(text).find();
+    }
+
     /** Remembers that this app posts notifications, and nothing it said. */
-    static void noteApp(Context context, String pkg, String label, long at) {
+    static void noteApp(Context context, String pkg, String label, long at, boolean conversation) {
         JSONObject apps = object(context, APPS);
         try {
             JSONObject app = apps.optJSONObject(pkg);
@@ -79,6 +100,7 @@ final class NotificationStore {
             app.put("label", label);
             app.put("last", at);
             app.put("count", app.optInt("count", 0) + 1);
+            if (conversation) app.put("messaging", true);
             apps.put(pkg, app);
             prefs(context).edit().putString(APPS, apps.toString()).apply();
         } catch (JSONException broken) {
@@ -142,9 +164,104 @@ final class NotificationStore {
         edit.apply();
     }
 
+    private static String senderKey(String pkg, String sender) {
+        return pkg + SEP + sender;
+    }
+
+    /** Remembers a sender that sent something shaped like money - not what it said. */
+    static void noteSender(Context context, String pkg, String label, String sender, long at) {
+        JSONObject senders = object(context, SENDERS);
+        String key = senderKey(pkg, sender);
+        try {
+            JSONObject one = senders.optJSONObject(key);
+            if (one == null) {
+                one = new JSONObject();
+                one.put("package", pkg);
+                one.put("sender", sender);
+                one.put("first", at);
+                one.put("count", 0);
+            }
+            one.put("app", label);
+            one.put("last", Math.max(at, one.optLong("last", 0)));
+            one.put("count", one.optInt("count", 0) + 1);
+            senders.put(key, one);
+            prefs(context).edit().putString(SENDERS, senders.toString()).apply();
+        } catch (JSONException broken) {
+            // A note about a message is not worth crashing a phone for.
+        }
+    }
+
+    static boolean isSenderWatched(Context context, String pkg, String sender) {
+        return contains(context, WATCHED_SENDERS, senderKey(pkg, sender));
+    }
+
+    static boolean isSenderHidden(Context context, String pkg, String sender) {
+        return contains(context, HIDDEN_SENDERS, senderKey(pkg, sender));
+    }
+
+    static void watchSender(Context context, String pkg, String sender, boolean on) {
+        prefs(context).edit()
+                .putString(WATCHED_SENDERS, toggled(context, WATCHED_SENDERS, senderKey(pkg, sender), on))
+                .apply();
+    }
+
+    /**
+     * Hides a sender, or shows it again. As with an app: hidden stops even the
+     * noting, stops keeping what it says and drops what was kept from it.
+     */
+    static void hideSender(Context context, String pkg, String sender, boolean on) {
+        String key = senderKey(pkg, sender);
+        SharedPreferences.Editor edit = prefs(context).edit();
+        edit.putString(HIDDEN_SENDERS, toggled(context, HIDDEN_SENDERS, key, on));
+        if (on) {
+            edit.putString(WATCHED_SENDERS, toggled(context, WATCHED_SENDERS, key, false));
+            JSONArray all = array(context, CAUGHT);
+            JSONArray rest = new JSONArray();
+            for (int at = 0; at < all.length(); at += 1) {
+                JSONObject one = all.optJSONObject(at);
+                if (one == null) continue;
+                boolean same = pkg.equals(one.optString("package")) && sender.equals(one.optString("sender"));
+                if (!same) rest.put(one);
+            }
+            edit.putString(CAUGHT, rest.toString());
+        }
+        edit.apply();
+    }
+
+    static JSONArray sendersSeen(Context context) {
+        JSONObject senders = object(context, SENDERS);
+        JSONArray list = new JSONArray();
+        for (Iterator<String> keys = senders.keys(); keys.hasNext(); ) {
+            String key = keys.next();
+            JSONObject one = senders.optJSONObject(key);
+            if (one == null) continue;
+            try {
+                JSONObject copy = new JSONObject(one.toString());
+                String pkg = copy.optString("package");
+                String sender = copy.optString("sender");
+                copy.put("watched", isSenderWatched(context, pkg, sender));
+                copy.put("hidden", isSenderHidden(context, pkg, sender));
+                list.put(copy);
+            } catch (JSONException broken) {
+                // Skip the one that will not copy rather than lose the rest.
+            }
+        }
+        return list;
+    }
+
     /** Keeps one notification, oldest dropped once there are too many. */
     static void keep(Context context, JSONObject caught) {
         JSONArray all = array(context, CAUGHT);
+        // A conversation re-posted carries its last message again: the same
+        // app, sender, words and time are one message, kept once.
+        for (int at = Math.max(0, all.length() - 30); at < all.length(); at += 1) {
+            JSONObject one = all.optJSONObject(at);
+            if (one != null
+                    && one.optString("package").equals(caught.optString("package"))
+                    && one.optString("sender").equals(caught.optString("sender"))
+                    && one.optString("text").equals(caught.optString("text"))
+                    && one.optLong("postedAt") == caught.optLong("postedAt")) return;
+        }
         all.put(caught);
         while (all.length() > KEEP) all.remove(0);
         prefs(context).edit().putString(CAUGHT, all.toString()).apply();

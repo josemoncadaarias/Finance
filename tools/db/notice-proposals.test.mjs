@@ -16,7 +16,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { accept } from '../../src/app/core/proposals/accept.ts';
-import { accountFor, noticeBatch, proposalsFrom } from '../../src/app/core/notices/notice-proposals.ts';
+import { accountFor, noticeBatch, noticeKey, proposalsFrom } from '../../src/app/core/notices/notice-proposals.ts';
 import { readNotice } from '../../src/app/core/notices/read-notice.ts';
 
 const NOW = () => '2026-10-02T15:00:00Z';
@@ -130,4 +130,36 @@ test('end to end: proposed, answered, and the next message of the same app arriv
   // Put away from the review screen, it does not come back.
   await proposals.forget(noticeBatch(first.package));
   assert.deepEqual(await run([first, notice('Compraste $18.500 en CAFE LUNA', { postedAt: AT + 86_400_000 })]), []);
+});
+
+// An SMS is its sender's: two banks texting through the same messaging app
+// are two sources (Jose, 2026-10-02). Every name and message is invented.
+const sms = (sender, text, extra = {}) => ({
+  package: 'com.mensajes.app', app: 'Mensajes', title: sender, sender, text, postedAt: AT, ...extra,
+});
+
+test('a text message: one batch per sender, the sender named, the key as before for apps', () => {
+  const made = proposalsFrom([
+    sms('Banco Azul', 'Compraste $45.900 en TIENDA CENTRAL'),
+    sms('891333', 'Retiro por $200.000. Saldo $650.000', { postedAt: AT + 1000 }),
+  ], new Set(), [], []);
+  assert.equal(made.length, 2);
+  assert.equal(made[0].batch, noticeBatch('com.mensajes.app|Banco Azul'));
+  assert.equal(made[1].batch, noticeBatch('com.mensajes.app|891333'));
+  assert.equal(made[0].proposal.evidence.sender, 'Banco Azul');
+  assert.equal(made[0].proposal.evidence.file, 'Banco Azul · Mensajes');
+  // An app's own notification keeps the key it always had, so nothing proposed before comes back.
+  assert.equal(noticeKey(notice('Compraste $1 en X')), `com.bancoazul.app|${AT}|17`);
+});
+
+test('a text message: the account is learned per sender, and the sender\'s name matches an account', () => {
+  const accounts = [account(1, 'Banco Azul ahorros'), account(2, 'Banco Rojo'), account(3, 'Efectivo')];
+  const azul = sms('Banco Azul', 'Compraste $5.000 en PAN');
+  // Before any answer: the sender's name in exactly one account's name ("Banco" says nothing).
+  assert.deepEqual(accountFor(azul, readNotice(azul.text), [], accounts), { accountId: 1, from: 'name' });
+  // What was answered for another sender of the same app does not leak across.
+  const answers = [{ package: 'com.mensajes.app|Banco Rojo', digits: null, account_id: 2 }];
+  assert.deepEqual(accountFor(azul, readNotice(azul.text), answers, accounts), { accountId: 1, from: 'name' });
+  const rojo = sms('Banco Rojo', 'Compraste $7.000 en PAN');
+  assert.deepEqual(accountFor(rojo, readNotice(rojo.text), answers, accounts), { accountId: 2, from: 'learned' });
 });
