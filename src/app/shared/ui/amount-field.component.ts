@@ -9,14 +9,16 @@
  * The field shows the amount grouped in thousands, as before, and the digits
  * stay the app's own (`AmountBuffer`): what the keyboard does is read back
  * with `typedInto`, so a comma and a full stop both start the cents whichever
- * the phone's language offers, and 45.900 never becomes 45,9.
+ * the phone's language offers, and 45.900 never becomes 45,9. The cursor can
+ * sit on any digit, to correct one in the middle; the erase key takes the
+ * digit before the cursor (Jose, 2026-10-02).
  */
 
 import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { AmountBuffer, typedInto } from '../../features/entry/amount-buffer';
+import { AmountBuffer, editAmount, typedInto, type AmountEdit } from '../../features/entry/amount-buffer';
 
 @Component({
   selector: 'app-amount-field',
@@ -88,7 +90,7 @@ import { AmountBuffer, typedInto } from '../../features/entry/amount-buffer';
       <input #field type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0"
              [value]="buffer().text" [class.long]="buffer().text.length > 9" [class.longer]="buffer().text.length > 12"
              [attr.aria-label]="'entry.amount' | t"
-             (input)="typed()" (focus)="toEnd(); focused.emit()" (click)="toEnd()"
+             (input)="typed()" (focus)="focused.emit()"
              (keydown.enter)="$event.preventDefault(); done.emit()">
       @if (currency()) { <span class="currency">{{ currency() }}</span> }
       @if (!buffer().isEmpty) {
@@ -139,28 +141,37 @@ export class AmountFieldComponent {
 
   typed(): void {
     const element = this.field().nativeElement;
-    const next = typedInto(this.buffer(), element.value);
-    // Told directly: a character refused leaves the text as it was, and the
-    // binding would not notice anything to redraw.
-    element.value = next.text;
-    this.toEnd();
-    this.changed.emit(next);
+    this.apply(typedInto(this.buffer(), element.value, element.selectionStart ?? element.value.length));
   }
 
+  /** The digit before the cursor - the last one when the field is not in use - or what is selected. */
   erase(): void {
-    const next = this.buffer().copy();
-    next.backspace();
-    this.changed.emit(next);
+    const element = this.field().nativeElement;
+    const text = this.buffer().text;
+    const inUse = document.activeElement === element;
+    let start = inUse ? element.selectionStart ?? text.length : text.length;
+    const end = inUse ? element.selectionEnd ?? start : text.length;
+    if (start === end) {
+      if (start === 0) return;
+      start -= 1;
+    }
+    this.apply(editAmount(this.buffer(), start, end, ''));
   }
 
   clear(): void {
-    this.changed.emit(new AmountBuffer());
+    this.apply({ buffer: new AmountBuffer(), caret: 0 });
   }
 
-  /** The caret lives at the end: typing adds, erasing takes from there. */
-  toEnd(): void {
+  /**
+   * The field told directly, then the form: a character refused leaves the
+   * text as it was, and the binding would see nothing to redraw.
+   */
+  private apply(edit: AmountEdit): void {
     const element = this.field().nativeElement;
-    const end = element.value.length;
-    setTimeout(() => { try { element.setSelectionRange(end, end); } catch { /* not focused */ } });
+    element.value = edit.buffer.text;
+    if (document.activeElement === element) {
+      try { element.setSelectionRange(edit.caret, edit.caret); } catch { /* not a text field any more */ }
+    }
+    this.changed.emit(edit.buffer);
   }
 }

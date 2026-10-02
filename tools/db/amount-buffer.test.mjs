@@ -111,11 +111,11 @@ test('long amounts are grouped, and grouping never reaches the value', () => {
 
 // The phone's own keyboard types into a field showing the buffer's text
 // (Jose, 2026-10-02: the app's keypad is gone).
-import { typedInto } from '../../src/app/features/entry/amount-buffer.ts';
+import { editAmount, typedInto } from '../../src/app/features/entry/amount-buffer.ts';
 
 const keyboard = (steps) => {
   let buffer = new AmountBuffer();
-  for (const step of steps) buffer = typedInto(buffer, typeof step === 'function' ? step(buffer.text) : step);
+  for (const step of steps) buffer = typedInto(buffer, typeof step === 'function' ? step(buffer.text) : step).buffer;
   return buffer;
 };
 const add = (chars) => (shown) => shown + chars;
@@ -146,4 +146,55 @@ test('the keyboard: anything else is read afresh', () => {
   assert.equal(keyboard(['1.234.567,89']).minor, 123456789, 'pasted, Colombian');
   assert.equal(keyboard(['$ 1234.5']).minor, 123450, 'pasted with a point for the cents');
   assert.equal(keyboard(['abc']).isEmpty, true);
+});
+
+// The cursor anywhere in the figure (Jose, 2026-10-02: "poner el cursor en
+// cualquier posición del saldo ... para corregir algún dígito").
+const from = (text) => typedInto(new AmountBuffer(), text).buffer;
+
+test('the cursor anywhere: a digit typed in the middle lands there, and the cursor after it', () => {
+  // 45.900, cursor after the 4, a 1 typed: 415.900, cursor after the 1.
+  const edit = typedInto(from('45900'), '415.900', 2);
+  assert.equal(edit.buffer.text, '415.900');
+  assert.equal(edit.caret, 2);
+  // Typed after "45." it regroups and the cursor stays after the new digit.
+  const again = typedInto(from('45900'), '45.1900', 4);
+  assert.equal(again.buffer.text, '451.900');
+  assert.equal(again.caret, 3, 'right after the 1, before the grouping dot');
+});
+
+test('the cursor anywhere: the same digit typed beside itself puts the cursor in the right place', () => {
+  const edit = typedInto(from('45900'), '45.9900', 4);
+  assert.equal(edit.buffer.text, '459.900');
+  assert.equal(edit.caret, 3);
+});
+
+test('the cursor anywhere: erasing a digit in the middle', () => {
+  // 45.900, cursor after the 5, backspace: 4.900, cursor after the 4.
+  const edit = typedInto(from('45900'), '4.900', 1);
+  assert.equal(edit.buffer.text, '4.900');
+  assert.equal(edit.caret, 1);
+});
+
+test('the cursor anywhere: erasing a grouping dot erases the digit before it', () => {
+  // 1.234, cursor after the dot, backspace: 234.
+  const edit = editAmount(from('1234'), 1, 2, '');
+  assert.equal(edit.buffer.text, '234');
+  assert.equal(edit.caret, 0);
+});
+
+test('the cursor anywhere: the cents, and a separator where there already is one', () => {
+  const cents = from('45900,5');
+  assert.equal(cents.text, '45.900,5');
+  const edit = typedInto(cents, '45.900,75', 8);
+  assert.equal(edit.buffer.text, '45.900,75');
+  // A second comma in the middle is refused, and the text stays as it was.
+  assert.equal(typedInto(cents, '45,.900,5', 3).buffer.text, '45.900,5');
+});
+
+test('the cursor anywhere: a selection typed over', () => {
+  // "900" selected in 45.900 and a 1 typed: 451.
+  const edit = editAmount(from('45900'), 3, 6, '1');
+  assert.equal(edit.buffer.text, '451');
+  assert.equal(edit.caret, 3);
 });
