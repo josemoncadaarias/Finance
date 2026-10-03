@@ -122,6 +122,7 @@ detail of each is in the section named):
 | #45 | The app's keypad removed: the amount takes the phone's own keyboard, with erase-a-digit and X beside it | "First round from the phone" |
 | #46 | The amount's cursor can sit on any digit, to correct one in the middle | "First round from the phone" |
 | #47 | SMS chosen by sender inside the messaging app, never the whole app | Rule 22 |
+| #51 | "¿Qué cambia?" on a transfer between two accounts, at each end with products (option B, 17b); the net worth line | Rule 15 ("¿Qué cambia?") |
 | #50 | "Mensajes de texto" says why no SMS sender is listed (no words readable, no money yet, nothing yet) | Rule 22 (SMS) |
 | #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
@@ -162,7 +163,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (717 on 2026-10-02, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (731 on 2026-10-03, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -436,6 +437,41 @@ backup restore against iOS's own SQLite backend.
      question in both, the products screen's form is left for what the
      ordinary one does not do (moving between products, correcting a
      product's own entry); the merge waits for Jose's word.
+
+   **A transfer between two accounts asks it too, at each end with
+   products** (Jose, 2026-10-03; mockups `17a`-`17f`, option B chosen: the
+   answer is a chip inside its own end, `17b`). His case: Bold pays its
+   yields into a product; moving part of them to another account was an
+   ordinary transfer, so net worth went DOWN by money it never counted. The
+   leaving end takes a spending's answers, the arriving end an income's;
+   a move between products of one account asks nothing, and neither does an
+   end without products. Every transfer starts on "Producto y patrimonio",
+   and every transfer already on record is that at both ends (migration 056,
+   `transfers.from_scope`/`to_scope` default `both`) - no figure moved.
+   - **How each answer is written** (`TransfersRepository`): `both` is the
+     leg, as always; `netWorth` is the leg plus its other half on the
+     product (an entry back into it where money leaves, a cash-out where it
+     arrives - the shapes `writeScoped` uses); `product` is NO leg, only a
+     `product_entries` row tied to the transfer (`transfer_id`,
+     `transfer_leg`). So a transfer may have two legs, one or none;
+     `findById` returns both ends either way (`fromEnd`, `toEnd`), `update`
+     reshapes it keeping each leg's id while its end still touches the
+     balance, `delete` takes the halves and the entries with it. All nine
+     combinations are proved by balance and product figure
+     (`transfer-scopes.test.mjs`).
+   - **One line says what it does to net worth** (`transferEffect`): it
+     goes up by what arrives when the leaving end was "Solo el producto",
+     down by what leaves when the arriving end is, and does not change
+     otherwise; under it one line per end with products saying what happens
+     there. Shown whenever an end is asked.
+   - **Where it shows**: a leg whose far end changed its product only is
+     labelled by the far account (read off its entry), and it is never
+     hidden as money merely changing account in "Todas las cuentas" - net
+     worth did move. In Todas las cuentas it is a "received"/"moved" row,
+     not income: Entró/Salió do not count it, the balance does. On the
+     products page the entry reads "Hacia/Desde {cuenta}" and opens the
+     whole transfer. Checked in a browser on the demo backup (saved, listed,
+     reopened with its answers, deleted leaving nothing).
 
    **There are five things and no sixth: products, their balances, the date
    each starts earning from, their rates and their movements.** Said by Jose

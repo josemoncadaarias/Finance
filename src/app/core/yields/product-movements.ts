@@ -38,6 +38,10 @@ export interface MovementEntry {
   product_id: number | null;
   note: string | null;
   transaction_id: number | null;
+  /** One end of a transfer that changed this product only (migration 056). */
+  transfer_id?: number | null;
+  transfer_leg?: 'from' | 'to' | null;
+  other_account_name?: string | null;
 }
 
 export interface MovementWithdrawal {

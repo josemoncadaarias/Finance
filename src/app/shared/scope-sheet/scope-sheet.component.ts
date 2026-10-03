@@ -11,6 +11,7 @@ import { IonIcon, IonModal } from '@ionic/angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { scopeOptionKeys, type EntryScope } from '../../core/yields/entry-scope';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { BadgeComponent } from '../ui/badge.component';
 
 /** The row's and the sheet's icon, and its colour. */
@@ -29,7 +30,7 @@ export const SCOPE_TONE = '#9b7bff';
           <button type="button" class="sheet-cancel" (click)="closed.emit()">{{ 'entry.cancel' | t }}</button>
           <div class="grab"></div>
           <div class="sheet-icon"><app-badge shape="ci" [size]="48" [builtin]="icon" [fixed]="tone"></app-badge></div>
-          <h2 class="center">{{ 'products.entry.scope' | t }}</h2>
+          <h2 class="center">{{ title() || ('products.entry.scope' | t) }}</h2>
           <div class="ui-list">
             @for (option of options(); track option.id) {
               <button type="button" class="ui-row plain" (click)="chosen.emit(option.id)">
@@ -51,13 +52,24 @@ export class ScopeSheetComponent {
   readonly open = input(false);
   readonly kind = input<'income' | 'expense'>('income');
   readonly scope = input<EntryScope>('both');
+  /** At one end of a transfer between two accounts (17b): its own title and words. */
+  readonly title = input<string>('');
+  readonly transferSide = input<'from' | 'to' | null>(null);
   readonly chosen = output<EntryScope>();
   readonly closed = output<void>();
 
   readonly icon = SCOPE_ICON;
   readonly tone = SCOPE_TONE;
 
-  readonly options = computed(() => scopeOptionsIn(this.i18n, this.kind()));
+  readonly options = computed(() => {
+    const side = this.transferSide();
+    if (side === null) return scopeOptionsIn(this.i18n, this.kind());
+    // The names stay those of a spending (leaving) or an income (arriving);
+    // what each does is said for a transfer.
+    return scopeOptionsIn(this.i18n, side === 'from' ? 'expense' : 'income').map(option => ({
+      ...option, detail: this.i18n.t(`transfer.scope.${side}.${option.id}.hint` as TranslationKey),
+    }));
+  });
 }
 
 /** The answers in words, for the sheet and for the row that names the chosen one. */

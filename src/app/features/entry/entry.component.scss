@@ -456,3 +456,22 @@
   .loan-mode { margin: 8px 12px 10px; }
 }
 .loan-warn { color: var(--app-yel); font-size: 13px; line-height: 1.4; margin: 8px 4px 0; }
+
+/* ¿Qué cambia? inside one end of a transfer between two accounts (17b). */
+.end .what .scope-chip {
+  align-self: flex-start; margin: 7px 0 2px 2px; padding: 4px 10px 4px 7px; gap: 6px;
+  display: inline-flex; align-items: center; max-width: 100%;
+  font-size: 12.8px; color: #c9b8ff; background: rgba(155, 123, 255, .14); border: 1px solid rgba(155, 123, 255, .35);
+  ion-icon { font-size: 15px; flex: none; }
+  ion-icon.down { font-size: 13px; }
+}
+
+/* What the transfer does to net worth (17b). */
+.transfer-effect {
+  margin-top: 10px; padding: 12px 14px; display: flex; gap: 12px; align-items: center;
+  b { font-size: 15px; }
+  small { display: block; white-space: normal; line-height: 1.38; margin-top: 2px; color: var(--app-mu); font-size: 12.8px; }
+  &.up { background: rgba(52, 201, 139, .1); border-color: rgba(52, 201, 139, .35); b { color: var(--app-grn); } }
+  &.down { background: rgba(255, 107, 107, .1); border-color: rgba(255, 107, 107, .35); b { color: var(--app-red); } }
+  &.same b { color: var(--app-tx); }
+}
