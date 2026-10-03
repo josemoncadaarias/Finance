@@ -76,6 +76,7 @@ function usesOf(context: NoteContext): { sql: string; params: unknown[] } {
         // that are not the other half of an entry already counted.
         sql: `SELECT TRIM(note) AS note, on_date AS day FROM product_entries
               WHERE account_id = ? AND COALESCE(product_id, ?) = ? AND amount_minor ${sign} 0 ${category}
+                AND transfer_id IS NULL
                 AND ${filled('note')}
               UNION ALL
               SELECT TRIM(description), occurred_on FROM transactions

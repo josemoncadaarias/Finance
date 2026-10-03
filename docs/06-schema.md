@@ -55,6 +55,8 @@ erDiagram
         INTEGER id PK
         TEXT occurred_on
         TEXT description
+        TEXT from_scope
+        TEXT to_scope
     }
     transactions {
         INTEGER id PK
@@ -214,6 +216,8 @@ erDiagram
         TEXT on_date
         INTEGER amount_minor
         INTEGER transaction_id FK
+        INTEGER transfer_id FK
+        TEXT transfer_leg
     }
     product_cashouts {
         INTEGER id PK
@@ -395,6 +399,7 @@ erDiagram
     products       ||--o{ goal_places  : "holds a goal's money"
     accounts       ||--o{ card_statements : "was billed by the bank in"
     transactions   ||--o{ product_entries : "cashed in by"
+    transfers      ||--o{ product_entries : "one end of"
     product_kinds  ||--o{ product_entries : "is a"
     categories     ||--o{ product_entries : "filed under"
     custom_icons   ||--o{ product_kinds       : "wears"
@@ -593,6 +598,7 @@ outright:
 | `idx_product_entries_category` | and the income category it is filed under, since migration 037 |
 | `idx_product_kinds_name` | a kind is named once |
 | `idx_product_entries_transaction` | the movement an entry is the other half of, when it is half of a cash-in |
+| `idx_product_entries_transfer` | the transfer an entry is one end of, where that end changed its product only (migration 056) |
 | `idx_product_cashouts_account` | what has been taken out of an account's products |
 | `idx_movement_proposals_pending` | what the app has read and nobody has answered yet |
 | `idx_movement_proposals_account` | a proposal beside the account and the days it speaks about |

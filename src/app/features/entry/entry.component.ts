@@ -36,12 +36,14 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
 import type { YieldProduct } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
-import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
+import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
+import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
 import { whatItHolds } from '../../core/yields/holdings';
 import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
+import { transferEffect } from '../../core/transfers/transfer-effect';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
@@ -236,6 +238,83 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.scope.set(id);
     this.choosingScope.set(false);
   }
+
+  /**
+   * "¿Qué cambia?" at each end of a transfer between two DIFFERENT accounts,
+   * for the end whose account has products (Jose, 2026-10-03; mockup 17b):
+   * the leaving end takes a spending's answers, the arriving end an income's
+   * (`TransferScope`, migration 056). Moving earnings that never counted to
+   * another account is not net worth going down. Every transfer starts on
+   * "Producto y patrimonio" - what every transfer has always been - and a
+   * move between products of one account asks nothing: its net worth never
+   * moves.
+   */
+  readonly fromScopeChosen = signal<TransferScope>('both');
+  readonly toScopeChosen = signal<TransferScope>('both');
+  readonly choosingTransferScope = signal<'from' | 'to' | null>(null);
+  private readonly betweenAccounts = computed(() =>
+    this.isTransfer() && this.loanEntry() === null && this.accountId() !== null
+    && this.toAccountId() !== null && this.accountId() !== this.toAccountId());
+  readonly asksFromScope = computed(() => this.betweenAccounts() && this.products().length > 0);
+  readonly asksToScope = computed(() => this.betweenAccounts() && this.toProducts().length > 0);
+  /** What each end will be saved as: its answer where it is asked, otherwise as always. */
+  readonly fromScope = computed<TransferScope>(() => this.asksFromScope() ? this.fromScopeChosen() : 'both');
+  readonly toScope = computed<TransferScope>(() => this.asksToScope() ? this.toScopeChosen() : 'both');
+
+  /** The chip's words: the answer, said as a spending's (leaving) or an income's (arriving). */
+  scopeChipName(side: 'from' | 'to'): string {
+    const scope = side === 'from' ? this.fromScope() : this.toScope();
+    return scopeOptionsIn(this.i18n, side === 'from' ? 'expense' : 'income')
+      .find(option => option.id === scope)?.name ?? '';
+  }
+
+  chooseTransferScope(scope: EntryScope): void {
+    if (this.choosingTransferScope() === 'to') this.toScopeChosen.set(scope);
+    else this.fromScopeChosen.set(scope);
+    this.choosingTransferScope.set(null);
+  }
+
+  /** The end being answered, by name, for the sheet's title. */
+  readonly transferScopeTitle = computed(() => {
+    const side = this.choosingTransferScope();
+    if (side === null) return '';
+    const account = side === 'to' ? this.toAccount() : this.account();
+    return this.i18n.t(side === 'to' ? 'transfer.scope.arriving' : 'transfer.scope.leaving', { account: account?.name ?? '' });
+  });
+
+  /**
+   * What the transfer does to net worth, worked out from the two answers
+   * (`transferEffect`), and one line per end with products saying what
+   * happens there - so nobody has to reason it through. Shown whenever an
+   * end is asked.
+   */
+  readonly transferSummary = computed(() => {
+    if (!this.asksFromScope() && !this.asksToScope()) return null;
+    const out = this.amount().minor;
+    const into = this.crossesCurrency() ? this.targetAmount().minor : out;
+    const effect = transferEffect({ fromScope: this.fromScope(), toScope: this.toScope(), fromMinor: out, toMinor: into });
+    const amount = effect.side === null ? ''
+      : this.money(effect.amountMinor, effect.side === 'to' ? this.targetCurrency() : this.currency());
+    const title = effect.kind === 'same'
+      ? this.i18n.t('transfer.effect.same')
+      : this.i18n.t(effect.kind === 'up' ? 'transfer.effect.up' : 'transfer.effect.down', { amount });
+    const lines: string[] = [];
+    const end = (side: 'from' | 'to') => {
+      const account = (side === 'from' ? this.account() : this.toAccount())?.name ?? '';
+      const asked = side === 'from' ? this.asksFromScope() : this.asksToScope();
+      if (!asked) return;
+      const products = side === 'from' ? this.products() : this.toProducts();
+      const product = (this.productOf(products, side === 'from' ? this.productId() : this.toProductId()) ?? products[0])?.name ?? '';
+      const scope = side === 'from' ? this.fromScope() : this.toScope();
+      lines.push(this.i18n.t(`transfer.effect.${side}.${scope}` as TranslationKey, { account, product }));
+    };
+    end('from');
+    end('to');
+    if (effect.kind === 'same' && this.fromScope() === 'both' && this.toScope() === 'both') {
+      lines.splice(0, lines.length, this.i18n.t('transfer.effect.onlyMoves'));
+    }
+    return { kind: effect.kind, title, lines };
+  });
 
   /** The answer this person usually gives for the account, category and side. */
   private readonly offerUsualScope = effect(() => {
@@ -879,14 +958,17 @@ export class EntryComponent implements OnInit, OnDestroy {
     }
 
     this.editingTransferId.set(transferId);
-    this.accountId.set(found.from.account_id);
-    this.nearLegProductId = found.from.product_id ?? null;
-    this.farLegProductId = found.to.product_id ?? null;
-    this.toAccountId.set(found.to.account_id);
-    this.amount.set(AmountBuffer.from(found.from.amount_minor));
-    this.targetAmount.set(AmountBuffer.from(found.to.amount_minor));
+    // Each end as it stands, a leg or a product's own entry (migration 056).
+    this.accountId.set(found.fromEnd.account_id);
+    this.nearLegProductId = found.fromEnd.product_id ?? null;
+    this.farLegProductId = found.toEnd.product_id ?? null;
+    this.toAccountId.set(found.toEnd.account_id);
+    this.amount.set(AmountBuffer.from(found.fromEnd.amount_minor));
+    this.targetAmount.set(AmountBuffer.from(found.toEnd.amount_minor));
+    this.fromScopeChosen.set(found.fromEnd.scope);
+    this.toScopeChosen.set(found.toEnd.scope);
     this.occurredOn.set(found.transfer.occurred_on);
-    this.note.set(found.transfer.description ?? found.from.description ?? '');
+    this.note.set(found.transfer.description ?? found.from?.description ?? found.to?.description ?? '');
   }
 
   /**
@@ -1174,6 +1256,8 @@ export class EntryComponent implements OnInit, OnDestroy {
     const toSide = this.picking() === 'to';
     if (toSide) this.toAccountId.set(id);
     else this.accountId.set(id);
+    // Another account is another question: back to what a transfer always was.
+    (toSide ? this.toScopeChosen : this.fromScopeChosen).set('both');
     await this.loadProducts();
 
     // Landing on the same account on both sides is a transfer between two of
@@ -1218,6 +1302,11 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.products.set(this.toProducts());
     this.toProductId.set(fromProduct);
     this.toProducts.set(fromProducts);
+    // Each end keeps its answer as it changes sides: the three answers are
+    // the same at both ends, said as a spending's or an income's.
+    const fromScope = this.fromScopeChosen();
+    this.fromScopeChosen.set(this.toScopeChosen());
+    this.toScopeChosen.set(fromScope);
   }
 
   pickDate(value: string | null): void {
@@ -1541,6 +1630,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         account_id: this.accountId()!,
         product_id: this.splitAccount() ? this.productId() : null,
         amount_minor: out,
+        scope: this.fromScope(),
       },
       to: {
         account_id: this.toAccountId()!,
@@ -1549,6 +1639,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         rate_scaled: rateScaled,
         amount_base_minor: this.crossesCurrency() ? out : undefined,
         rate_source: rateScaled === null ? null : ('derived' as const),
+        scope: this.toScope(),
       },
       source: 'manual' as const,
     };

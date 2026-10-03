@@ -381,12 +381,14 @@ export class MovementsStore {
       if (leaveOut && row.product_set_aside === 1) return false;
       return row.transfer_id === null ||
         row.other_account_id === null ||
+        // The far end changed its product only: net worth moved, so it shows.
+        row.sibling_leg_id == null ||
         !inScope.has(row.other_account_id) ||
         (leaveOut && row.other_product_set_aside === 1);
     });
 
     const movedBetween = detailed
-      .filter(row => row.transfer_id !== null && row.amount_minor < 0
+      .filter(row => row.transfer_id !== null && row.amount_minor < 0 && row.sibling_leg_id != null
         && row.other_account_id !== null && inScope.has(row.other_account_id)
         && !(leaveOut && (row.product_set_aside === 1 || row.other_product_set_aside === 1)))
       .reduce((sum, row) => sum + Math.abs(row.amount_base_minor), 0);

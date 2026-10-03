@@ -152,6 +152,13 @@ export interface ProductEntry {
   /** The movement this is the other half of, when it is half of a cash-in. */
   transaction_id: number | null;
   /**
+   * The transfer this is one end of, where that end changed its product only
+   * (migration 056), with the account at the other end.
+   */
+  transfer_id?: number | null;
+  transfer_leg?: 'from' | 'to' | null;
+  other_account_name?: string | null;
+  /**
    * Which of the user's own kinds it is - cashback, a correction, whatever
    * they have added. Null on an entry written before they were rows, which
    * still has `kind` to fall back on.
@@ -804,7 +811,7 @@ export class YieldsRepository {
   async earnedBefore(accountId: number, on: IsoDate): Promise<boolean> {
     const row = await this.db.queryOne<{ total: number }>(
       `SELECT COUNT(*) AS total FROM product_entries
-       WHERE account_id = ? AND on_date < ?`, [accountId, on]);
+       WHERE account_id = ? AND on_date < ? AND transfer_id IS NULL`, [accountId, on]);
     return (row?.total ?? 0) > 0;
   }
 
@@ -1440,9 +1447,13 @@ export class YieldsRepository {
 
   async adjustments(accountId: number): Promise<ProductEntry[]> {
     return this.db.query<ProductEntry>(
-`SELECT id, account_id, source, kind, product_kind_id, category_id, product_id, on_date,
-              amount_minor, note, transaction_id, created_at
-       FROM product_entries WHERE account_id = ? ORDER BY on_date, id`,
+`SELECT e.id, e.account_id, e.source, e.kind, e.product_kind_id, e.category_id, e.product_id, e.on_date,
+              e.amount_minor, e.note, e.transaction_id, e.created_at, e.transfer_id, e.transfer_leg,
+              (SELECT a.name FROM accounts a WHERE a.id = COALESCE(
+                 (SELECT t.account_id FROM transactions t WHERE t.transfer_id = e.transfer_id LIMIT 1),
+                 (SELECT o.account_id FROM product_entries o WHERE o.transfer_id = e.transfer_id AND o.id <> e.id LIMIT 1))
+              ) AS other_account_name
+       FROM product_entries e WHERE e.account_id = ? ORDER BY e.on_date, e.id`,
       [accountId]);
   }
 

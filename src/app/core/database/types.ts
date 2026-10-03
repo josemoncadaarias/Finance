@@ -102,6 +102,9 @@ export interface TransferRow {
   id: number;
   occurred_on: IsoDate;
   description: string | null;
+  /** What each end changes (migration 056); 'both' on every transfer before it. */
+  from_scope?: 'both' | 'product' | 'netWorth';
+  to_scope?: 'both' | 'product' | 'netWorth';
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }

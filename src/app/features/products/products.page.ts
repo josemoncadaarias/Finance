@@ -2791,6 +2791,17 @@ export class ProductsPage {
    * all - and an entry on the product alone on its income or expense screen.
    */
   openMovement(line: ProductLine, movement: ProductMovement): void {
+    // One end of a transfer that changed this product only: the transfer is
+    // opened whole, on the movement screen, like any other transfer.
+    if (movement.type === 'entry' && movement.entry.transfer_id != null) {
+      this.movementEdit.set({
+        kind: 'transfer',
+        editing: { id: -1, transfer_id: movement.entry.transfer_id, account_id: line.account.id,
+                   product_id: movement.entry.product_id, amount_minor: movement.entry.amount_minor,
+                   occurred_on: movement.entry.on_date } as unknown as EntryRequest['editing'],
+      });
+      return;
+    }
     if (movement.type === 'entry') {
       this.productEntry.set({
         kind: movement.amountMinor < 0 ? 'expense' : 'income',
@@ -2864,6 +2875,10 @@ export class ProductsPage {
       case 'transfer':
         return `${this.productLabel(line, movement.fromProductId)} → ${this.productLabel(line, movement.toProductId)}`;
       case 'entry':
+        if (movement.entry.transfer_id != null) {
+          return this.i18n.t(movement.amountMinor < 0 ? 'products.movements.transferTo' : 'products.movements.transferFrom',
+            { account: movement.entry.other_account_name ?? '' });
+        }
         return this.kindLabel(movement.entry as ProductEntry);
       case 'withdrawal':
         return this.i18n.t('products.movements.withdrawal');
@@ -2900,6 +2915,7 @@ export class ProductsPage {
   }
 
   movementIcon(movement: ProductMovement): string {
+    if (movement.type === 'entry' && movement.entry.transfer_id != null) return 'swap-horizontal-outline';
     if (movement.type === 'entry') {
       // The category it was filed under, which is where an entry has been
       // filed since migration 037. Before that it named one of the kinds the
@@ -2919,7 +2935,9 @@ export class ProductsPage {
   private categoryOf(movement: ProductMovement): [string, string] {
     switch (movement.type) {
       case 'transfer': return ['between', this.i18n.t('products.movements.betweenProducts')];
-      case 'entry': return [
+      case 'entry': return movement.entry.transfer_id != null
+        ? [`account:${movement.entry.other_account_name ?? ''}`, movement.entry.other_account_name ?? '']
+        : [
         movement.entry.category_id !== null && movement.entry.category_id !== undefined
           ? `category:${movement.entry.category_id}`
           : `kind:${movement.entry.product_kind_id ?? movement.entry.kind}`,

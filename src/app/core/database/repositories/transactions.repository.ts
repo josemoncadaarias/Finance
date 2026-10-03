@@ -109,6 +109,12 @@ export interface DetailedTransaction extends TransactionRow {
   /** The product on the other side of a transfer, and whether it sits outside net worth. */
   other_product_name: string | null;
   other_product_set_aside: 0 | 1;
+  /**
+   * The far leg of a transfer, when it has one. A transfer whose far end
+   * changed its product only has none (migration 056): it moved net worth,
+   * so it is never left out as money merely changing account.
+   */
+  sibling_leg_id?: number | null;
 }
 
 export interface DetailedFilter {
@@ -414,15 +420,20 @@ export class TransactionsRepository {
               own_product.name AS product_name,
               CASE WHEN own_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS product_set_aside,
               other_product.name AS other_product_name,
+              sibling.id AS sibling_leg_id,
               CASE WHEN other_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_product_set_aside
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id
        LEFT JOIN transactions sibling
               ON sibling.transfer_id = t.transfer_id AND sibling.id <> t.id
-       LEFT JOIN accounts other ON other.id = sibling.account_id
+       -- An end that changed its product only has no leg (migration 056):
+       -- the far account is read off its entry instead.
+       LEFT JOIN product_entries far_entry
+              ON far_entry.transfer_id = t.transfer_id AND t.transfer_id IS NOT NULL
+       LEFT JOIN accounts other ON other.id = COALESCE(sibling.account_id, far_entry.account_id)
        LEFT JOIN products own_product ON own_product.id = t.product_id
-       LEFT JOIN products other_product ON other_product.id = sibling.product_id
+       LEFT JOIN products other_product ON other_product.id = COALESCE(sibling.product_id, far_entry.product_id)
        ${where}
        ORDER BY t.occurred_on DESC, t.id DESC`,
       values,
