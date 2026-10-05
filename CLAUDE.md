@@ -1580,6 +1580,11 @@ backup restore against iOS's own SQLite backend.
      already holds sits apart, folded, "Ya los tienes registrados" with
      "Descartar estos N" - "Guardar los listos" never writes them. A message
      batch is named by its sender ("899979 · SMS"), its accounts under it.
+     **Each origin is one block that folds** (Jose, 2026-10-05, after two
+     statements read as one list): its head - icon, name, file, how many,
+     the statement's check - is pinned at the top while its rows scroll
+     (`.origin-head`, `position: sticky`), and only the first origin opens
+     by itself; a search opens them all (`isBatchOpen`).
      Discarding or putting away now tells the rest of the app
      (`dataChanged`), so Más's count and the bar's dot no longer stay stale.
      "Mensajes de texto" lists the ticked senders on top and folds the rest

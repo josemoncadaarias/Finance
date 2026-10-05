@@ -39,16 +39,7 @@
 
 .batch {
   margin-bottom: 10px;
-  /* Each origin starts its own block: its card, then its own days. */
-  margin-top: 18px;
 
-  .bhead { display: flex; align-items: center; gap: 12px; }
-  .bhead b { font-size: 16px; font-weight: 600; }
-  .check {
-    width: 28px; height: 28px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer;
-    background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn);
-    &.off { background: rgba(var(--app-yel-rgb), 0.2); color: var(--app-yel); }
-  }
   .off { display: flex; gap: 6px; align-items: flex-start; color: var(--app-yel); font-size: 13.5px; margin: 10px 0 0; ion-icon { font-size: 17px; flex: none; } }
   .count { margin: 10px 0 0; font-size: 14.5px; }
   .needs { margin: 6px 0 0; color: var(--app-yel); font-size: 14px; }
@@ -97,7 +88,36 @@
 .ui-group { content-visibility: auto; contain-intrinsic-size: auto 200px; }
 
 .known {
-  .ui-row.plain { padding-top: 0; }
+  .ui-row.plain { padding-top: 12px; padding-bottom: 14px; }
   .ui-row.plain .ui-btn { width: 100%; }
   .line { opacity: 0.8; }
+}
+
+/* One origin, one block: its head pinned at the top while its rows scroll. */
+.origin {
+  margin-top: 14px;
+  padding: 0 0 6px;
+  border-radius: 22px;
+  border: 1px solid var(--app-line);
+  background: rgba(var(--app-bg-rgb), 0.35);
+
+  > :not(.origin-head) { margin-left: 8px; margin-right: 8px; }
+}
+.origin-head {
+  position: sticky;
+  top: var(--ion-safe-area-top, 0px);
+  z-index: 6;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 22px;
+  background: var(--app-s2);
+  cursor: pointer;
+  .ui-tx { flex: 1; min-width: 0; }
+  b { font-size: 16px; font-weight: 600; }
+  .check {
+    width: 28px; height: 28px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer;
+    background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn);
+    &.off { background: rgba(var(--app-yel-rgb), 0.2); color: var(--app-yel); }
+  }
 }
