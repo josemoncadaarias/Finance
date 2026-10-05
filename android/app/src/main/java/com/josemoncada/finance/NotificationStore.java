@@ -155,6 +155,35 @@ final class NotificationStore {
         prefs.edit().putLong(HEARD_AT, at).apply();
     }
 
+    private static final String RECENT = "recent";
+
+    /**
+     * The last thirty apps the listener was handed a notification from, with
+     * when and whether it was a conversation - never what it said. The
+     * diagnosis reads it, for a message that came and went before anybody
+     * looked. Hidden apps included: the point is what Android hands over.
+     */
+    static void noteRecent(Context context, String pkg, String label, long at, boolean conversation) {
+        JSONArray recent = array(context, RECENT);
+        JSONObject last = recent.length() > 0 ? recent.optJSONObject(recent.length() - 1) : null;
+        if (last != null && pkg.equals(last.optString("package")) && at - last.optLong("at") < 30_000) return;
+        try {
+            JSONObject one = new JSONObject();
+            one.put("package", pkg);
+            one.put("app", label);
+            one.put("at", at);
+            one.put("conversation", conversation);
+            recent.put(one);
+            JSONArray kept = new JSONArray();
+            for (int i = Math.max(0, recent.length() - 30); i < recent.length(); i += 1) kept.put(recent.get(i));
+            prefs(context).edit().putString(RECENT, kept.toString()).apply();
+        } catch (JSONException broken) {
+            // A note about a notification is not worth crashing a phone for.
+        }
+    }
+
+    static JSONArray recent(Context context) { return array(context, RECENT); }
+
     /** Android connecting the listener, or letting it go. */
     static void noteConnection(Context context, boolean on, long at) {
         prefs(context).edit().putLong(on ? CONNECTED_AT : DISCONNECTED_AT, at).apply();

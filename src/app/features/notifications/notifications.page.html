@@ -198,6 +198,34 @@
           </div>
         }
 
+        <!-- What Android is handing the app, never a word of it (2026-10-05). -->
+        <div class="ui-list diagnosis">
+          <div class="ui-row" (click)="diagnose()">
+            <ion-icon name="pulse-outline"></ion-icon>
+            <span class="ui-tx"><b>{{ 'ui.notifications.diag.title' | t }}</b>
+              <small>{{ 'ui.notifications.diag.hint' | t }}</small></span>
+            <ion-icon class="ui-chev" name="refresh-outline"></ion-icon>
+          </div>
+          @if (diagnosis(); as d) {
+            <div class="ui-row plain">
+              <span class="ui-tx"><small>{{ (d.bound ? 'ui.notifications.diag.bound' : 'ui.notifications.diag.unbound') | t }}
+                · {{ 'ui.notifications.diag.defaultSms' | t:{ app: d.defaultSms || '—' } }}</small></span>
+            </div>
+            <div class="ui-row plain sub"><span class="ui-tx"><b>{{ 'ui.notifications.diag.now' | t:{ count: d.active.length } }}</b></span></div>
+            @for (one of d.active; track $index) {
+              <div class="ui-row plain">
+                <span class="ui-tx"><b class="ui-one">{{ one.app }}</b><small class="wrap">{{ seenLine(one) }}</small></span>
+              </div>
+            }
+            <div class="ui-row plain sub"><span class="ui-tx"><b>{{ 'ui.notifications.diag.recent' | t }}</b></span></div>
+            @for (one of d.recent.slice().reverse(); track $index) {
+              <div class="ui-row plain">
+                <span class="ui-tx"><small class="wrap">{{ hour(one.at) }} · {{ one.app }} · {{ one.package }}{{ one.conversation ? ' · ' + ('ui.notifications.diag.conversation' | t) : '' }}</small></span>
+              </div>
+            }
+          }
+        </div>
+
         <!-- Put away, not forgotten: folded here so it can be brought back. -->
         @if (hiddenApps().length + hiddenSenders().length > 0) {
           <div class="ui-list ui-group hidden-apps">

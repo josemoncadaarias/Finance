@@ -95,3 +95,9 @@
 .listening { margin-bottom: 12px; }
 .listening .ui-chip { align-self: flex-start; margin-top: 10px; }
 .listening .ui-tx { display: flex; flex-direction: column; }
+
+.diagnosis { margin-top: 14px; }
+.diagnosis .ui-row { gap: 12px; }
+.diagnosis > .ui-row:first-child ion-icon:first-child { font-size: 22px; color: var(--app-acc, #6378ff); flex: none; }
+.diagnosis small.wrap, .diagnosis small { white-space: normal; line-height: 1.4; }
+.diagnosis .sub b { font-size: 13px; letter-spacing: .04em; color: var(--app-mu); }

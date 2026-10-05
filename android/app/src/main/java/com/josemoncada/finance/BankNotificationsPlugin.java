@@ -108,6 +108,28 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * What the listener is being handed: whether Android has it bound, the
+     * phone's SMS app, what sits in the status bar now and the last apps it
+     * heard from - never a word of any of it.
+     */
+    @PluginMethod
+    public void diagnose(PluginCall call) {
+        JSObject answer = new JSObject();
+        JSONArray now = NotificationCatcher.seenNow();
+        answer.put("bound", now != null);
+        String sms = null;
+        try {
+            sms = android.provider.Telephony.Sms.getDefaultSmsPackage(getContext());
+        } catch (Exception unknown) {
+            // Said as unknown.
+        }
+        answer.put("defaultSms", sms == null ? "" : sms);
+        answer.put("active", toJs(now == null ? new JSONArray() : now));
+        answer.put("recent", toJs(NotificationStore.recent(getContext())));
+        call.resolve(answer);
+    }
+
     /** Hides an app from the list for good, or shows it again. */
     @PluginMethod
     public void hide(PluginCall call) {
