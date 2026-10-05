@@ -62,6 +62,8 @@ interface Line {
  * a minute and confirming it in twenty.
  */
 interface Repeated {
+  /** The origin it repeats in: each statement or sender has its own. */
+  batch: string;
   merchant: string;
   /** What it was called, in the wording a person recognises. */
   sample: string;
@@ -110,8 +112,10 @@ export class ReviewPage {
     document.body.classList.remove('choosing');
   }
 
-  /** Every row of every shop that repeats, for the tick on their heading. */
-  readonly allShopLines = computed(() => this.repeated().flatMap(shop => this.linesOfShop(shop)));
+  /** Every row of every shop that repeats in an origin, for the tick on their heading. */
+  allShopLines(batch: Batch): Line[] {
+    return this.repeatedOf(batch).flatMap(shop => this.linesOfShop(shop));
+  }
 
   /**
    * What the statement says the account held, against what the app says.
@@ -310,7 +314,14 @@ export class ReviewPage {
   readonly allDaysClosed = computed(() =>
     this.batches().every(batch => this.daysOf(batch).every(day => !this.isDayOpen(batch, day.key))));
 
-  readonly shopsOpen = signal(false);
+  /** The origins whose "Comercios que se repiten" is open. */
+  readonly shopsOpen = signal<ReadonlySet<string>>(new Set());
+
+  toggleShops(batch: Batch): void {
+    const next = new Set(this.shopsOpen());
+    if (next.has(batch.key)) next.delete(batch.key); else next.add(batch.key);
+    this.shopsOpen.set(next);
+  }
 
   /** "Viernes 26 de septiembre". */
   longDay(iso: string | null): string {
@@ -349,14 +360,16 @@ export class ReviewPage {
 
   /** The rows of a repeated shop, wherever they are. */
   linesOfShop(shop: Repeated): Line[] {
-    return this.linesByMerchant().get(shop.merchant) ?? [];
+    return this.linesByMerchant().get(`${shop.batch}|${shop.merchant}`) ?? [];
   }
 
   /** Every row by its shop, read once rather than once per shop per frame. */
   private readonly linesByMerchant = computed(() => {
     const byMerchant = new Map<string, Line[]>();
     for (const line of this.batches().flatMap(batch => batch.lines)) {
-      const key = merchantKeyOf(line.proposal.description);
+      // What the ledger already holds is answered apart, never with its shop.
+      if (line.sameAs !== null) continue;
+      const key = `${line.proposal.batch}|${merchantKeyOf(line.proposal.description)}`;
       const found = byMerchant.get(key);
       if (found) found.push(line); else byMerchant.set(key, [line]);
     }
@@ -617,6 +630,7 @@ export class ReviewPage {
 
     const signs = new Set<'expense' | 'income'>();
     for (const batch of this.batches()) {
+      if (batch.key !== repeated.batch) continue;
       for (const one of batch.lines) {
         if (merchantKeyOf(one.proposal.description) !== repeated.merchant) continue;
         signs.add((one.proposal.amount_minor ?? -1) < 0 ? 'expense' : 'income');
@@ -674,10 +688,14 @@ export class ReviewPage {
    * Shown above the list so the repeated ones are settled in one answer each
    * and what is left to read is the handful that are not repeated.
    */
-  readonly repeated = computed<Repeated[]>(() => {
-    const seen = new Map<string, { sample: string; count: number; categories: Set<number | null> }>();
+  readonly repeated = computed<ReadonlyMap<string, Repeated[]>>(() => {
+    // Within each origin (Jose, 2026-10-05): a shop repeated in one bank's
+    // statement is answered there, never mixed with another bank's.
+    const byBatch = new Map<string, Repeated[]>();
     for (const batch of this.batches()) {
+      const seen = new Map<string, { sample: string; count: number; categories: Set<number | null> }>();
       for (const line of batch.lines) {
+        if (line.sameAs !== null) continue;
         const merchant = merchantKeyOf(line.proposal.description);
         if (merchant.length === 0) continue;
         const found = seen.get(merchant)
@@ -686,20 +704,25 @@ export class ReviewPage {
         found.categories.add(line.proposal.category_id);
         seen.set(merchant, found);
       }
+      byBatch.set(batch.key, [...seen.entries()]
+        .filter(([, found]) => found.count > 1)
+        .map(([merchant, found]) => ({
+          batch: batch.key,
+          merchant,
+          sample: found.sample,
+          count: found.count,
+          category: found.categories.size === 1
+            ? this.categories().find(one => one.id === [...found.categories][0]) ?? null
+            : null,
+        }))
+        .sort((one, other) => other.count - one.count));
     }
-
-    return [...seen.entries()]
-      .filter(([, found]) => found.count > 1)
-      .map(([merchant, found]) => ({
-        merchant,
-        sample: found.sample,
-        count: found.count,
-        category: found.categories.size === 1
-          ? this.categories().find(one => one.id === [...found.categories][0]) ?? null
-          : null,
-      }))
-      .sort((one, other) => other.count - one.count);
+    return byBatch;
   });
+
+  repeatedOf(batch: Batch): Repeated[] {
+    return this.repeated().get(batch.key) ?? [];
+  }
 
   /** The repeated shop whose category is being chosen, if any. */
   readonly choosingMerchant = signal<Repeated | null>(null);
@@ -805,7 +828,7 @@ export class ReviewPage {
 
     this.working.set(true);
     try {
-      await new ProposalsRepository(this.database.driver).fileAllAs(repeated.merchant, categoryId);
+      await new ProposalsRepository(this.database.driver).fileAllAs(repeated.merchant, categoryId, repeated.batch);
       await this.refresh();
     } finally {
       this.working.set(false);
