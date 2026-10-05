@@ -2547,3 +2547,19 @@ body:has(ion-modal.entry-sheet.show-modal) .ui-toast {
 /* A dialog with one button: it takes the whole row, centred, never the left
    half of a two-column grid (Jose, 2026-10-02, on "Monedas y TRM"'s (i)). */
 .confirm-dialog .buttons > :only-child { grid-column: 1 / -1; }
+
+/*
+ * The phone's status bar sits over the app (Android draws edge to edge), so
+ * a screen scrolled up passed under the clock: "Más" was written over the
+ * time (Jose, 2026-10-05). One band, the page's own colour, holds that strip
+ * on every screen.
+ */
+ion-app::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--ion-safe-area-top, 0px);
+  background: var(--app-bg);
+  z-index: 50000;
+  pointer-events: none;
+}

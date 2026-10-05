@@ -16,7 +16,7 @@ import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
-import { sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
+import { sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
 
 export type ProposalSource = 'statement' | 'notification';
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
@@ -612,6 +612,7 @@ export class ProposalsRepository {
    */
   private async markKnownAgain(ids: readonly number[]): Promise<void> {
     const readings = await this.someOf(ids);
+    await this.markKnownAnywhere(readings);
     const dated = readings.filter(reading => reading.occurred_on !== null && reading.account_id !== null);
     if (dated.length === 0) return;
 
@@ -635,6 +636,41 @@ export class ProposalsRepository {
       await this.db.run(
         'UPDATE movement_proposals SET maybe_same_as = ?, updated_at = ? WHERE id = ?',
         [same, this.now(), reading.id]);
+    }
+  }
+
+  /**
+   * A message whose account is not known yet, already typed by hand.
+   *
+   * A bank's SMS from a sender ticked for the first time says nothing about
+   * which account it is, so the check above never ran and every purchase
+   * Jose had already typed came back as new (2026-10-05). Here the same
+   * check runs over every account: the same amount to the cent, a few days
+   * apart, the same merchant preferred. Found, the reading points at that
+   * movement and takes its account - it is a question on the screen, never
+   * a decision.
+   */
+  private async markKnownAnywhere(readings: readonly MovementProposal[]): Promise<void> {
+    const loose = readings.filter(reading => reading.account_id === null
+      && reading.occurred_on !== null && reading.amount_minor !== null && reading.amount_minor !== 0);
+    if (loose.length === 0) return;
+    const days = loose.map(reading => reading.occurred_on!).sort();
+    const amounts = [...new Set(loose.map(reading => reading.amount_minor!))];
+    const ledger = await this.db.query<LedgerMovement>(
+      `SELECT id, account_id, occurred_on, amount_minor, description
+       FROM transactions
+       WHERE amount_minor IN (${amounts.map(() => '?').join(', ')})
+         AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')`,
+      [...amounts, days[0], days[days.length - 1]]);
+    if (ledger.length === 0) return;
+    const taken = new Set<number>();
+    for (const reading of loose) {
+      const same = sameMovementAnywhere(reading, ledger, taken);
+      if (same === null) continue;
+      taken.add(same.id);
+      await this.db.run(
+        'UPDATE movement_proposals SET maybe_same_as = ?, account_id = ?, updated_at = ? WHERE id = ?',
+        [same.id, same.account_id, this.now(), reading.id]);
     }
   }
 

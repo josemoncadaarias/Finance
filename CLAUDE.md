@@ -1571,6 +1571,21 @@ backup restore against iOS's own SQLite backend.
      `READ_SMS` onto the internal track (Store bundle #46, re-run after a
      GitHub runner failure) with no declaration filed yet; the form is
      still needed before closed testing or production.
+     **From the phone's first run (2026-10-05)**: a week of SMS from newly
+     ticked senders brought back purchases Jose had typed. A reading with
+     no account yet is now checked against every account
+     (`sameMovementAnywhere`, `markKnownAnywhere`: same amount, a few days,
+     the same merchant first) and takes the twin's account; on Por revisar
+     each origin is its card followed by its own days, and what the ledger
+     already holds sits apart, folded, "Ya los tienes registrados" with
+     "Descartar estos N" - "Guardar los listos" never writes them. A message
+     batch is named by its sender ("899979 · SMS"), its accounts under it.
+     Discarding or putting away now tells the rest of the app
+     (`dataChanged`), so Más's count and the bar's dot no longer stay stale.
+     "Mensajes de texto" lists the ticked senders on top and folds the rest
+     under "Otros remitentes", newest message first, "N mensajes · último
+     {día}". A band the page's colour holds the status bar's strip on every
+     screen (`ion-app::before`), so nothing scrolls under the clock.
      Play's declaration: `store/sms-permission-declaration.md`; privacy
      policy at https://jadexlabs-finance.netlify.app/privacy.html (published
      by Jose on Netlify from `site/`, 2026-10-05).

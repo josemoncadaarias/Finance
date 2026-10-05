@@ -272,7 +272,7 @@ export class ReviewPage {
 
   private groupDays(batch: Batch): { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }[] {
     const days = new Map<string, { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }>();
-    for (const line of this.shownIn(batch)) {
+    for (const line of this.shownIn(batch).filter(one => one.sameAs === null)) {
       const key = `${batch.key}|${this.sortBy() === 'amount' ? 'all' : line.proposal.occurred_on ?? ''}`;
       const day = days.get(key) ?? {
         key, title: this.sortBy() === 'amount' ? '' : this.longDay(line.proposal.occurred_on),
@@ -395,6 +395,11 @@ export class ReviewPage {
 
   /** The file a batch was read from. */
   fileName(batch: Batch): string {
+    if (batch.lines[0]?.proposal.source === 'notification') {
+      const names = [...new Set(batch.lines.map(line => line.account?.name ?? null))];
+      if (names.length === 1) return names[0] ?? this.i18n.t('review.noAccount');
+      return this.i18n.t('ui.review.manyAccounts', { count: names.filter(Boolean).length });
+    }
     const read = this.read(batch.lines[0]?.proposal ?? ({ evidence: '{}' } as MovementProposal));
     return typeof read['file'] === 'string' ? read['file'] : this.fileOf(batch.key);
   }
@@ -651,7 +656,7 @@ export class ReviewPage {
    * products use.
    */
   readonly asking = signal<
-    { kind: 'accept' | 'discard' | 'forget'; batch: Batch } |
+    { kind: 'accept' | 'discard' | 'forget' | 'discardKnown'; batch: Batch } |
     /** The rows chosen by hand, whatever batch they are in. */
     { kind: 'acceptSelected' } | { kind: 'discardSelected' } |
     { kind: 'acceptOne'; line: Line } |
@@ -950,7 +955,12 @@ export class ReviewPage {
   private titleOf(proposal: MovementProposal, account: AccountRow | null): string {
     const read = this.read(proposal);
     const where = account?.name ?? this.i18n.t('review.noAccount');
-    if (proposal.source === 'notification') return this.i18n.t('review.fromNotification', { account: where });
+    // A message's batch is named by who sent it: the account may differ row
+    // by row, and "Notificación · Sin cuenta" said nothing (2026-10-05).
+    if (proposal.source === 'notification') {
+      return typeof read['file'] === 'string' && read['file'] ? read['file'] as string
+        : this.i18n.t('review.fromNotification', { account: where });
+    }
     return this.i18n.t('ui.review.statementOf', { account: where });
   }
 
@@ -971,11 +981,30 @@ export class ReviewPage {
   }
 
   private readonly readyByBatch = computed(() =>
-    new Map(this.batches().map(batch => [batch.key, batch.lines.filter(line => this.ready(line))])));
+    new Map(this.batches().map(batch => [batch.key,
+      batch.lines.filter(line => line.sameAs === null && this.ready(line))])));
 
-  /** How many of a batch are still waiting on something. */
+  /** How many of a batch are still waiting on something (what is already typed is not). */
   waitingOn(batch: Batch): number {
-    return batch.lines.length - this.readyLines(batch).length;
+    return batch.lines.filter(line => line.sameAs === null).length - this.readyLines(batch).length;
+  }
+
+  /**
+   * The rows of a batch the ledger seems to hold already (Jose, 2026-10-05:
+   * a bank's SMS ticked for the first time brought back everything he had
+   * typed). They sit apart, folded, with one answer for all of them, and
+   * "Guardar los listos" never writes them a second time.
+   */
+  knownIn(batch: Batch): Line[] {
+    return this.shownIn(batch).filter(line => line.sameAs !== null);
+  }
+
+  readonly knownOpen = signal<ReadonlySet<string>>(new Set());
+
+  toggleKnown(batch: Batch): void {
+    const next = new Set(this.knownOpen());
+    if (next.has(batch.key)) next.delete(batch.key); else next.add(batch.key);
+    this.knownOpen.set(next);
   }
 
   /** What a row is still missing, said rather than only greyed out. */
@@ -1082,6 +1111,9 @@ export class ReviewPage {
     if (asking.kind === 'discardSelected') {
       return this.i18n.t('review.discard.sureAll', { count: this.selectedLines().length });
     }
+    if (asking.kind === 'discardKnown') {
+      return this.i18n.t('review.discard.sureAll', { count: this.knownIn(asking.batch).length });
+    }
     // Saving asks about the ones it can save; the other two are about the
     // whole batch, ready or not.
     const count = asking.kind === 'accept'
@@ -1099,6 +1131,7 @@ export class ReviewPage {
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.body');
     if (asking.kind === 'discardSelected') return this.i18n.t('review.discard.body');
+    if (asking.kind === 'discardKnown') return this.i18n.t('ui.review.known.body');
     if (asking.kind === 'acceptSelected') {
       // Ticked is not the same as ready: say which ones stay behind, and why.
       const left = this.selectedLines().length - this.selectedReady().length;
@@ -1137,7 +1170,7 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.do');
-    const kind = asking.kind === 'discardOne' || asking.kind === 'discardSelected' ? 'discard'
+    const kind = asking.kind === 'discardOne' || asking.kind === 'discardSelected' || asking.kind === 'discardKnown' ? 'discard'
       : asking.kind === 'acceptOne' || asking.kind === 'acceptSelected' ? 'accept'
       : asking.kind;
     return this.i18n.t(`review.${kind}.do`);
@@ -1190,6 +1223,8 @@ export class ReviewPage {
       this.stopSelecting();
     } else if (asking.kind === 'discard') {
       await this.rejectAll(asking.batch);
+    } else if (asking.kind === 'discardKnown') {
+      await this.rejectLines(this.knownIn(asking.batch));
     } else if (asking.kind === 'square') {
       await this.square(asking.to);
     } else if (asking.kind === 'leaveBalance') {
@@ -1229,6 +1264,8 @@ export class ReviewPage {
     this.working.set(true);
     try {
       await new ProposalsRepository(this.database.driver).reject(line.proposal.id);
+      // The count on Más and the dot on the bar read it too.
+      this.database.dataChanged();
       await this.refresh();
     } finally {
       this.working.set(false);
@@ -1240,6 +1277,19 @@ export class ReviewPage {
     try {
       await new ProposalsRepository(this.database.driver)
         .rejectThese(this.selectedLines().map(line => line.proposal.id));
+      // The count on Más and the dot on the bar read it too.
+      this.database.dataChanged();
+      await this.refresh();
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  private async rejectLines(lines: readonly Line[]): Promise<void> {
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver).rejectThese(lines.map(line => line.proposal.id));
+      this.database.dataChanged();
       await this.refresh();
     } finally {
       this.working.set(false);
@@ -1253,6 +1303,8 @@ export class ReviewPage {
       // the bridge, and fifty of them were fifty crossings.
       await new ProposalsRepository(this.database.driver)
         .rejectThese(batch.lines.map(line => line.proposal.id));
+      // The count on Más and the dot on the bar read it too.
+      this.database.dataChanged();
       await this.refresh();
     } finally {
       this.working.set(false);
@@ -1270,6 +1322,8 @@ export class ReviewPage {
     try {
       await new ProposalsRepository(this.database.driver).forget(batch.key);
       this.statements.lastImport.set(null);
+      // The count on Más and the dot on the bar read it too.
+      this.database.dataChanged();
       await this.refresh();
     } finally {
       this.working.set(false);

@@ -248,12 +248,29 @@ export class NotificationsPage {
     });
   });
 
+  /**
+   * The senders the app reads, on top; the rest folded under them, newest
+   * message first (Jose, 2026-10-05: a year of SMS listed eighty senders,
+   * the ones he wanted mixed with the ones he did not).
+   */
+  readonly markedSenders = computed(() => this.sortedSenders().filter(one => one.watched));
+  readonly otherSenders = computed(() => this.sortedSenders().filter(one => !one.watched)
+    .sort((one, other) => other.last - one.last));
+  private readonly othersToggled = signal<boolean | null>(null);
+  readonly othersOpen = computed(() => this.term().length > 0
+    || (this.othersToggled() ?? this.markedSenders().length === 0));
+  toggleOthers(): void {
+    this.othersToggled.set(!this.othersOpen());
+  }
+
   readonly hiddenSenders = computed(() => this.senders().filter(one => one.hidden)
     .sort((one, other) => one.sender.localeCompare(other.sender)));
 
   senderLine(one: SeenSender): string {
     if (one.package === SMS_INBOX) {
-      return this.i18n.t(one.count === 1 ? 'ui.notifications.inboxLine.one' : 'ui.notifications.inboxLine', { count: one.count });
+      const last = new Date(one.last).toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'short' });
+      return this.i18n.t(one.count === 1 ? 'ui.notifications.inboxLine.one' : 'ui.notifications.inboxLine',
+        { count: one.count, last });
     }
     return this.i18n.t(one.count === 1 ? 'ui.notifications.senderLine.one' : 'ui.notifications.senderLine',
       { count: one.count, app: one.app });

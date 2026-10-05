@@ -111,43 +111,6 @@
         </div>
       }
 
-      @for (batch of batches(); track batch.key) {
-        <!-- A batch is one card: where it came from, how many, the check. -->
-        <section class="ui-card batch">
-          <div class="bhead">
-            <app-badge shape="ci" [size]="40" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
-            <span class="ui-tx">
-              <b class="ui-one">{{ batch.title }}</b>
-              <small class="ui-one">{{ fileName(batch) }}</small>
-            </span>
-            @if (checkOf(batch); as check) {
-              <button type="button" class="check" [class.off]="check.off" (click)="info.set(check.line)" [attr.aria-label]="'ui.info' | t">
-                <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
-              </button>
-            }
-          </div>
-          @if (checkOf(batch); as check) {
-            @if (check.off) {
-              <p class="off"><ion-icon name="alert-circle-outline"></ion-icon>{{ 'ui.review.offBy' | t:{ amount: check.gap } }}</p>
-            }
-          }
-          <p class="count">{{ 'ui.review.toConfirm' | t:{ count: batch.lines.length } }}</p>
-          @if (waitingOn(batch) > 0) {
-            <p class="needs">• {{ (waitingOn(batch) === 1 ? 'ui.review.needsOne' : 'ui.review.needs') | t:{ count: waitingOn(batch) } }}</p>
-          }
-          <div class="bactions">
-            <button type="button" class="ui-btn" [disabled]="working() || readyLines(batch).length === 0"
-                    (click)="asking.set({ kind: 'accept', batch })">
-              <ion-icon name="checkmark-done"></ion-icon>
-              {{ (readyLines(batch).length === 1 ? 'ui.review.saveReadyOne' : 'ui.review.saveReady') | t:{ count: readyLines(batch).length } }}
-            </button>
-            <button type="button" class="ui-round" [disabled]="working()" (click)="batchMenu.set(batch)" [attr.aria-label]="'review.more' | t">
-              <ion-icon name="ellipsis-horizontal"></ion-icon>
-            </button>
-          </div>
-        </section>
-      }
-
       <!-- The shops that turn up more than once, answered once each. -->
       @if (repeated().length > 0) {
         <section class="ui-list ui-group shops">
@@ -203,6 +166,70 @@
       }
 
       @for (batch of batches(); track batch.key) {
+        <!-- A batch is one card: where it came from, how many, the check. -->
+        <section class="ui-card batch">
+          <div class="bhead">
+            <app-badge shape="ci" [size]="40" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ batch.title }}</b>
+              <small class="ui-one">{{ fileName(batch) }}</small>
+            </span>
+            @if (checkOf(batch); as check) {
+              <button type="button" class="check" [class.off]="check.off" (click)="info.set(check.line)" [attr.aria-label]="'ui.info' | t">
+                <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
+              </button>
+            }
+          </div>
+          @if (checkOf(batch); as check) {
+            @if (check.off) {
+              <p class="off"><ion-icon name="alert-circle-outline"></ion-icon>{{ 'ui.review.offBy' | t:{ amount: check.gap } }}</p>
+            }
+          }
+          <p class="count">{{ 'ui.review.toConfirm' | t:{ count: batch.lines.length - knownIn(batch).length } }}</p>
+          @if (waitingOn(batch) > 0) {
+            <p class="needs">• {{ (waitingOn(batch) === 1 ? 'ui.review.needsOne' : 'ui.review.needs') | t:{ count: waitingOn(batch) } }}</p>
+          }
+          <div class="bactions">
+            <button type="button" class="ui-btn" [disabled]="working() || readyLines(batch).length === 0"
+                    (click)="asking.set({ kind: 'accept', batch })">
+              <ion-icon name="checkmark-done"></ion-icon>
+              {{ (readyLines(batch).length === 1 ? 'ui.review.saveReadyOne' : 'ui.review.saveReady') | t:{ count: readyLines(batch).length } }}
+            </button>
+            <button type="button" class="ui-round" [disabled]="working()" (click)="batchMenu.set(batch)" [attr.aria-label]="'review.more' | t">
+              <ion-icon name="ellipsis-horizontal"></ion-icon>
+            </button>
+          </div>
+        </section>
+        @if (knownIn(batch).length > 0) {
+          <!-- What the ledger already holds, apart and folded (2026-10-05). -->
+          <section class="ui-list ui-group known">
+            <div class="ui-row head" (click)="toggleKnown(batch)">
+              <app-badge [size]="34" builtin="copy-outline" fixed="#8a94a6"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ 'ui.review.known' | t }}</b>
+                <small class="wrap">{{ countOf(knownIn(batch).length) }} · {{ 'ui.review.known.hint' | t }}</small>
+              </span>
+              <ion-icon class="ui-chev" [name]="knownOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            <div class="ui-row plain">
+              <button type="button" class="ui-btn ghost" [disabled]="working()" (click)="asking.set({ kind: 'discardKnown', batch })">
+                <ion-icon name="trash-outline"></ion-icon>{{ (knownIn(batch).length === 1 ? 'ui.review.known.dropOne' : 'ui.review.known.drop') | t:{ count: knownIn(batch).length } }}
+              </button>
+            </div>
+            @if (knownOpen().has(batch.key)) {
+              @for (line of knownIn(batch); track line.proposal.id) {
+                <div class="ui-row line" (click)="tapped(line)">
+                  <app-badge [size]="36" builtin="copy-outline" fixed="#8a94a6"></app-badge>
+                  <span class="ui-tx">
+                    <b class="ui-one">{{ line.proposal.description || ('review.noDescription' | t) }}</b>
+                    <small class="wrap">{{ line.sameAs }}</small>
+                  </span>
+                  <span class="ui-am">{{ money(line.proposal.amount_minor, line.account?.currency_code) }}</span>
+                </div>
+              }
+            }
+          </section>
+        }
         @for (day of daysOf(batch); track day.key) {
           <section class="ui-list ui-group">
             @if (day.title) {

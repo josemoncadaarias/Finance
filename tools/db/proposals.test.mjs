@@ -259,6 +259,37 @@ test('a reading the ledger may already hold is flagged, and not skipped', async 
   await db.close();
 });
 
+test('a message with no account yet still finds what was typed by hand, in any account', async () => {
+  const { db, proposals, transactions, rappi, nu, mercados } = await setup();
+
+  // Jose, 2026-10-05: a bank's SMS ticked for the first time came back as new
+  // though every purchase in it was already typed.
+  const already = await transactions.create({
+    account_id: nu, category_id: mercados, occurred_on: '2026-10-03',
+    amount_minor: -23_900_00, description: 'Tiendas D1', source: 'manual',
+  });
+  await transactions.create({
+    account_id: rappi, category_id: mercados, occurred_on: '2026-10-01',
+    amount_minor: -23_900_00, description: 'Otra tienda', source: 'manual',
+  });
+
+  await proposals.propose('notice:sms|899979', [
+    { source: 'notification', account_id: null, occurred_on: '2026-10-03',
+      amount_minor: -23_900_00, description: 'TIENDAS D1', evidence: {} },
+    { source: 'notification', account_id: null, occurred_on: '2026-10-03',
+      amount_minor: -77_700_00, description: 'NUEVA', evidence: {} },
+  ]);
+
+  const waiting = await proposals.pending();
+  const found = waiting.find(one => one.description === 'TIENDAS D1');
+  assert.equal(found.maybe_same_as, already, 'the same merchant and day win');
+  assert.equal(found.account_id, nu, 'and it takes that account');
+  const fresh = waiting.find(one => one.description === 'NUEVA');
+  assert.equal(fresh.maybe_same_as, null, 'nothing typed: nothing said');
+  assert.equal(fresh.account_id, null);
+  await db.close();
+});
+
 test('the two halves of a transfer find each other', async () => {
   const { db, proposals, rappi, nu } = await setup();
 
