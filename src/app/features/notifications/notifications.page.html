@@ -54,6 +54,20 @@
         <p>{{ 'ui.notifications.none.hint' | t }}</p>
       </div>
     } @else {
+      @if (listening(); as line) {
+        <!-- Allowed is not listening: when Android last handed one over. -->
+        <div class="ui-list listening">
+          <div class="ui-row" [class.warn]="line.warn">
+            <ion-icon [name]="line.warn ? 'warning-outline' : 'radio-outline'"></ion-icon>
+            <span class="ui-tx">
+              <small>{{ line.text }}</small>
+              @if (line.warn) {
+                <button type="button" class="ui-chip" (click)="openSettings()">{{ 'ui.notifications.reopen' | t }}</button>
+              }
+            </span>
+          </div>
+        </div>
+      }
       <!-- The two lists, two faces of one selector, each saying what it holds. -->
       <div class="ui-seg faces">
         <button type="button" [class.on]="face() === 'apps'" (click)="setFace('apps')">

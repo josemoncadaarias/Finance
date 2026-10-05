@@ -87,7 +87,11 @@
 .by-sender { flex: none; font-size: 12.5px; }
 
 /* Why no SMS sender is listed yet. */
-.sms-wait .ui-row { gap: 12px; align-items: flex-start; }
-.sms-wait ion-icon { font-size: 20px; color: var(--app-mu); flex: none; margin-top: 2px; }
-.sms-wait small { white-space: normal; font-size: 13.5px; line-height: 1.4; }
-.sms-wait .warn ion-icon, .sms-wait .warn small { color: var(--app-yel); }
+.sms-wait .ui-row, .listening .ui-row { gap: 12px; align-items: flex-start; }
+.sms-wait ion-icon, .listening ion-icon { font-size: 20px; color: var(--app-mu); flex: none; margin-top: 2px; }
+.sms-wait small, .listening small { white-space: normal; font-size: 13.5px; line-height: 1.4; }
+.sms-wait .warn ion-icon, .sms-wait .warn small,
+.listening .warn ion-icon, .listening .warn small { color: var(--app-yel); }
+.listening { margin-bottom: 12px; }
+.listening .ui-chip { align-self: flex-start; margin-top: 10px; }
+.listening .ui-tx { display: flex; flex-direction: column; }

@@ -162,6 +162,31 @@ export class NotificationsPage {
   /** False in a browser and on iOS, which is an ordinary state. */
   readonly supported = signal(false);
   readonly enabled = signal(false);
+  /** When Android last handed a notification over, connected or dropped the listener. */
+  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0 });
+
+  /**
+   * Whether the listener is really listening, said in one line (Jose,
+   * 2026-10-05: two SMS arrived and nothing moved, with the permission on).
+   * A listener dropped by Android, or silent for six hours on a phone that
+   * gets notifications all day, is said in amber with the way to fix it.
+   */
+  readonly listening = computed(() => {
+    const { heardAt, connectedAt, disconnectedAt } = this.listener();
+    if (disconnectedAt > 0 && disconnectedAt > connectedAt) {
+      return { warn: true, text: this.i18n.t('ui.notifications.stopped', { when: this.moment(disconnectedAt) }) };
+    }
+    if (heardAt === 0) return null;
+    if (Date.now() - heardAt > 6 * 3600_000) {
+      return { warn: true, text: this.i18n.t('ui.notifications.quiet', { when: this.moment(heardAt) }) };
+    }
+    return { warn: false, text: this.i18n.t('ui.notifications.heard', { when: this.moment(heardAt) }) };
+  });
+
+  /** "Hoy · lunes 5 de octubre, 12:03 p. m.". */
+  private moment(at: number): string {
+    return `${this.dayTitle(new Date(at))}, ${this.hour(at)}`;
+  }
 
   readonly apps = signal<SeenApp[]>([]);
   readonly caught = signal<CaughtNotification[]>([]);
@@ -362,8 +387,9 @@ export class NotificationsPage {
       this.supported.set(supported);
       if (!supported) return;
 
-      const { enabled } = await BankNotifications.isEnabled();
+      const { enabled, heardAt, connectedAt, disconnectedAt } = await BankNotifications.isEnabled();
       this.enabled.set(enabled);
+      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
       this.senders.set((await BankNotifications.senders()).senders);
