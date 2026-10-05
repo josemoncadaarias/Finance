@@ -290,6 +290,21 @@ test('a message with no account yet still finds what was typed by hand, in any a
   await db.close();
 });
 
+test('a shop answered in one origin leaves the same shop in another alone', async () => {
+  const { db, proposals, rappi, nu, mercados } = await setup();
+  const row = (account, day) => ({ source: 'statement', account_id: account, occurred_on: day,
+    amount_minor: -10_000_00, description: 'TIENDAS D1 123', evidence: {} });
+  await proposals.propose('extracto-a', [row(rappi, '2026-09-01'), row(rappi, '2026-09-02')]);
+  await proposals.propose('extracto-b', [row(nu, '2026-09-01'), row(nu, '2026-09-03')]);
+
+  assert.equal(await proposals.fileAllAs('TIENDAS D1', mercados, 'extracto-a'), 2);
+  const waiting = await proposals.pending();
+  assert.deepEqual(waiting.filter(one => one.batch === 'extracto-a').map(one => one.category_id), [mercados, mercados]);
+  assert.ok(waiting.filter(one => one.batch === 'extracto-b').every(one => one.category_from !== 'typed'),
+    'the other statement is not touched');
+  await db.close();
+});
+
 test('the two halves of a transfer find each other', async () => {
   const { db, proposals, rappi, nu } = await setup();
 

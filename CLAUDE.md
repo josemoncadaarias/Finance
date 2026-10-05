@@ -1585,6 +1585,10 @@ backup restore against iOS's own SQLite backend.
      the statement's check - is pinned at the top while its rows scroll
      (`.origin-head`, `position: sticky`), and only the first origin opens
      by itself; a search opens them all (`isBatchOpen`).
+     "Comercios que se repiten" lives inside each origin too (Jose, the
+     same day): a shop is counted and answered within its own statement or
+     sender (`repeated` per batch, `fileAllAs(merchant, category, batch)`),
+     and what the ledger already holds is never counted with its shop.
      Discarding or putting away now tells the rest of the app
      (`dataChanged`), so Más's count and the bar's dot no longer stay stale.
      "Mensajes de texto" lists the ticked senders on top and folds the rest

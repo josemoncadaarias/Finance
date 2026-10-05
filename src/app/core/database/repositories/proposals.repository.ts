@@ -192,9 +192,13 @@ export class ProposalsRepository {
    *
    * It teaches the dictionary too, so the next statement proposes it.
    */
-  async fileAllAs(merchant: string, categoryId: number): Promise<number> {
+  async fileAllAs(merchant: string, categoryId: number, batch?: string): Promise<number> {
+    // One origin's rows when it is named: the shop is answered where it repeats.
     const waiting = await this.db.query<{ id: number; description: string | null; occurred_on: IsoDate | null }>(
-      "SELECT id, description, occurred_on FROM movement_proposals WHERE status = 'pending'");
+      batch === undefined
+        ? "SELECT id, description, occurred_on FROM movement_proposals WHERE status = 'pending'"
+        : "SELECT id, description, occurred_on FROM movement_proposals WHERE status = 'pending' AND batch = ?",
+      batch === undefined ? [] : [batch]);
     const mine = waiting.filter(one => merchantKeyOf(one.description) === merchant);
     if (mine.length === 0) return 0;
 

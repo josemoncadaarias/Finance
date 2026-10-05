@@ -111,60 +111,6 @@
         </div>
       }
 
-      <!-- The shops that turn up more than once, answered once each. -->
-      @if (repeated().length > 0) {
-        <section class="ui-list ui-group shops">
-          <div class="ui-row head" (click)="shopsOpen.set(!shopsOpen())" (contextmenu)="pressedMany($event, allShopLines())">
-            @if (selecting()) {
-              @let all = allShopLines();
-              <span class="ui-tick" [class.on]="tickOf(all) === 'on'" [class.half]="tickOf(all) === 'half'"
-                    (click)="$event.stopPropagation(); toggleMany(all)" aria-hidden="true">
-                @if (tickOf(all) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(all) === 'half') { <ion-icon name="remove"></ion-icon> }
-              </span>
-            }
-            <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
-            <span class="ui-tx">
-              <b>{{ 'review.repeated' | t }}</b>
-              <small>{{ (repeated().length === 1 ? 'ui.review.shopsOne' : 'ui.review.shops') | t:{ shops: repeated().length, count: allShopLines().length } }}</small>
-            </span>
-            <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(i18n.t('review.repeated.hint'))"
-                  [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
-            <ion-icon class="ui-chev" [name]="shopsOpen() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-          </div>
-          @if (shopsOpen()) {
-            @for (shop of repeated(); track shop.merchant) {
-              @let shopLines = linesOfShop(shop);
-              <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
-                   (click)="selecting() && toggleMany(shopLines)" (contextmenu)="pressedMany($event, shopLines)">
-                @if (selecting()) {
-                  <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
-                    @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
-                  </span>
-                }
-                @if (shop.category; as category) {
-                  <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
-                } @else {
-                  <app-badge [size]="38" builtin="storefront" fixed="#2ec4b6"></app-badge>
-                }
-                <span class="ui-tx">
-                  <b class="ui-one">{{ shop.sample }}</b>
-                  <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
-                </span>
-                @if (!selecting()) {
-                  <button type="button" class="ui-chip cat" [disabled]="working()" (click)="$event.stopPropagation(); choosingMerchant.set(shop)">
-                    @if (shop.category; as category) {
-                      <span class="ui-one">{{ category.name }}</span>
-                    } @else {
-                      <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'review.pickCategory' | t }}</span>
-                    }
-                  </button>
-                }
-              </div>
-            }
-          }
-        </section>
-      }
-
       @for (batch of batches(); track batch.key) {
         <!-- One origin - a statement or a sender - is one block, folded or open;
              its head stays pinned while its rows scroll (Jose, 2026-10-05). -->
@@ -205,6 +151,59 @@
             </button>
           </div>
         </section>
+        <!-- The shops that turn up more than once in this origin, answered once each. -->
+        @if (repeatedOf(batch).length > 0) {
+          <section class="ui-list ui-group shops">
+            <div class="ui-row head" (click)="toggleShops(batch)" (contextmenu)="pressedMany($event, allShopLines(batch))">
+              @if (selecting()) {
+                @let all = allShopLines(batch);
+                <span class="ui-tick" [class.on]="tickOf(all) === 'on'" [class.half]="tickOf(all) === 'half'"
+                      (click)="$event.stopPropagation(); toggleMany(all)" aria-hidden="true">
+                  @if (tickOf(all) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(all) === 'half') { <ion-icon name="remove"></ion-icon> }
+                </span>
+              }
+              <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
+              <span class="ui-tx">
+                <b>{{ 'review.repeated' | t }}</b>
+                <small>{{ (repeatedOf(batch).length === 1 ? 'ui.review.shopsOne' : 'ui.review.shops') | t:{ shops: repeatedOf(batch).length, count: allShopLines(batch).length } }}</small>
+              </span>
+              <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(i18n.t('review.repeated.hint'))"
+                    [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+              <ion-icon class="ui-chev" [name]="shopsOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            @if (shopsOpen().has(batch.key)) {
+              @for (shop of repeatedOf(batch); track shop.merchant) {
+                @let shopLines = linesOfShop(shop);
+                <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
+                     (click)="selecting() && toggleMany(shopLines)" (contextmenu)="pressedMany($event, shopLines)">
+                  @if (selecting()) {
+                    <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
+                      @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
+                    </span>
+                  }
+                  @if (shop.category; as category) {
+                    <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+                  } @else {
+                    <app-badge [size]="38" builtin="storefront" fixed="#2ec4b6"></app-badge>
+                  }
+                  <span class="ui-tx">
+                    <b class="ui-one">{{ shop.sample }}</b>
+                    <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
+                  </span>
+                  @if (!selecting()) {
+                    <button type="button" class="ui-chip cat" [disabled]="working()" (click)="$event.stopPropagation(); choosingMerchant.set(shop)">
+                      @if (shop.category; as category) {
+                        <span class="ui-one">{{ category.name }}</span>
+                      } @else {
+                        <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'review.pickCategory' | t }}</span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            }
+          </section>
+        }
         @if (knownIn(batch).length > 0) {
           <!-- What the ledger already holds, apart and folded (2026-10-05). -->
           <section class="ui-list ui-group known">
