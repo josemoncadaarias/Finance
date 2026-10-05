@@ -126,6 +126,7 @@ detail of each is in the section named):
 | #50 | "Mensajes de texto" says why no SMS sender is listed (no words readable, no money yet, nothing yet) | Rule 22 (SMS) |
 | #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
 | #52 | Hidden chat apps (WhatsApp) ignored whole; only the SMS app keeps its senders while hidden | Rule 22 (SMS) |
+| #53 | A payday corrected by hand earns from the next day, like a deposit | Rule 16 |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -614,6 +615,12 @@ backup restore against iOS's own SQLite backend.
    days) and, once the period is over, the figure it paid (spread over its
    days in proportion and locked, `correctPayment`). Both are undone with
    "Volver a lo calculado". A daily payment still opens its day.
+   **A payday corrected by hand is a deposit that day** (Jose, 2026-10-05:
+   Ualá's September bonus landed on 3 October and the 3rd's own yield moved,
+   though it is worked out on the 2nd's close): it joins the base the day
+   AFTER it (`handedOver` in `accrual.ts`), and his figures then matched the
+   bank's. The payday the app works out by itself (the 1st) still lands at
+   the start of its day, as above - left as it was until Jose says otherwise.
 
    **A CDT is never accrued day by day and has no threshold.** It is paid
    once per period - every month, or every N months per its rate, even if the

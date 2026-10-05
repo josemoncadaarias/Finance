@@ -239,8 +239,15 @@ export class AccrualEngine {
     const last = await this.yields.lastAccruedDay(accountId);
     const rates = await this.yields.rateHistory(accountId);
     // The day the bank actually paid, where the person corrected it.
-    const paidInstead = new Map((await this.yields.paymentDates(accountId))
+    const corrections = await this.yields.paymentDates(accountId);
+    const paidInstead = new Map(corrections
       .map(row => [`${row.product_id}|${row.component}|${row.due_on}`, row.paid_on]));
+    // A payday the person corrected is a day the money really landed, so it
+    // behaves like a deposit that day: in the balance the day closes with,
+    // and so in the base of the day after (Jose, 2026-10-05: Ualá's bonus
+    // landed on the 3rd and the 3rd's yield, worked out on the 2nd's close,
+    // had moved). The payday the app works out by itself keeps its rule.
+    const handedOver = new Set(corrections.map(row => `${row.product_id}|${row.paid_on}`));
 
     // An account always has at least one product. Without one there is
     // nothing to accrue on, and saying so beats writing zeroes.
@@ -543,7 +550,7 @@ export class AccrualEngine {
         // payday already holds it.
         for (const [key, owed] of waiting) {
           const [product, paidOn] = key.split('|');
-          if (paidOn > day) continue;
+          if ((handedOver.has(key) ? addDays(paidOn, 1) : paidOn) > day) continue;
           waiting.delete(key);
           const anchor = anchorOf(Number(product), day);
           if (anchor && paidOn <= anchor.valid_from) continue;

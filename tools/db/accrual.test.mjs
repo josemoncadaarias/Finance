@@ -2510,7 +2510,7 @@ test('a monthly payment is made on the 1st, with the last day of the month in it
     'October earns on it from its first day, as before');
 });
 
-test('a payment moved to the 5th lands on the 5th and covers the same days', async () => {
+test('a payment moved to the 5th lands on the 5th, earns from the 6th and covers the same days', async () => {
   const { yields, engine, ids } = await monthly('2026-10-10');
   const [product] = await yields.products(ids.rappi);
   const before = await yields.days(ids.rappi);
@@ -2524,7 +2524,10 @@ test('a payment moved to the 5th lands on the 5th and covers the same days', asy
   const on = date => days.find(day => day.on_date === date);
   assert.ok(days.filter(day => day.on_date <= '2026-09-30').every(day => day.paid_on === '2026-10-05'));
   assert.equal(on('2026-10-04').balance_minor, on('2026-09-30').balance_minor, 'not yet paid on the 4th');
-  assert.equal(on('2026-10-05').balance_minor, on('2026-09-30').balance_minor + paid, 'paid on the 5th');
+  // Landed on the 5th, like a deposit: the 5th is worked out on the 4th's
+  // close, without it, and the 6th on the 5th's, with it (Jose, 2026-10-05).
+  assert.equal(on('2026-10-05').balance_minor, on('2026-09-30').balance_minor, "the 5th earns on the 4th's close");
+  assert.equal(on('2026-10-06').balance_minor, on('2026-09-30').balance_minor + paid, 'in the base from the 6th');
   assert.deepEqual((await yields.paymentDates(ids.rappi)).map(row => ({ ...row })),
     [{ product_id: product.id, component: 'base', due_on: '2026-10-01', paid_on: '2026-10-05' }]);
 
