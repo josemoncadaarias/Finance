@@ -119,7 +119,7 @@
           <app-badge shape="ci" [size]="36" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
           <span class="ui-tx">
             <b class="ui-one">{{ batch.title }}</b>
-            <small class="ui-one">{{ fileName(batch) }} · @if (narrowed()) { {{ 'ui.review.shownOf' | t:{ shown: shownIn(batch).length, count: batch.lines.length } }} } @else { {{ countOf(batch.lines.length) }} }</small>
+            <small class="ui-one">{{ fileName(batch) }} · @if (partial(batch)) { {{ 'ui.review.shownOf' | t:{ shown: shownIn(batch).length, count: batch.lines.length } }} } @else { {{ countOf(batch.lines.length) }} }</small>
           </span>
           @if (checkOf(batch); as check) {
             <!-- Says one thing: the statement's own balances agree, or not. -->
@@ -132,7 +132,7 @@
         @if (isBatchOpen(batch)) {
         <!-- A batch is one card: where it came from, how many, the check.
              Not under a filter: it speaks of the whole origin. -->
-        @if (!narrowed()) {
+        @if (!partial(batch)) {
         <section class="ui-card batch">
           @if (checkOf(batch); as check) {
             @if (check.off) {
@@ -156,7 +156,7 @@
         </section>
         }
         <!-- The shops that turn up more than once in this origin, answered once each. -->
-        @if (!narrowed() && repeatedOf(batch).length > 0) {
+        @if (!partial(batch) && repeatedOf(batch).length > 0) {
           <section class="ui-list ui-group shops">
             <div class="ui-row head" (click)="toggleShops(batch)" (contextmenu)="pressedMany($event, allShopLines(batch))">
               <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>

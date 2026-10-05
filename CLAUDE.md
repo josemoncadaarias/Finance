@@ -1607,7 +1607,9 @@ backup restore against iOS's own SQLite backend.
      says "N de los elegidos aún necesitan algo" with "Ver cuáles". Under
      a filter or a search an origin shows only what matches ("4 de 14
      movimientos"), never its "Guardar los N" card or its repeated shops,
-     and an origin with nothing matching is not shown. The statement's own
+     and an origin with nothing matching is not shown - the account
+     chosen on top included: choosing Ualá shows Ualá's statement whole,
+     card and shops with it, and no other (`partial`, `shownBatches`). The statement's own
      check is a labelled pill, "Cuadra" / "No cuadra" (its opening balance
      plus what was read equals its closing one - nothing to do with rows
      being ready), kept per batch on the device (`finance.statementChecks`)
