@@ -166,20 +166,25 @@
       }
 
       @for (batch of batches(); track batch.key) {
+        <!-- One origin - a statement or a sender - is one block, folded or open;
+             its head stays pinned while its rows scroll (Jose, 2026-10-05). -->
+        <div class="origin">
+        <div class="origin-head" (click)="toggleBatch(batch)">
+          <app-badge shape="ci" [size]="36" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
+          <span class="ui-tx">
+            <b class="ui-one">{{ batch.title }}</b>
+            <small class="ui-one">{{ fileName(batch) }} · {{ countOf(batch.lines.length) }}</small>
+          </span>
+          @if (checkOf(batch); as check) {
+            <button type="button" class="check" [class.off]="check.off" (click)="$event.stopPropagation(); info.set(check.line)" [attr.aria-label]="'ui.info' | t">
+              <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
+            </button>
+          }
+          <ion-icon class="ui-chev" [name]="isBatchOpen(batch) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+        </div>
+        @if (isBatchOpen(batch)) {
         <!-- A batch is one card: where it came from, how many, the check. -->
         <section class="ui-card batch">
-          <div class="bhead">
-            <app-badge shape="ci" [size]="40" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
-            <span class="ui-tx">
-              <b class="ui-one">{{ batch.title }}</b>
-              <small class="ui-one">{{ fileName(batch) }}</small>
-            </span>
-            @if (checkOf(batch); as check) {
-              <button type="button" class="check" [class.off]="check.off" (click)="info.set(check.line)" [attr.aria-label]="'ui.info' | t">
-                <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
-              </button>
-            }
-          </div>
           @if (checkOf(batch); as check) {
             @if (check.off) {
               <p class="off"><ion-icon name="alert-circle-outline"></ion-icon>{{ 'ui.review.offBy' | t:{ amount: check.gap } }}</p>
@@ -294,6 +299,8 @@
             }
           </section>
         }
+        }
+        </div>
       }
       <div class="ui-page-end"></div>
     }

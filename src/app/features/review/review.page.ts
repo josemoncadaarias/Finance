@@ -1001,6 +1001,23 @@ export class ReviewPage {
 
   readonly knownOpen = signal<ReadonlySet<string>>(new Set());
 
+  /**
+   * Each origin folds as a whole (Jose, 2026-10-05: two statements one after
+   * the other read as one list). The first opens; a search opens them all.
+   */
+  private readonly batchState = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  isBatchOpen(batch: Batch): boolean {
+    if (this.search().trim().length > 0) return true;
+    return this.batchState().get(batch.key) ?? this.batches()[0]?.key === batch.key;
+  }
+
+  toggleBatch(batch: Batch): void {
+    const next = new Map(this.batchState());
+    next.set(batch.key, !this.isBatchOpen(batch));
+    this.batchState.set(next);
+  }
+
   toggleKnown(batch: Batch): void {
     const next = new Set(this.knownOpen());
     if (next.has(batch.key)) next.delete(batch.key); else next.add(batch.key);
