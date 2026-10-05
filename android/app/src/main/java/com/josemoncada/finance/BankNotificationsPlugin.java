@@ -1,7 +1,9 @@
 package com.josemoncada.finance;
 
+import android.content.ComponentName;
 import android.content.Intent;
 import android.provider.Settings;
+import android.service.notification.NotificationListenerService;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -49,8 +51,23 @@ public class BankNotificationsPlugin extends Plugin {
                 getContext().getContentResolver(), "enabled_notification_listeners");
         boolean on = allowed != null && allowed.contains(getContext().getPackageName());
 
+        // Allowed is not the same as listening: Android can drop the listener
+        // after an update and leave the permission on. Asking for it again
+        // here costs nothing when it is already there.
+        if (on) {
+            try {
+                NotificationListenerService.requestRebind(
+                        new ComponentName(getContext(), NotificationCatcher.class));
+            } catch (Exception refused) {
+                // Answered below from what was last heard.
+            }
+        }
+
         JSObject answer = new JSObject();
         answer.put("enabled", on);
+        answer.put("heardAt", NotificationStore.heardAt(getContext()));
+        answer.put("connectedAt", NotificationStore.connectedAt(getContext()));
+        answer.put("disconnectedAt", NotificationStore.disconnectedAt(getContext()));
         call.resolve(answer);
     }
 

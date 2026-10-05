@@ -78,8 +78,13 @@ export interface CaughtNotification {
 export interface BankNotificationsPlugin {
   /** False everywhere but Android, and then nothing else here is called. */
   isSupported(): Promise<{ supported: boolean }>;
-  /** Whether the person has given this app notification access. */
-  isEnabled(): Promise<{ enabled: boolean }>;
+  /**
+   * Whether the person has given this app notification access - and, since
+   * allowed is not listening, when Android last handed one over and when it
+   * last connected or dropped the listener (milliseconds, 0 for never).
+   * Asking also asks Android to reconnect a listener it dropped.
+   */
+  isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number }>;
   /** Opens the Android screen where that access is given. */
   openSettings(): Promise<void>;
   /** Which apps have posted, with no word of what they said. */

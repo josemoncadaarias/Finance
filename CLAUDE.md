@@ -127,6 +127,7 @@ detail of each is in the section named):
 | #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
 | #52 | Hidden chat apps (WhatsApp) ignored whole; only the SMS app keeps its senders while hidden | Rule 22 (SMS) |
 | #53 | A payday corrected by hand earns from the next day, like a deposit | Rule 16 |
+| #54 | The notification listener rebinds itself and the screen says when it last heard anything | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -1512,6 +1513,16 @@ backup restore against iOS's own SQLite backend.
      shows one line per messaging app: in amber when its messages arrived
      with no words ("haz que las notificaciones de {app} muestren el
      contenido"), or that none carried money yet, or that nothing came yet.
+   - **Allowed is not listening** (#54, 2026-10-05). Jose's next two Bold
+     SMS - one with the content on screen - moved no count at all ("Teléfono"
+     stayed at 8 avisos), with the permission on. Assumed, not verified:
+     Android dropped the listener (it can after an update) and never bound it
+     again. Now the listener notes when it connects, disconnects and last
+     heard anything (`noteHeard`, at most once a minute, no content), asks to
+     be rebound when dropped (`onListenerDisconnected` → `requestRebind`),
+     and the app asks again every time the screen reads `isEnabled`. The
+     screen says on top when the last notification arrived, in amber with
+     "Abrir el permiso" when Android dropped it or six hours passed silent.
    - The notices' days say the month ("Viernes 25 de septiembre", the year
      when not this one, "Hoy"/"Ayer" in front); "Viernes 25" alone could be
      any month.

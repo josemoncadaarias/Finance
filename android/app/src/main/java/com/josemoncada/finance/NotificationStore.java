@@ -137,6 +137,33 @@ final class NotificationStore {
         prefs(context).edit().putString(WATCHED, toggled(context, WATCHED, pkg, on)).apply();
     }
 
+    private static final String HEARD_AT = "heardAt";
+    private static final String CONNECTED_AT = "connectedAt";
+    private static final String DISCONNECTED_AT = "disconnectedAt";
+
+    /**
+     * When Android last handed the listener a notification - any app's, the
+     * hidden ones included, never a word of it. A listener can be declared,
+     * allowed and still dead (Android unbinds it after an update on some
+     * phones), and the only way to see that from the app is a clock that
+     * stops (Jose, 2026-10-05: two Bold SMS and no count moved).
+     * Written at most once a minute: it is a clock, not a log.
+     */
+    static void noteHeard(Context context, long at) {
+        SharedPreferences prefs = prefs(context);
+        if (at - prefs.getLong(HEARD_AT, 0) < 60_000) return;
+        prefs.edit().putLong(HEARD_AT, at).apply();
+    }
+
+    /** Android connecting the listener, or letting it go. */
+    static void noteConnection(Context context, boolean on, long at) {
+        prefs(context).edit().putLong(on ? CONNECTED_AT : DISCONNECTED_AT, at).apply();
+    }
+
+    static long heardAt(Context context) { return prefs(context).getLong(HEARD_AT, 0); }
+    static long connectedAt(Context context) { return prefs(context).getLong(CONNECTED_AT, 0); }
+    static long disconnectedAt(Context context) { return prefs(context).getLong(DISCONNECTED_AT, 0); }
+
     /** The phone's own SMS app, the one whose hidden row still lists senders. */
     static boolean isSmsApp(Context context, String pkg) {
         try {

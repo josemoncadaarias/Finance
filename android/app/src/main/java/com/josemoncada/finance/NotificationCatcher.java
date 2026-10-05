@@ -2,6 +2,7 @@ package com.josemoncada.finance;
 
 import android.app.Notification;
 import android.app.Person;
+import android.content.ComponentName;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -43,9 +44,31 @@ import org.json.JSONObject;
  */
 public class NotificationCatcher extends NotificationListenerService {
 
+    /** Android started handing notifications over. */
+    @Override
+    public void onListenerConnected() {
+        NotificationStore.noteConnection(this, true, System.currentTimeMillis());
+    }
+
+    /**
+     * Android stopped handing them over - after an update, or to save battery
+     * - and does not always come back by itself. Ask it to, at once; the app
+     * asks again each time it opens (`BankNotificationsPlugin.isEnabled`).
+     */
+    @Override
+    public void onListenerDisconnected() {
+        NotificationStore.noteConnection(this, false, System.currentTimeMillis());
+        try {
+            requestRebind(new ComponentName(this, NotificationCatcher.class));
+        } catch (Exception refused) {
+            // The person took the permission away: nothing to ask for.
+        }
+    }
+
     @Override
     public void onNotificationPosted(StatusBarNotification posted) {
         if (posted == null) return;
+        NotificationStore.noteHeard(this, System.currentTimeMillis());
 
         String pkg = posted.getPackageName();
         if (pkg == null || pkg.equals(getPackageName())) return;
