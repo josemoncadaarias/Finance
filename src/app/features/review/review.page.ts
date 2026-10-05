@@ -292,10 +292,9 @@ export class ReviewPage {
 
   private readonly dayState = signal<ReadonlyMap<string, boolean>>(new Map());
 
-  isDayOpen(batch: Batch, key: string): boolean {
-    const set = this.dayState().get(key);
-    if (set !== undefined) return set;
-    return this.daysOf(batch)[0]?.key === key;
+  /** Everything starts folded here (Jose, 2026-10-05); a day opens when tapped. */
+  isDayOpen(_batch: Batch, key: string): boolean {
+    return this.dayState().get(key) ?? false;
   }
 
   toggleDay(batch: Batch, key: string): void {
@@ -304,15 +303,22 @@ export class ReviewPage {
     this.dayState.set(next);
   }
 
-  /** Open all, or close all, of every day on show. */
+  /**
+   * Open EVERYTHING, or fold everything (Jose, 2026-10-05): every origin,
+   * its days, its repeated shops and what is already on record - never
+   * "all but the first".
+   */
   toggleAllDays(): void {
-    const keys = this.batches().flatMap(batch => this.daysOf(batch).map(day => ({ batch, key: day.key })));
-    const open = keys.every(({ batch, key }) => !this.isDayOpen(batch, key));
-    this.dayState.set(new Map(keys.map(({ key }) => [key, open])));
+    const open = this.allDaysClosed();
+    const batches = this.batches();
+    this.batchState.set(new Map(batches.map(batch => [batch.key, open])));
+    this.dayState.set(new Map(batches.flatMap(batch => this.daysOf(batch).map(day => [day.key, open] as const))));
+    this.knownOpen.set(new Set(open ? batches.map(batch => batch.key) : []));
+    this.shopsOpen.set(new Set(open ? batches.map(batch => batch.key) : []));
   }
 
-  readonly allDaysClosed = computed(() =>
-    this.batches().every(batch => this.daysOf(batch).every(day => !this.isDayOpen(batch, day.key))));
+  /** Folded when no origin is open (an origin's insides cannot be seen without it). */
+  readonly allDaysClosed = computed(() => this.batches().every(batch => !this.isBatchOpen(batch)));
 
   /** The origins whose "Comercios que se repiten" is open. */
   readonly shopsOpen = signal<ReadonlySet<string>>(new Set());
@@ -672,7 +678,7 @@ export class ReviewPage {
   readonly asking = signal<
     { kind: 'accept' | 'discard' | 'forget' | 'discardKnown'; batch: Batch } |
     /** The rows chosen by hand, whatever batch they are in. */
-    { kind: 'acceptSelected' } | { kind: 'discardSelected' } |
+    { kind: 'acceptSelected' } | { kind: 'discardSelected' } | { kind: 'forgetSelected' } |
     { kind: 'acceptOne'; line: Line } |
     { kind: 'discardOne'; line: Line } |
     /** Moving the opening balance, which is a figure of Jose's own. */
@@ -1026,13 +1032,13 @@ export class ReviewPage {
 
   /**
    * Each origin folds as a whole (Jose, 2026-10-05: two statements one after
-   * the other read as one list). The first opens; a search opens them all.
+   * the other read as one list). All start folded; a search opens them all.
    */
   private readonly batchState = signal<ReadonlyMap<string, boolean>>(new Map());
 
   isBatchOpen(batch: Batch): boolean {
     if (this.search().trim().length > 0) return true;
-    return this.batchState().get(batch.key) ?? this.batches()[0]?.key === batch.key;
+    return this.batchState().get(batch.key) ?? false;
   }
 
   toggleBatch(batch: Batch): void {
@@ -1154,6 +1160,10 @@ export class ReviewPage {
     if (asking.kind === 'discardKnown') {
       return this.i18n.t('review.discard.sureAll', { count: this.knownIn(asking.batch).length });
     }
+    if (asking.kind === 'forgetSelected') {
+      const count = this.selectedLines().length;
+      return count === 1 ? this.i18n.t('review.forget.sure.one') : this.i18n.t('review.forget.sure', { count });
+    }
     // Saving asks about the ones it can save; the other two are about the
     // whole batch, ready or not.
     const count = asking.kind === 'accept'
@@ -1172,6 +1182,7 @@ export class ReviewPage {
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.body');
     if (asking.kind === 'discardSelected') return this.i18n.t('review.discard.body');
     if (asking.kind === 'discardKnown') return this.i18n.t('ui.review.known.body');
+    if (asking.kind === 'forgetSelected') return this.i18n.t('review.forget.body');
     if (asking.kind === 'acceptSelected') {
       // Ticked is not the same as ready: say which ones stay behind, and why.
       const left = this.selectedLines().length - this.selectedReady().length;
@@ -1212,6 +1223,7 @@ export class ReviewPage {
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.do');
     const kind = asking.kind === 'discardOne' || asking.kind === 'discardSelected' || asking.kind === 'discardKnown' ? 'discard'
       : asking.kind === 'acceptOne' || asking.kind === 'acceptSelected' ? 'accept'
+      : asking.kind === 'forgetSelected' ? 'forget'
       : asking.kind;
     return this.i18n.t(`review.${kind}.do`);
   }
@@ -1223,7 +1235,7 @@ export class ReviewPage {
     if (kind === 'accept' || kind === 'acceptOne' || kind === 'acceptSelected') return 'checkmark-done-outline';
     // Undoing the import destroys nothing, so it is not a bin: it is the same
     // arrow the button that opened it carries.
-    if (kind === 'forget') return 'eye-off-outline';
+    if (kind === 'forget' || kind === 'forgetSelected') return 'eye-off-outline';
     return 'trash-outline';
   }
 
@@ -1240,7 +1252,7 @@ export class ReviewPage {
       return 'primary';
     }
     if (kind === 'leaveBalance') return 'medium';
-    if (kind === 'forget') return 'medium';
+    if (kind === 'forget' || kind === 'forgetSelected') return 'medium';
     return 'danger';
   }
 
@@ -1263,6 +1275,16 @@ export class ReviewPage {
       this.stopSelecting();
     } else if (asking.kind === 'discard') {
       await this.rejectAll(asking.batch);
+    } else if (asking.kind === 'forgetSelected') {
+      this.working.set(true);
+      try {
+        await new ProposalsRepository(this.database.driver).forgetThese(this.selectedLines().map(line => line.proposal.id));
+        this.database.dataChanged();
+        this.stopSelecting();
+        await this.refresh();
+      } finally {
+        this.working.set(false);
+      }
     } else if (asking.kind === 'discardKnown') {
       await this.rejectLines(this.knownIn(asking.batch));
     } else if (asking.kind === 'square') {

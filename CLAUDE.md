@@ -1591,6 +1591,17 @@ backup restore against iOS's own SQLite backend.
      and what the ledger already holds is never counted with its shop.
      Discarding or putting away now tells the rest of the app
      (`dataChanged`), so Más's count and the bar's dot no longer stay stale.
+     **Por revisar and Notificaciones open with EVERYTHING folded** (Jose,
+     2026-10-05; they no longer follow "first section open"), and the
+     button between the two jump arrows folds or opens absolutely
+     everything - origins, days, shops, what is already registered.
+     **That fold button sits between the arrows on every screen that has
+     them** (`app-jump`'s `folded` input and `fold` output; Inicio's own
+     arrows too; the arrows keep their places when hidden). The selection
+     bar is rebuilt: the count with "de N a la vista", a "Todos/Ninguno"
+     pill with its tick, the actions as tiles (Categoría, No ver más -
+     `forgetThese`, asked first -, Descartar) and the save as a full-width
+     button, so a long label never spills.
      "Mensajes de texto" lists the ticked senders on top and folds the rest
      under "Otros remitentes", newest message first, "N mensajes · último
      {día}". A band the page's colour holds the status bar's strip on every

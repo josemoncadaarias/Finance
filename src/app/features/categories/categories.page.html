@@ -90,7 +90,7 @@
     }
   </div>
 
-  <app-jump #jump [content]="list"></app-jump>
+  <app-jump #jump [content]="list" [folded]="allCollapsed()" (fold)="foldAll()"></app-jump>
 </ion-content>
 
 <!-- Which list, asked once (3c). -->

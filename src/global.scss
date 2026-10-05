@@ -1691,6 +1691,9 @@ button.ui-row:active { background: var(--app-s2); }
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
     cursor: pointer;
     ion-icon { font-size: 19px; }
+    /* Out of use but holding its place, so nothing shifts under the thumb. */
+    &.away { visibility: hidden; }
+    &.fold { color: var(--app-pr); border-color: rgba(var(--app-pr-rgb), 0.55); }
   }
 }
 
@@ -2562,4 +2565,49 @@ ion-app::before {
   background: var(--app-bg);
   z-index: 50000;
   pointer-events: none;
+}
+:root:not(.ion-palette-dark) .ui-jump button.fold { color: var(--app-pr); }
+
+/* The selection bar, rebuilt (Jose, 2026-10-05): the count alone, one
+   "Todos" that ticks and unticks, the answers as tiles with their word
+   under the icon, and saving on a row of its own so its words always fit. */
+.selection-bar {
+  .top .pick-all {
+    flex: none;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
+    background: var(--app-s3);
+    color: var(--app-tx);
+    font-weight: 600;
+    .ui-tick { width: 22px; height: 22px; }
+    &.on { background: rgba(var(--app-pr-rgb), 0.18); color: var(--app-pr); }
+  }
+  .top .count b { white-space: normal; line-height: 1.2; }
+  .acts.tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    button {
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px 6px;
+      border-radius: 14px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+      font-size: 13px;
+      ion-icon { font-size: 20px; }
+    }
+  }
+  .save-all {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--app-pr), var(--app-pr2));
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    white-space: normal;
+    text-align: center;
+    &:disabled { opacity: 0.45; }
+  }
 }

@@ -305,6 +305,21 @@ test('a shop answered in one origin leaves the same shop in another alone', asyn
   await db.close();
 });
 
+test('"No ver más" on chosen rows: a message stays thrown away, a statement row goes', async () => {
+  const { db, proposals, rappi } = await setup();
+  const { ids: [message] } = await proposals.propose('notice:sms|899979', [{ source: 'notification', account_id: rappi,
+    occurred_on: '2026-10-01', amount_minor: -5_000_00, description: 'A', evidence: {} }]);
+  const { ids: [line, kept] } = await proposals.propose('extracto-1', [
+    { source: 'statement', account_id: rappi, occurred_on: '2026-10-02', amount_minor: -6_000_00, description: 'B', evidence: {} },
+    { source: 'statement', account_id: rappi, occurred_on: '2026-10-03', amount_minor: -7_000_00, description: 'C', evidence: {} },
+  ]);
+  assert.equal(await proposals.forgetThese([message, line]), 2);
+  assert.equal((await proposals.byId(message)).status, 'rejected', 'a message never comes back');
+  assert.equal(await proposals.byId(line), null, 'a statement row simply goes');
+  assert.equal((await proposals.byId(kept)).status, 'pending', 'what was not chosen stays');
+  await db.close();
+});
+
 test('the two halves of a transfer find each other', async () => {
   const { db, proposals, rappi, nu } = await setup();
 

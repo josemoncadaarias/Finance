@@ -351,6 +351,22 @@ export class ProposalsRepository {
   }
 
   /** Rejects several in one statement: one trip over the bridge, not one each. */
+  /**
+   * "No ver más" for rows chosen by hand: the same answer as for a whole
+   * batch - a message is kept as thrown away so it never comes back, a
+   * statement's row simply goes and returns if the file is read again.
+   */
+  async forgetThese(ids: readonly number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const marks = ids.map(() => '?').join(', ');
+    const kept = await this.db.run(
+      `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
+       WHERE status = 'pending' AND source = 'notification' AND id IN (${marks})`, [this.now(), ...ids]);
+    const gone = await this.db.run(
+      `DELETE FROM movement_proposals WHERE status = 'pending' AND id IN (${marks})`, [...ids]);
+    return (kept.changes ?? 0) + (gone.changes ?? 0);
+  }
+
   async rejectThese(ids: readonly number[]): Promise<number> {
     if (ids.length === 0) return 0;
     const result = await this.db.run(

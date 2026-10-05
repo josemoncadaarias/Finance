@@ -588,7 +588,7 @@
               }
               <div class="ui-page-end"></div>
             </div>
-            <app-jump #sheetJump [content]="sheet" [hidden]="searching()"></app-jump>
+            <app-jump #sheetJump [content]="sheet" [hidden]="searching()" [folded]="sheetFolded()" (fold)="sheetFold()"></app-jump>
           </ion-content>
           <!-- The page lives inside the Cuentas tab: the bar stays, with its "+". -->
           <app-tab-bar></app-tab-bar>

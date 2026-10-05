@@ -354,7 +354,7 @@
   </div>
   }
 
-  <app-jump #jump [content]="form" [row]="true"></app-jump>
+  <app-jump #jump [content]="form" [row]="true" [folded]="allCollapsed()" (fold)="toggleAll()"></app-jump>
 </ion-content>
 
 <!-- The kind of work: one row on the form, the three kinds explained here. -->

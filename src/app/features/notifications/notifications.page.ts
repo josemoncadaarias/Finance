@@ -142,7 +142,8 @@ export class NotificationsPage {
 
   isDayOpen(key: string): boolean {
     const set = this.dayState().get(key);
-    return set !== undefined ? set : this.caughtDays()[0]?.key === key;
+    // Everything starts folded on this screen (Jose, 2026-10-05).
+    return set ?? false;
   }
 
   toggleDay(key: string): void {
@@ -258,7 +259,7 @@ export class NotificationsPage {
     .sort((one, other) => other.last - one.last));
   private readonly othersToggled = signal<boolean | null>(null);
   readonly othersOpen = computed(() => this.term().length > 0
-    || (this.othersToggled() ?? this.markedSenders().length === 0));
+    || (this.othersToggled() ?? false));
   toggleOthers(): void {
     this.othersToggled.set(!this.othersOpen());
   }
@@ -377,6 +378,27 @@ export class NotificationsPage {
   }
   /** The hidden apps' list is folded away until asked for. */
   readonly showHidden = signal(false);
+
+  /**
+   * The middle button between the arrows: on the apps face it folds or
+   * opens "Otros remitentes" and the hidden ones together, on the saved
+   * face every day - everything at once, never all but one.
+   */
+  readonly jumpFolded = computed<boolean | null>(() => {
+    if (this.face() === 'caught') return this.caughtDays().length > 0 ? this.allDaysClosed() : null;
+    const foldable = this.otherSenders().length + this.hiddenApps().length + this.hiddenSenders().length;
+    return foldable > 0 ? !this.othersOpen() && !this.showHidden() : null;
+  });
+
+  foldEverything(): void {
+    if (this.face() === 'caught') {
+      this.toggleAllDays();
+      return;
+    }
+    const open = this.jumpFolded() === true;
+    this.othersToggled.set(open);
+    this.showHidden.set(open);
+  }
 
   /** The ones being kept, first: they are what this screen is for. */
   /**

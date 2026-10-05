@@ -280,7 +280,7 @@
     }
   </div>
 
-  <app-jump #jump [content]="list"></app-jump>
+  <app-jump #jump [content]="list" [folded]="allClosed()" (fold)="toggleAll()"></app-jump>
 </ion-content>
 
 <!-- The dates and the account, shared with the summary screen. -->

@@ -10,9 +10,15 @@
  *
  * The one definition for every screen but Inicio, which keeps its own
  * because its search hides them while the keyboard is up.
+ *
+ * Between them, on a screen whose list folds, one button folds or opens
+ * EVERYTHING (Jose, 2026-10-05: no going back to the top to do it). The
+ * page says whether all is folded (`folded`, null for no button) and does
+ * it on `fold`. The arrows keep their places when one is not needed, so
+ * the middle button never moves under the thumb.
  */
 
-import { Component, DestroyRef, ElementRef, afterNextRender, inject, input, signal, Injector } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, inject, input, output, signal, Injector } from '@angular/core';
 import { IonContent, IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -27,18 +33,20 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     .ui-jump { pointer-events: auto; }
   `],
   template: `
-    @if (!hidden() && (!atTop() || !atBottom())) {
+    @if (!hidden() && (folded() !== null || !atTop() || !atBottom())) {
       <div class="ui-jump" [class.row]="row()">
-        @if (!atTop()) {
-          <button type="button" (click)="toTop()" [attr.aria-label]="'ui.toTop' | t" [title]="'ui.toTop' | t">
-            <ion-icon name="arrow-up-outline"></ion-icon>
+        <button type="button" [class.away]="atTop()" (click)="toTop()" [attr.aria-label]="'ui.toTop' | t" [title]="'ui.toTop' | t">
+          <ion-icon name="arrow-up-outline"></ion-icon>
+        </button>
+        @if (folded() !== null) {
+          <button type="button" class="fold" (click)="fold.emit()"
+                  [attr.aria-label]="(folded() ? 'ui.openAll' : 'ui.closeAll') | t" [title]="(folded() ? 'ui.openAll' : 'ui.closeAll') | t">
+            <ion-icon [name]="folded() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
           </button>
         }
-        @if (!atBottom()) {
-          <button type="button" (click)="toBottom()" [attr.aria-label]="'ui.toBottom' | t" [title]="'ui.toBottom' | t">
-            <ion-icon name="arrow-down-outline"></ion-icon>
-          </button>
-        }
+        <button type="button" [class.away]="atBottom()" (click)="toBottom()" [attr.aria-label]="'ui.toBottom' | t" [title]="'ui.toBottom' | t">
+          <ion-icon name="arrow-down-outline"></ion-icon>
+        </button>
       </div>
     }
   `,
@@ -50,6 +58,10 @@ export class JumpComponent {
   /** Side by side above the bar (the tax simulator's value column). */
   readonly row = input(false);
   readonly hidden = input(false);
+  /** Whether everything on the page is folded; null when nothing folds. */
+  readonly folded = input<boolean | null>(null);
+  /** Fold everything, or open everything. */
+  readonly fold = output<void>();
 
   readonly atTop = signal(true);
   readonly atBottom = signal(true);
