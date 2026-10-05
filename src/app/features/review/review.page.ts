@@ -264,7 +264,17 @@ export class ReviewPage {
 
   /** The origins on view: under a filter, only those with a row that matches. */
   readonly shownBatches = computed(() =>
-    this.narrowed() ? this.batches().filter(batch => this.shownIn(batch).length > 0) : this.batches());
+    this.filtering() ? this.batches().filter(batch => this.shownIn(batch).length > 0) : this.batches());
+
+  /**
+   * An origin seen only in part - a filter, a search, or an account that
+   * holds only some of its rows. Its card and its repeated shops speak of
+   * the whole origin, so they step aside; seen whole (a statement of the
+   * account chosen above), it is shown as always.
+   */
+  partial(batch: Batch): boolean {
+    return this.narrowed() || this.shownIn(batch).length < batch.lines.length;
+  }
 
   readonly shownCount = computed(() => this.batches().reduce((sum, batch) => sum + this.shownIn(batch).length, 0));
 
