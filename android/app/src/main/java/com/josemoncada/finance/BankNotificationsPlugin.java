@@ -10,7 +10,10 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import org.json.JSONArray;
 
@@ -29,7 +32,9 @@ import org.json.JSONArray;
  * to work without it: `isSupported` is the question every screen asks first,
  * and the answer being false is an ordinary state and never an error.
  */
-@CapacitorPlugin(name = "BankNotifications")
+@CapacitorPlugin(
+        name = "BankNotifications",
+        permissions = { @Permission(alias = "sms", strings = { android.Manifest.permission.READ_SMS }) })
 public class BankNotificationsPlugin extends Plugin {
 
     @PluginMethod
@@ -86,6 +91,31 @@ public class BankNotificationsPlugin extends Plugin {
         settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(settings);
         call.resolve();
+    }
+
+    /** Whether the person let the app read SMS (only ticked senders' words are ever read). */
+    @PluginMethod
+    public void smsAccess(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("granted", SmsInbox.allowed(getContext()));
+        call.resolve(answer);
+    }
+
+    /** Android's own dialog for reading SMS. */
+    @PluginMethod
+    public void askSms(PluginCall call) {
+        if (SmsInbox.allowed(getContext())) {
+            smsAccess(call);
+            return;
+        }
+        requestPermissionForAlias("sms", call, "smsAnswered");
+    }
+
+    @PermissionCallback
+    private void smsAnswered(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("granted", getPermissionState("sms") == PermissionState.GRANTED);
+        call.resolve(answer);
     }
 
     /** Which apps have posted anything, with no word of what they said. */
@@ -149,7 +179,10 @@ public class BankNotificationsPlugin extends Plugin {
     @PluginMethod
     public void senders(PluginCall call) {
         JSObject answer = new JSObject();
-        answer.put("senders", toJs(NotificationStore.sendersSeen(getContext())));
+        JSONArray all = NotificationStore.sendersSeen(getContext());
+        JSONArray inbox = SmsInbox.senders(getContext());
+        for (int at = 0; at < inbox.length(); at += 1) all.put(inbox.opt(at));
+        answer.put("senders", toJs(all));
         call.resolve(answer);
     }
 
@@ -162,7 +195,9 @@ public class BankNotificationsPlugin extends Plugin {
             call.reject("No sender");
             return;
         }
-        NotificationStore.watchSender(getContext(), pkg, sender, Boolean.TRUE.equals(call.getBoolean("on", true)));
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", true));
+        if (SmsInbox.PACKAGE.equals(pkg)) SmsInbox.watch(getContext(), sender, on);
+        else NotificationStore.watchSender(getContext(), pkg, sender, on);
         call.resolve();
     }
 
@@ -175,7 +210,9 @@ public class BankNotificationsPlugin extends Plugin {
             call.reject("No sender");
             return;
         }
-        NotificationStore.hideSender(getContext(), pkg, sender, Boolean.TRUE.equals(call.getBoolean("on", true)));
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", true));
+        if (SmsInbox.PACKAGE.equals(pkg)) SmsInbox.hide(getContext(), sender, on);
+        else NotificationStore.hideSender(getContext(), pkg, sender, on);
         call.resolve();
     }
 
@@ -183,7 +220,10 @@ public class BankNotificationsPlugin extends Plugin {
     @PluginMethod
     public void caught(PluginCall call) {
         JSObject answer = new JSObject();
-        answer.put("caught", toJs(NotificationStore.caught(getContext())));
+        JSONArray all = NotificationStore.caught(getContext());
+        JSONArray inbox = SmsInbox.messages(getContext());
+        for (int at = 0; at < inbox.length(); at += 1) all.put(inbox.opt(at));
+        answer.put("caught", toJs(all));
         call.resolve(answer);
     }
 
@@ -191,6 +231,7 @@ public class BankNotificationsPlugin extends Plugin {
     @PluginMethod
     public void forgetCaught(PluginCall call) {
         NotificationStore.forgetCaught(getContext());
+        SmsInbox.forgetCaught(getContext());
         call.resolve();
     }
 
@@ -198,6 +239,7 @@ public class BankNotificationsPlugin extends Plugin {
     @PluginMethod
     public void forgetEverything(PluginCall call) {
         NotificationStore.forgetEverything(getContext());
+        SmsInbox.forgetEverything(getContext());
         call.resolve();
     }
 

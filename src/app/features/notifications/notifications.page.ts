@@ -25,7 +25,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
-  BankNotifications, type CaughtNotification, type Diagnosis, type SeenNow, type SeenApp, type SeenSender,
+  BankNotifications, SMS_INBOX, type CaughtNotification, type Diagnosis, type SeenNow, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
 
 @Component({
@@ -208,6 +208,15 @@ export class NotificationsPage {
 
   readonly apps = signal<SeenApp[]>([]);
   readonly caught = signal<CaughtNotification[]>([]);
+  /** Whether the SMS inbox may be read (null until asked). */
+  readonly smsGranted = signal<boolean | null>(null);
+
+  /** Android's dialog for reading SMS, then the list again. */
+  async askSms(): Promise<void> {
+    this.smsGranted.set((await BankNotifications.askSms()).granted);
+    await this.look();
+  }
+
   /** Senders inside messaging apps that texted amounts of money (rule 22, SMS). */
   readonly senders = signal<SeenSender[]>([]);
 
@@ -243,6 +252,9 @@ export class NotificationsPage {
     .sort((one, other) => one.sender.localeCompare(other.sender)));
 
   senderLine(one: SeenSender): string {
+    if (one.package === SMS_INBOX) {
+      return this.i18n.t(one.count === 1 ? 'ui.notifications.inboxLine.one' : 'ui.notifications.inboxLine', { count: one.count });
+    }
     return this.i18n.t(one.count === 1 ? 'ui.notifications.senderLine.one' : 'ui.notifications.senderLine',
       { count: one.count, app: one.app });
   }
@@ -415,6 +427,7 @@ export class NotificationsPage {
       this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
+      this.smsGranted.set((await BankNotifications.smsAccess()).granted);
       this.senders.set((await BankNotifications.senders()).senders);
       this.caught.set((await BankNotifications.caught()).caught);
     } finally {

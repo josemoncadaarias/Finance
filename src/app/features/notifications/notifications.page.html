@@ -162,10 +162,21 @@
         }
 
         <!-- Text messages: chosen by sender, never the whole messaging app (rule 22, SMS). -->
-        @if (sortedSenders().length > 0 || smsWaiting().length > 0) {
-          <h3 class="ui-h sms-h">{{ 'ui.notifications.sms' | t }}
-            <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.notifications.sms.hint'))"><ion-icon name="information"></ion-icon></span>
-          </h3>
+        <h3 class="ui-h sms-h">{{ 'ui.notifications.sms' | t }}
+          <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.notifications.sms.hint'))"><ion-icon name="information"></ion-icon></span>
+        </h3>
+        @if (smsGranted() === false) {
+          <!-- Some phones never hand SMS notifications over: the inbox is read instead, for ticked senders only. -->
+          <div class="ui-list sms-ask">
+            <div class="ui-row plain">
+              <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+              <span class="ui-tx"><b class="wrap">{{ 'ui.notifications.inbox.ask' | t }}</b>
+                <small class="wrap">{{ 'ui.notifications.inbox.askHint' | t }}</small></span>
+            </div>
+            <div class="ui-row plain">
+              <button type="button" class="ui-btn" (click)="askSms()">{{ 'ui.notifications.inbox.allow' | t }}</button>
+            </div>
+          </div>
         }
         @if (smsWaiting().length > 0) {
           <!-- No sender yet: say why, so "abajo en Mensajes de texto" never points at nothing. -->
