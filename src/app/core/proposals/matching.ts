@@ -86,6 +86,34 @@ export function sameMovementAs(
 }
 
 /**
+ * The movement a reading with no account yet is probably the same as.
+ *
+ * `sameMovementAs` tried on each account the ledger rows belong to; where
+ * more than one answers, the one naming the same merchant wins, then the
+ * nearest date.
+ */
+export function sameMovementAnywhere(
+  reading: Omit<Reading, 'account_id'> & { account_id?: number | null },
+  ledger: readonly LedgerMovement[],
+  alreadyTaken: ReadonlySet<number> = new Set(),
+): LedgerMovement | null {
+  if (reading.occurred_on === null || reading.amount_minor === null) return null;
+  const merchant = merchantKeyOf(reading.description);
+  const found: LedgerMovement[] = [];
+  for (const account of new Set(ledger.map(movement => movement.account_id))) {
+    const id = sameMovementAs({ ...reading, account_id: account } as Reading, ledger, alreadyTaken);
+    const movement = id === null ? undefined : ledger.find(one => one.id === id);
+    if (movement) found.push(movement);
+  }
+  found.sort((a, b) =>
+    (Number(merchant.length > 0 && merchantKeyOf(b.description) === merchant)
+      - Number(merchant.length > 0 && merchantKeyOf(a.description) === merchant))
+    || (daysBetween(a.occurred_on, reading.occurred_on!) - daysBetween(b.occurred_on, reading.occurred_on!))
+    || (a.id - b.id));
+  return found[0] ?? null;
+}
+
+/**
  * The pairs among these readings that are the two halves of one transfer.
  *
  * One leaves an account and the other arrives in a different one, for the same

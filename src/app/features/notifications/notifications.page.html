@@ -189,9 +189,9 @@
             }
           </div>
         }
-        @if (sortedSenders().length > 0) {
+        @if (markedSenders().length > 0) {
           <div class="ui-list">
-            @for (one of sortedSenders(); track one.package + one.sender) {
+            @for (one of markedSenders(); track one.package + one.sender) {
               <div class="ui-row app">
                 <app-badge shape="ci" [size]="40" builtin="chatbubble-ellipses-outline" [seed]="appSeed(one.package + one.sender)"></app-badge>
                 <span class="ui-tx">
@@ -205,6 +205,35 @@
                 <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
                         [attr.aria-label]="one.sender" (click)="watchSender(one, !one.watched)"></button>
               </div>
+            }
+          </div>
+        }
+        @if (otherSenders().length > 0) {
+          <!-- The rest, folded: a year of SMS lists many senders. -->
+          <div class="ui-list ui-group others">
+            <div class="ui-row head" (click)="toggleOthers()">
+              <span class="ui-tx">
+                <b>{{ 'ui.notifications.others' | t }}</b>
+                <small class="wrap">{{ 'ui.notifications.others.hint' | t:{ count: otherSenders().length } }}</small>
+              </span>
+              <ion-icon class="ui-chev" [name]="othersOpen() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            @if (othersOpen()) {
+              @for (one of otherSenders(); track one.package + one.sender) {
+              <div class="ui-row app">
+                <app-badge shape="ci" [size]="40" builtin="chatbubble-ellipses-outline" [seed]="appSeed(one.package + one.sender)"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ one.sender }}@if (one.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
+                  <small class="ui-one">{{ senderLine(one) }}</small>
+                </span>
+                <button type="button" class="ui-round hide-app" (click)="hideSender(one)"
+                        [attr.aria-label]="'ui.notifications.hideSender' | t:{ sender: one.sender }">
+                  <ion-icon name="eye-off-outline"></ion-icon>
+                </button>
+                <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
+                        [attr.aria-label]="one.sender" (click)="watchSender(one, !one.watched)"></button>
+              </div>
+              }
             }
           </div>
         }

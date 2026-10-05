@@ -39,6 +39,8 @@
 
 .batch {
   margin-bottom: 10px;
+  /* Each origin starts its own block: its card, then its own days. */
+  margin-top: 18px;
 
   .bhead { display: flex; align-items: center; gap: 12px; }
   .bhead b { font-size: 16px; font-weight: 600; }
@@ -93,3 +95,9 @@
 /* A long list draws only what is near the screen: a day that is far away is
    laid out when it is scrolled to, not all at once after an import. */
 .ui-group { content-visibility: auto; contain-intrinsic-size: auto 200px; }
+
+.known {
+  .ui-row.plain { padding-top: 0; }
+  .ui-row.plain .ui-btn { width: 100%; }
+  .line { opacity: 0.8; }
+}
