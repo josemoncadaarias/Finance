@@ -128,6 +128,7 @@ detail of each is in the section named):
 | #52 | Hidden chat apps (WhatsApp) ignored whole; only the SMS app keeps its senders while hidden | Rule 22 (SMS) |
 | #53 | A payday corrected by hand earns from the next day, like a deposit | Rule 16 |
 | #54 | The notification listener rebinds itself and the screen says when it last heard anything | Rule 22 (SMS) |
+| #55 | A hidden SMS app is recognised by its package too, and its counts are said | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -1523,6 +1524,16 @@ backup restore against iOS's own SQLite backend.
      and the app asks again every time the screen reads `isEnabled`. The
      screen says on top when the last notification arrived, in amber with
      "Abrir el permiso" when Android dropped it or six hours passed silent.
+   - **And a hidden SMS app was invisible twice over** (#55, 2026-10-05).
+     With the listener proved alive (the last notification was the Bold
+     SMS's minute), still no sender and no count moved. Assumed, not
+     verified: Jose's "Mensajes" is among his hidden apps, and either the
+     phone did not name it as its SMS app or its counts had nowhere to land
+     (`noteShape` dropped them for an app never noted). Now an app is the SMS
+     app when the phone says so OR its package ends in `.messaging`, `.mms`
+     or `.sms` (Google's, Samsung's, AOSP's, Xiaomi's; no chat app does),
+     `noteShape` creates the row it counts on, and "Mensajes de texto" says
+     its line for hidden messaging apps too, marked "(oculta)".
    - The notices' days say the month ("Viernes 25 de septiembre", the year
      when not this one, "Hoy"/"Ayer" in front); "Viernes 25" alone could be
      any month.
