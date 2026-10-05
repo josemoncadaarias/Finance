@@ -166,12 +166,21 @@ final class NotificationStore {
 
     /** The phone's own SMS app, the one whose hidden row still lists senders. */
     static boolean isSmsApp(Context context, String pkg) {
+        if (pkg == null) return false;
         try {
-            return pkg != null && pkg.equals(Telephony.Sms.getDefaultSmsPackage(context));
+            if (pkg.equals(Telephony.Sms.getDefaultSmsPackage(context))) return true;
         } catch (Exception unknown) {
-            return false;
+            // Asked the package name below instead.
         }
+        // The phone may not say which app is its SMS app (Jose, 2026-10-05:
+        // his Bold SMS reached the listener and still no sender was listed).
+        // Every maker's own names it by what it is - Google's
+        // ...apps.messaging, Samsung's ...android.messaging, AOSP and
+        // Xiaomi's com.android.mms - and no chat app does.
+        return SMS_APP.matcher(pkg).find();
     }
+
+    private static final Pattern SMS_APP = Pattern.compile("(\\.messaging$|\\.mms$|\\.sms$)");
 
     static boolean isHidden(Context context, String pkg) {
         return contains(context, HIDDEN, pkg);
@@ -312,11 +321,22 @@ final class NotificationStore {
      * Counts the kind of a messaging app's message - with no words, with words
      * but no money, or with money - and keeps nothing of what it said.
      */
-    static void noteShape(Context context, String pkg, String shape) {
+    static void noteShape(Context context, String pkg, String label, String shape) {
         JSONObject apps = object(context, APPS);
         JSONObject app = apps.optJSONObject(pkg);
-        if (app == null) return;
         try {
+            // A hidden messaging app is never noted as posting, so its row
+            // may not exist: the counts still have to land somewhere, or the
+            // screen cannot say why its senders never show (2026-10-05).
+            if (app == null) {
+                app = new JSONObject();
+                long now = System.currentTimeMillis();
+                app.put("label", label);
+                app.put("count", 0);
+                app.put("first", now);
+                app.put("last", now);
+            }
+            app.put("messaging", true);
             app.put(shape, app.optInt(shape, 0) + 1);
             apps.put(pkg, app);
             prefs(context).edit().putString(APPS, apps.toString()).apply();

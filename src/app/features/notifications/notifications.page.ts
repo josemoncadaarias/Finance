@@ -204,7 +204,12 @@ export class NotificationsPage {
    */
   readonly smsWaiting = computed(() => {
     if (this.sortedSenders().length > 0) return [];
-    return this.apps().filter(app => app.messaging).map(app => {
+    // Hidden ones too: a hidden SMS app is still read for its senders, and
+    // when none shows this is the only place that can say why.
+    return this.apps().filter(app => app.messaging).map(source => {
+      const app = source.hidden
+        ? { ...source, label: this.i18n.t('ui.notifications.sms.hiddenApp', { app: source.label }) }
+        : source;
       const blank = app.blank ?? 0, plain = app.plain ?? 0, money = app.money ?? 0;
       if (blank > 0 && money === 0) {
         return { warn: true, text: this.i18n.t(blank === 1 ? 'ui.notifications.sms.blankOne' : 'ui.notifications.sms.blank', { count: blank, app: app.label }) };

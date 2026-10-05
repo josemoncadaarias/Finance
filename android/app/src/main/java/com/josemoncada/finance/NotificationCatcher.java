@@ -186,7 +186,7 @@ public class NotificationCatcher extends NotificationListenerService {
         // the screen has to be able to say so (Jose, 2026-10-02: two bank SMS
         // arrived and nothing told him why no sender was listed).
         boolean money = NotificationStore.looksLikeMoney(said);
-        if (!summary) NotificationStore.noteShape(this, pkg, said.isEmpty() ? "blank" : money ? "money" : "plain");
+        if (!summary) NotificationStore.noteShape(this, pkg, label, said.isEmpty() ? "blank" : money ? "money" : "plain");
         if (from.isEmpty() || said.isEmpty()) return;
 
         if (NotificationStore.isSenderHidden(this, pkg, from)) return;
