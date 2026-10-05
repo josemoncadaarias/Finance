@@ -56,4 +56,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!--
+        Bank SMS, read from the inbox only for the senders the person ticks
+        (rule 22; Play's "SMS-based money management" exception, which needs
+        the Permissions Declaration Form). Nothing is sent anywhere.
+    -->
+    <uses-permission android:name="android.permission.READ_SMS" />
 </manifest>

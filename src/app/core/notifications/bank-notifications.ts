@@ -79,6 +79,9 @@ export interface SeenNow {
   smsApp: boolean;
 }
 
+/** The source of senders read straight from the SMS inbox, not an app. */
+export const SMS_INBOX = 'sms';
+
 export interface Diagnosis {
   /** Whether Android has the listener bound right now. */
   bound: boolean;
@@ -114,6 +117,15 @@ export interface BankNotificationsPlugin {
   isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number }>;
   /** Opens the Android screen where that access is given. */
   openSettings(): Promise<void>;
+  /**
+   * Whether the app may read the SMS inbox. Only the words of senders the
+   * person ticks are ever read; the list of senders comes from addresses
+   * alone (`SmsInbox.java`). Its senders and messages come back through
+   * `senders` and `caught` under the package `sms`.
+   */
+  smsAccess(): Promise<{ granted: boolean }>;
+  /** Android's own dialog for it. */
+  askSms(): Promise<{ granted: boolean }>;
   /** Which apps have posted, with no word of what they said. */
   apps(): Promise<{ apps: SeenApp[] }>;
   /** Starts or stops keeping what one app says. */
@@ -145,6 +157,8 @@ const nothing: BankNotificationsPlugin = {
   isSupported: async () => ({ supported: false }),
   isEnabled: async () => ({ enabled: false }),
   openSettings: async () => {},
+  smsAccess: async () => ({ granted: false }),
+  askSms: async () => ({ granted: false }),
   apps: async () => ({ apps: [] }),
   watch: async () => {},
   hide: async () => {},
