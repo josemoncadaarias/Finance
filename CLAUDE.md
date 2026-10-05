@@ -129,6 +129,7 @@ detail of each is in the section named):
 | #53 | A payday corrected by hand earns from the next day, like a deposit | Rule 16 |
 | #54 | The notification listener rebinds itself and the screen says when it last heard anything | Rule 22 (SMS) |
 | #55 | A hidden SMS app is recognised by its package too, and its counts are said | Rule 22 (SMS) |
+| #56 | "Revisar qué le llega a la app": what the notification listener is handed, with no content | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -1534,6 +1535,18 @@ backup restore against iOS's own SQLite backend.
      or `.sms` (Google's, Samsung's, AOSP's, Xiaomi's; no chat app does),
      `noteShape` creates the row it counts on, and "Mensajes de texto" says
      its line for hidden messaging apps too, marked "(oculta)".
+   - **#55 changed nothing on the phone, and the guessing stopped there**
+     (#56, 2026-10-05). Jose's hidden list had no messaging app at all (he
+     had shown it before; asking again was wrong), "Mensajes" was in neither
+     list, and two more Bold SMS - locked and unlocked - moved nothing. So
+     the screen now has "Revisar qué le llega a la app": whether Android has
+     the listener bound, the SMS app the phone names, every notification in
+     the status bar as the LISTENER sees it (`seenNow`, from
+     `getActiveNotifications`: app, package, time, conversation or not, with
+     words / no words / money, SMS app, hidden, group summary, pinned) and
+     the last thirty apps it was handed something from (`noteRecent`) -
+     never a word of what any of them said. The next step is decided by
+     what it shows with a bank SMS in the bar, not by another guess.
    - The notices' days say the month ("Viernes 25 de septiembre", the year
      when not this one, "Hoy"/"Ayer" in front); "Viernes 25" alone could be
      any month.
