@@ -1567,6 +1567,10 @@ backup restore against iOS's own SQLite backend.
      texto" asks for the permission ("Permitir leer los SMS"). Only
      `READ_SMS`; no `RECEIVE_SMS`, the inbox is read when the app opens.
      Known limit: the section sits inside the notification-access flow.
+     Verified 2026-10-05: Play's API accepted the first bundle carrying
+     `READ_SMS` onto the internal track (Store bundle #46, re-run after a
+     GitHub runner failure) with no declaration filed yet; the form is
+     still needed before closed testing or production.
      Play's declaration: `store/sms-permission-declaration.md`; privacy
      policy at https://jadexlabs-finance.netlify.app/privacy.html (published
      by Jose on Netlify from `site/`, 2026-10-05).
