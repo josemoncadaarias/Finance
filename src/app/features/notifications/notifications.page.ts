@@ -25,7 +25,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
-  BankNotifications, type CaughtNotification, type SeenApp, type SeenSender,
+  BankNotifications, type CaughtNotification, type Diagnosis, type SeenNow, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
 
 @Component({
@@ -162,6 +162,24 @@ export class NotificationsPage {
   /** False in a browser and on iOS, which is an ordinary state. */
   readonly supported = signal(false);
   readonly enabled = signal(false);
+  /** What the listener is handed, asked for by hand (2026-10-05). */
+  readonly diagnosis = signal<Diagnosis | null>(null);
+
+  async diagnose(): Promise<void> {
+    this.diagnosis.set(await BankNotifications.diagnose());
+  }
+
+  /** One line about a notification the listener sees, never what it says. */
+  seenLine(one: SeenNow): string {
+    const parts = [one.package, this.hour(one.postedAt)];
+    parts.push(this.i18n.t(one.conversation ? 'ui.notifications.diag.conversation' : 'ui.notifications.diag.notice'));
+    parts.push(this.i18n.t(!one.words ? 'ui.notifications.diag.noWords' : one.money ? 'ui.notifications.diag.money' : 'ui.notifications.diag.words'));
+    if (one.smsApp) parts.push(this.i18n.t('ui.notifications.diag.smsApp'));
+    if (one.hidden) parts.push(this.i18n.t('ui.notifications.diag.hidden'));
+    if (one.summary) parts.push(this.i18n.t('ui.notifications.diag.summary'));
+    if (one.ongoing) parts.push(this.i18n.t('ui.notifications.diag.ongoing'));
+    return parts.join(' · ');
+  }
   /** When Android last handed a notification over, connected or dropped the listener. */
   readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0 });
 

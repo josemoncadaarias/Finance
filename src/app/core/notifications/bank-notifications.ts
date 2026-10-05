@@ -63,6 +63,33 @@ export interface SeenSender {
   hidden: boolean;
 }
 
+/** What the listener is handed, never a word of it (the diagnosis, 2026-10-05). */
+export interface SeenNow {
+  package: string;
+  app: string;
+  postedAt: number;
+  category: string;
+  conversation: boolean;
+  messages: boolean;
+  ongoing: boolean;
+  summary: boolean;
+  words: boolean;
+  money: boolean;
+  hidden: boolean;
+  smsApp: boolean;
+}
+
+export interface Diagnosis {
+  /** Whether Android has the listener bound right now. */
+  bound: boolean;
+  /** The phone's SMS app, as Android names it; empty when it does not say. */
+  defaultSms: string;
+  /** What sits in the status bar now. */
+  active: SeenNow[];
+  /** The last apps it was handed something from, oldest first. */
+  recent: { package: string; app: string; at: number; conversation: boolean }[];
+}
+
 /** One notification, exactly as it was posted. Nothing is read into it. */
 export interface CaughtNotification {
   package: string;
@@ -103,6 +130,8 @@ export interface BankNotificationsPlugin {
   caught(): Promise<{ caught: CaughtNotification[] }>;
   forgetCaught(): Promise<void>;
   forgetEverything(): Promise<void>;
+  /** What the listener is being handed right now, and lately. */
+  diagnose(): Promise<Diagnosis>;
 }
 
 /**
@@ -125,6 +154,7 @@ const nothing: BankNotificationsPlugin = {
   caught: async () => ({ caught: [] }),
   forgetCaught: async () => {},
   forgetEverything: async () => {},
+  diagnose: async () => ({ bound: false, defaultSms: '', active: [], recent: [] }),
 };
 
 export const BankNotifications = registerPlugin<BankNotificationsPlugin>(

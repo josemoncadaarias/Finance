@@ -11,6 +11,7 @@ import android.os.Parcelable;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -44,10 +45,73 @@ import org.json.JSONObject;
  */
 public class NotificationCatcher extends NotificationListenerService {
 
+    /** The listener Android has bound, while it is bound: what the diagnosis asks. */
+    private static volatile NotificationCatcher running;
+
     /** Android started handing notifications over. */
     @Override
     public void onListenerConnected() {
+        running = this;
         NotificationStore.noteConnection(this, true, System.currentTimeMillis());
+    }
+
+    /**
+     * What the listener sees in the status bar right now, one line per
+     * notification and never a word of what it says: the app, whether it is
+     * a conversation, whether it carries words, whether they look like money,
+     * and what this app makes of it (hidden, the SMS app). Null when Android
+     * has not bound the listener.
+     *
+     * Asked for when nothing showed up and every guess about why had failed
+     * (Jose, 2026-10-05: "algo no estas haciendo bien"): a bank SMS on screen,
+     * and the question is whether this app is even being handed it.
+     */
+    static JSONArray seenNow() {
+        NotificationCatcher catcher = running;
+        if (catcher == null) return null;
+        JSONArray list = new JSONArray();
+        StatusBarNotification[] all;
+        try {
+            all = catcher.getActiveNotifications();
+        } catch (Exception refused) {
+            return null;
+        }
+        if (all == null) return list;
+        for (StatusBarNotification one : all) {
+            try {
+                Notification notification = one.getNotification();
+                if (notification == null) continue;
+                String pkg = one.getPackageName();
+                Bundle extras = notification.extras;
+                String said = "";
+                if (extras != null) {
+                    Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);
+                    if (messages != null && messages.length > 0 && messages[messages.length - 1] instanceof Bundle) {
+                        said = text((Bundle) messages[messages.length - 1], "text");
+                    }
+                    if (said.isEmpty()) said = text(extras, Notification.EXTRA_TEXT);
+                    String big = text(extras, Notification.EXTRA_BIG_TEXT);
+                    if (big.length() > said.length()) said = big;
+                }
+                JSONObject row = new JSONObject();
+                row.put("package", pkg);
+                row.put("app", catcher.labelOf(pkg));
+                row.put("postedAt", one.getPostTime());
+                row.put("category", notification.category == null ? "" : notification.category);
+                row.put("conversation", catcher.isConversation(pkg, notification, extras));
+                row.put("messages", extras != null && extras.containsKey(Notification.EXTRA_MESSAGES));
+                row.put("ongoing", (notification.flags & Notification.FLAG_ONGOING_EVENT) != 0);
+                row.put("summary", (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0);
+                row.put("words", !said.isEmpty());
+                row.put("money", NotificationStore.looksLikeMoney(said));
+                row.put("hidden", NotificationStore.isHidden(catcher, pkg));
+                row.put("smsApp", NotificationStore.isSmsApp(catcher, pkg));
+                list.put(row);
+            } catch (Exception broken) {
+                // One notification that will not describe itself is not the list.
+            }
+        }
+        return list;
     }
 
     /**
@@ -57,6 +121,7 @@ public class NotificationCatcher extends NotificationListenerService {
      */
     @Override
     public void onListenerDisconnected() {
+        running = null;
         NotificationStore.noteConnection(this, false, System.currentTimeMillis());
         try {
             requestRebind(new ComponentName(this, NotificationCatcher.class));
@@ -87,6 +152,7 @@ public class NotificationCatcher extends NotificationListenerService {
         // its own; it is read, never counted as a message without words.
         boolean summary = (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0;
         String label = labelOf(pkg);
+        NotificationStore.noteRecent(this, pkg, label, at, conversation);
 
         // An app the person hid is not even counted - except the phone's own
         // SMS app, whose row is hidden but never its senders: a bank's SMS
