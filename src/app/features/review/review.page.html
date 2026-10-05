@@ -111,7 +111,7 @@
         </div>
       }
 
-      @for (batch of batches(); track batch.key) {
+      @for (batch of shownBatches(); track batch.key) {
         <!-- One origin - a statement or a sender - is one block, folded or open;
              its head stays pinned while its rows scroll (Jose, 2026-10-05). -->
         <div class="origin" [class.shut]="!isBatchOpen(batch)">
@@ -119,17 +119,20 @@
           <app-badge shape="ci" [size]="36" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
           <span class="ui-tx">
             <b class="ui-one">{{ batch.title }}</b>
-            <small class="ui-one">{{ fileName(batch) }} · {{ countOf(batch.lines.length) }}</small>
+            <small class="ui-one">{{ fileName(batch) }} · @if (narrowed()) { {{ 'ui.review.shownOf' | t:{ shown: shownIn(batch).length, count: batch.lines.length } }} } @else { {{ countOf(batch.lines.length) }} }</small>
           </span>
           @if (checkOf(batch); as check) {
-            <button type="button" class="check" [class.off]="check.off" (click)="$event.stopPropagation(); info.set(check.line)" [attr.aria-label]="'ui.info' | t">
-              <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>
+            <!-- Says one thing: the statement's own balances agree, or not. -->
+            <button type="button" class="check" [class.off]="check.off" (click)="$event.stopPropagation(); info.set(check.line)">
+              <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>{{ (check.off ? 'ui.review.squaresNot' : 'ui.review.squares') | t }}
             </button>
           }
           <ion-icon class="ui-chev" [name]="isBatchOpen(batch) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
         </div>
         @if (isBatchOpen(batch)) {
-        <!-- A batch is one card: where it came from, how many, the check. -->
+        <!-- A batch is one card: where it came from, how many, the check.
+             Not under a filter: it speaks of the whole origin. -->
+        @if (!narrowed()) {
         <section class="ui-card batch">
           @if (checkOf(batch); as check) {
             @if (check.off) {
@@ -151,17 +154,11 @@
             </button>
           </div>
         </section>
+        }
         <!-- The shops that turn up more than once in this origin, answered once each. -->
-        @if (repeatedOf(batch).length > 0) {
+        @if (!narrowed() && repeatedOf(batch).length > 0) {
           <section class="ui-list ui-group shops">
             <div class="ui-row head" (click)="toggleShops(batch)" (contextmenu)="pressedMany($event, allShopLines(batch))">
-              @if (selecting()) {
-                @let all = allShopLines(batch);
-                <span class="ui-tick" [class.on]="tickOf(all) === 'on'" [class.half]="tickOf(all) === 'half'"
-                      (click)="$event.stopPropagation(); toggleMany(all)" aria-hidden="true">
-                  @if (tickOf(all) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(all) === 'half') { <ion-icon name="remove"></ion-icon> }
-                </span>
-              }
               <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
               <span class="ui-tx">
                 <b>{{ 'review.repeated' | t }}</b>
@@ -215,12 +212,12 @@
               </span>
               <ion-icon class="ui-chev" [name]="knownOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
             </div>
+            @if (knownOpen().has(batch.key)) {
             <div class="ui-row plain">
               <button type="button" class="ui-btn ghost" [disabled]="working()" (click)="asking.set({ kind: 'discardKnown', batch })">
                 <ion-icon name="trash-outline"></ion-icon>{{ (knownIn(batch).length === 1 ? 'ui.review.known.dropOne' : 'ui.review.known.drop') | t:{ count: knownIn(batch).length } }}
               </button>
             </div>
-            @if (knownOpen().has(batch.key)) {
               @for (line of knownIn(batch); track line.proposal.id) {
                 <div class="ui-row line" (click)="tapped(line)">
                   <app-badge [size]="36" builtin="copy-outline" fixed="#8a94a6"></app-badge>
@@ -339,10 +336,18 @@
           <ion-icon name="trash-outline"></ion-icon><span>{{ 'review.discard' | t }}</span>
         </button>
       </div>
-      <button type="button" class="save-all" [disabled]="working() || selectedReady().length === 0"
+      @if (selectedWaiting().length > 0) {
+        <!-- Nothing is saved while a ticked row still needs something. -->
+        <div class="waiting">
+          <ion-icon name="alert-circle"></ion-icon>
+          <span>{{ (selectedWaiting().length === 1 ? 'ui.review.pickedWaitingOne' : 'ui.review.pickedWaiting') | t:{ count: selectedWaiting().length } }}</span>
+          <button type="button" (click)="seeWaiting()">{{ 'ui.review.seeWhich' | t }}</button>
+        </div>
+      }
+      <button type="button" class="save-all" [disabled]="working() || selectedLines().length === 0 || selectedWaiting().length > 0"
               (click)="asking.set({ kind: 'acceptSelected' })">
         <ion-icon name="checkmark-done"></ion-icon>
-        {{ (selectedReady().length === 1 ? 'ui.review.saveOne' : 'ui.review.save') | t:{ count: selectedReady().length } }}
+        {{ (selectedLines().length === 1 ? 'ui.review.saveOne' : 'ui.review.save') | t:{ count: selectedLines().length } }}
       </button>
     </div>
   }
@@ -359,7 +364,7 @@
         @for (option of [
           { id: 'all', icon: 'list', color: '#6378ff', title: 'review.only.all', line: countOf(total()) },
           { id: 'waiting', icon: 'help-circle', color: '#f6b93b', title: 'review.only.waiting', line: 'ui.review.waitingLine' },
-          { id: 'flagged', icon: 'flag', color: '#ff6b6b', title: 'review.only.flagged', line: 'ui.review.flaggedLine' }
+          { id: 'flagged', icon: 'flag', color: '#4da3ff', title: 'review.only.flagged', line: 'ui.review.flaggedLine' }
         ]; track option.id) {
           <button type="button" class="ui-row" (click)="showOnly.set($any(option.id)); choosingView.set(false)">
             <app-badge shape="ci" [size]="38" [builtin]="option.icon" [fixed]="option.color"></app-badge>

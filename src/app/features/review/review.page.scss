@@ -62,7 +62,7 @@
 .line { cursor: pointer; align-items: flex-start; }
 .line .ui-am { font-weight: 600; flex: none; }
 .line .ui-tx small { display: block; }
-.line .flag { display: flex; gap: 6px; align-items: flex-start; color: var(--app-yel); white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
+.line .flag { display: flex; gap: 6px; align-items: flex-start; color: #4da3ff; white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
 .picked { background: rgba(var(--app-pr-rgb), 0.12); }
 
 .tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
@@ -118,7 +118,9 @@
   .ui-tx { flex: 1; min-width: 0; }
   b { font-size: 16px; font-weight: 600; }
   .check {
-    width: 28px; height: 28px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer;
+    height: 28px; padding: 0 10px 0 7px; border-radius: 14px; border: 0; flex: none; display: flex; align-items: center; gap: 4px; cursor: pointer;
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    ion-icon { font-size: 15px; }
     background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn);
     &.off { background: rgba(var(--app-yel-rgb), 0.2); color: var(--app-yel); }
   }

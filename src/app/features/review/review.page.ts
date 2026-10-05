@@ -255,6 +255,17 @@ export class ReviewPage {
 
   readonly filtering = computed(() => this.showOnly() !== 'all' || this.search().trim() !== '' || this.accountFilter() !== null);
 
+  /**
+   * A filter or a search on (the account aside): the screen then shows the
+   * rows that match and nothing about whole origins - no "Guardar los N",
+   * no repeated shops, no origin with nothing left in it (Jose, 2026-10-05).
+   */
+  readonly narrowed = computed(() => this.showOnly() !== 'all' || this.search().trim() !== '');
+
+  /** The origins on view: under a filter, only those with a row that matches. */
+  readonly shownBatches = computed(() =>
+    this.narrowed() ? this.batches().filter(batch => this.shownIn(batch).length > 0) : this.batches());
+
   readonly shownCount = computed(() => this.batches().reduce((sum, batch) => sum + this.shownIn(batch).length, 0));
 
   countOf(count: number): string {
@@ -423,18 +434,38 @@ export class ReviewPage {
     return typeof read['file'] === 'string' ? read['file'] : this.fileOf(batch.key);
   }
 
+  /**
+   * What each statement said about its own arithmetic, kept per batch on this
+   * device (Jose, 2026-10-05: the mark showed only beside the statement read
+   * last, so one statement had it and the next did not, and it was taken for
+   * "everything here is ready"). It says one thing only: the statement's
+   * opening balance plus what was read equals its closing balance.
+   */
+  private readonly checks = signal<Record<string, StatementCheck>>(loadChecks());
+
+  private readonly keepCheck = effect(() => {
+    const last = this.statements.lastImport();
+    if (last === null || last.reading.balances === 'unchecked') return;
+    const { reading } = last;
+    const all = { ...loadChecks(), [last.batch]: {
+      off: reading.balances === 'off', opening: reading.opening_minor ?? 0, closing: reading.closing_minor ?? 0,
+      read: reading.read_minor ?? 0, offBy: reading.offBy_minor ?? 0,
+    } };
+    try { localStorage.setItem(CHECKS_KEY, JSON.stringify(all)); } catch { /* the mark is a convenience */ }
+    this.checks.set(all);
+  });
+
   /** What the statement said about its own arithmetic, for its batch. */
   checkOf(batch: Batch): { off: boolean; line: string; gap: string } | null {
-    const last = this.statements.lastImport();
-    if (last === null || last.batch !== batch.key) return null;
-    const reading = last.reading;
-    const just = this.justRead();
-    if (!just) return null;
-    return {
-      off: reading.balances === 'off',
-      line: just.balances,
-      gap: reading.balances === 'off' ? this.money(Math.abs(reading.offBy_minor)) : '',
-    };
+    const kept = this.checks()[batch.key];
+    if (!kept) return null;
+    const line = kept.off
+      ? this.i18n.t('statement.balances.off', {
+          opening: this.money(kept.opening), closing: this.money(kept.closing),
+          read: this.money(kept.read), amount: this.money(Math.abs(kept.offBy)),
+        })
+      : this.i18n.t('statement.balances.checked', { opening: this.money(kept.opening), closing: this.money(kept.closing) });
+    return { off: kept.off, line, gap: kept.off ? this.money(Math.abs(kept.offBy)) : '' };
   }
 
   startImport(): void {
@@ -759,6 +790,19 @@ export class ReviewPage {
   });
 
   readonly selectedReady = computed(() => this.selectedLines().filter(line => this.ready(line)));
+
+  /**
+   * Ticked rows that cannot be written yet. While there is one, saving the
+   * selection waits and the bar says how many (Jose, 2026-10-05: a row with
+   * no category could be ticked and the button still offered to save).
+   */
+  readonly selectedWaiting = computed(() => this.selectedLines().filter(line => !this.ready(line)));
+
+  /** "Ver cuáles": the list narrowed to what still needs something. */
+  seeWaiting(): void {
+    this.showOnly.set('waiting');
+    this.selectedIds.set(new Set(this.selectedWaiting().map(line => line.proposal.id)));
+  }
 
   readonly allShownSelected = computed(() => {
     const shown = this.shownLines();
@@ -1152,7 +1196,7 @@ export class ReviewPage {
     }
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.sure');
     if (asking.kind === 'acceptSelected') {
-      return this.i18n.t('review.accept.sure', { count: this.selectedReady().length });
+      return this.i18n.t('review.accept.sure', { count: this.selectedLines().length });
     }
     if (asking.kind === 'discardSelected') {
       return this.i18n.t('review.discard.sureAll', { count: this.selectedLines().length });
@@ -1267,7 +1311,7 @@ export class ReviewPage {
     } else if (asking.kind === 'acceptOne') {
       await this.write([asking.line.proposal]);
     } else if (asking.kind === 'acceptSelected') {
-      await this.write(this.selectedReady().map(line => line.proposal));
+      await this.write(this.selectedLines().map(line => line.proposal));
       // What could not be saved stays ticked, so it is plain what is left.
       if (this.selectedLines().length === 0) this.stopSelecting();
     } else if (asking.kind === 'discardSelected') {
@@ -1391,4 +1435,12 @@ export class ReviewPage {
       this.working.set(false);
     }
   }
+}
+
+interface StatementCheck { off: boolean; opening: number; closing: number; read: number; offBy: number }
+
+const CHECKS_KEY = 'finance.statementChecks';
+
+function loadChecks(): Record<string, StatementCheck> {
+  try { return JSON.parse(localStorage.getItem(CHECKS_KEY) ?? '{}') ?? {}; } catch { return {}; }
 }
