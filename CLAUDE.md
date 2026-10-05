@@ -1602,6 +1602,20 @@ backup restore against iOS's own SQLite backend.
      pill with its tick, the actions as tiles (Categoría, No ver más -
      `forgetThese`, asked first -, Descartar) and the save as a full-width
      button, so a long label never spills.
+     **Saving a selection waits while any ticked row still needs
+     something** (Jose, 2026-10-05): the button is disabled and the bar
+     says "N de los elegidos aún necesitan algo" with "Ver cuáles". Under
+     a filter or a search an origin shows only what matches ("4 de 14
+     movimientos"), never its "Guardar los N" card or its repeated shops,
+     and an origin with nothing matching is not shown. The statement's own
+     check is a labelled pill, "Cuadra" / "No cuadra" (its opening balance
+     plus what was read equals its closing one - nothing to do with rows
+     being ready), kept per batch on the device (`finance.statementChecks`)
+     so every statement read on it keeps its mark, not only the last.
+     "Con aviso" is blue, like the notices on its rows; "Les falta algo"
+     stays amber. The shops' heading has no tick of its own (it showed
+     half-ticked whenever a day was ticked), and "Descartar estos N" of
+     "Ya los tienes registrados" folds with its section.
      "Mensajes de texto" lists the ticked senders on top and folds the rest
      under "Otros remitentes", newest message first, "N mensajes · último
      {día}". A band the page's colour holds the status bar's strip on every
