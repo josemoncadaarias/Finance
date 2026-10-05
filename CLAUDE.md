@@ -125,6 +125,7 @@ detail of each is in the section named):
 | #51 | "¿Qué cambia?" on a transfer between two accounts, at each end with products (option B, 17b); the net worth line | Rule 15 ("¿Qué cambia?") |
 | #50 | "Mensajes de texto" says why no SMS sender is listed (no words readable, no money yet, nothing yet) | Rule 22 (SMS) |
 | #49 | A hidden messaging app no longer hides its SMS senders; the notices' days say the month | Rule 22 (SMS) |
+| #52 | Hidden chat apps (WhatsApp) ignored whole; only the SMS app keeps its senders while hidden | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
@@ -1487,6 +1488,11 @@ backup restore against iOS's own SQLite backend.
      conversation from a hidden app is now still read for senders - noted
      only when it looks like money, kept only when ticked. The first SMS of
      a new sender is never kept: it lists the sender, to be ticked.
+     **Only the phone's own SMS app, though** (#52, 2026-10-05): every chat
+     app counts as a conversation, so hidden WhatsApp chats were listed as
+     senders (Jose's screenshot). A hidden app other than the default SMS
+     app (`NotificationStore.isSmsApp`) is ignored whole again, and senders
+     already noted from one are not listed (they return if it is shown).
    - **"Mensajes de texto" always says why it lists no sender** (#50,
      2026-10-02). Jose's next Ualá SMS reached the app - a messaging app
      "Teléfono" (`com.google.an…`) appeared with "2 avisos" - and still no

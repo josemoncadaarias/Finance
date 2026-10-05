@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.provider.Telephony;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -66,15 +65,19 @@ public class NotificationCatcher extends NotificationListenerService {
         boolean summary = (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0;
         String label = labelOf(pkg);
 
-        // An app the person hid is not even counted - except that hiding the
-        // messaging app hides that app's row, never its senders: a bank's SMS
+        // An app the person hid is not even counted - except the phone's own
+        // SMS app, whose row is hidden but never its senders: a bank's SMS
         // arrives through it, and each sender is ticked or hidden on its own
         // (2026-10-02: a messaging app hidden with the rest of the noise
-        // silenced every bank that texts). Nothing a sender says is kept
-        // until it is ticked, and only senders whose messages look like money
-        // are even listed.
+        // silenced every bank that texts). Any other app hidden - WhatsApp,
+        // a chat - is ignored whole (Jose, 2026-10-05: hidden WhatsApp chats
+        // were being listed as senders). Nothing a sender says is kept until
+        // it is ticked, and only senders whose messages look like money are
+        // even listed.
         if (NotificationStore.isHidden(this, pkg)) {
-            if (conversation && extras != null) keepConversation(pkg, label, extras, at, summary);
+            if (conversation && extras != null && NotificationStore.isSmsApp(this, pkg)) {
+                keepConversation(pkg, label, extras, at, summary);
+            }
             return;
         }
         NotificationStore.noteApp(this, pkg, label, at, conversation);
@@ -118,11 +121,7 @@ public class NotificationCatcher extends NotificationListenerService {
     private boolean isConversation(String pkg, Notification notification, Bundle extras) {
         if (Notification.CATEGORY_MESSAGE.equals(notification.category)) return true;
         if (extras != null && extras.containsKey(Notification.EXTRA_MESSAGES)) return true;
-        try {
-            return pkg.equals(Telephony.Sms.getDefaultSmsPackage(this));
-        } catch (Exception unknown) {
-            return false;
-        }
+        return NotificationStore.isSmsApp(this, pkg);
     }
 
     /**

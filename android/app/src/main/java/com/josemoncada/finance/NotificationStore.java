@@ -2,6 +2,7 @@ package com.josemoncada.finance;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.provider.Telephony;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -136,6 +137,15 @@ final class NotificationStore {
         prefs(context).edit().putString(WATCHED, toggled(context, WATCHED, pkg, on)).apply();
     }
 
+    /** The phone's own SMS app, the one whose hidden row still lists senders. */
+    static boolean isSmsApp(Context context, String pkg) {
+        try {
+            return pkg != null && pkg.equals(Telephony.Sms.getDefaultSmsPackage(context));
+        } catch (Exception unknown) {
+            return false;
+        }
+    }
+
     static boolean isHidden(Context context, String pkg) {
         return contains(context, HIDDEN, pkg);
     }
@@ -239,6 +249,10 @@ final class NotificationStore {
                 JSONObject copy = new JSONObject(one.toString());
                 String pkg = copy.optString("package");
                 String sender = copy.optString("sender");
+                // A hidden app's senders are not listed, unless it is the
+                // SMS app: senders noted from a hidden chat app before
+                // 2026-10-05 disappear, and come back if the app is shown.
+                if (isHidden(context, pkg) && !isSmsApp(context, pkg)) continue;
                 copy.put("watched", isSenderWatched(context, pkg, sender));
                 copy.put("hidden", isSenderHidden(context, pkg, sender));
                 list.put(copy);
