@@ -263,17 +263,21 @@
   <!-- Getting around a long list: up only once it has left the top, down only
        while there is more below. `slot="fixed"` keeps them still. -->
   @if (!searching() && (showJumpUp() || showJumpDown())) {
+    <!-- The arrows hold their places; between them, folding everything
+         (Jose, 2026-10-05), only where the list folds. -->
     <div class="ui-jump" slot="fixed">
-      @if (showJumpUp()) {
-        <button type="button" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
-          <ion-icon name="arrow-up-outline"></ion-icon>
+      <button type="button" [class.away]="!showJumpUp()" (click)="toTop()" [attr.aria-label]="'summary.toTop' | t" [title]="'summary.toTop' | t">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+      </button>
+      @if (filter.showList() && filter.grouping() !== 'largest' && store.groups().length > 0) {
+        <button type="button" class="fold" (click)="foldAll()"
+                [attr.aria-label]="(store.allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t" [title]="(store.allCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t">
+          <ion-icon [name]="store.allCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
         </button>
       }
-      @if (showJumpDown()) {
-        <button type="button" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
-          <ion-icon name="arrow-down-outline"></ion-icon>
-        </button>
-      }
+      <button type="button" [class.away]="!showJumpDown()" (click)="toBottom()" [attr.aria-label]="'summary.toBottom' | t" [title]="'summary.toBottom' | t">
+        <ion-icon name="arrow-down-outline"></ion-icon>
+      </button>
     </div>
   }
 </ion-content>

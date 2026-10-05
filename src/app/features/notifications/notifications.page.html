@@ -337,7 +337,7 @@
     }
   </div>
 
-  <app-jump #jump [content]="list" [hidden]="selecting()"></app-jump>
+  <app-jump #jump [content]="list" [hidden]="selecting()" [folded]="jumpFolded()" (fold)="foldEverything()"></app-jump>
 
   <!-- What to do with the ticked apps (7d). -->
   @if (selecting()) {
@@ -350,19 +350,21 @@
           <b>{{ (selectedApps().length === 1 ? 'ui.notifications.chosenOne' : 'ui.notifications.chosen') | t:{ count: selectedApps().length } }}</b>
           <small>{{ 'ui.notifications.ofOnView' | t:{ count: sortedApps().length } }}</small>
         </span>
-        <button type="button" class="all" (click)="selectAll()">{{ 'ui.notifications.all' | t }}</button>
-        <span class="dot">·</span>
-        <button type="button" class="all" (click)="stopSelecting(); startSelecting()">{{ 'ui.notifications.none.pick' | t }}</button>
+        <button type="button" class="pick-all" [class.on]="allSelected()" (click)="selectAll()">
+          <span class="ui-tick" [class.on]="allSelected()" aria-hidden="true">
+            @if (allSelected()) { <ion-icon name="checkmark"></ion-icon> }
+          </span>{{ 'ui.notifications.all' | t }}
+        </button>
       </div>
-      <div class="acts three">
+      <div class="acts tiles">
         <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(true)">
-          <ion-icon name="bookmark"></ion-icon>{{ 'ui.notifications.keep' | t }}
+          <ion-icon name="bookmark"></ion-icon><span>{{ 'ui.notifications.keep' | t }}</span>
         </button>
         <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(false)">
-          <ion-icon name="bookmark-outline"></ion-icon>{{ 'ui.notifications.dontKeep' | t }}
+          <ion-icon name="bookmark-outline"></ion-icon><span>{{ 'ui.notifications.dontKeep' | t }}</span>
         </button>
         <button type="button" class="drop" [disabled]="selectedApps().length === 0" (click)="hideSelected()">
-          <ion-icon name="eye-off-outline"></ion-icon>{{ 'notifications.hide.do' | t }}
+          <ion-icon name="eye-off-outline"></ion-icon><span>{{ 'notifications.hide.do' | t }}</span>
         </button>
       </div>
     </div>

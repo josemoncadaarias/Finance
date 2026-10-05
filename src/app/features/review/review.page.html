@@ -114,7 +114,7 @@
       @for (batch of batches(); track batch.key) {
         <!-- One origin - a statement or a sender - is one block, folded or open;
              its head stays pinned while its rows scroll (Jose, 2026-10-05). -->
-        <div class="origin">
+        <div class="origin" [class.shut]="!isBatchOpen(batch)">
         <div class="origin-head" (click)="toggleBatch(batch)">
           <app-badge shape="ci" [size]="36" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
           <span class="ui-tx">
@@ -305,10 +305,13 @@
     }
   </div>
 
-  <app-jump #jump [content]="list" [hidden]="selecting()"></app-jump>
+  <app-jump #jump [content]="list" [hidden]="selecting()" [folded]="total() > 0 ? allDaysClosed() : null" (fold)="toggleAllDays()"></app-jump>
 
   <!-- What to do with the ticked rows (6j). -->
   @if (selecting()) {
+    <!-- Rebuilt 2026-10-05 (Jose): the count on its own, one "Todos" that
+         ticks and unticks, the three answers as tiles with their word under
+         the icon, and saving on a row of its own so its words always fit. -->
     <div class="selection-bar" slot="fixed">
       <div class="top">
         <button type="button" class="close" (click)="stopSelecting()" [attr.aria-label]="'entry.cancel' | t">
@@ -318,23 +321,29 @@
           <b>{{ (selectedLines().length === 1 ? 'ui.review.chosenOne' : 'ui.review.chosen') | t:{ count: selectedLines().length } }}</b>
           <small>{{ 'ui.review.ofOnView' | t:{ count: shownCount() } }}</small>
         </span>
-        <button type="button" class="all" (click)="selectAllShown()">{{ 'review.select.all' | t }}</button>
-        <span class="dot">·</span>
-        <button type="button" class="all" (click)="stopSelecting(); startSelecting()">{{ 'review.select.none' | t }}</button>
+        <button type="button" class="pick-all" [class.on]="allShownSelected()" (click)="selectAllShown()">
+          <span class="ui-tick" [class.on]="allShownSelected()" aria-hidden="true">
+            @if (allShownSelected()) { <ion-icon name="checkmark"></ion-icon> }
+          </span>{{ 'review.select.all' | t }}
+        </button>
       </div>
-      <div class="acts">
+      <div class="acts tiles">
         <button type="button" [disabled]="working() || selectedLines().length === 0" (click)="choosingForSelection.set(true)">
-          <ion-icon name="pricetag-outline"></ion-icon>{{ 'entry.category' | t }}
+          <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'entry.category' | t }}</span>
+        </button>
+        <button type="button" [disabled]="working() || selectedLines().length === 0" (click)="asking.set({ kind: 'forgetSelected' })">
+          <ion-icon name="eye-off-outline"></ion-icon><span>{{ 'ui.review.notAgain' | t }}</span>
         </button>
         <button type="button" class="drop" [disabled]="working() || selectedLines().length === 0"
-                (click)="asking.set({ kind: 'discardSelected' })" [attr.aria-label]="'review.discard' | t">
-          <ion-icon name="trash-outline"></ion-icon>
-        </button>
-        <button type="button" class="save" [disabled]="working() || selectedReady().length === 0"
-                (click)="asking.set({ kind: 'acceptSelected' })">
-          {{ (selectedReady().length === 1 ? 'ui.review.saveOne' : 'ui.review.save') | t:{ count: selectedReady().length } }}
+                (click)="asking.set({ kind: 'discardSelected' })">
+          <ion-icon name="trash-outline"></ion-icon><span>{{ 'review.discard' | t }}</span>
         </button>
       </div>
+      <button type="button" class="save-all" [disabled]="working() || selectedReady().length === 0"
+              (click)="asking.set({ kind: 'acceptSelected' })">
+        <ion-icon name="checkmark-done"></ion-icon>
+        {{ (selectedReady().length === 1 ? 'ui.review.saveOne' : 'ui.review.save') | t:{ count: selectedReady().length } }}
+      </button>
     </div>
   }
 </ion-content>

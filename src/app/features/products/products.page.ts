@@ -2718,6 +2718,22 @@ export class ProductsPage {
     this.movementFold.toggle(key);
   }
 
+  /** The middle button between the arrows: folds or opens everything of the tab on show. */
+  readonly sheetFolded = computed<boolean | null>(() => {
+    const tab = this.pageTab();
+    if (tab === 'movements') return this.movementsView() === 'largest' ? null : this.allGroupsCollapsed();
+    if (tab === 'payments') return this.allPaymentMonthsClosed();
+    if (tab === 'days') return this.allDayMonthsClosed();
+    return null;
+  });
+
+  sheetFold(): void {
+    const tab = this.pageTab();
+    if (tab === 'movements') this.toggleAllGroups();
+    else if (tab === 'payments') this.togglePaymentMonths();
+    else if (tab === 'days') this.toggleDayMonths();
+  }
+
   toggleAllGroups(): void {
     this.movementFold.toggleAll();
   }
