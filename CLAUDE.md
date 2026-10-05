@@ -2552,9 +2552,13 @@ sample backup grew for it: a credit card with everyday spending in ordinary
 words (no brands) paid monthly from Banco Azul, and each product named in
 Spanish with its rate on the product. Taking them showed seventeen Spanish
 report labels without their accents ("Gasto mas grande"); fixed.
-- **Still to redo before publishing**: `site/index.html` says the app's goal
-  is income tax and that Jose Moncada Arias made it; the privacy policy and
-  home page Play asks for must speak for Jadex Labs and the app as it is now.
+- **The site speaks for Jadex Labs now** (2026-10-05): `site/index.html`
+  and `site/privacy.html` name Jadex Labs and jadex.apps@gmail.com, and the
+  policy covers PDF statements, phone notifications, SMS from chosen senders
+  only (written ahead of the READ_SMS work, for Play's Permissions
+  Declaration Form), the public data fetched (TRM, ECB via frankfurter.dev,
+  BanRep's IPC) and Drive. Payments are not in it yet: add them with the
+  paywall. Where the site is published is still to settle.
 
 **Android developer verification** (looked up 2026-09-24): from 30 September
 2026 in Brazil, Indonesia, Singapore and Thailand, and worldwide in 2027,
