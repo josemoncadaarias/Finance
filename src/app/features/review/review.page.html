@@ -299,6 +299,8 @@
         </div>
       }
       <div class="ui-page-end"></div>
+      <!-- Room for the selection bar, so the last rows can be scrolled above it. -->
+      @if (selecting()) { <div class="selection-room"></div> }
     }
   </div>
 

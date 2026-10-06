@@ -418,8 +418,13 @@ backup restore against iOS's own SQLite backend.
    while Inicio, Cuentas and the list of accounts on the products screen
    opened the ordinary form and counted everything in net worth.
    - **Both forms ask now.** The ordinary movement form shows the row under
-     the category when the account has products, on a NEW income or
-     spending only - a movement being corrected keeps its shape. One sheet
+     the category when the account has products, new or corrected: **a
+     movement being corrected shows its answer too** (Jose, 2026-10-06: it
+     could not be changed afterwards), read off its rows (`scopeOfMovement`),
+     and another answer rewrites it from scratch (`rewriteScoped`: the
+     movement and its half go, the new shape is written, both accounts'
+     days worked out again), as the products screen's form always did; a
+     loan's payment keeps its own shape. One sheet
      for both (`shared/scope-sheet`), and one writer (`writeScoped`), which
      the products screen's form now uses too.
    - **The answer starts on the habit, and only the habit**, as Jose chose
@@ -1602,6 +1607,8 @@ backup restore against iOS's own SQLite backend.
      pill with its tick, the actions as tiles (Categoría, No ver más -
      `forgetThese`, asked first -, Descartar) and the save as a full-width
      button, so a long label never spills.
+     While choosing, both lists end 320px lower (`.selection-room`), so the
+     last rows scroll above the bar.
      **Saving a selection waits while any ticked row still needs
      something** (Jose, 2026-10-05): the button is disabled and the bar
      says "N de los elegidos aún necesitan algo" with "Ver cuáles". Under

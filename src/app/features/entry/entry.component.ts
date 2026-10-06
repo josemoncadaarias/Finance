@@ -42,7 +42,7 @@ import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../.
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
 import { whatItHolds } from '../../core/yields/holdings';
-import { DEFAULT_SCOPE, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
+import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { transferEffect } from '../../core/transfers/transfer-effect';
 import { accrueAndSettle } from '../../core/yields/cdt';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
@@ -216,11 +216,14 @@ export class EntryComponent implements OnInit, OnDestroy {
    * "¿Qué cambia?" (`core/yields/entry-scope.ts`), asked here too whenever the
    * account has products (Jose, 2026-09-28): an ordinary movement for a
    * salary, the product alone for a gain not to be counted in net worth yet.
-   * Only on a new income or spending: a movement being corrected is already
-   * one shape, and the products screen corrects the other two.
+   * A movement being corrected is asked too (Jose, 2026-10-06: it could not
+   * be changed afterwards), starting on the shape it has; a loan's payment
+   * keeps its own.
    */
   readonly asksScope = computed(() =>
-    !this.isTransfer() && !this.isEditing() && this.products().length > 0);
+    !this.isTransfer() && this.products().length > 0 && this.loanPayment() === null);
+  /** The shape of the movement being corrected, read off its rows when it opened. */
+  private scopeWhenOpened: EntryScope | null = null;
   readonly scope = signal<EntryScope>(DEFAULT_SCOPE);
   readonly choosingScope = signal(false);
   /** Chosen by hand: the habit stops following the form. */
@@ -850,6 +853,11 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.accountId.set(editing.account_id);
       this.occurredOn.set(editing.occurred_on);
       this.note.set(editing.description ?? '');
+      // Its answer, as its rows say it: a movement with its other half on a
+      // product is "net worth alone", any other one "both".
+      this.scopeWhenOpened = await scopeOfMovement(this.database.driver, editing.id);
+      this.scopeTouched = true;
+      this.scope.set(this.scopeWhenOpened);
       return;
     }
 
@@ -1327,7 +1335,8 @@ export class EntryComponent implements OnInit, OnDestroy {
       const loan = this.loanEntry();
       if (loan) await this.saveLoanPayment(loan);
       else if (this.isTransfer()) await this.saveTransfer();
-      else if (this.asksScope() && this.scope() !== 'both') await this.saveScoped();
+      else if (this.request().editing && this.reshapes()) await this.saveReshaped();
+      else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') await this.saveScoped();
       else await this.saveMovement();
 
       this.database.dataChanged();
@@ -1610,6 +1619,55 @@ export class EntryComponent implements OnInit, OnDestroy {
       await yields.clearDays(accountId, this.occurredOn());
     });
     await accrueAndSettle(db, yields, new TaxParametersRepository(db), accountId, todayIso());
+    await yields.markAccrued(todayIso(), { onlyIfKnown: true });
+  }
+
+  /**
+   * Whether a correction changes the movement's shape: another answer to
+   * "¿Qué cambia?", an account without products where a product half was
+   * kept, or "net worth alone" turned from income to spending (its half is
+   * a cash-out one way and an entry the other). Otherwise the row is
+   * patched, and `TransactionsRepository.update` keeps its half in step.
+   */
+  private reshapes(): boolean {
+    const editing = this.request().editing;
+    if (!editing || this.scopeWhenOpened === null) return false;
+    const now: EntryScope = this.asksScope() ? this.scope() : 'both';
+    if (now !== this.scopeWhenOpened) return true;
+    const wasIncome = editing.amount_minor > 0;
+    return now === 'netWorth' && wasIncome !== (this.kind() === 'income');
+  }
+
+  /**
+   * A correction into another shape is written again from scratch, as the
+   * products screen does: the movement and its half go, the new shape is
+   * written, and both accounts' days are worked out again from the earlier
+   * date.
+   */
+  private async saveReshaped(): Promise<void> {
+    const editing = this.request().editing!;
+    const db = this.database.driver;
+    const yields = new YieldsRepository(db);
+    const accountId = this.accountId()!;
+    const from = editing.occurred_on < this.occurredOn() ? editing.occurred_on : this.occurredOn();
+    await db.transaction(async () => {
+      await rewriteScoped(db, yields, editing.id, {
+        scope: this.asksScope() ? this.scope() : 'both',
+        kind: this.kind() === 'expense' ? 'expense' : 'income',
+        accountId,
+        categoryId: this.categoryId(),
+        productId: this.productId(),
+        movementProductId: this.splitAccount() ? this.productId() : null,
+        onDate: this.occurredOn(),
+        amountMinor: this.amount().minor,
+        note: this.note().trim() || null,
+      });
+      await yields.clearDays(accountId, from);
+      if (editing.account_id !== accountId) await yields.clearDays(editing.account_id, editing.occurred_on);
+    });
+    const tax = new TaxParametersRepository(db);
+    await accrueAndSettle(db, yields, tax, accountId, todayIso());
+    if (editing.account_id !== accountId) await accrueAndSettle(db, yields, tax, editing.account_id, todayIso());
     await yields.markAccrued(todayIso(), { onlyIfKnown: true });
   }
 
