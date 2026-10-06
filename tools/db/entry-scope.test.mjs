@@ -110,3 +110,38 @@ test('what each answer writes', async () => {
     'SELECT t.amount_minor AS moved, e.amount_minor AS back FROM product_entries e JOIN transactions t ON t.id = e.transaction_id');
   assert.deepEqual({ ...spent }, { moved: -10_000_00, back: 10_000_00 }, 'a spending: the movement, and the same amount back into the product');
 });
+
+test('a movement corrected into another shape: every way round, by balance and product figure', async () => {
+  const { scopeOfMovement, rewriteScoped } = await import('../../src/app/core/yields/entry-scope.ts');
+  const shapes = ['both', 'netWorth', 'product'];
+  for (const kind of ['income', 'expense']) {
+    for (const from of ['both', 'netWorth']) {
+      for (const to of shapes) {
+        const w = await world();
+        const yields = new YieldsRepository(w.db, NOW);
+        const category = kind === 'income' ? w.salary : w.food;
+        await w.write(from, category, '2026-09-01', kind);
+        const tx = await w.db.queryOne('SELECT id FROM transactions');
+        assert.equal(await scopeOfMovement(w.db, tx.id), from, `${kind}: ${from} is read back`);
+
+        await w.db.transaction(() => rewriteScoped(w.db, yields, tx.id, {
+          scope: to, kind, accountId: w.bank, categoryId: category, productId: w.usual.id, movementProductId: null,
+          onDate: '2026-09-02', amountMinor: 10_000_00, note: null,
+        }));
+
+        // Against the same shape written fresh: the same rows, nothing left behind.
+        const fresh = await world();
+        await fresh.write(to, kind === 'income' ? fresh.salary : fresh.food, '2026-09-02', kind);
+        for (const table of ['transactions', 'product_entries', 'product_cashouts']) {
+          assert.equal(await w.count(table), await fresh.count(table), `${kind} ${from} → ${to}: ${table}`);
+        }
+        const balance = async (db) => (await db.queryOne('SELECT COALESCE(SUM(amount_minor), 0) AS s FROM transactions')).s;
+        assert.equal(await balance(w.db), await balance(fresh.db), `${kind} ${from} → ${to}: balance`);
+        if (to !== 'product') {
+          const left = await w.db.queryOne('SELECT id FROM transactions');
+          assert.equal(await scopeOfMovement(w.db, left.id), to, `${kind} ${from} → ${to}: read back`);
+        }
+      }
+    }
+  }
+});

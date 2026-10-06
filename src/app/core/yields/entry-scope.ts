@@ -144,3 +144,31 @@ export async function writeScoped(db: SqlDriver, yields: YieldsRepository, input
     });
   }
 }
+
+/**
+ * The answer a movement already on record carries, read off its rows: one
+ * with its other half on a product (a cash-out or an entry naming it) is
+ * `netWorth`, any other one `both`. A product's own entry, with no movement,
+ * is `product` and is corrected from the products screen.
+ */
+export async function scopeOfMovement(db: SqlDriver, transactionId: number): Promise<EntryScope> {
+  const half = await db.queryOne<{ n: number }>(
+    `SELECT (SELECT COUNT(*) FROM product_cashouts WHERE transaction_id = ?)
+          + (SELECT COUNT(*) FROM product_entries WHERE transaction_id = ?) AS n`,
+    [transactionId, transactionId]);
+  return (half?.n ?? 0) > 0 ? 'netWorth' : 'both';
+}
+
+/**
+ * A movement corrected into another shape (Jose, 2026-10-06: "¿Qué cambia?"
+ * could not be changed afterwards). It is written again from scratch, the
+ * way the products screen corrects its own: the movement goes with its half,
+ * and the new shape is written. The caller runs it inside a transaction and
+ * works the days out again from the earlier of the two dates.
+ */
+export async function rewriteScoped(
+  db: SqlDriver, yields: YieldsRepository, transactionId: number, input: Parameters<typeof writeScoped>[2],
+): Promise<void> {
+  await new TransactionsRepository(db).delete(transactionId);
+  await writeScoped(db, yields, input);
+}

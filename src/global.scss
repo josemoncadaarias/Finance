@@ -2617,3 +2617,8 @@ ion-app::before {
     &:disabled { opacity: 0.45; }
   }
 }
+
+/* While choosing, the list ends this far below its last row: the selection
+   bar (up to ~300px with its warning line) floats over the foot of the page,
+   and the last rows have to be able to scroll above it (Jose, 2026-10-06). */
+.selection-room { height: 320px; flex-shrink: 0; }
