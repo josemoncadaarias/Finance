@@ -511,9 +511,14 @@ export class MovementsPage {
     return text;
   }
 
+  /**
+   * Green for money arriving, red for money leaving. A refund on a card is
+   * money arriving: it is counted as spending undone (never as income), but
+   * drawn red beside its "+" it read as an expense (Jose, 2026-10-06).
+   */
   toneOf(flow: Flow): string {
-    if (flow === 'in') return 'ui-g';
-    if (flow === 'out' || flow === 'refund') return 'ui-r';
+    if (flow === 'in' || flow === 'refund') return 'ui-g';
+    if (flow === 'out') return 'ui-r';
     return 'ui-t';
   }
 
