@@ -16,6 +16,8 @@ public class SmsReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !Telephony.Sms.Intents.SMS_RECEIVED_ACTION.equals(intent.getAction())) return;
+        // An SMS wakes the app: a good moment to bring the listener back.
+        NotificationCatcher.ensureBound(context);
         SmsMessage[] parts;
         try {
             parts = Telephony.Sms.Intents.getMessagesFromIntent(intent);
