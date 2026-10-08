@@ -481,6 +481,11 @@ backup restore against iOS's own SQLite backend.
      the amount typed passes it, and no "Gastar todo"; an income (a payment
      or a refund) shows "Debes X · Cupo disponible Y". A card with no limit
      on record says only what is owed (`cardLine`).
+     **A transfer into a card offers "Pagar todo · X"** (Jose, 2026-10-08)
+     beside "Pasar todo": it fills the amount with everything the card
+     owes (`toCardOwes`, `payEverything`), not only the statement. Not when
+     the two ends are in different currencies, nor on a loan's payment;
+     "Invertir" clears it like "Pasar todo".
 
    **A transfer between two accounts asks it too, at each end with
    products** (Jose, 2026-10-03; mockups `17a`-`17f`, option B chosen: the

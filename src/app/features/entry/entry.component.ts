@@ -758,6 +758,39 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.filledWithAll = null;
   }
 
+  /**
+   * What the card a transfer goes to owes, for "Pagar todo" (Jose,
+   * 2026-10-08): null when the far end is not a card, owes nothing, or is in
+   * another currency (then the arriving figure is typed apart).
+   */
+  readonly toCardOwes = signal<number | null>(null);
+  private owesAsked = 0;
+
+  private readonly readOwes = effect(() => {
+    const to = this.toAccount();
+    const transfer = this.isTransfer();
+    const asked = ++this.owesAsked;
+    this.toCardOwes.set(null);
+    if (!transfer || !to || to.type !== 'credit' || this.database.status() !== 'ready') return;
+    void whatItHolds(this.database.driver, to.id, null, todayIso()).then(held => {
+      if (asked !== this.owesAsked) return;
+      this.toCardOwes.set(held < 0 ? -held : null);
+    });
+  });
+
+  readonly toCardOwesText = computed(() => {
+    const owes = this.toCardOwes();
+    return owes === null ? '' : formatMoney(owes, this.targetCurrency(), { withSymbol: false });
+  });
+
+  /** Fills the amount with the whole debt of the card the transfer goes to. */
+  payEverything(): void {
+    const owes = this.toCardOwes();
+    if (owes === null) return;
+    this.amount.set(AmountBuffer.from(owes));
+    this.filledWithAll = owes;
+  }
+
   moveEverything(): void {
     const held = this.fromHolds();
     if (held === null) return;
