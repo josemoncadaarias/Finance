@@ -329,7 +329,8 @@ final class NotificationStore {
     }
 
     /** Keeps one notification, oldest dropped once there are too many. */
-    static void keep(Context context, JSONObject caught) {
+    /** Keeps one message; false when it was already kept (a re-post). */
+    static boolean keep(Context context, JSONObject caught) {
         JSONArray all = array(context, CAUGHT);
         // A conversation re-posted carries its last message again: the same
         // app, sender, words and time are one message, kept once.
@@ -339,11 +340,12 @@ final class NotificationStore {
                     && one.optString("package").equals(caught.optString("package"))
                     && one.optString("sender").equals(caught.optString("sender"))
                     && one.optString("text").equals(caught.optString("text"))
-                    && one.optLong("postedAt") == caught.optLong("postedAt")) return;
+                    && one.optLong("postedAt") == caught.optLong("postedAt")) return false;
         }
         all.put(caught);
         while (all.length() > KEEP) all.remove(0);
         prefs(context).edit().putString(CAUGHT, all.toString()).apply();
+        return true;
     }
 
     /**

@@ -1,20 +1,19 @@
 /**
- * What the banks actually post, shown raw.
+ * Where the app hears about movements: every app and SMS sender the phone has
+ * seen, grouped by the bank (account) each one is (rule 22; mockup 19,
+ * approved by Jose 2026-10-08).
  *
- * Rule 22's first step and nothing beyond it, in Jose's own words: read the
- * notifications his banks post and show them for a few days, interpreting
- * nothing. Half of them may be "open the app to see", and finding that out
- * here costs an afternoon; finding it out after a parser is written costs the
- * parser.
- *
- * So there is no movement, no amount, no category and no account on this
- * screen. There is a list of apps the phone has been seen posting from, a tick
- * beside the ones worth keeping, and the text of what they said. Everything
- * this screen learns goes into the design of the next step.
+ * Folding sections, all closed on opening: "Tus bancos" (sources being read,
+ * by the account they turned out to be - learned from what the person saved,
+ * or said here with "¿De qué cuenta es?"), "Sin cuenta todavía", "Encontrados
+ * en tu celular" (SMS senders with money, not yet read), "Otras apps" and
+ * "Ocultas". Tapping a source shows its last messages and what became of
+ * each - proposed, saved, thrown away, or ignored and why - which replaced
+ * the raw list of everything kept (Jose: it no longer served anything).
  */
 
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { App } from '@capacitor/app';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 
@@ -27,36 +26,52 @@ import { foldText } from '../../core/text/fold-text';
 import {
   BankNotifications, SMS_INBOX, type CaughtNotification, type Diagnosis, type SeenNow, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
+import { DatabaseService } from '../../core/database/database.service';
+import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
+import { ProposalsRepository, type ProposalStatus } from '../../core/database/repositories/proposals.repository';
+import type { AccountRow } from '../../core/database/types';
+import { formatMoney } from '../../core/database/money';
+import { noticeKey, noticeSource } from '../../core/notices/notice-proposals';
+import { readNotice } from '../../core/notices/read-notice';
+import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
+
+/** One place the app hears from: an app, or an SMS sender inside one. */
+export interface Source {
+  /** As proposals know it: the package, or `package|sender`. */
+  key: string;
+  kind: 'app' | 'sms';
+  name: string;
+  line: string;
+  last: number;
+  watched: boolean;
+  hidden: boolean;
+  /** A messaging app not ticked whole: its banks are chosen by sender. */
+  bySender: boolean;
+  app: SeenApp | null;
+  sender: SeenSender | null;
+  /** The accounts it turned out to be, the person's own word first. */
+  accounts: number[];
+}
+
+type SectionKey = 'banks' | 'unknown' | 'found' | 'others' | 'hidden' | 'diag';
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })
 export class NotificationsPage {
   readonly i18n = inject(I18nService);
   private readonly location = inject(Location);
+  private readonly database = inject(DatabaseService);
 
-  // ---------------------------------------------------------------------------
-  // The redesign (mockups 7a-7l)
-  // ---------------------------------------------------------------------------
-
-  readonly face = signal<'apps' | 'caught'>('apps');
   readonly menuOpen = signal(false);
-  readonly pickingApp = signal(false);
   readonly info = signal<string | null>(null);
-  /** Which app's notices are on show; null is "Todas las apps". */
-  readonly appFilter = signal<string | null>(null);
 
   back(): void {
     this.location.back();
-  }
-
-  setFace(face: 'apps' | 'caught'): void {
-    this.face.set(face);
-    if (face === 'caught') this.stopSelecting();
   }
 
   /** While choosing, the selection bar takes the tab bar's place. */
@@ -67,16 +82,6 @@ export class NotificationsPage {
   ngOnDestroy(): void {
     document.body.classList.remove('choosing');
   }
-
-  readonly appFilterApp = computed(() => this.apps().find(app => app.package === this.appFilter()) ?? null);
-
-  /** The apps that have something kept, with how much, for the app list. */
-  readonly appsWithCaught = computed(() => {
-    const kept = new Map<string, number>();
-    for (const one of this.caught()) kept.set(one.package, (kept.get(one.package) ?? 0) + 1);
-    return this.apps().filter(app => kept.has(app.package))
-      .map(app => ({ package: app.package, label: app.label, kept: kept.get(app.package) ?? 0 }));
-  });
 
   /** A picture for an app, from ordinary words in its name - never a list of banks. */
   appIcon(pkg: string, label: string): string {
@@ -105,25 +110,14 @@ export class NotificationsPage {
     return new Date(at).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
   }
 
-  /** What they said, by day, newest first; the first day open. */
-  readonly caughtDays = computed(() => {
-    const days = new Map<string, { key: string; title: string; items: CaughtNotification[] }>();
-    const filter = this.appFilter();
-    for (const one of this.newest()) {
-      if (filter !== null && one.package !== filter) continue;
-      const date = new Date(one.postedAt);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      const day = days.get(key) ?? { key, title: this.dayTitle(date), items: [] };
-      day.items.push(one);
-      days.set(key, day);
-    }
-    return [...days.values()];
-  });
+  /** "7 de oct". */
+  private short(at: number): string {
+    return new Date(at).toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'short' });
+  }
 
   /**
    * "Viernes 25 de septiembre", with the year when it is not this one, and
-   * "Hoy" or "Ayer" in front: what is kept spans weeks, so a weekday and a
-   * day alone could be any month (Jose, 2026-10-02).
+   * "Hoy" or "Ayer" in front (Jose, 2026-10-02).
    */
   private dayTitle(date: Date): string {
     const locale = this.i18n.dateLocale();
@@ -136,27 +130,6 @@ export class NotificationsPage {
     if (date.toDateString() === today.toDateString()) return this.i18n.t('ui.today.day', { day: text });
     if (date.toDateString() === yesterday.toDateString()) return this.i18n.t('ui.yesterday.day', { day: text });
     return text.charAt(0).toUpperCase() + text.slice(1);
-  }
-
-  private readonly dayState = signal<ReadonlyMap<string, boolean>>(new Map());
-
-  isDayOpen(key: string): boolean {
-    const set = this.dayState().get(key);
-    // Everything starts folded on this screen (Jose, 2026-10-05).
-    return set ?? false;
-  }
-
-  toggleDay(key: string): void {
-    const next = new Map(this.dayState());
-    next.set(key, !this.isDayOpen(key));
-    this.dayState.set(next);
-  }
-
-  readonly allDaysClosed = computed(() => this.caughtDays().every(day => !this.isDayOpen(day.key)));
-
-  toggleAllDays(): void {
-    const open = this.allDaysClosed();
-    this.dayState.set(new Map(this.caughtDays().map(day => [day.key, open])));
   }
 
   readonly loading = signal(true);
@@ -181,14 +154,13 @@ export class NotificationsPage {
     if (one.ongoing) parts.push(this.i18n.t('ui.notifications.diag.ongoing'));
     return parts.join(' · ');
   }
+
   /** When Android last handed a notification over, connected or dropped the listener. */
   readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0 });
 
   /**
    * Whether the listener is really listening, said in one line (Jose,
-   * 2026-10-05: two SMS arrived and nothing moved, with the permission on).
-   * A listener dropped by Android, or silent for six hours on a phone that
-   * gets notifications all day, is said in amber with the way to fix it.
+   * 2026-10-05), in amber with the way to fix it when it is not.
    */
   readonly listening = computed(() => {
     const { heardAt, connectedAt, disconnectedAt } = this.listener();
@@ -208,7 +180,14 @@ export class NotificationsPage {
   }
 
   readonly apps = signal<SeenApp[]>([]);
+  readonly senders = signal<SeenSender[]>([]);
   readonly caught = signal<CaughtNotification[]>([]);
+  readonly accounts = signal<AccountRow[]>([]);
+  /** Which accounts each source turned out to be, from what was saved. */
+  private readonly learnedAccounts = signal<ReadonlyMap<string, number[]>>(new Map());
+  /** Which account the person said each source is. */
+  private readonly assigned = signal<ReadonlyMap<string, number>>(new Map());
+  private readonly outcomes = signal<ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null }>>(new Map());
   /** Whether the SMS inbox may be read (null until asked). */
   readonly smsGranted = signal<boolean | null>(null);
 
@@ -218,22 +197,165 @@ export class NotificationsPage {
     await this.look();
   }
 
-  /** Senders inside messaging apps that texted amounts of money (rule 22, SMS). */
-  readonly senders = signal<SeenSender[]>([]);
+  // ---------------------------------------------------------------------------
+  // The sources, by bank (mockup 19)
+  // ---------------------------------------------------------------------------
 
-  readonly sortedSenders = computed(() => this.senders().filter(one => !one.hidden
-    && (this.term().length === 0 || foldText(`${one.sender} ${one.app}`).includes(this.term())))
-    .sort((one, other) => Number(other.watched) - Number(one.watched) || other.last - one.last));
+  readonly search = signal('');
+  private readonly term = computed(() => foldText(this.search()));
+
+  private accountName(id: number): string {
+    return this.accounts().find(account => account.id === id)?.name ?? '';
+  }
+
+  account(id: number): AccountRow | null {
+    return this.accounts().find(account => account.id === id) ?? null;
+  }
+
+  private accountsOf(key: string): number[] {
+    const alive = new Set(this.accounts().filter(account => !account.archived).map(account => account.id));
+    const told = this.assigned().get(key);
+    if (told !== undefined && alive.has(told)) return [told];
+    return (this.learnedAccounts().get(key) ?? []).filter(id => alive.has(id));
+  }
+
+  /** Every app and sender as one kind of row. */
+  readonly sources = computed<Source[]>(() => {
+    const out: Source[] = [];
+    for (const app of this.apps()) {
+      out.push({
+        key: app.package, kind: 'app', name: app.label, last: app.last,
+        line: this.i18n.t('ui.notifications.appLine', { count: app.count, package: app.package }),
+        watched: app.watched, hidden: app.hidden, bySender: !!app.messaging && !app.watched,
+        app, sender: null, accounts: this.accountsOf(app.package),
+      });
+    }
+    for (const one of this.senders()) {
+      const key = noticeSource({ package: one.package, sender: one.sender });
+      out.push({
+        key, kind: 'sms', name: one.sender, last: one.last, line: this.senderLine(one),
+        watched: one.watched, hidden: one.hidden, bySender: false,
+        app: null, sender: one, accounts: this.accountsOf(key),
+      });
+    }
+    const term = this.term();
+    return out
+      .filter(one => term.length === 0 || foldText(`${one.name} ${one.key}`).includes(term))
+      .sort((a, b) => b.last - a.last);
+  });
+
+  private sectionOf(one: Source): Exclude<SectionKey, 'diag'> {
+    if (one.hidden) return 'hidden';
+    if (one.watched) return one.accounts.length > 0 ? 'banks' : 'unknown';
+    return one.kind === 'sms' ? 'found' : 'others';
+  }
+
+  readonly bySection = computed(() => {
+    const map = new Map<Exclude<SectionKey, 'diag'>, Source[]>();
+    for (const one of this.sources()) {
+      const key = this.sectionOf(one);
+      map.set(key, [...(map.get(key) ?? []), one]);
+    }
+    return map;
+  });
+
+  of(section: Exclude<SectionKey, 'diag'>): Source[] {
+    return this.bySection().get(section) ?? [];
+  }
+
+  /** "Tus bancos": the sources read, grouped by the accounts they are. */
+  readonly banks = computed(() => {
+    const groups = new Map<string, { key: string; ids: number[]; title: string; sources: Source[]; last: number }>();
+    for (const one of this.of('banks')) {
+      const ids = [...one.accounts].sort((a, b) => a - b);
+      const key = ids.join('-');
+      const group = groups.get(key) ?? {
+        key, ids, title: ids.map(id => this.accountName(id)).join(' · '), sources: [], last: 0,
+      };
+      group.sources.push(one);
+      group.last = Math.max(group.last, one.last);
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => b.last - a.last);
+  });
+
+  bankLine(bank: { sources: Source[]; last: number }): string {
+    const sources = this.i18n.t(bank.sources.length === 1 ? 'ui.notifications.count.sourceOne' : 'ui.notifications.count.sources',
+      { count: bank.sources.length });
+    return this.i18n.t('ui.notifications.bank.line', { sources, last: this.short(bank.last) });
+  }
+
+  sectionTitle(section: Exclude<SectionKey, 'diag'>): string {
+    return this.i18n.t(section === 'banks' ? 'ui.notifications.sec.banks'
+      : section === 'unknown' ? 'ui.notifications.sec.unknown'
+      : section === 'found' ? 'ui.notifications.sec.found'
+      : section === 'others' ? 'ui.notifications.sec.others' : 'ui.notifications.sec.hidden');
+  }
+
+  /** What each closed section says it holds. */
+  sectionLine(section: Exclude<SectionKey, 'diag'>): string {
+    const list = this.of(section);
+    if (section === 'banks') {
+      const banks = this.banks().length;
+      return `${this.i18n.t(banks === 1 ? 'ui.notifications.count.bankOne' : 'ui.notifications.count.banks', { count: banks })} · ${
+        this.i18n.t(list.length === 1 ? 'ui.notifications.count.sourceOne' : 'ui.notifications.count.sources', { count: list.length })}`;
+    }
+    const apps = list.filter(one => one.kind === 'app').length;
+    const senders = list.length - apps;
+    const parts: string[] = [];
+    if (apps > 0) parts.push(this.i18n.t(apps === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps', { count: apps }));
+    if (senders > 0) parts.push(this.i18n.t(senders === 1 ? 'ui.notifications.sendersOne' : 'ui.notifications.senders', { count: senders }));
+    const what = parts.join(' · ');
+    const hint = section === 'unknown' ? 'ui.notifications.sec.unknown.line'
+      : section === 'found' ? 'ui.notifications.sec.found.line'
+      : section === 'others' ? 'ui.notifications.sec.others.line' : null;
+    return hint ? `${what} · ${this.i18n.t(hint)}` : what;
+  }
+
+  // --- folding: everything starts closed (Jose, 2026-10-05) -----------------
+
+  private readonly openState = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  isOpen(key: string): boolean {
+    if (this.term().length > 0) return true;
+    return this.openState().get(key) ?? false;
+  }
+
+  /** Section keys, for templates that name them beside an icon. */
+  readonly K = { banks: 'banks', diag: 'diag' } as const;
+
+  /** The chevron of a folding row. */
+  chev(key: string): string {
+    return this.isOpen(key) ? 'chevron-up-outline' : 'chevron-down-outline';
+  }
+
+  toggleOpen(key: string): void {
+    const next = new Map(this.openState());
+    next.set(key, !this.isOpen(key));
+    this.openState.set(next);
+  }
+
+  private readonly foldKeys = computed(() => [
+    ...(['banks', 'unknown', 'found', 'others', 'hidden', 'diag'] as const).filter(key => key === 'diag' || this.of(key).length > 0),
+    ...this.banks().map(bank => `bank:${bank.key}`),
+  ]);
+
+  readonly jumpFolded = computed<boolean | null>(() => {
+    const keys = this.foldKeys();
+    return keys.length > 0 ? keys.every(key => !this.isOpen(key)) : null;
+  });
+
+  foldEverything(): void {
+    const open = this.jumpFolded() === true;
+    this.openState.set(new Map(this.foldKeys().map(key => [key, open])));
+  }
 
   /**
-   * What the "Mensajes de texto" section says while it lists no sender, one
-   * line per messaging app: its messages arrive without words (the phone
-   * hides them), none has looked like money yet, or nothing has come yet.
+   * What the SMS part says while no sender is listed, one line per messaging
+   * app: no words reach the app, nothing with money yet, or nothing yet.
    */
   readonly smsWaiting = computed(() => {
-    if (this.sortedSenders().length > 0) return [];
-    // Hidden ones too: a hidden SMS app is still read for its senders, and
-    // when none shows this is the only place that can say why.
+    if (this.senders().some(one => !one.hidden)) return [];
     return this.apps().filter(app => app.messaging).map(source => {
       const app = source.hidden
         ? { ...source, label: this.i18n.t('ui.notifications.sms.hiddenApp', { app: source.label }) }
@@ -249,167 +371,175 @@ export class NotificationsPage {
     });
   });
 
-  /**
-   * The senders the app reads, on top; the rest folded under them, newest
-   * message first (Jose, 2026-10-05: a year of SMS listed eighty senders,
-   * the ones he wanted mixed with the ones he did not).
-   */
-  readonly markedSenders = computed(() => this.sortedSenders().filter(one => one.watched));
-  readonly otherSenders = computed(() => this.sortedSenders().filter(one => !one.watched)
-    .sort((one, other) => other.last - one.last));
-  private readonly othersToggled = signal<boolean | null>(null);
-  readonly othersOpen = computed(() => this.term().length > 0
-    || (this.othersToggled() ?? false));
-  toggleOthers(): void {
-    this.othersToggled.set(!this.othersOpen());
-  }
-
-  readonly hiddenSenders = computed(() => this.senders().filter(one => one.hidden)
-    .sort((one, other) => one.sender.localeCompare(other.sender)));
-
   senderLine(one: SeenSender): string {
     if (one.package === SMS_INBOX) {
-      const last = new Date(one.last).toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'short' });
       return this.i18n.t(one.count === 1 ? 'ui.notifications.inboxLine.one' : 'ui.notifications.inboxLine',
-        { count: one.count, last });
+        { count: one.count, last: this.short(one.last) });
     }
     return this.i18n.t(one.count === 1 ? 'ui.notifications.senderLine.one' : 'ui.notifications.senderLine',
       { count: one.count, app: one.app });
   }
 
-  /** Starts or stops keeping what one sender says - never the whole messaging app. */
-  async watchSender(one: SeenSender, on: boolean): Promise<void> {
+  // --- reading one source, or keeping it -----------------------------------
+
+  /** Starts or stops reading one source. */
+  async watchSource(one: Source, on: boolean): Promise<void> {
     if (one.watched === on) return;
-    await BankNotifications.watchSender({ package: one.package, sender: one.sender, on });
+    if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
+    else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
     await this.look();
   }
 
-  /** Puts a sender away; asked first only when something it said was kept. */
-  async hideSender(one: SeenSender): Promise<void> {
-    if (this.caught().some(kept => kept.package === one.package && kept.sender === one.sender)) {
-      this.hidingSender.set(one);
-      this.asking.set('hideSender');
+  /** Puts sources away; asked first only when something they said was kept. */
+  async hideSources(list: Source[]): Promise<void> {
+    if (list.length === 0) return;
+    const keys = new Set(list.map(one => one.key));
+    if (this.caught().some(kept => keys.has(noticeSource(kept)))) {
+      this.hiding.set(list);
+      this.asking.set('hide');
       return;
     }
-    await BankNotifications.hideSender({ package: one.package, sender: one.sender, on: true });
+    await this.putAway(list);
+  }
+
+  private async putAway(list: Source[]): Promise<void> {
+    for (const one of list) {
+      if (one.sender) await BankNotifications.hideSender({ package: one.sender.package, sender: one.sender.sender, on: true });
+      else if (one.app) await BankNotifications.hide({ package: one.app.package, on: true });
+    }
+    this.stopSelecting();
     await this.look();
   }
 
-  async unhideSender(one: SeenSender): Promise<void> {
-    await BankNotifications.hideSender({ package: one.package, sender: one.sender, on: false });
+  async unhide(one: Source): Promise<void> {
+    if (one.sender) await BankNotifications.hideSender({ package: one.sender.package, sender: one.sender.sender, on: false });
+    else if (one.app) await BankNotifications.hide({ package: one.app.package, on: false });
     await this.look();
   }
 
-  private readonly hidingSender = signal<SeenSender | null>(null);
+  // --- one source's page: its account and what became of its messages -----
 
-  /** "1 app · 2 remitentes": what the hidden group holds. */
-  readonly hiddenLine = computed(() => {
-    const apps = this.hiddenApps().length;
-    const senders = this.hiddenSenders().length;
-    const parts: string[] = [];
-    if (apps > 0) parts.push(this.i18n.t(apps === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps', { count: apps }));
-    if (senders > 0) parts.push(this.i18n.t(senders === 1 ? 'ui.notifications.sendersOne' : 'ui.notifications.senders', { count: senders }));
-    return parts.join(' · ');
+  readonly openSource = signal<Source | null>(null);
+  /** The source whose account is being chosen. */
+  readonly pickingFor = signal<Source | null>(null);
+
+  tapped(one: Source): void {
+    if (this.selecting()) {
+      this.toggle(one);
+      return;
+    }
+    this.openSource.set(one);
+  }
+
+  /** The source on show, read again after a change. */
+  readonly shown = computed(() => {
+    const open = this.openSource();
+    return open ? this.sources().find(one => one.key === open.key) ?? open : null;
   });
 
-  /** Which question is on screen, or null. */
-  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | 'hideSender' | null>(null);
-  /** The apps a "hide" question is about: one, or the ticked ones. */
-  private readonly hiding = signal<SeenApp[]>([]);
+  /** Its last messages, each with what became of it. */
+  readonly shownMessages = computed(() => {
+    const source = this.shown();
+    if (!source) return [];
+    const outcomes = this.outcomes();
+    return this.caught()
+      .filter(one => noticeSource(one) === source.key)
+      .sort((a, b) => b.postedAt - a.postedAt)
+      .slice(0, 30)
+      .map(one => ({ one, when: `${this.short(one.postedAt)} · ${this.hour(one.postedAt)}`, ...this.outcomeOf(one, outcomes) }));
+  });
 
-  /**
-   * Several apps answered at once (Jose, 2026-09-25): tick them, then keep
-   * what they say, stop keeping it, or hide them. The same bar and gesture as
-   * the review screen - "Seleccionar", or a long press on a row.
-   */
+  private outcomeOf(
+    one: CaughtNotification,
+    outcomes: ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null }>,
+  ): { outcome: string; tone: 'grn' | 'blu' | 'mu' | 'yel' } {
+    const found = outcomes.get(noticeKey(one));
+    const amount = found?.amount == null ? '' : `${found.amount < 0 ? '−' : '+'}${formatMoney(Math.abs(found.amount), 'COP', { withSymbol: false })}`;
+    if (found?.status === 'pending') return { outcome: this.i18n.t('ui.notifications.out.pending', { amount }), tone: 'yel' };
+    if (found?.status === 'accepted') return { outcome: this.i18n.t('ui.notifications.out.accepted', { amount }), tone: 'grn' };
+    if (found?.status === 'rejected') return { outcome: this.i18n.t('ui.notifications.out.rejected'), tone: 'mu' };
+    if (found?.status === 'joined') return { outcome: this.i18n.t('ui.notifications.out.joined'), tone: 'blu' };
+    const kind = readNotice(one.text, one.title).kind;
+    if (kind === 'balance') return { outcome: this.i18n.t('ui.notifications.out.balance'), tone: 'mu' };
+    if (kind === 'declined') return { outcome: this.i18n.t('ui.notifications.out.declined'), tone: 'mu' };
+    if (kind === 'none') return { outcome: this.i18n.t('ui.notifications.out.none'), tone: 'mu' };
+    return { outcome: this.i18n.t('ui.notifications.out.waiting'), tone: 'mu' };
+  }
+
+  /** "¿De qué cuenta es?" answered: remembered, and its waiting proposals take it. */
+  async assign(account: AccountRow): Promise<void> {
+    const source = this.pickingFor();
+    this.pickingFor.set(null);
+    if (!source || this.database.status() !== 'ready') return;
+    await new ProposalsRepository(this.database.driver).assignSource(source.key, account.id);
+    this.database.dataChanged();
+    await this.look();
+  }
+
+  // --- choosing several -----------------------------------------------------
+
   readonly selecting = signal(false);
-  private readonly selectedPkgs = signal<ReadonlySet<string>>(new Set());
+  private readonly selectedKeys = signal<ReadonlySet<string>>(new Set());
 
-  readonly selectedApps = computed(() => {
-    const ticked = this.selectedPkgs();
-    return this.sortedApps().filter(app => ticked.has(app.package));
+  /** What can be chosen: every source on show and not hidden. */
+  private readonly choosable = computed(() => this.sources().filter(one => !one.hidden && !one.bySender));
+
+  readonly selectedSources = computed(() => {
+    const ticked = this.selectedKeys();
+    return this.choosable().filter(one => ticked.has(one.key));
   });
+
+  readonly choosableCount = computed(() => this.choosable().length);
 
   readonly allSelected = computed(() =>
-    this.sortedApps().length > 0 && this.selectedApps().length === this.sortedApps().length);
+    this.choosable().length > 0 && this.selectedSources().length === this.choosable().length);
 
-  isSelected(app: SeenApp): boolean {
-    return this.selectedPkgs().has(app.package);
+  isSelected(one: Source): boolean {
+    return this.selectedKeys().has(one.key);
   }
 
-  toggle(app: SeenApp): void {
-    const next = new Set(this.selectedPkgs());
-    if (!next.delete(app.package)) next.add(app.package);
-    this.selectedPkgs.set(next);
+  toggle(one: Source): void {
+    if (one.bySender || one.hidden) return;
+    const next = new Set(this.selectedKeys());
+    if (!next.delete(one.key)) next.add(one.key);
+    this.selectedKeys.set(next);
   }
 
-  startSelecting(app?: SeenApp): void {
+  startSelecting(one?: Source): void {
     this.selecting.set(true);
-    this.selectedPkgs.set(new Set(app ? [app.package] : []));
+    this.selectedKeys.set(new Set(one ? [one.key] : []));
   }
 
-  pressed(event: Event, app: SeenApp): void {
+  pressed(event: Event, one: Source): void {
     if (this.selecting()) return;
     event.preventDefault();
-    this.startSelecting(app);
+    this.startSelecting(one);
   }
 
   stopSelecting(): void {
     this.selecting.set(false);
-    this.selectedPkgs.set(new Set());
+    this.selectedKeys.set(new Set());
   }
 
   selectAll(): void {
-    this.selectedPkgs.set(this.allSelected()
-      ? new Set() : new Set(this.sortedApps().map(app => app.package)));
+    this.selectedKeys.set(this.allSelected() ? new Set() : new Set(this.choosable().map(one => one.key)));
   }
 
-  /** Keep, or stop keeping, what every ticked app says. */
   async watchSelected(on: boolean): Promise<void> {
-    for (const app of this.selectedApps()) {
-      if (app.watched !== on) await BankNotifications.watch({ package: app.package, on });
+    for (const one of this.selectedSources()) {
+      if (one.watched === on) continue;
+      if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
+      else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
     }
     this.stopSelecting();
     await this.look();
   }
 
   hideSelected(): void {
-    void this.hideAll(this.selectedApps());
-  }
-  /** The hidden apps' list is folded away until asked for. */
-  readonly showHidden = signal(false);
-
-  /**
-   * The middle button between the arrows: on the apps face it folds or
-   * opens "Otros remitentes" and the hidden ones together, on the saved
-   * face every day - everything at once, never all but one.
-   */
-  readonly jumpFolded = computed<boolean | null>(() => {
-    if (this.face() === 'caught') return this.caughtDays().length > 0 ? this.allDaysClosed() : null;
-    const foldable = this.otherSenders().length + this.hiddenApps().length + this.hiddenSenders().length;
-    return foldable > 0 ? !this.othersOpen() && !this.showHidden() : null;
-  });
-
-  foldEverything(): void {
-    if (this.face() === 'caught') {
-      this.toggleAllDays();
-      return;
-    }
-    const open = this.jumpFolded() === true;
-    this.othersToggled.set(open);
-    this.showHidden.set(open);
+    void this.hideSources(this.selectedSources());
   }
 
-  /** The ones being kept, first: they are what this screen is for. */
-  /**
-   * What is typed in the search: it narrows both lists, the apps by name and
-   * package, and what they said by app, title and text.
-   */
-  readonly search = signal('');
-  private readonly term = computed(() => foldText(this.search()));
-
-  /** Enough on screen for a search and the two arrows to be worth having. */
-  readonly longList = computed(() => this.apps().length + this.caught().length > 8);
+  // --- the list's two arrows -----------------------------------------------
 
   private readonly content = viewChild(IonContent);
 
@@ -421,29 +551,10 @@ export class NotificationsPage {
     await this.content()?.scrollToBottom(300);
   }
 
-  readonly sortedApps = computed(() => this.apps().filter(app => !app.hidden
-    && (this.term().length === 0 || foldText(`${app.label} ${app.package}`).includes(this.term())))
-    .sort((one, other) =>
-    Number(other.watched) - Number(one.watched)
-    || other.last - one.last));
+  readonly nothingFound = computed(() => this.term().length > 0 && this.sources().length === 0);
 
-  readonly hiddenApps = computed(() => this.apps().filter(app => app.hidden)
-    .sort((one, other) => one.label.localeCompare(other.label)));
+  // --- reading it all -------------------------------------------------------
 
-  readonly newest = computed(() => this.caught()
-    .filter(one => this.term().length === 0
-      || foldText(`${one.app} ${one.title} ${one.text}`).includes(this.term()))
-    .sort((one, other) => other.postedAt - one.postedAt));
-
-  /** Apps that are there, but not one of them matches what was typed. */
-  readonly nothingFound = computed(() =>
-    this.term().length > 0 && this.apps().some(app => !app.hidden) && this.sortedApps().length === 0);
-
-  /**
-   * Read again whenever the screen comes into view and whenever the app comes
-   * back to the front: what arrived meanwhile - or the permission just given
-   * in Android's settings - shows without anybody having to ask for it.
-   */
   constructor() {
     const resumed = App.addListener('resume', () => void this.look());
     inject(DestroyRef).onDestroy(() => void resumed.then(handle => handle.remove()));
@@ -469,74 +580,49 @@ export class NotificationsPage {
       this.smsGranted.set((await BankNotifications.smsAccess()).granted);
       this.senders.set((await BankNotifications.senders()).senders);
       this.caught.set((await BankNotifications.caught()).caught);
+      await this.readLedger();
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** What the app learned about each source, read once. */
+  private async readLedger(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    const db = this.database.driver;
+    const proposals = new ProposalsRepository(db);
+    const [accounts, answers, assigned, outcomes] = await Promise.all([
+      new AccountsRepository(db).list(), proposals.noticeAnswers(), proposals.sourceAccounts(), proposals.noticeOutcomes(),
+    ]);
+    const counted = new Map<string, Map<number, number>>();
+    for (const answer of answers) {
+      const one = counted.get(answer.package) ?? new Map<number, number>();
+      one.set(answer.account_id, (one.get(answer.account_id) ?? 0) + 1);
+      counted.set(answer.package, one);
+    }
+    this.accounts.set(accounts);
+    this.learnedAccounts.set(new Map([...counted].map(([key, ids]) =>
+      [key, [...ids.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id)])));
+    this.assigned.set(assigned);
+    this.outcomes.set(outcomes);
   }
 
   async openSettings(): Promise<void> {
     await BankNotifications.openSettings();
   }
 
-  /**
-   * Starts or stops keeping what one app says.
-   *
-   * Off by default for every app, including the banks: the permission Android
-   * grants is to read EVERY notification on the phone, and what this app does
-   * with that has to be narrower than what it was given. Whoever ticks an app
-   * is saying "keep this one", and nothing else is kept.
-   */
-  async watch(app: SeenApp, on: boolean): Promise<void> {
-    if (app.watched === on) return;
-    await BankNotifications.watch({ package: app.package, on });
-    await this.look();
-  }
+  // --- questions ------------------------------------------------------------
 
-  /**
-   * Puts an app away: the phone stops noting it at all. Asked first only when
-   * something it said was kept, because that goes with it; an app that was
-   * never ticked has nothing to lose and comes back from the list below.
-   */
-  async hide(app: SeenApp): Promise<void> {
-    await this.hideAll([app]);
-  }
-
-  private async hideAll(apps: SeenApp[]): Promise<void> {
-    if (apps.length === 0) return;
-    const packages = new Set(apps.map(app => app.package));
-    if (this.caught().some(one => packages.has(one.package))) {
-      this.hiding.set(apps);
-      this.asking.set('hide');
-      return;
-    }
-    await this.putAway(apps);
-  }
-
-  private async putAway(apps: SeenApp[]): Promise<void> {
-    for (const app of apps) await BankNotifications.hide({ package: app.package, on: true });
-    this.stopSelecting();
-    await this.look();
-  }
-
-  async unhide(app: SeenApp): Promise<void> {
-    await BankNotifications.hide({ package: app.package, on: false });
-    await this.look();
-  }
+  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | null>(null);
+  private readonly hiding = signal<Source[]>([]);
 
   async answered(): Promise<void> {
     const question = this.asking();
     this.asking.set(null);
-    const apps = this.hiding();
+    const list = this.hiding();
     this.hiding.set([]);
-    const sender = this.hidingSender();
-    this.hidingSender.set(null);
-    if (question === 'hideSender' && sender) {
-      await BankNotifications.hideSender({ package: sender.package, sender: sender.sender, on: true });
-      await this.look();
-      return;
-    }
     if (question === 'hide') {
-      await this.putAway(apps);
+      await this.putAway(list);
       return;
     }
     if (question === 'forgetCaught') await BankNotifications.forgetCaught();
@@ -546,14 +632,11 @@ export class NotificationsPage {
 
   readonly askTitle = computed(() => {
     const question = this.asking();
-    if (question === 'hideSender') {
-      return this.i18n.t('ui.notifications.hideSender.sure', { sender: this.hidingSender()?.sender ?? '' });
-    }
     if (question === 'hide') {
-      const apps = this.hiding();
-      return apps.length === 1
-        ? this.i18n.t('notifications.hide.sure', { app: apps[0].label })
-        : this.i18n.t('notifications.hide.sureMany', { count: apps.length });
+      const list = this.hiding();
+      return list.length === 1
+        ? this.i18n.t('notifications.hide.sure', { app: list[0].name })
+        : this.i18n.t('notifications.hide.sureMany', { count: list.length });
     }
     return this.i18n.t(question === 'forgetEverything'
       ? 'notifications.forgetAll.sure' : 'notifications.forgetCaught.sure');
@@ -561,24 +644,16 @@ export class NotificationsPage {
 
   readonly askBody = computed(() => {
     const question = this.asking();
-    if (question === 'hide' || question === 'hideSender') return this.i18n.t('notifications.hide.body');
+    if (question === 'hide') return this.i18n.t('notifications.hide.body');
     return this.i18n.t(question === 'forgetEverything'
       ? 'notifications.forgetAll.body' : 'notifications.forgetCaught.body');
   });
 
   readonly askConfirm = computed(() => this.i18n.t(
-    this.asking() === 'hide' || this.asking() === 'hideSender' ? 'notifications.hide.do' : 'notifications.forget.do'));
+    this.asking() === 'hide' ? 'notifications.hide.do' : 'notifications.forget.do'));
 
   cancelled(): void {
     this.asking.set(null);
     this.hiding.set([]);
-    this.hidingSender.set(null);
-  }
-
-  /** When it arrived, in the reader's own language. */
-  when(at: number): string {
-    return new Date(at).toLocaleString(this.i18n.dateLocale(), {
-      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-    });
   }
 }

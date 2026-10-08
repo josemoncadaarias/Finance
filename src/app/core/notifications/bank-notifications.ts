@@ -144,6 +144,16 @@ export interface BankNotificationsPlugin {
   forgetEverything(): Promise<void>;
   /** What the listener is being handed right now, and lately. */
   diagnose(): Promise<Diagnosis>;
+  /**
+   * What "Movimiento detectado" asked to open, once: a message as JSON
+   * (`source`, `text`, `at`), "review" for several, or '' when the app was
+   * opened any other way.
+   */
+  takeOpen(): Promise<{ open: string }>;
+  /** The app has read what was waiting: the phone's notice goes away. */
+  clearAlerts(): Promise<void>;
+  /** Messages thrown away from the notice, never to be proposed (the last two hundred). */
+  dismissed(): Promise<{ dismissed: { source: string; text: string; at: number }[] }>;
 }
 
 /**
@@ -169,6 +179,9 @@ const nothing: BankNotificationsPlugin = {
   forgetCaught: async () => {},
   forgetEverything: async () => {},
   diagnose: async () => ({ bound: false, defaultSms: '', active: [], recent: [] }),
+  takeOpen: async () => ({ open: '' }),
+  clearAlerts: async () => {},
+  dismissed: async () => ({ dismissed: [] }),
 };
 
 export const BankNotifications = registerPlugin<BankNotificationsPlugin>(

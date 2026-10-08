@@ -68,6 +68,12 @@ final class SmsInbox {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** Whether a ticked sender's SMS can ring "Movimiento detectado" the moment it arrives. */
+    static boolean receiving(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(FILE, Context.MODE_PRIVATE);
     }
@@ -135,6 +141,11 @@ final class SmsInbox {
             }
         }
         return out;
+    }
+
+    /** Whether the person ticked this sender. */
+    static boolean isWatched(Context context, String sender) {
+        return watched(context).has(sender);
     }
 
     static void watch(Context context, String sender, boolean on) {

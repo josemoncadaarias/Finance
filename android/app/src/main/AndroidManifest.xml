@@ -42,6 +42,24 @@
             </intent-filter>
         </service>
 
+        <!-- "Movimiento detectado" (rule 22): its "Descartar", answered without opening the app. -->
+        <receiver
+            android:name=".MovementAlertReceiver"
+            android:exported="false" />
+
+        <!--
+            A ticked bank's SMS the moment it arrives, only to post that notice;
+            its words are read from the inbox when the app opens.
+        -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -62,4 +80,7 @@
         the Permissions Declaration Form). Nothing is sent anywhere.
     -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Android 13+: posting "Movimiento detectado" and the caps' notices. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

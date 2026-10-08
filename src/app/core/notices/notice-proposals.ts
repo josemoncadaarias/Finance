@@ -30,6 +30,7 @@ import type { NewProposal } from '../database/repositories/proposals.repository'
 import { merchantKeyOf } from '../proposals/merchant';
 import { foldText } from '../text/fold-text';
 import { readNotice, type NoticeReading } from './read-notice';
+import { readWithMolds, type Mold } from './molds';
 
 /** One message as the phone kept it. */
 export interface KeptNotice {
@@ -70,6 +71,8 @@ export interface NoticeEvidence {
   confidence: 'low' | null;
   /** How the account was chosen, to say so on screen. */
   accountFrom: 'learned' | 'name' | null;
+  /** True when a mold the person taught read it (amount, shop, direction). */
+  molded?: boolean;
   /**
    * The other messages that reported this same movement - an SMS and the
    * bank app's own notification of one purchase - each kept whole, so the
@@ -158,6 +161,7 @@ export function accountFor(
   reading: NoticeReading,
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
+  assigned: ReadonlyMap<string, number> = new Map(),
 ): { accountId: number | null; from: 'learned' | 'name' | null } {
   const open = accounts.filter(account => !account.archived);
   const alive = new Set(open.map(account => account.id));
@@ -169,6 +173,9 @@ export function accountFor(
     const same = mostOf(mine.filter(answer => answer.digits === reading.digits).map(answer => answer.account_id));
     if (same !== null) return { accountId: same, from: 'learned' };
   }
+  // Said by the person on the notifications screen: "this sender is Ualá".
+  const told = assigned.get(source);
+  if (told !== undefined && alive.has(told)) return { accountId: told, from: 'learned' };
   // Learned: the accounts this app's messages went to, leaving out answers
   // that named other card digits. One account is an answer; several, a question.
   if (mine.length > 0) {
@@ -223,6 +230,8 @@ export function proposalsFrom(
 /** One message read, before it is told apart from the others. */
 interface Read {
   key: string;
+  /** The category a mold carries, when its message names no shop. */
+  categoryId: number | null;
   postedAt: number;
   source: string;
   batch: string;
@@ -277,7 +286,10 @@ export function readNotices(
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
   recent: readonly RecentNotice[] = [],
+  learned: { molds?: readonly Mold[]; assigned?: ReadonlyMap<string, number> } = {},
 ): { fresh: { batch: string; proposal: NewProposal }[]; joining: Joining[] } {
+  const molds = learned.molds ?? [];
+  const assigned = learned.assigned ?? new Map<string, number>();
   const reads: Read[] = [];
   const repeat = new Map<string, number>();
   for (const notice of [...kept].sort((a, b) => a.postedAt - b.postedAt)) {
@@ -289,11 +301,23 @@ export function readNotices(
     if (known.has(key)) continue;
 
     const arrived = localDay(notice.postedAt);
-    const reading = readNotice(notice.text, notice.title, arrived);
+    let reading = readNotice(notice.text, notice.title, arrived);
+    // What the person taught for this source reads it first, and exactly.
+    const molded = readWithMolds(noticeSource(notice), notice.text, molds);
+    if (molded) {
+      reading = {
+        ...reading, kind: 'movement', amountMinor: molded.amountMinor, direction: molded.direction,
+        merchant: molded.merchant || reading.merchant,
+      };
+    }
     if (reading.kind !== 'movement' && reading.kind !== 'unclear') continue;
     if (reading.amountMinor === null) continue;
 
-    const { accountId, from } = accountFor(notice, reading, answers, accounts);
+    let { accountId, from } = accountFor(notice, reading, answers, accounts, assigned);
+    if (accountId === null && molded?.accountId != null && accounts.some(a => a.id === molded.accountId && !a.archived)) {
+      accountId = molded.accountId;
+      from = 'learned';
+    }
     const signed = reading.direction === 'in' ? reading.amountMinor : -reading.amountMinor;
     const evidence: NoticeEvidence = {
       kind: 'notification',
@@ -310,6 +334,7 @@ export function readNotices(
       currency: reading.currency,
       confidence: reading.direction === null ? 'low' : null,
       accountFrom: from,
+      ...(molded ? { molded: true } : {}),
     };
     reads.push({
       key,
@@ -317,6 +342,7 @@ export function readNotices(
       source: noticeSource(notice),
       batch: noticeBatch(noticeSource(notice)),
       direction: reading.direction,
+      categoryId: molded?.categoryId ?? null,
       sighting: {
         evidence,
         account_id: accountId,
@@ -432,6 +458,7 @@ export function readNotices(
           occurred_on: s.occurred_on,
           amount_minor: signed,
           description,
+          ...(lead.categoryId !== null ? { category_id: lead.categoryId } : {}),
           evidence,
         },
       };

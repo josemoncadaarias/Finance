@@ -196,7 +196,7 @@ public class NotificationCatcher extends NotificationListenerService {
             one.put("title", title);
             one.put("text", said);
             one.put("postedAt", at);
-            NotificationStore.keep(this, one);
+            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg, labelOf(pkg), said, at);
         } catch (JSONException broken) {
             // One unreadable notification is not a reason to stop reading.
         }
@@ -267,7 +267,7 @@ public class NotificationCatcher extends NotificationListenerService {
             one.put("title", from);
             one.put("text", said);
             one.put("postedAt", at);
-            NotificationStore.keep(this, one);
+            if (NotificationStore.keep(this, one)) MovementAlert.post(this, pkg + "|" + from, from, said, at);
         } catch (JSONException broken) {
             // One unreadable message is not a reason to stop reading.
         }

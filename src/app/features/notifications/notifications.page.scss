@@ -105,3 +105,26 @@
 .sms-ask ion-icon { font-size: 22px; color: var(--app-pr); flex: none; margin-top: 2px; }
 .sms-ask small { white-space: normal; font-size: 13.5px; line-height: 1.4; }
 .sms-ask .ui-btn { width: 100%; }
+
+/* Mockup 19: sections by bank, a source's page. */
+.sec { margin-bottom: 10px; }
+.chan {
+  margin-left: 6px; padding: 1px 7px; border-radius: 7px; font-size: 11px; font-weight: 500;
+  background: rgba(var(--app-pr-rgb), 0.16); color: var(--app-pr); vertical-align: 1px;
+}
+.which { color: var(--app-pr); font-weight: 600; }
+.ui-row.bank { padding-left: 18px; }
+.ui-row.nested { padding-left: 64px; }
+.source-page {
+  h2 { margin-bottom: 2px; }
+  .sub { color: var(--app-mu); font-size: 13px; margin: 0 0 12px; text-align: center; }
+  .link { color: var(--app-pr); font-weight: 600; font-size: 14px; }
+  .ui-h { margin: 16px 4px 8px; }
+  .message .said { display: block; white-space: normal; font-size: 13.5px; line-height: 1.35; margin: 3px 0; color: var(--app-tx); }
+  .outcome { font-weight: 600; }
+  .t-grn { color: var(--app-grn); }
+  .t-yel { color: var(--app-yel); }
+  .t-blu { color: var(--app-move); }
+  .t-mu { color: var(--app-mu); }
+  .hint { color: var(--app-mu); padding: 0 6px; }
+}

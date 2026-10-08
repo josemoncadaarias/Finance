@@ -36,6 +36,32 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(BankNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
+        remember(getIntent());
+    }
+
+    /** "Movimiento detectado" tapped while the app was already running. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        remember(intent);
+    }
+
+    /** What the notice asked to open, until the app takes it. */
+    private static volatile String open;
+
+    private static void remember(Intent intent) {
+        if (intent == null) return;
+        String asked = intent.getStringExtra(MovementAlert.EXTRA_OPEN);
+        if (asked != null) {
+            open = asked;
+            intent.removeExtra(MovementAlert.EXTRA_OPEN);
+        }
+    }
+
+    static String takeOpen() {
+        String asked = open;
+        open = null;
+        return asked;
     }
 
     @Override
