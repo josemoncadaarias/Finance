@@ -73,7 +73,13 @@ export async function accept(
       continue;
     }
 
-    const other = proposal.pairs_with === null ? undefined : byId.get(proposal.pairs_with);
+    // The other half may be in another batch - a message from another bank
+    // (Jose, 2026-10-08) - and still waiting: it goes with this one.
+    let other = proposal.pairs_with === null ? undefined : byId.get(proposal.pairs_with);
+    if (!other && proposal.pairs_with !== null) {
+      const found = await repos.proposals.byId(proposal.pairs_with);
+      if (found && found.status === 'pending') other = found;
+    }
     if (other && !done.has(other.id) && isComplete(other)) {
       const leaving = proposal.amount_minor! < 0 ? proposal : other;
       const arriving = proposal.amount_minor! < 0 ? other : proposal;
@@ -85,14 +91,22 @@ export async function accept(
       });
       // Both halves point at the transfer they became; which leg is which is
       // already on record in `transfers`.
-      await repos.proposals.accepted(leaving.id, transferId);
-      await repos.proposals.accepted(arriving.id, transferId);
+      // Each message's mold learns the other end, so the next one of that
+      // shape is known as a transfer.
+      await repos.proposals.accepted(leaving.id, transferId, arriving.account_id);
+      await repos.proposals.accepted(arriving.id, transferId, leaving.account_id);
       done.add(leaving.id);
       done.add(arriving.id);
       result.written += 1;
       continue;
     }
 
+    // A half whose other half is gone or not ready has no category to be
+    // filed under: it waits, rather than fail at the database.
+    if (proposal.category_id === null) {
+      result.refused.push({ id: proposal.id, reason: 'incomplete' });
+      continue;
+    }
     const id = await repos.transactions.create({
       account_id: proposal.account_id!,
       category_id: proposal.category_id,

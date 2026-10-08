@@ -156,3 +156,6 @@
   .count { background: rgba(var(--app-red-rgb, 255, 107, 107), 0.18); color: var(--app-red); border-radius: 10px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
   .dot { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--app-red); border: 2px solid var(--app-s1); }
 }
+
+// Whether "Movimiento detectado" rang for this message, or why not.
+.alert-note { display: block; color: var(--app-mu); font-size: 12px; white-space: normal; }

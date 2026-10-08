@@ -111,6 +111,13 @@ export interface RecentNotice {
 }
 
 /** A later message joining a proposal already written. */
+/**
+ * The answer to "¿De qué cuenta es?" that says "several": one SMS short code
+ * several banks write through (Jose, 2026-10-08). Kept where an account id
+ * would be; no account has id 0.
+ */
+export const SEVERAL_ACCOUNTS = 0;
+
 export interface Joining {
   id: number;
   sightings: Sighting[];
@@ -189,6 +196,10 @@ export function accountFor(
   // Said by the person on the notifications screen: "this sender is Ualá".
   const told = assigned.get(source);
   if (told !== undefined && alive.has(told)) return { accountId: told, from: 'learned' };
+  // Or "this sender writes for several of my accounts" (a short code shared
+  // by several banks): what the message itself does not say is asked, never
+  // taken from what this sender meant last time.
+  if (told === SEVERAL_ACCOUNTS) return { accountId: null, from: null };
   // Learned: the accounts this app's messages went to, leaving out answers
   // that named other card digits. One account is an answer; several, a question.
   if (mine.length > 0) {

@@ -111,7 +111,7 @@ export interface EntryRequest {
    * account at the other end. `accountId` is the message's own account;
    * `said` is the message, shown on top as in the proposal's own form.
    */
-  proposal?: { id: number; accountId: number; said?: string };
+  proposal?: { id: number; accountId: number; said?: string; pairId?: number };
 }
 
 export interface LoanEntry {
@@ -1940,7 +1940,11 @@ export class EntryComponent implements OnInit, OnDestroy {
         'SELECT id, account_id FROM transactions WHERE transfer_id = ? ORDER BY id', [created]);
       const leg = legs.find(one => one.account_id === proposal.accountId) ?? legs[0];
       const other = proposal.accountId === transfer.from.account_id ? transfer.to.account_id : transfer.from.account_id;
-      if (leg) await new ProposalsRepository(this.database.driver).accepted(proposal.id, leg.id, other);
+      const proposals = new ProposalsRepository(this.database.driver);
+      if (leg) await proposals.accepted(proposal.id, leg.id, other);
+      // The other bank's message about the same transfer is answered by it too.
+      const otherLeg = legs.find(one => one.account_id === other);
+      if (proposal.pairId !== undefined && otherLeg) await proposals.accepted(proposal.pairId, otherLeg.id, proposal.accountId);
     }
   }
 

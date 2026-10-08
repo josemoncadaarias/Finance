@@ -71,6 +71,8 @@ export class AccountPickerComponent {
   readonly showAll = input(false);
   /** What "Todas las cuentas" says under it: net worth and how many. */
   readonly allDetail = input('');
+  /** Another name for that first row (an SMS sender: "Varias cuentas"). */
+  readonly allLabel = input<string | null>(null);
   /** What each row says under its name: what it holds, or what it is. */
   readonly detail = input<'balance' | 'kind'>('balance');
   /** "Es de una cuenta nueva" at the foot (importing a statement). */

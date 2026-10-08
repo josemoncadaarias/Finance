@@ -1833,6 +1833,32 @@ backup restore against iOS's own SQLite backend.
     learned card digits, then the source's one account; a shared sender
     whose banks do not sign their messages still lands on that one account,
     and is corrected in Revisar movimiento.
+    **Now it can be answered "Varias cuentas"** (Jose, 2026-10-08): the
+    SMS sender's account picker offers it first (`SEVERAL_ACCOUNTS`, 0,
+    stored where an account id would be); its messages then take only what
+    they say themselves - learned card digits, the bank's signature, a mold
+    - and are otherwise asked, never sent to what the sender meant before.
+    Listed in Tus bancos as "Varias cuentas · {sender}".
+    **Two banks telling one transfer are one transfer** (Jose, 2026-10-08:
+    Nequi "enviaste 10.000" and Global66 "recibiste 10.000" were proposed as
+    a spending and as "already registered" against an earlier move between
+    Global66's own products). `markTransfers` pairs a message with any
+    message still waiting from another bank (`pairs_with`, within a day,
+    across batches and passes, `pairWaitingMessages` on each inbox pass);
+    once paired, each half is "already registered" only as a transfer
+    between those two accounts (`transferTwin`), never as another movement
+    of the same amount. Tapping either half opens the one form as that
+    transfer and saving answers both (`EntryRequest.proposal.pairId`);
+    "Guardar los listos" writes it as the transfer (`accept` finds the other
+    half in another batch). **Why "Movimiento detectado" did or did not
+    ring is recorded** (`MovementAlert.note`, `alertLog`, no words kept):
+    each message on a source's page says "sonó" or why not (same amount
+    already rang for another source, Android has the notices or their
+    channel off, no amount, no text...). Not verified on the phone: why
+    nothing rang for Nequi and Global66 - the next try will say. Also: the
+    same source repeating an amount within 20 minutes now rings (a source
+    never reports one movement twice), and an app's notice with its words
+    only in the title is read from the title.
     Tapping a source opens its page: its account and its last messages, each
     with what became of it (por revisar, guardado, descartado, el mismo
     movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The

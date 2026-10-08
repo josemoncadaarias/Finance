@@ -136,7 +136,7 @@ export function sameMovementAnywhere(
  * Each reading is paired at most once, and the closest dates pair first, so a
  * salary arriving in two accounts does not tangle.
  */
-export function transferPairs(readings: readonly Reading[]): Array<[number, number]> {
+export function transferPairs(readings: readonly Reading[], days: number = DAYS_APART): Array<[number, number]> {
   const usable = readings.filter(
     (reading): reading is Reading & { id: number; account_id: number; occurred_on: IsoDate; amount_minor: number } =>
       reading.id !== undefined
@@ -153,7 +153,7 @@ export function transferPairs(readings: readonly Reading[]): Array<[number, numb
       if (arriving.account_id === leaving.account_id) continue;
       if (arriving.amount_minor !== -leaving.amount_minor) continue;
       const apart = daysBetween(leaving.occurred_on, arriving.occurred_on);
-      if (apart > DAYS_APART) continue;
+      if (apart > days) continue;
       possible.push({ out: leaving.id, in: arriving.id, apart });
     }
   }

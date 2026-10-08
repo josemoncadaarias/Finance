@@ -418,8 +418,19 @@ export class ReviewPage {
   tapped(line: Line): void {
     if (this.selecting()) this.toggle(line);
     // Saved as a transfer last time: it opens as one, ready to save.
-    else if (line.transferTo !== null && line.proposal.account_id !== null) this.asTransfer(line);
+    else if ((line.transferTo !== null || this.partnerOf(line) !== null) && line.proposal.account_id !== null) this.asTransfer(line);
     else this.openLine.set(line);
+  }
+
+  /** The other half of a transfer between two banks, while it waits too. */
+  private partnerOf(line: Line): MovementProposal | null {
+    const id = line.proposal.pairs_with;
+    if (id === null) return null;
+    for (const batch of this.batches()) {
+      const found = batch.lines.find(one => one.proposal.id === id);
+      if (found) return found.proposal.account_id !== null ? found.proposal : null;
+    }
+    return null;
   }
 
   /**
@@ -437,14 +448,15 @@ export class ReviewPage {
     const onDate = typed?.onDate || line.proposal.occurred_on || '';
     this.openLine.set(null);
     if (accountId === null) return;
-    const other = line.transferTo;
+    const partner = this.partnerOf(line);
+    const other = line.transferTo ?? partner?.account_id ?? null;
     this.compose.entry.set({
       kind: 'transfer',
       ...(other !== null && other !== accountId
         ? { route: sign < 0 ? { from: accountId, to: other } : { from: other, to: accountId } }
         : { preferredAccountId: accountId, preferredSide: sign < 0 ? 'from' as const : 'to' as const }),
       start: { amountMinor, onDate, note: typed?.note ?? '' },
-      proposal: { id: line.proposal.id, accountId, said: line.evidence },
+      proposal: { id: line.proposal.id, accountId, said: line.evidence, ...(partner ? { pairId: partner.id } : {}) },
     });
   }
 
@@ -1226,7 +1238,9 @@ export class ReviewPage {
   ready(line: Line): boolean {
     // One learned as a transfer is saved through the form, one tap, never as
     // a spending by "Guardar los listos".
-    return line.transferTo === null && isComplete(line.proposal);
+    // The two halves of a transfer between banks are written together, as
+    // the transfer they are.
+    return (line.transferTo === null || line.proposal.pairs_with !== null) && isComplete(line.proposal);
   }
 
   /**

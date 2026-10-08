@@ -13,7 +13,7 @@
           <button type="button" class="ui-row" (click)="chosenAll.emit()">
             <span class="all-badge"><ion-icon name="layers-outline"></ion-icon></span>
             <span class="ui-tx">
-              <b>{{ 'ui.allAccounts' | t }}</b>
+              <b>{{ allLabel() ?? ('ui.allAccounts' | t) }}</b>
               @if (allDetail()) { <small>{{ allDetail() }}</small> }
             </span>
             @if (selectedId() === null) {

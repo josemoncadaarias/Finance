@@ -14,7 +14,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
-import { noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
+import { SEVERAL_ACCOUNTS, noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
 import { learnMold, moldFrom, type Mold } from '../../notices/molds';
 
 const MOLDS = 'notices.molds';
@@ -518,7 +518,9 @@ export class ProposalsRepository {
     else said[source] = accountId;
     await this.keep(SOURCE_ACCOUNTS, said);
     // What it already proposed and still waits with no account takes it now.
-    if (accountId !== null) {
+    // SEVERAL (0) is "this sender writes for several of my accounts": nothing
+    // takes it.
+    if (accountId !== null && accountId !== SEVERAL_ACCOUNTS) {
       await this.db.run(
         `UPDATE movement_proposals SET account_id = ?, updated_at = ?
          WHERE source = 'notification' AND status = 'pending' AND account_id IS NULL AND batch = ?`,
@@ -912,16 +914,86 @@ export class ProposalsRepository {
     }
   }
 
-  /** Ties the two halves of a transfer to each other. */
+  /**
+   * Ties the two halves of a transfer to each other.
+   *
+   * A statement's halves are in the one statement. A message's other half
+   * comes from ANOTHER bank, in its own batch and maybe on another pass
+   * (Jose, 2026-10-08: Nequi said "enviaste 10.000" and Global66 "recibiste
+   * 10.000" minutes apart, and they were proposed as a spending and as
+   * "already registered"). So a message pairs with any message still
+   * waiting, unpaired, from the day before on - within a day, the messages'
+   * own window. Once paired, what each half "already is" in the ledger can
+   * only be that transfer between those two accounts: a move between the
+   * products of one account is not the other half of anybody's transfer.
+   */
   private async markTransfers(ids: readonly number[]): Promise<void> {
     const readings = await this.someOf(ids);
-    for (const [leaving, arriving] of transferPairs(readings)) {
+    const fromStatements = readings.filter(reading => reading.source !== 'notification');
+    const messages = readings.filter(reading => reading.source === 'notification');
+    const pairs = transferPairs(fromStatements);
+    if (messages.length > 0) {
+      const days = messages.map(reading => reading.occurred_on).filter((day): day is IsoDate => day !== null).sort();
+      const waiting = days.length === 0 ? [] : await this.db.query<MovementProposal>(
+        `SELECT ${COLUMNS} FROM movement_proposals
+         WHERE source = 'notification' AND status = 'pending' AND pairs_with IS NULL
+           AND id NOT IN (${ids.map(() => '?').join(', ')})
+           AND occurred_on >= date(?, '-${MESSAGE_DAYS_APART} day')`,
+        [...ids, days[0]]);
+      const fresh = new Set(ids);
+      for (const pair of transferPairs([...messages, ...waiting], MESSAGE_DAYS_APART)) {
+        if (fresh.has(pair[0]) || fresh.has(pair[1])) pairs.push(pair);
+      }
+    }
+    const all = new Map([...readings, ...(await this.someOf(pairs.flat().filter(id => !readings.some(r => r.id === id))))]
+      .map(reading => [reading.id, reading]));
+    for (const [leaving, arriving] of pairs) {
       const timestamp = this.now();
       await this.db.run('UPDATE movement_proposals SET pairs_with = ?, updated_at = ? WHERE id = ?',
         [arriving, timestamp, leaving]);
       await this.db.run('UPDATE movement_proposals SET pairs_with = ?, updated_at = ? WHERE id = ?',
         [leaving, timestamp, arriving]);
+      const out = all.get(leaving);
+      const into = all.get(arriving);
+      if (out?.source !== 'notification' || into?.source !== 'notification') continue;
+      const twin = await this.transferTwin(out, into);
+      await this.db.run('UPDATE movement_proposals SET maybe_same_as = ?, updated_at = ? WHERE id = ?',
+        [twin?.out ?? null, timestamp, leaving]);
+      await this.db.run('UPDATE movement_proposals SET maybe_same_as = ?, updated_at = ? WHERE id = ?',
+        [twin?.in ?? null, timestamp, arriving]);
     }
+  }
+
+  /**
+   * Pairs the messages already waiting that are the two halves of one
+   * transfer between two banks - for proposals written before pairing
+   * looked across banks, or whose halves arrived on different passes.
+   * Returns how many halves were paired.
+   */
+  async pairWaitingMessages(): Promise<number> {
+    const loose = (await this.db.query<{ id: number }>(
+      `SELECT id FROM movement_proposals
+       WHERE source = 'notification' AND status = 'pending' AND pairs_with IS NULL
+         AND account_id IS NOT NULL AND occurred_on >= date('now', '-3 day')`)).map(row => row.id);
+    if (loose.length < 2) return 0;
+    await this.markTransfers(loose);
+    const still = await this.db.queryOne<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM movement_proposals
+       WHERE pairs_with IS NULL AND id IN (${loose.map(() => '?').join(', ')})`, [...loose]);
+    return loose.length - (still?.total ?? loose.length);
+  }
+
+  /** A transfer already on record between the two halves' accounts, for that amount, within a day. */
+  private async transferTwin(out: MovementProposal, into: MovementProposal): Promise<{ out: number; in: number } | null> {
+    if (out.account_id === null || into.account_id === null || out.occurred_on === null || out.amount_minor === null) return null;
+    const found = await this.db.queryOne<{ out: number; in: number }>(
+      `SELECT l.id AS out, r.id AS "in"
+       FROM transactions l JOIN transactions r ON r.transfer_id = l.transfer_id AND r.id <> l.id
+       WHERE l.transfer_id IS NOT NULL AND l.account_id = ? AND r.account_id = ?
+         AND l.amount_minor = ? AND l.occurred_on BETWEEN date(?, '-${MESSAGE_DAYS_APART} day') AND date(?, '+${MESSAGE_DAYS_APART} day')
+       ORDER BY abs(julianday(l.occurred_on) - julianday(?)) LIMIT 1`,
+      [out.account_id, into.account_id, out.amount_minor, out.occurred_on, out.occurred_on, out.occurred_on]);
+    return found ?? null;
   }
 
   private async someOf(ids: readonly number[]): Promise<MovementProposal[]> {

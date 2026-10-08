@@ -666,3 +666,52 @@ test('a message is the same as something typed only within a day: 10,000 today i
   // The next day is still the same message.
   assert.equal(sameMovementAnywhere({ ...reading, occurred_on: '2026-10-05' }, ledger, new Set(), MESSAGE_DAYS_APART)?.id, 9);
 });
+
+test('two banks telling one transfer are paired across batches, and only that transfer is "already registered"', async () => {
+  const { db, accounts, proposals, transactions, transfers, rappi, nu } = await setup();
+  // Jose, 2026-10-08: Nequi said "enviaste 10.000", Global66 "recibiste
+  // 10.000" minutes later. The 10.000 that had moved earlier inside Global66
+  // (here: from another account) is not this transfer.
+  const otra = await accounts.create({
+    name: 'Otra', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opening_balance_minor: 0, opened_on: '2025-01-01',
+  });
+  await transfers.create({ occurred_on: '2026-10-08', description: 'Antes',
+    from: { account_id: otra, amount_minor: 10_000_00 }, to: { account_id: rappi, amount_minor: 10_000_00 } });
+
+  const message = (account, amount, text) => ({ source: 'notification', account_id: account, occurred_on: '2026-10-08',
+    amount_minor: amount, description: null, evidence: { kind: 'notification', package: text, text } });
+  const { ids: [out] } = await proposals.propose('notice:com.nequi', [message(nu, -10_000_00, 'nequi')]);
+  const { ids: [into] } = await proposals.propose('notice:com.global66', [message(rappi, 10_000_00, 'global66')]);
+
+  let waiting = await proposals.pending();
+  const a = waiting.find(one => one.id === out);
+  const b = waiting.find(one => one.id === into);
+  assert.equal(a.pairs_with, into, 'the two halves are paired, though in two batches');
+  assert.equal(b.pairs_with, out);
+  assert.equal(b.maybe_same_as, null, 'the earlier 10.000 from another account is not this transfer');
+  assert.equal(isComplete(b), true, 'a half needs no category');
+
+  // Saving one half writes the whole transfer.
+  const result = await accept({ proposals, transactions, transfers }, [b]);
+  assert.equal(result.written, 1);
+  waiting = await proposals.pending();
+  assert.equal(waiting.some(one => one.id === out || one.id === into), false, 'both halves answered');
+  const legs = await db.query("SELECT account_id, amount_minor FROM transactions WHERE transfer_id IS NOT NULL AND description IS NOT 'Antes' ORDER BY amount_minor");
+  assert.deepEqual(legs.map(l => [l.account_id, l.amount_minor]), [[nu, -10_000_00], [rappi, 10_000_00]]);
+  await db.close();
+});
+
+test('a transfer already typed between the two banks is what both messages already are', async () => {
+  const { db, proposals, transfers, rappi, nu } = await setup();
+  await transfers.create({ occurred_on: '2026-10-08', description: 'Ya escrita',
+    from: { account_id: nu, amount_minor: 10_000_00 }, to: { account_id: rappi, amount_minor: 10_000_00 } });
+  const message = (account, amount) => ({ source: 'notification', account_id: account, occurred_on: '2026-10-08',
+    amount_minor: amount, description: null, evidence: { kind: 'notification' } });
+  const { ids: [out] } = await proposals.propose('notice:a', [message(nu, -10_000_00)]);
+  const { ids: [into] } = await proposals.propose('notice:b', [message(rappi, 10_000_00)]);
+  const waiting = await proposals.pending();
+  const legs = await db.query('SELECT id, account_id FROM transactions WHERE transfer_id IS NOT NULL');
+  assert.equal(waiting.find(one => one.id === out).maybe_same_as, legs.find(l => l.account_id === nu).id);
+  assert.equal(waiting.find(one => one.id === into).maybe_same_as, legs.find(l => l.account_id === rappi).id);
+  await db.close();
+});
