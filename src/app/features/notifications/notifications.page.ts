@@ -161,7 +161,7 @@ export class NotificationsPage {
   readonly supported = signal(false);
   readonly enabled = signal(false);
   /** When Android last handed a notification over, connected or dropped the listener. */
-  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0, error: '', errorAt: 0, bound: false, catchUp: '' });
+  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0, error: '', errorAt: 0, bound: false, catchUp: '', rebindAt: 0 });
 
   /**
    * Whether the listener is really listening, said in one line (Jose,
@@ -173,12 +173,15 @@ export class NotificationsPage {
    * the phone could say why). Never a word of any notification.
    */
   readonly listenerDetail = computed(() => {
-    const { connectedAt, error, errorAt, bound, catchUp } = this.listener();
+    const { connectedAt, error, errorAt, bound, catchUp, rebindAt } = this.listener();
     const parts: string[] = [];
     if (connectedAt > 0) parts.push(this.i18n.t('ui.notifications.connected', { when: this.moment(connectedAt) }));
     // What the listener itself sees in the status bar right now: the one
     // question that tells "Android hands nothing" from "the app is not alive".
-    if (!bound) parts.push(this.i18n.t('ui.notifications.notBound'));
+    if (!bound) {
+      parts.push(this.i18n.t('ui.notifications.notBound'));
+      if (rebindAt > 0) parts.push(this.i18n.t('ui.notifications.rebinding', { when: this.moment(rebindAt) }));
+    }
     else if (catchUp) {
       const [, bar, banks, kept] = catchUp.split(',').map(Number);
       parts.push(this.i18n.t('ui.notifications.seesBar', { bar, banks, kept }));
@@ -665,9 +668,9 @@ export class NotificationsPage {
       this.supported.set(supported);
       if (!supported) return;
 
-      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt, error, errorAt, bound, catchUp } = await BankNotifications.isEnabled();
+      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt, error, errorAt, bound, catchUp, rebindAt } = await BankNotifications.isEnabled();
       this.enabled.set(enabled);
-      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0, error: error ?? '', errorAt: errorAt ?? 0, bound: !!bound, catchUp: catchUp ?? '' });
+      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0, error: error ?? '', errorAt: errorAt ?? 0, bound: !!bound, catchUp: catchUp ?? '', rebindAt: rebindAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
       this.smsGranted.set((await BankNotifications.smsAccess()).granted);

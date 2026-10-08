@@ -39,6 +39,18 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         remember(getIntent());
     }
 
+    /**
+     * Each time the app comes to the front, a few seconds later: if Android
+     * left the notification listener unbound, bind it afresh. The wait lets
+     * a listener Android is already binding arrive first.
+     */
+    @Override
+    public void onResume() {
+        super.onResume();
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(() -> NotificationCatcher.ensureBound(getApplicationContext()), 3_000);
+    }
+
     /** "Movimiento detectado" tapped while the app was already running. */
     @Override
     protected void onNewIntent(Intent intent) {

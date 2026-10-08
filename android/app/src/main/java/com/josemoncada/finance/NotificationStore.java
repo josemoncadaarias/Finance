@@ -180,6 +180,15 @@ final class NotificationStore {
         }
     }
 
+    private static final String REBIND_AT = "rebindAt";
+
+    /** The app asked Android to bind the listener afresh. */
+    static void noteRebind(Context context, long at) {
+        prefs(context).edit().putLong(REBIND_AT, at).commit();
+    }
+
+    static long rebindAt(Context context) { return prefs(context).getLong(REBIND_AT, 0); }
+
     private static final String CATCH_UP = "catchUp";
 
     /**

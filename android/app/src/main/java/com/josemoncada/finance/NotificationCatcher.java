@@ -3,6 +3,7 @@ package com.josemoncada.finance;
 import android.app.Notification;
 import android.app.Person;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -147,6 +148,35 @@ public class NotificationCatcher extends NotificationListenerService {
 
     /** Whether Android has this listener bound right now, in this process. */
     static boolean isBound() { return running != null; }
+
+    /**
+     * Brings the listener back when Android left it unbound with the access
+     * still on (Jose, 2026-10-08: "conectada 6:06, pero no activa" - the
+     * process that held it was gone and Android never bound it again, and
+     * neither switching the access nor `requestRebind` brought it back).
+     * Disabling and enabling this component makes Android's notification
+     * service drop and bind it afresh. Only when the access is on and the
+     * listener is not running in this process; never kills the app.
+     */
+    static void ensureBound(Context context) {
+        try {
+            if (running != null || !accessOn(context)) return;
+            ComponentName me = new ComponentName(context, NotificationCatcher.class);
+            PackageManager pm = context.getPackageManager();
+            pm.setComponentEnabledSetting(me, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+            pm.setComponentEnabledSetting(me, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+            requestRebind(me);
+            NotificationStore.noteRebind(context, System.currentTimeMillis());
+        } catch (Throwable error) {
+            NotificationStore.noteError(context, error);
+        }
+    }
+
+    static boolean accessOn(Context context) {
+        String allowed = android.provider.Settings.Secure.getString(
+                context.getContentResolver(), "enabled_notification_listeners");
+        return allowed != null && allowed.contains(context.getPackageName());
+    }
 
     /**
      * What the listener sees in the status bar right now, one line per
