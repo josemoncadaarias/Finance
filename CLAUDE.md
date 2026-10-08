@@ -1906,6 +1906,18 @@ backup restore against iOS's own SQLite backend.
   importance cannot be raised once made). The log says "publicado", not
   "sonó". On Xiaomi the person may still have to turn on "Notificaciones
   flotantes" and "Pantalla de bloqueo" for Finance. Not yet seen on the phone.
+  **And still only on opening the app (Jose, 2026-10-08, Global66 to
+  Nequi)**: the notice appeared the moment he tapped Finance's icon, never
+  before. Read as: Xiaomi freezes the app in the background, and Android
+  hands a frozen app's notification listener its notices only when it
+  wakes - so `onNotificationPosted` itself runs late (assumed, not proved;
+  an SMS wakes the app by its own broadcast). Now each log entry carries
+  `heard` (when the app was handed it); a message heard over 30 s after it
+  arrived says so on its source's page ("le llegó a Finance X tarde"), and
+  while that happened in the last day, or Android limits the app's battery
+  (`isIgnoringBatteryOptimizations`), the notifications screen asks for
+  "Sin restricciones" and "Inicio automático" with "Abrir ajustes de
+  Finance" (`openAppSettings`, the app's page in Android's settings).
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message

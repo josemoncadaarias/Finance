@@ -69,6 +69,19 @@
           </div>
         </div>
       }
+      @if (asleep()) {
+        <!-- Frozen in the background, the app is handed the banks' notices
+             only when opened (Jose, 2026-10-08). -->
+        <div class="ui-list listening">
+          <div class="ui-row warn">
+            <ion-icon name="battery-half-outline"></ion-icon>
+            <span class="ui-tx">
+              <small class="wrap">{{ 'ui.notifications.asleep' | t }}</small>
+              <button type="button" class="ui-chip" (click)="openAppSettings()">{{ 'ui.notifications.asleepOpen' | t }}</button>
+            </span>
+          </div>
+        </div>
+      }
       @if (listening(); as line) {
         <!-- Allowed is not listening: when Android last handed one over. -->
         <div class="ui-list listening">
