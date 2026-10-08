@@ -62,7 +62,6 @@ import { AccountPickerComponent } from '../../shared/account-picker/account-pick
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
 import { todayIso } from '../../core/yields/days';
-import { ProductEntryComponent, type ProductEntryRequest, type Elsewhere } from './product-entry.component';
 import { EntryComponent, type EntryRequest } from '../entry/entry.component';
 import { ActivatedRoute, NavigationStart, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -175,7 +174,7 @@ interface Payment {
   styleUrls: ['./products.page.scss'],
   imports: [
     BusyOverlayComponent, DateFieldComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
-    ProductEntryComponent, EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
+    EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
     IonContent, IonIcon, IonSpinner, IonModal, IonDatetime,
   ],
 })
@@ -429,13 +428,17 @@ export class ProductsPage {
     this.closePick(which);
   }
 
-  /** Gasto, Ingreso or Transferir, switched on the product form. */
-  switchEntry({ kind, again }: { kind: 'income' | 'expense' | 'transfer'; again: boolean }): void {
+  /**
+   * Gasto, Ingreso or Transferir, switched on the form while an account's page
+   * is open: a transfer there is between its products, as the "+" opens it.
+   */
+  switchMovement(request: EntryRequest): void {
     const line = this.openLine();
-    const current = this.productEntry();
-    if (!line || !current) return;
-    if (kind === 'transfer') { this.openMove(line, again); return; }
-    this.productEntry.set({ kind, account: current.account, products: current.products, again });
+    if (request.kind === 'transfer' && line && line.products.length > 1 && !request.route) {
+      this.movementEdit.set({ ...request, route: { from: line.account.id, to: line.account.id } });
+      return;
+    }
+    this.movementEdit.set(request);
   }
 
   /**
@@ -786,7 +789,6 @@ export class ProductsPage {
 
   /** What kind of money an entry is, and where it landed. */
   /** The income or expense screen for a product's yields, while it is open. */
-  readonly productEntry = signal<ProductEntryRequest | null>(null);
 
   /** Everything that has landed on the open account's products by hand. */
   /** The account's movements: collapsed until asked for, and read then. */
@@ -1162,7 +1164,6 @@ export class ProductsPage {
     effect(() => {
       this.form();
       this.openLine();
-      this.productEntry();
       untracked(() => this.error.set(''));
     });
 
@@ -1748,26 +1749,9 @@ export class ProductsPage {
 
   /** Opens the income or expense screen for the yields of the account on screen. */
   openEntry(line: ProductLine, kind: 'income' | 'expense'): void {
-    this.productEntry.set({ kind, account: line.account, products: line.products });
-  }
-
-  /**
-   * An income or expense for an account with no products: the product form
-   * closes and the ordinary movement form opens on that account, with the
-   * amount, the day and the note already written. Once the first sheet has
-   * gone - opening one modal while another is still leaving is the same trap
-   * the account form fell into (`leaveFor`).
-   */
-  async openElsewhere(event: Elsewhere): Promise<void> {
-    this.productEntry.set(null);
-    await new Promise(resolve => setTimeout(resolve, 350));
-    this.movementEdit.set({
-      kind: event.kind,
-      preferredAccountId: event.accountId,
-      preferredSide: event.kind === 'transfer' ? 'from' : undefined,
-      route: event.route,
-      start: { amountMinor: event.amountMinor, onDate: event.onDate, note: event.note },
-    });
+    // The one movement form, on this account and its usual product (Jose,
+    // 2026-10-08: one form for everything, opened as the screen asks).
+    this.movementEdit.set({ kind, preferredAccountId: line.account.id });
   }
 
   /**
@@ -1796,20 +1780,6 @@ export class ProductsPage {
     await this.router.navigateByUrl('/movements');
   }
 
-  /** Saved with "Registrar otro": the form stays open, the account's figures are read again. */
-  async entrySavedOne(): Promise<void> {
-    const line = this.openLine();
-    if (line) await this.afterOwnChange(line.account.id);
-  }
-
-  /** Saved and worked out again; the account shows the new figures. */
-  async entrySaved(): Promise<void> {
-    this.productEntry.set(null);
-    const line = this.openLine();
-    if (!line) return;
-    await this.afterOwnChange(line.account.id);
-  }
-
   /**
    * One account changed, by something this screen did: only that account is
    * read again, and the effect watching the database is told to stand down.
@@ -1830,16 +1800,11 @@ export class ProductsPage {
    * untouched while moving what each product earns on.
    */
   /** Opens the transfer screen, between two products of the account on screen. */
-  openMove(line: ProductLine, again = false): void {
+  openMove(line: ProductLine): void {
     if (line.products.length < 2) return;
-    this.productEntry.set({
-      kind: 'transfer', account: line.account, products: line.products, again,
-      // Read when asked, so a move that switches account gets that account's figure.
-      balanceOf: (accountId, productId) => {
-        const shown = this.lines().find(one => one.account.id === accountId);
-        return shown ? this.balanceIn(shown, productId) : null;
-      },
-    });
+    // Both ends on this account: the form starts on the route its money
+    // usually takes between its products.
+    this.movementEdit.set({ kind: 'transfer', route: { from: line.account.id, to: line.account.id } });
   }
 
   /**
@@ -2819,10 +2784,16 @@ export class ProductsPage {
       return;
     }
     if (movement.type === 'entry') {
-      this.productEntry.set({
-        kind: movement.amountMinor < 0 ? 'expense' : 'income',
-        account: line.account, products: line.products, editing: movement.entry as ProductEntry,
-      });
+      const entry = movement.entry as ProductEntry;
+      const kind = movement.amountMinor < 0 ? 'expense' : 'income';
+      // Half of a movement of the account: the movement is what is corrected.
+      if (entry.transaction_id != null) {
+        void new TransactionsRepository(this.database.driver).findById(entry.transaction_id).then(row => {
+          if (row) this.movementEdit.set({ kind: row.amount_minor < 0 ? 'expense' : 'income', editing: row });
+        });
+        return;
+      }
+      this.movementEdit.set({ kind, editingEntry: entry });
       return;
     }
     if (movement.type === 'withdrawal') {

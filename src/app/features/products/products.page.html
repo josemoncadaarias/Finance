@@ -208,18 +208,7 @@
     @for (request of [movementEdit()]; track request) {
       @if (request) {
         <app-entry [request]="request" (saved)="movementSaved()" (cancelled)="movementEdit.set(null)"
-                   (switchTo)="movementEdit.set($event)"></app-entry>
-      }
-    }
-  </ng-template>
-</ion-modal>
-
-<ion-modal class="entry-sheet" [isOpen]="productEntry() !== null" (didDismiss)="productEntry.set(null)">
-  <ng-template>
-    @for (request of [productEntry()]; track request) {
-      @if (request) {
-        <app-product-entry [request]="request" (saved)="entrySaved()" (cancelled)="productEntry.set(null)"
-                           (switchTo)="switchEntry($event)" (savedOne)="entrySavedOne()" (elsewhere)="openElsewhere($event)"></app-product-entry>
+                   (switchTo)="switchMovement($event)"></app-entry>
       }
     }
   </ng-template>

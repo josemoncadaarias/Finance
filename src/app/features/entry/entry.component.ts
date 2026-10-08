@@ -34,7 +34,7 @@ import {
 } from '../../core/database/repositories/categories.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
-import type { YieldProduct } from '../../core/database/repositories/yields.repository';
+import type { ProductEntry, YieldProduct } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
 import type { TranslationKey } from '../../core/i18n/translations';
@@ -95,6 +95,12 @@ export interface EntryRequest {
    * editable, and writes it whole through LoansRepository.recordPayment.
    */
   loan?: LoanEntry;
+  /**
+   * A product's own movement being corrected - one saved as "Solo el
+   * producto", with no movement of the account (Jose, 2026-10-08: one form
+   * for everything, wherever it is opened from).
+   */
+  editingEntry?: ProductEntry;
 }
 
 export interface LoanEntry {
@@ -483,7 +489,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   readonly kind = computed(() => this.request().kind);
-  readonly isEditing = computed(() => this.request().editing !== undefined);
+  readonly isEditing = computed(() => this.request().editing !== undefined || this.request().editingEntry !== undefined);
   readonly isTransfer = computed(() =>
     this.kind() === 'transfer' || this.request().editing?.transfer_id != null);
 
@@ -682,13 +688,30 @@ export class EntryComponent implements OnInit, OnDestroy {
   private readonly readHolds = effect(() => {
     const account = this.accountId();
     const product = this.splitAccount() ? this.productId() : null;
-    const transfer = this.isTransfer();
+    const loan = this.request().loan;
     const asked = ++this.holdsAsked;
     this.fromHolds.set(null);
-    if (!transfer || account === null || this.database.status() !== 'ready') return;
+    this.holdsNow.set(null);
+    if (loan || account === null || this.database.status() !== 'ready') return;
     void whatItHolds(this.database.driver, account, product, todayIso()).then(held => {
-      if (asked === this.holdsAsked) this.fromHolds.set(held > 0 ? held : null);
+      if (asked !== this.holdsAsked) return;
+      this.holdsNow.set(held);
+      this.fromHolds.set(held > 0 ? held : null);
     });
+  });
+
+  /**
+   * What the account - or the product chosen in it - holds right now, signed:
+   * said under the amount of a new income, and "Gastar todo" on a new spending
+   * (Jose, 2026-10-08, as "Pasar todo" does on a transfer). Not on a movement
+   * being corrected: its own amount is already inside the figure.
+   */
+  readonly holdsNow = signal<number | null>(null);
+
+  readonly holdsNowText = computed(() => {
+    const held = this.holdsNow();
+    if (held === null) return '';
+    return `${held < 0 ? '\u2212' : ''}${formatMoney(Math.abs(held), this.currency(), { withSymbol: false })}`;
   });
 
   readonly fromHoldsText = computed(() => {
@@ -754,8 +777,19 @@ export class EntryComponent implements OnInit, OnDestroy {
       return { kind: 'transfer', fromAccountId: from, toAccountId: to };
     }
     const category = this.categoryId();
-    return category === null ? null
-      : { kind: 'movement', accountId: from, side: this.kind() === 'income' ? 'in' : 'out', categoryId: category };
+    if (category === null) return null;
+    const side = this.kind() === 'income' ? 'in' : 'out';
+    // On an account with products the note is read the way the product's own
+    // movements are written too: what was said on this product, for this
+    // category - entries saved as "Solo el producto" included - and the
+    // account's own habit when the product has none (Jose, 2026-10-08: an
+    // income on a product offered no note here and did on the other form).
+    const product = this.productId();
+    const usual = defaultProduct(this.products());
+    if (product !== null && usual !== null) {
+      return { kind: 'product', accountId: from, productId: product, usualProductId: usual, side, categoryId: category };
+    }
+    return { kind: 'movement', accountId: from, side, categoryId: category };
   });
 
   private readonly offerUsualNote = effect(() => {
@@ -767,7 +801,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   private async fillUsualNote(context: NoteContext): Promise<void> {
     // Never over a movement being corrected, a note carried from another form,
     // or one the person wrote.
-    if (this.request().editing || this.request().start?.note || this.noteIsTheirs) return;
+    if (this.isEditing() || this.request().start?.note || this.noteIsTheirs) return;
     if (this.database.status() !== 'ready') return;
     const asked = ++this.usualNoteAsked;
     const found = await usualNote(this.database.driver, context, todayIso());
@@ -786,7 +820,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.autofocusAmount.set(this.request().editing === undefined && !this.request().loan);
+    this.autofocusAmount.set(!this.isEditing() && !this.request().loan);
     // The phone's keyboard closing is the end of writing a note, however it
     // was closed - the back button included, which does not blur the field.
     if (Capacitor.isNativePlatform()) {
@@ -839,6 +873,20 @@ export class EntryComponent implements OnInit, OnDestroy {
     void new AccountsRepository(this.database.driver).timesUsed()
       .then(counts => this.useCounts.set(counts));
 
+    const entry = this.request().editingEntry;
+    if (entry) {
+      this.amount.set(AmountBuffer.from(Math.abs(entry.amount_minor)));
+      this.categoryId.set(entry.category_id);
+      this.accountId.set(entry.account_id);
+      this.productId.set(entry.product_id);
+      this.occurredOn.set(entry.on_date);
+      this.note.set(entry.note ?? '');
+      this.scopeWhenOpened = 'product';
+      this.scopeTouched = true;
+      this.scope.set('product');
+      return;
+    }
+
     const editing = this.request().editing;
     if (editing) {
       // A transfer is three rows, and the leg that was tapped may be either
@@ -870,7 +918,9 @@ export class EntryComponent implements OnInit, OnDestroy {
         // Read by loadProducts as the products already on screen.
         this.productId.set(given.fromProductId ?? null);
         this.toProductId.set(given.toProductId ?? null);
-        this.routeSet = true;
+        // Products given are kept; with none, the route this account's money
+        // usually takes between its products is chosen (loadProducts).
+        this.routeSet = given.fromProductId != null || given.toProductId != null;
       } else {
         const route = await this.defaultRoute(accounts);
         this.accountId.set(route.from);
@@ -1335,10 +1385,12 @@ export class EntryComponent implements OnInit, OnDestroy {
       const loan = this.loanEntry();
       if (loan) await this.saveLoanPayment(loan);
       else if (this.isTransfer()) await this.saveTransfer();
+      else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
       else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') await this.saveScoped();
       else await this.saveMovement();
 
+      await this.workOutAgain();
       this.database.dataChanged();
       if (this.again() && !this.isEditing()) {
         this.startNext();
@@ -1400,8 +1452,10 @@ export class EntryComponent implements OnInit, OnDestroy {
     };
 
     const editing = this.request().editing;
+    const entry = this.request().editingEntry;
     const storedFor = (accountId: number | null) =>
-      editing && editing.account_id === accountId ? editing.product_id ?? null : null;
+      editing && editing.account_id === accountId ? editing.product_id ?? null
+        : entry && entry.account_id === accountId ? entry.product_id ?? null : null;
 
     // A transfer between two products of one account has the same account on
     // both legs, so which leg a stored product belongs to cannot be told from
@@ -1671,6 +1725,80 @@ export class EntryComponent implements OnInit, OnDestroy {
     await yields.markAccrued(todayIso(), { onlyIfKnown: true });
   }
 
+  /**
+   * A product's own movement corrected. Kept as "Solo el producto", the row is
+   * patched; another answer writes it again in its new shape, as any
+   * correction into another shape is.
+   */
+  private async saveEntry(entry: ProductEntry): Promise<void> {
+    const db = this.database.driver;
+    const yields = new YieldsRepository(db);
+    const accountId = this.accountId()!;
+    const kind = this.kind() === 'expense' ? 'expense' : 'income';
+    const scope: EntryScope = this.asksScope() ? this.scope() : 'both';
+    await db.transaction(async () => {
+      if (scope === 'product' && accountId === entry.account_id) {
+        await yields.updateAdjustment(entry.id, {
+          on_date: this.occurredOn(),
+          amount_minor: kind === 'expense' ? -this.amount().minor : this.amount().minor,
+          kind: 'other',
+          category_id: this.categoryId(),
+          product_id: this.productId(),
+          note: this.note().trim() || null,
+        });
+      } else {
+        await yields.removeAdjustment(entry.id);
+        await writeScoped(db, yields, {
+          scope, kind, accountId,
+          categoryId: this.categoryId(),
+          productId: this.productId(),
+          movementProductId: this.splitAccount() ? this.productId() : null,
+          onDate: this.occurredOn(),
+          amountMinor: this.amount().minor,
+          note: this.note().trim() || null,
+        });
+      }
+    });
+    this.touched.push({ accountId: entry.account_id, from: entry.on_date });
+  }
+
+  /**
+   * Every account with products a save touched, from the earliest day it
+   * touched: those days are worked out again at once, as the products screen
+   * always did after its own form saved - so its figures are right the moment
+   * the form closes, whichever screen it was opened from.
+   */
+  private touched: { accountId: number; from: string }[] = [];
+
+  private async workOutAgain(): Promise<void> {
+    const ends = [
+      { accountId: this.accountId(), products: this.products().length },
+      { accountId: this.isTransfer() ? this.toAccountId() : null, products: this.toProducts().length },
+    ];
+    for (const end of ends) {
+      if (end.accountId !== null && end.products > 0) this.touched.push({ accountId: end.accountId, from: this.occurredOn() });
+    }
+    const editing = this.request().editing;
+    if (editing && this.touched.some(one => one.accountId === editing.account_id)) {
+      this.touched.push({ accountId: editing.account_id, from: editing.occurred_on });
+    }
+    const earliest = new Map<number, string>();
+    for (const one of this.touched) {
+      const seen = earliest.get(one.accountId);
+      if (seen === undefined || one.from < seen) earliest.set(one.accountId, one.from);
+    }
+    this.touched = [];
+    if (earliest.size === 0) return;
+    const db = this.database.driver;
+    const yields = new YieldsRepository(db);
+    const tax = new TaxParametersRepository(db);
+    for (const [accountId, from] of earliest) {
+      await yields.clearDays(accountId, from);
+      await accrueAndSettle(db, yields, tax, accountId, todayIso());
+    }
+    await yields.markAccrued(todayIso(), { onlyIfKnown: true });
+  }
+
   private async saveTransfer(): Promise<void> {
     const out = this.amount().minor;
     const into = this.crossesCurrency() ? this.targetAmount().minor : out;
@@ -1922,16 +2050,26 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.i18n.t(this.isTransfer() ? 'entry.deleteTransfer.ask' : 'entry.deleteMovement.ask'));
 
   askToDelete(): void {
-    if (this.request().editing) this.confirmingDelete.set(true);
+    if (this.isEditing()) this.confirmingDelete.set(true);
   }
 
   async remove(): Promise<void> {
     const editing = this.request().editing;
-    if (!editing) return;
+    const entry = this.request().editingEntry;
+    if (!editing && !entry) return;
     this.confirmingDelete.set(false);
 
     this.saving.set(true);
     try {
+      if (entry) {
+        await new YieldsRepository(this.database.driver).removeAdjustment(entry.id);
+        this.touched.push({ accountId: entry.account_id, from: entry.on_date });
+        await this.workOutAgain();
+        this.database.dataChanged();
+        this.saved.emit();
+        return;
+      }
+      if (!editing) return;
       const transferId = this.editingTransferId();
       if (transferId !== null) {
         // Deleting one leg would leave money arriving from nowhere. The
