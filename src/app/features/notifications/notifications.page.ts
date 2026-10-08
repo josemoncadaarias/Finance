@@ -161,12 +161,25 @@ export class NotificationsPage {
   readonly supported = signal(false);
   readonly enabled = signal(false);
   /** When Android last handed a notification over, connected or dropped the listener. */
-  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0 });
+  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0, error: '', errorAt: 0 });
 
   /**
    * Whether the listener is really listening, said in one line (Jose,
    * 2026-10-05), in amber with the way to fix it when it is not.
    */
+  /**
+   * When Android last connected the listener, and the last thing that broke
+   * inside it (Jose, 2026-10-08: the clock stopped at 4:02 and nothing on
+   * the phone could say why). Never a word of any notification.
+   */
+  readonly listenerDetail = computed(() => {
+    const { connectedAt, error, errorAt } = this.listener();
+    const parts: string[] = [];
+    if (connectedAt > 0) parts.push(this.i18n.t('ui.notifications.connected', { when: this.moment(connectedAt) }));
+    if (error && errorAt > 0) parts.push(this.i18n.t('ui.notifications.failed', { when: this.moment(errorAt), error }));
+    return parts.join(' · ');
+  });
+
   readonly listening = computed(() => {
     const { heardAt, connectedAt, disconnectedAt, updatedAt } = this.listener();
     // Updated and never connected since (Jose, 2026-10-08: nothing at all
@@ -645,9 +658,9 @@ export class NotificationsPage {
       this.supported.set(supported);
       if (!supported) return;
 
-      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt } = await BankNotifications.isEnabled();
+      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt, error, errorAt } = await BankNotifications.isEnabled();
       this.enabled.set(enabled);
-      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0 });
+      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0, error: error ?? '', errorAt: errorAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
       this.smsGranted.set((await BankNotifications.smsAccess()).granted);

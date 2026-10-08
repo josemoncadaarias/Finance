@@ -7,6 +7,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Parcelable;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
@@ -53,7 +55,32 @@ public class NotificationCatcher extends NotificationListenerService {
     public void onListenerConnected() {
         running = this;
         NotificationStore.noteConnection(this, true, System.currentTimeMillis());
-        catchUp();
+        // Never inside the connect itself: whatever goes wrong reading the
+        // status bar must not cost the connection.
+        new Handler(Looper.getMainLooper()).postDelayed(this::catchUpSafely, 1_500);
+    }
+
+    /**
+     * Anything thrown in here would kill the process and, with it, the
+     * listener - silently, until Android binds it again, if it ever does.
+     * So nothing is let through: it is recorded and the listener lives on.
+     */
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        final Thread.UncaughtExceptionHandler before = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            NotificationStore.noteError(this, error);
+            if (before != null) before.uncaughtException(thread, error);
+        });
+    }
+
+    private void catchUpSafely() {
+        try {
+            catchUp();
+        } catch (Throwable error) {
+            NotificationStore.noteError(this, error);
+        }
     }
 
     /**
@@ -68,7 +95,7 @@ public class NotificationCatcher extends NotificationListenerService {
      */
     static void catchUpNow() {
         NotificationCatcher catcher = running;
-        if (catcher != null) catcher.catchUp();
+        if (catcher != null) catcher.catchUpSafely();
     }
 
     private void catchUp() {
@@ -190,6 +217,14 @@ public class NotificationCatcher extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification posted) {
         if (posted == null) return;
         NotificationStore.noteHeard(this, System.currentTimeMillis());
+        try {
+            read(posted);
+        } catch (Throwable error) {
+            NotificationStore.noteError(this, error);
+        }
+    }
+
+    private void read(StatusBarNotification posted) {
 
         String pkg = posted.getPackageName();
         if (pkg == null || pkg.equals(getPackageName())) return;

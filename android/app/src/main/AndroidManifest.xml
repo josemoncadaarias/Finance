@@ -83,4 +83,6 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <!-- Android 13+: posting "Movimiento detectado" and the caps' notices. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The notice vibrates (DEFAULT_ALL); some phones refuse that without it. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

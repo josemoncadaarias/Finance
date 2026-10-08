@@ -152,8 +152,36 @@ final class NotificationStore {
     static void noteHeard(Context context, long at) {
         SharedPreferences prefs = prefs(context);
         if (at - prefs.getLong(HEARD_AT, 0) < 60_000) return;
-        prefs.edit().putLong(HEARD_AT, at).apply();
+        // commit, not apply: if anything after this kills the process, the
+        // clock must still say the notice arrived.
+        prefs.edit().putLong(HEARD_AT, at).commit();
     }
+
+    private static final String ERROR = "listenerError";
+    private static final String ERROR_AT = "listenerErrorAt";
+
+    /**
+     * What broke inside the listener, and when: the exception's class, its
+     * message and where it was thrown, never a word of any notification
+     * (Jose, 2026-10-08: the clock stopped at 4:02 and nothing could say why).
+     */
+    static void noteError(Context context, Throwable error) {
+        try {
+            StringBuilder said = new StringBuilder(error.getClass().getSimpleName());
+            StackTraceElement[] where = error.getStackTrace();
+            for (int i = 0; i < Math.min(3, where.length); i += 1) {
+                said.append(" @ ").append(where[i].getClassName().replaceAll(".*\\.", ""))
+                        .append('.').append(where[i].getMethodName()).append(':').append(where[i].getLineNumber());
+            }
+            prefs(context).edit().putString(ERROR, said.toString())
+                    .putLong(ERROR_AT, System.currentTimeMillis()).commit();
+        } catch (Throwable ignored) {
+            // Recording the failure must never be a second failure.
+        }
+    }
+
+    static String lastError(Context context) { return prefs(context).getString(ERROR, ""); }
+    static long lastErrorAt(Context context) { return prefs(context).getLong(ERROR_AT, 0); }
 
     private static final String RECENT = "recent";
 
@@ -186,7 +214,7 @@ final class NotificationStore {
 
     /** Android connecting the listener, or letting it go. */
     static void noteConnection(Context context, boolean on, long at) {
-        prefs(context).edit().putLong(on ? CONNECTED_AT : DISCONNECTED_AT, at).apply();
+        prefs(context).edit().putLong(on ? CONNECTED_AT : DISCONNECTED_AT, at).commit();
     }
 
     static long heardAt(Context context) { return prefs(context).getLong(HEARD_AT, 0); }
