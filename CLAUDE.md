@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (755 on 2026-10-08, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (759 on 2026-10-08, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -2371,6 +2371,30 @@ first, as `finance-backup-replaced-<date>.json`, on the server, so none of
 the 25 MB crosses the phone's connection. That was Jose's own idea - he asked
 for one file per phone - kept without its cost, which was two files both
 looking current and nobody remembering which was the real one.
+
+**Nothing the backups leave behind grows without end** (Jose, 2026-10-08:
+2.04 GB of "caché" on his phone, and the Drive copy taking his own phone for
+another one after a change of network).
+- **On the phone**: every file handed out (backup, CSV, spreadsheet) was
+  written to the cache under a dated name and never removed - verified in
+  `save-file.ts`; assumed to be the 2 GB. Now they go into one folder
+  (`shared-files`) emptied before each new one, and `clearOldFiles` removes
+  what older versions left at the cache's top, also a few seconds after the
+  app opens. Only `.json`/`.csv`/`.xlsx` the app wrote; the database lives in
+  the app's data, not its cache.
+- **"Another phone" was an upload whose answer was lost** (read from the
+  code): Drive kept the new copy, the device never learned its
+  `modifiedTime`, and the next save took it for another device's. Each
+  upload now carries `appProperties.writer`, a random id kept on the device
+  (`finance.cloud.writer`); a copy with this device's id is never "another
+  phone". Restoring from a file forgets the id, so the old guard still holds
+  there.
+- **In Drive**: the backup is one file replaced on each save, but Drive keeps
+  a version of every upload (up to 100, 30 days), each a whole backup. After
+  each upload the versions past the newest three are deleted
+  (`pruneRevisions`), and copies set aside on "replace another phone's"
+  are kept to the newest three (`pruneSetAside`). Tests:
+  `drive-prune.test.mjs`. Not seen against a real Drive yet.
 
 **An `app-confirm` is never created already open** (2026-09-24, and it cost
 two rounds of "it does not appear"). It is an `ion-modal`, and an ion-modal

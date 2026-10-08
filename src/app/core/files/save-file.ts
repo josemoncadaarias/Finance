@@ -12,6 +12,12 @@
  *
  * Resolves to false when the person closed the share sheet without choosing,
  * so a screen does not claim the file was saved.
+ *
+ * Only the latest file stays (Jose, 2026-10-08: 2 GB of "caché" on his
+ * phone). Each backup is written under a dated name of its own, and nothing
+ * ever removed one, so tens of megabytes stayed behind per export. Now every
+ * file goes into one folder that is emptied before the next is written, and
+ * `clearOldFiles` also removes what earlier versions left at the cache's top.
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -33,15 +39,17 @@ export async function saveFile(blob: Blob, name: string, onProgress?: OnProgress
     return true;
   }
 
+  await clearOldFiles();
+  const path = `${FOLDER}/${name}`;
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let uri = '';
   let at = 0;
   do {
     const data = toBase64(bytes.subarray(at, at + CHUNK_BYTES));
     if (at === 0) {
-      uri = (await Filesystem.writeFile({ path: name, data, directory: Directory.Cache })).uri;
+      uri = (await Filesystem.writeFile({ path, data, directory: Directory.Cache, recursive: true })).uri;
     } else {
-      await Filesystem.appendFile({ path: name, data, directory: Directory.Cache });
+      await Filesystem.appendFile({ path, data, directory: Directory.Cache });
     }
     at += CHUNK_BYTES;
     await onProgress?.({ done: Math.min(at, bytes.length), total: bytes.length });
@@ -54,6 +62,40 @@ export async function saveFile(blob: Blob, name: string, onProgress?: OnProgress
     // Closing the sheet is a choice, not a failure.
     if (/cancel/i.test(error instanceof Error ? error.message : String(error))) return false;
     throw error;
+  }
+}
+
+/** The folder of the app's cache that files handed to the person are written to. */
+const FOLDER = 'shared-files';
+
+/** What the app itself writes there: a backup, a CSV, a spreadsheet. */
+const OURS = /\.(json|csv|xlsx)$/i;
+
+/**
+ * Removes every file handed out before: the folder above, and the backups,
+ * CSVs and spreadsheets earlier versions wrote at the top of the cache. Only
+ * the app's own cache, never its data: the database lives elsewhere.
+ * Called before each new file and once when the app opens; never throws.
+ */
+export async function clearOldFiles(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await Filesystem.rmdir({ path: FOLDER, directory: Directory.Cache, recursive: true });
+  } catch {
+    // Not there yet.
+  }
+  try {
+    const { files } = await Filesystem.readdir({ path: '', directory: Directory.Cache });
+    for (const file of files) {
+      if (file.type !== 'file' || !OURS.test(file.name)) continue;
+      try {
+        await Filesystem.deleteFile({ path: file.name, directory: Directory.Cache });
+      } catch {
+        // One that will not go is no reason to stop the others.
+      }
+    }
+  } catch {
+    // Nothing to read: nothing to clear.
   }
 }
 

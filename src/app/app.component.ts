@@ -3,6 +3,7 @@
  * "+" opens. See `app.component.html`.
  */
 
+import { clearOldFiles } from './core/files/save-file';
 import { Component, effect, inject } from '@angular/core';
 import { Router, NavigationStart } from '@angular/router';
 import { IonApp, IonRouterOutlet, ModalController } from '@ionic/angular';
@@ -103,6 +104,10 @@ export class AppComponent {
     // It fails quietly on purpose: signed out is the ordinary state of this
     // app, not something to report on startup.
     void this.google.restore();
+
+    // Backups and spreadsheets handed out on earlier days stay in the cache
+    // until cleared: a few seconds after opening, so the start is not slowed.
+    setTimeout(() => void clearOldFiles(), 5000);
 
     effect(() => {
       this.database.dataVersion();

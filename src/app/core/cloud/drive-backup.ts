@@ -39,6 +39,8 @@ export interface CloudCopy {
   /** What the app wrote beside it: schema version and how many rows. */
   schemaVersion: number | null;
   rows: number | null;
+  /** The install that wrote it (`appProperties.writer`), null on older copies. */
+  writer?: string | null;
 }
 
 /** What went wrong, so the screen can say it in words a person reads. */
@@ -183,7 +185,7 @@ export async function findCopy(token: string): Promise<CloudCopy | null> {
   const body = await response.json() as {
     files?: {
       id: string; name: string; modifiedTime: string; size?: string;
-      appProperties?: { schemaVersion?: string; rows?: string };
+      appProperties?: { schemaVersion?: string; rows?: string; writer?: string };
     }[];
   };
 
@@ -199,6 +201,7 @@ export async function findCopy(token: string): Promise<CloudCopy | null> {
     size: Number.parseInt(found.size ?? '0', 10),
     schemaVersion: number(found.appProperties?.schemaVersion),
     rows: number(found.appProperties?.rows),
+    writer: found.appProperties?.writer ?? null,
   };
 }
 
@@ -229,7 +232,61 @@ export async function setAside(token: string, copy: CloudCopy): Promise<string> 
   }));
 
   const written = await response.json() as { name?: string };
+  await pruneSetAside(token);
   return written.name ?? name;
+}
+
+/** How many copies set aside are kept: the newest ones; each is a whole backup. */
+const KEEP_SET_ASIDE = 3;
+
+/**
+ * Deletes the oldest copies set aside past the newest few, so answering
+ * "yes" many times never fills the person's Drive (Jose, 2026-10-08).
+ * Best effort: a copy that will not go is left for next time.
+ */
+async function pruneSetAside(token: string): Promise<void> {
+  try {
+    const query = new URLSearchParams({
+      spaces: 'appDataFolder',
+      q: `name contains 'finance-backup-replaced-' and trashed = false`,
+      fields: 'files(id,name,createdTime)',
+      orderBy: 'createdTime desc',
+      pageSize: '100',
+    });
+    const response = await check(await ask(`${FILES}?${query}`, { headers: { Authorization: `Bearer ${token}` } }));
+    const { files = [] } = await response.json() as { files?: { id: string }[] };
+    for (const old of files.slice(KEEP_SET_ASIDE)) {
+      await ask(`${FILES}/${old.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+    }
+  } catch {
+    // Nothing pruned this time.
+  }
+}
+
+/** How many earlier versions of the backup Drive keeps besides the current one. */
+const KEEP_REVISIONS = 3;
+
+/**
+ * Deletes Drive's older versions of the backup past the newest few. Drive
+ * keeps a version of every upload for up to 30 days (up to 100), and each is
+ * a whole backup, which counts against the person's Drive space.
+ * Best effort, after the upload has already succeeded.
+ */
+export async function pruneRevisions(token: string, fileId: string): Promise<void> {
+  try {
+    const response = await check(await ask(`${FILES}/${fileId}/revisions?fields=revisions(id,modifiedTime)&pageSize=200`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }));
+    const { revisions = [] } = await response.json() as { revisions?: { id: string; modifiedTime: string }[] };
+    const sorted = [...revisions].sort((a, b) => a.modifiedTime.localeCompare(b.modifiedTime));
+    // The newest is the file itself and can never go; keep a few before it.
+    const old = sorted.slice(0, Math.max(0, sorted.length - 1 - KEEP_REVISIONS));
+    for (const one of old) {
+      await ask(`${FILES}/${fileId}/revisions/${one.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+    }
+  } catch {
+    // Nothing pruned this time.
+  }
 }
 
 /**
@@ -242,7 +299,7 @@ export async function setAside(token: string, copy: CloudCopy): Promise<string> 
 export async function upload(
   token: string,
   json: string,
-  about: { schemaVersion: number; rows: number },
+  about: { schemaVersion: number; rows: number; writer: string },
   /** Aborted when a newer copy is on its way: no point finishing a stale one. */
   abort?: AbortSignal,
   /** How far the bytes have got, for the bar on the screen. */
@@ -256,6 +313,7 @@ export async function upload(
     appProperties: {
       schemaVersion: String(about.schemaVersion),
       rows: String(about.rows),
+      writer: about.writer,
     },
   };
 
@@ -283,6 +341,7 @@ export async function upload(
     size: Number.parseInt(written.size ?? String(json.length), 10),
     schemaVersion: about.schemaVersion,
     rows: about.rows,
+    writer: about.writer,
   };
 }
 
