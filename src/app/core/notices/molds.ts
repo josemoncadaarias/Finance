@@ -27,6 +27,12 @@ export interface Mold {
   hasMerchant: boolean;
   accountId: number | null;
   categoryId: number | null;
+  /**
+   * The account at the other end when the person saved it as a transfer
+   * (Jose, 2026-10-08): the next message of this shape is proposed as a
+   * transfer to (or from) it.
+   */
+  otherAccountId?: number | null;
   /** How many saves taught it, and when last: the newest is tried first. */
   uses: number;
   at: number;
@@ -39,6 +45,8 @@ export interface MoldReading {
   merchant: string;
   accountId: number | null;
   categoryId: number | null;
+  /** Saved as a transfer before: the account at its other end. */
+  otherAccountId: number | null;
 }
 
 /** At most this many molds per source; the least used go first. */
@@ -69,6 +77,7 @@ function fixed(text: string): string {
 export function moldFrom(input: {
   source: string; text: string; amountMinor: number; merchant: string | null;
   accountId: number | null; categoryId: number | null; at: number;
+  otherAccountId?: number | null;
 }): Mold | null {
   const text = normalise(input.text);
   if (!text) return null;
@@ -108,6 +117,7 @@ export function moldFrom(input: {
     hasMerchant,
     accountId: input.accountId,
     categoryId: input.categoryId,
+    otherAccountId: input.otherAccountId ?? null,
     uses: 1,
     at: input.at,
   };
@@ -159,6 +169,7 @@ export function readWithMolds(source: string, text: string, molds: readonly Mold
       // A shop in the slot lets the dictionary say the category; without one,
       // the mold's is the one the person gave.
       categoryId: mold.hasMerchant ? null : mold.categoryId,
+      otherAccountId: mold.otherAccountId ?? null,
     };
   }
   return null;

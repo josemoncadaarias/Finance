@@ -59,6 +59,8 @@ interface Line {
   seenBy: string | null;
   /** A message from another source that may be this one, in words. */
   twin: string | null;
+  /** Saved as a transfer before: the account at the other end (learned). */
+  transferTo: number | null;
 }
 
 /**
@@ -415,7 +417,35 @@ export class ReviewPage {
   /** A row tapped: ticked while choosing, opened in the movement form otherwise. */
   tapped(line: Line): void {
     if (this.selecting()) this.toggle(line);
+    // Saved as a transfer last time: it opens as one, ready to save.
+    else if (line.transferTo !== null && line.proposal.account_id !== null) this.asTransfer(line);
     else this.openLine.set(line);
+  }
+
+  /**
+   * "Transferir" on a proposal (Jose, 2026-10-08): the one movement form,
+   * opened as a transfer. The message's account is the end the money left
+   * (or reached, for money in) with its usual product; the other end is the
+   * account the person used last time for this shape of message, or else the
+   * one this account most often sends money to (or receives from). Saving it
+   * marks the proposal saved and teaches the source's mold.
+   */
+  asTransfer(line: Line, typed?: { amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 }): void {
+    const accountId = typed?.accountId ?? line.proposal.account_id;
+    const sign = typed?.sign ?? ((line.proposal.amount_minor ?? 0) >= 0 ? 1 : -1);
+    const amountMinor = typed?.amountMinor ?? Math.abs(line.proposal.amount_minor ?? 0);
+    const onDate = typed?.onDate || line.proposal.occurred_on || '';
+    this.openLine.set(null);
+    if (accountId === null) return;
+    const other = line.transferTo;
+    this.compose.entry.set({
+      kind: 'transfer',
+      ...(other !== null && other !== accountId
+        ? { route: sign < 0 ? { from: accountId, to: other } : { from: other, to: accountId } }
+        : { preferredAccountId: accountId, preferredSide: sign < 0 ? 'from' as const : 'to' as const }),
+      start: { amountMinor, onDate, note: typed?.note ?? '' },
+      proposal: { id: line.proposal.id, accountId },
+    });
   }
 
   // --- one row, answered in the movement form (6e-6h) ----------------------
@@ -433,6 +463,13 @@ export class ReviewPage {
     } finally {
       this.working.set(false);
     }
+  }
+
+  forgetOpen(): void {
+    const line = this.openLine();
+    if (!line) return;
+    this.openLine.set(null);
+    this.asking.set({ kind: 'forgetOne', line });
   }
 
   discardOpen(): void {
@@ -731,6 +768,8 @@ export class ReviewPage {
     { kind: 'acceptSelected' } | { kind: 'discardSelected' } | { kind: 'forgetSelected' } |
     { kind: 'acceptOne'; line: Line } |
     { kind: 'discardOne'; line: Line } |
+    /** "No ver más" from the form of one row (the eye). */
+    { kind: 'forgetOne'; line: Line } |
     /** Moving the opening balance, which is a figure of Jose's own. */
     { kind: 'square'; to: number } |
     /** Leaving it as it is, which is also an answer to the same question. */
@@ -985,7 +1024,7 @@ export class ReviewPage {
     }
     if (!best) return;
     this.askedNotice = null;
-    this.openLine.set(best.line);
+    this.tapped(best.line);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
@@ -1059,6 +1098,7 @@ export class ReviewPage {
           guessed: this.guessedOf(proposal),
           seenBy: this.seenByOf(proposal),
           twin: this.twinOf(proposal, waitingKeys),
+          transferTo: this.transferToOf(proposal),
         });
         known.set(proposal.batch, batch);
       }
@@ -1132,6 +1172,11 @@ export class ReviewPage {
     }
   }
 
+  private transferToOf(proposal: MovementProposal): number | null {
+    const to = this.read(proposal)['transferTo'];
+    return typeof to === 'number' ? to : null;
+  }
+
   private guessedOf(proposal: MovementProposal): boolean {
     return this.read(proposal)['confidence'] === 'low';
   }
@@ -1150,7 +1195,9 @@ export class ReviewPage {
 
   /** Whether this row can be written at all, for the button that writes it. */
   ready(line: Line): boolean {
-    return isComplete(line.proposal);
+    // One learned as a transfer is saved through the form, one tap, never as
+    // a spending by "Guardar los listos".
+    return line.transferTo === null && isComplete(line.proposal);
   }
 
   /**
@@ -1303,6 +1350,7 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.sure');
+    if (asking.kind === 'forgetOne') return this.i18n.t('review.forget.sure.one');
     if (asking.kind === 'acceptOne') return this.i18n.t('review.accept.sure', { count: 1 });
     if (asking.kind === 'square') {
       return this.i18n.t('review.square.sure', { account: this.squaring()?.accountName ?? '' });
@@ -1336,6 +1384,7 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'discardOne') return this.i18n.t('review.discard.body');
+    if (asking.kind === 'forgetOne') return this.i18n.t('review.forget.one.body');
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.body');
     if (asking.kind === 'discardSelected') return this.i18n.t('review.discard.body');
     if (asking.kind === 'discardKnown') return this.i18n.t('ui.review.known.body');
@@ -1378,6 +1427,7 @@ export class ReviewPage {
     const asking = this.asking();
     if (asking === null) return '';
     if (asking.kind === 'leaveBalance') return this.i18n.t('review.square.leave.do');
+    if (asking.kind === 'forgetOne') return this.i18n.t('review.forget.one.do');
     const kind = asking.kind === 'discardOne' || asking.kind === 'discardSelected' || asking.kind === 'discardKnown' ? 'discard'
       : asking.kind === 'acceptOne' || asking.kind === 'acceptSelected' ? 'accept'
       : asking.kind === 'forgetSelected' ? 'forget'
@@ -1392,7 +1442,7 @@ export class ReviewPage {
     if (kind === 'accept' || kind === 'acceptOne' || kind === 'acceptSelected') return 'checkmark-done-outline';
     // Undoing the import destroys nothing, so it is not a bin: it is the same
     // arrow the button that opened it carries.
-    if (kind === 'forget' || kind === 'forgetSelected') return 'eye-off-outline';
+    if (kind === 'forget' || kind === 'forgetSelected' || kind === 'forgetOne') return 'eye-off-outline';
     return 'trash-outline';
   }
 
@@ -1409,7 +1459,7 @@ export class ReviewPage {
       return 'primary';
     }
     if (kind === 'leaveBalance') return 'medium';
-    if (kind === 'forget' || kind === 'forgetSelected') return 'medium';
+    if (kind === 'forget' || kind === 'forgetSelected' || kind === 'forgetOne') return 'medium';
     return 'danger';
   }
 
@@ -1438,6 +1488,15 @@ export class ReviewPage {
         await new ProposalsRepository(this.database.driver).forgetThese(this.selectedLines().map(line => line.proposal.id));
         this.database.dataChanged();
         this.stopSelecting();
+        await this.refresh();
+      } finally {
+        this.working.set(false);
+      }
+    } else if (asking.kind === 'forgetOne') {
+      this.working.set(true);
+      try {
+        await new ProposalsRepository(this.database.driver).forgetThese([asking.line.proposal.id]);
+        this.database.dataChanged();
         await this.refresh();
       } finally {
         this.working.set(false);

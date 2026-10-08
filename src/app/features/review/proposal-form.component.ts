@@ -73,6 +73,9 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
     .guessed-sign { margin: 8px 0 0; }
     .tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }
     .as-came { display: block; }
+    .entry-top .eye { margin-left: auto; }
+    .entry-top .eye ion-icon { color: var(--app-mu); font-size: 24px; }
+    .entry-top .eye + .bin { margin-left: 8px; }
   `],
   template: `
     <div class="entry" [class.writing-note]="writingNote()">
@@ -81,6 +84,10 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
           <ion-icon name="close"></ion-icon>
         </button>
         <h1>{{ 'ui.review.check' | t }}</h1>
+        <!-- "No ver más" beside the bin (Jose, 2026-10-08), asked first by the screen. -->
+        <button type="button" class="bin eye" (click)="forget.emit()" [attr.aria-label]="'review.forget' | t">
+          <ion-icon name="eye-off-outline"></ion-icon>
+        </button>
         <button type="button" class="bin" (click)="discard.emit()" [attr.aria-label]="'review.discard' | t">
           <ion-icon name="trash-outline"></ion-icon>
         </button>
@@ -97,7 +104,7 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
               <button type="button" class="grn" [class.on]="sign() > 0" (click)="sign.set(1)">
                 <ion-icon name="arrow-down"></ion-icon><span>{{ 'ui.new.income' | t }}</span>
               </button>
-              <button type="button" class="blu" disabled>
+              <button type="button" class="blu" (click)="asTransfer()">
                 <ion-icon name="swap-horizontal"></ion-icon><span>{{ 'ui.new.transfer' | t }}</span>
               </button>
             </div>
@@ -280,6 +287,19 @@ export class ProposalFormComponent implements OnInit {
 
   readonly answered = output<ProposalAnswer>();
   readonly discard = output<void>();
+  readonly forget = output<void>();
+  /**
+   * Saved as a transfer instead (Jose, 2026-10-08): what was read so far
+   * goes to the one movement form, opened as a transfer.
+   */
+  readonly transfer = output<{ amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 }>();
+
+  asTransfer(): void {
+    this.transfer.emit({
+      amountMinor: this.amount().minor, onDate: this.day(), accountId: this.accountId(),
+      note: this.note().trim(), sign: this.sign(),
+    });
+  }
   readonly cancelled = output<void>();
 
   private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');

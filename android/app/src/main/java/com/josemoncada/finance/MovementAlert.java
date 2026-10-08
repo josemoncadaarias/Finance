@@ -6,6 +6,9 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
@@ -41,6 +44,10 @@ final class MovementAlert {
     /** On the intent that opens the app: what to open (a JSON message, or "review"). */
     static final String EXTRA_OPEN = "finance.open";
     static final String ACTION_DISMISS = "com.josemoncada.finance.DISMISS_MOVEMENT";
+    /** "Más tarde": the notice goes, the movement waits in Movimientos por revisar. */
+    static final String ACTION_LATER = "com.josemoncada.finance.LATER_MOVEMENT";
+    /** The app's own colour (Zafiro), for the notice's icon and name. */
+    private static final int ACCENT = 0xFF6378FF;
 
     private static final String FILE = "movement_alerts";
     private static final String PENDING = "pending";
@@ -54,6 +61,7 @@ final class MovementAlert {
             "(?:[$€£]\\s?|(?i:COP|USD|EUR)\\s?)?(\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)(?:\\s?(?i:COP|USD|EUR))?");
     private static final String[] OUT = {
             "compra", "pago", "pagaste", "retiro", "retiraste", "enviaste", "transferiste", "debito", "cargo",
+            "realizaste una transferencia", "desde tu cuenta",
             "purchase", "paid", "spent", "withdraw", "sent" };
     private static final String[] IN = {
             "recibiste", "recibio", "abono", "consignacion", "deposito", "te llegaron", "te enviaron", "ingreso",
@@ -152,41 +160,51 @@ final class MovementAlert {
         if (count == 1) {
             int direction = last.optInt("direction");
             String what = spanish
-                    ? (direction < 0 ? "Gasto detectado" : direction > 0 ? "Ingreso detectado" : "Movimiento detectado")
-                    : (direction < 0 ? "Spending detected" : direction > 0 ? "Income detected" : "Movement detected");
-            title = what + " · $ " + last.optString("amount");
-            body = last.optString("name") + ": " + last.optString("text");
+                    ? (direction < 0 ? "💸 Gasto detectado" : direction > 0 ? "💰 Ingreso detectado" : "🔔 Movimiento detectado")
+                    : (direction < 0 ? "💸 Spending detected" : direction > 0 ? "💰 Income detected" : "🔔 Movement detected");
+            String sign = direction < 0 ? "−" : direction > 0 ? "+" : "";
+            title = what + " · " + sign + "$ " + shortAmount(last.optString("amount"));
+            // An SMS's sender is a short code that says nothing; the bank signs
+            // its own words. An app's notice keeps the app's name in front.
+            boolean sms = last.optString("source").startsWith(SmsInbox.PACKAGE + "|");
+            body = sms ? last.optString("text") : last.optString("name") + ": " + last.optString("text");
             open.putExtra(EXTRA_OPEN, last.toString());
         } else {
-            title = spanish ? count + " movimientos detectados" : count + " movements detected";
+            title = spanish ? "📥 " + count + " movimientos detectados" : "📥 " + count + " movements detected";
             StringBuilder list = new StringBuilder();
             for (int i = 0; i < count; i += 1) {
                 JSONObject one = pending.optJSONObject(i);
                 if (one == null) continue;
                 if (list.length() > 0) list.append(" · ");
-                list.append(one.optString("name")).append(' ')
-                        .append(one.optInt("direction") > 0 ? "+" : "−").append(one.optString("amount"));
+                int direction = one.optInt("direction");
+                list.append(direction > 0 ? "+" : direction < 0 ? "−" : "").append("$ ").append(shortAmount(one.optString("amount")));
             }
             body = list.toString();
             open.putExtra(EXTRA_OPEN, "review");
         }
-        String hint = spanish ? "Toca para revisarlo y guardarlo" : "Tap to review and save it";
+        String hint = spanish ? "¿Lo guardamos? Revísalo antes, no se guarda solo." : "Save it? Check it first - nothing is saved by itself.";
 
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         PendingIntent tap = PendingIntent.getActivity(context, ID, open, flags);
         Intent dismiss = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_DISMISS);
         PendingIntent drop = PendingIntent.getBroadcast(context, ID, dismiss, flags);
+        Intent wait = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_LATER);
+        PendingIntent later = PendingIntent.getBroadcast(context, ID + 1, wait, flags);
 
         NotificationCompat.Builder built = new NotificationCompat.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_movement)
+                .setColor(ACCENT)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body + "\n" + hint))
                 .setContentIntent(tap)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .addAction(0, spanish ? "Revisar" : "Review", tap)
+                .addAction(0, spanish ? "Revisar y guardar" : "Review and save", tap)
+                .addAction(0, spanish ? "Más tarde" : "Later", later)
                 .addAction(0, spanish ? (count == 1 ? "Descartar" : "Descartar todos") : (count == 1 ? "Dismiss" : "Dismiss all"), drop);
+        Bitmap logo = logoOf(context);
+        if (logo != null) built.setLargeIcon(logo);
         try {
             NotificationManagerCompat.from(context).notify(ID, built.build());
         } catch (SecurityException notAllowed) {
@@ -205,6 +223,32 @@ final class MovementAlert {
                 ? "Cuando un banco avisa de un movimiento, para revisarlo y guardarlo"
                 : "When a bank reports a movement, to review and save it");
         manager.createNotificationChannel(channel);
+    }
+
+    /** "1.234.567,00" -> "1.234.567": cents of zero say nothing in a title. */
+    private static String shortAmount(String amount) {
+        return amount.replaceAll("[.,]00$", "");
+    }
+
+    /** The app's own icon, drawn for the notice's picture. */
+    private static Bitmap logoOf(Context context) {
+        try {
+            Drawable icon = context.getPackageManager().getApplicationIcon(context.getPackageName());
+            int size = 192;
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            icon.setBounds(0, 0, size, size);
+            icon.draw(canvas);
+            return bitmap;
+        } catch (Exception none) {
+            return null;
+        }
+    }
+
+    /** "Más tarde": the notice goes; the movement is proposed when the app opens. */
+    static void later(Context context) {
+        prefs(context).edit().putString(PENDING, "[]").apply();
+        NotificationManagerCompat.from(context).cancel(ID);
     }
 
     /** "Descartar": what was waiting is never proposed, and the notice goes. */

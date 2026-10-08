@@ -76,6 +76,10 @@ const CASES = [
     { kind: 'movement', direction: 'out', amountMinor: P(9900), digits: '5544' }],
   ['Consignacion recibida por valor de $700.000. Saldo actual $2.100.000', '',
     { kind: 'movement', direction: 'in', amountMinor: P(700000), balanceMinor: P(2100000) }],
+  // "You made a transfer from your account": money that left (invented, in
+  // the shape a bank signing its SMS uses).
+  ['BancoX: Realizaste una transferencia a traves de llaves por un valor de $10.000,00 desde tu cuenta terminada en *1111. 08/10/2026 11:57AM', '',
+    { kind: 'movement', direction: 'out', amountMinor: P(10000), digits: '1111' }],
   // Money with no movement word: the person decides.
   ['Movimiento por $77.000 en tu cuenta *2020', '', { kind: 'unclear', amountMinor: P(77000), direction: null }],
 ];
