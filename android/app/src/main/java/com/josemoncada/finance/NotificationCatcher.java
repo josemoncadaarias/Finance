@@ -103,10 +103,13 @@ public class NotificationCatcher extends NotificationListenerService {
         try {
             all = getActiveNotifications();
         } catch (Exception refused) {
+            NotificationStore.noteError(this, refused);
             return;
         }
-        if (all == null) return;
+        if (all == null) all = new StatusBarNotification[0];
         long now = System.currentTimeMillis();
+        int banks = 0;
+        int kept = 0;
         for (StatusBarNotification one : all) {
             try {
                 if (one == null || getPackageName().equals(one.getPackageName())) continue;
@@ -116,27 +119,34 @@ public class NotificationCatcher extends NotificationListenerService {
                 if (NotificationStore.isHidden(this, pkg) || !NotificationStore.isWatched(this, pkg)) continue;
                 Bundle extras = notification.extras;
                 if (extras == null || isConversation(pkg, notification, extras)) continue;
+                banks += 1;
                 String title = text(extras, Notification.EXTRA_TITLE);
                 String said = text(extras, Notification.EXTRA_TEXT);
                 String big = text(extras, Notification.EXTRA_BIG_TEXT);
                 if (big.length() > said.length()) said = big;
                 if (title.isEmpty() && said.isEmpty()) continue;
                 long at = one.getPostTime();
-                JSONObject kept = new JSONObject();
-                kept.put("package", pkg);
-                kept.put("app", labelOf(pkg));
-                kept.put("title", title);
-                kept.put("text", said);
-                kept.put("postedAt", at);
+                JSONObject entry = new JSONObject();
+                entry.put("package", pkg);
+                entry.put("app", labelOf(pkg));
+                entry.put("title", title);
+                entry.put("text", said);
+                entry.put("postedAt", at);
+                if (!NotificationStore.keep(this, entry)) continue;
+                kept += 1;
                 // Rung only while it is still news; an older one just waits in Por revisar.
-                if (NotificationStore.keep(this, kept) && now - at < 2 * 3_600_000L) {
+                if (now - at < 2 * 3_600_000L) {
                     MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at);
                 }
             } catch (Exception broken) {
                 // One notice that will not read is not the rest.
             }
         }
+        NotificationStore.noteCatchUp(this, now, all.length, banks, kept);
     }
+
+    /** Whether Android has this listener bound right now, in this process. */
+    static boolean isBound() { return running != null; }
 
     /**
      * What the listener sees in the status bar right now, one line per

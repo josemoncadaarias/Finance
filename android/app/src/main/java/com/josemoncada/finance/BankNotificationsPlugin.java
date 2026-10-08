@@ -71,8 +71,13 @@ public class BankNotificationsPlugin extends Plugin {
             }
         }
 
+        // Read the status bar now, whatever Android hands over or not.
+        NotificationCatcher.catchUpNow();
+
         JSObject answer = new JSObject();
         answer.put("enabled", on);
+        answer.put("bound", NotificationCatcher.isBound());
+        answer.put("catchUp", NotificationStore.catchUp(getContext()));
         answer.put("heardAt", NotificationStore.heardAt(getContext()));
         answer.put("connectedAt", NotificationStore.connectedAt(getContext()));
         answer.put("disconnectedAt", NotificationStore.disconnectedAt(getContext()));
