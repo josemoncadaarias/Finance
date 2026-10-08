@@ -1,8 +1,8 @@
-# Play Console: Permissions Declaration Form for READ_SMS
+# Play Console: Permissions Declaration Form for READ_SMS and RECEIVE_SMS
 
 Where: Play Console → Finance → Policy and programs → App content →
 Sensitive permissions (or the prompt Play shows when a bundle declaring
-`READ_SMS` is uploaded). Answers to paste, in English (Play reviews in
+`READ_SMS`/`RECEIVE_SMS` is uploaded). Answers to paste, in English (Play reviews in
 English). Privacy policy: https://jadexlabs-finance.netlify.app/privacy.html
 
 ## Core functionality
@@ -17,8 +17,9 @@ purchase, transfer and payment only by SMS. The user chooses, inside the app,
 which senders are their banks (for example a bank's short code). For those
 senders only, the app reads the SMS from the inbox and proposes the movement
 (amount, merchant, date) in a review screen; nothing is recorded until the
-user accepts it. This is the app's core budgeting flow: recording movements
-without typing each one by hand.
+user accepts it. When such an SMS arrives, the app shows a local notification so the user
+can review it right away. This is the app's core budgeting flow: recording
+movements without typing each one by hand.
 
 **Why is the permission necessary / why can't an alternative be used?**
 
@@ -37,9 +38,14 @@ the inbox is the only way to see the bank's message.
   content is transmitted, shared, sold or used for advertising.
 - The user can deselect a sender, delete what was read, or revoke the
   permission at any time.
-- The app does not send SMS and does not request RECEIVE_SMS.
+- RECEIVE_SMS is used only to notice, the moment it arrives, that a selected
+  bank sender wrote; the app then shows a local notification ("Movement
+  detected - review it?"). Nothing is recorded until the user opens the app
+  and accepts it. Messages from any other sender are ignored and not stored.
+- The app does not send SMS.
 
 **Video demonstration (required):** record on the phone: Más → Notificaciones
 del teléfono → "Permitir leer los SMS" → Android's dialog → tick the bank's
-sender → a bank SMS arrives → open the app → Movimientos por revisar shows
+sender → a bank SMS arrives → the
+"Movimiento detectado" notification appears → tap Revisar → open the app → Movimientos por revisar shows
 the proposal → accept it. Upload it (unlisted YouTube or Drive link).
