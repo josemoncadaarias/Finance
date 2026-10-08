@@ -61,6 +61,8 @@ interface Line {
   twin: string | null;
   /** Saved as a transfer before: the account at the other end (learned). */
   transferTo: number | null;
+  /** The other bank's message telling this same transfer, still waiting. */
+  partner: MovementProposal | null;
 }
 
 /**
@@ -424,13 +426,7 @@ export class ReviewPage {
 
   /** The other half of a transfer between two banks, while it waits too. */
   private partnerOf(line: Line): MovementProposal | null {
-    const id = line.proposal.pairs_with;
-    if (id === null) return null;
-    for (const batch of this.batches()) {
-      const found = batch.lines.find(one => one.proposal.id === id);
-      if (found) return found.proposal.account_id !== null ? found.proposal : null;
-    }
-    return null;
+    return line.partner;
   }
 
   /**
@@ -477,8 +473,13 @@ export class ReviewPage {
       if (ask.kind === 'forget') this.asking.set({ kind: 'forgetOne', line });
       else if (ask.kind === 'discard') this.asking.set({ kind: 'discardOne', line });
       else {
+        // Spending or income after all: the two banks' messages were not
+        // one transfer, so each is proposed on its own again.
+        if (line.partner) {
+          void new ProposalsRepository(this.database.driver).unpair(line.proposal.id).then(() => this.refresh());
+        }
         this.typedBack.set(ask.typed ?? null);
-        this.openLine.set(line);
+        this.openLine.set({ ...line, partner: null, transferTo: null });
       }
     });
   });
@@ -1121,7 +1122,15 @@ export class ReviewPage {
         }
 
         const other = proposal.pairs_with === null ? null : waitingById.get(proposal.pairs_with) ?? null;
-        const pairedWith = other === null ? null : this.i18n.t('review.pairedWith', {
+        // Two banks telling one transfer are ONE row (Jose, 2026-10-08): the
+        // money leaving is shown, as the transfer; the arriving half rides
+        // with it and is answered with it.
+        const messagePair = other !== null && proposal.source === 'notification' && other.source === 'notification'
+          && other.account_id !== null && proposal.account_id !== null;
+        if (messagePair && (proposal.amount_minor ?? 0) > 0) continue;
+        const pairedWith = other === null ? null : messagePair ? this.i18n.t('ui.review.pairTransfer', {
+          account: accountOf.get(other.account_id!)?.name ?? '',
+        }) : this.i18n.t('review.pairedWith', {
           account: (other.account_id === null ? null : accountOf.get(other.account_id)?.name) ?? '',
         });
 
@@ -1137,9 +1146,13 @@ export class ReviewPage {
           pairedWith,
           evidence,
           guessed: this.guessedOf(proposal),
-          seenBy: this.seenByOf(proposal),
+          seenBy: messagePair
+            ? this.i18n.t('ui.review.seenBy', { files: [...new Set([...this.sightingsOf(proposal), ...this.sightingsOf(other!)].map(one => one.file)
+              .concat(String(this.read(other!)['file'] ?? '')).filter(Boolean))].join(' · ') })
+            : this.seenByOf(proposal),
           twin: this.twinOf(proposal, waitingKeys),
-          transferTo: this.transferToOf(proposal),
+          transferTo: messagePair ? other!.account_id : this.transferToOf(proposal),
+          partner: messagePair ? other : null,
         });
         known.set(proposal.batch, batch);
       }

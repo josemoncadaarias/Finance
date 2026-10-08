@@ -1859,6 +1859,20 @@ backup restore against iOS's own SQLite backend.
     same source repeating an amount within 20 minutes now rings (a source
     never reports one movement twice), and an app's notice with its words
     only in the title is read from the title.
+    **And from Jose's next look (2026-10-08)**: the two banks' halves are
+    ONE row in Por revisar - the money leaving, shown as "Transferencia a
+    {cuenta}: los dos bancos avisaron", the arriving half riding with it;
+    throwing either away or "No ver más" takes both (`withMessagePartners`),
+    and going back to Gasto/Ingreso from it unpairs them (`unpair`). They
+    pair only when the two messages arrived within two hours
+    (`PAIR_WINDOW`, `transferPairs`' `fits`). **A move between products of
+    one account is a message's twin only when the message speaks of it**: a
+    word of four letters or more of the move's note in the message
+    (`ledgerFor`, `INTERNAL_MOVE`) - "Recibiste 10.000 de JOSE AUGUSTO" is
+    not "Retiro bóveda principal"; "Retiraste 10.000 de tu bóveda" is. One
+    bank telling one movement by SMS and by its app stays the merge of
+    `readNotices` (different sources, 20 minutes, something besides the
+    amount agreeing).
     Tapping a source opens its page: its account and its last messages, each
     with what became of it (por revisar, guardado, descartado, el mismo
     movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The

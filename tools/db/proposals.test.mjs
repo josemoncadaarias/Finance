@@ -715,3 +715,44 @@ test('a transfer already typed between the two banks is what both messages alrea
   assert.equal(waiting.find(one => one.id === into).maybe_same_as, legs.find(l => l.account_id === rappi).id);
   await db.close();
 });
+
+test('a move between products is not the twin of a bank message that does not speak of it', async () => {
+  const { db, accounts, proposals, transfers, rappi } = await setup();
+  // Jose, 2026-10-08: "Retiro bóveda principal" inside Global66 was taken
+  // for "Recibiste 10.000 COP de JOSE AUGUSTO".
+  const product = (name) => db.run(`INSERT INTO products (account_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+    [rappi, name, NOW(), NOW()]).then(r => r.lastId ?? r.lastInsertRowid);
+  await db.run(`INSERT INTO yield_accounts (account_id, created_at, updated_at) VALUES (?, ?, ?)`, [rappi, NOW(), NOW()]).catch(() => {});
+  const vault = await product('Bóveda principal');
+  const savings = await product('Cuenta de ahorros');
+  await transfers.create({ occurred_on: '2026-10-08', description: 'Retiro bóveda principal',
+    from: { account_id: rappi, amount_minor: 10_000_00, product_id: vault },
+    to: { account_id: rappi, amount_minor: 10_000_00, product_id: savings } });
+  const message = (text) => ({ source: 'notification', account_id: rappi, occurred_on: '2026-10-08',
+    amount_minor: 10_000_00, description: null, evidence: { kind: 'notification', text } });
+  const { ids: [other] } = await proposals.propose('notice:a', [message('Recibiste 10.000 COP de JOSE AUGUSTO.')]);
+  const { ids: [same] } = await proposals.propose('notice:b', [message('Retiraste 10.000 de tu bóveda principal')]);
+  const waiting = await proposals.pending();
+  assert.equal(waiting.find(one => one.id === other).maybe_same_as, null, 'a transfer from a person is not the move');
+  assert.notEqual(waiting.find(one => one.id === same).maybe_same_as, null, 'a message naming the vault is');
+  void accounts;
+  await db.close();
+});
+
+test('two banks\' messages hours apart are not one transfer; thrown away together when they are', async () => {
+  const { db, proposals, rappi, nu } = await setup();
+  const at = Date.parse('2026-10-08T14:00:00Z');
+  const message = (account, amount, postedAt) => ({ source: 'notification', account_id: account, occurred_on: '2026-10-08',
+    amount_minor: amount, description: null, evidence: { kind: 'notification', postedAt } });
+  const { ids: [a] } = await proposals.propose('notice:a', [message(nu, -10_000_00, at)]);
+  const { ids: [b] } = await proposals.propose('notice:b', [message(rappi, 10_000_00, at + 5 * 3_600_000)]);
+  let waiting = await proposals.pending();
+  assert.equal(waiting.find(one => one.id === a).pairs_with, null, 'five hours apart: two movements');
+  const { ids: [c] } = await proposals.propose('notice:c', [message(rappi, 10_000_00, at + 4 * 60_000)]);
+  waiting = await proposals.pending();
+  assert.equal(waiting.find(one => one.id === a).pairs_with, c, 'four minutes apart: one transfer');
+  await proposals.reject(a);
+  waiting = await proposals.pending();
+  assert.deepEqual(waiting.map(one => one.id).sort(), [b], 'its other half goes with it');
+  await db.close();
+});
