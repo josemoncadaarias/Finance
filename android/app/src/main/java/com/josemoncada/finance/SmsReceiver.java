@@ -29,6 +29,10 @@ public class SmsReceiver extends BroadcastReceiver {
         if (!SmsInbox.isWatched(context, sender)) return;
         StringBuilder body = new StringBuilder();
         for (SmsMessage part : parts) if (part != null && part.getMessageBody() != null) body.append(part.getMessageBody());
-        MovementAlert.post(context, SmsInbox.PACKAGE + "|" + sender, sender, body.toString(), System.currentTimeMillis());
+        try {
+            MovementAlert.post(context, SmsInbox.PACKAGE + "|" + sender, sender, body.toString(), System.currentTimeMillis());
+        } catch (Throwable error) {
+            NotificationStore.noteError(context, error);
+        }
     }
 }

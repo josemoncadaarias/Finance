@@ -1936,6 +1936,17 @@ backup restore against iOS's own SQLite backend.
   the listener last connected and heard anything (`updatedAt` =
   `PackageInfo.lastUpdateTime` in `isEnabled`, `ui.notifications.sinceUpdate`),
   with "Abrir el permiso". Every Store bundle may need that one toggle.
+  **That was not it**: Jose toggled the access many times, no battery
+  saver, and the clock stayed at 4:02. Assumed now, not proved: something
+  thrown inside the listener (from the updates of that afternoon) killed
+  the process right after each notice, so even the clock's `apply()` was
+  lost. Now `onNotificationPosted` and the catch-up never let anything
+  through, the catch-up runs 1.5 s after connecting rather than inside it,
+  an uncaught error is recorded (`noteError`: class and three frames, no
+  words, written with `commit`), the clock and the connection are written
+  with `commit`, VIBRATE is declared for the notice's `DEFAULT_ALL`, and
+  the screen says under the clock when Android connected the listener and
+  the last thing that broke in it.
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message

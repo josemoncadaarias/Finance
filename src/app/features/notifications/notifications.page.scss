@@ -93,6 +93,7 @@
 .sms-wait .warn ion-icon, .sms-wait .warn small,
 .listening .warn ion-icon, .listening .warn small { color: var(--app-yel); }
 .listening { margin-bottom: 12px; }
+.listening .detail { color: var(--app-mu) !important; margin-top: 4px; font-size: 12px; }
 .listening .ui-chip { align-self: flex-start; margin-top: 10px; }
 .listening .ui-tx { display: flex; flex-direction: column; }
 

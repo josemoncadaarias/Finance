@@ -76,6 +76,8 @@ public class BankNotificationsPlugin extends Plugin {
         answer.put("heardAt", NotificationStore.heardAt(getContext()));
         answer.put("connectedAt", NotificationStore.connectedAt(getContext()));
         answer.put("disconnectedAt", NotificationStore.disconnectedAt(getContext()));
+        answer.put("error", NotificationStore.lastError(getContext()));
+        answer.put("errorAt", NotificationStore.lastErrorAt(getContext()));
         // When this app was last installed or updated: Android may leave the
         // listener unbound after an update until the permission is toggled.
         try {

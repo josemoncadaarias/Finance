@@ -89,6 +89,9 @@
             <ion-icon [name]="line.warn ? 'warning-outline' : 'radio-outline'"></ion-icon>
             <span class="ui-tx">
               <small>{{ line.text }}</small>
+              @if (listenerDetail(); as detail) {
+                <small class="detail">{{ detail }}</small>
+              }
               @if (line.warn) {
                 <button type="button" class="ui-chip" (click)="openSettings()">{{ 'ui.notifications.reopen' | t }}</button>
               }
