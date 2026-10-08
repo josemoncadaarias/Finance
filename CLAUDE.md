@@ -454,7 +454,10 @@ backup restore against iOS's own SQLite backend.
      (`route: {from: acc, to: acc}` with no products - the form reads the
      route pairs), and switching to Transferir there stays between products
      (`switchMovement`). From Cuentas or Inicio a transfer still leaves the
-     account on show towards where it usually sends money. What the old form
+     account on show towards where it usually sends money - **except a
+     card, which is paid**: a transfer from a card's screen goes INTO it,
+     from the account that usually pays it (Jose, 2026-10-08,
+     `defaultRoute`). What the old form
      alone did is in the one form now: **correcting or deleting a product's
      own movement** ("Solo el producto", `EntryRequest.editingEntry`: patched
      in place while its answer stays, rewritten in the new shape otherwise;
@@ -1808,6 +1811,8 @@ backup restore against iOS's own SQLite backend.
     be, with its App and SMS sources), Sin cuenta todavía, Encontrados en tu
     celular (SMS senders with money, not read), Otras apps, Ocultas and
     "Revisar qué le llega a la app" - with the fold button and the arrows.
+    A bank's sources hang from it on a tree line (`.children`), so they do
+    not read as rows at the bank's level (Jose, 2026-10-08).
     Tapping a source opens its page: its account and its last messages, each
     with what became of it (por revisar, guardado, descartado, el mismo
     movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The

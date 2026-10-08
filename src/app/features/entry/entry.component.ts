@@ -1132,8 +1132,11 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     const selected = this.request().preferredAccountId;
     if (selected != null && accounts.some(a => a.id === selected)) {
+      // A card on show is paid, not drawn from (Jose, 2026-10-08): the
+      // transfer goes INTO it, from the account that usually pays it.
+      const isCard = accounts.find(a => a.id === selected)?.type === 'credit';
       // Leaving it: to wherever this account sends money most often.
-      if (this.request().preferredSide === 'from') {
+      if (this.request().preferredSide === 'from' && !isCard) {
         return { from: selected, to: await this.counterpart(accounts, selected, 'from') };
       }
       return { from: await this.counterpart(accounts, selected, 'to'), to: selected };
