@@ -113,12 +113,13 @@
    the same level): inset, a line down from the bank's icon, smaller. */
 .children {
   position: relative;
-  margin: 0 10px 8px 34px;
+  margin: 0 8px 8px 26px;
   border-left: 2px solid var(--app-s3);
   border-radius: 0 0 0 12px;
-  .ui-row.nested {
+  .ui-row.app {
     position: relative;
-    padding: 8px 10px 8px 22px;
+    padding: 8px 8px 8px 20px;
+    gap: 10px;
     border: 0;
     border-radius: 0;
     background: transparent;
