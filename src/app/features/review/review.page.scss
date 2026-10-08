@@ -62,6 +62,7 @@
 .line { cursor: pointer; align-items: flex-start; }
 .line .ui-am { font-weight: 600; flex: none; }
 .line .ui-tx small { display: block; }
+.line .seen { display: flex; gap: 6px; align-items: flex-start; color: var(--app-mu); white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
 .line .flag { display: flex; gap: 6px; align-items: flex-start; color: #4da3ff; white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
 .picked { background: rgba(var(--app-pr-rgb), 0.12); }
 

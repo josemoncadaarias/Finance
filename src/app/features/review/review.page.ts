@@ -53,6 +53,10 @@ interface Line {
   evidence: string;
   /** True where the sign was guessed from the words rather than proved. */
   guessed: boolean;
+  /** The other messages that told this same movement, in words. */
+  seenBy: string | null;
+  /** A message from another source that may be this one, in words. */
+  twin: string | null;
 }
 
 /**
@@ -172,7 +176,7 @@ export class ReviewPage {
       if (account !== null && line.proposal.account_id !== account) return false;
       if (term.length > 0 && !this.matches(line, term)) return false;
       if (only === 'waiting') return !this.ready(line);
-      if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed;
+      if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed || line.twin !== null;
       return true;
     });
 
@@ -285,7 +289,8 @@ export class ReviewPage {
   /** How many flagged or waiting, for the rows of the "Mostrar" sheet. */
   readonly waitingCount = computed(() => this.batches().reduce((sum, batch) => sum + this.waitingOn(batch), 0));
   readonly flaggedCount = computed(() => this.batches().reduce((sum, batch) =>
-    sum + batch.lines.filter(line => line.sameAs !== null || line.pairedWith !== null || line.guessed).length, 0));
+    sum + batch.lines.filter(line => line.sameAs !== null || line.pairedWith !== null || line.guessed
+      || line.twin !== null).length, 0));
 
   /** A batch's rows, by day, the first day open (the rule for every list). */
   private readonly daysByBatch = computed(() =>
@@ -959,6 +964,14 @@ export class ReviewPage {
 
       const accountOf = new Map(allAccounts.map(account => [account.id, account]));
       const known = new Map<string, Batch>();
+      // The messages still waiting, by key, so a possible twin is named only
+      // while the other one is still here to compare with.
+      const waitingKeys = new Set<string>();
+      for (const one of waiting) {
+        const read = this.read(one);
+        if (typeof read['key'] === 'string') waitingKeys.add(read['key']);
+        for (const seen of this.sightingsOf(one)) waitingKeys.add(seen.key);
+      }
       const waitingById = new Map(waiting.map(one => [one.id, one]));
       // The movements some proposals may repeat, read in one query rather than
       // one per proposal: every query crosses into native code on the phone.
@@ -998,6 +1011,8 @@ export class ReviewPage {
           pairedWith,
           evidence,
           guessed: this.guessedOf(proposal),
+          seenBy: this.seenByOf(proposal),
+          twin: this.twinOf(proposal, waitingKeys),
         });
         known.set(proposal.batch, batch);
       }
@@ -1029,6 +1044,45 @@ export class ReviewPage {
     const title = typeof read['title'] === 'string' ? read['title'] : '';
     const text = typeof read['text'] === 'string' ? read['text'] : '';
     return [title, text].filter(Boolean).join(' - ');
+  }
+
+  /** The messages folded into this one, as each was kept. */
+  private sightingsOf(proposal: MovementProposal): { key: string; file: string }[] {
+    const sightings = this.read(proposal)['sightings'];
+    if (!Array.isArray(sightings)) return [];
+    return sightings
+      .map(one => (one as { evidence?: { key?: unknown; file?: unknown } })?.evidence)
+      .filter((e): e is { key: string; file: string } => typeof e?.key === 'string' && typeof e?.file === 'string');
+  }
+
+  private seenByOf(proposal: MovementProposal): string | null {
+    const files = [...new Set(this.sightingsOf(proposal).map(one => one.file))];
+    return files.length ? this.i18n.t('ui.review.seenBy', { files: files.join(' · ') }) : null;
+  }
+
+  private twinOf(proposal: MovementProposal, waiting: ReadonlySet<string>): string | null {
+    const twin = this.read(proposal)['twin'] as { key?: unknown; file?: unknown; postedAt?: unknown } | undefined;
+    if (!twin || typeof twin.key !== 'string' || typeof twin.file !== 'string' || typeof twin.postedAt !== 'number') return null;
+    if (!waiting.has(twin.key)) return null;
+    const time = new Date(twin.postedAt).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
+    return this.i18n.t('ui.review.twin', { file: twin.file, time });
+  }
+
+  /** Undoes a merge of messages: each becomes a proposal of its own again. */
+  async separateOpen(): Promise<void> {
+    const line = this.openLine();
+    if (!line || this.working()) return;
+    this.working.set(true);
+    try {
+      await new ProposalsRepository(this.database.driver).separate(line.proposal.id);
+      this.openLine.set(null);
+      this.database.dataChanged();
+      await this.refresh();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.working.set(false);
+    }
   }
 
   private guessedOf(proposal: MovementProposal): boolean {
@@ -1065,11 +1119,13 @@ export class ReviewPage {
 
   private readonly readyByBatch = computed(() =>
     new Map(this.batches().map(batch => [batch.key,
-      batch.lines.filter(line => line.sameAs === null && this.ready(line))])));
+      // A possible twin of another message waits for the person: saved with
+      // the rest, one purchase would be written twice.
+      batch.lines.filter(line => line.sameAs === null && line.twin === null && this.ready(line))])));
 
   /** How many of a batch are still waiting on something (what is already typed is not). */
   waitingOn(batch: Batch): number {
-    return batch.lines.filter(line => line.sameAs === null).length - this.readyLines(batch).length;
+    return batch.lines.filter(line => line.sameAs === null && line.twin === null).length - this.readyLines(batch).length;
   }
 
   /**

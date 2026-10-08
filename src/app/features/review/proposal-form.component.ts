@@ -58,6 +58,13 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
       .ui-tx small { color: var(--app-yel); white-space: normal; }
       .ui-tx b { white-space: normal; }
     }
+    .seen-by {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px;
+      background: rgba(77, 163, 255, 0.10); color: #4da3ff; font-size: 13px;
+      ion-icon { font-size: 17px; flex: none; }
+      > span:not(.ui-info) { flex: 1; min-width: 0; white-space: normal; }
+      .ui-pill { flex: none; }
+    }
     .needs { background: rgba(var(--app-yel-rgb), 0.12); }
     .needs .ui-tx b { color: var(--app-yel); }
     .ui-row.plain .grow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 13px; border: 0; background: none; color: var(--app-tx); padding: 0; font: inherit; text-align: left; cursor: pointer; }
@@ -103,6 +110,23 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
                 <ion-icon name="information"></ion-icon>
               </span>
             </div>
+
+            @if (seenBy()) {
+              <div class="seen-by">
+                <ion-icon name="layers-outline"></ion-icon>
+                <span>{{ seenBy() }}</span>
+                <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.review.separateHint'))" [attr.aria-label]="'ui.info' | t">
+                  <ion-icon name="information"></ion-icon>
+                </span>
+                <button type="button" class="ui-pill" [disabled]="busy()" (click)="separate.emit()">{{ 'ui.review.separate' | t }}</button>
+              </div>
+            }
+            @if (twin()) {
+              <div class="same">
+                <app-badge [size]="36" builtin="copy-outline" fixed="#f6b93b"></app-badge>
+                <span class="ui-tx"><b>{{ twin() }}</b><small>{{ 'ui.review.twinHint' | t }}</small></span>
+              </div>
+            }
 
             @if (sameAs()) {
               <div class="same">
@@ -245,6 +269,11 @@ export class ProposalFormComponent implements OnInit {
   readonly sameAs = input<string | null>(null);
   /** Whether money in or out was read from the words rather than proved. */
   readonly guessed = input(false);
+  /** The other messages that told this movement, in words; they can be split off. */
+  readonly seenBy = input<string | null>(null);
+  /** A message of another source that may be this one, in words. */
+  readonly twin = input<string | null>(null);
+  readonly separate = output<void>();
   readonly accounts = input<readonly AccountRow[]>([]);
   readonly categories = input<readonly CategoryRow[]>([]);
   readonly busy = input(false);

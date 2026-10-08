@@ -27,6 +27,7 @@
 
 import type { AccountRow, IsoDate } from '../database/types';
 import type { NewProposal } from '../database/repositories/proposals.repository';
+import { merchantKeyOf } from '../proposals/merchant';
 import { foldText } from '../text/fold-text';
 import { readNotice, type NoticeReading } from './read-notice';
 
@@ -69,7 +70,51 @@ export interface NoticeEvidence {
   confidence: 'low' | null;
   /** How the account was chosen, to say so on screen. */
   accountFrom: 'learned' | 'name' | null;
+  /**
+   * The other messages that reported this same movement - an SMS and the
+   * bank app's own notification of one purchase - each kept whole, so the
+   * proposal can be split back into them ("Separar").
+   */
+  sightings?: Sighting[];
+  /**
+   * A message from another source that may be this same movement but did not
+   * prove it (same amount, minutes apart, nothing else to go on): the screen
+   * asks rather than merging. Where it came from and when.
+   */
+  twin?: { key: string; file: string; postedAt: number } | null;
 }
+
+/** One message folded into another's proposal, with what it alone would have proposed. */
+export interface Sighting {
+  evidence: NoticeEvidence;
+  account_id: number | null;
+  occurred_on: IsoDate;
+  amount_minor: number;
+  description: string | null;
+}
+
+/** A proposal already made from a message, for a later one to join. */
+export interface RecentNotice {
+  id: number;
+  account_id: number | null;
+  amount_minor: number | null;
+  description: string | null;
+  evidence: NoticeEvidence;
+}
+
+/** A later message joining a proposal already written. */
+export interface Joining {
+  id: number;
+  sightings: Sighting[];
+  /** An account the later message knew and the proposal did not. */
+  accountId: number | null;
+}
+
+/**
+ * How far apart two sources may report one movement. A bank's push and its
+ * SMS land within a minute or two; some SMS gateways take several.
+ */
+export const SAME_MOVEMENT_WINDOW = 20 * 60_000;
 
 /** The same message, whenever it is read: the app, when, and what it said. */
 export function noticeKey(notice: KeptNotice): string {
@@ -164,11 +209,7 @@ function mostOf(ids: readonly number[]): number | null {
 
 /**
  * The proposals the kept messages make, leaving out what was proposed before.
- *
- * Only a message that moved money becomes one - a code, an offer, a
- * reminder, a refused purchase or a balance alone does not. Android re-posts
- * a notification when it is updated, so the same app saying the same thing
- * within three minutes is read once.
+ * Kept for callers that only want the new proposals.
  */
 export function proposalsFrom(
   kept: readonly KeptNotice[],
@@ -176,13 +217,74 @@ export function proposalsFrom(
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
 ): { batch: string; proposal: NewProposal }[] {
-  const out: { batch: string; proposal: NewProposal }[] = [];
-  const recent = new Map<string, number>();
+  return readNotices(kept, known, answers, accounts).fresh;
+}
+
+/** One message read, before it is told apart from the others. */
+interface Read {
+  key: string;
+  postedAt: number;
+  source: string;
+  batch: string;
+  sighting: Sighting;
+  direction: 'in' | 'out' | null;
+}
+
+/** A movement and every message seen reporting it. */
+interface Movement {
+  /** Set when the movement is a proposal already written. */
+  id: number | null;
+  sources: Set<string>;
+  first: number;
+  last: number;
+  lead: Read | null;
+  joined: Sighting[];
+  account: number | null;
+  amount: number;
+  direction: 'in' | 'out' | null;
+  digits: string | null;
+  currency: string | null;
+  merchant: string;
+  key: string;
+  file: string;
+}
+
+/**
+ * What the kept messages make: new proposals, and later messages joining a
+ * proposal already written.
+ *
+ * Only a message that moved money becomes one - a code, an offer, a
+ * reminder, a refused purchase or a balance alone does not. Android re-posts
+ * a notification when it is updated, so the same app saying the same thing
+ * within three minutes is read once.
+ *
+ * **One movement, several messages** (Jose, 2026-10-08: an Ualá purchase
+ * arrives as an SMS and as the Ualá app's notification). Two messages are one
+ * movement when they come from DIFFERENT sources, within
+ * `SAME_MOVEMENT_WINDOW`, for the same amount to the cent, nothing they both
+ * state disagrees (direction, currency, card digits, account), and
+ * something besides the amount agrees: the same shop, the same card digits
+ * or the same account. A source never reports one movement twice, so two
+ * messages of one source are two movements - a real second identical
+ * purchase stays two proposals. Where only the amount and the minute agree,
+ * or the shops read differently, the later one is proposed apart with the
+ * other named as a possible twin:
+ * the person decides, the app never drops it silently.
+ */
+export function readNotices(
+  kept: readonly KeptNotice[],
+  known: ReadonlySet<string>,
+  answers: readonly NoticeAnswer[],
+  accounts: readonly AccountRow[],
+  recent: readonly RecentNotice[] = [],
+): { fresh: { batch: string; proposal: NewProposal }[]; joining: Joining[] } {
+  const reads: Read[] = [];
+  const repeat = new Map<string, number>();
   for (const notice of [...kept].sort((a, b) => a.postedAt - b.postedAt)) {
     const key = noticeKey(notice);
     const said = `${noticeSource(notice)}|${notice.title}|${notice.text}`;
-    const before = recent.get(said);
-    recent.set(said, notice.postedAt);
+    const before = repeat.get(said);
+    repeat.set(said, notice.postedAt);
     if (before !== undefined && notice.postedAt - before < 3 * 60_000) continue;
     if (known.has(key)) continue;
 
@@ -209,18 +311,170 @@ export function proposalsFrom(
       confidence: reading.direction === null ? 'low' : null,
       accountFrom: from,
     };
-    out.push({
+    reads.push({
+      key,
+      postedAt: notice.postedAt,
+      source: noticeSource(notice),
       batch: noticeBatch(noticeSource(notice)),
-      proposal: {
-        source: 'notification',
+      direction: reading.direction,
+      sighting: {
+        evidence,
         account_id: accountId,
         // A date written in the message wins; a future one is not believed.
         occurred_on: reading.date && reading.date <= arrived ? reading.date : arrived,
         amount_minor: signed,
         description: reading.merchant || null,
-        evidence,
       },
     });
   }
-  return out;
+
+  const movements: Movement[] = recent
+    .filter(one => one.amount_minor !== null && typeof one.evidence?.postedAt === 'number')
+    .map(one => {
+      const all = [one.evidence, ...(one.evidence.sightings ?? []).map(s => s.evidence)];
+      const times = all.map(e => e.postedAt);
+      return {
+        id: one.id,
+        sources: new Set(all.map(e => e.package)),
+        first: Math.min(...times),
+        last: Math.max(...times),
+        lead: null,
+        joined: [],
+        account: one.account_id,
+        amount: Math.abs(one.amount_minor!),
+        direction: one.evidence.confidence === 'low' ? null : one.amount_minor! > 0 ? 'in' : 'out',
+        digits: one.evidence.digits ?? null,
+        currency: one.evidence.currency ?? null,
+        merchant: merchantKeyOf(one.description),
+        key: one.evidence.key,
+        file: one.evidence.file,
+      };
+    });
+
+  const fresh: Movement[] = [];
+  for (const read of reads) {
+    const s = read.sighting;
+    const merchant = merchantKeyOf(s.description);
+    let best: Movement | null = null;
+    let twin: Movement | null = null;
+    for (const movement of movements) {
+      if (movement.sources.has(read.source)) continue;
+      if (read.postedAt - movement.last > SAME_MOVEMENT_WINDOW || movement.first - read.postedAt > SAME_MOVEMENT_WINDOW) continue;
+      if (movement.amount !== Math.abs(s.amount_minor)) continue;
+      const verdict = alike(movement, {
+        direction: read.direction, currency: s.evidence.currency, digits: s.evidence.digits,
+        account: s.account_id, merchant,
+      });
+      if (verdict === 'differ') continue;
+      const nearer = (one: Movement | null) =>
+        one === null || Math.abs(read.postedAt - movement.last) < Math.abs(read.postedAt - one.last);
+      if (verdict === 'same' && nearer(best)) best = movement;
+      if (verdict === 'maybe' && nearer(twin)) twin = movement;
+    }
+
+    if (best) {
+      best.sources.add(read.source);
+      best.last = Math.max(best.last, read.postedAt);
+      best.first = Math.min(best.first, read.postedAt);
+      best.joined.push(s);
+      best.account ??= s.account_id;
+      best.digits ??= s.evidence.digits;
+      best.currency ??= s.evidence.currency;
+      best.direction ??= read.direction;
+      if (!best.merchant) best.merchant = merchant;
+      continue;
+    }
+    if (twin) s.evidence.twin = { key: twin.key, file: twin.file, postedAt: twin.last };
+    const movement: Movement = {
+      id: null,
+      sources: new Set([read.source]),
+      first: read.postedAt,
+      last: read.postedAt,
+      lead: read,
+      joined: [],
+      account: s.account_id,
+      amount: Math.abs(s.amount_minor),
+      direction: read.direction,
+      digits: s.evidence.digits,
+      currency: s.evidence.currency,
+      merchant,
+      key: read.key,
+      file: s.evidence.file,
+    };
+    movements.push(movement);
+    fresh.push(movement);
+  }
+
+  return {
+    fresh: fresh.map(movement => {
+      const lead = movement.lead!;
+      const s = lead.sighting;
+      const joined = movement.joined;
+      // The lead says it; where it said nothing, a message that joined it does.
+      const description = s.description ?? joined.find(one => one.description)?.description ?? null;
+      const signed = movement.direction === 'in' ? Math.abs(s.amount_minor) : -Math.abs(s.amount_minor);
+      const evidence: NoticeEvidence = joined.length
+        ? {
+          ...s.evidence,
+          digits: movement.digits,
+          currency: movement.currency,
+          confidence: movement.direction === null ? 'low' : null,
+          accountFrom: s.account_id !== null ? s.evidence.accountFrom
+            : joined.find(one => one.account_id !== null)?.evidence.accountFrom ?? null,
+          sightings: joined,
+        }
+        : s.evidence;
+      return {
+        batch: lead.batch,
+        proposal: {
+          source: 'notification' as const,
+          account_id: movement.account,
+          occurred_on: s.occurred_on,
+          amount_minor: signed,
+          description,
+          evidence,
+        },
+      };
+    }),
+    joining: movements
+      .filter(movement => movement.id !== null && movement.joined.length > 0)
+      .map(movement => ({
+        id: movement.id!,
+        sightings: movement.joined,
+        accountId: movement.joined.find(one => one.account_id !== null)?.account_id ?? null,
+      })),
+  };
+}
+
+/**
+ * Whether a message is the movement: 'differ' when something both state
+ * disagrees, 'same' when something besides the amount agrees, 'maybe' when
+ * only the amount and the minute do, or the shops read differently.
+ */
+function alike(
+  movement: Movement,
+  read: { direction: 'in' | 'out' | null; currency: string | null; digits: string | null; account: number | null; merchant: string },
+): 'same' | 'maybe' | 'differ' {
+  const both = <T>(a: T | null, b: T | null) => a !== null && b !== null;
+  if (both(movement.direction, read.direction) && movement.direction !== read.direction) return 'differ';
+  if (both(movement.currency, read.currency) && movement.currency !== read.currency) return 'differ';
+  if (both(movement.digits, read.digits) && movement.digits !== read.digits) return 'differ';
+  if (both(movement.account, read.account) && movement.account !== read.account) return 'differ';
+  // Two wordings of one shop can share no word ("TIENDAS D1" against "D1
+  // SAS"), so shops that look different are a question, never a "no".
+  const shop = sameShop(movement.merchant, read.merchant);
+  if (shop === false) return 'maybe';
+  if (shop === true) return 'same';
+  if (both(movement.digits, read.digits)) return 'same';
+  if (both(movement.account, read.account)) return 'same';
+  return 'maybe';
+}
+
+/** True when two shops share a word, false when both are named and share none, null when one is not named. */
+function sameShop(one: string, other: string): boolean | null {
+  if (!one || !other) return null;
+  const words = new Set(one.split(' ').filter(word => word.length >= 3));
+  const theirs = other.split(' ').filter(word => word.length >= 3);
+  if (words.size === 0 || theirs.length === 0) return null;
+  return theirs.some(word => words.has(word));
 }

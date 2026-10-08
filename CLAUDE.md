@@ -1738,7 +1738,30 @@ backup restore against iOS's own SQLite backend.
      notifications are what the app reads (Jose's words: if it is
      definitely costly, discard it).
 
-   **One movement, several messages: how to count it once** (proposed).
+   **One movement, several messages: BUILT for push and SMS (2026-10-08)**,
+  after Jose asked whether an Ualá purchase seen by SMS and by Ualá's own
+  notification stays one. `readNotices` (`notice-proposals.ts`, pure,
+  `notice-proposals.test.mjs`) merges two messages when they come from
+  DIFFERENT sources within 20 minutes, same amount to the cent, nothing both
+  state disagreeing (direction, currency, card digits, account) and
+  something besides the amount agreeing (a shared shop word, the same card
+  digits or the same account). The later one is a `sighting` inside the
+  first's evidence (`evidence.sightings`, each kept whole), and a message
+  read on a later pass joins a proposal already written
+  (`ProposalsRepository.recentNotices`, `join`) - even one thrown away, so a
+  purchase never comes back by the other channel. A sighting's key is spent
+  (`noticeKeys`) and its source learns the account when accepted
+  (`noticeAnswers`). Only the amount and the minute agreeing, or shops
+  worded differently: proposed apart, the later carrying `twin`, shown
+  amber ("Puede ser el mismo que llegó por ... · Si es el mismo, descarta
+  uno") and left out of "Guardar los listos". "Separar" in the review form
+  (`separate`) undoes a merge. `propose` no longer drops a message because
+  another MESSAGE proposal matches it (the same sender texting the same
+  purchase twice is two purchases); statements still do. Mail is not read,
+  so its window is not built. Checked in a browser with invented messages;
+  not seen on the phone. The design as first written follows.
+
+  **One movement, several messages: how to count it once** (proposed).
    The same purchase may arrive as a push, an SMS and a mail, minutes to
    hours apart, and a second identical purchase (same amount, same shop,
    same day) is real and must not be swallowed.

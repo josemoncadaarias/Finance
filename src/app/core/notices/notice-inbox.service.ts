@@ -21,7 +21,7 @@ import { DatabaseService } from '../database/database.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
-import { proposalsFrom } from './notice-proposals';
+import { readNotices } from './notice-proposals';
 
 @Injectable({ providedIn: 'root' })
 export class NoticeInboxService {
@@ -60,11 +60,18 @@ export class NoticeInboxService {
 
       const db = this.database.driver;
       const proposals = new ProposalsRepository(db);
-      const [known, answers, accounts] = await Promise.all([
+      const [known, answers, accounts, recent] = await Promise.all([
         proposals.noticeKeys(), proposals.noticeAnswers(), new AccountsRepository(db).list(),
+        proposals.recentNotices(),
       ]);
-      const made = proposalsFrom(caught, known, answers, accounts);
-      if (made.length === 0) return 0;
+      // One purchase told by an SMS and by the bank's app is one proposal:
+      // a later message joins the one already written.
+      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent);
+      const joined = await proposals.join(joining);
+      if (made.length === 0) {
+        if (joined > 0) this.database.dataChanged();
+        return 0;
+      }
 
       const byBatch = new Map<string, typeof made>();
       for (const one of made) byBatch.set(one.batch, [...(byBatch.get(one.batch) ?? []), one]);
@@ -72,7 +79,7 @@ export class NoticeInboxService {
       for (const [batch, ones] of byBatch) {
         written += (await proposals.propose(batch, ones.map(one => one.proposal))).ids.length;
       }
-      if (written > 0) this.database.dataChanged();
+      if (written > 0 || joined > 0) this.database.dataChanged();
       return written;
     } catch {
       // A message that could not be read today is read on the next pass;
