@@ -56,7 +56,10 @@ export interface Source {
   accounts: number[];
 }
 
-type SectionKey = 'banks' | 'unknown' | 'found' | 'hidden';
+type SectionKey = 'banks' | 'unknown' | 'recent' | 'found' | 'hidden';
+
+/** How long an app first seen on the phone counts as new. */
+const RECENT_DAYS = 7;
 
 @Component({
   selector: 'app-notifications',
@@ -266,9 +269,13 @@ export class NotificationsPage {
   private sectionOf(one: Source): SectionKey {
     if (one.hidden) return 'hidden';
     if (one.watched) return one.accounts.length > 0 ? 'banks' : 'unknown';
-    // An app not read is with the hidden ones (Jose, 2026-10-08): one
+    if (one.kind === 'sms') return 'found';
+    // An app nobody hid, first seen this week, is new on the phone - a bank
+    // just installed reads as one (Jose, 2026-10-08) - not a hidden one.
+    if (one.app && one.app.first >= Date.now() - RECENT_DAYS * 86_400_000) return 'recent';
+    // An older app not read is with the hidden ones (Jose, 2026-10-08): one
     // section for everything the app does not read.
-    return one.kind === 'sms' ? 'found' : 'hidden';
+    return 'hidden';
   }
 
   readonly bySection = computed(() => {
@@ -317,6 +324,7 @@ export class NotificationsPage {
   sectionTitle(section: SectionKey): string {
     return this.i18n.t(section === 'banks' ? 'ui.notifications.sec.banks'
       : section === 'unknown' ? 'ui.notifications.sec.unknown'
+      : section === 'recent' ? 'ui.notifications.sec.recent'
       : section === 'found' ? 'ui.notifications.sec.found'
       : 'ui.notifications.sec.hidden');
   }
@@ -331,6 +339,7 @@ export class NotificationsPage {
         this.i18n.t('ui.notifications.sec.banks.line')}`;
     }
     const hint = section === 'unknown' ? 'ui.notifications.sec.unknown.line'
+      : section === 'recent' ? 'ui.notifications.sec.recent.line'
       : section === 'found' ? 'ui.notifications.sec.found.line'
       : 'ui.notifications.sec.hidden.line';
     return `${what} · ${this.i18n.t(hint)}`;
@@ -360,7 +369,7 @@ export class NotificationsPage {
   }
 
   private readonly foldKeys = computed(() => [
-    ...(['banks', 'unknown', 'found', 'hidden'] as const).filter(key => this.of(key).length > 0),
+    ...(['banks', 'unknown', 'recent', 'found', 'hidden'] as const).filter(key => this.of(key).length > 0),
     ...this.banks().map(bank => `bank:${bank.key}`),
   ]);
 
@@ -413,6 +422,13 @@ export class NotificationsPage {
     else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
     if (on) await this.askAlerts();
     await this.look();
+    // Turned on with no account yet: asked right away, so it lands in "Tus
+    // bancos" rather than "Sin cuenta todavía" (Jose, 2026-10-08).
+    // "Cancelar" leaves it there, to answer later.
+    if (on) {
+      const now = this.sources().find(each => each.key === one.key);
+      if (now && now.watched && now.accounts.length === 0) this.pickingFor.set(now);
+    }
   }
 
   /** Puts sources away; asked first only when something they said was kept. */

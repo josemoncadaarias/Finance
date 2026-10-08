@@ -1822,6 +1822,17 @@ backup restore against iOS's own SQLite backend.
     other section (Jose, 2026-10-08). Each section's line says what it
     holds by kind ("2 apps · 1 remitente de SMS") and what it is for;
     the senders' section is "SMS con dinero sin activar".
+    **Turning a source on asks "¿De qué cuenta es?" right away** when it
+    has no account yet (Jose, 2026-10-08), so it lands in Tus bancos;
+    "Cancelar" leaves it in "Sin cuenta todavía". **"Apps nuevas en tu
+    celular"**: an app nobody hid, first seen in the last 7 days
+    (`RECENT_DAYS`), is listed there, not with the hidden ones - a bank
+    just installed had read as hidden. Older apps not read stay in "Apps y
+    SMS ocultos". **A short code shared by several banks**: a message
+    signed by a bank's name goes to that account first (`signedBy`), then
+    learned card digits, then the source's one account; a shared sender
+    whose banks do not sign their messages still lands on that one account,
+    and is corrected in Revisar movimiento.
     Tapping a source opens its page: its account and its last messages, each
     with what became of it (por revisar, guardado, descartado, el mismo
     movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The
