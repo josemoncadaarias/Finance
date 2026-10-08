@@ -1868,6 +1868,11 @@ backup restore against iOS's own SQLite backend.
     (`Mold.otherAccountId`, `accepted(id, tx, other)`); the next message of
     that shape carries `evidence.transferTo` and opens straight as a
     transfer, and "Guardar los listos" never writes it as a spending.
+    **Opened that way it is still "Revisar movimiento"** (Jose, the same
+    day): the message's line on top, the eye and the bin in the header,
+    each asked on the review screen (`ComposeService.proposalAsk`), and
+    Gasto / Ingreso go back to the proposal's own form with what was typed
+    (`typed` input).
   - The eye beside the bin in Revisar movimiento: "¿No ver más este
     movimiento?", asked first (`forgetOne`, the same `forgetThese`).
   - "Movimientos por revisar" on top of Notificaciones del teléfono, with
