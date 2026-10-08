@@ -1947,6 +1947,27 @@ backup restore against iOS's own SQLite backend.
   with `commit`, VIBRATE is declared for the notice's `DEFAULT_ALL`, and
   the screen says under the clock when Android connected the listener and
   the last thing that broke in it.
+  **Then the real cause, from the screen's own new lines (2026-10-08)**:
+  "Android la conectó 6:06 · pero ahora mismo no está activa dentro de la
+  app", and later "conectada 6:33" - the minute he opened Finance. The
+  Xiaomi closes the app in the background, the listener goes with it, and
+  Android does not bind it again until the app opens. Three answers:
+  `NotificationCatcher.ensureBound` (disable and enable the component, then
+  `requestRebind`, only when access is on and the listener is not running)
+  on opening, on the notifications screen and on a ticked SMS;
+  `ListenerKeeper` doing the same about every 15 minutes, after boot and
+  after each update; and **"Avisarme siempre al instante"** (Jose's idea:
+  offered, never imposed), a switch on Notificaciones del teléfono, off by
+  default, with "¿Qué cambia?" saying every case - on, `ListenerGuard` is a
+  foreground service (`specialUse`) with a silent IMPORTANCE_MIN notice
+  ("Finance está atenta a tus bancos") so the phone does not close the app;
+  off, a notice may come up to ~15 minutes late, or not ring if the bank's
+  notification was opened first, and the movement still waits in Por
+  revisar. Lukas does not meet any of this: on iPhone Apple's Shortcuts app
+  listens and hands Lukas the text; on Android it reads nobody's
+  notifications. Play may ask for a foreground-service declaration
+  (special use) before closed testing or production. Not yet seen on the
+  phone.
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message

@@ -668,8 +668,9 @@ export class NotificationsPage {
       this.supported.set(supported);
       if (!supported) return;
 
-      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt, error, errorAt, bound, catchUp, rebindAt } = await BankNotifications.isEnabled();
+      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt, error, errorAt, bound, catchUp, rebindAt, alwaysOn } = await BankNotifications.isEnabled();
       this.enabled.set(enabled);
+      this.alwaysOn.set(!!alwaysOn);
       this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0, error: error ?? '', errorAt: errorAt ?? 0, bound: !!bound, catchUp: catchUp ?? '', rebindAt: rebindAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
@@ -699,6 +700,17 @@ export class NotificationsPage {
   readonly asleep = computed(() => this.batteryLimited());
 
   /** This app's page in Android's settings: battery and autostart. */
+  /** "Avisarme siempre al instante" (Jose, 2026-10-08): the person decides. */
+  readonly alwaysOn = signal(false);
+  /** Whether the explanation of each choice is open. */
+  readonly alwaysOnHelp = signal(false);
+
+  async setAlwaysOn(on: boolean): Promise<void> {
+    if (on) await this.askAlerts();
+    const { alwaysOn } = await BankNotifications.setAlwaysOn({ on });
+    this.alwaysOn.set(alwaysOn);
+  }
+
   async openAppSettings(): Promise<void> {
     await BankNotifications.openAppSettings();
   }

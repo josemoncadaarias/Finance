@@ -43,6 +43,20 @@
         </service>
 
         <!--
+            "Avisarme siempre al instante": a quiet fixed notice the person
+            chooses to keep, so the phone does not close the app and the
+            listener of the banks' notifications stays bound.
+        -->
+        <service
+            android:name=".ListenerGuard"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the notification listener the user enabled bound, so a bank's notice is read the moment it arrives." />
+        </service>
+
+        <!--
             Brings the notification listener back when Android left it
             unbound: every ~15 minutes, after the phone starts and after
             each update of the app.
@@ -101,4 +115,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- To set the listener's keeper again after the phone restarts. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- "Avisarme siempre al instante", only when the person turns it on. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>
