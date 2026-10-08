@@ -16,7 +16,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { accept } from '../../src/app/core/proposals/accept.ts';
-import { accountFor, signedBy, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
+import { SEVERAL_ACCOUNTS, accountFor, signedBy, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
 import { readNotice } from '../../src/app/core/notices/read-notice.ts';
 
 const NOW = () => '2026-10-02T15:00:00Z';
@@ -309,4 +309,18 @@ test('a message signed by the bank goes to that bank, even through a short code 
   assert.equal(signedBy('Transferiste $50.000 a Bold', accounts), null);
   // Too short a word never signs ("Nu" against "nuevo").
   assert.equal(signedBy('Nuevo movimiento por $5.000', accounts), null);
+});
+
+test('a sender said to write for several accounts asks what its message does not say', () => {
+  // Jose, 2026-10-08: one short code carries several banks' messages.
+  const accounts = [account(1, 'Rappi cuenta'), account(2, 'Bold')];
+  const pkg = 'com.bancoazul.app';
+  const several = new Map([[pkg, SEVERAL_ACCOUNTS]]);
+  const unsigned = notice('Compraste $5.000 en PAN');
+  const learned = [{ package: pkg, digits: null, account_id: 1 }];
+  assert.equal(accountFor(unsigned, readNotice(unsigned.text), learned, accounts, several).accountId, null,
+    'not what this sender meant last time');
+  const signed = notice('Bold: Compraste $5.000 en PAN');
+  assert.equal(accountFor(signed, readNotice(signed.text), learned, accounts, several).accountId, 2, 'a signed one still says');
+  assert.equal(accountFor(unsigned, readNotice(unsigned.text), learned, accounts).accountId, 1, 'one account told: that one');
 });

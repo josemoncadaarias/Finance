@@ -54,6 +54,13 @@ final class MovementAlert {
     private static final String DISMISSED = "dismissed";
     /** What already rang, kept past the app opening: a late copy never rings twice. */
     private static final String RANG = "rang";
+    /**
+     * What became of each message handed here - rang, or why not - with no
+     * words of it (Jose, 2026-10-08: two bank notices arrived and nothing
+     * rang, and nothing on the phone could say why). Read by the source's
+     * page beside each message.
+     */
+    private static final String LOG = "log";
     private static final long WINDOW = 20L * 60 * 1000;
     private static final int KEEP = 60;
 
@@ -97,11 +104,11 @@ final class MovementAlert {
      * money that moved, once per movement.
      */
     static void post(Context context, String source, String name, String text, long at) {
-        if (text == null || text.isEmpty()) return;
+        if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
         int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
-        if (direction == 0 && has(folded, NOT_A_MOVEMENT)) return;
-        if (!NotificationStore.looksLikeMoney(text)) return;
+        if (direction == 0 && has(folded, NOT_A_MOVEMENT)) { note(context, source, at, "notMovement", null); return; }
+        if (!NotificationStore.looksLikeMoney(text)) { note(context, source, at, "noMoney", null); return; }
         Matcher found = AMOUNT.matcher(text);
         String amount = null;
         while (found.find()) {
@@ -111,7 +118,7 @@ final class MovementAlert {
             amount = number;
             break;
         }
-        if (amount == null) return;
+        if (amount == null) { note(context, source, at, "noAmount", null); return; }
         String digits = amount.replaceAll("\\D", "");
 
         try {
@@ -121,12 +128,20 @@ final class MovementAlert {
                 if (one == null) continue;
                 boolean sameMoney = digits.equals(one.optString("digits"));
                 boolean near = Math.abs(one.optLong("at") - at) < WINDOW;
-                // The same message again, or the same purchase from another source.
-                if (sameMoney && near) return;
+                // The same purchase from another source rang already. One
+                // source never reports one movement twice: the same amount
+                // again from it is another movement, and rings.
+                String other = one.optString("source");
+                if (sameMoney && near && !other.equals(source)) {
+                    note(context, source, at, "same", one.optString("name", other));
+                    return;
+                }
             }
             JSONObject mark = new JSONObject();
             mark.put("digits", digits);
             mark.put("at", at);
+            mark.put("source", source);
+            mark.put("name", name);
             rang.put(mark);
             while (rang.length() > KEEP) rang.remove(0);
             JSONArray pending = array(context, PENDING);
@@ -141,16 +156,52 @@ final class MovementAlert {
             pending.put(one);
             while (pending.length() > KEEP) pending.remove(0);
             prefs(context).edit().putString(PENDING, pending.toString()).putString(RANG, rang.toString()).apply();
-            show(context, pending);
+            note(context, source, at, show(context, pending), null);
         } catch (Exception broken) {
             // A notice that could not be posted is still proposed when the app opens.
+            note(context, source, at, "error", broken.getClass().getSimpleName());
         }
     }
 
-    private static void show(Context context, JSONArray pending) {
+    /** Remembers what became of one message: no words of it, only why. */
+    private static void note(Context context, String source, long at, String reason, String detail) {
+        try {
+            JSONArray log = array(context, LOG);
+            JSONObject one = new JSONObject();
+            one.put("source", source);
+            one.put("at", at);
+            one.put("reason", reason);
+            if (detail != null) one.put("detail", detail);
+            log.put(one);
+            while (log.length() > 120) log.remove(0);
+            prefs(context).edit().putString(LOG, log.toString()).apply();
+        } catch (Exception ignored) {
+            // A note about a notice is not worth losing the notice for.
+        }
+    }
+
+    /** What became of the last messages handed here. */
+    static JSONArray log(Context context) {
+        return array(context, LOG);
+    }
+
+    /** Whether Android lets this app's notices show at all, channel included. */
+    static boolean allowed(Context context) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager manager = context.getSystemService(NotificationManager.class);
+            NotificationChannel channel = manager == null ? null : manager.getNotificationChannel(CHANNEL);
+            if (channel != null && channel.getImportance() == NotificationManager.IMPORTANCE_NONE) return false;
+        }
+        return true;
+    }
+
+    /** Posts the notice; says "shown", or why Android will not show it. */
+    private static String show(Context context, JSONArray pending) {
         ensureChannel(context);
         int count = pending.length();
-        if (count == 0) return;
+        if (count == 0) return "error";
+        if (!allowed(context)) return "off";
         JSONObject last = pending.optJSONObject(count - 1);
         boolean spanish = Locale.getDefault().getLanguage().equals("es");
         String title;
@@ -207,8 +258,10 @@ final class MovementAlert {
         if (logo != null) built.setLargeIcon(logo);
         try {
             NotificationManagerCompat.from(context).notify(ID, built.build());
+            return "shown";
         } catch (SecurityException notAllowed) {
             // The person turned this app's notifications off: proposals still wait in the app.
+            return "off";
         }
     }
 

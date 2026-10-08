@@ -288,6 +288,15 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve(answer);
     }
 
+    /** What became of the last messages handed to "Movimiento detectado", and whether it may show. */
+    @PluginMethod
+    public void alertLog(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("log", toJs(MovementAlert.log(getContext())));
+        answer.put("allowed", MovementAlert.allowed(getContext()));
+        call.resolve(answer);
+    }
+
     private static JSArray toJs(JSONArray from) {
         JSArray out = new JSArray();
         for (int at = 0; at < from.length(); at += 1) {

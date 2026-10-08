@@ -187,7 +187,9 @@
           @if (isOpen('banks')) {
             @for (bank of banks(); track bank.key) {
               <div class="ui-row bank" (click)="toggleOpen('bank:' + bank.key)">
-                @if (account(bank.ids[0]); as acc) {
+                @if (bank.key.startsWith('several:')) {
+                  <app-badge [size]="34" builtin="layers-outline" fixed="#6378ff"></app-badge>
+                } @else if (account(bank.ids[0]); as acc) {
                   <app-badge shape="ci" [size]="34" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id" [tone]="acc.color" [seed]="acc.id"></app-badge>
                 }
                 <span class="ui-tx"><b class="ui-one">{{ bank.title }}</b><small class="ui-one">{{ bankLine(bank) }}</small></span>
@@ -280,7 +282,12 @@
         <p class="center sub">{{ one.line }}</p>
         <div class="ui-list">
           <button type="button" class="ui-row" (click)="pickingFor.set(one)">
-            @if (one.accounts.length > 0 && account(one.accounts[0]); as acc) {
+            @if (one.several) {
+              <app-badge [size]="38" builtin="layers-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><small>{{ 'ui.notifications.detail.accountIs' | t }}</small><b class="ui-one">{{ 'ui.notifications.several' | t }}</b>
+                <small class="wrap">{{ 'ui.notifications.several.hint' | t }}</small></span>
+              <span class="link">{{ 'ui.notifications.detail.change' | t }}</span>
+            } @else if (one.accounts.length > 0 && account(one.accounts[0]); as acc) {
               <app-badge shape="ci" [size]="38" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id" [tone]="acc.color" [seed]="acc.id"></app-badge>
               <span class="ui-tx"><small>{{ 'ui.notifications.detail.accountIs' | t }}</small><b class="ui-one">{{ acc.name }}</b></span>
               <span class="link">{{ 'ui.notifications.detail.change' | t }}</span>
@@ -308,6 +315,7 @@
                   <small>{{ m.when }}</small>
                   <span class="said">{{ m.one.text }}</span>
                   <small class="outcome" [class]="'t-' + m.tone">→ {{ m.outcome }}</small>
+                  @if (m.alert) { <small class="alert-note">{{ m.alert }}</small> }
                 </span>
               </div>
             }
@@ -318,9 +326,13 @@
   </ng-template>
 </ion-modal>
 
-<app-account-picker [open]="pickingFor() !== null" [accounts]="accounts()" [selectedId]="pickingFor()?.accounts?.[0] ?? null"
+<!-- An SMS sender may write for several banks (one short code): "Varias cuentas" first. -->
+<app-account-picker [open]="pickingFor() !== null" [accounts]="accounts()"
+                    [selectedId]="pickingFor()?.several ? null : pickingFor()?.accounts?.[0] ?? -1"
                     [heading]="'ui.notifications.whichAccount' | t" detail="kind"
-                    (chosen)="assign($event)" (closed)="pickingFor.set(null)"></app-account-picker>
+                    [showAll]="pickingFor()?.kind === 'sms'" [allLabel]="'ui.notifications.several' | t"
+                    [allDetail]="'ui.notifications.several.hint' | t"
+                    (chosenAll)="assignSeveral()" (chosen)="assign($event)" (closed)="pickingFor.set(null)"></app-account-picker>
 
 <app-confirm [open]="asking() !== null" icon="eye-off-outline"
              tone="danger" [title]="askTitle()" [body]="askBody()" [confirmLabel]="askConfirm()"

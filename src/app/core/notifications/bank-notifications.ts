@@ -156,6 +156,21 @@ export interface BankNotificationsPlugin {
   clearAlerts(): Promise<void>;
   /** Messages thrown away from the notice, never to be proposed (the last two hundred). */
   dismissed(): Promise<{ dismissed: { source: string; text: string; at: number }[] }>;
+  /**
+   * What became of each message handed to "Movimiento detectado" - shown, or
+   * why not - with no words of it, and whether Android lets it show at all
+   * (the app's notices and their channel).
+   */
+  alertLog(): Promise<{ log: AlertNote[]; allowed: boolean }>;
+}
+
+/** What became of one message at the phone's notice. */
+export interface AlertNote {
+  source: string;
+  at: number;
+  /** shown, same (rang already for another source), off, empty, notMovement, noMoney, noAmount, error. */
+  reason: string;
+  detail?: string;
 }
 
 /**
@@ -185,6 +200,7 @@ const nothing: BankNotificationsPlugin = {
   takeOpen: async () => ({ open: '' }),
   clearAlerts: async () => {},
   dismissed: async () => ({ dismissed: [] }),
+  alertLog: async () => ({ log: [], allowed: true }),
 };
 
 export const BankNotifications = registerPlugin<BankNotificationsPlugin>(

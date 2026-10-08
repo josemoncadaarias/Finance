@@ -90,7 +90,9 @@ export class NoticeInboxService {
       const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned });
       const joined = await proposals.join(joining);
       if (made.length === 0) {
-        if (joined > 0) this.database.dataChanged();
+        // Halves of a transfer between two banks already waiting apart.
+        const paired = await proposals.pairWaitingMessages();
+        if (joined > 0 || paired > 0) this.database.dataChanged();
         return 0;
       }
 

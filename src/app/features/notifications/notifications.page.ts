@@ -27,14 +27,14 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
-  BankNotifications, SMS_INBOX, type CaughtNotification, type SeenApp, type SeenSender,
+  BankNotifications, SMS_INBOX, type AlertNote, type CaughtNotification, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { ProposalsRepository, type ProposalStatus } from '../../core/database/repositories/proposals.repository';
 import type { AccountRow } from '../../core/database/types';
 import { formatMoney } from '../../core/database/money';
-import { noticeKey, noticeSource } from '../../core/notices/notice-proposals';
+import { SEVERAL_ACCOUNTS, noticeKey, noticeSource } from '../../core/notices/notice-proposals';
 import { readNotice } from '../../core/notices/read-notice';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 
@@ -54,6 +54,8 @@ export interface Source {
   sender: SeenSender | null;
   /** The accounts it turned out to be, the person's own word first. */
   accounts: number[];
+  /** Said by the person: this SMS sender writes for several of their accounts. */
+  several: boolean;
 }
 
 type SectionKey = 'banks' | 'unknown' | 'recent' | 'found' | 'hidden';
@@ -249,7 +251,7 @@ export class NotificationsPage {
         key: app.package, kind: 'app', name: app.label, last: app.last,
         line: this.i18n.t('ui.notifications.appLine', { count: app.count, package: app.package }),
         watched: app.watched, hidden: app.hidden, bySender: !!app.messaging && !app.watched,
-        app, sender: null, accounts: this.accountsOf(app.package),
+        app, sender: null, accounts: this.accountsOf(app.package), several: false,
       });
     }
     for (const one of this.senders()) {
@@ -258,6 +260,7 @@ export class NotificationsPage {
         key, kind: 'sms', name: one.sender, last: one.last, line: this.senderLine(one),
         watched: one.watched, hidden: one.hidden, bySender: false,
         app: null, sender: one, accounts: this.accountsOf(key),
+        several: this.assigned().get(key) === SEVERAL_ACCOUNTS,
       });
     }
     const term = this.term();
@@ -268,7 +271,7 @@ export class NotificationsPage {
 
   private sectionOf(one: Source): SectionKey {
     if (one.hidden) return 'hidden';
-    if (one.watched) return one.accounts.length > 0 ? 'banks' : 'unknown';
+    if (one.watched) return one.accounts.length > 0 || one.several ? 'banks' : 'unknown';
     if (one.kind === 'sms') return 'found';
     // An app nobody hid, first seen this week, is new on the phone - a bank
     // just installed reads as one (Jose, 2026-10-08) - not a hidden one.
@@ -296,9 +299,12 @@ export class NotificationsPage {
     const groups = new Map<string, { key: string; ids: number[]; title: string; sources: Source[]; last: number }>();
     for (const one of this.of('banks')) {
       const ids = [...one.accounts].sort((a, b) => a - b);
-      const key = ids.join('-');
+      // A sender shared by several banks is its own group, named for it.
+      const key = one.several ? `several:${one.key}` : ids.join('-');
+      const names = ids.map(id => this.accountName(id)).join(' · ');
       const group = groups.get(key) ?? {
-        key, ids, title: ids.map(id => this.accountName(id)).join(' · '), sources: [], last: 0,
+        key, ids, sources: [], last: 0,
+        title: one.several ? this.i18n.t('ui.notifications.several.title', { name: one.name }) : names,
       };
       group.sources.push(one);
       group.last = Math.max(group.last, one.last);
@@ -487,7 +493,10 @@ export class NotificationsPage {
       .filter(one => noticeSource(one) === source.key)
       .sort((a, b) => b.postedAt - a.postedAt)
       .slice(0, 30)
-      .map(one => ({ one, when: `${this.short(one.postedAt)} · ${this.hour(one.postedAt)}`, ...this.outcomeOf(one, outcomes) }));
+      .map(one => ({
+        one, when: `${this.short(one.postedAt)} · ${this.hour(one.postedAt)}`,
+        alert: this.alertOf(one), ...this.outcomeOf(one, outcomes),
+      }));
   });
 
   private outcomeOf(
@@ -505,6 +514,16 @@ export class NotificationsPage {
     if (kind === 'declined') return { outcome: this.i18n.t('ui.notifications.out.declined'), tone: 'mu' };
     if (kind === 'none') return { outcome: this.i18n.t('ui.notifications.out.none'), tone: 'mu' };
     return { outcome: this.i18n.t('ui.notifications.out.waiting'), tone: 'mu' };
+  }
+
+  /** "Varias cuentas": each message that does not say its bank is asked. */
+  async assignSeveral(): Promise<void> {
+    const source = this.pickingFor();
+    this.pickingFor.set(null);
+    if (!source || this.database.status() !== 'ready') return;
+    await new ProposalsRepository(this.database.driver).assignSource(source.key, SEVERAL_ACCOUNTS);
+    this.database.dataChanged();
+    await this.look();
   }
 
   /** "¿De qué cuenta es?" answered: remembered, and its waiting proposals take it. */
@@ -622,10 +641,41 @@ export class NotificationsPage {
       await this.readAlerts();
       this.senders.set((await BankNotifications.senders()).senders);
       this.caught.set((await BankNotifications.caught()).caught);
+      await this.readAlertLog();
       await this.readLedger();
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** What became of each message at the phone's notice. */
+  readonly alertLog = signal<AlertNote[]>([]);
+
+  private async readAlertLog(): Promise<void> {
+    try {
+      const { log, allowed } = await BankNotifications.alertLog();
+      this.alertLog.set(log);
+      // The channel switched off counts as not allowed, as the app's notices do.
+      if (!allowed) this.alertsAllowed.set(false);
+    } catch {
+      // An app installed before this existed answers nothing: nothing to say.
+    }
+  }
+
+  /** Why a message rang or not, in words, or null when nothing is on record. */
+  private alertOf(one: CaughtNotification): string | null {
+    const source = noticeSource(one);
+    const near = this.alertLog()
+      .filter(note => note.source === source && Math.abs(note.at - one.postedAt) < 2 * 60_000)
+      .sort((a, b) => Math.abs(a.at - one.postedAt) - Math.abs(b.at - one.postedAt))[0];
+    if (!near) return null;
+    const words = {
+      shown: 'ui.notifications.alert.shown', same: 'ui.notifications.alert.same', off: 'ui.notifications.alert.off',
+      empty: 'ui.notifications.alert.empty', notMovement: 'ui.notifications.alert.notMovement',
+      noMoney: 'ui.notifications.alert.noMoney', noAmount: 'ui.notifications.alert.noAmount',
+    } as const;
+    const key = words[near.reason as keyof typeof words] ?? 'ui.notifications.alert.error';
+    return this.i18n.t(key, { other: near.detail ?? '' });
   }
 
   /** What the app learned about each source, read once. */

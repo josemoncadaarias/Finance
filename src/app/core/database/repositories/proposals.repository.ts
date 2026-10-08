@@ -14,11 +14,54 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
-import { noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
+import { foldText } from '../../text/fold-text';
+import { SEVERAL_ACCOUNTS, noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
 import { learnMold, moldFrom, type Mold } from '../../notices/molds';
 
 const MOLDS = 'notices.molds';
 const SOURCE_ACCOUNTS = 'notices.sourceAccounts';
+
+/** How far apart two banks' messages may tell one transfer between them. */
+const PAIR_WINDOW = 2 * 60 * 60 * 1000;
+
+function postedAtOf(proposal: MovementProposal): number | null {
+  try {
+    const at = (JSON.parse(proposal.evidence) as { postedAt?: unknown }).postedAt;
+    return typeof at === 'number' ? at : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 1 for a leg of a move between the products of one account, in SQL over `t`. */
+const INTERNAL_MOVE = `CASE WHEN t.transfer_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM transactions o WHERE o.transfer_id = t.transfer_id AND o.id <> t.id AND o.account_id = t.account_id
+) THEN 1 ELSE 0 END`;
+
+/** The words of four letters or more, folded, that could tie a message to a note. */
+function wordsOf(text: string | null | undefined): Set<string> {
+  return new Set(foldText(text ?? '').split(/[^a-z0-9]+/).filter(word => word.length >= 4 && !/^\d+$/.test(word)));
+}
+
+/**
+ * What a reading may already be in the ledger. A move between the products
+ * of one account ("Retiro bóveda principal") is only a message's twin when
+ * the message speaks of it - a word of its note in the message (Jose,
+ * 2026-10-08: "Recibiste 10.000 COP de JOSE AUGUSTO" was taken for that
+ * move, which a bank never announced). A statement is read as before.
+ */
+function ledgerFor<T extends LedgerMovement & { internal: number }>(reading: MovementProposal, ledger: readonly T[]): T[] {
+  if (reading.source !== 'notification' || !ledger.some(row => row.internal)) return [...ledger];
+  let said = reading.description ?? '';
+  try {
+    const evidence = JSON.parse(reading.evidence) as { title?: unknown; text?: unknown };
+    said += ` ${typeof evidence.title === 'string' ? evidence.title : ''} ${typeof evidence.text === 'string' ? evidence.text : ''}`;
+  } catch {
+    // Read from the description alone.
+  }
+  const words = wordsOf(said);
+  return ledger.filter(row => !row.internal || [...wordsOf(row.description)].some(word => words.has(word)));
+}
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
 import { DAYS_APART, MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
@@ -518,7 +561,9 @@ export class ProposalsRepository {
     else said[source] = accountId;
     await this.keep(SOURCE_ACCOUNTS, said);
     // What it already proposed and still waits with no account takes it now.
-    if (accountId !== null) {
+    // SEVERAL (0) is "this sender writes for several of my accounts": nothing
+    // takes it.
+    if (accountId !== null && accountId !== SEVERAL_ACCOUNTS) {
       await this.db.run(
         `UPDATE movement_proposals SET account_id = ?, updated_at = ?
          WHERE source = 'notification' AND status = 'pending' AND account_id IS NULL AND batch = ?`,
@@ -563,9 +608,37 @@ export class ProposalsRepository {
    * the same statement, imported again, from proposing it a second time.
    */
   async reject(id: number): Promise<void> {
+    const ids = await this.withMessagePartners([id]);
     await this.db.run(
-      `UPDATE movement_proposals SET status = 'rejected', updated_at = ? WHERE id = ?`,
-      [this.now(), id]);
+      `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
+       WHERE id IN (${ids.map(() => '?').join(', ')})`,
+      [this.now(), ...ids]);
+  }
+
+  /**
+   * The ids, with the other half of each message paired as a transfer
+   * between two banks: on the screen the two are one movement, so throwing
+   * one away throws the other (Jose, 2026-10-08). A statement's halves are
+   * left as they were.
+   */
+  private async withMessagePartners(ids: readonly number[]): Promise<number[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.db.query<{ pairs_with: number }>(
+      `SELECT pairs_with FROM movement_proposals
+       WHERE source = 'notification' AND pairs_with IS NOT NULL AND id IN (${ids.map(() => '?').join(', ')})`, [...ids]);
+    const partners = rows.length === 0 ? [] : await this.db.query<{ id: number }>(
+      `SELECT id FROM movement_proposals WHERE source = 'notification' AND status = 'pending'
+         AND id IN (${rows.map(() => '?').join(', ')})`, rows.map(row => row.pairs_with));
+    return [...new Set([...ids, ...partners.map(row => row.id)])];
+  }
+
+  /** "It is not one transfer": the two halves are proposed apart again. */
+  async unpair(id: number): Promise<void> {
+    const row = await this.byId(id);
+    const ids = row?.pairs_with != null ? [id, row.pairs_with] : [id];
+    await this.db.run(
+      `UPDATE movement_proposals SET pairs_with = NULL, updated_at = ?
+       WHERE id IN (${ids.map(() => '?').join(', ')})`, [this.now(), ...ids]);
   }
 
   /** Rejects several in one statement: one trip over the bridge, not one each. */
@@ -574,8 +647,9 @@ export class ProposalsRepository {
    * batch - a message is kept as thrown away so it never comes back, a
    * statement's row simply goes and returns if the file is read again.
    */
-  async forgetThese(ids: readonly number[]): Promise<number> {
-    if (ids.length === 0) return 0;
+  async forgetThese(chosen: readonly number[]): Promise<number> {
+    if (chosen.length === 0) return 0;
+    const ids = await this.withMessagePartners(chosen);
     const marks = ids.map(() => '?').join(', ');
     const kept = await this.db.run(
       `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
@@ -585,8 +659,9 @@ export class ProposalsRepository {
     return (kept.changes ?? 0) + (gone.changes ?? 0);
   }
 
-  async rejectThese(ids: readonly number[]): Promise<number> {
-    if (ids.length === 0) return 0;
+  async rejectThese(chosen: readonly number[]): Promise<number> {
+    if (chosen.length === 0) return 0;
+    const ids = await this.withMessagePartners(chosen);
     const result = await this.db.run(
       `UPDATE movement_proposals SET status = 'rejected', updated_at = ?
        WHERE status = 'pending' AND id IN (${ids.map(() => '?').join(', ')})`,
@@ -856,11 +931,11 @@ export class ProposalsRepository {
 
     const days = dated.map(reading => reading.occurred_on!).sort();
     const accounts = [...new Set(dated.map(reading => reading.account_id!))];
-    const ledger = await this.db.query<LedgerMovement>(
-      `SELECT id, account_id, occurred_on, amount_minor, description
-       FROM transactions
-       WHERE account_id IN (${accounts.map(() => '?').join(', ')})
-         AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')`,
+    const ledger = await this.db.query<LedgerMovement & { internal: number }>(
+      `SELECT t.id, t.account_id, t.occurred_on, t.amount_minor, t.description, ${INTERNAL_MOVE} AS internal
+       FROM transactions t
+       WHERE t.account_id IN (${accounts.map(() => '?').join(', ')})
+         AND t.occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')`,
       [...accounts, days[0], days[days.length - 1]]);
     if (ledger.length === 0) return;
 
@@ -868,7 +943,7 @@ export class ProposalsRepository {
     // two identical bus fares on one day are two movements, not one.
     const taken = new Set<number>();
     for (const reading of dated) {
-      const same = sameMovementAs(reading, ledger, taken, windowOf(reading));
+      const same = sameMovementAs(reading, ledgerFor(reading, ledger), taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same);
       await this.db.run(
@@ -894,16 +969,16 @@ export class ProposalsRepository {
     if (loose.length === 0) return;
     const days = loose.map(reading => reading.occurred_on!).sort();
     const amounts = [...new Set(loose.map(reading => reading.amount_minor!))];
-    const ledger = await this.db.query<LedgerMovement>(
-      `SELECT id, account_id, occurred_on, amount_minor, description
-       FROM transactions
-       WHERE amount_minor IN (${amounts.map(() => '?').join(', ')})
-         AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')`,
+    const ledger = await this.db.query<LedgerMovement & { internal: number }>(
+      `SELECT t.id, t.account_id, t.occurred_on, t.amount_minor, t.description, ${INTERNAL_MOVE} AS internal
+       FROM transactions t
+       WHERE t.amount_minor IN (${amounts.map(() => '?').join(', ')})
+         AND t.occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')`,
       [...amounts, days[0], days[days.length - 1]]);
     if (ledger.length === 0) return;
     const taken = new Set<number>();
     for (const reading of loose) {
-      const same = sameMovementAnywhere(reading, ledger, taken, windowOf(reading));
+      const same = sameMovementAnywhere(reading, ledgerFor(reading, ledger), taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same.id);
       await this.db.run(
@@ -912,16 +987,95 @@ export class ProposalsRepository {
     }
   }
 
-  /** Ties the two halves of a transfer to each other. */
+  /**
+   * Ties the two halves of a transfer to each other.
+   *
+   * A statement's halves are in the one statement. A message's other half
+   * comes from ANOTHER bank, in its own batch and maybe on another pass
+   * (Jose, 2026-10-08: Nequi said "enviaste 10.000" and Global66 "recibiste
+   * 10.000" minutes apart, and they were proposed as a spending and as
+   * "already registered"). So a message pairs with any message still
+   * waiting, unpaired, from the day before on - within a day, the messages'
+   * own window. Once paired, what each half "already is" in the ledger can
+   * only be that transfer between those two accounts: a move between the
+   * products of one account is not the other half of anybody's transfer.
+   */
   private async markTransfers(ids: readonly number[]): Promise<void> {
     const readings = await this.someOf(ids);
-    for (const [leaving, arriving] of transferPairs(readings)) {
+    const fromStatements = readings.filter(reading => reading.source !== 'notification');
+    const messages = readings.filter(reading => reading.source === 'notification');
+    const pairs = transferPairs(fromStatements);
+    if (messages.length > 0) {
+      const days = messages.map(reading => reading.occurred_on).filter((day): day is IsoDate => day !== null).sort();
+      const waiting = days.length === 0 ? [] : await this.db.query<MovementProposal>(
+        `SELECT ${COLUMNS} FROM movement_proposals
+         WHERE source = 'notification' AND status = 'pending' AND pairs_with IS NULL
+           AND id NOT IN (${ids.map(() => '?').join(', ')})
+           AND occurred_on >= date(?, '-${MESSAGE_DAYS_APART} day')`,
+        [...ids, days[0]]);
+      const fresh = new Set(ids);
+      const pool = [...messages, ...waiting];
+      const postedAt = new Map(pool.map(one => [one.id, postedAtOf(one)]));
+      // Two banks telling one transfer tell it within the hour or two it
+      // takes to land; the same amount out of one bank in the morning and
+      // into another at night is two movements (Jose, 2026-10-08).
+      const near = (one: number, other: number) => {
+        const [a, b] = [postedAt.get(one), postedAt.get(other)];
+        return a == null || b == null || Math.abs(a - b) <= PAIR_WINDOW;
+      };
+      for (const pair of transferPairs(pool, MESSAGE_DAYS_APART, near)) {
+        if (fresh.has(pair[0]) || fresh.has(pair[1])) pairs.push(pair);
+      }
+    }
+    const all = new Map([...readings, ...(await this.someOf(pairs.flat().filter(id => !readings.some(r => r.id === id))))]
+      .map(reading => [reading.id, reading]));
+    for (const [leaving, arriving] of pairs) {
       const timestamp = this.now();
       await this.db.run('UPDATE movement_proposals SET pairs_with = ?, updated_at = ? WHERE id = ?',
         [arriving, timestamp, leaving]);
       await this.db.run('UPDATE movement_proposals SET pairs_with = ?, updated_at = ? WHERE id = ?',
         [leaving, timestamp, arriving]);
+      const out = all.get(leaving);
+      const into = all.get(arriving);
+      if (out?.source !== 'notification' || into?.source !== 'notification') continue;
+      const twin = await this.transferTwin(out, into);
+      await this.db.run('UPDATE movement_proposals SET maybe_same_as = ?, updated_at = ? WHERE id = ?',
+        [twin?.out ?? null, timestamp, leaving]);
+      await this.db.run('UPDATE movement_proposals SET maybe_same_as = ?, updated_at = ? WHERE id = ?',
+        [twin?.in ?? null, timestamp, arriving]);
     }
+  }
+
+  /**
+   * Pairs the messages already waiting that are the two halves of one
+   * transfer between two banks - for proposals written before pairing
+   * looked across banks, or whose halves arrived on different passes.
+   * Returns how many halves were paired.
+   */
+  async pairWaitingMessages(): Promise<number> {
+    const loose = (await this.db.query<{ id: number }>(
+      `SELECT id FROM movement_proposals
+       WHERE source = 'notification' AND status = 'pending' AND pairs_with IS NULL
+         AND account_id IS NOT NULL AND occurred_on >= date('now', '-3 day')`)).map(row => row.id);
+    if (loose.length < 2) return 0;
+    await this.markTransfers(loose);
+    const still = await this.db.queryOne<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM movement_proposals
+       WHERE pairs_with IS NULL AND id IN (${loose.map(() => '?').join(', ')})`, [...loose]);
+    return loose.length - (still?.total ?? loose.length);
+  }
+
+  /** A transfer already on record between the two halves' accounts, for that amount, within a day. */
+  private async transferTwin(out: MovementProposal, into: MovementProposal): Promise<{ out: number; in: number } | null> {
+    if (out.account_id === null || into.account_id === null || out.occurred_on === null || out.amount_minor === null) return null;
+    const found = await this.db.queryOne<{ out: number; in: number }>(
+      `SELECT l.id AS out, r.id AS "in"
+       FROM transactions l JOIN transactions r ON r.transfer_id = l.transfer_id AND r.id <> l.id
+       WHERE l.transfer_id IS NOT NULL AND l.account_id = ? AND r.account_id = ?
+         AND l.amount_minor = ? AND l.occurred_on BETWEEN date(?, '-${MESSAGE_DAYS_APART} day') AND date(?, '+${MESSAGE_DAYS_APART} day')
+       ORDER BY abs(julianday(l.occurred_on) - julianday(?)) LIMIT 1`,
+      [out.account_id, into.account_id, out.amount_minor, out.occurred_on, out.occurred_on, out.occurred_on]);
+    return found ?? null;
   }
 
   private async someOf(ids: readonly number[]): Promise<MovementProposal[]> {
