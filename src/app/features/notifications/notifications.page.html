@@ -179,9 +179,11 @@
                 <ion-icon class="ui-chev" [name]="chev('bank:' + bank.key)"></ion-icon>
               </div>
               @if (isOpen('bank:' + bank.key)) {
-                @for (one of bank.sources; track one.key) {
-                  <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: true }"></ng-container>
-                }
+                <div class="children">
+                  @for (one of bank.sources; track one.key) {
+                    <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: true }"></ng-container>
+                  }
+                </div>
               }
             }
           }

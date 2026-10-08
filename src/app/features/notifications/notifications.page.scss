@@ -114,7 +114,29 @@
 }
 .which { color: var(--app-pr); font-weight: 600; }
 .ui-row.bank { padding-left: 18px; }
-.ui-row.nested { padding-left: 64px; }
+/* A bank's sources hang from it (Jose, 2026-10-08: they read as rows of
+   the same level): inset, a line down from the bank's icon, smaller. */
+.children {
+  position: relative;
+  margin: 0 10px 8px 34px;
+  border-left: 2px solid var(--app-s3);
+  border-radius: 0 0 0 12px;
+  .ui-row.nested {
+    position: relative;
+    padding: 8px 10px 8px 22px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    b { font-size: 14.5px; }
+    small { font-size: 12px; }
+    .ui-switch { transform: scale(0.85); }
+    .hide-app { transform: scale(0.9); }
+    &::before {
+      content: ''; position: absolute; left: 0; top: 50%; width: 14px;
+      border-top: 2px solid var(--app-s3);
+    }
+  }
+}
 .source-page {
   h2 { margin-bottom: 2px; }
   .sub { color: var(--app-mu); font-size: 13px; margin: 0 0 12px; text-align: center; }
