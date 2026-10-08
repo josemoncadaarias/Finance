@@ -7,11 +7,6 @@
       <ion-icon name="chevron-back"></ion-icon>
     </button>
     <h1>{{ 'notifications.title' | t }}</h1>
-    @if (supported() && enabled()) {
-      <button type="button" class="ui-round" (click)="menuOpen.set(true)" [attr.aria-label]="'review.more' | t">
-        <ion-icon name="ellipsis-vertical"></ion-icon>
-      </button>
-    }
   </header>
 
   <div class="ui-main">
@@ -196,7 +191,7 @@
             <div class="ui-row head" (click)="toggleOpen(section)">
               @switch (section) {
                 @case ('unknown') { <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge> }
-                @case ('found') { <app-badge [size]="38" builtin="add" fixed="#6378ff"></app-badge> }
+                @case ('found') { <app-badge [size]="38" builtin="search" fixed="#6378ff"></app-badge> }
                 @case ('others') { <app-badge [size]="38" builtin="apps" fixed="#8c9bb5"></app-badge> }
                 @default { <app-badge [size]="38" builtin="eye-off" fixed="#8c9bb5"></app-badge> }
               }
@@ -212,37 +207,6 @@
         }
       }
 
-      <!-- What Android is handing the app, never a word of it (2026-10-05). -->
-      <div class="ui-list ui-group sec diagnosis">
-        <div class="ui-row head" (click)="toggleOpen('diag'); isOpen('diag') && diagnose()">
-          <app-badge [size]="38" builtin="pulse" fixed="#8c9bb5"></app-badge>
-          <span class="ui-tx"><b>{{ 'ui.notifications.diag.title' | t }}</b><small class="wrap">{{ 'ui.notifications.diag.hint' | t }}</small></span>
-          <ion-icon class="ui-chev" [name]="chev(K.diag)"></ion-icon>
-        </div>
-        @if (isOpen('diag')) {
-          <div class="ui-row" (click)="diagnose()">
-            <ion-icon name="refresh-outline"></ion-icon><span class="ui-tx"><small>{{ 'ui.notifications.diag.again' | t }}</small></span>
-          </div>
-          @if (diagnosis(); as d) {
-            <div class="ui-row plain">
-              <span class="ui-tx"><small>{{ (d.bound ? 'ui.notifications.diag.bound' : 'ui.notifications.diag.unbound') | t }}
-                · {{ 'ui.notifications.diag.defaultSms' | t:{ app: d.defaultSms || '—' } }}</small></span>
-            </div>
-            <div class="ui-row plain sub"><span class="ui-tx"><b>{{ 'ui.notifications.diag.now' | t:{ count: d.active.length } }}</b></span></div>
-            @for (one of d.active; track $index) {
-              <div class="ui-row plain">
-                <span class="ui-tx"><b class="ui-one">{{ one.app }}</b><small class="wrap">{{ seenLine(one) }}</small></span>
-              </div>
-            }
-            <div class="ui-row plain sub"><span class="ui-tx"><b>{{ 'ui.notifications.diag.recent' | t }}</b></span></div>
-            @for (one of d.recent.slice().reverse(); track $index) {
-              <div class="ui-row plain">
-                <span class="ui-tx"><small class="wrap">{{ hour(one.at) }} · {{ one.app }} · {{ one.package }}{{ one.conversation ? ' · ' + ('ui.notifications.diag.conversation' | t) : '' }}</small></span>
-              </div>
-            }
-          }
-        }
-      </div>
       <div class="ui-page-end"></div>
       <!-- Room for the selection bar, so the last rows can be scrolled above it. -->
       @if (selecting()) { <div class="selection-room"></div> }
@@ -282,27 +246,6 @@
     </div>
   }
 </ion-content>
-
-<!-- Borrar lo guardado, Olvidar todo (7g). -->
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="menuOpen()" (didDismiss)="menuOpen.set(false)">
-  <ng-template>
-    <div class="ui-sheet-body ion-content-scroll-host">
-      <button type="button" class="sheet-cancel" (click)="menuOpen.set(false)">{{ 'entry.cancel' | t }}</button>
-      <div class="grab"></div>
-      <h2 class="center">{{ 'notifications.title' | t }}</h2>
-      <div class="ui-list">
-        <button type="button" class="ui-row" (click)="menuOpen.set(false); asking.set('forgetCaught')">
-          <app-badge shape="ci" [size]="38" builtin="document-text" fixed="#ff9152"></app-badge>
-          <span class="ui-tx"><b class="wrap">{{ 'notifications.forgetCaught' | t }}</b><small class="wrap">{{ 'ui.notifications.forgetCaught.line' | t }}</small></span>
-        </button>
-        <button type="button" class="ui-row" (click)="menuOpen.set(false); asking.set('forgetEverything')">
-          <app-badge shape="ci" [size]="38" builtin="refresh" fixed="#ff6b6b"></app-badge>
-          <span class="ui-tx"><b class="wrap ui-r">{{ 'notifications.forgetAll' | t }}</b><small class="wrap">{{ 'ui.notifications.forgetAll.line' | t }}</small></span>
-        </button>
-      </div>
-    </div>
-  </ng-template>
-</ion-modal>
 
 <!-- One source: its account and what became of each of its messages. -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="openSource() !== null" (didDismiss)="openSource.set(null)">
@@ -357,7 +300,7 @@
                     [heading]="'ui.notifications.whichAccount' | t" detail="kind"
                     (chosen)="assign($event)" (closed)="pickingFor.set(null)"></app-account-picker>
 
-<app-confirm [open]="asking() !== null" [icon]="asking() === 'hide' ? 'eye-off-outline' : asking() === 'forgetEverything' ? 'refresh-outline' : 'trash-outline'"
+<app-confirm [open]="asking() !== null" icon="eye-off-outline"
              tone="danger" [title]="askTitle()" [body]="askBody()" [confirmLabel]="askConfirm()"
              (confirmed)="answered()" (cancelled)="cancelled()"></app-confirm>
 

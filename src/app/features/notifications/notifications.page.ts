@@ -24,7 +24,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
-  BankNotifications, SMS_INBOX, type CaughtNotification, type Diagnosis, type SeenNow, type SeenApp, type SeenSender,
+  BankNotifications, SMS_INBOX, type CaughtNotification, type SeenApp, type SeenSender,
 } from '../../core/notifications/bank-notifications';
 import { DatabaseService } from '../../core/database/database.service';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
@@ -53,7 +53,7 @@ export interface Source {
   accounts: number[];
 }
 
-type SectionKey = 'banks' | 'unknown' | 'found' | 'others' | 'hidden' | 'diag';
+type SectionKey = 'banks' | 'unknown' | 'found' | 'others' | 'hidden';
 
 @Component({
   selector: 'app-notifications',
@@ -67,7 +67,6 @@ export class NotificationsPage {
   private readonly location = inject(Location);
   private readonly database = inject(DatabaseService);
 
-  readonly menuOpen = signal(false);
   readonly info = signal<string | null>(null);
 
   back(): void {
@@ -136,25 +135,6 @@ export class NotificationsPage {
   /** False in a browser and on iOS, which is an ordinary state. */
   readonly supported = signal(false);
   readonly enabled = signal(false);
-  /** What the listener is handed, asked for by hand (2026-10-05). */
-  readonly diagnosis = signal<Diagnosis | null>(null);
-
-  async diagnose(): Promise<void> {
-    this.diagnosis.set(await BankNotifications.diagnose());
-  }
-
-  /** One line about a notification the listener sees, never what it says. */
-  seenLine(one: SeenNow): string {
-    const parts = [one.package, this.hour(one.postedAt)];
-    parts.push(this.i18n.t(one.conversation ? 'ui.notifications.diag.conversation' : 'ui.notifications.diag.notice'));
-    parts.push(this.i18n.t(!one.words ? 'ui.notifications.diag.noWords' : one.money ? 'ui.notifications.diag.money' : 'ui.notifications.diag.words'));
-    if (one.smsApp) parts.push(this.i18n.t('ui.notifications.diag.smsApp'));
-    if (one.hidden) parts.push(this.i18n.t('ui.notifications.diag.hidden'));
-    if (one.summary) parts.push(this.i18n.t('ui.notifications.diag.summary'));
-    if (one.ongoing) parts.push(this.i18n.t('ui.notifications.diag.ongoing'));
-    return parts.join(' · ');
-  }
-
   /** When Android last handed a notification over, connected or dropped the listener. */
   readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0 });
 
@@ -244,14 +224,14 @@ export class NotificationsPage {
       .sort((a, b) => b.last - a.last);
   });
 
-  private sectionOf(one: Source): Exclude<SectionKey, 'diag'> {
+  private sectionOf(one: Source): SectionKey {
     if (one.hidden) return 'hidden';
     if (one.watched) return one.accounts.length > 0 ? 'banks' : 'unknown';
     return one.kind === 'sms' ? 'found' : 'others';
   }
 
   readonly bySection = computed(() => {
-    const map = new Map<Exclude<SectionKey, 'diag'>, Source[]>();
+    const map = new Map<SectionKey, Source[]>();
     for (const one of this.sources()) {
       const key = this.sectionOf(one);
       map.set(key, [...(map.get(key) ?? []), one]);
@@ -259,7 +239,7 @@ export class NotificationsPage {
     return map;
   });
 
-  of(section: Exclude<SectionKey, 'diag'>): Source[] {
+  of(section: SectionKey): Source[] {
     return this.bySection().get(section) ?? [];
   }
 
@@ -285,7 +265,7 @@ export class NotificationsPage {
     return this.i18n.t('ui.notifications.bank.line', { sources, last: this.short(bank.last) });
   }
 
-  sectionTitle(section: Exclude<SectionKey, 'diag'>): string {
+  sectionTitle(section: SectionKey): string {
     return this.i18n.t(section === 'banks' ? 'ui.notifications.sec.banks'
       : section === 'unknown' ? 'ui.notifications.sec.unknown'
       : section === 'found' ? 'ui.notifications.sec.found'
@@ -293,7 +273,7 @@ export class NotificationsPage {
   }
 
   /** What each closed section says it holds. */
-  sectionLine(section: Exclude<SectionKey, 'diag'>): string {
+  sectionLine(section: SectionKey): string {
     const list = this.of(section);
     if (section === 'banks') {
       const banks = this.banks().length;
@@ -322,7 +302,7 @@ export class NotificationsPage {
   }
 
   /** Section keys, for templates that name them beside an icon. */
-  readonly K = { banks: 'banks', diag: 'diag' } as const;
+  readonly K = { banks: 'banks' } as const;
 
   /** The chevron of a folding row. */
   chev(key: string): string {
@@ -336,7 +316,7 @@ export class NotificationsPage {
   }
 
   private readonly foldKeys = computed(() => [
-    ...(['banks', 'unknown', 'found', 'others', 'hidden', 'diag'] as const).filter(key => key === 'diag' || this.of(key).length > 0),
+    ...(['banks', 'unknown', 'found', 'others', 'hidden'] as const).filter(key => this.of(key).length > 0),
     ...this.banks().map(bank => `bank:${bank.key}`),
   ]);
 
@@ -613,7 +593,7 @@ export class NotificationsPage {
 
   // --- questions ------------------------------------------------------------
 
-  readonly asking = signal<'forgetCaught' | 'forgetEverything' | 'hide' | null>(null);
+  readonly asking = signal<'hide' | null>(null);
   private readonly hiding = signal<Source[]>([]);
 
   async answered(): Promise<void> {
@@ -621,36 +601,19 @@ export class NotificationsPage {
     this.asking.set(null);
     const list = this.hiding();
     this.hiding.set([]);
-    if (question === 'hide') {
-      await this.putAway(list);
-      return;
-    }
-    if (question === 'forgetCaught') await BankNotifications.forgetCaught();
-    if (question === 'forgetEverything') await BankNotifications.forgetEverything();
-    await this.look();
+    if (question === 'hide') await this.putAway(list);
   }
 
   readonly askTitle = computed(() => {
-    const question = this.asking();
-    if (question === 'hide') {
-      const list = this.hiding();
-      return list.length === 1
-        ? this.i18n.t('notifications.hide.sure', { app: list[0].name })
-        : this.i18n.t('notifications.hide.sureMany', { count: list.length });
-    }
-    return this.i18n.t(question === 'forgetEverything'
-      ? 'notifications.forgetAll.sure' : 'notifications.forgetCaught.sure');
+    const list = this.hiding();
+    return list.length === 1
+      ? this.i18n.t('notifications.hide.sure', { app: list[0]?.name ?? '' })
+      : this.i18n.t('notifications.hide.sureMany', { count: list.length });
   });
 
-  readonly askBody = computed(() => {
-    const question = this.asking();
-    if (question === 'hide') return this.i18n.t('notifications.hide.body');
-    return this.i18n.t(question === 'forgetEverything'
-      ? 'notifications.forgetAll.body' : 'notifications.forgetCaught.body');
-  });
+  readonly askBody = computed(() => this.i18n.t('notifications.hide.body'));
 
-  readonly askConfirm = computed(() => this.i18n.t(
-    this.asking() === 'hide' ? 'notifications.hide.do' : 'notifications.forget.do'));
+  readonly askConfirm = computed(() => this.i18n.t('notifications.hide.do'));
 
   cancelled(): void {
     this.asking.set(null);
