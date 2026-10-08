@@ -80,8 +80,22 @@
             </button>
           </div>
         }
-        <!-- An income: what it holds now, said and nothing more. -->
-        @if (!isTransfer() && !isEditing() && kind() === 'income' && holdsNow() !== null) {
+        <!-- A card: the credit left for a spending, what is owed and left for a
+             payment. Any other account, on an income: what it holds now. -->
+        @if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
+          <p class="holds-now" [class.over]="card.over">
+            @if (kind() === 'expense') {
+              @if (card.available !== null) {
+                {{ (card.over ? 'ui.entry.overCredit' : 'ui.entry.creditLeft') | t }} · <b>{{ card.available }}</b>
+              } @else {
+                {{ 'ui.entry.owed' | t }} · <b>{{ card.owed }}</b>
+              }
+            } @else {
+              {{ 'ui.entry.owed' | t }} · <b>{{ card.owed }}</b>
+              @if (card.available !== null) { · {{ 'ui.entry.creditLeft' | t }} · <b>{{ card.available }}</b> }
+            }
+          </p>
+        } @else if (!isTransfer() && !isEditing() && kind() === 'income' && holdsNow() !== null) {
           <p class="holds-now">{{ 'ui.entry.holdsNow' | t }} · <b>{{ holdsNowText() }}</b></p>
         }
 
