@@ -37,6 +37,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         registerPlugin(BankNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
         remember(getIntent());
+        ListenerKeeper.schedule(getApplicationContext());
     }
 
     /**

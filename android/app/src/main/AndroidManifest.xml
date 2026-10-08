@@ -42,6 +42,20 @@
             </intent-filter>
         </service>
 
+        <!--
+            Brings the notification listener back when Android left it
+            unbound: every ~15 minutes, after the phone starts and after
+            each update of the app.
+        -->
+        <receiver
+            android:name=".ListenerKeeper"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- "Movimiento detectado" (rule 22): its "Descartar", answered without opening the app. -->
         <receiver
             android:name=".MovementAlertReceiver"
@@ -85,4 +99,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The notice vibrates (DEFAULT_ALL); some phones refuse that without it. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- To set the listener's keeper again after the phone restarts. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>
