@@ -16,7 +16,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { accept } from '../../src/app/core/proposals/accept.ts';
-import { accountFor, noticeBatch, noticeKey, proposalsFrom } from '../../src/app/core/notices/notice-proposals.ts';
+import { accountFor, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
 import { readNotice } from '../../src/app/core/notices/read-notice.ts';
 
 const NOW = () => '2026-10-02T15:00:00Z';
@@ -162,4 +162,137 @@ test('a text message: the account is learned per sender, and the sender\'s name 
   assert.deepEqual(accountFor(azul, readNotice(azul.text), answers, accounts), { accountId: 1, from: 'name' });
   const rojo = sms('Banco Rojo', 'Compraste $7.000 en PAN');
   assert.deepEqual(accountFor(rojo, readNotice(rojo.text), answers, accounts), { accountId: 2, from: 'learned' });
+});
+
+// One purchase, several messages: the bank's SMS and its app's own
+// notification (Jose, 2026-10-08). Every name and message is invented.
+const push = (text, extra = {}) => ({ package: 'com.billeterarosa.app', app: 'Billetera Rosa', title: 'Billetera Rosa', text, postedAt: AT, ...extra });
+
+test('an SMS and the app\'s notification of one purchase are one proposal, which says both', () => {
+  const { fresh, joining } = readNotices([
+    sms('899979', 'Billetera Rosa: compra por $45.900 en TIENDA CENTRAL con tarjeta *1234'),
+    push('Pagaste $45.900 en Tienda Central', { postedAt: AT + 40_000 }),
+  ], new Set(), [], []);
+  assert.equal(fresh.length, 1);
+  assert.deepEqual(joining, []);
+  const [one] = fresh;
+  assert.equal(one.proposal.amount_minor, P(-45900));
+  assert.equal(one.proposal.evidence.sightings.length, 1);
+  assert.equal(one.proposal.evidence.sightings[0].evidence.package, 'com.billeterarosa.app');
+  assert.equal(one.proposal.evidence.digits, '1234');
+});
+
+test('the same card digits are enough; so is the same account; a different one never joins', () => {
+  const accounts = [account(1, 'Rosa'), account(2, 'Otra')];
+  // No shop named in one of them, the card's digits in both.
+  let made = readNotices([
+    sms('899979', 'Compra aprobada por $20.000 tarjeta *1234'),
+    push('Compraste $20.000 en PANADERIA con *1234', { postedAt: AT + 30_000 }),
+  ], new Set(), [], []).fresh;
+  assert.equal(made.length, 1);
+  // Different card digits: two purchases.
+  made = readNotices([
+    sms('899979', 'Compra aprobada por $20.000 tarjeta *1234'),
+    push('Compraste $20.000 con *9876', { postedAt: AT + 30_000 }),
+  ], new Set(), [], []).fresh;
+  assert.equal(made.length, 2);
+  // The same account learned for both sources.
+  const answers = [{ package: 'com.mensajes.app|899979', digits: null, account_id: 1 }, { package: 'com.billeterarosa.app', digits: null, account_id: 1 }];
+  made = readNotices([
+    sms('899979', 'Movimiento: retiro por $50.000'),
+    push('Retiraste $50.000', { postedAt: AT + 30_000 }),
+  ], new Set(), answers, accounts).fresh;
+  assert.equal(made.length, 1);
+  // Money in against money out never joins.
+  made = readNotices([
+    sms('899979', 'Recibiste $50.000 de JUAN'),
+    push('Pagaste $50.000 en JUAN', { postedAt: AT + 30_000 }),
+  ], new Set(), [], []).fresh;
+  assert.equal(made.length, 2);
+});
+
+test('two identical purchases told by both channels stay two, each with its pair', () => {
+  const { fresh } = readNotices([
+    sms('899979', 'Compra por $3.200 en BUS URBANO'),
+    push('Pagaste $3.200 en Bus Urbano', { postedAt: AT + 20_000 }),
+    sms('899979', 'Compra por $3.200 en BUS URBANO', { postedAt: AT + 5 * 60_000 }),
+    push('Pagaste $3.200 en Bus Urbano', { postedAt: AT + 5 * 60_000 + 20_000 }),
+  ], new Set(), [], []);
+  assert.equal(fresh.length, 2);
+  assert.ok(fresh.every(one => one.proposal.evidence.sightings?.length === 1));
+});
+
+test('one source never reports a movement twice: its own repeat an hour later is another purchase', () => {
+  const { fresh } = readNotices([
+    sms('899979', 'Compra por $3.200 en BUS URBANO'),
+    sms('899979', 'Compra por $3.200 en BUS URBANO', { postedAt: AT + 10 * 60_000 }),
+  ], new Set(), [], []);
+  assert.equal(fresh.length, 2);
+});
+
+test('only the amount and the minute agree: proposed apart, the later naming the earlier as a possible twin', () => {
+  const { fresh } = readNotices([
+    sms('899979', 'Movimiento por $77.000'),
+    push('Retiraste $77.000', { postedAt: AT + 60_000 }),
+  ], new Set(), [], []);
+  assert.equal(fresh.length, 2);
+  assert.equal(fresh[0].proposal.evidence.twin, undefined);
+  assert.equal(fresh[1].proposal.evidence.twin.key, fresh[0].proposal.evidence.key);
+  // Too far apart, nothing is asked.
+  const apart = readNotices([
+    sms('899979', 'Movimiento por $77.000'),
+    push('Retiraste $77.000', { postedAt: AT + 3 * 3_600_000 }),
+  ], new Set(), [], []).fresh;
+  assert.equal(apart[1].proposal.evidence.twin, undefined);
+});
+
+test('end to end: a later message joins the proposal already written, its key is spent, and it can be separated', async () => {
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const accounts = new AccountsRepository(db, NOW);
+  const proposals = new ProposalsRepository(db, NOW);
+  const rosa = await accounts.create({ name: 'Rosa', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opening_balance_minor: 0, opened_on: '2026-01-01' });
+  const run = async kept => {
+    const { fresh, joining } = readNotices(kept, await proposals.noticeKeys(), await proposals.noticeAnswers(),
+      await accounts.list(), await proposals.recentNotices());
+    await proposals.join(joining);
+    const ids = [];
+    for (const one of fresh) ids.push(...(await proposals.propose(one.batch, [one.proposal])).ids);
+    return { ids, joining };
+  };
+
+  // The SMS arrives first and is read on its own.
+  const first = sms('899979', 'Compra por $45.900 en TIENDA CENTRAL *1234');
+  const [id] = (await run([first])).ids;
+  // The app's notification, read the next time the app opens, joins it.
+  const second = push('Pagaste $45.900 en Tienda Central *1234', { postedAt: AT + 90_000 });
+  const again = await run([first, second]);
+  assert.deepEqual(again.ids, []);
+  assert.equal(again.joining.length, 1);
+  assert.equal((await proposals.pending()).length, 1);
+  const read = JSON.parse((await proposals.byId(id)).evidence);
+  assert.equal(read.sightings[0].evidence.key, noticeKey(second));
+  // Spent: read once more, nothing changes.
+  assert.equal((await run([first, second])).joining.length, 0);
+  assert.ok((await proposals.noticeKeys()).has(noticeKey(second)));
+
+  // A second identical purchase by SMS later is a new proposal, never swallowed.
+  const third = sms('899979', 'Compra por $45.900 en TIENDA CENTRAL *1234', { postedAt: AT + 30 * 60_000 });
+  assert.equal((await run([first, second, third])).ids.length, 1);
+  assert.equal((await proposals.pending()).length, 2);
+
+  // Separated: the notification is a proposal of its own again, in its own batch, naming its twin.
+  assert.equal(await proposals.separate(id), 1);
+  const now = await proposals.pending();
+  assert.equal(now.length, 3);
+  const apart = now.find(one => one.batch === noticeBatch('com.billeterarosa.app'));
+  assert.equal(JSON.parse(apart.evidence).twin.key, noticeKey(first));
+  assert.equal(JSON.parse((await proposals.byId(id)).evidence).sightings, undefined);
+  // And reading again brings nothing back.
+  assert.deepEqual((await run([first, second, third])).ids, []);
+
+  // Answered, both sources learn the account.
+  await proposals.correct(id, { account_id: rosa });
+  await db.run("UPDATE movement_proposals SET status = 'accepted' WHERE id = ?", [id]);
+  assert.ok((await proposals.noticeAnswers()).some(a => a.package === 'com.mensajes.app|899979' && a.account_id === rosa));
 });

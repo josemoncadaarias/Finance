@@ -14,6 +14,7 @@
 import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
+import { noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
 import { sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
@@ -90,7 +91,14 @@ export class ProposalsRepository {
     // do - Jose did it within a minute of the screen existing - and the second
     // time must not ask every question again. A row thrown away once does not
     // come back either: that is what keeps a rejection meaning something.
-    const seen = await this.alreadyReadOf(readings);
+    // Messages are told apart from one another before they get here
+    // (`readNotices`): a source never reports one movement twice, so a
+    // second identical purchase texted by the same bank is real and must
+    // not be swallowed by the first one's proposal.
+    const read = await this.alreadyReadOf(readings);
+    const seenByAll = read.map(({ source: _source, ...row }) => row);
+    const seenByStatements = read.filter(row => row.source !== 'notification')
+      .map(({ source: _source, ...row }) => row);
     const taken = new Set<number>();
 
     // The two tables every row is going to be asked about, read once each.
@@ -113,7 +121,7 @@ export class ProposalsRepository {
           occurred_on: reading.occurred_on ?? null,
           amount_minor: reading.amount_minor ?? null,
           description: reading.description ?? null,
-        }, seen, taken);
+        }, reading.source === 'notification' ? seenByStatements : seenByAll, taken);
         if (twin !== null) {
           taken.add(twin);
           knownAlready += 1;
@@ -167,14 +175,14 @@ export class ProposalsRepository {
    * accounts, so this asks for a handful of rows rather than for everything
    * ever proposed.
    */
-  private async alreadyReadOf(readings: readonly NewProposal[]): Promise<LedgerMovement[]> {
+  private async alreadyReadOf(readings: readonly NewProposal[]): Promise<(LedgerMovement & { source: string })[]> {
     const dated = readings.filter(reading => reading.account_id != null && reading.occurred_on != null);
     if (dated.length === 0) return [];
 
     const days = dated.map(reading => reading.occurred_on!).sort();
     const accounts = [...new Set(dated.map(reading => reading.account_id!))];
-    return this.db.query<LedgerMovement>(
-      `SELECT id, account_id, occurred_on, amount_minor, description
+    return this.db.query<LedgerMovement & { source: string }>(
+      `SELECT id, account_id, occurred_on, amount_minor, description, source
        FROM movement_proposals
        WHERE account_id IN (${accounts.map(() => '?').join(', ')})
          AND occurred_on BETWEEN date(?, '-7 day') AND date(?, '+7 day')
@@ -241,8 +249,12 @@ export class ProposalsRepository {
     const keys = new Set<string>();
     for (const row of rows) {
       try {
-        const key = (JSON.parse(row.evidence) as { key?: unknown })?.key;
-        if (typeof key === 'string') keys.add(key);
+        const read = JSON.parse(row.evidence) as { key?: unknown; sightings?: { evidence?: { key?: unknown } }[] };
+        if (typeof read?.key === 'string') keys.add(read.key);
+        // A message folded into another's proposal is spoken for too.
+        for (const one of Array.isArray(read?.sightings) ? read.sightings : []) {
+          if (typeof one?.evidence?.key === 'string') keys.add(one.evidence.key);
+        }
       } catch {
         // A row that will not read is not a key; it cannot match anything.
       }
@@ -264,18 +276,111 @@ export class ProposalsRepository {
     const answers: { package: string; digits: string | null; account_id: number }[] = [];
     for (const row of rows) {
       try {
-        const read = JSON.parse(row.evidence) as { package?: unknown; digits?: unknown };
-        if (typeof read.package !== 'string') continue;
-        answers.push({
-          package: read.package,
-          digits: typeof read.digits === 'string' ? read.digits : null,
-          account_id: row.account_id!,
-        });
+        const read = JSON.parse(row.evidence) as {
+          package?: unknown; digits?: unknown; sightings?: { evidence?: { package?: unknown; digits?: unknown } }[];
+        };
+        // Every message that reported it learns the answer: the SMS sender
+        // and the bank's app alike.
+        const said = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
+        for (const one of said) {
+          if (typeof one.package !== 'string') continue;
+          answers.push({
+            package: one.package,
+            digits: typeof one.digits === 'string' ? one.digits : null,
+            account_id: row.account_id!,
+          });
+        }
       } catch {
         // Skip it rather than lose the rest.
       }
     }
     return answers;
+  }
+
+  /**
+   * The proposals made from messages in the last two days, whatever was
+   * decided about them, for a later message of the same movement to join
+   * (`readNotices`). One thrown away still swallows its other messages:
+   * the same purchase must not come back by another channel.
+   */
+  async recentNotices(): Promise<RecentNotice[]> {
+    const rows = await this.db.query<{
+      id: number; account_id: number | null; amount_minor: number | null; description: string | null; evidence: string;
+    }>(
+      `SELECT id, account_id, amount_minor, description, evidence FROM movement_proposals
+       WHERE source = 'notification' AND created_at >= ?`,
+      [new Date(Date.parse(this.now()) - 2 * 24 * 3_600_000).toISOString()]);
+    const recent: RecentNotice[] = [];
+    for (const row of rows) {
+      try {
+        const evidence = JSON.parse(row.evidence) as NoticeEvidence;
+        if (evidence && typeof evidence.postedAt === 'number' && typeof evidence.package === 'string') {
+          recent.push({ ...row, evidence });
+        }
+      } catch {
+        // A row that will not read cannot be joined.
+      }
+    }
+    return recent;
+  }
+
+  /**
+   * Later messages of a movement already proposed, folded into its proposal.
+   * An account the later message knew fills one the proposal lacked, while
+   * it waits.
+   */
+  async join(joining: readonly Joining[]): Promise<number> {
+    if (joining.length === 0) return 0;
+    const timestamp = this.now();
+    let joined = 0;
+    await this.db.transaction(async () => {
+      for (const one of joining) {
+        const row = await this.db.queryOne<{ evidence: string; status: string; account_id: number | null }>(
+          'SELECT evidence, status, account_id FROM movement_proposals WHERE id = ?', [one.id]);
+        if (!row) continue;
+        let evidence: NoticeEvidence;
+        try { evidence = JSON.parse(row.evidence) as NoticeEvidence; } catch { continue; }
+        evidence.sightings = [...(evidence.sightings ?? []), ...one.sightings];
+        const account = row.status === 'pending' && row.account_id === null ? one.accountId : row.account_id;
+        await this.db.run(
+          'UPDATE movement_proposals SET evidence = ?, account_id = ?, updated_at = ? WHERE id = ?',
+          [JSON.stringify(evidence), account, timestamp, one.id]);
+        joined += one.sightings.length;
+      }
+    });
+    return joined;
+  }
+
+  /**
+   * Undoes a merge: the messages folded into a waiting proposal become
+   * proposals of their own again, each in its own source's batch, and the
+   * proposal keeps only its first message. Never touches one already
+   * answered. Returns how many came apart.
+   */
+  async separate(id: number): Promise<number> {
+    const row = await this.db.queryOne<{ evidence: string; status: string }>(
+      'SELECT evidence, status FROM movement_proposals WHERE id = ?', [id]);
+    if (!row || row.status !== 'pending') return 0;
+    let evidence: NoticeEvidence;
+    try { evidence = JSON.parse(row.evidence) as NoticeEvidence; } catch { return 0; }
+    const sightings = evidence.sightings ?? [];
+    if (sightings.length === 0) return 0;
+    delete evidence.sightings;
+    await this.db.run('UPDATE movement_proposals SET evidence = ?, updated_at = ? WHERE id = ?',
+      [JSON.stringify(evidence), this.now(), id]);
+    const twin = { key: evidence.key, file: evidence.file, postedAt: evidence.postedAt };
+    for (const one of sightings) {
+      await this.propose(noticeBatch(one.evidence.package), [{
+        source: 'notification',
+        account_id: one.account_id,
+        occurred_on: one.occurred_on,
+        amount_minor: one.amount_minor,
+        description: one.description,
+        // Said apart now, still pointing at the one it was taken for.
+        evidence: { ...one.evidence, twin },
+      }]);
+    }
+    return sightings.length;
   }
 
   /** Everything still waiting, oldest first. */

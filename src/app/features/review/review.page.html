@@ -286,6 +286,12 @@
                     @if (line.guessed) {
                       <small class="flag"><ion-icon name="help-circle-outline"></ion-icon>{{ 'ui.review.signGuessed' | t }}</small>
                     }
+                    @if (line.twin) {
+                      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.twin }}</small>
+                    }
+                    @if (line.seenBy) {
+                      <small class="seen"><ion-icon name="layers-outline"></ion-icon>{{ line.seenBy }}</small>
+                    }
                   </span>
                   <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
                     {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
@@ -435,6 +441,7 @@
   <ng-template>
     @if (openLine(); as line) {
       <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs" [guessed]="line.guessed"
+                         [seenBy]="line.seenBy" [twin]="line.twin" (separate)="separateOpen()"
                          [accounts]="accounts()" [categories]="categories()" [busy]="working()"
                          (answered)="answer(line, $event)" (discard)="discardOpen()"
                          (cancelled)="openLine.set(null)"></app-proposal-form>
