@@ -692,14 +692,11 @@ export class NotificationsPage {
 
   /**
    * The app is being frozen in the background: Android limits its battery,
-   * or a message of the last day reached it more than half a minute late
-   * (Jose, 2026-10-08: "Movimiento detectado" showed only when he opened
-   * the app - the phone had passed the bank's notice on only then).
+   * - and only then (Jose, 2026-10-08: it asked for "Sin restricciones"
+   * on a phone already set that way; a late message comes from the phone
+   * closing the app, which `ListenerKeeper` answers, not from the battery).
    */
-  readonly asleep = computed(() => {
-    const since = Date.now() - 24 * 3_600_000;
-    return this.batteryLimited() || this.alertLog().some(note => note.at > since && lateBy(note) > LATE);
-  });
+  readonly asleep = computed(() => this.batteryLimited());
 
   /** This app's page in Android's settings: battery and autostart. */
   async openAppSettings(): Promise<void> {
