@@ -62,6 +62,27 @@ function ledgerFor<T extends LedgerMovement & { internal: number }>(reading: Mov
   const words = wordsOf(said);
   return ledger.filter(row => !row.internal || [...wordsOf(row.description)].some(word => words.has(word)));
 }
+/** The apps and senders that told of a message: its own and its sightings'. */
+function sourcesOf(evidence: string | null | undefined): string[] {
+  try {
+    const read = JSON.parse(evidence ?? '') as { package?: unknown; sightings?: { evidence?: { package?: unknown } }[] };
+    const said = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
+    return said.map(one => one.package).filter((one): one is string => typeof one === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Drops what a message's own source already answered for. A source never
+ * reports one movement twice (Jose, 2026-10-08: a second Nequi "enviaste
+ * 10.000" an hour later was taken for the transfer saved from the first).
+ */
+function unclaimed<T extends { id: number }>(reading: MovementProposal, ledger: readonly T[], claimed: ReadonlyMap<number, ReadonlySet<string>>): T[] {
+  if (reading.source !== 'notification' || claimed.size === 0) return [...ledger];
+  const mine = sourcesOf(reading.evidence);
+  return ledger.filter(row => !mine.some(source => claimed.get(row.id)?.has(source)));
+}
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
 import { DAYS_APART, MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
@@ -942,8 +963,9 @@ export class ProposalsRepository {
     // A movement already claimed by one reading cannot answer for another:
     // two identical bus fares on one day are two movements, not one.
     const taken = new Set<number>();
+    const claimed = await this.claimedByMessages();
     for (const reading of dated) {
-      const same = sameMovementAs(reading, ledgerFor(reading, ledger), taken, windowOf(reading));
+      const same = sameMovementAs(reading, unclaimed(reading, ledgerFor(reading, ledger), claimed), taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same);
       await this.db.run(
@@ -977,8 +999,9 @@ export class ProposalsRepository {
       [...amounts, days[0], days[days.length - 1]]);
     if (ledger.length === 0) return;
     const taken = new Set<number>();
+    const claimed = await this.claimedByMessages();
     for (const reading of loose) {
-      const same = sameMovementAnywhere(reading, ledgerFor(reading, ledger), taken, windowOf(reading));
+      const same = sameMovementAnywhere(reading, unclaimed(reading, ledgerFor(reading, ledger), claimed), taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same.id);
       await this.db.run(
@@ -1068,14 +1091,33 @@ export class ProposalsRepository {
   /** A transfer already on record between the two halves' accounts, for that amount, within a day. */
   private async transferTwin(out: MovementProposal, into: MovementProposal): Promise<{ out: number; in: number } | null> {
     if (out.account_id === null || into.account_id === null || out.occurred_on === null || out.amount_minor === null) return null;
-    const found = await this.db.queryOne<{ out: number; in: number }>(
+    const claimed = await this.claimedByMessages();
+    const found = (await this.db.query<{ out: number; in: number }>(
       `SELECT l.id AS out, r.id AS "in"
        FROM transactions l JOIN transactions r ON r.transfer_id = l.transfer_id AND r.id <> l.id
        WHERE l.transfer_id IS NOT NULL AND l.account_id = ? AND r.account_id = ?
          AND l.amount_minor = ? AND l.occurred_on BETWEEN date(?, '-${MESSAGE_DAYS_APART} day') AND date(?, '+${MESSAGE_DAYS_APART} day')
-       ORDER BY abs(julianday(l.occurred_on) - julianday(?)) LIMIT 1`,
-      [out.account_id, into.account_id, out.amount_minor, out.occurred_on, out.occurred_on, out.occurred_on]);
+       ORDER BY abs(julianday(l.occurred_on) - julianday(?))`,
+      [out.account_id, into.account_id, out.amount_minor, out.occurred_on, out.occurred_on, out.occurred_on]))
+      .find(pair => unclaimed(out, [{ id: pair.out }], claimed).length === 1
+        && unclaimed(into, [{ id: pair.in }], claimed).length === 1);
     return found ?? null;
+  }
+
+  /** Each movement saved from a message in the last two weeks, with the sources that told of it. */
+  private async claimedByMessages(): Promise<Map<number, Set<string>>> {
+    const rows = await this.db.query<{ transaction_id: number; evidence: string }>(
+      `SELECT transaction_id, evidence FROM movement_proposals
+       WHERE source = 'notification' AND status = 'accepted' AND transaction_id IS NOT NULL
+         AND updated_at >= ?`,
+      [new Date(Date.parse(this.now()) - 14 * 24 * 3_600_000).toISOString()]);
+    const claimed = new Map<number, Set<string>>();
+    for (const row of rows) {
+      const sources = claimed.get(row.transaction_id) ?? new Set<string>();
+      for (const source of sourcesOf(row.evidence)) sources.add(source);
+      claimed.set(row.transaction_id, sources);
+    }
+    return claimed;
   }
 
   private async someOf(ids: readonly number[]): Promise<MovementProposal[]> {

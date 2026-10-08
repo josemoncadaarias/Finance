@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (731 on 2026-10-03, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (755 on 2026-10-08, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1897,6 +1897,21 @@ backup restore against iOS's own SQLite backend.
   a message's unsure sign no longer speaks of a statement. Not yet seen on
   the phone; Xiaomi may still hold back a receiver for an app without
   "Inicio automático".
+  **"Sonó" in the log and nothing seen (Jose, 2026-10-08)**: the notice was
+  posted on a default-importance channel, which Android - and Xiaomi's
+  HyperOS above all - files among the silent ones: no floating banner, no
+  lock screen, and opening the app clears it. Now a new channel
+  `movements_alert` at IMPORTANCE_HIGH, private on the lock screen,
+  `PRIORITY_HIGH`, the old `movements` channel deleted (a channel's
+  importance cannot be raised once made). The log says "publicado", not
+  "sonó". On Xiaomi the person may still have to turn on "Notificaciones
+  flotantes" and "Pantalla de bloqueo" for Finance. Not yet seen on the phone.
+  **A source never reports one movement twice, against the ledger too**: a
+  movement saved from a message (`transaction_id` of an accepted
+  notification proposal, last 14 days) is never the twin of a later message
+  from that same source (`claimedByMessages`, `unclaimed`); another channel
+  of the bank still finds it. A pair saved by "Guardar los listos" now points
+  each half at its own leg, not at the transfer's id.
   **Seen working on the phone (2026-10-08)** once Finance was neither hidden
   nor locked in Xiaomi's settings: a hidden app gets no SMS broadcast.
   **Mockup `20`, approved by Jose and built the same day:**

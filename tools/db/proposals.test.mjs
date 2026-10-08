@@ -756,3 +756,26 @@ test('two banks\' messages hours apart are not one transfer; thrown away togethe
   assert.deepEqual(waiting.map(one => one.id).sort(), [b], 'its other half goes with it');
   await db.close();
 });
+
+test('a source never reports one movement twice: its second 10.000 is not the transfer saved from its first', async () => {
+  const { db, proposals, transactions, transfers, rappi, nu } = await setup();
+  // Jose, 2026-10-08: a second test transfer of 10.000 from Nequi was shown
+  // as "already registered" against the one saved from Nequi's first message.
+  const message = (pkg, account, amount) => ({ source: 'notification', account_id: account, occurred_on: '2026-10-08',
+    amount_minor: amount, description: null, evidence: { kind: 'notification', package: pkg } });
+  const { ids: [out] } = await proposals.propose('notice:com.nequi', [message('com.nequi', nu, -10_000_00)]);
+  const { ids: [into] } = await proposals.propose('notice:com.global66', [message('com.global66', rappi, 10_000_00)]);
+  const half = (await proposals.pending()).find(one => one.id === into);
+  await accept({ proposals, transactions, transfers }, [half]);
+  const legs = await db.query('SELECT id, account_id FROM transactions WHERE transfer_id IS NOT NULL');
+  const saved = await db.query(`SELECT id, transaction_id FROM movement_proposals WHERE id IN (?, ?) ORDER BY id`, [out, into]);
+  assert.deepEqual(saved.map(one => one.transaction_id), [legs.find(l => l.account_id === nu).id, legs.find(l => l.account_id === rappi).id],
+    'each half points at its own leg');
+
+  const { ids: [again] } = await proposals.propose('notice:com.nequi', [message('com.nequi', nu, -10_000_00)]);
+  assert.equal((await proposals.pending()).find(one => one.id === again).maybe_same_as, null, 'Nequi already told of that leg');
+  // The same purchase by another of the bank's channels still finds it.
+  const { ids: [sms] } = await proposals.propose('notice:sms|85954', [message('sms|85954', nu, -10_000_00)]);
+  assert.equal((await proposals.pending()).find(one => one.id === sms).maybe_same_as, legs.find(l => l.account_id === nu).id);
+  await db.close();
+});

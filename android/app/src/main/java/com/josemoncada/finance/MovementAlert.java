@@ -1,5 +1,6 @@
 package com.josemoncada.finance;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -39,7 +40,15 @@ import java.util.regex.Pattern;
  */
 final class MovementAlert {
 
-    static final String CHANNEL = "movements";
+    /**
+     * A high-importance channel, so the notice floats over the screen and
+     * shows on the lock screen. Its first version ("movements") was default
+     * importance: Android - and Xiaomi above all - put it among the silent
+     * ones, and Jose never saw it ring (2026-10-08). A channel's importance
+     * cannot be raised once created, hence a new id and the old one deleted.
+     */
+    static final String CHANNEL = "movements_alert";
+    private static final String OLD_CHANNEL = "movements";
     static final int ID = 4201;
     /** On the intent that opens the app: what to open (a JSON message, or "review"). */
     static final String EXTRA_OPEN = "finance.open";
@@ -250,7 +259,10 @@ final class MovementAlert {
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body + "\n" + hint))
                 .setContentIntent(tap)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .addAction(0, spanish ? "Revisar y guardar" : "Review and save", tap)
                 .addAction(0, spanish ? "Más tarde" : "Later", later)
                 .addAction(0, spanish ? (count == 1 ? "Descartar" : "Descartar todos") : (count == 1 ? "Dismiss" : "Dismiss all"), drop);
@@ -268,10 +280,14 @@ final class MovementAlert {
     private static void ensureChannel(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        if (manager == null || manager.getNotificationChannel(CHANNEL) != null) return;
+        if (manager == null) return;
+        if (manager.getNotificationChannel(OLD_CHANNEL) != null) manager.deleteNotificationChannel(OLD_CHANNEL);
+        if (manager.getNotificationChannel(CHANNEL) != null) return;
         boolean spanish = Locale.getDefault().getLanguage().equals("es");
         NotificationChannel channel = new NotificationChannel(CHANNEL,
-                spanish ? "Movimientos detectados" : "Detected movements", NotificationManager.IMPORTANCE_DEFAULT);
+                spanish ? "Movimientos detectados" : "Detected movements", NotificationManager.IMPORTANCE_HIGH);
+        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        channel.enableVibration(true);
         channel.setDescription(spanish
                 ? "Cuando un banco avisa de un movimiento, para revisarlo y guardarlo"
                 : "When a bank reports a movement, to review and save it");
