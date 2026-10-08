@@ -65,11 +65,19 @@
         }
 
         <!-- Everything the origin holds, in one tap, with the figure on it. -->
-        @if (isTransfer() && fromHolds() !== null) {
+        @if (isTransfer() && (fromHolds() !== null || (toCardOwes() !== null && !crossesCurrency() && !loanEntry()))) {
           <div class="all-row">
-            <button type="button" class="ui-chip all" (click)="moveEverything()">
-              {{ 'products.move.all' | t }} · {{ fromHoldsText() }}
-            </button>
+            @if (fromHolds() !== null) {
+              <button type="button" class="ui-chip all" (click)="moveEverything()">
+                {{ 'products.move.all' | t }} · {{ fromHoldsText() }}
+              </button>
+            }
+            <!-- Into a card: what it owes, in one tap (Jose, 2026-10-08). -->
+            @if (toCardOwes() !== null && !crossesCurrency() && !loanEntry()) {
+              <button type="button" class="ui-chip all" (click)="payEverything()">
+                {{ 'ui.entry.payAll' | t }} · {{ toCardOwesText() }}
+              </button>
+            }
           </div>
         }
         <!-- A spending: all the account (or product) holds, in one tap. -->
