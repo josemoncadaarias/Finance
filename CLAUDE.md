@@ -1809,8 +1809,12 @@ backup restore against iOS's own SQLite backend.
   - **The screen** ("Notificaciones del teléfono"): folding sections, all
     closed - Tus bancos (each bank = the account(s) its sources turned out to
     be, with its App and SMS sources), Sin cuenta todavía, Encontrados en tu
-    celular (SMS senders with money, not read), Otras apps, Ocultas and
-    "Revisar qué le llega a la app" - with the fold button and the arrows.
+    celular (SMS senders with money, not read; a magnifier, not a "+"),
+    Otras apps and Ocultas - with the fold button and the arrows. Removed at
+    Jose's word (2026-10-08): "Revisar qué le llega a la app" (the
+    diagnosis had served its purpose) and the "···" menu with "Borrar lo
+    guardado" and "Olvidar todo" (risky, and switching a source off or on
+    is already per source). Their plugin methods stay in Java, unused.
     A bank's sources hang from it on a tree line (`.children`), so they do
     not read as rows at the bank's level (Jose, 2026-10-08).
     Tapping a source opens its page: its account and its last messages, each

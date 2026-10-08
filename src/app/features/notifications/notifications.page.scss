@@ -96,11 +96,6 @@
 .listening .ui-chip { align-self: flex-start; margin-top: 10px; }
 .listening .ui-tx { display: flex; flex-direction: column; }
 
-.diagnosis { margin-top: 14px; }
-.diagnosis .ui-row { gap: 12px; }
-.diagnosis > .ui-row:first-child ion-icon:first-child { font-size: 22px; color: var(--app-acc, #6378ff); flex: none; }
-.diagnosis small.wrap, .diagnosis small { white-space: normal; line-height: 1.4; }
-.diagnosis .sub b { font-size: 13px; letter-spacing: .04em; color: var(--app-mu); }
 .sms-ask .ui-row { gap: 12px; align-items: flex-start; }
 .sms-ask ion-icon { font-size: 22px; color: var(--app-pr); flex: none; margin-top: 2px; }
 .sms-ask small { white-space: normal; font-size: 13.5px; line-height: 1.4; }
