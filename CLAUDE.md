@@ -1828,6 +1828,24 @@ backup restore against iOS's own SQLite backend.
     "Avisos guardados" face (every message raw) is gone, at Jose's word.
   Checked in a browser with invented sources and messages; nothing of the
   Android side can be seen outside the phone.
+  **From the phone's first try (Jose, 2026-10-08)**, a 10,000 Bold transfer
+  by SMS: no "Movimiento detectado" rang, and Por revisar showed it under
+  Rappi cuenta as "already registered". Three causes, all read from the
+  code: (1) Android 13+ drops an app's notices unless it was allowed to
+  post them, and nothing asked - now "Permitir leer los SMS" and switching
+  a source on ask for it, and the screen says so in amber while it is off
+  ("Permitir avisos", opening the app's notification settings once Android
+  stops asking, `openAlertSettings`); (2) a message took a 10,000 transfer
+  typed four days before as its twin, and that one's account - a message
+  now matches the ledger within one day only (`MESSAGE_DAYS_APART`,
+  statements keep four); (3) 899979 carries several banks, so a message
+  signed by a bank ("BoldCF: ...", the first word with letters starting
+  with exactly one account's own word of 4+ letters) goes to that account
+  ahead of what the short code meant before (`signedBy`). Also: the batch
+  card no longer says "0 movimientos por confirmar" with nothing left, and
+  a message's unsure sign no longer speaks of a statement. Not yet seen on
+  the phone; Xiaomi may still hold back a receiver for an app without
+  "Inicio automático".
 
   **One movement, several messages: how to count it once** (proposed).
    The same purchase may arrive as a push, an SMS and a mail, minutes to

@@ -49,6 +49,19 @@
         <p>{{ 'ui.notifications.none.hint' | t }}</p>
       </div>
     } @else {
+      @if (!alertsAllowed()) {
+        <!-- Android 13+ drops every notice of an app not allowed to post
+             them, without a word (Jose, 2026-10-08: no "Movimiento detectado"). -->
+        <div class="ui-list listening">
+          <div class="ui-row warn">
+            <ion-icon name="notifications-off-outline"></ion-icon>
+            <span class="ui-tx">
+              <small class="wrap">{{ 'ui.notifications.alertsOff' | t }}</small>
+              <button type="button" class="ui-chip" (click)="askAlerts()">{{ 'ui.notifications.alertsAllow' | t }}</button>
+            </span>
+          </div>
+        </div>
+      }
       @if (listening(); as line) {
         <!-- Allowed is not listening: when Android last handed one over. -->
         <div class="ui-list listening">

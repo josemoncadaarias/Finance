@@ -17,7 +17,7 @@ import { CategoriesRepository } from '../../src/app/core/database/repositories/c
 import { TransactionsRepository } from '../../src/app/core/database/repositories/transactions.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { merchantKeyOf } from '../../src/app/core/proposals/merchant.ts';
-import { sameMovementAs, transferPairs } from '../../src/app/core/proposals/matching.ts';
+import { MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, transferPairs } from '../../src/app/core/proposals/matching.ts';
 import { accept, isComplete } from '../../src/app/core/proposals/accept.ts';
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 
@@ -653,4 +653,16 @@ test('movements after the statement are not a disagreement with it', async () =>
   assert.equal(await accounts.balanceOn(rappi, '2026-09-30'), 4_000_000, 'the statement still agrees');
   assert.equal(await accounts.balanceOn(rappi, '2026-10-31'), 3_850_000, 'and October is October');
   await db.close();
+});
+
+test('a message is the same as something typed only within a day: 10,000 today is not 10,000 four days ago', () => {
+  // Jose, 2026-10-08: a 10,000 transfer texted today took a 10,000 transfer
+  // typed on the 4th as its twin, and with it the wrong account.
+  const ledger = [{ id: 9, account_id: 5, occurred_on: '2026-10-04', amount_minor: -1_000_000, description: 'Transferencia a leidy' }];
+  const reading = { occurred_on: '2026-10-08', amount_minor: -1_000_000, description: 'Realizaste una transferencia' };
+  assert.equal(sameMovementAnywhere(reading, ledger, new Set(), MESSAGE_DAYS_APART), null);
+  // A statement still may be four days apart.
+  assert.equal(sameMovementAnywhere(reading, ledger)?.id, 9);
+  // The next day is still the same message.
+  assert.equal(sameMovementAnywhere({ ...reading, occurred_on: '2026-10-05' }, ledger, new Set(), MESSAGE_DAYS_APART)?.id, 9);
 });

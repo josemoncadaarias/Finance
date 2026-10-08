@@ -132,7 +132,7 @@
         @if (isBatchOpen(batch)) {
         <!-- A batch is one card: where it came from, how many, the check.
              Not under a filter: it speaks of the whole origin. -->
-        @if (!partial(batch)) {
+        @if (!partial(batch) && batch.lines.length - knownIn(batch).length > 0) {
         <section class="ui-card batch">
           @if (checkOf(batch); as check) {
             @if (check.off) {

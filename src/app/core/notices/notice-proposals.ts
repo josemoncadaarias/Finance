@@ -173,6 +173,14 @@ export function accountFor(
     const same = mostOf(mine.filter(answer => answer.digits === reading.digits).map(answer => answer.account_id));
     if (same !== null) return { accountId: same, from: 'learned' };
   }
+  // Signed by the bank: several banks text through one short code (899979
+  // carries Rappi's and Bold's), and each starts its message with its own
+  // name - "BoldCF: Realizaste...". The first word naming exactly one
+  // account says whose it is, ahead of what the short code meant before
+  // (Jose, 2026-10-08). Only the first word: a name later on is usually
+  // where the money went ("Transferiste a Nequi").
+  const signed = signedBy(notice.text, open);
+  if (signed !== null) return { accountId: signed, from: 'name' };
   // Said by the person on the notifications screen: "this sender is Ualá".
   const told = assigned.get(source);
   if (told !== undefined && alive.has(told)) return { accountId: told, from: 'learned' };
@@ -203,6 +211,18 @@ export function accountFor(
     if (named.length === 1) return { accountId: named[0].id, from: 'name' };
   }
   return { accountId: null, from: null };
+}
+
+/** The account whose name the message's first word starts with, when only one. */
+export function signedBy(text: string, accounts: readonly AccountRow[]): number | null {
+  // The first word with letters, among the first three: a short code or a
+  // date may come before the bank's name.
+  const first = foldText(text).split(/[^a-z0-9]+/).filter(Boolean).slice(0, 3)
+    .find(word => /[a-z]/.test(word)) ?? '';
+  if (first.length < 4) return null;
+  const named = accounts.filter(account =>
+    wordsOf(account.name).some(word => word.length >= 4 && first.startsWith(word)));
+  return named.length === 1 ? named[0].id : null;
 }
 
 function mostOf(ids: readonly number[]): number | null {
