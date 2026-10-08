@@ -475,6 +475,12 @@ backup restore against iOS's own SQLite backend.
      amount, as "Pasar todo" does on a transfer, only when there is
      something to spend (`holdsNow`, `fromHolds`, `whatItHolds`). Neither
      on a movement being corrected - its own amount is inside the figure.
+     **On a credit card it says the credit instead** (Jose, 2026-10-08:
+     its balance is a debt): a spending shows "Cupo disponible · X" (limit
+     less what is owed), turning amber as "Supera tu cupo disponible" once
+     the amount typed passes it, and no "Gastar todo"; an income (a payment
+     or a refund) shows "Debes X · Cupo disponible Y". A card with no limit
+     on record says only what is owed (`cardLine`).
 
    **A transfer between two accounts asks it too, at each end with
    products** (Jose, 2026-10-03; mockups `17a`-`17f`, option B chosen: the

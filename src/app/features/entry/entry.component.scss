@@ -478,3 +478,4 @@
 
 /* What the account holds now, under the amount of a new income. */
 .holds-now { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--app-mu); b { color: var(--app-tx); font-weight: 600; } }
+.holds-now.over { color: var(--app-yel); b { color: var(--app-yel); } }

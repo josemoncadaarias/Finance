@@ -714,6 +714,28 @@ export class EntryComponent implements OnInit, OnDestroy {
     return `${held < 0 ? '\u2212' : ''}${formatMoney(Math.abs(held), this.currency(), { withSymbol: false })}`;
   });
 
+  /**
+   * On a credit card the balance is a debt, so "Saldo actual" says nothing
+   * useful (Jose, 2026-10-08): a spending says the credit still available,
+   * amber once the amount typed goes past it; an income (a payment, a
+   * refund) says what is owed and what is available. A card with no limit
+   * on record says only what is owed.
+   */
+  readonly cardLine = computed<{ owed: string; available: string | null; over: boolean } | null>(() => {
+    const account = this.account();
+    const held = this.holdsNow();
+    if (!account || account.type !== 'credit' || held === null) return null;
+    const money = (minor: number) => formatMoney(minor, this.currency(), { withSymbol: false });
+    const owed = Math.max(0, -held);
+    const limit = account.credit_limit_minor;
+    const available = limit === null ? null : limit - owed;
+    return {
+      owed: money(owed),
+      available: available === null ? null : `${available < 0 ? '\u2212' : ''}${money(Math.abs(available))}`,
+      over: available !== null && this.kind() === 'expense' && this.amount().minor > available,
+    };
+  });
+
   readonly fromHoldsText = computed(() => {
     const held = this.fromHolds();
     return held === null ? '' : formatMoney(held, this.currency(), { withSymbol: false });
