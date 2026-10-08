@@ -443,7 +443,8 @@
       <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs" [guessed]="line.guessed"
                          [seenBy]="line.seenBy" [twin]="line.twin" (separate)="separateOpen()"
                          [accounts]="accounts()" [categories]="categories()" [busy]="working()"
-                         (answered)="answer(line, $event)" (discard)="discardOpen()"
+                         (answered)="answer(line, $event)" (discard)="discardOpen()" (forget)="forgetOpen()"
+                         (transfer)="asTransfer(line, $event)"
                          (cancelled)="openLine.set(null)"></app-proposal-form>
     }
   </ng-template>

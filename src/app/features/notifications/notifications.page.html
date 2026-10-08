@@ -49,6 +49,13 @@
         <p>{{ 'ui.notifications.none.hint' | t }}</p>
       </div>
     } @else {
+      <!-- A way straight to what the messages proposed (Jose, 2026-10-08, mockup 20). -->
+      <div class="to-review">
+        <button type="button" class="ui-chip" (click)="openReview()">
+          <ion-icon name="file-tray-full-outline"></ion-icon>{{ 'ui.notifications.toReview' | t }}
+          @if (waiting() > 0) { <span class="count">{{ waiting() }}</span><i class="dot"></i> }
+        </button>
+      </div>
       @if (!alertsAllowed()) {
         <!-- Android 13+ drops every notice of an app not allowed to post
              them, without a word (Jose, 2026-10-08: no "Movimiento detectado"). -->

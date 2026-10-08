@@ -1846,6 +1846,32 @@ backup restore against iOS's own SQLite backend.
   a message's unsure sign no longer speaks of a statement. Not yet seen on
   the phone; Xiaomi may still hold back a receiver for an app without
   "Inicio automático".
+  **Seen working on the phone (2026-10-08)** once Finance was neither hidden
+  nor locked in Xiaomi's settings: a hidden app gets no SMS broadcast.
+  **Mockup `20`, approved by Jose and built the same day:**
+  - The notice (`MovementAlert.java`): the app's own icon as its picture,
+    the accent on its small icon and name, "💸 Gasto / 💰 Ingreso / 🔔
+    Movimiento detectado · −$ 10.000" (zero cents dropped), an SMS's words
+    without its short code in front, "¿Lo guardamos? Revísalo antes, no se
+    guarda solo." and three actions: Revisar y guardar, **Más tarde** (the
+    notice goes, the movement waits in Por revisar, `ACTION_LATER`) and
+    Descartar (never proposed). Android draws a notice its own way: no
+    coloured text, no button of another colour.
+  - "Realizaste/Hiciste una transferencia" and "desde tu cuenta" read as
+    money out, in Java and in `read-notice.ts`.
+  - **Transferir in Revisar movimiento**: the one movement form opened as a
+    transfer (`asTransfer`, `EntryRequest.proposal`): the message's account
+    is the end the money left (or reached), with its usual product; the
+    other end is the account learned for this shape of message, or else
+    the one it most often sends to (receives from); the usual note. Saving
+    marks the proposal saved and teaches its mold the other account
+    (`Mold.otherAccountId`, `accepted(id, tx, other)`); the next message of
+    that shape carries `evidence.transferTo` and opens straight as a
+    transfer, and "Guardar los listos" never writes it as a spending.
+  - The eye beside the bin in Revisar movimiento: "¿No ver más este
+    movimiento?", asked first (`forgetOne`, the same `forgetThese`).
+  - "Movimientos por revisar" on top of Notificaciones del teléfono, with
+    how many wait and the tab bar's dot.
 
   **One movement, several messages: how to count it once** (proposed).
    The same purchase may arrive as a push, an SMS and a mail, minutes to

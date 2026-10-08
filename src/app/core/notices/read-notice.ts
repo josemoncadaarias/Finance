@@ -131,6 +131,7 @@ export function moneyIn(text: string): Found[] {
 /** Ordinary words for money leaving, folded (no accents, lower case). */
 const OUT = [
   'compraste', 'compra', 'pagaste', 'pago', 'pagado', 'retiraste', 'retiro', 'debito', 'debitamos', 'debitado',
+  'realizaste una transferencia', 'hiciste una transferencia', 'desde tu cuenta',
   'cargo', 'cobro', 'cobramos', 'transferiste', 'enviaste', 'envio', 'enviado', 'avance', 'consumo', 'gastaste',
   'purchase', 'paid', 'payment', 'spent', 'withdrawal', 'withdrew', 'sent', 'charged', 'charge', 'debit', 'debited',
 ];

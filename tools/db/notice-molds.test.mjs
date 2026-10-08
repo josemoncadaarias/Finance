@@ -32,7 +32,7 @@ test('a mold reads the next message of the same shape: amount, shop and directio
   assert.ok(mold);
   assert.equal(mold.hasMerchant, true);
   const read = readWithMolds(SRC, 'Rosa: Pago aprobado por $12.000,50 en Café Luna el 09/10 08:02. Saldo $1.187.999,50', [mold]);
-  assert.deepEqual(read, { amountMinor: P(12000.5), direction: 'out', merchant: 'Café Luna', accountId: 7, categoryId: null });
+  assert.deepEqual(read, { amountMinor: P(12000.5), direction: 'out', merchant: 'Café Luna', accountId: 7, categoryId: null, otherAccountId: null });
   // Another source, or another shape, is not read by it.
   assert.equal(readWithMolds('otra', 'Rosa: Pago aprobado por $12.000 en X el 09/10 08:02. Saldo $1', [mold]), null);
   assert.equal(readWithMolds(SRC, 'Rosa: tu código es 123456', [mold]), null);
@@ -96,4 +96,16 @@ test('end to end: saved once, the next message comes with account, category, sho
   await proposals.assignSource('com.mensajes.app|999', otra);
   const [told] = await run([{ ...sms('Compraste $5.000 en KIOSKO', AT + 2 * 86_400_000), title: '999', sender: '999' }]);
   assert.equal((await proposals.byId(told)).account_id, otra);
+});
+
+test('a message saved as a transfer teaches its mold the other account, and the next one is proposed as a transfer', () => {
+  const text = 'Rosa: Realizaste una transferencia por $10.000,00 desde tu cuenta *1111. 08/10/2026 11:57AM';
+  const mold = moldFrom({ source: SRC, text, amountMinor: P(-10000), merchant: null, accountId: 7, categoryId: null, at: 1, otherAccountId: 4 });
+  assert.equal(mold.otherAccountId, 4);
+  const read = readWithMolds(SRC, 'Rosa: Realizaste una transferencia por $25.000,00 desde tu cuenta *1111. 09/10/2026 08:01AM', [mold]);
+  assert.equal(read.otherAccountId, 4);
+  assert.equal(read.amountMinor, P(25000));
+  // Saved as a spending afterwards, the newest answer wins: no longer a transfer.
+  const again = learnMold([mold], moldFrom({ source: SRC, text, amountMinor: P(-10000), merchant: null, accountId: 7, categoryId: 2, at: 2 }));
+  assert.equal(again[0].otherAccountId, null);
 });

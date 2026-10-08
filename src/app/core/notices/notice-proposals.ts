@@ -74,6 +74,11 @@ export interface NoticeEvidence {
   /** True when a mold the person taught read it (amount, shop, direction). */
   molded?: boolean;
   /**
+   * The person saved this shape of message as a transfer before: the
+   * account at the other end, so it is proposed as a transfer again.
+   */
+  transferTo?: number | null;
+  /**
    * The other messages that reported this same movement - an SMS and the
    * bank app's own notification of one purchase - each kept whole, so the
    * proposal can be split back into them ("Separar").
@@ -355,6 +360,8 @@ export function readNotices(
       confidence: reading.direction === null ? 'low' : null,
       accountFrom: from,
       ...(molded ? { molded: true } : {}),
+      ...(molded?.otherAccountId != null && accounts.some(a => a.id === molded.otherAccountId && !a.archived)
+        ? { transferTo: molded.otherAccountId } : {}),
     };
     reads.push({
       key,

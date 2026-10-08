@@ -37,6 +37,7 @@ import { YieldsRepository } from '../../core/database/repositories/yields.reposi
 import type { ProductEntry, YieldProduct } from '../../core/database/repositories/yields.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
+import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
@@ -103,6 +104,12 @@ export interface EntryRequest {
    * for everything, wherever it is opened from).
    */
   editingEntry?: ProductEntry;
+  /**
+   * A proposal from a bank's message saved as a transfer (Jose, 2026-10-08):
+   * once written, the proposal is marked saved and its source learns the
+   * account at the other end. `accountId` is the message's own account.
+   */
+  proposal?: { id: number; accountId: number };
 }
 
 export interface LoanEntry {
@@ -1923,7 +1930,15 @@ export class EntryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    await transfers.create(transfer);
+    const created = await transfers.create(transfer);
+    const proposal = this.request().proposal;
+    if (proposal) {
+      const legs = await this.database.driver.query<{ id: number; account_id: number }>(
+        'SELECT id, account_id FROM transactions WHERE transfer_id = ? ORDER BY id', [created]);
+      const leg = legs.find(one => one.account_id === proposal.accountId) ?? legs[0];
+      const other = proposal.accountId === transfer.from.account_id ? transfer.to.account_id : transfer.from.account_id;
+      if (leg) await new ProposalsRepository(this.database.driver).accepted(proposal.id, leg.id, other);
+    }
   }
 
   // ---------------------------------------------------------------------------

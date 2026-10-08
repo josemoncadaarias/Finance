@@ -471,12 +471,16 @@ export class ProposalsRepository {
     await this.db.run(`UPDATE movement_proposals SET ${sets.join(', ')} WHERE id = ?`, values);
   }
 
-  /** Marks one as written, against the movement it became. */
-  async accepted(id: number, transactionId: number): Promise<void> {
+  /**
+   * Marks one as written, against the movement it became. Saved as a
+   * transfer, `otherAccountId` is the account at the other end, and the
+   * source's mold learns to propose a transfer to it next time.
+   */
+  async accepted(id: number, transactionId: number, otherAccountId: number | null = null): Promise<void> {
     await this.db.run(
       `UPDATE movement_proposals SET status = 'accepted', transaction_id = ?, updated_at = ? WHERE id = ?`,
       [transactionId, this.now(), id]);
-    await this.learnMoldsFrom(id);
+    await this.learnMoldsFrom(id, otherAccountId);
   }
 
   // ---------------------------------------------------------------------------
@@ -527,7 +531,7 @@ export class ProposalsRepository {
    * and the sightings folded into it, with the amount, shop, account and
    * category the person saved. A row from a statement teaches nothing here.
    */
-  private async learnMoldsFrom(id: number): Promise<void> {
+  private async learnMoldsFrom(id: number, otherAccountId: number | null = null): Promise<void> {
     const row = await this.db.queryOne<{
       source: string; evidence: string; amount_minor: number | null; description: string | null;
       account_id: number | null; category_id: number | null;
@@ -543,6 +547,7 @@ export class ProposalsRepository {
       const mold = moldFrom({
         source: one.package, text: one.text, amountMinor: row.amount_minor, merchant: row.description,
         accountId: row.account_id, categoryId: row.category_id, at: Date.parse(this.now()) || Date.now(),
+        otherAccountId,
       });
       if (!mold) continue;
       molds = learnMold(molds, mold);

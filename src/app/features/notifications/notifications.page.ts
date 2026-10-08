@@ -14,6 +14,7 @@
 
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
+import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -73,6 +74,15 @@ export class NotificationsPage {
 
   back(): void {
     this.location.back();
+  }
+
+  private readonly router = inject(Router);
+
+  /** How many proposals wait in Movimientos por revisar. */
+  readonly waiting = signal(0);
+
+  openReview(): void {
+    void this.router.navigateByUrl('/review');
   }
 
   /** While choosing, the selection bar takes the tab bar's place. */
@@ -607,6 +617,7 @@ export class NotificationsPage {
     if (this.database.status() !== 'ready') return;
     const db = this.database.driver;
     const proposals = new ProposalsRepository(db);
+    this.waiting.set(await proposals.pendingCount());
     const [accounts, answers, assigned, outcomes] = await Promise.all([
       new AccountsRepository(db).list(), proposals.noticeAnswers(), proposals.sourceAccounts(), proposals.noticeOutcomes(),
     ]);
