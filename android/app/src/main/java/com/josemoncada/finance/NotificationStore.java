@@ -180,6 +180,19 @@ final class NotificationStore {
         }
     }
 
+    private static final String CATCH_UP = "catchUp";
+
+    /**
+     * The last time the listener read the status bar itself: how many
+     * notifications it saw, how many were of the apps the person reads, and
+     * how many of those were new. No words.
+     */
+    static void noteCatchUp(Context context, long at, int bar, int banks, int kept) {
+        prefs(context).edit().putString(CATCH_UP, at + "," + bar + "," + banks + "," + kept).commit();
+    }
+
+    static String catchUp(Context context) { return prefs(context).getString(CATCH_UP, ""); }
+
     static String lastError(Context context) { return prefs(context).getString(ERROR, ""); }
     static long lastErrorAt(Context context) { return prefs(context).getLong(ERROR_AT, 0); }
 

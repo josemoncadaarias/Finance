@@ -114,7 +114,7 @@ export interface BankNotificationsPlugin {
    * last connected or dropped the listener (milliseconds, 0 for never).
    * Asking also asks Android to reconnect a listener it dropped.
    */
-  isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number; updatedAt?: number; error?: string; errorAt?: number }>;
+  isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number; updatedAt?: number; error?: string; errorAt?: number; bound?: boolean; catchUp?: string }>;
   /** Opens the Android screen where that access is given. */
   openSettings(): Promise<void>;
   /** Opens this app's own notification settings (posting "Movimiento detectado"). */
