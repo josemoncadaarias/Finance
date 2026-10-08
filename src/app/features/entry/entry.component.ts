@@ -2171,8 +2171,8 @@ export class EntryComponent implements OnInit, OnDestroy {
   askAboutProposal(kind: 'forget' | 'discard'): void {
     const proposal = this.request().proposal;
     if (!proposal) return;
+    // Asked over the form, which stays open until the answer is yes.
     this.compose.proposalAsk.set({ id: proposal.id, kind });
-    this.compose.close();
   }
 
   askToDelete(): void {

@@ -1873,6 +1873,11 @@ backup restore against iOS's own SQLite backend.
     each asked on the review screen (`ComposeService.proposalAsk`), and
     Gasto / Ingreso go back to the proposal's own form with what was typed
     (`typed` input).
+    **The eye and the bin ask OVER the form** (Jose, 2026-10-08: the eye
+    closed the form before asking, so "Cancelar" lost what was typed): the
+    question is shown on top of the open form, "Cancelar" leaves it as it
+    was, and only "yes" closes it (`closeAnswered`). Checked: no other
+    screen closed a form before its question.
   - The eye beside the bin in Revisar movimiento: "¿No ver más este
     movimiento?", asked first (`forgetOne`, the same `forgetThese`).
   - "Movimientos por revisar" on top of Notificaciones del teléfono, with
