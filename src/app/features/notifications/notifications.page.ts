@@ -63,6 +63,14 @@ type SectionKey = 'banks' | 'unknown' | 'recent' | 'found' | 'hidden';
 /** How long an app first seen on the phone counts as new. */
 const RECENT_DAYS = 7;
 
+/** How late a message reached the app past this, in ms, says it was frozen. */
+const LATE = 30_000;
+
+/** How long after it arrived the app was handed a message. */
+function lateBy(note: AlertNote): number {
+  return note.heard === undefined ? 0 : note.heard - note.at;
+}
+
 @Component({
   selector: 'app-notifications',
   standalone: true,
@@ -651,10 +659,30 @@ export class NotificationsPage {
   /** What became of each message at the phone's notice. */
   readonly alertLog = signal<AlertNote[]>([]);
 
+  /** Android holds back the app's battery: it may be frozen in the background. */
+  readonly batteryLimited = signal(false);
+
+  /**
+   * The app is being frozen in the background: Android limits its battery,
+   * or a message of the last day reached it more than half a minute late
+   * (Jose, 2026-10-08: "Movimiento detectado" showed only when he opened
+   * the app - the phone had passed the bank's notice on only then).
+   */
+  readonly asleep = computed(() => {
+    const since = Date.now() - 24 * 3_600_000;
+    return this.batteryLimited() || this.alertLog().some(note => note.at > since && lateBy(note) > LATE);
+  });
+
+  /** This app's page in Android's settings: battery and autostart. */
+  async openAppSettings(): Promise<void> {
+    await BankNotifications.openAppSettings();
+  }
+
   private async readAlertLog(): Promise<void> {
     try {
-      const { log, allowed } = await BankNotifications.alertLog();
+      const { log, allowed, unrestricted } = await BankNotifications.alertLog();
       this.alertLog.set(log);
+      this.batteryLimited.set(unrestricted === false);
       // The channel switched off counts as not allowed, as the app's notices do.
       if (!allowed) this.alertsAllowed.set(false);
     } catch {
@@ -675,7 +703,13 @@ export class NotificationsPage {
       noMoney: 'ui.notifications.alert.noMoney', noAmount: 'ui.notifications.alert.noAmount',
     } as const;
     const key = words[near.reason as keyof typeof words] ?? 'ui.notifications.alert.error';
-    return this.i18n.t(key, { other: near.detail ?? '' });
+    const said = this.i18n.t(key, { other: near.detail ?? '' });
+    const late = lateBy(near);
+    if (late <= LATE) return said;
+    const minutes = Math.floor(late / 60_000);
+    const seconds = Math.round((late % 60_000) / 1000);
+    const delay = minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`;
+    return this.i18n.t('ui.notifications.alert.late', { said, delay });
   }
 
   /** What the app learned about each source, read once. */

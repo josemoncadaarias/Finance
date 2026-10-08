@@ -2,6 +2,8 @@ package com.josemoncada.finance;
 
 import android.content.ComponentName;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 
@@ -294,7 +296,23 @@ public class BankNotificationsPlugin extends Plugin {
         JSObject answer = new JSObject();
         answer.put("log", toJs(MovementAlert.log(getContext())));
         answer.put("allowed", MovementAlert.allowed(getContext()));
+        PowerManager power = (PowerManager) getContext().getSystemService(android.content.Context.POWER_SERVICE);
+        answer.put("unrestricted", power != null && power.isIgnoringBatteryOptimizations(getContext().getPackageName()));
         call.resolve(answer);
+    }
+
+    /**
+     * Opens this app's own page in Android's settings, where its battery use
+     * is set to "Sin restricciones" (and, on Xiaomi, "Inicio automático"):
+     * a frozen app is handed the banks' notices only when it is opened.
+     */
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        Intent settings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", getContext().getPackageName(), null));
+        settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(settings);
+        call.resolve();
     }
 
     private static JSArray toJs(JSONArray from) {

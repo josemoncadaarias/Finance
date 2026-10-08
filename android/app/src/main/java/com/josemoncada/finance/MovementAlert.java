@@ -180,6 +180,9 @@ final class MovementAlert {
             one.put("source", source);
             one.put("at", at);
             one.put("reason", reason);
+            // When the app was actually handed it: far after "at", the phone
+            // had the app frozen and passed the message on only when it woke.
+            one.put("heard", System.currentTimeMillis());
             if (detail != null) one.put("detail", detail);
             log.put(one);
             while (log.length() > 120) log.remove(0);

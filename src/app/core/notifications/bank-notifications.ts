@@ -161,7 +161,9 @@ export interface BankNotificationsPlugin {
    * why not - with no words of it, and whether Android lets it show at all
    * (the app's notices and their channel).
    */
-  alertLog(): Promise<{ log: AlertNote[]; allowed: boolean }>;
+  alertLog(): Promise<{ log: AlertNote[]; allowed: boolean; unrestricted?: boolean }>;
+  /** Opens this app's page in Android's settings (battery, autostart). */
+  openAppSettings(): Promise<void>;
 }
 
 /** What became of one message at the phone's notice. */
@@ -171,6 +173,8 @@ export interface AlertNote {
   /** shown, same (rang already for another source), off, empty, notMovement, noMoney, noAmount, error. */
   reason: string;
   detail?: string;
+  /** When the app was handed the message; long after `at` means it was frozen. */
+  heard?: number;
 }
 
 /**
@@ -185,6 +189,7 @@ const nothing: BankNotificationsPlugin = {
   isEnabled: async () => ({ enabled: false }),
   openSettings: async () => {},
   openAlertSettings: async () => {},
+  openAppSettings: async () => {},
   smsAccess: async () => ({ granted: false }),
   askSms: async () => ({ granted: false }),
   apps: async () => ({ apps: [] }),
