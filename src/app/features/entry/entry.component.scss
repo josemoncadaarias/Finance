@@ -475,3 +475,6 @@
   &.down { background: rgba(255, 107, 107, .1); border-color: rgba(255, 107, 107, .35); b { color: var(--app-red); } }
   &.same b { color: var(--app-tx); }
 }
+
+/* What the account holds now, under the amount of a new income. */
+.holds-now { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--app-mu); b { color: var(--app-tx); font-weight: 600; } }

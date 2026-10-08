@@ -443,10 +443,38 @@ backup restore against iOS's own SQLite backend.
      Rappi cuenta's Cashback (15 uses) and every "Corrección del banco"
      start on "the product alone", and one "Ajuste bancario" of Global66
      COP on "net worth alone". Tests: `entry-scope.test.mjs`.
-   - Not done yet, on purpose: merging the two forms into one. With the
-     question in both, the products screen's form is left for what the
-     ordinary one does not do (moving between products, correcting a
-     product's own entry); the merge waits for Jose's word.
+   - **One form for everything since 2026-10-08** (Jose: "no debería ser
+     dos formularios distintos, debería ser uno solo para todos"). The
+     products screen's own form (`product-entry.component`) is deleted; its
+     "+", a move between products, a product's own movement opened from the
+     list and every correction go through the ordinary form
+     (`app-entry`), opened as the screen asks: on an account's page, Gasto
+     and Ingreso start on that account and its usual product, Transferir is
+     a move between its products on the route its money usually takes
+     (`route: {from: acc, to: acc}` with no products - the form reads the
+     route pairs), and switching to Transferir there stays between products
+     (`switchMovement`). From Cuentas or Inicio a transfer still leaves the
+     account on show towards where it usually sends money. What the old form
+     alone did is in the one form now: **correcting or deleting a product's
+     own movement** ("Solo el producto", `EntryRequest.editingEntry`: patched
+     in place while its answer stays, rewritten in the new shape otherwise;
+     an entry that is half of an account's movement opens that movement),
+     and **working the yields out again right after saving** for every
+     account with products the save touched, from the earliest day touched
+     (`workOutAgain`).
+     **The usual note reads the product** wherever the form is opened: on an
+     account with products a spending or an income asks the `product`
+     context (that product's entries and movements for the category, the
+     account's own habit when the product has none). It used to ask only the
+     account's movements, so a habit written on "Solo el producto" entries
+     was never offered from Inicio (Jose, 2026-10-08).
+     **A new income says the balance now, a new spending offers "Gastar
+     todo"** (Jose, 2026-10-08): "Saldo actual · X" under the amount of an
+     income (the product chosen when the account has several, signed - a
+     card shows its debt), and a "Gastar todo · X" chip under a spending's
+     amount, as "Pasar todo" does on a transfer, only when there is
+     something to spend (`holdsNow`, `fromHolds`, `whatItHolds`). Neither
+     on a movement being corrected - its own amount is inside the figure.
 
    **A transfer between two accounts asks it too, at each end with
    products** (Jose, 2026-10-03; mockups `17a`-`17f`, option B chosen: the
