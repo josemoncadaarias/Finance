@@ -115,15 +115,36 @@
   .arrow { align-self: center; color: var(--app-pr); font-size: 20px; flex: none; }
 }
 
-.all-row {
+.fill-tiles {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  margin-top: -4px;
+  margin-top: -2px;
 
-  .all { font-size: 14px; padding: 7px 14px; }
+  .fill-tile {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 220px;
+    padding: 7px 6px;
+    border: 1px solid var(--app-s3);
+    border-radius: 14px;
+    background: var(--app-s1);
+    color: var(--app-tx);
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+
+    small { display: block; color: var(--app-mu); font-size: 11.5px; margin-bottom: 2px; }
+    b { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+
+  .fill-tile.on {
+    border-color: var(--app-pr);
+    background: rgba(var(--app-pr-rgb), 0.14);
+    b { color: var(--app-pr); }
+  }
 }
+
 
 .error {
   margin: 0;

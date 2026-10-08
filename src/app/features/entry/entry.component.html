@@ -64,28 +64,15 @@
                             [currency]="currency()" [autofocus]="autofocusAmount()"></app-amount-field>
         }
 
-        <!-- Everything the origin holds, in one tap, with the figure on it. -->
-        @if (isTransfer() && (fromHolds() !== null || (toCardOwes() !== null && !crossesCurrency() && !loanEntry()))) {
-          <div class="all-row">
-            @if (fromHolds() !== null) {
-              <button type="button" class="ui-chip all" (click)="moveEverything()">
-                {{ 'products.move.all' | t }} · {{ fromHoldsText() }}
+        <!-- Fill the amount in one tap: what the origin holds, and into a card
+             its statement and its whole debt, side by side (mockup 18 A). -->
+        @if (fillTiles().length > 0) {
+          <div class="fill-tiles">
+            @for (tile of fillTiles(); track tile.key) {
+              <button type="button" class="fill-tile" [class.on]="tile.on" (click)="fillWith(tile.minor)">
+                <small>{{ tile.label }}</small><b>{{ tile.text }}</b>
               </button>
             }
-            <!-- Into a card: what it owes, in one tap (Jose, 2026-10-08). -->
-            @if (toCardOwes() !== null && !crossesCurrency() && !loanEntry()) {
-              <button type="button" class="ui-chip all" (click)="payEverything()">
-                {{ 'ui.entry.payAll' | t }} · {{ toCardOwesText() }}
-              </button>
-            }
-          </div>
-        }
-        <!-- A spending: all the account (or product) holds, in one tap. -->
-        @if (!isTransfer() && !isEditing() && !loanEntry() && kind() === 'expense' && fromHolds() !== null) {
-          <div class="all-row">
-            <button type="button" class="ui-chip all" (click)="moveEverything()">
-              {{ 'ui.entry.spendAll' | t }} · {{ fromHoldsText() }}
-            </button>
           </div>
         }
         <!-- A card: the credit left for a spending, what is owed and left for a

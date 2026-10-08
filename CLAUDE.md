@@ -481,11 +481,16 @@ backup restore against iOS's own SQLite backend.
      the amount typed passes it, and no "Gastar todo"; an income (a payment
      or a refund) shows "Debes X · Cupo disponible Y". A card with no limit
      on record says only what is owed (`cardLine`).
-     **A transfer into a card offers "Pagar todo · X"** (Jose, 2026-10-08)
-     beside "Pasar todo": it fills the amount with everything the card
-     owes (`toCardOwes`, `payEverything`), not only the statement. Not when
-     the two ends are in different currencies, nor on a loan's payment;
-     "Invertir" clears it like "Pasar todo".
+     **Filling the amount in one tap is one row of tiles** (Jose,
+     2026-10-08, mockup `18`, option A chosen over sliding chips and a
+     "Llenar con..." sheet): each tile says what it is in small grey and its
+     figure under it, side by side, the one whose figure is the amount on
+     show marked in the accent (`fillTiles`, `fillWith`, `.fill-tiles`). On
+     a transfer: "Pasar todo" (what the origin holds) and, into a card,
+     "Factura" (what is left of its last statement, only with its two days
+     and when it differs from the debt) and "Toda la deuda". On a new
+     spending: "Gastar todo". The card's tiles are left out across
+     currencies and on a loan's payment; "Invertir" clears a filled amount.
 
    **A transfer between two accounts asks it too, at each end with
    products** (Jose, 2026-10-03; mockups `17a`-`17f`, option B chosen: the
