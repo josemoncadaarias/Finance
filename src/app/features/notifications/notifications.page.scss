@@ -160,3 +160,13 @@
 
 // Whether "Movimiento detectado" rang for this message, or why not.
 .alert-note { display: block; color: var(--app-mu); font-size: 12px; white-space: normal; }
+
+.always-on { margin-bottom: 12px; }
+.always-on .ui-row { gap: 12px; align-items: flex-start; }
+.always-on ion-icon { font-size: 20px; color: var(--app-accent, var(--ion-color-primary)); flex: none; margin-top: 2px; }
+.always-on .ui-tx { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.always-on small { white-space: normal; font-size: 13.5px; line-height: 1.4; color: var(--app-mu); }
+.always-on .ui-link { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--app-accent, var(--ion-color-primary)); font-size: 13.5px; }
+.always-on .ui-switch { flex: none; margin-top: 2px; }
+.always-on .help ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; color: var(--app-mu); }
+.always-on .help li + li { margin-top: 6px; }

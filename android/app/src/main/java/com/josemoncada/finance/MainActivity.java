@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         super.onCreate(savedInstanceState);
         remember(getIntent());
         ListenerKeeper.schedule(getApplicationContext());
+        ListenerGuard.start(getApplicationContext());
     }
 
     /**

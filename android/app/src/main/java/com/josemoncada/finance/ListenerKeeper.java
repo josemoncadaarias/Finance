@@ -29,6 +29,7 @@ public class ListenerKeeper extends BroadcastReceiver {
         try {
             if (intent != null && !ACTION.equals(intent.getAction())) schedule(context);
             NotificationCatcher.ensureBound(context);
+            ListenerGuard.start(context);
         } catch (Throwable error) {
             NotificationStore.noteError(context, error);
         }

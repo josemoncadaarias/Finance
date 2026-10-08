@@ -100,6 +100,34 @@
         </div>
       }
 
+      <!-- "Avisarme siempre al instante": the person decides, told what each
+           choice means (Jose, 2026-10-08). Android only, like this screen. -->
+      <div class="ui-list always-on">
+        <div class="ui-row">
+          <ion-icon name="flash-outline"></ion-icon>
+          <span class="ui-tx">
+            <b>{{ 'ui.notifications.alwaysOn' | t }}</b>
+            <small class="wrap">{{ (alwaysOn() ? 'ui.notifications.alwaysOnYes' : 'ui.notifications.alwaysOnNo') | t }}</small>
+            <button type="button" class="ui-link" (click)="alwaysOnHelp.set(!alwaysOnHelp())">
+              {{ (alwaysOnHelp() ? 'ui.notifications.alwaysOnLess' : 'ui.notifications.alwaysOnMore') | t }}
+            </button>
+          </span>
+          <button type="button" class="ui-switch" [class.on]="alwaysOn()" role="switch" [attr.aria-checked]="alwaysOn()"
+                  [attr.aria-label]="'ui.notifications.alwaysOn' | t" (click)="setAlwaysOn(!alwaysOn())"></button>
+        </div>
+        @if (alwaysOnHelp()) {
+          <div class="ui-row help">
+            <ul>
+              <li>{{ 'ui.notifications.alwaysOnHow1' | t }}</li>
+              <li>{{ 'ui.notifications.alwaysOnHow2' | t }}</li>
+              <li>{{ 'ui.notifications.alwaysOnHow3' | t }}</li>
+              <li>{{ 'ui.notifications.alwaysOnHow4' | t }}</li>
+              <li>{{ 'ui.notifications.alwaysOnHow5' | t }}</li>
+            </ul>
+          </div>
+        }
+      </div>
+
       <div class="ui-search">
         <ion-icon name="search-outline"></ion-icon>
         <input type="search" [placeholder]="'ui.notifications.search' | t" [value]="search()"

@@ -114,7 +114,9 @@ export interface BankNotificationsPlugin {
    * last connected or dropped the listener (milliseconds, 0 for never).
    * Asking also asks Android to reconnect a listener it dropped.
    */
-  isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number; updatedAt?: number; error?: string; errorAt?: number; bound?: boolean; catchUp?: string; rebindAt?: number }>;
+  isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number; updatedAt?: number; error?: string; errorAt?: number; bound?: boolean; catchUp?: string; rebindAt?: number; alwaysOn?: boolean }>;
+  /** "Avisarme siempre al instante": Android only; keeps a quiet fixed notice. */
+  setAlwaysOn(options: { on: boolean }): Promise<{ alwaysOn: boolean }>;
   /** Opens the Android screen where that access is given. */
   openSettings(): Promise<void>;
   /** Opens this app's own notification settings (posting "Movimiento detectado"). */
@@ -190,6 +192,7 @@ const nothing: BankNotificationsPlugin = {
   openSettings: async () => {},
   openAlertSettings: async () => {},
   openAppSettings: async () => {},
+  setAlwaysOn: async () => ({ alwaysOn: false }),
   smsAccess: async () => ({ granted: false }),
   askSms: async () => ({ granted: false }),
   apps: async () => ({ apps: [] }),

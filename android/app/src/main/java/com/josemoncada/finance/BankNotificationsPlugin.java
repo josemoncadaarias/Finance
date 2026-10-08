@@ -81,6 +81,7 @@ public class BankNotificationsPlugin extends Plugin {
         answer.put("bound", NotificationCatcher.isBound());
         answer.put("catchUp", NotificationStore.catchUp(getContext()));
         answer.put("rebindAt", NotificationStore.rebindAt(getContext()));
+        answer.put("alwaysOn", ListenerGuard.isOn(getContext()));
         answer.put("heardAt", NotificationStore.heardAt(getContext()));
         answer.put("connectedAt", NotificationStore.connectedAt(getContext()));
         answer.put("disconnectedAt", NotificationStore.disconnectedAt(getContext()));
@@ -318,6 +319,15 @@ public class BankNotificationsPlugin extends Plugin {
         answer.put("allowed", MovementAlert.allowed(getContext()));
         PowerManager power = (PowerManager) getContext().getSystemService(android.content.Context.POWER_SERVICE);
         answer.put("unrestricted", power != null && power.isIgnoringBatteryOptimizations(getContext().getPackageName()));
+        call.resolve(answer);
+    }
+
+    /** "Avisarme siempre al instante": the fixed notice that keeps the app alive. */
+    @PluginMethod
+    public void setAlwaysOn(PluginCall call) {
+        ListenerGuard.set(getContext(), Boolean.TRUE.equals(call.getBoolean("on", false)));
+        JSObject answer = new JSObject();
+        answer.put("alwaysOn", ListenerGuard.isOn(getContext()));
         call.resolve(answer);
     }
 
