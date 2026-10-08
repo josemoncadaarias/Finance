@@ -21,7 +21,7 @@ import { DatabaseService } from '../database/database.service';
 import { I18nService } from '../i18n/i18n.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
 import { GoogleAccountService, SilentTimeout } from './google-account.service';
-import { DriveError, findCopy, setAside, upload, type CloudCopy } from './drive-backup';
+import { DriveError, findCopy, pruneRevisions, setAside, upload, type CloudCopy } from './drive-backup';
 
 export type SaveState = 'idle' | 'working' | 'done' | 'failed';
 
@@ -71,6 +71,31 @@ const DIRTY_KEY = 'finance.cloud.dirty';
  */
 const SEEN_KEY = 'finance.cloud.seen';
 
+/**
+ * This install's own name, written beside every copy it uploads
+ * (`appProperties.writer`). A copy whose `modifiedTime` this device never
+ * heard of is still its own when it carries this name: an upload whose answer
+ * was lost - the network changed halfway, Jose 2026-10-08 - landed in Drive,
+ * and the next save took it for another phone's. Random, kept on the device;
+ * nothing about the network or the phone goes into it.
+ */
+const WRITER_KEY = 'finance.cloud.writer';
+
+function writerId(): string {
+  try {
+    let id = localStorage.getItem(WRITER_KEY);
+    if (!id) {
+      id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(WRITER_KEY, id);
+    }
+    return id;
+  } catch {
+    return '';
+  }
+}
+
 function readSeen(): string {
   try {
     return localStorage.getItem(SEEN_KEY) ?? '';
@@ -89,7 +114,12 @@ function readSeen(): string {
 export function rememberSeen(modifiedTime: string): void {
   try {
     if (modifiedTime) localStorage.setItem(SEEN_KEY, modifiedTime);
-    else localStorage.removeItem(SEEN_KEY);
+    else {
+      localStorage.removeItem(SEEN_KEY);
+      // Restored from a file: this install no longer continues what it wrote
+      // to Drive, so it takes a new name and Drive's copy reads as another's.
+      localStorage.removeItem(WRITER_KEY);
+    }
   } catch {
     // Storage switched off: the mark holds for this run and no longer.
   }
@@ -426,7 +456,8 @@ export class CloudBackupService {
       const theirs = await until(findCopy(token), abort.signal);
       this.copy.set(theirs);
 
-      const strange = theirs !== null && theirs.modifiedTime !== readSeen();
+      const me = writerId();
+      const strange = theirs !== null && theirs.modifiedTime !== readSeen() && !(me !== '' && theirs.writer === me);
 
       if (!options.anyway && strange) {
         if (!(options.auto && this.declined === theirs!.modifiedTime)) {
@@ -460,7 +491,7 @@ export class CloudBackupService {
         .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 
       const json = toJson(backup);
-      const send = () => upload(token, json, { schemaVersion: backup.schemaVersion, rows }, abort.signal, sent => {
+      const send = () => upload(token, json, { schemaVersion: backup.schemaVersion, rows, writer: me }, abort.signal, sent => {
         this.step(
           'uploading',
           0.4 + 0.6 * (sent.total > 0 ? sent.loaded / sent.total : 0),
@@ -483,6 +514,8 @@ export class CloudBackupService {
       // From here on this device continues that copy, whatever it does next.
       rememberSeen(written.modifiedTime);
       this.declined = '';
+      // Drive's older versions of the backup, past a few, go: each is a whole backup.
+      void pruneRevisions(token, written.id);
 
       this.savedVersion = version;
       // Only now: a copy counts as made when Drive has answered, never before.
