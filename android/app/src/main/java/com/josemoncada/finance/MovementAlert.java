@@ -10,7 +10,11 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.graphics.Typeface;
 import android.os.Build;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.StyleSpan;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -76,7 +80,7 @@ final class MovementAlert {
     private static final Pattern AMOUNT = Pattern.compile(
             "(?:[$€£]\\s?|(?i:COP|USD|EUR)\\s?)?(\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)(?:\\s?(?i:COP|USD|EUR))?");
     private static final String[] OUT = {
-            "compra", "pago", "pagaste", "retiro", "retiraste", "enviaste", "transferiste", "debito", "cargo",
+            "compra", "pago", "pagaste", "retiro", "retiraste", "enviaste", "envio", "enviado", "transferiste", "debito", "cargo",
             "realizaste una transferencia", "desde tu cuenta",
             "purchase", "paid", "spent", "withdraw", "sent" };
     private static final String[] IN = {
@@ -226,7 +230,8 @@ final class MovementAlert {
                     ? (direction < 0 ? "💸 Gasto detectado" : direction > 0 ? "💰 Ingreso detectado" : "🔔 Movimiento detectado")
                     : (direction < 0 ? "💸 Spending detected" : direction > 0 ? "💰 Income detected" : "🔔 Movement detected");
             String sign = direction < 0 ? "−" : direction > 0 ? "+" : "";
-            title = what + " · " + sign + "$ " + shortAmount(last.optString("amount"));
+            // Non-breaking spaces: the figure never wraps away from its sign.
+            title = what + " ·\u00A0" + sign + "$\u00A0" + shortAmount(last.optString("amount"));
             // An SMS's sender is a short code that says nothing; the bank signs
             // its own words. An app's notice keeps the app's name in front.
             boolean sms = last.optString("source").startsWith(SmsInbox.PACKAGE + "|");
@@ -240,7 +245,7 @@ final class MovementAlert {
                 if (one == null) continue;
                 if (list.length() > 0) list.append(" · ");
                 int direction = one.optInt("direction");
-                list.append(direction > 0 ? "+" : direction < 0 ? "−" : "").append("$ ").append(shortAmount(one.optString("amount")));
+                list.append(direction > 0 ? "+" : direction < 0 ? "−" : "").append("$\u00A0").append(shortAmount(one.optString("amount")));
             }
             body = list.toString();
             open.putExtra(EXTRA_OPEN, "review");
@@ -259,7 +264,7 @@ final class MovementAlert {
                 .setColor(ACCENT)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(body + "\n" + hint))
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(expanded(body, hint)))
                 .setContentIntent(tap)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -295,6 +300,21 @@ final class MovementAlert {
                 ? "Cuando un banco avisa de un movimiento, para revisarlo y guardarlo"
                 : "When a bank reports a movement, to review and save it");
         manager.createNotificationChannel(channel);
+    }
+
+    /**
+     * What the bank said in italics, then - apart, in bold - what the app
+     * asks (Jose, 2026-10-08: the question read as part of the bank's words).
+     */
+    private static CharSequence expanded(String said, String question) {
+        SpannableStringBuilder text = new SpannableStringBuilder();
+        text.append(said);
+        text.setSpan(new StyleSpan(Typeface.ITALIC), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.append("\n\n");
+        int from = text.length();
+        text.append(question);
+        text.setSpan(new StyleSpan(Typeface.BOLD), from, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return text;
     }
 
     /** "1.234.567,00" -> "1.234.567": cents of zero say nothing in a title. */
