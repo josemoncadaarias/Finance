@@ -488,17 +488,23 @@ export class ReviewPage {
     }
   }
 
+  /** Closes the form a proposal was answered from, once the answer is yes. */
+  private closeAnswered(line: Line): void {
+    if (this.openLine()?.proposal.id === line.proposal.id) this.openLine.set(null);
+    if (this.compose.entry()?.proposal?.id === line.proposal.id) this.compose.close();
+  }
+
   forgetOpen(): void {
     const line = this.openLine();
     if (!line) return;
-    this.openLine.set(null);
+    // Asked over the form, which stays open: "Cancelar" leaves it as it was.
     this.asking.set({ kind: 'forgetOne', line });
   }
 
   discardOpen(): void {
     const line = this.openLine();
     if (!line) return;
-    this.openLine.set(null);
+    // Asked over the form, which stays open: "Cancelar" leaves it as it was.
     this.asking.set({ kind: 'discardOne', line });
   }
 
@@ -1516,6 +1522,7 @@ export class ReviewPage {
         this.working.set(false);
       }
     } else if (asking.kind === 'forgetOne') {
+      this.closeAnswered(asking.line);
       this.working.set(true);
       try {
         await new ProposalsRepository(this.database.driver).forgetThese([asking.line.proposal.id]);
@@ -1532,6 +1539,7 @@ export class ReviewPage {
       this.squaring.set(null);
       this.statements.lastImport.set(null);
     } else if (asking.kind === 'discardOne') {
+      this.closeAnswered(asking.line);
       await this.rejectOne(asking.line);
     } else {
       await this.forget(asking.batch);
