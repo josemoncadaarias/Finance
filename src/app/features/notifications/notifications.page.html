@@ -125,7 +125,7 @@
             </span>
           }
           @if (!nested) {
-            <app-badge [shape]="one.kind === 'sms' ? 'ci' : 'sq'" [size]="40"
+            <app-badge [shape]="one.kind === 'sms' ? 'ci' : 'sq'" [size]="34"
                        [builtin]="one.kind === 'sms' ? 'chatbubble-ellipses-outline' : appIcon(one.key, one.name)" [seed]="appSeed(one.key)"></app-badge>
           }
           <span class="ui-tx">
@@ -198,9 +198,11 @@
               <ion-icon class="ui-chev" [name]="chev(section)"></ion-icon>
             </div>
             @if (isOpen(section)) {
-              @for (one of of($any(section)); track one.key) {
-                <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: false }"></ng-container>
-              }
+              <div class="children">
+                @for (one of of($any(section)); track one.key) {
+                  <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: false }"></ng-container>
+                }
+              </div>
             }
           </div>
         }

@@ -1818,7 +1818,10 @@ backup restore against iOS's own SQLite backend.
     guardado" and "Olvidar todo" (risky, and switching a source off or on
     is already per source). Their plugin methods stay in Java, unused.
     A bank's sources hang from it on a tree line (`.children`), so they do
-    not read as rows at the bank's level (Jose, 2026-10-08).
+    not read as rows at the bank's level, and so do the rows of every
+    other section (Jose, 2026-10-08). Each section's line says what it
+    holds by kind ("2 apps · 1 remitente de SMS") and what it is for;
+    the senders' section is "SMS con dinero sin activar".
     Tapping a source opens its page: its account and its last messages, each
     with what became of it (por revisar, guardado, descartado, el mismo
     movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The

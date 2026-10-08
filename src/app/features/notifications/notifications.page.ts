@@ -261,10 +261,18 @@ export class NotificationsPage {
     return [...groups.values()].sort((a, b) => b.last - a.last);
   });
 
+  /** "2 apps · 1 SMS": what a list holds, said by kind (Jose, 2026-10-08). */
+  private whatHolds(list: Source[]): string {
+    const apps = list.filter(one => one.kind === 'app').length;
+    const senders = list.length - apps;
+    const parts: string[] = [];
+    if (apps > 0) parts.push(this.i18n.t(apps === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps', { count: apps }));
+    if (senders > 0) parts.push(this.i18n.t(senders === 1 ? 'ui.notifications.sendersOne' : 'ui.notifications.senders', { count: senders }));
+    return parts.join(' · ');
+  }
+
   bankLine(bank: { sources: Source[]; last: number }): string {
-    const sources = this.i18n.t(bank.sources.length === 1 ? 'ui.notifications.count.sourceOne' : 'ui.notifications.count.sources',
-      { count: bank.sources.length });
-    return this.i18n.t('ui.notifications.bank.line', { sources, last: this.short(bank.last) });
+    return this.i18n.t('ui.notifications.bank.line', { sources: this.whatHolds(bank.sources), last: this.short(bank.last) });
   }
 
   sectionTitle(section: SectionKey): string {
@@ -274,24 +282,19 @@ export class NotificationsPage {
       : 'ui.notifications.sec.hidden');
   }
 
-  /** What each closed section says it holds. */
+  /** What each closed section holds and what it is for, in words. */
   sectionLine(section: SectionKey): string {
     const list = this.of(section);
+    const what = this.whatHolds(list);
     if (section === 'banks') {
       const banks = this.banks().length;
-      return `${this.i18n.t(banks === 1 ? 'ui.notifications.count.bankOne' : 'ui.notifications.count.banks', { count: banks })} · ${
-        this.i18n.t(list.length === 1 ? 'ui.notifications.count.sourceOne' : 'ui.notifications.count.sources', { count: list.length })}`;
+      return `${this.i18n.t(banks === 1 ? 'ui.notifications.count.bankOne' : 'ui.notifications.count.banks', { count: banks })} · ${what} · ${
+        this.i18n.t('ui.notifications.sec.banks.line')}`;
     }
-    const apps = list.filter(one => one.kind === 'app').length;
-    const senders = list.length - apps;
-    const parts: string[] = [];
-    if (apps > 0) parts.push(this.i18n.t(apps === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps', { count: apps }));
-    if (senders > 0) parts.push(this.i18n.t(senders === 1 ? 'ui.notifications.sendersOne' : 'ui.notifications.senders', { count: senders }));
-    const what = parts.join(' · ');
     const hint = section === 'unknown' ? 'ui.notifications.sec.unknown.line'
       : section === 'found' ? 'ui.notifications.sec.found.line'
       : 'ui.notifications.sec.hidden.line';
-    return hint ? `${what} · ${this.i18n.t(hint)}` : what;
+    return `${what} · ${this.i18n.t(hint)}`;
   }
 
   // --- folding: everything starts closed (Jose, 2026-10-05) -----------------
