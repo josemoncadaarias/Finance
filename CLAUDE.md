@@ -1918,6 +1918,15 @@ backup restore against iOS's own SQLite backend.
   (`isIgnoringBatteryOptimizations`), the notifications screen asks for
   "Sin restricciones" and "Inicio automático" with "Abrir ajustes de
   Finance" (`openAppSettings`, the app's page in Android's settings).
+  **And then nothing at all for half an hour (Jose, 2026-10-08)**: the
+  screen's "Última notificación que recibió la app" stayed at 4:02 while
+  Nequi and Global66 posted at 4:27 - Android was handing the listener
+  nothing (unbound or frozen; not proved which). The app cannot stop that,
+  but it no longer loses what was missed: `NotificationCatcher.catchUp`
+  reads the ticked apps' notices still in the status bar when Android binds
+  the listener and every time the app reads what was caught (`caught`),
+  `keep` dropping what was already kept; one under two hours old still
+  rings. Apps' own notices only - SMS have their receiver and the inbox.
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message

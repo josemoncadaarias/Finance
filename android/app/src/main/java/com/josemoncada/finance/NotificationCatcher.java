@@ -53,6 +53,62 @@ public class NotificationCatcher extends NotificationListenerService {
     public void onListenerConnected() {
         running = this;
         NotificationStore.noteConnection(this, true, System.currentTimeMillis());
+        catchUp();
+    }
+
+    /**
+     * Reads what a bank posted while the app was not being handed anything.
+     *
+     * Jose, 2026-10-08: Xiaomi left the listener unbound (or frozen) for half
+     * an hour, so a Nequi and a Global66 notice sat in the status bar and the
+     * app never heard of them. Whatever of a ticked app is still in the bar
+     * is read again here - when Android binds the listener and whenever the
+     * app opens. `keep` drops what was already kept, so nothing counts twice.
+     * Only apps' own notices; SMS have their own receiver and the inbox.
+     */
+    static void catchUpNow() {
+        NotificationCatcher catcher = running;
+        if (catcher != null) catcher.catchUp();
+    }
+
+    private void catchUp() {
+        StatusBarNotification[] all;
+        try {
+            all = getActiveNotifications();
+        } catch (Exception refused) {
+            return;
+        }
+        if (all == null) return;
+        long now = System.currentTimeMillis();
+        for (StatusBarNotification one : all) {
+            try {
+                if (one == null || getPackageName().equals(one.getPackageName())) continue;
+                Notification notification = one.getNotification();
+                if (notification == null || (notification.flags & Notification.FLAG_ONGOING_EVENT) != 0) continue;
+                String pkg = one.getPackageName();
+                if (NotificationStore.isHidden(this, pkg) || !NotificationStore.isWatched(this, pkg)) continue;
+                Bundle extras = notification.extras;
+                if (extras == null || isConversation(pkg, notification, extras)) continue;
+                String title = text(extras, Notification.EXTRA_TITLE);
+                String said = text(extras, Notification.EXTRA_TEXT);
+                String big = text(extras, Notification.EXTRA_BIG_TEXT);
+                if (big.length() > said.length()) said = big;
+                if (title.isEmpty() && said.isEmpty()) continue;
+                long at = one.getPostTime();
+                JSONObject kept = new JSONObject();
+                kept.put("package", pkg);
+                kept.put("app", labelOf(pkg));
+                kept.put("title", title);
+                kept.put("text", said);
+                kept.put("postedAt", at);
+                // Rung only while it is still news; an older one just waits in Por revisar.
+                if (NotificationStore.keep(this, kept) && now - at < 2 * 3_600_000L) {
+                    MovementAlert.post(this, pkg, labelOf(pkg), said.isEmpty() ? title : said, at);
+                }
+            } catch (Exception broken) {
+                // One notice that will not read is not the rest.
+            }
+        }
     }
 
     /**

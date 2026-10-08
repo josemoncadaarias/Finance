@@ -238,6 +238,8 @@ public class BankNotificationsPlugin extends Plugin {
     /** Everything caught since the app last looked, still held. */
     @PluginMethod
     public void caught(PluginCall call) {
+        // What a ticked bank left in the status bar while nothing was handed over.
+        NotificationCatcher.catchUpNow();
         JSObject answer = new JSObject();
         JSONArray all = NotificationStore.caught(getContext());
         JSONArray inbox = SmsInbox.messages(getContext());
