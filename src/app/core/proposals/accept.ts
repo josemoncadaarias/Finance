@@ -89,12 +89,13 @@ export async function accept(
         from: { account_id: leaving.account_id!, amount_minor: Math.abs(leaving.amount_minor!) },
         to: { account_id: arriving.account_id!, amount_minor: arriving.amount_minor! },
       });
-      // Both halves point at the transfer they became; which leg is which is
-      // already on record in `transfers`.
-      // Each message's mold learns the other end, so the next one of that
-      // shape is known as a transfer.
-      await repos.proposals.accepted(leaving.id, transferId, arriving.account_id);
-      await repos.proposals.accepted(arriving.id, transferId, leaving.account_id);
+      // Each half points at its own leg, as a single movement points at its
+      // row - which is how a later message of the same source knows that leg
+      // is already answered for. Each message's mold learns the other end,
+      // so the next one of that shape is known as a transfer.
+      const written = await repos.transfers.findById(transferId);
+      await repos.proposals.accepted(leaving.id, written?.from?.id ?? transferId, arriving.account_id);
+      await repos.proposals.accepted(arriving.id, written?.to?.id ?? transferId, leaving.account_id);
       done.add(leaving.id);
       done.add(arriving.id);
       result.written += 1;
