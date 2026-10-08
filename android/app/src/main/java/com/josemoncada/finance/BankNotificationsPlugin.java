@@ -94,6 +94,19 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * Opens this app's own notification settings, where a refused permission
+     * to post notices is given back (Android stops asking after a refusal).
+     */
+    @PluginMethod
+    public void openAlertSettings(PluginCall call) {
+        Intent settings = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+        settings.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+        settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(settings);
+        call.resolve();
+    }
+
     /** Whether the person let the app read SMS (only ticked senders' words are ever read). */
     @PluginMethod
     public void smsAccess(PluginCall call) {

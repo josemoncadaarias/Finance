@@ -117,6 +117,8 @@ export interface BankNotificationsPlugin {
   isEnabled(): Promise<{ enabled: boolean; heardAt?: number; connectedAt?: number; disconnectedAt?: number }>;
   /** Opens the Android screen where that access is given. */
   openSettings(): Promise<void>;
+  /** Opens this app's own notification settings (posting "Movimiento detectado"). */
+  openAlertSettings(): Promise<void>;
   /**
    * Whether the app may read the SMS inbox. Only the words of senders the
    * person ticks are ever read; the list of senders comes from addresses
@@ -167,6 +169,7 @@ const nothing: BankNotificationsPlugin = {
   isSupported: async () => ({ supported: false }),
   isEnabled: async () => ({ enabled: false }),
   openSettings: async () => {},
+  openAlertSettings: async () => {},
   smsAccess: async () => ({ granted: false }),
   askSms: async () => ({ granted: false }),
   apps: async () => ({ apps: [] }),

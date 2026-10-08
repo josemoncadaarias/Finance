@@ -23,6 +23,15 @@ import { merchantKeyOf } from './merchant';
 /** How far apart the two readings of one movement may sit. */
 export const DAYS_APART = 4;
 
+/**
+ * The same for a bank's message: it arrives the moment the money moves, so a
+ * movement typed by hand for it is dated that day, or the next or the one
+ * before around midnight. Four days let a 10,000 transfer texted today pass
+ * for another 10,000 typed four days earlier, and take its account (Jose,
+ * 2026-10-08).
+ */
+export const MESSAGE_DAYS_APART = 1;
+
 /** A movement already on record, as much of it as the check needs. */
 export interface LedgerMovement {
   id: number;
@@ -63,6 +72,7 @@ export function sameMovementAs(
   reading: Reading,
   ledger: readonly LedgerMovement[],
   alreadyTaken: ReadonlySet<number> = new Set(),
+  days: number = DAYS_APART,
 ): number | null {
   if (reading.account_id === null || reading.occurred_on === null || reading.amount_minor === null) {
     return null;
@@ -73,7 +83,7 @@ export function sameMovementAs(
     .filter(movement => !alreadyTaken.has(movement.id))
     .filter(movement => movement.account_id === reading.account_id)
     .filter(movement => movement.amount_minor === reading.amount_minor)
-    .filter(movement => daysBetween(movement.occurred_on, reading.occurred_on!) <= DAYS_APART)
+    .filter(movement => daysBetween(movement.occurred_on, reading.occurred_on!) <= days)
     .map(movement => ({
       movement,
       sameMerchant: merchant.length > 0 && merchantKeyOf(movement.description) === merchant,
@@ -96,12 +106,13 @@ export function sameMovementAnywhere(
   reading: Omit<Reading, 'account_id'> & { account_id?: number | null },
   ledger: readonly LedgerMovement[],
   alreadyTaken: ReadonlySet<number> = new Set(),
+  days: number = DAYS_APART,
 ): LedgerMovement | null {
   if (reading.occurred_on === null || reading.amount_minor === null) return null;
   const merchant = merchantKeyOf(reading.description);
   const found: LedgerMovement[] = [];
   for (const account of new Set(ledger.map(movement => movement.account_id))) {
-    const id = sameMovementAs({ ...reading, account_id: account } as Reading, ledger, alreadyTaken);
+    const id = sameMovementAs({ ...reading, account_id: account } as Reading, ledger, alreadyTaken, days);
     const movement = id === null ? undefined : ledger.find(one => one.id === id);
     if (movement) found.push(movement);
   }

@@ -15,6 +15,8 @@
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -174,7 +176,34 @@ export class NotificationsPage {
   /** Android's dialog for reading SMS, then the list again. */
   async askSms(): Promise<void> {
     this.smsGranted.set((await BankNotifications.askSms()).granted);
+    await this.askAlerts();
     await this.look();
+  }
+
+  /** Whether the app may post "Movimiento detectado"; true until known otherwise. */
+  readonly alertsAllowed = signal(true);
+
+  private async readAlerts(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      this.alertsAllowed.set((await LocalNotifications.checkPermissions()).display === 'granted');
+    } catch {
+      this.alertsAllowed.set(true);
+    }
+  }
+
+  /** Asks Android to let the app post its own notices. */
+  async askAlerts(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const now = await LocalNotifications.checkPermissions();
+      const answer = now.display === 'granted' ? now : await LocalNotifications.requestPermissions();
+      this.alertsAllowed.set(answer.display === 'granted');
+      // Asked before and refused: Android no longer shows the question.
+      if (answer.display === 'denied' && now.display === 'denied') await BankNotifications.openAlertSettings();
+    } catch {
+      // Not on a phone.
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -372,6 +401,7 @@ export class NotificationsPage {
     if (one.watched === on) return;
     if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
     else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
+    if (on) await this.askAlerts();
     await this.look();
   }
 
@@ -563,6 +593,7 @@ export class NotificationsPage {
 
       this.apps.set((await BankNotifications.apps()).apps);
       this.smsGranted.set((await BankNotifications.smsAccess()).granted);
+      await this.readAlerts();
       this.senders.set((await BankNotifications.senders()).senders);
       this.caught.set((await BankNotifications.caught()).caught);
       await this.readLedger();

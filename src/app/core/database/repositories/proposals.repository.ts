@@ -21,7 +21,7 @@ const MOLDS = 'notices.molds';
 const SOURCE_ACCOUNTS = 'notices.sourceAccounts';
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
-import { sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
+import { DAYS_APART, MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
 
 export type ProposalSource = 'statement' | 'notification';
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
@@ -70,6 +70,11 @@ export interface NewProposal {
 const COLUMNS =
   `id, source, account_id, occurred_on, amount_minor, description, category_id, category_from,
    evidence, status, transaction_id, maybe_same_as, pairs_with, batch`;
+
+/** How many days apart a reading may sit from what the ledger holds. */
+function windowOf(reading: { source?: string | null }): number {
+  return reading.source === 'notification' ? MESSAGE_DAYS_APART : DAYS_APART;
+}
 
 export class ProposalsRepository {
   private readonly db: SqlDriver;
@@ -127,7 +132,7 @@ export class ProposalsRepository {
           occurred_on: reading.occurred_on ?? null,
           amount_minor: reading.amount_minor ?? null,
           description: reading.description ?? null,
-        }, reading.source === 'notification' ? seenByStatements : seenByAll, taken);
+        }, reading.source === 'notification' ? seenByStatements : seenByAll, taken, windowOf(reading));
         if (twin !== null) {
           taken.add(twin);
           knownAlready += 1;
@@ -858,7 +863,7 @@ export class ProposalsRepository {
     // two identical bus fares on one day are two movements, not one.
     const taken = new Set<number>();
     for (const reading of dated) {
-      const same = sameMovementAs(reading, ledger, taken);
+      const same = sameMovementAs(reading, ledger, taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same);
       await this.db.run(
@@ -893,7 +898,7 @@ export class ProposalsRepository {
     if (ledger.length === 0) return;
     const taken = new Set<number>();
     for (const reading of loose) {
-      const same = sameMovementAnywhere(reading, ledger, taken);
+      const same = sameMovementAnywhere(reading, ledger, taken, windowOf(reading));
       if (same === null) continue;
       taken.add(same.id);
       await this.db.run(

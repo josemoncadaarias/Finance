@@ -138,7 +138,7 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
             <!-- The statement carried no running balance: whether it is money
                  in or out was read from the words, and may be wrong. -->
             @if (guessed()) {
-              <div class="ui-banner warn guessed-sign"><ion-icon name="help-circle-outline"></ion-icon><span>{{ 'review.guessed' | t }}</span></div>
+              <div class="ui-banner warn guessed-sign"><ion-icon name="help-circle-outline"></ion-icon><span>{{ (proposal().source === 'notification' ? 'review.guessed.notice' : 'review.guessed') | t }}</span></div>
             }
 
             <app-amount-field [buffer]="amount()" (changed)="amount.set($event)" (done)="amountDone()"

@@ -16,7 +16,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import { accept } from '../../src/app/core/proposals/accept.ts';
-import { accountFor, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
+import { accountFor, signedBy, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
 import { readNotice } from '../../src/app/core/notices/read-notice.ts';
 
 const NOW = () => '2026-10-02T15:00:00Z';
@@ -295,4 +295,18 @@ test('end to end: a later message joins the proposal already written, its key is
   await proposals.correct(id, { account_id: rosa });
   await db.run("UPDATE movement_proposals SET status = 'accepted' WHERE id = ?", [id]);
   assert.ok((await proposals.noticeAnswers()).some(a => a.package === 'com.mensajes.app|899979' && a.account_id === rosa));
+});
+
+test('a message signed by the bank goes to that bank, even through a short code other banks share', () => {
+  const accounts = [account(1, 'Rappi cuenta'), account(2, 'Bold'), account(3, 'Nu')];
+  const sms = { ...notice('BoldCF: Realizaste una transferencia por $10.000'), sender: '899979' };
+  const reading = readNotice(sms.text, sms.title);
+  // The short code meant Rappi before; the signature wins.
+  const answers = [{ package: 'com.bancoazul.app|899979', digits: null, account_id: 1 }];
+  assert.deepEqual(accountFor(sms, reading, answers, accounts), { accountId: 2, from: 'name' });
+  assert.equal(signedBy('899979 - BoldCF: Realizaste', accounts), 2);
+  // A name further on is where the money went, not whose message it is.
+  assert.equal(signedBy('Transferiste $50.000 a Bold', accounts), null);
+  // Too short a word never signs ("Nu" against "nuevo").
+  assert.equal(signedBy('Nuevo movimiento por $5.000', accounts), null);
 });
