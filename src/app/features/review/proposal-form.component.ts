@@ -46,12 +46,6 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
   imports: [NgTemplateOutlet, TranslatePipe, BadgeComponent, AccountPickerComponent, CategorySheetComponent, IonIcon, IonModal, IonDatetime, FormFootComponent, AmountFieldComponent, AutoGrowDirective],
   styleUrls: ['../entry/entry.component.scss'],
   styles: [`
-    .said {
-      display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 14px;
-      border: 1px dashed var(--app-s3); color: var(--app-mu); font-family: ui-monospace, monospace; font-size: 13px;
-      ion-icon { font-size: 17px; flex: none; }
-      > span:not(.ui-info) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    }
     .same {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px;
       background: rgba(var(--app-yel-rgb), 0.12); border: 1px solid rgba(var(--app-yel-rgb), 0.45);
@@ -73,9 +67,6 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
     .guessed-sign { margin: 8px 0 0; }
     .tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }
     .as-came { display: block; }
-    .entry-top .eye { margin-left: auto; }
-    .entry-top .eye ion-icon { color: var(--app-mu); font-size: 24px; }
-    .entry-top .eye + .bin { margin-left: 8px; }
   `],
   template: `
     <div class="entry" [class.writing-note]="writingNote()">
@@ -272,6 +263,8 @@ export class ProposalFormComponent implements OnInit {
   readonly proposal = input.required<MovementProposal>();
   /** What was read, as the statement put it. */
   readonly evidence = input('');
+  /** What was typed in the one form, coming back from Transferir. */
+  readonly typed = input<{ amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 } | null>(null);
   /** The movement it may already be, in words. */
   readonly sameAs = input<string | null>(null);
   /** Whether money in or out was read from the words rather than proved. */
@@ -371,6 +364,15 @@ export class ProposalFormComponent implements OnInit {
     this.day.set(proposal.occurred_on ?? '');
     this.note.set(proposal.description ?? '');
     this.original.set(proposal.description ?? '');
+    const typed = this.typed();
+    if (typed) {
+      this.autofocusAmount = false;
+      this.sign.set(typed.sign);
+      if (typed.amountMinor > 0) this.amount.set(AmountBuffer.from(typed.amountMinor));
+      if (typed.accountId !== null) this.accountId.set(typed.accountId);
+      if (typed.onDate) this.day.set(typed.onDate);
+      if (typed.note.trim()) this.note.set(typed.note);
+    }
   }
 
   pickDate(value: string | null): void {

@@ -6,6 +6,15 @@
       <ion-icon name="close"></ion-icon>
     </button>
     <h1>{{ title() }}</h1>
+    @if (request().proposal) {
+      <!-- A proposal saved as a transfer keeps its own eye and bin (Jose, 2026-10-08). -->
+      <button type="button" class="bin eye" (click)="askAboutProposal('forget')" [attr.aria-label]="'review.forget' | t">
+        <ion-icon name="eye-off-outline"></ion-icon>
+      </button>
+      <button type="button" class="bin" (click)="askAboutProposal('discard')" [attr.aria-label]="'review.discard' | t">
+        <ion-icon name="trash-outline"></ion-icon>
+      </button>
+    }
     @if (isEditing()) {
       <button type="button" class="bin" (click)="askToDelete()"
               [attr.aria-label]="(isTransfer() ? 'entry.deleteTransfer' : 'entry.deleteMovement') | t"
@@ -37,6 +46,17 @@
             <ion-icon name="swap-horizontal"></ion-icon><span>{{ 'ui.new.transfer' | t }}</span>
           </button>
         </div>
+
+        @if (request().proposal?.said; as said) {
+          <!-- What the message said, as in the proposal's own form. -->
+          <div class="said">
+            <ion-icon name="document-text-outline"></ion-icon>
+            <span>{{ said }}</span>
+            <span class="ui-info" role="button" (click)="info.set(said)" [attr.aria-label]="'ui.info' | t">
+              <ion-icon name="information"></ion-icon>
+            </span>
+          </div>
+        }
 
         <!-- The amount, and nothing competing with it. -->
         @if (crossesCurrency()) {

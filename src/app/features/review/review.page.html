@@ -437,10 +437,10 @@
                     (closed)="pickingAccount.set(false)"></app-account-picker>
 
 <!-- One row, answered in the movement form (6e-6h). -->
-<ion-modal class="entry-sheet" [isOpen]="openLine() !== null" (didDismiss)="openLine.set(null)">
+<ion-modal class="entry-sheet" [isOpen]="openLine() !== null" (didDismiss)="openLine.set(null); typedBack.set(null)">
   <ng-template>
     @if (openLine(); as line) {
-      <app-proposal-form [proposal]="line.proposal" [evidence]="line.evidence" [sameAs]="line.sameAs" [guessed]="line.guessed"
+      <app-proposal-form [proposal]="line.proposal" [typed]="typedBack()" [evidence]="line.evidence" [sameAs]="line.sameAs" [guessed]="line.guessed"
                          [seenBy]="line.seenBy" [twin]="line.twin" (separate)="separateOpen()"
                          [accounts]="accounts()" [categories]="categories()" [busy]="working()"
                          (answered)="answer(line, $event)" (discard)="discardOpen()" (forget)="forgetOpen()"

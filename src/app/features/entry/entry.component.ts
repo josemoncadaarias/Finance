@@ -38,6 +38,7 @@ import type { ProductEntry, YieldProduct } from '../../core/database/repositorie
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
+import { ComposeService } from '../../core/ui/compose.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
@@ -107,9 +108,10 @@ export interface EntryRequest {
   /**
    * A proposal from a bank's message saved as a transfer (Jose, 2026-10-08):
    * once written, the proposal is marked saved and its source learns the
-   * account at the other end. `accountId` is the message's own account.
+   * account at the other end. `accountId` is the message's own account;
+   * `said` is the message, shown on top as in the proposal's own form.
    */
-  proposal?: { id: number; accountId: number };
+  proposal?: { id: number; accountId: number; said?: string };
 }
 
 export interface LoanEntry {
@@ -514,6 +516,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
 
   readonly title = computed(() => {
+    if (this.request().proposal) return this.i18n.t('ui.review.check');
     if (this.betweenProducts() && this.isEditing()) return this.i18n.t('entry.editTransfer');
     if (this.isEditing()) return this.i18n.t(this.isTransfer() ? 'entry.editTransfer' : 'entry.editMovement');
     if (this.isTransfer()) return this.i18n.t('ui.new.transfer');
@@ -1946,6 +1949,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   // ---------------------------------------------------------------------------
 
   private readonly accent = inject(AccentService);
+  private readonly compose = inject(ComposeService);
   readonly accentColor = computed(() => this.accent.accent().color);
 
   /** The one form, opened again for another kind with what was written. */
@@ -1953,6 +1957,19 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (this.isEditing()) return;
     const current = this.isTransfer() ? 'transfer' : this.kind();
     if (kind === current) return;
+    const proposal = this.request().proposal;
+    if (proposal) {
+      // Back to the proposal's own form, which saves spending and income.
+      this.compose.proposalAsk.set({
+        id: proposal.id, kind: 'back',
+        typed: {
+          amountMinor: this.amount().minor, onDate: this.occurredOn(), accountId: proposal.accountId,
+          note: this.noteIsTheirs ? this.note() : '', sign: kind === 'expense' ? -1 : 1,
+        },
+      });
+      this.compose.close();
+      return;
+    }
     this.switchTo.emit({
       kind,
       preferredAccountId: this.accountId() ?? this.request().preferredAccountId,
@@ -2149,6 +2166,14 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly deleteTitle = computed(() =>
     this.i18n.t(this.isTransfer() ? 'entry.deleteTransfer.ask' : 'entry.deleteMovement.ask'));
+
+  /** The proposal's own eye and bin, asked on the review screen. */
+  askAboutProposal(kind: 'forget' | 'discard'): void {
+    const proposal = this.request().proposal;
+    if (!proposal) return;
+    this.compose.proposalAsk.set({ id: proposal.id, kind });
+    this.compose.close();
+  }
 
   askToDelete(): void {
     if (this.isEditing()) this.confirmingDelete.set(true);

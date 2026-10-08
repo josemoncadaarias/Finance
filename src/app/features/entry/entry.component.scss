@@ -502,3 +502,17 @@
 /* What the account holds now, under the amount of a new income. */
 .holds-now { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--app-mu); b { color: var(--app-tx); font-weight: 600; } }
 .holds-now.over { color: var(--app-yel); b { color: var(--app-yel); } }
+
+// What a bank's message or a statement said, in one line (the proposal's
+// form, and the one form opened from a proposal as a transfer).
+.said {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 14px;
+  border: 1px dashed var(--app-s3); color: var(--app-mu); font-family: ui-monospace, monospace; font-size: 13px;
+  ion-icon { font-size: 17px; flex: none; }
+  > span:not(.ui-info) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+// "No ver más" beside the bin: grey, since it destroys nothing.
+.entry-top .eye { margin-left: auto; }
+.entry-top .eye ion-icon { color: var(--app-mu); font-size: 24px; }
+.entry-top .eye + .bin { margin-left: 8px; }

@@ -93,4 +93,18 @@ export class ComposeService {
     this.entry.set(null);
     this.saved.update(n => n + 1);
   }
+
+  /**
+   * A proposal opened as a transfer hands its own buttons back to the review
+   * screen (Jose, 2026-10-08): "No ver más", "Descartar" - each asked there -
+   * or back to spending or income in the proposal's own form, with what was
+   * typed. The review screen answers it and clears it.
+   */
+  readonly proposalAsk = signal<ProposalAsk | null>(null);
+}
+
+export interface ProposalAsk {
+  id: number;
+  kind: 'forget' | 'discard' | 'back';
+  typed?: { amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 };
 }

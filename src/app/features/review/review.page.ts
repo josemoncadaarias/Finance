@@ -12,7 +12,7 @@
  * are the same rows on the same screen.
  */
 
-import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
@@ -39,7 +39,7 @@ import { CategorySheetComponent } from '../../shared/category-sheet/category-she
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
-import { ComposeService } from '../../core/ui/compose.service';
+import { ComposeService, type ProposalAsk } from '../../core/ui/compose.service';
 import { ProposalFormComponent, type ProposalAnswer } from './proposal-form.component';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 
@@ -444,9 +444,32 @@ export class ReviewPage {
         ? { route: sign < 0 ? { from: accountId, to: other } : { from: other, to: accountId } }
         : { preferredAccountId: accountId, preferredSide: sign < 0 ? 'from' as const : 'to' as const }),
       start: { amountMinor, onDate, note: typed?.note ?? '' },
-      proposal: { id: line.proposal.id, accountId },
+      proposal: { id: line.proposal.id, accountId, said: line.evidence },
     });
   }
+
+  /** What was typed in the one form before going back to the proposal's own. */
+  readonly typedBack = signal<NonNullable<ProposalAsk['typed']> | null>(null);
+
+  /**
+   * The eye, the bin or Gasto/Ingreso pressed in the one form opened from a
+   * proposal as a transfer: answered here, as from the proposal's own form.
+   */
+  private readonly fromTransfer = effect(() => {
+    const ask = this.compose.proposalAsk();
+    if (ask === null) return;
+    untracked(() => {
+      this.compose.proposalAsk.set(null);
+      const line = this.batches().flatMap(batch => batch.lines).find(one => one.proposal.id === ask.id);
+      if (!line) return;
+      if (ask.kind === 'forget') this.asking.set({ kind: 'forgetOne', line });
+      else if (ask.kind === 'discard') this.asking.set({ kind: 'discardOne', line });
+      else {
+        this.typedBack.set(ask.typed ?? null);
+        this.openLine.set(line);
+      }
+    });
+  });
 
   // --- one row, answered in the movement form (6e-6h) ----------------------
 
