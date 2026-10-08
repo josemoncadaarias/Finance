@@ -1810,7 +1810,9 @@ backup restore against iOS's own SQLite backend.
     closed - Tus bancos (each bank = the account(s) its sources turned out to
     be, with its App and SMS sources), Sin cuenta todavía, Encontrados en tu
     celular (SMS senders with money, not read; a magnifier, not a "+"),
-    Otras apps and Ocultas - with the fold button and the arrows. Removed at
+    and "Apps y SMS ocultos" (eye icon; apps not read and those put away,
+    one section since 2026-10-08 - "Otras apps" read as hidden ones anyway),
+    with the fold button and the arrows. Removed at
     Jose's word (2026-10-08): "Revisar qué le llega a la app" (the
     diagnosis had served its purpose) and the "···" menu with "Borrar lo
     guardado" and "Olvidar todo" (risky, and switching a source off or on

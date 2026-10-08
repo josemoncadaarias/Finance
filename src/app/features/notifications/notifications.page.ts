@@ -6,8 +6,8 @@
  * Folding sections, all closed on opening: "Tus bancos" (sources being read,
  * by the account they turned out to be - learned from what the person saved,
  * or said here with "¿De qué cuenta es?"), "Sin cuenta todavía", "Encontrados
- * en tu celular" (SMS senders with money, not yet read), "Otras apps" and
- * "Ocultas". Tapping a source shows its last messages and what became of
+ * en tu celular" (SMS senders with money, not yet read), and "Apps y SMS ocultos"
+ * (apps not read and those put away). Tapping a source shows its last messages and what became of
  * each - proposed, saved, thrown away, or ignored and why - which replaced
  * the raw list of everything kept (Jose: it no longer served anything).
  */
@@ -53,7 +53,7 @@ export interface Source {
   accounts: number[];
 }
 
-type SectionKey = 'banks' | 'unknown' | 'found' | 'others' | 'hidden';
+type SectionKey = 'banks' | 'unknown' | 'found' | 'hidden';
 
 @Component({
   selector: 'app-notifications',
@@ -227,7 +227,9 @@ export class NotificationsPage {
   private sectionOf(one: Source): SectionKey {
     if (one.hidden) return 'hidden';
     if (one.watched) return one.accounts.length > 0 ? 'banks' : 'unknown';
-    return one.kind === 'sms' ? 'found' : 'others';
+    // An app not read is with the hidden ones (Jose, 2026-10-08): one
+    // section for everything the app does not read.
+    return one.kind === 'sms' ? 'found' : 'hidden';
   }
 
   readonly bySection = computed(() => {
@@ -269,7 +271,7 @@ export class NotificationsPage {
     return this.i18n.t(section === 'banks' ? 'ui.notifications.sec.banks'
       : section === 'unknown' ? 'ui.notifications.sec.unknown'
       : section === 'found' ? 'ui.notifications.sec.found'
-      : section === 'others' ? 'ui.notifications.sec.others' : 'ui.notifications.sec.hidden');
+      : 'ui.notifications.sec.hidden');
   }
 
   /** What each closed section says it holds. */
@@ -288,7 +290,7 @@ export class NotificationsPage {
     const what = parts.join(' · ');
     const hint = section === 'unknown' ? 'ui.notifications.sec.unknown.line'
       : section === 'found' ? 'ui.notifications.sec.found.line'
-      : section === 'others' ? 'ui.notifications.sec.others.line' : null;
+      : 'ui.notifications.sec.hidden.line';
     return hint ? `${what} · ${this.i18n.t(hint)}` : what;
   }
 
@@ -316,7 +318,7 @@ export class NotificationsPage {
   }
 
   private readonly foldKeys = computed(() => [
-    ...(['banks', 'unknown', 'found', 'others', 'hidden'] as const).filter(key => this.of(key).length > 0),
+    ...(['banks', 'unknown', 'found', 'hidden'] as const).filter(key => this.of(key).length > 0),
     ...this.banks().map(bank => `bank:${bank.key}`),
   ]);
 
