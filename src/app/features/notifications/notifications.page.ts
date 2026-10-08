@@ -161,14 +161,19 @@ export class NotificationsPage {
   readonly supported = signal(false);
   readonly enabled = signal(false);
   /** When Android last handed a notification over, connected or dropped the listener. */
-  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0 });
+  readonly listener = signal({ heardAt: 0, connectedAt: 0, disconnectedAt: 0, updatedAt: 0 });
 
   /**
    * Whether the listener is really listening, said in one line (Jose,
    * 2026-10-05), in amber with the way to fix it when it is not.
    */
   readonly listening = computed(() => {
-    const { heardAt, connectedAt, disconnectedAt } = this.listener();
+    const { heardAt, connectedAt, disconnectedAt, updatedAt } = this.listener();
+    // Updated and never connected since (Jose, 2026-10-08: nothing at all
+    // arrived after installing an update; the last notice heard was before it).
+    if (updatedAt > 0 && connectedAt < updatedAt && heardAt < updatedAt) {
+      return { warn: true, text: this.i18n.t('ui.notifications.sinceUpdate', { when: this.moment(updatedAt) }) };
+    }
     if (disconnectedAt > 0 && disconnectedAt > connectedAt) {
       return { warn: true, text: this.i18n.t('ui.notifications.stopped', { when: this.moment(disconnectedAt) }) };
     }
@@ -640,9 +645,9 @@ export class NotificationsPage {
       this.supported.set(supported);
       if (!supported) return;
 
-      const { enabled, heardAt, connectedAt, disconnectedAt } = await BankNotifications.isEnabled();
+      const { enabled, heardAt, connectedAt, disconnectedAt, updatedAt } = await BankNotifications.isEnabled();
       this.enabled.set(enabled);
-      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0 });
+      this.listener.set({ heardAt: heardAt ?? 0, connectedAt: connectedAt ?? 0, disconnectedAt: disconnectedAt ?? 0, updatedAt: updatedAt ?? 0 });
 
       this.apps.set((await BankNotifications.apps()).apps);
       this.smsGranted.set((await BankNotifications.smsAccess()).granted);

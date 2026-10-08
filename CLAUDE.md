@@ -1927,6 +1927,15 @@ backup restore against iOS's own SQLite backend.
   the listener and every time the app reads what was caught (`caught`),
   `keep` dropping what was already kept; one under two hours old still
   rings. Apps' own notices only - SMS have their receiver and the inbox.
+  **The real cause, read from his screen (Jose, 2026-10-08)**: "Última
+  notificación que recibió la app" stuck at 4:01-4:02, the time of his last
+  test before installing the updates; no battery saver, nothing restricted.
+  After an app UPDATE Android may leave the notification listener unbound
+  until its access is switched off and on (assumed from the timing; #54 saw
+  it too). The screen now says so in amber when the app was updated after
+  the listener last connected and heard anything (`updatedAt` =
+  `PackageInfo.lastUpdateTime` in `isEnabled`, `ui.notifications.sinceUpdate`),
+  with "Abrir el permiso". Every Store bundle may need that one toggle.
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message
