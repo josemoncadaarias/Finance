@@ -185,14 +185,13 @@
         </div>
       }
 
-      @for (section of ['unknown', 'found', 'others', 'hidden']; track section) {
+      @for (section of ['unknown', 'found', 'hidden']; track section) {
         @if (of($any(section)).length > 0) {
           <div class="ui-list ui-group sec">
             <div class="ui-row head" (click)="toggleOpen(section)">
               @switch (section) {
                 @case ('unknown') { <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge> }
                 @case ('found') { <app-badge [size]="38" builtin="search" fixed="#6378ff"></app-badge> }
-                @case ('others') { <app-badge [size]="38" builtin="apps" fixed="#8c9bb5"></app-badge> }
                 @default { <app-badge [size]="38" builtin="eye-off" fixed="#8c9bb5"></app-badge> }
               }
               <span class="ui-tx"><b>{{ sectionTitle($any(section)) }}</b><small class="wrap">{{ sectionLine($any(section)) }}</small></span>
