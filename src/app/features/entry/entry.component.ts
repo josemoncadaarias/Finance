@@ -41,6 +41,8 @@ import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
+import { cardStatement } from '../../core/cards/statement';
+import { bankFigures, cardMovements } from '../../core/cards/card-data';
 import { whatItHolds } from '../../core/yields/holdings';
 import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { transferEffect } from '../../core/transfers/transfer-effect';
@@ -764,6 +766,8 @@ export class EntryComponent implements OnInit, OnDestroy {
    * another currency (then the arriving figure is typed apart).
    */
   readonly toCardOwes = signal<number | null>(null);
+  /** What is left of the card's last statement, when it has dates and differs from the whole debt. */
+  readonly toCardBill = signal<number | null>(null);
   private owesAsked = 0;
 
   private readonly readOwes = effect(() => {
@@ -771,31 +775,55 @@ export class EntryComponent implements OnInit, OnDestroy {
     const transfer = this.isTransfer();
     const asked = ++this.owesAsked;
     this.toCardOwes.set(null);
+    this.toCardBill.set(null);
     if (!transfer || !to || to.type !== 'credit' || this.database.status() !== 'ready') return;
-    void whatItHolds(this.database.driver, to.id, null, todayIso()).then(held => {
+    const db = this.database.driver;
+    void Promise.all([cardMovements(db, to.id), bankFigures(db)]).then(([movements, typed]) => {
       if (asked !== this.owesAsked) return;
-      this.toCardOwes.set(held < 0 ? -held : null);
+      const statement = cardStatement({
+        statementDay: to.statement_day, dueDay: to.due_day, today: todayIso(),
+        openingMinor: to.opening_balance_minor, movements, bankFigures: typed.get(to.id),
+      });
+      this.toCardOwes.set(statement.debtMinor > 0 ? statement.debtMinor : null);
+      const bill = ['due', 'partial', 'overdue'].includes(statement.state) ? statement.remainingMinor : 0;
+      this.toCardBill.set(bill > 0 && bill !== statement.debtMinor ? bill : null);
     });
   });
 
-  readonly toCardOwesText = computed(() => {
-    const owes = this.toCardOwes();
-    return owes === null ? '' : formatMoney(owes, this.targetCurrency(), { withSymbol: false });
+  /**
+   * The figures the amount can be filled with in one tap, side by side in one
+   * row (mockup 18, option A; Jose, 2026-10-08): what the origin holds -
+   * "Pasar todo" on a transfer, "Gastar todo" on a new spending - and, into a
+   * card, what is left of its statement and its whole debt. The tile whose
+   * figure is the amount on show is marked.
+   */
+  readonly fillTiles = computed<{ key: string; label: string; minor: number; text: string; on: boolean }[]>(() => {
+    const tiles: { key: string; label: string; minor: number; currency: string }[] = [];
+    const held = this.fromHolds();
+    if (this.isTransfer()) {
+      if (held !== null) tiles.push({ key: 'all', label: this.i18n.t('products.move.all'), minor: held, currency: this.currency() });
+      if (!this.crossesCurrency() && !this.loanEntry()) {
+        const bill = this.toCardBill();
+        const owes = this.toCardOwes();
+        if (bill !== null) tiles.push({ key: 'bill', label: this.i18n.t('ui.entry.payBill'), minor: bill, currency: this.targetCurrency() });
+        if (owes !== null) tiles.push({ key: 'debt', label: this.i18n.t('ui.entry.payAll'), minor: owes, currency: this.targetCurrency() });
+      }
+    } else if (!this.isEditing() && !this.loanEntry() && this.kind() === 'expense' && held !== null) {
+      tiles.push({ key: 'spend', label: this.i18n.t('ui.entry.spendAll'), minor: held, currency: this.currency() });
+    }
+    const amount = this.amount().minor;
+    const marked = tiles.find(tile => tile.minor === amount)?.key;
+    return tiles.map(tile => ({
+      key: tile.key, label: tile.label, minor: tile.minor,
+      text: formatMoney(tile.minor, tile.currency, { withSymbol: false }),
+      on: tile.key === marked,
+    }));
   });
 
-  /** Fills the amount with the whole debt of the card the transfer goes to. */
-  payEverything(): void {
-    const owes = this.toCardOwes();
-    if (owes === null) return;
-    this.amount.set(AmountBuffer.from(owes));
-    this.filledWithAll = owes;
-  }
-
-  moveEverything(): void {
-    const held = this.fromHolds();
-    if (held === null) return;
-    this.amount.set(AmountBuffer.from(held));
-    this.filledWithAll = held;
+  /** Fills the amount with a tile's figure; "Invertir" clears it again. */
+  fillWith(minor: number): void {
+    this.amount.set(AmountBuffer.from(minor));
+    this.filledWithAll = minor;
   }
 
   // ---------------------------------------------------------------------------
