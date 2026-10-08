@@ -14,6 +14,7 @@
  */
 
 import { Injectable, effect, inject, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
@@ -21,11 +22,12 @@ import { DatabaseService } from '../database/database.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
-import { readNotices } from './notice-proposals';
+import { noticeKey, noticeSource, readNotices, type KeptNotice } from './notice-proposals';
 
 @Injectable({ providedIn: 'root' })
 export class NoticeInboxService {
   private readonly database = inject(DatabaseService);
+  private readonly router = inject(Router);
   private running: Promise<number> | null = null;
   private started = false;
 
@@ -46,9 +48,23 @@ export class NoticeInboxService {
   /** Reads what is new; how many proposals it wrote. One pass at a time. */
   read(): Promise<number> {
     if (!this.running) {
-      this.running = this.pass().finally(() => { this.running = null; });
+      this.running = this.pass().finally(() => { this.running = null; void this.openAsked(); });
     }
     return this.running;
+  }
+
+  /**
+   * "Movimiento detectado" tapped: once its message is a proposal, Por
+   * revisar opens on it ("review" for several opens the screen).
+   */
+  private async openAsked(): Promise<void> {
+    try {
+      const { open } = await BankNotifications.takeOpen();
+      if (!open) return;
+      await this.router.navigate(['/review'], open === 'review' ? {} : { queryParams: { notice: open } });
+    } catch {
+      // Nothing asked, or nowhere to go: the app opens as usual.
+    }
   }
 
   private async pass(): Promise<number> {
@@ -56,17 +72,22 @@ export class NoticeInboxService {
       const { supported } = await BankNotifications.isSupported();
       if (!supported) return 0;
       const { caught } = await BankNotifications.caught();
+      // Whatever was waiting is about to be in Por revisar: the phone's notice goes.
+      void BankNotifications.clearAlerts().catch(() => undefined);
       if (caught.length === 0) return 0;
+      const { dismissed } = await BankNotifications.dismissed();
 
       const db = this.database.driver;
       const proposals = new ProposalsRepository(db);
-      const [known, answers, accounts, recent] = await Promise.all([
+      const [known, answers, accounts, recent, molds, assigned] = await Promise.all([
         proposals.noticeKeys(), proposals.noticeAnswers(), new AccountsRepository(db).list(),
-        proposals.recentNotices(),
+        proposals.recentNotices(), proposals.molds(), proposals.sourceAccounts(),
       ]);
+      // "Descartar" on the phone's notice: those messages are never proposed.
+      for (const notice of thrownAway(caught, dismissed)) known.add(noticeKey(notice));
       // One purchase told by an SMS and by the bank's app is one proposal:
       // a later message joins the one already written.
-      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent);
+      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned });
       const joined = await proposals.join(joining);
       if (made.length === 0) {
         if (joined > 0) this.database.dataChanged();
@@ -87,4 +108,17 @@ export class NoticeInboxService {
       return 0;
     }
   }
+}
+
+/**
+ * The kept messages the person threw away from the phone's notice: the same
+ * source and words, within five minutes (the SMS receiver's clock and the
+ * inbox's may differ by seconds).
+ */
+export function thrownAway(
+  caught: readonly KeptNotice[], dismissed: readonly { source: string; text: string; at: number }[],
+): KeptNotice[] {
+  if (dismissed.length === 0) return [];
+  return caught.filter(notice => dismissed.some(one => one.source === noticeSource(notice)
+    && one.text.trim() === notice.text.trim() && Math.abs(one.at - notice.postedAt) < 5 * 60_000));
 }

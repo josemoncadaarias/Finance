@@ -15,6 +15,10 @@ import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
 import { noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
+import { learnMold, moldFrom, type Mold } from '../../notices/molds';
+
+const MOLDS = 'notices.molds';
+const SOURCE_ACCOUNTS = 'notices.sourceAccounts';
 import { wordCategoryOf } from '../../proposals/common-words';
 import { todayIso } from '../../yields/days';
 import { sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
@@ -58,6 +62,8 @@ export interface NewProposal {
   occurred_on?: IsoDate | null;
   amount_minor?: number | null;
   description?: string | null;
+  /** A category already known (a mold the person taught); the dictionary is not asked. */
+  category_id?: number | null;
   evidence: unknown;
 }
 
@@ -129,7 +135,7 @@ export class ProposalsRepository {
         }
         // What this person has filed before, first. Only where that says
         // nothing does a word in the description get to suggest anything.
-        let category = dictionary.categoryOf(reading.description ?? null);
+        let category = reading.category_id ?? dictionary.categoryOf(reading.description ?? null);
         let from: 'learned' | 'guessed' | null = category === null ? null : 'learned';
         if (category === null) {
           const word = wordCategoryOf(reading.description ?? null, reading.amount_minor ?? null);
@@ -383,6 +389,30 @@ export class ProposalsRepository {
     return sightings.length;
   }
 
+  /**
+   * What became of every message proposed, by its key: waiting, saved or
+   * thrown away with its amount - or folded into another message's proposal
+   * (the same movement from another source). For the notifications screen's
+   * "what happened to each message".
+   */
+  async noticeOutcomes(): Promise<Map<string, { status: ProposalStatus | 'joined'; amount: number | null }>> {
+    const rows = await this.db.query<{ evidence: string; status: ProposalStatus; amount_minor: number | null }>(
+      "SELECT evidence, status, amount_minor FROM movement_proposals WHERE source = 'notification'");
+    const out = new Map<string, { status: ProposalStatus | 'joined'; amount: number | null }>();
+    for (const row of rows) {
+      try {
+        const read = JSON.parse(row.evidence) as NoticeEvidence;
+        if (typeof read.key === 'string') out.set(read.key, { status: row.status, amount: row.amount_minor });
+        for (const one of read.sightings ?? []) {
+          if (typeof one?.evidence?.key === 'string') out.set(one.evidence.key, { status: 'joined', amount: row.amount_minor });
+        }
+      } catch {
+        // Skip it rather than lose the rest.
+      }
+    }
+    return out;
+  }
+
   /** Everything still waiting, oldest first. */
   async pending(): Promise<MovementProposal[]> {
     return this.db.query<MovementProposal>(
@@ -441,6 +471,79 @@ export class ProposalsRepository {
     await this.db.run(
       `UPDATE movement_proposals SET status = 'accepted', transaction_id = ?, updated_at = ? WHERE id = ?`,
       [transactionId, this.now(), id]);
+    await this.learnMoldsFrom(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // What the person taught about each source (rule 22, the molds)
+  // ---------------------------------------------------------------------------
+
+  private async setting<T>(key: string, fallback: T): Promise<T> {
+    const row = await this.db.queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);
+    if (!row) return fallback;
+    try { return JSON.parse(row.value) as T; } catch { return fallback; }
+  }
+
+  private async keep(key: string, value: unknown): Promise<void> {
+    await this.db.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [key, JSON.stringify(value), this.now()]);
+  }
+
+  /** Every mold learned so far (`core/notices/molds.ts`). */
+  async molds(): Promise<Mold[]> {
+    const molds = await this.setting<Mold[]>(MOLDS, []);
+    return Array.isArray(molds) ? molds : [];
+  }
+
+  /** The account the person said each source is ("¿De qué cuenta es?"). */
+  async sourceAccounts(): Promise<Map<string, number>> {
+    const said = await this.setting<Record<string, number>>(SOURCE_ACCOUNTS, {});
+    return new Map(Object.entries(said ?? {}).filter(([, id]) => typeof id === 'number'));
+  }
+
+  async assignSource(source: string, accountId: number | null): Promise<void> {
+    const said = Object.fromEntries(await this.sourceAccounts());
+    if (accountId === null) delete said[source];
+    else said[source] = accountId;
+    await this.keep(SOURCE_ACCOUNTS, said);
+    // What it already proposed and still waits with no account takes it now.
+    if (accountId !== null) {
+      await this.db.run(
+        `UPDATE movement_proposals SET account_id = ?, updated_at = ?
+         WHERE source = 'notification' AND status = 'pending' AND account_id IS NULL AND batch = ?`,
+        [accountId, this.now(), noticeBatch(source)]);
+    }
+  }
+
+  /**
+   * A saved proposal from a message teaches its source's mold: the message
+   * and the sightings folded into it, with the amount, shop, account and
+   * category the person saved. A row from a statement teaches nothing here.
+   */
+  private async learnMoldsFrom(id: number): Promise<void> {
+    const row = await this.db.queryOne<{
+      source: string; evidence: string; amount_minor: number | null; description: string | null;
+      account_id: number | null; category_id: number | null;
+    }>('SELECT source, evidence, amount_minor, description, account_id, category_id FROM movement_proposals WHERE id = ?', [id]);
+    if (!row || row.source !== 'notification' || !row.amount_minor) return;
+    let evidence: NoticeEvidence;
+    try { evidence = JSON.parse(row.evidence) as NoticeEvidence; } catch { return; }
+    const said = [evidence, ...(evidence.sightings ?? []).map(one => one.evidence)];
+    let molds = await this.molds();
+    let learned = false;
+    for (const one of said) {
+      if (typeof one?.text !== 'string' || typeof one.package !== 'string') continue;
+      const mold = moldFrom({
+        source: one.package, text: one.text, amountMinor: row.amount_minor, merchant: row.description,
+        accountId: row.account_id, categoryId: row.category_id, at: Date.parse(this.now()) || Date.now(),
+      });
+      if (!mold) continue;
+      molds = learnMold(molds, mold);
+      learned = true;
+    }
+    if (learned) await this.keep(MOLDS, molds);
   }
 
   /**

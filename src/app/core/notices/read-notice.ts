@@ -64,7 +64,7 @@ export interface NoticeReading {
 }
 
 /** An amount found in the text, with where it sits. */
-interface Found {
+export interface Found {
   minor: number;
   currency: string | null;
   start: number;
@@ -103,7 +103,7 @@ function currencyOf(mark: string | undefined): string | null {
   return m;
 }
 
-function moneyIn(text: string): Found[] {
+export function moneyIn(text: string): Found[] {
   const found: Found[] = [];
   for (const match of text.matchAll(MONEY)) {
     const number = match[2] ?? match[4] ?? match[6];
@@ -184,7 +184,7 @@ const DIGITS = [
   /\bno\.?\s?\*?(\d{4})\b/i,
 ];
 
-function digitsIn(text: string): string | null {
+export function digitsIn(text: string): string | null {
   for (const pattern of DIGITS) {
     const match = pattern.exec(text);
     if (match) return match[1];

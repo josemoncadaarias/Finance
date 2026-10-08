@@ -1777,6 +1777,44 @@ backup restore against iOS's own SQLite backend.
   so its window is not built. Checked in a browser with invented messages;
   not seen on the phone. The design as first written follows.
 
+  **"Movimiento detectado", the molds and the screen by bank: BUILT
+  (2026-10-08, mockup `19`, approved by Jose).**
+  - **The phone's own notice** (`MovementAlert.java`): when a ticked source
+    says something that looks like money moving (the listener's `keep`
+    returns true for a new message, or `SmsReceiver` hears a ticked sender's
+    SMS - `RECEIVE_SMS`, asked with `READ_SMS`), it posts "Gasto / Ingreso /
+    Movimiento detectado · $ X" with Revisar and Descartar; several waiting
+    are one "N movimientos detectados". The same amount within 20 minutes
+    from any source rings once. NOTHING is saved: tapping opens the app,
+    `NoticeInboxService` reads the messages and then opens Por revisar on
+    that message's proposal (`takeOpen`, `/review?notice=`,
+    `openAskedNotice`); Descartar keeps the message in a list the inbox
+    pass treats as already proposed (`dismissed`, `thrownAway`). Opening the
+    app clears the notice (`clearAlerts`). Java written without an Android
+    SDK in the session: the first Store bundle is its compile check.
+  - **The molds** (`core/notices/molds.ts`, `notice-molds.test.mjs`): a
+    saved proposal from a message turns its text into a pattern for its
+    source - the amount, the shop and every other number are slots, the
+    fixed words stay - with the sign, account and category saved
+    (`ProposalsRepository.accepted` -> `learnMoldsFrom`, settings
+    `notices.molds`, eight per source). The next message of that shape is
+    read by it first (`readNotices`, evidence `molded`): exact amount, shop
+    and direction, the account learned and, when no shop is named, the
+    category. **"¿De qué cuenta es?"** on the screen stores the person's
+    answer per source (`notices.sourceAccounts`, `assignSource`), which
+    wins over anything learned and fills the source's waiting proposals.
+  - **The screen** ("Notificaciones del teléfono"): folding sections, all
+    closed - Tus bancos (each bank = the account(s) its sources turned out to
+    be, with its App and SMS sources), Sin cuenta todavía, Encontrados en tu
+    celular (SMS senders with money, not read), Otras apps, Ocultas and
+    "Revisar qué le llega a la app" - with the fold button and the arrows.
+    Tapping a source opens its page: its account and its last messages, each
+    with what became of it (por revisar, guardado, descartado, el mismo
+    movimiento que otro aviso, or ignored and why - `noticeOutcomes`). The
+    "Avisos guardados" face (every message raw) is gone, at Jose's word.
+  Checked in a browser with invented sources and messages; nothing of the
+  Android side can be seen outside the phone.
+
   **One movement, several messages: how to count it once** (proposed).
    The same purchase may arrive as a push, an SMS and a mail, minutes to
    hours apart, and a second identical purchase (same amount, same shop,

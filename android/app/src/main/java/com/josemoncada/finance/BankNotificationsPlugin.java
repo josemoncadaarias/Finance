@@ -34,7 +34,8 @@ import org.json.JSONArray;
  */
 @CapacitorPlugin(
         name = "BankNotifications",
-        permissions = { @Permission(alias = "sms", strings = { android.Manifest.permission.READ_SMS }) })
+        permissions = { @Permission(alias = "sms", strings = {
+                android.Manifest.permission.READ_SMS, android.Manifest.permission.RECEIVE_SMS }) })
 public class BankNotificationsPlugin extends Plugin {
 
     @PluginMethod
@@ -97,14 +98,17 @@ public class BankNotificationsPlugin extends Plugin {
     @PluginMethod
     public void smsAccess(PluginCall call) {
         JSObject answer = new JSObject();
-        answer.put("granted", SmsInbox.allowed(getContext()));
+        // Both: reading the inbox, and hearing a new SMS to ring the notice
+        // (2026-10-08). A phone that granted only the first is asked again,
+        // and Android gives the second without a new question (same group).
+        answer.put("granted", SmsInbox.allowed(getContext()) && SmsInbox.receiving(getContext()));
         call.resolve(answer);
     }
 
     /** Android's own dialog for reading SMS. */
     @PluginMethod
     public void askSms(PluginCall call) {
-        if (SmsInbox.allowed(getContext())) {
+        if (SmsInbox.allowed(getContext()) && SmsInbox.receiving(getContext())) {
             smsAccess(call);
             return;
         }
@@ -241,6 +245,34 @@ public class BankNotificationsPlugin extends Plugin {
         NotificationStore.forgetEverything(getContext());
         SmsInbox.forgetEverything(getContext());
         call.resolve();
+    }
+
+    /**
+     * What "Movimiento detectado" asked the app to open, once: a message
+     * (source, text, at) or "review" for several. Null when the app was
+     * opened any other way.
+     */
+    @PluginMethod
+    public void takeOpen(PluginCall call) {
+        JSObject answer = new JSObject();
+        String open = MainActivity.takeOpen();
+        answer.put("open", open == null ? "" : open);
+        call.resolve(answer);
+    }
+
+    /** The app has read what was waiting: the notice goes. */
+    @PluginMethod
+    public void clearAlerts(PluginCall call) {
+        MovementAlert.clear(getContext());
+        call.resolve();
+    }
+
+    /** What was thrown away from the notice, never to be proposed (the last two hundred). */
+    @PluginMethod
+    public void dismissed(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("dismissed", toJs(MovementAlert.dismissed(getContext())));
+        call.resolve(answer);
     }
 
     private static JSArray toJs(JSONArray from) {

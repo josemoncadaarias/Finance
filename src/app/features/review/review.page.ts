@@ -17,6 +17,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 import { Location } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { ProposalsRepository, type MovementProposal } from '../../core/database/repositories/proposals.repository';
@@ -101,6 +103,8 @@ export class ReviewPage {
   private readonly statements = inject(StatementsService);
   private readonly compose = inject(ComposeService);
   private readonly location = inject(Location);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly info = signal<string | null>(null);
 
   back(): void {
@@ -941,6 +945,48 @@ export class ReviewPage {
     // The banks' messages that arrived since the last look: read now, so
     // opening this screen is enough. A new proposal redraws it by itself.
     void this.notices.read();
+    // "Movimiento detectado" tapped on the phone: its message's proposal opens.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      const raw = params.get('notice');
+      if (!raw) return;
+      try {
+        this.askedNotice = JSON.parse(raw) as { source: string; text: string; at: number };
+      } catch {
+        this.askedNotice = null;
+      }
+      this.openAskedNotice();
+    });
+  }
+
+  /** The message the phone's notice was about, until its proposal is found. */
+  private askedNotice: { source: string; text: string; at: number } | null = null;
+
+  /**
+   * Opens the proposal the notice was about: the same source (or a message
+   * folded into it) and words, the nearest in time. It may not exist yet -
+   * the message is read as the app opens - so this is tried again after each
+   * reading until it is found.
+   */
+  private openAskedNotice(): void {
+    const asked = this.askedNotice;
+    if (!asked) return;
+    let best: { line: Line; apart: number } | null = null;
+    for (const batch of this.batches()) {
+      for (const line of batch.lines) {
+        if (line.proposal.source !== 'notification') continue;
+        const read = this.read(line.proposal) as { package?: string; text?: string; postedAt?: number; sightings?: { evidence?: { package?: string; text?: string; postedAt?: number } }[] };
+        const said = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
+        for (const one of said) {
+          if (one.package !== asked.source || (one.text ?? '').trim() !== asked.text.trim()) continue;
+          const apart = Math.abs((one.postedAt ?? 0) - asked.at);
+          if (apart < 10 * 60_000 && (!best || apart < best.apart)) best = { line, apart };
+        }
+      }
+    }
+    if (!best) return;
+    this.askedNotice = null;
+    this.openLine.set(best.line);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   async refresh(): Promise<void> {
@@ -1018,6 +1064,7 @@ export class ReviewPage {
       }
 
       this.batches.set([...known.values()]);
+      this.openAskedNotice();
       await this.lookForDrift();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));

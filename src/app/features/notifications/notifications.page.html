@@ -1,6 +1,6 @@
-<!-- Avisos del banco (mockups 7a-7l): which apps post notifications, and
-     what the ones marked by hand said, word for word. Nothing is read into
-     them yet (rule 22, step one). -->
+<!-- Notificaciones del teléfono (mockup 19): every app and SMS sender, by
+     the bank each one is, in folding sections; a source's page says what
+     became of each of its messages. -->
 <ion-content #list [scrollEvents]="true" (ionScroll)="jump.measure()" [class.selecting]="selecting()">
   <header class="ui-titlebar">
     <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
@@ -46,7 +46,7 @@
           <button type="button" class="ui-btn ghost" (click)="look()">{{ 'notifications.again' | t }}</button>
         </div>
       </div>
-    } @else if (apps().length === 0 && caught().length === 0) {
+    } @else if (apps().length === 0 && senders().length === 0) {
       <!-- Nothing yet: an icon and one sentence (7k). -->
       <div class="empty">
         <app-badge shape="ci" [size]="80" builtin="hourglass" [fixed]="'#6378ff'"></app-badge>
@@ -68,30 +68,6 @@
           </div>
         </div>
       }
-      <!-- The two lists, two faces of one selector, each saying what it holds. -->
-      <div class="ui-seg faces">
-        <button type="button" [class.on]="face() === 'apps'" (click)="setFace('apps')">
-          <ion-icon name="apps"></ion-icon><span>{{ (sortedApps().length === 1 ? 'ui.notifications.appsOne' : 'ui.notifications.apps') | t:{ count: sortedApps().length } }}</span>
-        </button>
-        <button type="button" [class.on]="face() === 'caught'" (click)="setFace('caught')">
-          <ion-icon name="chatbubble-ellipses-outline"></ion-icon><span>{{ (caught().length === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: caught().length } }}</span>
-        </button>
-      </div>
-
-      @if (face() === 'caught') {
-        <div class="app-row">
-          <button type="button" class="ui-chip app" (click)="pickingApp.set(true)">
-            @if (appFilterApp(); as app) {
-              <app-badge shape="sq" [size]="26" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
-              <span class="ui-one">{{ app.label }}</span>
-            } @else {
-              <app-badge shape="sq" [size]="26" builtin="apps" fixed="#6378ff"></app-badge>
-              <span>{{ 'ui.notifications.allApps' | t }}</span>
-            }
-            <ion-icon name="chevron-down-outline"></ion-icon>
-          </button>
-        </div>
-      }
 
       <div class="ui-search">
         <ion-icon name="search-outline"></ion-icon>
@@ -102,149 +78,148 @@
         }
       </div>
 
-      @if (face() === 'apps') {
-        <div class="lead-row">
-          <h3 class="ui-h">{{ 'ui.notifications.markBanks' | t }}
-            <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.apps.hint'))"><ion-icon name="information"></ion-icon></span>
-          </h3>
-          @if (sortedApps().length > 1) {
-            @if (!selecting()) {
-              <button type="button" class="ui-chip" (click)="startSelecting()"><ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}</button>
+      <div class="lead-row">
+        <h3 class="ui-h">{{ 'ui.notifications.markBanks' | t }}
+          <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.apps.hint'))"><ion-icon name="information"></ion-icon></span>
+        </h3>
+        @if (!selecting()) {
+          <button type="button" class="ui-chip" (click)="startSelecting()"><ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}</button>
+        } @else {
+          <button type="button" class="ui-chip on" (click)="stopSelecting()"><ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}</button>
+        }
+      </div>
+
+      @if (smsGranted() === false) {
+        <!-- Some phones never hand SMS notifications over: the inbox is read instead, for ticked senders only. -->
+        <div class="ui-list sms-ask">
+          <div class="ui-row plain">
+            <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+            <span class="ui-tx"><b class="wrap">{{ 'ui.notifications.inbox.ask' | t }}</b>
+              <small class="wrap">{{ 'ui.notifications.inbox.askHint' | t }}</small></span>
+          </div>
+          <div class="ui-row plain">
+            <button type="button" class="ui-btn" (click)="askSms()">{{ 'ui.notifications.inbox.allow' | t }}</button>
+          </div>
+        </div>
+      }
+      @if (smsWaiting().length > 0) {
+        <div class="ui-list sms-wait">
+          @for (line of smsWaiting(); track $index) {
+            <div class="ui-row" [class.warn]="line.warn">
+              <ion-icon [name]="line.warn ? 'eye-off-outline' : 'chatbubble-ellipses-outline'"></ion-icon>
+              <span class="ui-tx"><small>{{ line.text }}</small></span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (nothingFound()) {
+        <div class="empty small">
+          <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>
+          <p>{{ 'notifications.search.none' | t }}</p>
+        </div>
+      }
+
+      <!-- One source's row: the same in every section. -->
+      <ng-template #row let-one let-nested="nested">
+        <div class="ui-row app" [class.nested]="nested" [class.picked]="isSelected(one)" (contextmenu)="pressed($event, one)"
+             (click)="tapped(one)" [attr.role]="selecting() ? 'checkbox' : 'button'" [attr.aria-checked]="selecting() ? isSelected(one) : null">
+          @if (selecting() && !one.bySender) {
+            <span class="ui-tick" [class.on]="isSelected(one)" aria-hidden="true">
+              @if (isSelected(one)) { <ion-icon name="checkmark"></ion-icon> }
+            </span>
+          }
+          @if (!nested) {
+            <app-badge [shape]="one.kind === 'sms' ? 'ci' : 'sq'" [size]="40"
+                       [builtin]="one.kind === 'sms' ? 'chatbubble-ellipses-outline' : appIcon(one.key, one.name)" [seed]="appSeed(one.key)"></app-badge>
+          }
+          <span class="ui-tx">
+            <b class="ui-one">{{ one.name }}<span class="chan">{{ (one.kind === 'sms' ? 'ui.notifications.chip.sms' : 'ui.notifications.chip.app') | t }}</span></b>
+            <small class="ui-one">{{ one.line }}</small>
+            @if (one.watched && one.accounts.length === 0) {
+              <small class="which">{{ 'ui.notifications.whichAccount' | t }}</small>
+            }
+          </span>
+          @if (!selecting()) {
+            @if (one.hidden) {
+              <button type="button" class="ui-chip show" (click)="$event.stopPropagation(); unhide(one)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
             } @else {
-              <button type="button" class="ui-chip on" (click)="stopSelecting()"><ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}</button>
+              <button type="button" class="ui-round hide-app" (click)="$event.stopPropagation(); hideSources([one])"
+                      [attr.aria-label]="'notifications.hide' | t:{ app: one.name }">
+                <ion-icon name="eye-off-outline"></ion-icon>
+              </button>
+              @if (one.bySender) {
+                <button type="button" class="ui-chip by-sender" (click)="$event.stopPropagation(); info.set(i18n.t('ui.notifications.bySender.hint'))">
+                  {{ 'ui.notifications.bySender' | t }}
+                </button>
+              } @else {
+                <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
+                        [attr.aria-label]="one.name" (click)="$event.stopPropagation(); watchSource(one, !one.watched)"></button>
+              }
             }
           }
         </div>
+      </ng-template>
 
-        @if (nothingFound()) {
-          <div class="empty small">
-            <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>
-            <p>{{ 'notifications.search.none' | t }}</p>
+      <!-- Tus bancos: what is read, by the account it turned out to be. -->
+      @if (of('banks').length > 0) {
+        <div class="ui-list ui-group sec">
+          <div class="ui-row head" (click)="toggleOpen('banks')">
+            <app-badge [size]="38" builtin="business" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b>{{ 'ui.notifications.sec.banks' | t }}</b><small class="wrap">{{ sectionLine('banks') }}</small></span>
+            <ion-icon class="ui-chev" [name]="chev(K.banks)"></ion-icon>
           </div>
-        } @else if (sortedApps().length === 0) {
-          <p class="hint">{{ 'notifications.apps.none' | t }}</p>
-        } @else {
-          <div class="ui-list">
-            @for (app of sortedApps(); track app.package) {
-              <div class="ui-row app" [class.picked]="isSelected(app)" (contextmenu)="pressed($event, app)"
-                   (click)="selecting() && toggle(app)"
-                   [attr.role]="selecting() ? 'checkbox' : null" [attr.aria-checked]="selecting() ? isSelected(app) : null">
-                @if (selecting()) {
-                  <!-- A picture of the row's state, never a button. -->
-                  <span class="ui-tick" [class.on]="isSelected(app)" aria-hidden="true">
-                    @if (isSelected(app)) { <ion-icon name="checkmark"></ion-icon> }
-                  </span>
+          @if (isOpen('banks')) {
+            @for (bank of banks(); track bank.key) {
+              <div class="ui-row bank" (click)="toggleOpen('bank:' + bank.key)">
+                @if (account(bank.ids[0]); as acc) {
+                  <app-badge shape="ci" [size]="34" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id" [tone]="acc.color" [seed]="acc.id"></app-badge>
                 }
-                <app-badge [size]="40" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
-                <span class="ui-tx">
-                  <b class="ui-one">{{ app.label }}@if (app.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
-                  <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small>
-                </span>
-                @if (!selecting()) {
-                  <!-- Put this app away (Jose, 2026-10-02): beside its switch, not only in the selection bar. -->
-                  <button type="button" class="ui-round hide-app" (click)="$event.stopPropagation(); hide(app)"
-                          [attr.aria-label]="'notifications.hide' | t:{ app: app.label }">
-                    <ion-icon name="eye-off-outline"></ion-icon>
-                  </button>
-                  @if (app.messaging && !app.watched) {
-                    <!-- A messaging app is never kept whole: its banks are chosen by sender below. -->
-                    <button type="button" class="ui-chip by-sender" (click)="$event.stopPropagation(); info.set(i18n.t('ui.notifications.bySender.hint'))">
-                      {{ 'ui.notifications.bySender' | t }}
-                    </button>
-                  } @else {
-                    <button type="button" class="ui-switch" [class.on]="app.watched" role="switch" [attr.aria-checked]="app.watched"
-                            [attr.aria-label]="app.label" (click)="watch(app, !app.watched)"></button>
-                  }
-                }
+                <span class="ui-tx"><b class="ui-one">{{ bank.title }}</b><small class="ui-one">{{ bankLine(bank) }}</small></span>
+                <ion-icon class="ui-chev" [name]="chev('bank:' + bank.key)"></ion-icon>
               </div>
+              @if (isOpen('bank:' + bank.key)) {
+                @for (one of bank.sources; track one.key) {
+                  <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: true }"></ng-container>
+                }
+              }
             }
-          </div>
-        }
+          }
+        </div>
+      }
 
-        <!-- Text messages: chosen by sender, never the whole messaging app (rule 22, SMS). -->
-        <h3 class="ui-h sms-h">{{ 'ui.notifications.sms' | t }}
-          <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.notifications.sms.hint'))"><ion-icon name="information"></ion-icon></span>
-        </h3>
-        @if (smsGranted() === false) {
-          <!-- Some phones never hand SMS notifications over: the inbox is read instead, for ticked senders only. -->
-          <div class="ui-list sms-ask">
-            <div class="ui-row plain">
-              <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
-              <span class="ui-tx"><b class="wrap">{{ 'ui.notifications.inbox.ask' | t }}</b>
-                <small class="wrap">{{ 'ui.notifications.inbox.askHint' | t }}</small></span>
+      @for (section of ['unknown', 'found', 'others', 'hidden']; track section) {
+        @if (of($any(section)).length > 0) {
+          <div class="ui-list ui-group sec">
+            <div class="ui-row head" (click)="toggleOpen(section)">
+              @switch (section) {
+                @case ('unknown') { <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge> }
+                @case ('found') { <app-badge [size]="38" builtin="add" fixed="#6378ff"></app-badge> }
+                @case ('others') { <app-badge [size]="38" builtin="apps" fixed="#8c9bb5"></app-badge> }
+                @default { <app-badge [size]="38" builtin="eye-off" fixed="#8c9bb5"></app-badge> }
+              }
+              <span class="ui-tx"><b>{{ sectionTitle($any(section)) }}</b><small class="wrap">{{ sectionLine($any(section)) }}</small></span>
+              <ion-icon class="ui-chev" [name]="chev(section)"></ion-icon>
             </div>
-            <div class="ui-row plain">
-              <button type="button" class="ui-btn" (click)="askSms()">{{ 'ui.notifications.inbox.allow' | t }}</button>
-            </div>
-          </div>
-        }
-        @if (smsWaiting().length > 0) {
-          <!-- No sender yet: say why, so "abajo en Mensajes de texto" never points at nothing. -->
-          <div class="ui-list sms-wait">
-            @for (line of smsWaiting(); track $index) {
-              <div class="ui-row" [class.warn]="line.warn">
-                <ion-icon [name]="line.warn ? 'eye-off-outline' : 'chatbubble-ellipses-outline'"></ion-icon>
-                <span class="ui-tx"><small>{{ line.text }}</small></span>
-              </div>
-            }
-          </div>
-        }
-        @if (markedSenders().length > 0) {
-          <div class="ui-list">
-            @for (one of markedSenders(); track one.package + one.sender) {
-              <div class="ui-row app">
-                <app-badge shape="ci" [size]="40" builtin="chatbubble-ellipses-outline" [seed]="appSeed(one.package + one.sender)"></app-badge>
-                <span class="ui-tx">
-                  <b class="ui-one">{{ one.sender }}@if (one.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
-                  <small class="ui-one">{{ senderLine(one) }}</small>
-                </span>
-                <button type="button" class="ui-round hide-app" (click)="hideSender(one)"
-                        [attr.aria-label]="'ui.notifications.hideSender' | t:{ sender: one.sender }">
-                  <ion-icon name="eye-off-outline"></ion-icon>
-                </button>
-                <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
-                        [attr.aria-label]="one.sender" (click)="watchSender(one, !one.watched)"></button>
-              </div>
-            }
-          </div>
-        }
-        @if (otherSenders().length > 0) {
-          <!-- The rest, folded: a year of SMS lists many senders. -->
-          <div class="ui-list ui-group others">
-            <div class="ui-row head" (click)="toggleOthers()">
-              <span class="ui-tx">
-                <b>{{ 'ui.notifications.others' | t }}</b>
-                <small class="wrap">{{ 'ui.notifications.others.hint' | t:{ count: otherSenders().length } }}</small>
-              </span>
-              <ion-icon class="ui-chev" [name]="othersOpen() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-            </div>
-            @if (othersOpen()) {
-              @for (one of otherSenders(); track one.package + one.sender) {
-              <div class="ui-row app">
-                <app-badge shape="ci" [size]="40" builtin="chatbubble-ellipses-outline" [seed]="appSeed(one.package + one.sender)"></app-badge>
-                <span class="ui-tx">
-                  <b class="ui-one">{{ one.sender }}@if (one.watched) { <span class="kept">{{ 'ui.notifications.kept' | t }}</span> }</b>
-                  <small class="ui-one">{{ senderLine(one) }}</small>
-                </span>
-                <button type="button" class="ui-round hide-app" (click)="hideSender(one)"
-                        [attr.aria-label]="'ui.notifications.hideSender' | t:{ sender: one.sender }">
-                  <ion-icon name="eye-off-outline"></ion-icon>
-                </button>
-                <button type="button" class="ui-switch" [class.on]="one.watched" role="switch" [attr.aria-checked]="one.watched"
-                        [attr.aria-label]="one.sender" (click)="watchSender(one, !one.watched)"></button>
-              </div>
+            @if (isOpen(section)) {
+              @for (one of of($any(section)); track one.key) {
+                <ng-container *ngTemplateOutlet="row; context: { $implicit: one, nested: false }"></ng-container>
               }
             }
           </div>
         }
+      }
 
-        <!-- What Android is handing the app, never a word of it (2026-10-05). -->
-        <div class="ui-list diagnosis">
+      <!-- What Android is handing the app, never a word of it (2026-10-05). -->
+      <div class="ui-list ui-group sec diagnosis">
+        <div class="ui-row head" (click)="toggleOpen('diag'); isOpen('diag') && diagnose()">
+          <app-badge [size]="38" builtin="pulse" fixed="#8c9bb5"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.notifications.diag.title' | t }}</b><small class="wrap">{{ 'ui.notifications.diag.hint' | t }}</small></span>
+          <ion-icon class="ui-chev" [name]="chev(K.diag)"></ion-icon>
+        </div>
+        @if (isOpen('diag')) {
           <div class="ui-row" (click)="diagnose()">
-            <ion-icon name="pulse-outline"></ion-icon>
-            <span class="ui-tx"><b>{{ 'ui.notifications.diag.title' | t }}</b>
-              <small>{{ 'ui.notifications.diag.hint' | t }}</small></span>
-            <ion-icon class="ui-chev" name="refresh-outline"></ion-icon>
+            <ion-icon name="refresh-outline"></ion-icon><span class="ui-tx"><small>{{ 'ui.notifications.diag.again' | t }}</small></span>
           </div>
           @if (diagnosis(); as d) {
             <div class="ui-row plain">
@@ -264,75 +239,8 @@
               </div>
             }
           }
-        </div>
-
-        <!-- Put away, not forgotten: folded here so it can be brought back. -->
-        @if (hiddenApps().length + hiddenSenders().length > 0) {
-          <div class="ui-list ui-group hidden-apps">
-            <div class="ui-row head" (click)="showHidden.set(!showHidden())">
-              <app-badge [size]="36" builtin="eye-off" fixed="#8c9bb5"></app-badge>
-              <span class="ui-tx"><b>{{ 'ui.notifications.hidden' | t }}</b>
-                <small>{{ hiddenLine() }}</small></span>
-              <ion-icon class="ui-chev" [name]="showHidden() ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-            </div>
-            @if (showHidden()) {
-              @for (app of hiddenApps(); track app.package) {
-                <div class="ui-row">
-                  <app-badge [size]="36" [builtin]="appIcon(app.package, app.label)" fixed="#8c9bb5"></app-badge>
-                  <span class="ui-tx"><b class="ui-one">{{ app.label }}</b>
-                    <small class="ui-one">{{ 'ui.notifications.appLine' | t:{ count: app.count, package: app.package } }}</small></span>
-                  <button type="button" class="ui-chip show" (click)="unhide(app)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
-                </div>
-              }
-              @for (one of hiddenSenders(); track one.package + one.sender) {
-                <div class="ui-row">
-                  <app-badge shape="ci" [size]="36" builtin="chatbubble-ellipses-outline" fixed="#8c9bb5"></app-badge>
-                  <span class="ui-tx"><b class="ui-one">{{ one.sender }}</b><small class="ui-one">{{ senderLine(one) }}</small></span>
-                  <button type="button" class="ui-chip show" (click)="unhideSender(one)"><ion-icon name="eye-outline"></ion-icon>{{ 'notifications.unhide' | t }}</button>
-                </div>
-              }
-            }
-          </div>
         }
-      } @else {
-        <div class="lead-row">
-          <span class="as-came">{{ 'ui.notifications.asCame' | t }}
-            <span class="ui-info" role="button" (click)="info.set(i18n.t('notifications.caught.hint'))"><ion-icon name="information"></ion-icon></span>
-          </span>
-          <button type="button" class="ui-fold" (click)="toggleAllDays()" [attr.aria-label]="(allDaysClosed() ? 'ui.openAll' : 'ui.closeAll') | t">
-            <ion-icon [name]="allDaysClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-          </button>
-        </div>
-
-        @if (caughtDays().length === 0) {
-          <div class="empty small">
-            <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>
-            <p>{{ (caught().length > 0 ? 'notifications.search.none' : 'notifications.caught.none') | t }}</p>
-          </div>
-        } @else {
-          @for (day of caughtDays(); track day.key) {
-            <div class="ui-list ui-group">
-              <div class="ui-row head" (click)="toggleDay(day.key)">
-                <span class="ui-tx"><b>{{ day.title }}</b>
-                  <small>{{ (day.items.length === 1 ? 'ui.notifications.oneNotice' : 'ui.notifications.notices') | t:{ count: day.items.length } }}</small></span>
-                <ion-icon class="ui-chev" [name]="isDayOpen(day.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-              </div>
-              @if (isDayOpen(day.key)) {
-                @for (one of day.items; track one.postedAt + one.package + one.text) {
-                  <div class="ui-row notice">
-                    <app-badge [size]="36" [builtin]="appIcon(one.package, one.app)" [seed]="appSeed(one.package)"></app-badge>
-                    <span class="ui-tx">
-                      <span class="from"><b>{{ one.sender || one.app }}</b>@if (one.sender) { · {{ one.app }} } · {{ hour(one.postedAt) }}</span>
-                      @if (one.title && one.title !== one.sender) { <span class="said strong">{{ one.title }}</span> }
-                      @if (one.text) { <span class="said">{{ one.text }}</span> }
-                    </span>
-                  </div>
-                }
-              }
-            </div>
-          }
-        }
-      }
+      </div>
       <div class="ui-page-end"></div>
       <!-- Room for the selection bar, so the last rows can be scrolled above it. -->
       @if (selecting()) { <div class="selection-room"></div> }
@@ -349,8 +257,8 @@
           <ion-icon name="close"></ion-icon>
         </button>
         <span class="count">
-          <b>{{ (selectedApps().length === 1 ? 'ui.notifications.chosenOne' : 'ui.notifications.chosen') | t:{ count: selectedApps().length } }}</b>
-          <small>{{ 'ui.notifications.ofOnView' | t:{ count: sortedApps().length } }}</small>
+          <b>{{ (selectedSources().length === 1 ? 'ui.notifications.chosenOne' : 'ui.notifications.chosen') | t:{ count: selectedSources().length } }}</b>
+          <small>{{ 'ui.notifications.ofOnView' | t:{ count: choosableCount() } }}</small>
         </span>
         <button type="button" class="pick-all" [class.on]="allSelected()" (click)="selectAll()">
           <span class="ui-tick" [class.on]="allSelected()" aria-hidden="true">
@@ -359,13 +267,13 @@
         </button>
       </div>
       <div class="acts tiles">
-        <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(true)">
+        <button type="button" [disabled]="selectedSources().length === 0" (click)="watchSelected(true)">
           <ion-icon name="bookmark"></ion-icon><span>{{ 'ui.notifications.keep' | t }}</span>
         </button>
-        <button type="button" [disabled]="selectedApps().length === 0" (click)="watchSelected(false)">
+        <button type="button" [disabled]="selectedSources().length === 0" (click)="watchSelected(false)">
           <ion-icon name="bookmark-outline"></ion-icon><span>{{ 'ui.notifications.dontKeep' | t }}</span>
         </button>
-        <button type="button" class="drop" [disabled]="selectedApps().length === 0" (click)="hideSelected()">
+        <button type="button" class="drop" [disabled]="selectedSources().length === 0" (click)="hideSelected()">
           <ion-icon name="eye-off-outline"></ion-icon><span>{{ 'notifications.hide.do' | t }}</span>
         </button>
       </div>
@@ -394,35 +302,58 @@
   </ng-template>
 </ion-modal>
 
-<!-- Which app's notices to read, "Todas las apps" first. -->
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingApp()" (didDismiss)="pickingApp.set(false)">
+<!-- One source: its account and what became of each of its messages. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="openSource() !== null" (didDismiss)="openSource.set(null)">
   <ng-template>
-    <div class="ui-sheet-body ion-content-scroll-host">
-      <div class="grab"></div>
-      <div class="sheet-head">
-        <button type="button" class="link left" (click)="pickingApp.set(false)">{{ 'entry.cancel' | t }}</button>
-        <h2>{{ 'ui.notifications.app' | t }}</h2>
-        <span class="right"></span>
-      </div>
-      <div class="ui-list">
-        <button type="button" class="ui-row" (click)="appFilter.set(null); pickingApp.set(false)">
-          <app-badge [size]="40" builtin="apps" fixed="#6378ff"></app-badge>
-          <span class="ui-tx"><b>{{ 'ui.notifications.allApps' | t }}</b>
-            <small>{{ (caught().length === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: caught().length } }}</small></span>
-          @if (appFilter() === null) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
-        </button>
-        @for (app of appsWithCaught(); track app.package) {
-          <button type="button" class="ui-row" (click)="appFilter.set(app.package); pickingApp.set(false)">
-            <app-badge [size]="40" [builtin]="appIcon(app.package, app.label)" [seed]="appSeed(app.package)"></app-badge>
-            <span class="ui-tx"><b class="ui-one">{{ app.label }}</b>
-              <small>{{ (app.kept === 1 ? 'ui.notifications.caughtOne' : 'ui.notifications.caught') | t:{ count: app.kept } }}</small></span>
-            @if (appFilter() === app.package) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+    @if (shown(); as one) {
+      <div class="ui-sheet-body ion-content-scroll-host source-page">
+        <button type="button" class="sheet-cancel" (click)="openSource.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <h2 class="center">{{ one.name }}<span class="chan">{{ (one.kind === 'sms' ? 'ui.notifications.chip.sms' : 'ui.notifications.chip.app') | t }}</span></h2>
+        <p class="center sub">{{ one.line }}</p>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="pickingFor.set(one)">
+            @if (one.accounts.length > 0 && account(one.accounts[0]); as acc) {
+              <app-badge shape="ci" [size]="38" [builtin]="acc.builtin_icon" [customId]="acc.custom_icon_id" [tone]="acc.color" [seed]="acc.id"></app-badge>
+              <span class="ui-tx"><small>{{ 'ui.notifications.detail.accountIs' | t }}</small><b class="ui-one">{{ acc.name }}</b></span>
+              <span class="link">{{ 'ui.notifications.detail.change' | t }}</span>
+            } @else {
+              <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
+              <span class="ui-tx"><b class="ui-y">{{ 'ui.notifications.whichAccount' | t }}</b><small class="wrap">{{ 'ui.notifications.detail.why' | t }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
+            }
           </button>
+          @if (!one.watched && !one.bySender && !one.hidden) {
+            <div class="ui-row plain">
+              <span class="ui-tx"><small class="wrap">{{ 'ui.notifications.detail.notRead' | t }}</small></span>
+              <button type="button" class="ui-switch" role="switch" [attr.aria-checked]="false" [attr.aria-label]="one.name" (click)="watchSource(one, true)"></button>
+            </div>
+          }
+        </div>
+        <h3 class="ui-h">{{ 'ui.notifications.detail.last' | t }}</h3>
+        @if (shownMessages().length === 0) {
+          <p class="hint">{{ 'ui.notifications.detail.none' | t }}</p>
+        } @else {
+          <div class="ui-list">
+            @for (m of shownMessages(); track m.one.postedAt + m.one.text) {
+              <div class="ui-row plain message">
+                <span class="ui-tx">
+                  <small>{{ m.when }}</small>
+                  <span class="said">{{ m.one.text }}</span>
+                  <small class="outcome" [class]="'t-' + m.tone">→ {{ m.outcome }}</small>
+                </span>
+              </div>
+            }
+          </div>
         }
       </div>
-    </div>
+    }
   </ng-template>
 </ion-modal>
+
+<app-account-picker [open]="pickingFor() !== null" [accounts]="accounts()" [selectedId]="pickingFor()?.accounts?.[0] ?? null"
+                    [heading]="'ui.notifications.whichAccount' | t" detail="kind"
+                    (chosen)="assign($event)" (closed)="pickingFor.set(null)"></app-account-picker>
 
 <app-confirm [open]="asking() !== null" [icon]="asking() === 'hide' ? 'eye-off-outline' : asking() === 'forgetEverything' ? 'refresh-outline' : 'trash-outline'"
              tone="danger" [title]="askTitle()" [body]="askBody()" [confirmLabel]="askConfirm()"
