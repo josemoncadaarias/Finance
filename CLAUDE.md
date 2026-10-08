@@ -1916,8 +1916,8 @@ backup restore against iOS's own SQLite backend.
   arrived says so on its source's page ("le llegó a Finance X tarde"), and
   while that happened in the last day, or Android limits the app's battery
   (`isIgnoringBatteryOptimizations`), the notifications screen asks for
-  "Sin restricciones" and "Inicio automático" with "Abrir ajustes de
-  Finance" (`openAppSettings`, the app's page in Android's settings).
+  "Sin restricciones" with "Abrir ajustes de Finance" - never "Inicio
+  automático": Jose's phone has no such setting (2026-10-08, said twice) (`openAppSettings`, the app's page in Android's settings).
   **And then nothing at all for half an hour (Jose, 2026-10-08)**: the
   screen's "Última notificación que recibió la app" stayed at 4:02 while
   Nequi and Global66 posted at 4:27 - Android was handing the listener
