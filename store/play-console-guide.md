@@ -135,25 +135,47 @@ Si algo queda pendiente, mándame la captura.
 ## 13. Prueba cerrada: lo que pone a correr el reloj
 
 Google exige, para cuentas personales, una **prueba cerrada con al menos 12
-personas durante 14 días seguidos** antes de publicar. Es lo que más tarda,
-así que conviene empezarla ya.
+personas durante 14 días seguidos** antes de publicar. Conviene tener 15 o 16
+por si alguien se sale. Tú puedes estar en la lista, pero no cuentes contigo
+para llegar a 12 (no está claro que Google cuente la cuenta del dueño).
 
-1. Consigue **12 o más correos de Gmail** de personas que acepten instalar
-   la app y dejarla instalada 14 días (familia, amigos). Pueden usar Android
-   cualquiera.
-2. **Test and release → Testing → Closed testing → Create track** (o usa el
-   "Alpha" que ya viene) → **Testers** → **Create email list**, pega los
-   correos separados por coma → **Save**.
-3. **Releases → Create new release → Add from library** → escoge la última
-   versión que subiste a la prueba interna → **Next → Save**.
-4. **Publishing overview → Send changes for review**. Google revisa la app,
-   la ficha y los formularios (SMS y aviso fijo incluidos). Puede tardar
-   desde horas hasta unos días.
-5. Cuando la aprueben, en **Testers** copia el **enlace para unirse** y
-   mándaselo a las 12 personas: deben abrirlo con su Gmail, aceptar y
-   instalar desde Play Store.
-6. Desde ese día cuentan los 14 días. No hace falta que la usen mucho, pero
-   sí que no se salgan de la prueba.
+Qué les pides a las personas: un correo de Gmail y un celular Android; que
+acepten la invitación, instalen la app desde Play Store y no la desinstalen
+en 14 días. No hace falta que la usen mucho.
 
-Si Google rechaza algo en la revisión, te llega un correo con el motivo:
+**Entrar:** https://play.google.com/console → *Finance: gastos y
+rendimientos* → menú izquierdo **Test and release → Testing → Closed
+testing**.
+
+1. En la pista que ya viene (**Alpha** o *Closed testing*): **Manage track**.
+2. Pestaña **Testers** → **Create email list** → nombre: `Probadores` →
+   pega los correos separados por coma → **Save**. Deja esa lista marcada →
+   **Save**.
+3. Pestaña **Countries / regions** → **Add countries / regions** →
+   **Colombia** (y el país de quien viva afuera) → **Save**.
+4. Arriba: **Create new release** → **Add from library** → la versión más
+   alta (1078 o mayor) → **Add to release** → **Next**.
+5. En *Release notes* pega:
+   ```
+   <es-419>
+   Primera versión de prueba.
+   </es-419>
+   ```
+   → **Next** → **Save**.
+6. Menú izquierdo: **Publishing overview** → **Send changes for review** →
+   confirmar. Google revisa (de horas a unos días) y avisa por correo.
+7. Cuando esté aprobada: **Closed testing → Manage track → Testers** →
+   abajo, **Copy link** (el enlace para unirse). Mándalo a las personas con
+   este mensaje:
+   ```
+   Hola, te pido un favor: ayúdame a probar mi app. Abre este enlace con tu
+   Gmail desde el celular, toca "Become a tester" / "Ser tester", y luego
+   "Download it on Google Play" para instalarla. Déjala instalada al menos
+   14 días, no tienes que usarla. ¡Gracias!
+   ENLACE
+   ```
+8. Desde que 12 o más estén dentro, cuentan los 14 días. El Dashboard
+   muestra cuántos van ("testers currently opted-in").
+
+Si Google rechaza algo en la revisión, llega un correo con el motivo:
 mándamelo y lo corregimos.
