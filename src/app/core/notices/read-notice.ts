@@ -140,8 +140,8 @@ const OUT = [
 const IN = [
   'recibiste', 'recibio', 'recibido', 'recibida', 'abono', 'abonamos', 'abonado', 'consignacion', 'consignaron',
   'deposito', 'depositaron', 'te transfirieron', 'te enviaron', 'te pagaron', 'reembolso', 'devolucion', 'devolv', 'reintegr',
-  'nomina', 'ingreso', 'llego', 'llegaron', 'cashback',
-  'received', 'deposit', 'deposited', 'refund', 'refunded', 'credited', 'incoming', 'you got',
+  'nomina', 'ingreso', 'llego', 'llegaron', 'cashback', 'ganaste', 'rendimiento',
+  'received', 'earned', 'deposit', 'deposited', 'refund', 'refunded', 'credited', 'incoming', 'you got',
 ];
 
 /** A balance is what follows one of these. */

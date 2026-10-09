@@ -203,7 +203,7 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
           </span>
           <textarea #noteField [placeholder]="'ui.note.placeholder' | t" [value]="note()" [appAutoGrow]="note()" rows="1"
                     (focus)="writingNote.set(true)" (input)="onNote($any($event.target).value ?? '')"></textarea>
-          @if (!writingNote() && note() === original() && note() !== '') { <small>{{ 'ui.review.fromStatement' | t }}</small> }
+          @if (!writingNote() && note() === original() && note() !== '') { <small>{{ (proposal().source === 'notification' ? 'ui.review.fromMessage' : 'ui.review.fromStatement') | t }}</small> }
         </span>
         @if (note() !== '') {
           <!-- On the press, keeping the note's focus: see clearNote in the movement form. -->

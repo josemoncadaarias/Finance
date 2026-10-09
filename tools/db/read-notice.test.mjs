@@ -114,3 +114,10 @@ test('which messages look like a bank', () => {
   assert.equal(looksLikeMoney('Tu codigo es 483920'), false);
   assert.equal(looksLikeMoney('Llego tu pedido'), false);
 });
+
+test('yields paid are money in', () => {
+  const read = readNotice('Plata Pay: Ganaste $198,16 en rendimientos. Con tu Cuenta obtienes mas recompensas.');
+  assert.equal(read.kind, 'movement');
+  assert.equal(read.direction, 'in');
+  assert.equal(read.amountMinor, 19816);
+});
