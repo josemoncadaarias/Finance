@@ -11,7 +11,9 @@
  * title bar is "Descartar", asked first by the screen that opened this.
  */
 
-import { Component, ElementRef, computed, inject, input, output, signal, viewChild, type OnInit } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, output, signal, viewChild, type OnDestroy, type OnInit } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import { NgTemplateOutlet } from '@angular/common';
 import { IonIcon, IonModal, IonDatetime } from '@ionic/angular';
 
@@ -256,7 +258,7 @@ import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
     }
   `,
 })
-export class ProposalFormComponent implements OnInit {
+export class ProposalFormComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
   readonly i18n = inject(I18nService);
 
@@ -351,7 +353,23 @@ export class ProposalFormComponent implements OnInit {
     return null;
   });
 
+  /** Undoes the keyboard listener when the form closes. */
+  private keyboardClosed: { remove: () => Promise<void> } | null = null;
+
+  ngOnDestroy(): void {
+    void this.keyboardClosed?.remove();
+  }
+
   ngOnInit(): void {
+    // The phone's keyboard closing ends the note, however it was closed - the
+    // back button included, which does not blur the field. The movement form
+    // did this already; this one did not (Jose, 2026-10-09: after the note,
+    // going back left it raised and only "Listo" brought the form back).
+    if (Capacitor.isNativePlatform()) {
+      void Keyboard.addListener('keyboardDidHide', () => {
+        if (this.writingNote()) this.finishNote();
+      }).then(handle => { this.keyboardClosed = handle; });
+    }
     const proposal = this.proposal();
     this.autofocusAmount = proposal.amount_minor === null || proposal.amount_minor === 0;
     if (proposal.amount_minor !== null) {
