@@ -23,7 +23,7 @@ Finance es para quien lleva sus cuentas en serio y quiere saber, sin adivinar, a
 Todo queda en tu celular. No hay servidores ni cuentas que crear: la app funciona sin internet, y si quieres una copia, se guarda en una carpeta privada de tu propio Google Drive.
 
 TUS MOVIMIENTOS, CLAROS
-• Registra gastos, ingresos y transferencias entre tus cuentas en segundos, con calculadora incluida.
+• Registra gastos, ingresos y transferencias entre tus cuentas en segundos.
 • La app te propone la nota que más usas para cada tipo de movimiento.
 • Mira el mes en un gráfico por categorías, por día o por los movimientos más grandes.
 • Busca cualquier movimiento por nota, categoría o cuenta.
@@ -40,6 +40,16 @@ RESÚMENES QUE RESPONDEN PREGUNTAS
 • Resumen financiero: cuánto entró, cuánto salió, qué categorías subieron, qué gastos se repiten cada mes y cómo se compara con el mes o el año anterior.
 • Resumen de rendimientos: cuánto ganaste, tu rentabilidad efectiva anual y si le estás ganando a la inflación.
 • Todo se exporta a Excel, con gráficas, para analizarlo a tu manera.
+
+AVISOS DE TU BANCO
+• Elige qué apps y qué remitentes de SMS son de tus bancos: cuando avisan de una compra o una transferencia, Finance te propone el movimiento al instante.
+• Aprende de tus respuestas: la cuenta, la categoría y la forma de cada mensaje.
+• Nada se guarda solo: tú revisas y apruebas cada movimiento. Los mensajes se leen en tu celular y no salen de él.
+
+DEUDAS Y PRESUPUESTOS
+• Tarjetas de crédito con su fecha de corte y de pago: cuánto pagar y cuándo.
+• Préstamos en pesos o UVR con su tabla de cuotas, y cuánto ahorras abonando a capital.
+• Topes de gasto por categoría y metas de ahorro, con avisos cuando te acercas.
 
 EXTRACTOS EN PDF
 • Importa el extracto de tu banco: la app lee los movimientos, verifica que los saldos cuadren y te los propone para que tú los apruebes uno por uno. Nada se guarda sin tu confirmación.
