@@ -2652,7 +2652,16 @@ that earns nothing works nothing out, and one in an earning account works out
 that account alone; a new day or a tax parameter still redoes all of them. The
 screen reads every account in one batch (`lastDaysOf`, `landedByProducts`,
 `heldByProducts`). On Jose's backup: 194 questions to open with nothing changed
-became 25. Not done, on purpose: accruing in the background on app start.
+became 25. **An account's page works out that account alone** (Jose, 2026-10-09: every
+new day, opening one account from the piggy bank or Cuentas worked out all of
+them first). Each account's mark carries the day and the tax parameters
+(`accrualMarks`), so `markAccrued(today, { only })` can mark one account up
+to date while the rest still wait; the page sets `othersWaiting`, and going
+back to the list (`backToList`) works the rest out; switching to another
+account from the sheet's title works that one out (`bringUp`). A change saved
+on one account (`onlyIfKnown`) marks only accounts already worked out for
+today. Tests: `accrual-mark.test.mjs`.
+Not done, on purpose: accruing in the background on app start.
 `BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.

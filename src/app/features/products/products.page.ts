@@ -1256,10 +1256,16 @@ export class ProductsPage {
       // accounts it changed in. Opening this screen worked five years of
       // yields out again every time, and later every account again after any
       // movement at all - a coffee on the credit card included.
+      // With one account's page open - or about to open, from the piggy bank
+      // or a row of Cuentas - only that account is worked out. The others
+      // wait until the list itself is back on screen (`backToList`).
       const stale = await yields.staleAccounts(today());
-      if (stale.length > 0) {
-        await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress), stale);
-        await yields.markAccrued(today());
+      const focus = this.openLine()?.account.id ?? this.wantedAccount();
+      const work = focus === null ? stale : stale.filter(id => id === focus);
+      this.othersWaiting = focus !== null && stale.some(id => id !== focus);
+      if (work.length > 0) {
+        await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress), work);
+        await yields.markAccrued(today(), focus === null ? {} : { only: work });
       }
       await this.report('busy.reading');
       await this.load();
@@ -1708,7 +1714,37 @@ export class ProductsPage {
     const line = this.lines().find(one => one.account.id === account.id);
     if (!line || line.account.id === this.openLine()?.account.id) return;
     await this.open(line);
+    if (this.othersWaiting) await this.bringUp(line.account.id);
     await this.sheet()?.scrollToTop(0);
+  }
+
+  /**
+   * True while some account other than the open one still has days to work
+   * out: the page of one account brought only that one up to date.
+   */
+  private othersWaiting = false;
+
+  /** Back from an account's page to the list, which shows every account. */
+  backToList(): void {
+    this.closeDetail();
+    if (this.othersWaiting) void this.refresh();
+  }
+
+  /** The account whose page is now open, brought up to date if it was waiting. */
+  private async bringUp(accountId: number): Promise<void> {
+    const { db, yields, tax } = this.repos();
+    if (!(await yields.staleAccounts(today())).includes(accountId)) return;
+    this.working.set(true);
+    try {
+      await accrueAllAndSettle(db, yields, tax, today(), progress => this.report('busy.yields', progress), [accountId]);
+      await yields.markAccrued(today(), { only: [accountId] });
+      await this.refreshOne(accountId);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.working.set(false);
+      this.busyState.set(null);
+    }
   }
 
   closeDetail(): void {

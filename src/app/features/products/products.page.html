@@ -218,7 +218,7 @@
      over the bar: the "+" opens the movement form on this account. A
      product's form covers the whole screen, with its own Guardar. -->
 <ion-modal class="account-page" [class.full]="form() === 'product' || form() === 'rate'"
-           [isOpen]="openLine() !== null" (didDismiss)="closeDetail()">
+           [isOpen]="openLine() !== null" (didDismiss)="backToList()">
   <ng-template>
     @if (openLine(); as line) {
       @if (form() === 'product' || form() === 'rate') {
@@ -226,7 +226,7 @@
       } @else {
         <div class="ui-frame">
           <header class="ui-titlebar">
-            <button type="button" class="back" (click)="closeDetail()" [attr.aria-label]="'ui.back' | t">
+            <button type="button" class="back" (click)="backToList()" [attr.aria-label]="'ui.back' | t">
               <ion-icon name="chevron-back"></ion-icon>
             </button>
             <!-- Tapped, it changes account without leaving (Jose, 2026-09-24). -->
