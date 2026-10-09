@@ -89,6 +89,18 @@ test('a transfer: the same two accounts, in that direction', async () => {
   assert.equal(await usualNote(w.db, { kind: 'transfer', fromAccountId: w.card, toAccountId: w.bank }, TODAY), 'Devolución');
 });
 
+test('a route needs no habit: once is enough, the last one written', async () => {
+  const w = await world();
+  const route = { kind: 'transfer', fromAccountId: w.bank, toAccountId: w.card };
+  assert.equal(await usualNote(w.db, route, TODAY), null, 'nothing written yet');
+  await w.move(w.bank, w.card, 'Primera', '2026-08-01');
+  assert.equal(await usualNote(w.db, route, TODAY), 'Primera', 'one use of the route');
+  await w.move(w.bank, w.card, 'Recarga', '2026-09-01');
+  assert.equal(await usualNote(w.db, route, TODAY), 'Recarga', 'the newest when none is a habit');
+  await w.move(w.bank, w.card, 'Primera', '2026-09-02');
+  assert.equal(await usualNote(w.db, route, TODAY), 'Primera', 'a habit still wins');
+});
+
 test('a product with no habit of its own takes the account\'s, for that category', async () => {
   // Jose's Plata, 2026-09-25: every "Cosas para la casa mercado or" sits in
   // the Bolsillo, and a spending on Cuenta Ahorros under the same category

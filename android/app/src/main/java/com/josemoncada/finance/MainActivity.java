@@ -35,6 +35,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(BankNotificationsPlugin.class);
+        registerPlugin(DriveAuthPlugin.class);
         super.onCreate(savedInstanceState);
         remember(getIntent());
         ListenerKeeper.schedule(getApplicationContext());

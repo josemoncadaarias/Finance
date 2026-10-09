@@ -112,7 +112,14 @@ function usesOf(context: NoteContext): { sql: string; params: unknown[] } {
  */
 export async function usualNote(db: SqlDriver, context: NoteContext, today: string): Promise<string | null> {
   const own = await mostWritten(db, context, today);
-  if (own !== null || context.kind !== 'product' || context.categoryId === null) return own;
+  if (own !== null) return own;
+  // A route - two accounts, or two products of one account - is specific
+  // enough for one use to say what it is for: with no habit yet, the note
+  // last written on it (Jose, 2026-10-09: a move from Global66's Cuenta de
+  // ahorros into its Bóveda, edited to "Recarga bóveda principal", offered
+  // nothing the next time). A category alone is too vague for that.
+  if (context.kind === 'transfer' || context.kind === 'betweenProducts') return lastWritten(db, context);
+  if (context.kind !== 'product' || context.categoryId === null) return null;
   // A product with no habit of its own falls back to the account's, for the
   // same side and category: a note says what was bought, not which pocket it
   // came out of. Found by Jose on 2026-09-25 - his "Cosas para la casa
@@ -121,6 +128,12 @@ export async function usualNote(db: SqlDriver, context: NoteContext, today: stri
   return mostWritten(db, {
     kind: 'movement', accountId: context.accountId, side: context.side, categoryId: context.categoryId,
   }, today);
+}
+
+async function lastWritten(db: SqlDriver, context: NoteContext): Promise<string | null> {
+  const { sql, params } = usesOf(context);
+  const rows = await db.query<{ note: string }>(`WITH uses AS (${sql}) SELECT note FROM uses ORDER BY day DESC LIMIT 1`, params);
+  return rows[0]?.note ?? null;
 }
 
 async function mostWritten(db: SqlDriver, context: NoteContext, today: string): Promise<string | null> {
