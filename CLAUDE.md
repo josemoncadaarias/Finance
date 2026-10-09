@@ -1968,6 +1968,13 @@ backup restore against iOS's own SQLite backend.
   notifications. Play may ask for a foreground-service declaration
   (special use) before closed testing or production. Not yet seen on the
   phone.
+  **Both declarations filled and saved by Jose on 2026-10-09** (not sent
+  for review: the app is still a draft, they go with the first closed or
+  production release): SMS and Call log permissions ("SMS-based money
+  management", instructions for review, the four declarations) and
+  Foreground service permissions (Special use → Other), one video for both,
+  https://www.youtube.com/watch?v=YXEn2i_Zt7o. "Sign in details" (formerly
+  App access) answered "No" - nothing in the app is restricted.
   **A source never reports one movement twice, against the ledger too**: a
   movement saved from a message (`transaction_id` of an accepted
   notification proposal, last 14 days) is never the twin of a later message
