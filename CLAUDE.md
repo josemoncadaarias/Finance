@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (759 on 2026-10-08, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (768 on 2026-10-09, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -211,6 +211,25 @@ these):
   `ledger-and-typed.test.mjs`). Every product in Jose's data is typed
   (checked on his copy, 2026-10-02), so none of his figures moved; Banco
   Índigo in the demo is the mixed case.
+
+- **Sample data and erasing everything are in the app** (Jose, 2026-10-09,
+  mockups `21a`-`21f`, approved). The showcase generator lives in
+  `core/demo/showcase.ts` (`buildShowcase(db, today)`, every date moved from
+  2026-10-02 to the day it is built; `tools/db/showcase-data.mjs` is now a
+  wrapper, `showcase.test.mjs` builds it on five days). An app with no
+  account shows Inicio's welcome (`app-demo-home`): "Crear mi primera
+  cuenta" (`/accounts?new=account`), "Explorar con datos de ejemplo" (one
+  transaction, cancellable, under a second in a browser; NOT timed on the
+  phone) and "Restaurar una copia". While it is loaded (`settings`
+  `demo.loaded`, `DemoService.active`) Inicio carries a strip with "Empezar
+  con los míos", Drive is never written (`CloudBackupService.save`) and bank
+  messages are not proposed (`NoticeInboxService`). Más → Tus datos has
+  "Datos de ejemplo" and "Borrar todos los datos" (`/erase`: counts, "Guardar
+  una copia antes", type BORRAR/ERASE). Erasing (`DatabaseService.eraseAll`
+  -> `eraseEverything`) drops every table, migrates again and seeds the
+  starter categories; it forgets which Drive copy the device continues
+  (`rememberSeen('')`) so an empty database never replaces it unasked, and
+  the full erase also forgets the kept bank messages (`forgetCaught`).
 
 ---
 

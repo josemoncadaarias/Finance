@@ -1,4 +1,4 @@
-<ion-header class="ui-header">
+<ion-header class="ui-header" [class.hidden-empty]="demo.empty() === true">
   <!-- What you are looking at: the account's own badge, its name on one line
        (it slides when it does not fit), and what that selection includes.
        The whole row opens the list of accounts (mockup 1a). -->
@@ -48,7 +48,13 @@
       <h2>{{ 'state.failed' | t }}</h2>
       <p>{{ database.error()?.message }}</p>
     </div>
+  } @else if (demo.empty() === true) {
+    <!-- An app with no account at all: the welcome, and the sample data (21a). -->
+    <app-demo-home part="welcome"></app-demo-home>
   } @else {
+
+    <!-- The sample data is loaded: said on top, always, with the way out (21c). -->
+    @if (demo.active()) { <app-demo-home part="strip"></app-demo-home> }
 
     <!-- A card or an installment due this week, or late (11o); nothing when nothing is. -->
     <app-due-home></app-due-home>

@@ -77,6 +77,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/account/account.page').then(m => m.AccountPage),
   },
   {
+    // Más → Tus datos → Borrar todos los datos (21f).
+    path: 'erase',
+    loadComponent: () => import('./features/erase/erase.page').then(m => m.ErasePage),
+  },
+  {
     // Más: everything the drawer held that is not a tab.
     path: 'more',
     loadComponent: () => import('./features/more/more.page').then(m => m.MorePage),

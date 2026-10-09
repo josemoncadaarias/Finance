@@ -21,6 +21,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { Language } from '../../core/i18n/translations';
 import { DatabaseService } from '../../core/database/database.service';
+import { DemoService } from '../../core/demo/demo.service';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { GoogleAccountService } from '../../core/cloud/google-account.service';
 import { CloudBackupService } from '../../core/cloud/cloud-backup.service';
@@ -54,6 +55,7 @@ export class MorePage {
   readonly accent = inject(AccentService);
   private readonly limits = inject(LimitsService);
   private readonly goals = inject(GoalsService);
+  readonly demo = inject(DemoService);
 
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);

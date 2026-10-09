@@ -16,6 +16,7 @@ import { I18nService } from '../i18n/i18n.service';
 import type { SqlDriver } from './sql-driver';
 import { migrate, targetVersion, type MigrationResult } from './migrations/migration-runner';
 import { MIGRATION_SOURCES } from './migrations/statements.generated';
+import { eraseEverything } from './export/restore-backup';
 
 export type DatabaseStatus = 'closed' | 'opening' | 'ready' | 'failed';
 
@@ -86,6 +87,19 @@ export class DatabaseService {
   /** Schema version this build expects. Useful in a diagnostics screen. */
   get expectedVersion(): number {
     return targetVersion(MIGRATION_SOURCES);
+  }
+
+  /**
+   * Every row of this phone's database gone, as on the day the app was
+   * installed: the schema migrated again and the starter categories seeded in
+   * the app's language. There is no undo; the screens that call it ask first.
+   */
+  async eraseAll(): Promise<void> {
+    const db = this.driver;
+    await eraseEverything(db, MIGRATION_SOURCES);
+    await applyCategoryIcons(db);
+    await seedStarterCategories(db, this.i18n.language());
+    this.dataChanged();
   }
 
   /** Tells every screen watching that the data underneath them has changed. */
