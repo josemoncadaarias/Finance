@@ -1051,19 +1051,31 @@ export class ReviewPage {
   private openAskedNotice(): void {
     const asked = this.askedNotice;
     if (!asked) return;
+    // The same words first; failing that, the same source within two
+    // minutes (Jose, 2026-10-09: a Rappi purchase in Didi opened the whole
+    // list - an app's notice may carry its words in the title alone, and the
+    // phone's notice and the kept message are not always worded alike).
     let best: { line: Line; apart: number } | null = null;
+    let near: { line: Line; apart: number } | null = null;
     for (const batch of this.batches()) {
       for (const line of batch.lines) {
         if (line.proposal.source !== 'notification') continue;
-        const read = this.read(line.proposal) as { package?: string; text?: string; postedAt?: number; sightings?: { evidence?: { package?: string; text?: string; postedAt?: number } }[] };
-        const said = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
+        type Said = { package?: string; title?: string; text?: string; postedAt?: number };
+        const read = this.read(line.proposal) as Said & { sightings?: { evidence?: Said }[] };
+        const said: Said[] = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
         for (const one of said) {
-          if (one.package !== asked.source || (one.text ?? '').trim() !== asked.text.trim()) continue;
+          if (one.package !== asked.source) continue;
           const apart = Math.abs((one.postedAt ?? 0) - asked.at);
-          if (apart < 10 * 60_000 && (!best || apart < best.apart)) best = { line, apart };
+          const words = [one.text, one.title].map(text => sameWords(text ?? ''));
+          if (words.includes(sameWords(asked.text))) {
+            if (apart < 10 * 60_000 && (!best || apart < best.apart)) best = { line, apart };
+          } else if (apart < 2 * 60_000 && (!near || apart < near.apart)) {
+            near = { line, apart };
+          }
         }
       }
     }
+    best ??= near;
     if (!best) return;
     this.askedNotice = null;
     this.tapped(best.line);
@@ -1673,4 +1685,9 @@ const CHECKS_KEY = 'finance.statementChecks';
 
 function loadChecks(): Record<string, StatementCheck> {
   try { return JSON.parse(localStorage.getItem(CHECKS_KEY) ?? '{}') ?? {}; } catch { return {}; }
+}
+
+/** Text compared as words: spaces and line breaks of any kind count as one. */
+function sameWords(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
 }
