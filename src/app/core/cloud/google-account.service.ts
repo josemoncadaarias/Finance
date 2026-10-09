@@ -16,7 +16,7 @@
  */
 
 import { Injectable, signal } from '@angular/core';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 
 import { environment } from '../../../environments/environment';
@@ -40,6 +40,38 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
  * so twenty seconds of nothing means it is not going to.
  */
 const SILENT_MS = 20_000;
+
+/**
+ * Drive's token asked of Google with nothing on screen (`DriveAuthPlugin`):
+ * an empty token means the person has to be asked, by a sign-in.
+ */
+const DriveAuth = registerPlugin<{ token(options: { scope: string; email: string }): Promise<{ token: string }> }>('DriveAuth');
+
+/**
+ * Who was signed in, kept on the device so opening the app needs no sign-in
+ * (Jose, 2026-10-09: Android's "Accediendo a la cuenta" bar showed on every
+ * start). Name and address only - never a token.
+ */
+const USER_KEY = 'finance.google.user';
+
+function rememberedUser(): GoogleUser | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    const user = raw ? JSON.parse(raw) as GoogleUser : null;
+    return user && typeof user.email === 'string' ? user : null;
+  } catch {
+    return null;
+  }
+}
+
+function remember(user: GoogleUser | null): void {
+  try {
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_KEY);
+  } catch {
+    // Without storage the next start signs in again, as it always did.
+  }
+}
 
 /** A silent sign-in that never answered: the account stays, the token does not. */
 export class SilentTimeout extends Error {
@@ -116,6 +148,13 @@ export class GoogleAccountService {
    */
   async restore(): Promise<void> {
     if (!this.available) return;
+    // Known from last time: shown at once, and the token is asked for only
+    // when Drive needs it - with nothing on screen (`accessToken`).
+    const known = rememberedUser();
+    if (known) {
+      this.user.set(known);
+      return;
+    }
     try {
       await this.start();
       await this.signIn({ silent: true });
@@ -165,11 +204,13 @@ export class GoogleAccountService {
       };
 
       this.token = profile.accessToken?.token ?? null;
-      this.user.set({
+      const user: GoogleUser = {
         email: profile.profile?.email ?? '',
         name: profile.profile?.name ?? '',
         photoUrl: profile.profile?.imageUrl ?? null,
-      });
+      };
+      this.user.set(user);
+      remember(user);
       return true;
     } catch (failure) {
       this.token = null;
@@ -177,6 +218,7 @@ export class GoogleAccountService {
       // was signed in still is, and the next try asks again.
       if (failure instanceof SilentTimeout) return false;
       this.user.set(null);
+      remember(null);
       // A cancelled sign-in is a decision, not a failure to report.
       if (!options.silent && !cancelled(failure)) {
         this.error.set(messageOf(failure));
@@ -192,6 +234,7 @@ export class GoogleAccountService {
       await SocialLogin.logout({ provider: 'google' });
     } finally {
       this.user.set(null);
+      remember(null);
       this.token = null;
     }
   }
@@ -205,7 +248,18 @@ export class GoogleAccountService {
    */
   async accessToken(): Promise<string | null> {
     if (this.token) return this.token;
-    if (!this.user()) return null;
+    const user = this.user();
+    if (!user) return null;
+    // Drive's permission alone, already given: no sign-in, nothing on screen.
+    try {
+      const { token } = await withinTime(DriveAuth.token({ scope: SCOPE, email: user.email }), SILENT_MS);
+      if (token) {
+        this.token = token;
+        return token;
+      }
+    } catch {
+      // Not on this phone, or Google needs the person: the sign-in below.
+    }
     this.refreshing ??= this.signIn({ silent: true }).finally(() => { this.refreshing = null; });
     if (!(await this.refreshing) && this.user()) throw new SilentTimeout();
     return this.token;
