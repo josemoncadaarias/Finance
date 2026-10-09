@@ -1597,7 +1597,10 @@ export class YieldsRepository {
       if (parsed && typeof parsed.shared === 'string' && parsed.accounts) before = parsed;
     } catch { /* an old mark: every account is worked out once */ }
 
-    if (!before || before.shared !== current.shared) return enrolled;
+    // Each account's mark carries the day and the tax parameters itself, so
+    // an account brought up to today alone - the one whose page is open - is
+    // up to date while the others still wait for theirs.
+    if (!before) return enrolled;
     return enrolled.filter(id => before.accounts[id] !== current.accounts[id]);
   }
 
@@ -1673,17 +1676,44 @@ export class YieldsRepository {
    * one that changed has just been worked out. With no mark at all, nothing
    * is claimed - a whole pass has never run, and the next open owes one.
    */
-  async markAccrued(today: IsoDate, options: { onlyIfKnown?: boolean } = {}): Promise<void> {
-    if (options.onlyIfKnown) {
-      const stored = await this.db.queryOne<{ value: string }>(
-        'SELECT value FROM settings WHERE key = ?', [ACCRUAL_MARK]);
-      if (!stored) return;
+  async markAccrued(
+    today: IsoDate,
+    options: { onlyIfKnown?: boolean; only?: readonly number[] } = {},
+  ): Promise<void> {
+    const stored = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [ACCRUAL_MARK]);
+    if (options.onlyIfKnown && !stored) return;
+
+    const current = await this.accrualMarks(today);
+    let marks = current;
+    if (options.only || options.onlyIfKnown) {
+      let before: AccrualMarks | null = null;
+      try {
+        const parsed = stored ? JSON.parse(stored.value) : null;
+        if (parsed && typeof parsed.shared === 'string' && parsed.accounts) before = parsed;
+      } catch { /* an old mark: nothing in it is kept */ }
+      const prefix = `${current.shared}#`;
+      const accounts: Record<number, string> = {};
+      for (const [key, mark] of Object.entries(current.accounts)) {
+        const id = Number(key);
+        const kept = before?.accounts[id];
+        // Marked now: the accounts just worked out and, after a change made
+        // to one account, every account already worked out for today and
+        // these tax parameters - nothing of theirs moved. An account still
+        // waiting for today keeps its old mark, so it is still worked out.
+        const fresh = options.only
+          ? options.only.includes(id)
+          : kept !== undefined && kept.startsWith(prefix);
+        if (fresh) accounts[id] = mark;
+        else if (kept !== undefined) accounts[id] = kept;
+      }
+      marks = { shared: current.shared, accounts };
     }
 
     const now = this.now();
     await this.db.run(
       'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
-      [ACCRUAL_MARK, JSON.stringify(await this.accrualMarks(today)), now]);
+      [ACCRUAL_MARK, JSON.stringify(marks), now]);
   }
 
   /**
@@ -1744,7 +1774,9 @@ export class YieldsRepository {
       }
     }
     for (const [accountId, sigs] of parts) {
-      if (sigs.some(sig => sig.startsWith('enrolled='))) marks.accounts[accountId] = sigs.sort().join('|');
+      if (sigs.some(sig => sig.startsWith('enrolled='))) {
+        marks.accounts[accountId] = `${marks.shared}#${sigs.sort().join('|')}`;
+      }
     }
     return marks;
   }

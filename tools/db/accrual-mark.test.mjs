@@ -234,3 +234,26 @@ test('working out only the stale accounts leaves what working out all of them wo
   await some.db.close();
   await all.db.close();
 });
+
+test("one account's page works out that account alone, and the rest wait their turn", async () => {
+  const context = await twoBanks();
+  const { db, yields, tax, pibank, dale } = context;
+  const TOMORROW = '2026-09-16';
+  assert.deepEqual(await yields.staleAccounts(TOMORROW), [pibank, dale]);
+
+  // Pibank's page opens on a new day: only Pibank is worked out and marked.
+  await accrueAllAndSettle(db, yields, tax, TOMORROW, undefined, [pibank]);
+  await yields.markAccrued(TOMORROW, { only: [pibank] });
+  assert.deepEqual(await yields.staleAccounts(TOMORROW), [dale], 'Dale still waits for the new day');
+
+  // A change saved on Pibank's page marks what is already up to date, and
+  // never Dale, which has not been worked out for the new day yet.
+  await yields.markAccrued(TOMORROW, { onlyIfKnown: true });
+  assert.deepEqual(await yields.staleAccounts(TOMORROW), [dale]);
+
+  // Back on the list: the rest are worked out, and nothing is left.
+  await accrueAllAndSettle(db, yields, tax, TOMORROW, undefined, [dale]);
+  await yields.markAccrued(TOMORROW);
+  assert.deepEqual(await yields.staleAccounts(TOMORROW), []);
+  await db.close();
+});
