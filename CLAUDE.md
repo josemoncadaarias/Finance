@@ -188,6 +188,10 @@ these):
   and once a PR is merged the next piece of work starts from the new `main`
   on the same branch name. Commit messages in English, ending with the
   attribution lines the session asks for.
+- **Every time work is merged, end with the steps to publish it to the
+  testers and its release note** (Jose, 2026-10-09): Store bundle on `main`,
+  then the new version into Closed testing (Alpha) with an `<es-419>` note
+  of at most 500 characters, then Send changes for review.
 - A new user-facing word goes into `core/i18n/translations.ts` or, for the
   redesign's words, `core/i18n/translations-ui.ts` - both languages, same
   keys (`i18n.test.mjs` checks it).
