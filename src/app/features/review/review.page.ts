@@ -1031,7 +1031,7 @@ export class ReviewPage {
       const raw = params.get('notice');
       if (!raw) return;
       try {
-        this.askedNotice = JSON.parse(raw) as { source: string; text: string; at: number };
+        this.askedNotice = JSON.parse(raw) as { source: string; text: string; at: number; digits?: string };
       } catch {
         this.askedNotice = null;
       }
@@ -1040,7 +1040,7 @@ export class ReviewPage {
   }
 
   /** The message the phone's notice was about, until its proposal is found. */
-  private askedNotice: { source: string; text: string; at: number } | null = null;
+  private askedNotice: { source: string; text: string; at: number; digits?: string } | null = null;
 
   /**
    * Opens the proposal the notice was about: the same source (or a message
@@ -1057,12 +1057,22 @@ export class ReviewPage {
     // phone's notice and the kept message are not always worded alike).
     let best: { line: Line; apart: number } | null = null;
     let near: { line: Line; apart: number } | null = null;
+    // Last, the same money within ten minutes from any source (Jose,
+    // 2026-10-09: a Plata SMS opened nothing). The notice carries the amount
+    // as the bank wrote it: digits with or without its cents.
+    let sameMoney: { line: Line; apart: number } | null = null;
+    const digits = Number(asked.digits ?? '');
     for (const batch of this.batches()) {
       for (const line of batch.lines) {
         if (line.proposal.source !== 'notification') continue;
         type Said = { package?: string; title?: string; text?: string; postedAt?: number };
         const read = this.read(line.proposal) as Said & { sightings?: { evidence?: Said }[] };
         const said: Said[] = [read, ...(Array.isArray(read.sightings) ? read.sightings.map(one => one?.evidence ?? {}) : [])];
+        const minor = Math.abs(line.proposal.amount_minor ?? 0);
+        if (digits > 0 && (minor === digits || minor === digits * 100)) {
+          const apart = Math.min(...said.map(one => Math.abs((one.postedAt ?? 0) - asked.at)));
+          if (apart < 10 * 60_000 && (!sameMoney || apart < sameMoney.apart)) sameMoney = { line, apart };
+        }
         for (const one of said) {
           if (one.package !== asked.source) continue;
           const apart = Math.abs((one.postedAt ?? 0) - asked.at);
@@ -1075,7 +1085,7 @@ export class ReviewPage {
         }
       }
     }
-    best ??= near;
+    best ??= near ?? sameMoney;
     if (!best) return;
     this.askedNotice = null;
     this.tapped(best.line);

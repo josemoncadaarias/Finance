@@ -85,7 +85,7 @@ final class MovementAlert {
             "purchase", "paid", "spent", "withdraw", "sent" };
     private static final String[] IN = {
             "recibiste", "recibio", "abono", "consignacion", "deposito", "te llegaron", "te enviaron", "ingreso",
-            "received", "deposit", "credited" };
+            "ganaste", "rendimiento", "received", "earned", "deposit", "credited" };
     private static final String[] NOT_A_MOVEMENT = {
             "codigo", "clave", "otp", "contrasena", "promo", "oferta", "gana ", "vence", "recuerda", "saldo es", "tu saldo" };
 
