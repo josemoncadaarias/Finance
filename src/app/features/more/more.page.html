@@ -77,6 +77,19 @@
         <span class="ui-tx"><b class="wrap">{{ 'more.export' | t }}</b><small>{{ 'more.export.hint' | t }}</small></span>
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
+      <!-- The sample data lives on Inicio: offered there on an empty app, and
+           its strip there while it is loaded (21e). -->
+      <button type="button" class="ui-row" [disabled]="!demo.empty() && !demo.active()" (click)="go('/movements')">
+        <app-badge [size]="40" builtin="flask-outline" fixed="#9b7bff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.demo' | t }}</b>
+          <small>{{ (demo.active() ? 'more.demo.loaded' : demo.empty() ? 'more.demo.offer' : 'more.demo.onlyEmpty') | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+      <button type="button" class="ui-row" (click)="go('/erase')">
+        <app-badge [size]="40" builtin="trash-outline" fixed="#ef5b66"></app-badge>
+        <span class="ui-tx"><b class="wrap danger">{{ 'more.erase' | t }}</b><small>{{ 'more.erase.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
     </div>
 
     <div class="ui-h">{{ 'more.tools' | t }}</div>

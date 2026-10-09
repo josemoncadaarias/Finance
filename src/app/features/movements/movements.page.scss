@@ -121,3 +121,6 @@
 }
 
 /* "Corregido a mano": a small lock before the line under the title. */
+
+/* An empty app shows only the welcome: no account to name, no period to step (21a). */
+.ui-header.hidden-empty { display: none; }

@@ -29,6 +29,8 @@ import { MovementsStore } from './movements.store';
 import { SpendingChartComponent } from './spending-chart.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { SwipeDirective } from '../../shared/swipe.directive';
+import { DemoHomeComponent } from '../../shared/demo/demo-home.component';
+import { DemoService } from '../../core/demo/demo.service';
 import type { EntryKind } from '../entry/entry.component';
 import type { Flow, Grouping, Movement, MovementGroup } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
@@ -52,7 +54,7 @@ import { DueHomeComponent } from '../debts/due-home.component';
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
-    CommonModule, FormsModule, MoneyPipe, SpendingChartComponent, SwipeDirective, BadgeComponent,
+    CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, LimitsHomeComponent, DueHomeComponent,
     IonContent, IonHeader, IonIcon, IonSpinner,
   ],
@@ -64,6 +66,8 @@ export class MovementsPage {
   readonly filter = inject(FilterService);
   readonly store = inject(MovementsStore);
   readonly database = inject(DatabaseService);
+  /** The sample data: the welcome on an empty app, the strip while it is loaded (21a, 21c). */
+  readonly demo = inject(DemoService);
   readonly i18n = inject(I18nService);
 
   readonly status = this.database.status;

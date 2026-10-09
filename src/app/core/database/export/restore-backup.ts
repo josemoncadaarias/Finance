@@ -134,6 +134,24 @@ export async function restoreBackup(
   }
 }
 
+/**
+ * Leaves the database as a fresh install has it: every table dropped and the
+ * whole schema migrated again, its own seed rows included (currencies, the
+ * tax parameters, the IPC). "Borrar todos los datos" (mockup 21f) and erasing
+ * the sample data both end here; the caller seeds the starter categories.
+ */
+export async function eraseEverything(db: SqlDriver, sources: readonly MigrationSource[]): Promise<void> {
+  const existing = await db.query<{ name: string }>(
+    `SELECT name FROM sqlite_master
+     WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+  );
+  for (const table of dropOrder(existing.map(row => row.name))) {
+    await db.execute(`DROP TABLE IF EXISTS "${table}"`);
+  }
+  await db.execute('PRAGMA user_version = 0');
+  await migrate(db, sources);
+}
+
 /** Drops everything, rebuilds the schema the rows came from, and puts them in. */
 async function replaceWith(
   db: SqlDriver,

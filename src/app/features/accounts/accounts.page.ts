@@ -179,7 +179,9 @@ export class AccountsPage {
     // "Es de una cuenta nueva", chosen after reading a statement from the
     // "+": the new-account form opens filled in from it (2h).
     this.route.queryParamMap.subscribe(params => {
-      if (params.get('new') !== 'statement') return;
+      // Or "Crear mi primera cuenta" on an empty Inicio (21a).
+      const asked = params.get('new');
+      if (asked !== 'statement' && asked !== 'account') return;
       this.editor.set({ account: null });
       void this.router.navigate([], { queryParams: {}, replaceUrl: true });
     });

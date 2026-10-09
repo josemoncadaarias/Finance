@@ -31,3 +31,6 @@ small.late { color: var(--app-red) !important; }
   align-items: center;
   gap: 6px;
 }
+
+.danger { color: var(--app-red); }
+.ui-row:disabled { opacity: .55; }

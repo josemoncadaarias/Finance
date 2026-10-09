@@ -19,6 +19,7 @@ import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
 import { DatabaseService } from '../database/database.service';
+import { DemoService } from '../demo/demo.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
@@ -28,6 +29,7 @@ import { noticeKey, noticeSource, readNotices, type KeptNotice } from './notice-
 export class NoticeInboxService {
   private readonly database = inject(DatabaseService);
   private readonly router = inject(Router);
+  private readonly demo = inject(DemoService);
   private running: Promise<number> | null = null;
   private started = false;
 
@@ -69,6 +71,9 @@ export class NoticeInboxService {
 
   private async pass(): Promise<number> {
     try {
+      // Real messages never land among the sample's invented accounts: they
+      // wait on the phone until it is erased.
+      if (this.demo.active()) return 0;
       const { supported } = await BankNotifications.isSupported();
       if (!supported) return 0;
       const { caught } = await BankNotifications.caught();

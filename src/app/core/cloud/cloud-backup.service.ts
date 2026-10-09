@@ -18,6 +18,7 @@ import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
 import { DatabaseService } from '../database/database.service';
+import { DemoService } from '../demo/demo.service';
 import { I18nService } from '../i18n/i18n.service';
 import { exportBackup, toJson } from '../database/export/export-backup';
 import { GoogleAccountService, SilentTimeout } from './google-account.service';
@@ -154,6 +155,7 @@ function readAuto(): boolean {
 export class CloudBackupService {
   private readonly google = inject(GoogleAccountService);
   private readonly database = inject(DatabaseService);
+  private readonly demo = inject(DemoService);
   private readonly i18n = inject(I18nService);
 
   /** What Drive holds, as far as this session knows. */
@@ -419,6 +421,9 @@ export class CloudBackupService {
 
   async save(options: { anyway?: boolean; auto?: boolean } = {}): Promise<boolean> {
     if (this.state() === 'working' || !this.canSave()) return false;
+    // The sample data is never a copy of anybody's money (mockup 21c): Drive
+    // waits until it is erased.
+    if (this.demo.active()) return false;
     // Asking Google for a token is a sign-in, and Android may never answer
     // one for an app that is not in front. An automatic save with no token at
     // hand waits: the database stays marked as behind, and coming back to the
