@@ -232,12 +232,18 @@ let trm = 4_050_0000;
 for (const d of days(FROM, TODAY)) {
   trm += next(-140_000, 110_000);
   trmOf.set(d, trm);
+  // OR IGNORE: on a phone the app has already fetched today's real TRM by
+  // the time the sample is asked for, and that one stays.
   await db.run(
-    `INSERT INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
+    `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
      VALUES (?, 'USD', 'COP', ?, 'trm', ?)`, [d, trm, NOW()]);
 }
 for (const [i, d] of days(FROM, TODAY).entries()) {
-  if (i % 7 === 0 || d === TODAY) await rates.set({ on_date: d, base_code: 'EUR', quote_code: 'COP', rate_scaled: Math.round(trmOf.get(d) * 1.09), source: 'derived' });
+  if (i % 7 === 0 || d === TODAY) {
+    await db.run(
+      `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
+       VALUES (?, 'EUR', 'COP', ?, 'derived', ?)`, [d, Math.round(trmOf.get(d) * 1.09), NOW()]);
+  }
 }
 
 await onProgress(0.1);

@@ -56,3 +56,20 @@ test('the categories are found in English too', async () => {
   assert.ok(await count(db, "SELECT t.id FROM transactions t JOIN categories c ON c.id = t.category_id WHERE c.name = 'Groceries'") > 0);
   await db.close();
 });
+
+test("today's real rates, fetched before the sample was asked for, stay", async () => {
+  // A phone fetches today's TRM and euro a few seconds after opening; the
+  // sample is built afterwards and must neither fail on them nor replace them.
+  const today = '2026-10-09';
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  await seedStarterCategories(db, 'es', () => `${today}T08:00:00Z`);
+  for (const [base, rate] of [['USD', 38_765_400], ['EUR', 45_100_000]]) {
+    await db.run(`INSERT INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
+                  VALUES (?, ?, 'COP', ?, 'trm', ?)`, [today, base, rate, `${today}T08:00:00Z`]);
+  }
+  await buildShowcase(db, today);
+  const usd = await db.queryOne(`SELECT rate_scaled FROM exchange_rates WHERE on_date = ? AND base_code = 'USD'`, [today]);
+  assert.equal(usd.rate_scaled, 38_765_400);
+  await db.close();
+});
