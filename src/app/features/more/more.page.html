@@ -121,6 +121,11 @@
         <span class="ui-tx"><b class="wrap">{{ 'more.appearance' | t }}</b><small>{{ appearanceLine() }}</small></span>
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
+      <button type="button" class="ui-row" (click)="toursSheet.set(true)">
+        <app-badge [size]="40" builtin="compass-outline" fixed="#6378ff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'tour.more.title' | t }}</b><small>{{ (tour.enabled() ? 'tour.more.on' : 'tour.more.off') | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
     </div>
 
     <div class="ui-page-end"></div>
@@ -178,6 +183,32 @@
         }
       </div>
       <p class="hint">{{ 'appearance.accent.hint' | t }}</p>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- The guided tours: shown the first time, replayed, brought back (22i). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="toursSheet()" (didDismiss)="toursSheet.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="toursSheet.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'tour.more.title' | t }}</h2>
+      <div class="ui-list">
+        <div class="ui-row plain">
+          <span class="ui-tx"><b class="wrap">{{ 'tour.more.firstTime' | t }}</b><small class="wrap">{{ 'tour.more.firstTime.hint' | t }}</small></span>
+          <button type="button" class="ui-switch" [class.on]="tour.enabled()" role="switch" [attr.aria-checked]="tour.enabled()"
+                  (click)="tour.setEnabled(!tour.enabled())"></button>
+        </div>
+        <button type="button" class="ui-row" (click)="replayHome()">
+          <span class="ui-tx"><b class="wrap">{{ 'tour.more.replay' | t }}</b></span>
+          <ion-icon class="ui-p" name="play-outline"></ion-icon>
+        </button>
+        <button type="button" class="ui-row" (click)="resetTours()">
+          <span class="ui-tx"><b class="wrap">{{ 'tour.more.reset' | t }}</b><small class="wrap">{{ 'tour.more.reset.hint' | t }}</small></span>
+          <ion-icon class="ui-p" name="refresh-outline"></ion-icon>
+        </button>
+      </div>
     </div>
   </ng-template>
 </ion-modal>

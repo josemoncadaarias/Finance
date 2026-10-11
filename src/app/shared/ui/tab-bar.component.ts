@@ -38,21 +38,21 @@ const TAB_OF: [string, Tab][] = [
   standalone: true,
   imports: [IonIcon, TranslatePipe],
   template: `
-    <nav>
+    <nav data-tour="tabs">
       <button type="button" [class.on]="tab() === 'home'" (click)="go('/movements')">
         <ion-icon name="home-outline"></ion-icon><span>{{ 'ui.tab.home' | t }}</span>
       </button>
       <button type="button" [class.on]="tab() === 'accounts'" (click)="go('/accounts')">
         <ion-icon name="wallet-outline"></ion-icon><span>{{ 'ui.tab.accounts' | t }}</span>
       </button>
-      <button type="button" class="plus" (click)="compose.sheet.set(true)"
+      <button type="button" class="plus" data-tour="plus" (click)="compose.sheet.set(true)"
               [attr.aria-label]="'ui.tab.new' | t" [title]="'ui.tab.new' | t">
         <ion-icon name="add"></ion-icon>
       </button>
       <button type="button" [class.on]="tab() === 'report'" (click)="go('/report')">
         <ion-icon name="stats-chart-outline"></ion-icon><span>{{ 'ui.tab.report' | t }}</span>
       </button>
-      <button type="button" [class.on]="tab() === 'more'" (click)="go('/more')">
+      <button type="button" data-tour="more" [class.on]="tab() === 'more'" (click)="go('/more')">
         <ion-icon name="grid-outline"></ion-icon><span>{{ 'ui.tab.more' | t }}</span>
         @if (waiting() > 0 || limitPassed()) { <i class="dot"></i> }
       </button>

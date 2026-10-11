@@ -235,6 +235,21 @@ these):
   (`rememberSeen('')`) so an empty database never replaces it unasked, and
   the full erase also forgets the kept bank messages (`forgetCaught`).
 
+- **Inicio's pending items are one folded line, and the app has guided
+  tours** (Jose, 2026-10-11, mockups `22a`-`22i` and `23b`/`23c`/`23g`,
+  option A of 23). `app-attention-home` wraps `app-due-home` and
+  `app-limits-home`: "N pendientes" with a pill per kind (pagos, topes,
+  metas; red when late or passed), folded by default, the choice kept on the
+  device (`finance.attentionOpen`); the rows inside are unchanged. Tours:
+  `core/tour/tour.service.ts` (`TOURS`: `home` with its welcome, `attention`,
+  `yields`; seen and on/off in localStorage, `finance.tours.*`) and
+  `shared/tour/tour-overlay.component.ts`, mounted once in the shell, which
+  dims the screen around the element marked `data-tour="..."` and skips a
+  step whose element is not on screen. Inicio offers `home` the first time it
+  shows accounts; any other tour waits for it. Más → Preferencias → Guías:
+  on/off, replay the first, show them all again. Checked in a browser on the
+  sample data; not seen on the phone.
+
 ---
 
 ## Decisions already made
