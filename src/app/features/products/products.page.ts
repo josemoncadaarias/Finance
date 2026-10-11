@@ -20,6 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
+import { TourService } from '../../core/tour/tour.service';
 import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -495,6 +496,12 @@ export class ProductsPage {
 
   /** The account whose detail sheet is open. */
   readonly openLine = signal<ProductLine | null>(null);
+  private readonly tour = inject(TourService);
+  /** The first account page ever opened says what it holds (22h). */
+  private readonly yieldsTour = effect(() => {
+    if (this.openLine() === null) return;
+    setTimeout(() => { if (this.openLine() !== null && this.form() === 'none') this.tour.offer('yields'); }, 700);
+  });
   private readonly allDays = signal<YieldDay[]>([]);
   /** The paydays corrected by hand for the open account. */
   private readonly paymentDates = signal<PaymentDate[]>([]);

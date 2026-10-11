@@ -1,4 +1,4 @@
-<ion-header class="ui-header" [class.hidden-empty]="demo.empty() === true">
+<ion-header class="ui-header" data-tour="scope" [class.hidden-empty]="demo.empty() === true">
   <!-- What you are looking at: the account's own badge, its name on one line
        (it slides when it does not fit), and what that selection includes.
        The whole row opens the list of accounts (mockup 1a). -->
@@ -56,15 +56,13 @@
     <!-- The sample data is loaded: said on top, always, with the way out (21c). -->
     @if (demo.active()) { <app-demo-home part="strip"></app-demo-home> }
 
-    <!-- A card or an installment due this week, or late (11o); nothing when nothing is. -->
-    <app-due-home></app-due-home>
-
-    <!-- A limit gone over, or close: only when something needs attention (14f, 14i, 14m). -->
-    <app-limits-home></app-limits-home>
+    <!-- What needs attention - cards and loans due (11o), caps and goals (14f,
+         14i, 14m) - folded into one line that opens to them (23b, 23c). -->
+    <app-attention-home></app-attention-home>
 
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
-      <section class="ui-hero figures">
+      <section class="ui-hero figures" data-tour="hero">
         <div class="top">
           <div class="what">
             <div class="ui-lab">{{ standing.label }}</div>
@@ -129,7 +127,7 @@
     }
 
     <!-- Chart or list: two faces of one selector. -->
-    <div class="ui-seg faces">
+    <div class="ui-seg faces" data-tour="faces">
       <button type="button" [class.on]="!filter.showList()" [attr.aria-pressed]="!filter.showList()"
               (click)="filter.showList() && filter.toggleList()">
         <ion-icon name="pie-chart-outline"></ion-icon><span>{{ 'summary.chart' | t }}</span>

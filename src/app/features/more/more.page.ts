@@ -13,6 +13,8 @@
  * (Jose, 2026-09-28).
  */
 
+import { TourService } from '../../core/tour/tour.service';
+import { ToastService } from '../../shared/ui/toast.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
@@ -87,6 +89,9 @@ export class MorePage {
 
   readonly languageSheet = signal(false);
   readonly appearanceSheet = signal(false);
+  readonly toursSheet = signal(false);
+  readonly tour = inject(TourService);
+  private readonly toast = inject(ToastService);
 
   readonly year = new Date().getFullYear();
 
@@ -195,5 +200,20 @@ export class MorePage {
 
   setTheme(choice: ThemeChoice): void {
     this.theme.set(choice);
+  }
+
+  /** Inicio's tour again, from its welcome (22i). */
+  replayHome(): void {
+    this.toursSheet.set(false);
+    this.tour.setEnabled(true);
+    void this.router.navigateByUrl('/movements').then(() => setTimeout(() => this.tour.replay('home'), 600));
+  }
+
+  /** Every tour shows again the next time its part is reached. */
+  resetTours(): void {
+    this.tour.resetAll();
+    this.tour.setEnabled(true);
+    this.toursSheet.set(false);
+    this.toast.say(this.i18n.t('tour.more.reset.done'));
   }
 }

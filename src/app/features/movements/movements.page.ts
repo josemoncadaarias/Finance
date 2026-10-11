@@ -31,6 +31,7 @@ import { MoneyPipe } from '../../shared/money.pipe';
 import { SwipeDirective } from '../../shared/swipe.directive';
 import { DemoHomeComponent } from '../../shared/demo/demo-home.component';
 import { DemoService } from '../../core/demo/demo.service';
+import { TourService } from '../../core/tour/tour.service';
 import type { EntryKind } from '../entry/entry.component';
 import type { Flow, Grouping, Movement, MovementGroup } from './group-movements';
 import type { AccountRow, TransactionRow } from '../../core/database/types';
@@ -46,8 +47,7 @@ import { formatMoney } from '../../core/database/money';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
 import { MOVE_COLOR } from '../../core/theme/palette';
-import { LimitsHomeComponent } from '../plans/limits-home.component';
-import { DueHomeComponent } from '../debts/due-home.component';
+import { AttentionHomeComponent } from './attention-home.component';
 
 @Component({
   selector: 'app-movements',
@@ -55,7 +55,7 @@ import { DueHomeComponent } from '../debts/due-home.component';
   styleUrls: ['./movements.page.scss'],
   imports: [
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
-    TranslatePipe, ScopeSheetsComponent, LimitsHomeComponent, DueHomeComponent,
+    TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,
     IonContent, IonHeader, IonIcon, IonSpinner,
   ],
 })
@@ -68,6 +68,7 @@ export class MovementsPage {
   readonly database = inject(DatabaseService);
   /** The sample data: the welcome on an empty app, the strip while it is loaded (21a, 21c). */
   readonly demo = inject(DemoService);
+  private readonly tour = inject(TourService);
   readonly i18n = inject(I18nService);
 
   readonly status = this.database.status;
@@ -305,6 +306,14 @@ export class MovementsPage {
 
   constructor() {
     this.listenForKeyboard();
+
+    // The first time Inicio shows accounts, the app's own tour (22a-22g).
+    effect(() => {
+      if (this.database.status() !== 'ready' || this.demo.empty() !== false || !this.store.standing()) return;
+      setTimeout(() => {
+        if (this.router.url.startsWith('/movements')) this.tour.offer('home');
+      }, 900);
+    });
 
     // The list changed size without a scroll: read the position again, or
     // the arrow down would wait for the first scroll to appear.

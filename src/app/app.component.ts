@@ -24,6 +24,7 @@ import { ComposeHostComponent } from './shared/ui/compose-host.component';
 import { StatementFlowComponent } from './shared/ui/statement-flow.component';
 import { ToastComponent } from './shared/ui/toast.component';
 import { LimitAlertComponent } from './features/plans/limit-alert.component';
+import { TourOverlayComponent } from './shared/tour/tour-overlay.component';
 
 @Component({
   selector: 'app-root',
@@ -31,7 +32,7 @@ import { LimitAlertComponent } from './features/plans/limit-alert.component';
   styleUrls: ['app.component.scss'],
   imports: [
     IonApp, IonRouterOutlet,
-    TabBarComponent, ComposeHostComponent, StatementFlowComponent, ToastComponent, LimitAlertComponent,
+    TabBarComponent, ComposeHostComponent, StatementFlowComponent, ToastComponent, LimitAlertComponent, TourOverlayComponent,
   ],
 })
 export class AppComponent {
