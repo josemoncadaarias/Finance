@@ -1476,6 +1476,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
+    this.reshaped = false;
 
     try {
       const loan = this.loanEntry();
@@ -1485,6 +1486,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
       else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') await this.saveScoped();
       else await this.saveMovement();
+      if (!loan && !this.isTransfer()) await this.teach();
 
       await this.workOutAgain();
       this.database.dataChanged();
@@ -1713,6 +1715,27 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.pickingProduct.set(side);
   }
 
+  /**
+   * What a saved spending or income teaches (Jose, 2026-10-12): the shop in
+   * its note is filed under its category from now on, as a proposal accepted
+   * on the review screen teaches it, so the next statement or message from
+   * it comes ready. A correction to a movement that came from a bank message
+   * also corrects what that source learned.
+   */
+  private async teach(): Promise<void> {
+    const proposals = new ProposalsRepository(this.database.driver);
+    const categoryId = this.categoryId();
+    const note = this.note().trim() || null;
+    if (categoryId !== null && note) await proposals.learn(note, categoryId, this.occurredOn());
+    const editing = this.request().editing;
+    if (editing && !this.reshaped) {
+      await proposals.movementCorrected(editing.id, { accountId: this.accountId()!, categoryId });
+    }
+  }
+
+  /** The movement corrected was written again under another id (`saveReshaped`). */
+  private reshaped = false;
+
   private async saveMovement(): Promise<void> {
     const transactions = new TransactionsRepository(this.database.driver);
     // The sign comes from the button pressed, never from what was typed.
@@ -1795,6 +1818,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * date.
    */
   private async saveReshaped(): Promise<void> {
+    this.reshaped = true;
     const editing = this.request().editing!;
     const db = this.database.driver;
     const yields = new YieldsRepository(db);
@@ -1927,25 +1951,49 @@ export class EntryComponent implements OnInit, OnDestroy {
     };
 
     const editing = this.editingTransferId();
+    const proposals = new ProposalsRepository(this.database.driver);
     if (editing !== null) {
       // Rewrites both legs together, so the two sides can never disagree.
       await transfers.update(editing, transfer);
+      // A leg written from a bank message: that message learns where the
+      // money really went, as a corrected spending does (Jose, 2026-10-12).
+      for (const leg of await this.legsOf(editing)) {
+        const other = leg.account_id === transfer.from.account_id ? transfer.to.account_id : transfer.from.account_id;
+        await proposals.movementCorrected(leg.id, { accountId: leg.account_id, otherAccountId: other });
+      }
       return;
     }
 
     const created = await transfers.create(transfer);
     const proposal = this.request().proposal;
     if (proposal) {
-      const legs = await this.database.driver.query<{ id: number; account_id: number }>(
-        'SELECT id, account_id FROM transactions WHERE transfer_id = ? ORDER BY id', [created]);
-      const leg = legs.find(one => one.account_id === proposal.accountId) ?? legs[0];
-      const other = proposal.accountId === transfer.from.account_id ? transfer.to.account_id : transfer.from.account_id;
-      const proposals = new ProposalsRepository(this.database.driver);
-      if (leg) await proposals.accepted(proposal.id, leg.id, other);
+      const legs = await this.legsOf(created);
+      // The message's end is the one its money moved on - leaving for money
+      // out, arriving for money in - whichever account the person put there.
+      // It used to be found by the account the message proposed, so changing
+      // that account in the form taught the source the old one.
+      const said = await proposals.byId(proposal.id);
+      const leaving = (said?.amount_minor ?? -1) < 0;
+      const mine = leaving ? transfer.from.account_id : transfer.to.account_id;
+      const other = leaving ? transfer.to.account_id : transfer.from.account_id;
+      const leg = legs.find(one => one.account_id === mine) ?? legs[0];
+      if (leg) {
+        if (said && said.account_id !== mine) await proposals.correct(proposal.id, { account_id: mine });
+        await proposals.accepted(proposal.id, leg.id, other);
+      }
       // The other bank's message about the same transfer is answered by it too.
       const otherLeg = legs.find(one => one.account_id === other);
-      if (proposal.pairId !== undefined && otherLeg) await proposals.accepted(proposal.pairId, otherLeg.id, proposal.accountId);
+      if (proposal.pairId !== undefined && otherLeg) {
+        const pair = await proposals.byId(proposal.pairId);
+        if (pair && pair.account_id !== other) await proposals.correct(proposal.pairId, { account_id: other });
+        await proposals.accepted(proposal.pairId, otherLeg.id, mine);
+      }
     }
+  }
+
+  private legsOf(transferId: number): Promise<{ id: number; account_id: number }[]> {
+    return this.database.driver.query<{ id: number; account_id: number }>(
+      'SELECT id, account_id FROM transactions WHERE transfer_id = ? ORDER BY id', [transferId]);
   }
 
   // ---------------------------------------------------------------------------

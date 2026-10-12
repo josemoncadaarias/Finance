@@ -547,6 +547,32 @@ export class ProposalsRepository {
     await this.learnMoldsFrom(id, otherAccountId);
   }
 
+  /**
+   * A saved movement corrected afterwards, on Inicio or anywhere the one form
+   * opens it (Jose, 2026-10-12). When it was written from a bank message,
+   * that message's answer becomes the correction - the account, the category
+   * and, for a transfer's leg, the account at the other end - and its
+   * source's mold learns it again, so the next message of that shape is
+   * proposed the way it was finally filed. A movement typed by hand has no
+   * message behind it, and nothing happens.
+   */
+  async movementCorrected(transactionId: number, fields: {
+    accountId: number; categoryId?: number | null; otherAccountId?: number | null;
+  }): Promise<void> {
+    const rows = await this.db.query<{ id: number }>(
+      `SELECT id FROM movement_proposals
+       WHERE source = 'notification' AND status = 'accepted' AND transaction_id = ?`, [transactionId]);
+    for (const row of rows) {
+      const sets = ['account_id = ?'];
+      const values: unknown[] = [fields.accountId];
+      if (fields.categoryId !== undefined) { sets.push('category_id = ?'); values.push(fields.categoryId); }
+      sets.push('updated_at = ?');
+      values.push(this.now(), row.id);
+      await this.db.run(`UPDATE movement_proposals SET ${sets.join(', ')} WHERE id = ?`, values);
+      await this.learnMoldsFrom(row.id, fields.otherAccountId ?? null);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // What the person taught about each source (rule 22, the molds)
   // ---------------------------------------------------------------------------
