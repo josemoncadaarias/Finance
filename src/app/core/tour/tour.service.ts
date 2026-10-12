@@ -12,20 +12,27 @@
  * and losing it only shows a tour again.
  */
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { NavigationEnd, Router } from '@angular/router';
 
 import type { TranslationKey } from '../i18n/translations';
 
-export type TourId = 'home' | 'attention' | 'yields';
 
 export interface TourStep {
-  /** The `data-tour` value of what is lit; none for the welcome card. */
+  /**
+   * What is lit: the `data-tour` value of an element, or a CSS selector
+   * (`sel`) when the screen carries no mark of its own. Neither is a card in
+   * the middle of the screen, saying what the screen is for.
+   */
   target?: string;
+  sel?: string;
   title: TranslationKey;
   text: TranslationKey;
 }
 
-export const TOURS: Record<TourId, { welcome?: { title: TranslationKey; text: TranslationKey }; steps: TourStep[] }> = {
+interface Tour { welcome?: { title: TranslationKey; text: TranslationKey }; steps: TourStep[] }
+
+const TOUR_LIST = {
   home: {
     welcome: { title: 'tour.home.welcome.title', text: 'tour.home.welcome.text' },
     steps: [
@@ -47,7 +54,154 @@ export const TOURS: Record<TourId, { welcome?: { title: TranslationKey; text: Tr
       { target: 'yields-products', title: 'tour.yields.products.title', text: 'tour.yields.products.text' },
     ],
   },
-};
+  // Every other screen, the first time it is opened (Jose, 2026-10-12:
+  // "toooodas las posibles pantallas"). Opened by the route (ROUTE_TOURS),
+  // the movement form by itself.
+  more: {
+    steps: [
+      { title: 'tour.more.1.title', text: 'tour.more.1.text' },
+      { target: 'more-finances', title: 'tour.more.2.title', text: 'tour.more.2.text' },
+      { target: 'more-data', title: 'tour.more.3.title', text: 'tour.more.3.text' },
+      { target: 'more-tools', title: 'tour.more.4.title', text: 'tour.more.4.text' },
+      { target: 'more-prefs', title: 'tour.more.5.title', text: 'tour.more.5.text' },
+    ],
+  },
+  accounts: {
+    steps: [
+      { sel: 'app-accounts app-accounts-faces', title: 'tour.accounts.1.title', text: 'tour.accounts.1.text' },
+      { sel: 'app-accounts section.worth', title: 'tour.accounts.2.title', text: 'tour.accounts.2.text' },
+      { sel: 'app-accounts .ui-list.accounts', title: 'tour.accounts.3.title', text: 'tour.accounts.3.text' },
+      { sel: 'app-accounts .ui-bigtitle .ui-pill', title: 'tour.accounts.4.title', text: 'tour.accounts.4.text' },
+    ],
+  },
+  currencies: {
+    steps: [
+      { sel: 'app-currencies section.trm', title: 'tour.currencies.1.title', text: 'tour.currencies.1.text' },
+      { sel: 'app-currencies .refresh', title: 'tour.currencies.2.title', text: 'tour.currencies.2.text' },
+      { sel: 'app-currencies .ui-titlebar .ui-pill', title: 'tour.currencies.3.title', text: 'tour.currencies.3.text' },
+    ],
+  },
+  report: {
+    steps: [
+      { sel: 'app-report .ui-seg.which', title: 'tour.report.1.title', text: 'tour.report.1.text' },
+      { sel: 'app-report .account-row', title: 'tour.report.2.title', text: 'tour.report.2.text' },
+      { sel: 'app-report .ui-period', title: 'tour.report.3.title', text: 'tour.report.3.text' },
+      { sel: 'app-report section.block', title: 'tour.report.4.title', text: 'tour.report.4.text' },
+      { sel: 'app-report .ui-bigtitle .ui-round', title: 'tour.report.5.title', text: 'tour.report.5.text' },
+    ],
+  },
+  categories: {
+    steps: [
+      { sel: 'app-categories section.side', title: 'tour.categories.1.title', text: 'tour.categories.1.text' },
+      { sel: 'app-categories .tools .ui-seg', title: 'tour.categories.2.title', text: 'tour.categories.2.text' },
+      { sel: 'app-categories .ui-titlebar .ui-pill', title: 'tour.categories.3.title', text: 'tour.categories.3.text' },
+    ],
+  },
+  products: {
+    steps: [
+      { sel: 'app-products section.ui-hero.total', title: 'tour.products.1.title', text: 'tour.products.1.text' },
+      { sel: 'app-products .ui-bigtitle .ui-round', title: 'tour.products.2.title', text: 'tour.products.2.text' },
+      { title: 'tour.products.3.title', text: 'tour.products.3.text' },
+    ],
+  },
+  debts: {
+    steps: [
+      { sel: 'app-debts section.owed', title: 'tour.debts.1.title', text: 'tour.debts.1.text' },
+      { sel: 'app-debts .ui-main .ui-list', title: 'tour.debts.2.title', text: 'tour.debts.2.text' },
+      { sel: 'app-debts .ui-bigtitle .ui-pill', title: 'tour.debts.3.title', text: 'tour.debts.3.text' },
+    ],
+  },
+  card: {
+    steps: [
+      { sel: 'app-card section.bill', title: 'tour.card.1.title', text: 'tour.card.1.text' },
+      { sel: 'app-card .ui-seg.faces', title: 'tour.card.2.title', text: 'tour.card.2.text' },
+    ],
+  },
+  loan: {
+    steps: [
+      { sel: 'app-loan .ui-seg.tabs', title: 'tour.loan.1.title', text: 'tour.loan.1.text' },
+      { sel: 'app-loan section.ui-hero', title: 'tour.loan.2.title', text: 'tour.loan.2.text' },
+    ],
+  },
+  plans: {
+    steps: [
+      { sel: 'app-plans .ui-seg.faces', title: 'tour.plans.1.title', text: 'tour.plans.1.text' },
+      { sel: 'app-plans .ui-titlebar .ui-chip.new', title: 'tour.plans.2.title', text: 'tour.plans.2.text' },
+      { sel: 'app-plans .ui-titlebar .bell', title: 'tour.plans.3.title', text: 'tour.plans.3.text' },
+    ],
+  },
+  limit: {
+    steps: [
+      { sel: 'app-limit section.ui-hero', title: 'tour.limit.1.title', text: 'tour.limit.1.text' },
+      { title: 'tour.limit.2.title', text: 'tour.limit.2.text' },
+    ],
+  },
+  goal: {
+    steps: [
+      { sel: 'app-goal section.ui-hero', title: 'tour.goal.1.title', text: 'tour.goal.1.text' },
+      { title: 'tour.goal.2.title', text: 'tour.goal.2.text' },
+    ],
+  },
+  tax: {
+    steps: [
+      { title: 'tour.tax.1.title', text: 'tour.tax.1.text' },
+      { sel: 'app-tax .year-row', title: 'tour.tax.2.title', text: 'tour.tax.2.text' },
+      { sel: 'app-tax section.verdict', title: 'tour.tax.3.title', text: 'tour.tax.3.text' },
+      { sel: 'app-tax section.card', title: 'tour.tax.4.title', text: 'tour.tax.4.text' },
+      { sel: 'app-tax .ui-titlebar .ui-round', title: 'tour.tax.5.title', text: 'tour.tax.5.text' },
+    ],
+  },
+  review: {
+    steps: [
+      { title: 'tour.review.1.title', text: 'tour.review.1.text' },
+      { sel: 'app-review .origin-head', title: 'tour.review.2.title', text: 'tour.review.2.text' },
+      { sel: 'app-review .ui-search', title: 'tour.review.3.title', text: 'tour.review.3.text' },
+    ],
+  },
+  notifications: {
+    steps: [
+      { title: 'tour.notifications.1.title', text: 'tour.notifications.1.text' },
+      { sel: 'app-notifications .ui-search', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text' },
+    ],
+  },
+  export: {
+    steps: [
+      { sel: 'app-export section.option', title: 'tour.export.1.title', text: 'tour.export.1.text' },
+      { title: 'tour.export.2.title', text: 'tour.export.2.text' },
+    ],
+  },
+  google: {
+    steps: [
+      { sel: 'app-account section.who', title: 'tour.google.1.title', text: 'tour.google.1.text' },
+      { sel: 'app-account section.copy', title: 'tour.google.2.title', text: 'tour.google.2.text' },
+    ],
+  },
+  erase: {
+    steps: [
+      { title: 'tour.erase.1.title', text: 'tour.erase.1.text' },
+    ],
+  },
+  entry: {
+    steps: [
+      { sel: 'app-entry .ui-seg.kinds', title: 'tour.entry.1.title', text: 'tour.entry.1.text' },
+      { sel: 'app-entry app-amount-field', title: 'tour.entry.2.title', text: 'tour.entry.2.text' },
+      { sel: 'app-entry .ui-list.ends', title: 'tour.entry.3.title', text: 'tour.entry.3.text' },
+      { sel: 'app-entry app-form-foot .again', title: 'tour.entry.4.title', text: 'tour.entry.4.text' },
+    ],
+  },
+} satisfies Record<string, Tour>;
+
+export type TourId = keyof typeof TOUR_LIST;
+export const TOURS: Record<TourId, Tour> = TOUR_LIST;
+
+/** Which screen's tour a route offers; the first match wins, most specific first. */
+const ROUTE_TOURS: [RegExp, TourId][] = [
+  [/^\/more/, 'more'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
+  [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
+  [/^\/debts/, 'debts'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
+  [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
+  [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'],
+];
 
 const ON_KEY = 'finance.tours.on';
 const SEEN_KEY = 'finance.tours.seen';
@@ -65,6 +219,20 @@ export class TourService {
   private seen = new Set<TourId>(parseSeen(read(SEEN_KEY)));
   /** Asked while another tour was on screen: started when that one ends. */
   private waiting: TourId[] = [];
+  private readonly router = inject(Router);
+
+  constructor() {
+    // A screen's own tour the first time it is reached: offered a moment
+    // after it opens, so what it lights has been drawn, and only if the
+    // person is still there.
+    this.router.events.subscribe(event => {
+      if (!(event instanceof NavigationEnd)) return;
+      const url = event.urlAfterRedirects;
+      const found = ROUTE_TOURS.find(([pattern]) => pattern.test(url));
+      if (!found) return;
+      setTimeout(() => { if (this.router.url === url) this.offer(found[1]); }, 1100);
+    });
+  }
 
   /** Starts a tour the first time it is asked for, if tours are on. */
   offer(id: TourId): void {
@@ -123,7 +291,7 @@ export class TourService {
 }
 
 function parseSeen(raw: string | null): TourId[] {
-  return (raw ?? '').split(',').filter((t): t is TourId => t in TOURS);
+  return (raw ?? '').split(',').filter((t): t is TourId => t in TOUR_LIST);
 }
 
 function read(key: string): string | null {

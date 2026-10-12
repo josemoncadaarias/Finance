@@ -25,7 +25,7 @@
     }
 
     <div class="ui-h">{{ 'more.finances' | t }}</div>
-    <div class="ui-list">
+    <div class="ui-list" data-tour="more-finances">
       <button type="button" class="ui-row" (click)="go('/accounts')">
         <app-badge [size]="40" builtin="wallet-outline" [fixed]="accent.accent().color"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.accounts' | t }}</b><small>{{ 'more.accounts.hint' | t }}</small></span>
@@ -50,7 +50,7 @@
     </div>
 
     <div class="ui-h">{{ 'more.yourData' | t }}</div>
-    <div class="ui-list">
+    <div class="ui-list" data-tour="more-data">
       <button type="button" class="ui-row" (click)="go('/review')">
         <app-badge [size]="40" builtin="checkmark-done-outline" [fixed]="accent.accent().color"></app-badge>
         <span class="ui-tx">
@@ -93,7 +93,7 @@
     </div>
 
     <div class="ui-h">{{ 'more.tools' | t }}</div>
-    <div class="ui-list">
+    <div class="ui-list" data-tour="more-tools">
       <button type="button" class="ui-row" (click)="go('/currencies')">
         <app-badge [size]="40" builtin="cash-outline" fixed="#34c98b"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'ui.currencies.title' | t }}</b><small class="wrap">{{ currencies().join(' · ') }}</small></span>
@@ -107,7 +107,7 @@
     </div>
 
     <div class="ui-h">{{ 'more.preferences' | t }}</div>
-    <div class="ui-list">
+    <div class="ui-list" data-tour="more-prefs">
       <button type="button" class="ui-row" (click)="languageSheet.set(true)">
         <app-badge [size]="40" builtin="language-outline" fixed="#4cb8f5"></app-badge>
         <span class="ui-tx">
