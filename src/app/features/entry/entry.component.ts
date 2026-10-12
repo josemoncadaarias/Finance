@@ -38,6 +38,7 @@ import type { ProductEntry, YieldProduct } from '../../core/database/repositorie
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { TransfersRepository, type TransferScope } from '../../core/database/repositories/transfers.repository';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
+import { TourService } from '../../core/tour/tour.service';
 import { ComposeService } from '../../core/ui/compose.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
@@ -680,7 +681,14 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   readonly canSave = computed(() => this.missing() === null);
 
+  private readonly tour = inject(TourService);
+
   constructor() {
+    // The first new movement ever opened says what the form holds (Jose,
+    // 2026-10-12): never over a correction or a loan's payment.
+    setTimeout(() => {
+      if (!this.request().editing && !this.request().editingEntry && !this.loanEntry()) this.tour.offer('entry');
+    }, 900);
     addIcons(allIcons as unknown as Record<string, string>);
   }
 

@@ -249,6 +249,19 @@ these):
   shows accounts; any other tour waits for it. Más → Preferencias → Guías:
   on/off, replay the first, show them all again. Checked in a browser on the
   sample data; not seen on the phone.
+  **Every screen has its own tour since 2026-10-12** (Jose: "toooodas las
+  posibles pantallas"): Más (each group), Cuentas, Monedas y TRM, Reporte,
+  Categorías, Rendimientos, Deudas, a card, a loan, Presupuestos, a cap, a
+  goal, the tax simulator, Por revisar, Notificaciones, Importar y exportar,
+  Google, Borrar todo and the movement form (`entry`, offered by the form).
+  A route opens its tour (`ROUTE_TOURS` in `tour.service.ts`, 1.1 s after
+  arriving and only if still there); a step lights a `data-tour` mark or a
+  CSS selector (`sel`), or with neither is a card in the middle saying what
+  the screen is for; a step whose element is not drawn within 1.5 s is
+  skipped. What is lit is clipped to the screen and the bubble goes where
+  there is room - over the lower part of what is lit when it is a long
+  list. A new screen gets a tour by adding its steps and its route there,
+  with both languages' words (`tour.<id>.<n>.title/text`).
 
 - **The app learns from every save, not only from Por revisar** (Jose,
   2026-10-12). A spending or income saved or corrected in the one movement

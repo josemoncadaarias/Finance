@@ -8,10 +8,11 @@
  */
 
 import { Component, computed, effect, HostListener, inject, signal, untracked } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { TOURS, TourService } from '../../core/tour/tour.service';
+import { TOURS, TourService, type TourStep } from '../../core/tour/tour.service';
 
 interface Box { x: number; y: number; w: number; h: number }
 const PAD = 6;
@@ -19,7 +20,7 @@ const PAD = 6;
 @Component({
   selector: 'app-tour-overlay',
   standalone: true,
-  imports: [TranslatePipe, IonIcon],
+  imports: [TranslatePipe, IonIcon, NgTemplateOutlet],
   template: `
     @if (tour.active(); as now) {
       <div class="catch" (click)="$event.stopPropagation()"></div>
@@ -35,30 +36,43 @@ const PAD = 6;
             <button type="button" class="later" (click)="tour.end()">{{ 'tour.notNow' | t }}</button>
           </div>
         }
+      } @else if (centred()) {
+        @let c = steps()[now.step];
+        <div class="dim"></div>
+        <div class="bubble centred" role="dialog" aria-modal="true">
+          <b>{{ c.title | t }}</b>
+          <p>{{ c.text | t }}</p>
+          <ng-container *ngTemplateOutlet="foot; context: { now: now }"></ng-container>
+        </div>
       } @else if (box(); as b) {
         <div class="hole" [style.left.px]="b.x" [style.top.px]="b.y" [style.width.px]="b.w" [style.height.px]="b.h"
              [style.border-radius.px]="radius()"></div>
         @let s = steps()[now.step];
         <div class="bubble" role="dialog" aria-modal="true"
-             [style.top.px]="below() ? b.y + b.h + 14 : null"
-             [style.bottom.px]="below() ? null : viewH() - b.y + 14">
-          <span class="arrow" [class.up]="below()" [style.left.px]="arrowX()"></span>
+             [style.top.px]="placement() === 'below' ? b.y + b.h + 14 : null"
+             [style.bottom.px]="placement() === 'above' ? viewH() - b.y + 14 : placement() === 'inside' ? 104 : null">
+          @if (placement() !== 'inside') {
+            <span class="arrow" [class.up]="placement() === 'below'" [style.left.px]="arrowX()"></span>
+          }
           <b>{{ s.title | t }}</b>
           <p>{{ s.text | t }}</p>
-          <div class="foot">
-            @if (steps().length > 1) {
-              <span class="dots">
-                @for (d of steps(); track $index) { <i [class.on]="$index === now.step"></i> }
-              </span>
-              <span class="of">{{ 'tour.of' | t:{ step: now.step + 1, count: steps().length } }}</span>
-            }
-            <span class="grow"></span>
-            @if (!last()) { <button type="button" class="skip" (click)="tour.end()">{{ 'tour.skip' | t }}</button> }
-            <button type="button" class="go" (click)="tour.next()">{{ (last() ? (steps().length > 1 ? 'tour.done' : 'tour.gotIt') : 'tour.next') | t }}</button>
-          </div>
+          <ng-container *ngTemplateOutlet="foot; context: { now: now }"></ng-container>
         </div>
       }
     }
+    <ng-template #foot let-now="now">
+      <div class="foot">
+        @if (steps().length > 1) {
+          <span class="dots">
+            @for (d of steps(); track $index) { <i [class.on]="$index === now.step"></i> }
+          </span>
+          <span class="of">{{ 'tour.of' | t:{ step: now.step + 1, count: steps().length } }}</span>
+        }
+        <span class="grow"></span>
+        @if (!last()) { <button type="button" class="skip" (click)="tour.end()">{{ 'tour.skip' | t }}</button> }
+        <button type="button" class="go" (click)="tour.next()">{{ (last() ? (steps().length > 1 ? 'tour.done' : 'tour.gotIt') : 'tour.next') | t }}</button>
+      </div>
+    </ng-template>
   `,
   styles: [`
     :host { position: fixed; inset: 0; z-index: 60000; pointer-events: none; }
@@ -85,6 +99,7 @@ const PAD = 6;
     .welcome p, .bubble p { margin: 0; color: var(--app-mu); font-size: 14.5px; line-height: 1.45; }
     .welcome .ui-btn { margin-top: 12px; width: 100%; }
     .later { background: none; border: 0; color: var(--app-mu); font: inherit; font-size: 14px; padding: 8px; cursor: pointer; }
+    .bubble.centred { top: 50%; transform: translateY(-50%); left: 22px; right: 22px; }
     .bubble { border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 5px; }
     .bubble b { font-size: 16.5px; }
     .arrow {
@@ -116,14 +131,37 @@ export class TourOverlayComponent {
   readonly steps = computed(() => { const now = this.tour.active(); return now ? TOURS[now.id].steps : []; });
   readonly welcome = computed(() => { const now = this.tour.active(); return now ? TOURS[now.id].welcome : undefined; });
   readonly last = computed(() => { const now = this.tour.active(); return !!now && now.step === this.steps().length - 1; });
-  /** The bubble goes under what is lit when that sits in the top half. */
-  readonly below = computed(() => { const b = this.box(); return !!b && b.y + b.h / 2 < this.viewH() / 2; });
+  /**
+   * Where the bubble goes: under what is lit when that sits in the top half,
+   * above it otherwise, and over its lower part when what is lit is taller
+   * than the room either side (a long list) - never off the screen.
+   */
+  readonly placement = computed<'below' | 'above' | 'inside'>(() => {
+    const b = this.box();
+    if (!b) return 'below';
+    const room = 210;
+    const under = this.viewH() - (b.y + b.h);
+    const over = b.y;
+    const prefer = b.y + b.h / 2 < this.viewH() / 2 ? 'below' : 'above';
+    if (prefer === 'below' && under >= room) return 'below';
+    if (prefer === 'above' && over >= room) return 'above';
+    if (under >= room) return 'below';
+    if (over >= room) return 'above';
+    return 'inside';
+  });
   readonly arrowX = computed(() => {
     const b = this.box();
     if (!b) return 0;
     return Math.min(Math.max(b.x + b.w / 2 - 16 - 7, 18), this.viewW - 32 - 32);
   });
   readonly radius = () => this.radiusOf;
+  /** The step lights nothing: its card sits in the middle of the screen. */
+  readonly centred = computed(() => {
+    const now = this.tour.active();
+    if (!now || now.step < 0) return false;
+    const step = TOURS[now.id].steps[now.step];
+    return !step.target && !step.sel;
+  });
 
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -133,23 +171,27 @@ export class TourOverlayComponent {
       this.box.set(null);
       if (!now || now.step < 0) return;
       const step = TOURS[now.id].steps[now.step];
-      untracked(() => this.place(step.target!));
+      if (!step.target && !step.sel) return;
+      untracked(() => this.place(selectorOf(step), true, 0));
     });
   }
 
   @HostListener('window:resize')
   onResize(): void {
     const now = this.tour.active();
-    if (now && now.step >= 0) this.place(TOURS[now.id].steps[now.step].target!, false);
+    if (!now || now.step < 0) return;
+    const step = TOURS[now.id].steps[now.step];
+    if (step.target || step.sel) this.place(selectorOf(step), false, 0);
   }
 
   /** Finds what the step lights, brings it into view and measures it. */
-  private place(target: string, scroll = true): void {
+  private place(selector: string, scroll: boolean, tries: number): void {
     if (this.timer) clearTimeout(this.timer);
-    const element = findShown(target);
+    const element = findShown(selector);
     if (!element) {
-      // Nothing to point at: on to the next step, or the tour ends.
-      this.timer = setTimeout(() => this.tour.next(), 0);
+      // Not drawn yet, or not on this screen at all (an account with no
+      // products): looked for again for a moment, then the step is skipped.
+      this.timer = setTimeout(() => tries < 6 ? this.place(selector, scroll, tries + 1) : this.tour.next(), 250);
       return;
     }
     if (scroll) element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -159,14 +201,22 @@ export class TourOverlayComponent {
       this.viewW = window.innerWidth;
       const style = getComputedStyle(element);
       this.radiusOf = Math.max(14, Math.min(parseFloat(style.borderTopLeftRadius) || 18, 40) + PAD);
-      this.box.set({ x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h: r.height + PAD * 2 });
+      // Only the part on screen is lit: a list longer than the screen is
+      // cut at its edges rather than lit beyond them.
+      const top = Math.max(r.top - PAD, 8);
+      const bottom = Math.min(r.bottom + PAD, window.innerHeight - 8);
+      this.box.set({ x: r.left - PAD, y: top, w: r.width + PAD * 2, h: Math.max(bottom - top, 24) });
     }, scroll ? 380 : 0);
   }
 }
 
-/** The one element marked with this name that is actually on screen. */
-function findShown(target: string): HTMLElement | null {
-  for (const element of Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`))) {
+function selectorOf(step: TourStep): string {
+  return step.sel ?? `[data-tour="${step.target}"]`;
+}
+
+/** The one element it names that is actually on screen. */
+function findShown(selector: string): HTMLElement | null {
+  for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
     if (element.closest('.ion-page-hidden')) continue;
     const r = element.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) return element;
