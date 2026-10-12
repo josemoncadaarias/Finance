@@ -109,3 +109,55 @@ test('a message saved as a transfer teaches its mold the other account, and the 
   const again = learnMold([mold], moldFrom({ source: SRC, text, amountMinor: P(-10000), merchant: null, accountId: 7, categoryId: 2, at: 2 }));
   assert.equal(again[0].otherAccountId, null);
 });
+
+test('a movement from a message corrected afterwards teaches its source the correction (Jose, 2026-10-12)', async () => {
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const accounts = new AccountsRepository(db, NOW);
+  const proposals = new ProposalsRepository(db, NOW);
+  const repos = { proposals, transactions: new TransactionsRepository(db, NOW), transfers: new TransfersRepository(db, NOW) };
+  const rosa = await accounts.create({ name: 'Billetera', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opening_balance_minor: 0, opened_on: '2026-01-01' });
+  const otra = await accounts.create({ name: 'Otra', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opening_balance_minor: 0, opened_on: '2026-01-01' });
+  const comida = await new CategoriesRepository(db, NOW).create({ name: 'Comida', kind: 'expense', builtin_icon: 'restaurant' });
+  const sms = (text, at) => ({ package: 'com.mensajes.app', app: 'Mensajes', title: '877', sender: '877', text, postedAt: at });
+  const run = async kept => {
+    const { fresh } = readNotices(kept, await proposals.noticeKeys(), await proposals.noticeAnswers(), await accounts.list(),
+      await proposals.recentNotices(), { molds: await proposals.molds(), assigned: await proposals.sourceAccounts() });
+    const ids = [];
+    for (const one of fresh) ids.push(...(await proposals.propose(one.batch, [one.proposal])).ids);
+    return ids;
+  };
+
+  const first = sms('877: Tx 45.900 COP comercio TIENDA CENTRAL ok', AT);
+  const [id] = await run([first]);
+  await proposals.correct(id, { account_id: rosa, category_id: comida, amount_minor: P(-45900), description: 'TIENDA CENTRAL' });
+  await accept(repos, [await proposals.byId(id)]);
+  const saved = (await proposals.byId(id)).transaction_id;
+
+  // On Inicio the person moves it to the other account.
+  await repos.transactions.update(saved, { account_id: otra });
+  await proposals.movementCorrected(saved, { accountId: otra, categoryId: comida });
+  assert.equal((await proposals.byId(id)).account_id, otra);
+  assert.ok((await proposals.noticeAnswers()).some(one => one.account_id === otra));
+
+  const [next] = await run([first, sms('877: Tx 18.500 COP comercio PANADERIA SOL ok', AT + 86_400_000)]);
+  assert.equal((await proposals.byId(next)).account_id, otra);
+
+  // A movement typed by hand has no message behind it: nothing changes.
+  const hand = await repos.transactions.create({ account_id: rosa, category_id: comida, occurred_on: '2026-10-08', amount_minor: P(-1000), description: 'x', source: 'manual' });
+  await proposals.movementCorrected(hand, { accountId: otra, categoryId: comida });
+  assert.equal((await proposals.byId(id)).account_id, otra);
+});
+
+test('a shop filed by hand follows the newest answer', async () => {
+  const db = new NodeSqlDriver();
+  await migrate(db, MIGRATION_SOURCES);
+  const proposals = new ProposalsRepository(db, NOW);
+  const categories = new CategoriesRepository(db, NOW);
+  const comida = await categories.create({ name: 'Comida', kind: 'expense', builtin_icon: 'restaurant' });
+  const mercado = await categories.create({ name: 'Mercado', kind: 'expense', builtin_icon: 'cart' });
+  await proposals.learn('TIENDA CENTRAL', comida, '2026-10-01');
+  await proposals.learn('Tienda Central', mercado, '2026-10-02');
+  const row = await db.queryOne('SELECT category_id FROM merchant_categories');
+  assert.equal(row.category_id, mercado);
+});

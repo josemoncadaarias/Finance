@@ -250,6 +250,18 @@ these):
   on/off, replay the first, show them all again. Checked in a browser on the
   sample data; not seen on the phone.
 
+- **The app learns from every save, not only from Por revisar** (Jose,
+  2026-10-12). A spending or income saved or corrected in the one movement
+  form (Inicio, the "+", a correction) files the shop in its note under its
+  category (`teach` in `entry.component.ts` -> `ProposalsRepository.learn`;
+  the newest answer wins). Correcting a movement that came from a bank
+  message, or a transfer leg that did, rewrites that message's answer and
+  relearns its source's mold (`movementCorrected`), so the next message of
+  that shape comes with the account and category finally chosen. A message
+  saved as Transferir teaches the account the person left at the message's
+  end (read by the message's sign), no longer the one first proposed.
+  Tests in `notice-molds.test.mjs`; checked in a browser on the sample data.
+
 ---
 
 ## Decisions already made
