@@ -308,6 +308,12 @@ these):
   `read-notice.ts` and the same lists in `MovementAlert.java`, kept in step.
   Tests in `read-notice.test.mjs` (invented adverts and movements); the
   Java checked against the same texts outside Android, not on the phone.
+  **Proposed next, nothing built** (Jose, 2026-10-13, mockups `24a`-`24d`):
+  "No es un movimiento" - on the phone's notice (in place of Descartar) and
+  as the first answer of Revisar movimiento's bin - teaching the source only:
+  the message's mold is kept as "not a movement", and after such answers the
+  source offers only messages saying money DID move (a switch on its page,
+  with "Sí era un movimiento" to undo). Waiting for his word.
 
 ---
 
