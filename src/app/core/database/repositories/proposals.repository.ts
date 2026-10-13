@@ -90,6 +90,19 @@ import { DAYS_APART, MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, t
 export type ProposalSource = 'statement' | 'notification';
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
 
+/** What a shop was last saved as, besides its category. */
+export interface ShopChoice {
+  note: string | null;
+  productId: number | null;
+  scope: 'both' | 'product' | 'netWorth' | null;
+}
+
+/** The memory of the shop a description names, if any. */
+export function shopMemoryOf(memory: ReadonlyMap<string, ShopChoice>, description: string | null): ShopChoice | null {
+  const merchant = merchantKeyOf(description);
+  return merchant ? memory.get(merchant) ?? null : null;
+}
+
 export interface MovementProposal {
   id: number;
   source: ProposalSource;
@@ -824,13 +837,21 @@ export class ProposalsRepository {
    * Teaching it from hand-typed movements is what makes it useful from the
    * first week rather than the third.
    */
-  async learn(description: string | null, categoryId: number | null, on: IsoDate): Promise<void> {
+  async learn(description: string | null, categoryId: number | null, on: IsoDate, chosen?: ShopChoice): Promise<void> {
     const merchant = merchantKeyOf(description);
     if (merchant.length === 0 || categoryId === null) return;
     const timestamp = this.now();
+    // The note, product and "¿Qué cambia?" chosen in the form (Jose,
+    // 2026-10-13) - only when the form said them; a save that did not (a
+    // batch saved at once, a hand-typed movement) leaves them as they were.
+    // A note left as the bank wrote it is remembered as none, so the next
+    // message of the shop keeps its own words, receipt numbers and all.
+    const said = chosen !== undefined ? 1 : 0;
+    const note = chosen?.note?.trim() && chosen.note.trim() !== (description ?? '').trim() ? chosen.note.trim() : null;
     await this.db.run(
-      `INSERT INTO merchant_categories (merchant, category_id, sample, times, last_seen_on, created_at, updated_at)
-       VALUES (?, ?, ?, 1, ?, ?, ?)
+      `INSERT INTO merchant_categories (merchant, category_id, sample, times, last_seen_on, created_at, updated_at,
+                                        note, product_id, scope)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(merchant) DO UPDATE SET
          -- A merchant filed somewhere else now follows the newest answer, and
          -- the count starts again: the person changed their mind, and the app
@@ -839,8 +860,25 @@ export class ProposalsRepository {
          category_id  = excluded.category_id,
          sample       = excluded.sample,
          last_seen_on = excluded.last_seen_on,
-         updated_at   = excluded.updated_at`,
-      [merchant, categoryId, merchantSampleOf(description), on, timestamp, timestamp]);
+         updated_at   = excluded.updated_at,
+         note         = CASE WHEN ? = 1 THEN excluded.note ELSE note END,
+         product_id   = CASE WHEN ? = 1 THEN excluded.product_id ELSE product_id END,
+         scope        = CASE WHEN ? = 1 THEN excluded.scope ELSE scope END`,
+      [merchant, categoryId, merchantSampleOf(description), on, timestamp, timestamp,
+        note, chosen?.productId ?? null, chosen?.scope ?? null, said, said, said]);
+  }
+
+  /**
+   * What each shop was last saved as: its note, product and "¿Qué cambia?",
+   * read once and answered in memory (`shopMemoryOf`). Shops nobody chose
+   * any of those for are left out.
+   */
+  async shopMemory(): Promise<Map<string, ShopChoice>> {
+    const rows = await this.db.query<{ merchant: string; note: string | null; product_id: number | null; scope: string | null }>(
+      `SELECT merchant, note, product_id, scope FROM merchant_categories
+        WHERE note IS NOT NULL OR product_id IS NOT NULL OR scope IS NOT NULL`);
+    return new Map(rows.map(row => [row.merchant,
+      { note: row.note, productId: row.product_id, scope: row.scope as ShopChoice['scope'] }]));
   }
 
   /**

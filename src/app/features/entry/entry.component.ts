@@ -138,6 +138,9 @@ export interface EntryProposal {
   sameAs?: string | null;
   /** Money in or out was read from the words, not proved. */
   guessed?: boolean;
+  /** The product this shop was last saved in, and what it changed (Jose, 2026-10-13). */
+  productId?: number | null;
+  scope?: EntryScope | null;
 }
 
 export interface LoanEntry {
@@ -371,6 +374,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     untracked(() => {
       if (!asks || accountId === null || this.scopeTouched || this.database.status() !== 'ready') return;
       const asked = ++this.scopeAsked;
+      // What this shop changed last time, on the account it was saved on.
+      const proposal = this.request().proposal;
+      if (proposal?.scope && proposal.accountId === accountId) { this.scope.set(proposal.scope); return; }
       void usualScope(this.database.driver, { accountId, side: kind === 'income' ? 'in' : 'out', categoryId })
         .then(found => { if (asked === this.scopeAsked && !this.scopeTouched) this.scope.set(found); });
     });
@@ -1618,9 +1624,12 @@ export class EntryComponent implements OnInit, OnDestroy {
 
     const editing = this.request().editing;
     const entry = this.request().editingEntry;
+    const proposal = this.request().proposal;
     const storedFor = (accountId: number | null) =>
       editing && editing.account_id === accountId ? editing.product_id ?? null
-        : entry && entry.account_id === accountId ? entry.product_id ?? null : null;
+        : entry && entry.account_id === accountId ? entry.product_id ?? null
+        // The product this shop was last saved in, while on its account.
+        : proposal?.productId != null && proposal.accountId === accountId ? proposal.productId : null;
 
     // A transfer between two products of one account has the same account on
     // both legs, so which leg a stored product belongs to cannot be told from
@@ -1887,7 +1896,15 @@ export class EntryComponent implements OnInit, OnDestroy {
     });
     await proposals.accepted(asked.id, written);
     const categoryId = this.categoryId();
-    if (said.description && categoryId !== null) await proposals.learn(said.description, categoryId, this.occurredOn());
+    // Everything chosen is what the next one from this shop starts on: the
+    // category, the note, the product and what it changed.
+    if (said.description && categoryId !== null) {
+      await proposals.learn(said.description, categoryId, this.occurredOn(), {
+        note: this.note(),
+        productId: this.products().length > 0 ? this.productId() : null,
+        scope: this.asksScope() ? this.scope() : null,
+      });
+    }
   }
 
   /**

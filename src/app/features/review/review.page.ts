@@ -21,11 +21,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { DatabaseService } from '../../core/database/database.service';
-import { ProposalsRepository, type MovementProposal } from '../../core/database/repositories/proposals.repository';
+import { ProposalsRepository, shopMemoryOf, type MovementProposal } from '../../core/database/repositories/proposals.repository';
 import type { AccountRow, CategoryRow } from '../../core/database/types';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
+import { YieldsRepository } from '../../core/database/repositories/yields.repository';
 import { TransfersRepository } from '../../core/database/repositories/transfers.repository';
 import { accept, isComplete } from '../../core/proposals/accept';
 import { merchantKeyOf } from '../../core/proposals/merchant';
@@ -461,13 +462,17 @@ export class ReviewPage {
    * carries what was read, the review screen's notes about it, and its eye
    * and bin; saving it marks the proposal saved and teaches from it.
    */
-  openInForm(line: Line): void {
+  async openInForm(line: Line): Promise<void> {
     const amount = line.proposal.amount_minor;
+    // What this shop was last saved as (Jose, 2026-10-13): the note written
+    // instead of the bank's words, the product and what it changed.
+    const memory = await new ProposalsRepository(this.database.driver).shopMemory();
+    const shop = shopMemoryOf(memory, line.proposal.description);
     this.compose.entry.set({
       kind: (amount ?? -1) < 0 ? 'expense' : 'income',
       preferredAccountId: line.proposal.account_id,
-      start: { amountMinor: Math.abs(amount ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: line.proposal.description ?? '' },
-      proposal: this.proposalOf(line),
+      start: { amountMinor: Math.abs(amount ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: shop?.note ?? line.proposal.description ?? '' },
+      proposal: { ...this.proposalOf(line), productId: shop?.productId ?? null, scope: shop?.scope ?? null },
     });
   }
 
@@ -1593,6 +1598,8 @@ export class ReviewPage {
         proposals: new ProposalsRepository(db),
         transactions: new TransactionsRepository(db),
         transfers: new TransfersRepository(db),
+        yields: new YieldsRepository(db),
+        db,
       }, proposals);
 
       if (result.refused.length > 0) {
