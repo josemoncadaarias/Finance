@@ -1402,7 +1402,12 @@ export class EntryComponent implements OnInit, OnDestroy {
     // The press already chose; the click that follows it lands on whatever
     // row the list has moved under the finger since, and must not choose
     // again (Jose, 2026-10-13: a suggestion turned back into the note as read).
-    if (!pressed && Date.now() - this.notePressedAt < 700) return;
+    // However long the finger stayed down: the click is the same gesture.
+    if (!pressed && this.notePressedAt > 0) {
+      const ago = Date.now() - this.notePressedAt;
+      this.notePressedAt = 0;
+      if (ago < 10_000) return;
+    }
     if (pressed) this.notePressedAt = Date.now();
     pressed?.preventDefault();
     this.noteIsTheirs = true;

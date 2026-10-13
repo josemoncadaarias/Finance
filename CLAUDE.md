@@ -293,7 +293,9 @@ these):
   with another bank's message, and teaches the shop and the mold. A
   suggestion chosen on the press is no longer chosen again by the click
   that follows (`notePressedAt`): the list moved under the finger and the
-  click landed on the row "as it came". "Registrar otro" is not offered on
+  click landed on the row "as it came" - however long the finger stayed
+  down (a time window of 0.7 s still failed on a 1.5 s press, reproduced
+  with a touch held in a browser). "Registrar otro" is not offered on
   a proposal. Checked in a browser on the sample data.
 
 ---
