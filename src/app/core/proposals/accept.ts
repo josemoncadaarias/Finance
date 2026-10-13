@@ -15,6 +15,10 @@
 import type { ProposalsRepository, MovementProposal } from '../database/repositories/proposals.repository';
 import type { TransactionsRepository } from '../database/repositories/transactions.repository';
 import type { TransfersRepository } from '../database/repositories/transfers.repository';
+import { shopMemoryOf } from '../database/repositories/proposals.repository';
+import type { YieldsRepository } from '../database/repositories/yields.repository';
+import type { SqlDriver } from '../database/sql-driver';
+import { writeScoped } from '../yields/entry-scope';
 
 export interface AcceptResult {
   /** How many movements were written. A joined transfer counts as one. */
@@ -27,6 +31,9 @@ interface Repos {
   proposals: ProposalsRepository;
   transactions: TransactionsRepository;
   transfers: TransfersRepository;
+  /** With both, a shop's remembered product and "¿Qué cambia?" are applied too. */
+  yields?: YieldsRepository;
+  db?: SqlDriver;
 }
 
 /**
@@ -65,6 +72,9 @@ export async function accept(
   const byId = new Map(proposals.map(proposal => [proposal.id, proposal]));
   const done = new Set<number>();
   const result: AcceptResult = { written: 0, refused: [] };
+  // What each shop was last saved as (Jose, 2026-10-13): its note, product
+  // and what it changed, read once for the whole batch.
+  const memory = await repos.proposals.shopMemory();
 
   for (const proposal of proposals) {
     if (done.has(proposal.id)) continue;
@@ -108,14 +118,40 @@ export async function accept(
       result.refused.push({ id: proposal.id, reason: 'incomplete' });
       continue;
     }
-    const id = await repos.transactions.create({
-      account_id: proposal.account_id!,
-      category_id: proposal.category_id,
-      occurred_on: proposal.occurred_on!,
-      amount_minor: proposal.amount_minor!,
-      description: proposal.description,
-      source: 'manual',
-    });
+    const shop = shopMemoryOf(memory, proposal.description);
+    const note = shop?.note ?? proposal.description;
+    // The product only while it still belongs to this account.
+    let productId: number | null = null;
+    let several = false;
+    if (repos.yields && shop?.productId != null) {
+      const products = await repos.yields.products(proposal.account_id!);
+      if (products.some(product => product.id === shop.productId)) {
+        productId = shop.productId;
+        several = products.length > 1;
+      }
+    }
+    const scoped = productId !== null && repos.db && repos.yields && (shop?.scope === 'product' || shop?.scope === 'netWorth');
+    const id = scoped
+      ? await writeScoped(repos.db!, repos.yields!, {
+        scope: shop!.scope!,
+        kind: proposal.amount_minor! < 0 ? 'expense' : 'income',
+        accountId: proposal.account_id!,
+        categoryId: proposal.category_id,
+        productId,
+        movementProductId: several ? productId : null,
+        onDate: proposal.occurred_on!,
+        amountMinor: Math.abs(proposal.amount_minor!),
+        note,
+      })
+      : await repos.transactions.create({
+        account_id: proposal.account_id!,
+        category_id: proposal.category_id,
+        product_id: several ? productId : null,
+        occurred_on: proposal.occurred_on!,
+        amount_minor: proposal.amount_minor!,
+        description: note,
+        source: 'manual',
+      });
     await repos.proposals.accepted(proposal.id, id);
     // What it was filed under is what the next one from this shop will be
     // proposed as - including a category the person corrected here, which is

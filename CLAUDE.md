@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (768 on 2026-10-09, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (774 on 2026-10-13, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -308,6 +308,27 @@ these):
   `read-notice.ts` and the same lists in `MovementAlert.java`, kept in step.
   Tests in `read-notice.test.mjs` (invented adverts and movements); the
   Java checked against the same texts outside Android, not on the phone.
+  **Proposed next, nothing built** (Jose, 2026-10-13, mockups `24a`-`24d`):
+  "No es un movimiento" - on the phone's notice (in place of Descartar) and
+  as the first answer of Revisar movimiento's bin - teaching the source only:
+  the message's mold is kept as "not a movement", and after such answers the
+  source offers only messages saying money DID move (a switch on its page,
+  with "Sí era un movimiento" to undo). Waiting for his word.
+
+- **Everything chosen in Revisar movimiento is remembered for the shop**
+  (Jose, 2026-10-13: "cuenta, producto, qué cambia, nota, categoría... todo
+  todo debería ser aprendido"). The account, the category and the kind were
+  learned already (the source's answers, the shop's category, the molds);
+  the note written instead of the bank's words, the product and "¿Qué
+  cambia?" were not. Migration 057 adds `note`, `product_id` and `scope` to
+  `merchant_categories`, written by `learn(..., chosen)` from the form's
+  save (`answerProposal`); a note left as the bank wrote it is stored as
+  none, and a save that does not say them (a batch, a hand-typed movement)
+  leaves them as they were. Opening a proposal (`openInForm`) starts on the
+  shop's note, product (while it belongs to the account) and answer
+  (`EntryProposal.productId/scope`), and "Guardar los listos" writes them
+  too (`accept.ts`, through `writeScoped` when the answer is not "both").
+  Tests in `proposals.test.mjs`; checked in a browser on the sample data.
 
 ---
 

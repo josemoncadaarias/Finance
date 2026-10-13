@@ -779,3 +779,49 @@ test('a source never reports one movement twice: its second 10.000 is not the tr
   assert.equal((await proposals.pending()).find(one => one.id === sms).maybe_same_as, legs.find(l => l.account_id === nu).id);
   await db.close();
 });
+
+// ---------------------------------------------------------------------------
+// Everything chosen is remembered for the shop (Jose, 2026-10-13)
+// ---------------------------------------------------------------------------
+
+import { YieldsRepository } from '../../src/app/core/database/repositories/yields.repository.ts';
+import { shopMemoryOf } from '../../src/app/core/database/repositories/proposals.repository.ts';
+
+test('the note, product and what it changed are remembered per shop, and a batch save uses them', async () => {
+  const { db, proposals, transactions, transfers, rappi, mercados } = await setup();
+  const yields = new YieldsRepository(db, NOW);
+  await yields.enrol({ account_id: rappi, opening_on: '2026-09-01', withholding: false });
+  const [usual] = await yields.products(rappi);
+  await yields.setDefaultProduct(rappi, usual.id);
+  const pocket = await yields.addProduct({ account_id: rappi, name: 'Bolsillo', source: 'manual' });
+
+  // Saved in the form: a note of one's own, the pocket, the product alone.
+  await proposals.learn('COMPRA EXITO POBLADO 4471', mercados, '2026-09-10',
+    { note: 'Mercado semanal', productId: pocket, scope: 'both' });
+  let memory = await proposals.shopMemory();
+  const shop = shopMemoryOf(memory, 'COMPRA EXITO POBLADO 9902');
+  assert.deepEqual(shop, { note: 'Mercado semanal', productId: pocket, scope: 'both' });
+
+  // A save that says nothing of them (a batch, a hand-typed one) keeps them.
+  await proposals.learn('COMPRA EXITO POBLADO 5555', mercados, '2026-09-11');
+  memory = await proposals.shopMemory();
+  assert.equal(shopMemoryOf(memory, 'EXITO POBLADO').note, 'Mercado semanal');
+
+  // "Guardar los listos" writes the next one with the note and the pocket.
+  const { ids: [id] } = await proposals.propose('extracto-2', [{
+    source: 'statement', account_id: rappi, occurred_on: '2026-09-20',
+    amount_minor: -30_000_00, description: 'COMPRA EXITO POBLADO 7788', evidence: {},
+  }]);
+  await proposals.correct(id, { category_id: mercados });
+  const result = await accept({ proposals, transactions, transfers, yields, db }, [await proposals.byId(id)]);
+  assert.equal(result.written, 1);
+  const row = await db.queryOne('SELECT description, product_id FROM transactions WHERE id = (SELECT transaction_id FROM movement_proposals WHERE id = ?)', [id]);
+  assert.equal(row.description, 'Mercado semanal');
+  assert.equal(row.product_id, pocket);
+
+  // Left as the bank wrote it: the shop goes back to its own words.
+  await proposals.learn('COMPRA EXITO POBLADO 7788', mercados, '2026-09-20',
+    { note: 'COMPRA EXITO POBLADO 7788', productId: null, scope: null });
+  memory = await proposals.shopMemory();
+  assert.equal(shopMemoryOf(memory, 'EXITO POBLADO'), null);
+});
