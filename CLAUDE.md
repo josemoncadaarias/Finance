@@ -298,6 +298,17 @@ these):
   with a touch held in a browser). "Registrar otro" is not offered on
   a proposal. Checked in a browser on the sample data.
 
+- **An advert is never a movement** (Jose, 2026-10-13: Rappi's "Combo a
+  $19.900, antes: 29.900. Pide ya" rang as "Movimiento detectado" - the
+  Rappi app is ticked for Rappi cuenta). A message with a call to buy, a
+  discount or a price set against an earlier one ("antes: 29.900") is read
+  as nothing and does not ring, unless it also says money DID move to the
+  person ("compraste", "recibiste", "te transfirieron"...). Generic words,
+  no shop or bank named: `ADVERT`, `PRICE_BEFORE`, `HAPPENED` in
+  `read-notice.ts` and the same lists in `MovementAlert.java`, kept in step.
+  Tests in `read-notice.test.mjs` (invented adverts and movements); the
+  Java checked against the same texts outside Android, not on the phone.
+
 ---
 
 ## Decisions already made

@@ -121,3 +121,26 @@ test('yields paid are money in', () => {
   assert.equal(read.direction, 'in');
   assert.equal(read.amountMinor, 19816);
 });
+
+test('an advert is never a movement, even naming a price', () => {
+  for (const advert of [
+    'En Festival de hamburguesas encuentra Combo Doble a $19.900, antes: 29.900. Pide ya',
+    'Solo hoy: zapatos desde $59.900. Compra ya en la app',
+    'Tu credito preaprobado de $5.000.000 te espera',
+    '30% de descuento en tu proximo pedido de $40.000 o mas',
+    'Envio gratis en compras desde $50.000',
+    'Pizza grande a $25.000 antes $35.000',
+    'Order now: burgers for $9.99, was $14.99',
+  ]) {
+    assert.equal(readNotice(advert, 'Una tienda', ON).kind, 'none', advert);
+    assert.equal(looksLikeMoney(advert), false, advert);
+  }
+});
+
+test('money that did move stays a movement beside advert words', () => {
+  const got = readNotice('Compraste $30.000 en TIENDA AZUL con 20% de descuento', '', ON);
+  assert.equal(got.kind, 'movement');
+  assert.equal(got.amountMinor, P(30000));
+  assert.equal(readNotice('Recibiste $50.000 de Ana. Aprovecha y paga tus facturas desde la app', '', ON).kind, 'movement');
+  assert.equal(readNotice('Your card was charged $12.00 at CAFE. Shop now for more deals', '', ON).kind, 'movement');
+});
