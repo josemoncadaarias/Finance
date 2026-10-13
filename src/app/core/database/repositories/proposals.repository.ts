@@ -540,7 +540,7 @@ export class ProposalsRepository {
    * transfer, `otherAccountId` is the account at the other end, and the
    * source's mold learns to propose a transfer to it next time.
    */
-  async accepted(id: number, transactionId: number, otherAccountId: number | null = null): Promise<void> {
+  async accepted(id: number, transactionId: number | null, otherAccountId: number | null = null): Promise<void> {
     await this.db.run(
       `UPDATE movement_proposals SET status = 'accepted', transaction_id = ?, updated_at = ? WHERE id = ?`,
       [transactionId, this.now(), id]);

@@ -106,7 +106,7 @@ export async function writeScoped(db: SqlDriver, yields: YieldsRepository, input
   onDate: string;
   amountMinor: number;
   note: string | null;
-}): Promise<void> {
+}): Promise<number | null> {
   // The sign comes from the button pressed, never from what was typed.
   const signed = input.kind === 'expense' ? -input.amountMinor : input.amountMinor;
 
@@ -115,7 +115,8 @@ export async function writeScoped(db: SqlDriver, yields: YieldsRepository, input
       account_id: input.accountId, on_date: input.onDate, amount_minor: signed,
       kind: 'other', category_id: input.categoryId, product_id: input.productId, note: input.note,
     });
-    return;
+    // The product's own movement: no movement of the account to point at.
+    return null;
   }
 
   const transactionId = await new TransactionsRepository(db).create({
@@ -127,7 +128,7 @@ export async function writeScoped(db: SqlDriver, yields: YieldsRepository, input
     description: input.note,
     source: 'manual',
   });
-  if (input.scope !== 'netWorth') return;
+  if (input.scope !== 'netWorth') return transactionId;
 
   // The movement put the money in the product; it was already there. So the
   // same amount leaves what the product had gathered - or, for a spending,
@@ -143,6 +144,7 @@ export async function writeScoped(db: SqlDriver, yields: YieldsRepository, input
       kind: 'other', product_id: input.productId, note: input.note, transaction_id: transactionId,
     });
   }
+  return transactionId;
 }
 
 /**
@@ -168,7 +170,7 @@ export async function scopeOfMovement(db: SqlDriver, transactionId: number): Pro
  */
 export async function rewriteScoped(
   db: SqlDriver, yields: YieldsRepository, transactionId: number, input: Parameters<typeof writeScoped>[2],
-): Promise<void> {
+): Promise<number | null> {
   await new TransactionsRepository(db).delete(transactionId);
-  await writeScoped(db, yields, input);
+  return writeScoped(db, yields, input);
 }

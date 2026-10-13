@@ -39,8 +39,9 @@ import { CategorySheetComponent } from '../../shared/category-sheet/category-she
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
-import { ComposeService, type ProposalAsk } from '../../core/ui/compose.service';
-import { ProposalFormComponent, type ProposalAnswer } from './proposal-form.component';
+import { ComposeService } from '../../core/ui/compose.service';
+import type { EntryProposal } from '../entry/entry.component';
+import { todayIso } from '../../core/yields/days';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 
 /** A proposal with everything the screen needs to explain it. */
@@ -94,7 +95,7 @@ interface Batch {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
-    BadgeComponent, JumpComponent, AccountPickerComponent, ProposalFormComponent,
+    BadgeComponent, JumpComponent, AccountPickerComponent,
     IonContent, IonIcon, IonSpinner, IonModal,
   ],
   templateUrl: './review.page.html',
@@ -421,7 +422,7 @@ export class ReviewPage {
     if (this.selecting()) this.toggle(line);
     // Saved as a transfer last time: it opens as one, ready to save.
     else if ((line.transferTo !== null || this.partnerOf(line) !== null) && line.proposal.account_id !== null) this.asTransfer(line);
-    else this.openLine.set(line);
+    else this.openInForm(line);
   }
 
   /** The other half of a transfer between two banks, while it waits too. */
@@ -437,12 +438,9 @@ export class ReviewPage {
    * one this account most often sends money to (or receives from). Saving it
    * marks the proposal saved and teaches the source's mold.
    */
-  asTransfer(line: Line, typed?: { amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 }): void {
-    const accountId = typed?.accountId ?? line.proposal.account_id;
-    const sign = typed?.sign ?? ((line.proposal.amount_minor ?? 0) >= 0 ? 1 : -1);
-    const amountMinor = typed?.amountMinor ?? Math.abs(line.proposal.amount_minor ?? 0);
-    const onDate = typed?.onDate || line.proposal.occurred_on || '';
-    this.openLine.set(null);
+  asTransfer(line: Line): void {
+    const accountId = line.proposal.account_id;
+    const sign = (line.proposal.amount_minor ?? 0) >= 0 ? 1 : -1;
     if (accountId === null) return;
     const partner = this.partnerOf(line);
     const other = line.transferTo ?? partner?.account_id ?? null;
@@ -451,19 +449,51 @@ export class ReviewPage {
       ...(other !== null && other !== accountId
         ? { route: sign < 0 ? { from: accountId, to: other } : { from: other, to: accountId } }
         : { preferredAccountId: accountId, preferredSide: sign < 0 ? 'from' as const : 'to' as const }),
-      start: { amountMinor, onDate, note: typed?.note ?? '' },
-      proposal: { id: line.proposal.id, accountId, said: line.evidence, ...(partner ? { pairId: partner.id } : {}) },
+      start: { amountMinor: Math.abs(line.proposal.amount_minor ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: '' },
+      proposal: { ...this.proposalOf(line), ...(partner ? { pairId: partner.id } : {}) },
     });
   }
 
-  /** What was typed in the one form before going back to the proposal's own. */
-  readonly typedBack = signal<NonNullable<ProposalAsk['typed']> | null>(null);
+  /**
+   * A row opened in the one movement form, as spending or income by its
+   * sign (Jose, 2026-10-13: it had a form of its own, which knew nothing of
+   * an account's products and fought the note's suggestions). The form
+   * carries what was read, the review screen's notes about it, and its eye
+   * and bin; saving it marks the proposal saved and teaches from it.
+   */
+  openInForm(line: Line): void {
+    const amount = line.proposal.amount_minor;
+    this.compose.entry.set({
+      kind: (amount ?? -1) < 0 ? 'expense' : 'income',
+      preferredAccountId: line.proposal.account_id,
+      start: { amountMinor: Math.abs(amount ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: line.proposal.description ?? '' },
+      proposal: this.proposalOf(line),
+    });
+  }
+
+  /** What the one form needs to know about a reading. */
+  private proposalOf(line: Line): EntryProposal {
+    const proposal = line.proposal;
+    return {
+      id: proposal.id,
+      accountId: proposal.account_id,
+      said: line.evidence,
+      categoryId: proposal.category_id,
+      categoryFrom: proposal.category_from,
+      original: proposal.description,
+      notification: proposal.source === 'notification',
+      seenBy: line.seenBy,
+      twin: line.twin,
+      sameAs: line.sameAs,
+      guessed: line.guessed,
+    };
+  }
 
   /**
-   * The eye, the bin or Gasto/Ingreso pressed in the one form opened from a
-   * proposal as a transfer: answered here, as from the proposal's own form.
+   * The eye, the bin or "Separar" pressed in the one form opened on a
+   * proposal: answered here, each asked over the form, which stays open.
    */
-  private readonly fromTransfer = effect(() => {
+  private readonly fromForm = effect(() => {
     const ask = this.compose.proposalAsk();
     if (ask === null) return;
     untracked(() => {
@@ -472,53 +502,13 @@ export class ReviewPage {
       if (!line) return;
       if (ask.kind === 'forget') this.asking.set({ kind: 'forgetOne', line });
       else if (ask.kind === 'discard') this.asking.set({ kind: 'discardOne', line });
-      else {
-        // Spending or income after all: the two banks' messages were not
-        // one transfer, so each is proposed on its own again.
-        if (line.partner) {
-          void new ProposalsRepository(this.database.driver).unpair(line.proposal.id).then(() => this.refresh());
-        }
-        this.typedBack.set(ask.typed ?? null);
-        this.openLine.set({ ...line, partner: null, transferTo: null });
-      }
+      else void this.separate(line);
     });
   });
 
-  // --- one row, answered in the movement form (6e-6h) ----------------------
-
-  readonly openLine = signal<Line | null>(null);
-
-  async answer(line: Line, fields: ProposalAnswer): Promise<void> {
-    this.working.set(true);
-    try {
-      const proposals = new ProposalsRepository(this.database.driver);
-      await proposals.correct(line.proposal.id, fields);
-      const updated = await proposals.byId(line.proposal.id);
-      this.openLine.set(null);
-      if (updated) await this.write([updated]);
-    } finally {
-      this.working.set(false);
-    }
-  }
-
   /** Closes the form a proposal was answered from, once the answer is yes. */
   private closeAnswered(line: Line): void {
-    if (this.openLine()?.proposal.id === line.proposal.id) this.openLine.set(null);
     if (this.compose.entry()?.proposal?.id === line.proposal.id) this.compose.close();
-  }
-
-  forgetOpen(): void {
-    const line = this.openLine();
-    if (!line) return;
-    // Asked over the form, which stays open: "Cancelar" leaves it as it was.
-    this.asking.set({ kind: 'forgetOne', line });
-  }
-
-  discardOpen(): void {
-    const line = this.openLine();
-    if (!line) return;
-    // Asked over the form, which stays open: "Cancelar" leaves it as it was.
-    this.asking.set({ kind: 'discardOne', line });
   }
 
   /** The file a batch was read from. */
@@ -1232,13 +1222,12 @@ export class ReviewPage {
   }
 
   /** Undoes a merge of messages: each becomes a proposal of its own again. */
-  async separateOpen(): Promise<void> {
-    const line = this.openLine();
-    if (!line || this.working()) return;
+  async separate(line: Line): Promise<void> {
+    if (this.working()) return;
     this.working.set(true);
     try {
       await new ProposalsRepository(this.database.driver).separate(line.proposal.id);
-      this.openLine.set(null);
+      this.compose.close();
       this.database.dataChanged();
       await this.refresh();
     } catch (error) {

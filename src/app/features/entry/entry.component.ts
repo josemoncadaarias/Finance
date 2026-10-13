@@ -107,12 +107,37 @@ export interface EntryRequest {
    */
   editingEntry?: ProductEntry;
   /**
-   * A proposal from a bank's message saved as a transfer (Jose, 2026-10-08):
-   * once written, the proposal is marked saved and its source learns the
-   * account at the other end. `accountId` is the message's own account;
-   * `said` is the message, shown on top as in the proposal's own form.
+   * A proposal being reviewed - from a statement or a bank's message - opened
+   * in this one form, whatever it is saved as (Jose, 2026-10-13: it had a
+   * form of its own, which knew nothing of products and fought the note's
+   * suggestions). Once written, the proposal is marked saved and what it
+   * teaches is learned. `accountId` is the account the reading points at,
+   * null when nobody knows yet; `said` is what was read, shown on top.
    */
-  proposal?: { id: number; accountId: number; said?: string; pairId?: number };
+  proposal?: EntryProposal;
+}
+
+export interface EntryProposal {
+  id: number;
+  accountId: number | null;
+  said?: string;
+  /** The other bank's message about the same transfer, still waiting. */
+  pairId?: number;
+  categoryId?: number | null;
+  /** Where its category came from: learned from the ledger, or guessed from the words. */
+  categoryFrom?: 'learned' | 'guessed' | 'typed' | null;
+  /** The description as it came, offered back while the note is written. */
+  original?: string | null;
+  /** True for a bank's message, false for a statement. */
+  notification?: boolean;
+  /** The other messages that told this movement, in words; they can be split off. */
+  seenBy?: string | null;
+  /** A message from another source that may be this one, in words. */
+  twin?: string | null;
+  /** The movement it may already be, in words. */
+  sameAs?: string | null;
+  /** Money in or out was read from the words, not proved. */
+  guessed?: boolean;
 }
 
 export interface LoanEntry {
@@ -1028,7 +1053,13 @@ export class EntryComponent implements OnInit, OnDestroy {
         this.toAccountId.set(route.to);
       }
     } else {
-      this.accountId.set(await this.defaultAccount(accounts));
+      const proposal = this.request().proposal;
+      // A proposal starts on the account its reading points at, and on none
+      // when nobody knows yet: guessing one would file it somewhere unasked.
+      this.accountId.set(proposal
+        ? (accounts.some(account => account.id === proposal.accountId) ? proposal.accountId : null)
+        : await this.defaultAccount(accounts));
+      if (proposal) this.categoryId.set(proposal.categoryId ?? null);
     }
 
     const start = this.request().start;
@@ -1152,7 +1183,8 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (selected != null && accounts.some(a => a.id === selected)) {
       // A card on show is paid, not drawn from (Jose, 2026-10-08): the
       // transfer goes INTO it, from the account that usually pays it.
-      const isCard = accounts.find(a => a.id === selected)?.type === 'credit';
+      // A message's own side wins: it says which way the money went.
+      const isCard = !this.request().proposal && accounts.find(a => a.id === selected)?.type === 'credit';
       // Leaving it: to wherever this account sends money most often.
       if (this.request().preferredSide === 'from' && !isCard) {
         return { from: selected, to: await this.counterpart(accounts, selected, 'from') };
@@ -1256,6 +1288,21 @@ export class EntryComponent implements OnInit, OnDestroy {
   /** Rises with every keystroke, so a slow query cannot overwrite a newer one. */
   private noteQuery = 0;
 
+  private notePressedAt = 0;
+
+  /** "aprendida" or "sugerida" beside a proposal's category while it is still the one it came with. */
+  readonly proposalTag = computed<'learned' | 'guessed' | null>(() => {
+    const asked = this.request().proposal;
+    if (!asked || this.categoryId() === null || this.categoryId() !== asked.categoryId) return null;
+    return asked.categoryFrom === 'learned' || asked.categoryFrom === 'guessed' ? asked.categoryFrom : null;
+  });
+
+  /** "Separar" on a proposal several messages told: answered on the review screen. */
+  separateProposal(): void {
+    const proposal = this.request().proposal;
+    if (proposal) this.compose.proposalAsk.set({ id: proposal.id, kind: 'separate' });
+  }
+
   async onNoteInput(value: string): Promise<void> {
     this.noteIsTheirs = true;
     this.usualNoteShown.set(false);
@@ -1352,6 +1399,11 @@ export class EntryComponent implements OnInit, OnDestroy {
 
 
   useNote(note: string, pressed?: Event): void {
+    // The press already chose; the click that follows it lands on whatever
+    // row the list has moved under the finger since, and must not choose
+    // again (Jose, 2026-10-13: a suggestion turned back into the note as read).
+    if (!pressed && Date.now() - this.notePressedAt < 700) return;
+    if (pressed) this.notePressedAt = Date.now();
     pressed?.preventDefault();
     this.noteIsTheirs = true;
     this.note.set(note);
@@ -1487,14 +1539,16 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.reshaped = false;
 
     try {
+      let written: number | null = null;
       const loan = this.loanEntry();
       if (loan) await this.saveLoanPayment(loan);
       else if (this.isTransfer()) await this.saveTransfer();
       else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
-      else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') await this.saveScoped();
-      else await this.saveMovement();
+      else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') written = await this.saveScoped();
+      else written = await this.saveMovement();
       if (!loan && !this.isTransfer()) await this.teach();
+      if (!loan && !this.isTransfer() && this.request().proposal) await this.answerProposal(written);
 
       await this.workOutAgain();
       this.database.dataChanged();
@@ -1744,7 +1798,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   /** The movement corrected was written again under another id (`saveReshaped`). */
   private reshaped = false;
 
-  private async saveMovement(): Promise<void> {
+  private async saveMovement(): Promise<number | null> {
     const transactions = new TransactionsRepository(this.database.driver);
     // The sign comes from the button pressed, never from what was typed.
     const signed = this.kind() === 'expense' ? -this.amount().minor : this.amount().minor;
@@ -1760,10 +1814,10 @@ export class EntryComponent implements OnInit, OnDestroy {
         amount_minor: signed,
         description: this.note().trim() || null,
       });
-      return;
+      return editing.id;
     }
 
-    await transactions.create({
+    return transactions.create({
       account_id: this.accountId()!,
       category_id: this.categoryId(),
       // Null on an account with one product: there is nothing to choose, and
@@ -1781,12 +1835,13 @@ export class EntryComponent implements OnInit, OnDestroy {
    * alone, or net worth alone. Written as the products screen writes it, and
    * the account's days worked out again from its date, as that screen does.
    */
-  private async saveScoped(): Promise<void> {
+  private async saveScoped(): Promise<number | null> {
     const db = this.database.driver;
     const yields = new YieldsRepository(db);
     const accountId = this.accountId()!;
+    let written: number | null = null;
     await db.transaction(async () => {
-      await writeScoped(db, yields, {
+      written = await writeScoped(db, yields, {
         scope: this.scope(),
         kind: this.kind() === 'expense' ? 'expense' : 'income',
         accountId,
@@ -1801,6 +1856,33 @@ export class EntryComponent implements OnInit, OnDestroy {
     });
     await accrueAndSettle(db, yields, new TaxParametersRepository(db), accountId, todayIso());
     await yields.markAccrued(todayIso(), { onlyIfKnown: true });
+    return written;
+  }
+
+  /**
+   * A proposal saved as a spending or an income: it takes what was finally
+   * chosen - account, category, amount, day - is marked saved against the
+   * movement it became, and teaches as the review screen's own "save" did:
+   * the shop it named under its category, and its source's mold. A message
+   * paired with another bank's as one transfer, saved as something else
+   * after all, is let go of that pairing first.
+   */
+  private async answerProposal(written: number | null): Promise<void> {
+    const asked = this.request().proposal!;
+    const proposals = new ProposalsRepository(this.database.driver);
+    const said = await proposals.byId(asked.id);
+    if (!said) return;
+    if (said.pairs_with != null) await proposals.unpair(asked.id);
+    const amount = this.amount().minor;
+    await proposals.correct(asked.id, {
+      account_id: this.accountId(),
+      category_id: this.categoryId(),
+      amount_minor: this.kind() === 'expense' ? -amount : amount,
+      occurred_on: this.occurredOn(),
+    });
+    await proposals.accepted(asked.id, written);
+    const categoryId = this.categoryId();
+    if (said.description && categoryId !== null) await proposals.learn(said.description, categoryId, this.occurredOn());
   }
 
   /**
@@ -2018,28 +2100,21 @@ export class EntryComponent implements OnInit, OnDestroy {
     const current = this.isTransfer() ? 'transfer' : this.kind();
     if (kind === current) return;
     const proposal = this.request().proposal;
-    if (proposal) {
-      // Back to the proposal's own form, which saves spending and income.
-      this.compose.proposalAsk.set({
-        id: proposal.id, kind: 'back',
-        typed: {
-          amountMinor: this.amount().minor, onDate: this.occurredOn(), accountId: proposal.accountId,
-          note: this.noteIsTheirs ? this.note() : '', sign: kind === 'expense' ? -1 : 1,
-        },
-      });
-      this.compose.close();
-      return;
-    }
+    // A proposal stays in this form whatever it becomes, carrying what was
+    // read and typed; from a transfer back to spending or income it goes on
+    // the account its reading pointed at.
+    const account = proposal && this.isTransfer() ? proposal.accountId : this.accountId();
     this.switchTo.emit({
       kind,
-      preferredAccountId: this.accountId() ?? this.request().preferredAccountId,
-      preferredSide: kind === 'transfer' ? 'from' : undefined,
+      preferredAccountId: account ?? this.request().preferredAccountId,
+      preferredSide: kind === 'transfer' ? (proposal && this.kind() === 'income' ? 'to' : 'from') : undefined,
       start: {
         amountMinor: this.amount().minor,
         onDate: this.occurredOn(),
-        note: this.noteIsTheirs ? this.note() : '',
+        note: this.noteIsTheirs || proposal ? this.note() : '',
         again: this.again(),
       },
+      ...(proposal ? { proposal: { ...proposal, accountId: account ?? proposal.accountId, categoryId: this.categoryId() ?? proposal.categoryId } } : {}),
     });
   }
 
