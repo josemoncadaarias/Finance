@@ -89,6 +89,27 @@ final class MovementAlert {
     private static final String[] NOT_A_MOVEMENT = {
             "codigo", "clave", "otp", "contrasena", "promo", "oferta", "gana ", "vence", "recuerda", "saldo es", "tu saldo" };
 
+    /** An advert's words; kept in step with ADVERT in read-notice.ts. */
+    private static final String[] ADVERT = {
+            "pide ya", "pidelo", "compra ya", "compralo", "aprovecha", "solo hoy", "solo por hoy", "no te lo pierdas",
+            "por tiempo limitado", "llevate", "descuento", "descuentazo", "dcto", "% off", "envio gratis", "domicilio gratis",
+            "cupon", "black friday", "cyber", "hot sale", "oferta", "promo", "pre-aprobad", "preaprobad", "sorteo", "participa",
+            "descubre", "encuentra", "shop now", "order now", "buy now", "limited time", "discount", "free shipping", "coupon" };
+    /** A price against an earlier one: "antes: 29.900". */
+    private static final Pattern PRICE_BEFORE =
+            Pattern.compile("(^|[^a-z])(antes|was|before)[:\\s]+(de\\s+)?(\\$|cop|usd|eur)?\\s?\\d");
+    /** Said only of money that did move; kept in step with HAPPENED in read-notice.ts. */
+    private static final String[] HAPPENED = {
+            "compraste", "pagaste", "recibiste", "transferiste", "retiraste", "enviaste", "realizaste", "hiciste", "ganaste",
+            "te transfirieron", "te enviaron", "te pagaron", "te consignaron", "te devolvimos", "te abonamos", "te llegaron",
+            "se debito", "debitamos", "abonamos", "you paid", "you spent", "you received", "you sent", "was charged" };
+
+    /** An advert names a price, never money that moved (Jose, 2026-10-13). */
+    static boolean isAdvert(String folded) {
+        if (has(folded, HAPPENED)) return false;
+        return has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find();
+    }
+
     private MovementAlert() {}
 
     private static SharedPreferences prefs(Context context) {
@@ -119,6 +140,7 @@ final class MovementAlert {
     static void post(Context context, String source, String name, String text, long at) {
         if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
+        if (isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
         int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
         if (direction == 0 && has(folded, NOT_A_MOVEMENT)) { note(context, source, at, "notMovement", null); return; }
         if (!NotificationStore.looksLikeMoney(text)) { note(context, source, at, "noMoney", null); return; }

@@ -155,6 +155,38 @@ const NOT_A_MOVEMENT = [
   'gana ', 'ganate', 'oferta', 'promo', 'descuento', 'aprovecha', 'hasta el', 'participa', 'sorteo', 'pre-aprobad', 'preaprobad',
 ];
 
+/**
+ * An advert says these even beside a word like "compra" (Jose, 2026-10-13: a
+ * shop's "Combo a $19.900, antes: 29.900. Pide ya" rang as a movement). A
+ * call to buy, a discount, a price set against an earlier one. Generic
+ * words: no shop, no bank, no country.
+ */
+const ADVERT = [
+  'pide ya', 'pidelo', 'compra ya', 'compralo', 'aprovecha', 'solo hoy', 'solo por hoy', 'no te lo pierdas', 'por tiempo limitado',
+  'llevate', 'descuento', 'descuentazo', 'dcto', '% off', 'envio gratis', 'domicilio gratis', 'cupon', 'black friday', 'cyber',
+  'hot sale', 'oferta', 'promo', 'pre-aprobad', 'preaprobad', 'sorteo', 'participa', 'descubre', 'encuentra',
+  'shop now', 'order now', 'buy now', 'limited time', 'discount', 'free shipping', 'coupon',
+];
+
+/** A price against an earlier one: "antes: 29.900", "antes $29.900", "was $30". */
+const PRICE_BEFORE = /(^|[^a-z])(antes|was|before)[:\s]+(de\s+)?(\$|cop|usd|eur)?\s?\d/;
+
+/**
+ * Said only of money that DID move, to the person: an advert never says
+ * "compraste". One of these keeps a message from being taken for an advert.
+ */
+const HAPPENED = [
+  'compraste', 'pagaste', 'recibiste', 'transferiste', 'retiraste', 'enviaste', 'realizaste', 'hiciste', 'ganaste',
+  'te transfirieron', 'te enviaron', 'te pagaron', 'te consignaron', 'te devolvimos', 'te abonamos', 'te llegaron',
+  'se debito', 'debitamos', 'abonamos', 'you paid', 'you spent', 'you received', 'you sent', 'was charged',
+];
+
+/** Whether a message is an advert rather than news of money that moved. */
+function isAdvert(folded: string): boolean {
+  if (hasAny(folded, HAPPENED)) return false;
+  return hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded);
+}
+
 /** A reminder of something to pay is never a movement, whatever words it uses. */
 const REMINDER = [
   'te recordamos que', 'recordatorio', 'vence', 'vencimiento', 'proximo pago', 'fecha limite', 'reminder', 'is due', 'due on', 'due date',
@@ -279,6 +311,7 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
   }
 
   if (hasAny(folded, REMINDER)) return { ...empty, balanceMinor, digits };
+  if (isAdvert(folded)) return empty;
 
   const outAt = firstOf(folded, OUT);
   const inAt = firstOf(folded, IN);
