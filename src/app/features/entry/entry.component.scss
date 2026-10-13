@@ -516,3 +516,22 @@
 .entry-top .eye { margin-left: auto; }
 .entry-top .eye ion-icon { color: var(--app-mu); font-size: 24px; }
 .entry-top .eye + .bin { margin-left: 8px; }
+
+// A proposal's own notes (it is reviewed in this one form, Jose 2026-10-13).
+.same {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; margin-top: 10px;
+  background: rgba(var(--app-yel-rgb), 0.12); border: 1px solid rgba(var(--app-yel-rgb), 0.45);
+  .ui-tx small { color: var(--app-yel); white-space: normal; }
+  .ui-tx b { white-space: normal; }
+}
+.seen-by {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; margin-top: 10px;
+  background: rgba(77, 163, 255, 0.10); color: #4da3ff; font-size: 13px;
+  ion-icon { font-size: 17px; flex: none; }
+  > span:not(.ui-info) { flex: 1; min-width: 0; white-space: normal; }
+  .ui-pill { flex: none; }
+}
+.guessed-sign { margin: 10px 0 0; }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 6px; font-weight: 500; }
+.tag.learned { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
+.tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }

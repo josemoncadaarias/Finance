@@ -275,6 +275,27 @@ these):
   end (read by the message's sign), no longer the one first proposed.
   Tests in `notice-molds.test.mjs`; checked in a browser on the sample data.
 
+- **A proposal is reviewed in the one movement form** (Jose, 2026-10-13:
+  "todo debe ser manejado bajo lo mismo"). Por revisar's own form
+  (`proposal-form.component`) is deleted: tapping a row opens `app-entry`
+  as spending or income by its sign (`openInForm` in `review.page.ts`),
+  carrying `EntryRequest.proposal` (`EntryProposal`: what was read, its
+  account - none when unknown, never guessed -, its category and where it
+  came from, the description as it came, and the review screen's notes:
+  seen by several messages with "Separar", maybe the same as another, maybe
+  already registered, sign read from the words). So an account with
+  products shows its usual product and "¿Qué cambia?", the note has the
+  form's own suggestions (plus "tal como vino") and Gasto / Ingreso /
+  Transferir switch inside the form, keeping the proposal. Saving writes the
+  movement as any other (`writeScoped` now returns the movement's id), then
+  `answerProposal` corrects the proposal to what was chosen, marks it saved
+  against that movement (none for "Solo el producto"), lets go of a pairing
+  with another bank's message, and teaches the shop and the mold. A
+  suggestion chosen on the press is no longer chosen again by the click
+  that follows (`notePressedAt`): the list moved under the finger and the
+  click landed on the row "as it came". "Registrar otro" is not offered on
+  a proposal. Checked in a browser on the sample data.
+
 ---
 
 ## Decisions already made

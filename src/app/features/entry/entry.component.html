@@ -57,6 +57,34 @@
             </span>
           </div>
         }
+        @if (request().proposal; as asked) {
+          <!-- What the review screen knows about this reading, said here. -->
+          @if (asked.seenBy) {
+            <div class="seen-by">
+              <ion-icon name="layers-outline"></ion-icon>
+              <span>{{ asked.seenBy }}</span>
+              <span class="ui-info" role="button" (click)="info.set(i18n.t('ui.review.separateHint'))" [attr.aria-label]="'ui.info' | t">
+                <ion-icon name="information"></ion-icon>
+              </span>
+              <button type="button" class="ui-pill" (click)="separateProposal()">{{ 'ui.review.separate' | t }}</button>
+            </div>
+          }
+          @if (asked.twin) {
+            <div class="same">
+              <app-badge [size]="36" builtin="copy-outline" fixed="#f6b93b"></app-badge>
+              <span class="ui-tx"><b>{{ asked.twin }}</b><small>{{ 'ui.review.twinHint' | t }}</small></span>
+            </div>
+          }
+          @if (asked.sameAs) {
+            <div class="same">
+              <app-badge [size]="36" builtin="copy-outline" fixed="#f6b93b"></app-badge>
+              <span class="ui-tx"><small>{{ 'ui.review.maybeThis' | t }}</small><b>{{ asked.sameAs }}</b></span>
+            </div>
+          }
+          @if (asked.guessed && !isTransfer()) {
+            <div class="ui-banner warn guessed-sign"><ion-icon name="help-circle-outline"></ion-icon><span>{{ (asked.notification ? 'review.guessed.notice' : 'review.guessed') | t }}</span></div>
+          }
+        }
 
         <!-- The amount, and nothing competing with it. -->
         @if (crossesCurrency()) {
@@ -137,7 +165,7 @@
                 @if (selectedCategory(); as category) {
                   <app-badge [size]="42" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
                              [tone]="category.color" [seed]="category.id"></app-badge>
-                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b>{{ category.name }}</b></span>
+                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b>{{ category.name }}@if (proposalTag(); as tag) {<span class="tag" [class.learned]="tag === 'learned'" [class.guessed]="tag === 'guessed'">{{ (tag === 'learned' ? 'review.learned' : 'review.fromWords') | t }}</span>}</b></span>
                 } @else {
                   <app-badge [size]="42" builtin="pricetag-outline" fixed="#f6b93b"></app-badge>
                   <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b class="ui-y">{{ 'entry.need.category' | t }}</b></span>
@@ -228,7 +256,7 @@
   <!-- Saving at the foot, always. -->
   @if (!writingNote()) {
     <app-form-foot [missing]="missing()" [canSave]="canSave() && !saving()"
-                   [offerAgain]="!isEditing()" [again]="again()" (againChange)="setAgain($event)"
+                   [offerAgain]="!isEditing() && !request().proposal" [again]="again()" (againChange)="setAgain($event)"
                    (save)="save()"></app-form-foot>
   }
 </div>
@@ -313,13 +341,22 @@
     }
   </div>
   <!-- The notes written before that match, under the note while it is written. -->
-  @if (writingNote() && noteSuggestions().length > 0) {
+  @let asCame = request().proposal?.original ?? '';
+  @if (writingNote() && (noteSuggestions().length > 0 || (asCame !== '' && note() !== asCame))) {
     <div class="hints">
       @for (hint of noteSuggestions(); track hint) {
         <button type="button" class="ui-row" (pointerdown)="useNote(hint, $event)" (click)="useNote(hint)">
           <ion-icon name="time-outline"></ion-icon>
           @let parts = hintParts(hint);
           <span class="ui-tx"><b class="hint-text">{{ parts[0] }}<u>{{ parts[1] }}</u>{{ parts[2] }}</b></span>
+          <ion-icon class="use" name="arrow-up-outline"></ion-icon>
+        </button>
+      }
+      @if (asCame !== '' && note() !== asCame) {
+        <!-- What the statement or the message said, to keep it as it came. -->
+        <button type="button" class="ui-row" (pointerdown)="useNote(asCame, $event)" (click)="useNote(asCame)">
+          <ion-icon name="document-text-outline"></ion-icon>
+          <span class="ui-tx"><b class="hint-text">{{ asCame }}</b><small>{{ 'ui.review.asItCame' | t }}</small></span>
           <ion-icon class="use" name="arrow-up-outline"></ion-icon>
         </button>
       }

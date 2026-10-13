@@ -105,6 +105,6 @@ export class ComposeService {
 
 export interface ProposalAsk {
   id: number;
-  kind: 'forget' | 'discard' | 'back';
+  kind: 'forget' | 'discard' | 'separate';
   typed?: { amountMinor: number; onDate: string; accountId: number | null; note: string; sign: 1 | -1 };
 }
