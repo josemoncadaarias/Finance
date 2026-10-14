@@ -19,7 +19,7 @@ import * as allIcons from 'ionicons/icons';
 import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { formatMoney } from '../../core/database/money';
+import { amountsHidden, formatMoney, HIDDEN_AMOUNT, withAmountsShown } from '../../core/database/money';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { JumpComponent } from '../../shared/ui/jump.component';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
@@ -36,6 +36,8 @@ import type { YieldsReportData } from '../../core/report/yields-data';
 import { FilterService } from '../../core/filters/filter.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { PrivacyService } from '../../core/ui/privacy.service';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 import { map } from 'rxjs';
 import type { Block, Value } from '../../core/report/blocks';
 import type { ReportData } from '../../core/report/report-data';
@@ -47,13 +49,14 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   templateUrl: './report.page.html',
   styleUrls: ['./report.page.scss'],
   imports: [
-    TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, BusyOverlayComponent,
+    TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, BusyOverlayComponent, AmountsEyeComponent,
     IonContent, IonIcon, IonSpinner,
   ],
 })
 export class ReportPage {
   private readonly report = inject(ReportService);
   private readonly yieldsReport = inject(YieldsReportService);
+  readonly privacy = inject(PrivacyService);
   readonly filter = inject(FilterService);
   private readonly toast = inject(ToastService);
   private readonly accent = inject(AccentService);
@@ -169,6 +172,8 @@ export class ReportPage {
       }
       this.database.dataVersion();
       this.i18n.language();
+      // Its sentences quote figures: the eye hides or shows them.
+      this.privacy.hidden();
       if (this.database.status() === 'ready') void this.build();
     });
   }
@@ -202,7 +207,10 @@ export class ReportPage {
     try {
       const name = yields ? yieldsFileName(yields) : reportFileName(data!);
       this.exportName.set(name);
-      const bytes = yields ? yieldsWorkbook(yields, this.blocks()) : reportWorkbook(data!);
+      // The spreadsheet carries the real figures even while the eye hides them.
+      const bytes = await withAmountsShown(async () => yields
+        ? yieldsWorkbook(yields, this.privacy.hidden() ? (await this.yieldsReport.build()).blocks : this.blocks())
+        : reportWorkbook(data!));
       const saved = await saveFile(new Blob([bytes], { type: XLSX_MIME }), name);
       if (saved) this.toast.say(this.i18n.t('report.saved'));
     } catch (error) {
@@ -543,6 +551,7 @@ export class ReportPage {
   /** "5,4 M", "352 mil": a figure short enough for a line under a title. */
   private short(value: Value): string {
     if (value.kind !== 'money') return this.show(value);
+    if (amountsHidden()) return HIDDEN_AMOUNT;
     const units = Math.abs(value.minor) / 100;
     const sign = value.minor < 0 ? '−' : '';
     const locale = this.i18n.dateLocale();

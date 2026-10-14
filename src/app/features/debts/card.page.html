@@ -61,6 +61,7 @@
         }
         @default {
           <section class="ui-hero bill" [class.late]="st.state === 'overdue'">
+            <app-amounts-eye class="corner"></app-amounts-eye>
             <span class="ui-lab">{{ (st.bankMinor !== null ? 'cards.statementOf.bank' : 'cards.statementOf') | t:{ date: short(st.cutOn) } }}</span>
             <div class="ui-big" [class.ui-r]="st.state === 'overdue'">
               $ {{ money(st.remainingMinor) }}

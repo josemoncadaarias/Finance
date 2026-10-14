@@ -56,7 +56,7 @@ import { removeProductInto } from '../../core/yields/remove-product';
 import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '../../core/yields/cdt';
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString, type WithholdingRule } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
-import { parseTypedAmountToMinor } from '../../core/database/money';
+import { amountsHidden, HIDDEN_AMOUNT, parseTypedAmountToMinor } from '../../core/database/money';
 import { groupTypedAmount, typedAmountOf } from '../../core/database/typed-amount';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
@@ -75,6 +75,7 @@ import {
 } from '../../core/filters/period';
 import { foldText } from '../../core/text/fold-text';
 import { MOVE_COLOR } from '../../core/theme/palette';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 /** One row of the list: an enrolled account and what it has earned. */
 interface ProductLine {
@@ -174,6 +175,7 @@ interface Payment {
   templateUrl: './products.page.html',
   styleUrls: ['./products.page.scss'],
   imports: [
+    AmountsEyeComponent,
     BusyOverlayComponent, DateFieldComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
     EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
     IonContent, IonIcon, IonSpinner, IonModal, IonDatetime,
@@ -3132,6 +3134,7 @@ export class ProductsPage {
   }
 
   money(minor: number, currency = 'COP'): string {
+    if (amountsHidden()) return currency === 'COP' ? HIDDEN_AMOUNT : `${HIDDEN_AMOUNT} ${currency}`;
     const formatted = new Intl.NumberFormat('es-CO', {
       minimumFractionDigits: 2, maximumFractionDigits: 2,
     }).format(minor / 100);

@@ -108,6 +108,14 @@
 
     <div class="ui-h">{{ 'more.preferences' | t }}</div>
     <div class="ui-list" data-tour="more-prefs">
+      <!-- Start every opening with the amounts hidden (28e). -->
+      <div class="ui-row">
+        <app-badge [size]="40" builtin="eye-off-outline" fixed="#8c9bb5"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'ui.amounts.onOpen' | t }}</b><small class="wrap">{{ 'ui.amounts.onOpen.hint' | t }}</small></span>
+        <button type="button" class="ui-switch" [class.on]="privacy.hideOnOpen()" role="switch"
+                [attr.aria-checked]="privacy.hideOnOpen()" [attr.aria-label]="'ui.amounts.onOpen' | t"
+                (click)="privacy.setHideOnOpen(!privacy.hideOnOpen())"></button>
+      </div>
       <button type="button" class="ui-row" (click)="languageSheet.set(true)">
         <app-badge [size]="40" builtin="language-outline" fixed="#4cb8f5"></app-badge>
         <span class="ui-tx">

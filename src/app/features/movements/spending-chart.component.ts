@@ -25,7 +25,7 @@ import { Component, computed, effect, inject, input, output, signal, untracked }
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { formatMoney } from '../../core/database/money';
+import { amountsHidden, formatMoney } from '../../core/database/money';
 import { DEFAULT_COLOR } from '../../core/theme/palette';
 import { ThemeService } from '../../core/theme/theme.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
@@ -357,6 +357,7 @@ export class SpendingChartComponent {
 
   /** "5,24 M", "845 mil": the figure inside the ring, short enough to fit. */
   short(minor: number): string {
+    if (amountsHidden()) return '••••';
     const units = Math.abs(minor) / 100;
     const locale = this.i18n.dateLocale();
     if (units >= 1_000_000) {

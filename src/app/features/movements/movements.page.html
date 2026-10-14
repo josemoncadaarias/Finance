@@ -75,8 +75,10 @@
           <!-- One account's quick buttons: first where it leads - a card's
                debt, an earning account's products and yields - then editing
                it (Jose, 2026-10-01). -->
+          <span class="quick">
+            <!-- The eye that hides every amount, first, on every screen with money (28). -->
+            <app-amounts-eye></app-amounts-eye>
           @if (store.selectedAccount(); as account) {
-            <span class="quick">
               @if (account.type === 'credit' || loanIds().has(account.id)) {
                 <button type="button" class="ui-round solid" (click)="toDebt(account.id)"
                         [attr.aria-label]="'summary.toDebt' | t" [title]="'summary.toDebt' | t">
@@ -95,8 +97,8 @@
                   <ion-icon name="account-edit"></ion-icon>
                 </button>
               }
-            </span>
           }
+          </span>
         </div>
 
         @if (standing.kind === 'credit' && standing.detail) {

@@ -48,12 +48,14 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
 import { MOVE_COLOR } from '../../core/theme/palette';
 import { AttentionHomeComponent } from './attention-home.component';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
   imports: [
+    AmountsEyeComponent,
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,
     IonContent, IonHeader, IonIcon, IonSpinner,

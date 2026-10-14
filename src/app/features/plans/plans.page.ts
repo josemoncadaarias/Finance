@@ -29,12 +29,13 @@ import { GoalsService, type GoalView } from '../../core/goals/goals.service';
 import type { GoalKind } from '../../core/goals/goals';
 import { goalLine, placesLine } from './goal-words';
 import { lineOf, monthLabel, plain, ratio, shortDay, toneOf } from './plans-words';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
   selector: 'app-plans',
   templateUrl: './plans.page.html',
   styleUrls: ['./plans.page.scss'],
-  imports: [TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, GoalEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AmountsEyeComponent, TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, GoalEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class PlansPage {
   readonly limits = inject(LimitsService);

@@ -8,6 +8,7 @@ import { Component, effect, inject } from '@angular/core';
 import { Router, NavigationStart } from '@angular/router';
 import { IonApp, IonRouterOutlet, ModalController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { PrivacyService } from './core/ui/privacy.service';
 import { DRAWN_ICONS } from './core/icons/drawn-icons';
 import * as allIcons from 'ionicons/icons';
 import { ThemeService } from './core/theme/theme.service';
@@ -72,6 +73,8 @@ export class AppComponent {
 
   /** Text cut short with "…" slides to show the rest of itself, on every screen. */
   private readonly marquee = inject(MarqueeService);
+  /** The eye that hides amounts, read by formatMoney from the first screen on. */
+  private readonly privacy = inject(PrivacyService);
 
   /** Turns the banks' messages the phone kept into proposals. Same reason. */
   private readonly notices = inject(NoticeInboxService);

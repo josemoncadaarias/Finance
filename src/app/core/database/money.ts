@@ -106,11 +106,42 @@ function formatterFor(
  * Formats an amount for display. This is the only place decimals appear.
  * COP is shown with 2 decimals, not rounded to whole pesos.
  */
+/**
+ * What an amount reads as while the eye has hidden them (Jose, 2026-10-14):
+ * someone looking at the phone sees no balance. Names, categories and
+ * percentages stay; only figures go.
+ */
+export const HIDDEN_AMOUNT = '••••••';
+
+/** Whether amounts are hidden right now. The app sets it; Node never does. */
+let hiddenNow: () => boolean = () => false;
+/** Writing a file: a CSV or a spreadsheet always carries the real figures. */
+let showingForFile = 0;
+
+export function hideAmountsWhen(check: () => boolean): void {
+  hiddenNow = check;
+}
+
+export function amountsHidden(): boolean {
+  return showingForFile === 0 && hiddenNow();
+}
+
+/** Runs `work` with every figure shown, whatever the eye says: for exports. */
+export async function withAmountsShown<T>(work: () => Promise<T> | T): Promise<T> {
+  showingForFile++;
+  try {
+    return await work();
+  } finally {
+    showingForFile--;
+  }
+}
+
 export function formatMoney(
   minor: number,
   currencyCode: string,
-  options: { locale?: string; minorUnits?: number; withSymbol?: boolean } = {},
+  options: { locale?: string; minorUnits?: number; withSymbol?: boolean; shown?: boolean } = {},
 ): string {
+  if (!options.shown && amountsHidden()) return HIDDEN_AMOUNT;
   const { locale = 'es-CO', minorUnits = DEFAULT_MINOR_UNITS, withSymbol = true } = options;
   const value = Number(minorToDecimalString(minor, minorUnits));
 

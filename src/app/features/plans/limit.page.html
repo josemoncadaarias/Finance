@@ -32,6 +32,7 @@
 
       @if (st.state === 'passed') {
         <section class="ui-hero red">
+          <app-amounts-eye class="corner"></app-amounts-eye>
           <span class="ui-lab">{{ 'plans.page.overBy' | t }}</span>
           <div class="ui-big ui-r">$ {{ money(st.overMinor) }}</div>
           <app-limit-bar class="big" [percent]="ratio(st)" state="passed"></app-limit-bar>
@@ -44,6 +45,7 @@
         </section>
       } @else {
         <section class="ui-hero">
+          <app-amounts-eye class="corner"></app-amounts-eye>
           <span class="ui-lab">{{ 'plans.page.spent' | t }}</span>
           <div class="ui-big">{{ money(st.spentMinor) }} <small>{{ 'plans.of' | t:{ amount: money(st.amountMinor) } }}</small></div>
           <app-limit-bar class="big" [percent]="ratio(st)" [state]="st.state"></app-limit-bar>

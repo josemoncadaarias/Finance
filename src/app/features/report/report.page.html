@@ -5,10 +5,13 @@
   <div class="report-top">
     <div class="ui-bigtitle">
       <h1>{{ 'ui.tab.report' | t }}</h1>
-      <button type="button" class="ui-round" [disabled]="exporting() || working()" (click)="exportExcel()"
-              [attr.aria-label]="'report.export' | t" [title]="'report.export' | t">
-        <ion-icon name="download-outline"></ion-icon>
-      </button>
+      <span class="title-acts">
+        <app-amounts-eye></app-amounts-eye>
+        <button type="button" class="ui-round" [disabled]="exporting() || working()" (click)="exportExcel()"
+                [attr.aria-label]="'report.export' | t" [title]="'report.export' | t">
+          <ion-icon name="download-outline"></ion-icon>
+        </button>
+      </span>
     </div>
 
     <div class="ui-main head">

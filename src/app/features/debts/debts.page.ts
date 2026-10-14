@@ -24,6 +24,7 @@ import { LoansRepository, type LoanRow } from '../../core/loans/loans.repository
 import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
 import { LoanEditorComponent } from './loan-editor.component';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 export interface LoanSummary { loan: LoanRow; s: LoanSchedule }
 
@@ -32,6 +33,7 @@ export interface LoanSummary { loan: LoanRow; s: LoanSchedule }
   templateUrl: './debts.page.html',
   styleUrls: ['./debts.page.scss'],
   imports: [
+    AmountsEyeComponent,
     TranslatePipe, MoneyPipe, AccountsFacesComponent, BadgeComponent, LoanEditorComponent, AccountEditorComponent,
     IonContent, IonIcon, IonModal, IonSpinner,
   ],

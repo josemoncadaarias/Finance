@@ -30,6 +30,8 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { LoanEditorComponent } from './loan-editor.component';
 import { longDay, plain, shortDate, uvrText } from './card-words';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
+import { amountsHidden, HIDDEN_AMOUNT } from '../../core/database/money';
 
 type Tab = 'summary' | 'installments' | 'ahead';
 type Every = PlannedExtra['every'];
@@ -40,7 +42,7 @@ const AMOUNTS = [1_000_000_00, 2_000_000_00, 5_000_000_00, 10_000_000_00];
   selector: 'app-loan',
   templateUrl: './loan.page.html',
   styleUrls: ['./loan.page.scss'],
-  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class LoanPage {
   private readonly database = inject(DatabaseService);
@@ -243,6 +245,7 @@ export class LoanPage {
 
   /** A round figure with no cents, for amounts the person picks. */
   whole(minor: number): string {
+    if (amountsHidden()) return HIDDEN_AMOUNT;
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(minor / 100);
   }
 
