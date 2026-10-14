@@ -9,7 +9,8 @@
 import { Pipe, type PipeTransform } from '@angular/core';
 import { formatMoney } from '../core/database/money';
 
-@Pipe({ name: 'money' })
+// Not pure: it follows the eye that hides amounts (PrivacyService).
+@Pipe({ name: 'money', pure: false })
 export class MoneyPipe implements PipeTransform {
   transform(minor: number | null | undefined, currency = 'COP', withSymbol = false): string {
     if (minor === null || minor === undefined) return '—';

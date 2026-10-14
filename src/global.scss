@@ -2627,3 +2627,8 @@ ion-app::before {
    bar (up to ~300px with its warning line) floats over the foot of the page,
    and the last rows have to be able to scroll above it (Jose, 2026-10-06). */
 .selection-room { height: 320px; flex-shrink: 0; }
+
+// The eye that hides every amount (mockups 28): the top right of a screen's
+// big card, the same place on every screen.
+.ui-hero:has(> app-amounts-eye.corner), .ui-card:has(> app-amounts-eye.corner) { position: relative; padding-right: 60px; }
+app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }

@@ -21,6 +21,7 @@
       @let st = s()!;
       @if (st.state === 'reached') {
         <section class="ui-hero won">
+          <app-amounts-eye class="corner"></app-amounts-eye>
           <app-badge shape="ci" [size]="60" builtin="trophy-outline" fixed="#34c98b"></app-badge>
           <b class="title">{{ 'goals.page.reached' | t }}</b>
           <div class="ui-big ui-g">{{ money(v.terms.amountMinor) }}</div>
@@ -39,6 +40,7 @@
         </div>
       } @else {
         <section class="ui-hero" [class.late]="st.state === 'late'">
+          <app-amounts-eye class="corner"></app-amounts-eye>
           <div class="head"><span class="ui-lab">{{ 'goals.page.have' | t }}</span>
             <span class="ui-tag state-tag" [class.late]="st.state === 'late'">{{ $any('goals.state.' + st.state) | t }}</span></div>
           <div class="ui-big">{{ money(st.savedMinor) }} <small>{{ 'plans.of' | t:{ amount: money(v.terms.amountMinor) } }}</small></div>

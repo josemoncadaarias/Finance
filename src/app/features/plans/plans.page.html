@@ -5,6 +5,8 @@
       <ion-icon name="chevron-back"></ion-icon>
     </button>
     <h1>{{ 'plans.title' | t }}</h1>
+    <!-- Its big card changes with what passed, so the eye sits in the title bar (28). -->
+    <app-amounts-eye></app-amounts-eye>
     <button type="button" class="bell" (click)="avisos.set(true)" [attr.aria-label]="'plans.notices.title' | t" [title]="'plans.notices.title' | t">
       <ion-icon name="notifications-outline"></ion-icon>
     </button>

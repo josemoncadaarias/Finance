@@ -34,6 +34,7 @@ import { JumpComponent } from '../../shared/ui/jump.component';
 import { AccountsFacesComponent } from '../../shared/ui/accounts-faces.component';
 import { AccentService } from '../../core/theme/accent.service';
 import { shortDay } from '../../core/filters/period';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 /** The colour each currency's code badge wears (2a, 2c). */
 const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EUR: '#f6b93b' };
@@ -43,6 +44,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
   imports: [
+    AmountsEyeComponent,
     NgTemplateOutlet, MoneyPipe, TranslatePipe, AccountEditorComponent,
     BadgeComponent, JumpComponent, AccountsFacesComponent,
     IonContent, IonRefresher, IonRefresherContent, IonSpinner, IonIcon, IonModal,

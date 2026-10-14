@@ -22,12 +22,13 @@ import { LimitBarComponent } from '../../shared/ui/limit-bar.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { LimitEditorComponent } from './limit-editor.component';
 import { lineOf, longDay, monthLabel, plain, ratio, shortDay } from './plans-words';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
   selector: 'app-limit',
   templateUrl: './limit.page.html',
   styleUrls: ['./limit.page.scss'],
-  imports: [TranslatePipe, BadgeComponent, LimitBarComponent, LimitEditorComponent, ConfirmComponent, IonContent, IonIcon, IonModal],
+  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, LimitBarComponent, LimitEditorComponent, ConfirmComponent, IonContent, IonIcon, IonModal],
 })
 export class LimitPage {
   readonly limits = inject(LimitsService);

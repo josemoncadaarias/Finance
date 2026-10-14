@@ -40,6 +40,7 @@ import { LoansRepository } from '../../core/loans/loans.repository';
 import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
 import { LimitsService } from '../../core/limits/limits.service';
 import { GoalsService } from '../../core/goals/goals.service';
+import { PrivacyService } from '../../core/ui/privacy.service';
 
 @Component({
   selector: 'app-more',
@@ -48,6 +49,7 @@ import { GoalsService } from '../../core/goals/goals.service';
   imports: [TranslatePipe, AvatarComponent, BadgeComponent, FlagComponent, IonContent, IonIcon, IonModal],
 })
 export class MorePage {
+  readonly privacy = inject(PrivacyService);
   private readonly router = inject(Router);
   private readonly database = inject(DatabaseService);
   readonly i18n = inject(I18nService);

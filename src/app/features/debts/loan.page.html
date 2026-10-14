@@ -36,6 +36,7 @@
           @if (s.overdue.length > 0) {
             @let late = s.overdue[0];
             <section class="ui-hero late">
+              <app-amounts-eye class="corner"></app-amounts-eye>
               <span class="ui-lab">{{ 'loans.next.label' | t:{ number: late.number, of: loan.terms.installments } }}</span>
               <div class="ui-big ui-r">$ {{ money(late.totalMinor) }}</div>
               <p class="ui-sub">{{ 'loans.overdue.body' | t:{ date: long(late.dueOn), when: when(late.dueOn) } }}</p>
@@ -43,6 +44,7 @@
             </section>
           }
           <section [class]="s.overdue.length > 0 ? 'ui-card owed' : 'ui-hero owed'">
+            @if (s.overdue.length === 0) { <app-amounts-eye class="corner"></app-amounts-eye> }
             <span class="ui-lab">{{ 'loans.owed' | t }}</span>
             <div [class]="s.overdue.length > 0 ? 'mid' : 'ui-big'">$ {{ money(s.balanceMinor) }}</div>
             @if (s.balanceUvr !== undefined && s.uvrToday) {

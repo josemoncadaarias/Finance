@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (788 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (790 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -211,7 +211,7 @@ these):
   remembered, "No es un movimiento"; Notificaciones - each bank's page,
   "Ignorar publicidad"; Deudas - a loan already being paid ("¿Ya lo
   vienes pagando?" on top of the loan form). Version 3 (2026-10-14): Por revisar
-  - "Movimientos que se repiten" answered whole, "Editar" for several. Categorías - a category's side can be changed.
+  - "Movimientos que se repiten" answered whole, "Editar" for several. Categorías - a category's side can be changed. Inicio - the eye that hides amounts.
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -362,6 +362,27 @@ these):
   (`EntryProposal.productId/scope`), and "Guardar los listos" writes them
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
+
+- **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
+  turned down on 2026-09-28, asked for again). One switch for the whole app
+  (`PrivacyService.hidden`, not kept between openings): the same round eye
+  (`app-amounts-eye`) sits at the top right of each screen's big card -
+  Inicio (first of its quick buttons), Cuentas, Rendimientos and an account's
+  page, Deudas, a card, a loan, a cap, a goal - and in the title bar of
+  Reporte and Presupuestos, whose big card changes. It works where amounts
+  become text: `formatMoney` returns `HIDDEN_AMOUNT` ("••••••") while
+  `amountsHidden()`, the money pipe is impure to follow it, and the few
+  formatters of their own check it too (products' `money`, a loan's `whole`,
+  the report's and the donut's short figures); the report rebuilds its
+  sentences when the eye changes. Never hidden: typed boxes (`shown: true`,
+  the tax simulator, which stands apart), and files - the CSV and the tax
+  sheet pass `shown`, the report's spreadsheet is built inside
+  `withAmountsShown`. Más → Preferencias → "Ocultar montos al abrir"
+  (`finance.amounts.hideOnOpen`) starts every opening hidden. Names,
+  categories, percentages and rates stay. Home tour step `since: 3`. Tests
+  in `hidden-amounts.test.mjs`; checked in a browser on the sample data
+  (every screen hidden from one tap, shown again from Cuentas, hidden on
+  reopening with the switch on). Not seen on the phone.
 
 - **A category's side can be changed even once used** (Jose, 2026-10-14:
   it was locked, so a category set up as income that was spending had no way

@@ -12,6 +12,7 @@
 
     @if (cards(); as cards) {
       <section class="ui-hero owed">
+        <app-amounts-eye class="corner"></app-amounts-eye>
         <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
         <div class="ui-big">$ {{ owedMinor() | money }}</div>
         @if (thisMonth().pay > 0) {

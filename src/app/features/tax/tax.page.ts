@@ -24,7 +24,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import type { TranslationKey } from '../../core/i18n/translations';
-import { formatMoney, parseTypedAmountToMinor } from '../../core/database/money';
+import { formatMoney, parseTypedAmountToMinor, withAmountsShown } from '../../core/database/money';
 import { groupTypedAmount } from '../../core/database/typed-amount';
 import { parsePercentToScaled } from '../../core/yields/yield-math';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
@@ -755,7 +755,8 @@ export class TaxPage {
     this.busyLabel.set(this.text.excelWriting);
     await new Promise(resolve => setTimeout(resolve));
     try {
-      const saved = await saveFile(new Blob([taxWorkbook(this.inputs(), new Date(), this.i18n.language())], { type: XLSX_MIME }), name);
+      const book = await withAmountsShown(() => taxWorkbook(this.inputs(), new Date(), this.i18n.language()));
+      const saved = await saveFile(new Blob([book], { type: XLSX_MIME }), name);
       if (saved) {
         this.excelNotice.set(fill(this.text.excelSaved, { file: name }));
         this.say(this.i18n.t('ui.tax.saved', { file: name }));
@@ -900,8 +901,9 @@ export class TaxPage {
 
   private format(value: number, format: FieldFormat, computedValue = false): string {
     if (format === 'money') {
-      if (value % 100 === 0) return formatMoney(value / 100, 'COP', { minorUnits: 0, withSymbol: false });
-      return formatMoney(value, 'COP', { withSymbol: false });
+      // The simulator stands apart: its boxes are typed in, never hidden.
+      if (value % 100 === 0) return formatMoney(value / 100, 'COP', { minorUnits: 0, withSymbol: false, shown: true });
+      return formatMoney(value, 'COP', { withSymbol: false, shown: true });
     }
     if (format === 'percent') {
       const percent = value / 10_000;

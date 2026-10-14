@@ -32,6 +32,7 @@
       <!-- The headline, and under it the sentence that keeps this screen
            honest: none of this is net worth. -->
       <section class="ui-hero total">
+        <app-amounts-eye class="corner"></app-amounts-eye>
         <span class="ui-lab">{{ 'products.total' | t }}</span>
         <div class="ui-big ui-g">{{ money(copTotalMinor()) }} <small>COP</small></div>
         <p class="ui-sub">{{ 'products.total.hint' | t }}</p>
@@ -252,6 +253,7 @@
                   </div>
                   <!-- The way back to Inicio is the house; beside it, the summary. -->
                   <div class="quick">
+                    <app-amounts-eye></app-amounts-eye>
                     <button type="button" class="ui-round solid" (click)="goToSummary(line)"
                             [attr.aria-label]="'products.toSummary' | t" [title]="'products.toSummary' | t">
                       <ion-icon name="home-outline"></ion-icon>

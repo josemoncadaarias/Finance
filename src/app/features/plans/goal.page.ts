@@ -25,12 +25,13 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { GoalEditorComponent } from './goal-editor.component';
 import { goalLine, placeName, placesLine } from './goal-words';
 import { longDay, monthLabel, plain } from './plans-words';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
   selector: 'app-goal',
   templateUrl: './goal.page.html',
   styleUrls: ['./limit.page.scss', './goal.page.scss'],
-  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, GoalEditorComponent, IonContent, IonIcon, IonModal],
+  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, GoalEditorComponent, IonContent, IonIcon, IonModal],
 })
 export class GoalPage {
   readonly goals = inject(GoalsService);

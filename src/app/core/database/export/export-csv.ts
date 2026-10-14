@@ -96,8 +96,9 @@ export function toCsv(rows: readonly ExportRow[], words: CsvWords = SPANISH_WORD
       row.account,
       row.currency_code,
       row.category ?? (row.transfer_id !== null ? words.transfer : ''),
-      formatMoney(row.amount_minor, row.currency_code, { withSymbol: false }),
-      formatMoney(row.amount_base_minor, 'COP', { withSymbol: false }),
+      // A file always carries the real figures, whatever the eye says.
+      formatMoney(row.amount_minor, row.currency_code, { withSymbol: false, shown: true }),
+      formatMoney(row.amount_base_minor, 'COP', { withSymbol: false, shown: true }),
       row.rate_scaled === null ? '' : (row.rate_scaled / 10_000).toFixed(4).replace('.', ','),
       row.description ?? '',
       row.transfer_id === null ? words.movement : words.transferLeg(row.transfer_leg ?? ''),

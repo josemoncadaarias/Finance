@@ -31,12 +31,13 @@ import { AmountBuffer } from '../entry/amount-buffer';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { longDay, plain, shortDate } from './card-words';
+import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
   selector: 'app-card',
   templateUrl: './card.page.html',
   styleUrls: ['./card.page.scss'],
-  imports: [TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class CardPage {
   private readonly database = inject(DatabaseService);

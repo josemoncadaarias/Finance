@@ -553,7 +553,7 @@ function referenceLine(
 }
 
 function money(minor: number): string {
-  return formatMoney(minor, 'COP');
+  return formatMoney(minor, 'COP', { shown: true });
 }
 
 function percent(scaled: number): string {

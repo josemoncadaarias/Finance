@@ -32,6 +32,7 @@
       </div>
     } @else {
       <section class="ui-hero worth">
+        <app-amounts-eye class="corner"></app-amounts-eye>
         <span class="ui-lab">{{ 'ui.account.worthToday' | t }}</span>
         <div class="ui-big">$ {{ netWorthMinor() | money }} <small>COP</small></div>
         <p class="ui-sub">{{ 'accounts.brokersCaveat' | t }}</p>
