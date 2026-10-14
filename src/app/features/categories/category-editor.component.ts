@@ -1,12 +1,12 @@
 /**
  * Creating a category, and correcting one.
  *
- * A category is a name, a face and a side: spending or income. The side is
- * locked once the category exists, for the same reason an account's currency
- * is — every movement already filed under it was filed as one or the other,
- * and flipping the label would silently turn a year of expenses into income.
- * A category on the wrong side is fixed by making the right one and moving its
- * movements across, which leaves a trail.
+ * A category is a name, a face and a side: spending or income. The side can
+ * be changed even once used (Jose, 2026-10-14: it was locked, and a category
+ * set up on the wrong side had no way out). Everything filed under it turns
+ * over with it - never silently: it is asked first, saying how many
+ * movements change and that the balances change with them
+ * (`changeCategoryKind`).
  */
 
 import {
@@ -18,6 +18,8 @@ import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
+import { changeCategoryKind, kindChangeReach, KindTaken } from '../../core/categories/change-kind';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge.component';
@@ -27,7 +29,7 @@ import type { CategoryKind, CategoryRow } from '../../core/database/types';
 
 @Component({
   selector: 'app-category-editor',
-  imports: [TranslatePipe, BadgeComponent, FaceEditorComponent, IonIcon, IonModal],
+  imports: [TranslatePipe, BadgeComponent, FaceEditorComponent, ConfirmComponent, IonIcon, IonModal],
   templateUrl: './category-editor.component.html',
   styleUrls: ['./category-editor.component.scss'],
 })
@@ -64,6 +66,29 @@ export class CategoryEditorComponent implements OnInit {
 
   readonly isNew = computed(() => this.editing() === null);
 
+  /** What a change of side would turn over: movements, and products' own. */
+  readonly reach = signal({ movements: 0, entries: 0 });
+  readonly reachCount = computed(() => this.reach().movements + this.reach().entries);
+  readonly kindChanges = computed(() => {
+    const category = this.editing();
+    return category !== null && category.kind !== this.kind();
+  });
+  readonly confirmingKind = signal(false);
+
+  /** "¿Pasar Arriendo a Gasto?" */
+  readonly kindQuestion = computed(() => this.i18n.t('categories.kind.ask', {
+    name: this.name().trim() || this.editing()?.name || '',
+    kind: this.i18n.t(this.kind() === 'expense' ? 'categories.kind.expense' : 'categories.kind.income'),
+  }));
+
+  /** How many turn over, and which way. */
+  readonly kindBody = computed(() => {
+    const one = this.reachCount() === 1 ? 'One' : '';
+    return this.i18n.t(
+      `categories.kind.${this.kind() === 'expense' ? 'toExpense' : 'toIncome'}${one}` as 'categories.kind.toExpense',
+      { count: this.reachCount().toLocaleString(this.i18n.dateLocale()) });
+  });
+
   readonly title = computed(() =>
     this.i18n.t(this.isNew() ? 'categories.new' : 'categories.edit'));
 
@@ -99,6 +124,7 @@ export class CategoryEditorComponent implements OnInit {
     const row = await this.database.driver.queryOne<{ n: number }>(
       'SELECT COUNT(*) AS n FROM transactions WHERE category_id = ?', [category.id]);
     this.usedBy.set(row?.n ?? 0);
+    this.reach.set(await kindChangeReach(this.database.driver, category.id));
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -128,8 +154,14 @@ export class CategoryEditorComponent implements OnInit {
     return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count: count.toLocaleString(this.i18n.dateLocale()) });
   });
 
-  async save(): Promise<void> {
+  async save(confirmed = false): Promise<void> {
     if (!this.canSave() || this.saving()) return;
+    // A used category changing side is asked first, saying how many.
+    if (this.kindChanges() && this.reachCount() > 0 && !confirmed) {
+      this.confirmingKind.set(true);
+      return;
+    }
+    this.confirmingKind.set(false);
     this.saving.set(true);
     this.error.set('');
 
@@ -146,6 +178,7 @@ export class CategoryEditorComponent implements OnInit {
       };
 
       if (category) {
+        if (this.kindChanges()) await changeCategoryKind(this.database.driver, category.id, this.kind());
         await categories.update(category.id, { ...shared, archived: this.archived() });
       } else {
         await categories.create({ ...shared, kind: this.kind() });
@@ -154,7 +187,9 @@ export class CategoryEditorComponent implements OnInit {
       this.database.dataChanged();
       this.saved.emit();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : String(error));
+      this.error.set(error instanceof KindTaken
+        ? this.i18n.t('categories.kind.taken', { name: error.categoryName })
+        : error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
     }

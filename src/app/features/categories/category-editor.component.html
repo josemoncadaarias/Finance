@@ -32,27 +32,22 @@
       </label>
     </div>
 
-    <!-- Which side it belongs to. Locked once it exists: every movement filed
-         under it was filed as spending or as income. -->
+    <!-- Which side it belongs to. -->
     <div class="ui-list">
-      @if (isNew()) {
-        <button type="button" class="ui-row plain" (click)="pickingKind.set(true)">
-          <app-badge shape="ci" [size]="34" [builtin]="kind() === 'expense' ? 'arrow-up' : 'arrow-down'"
-                     [fixed]="kind() === 'expense' ? '#ff6b6b' : '#34c98b'"></app-badge>
-          <span class="ui-tx"><small>{{ 'categories.kind' | t }}</small><b>{{ $any('categories.kind.' + kind()) | t }}</b></span>
-          <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-        </button>
-      } @else {
-        <div class="ui-row plain locked">
-          <app-badge shape="ci" [size]="34" [builtin]="kind() === 'expense' ? 'arrow-up' : 'arrow-down'"
-                     [fixed]="kind() === 'expense' ? '#ff6b6b' : '#34c98b'"></app-badge>
-          <span class="ui-tx">
-            <small>{{ 'categories.kind' | t }}</small>
-            <b>{{ $any('categories.kind.' + kind()) | t }}</b>
-            <small class="wrap">{{ 'categories.kind.locked' | t }}</small>
-          </span>
-          <ion-icon class="lock" name="lock-closed-outline"></ion-icon>
-        </div>
+      <!-- Its side, changeable even once used (Jose, 2026-10-14): what is
+           filed under it turns over too, asked first, saying how many. -->
+      <button type="button" class="ui-row plain" (click)="pickingKind.set(true)">
+        <app-badge shape="ci" [size]="34" [builtin]="kind() === 'expense' ? 'arrow-up' : 'arrow-down'"
+                   [fixed]="kind() === 'expense' ? '#ff6b6b' : '#34c98b'"></app-badge>
+        <span class="ui-tx">
+          <small>{{ 'categories.kind' | t }}</small><b>{{ $any('categories.kind.' + kind()) | t }}</b>
+          @if (kindChanges() && reachCount() > 0) {
+            <small class="wrap turn">{{ (reachCount() === 1 ? 'categories.kind.willTurnOne' : 'categories.kind.willTurn') | t:{ count: reachCount() } }}</small>
+          }
+        </span>
+        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+      </button>
+      @if (!isNew()) {
         <div class="ui-field">
           <span class="in">
             <span class="lab">{{ 'categories.usedIn' | t }}</span>
@@ -111,6 +106,10 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<!-- Turning a used category over moves its movements' signs: asked first. -->
+<app-confirm [open]="confirmingKind()" [title]="kindQuestion()" [body]="kindBody()" [busy]="saving()"
+             [confirmLabel]="'categories.kind.turn' | t" (confirmed)="save(true)" (cancelled)="confirmingKind.set(false)"></app-confirm>
 
 <app-face-editor [open]="editingFace()" shape="sq" [catalog]="catalog" [name]="name()"
                  [line]="usedLine()" [seed]="editing()?.id ?? 0"

@@ -103,6 +103,8 @@ const TOUR_LIST = {
       { sel: 'app-categories section.side', title: 'tour.categories.1.title', text: 'tour.categories.1.text' },
       { sel: 'app-categories .tools .ui-seg', title: 'tour.categories.2.title', text: 'tour.categories.2.text' },
       { sel: 'app-categories .ui-titlebar .ui-pill', title: 'tour.categories.3.title', text: 'tour.categories.3.text' },
+      // 2026-10-14: a category's side can be changed, with its movements.
+      { title: 'tour.categories.4.title', text: 'tour.categories.4.text', since: 3 },
     ],
   },
   products: {
