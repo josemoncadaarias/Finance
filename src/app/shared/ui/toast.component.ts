@@ -11,7 +11,10 @@ import { ToastService } from './toast.service';
   template: `
     @if (toast.text(); as text) {
       <div class="ui-toast" role="status" (click)="toast.dismiss()">
-        <ion-icon name="checkmark-circle"></ion-icon><span>{{ text }}</span>
+        <ion-icon [name]="toast.icon()"></ion-icon><span class="said">{{ text }}</span>
+        @if (toast.action(); as action) {
+          <button type="button" class="act" (click)="$event.stopPropagation(); toast.act()">{{ action.label }}</button>
+        }
       </div>
     }
   `,

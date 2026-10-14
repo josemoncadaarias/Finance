@@ -174,3 +174,107 @@ export function readWithMolds(source: string, text: string, molds: readonly Mold
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// "No es un movimiento" (Jose, 2026-10-14, mockups 24a-24d)
+// ---------------------------------------------------------------------------
+
+/**
+ * A message the person said is not a movement - an advert, a notice, a
+ * balance - kept as the shape of its words for its source: every number is
+ * a slot, so the same advert with another price or date fits it too.
+ */
+export interface NotMold {
+  source: string;
+  pattern: string;
+  /** The message itself, so "Sí era un movimiento" finds what to forget. */
+  text: string;
+  at: number;
+}
+
+/** What the person taught about each source that is NOT a movement. */
+export interface Quiet {
+  notMolds: NotMold[];
+  /**
+   * Sources offered only messages that say money DID move ("compraste",
+   * "recibiste"...), or that fit a mold the person saved. Switched on by the
+   * second "No es un movimiento" from the same source, and off on its page.
+   */
+  strict: string[];
+}
+
+/** After this many answers "No es un movimiento" from one source, it is strict. */
+export const STRICT_AFTER = 2;
+
+/** At most this many per source; the oldest go first. */
+const NOT_PER_SOURCE = 20;
+
+/** The shape of a message that is not a movement, or null for an empty one. */
+export function notMoldFrom(source: string, text: string, at: number): NotMold | null {
+  const whole = normalise(text);
+  if (!whole) return null;
+  return { source, pattern: `^${numbersLoose(whole)}$`, text: whole, at };
+}
+
+/** Whether a message fits one of its source's "not a movement" shapes. */
+export function fitsNotMold(source: string, text: string, notMolds: readonly NotMold[]): boolean {
+  const folded = fold(normalise(text));
+  return notMolds.some(one => {
+    if (one.source !== source) return false;
+    try { return new RegExp(one.pattern).test(folded); } catch { return false; }
+  });
+}
+
+/**
+ * "No es un movimiento": the message's shape is kept, and the second such
+ * answer from one source makes it strict.
+ */
+export function learnNotMovement(quiet: Quiet, source: string, text: string, at: number): Quiet {
+  const mold = notMoldFrom(source, text, at);
+  if (!mold) return quiet;
+  const others = quiet.notMolds.filter(one => !(one.source === source && one.pattern === mold.pattern));
+  const mine = [...others.filter(one => one.source === source), mold]
+    .sort((a, b) => b.at - a.at).slice(0, NOT_PER_SOURCE);
+  const notMolds = [...others.filter(one => one.source !== source), ...mine];
+  const strict = mine.length >= STRICT_AFTER && !quiet.strict.includes(source)
+    ? [...quiet.strict, source] : quiet.strict;
+  return { notMolds, strict };
+}
+
+/**
+ * "Sí era un movimiento": the shapes this message fits are forgotten, and
+ * the source is no longer strict - the person just said one of its
+ * messages without "compraste" was money that moved.
+ */
+export function unlearnNotMovement(quiet: Quiet, source: string, text: string): Quiet {
+  const folded = fold(normalise(text));
+  const notMolds = quiet.notMolds.filter(one => {
+    if (one.source !== source) return true;
+    try { return !new RegExp(one.pattern).test(folded); } catch { return true; }
+  });
+  return { notMolds, strict: quiet.strict.filter(one => one !== source) };
+}
+
+/**
+ * Why a message is not offered, by what the person taught: 'taught' when it
+ * fits a "not a movement" shape, 'strict' when its source only takes money
+ * that moved and it does not say so; null when it may be offered. A message
+ * that fits a mold the person SAVED is always offered.
+ */
+export function silencedBy(
+  source: string, text: string, quiet: Quiet, molds: readonly Mold[], happened: boolean,
+): 'taught' | 'strict' | null {
+  if (readWithMolds(source, text, molds)) return null;
+  if (fitsNotMold(source, text, quiet.notMolds)) return 'taught';
+  if (quiet.strict.includes(source) && !happened) return 'strict';
+  return null;
+}
+
+/** What the phone's notice needs of what was taught: the shapes, never more. */
+export function quietForPhone(quiet: Quiet, molds: readonly Mold[]): string {
+  return JSON.stringify({
+    notMolds: quiet.notMolds.map(one => ({ source: one.source, pattern: one.pattern })),
+    strict: quiet.strict,
+    molds: molds.map(one => ({ source: one.source, pattern: one.pattern })),
+  });
+}

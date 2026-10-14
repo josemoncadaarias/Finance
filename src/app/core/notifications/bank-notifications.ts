@@ -158,6 +158,13 @@ export interface BankNotificationsPlugin {
   clearAlerts(): Promise<void>;
   /** Messages thrown away from the notice, never to be proposed (the last two hundred). */
   dismissed(): Promise<{ dismissed: { source: string; text: string; at: number }[] }>;
+  /** Messages marked "No es movimiento" on the phone's notice, handed over once, to learn from. */
+  takeNotMovements(): Promise<{ marked: { source: string; text: string; at: number }[] }>;
+  /**
+   * What the person taught is not a movement (`Quiet`, with the shapes they
+   * saved), as JSON: the phone's notice does not ring for it.
+   */
+  setQuiet(options: { json: string }): Promise<void>;
   /**
    * What became of each message handed to "Movimiento detectado" - shown, or
    * why not - with no words of it, and whether Android lets it show at all
@@ -172,7 +179,11 @@ export interface BankNotificationsPlugin {
 export interface AlertNote {
   source: string;
   at: number;
-  /** shown, same (rang already for another source), off, empty, notMovement, noMoney, noAmount, error. */
+  /**
+   * shown, same (rang already for another source), off, empty, notMovement,
+   * taught (fits what the person said is not a movement), strict (its source
+   * only takes money that moved), noMoney, noAmount, error.
+   */
   reason: string;
   detail?: string;
   /** When the app was handed the message; long after `at` means it was frozen. */
@@ -208,6 +219,8 @@ const nothing: BankNotificationsPlugin = {
   takeOpen: async () => ({ open: '' }),
   clearAlerts: async () => {},
   dismissed: async () => ({ dismissed: [] }),
+  takeNotMovements: async () => ({ marked: [] }),
+  setQuiet: async () => {},
   alertLog: async () => ({ log: [], allowed: true }),
 };
 

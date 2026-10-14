@@ -405,6 +405,29 @@
   </ng-template>
 </ion-modal>
 
+<!-- A message's bin: what was it? "Not a movement" teaches its source (24b). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="whatIsIt() !== null" (didDismiss)="whatIsIt.set(null)">
+  <ng-template>
+    @if (whatIsIt(); as line) {
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="whatIsIt.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <h2 class="center">{{ 'ui.review.notMovement.ask' | t }}</h2>
+        <div class="ui-list">
+          <button type="button" class="ui-row" [disabled]="working()" (click)="notAMovement(line)">
+            <app-badge shape="ci" [size]="40" builtin="megaphone" fixed="#ff6b6b"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'ui.review.notMovement.title' | t }}</b><small class="wrap">{{ 'ui.review.notMovement.line' | t }}</small></span>
+          </button>
+          <button type="button" class="ui-row" [disabled]="working()" (click)="onlyDiscard(line)">
+            <app-badge shape="ci" [size]="40" builtin="trash" fixed="#8c9bb5"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'ui.review.notMovement.discard' | t }}</b><small class="wrap">{{ 'ui.review.notMovement.discard.line' | t }}</small></span>
+          </button>
+        </div>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
 <!-- The two answers that are not "save", with the batch named (6n). -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="batchMenu() !== null" (didDismiss)="batchMenu.set(null)">
   <ng-template>

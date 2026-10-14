@@ -145,7 +145,11 @@
   .t-yel { color: var(--app-yel); }
   .t-blu { color: var(--app-move); }
   .t-mu { color: var(--app-mu); }
+  .t-red { color: var(--app-red); }
+  .undo { background: none; border: 0; padding: 0 0 0 6px; font: inherit; font-weight: 700; color: var(--app-pr); }
   .hint { color: var(--app-mu); padding: 0 6px; }
+  /* What the person taught it is not a movement, with its switch (24d). */
+  .quiet-card { display: flex; gap: 12px; align-items: center; padding: 14px; margin-top: 12px; }
 }
 
 /* The shortcut to Movimientos por revisar, with the bar's orange dot. */

@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (774 on 2026-10-13, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (779 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -308,12 +308,29 @@ these):
   `read-notice.ts` and the same lists in `MovementAlert.java`, kept in step.
   Tests in `read-notice.test.mjs` (invented adverts and movements); the
   Java checked against the same texts outside Android, not on the phone.
-  **Proposed next, nothing built** (Jose, 2026-10-13, mockups `24a`-`24d`):
-  "No es un movimiento" - on the phone's notice (in place of Descartar) and
-  as the first answer of Revisar movimiento's bin - teaching the source only:
-  the message's mold is kept as "not a movement", and after such answers the
-  source offers only messages saying money DID move (a switch on its page,
-  with "Sí era un movimiento" to undo). Waiting for his word.
+  **"No es un movimiento" is BUILT** (Jose, 2026-10-14, mockups `24a`-`24d`).
+  It teaches the SOURCE only (an app, or an SMS sender), never the app as a
+  whole. `notices.quiet` in `settings` (`Quiet` in `core/notices/molds.ts`)
+  holds each such message's shape (`NotMold`: every number a slot, so the
+  same advert with another price fits) and the sources that are `strict`.
+  The second answer from one source makes it strict (`STRICT_AFTER`): it
+  then offers only messages saying money DID move (`saysItHappened`, the
+  `HAPPENED` words) or fitting a shape the person SAVED, which always pass
+  (`silencedBy`, read by `readNotices`). Three ways in: the phone's notice
+  (its third button is "No es movimiento" for one message, still "Descartar
+  todos" for several; `ACTION_NOT_MOVEMENT`, handed to the app once by
+  `takeNotMovements`); the bin of Revisar movimiento on a message, which asks
+  "¿Qué es este mensaje?" (statement rows keep the plain question), with a
+  notice and "Deshacer" (`notAMovement`/`undoNotAMovement`, `ToastService`
+  now takes an action); and a source's page, with the switch "Solo lo que
+  diga que la plata se movió" and "Sí era un movimiento" beside each message
+  held back (`isAMovement`: forgets the shapes it fits and the strictness,
+  and the message is offered again). The phone's notice learns it too: each
+  inbox pass hands Java the shapes only, no words (`quietForPhone` ->
+  `setQuiet`), and `MovementAlert.silenced` logs "taught" or "strict" instead
+  of ringing. Tests in `not-a-movement.test.mjs`; the Java patterns were
+  checked against the same texts with the JDK, not on the phone; checked in
+  a browser on the sample data.
 
 - **Everything chosen in Revisar movimiento is remembered for the shop**
   (Jose, 2026-10-13: "cuenta, producto, qué cambia, nota, categoría... todo
@@ -334,8 +351,11 @@ these):
   2026-10-14, screenshots of a phone set to the largest letters: the sample
   strip's words stood one letter per line, "Cuentas" broke into three).
   Android hands the WebView the system font scale as its text zoom, up to
-  200 %; `MainActivity.followFontSize` sets it to the scale capped at
-  `MAX_TEXT_ZOOM` (130), on creation and on every resume. The strip wraps
+  200 %; `MainActivity.followFontSize` acts only past `MAX_TEXT_ZOOM`
+  (130), setting 130, on creation and on every resume - a phone at or under
+  it keeps exactly what Android gave it, and display size is never touched
+  (#119); a letter size brought back under the cap undoes only what the app
+  set. The strip wraps
   its button under the words when they need the room. Checked in a browser
   by multiplying every font size (1.8 reproduced the screenshots; 1.3 and
   1.0 read whole); the Java not yet compiled by a Store bundle.

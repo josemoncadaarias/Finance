@@ -23,6 +23,7 @@ import { DemoService } from '../demo/demo.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
+import { quietForPhone } from './molds';
 import { noticeKey, noticeSource, readNotices, type KeptNotice } from './notice-proposals';
 
 @Injectable({ providedIn: 'root' })
@@ -76,23 +77,29 @@ export class NoticeInboxService {
       if (this.demo.active()) return 0;
       const { supported } = await BankNotifications.isSupported();
       if (!supported) return 0;
+      const db = this.database.driver;
+      const proposals = new ProposalsRepository(db);
+      // "No es movimiento" on the phone's notice teaches before anything is read.
+      const { marked } = await BankNotifications.takeNotMovements().catch(() => ({ marked: [] }));
+      await proposals.notMovementsFromPhone(marked);
+      const [quiet, molds] = await Promise.all([proposals.quiet(), proposals.molds()]);
+      // The phone's notice learns it too, and does not ring for it.
+      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds) }).catch(() => undefined);
       const { caught } = await BankNotifications.caught();
       // Whatever was waiting is about to be in Por revisar: the phone's notice goes.
       void BankNotifications.clearAlerts().catch(() => undefined);
       if (caught.length === 0) return 0;
       const { dismissed } = await BankNotifications.dismissed();
 
-      const db = this.database.driver;
-      const proposals = new ProposalsRepository(db);
-      const [known, answers, accounts, recent, molds, assigned] = await Promise.all([
+      const [known, answers, accounts, recent, assigned] = await Promise.all([
         proposals.noticeKeys(), proposals.noticeAnswers(), new AccountsRepository(db).list(),
-        proposals.recentNotices(), proposals.molds(), proposals.sourceAccounts(),
+        proposals.recentNotices(), proposals.sourceAccounts(),
       ]);
       // "Descartar" on the phone's notice: those messages are never proposed.
       for (const notice of thrownAway(caught, dismissed)) known.add(noticeKey(notice));
       // One purchase told by an SMS and by the bank's app is one proposal:
       // a later message joins the one already written.
-      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned });
+      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned, quiet });
       const joined = await proposals.join(joining);
       if (made.length === 0) {
         // Halves of a transfer between two banks already waiting apart.
@@ -129,3 +136,4 @@ export function thrownAway(
   return caught.filter(notice => dismissed.some(one => one.source === noticeSource(notice)
     && one.text.trim() === notice.text.trim() && Math.abs(one.at - notice.postedAt) < 5 * 60_000));
 }
+

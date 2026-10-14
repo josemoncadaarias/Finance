@@ -16,10 +16,13 @@ import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
 import { foldText } from '../../text/fold-text';
 import { SEVERAL_ACCOUNTS, noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
-import { learnMold, moldFrom, type Mold } from '../../notices/molds';
+import {
+  learnMold, learnNotMovement, moldFrom, unlearnNotMovement, type Mold, type Quiet,
+} from '../../notices/molds';
 
 const MOLDS = 'notices.molds';
 const SOURCE_ACCOUNTS = 'notices.sourceAccounts';
+const QUIET = 'notices.quiet';
 
 /** How far apart two banks' messages may tell one transfer between them. */
 const PAIR_WINDOW = 2 * 60 * 60 * 1000;
@@ -477,16 +480,16 @@ export class ProposalsRepository {
    * (the same movement from another source). For the notifications screen's
    * "what happened to each message".
    */
-  async noticeOutcomes(): Promise<Map<string, { status: ProposalStatus | 'joined'; amount: number | null }>> {
-    const rows = await this.db.query<{ evidence: string; status: ProposalStatus; amount_minor: number | null }>(
-      "SELECT evidence, status, amount_minor FROM movement_proposals WHERE source = 'notification'");
-    const out = new Map<string, { status: ProposalStatus | 'joined'; amount: number | null }>();
+  async noticeOutcomes(): Promise<Map<string, { status: ProposalStatus | 'joined'; amount: number | null; id: number }>> {
+    const rows = await this.db.query<{ id: number; evidence: string; status: ProposalStatus; amount_minor: number | null }>(
+      "SELECT id, evidence, status, amount_minor FROM movement_proposals WHERE source = 'notification'");
+    const out = new Map<string, { status: ProposalStatus | 'joined'; amount: number | null; id: number }>();
     for (const row of rows) {
       try {
         const read = JSON.parse(row.evidence) as NoticeEvidence;
-        if (typeof read.key === 'string') out.set(read.key, { status: row.status, amount: row.amount_minor });
+        if (typeof read.key === 'string') out.set(read.key, { status: row.status, amount: row.amount_minor, id: row.id });
         for (const one of read.sightings ?? []) {
-          if (typeof one?.evidence?.key === 'string') out.set(one.evidence.key, { status: 'joined', amount: row.amount_minor });
+          if (typeof one?.evidence?.key === 'string') out.set(one.evidence.key, { status: 'joined', amount: row.amount_minor, id: row.id });
         }
       } catch {
         // Skip it rather than lose the rest.
@@ -659,6 +662,92 @@ export class ProposalsRepository {
       learned = true;
     }
     if (learned) await this.keep(MOLDS, molds);
+  }
+
+  /** What the person said is NOT a movement, per source (`core/notices/molds.ts`). */
+  async quiet(): Promise<Quiet> {
+    const quiet = await this.setting<Partial<Quiet>>(QUIET, {});
+    return {
+      notMolds: Array.isArray(quiet?.notMolds) ? quiet.notMolds : [],
+      strict: Array.isArray(quiet?.strict) ? quiet.strict : [],
+    };
+  }
+
+  /**
+   * "No es un movimiento" on a proposal from a message (Jose, 2026-10-14,
+   * mockup 24b): it is thrown away like "Descartar", and its source learns
+   * the shape of those words - and of every sighting folded into it - so a
+   * message like it is never offered again. A row from a statement only
+   * goes. Says the source, and whether it is strict now.
+   */
+  async notAMovement(id: number): Promise<{ source: string | null; strict: boolean; before: Quiet }> {
+    const before = await this.quiet();
+    const row = await this.byId(id);
+    if (!row) return { source: null, strict: false, before };
+    let source: string | null = null;
+    if (row.source === 'notification') {
+      try {
+        const evidence = JSON.parse(row.evidence) as NoticeEvidence;
+        const said = [evidence, ...(evidence.sightings ?? []).map(one => one.evidence)];
+        let quiet = await this.quiet();
+        const at = Date.parse(this.now()) || Date.now();
+        for (const one of said) {
+          if (typeof one?.text !== 'string' || typeof one.package !== 'string') continue;
+          quiet = learnNotMovement(quiet, one.package, one.text, at);
+        }
+        source = typeof evidence.package === 'string' ? evidence.package : null;
+        await this.keep(QUIET, quiet);
+      } catch {
+        // Unreadable evidence: it is still thrown away below.
+      }
+    }
+    await this.reject(id);
+    return { source, strict: source !== null && (await this.quiet()).strict.includes(source), before };
+  }
+
+  /** "Deshacer" right after "No es un movimiento": as it was before, the proposal waiting again. */
+  async undoNotAMovement(id: number, before: Quiet): Promise<void> {
+    await this.keep(QUIET, before);
+    await this.restore(id);
+  }
+
+  /** Messages the person marked "No es movimiento" on the phone's own notice. */
+  async notMovementsFromPhone(said: readonly { source: string; text: string; at: number }[]): Promise<void> {
+    if (said.length === 0) return;
+    let quiet = await this.quiet();
+    for (const one of said) {
+      if (typeof one?.source === 'string' && typeof one.text === 'string') {
+        quiet = learnNotMovement(quiet, one.source, one.text, one.at || Date.now());
+      }
+    }
+    await this.keep(QUIET, quiet);
+  }
+
+  /**
+   * "Sí era un movimiento" (mockups 24c, 24d): the shapes the message fits
+   * are forgotten and its source is no longer strict. A proposal thrown away
+   * for it waits in "Por revisar" again; a message never proposed is offered
+   * on the next pass.
+   */
+  async isAMovement(source: string, text: string, proposalId: number | null = null): Promise<void> {
+    await this.keep(QUIET, unlearnNotMovement(await this.quiet(), source, text));
+    if (proposalId !== null) await this.restore(proposalId);
+  }
+
+  /** A proposal thrown away waits again, with the other half of its pair. */
+  private async restore(proposalId: number): Promise<void> {
+    await this.db.run(
+      `UPDATE movement_proposals SET status = 'pending', updated_at = ?
+       WHERE status = 'rejected' AND (id = ? OR pairs_with = ?
+         OR id = (SELECT pairs_with FROM movement_proposals WHERE id = ?))`,
+      [this.now(), proposalId, proposalId, proposalId]);
+  }
+
+  /** The switch on a source's page: only messages that say money moved, or all. */
+  async setStrict(source: string, on: boolean): Promise<void> {
+    const quiet = await this.quiet();
+    const strict = quiet.strict.filter(one => one !== source);
+    await this.keep(QUIET, { ...quiet, strict: on ? [...strict, source] : strict });
   }
 
   /**
