@@ -348,6 +348,20 @@
             </div>
           }
         </div>
+        @if (shownQuiet(); as q) {
+          <div class="ui-card quiet-card">
+            <app-badge shape="ci" [size]="40" builtin="school" fixed="#2ecc71"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ 'ui.notifications.strict.title' | t }}</b>
+              @if (q.marked > 0) {
+                <small class="wrap">{{ 'ui.notifications.strict.learned' | t:{ count: q.marked } }}</small>
+              }
+              <small class="wrap">{{ (q.strict ? 'ui.notifications.strict.on' : 'ui.notifications.strict.off') | t }}</small>
+            </span>
+            <button type="button" class="ui-switch" role="switch" [class.on]="q.strict" [attr.aria-checked]="q.strict"
+                    [attr.aria-label]="'ui.notifications.strict.title' | t" (click)="setStrict(!q.strict)"></button>
+          </div>
+        }
         <h3 class="ui-h">{{ 'ui.notifications.detail.last' | t }}</h3>
         @if (shownMessages().length === 0) {
           <p class="hint">{{ 'ui.notifications.detail.none' | t }}</p>
@@ -358,7 +372,11 @@
                 <span class="ui-tx">
                   <small>{{ m.when }}</small>
                   <span class="said">{{ m.one.text }}</span>
-                  <small class="outcome" [class]="'t-' + m.tone">→ {{ m.outcome }}</small>
+                  <small class="outcome" [class]="'t-' + m.tone">→ {{ m.outcome }}
+                    @if (m.undo !== false) {
+                      <button type="button" class="undo" (click)="itWasAMovement(m.one, m.undo)">{{ 'ui.notifications.notMovement.was' | t }}</button>
+                    }
+                  </small>
                   @if (m.alert) { <small class="alert-note">{{ m.alert }}</small> }
                 </span>
               </div>

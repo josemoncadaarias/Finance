@@ -187,6 +187,15 @@ function isAdvert(folded: string): boolean {
   return hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded);
 }
 
+/**
+ * Whether a message says money DID move to the person ("compraste",
+ * "recibiste"...). A source the person told twice "this is not a movement"
+ * is offered only such messages (Jose, 2026-10-14, mockup 24d).
+ */
+export function saysItHappened(text: string, title = ''): boolean {
+  return hasAny(foldText(`${title} ${text}`), HAPPENED);
+}
+
 /** A reminder of something to pay is never a movement, whatever words it uses. */
 const REMINDER = [
   'te recordamos que', 'recordatorio', 'vence', 'vencimiento', 'proximo pago', 'fecha limite', 'reminder', 'is due', 'due on', 'due date',

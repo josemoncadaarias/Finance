@@ -1735,6 +1735,11 @@ ion-router-outlet > .ion-page > ion-content .ui-page-end { height: 0; }
   color: var(--app-tx);
 
   ion-icon { font-size: 20px; color: var(--app-grn); flex: none; }
+  .said { flex: 1; min-width: 0; }
+  .act {
+    flex: none; background: none; border: 0; padding: 4px 2px; font: inherit; font-weight: 700;
+    color: var(--app-pr);
+  }
 }
 
 /* A progress bar. */

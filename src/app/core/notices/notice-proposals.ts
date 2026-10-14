@@ -29,8 +29,8 @@ import type { AccountRow, IsoDate } from '../database/types';
 import type { NewProposal } from '../database/repositories/proposals.repository';
 import { merchantKeyOf } from '../proposals/merchant';
 import { foldText } from '../text/fold-text';
-import { readNotice, type NoticeReading } from './read-notice';
-import { readWithMolds, type Mold } from './molds';
+import { readNotice, saysItHappened, type NoticeReading } from './read-notice';
+import { readWithMolds, silencedBy, type Mold, type Quiet } from './molds';
 
 /** One message as the phone kept it. */
 export interface KeptNotice {
@@ -322,7 +322,7 @@ export function readNotices(
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
   recent: readonly RecentNotice[] = [],
-  learned: { molds?: readonly Mold[]; assigned?: ReadonlyMap<string, number> } = {},
+  learned: { molds?: readonly Mold[]; assigned?: ReadonlyMap<string, number>; quiet?: Quiet } = {},
 ): { fresh: { batch: string; proposal: NewProposal }[]; joining: Joining[] } {
   const molds = learned.molds ?? [];
   const assigned = learned.assigned ?? new Map<string, number>();
@@ -335,6 +335,9 @@ export function readNotices(
     repeat.set(said, notice.postedAt);
     if (before !== undefined && notice.postedAt - before < 3 * 60_000) continue;
     if (known.has(key)) continue;
+    // "No es un movimiento": what the person said is not one is never offered.
+    if (learned.quiet && silencedBy(noticeSource(notice), notice.text, learned.quiet, molds,
+      saysItHappened(notice.text, notice.title))) continue;
 
     const arrived = localDay(notice.postedAt);
     let reading = readNotice(notice.text, notice.title, arrived);

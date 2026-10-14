@@ -311,6 +311,21 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve(answer);
     }
 
+    /** Messages marked "No es movimiento" on the notice, handed over once, to learn from. */
+    @PluginMethod
+    public void takeNotMovements(PluginCall call) {
+        JSObject answer = new JSObject();
+        answer.put("marked", toJs(MovementAlert.takeNotMovements(getContext())));
+        call.resolve(answer);
+    }
+
+    /** What the app taught is not a movement, so the notice does not ring for it. */
+    @PluginMethod
+    public void setQuiet(PluginCall call) {
+        MovementAlert.setQuiet(getContext(), call.getString("json", "{}"));
+        call.resolve();
+    }
+
     /** What became of the last messages handed to "Movimiento detectado", and whether it may show. */
     @PluginMethod
     public void alertLog(PluginCall call) {

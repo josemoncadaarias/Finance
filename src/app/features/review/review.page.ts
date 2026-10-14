@@ -44,6 +44,8 @@ import { ComposeService } from '../../core/ui/compose.service';
 import type { EntryProposal } from '../entry/entry.component';
 import { todayIso } from '../../core/yields/days';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
+import type { Quiet } from '../../core/notices/molds';
+import { ToastService } from '../../shared/ui/toast.service';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -111,6 +113,7 @@ export class ReviewPage {
   private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
   readonly info = signal<string | null>(null);
 
   back(): void {
@@ -506,10 +509,61 @@ export class ReviewPage {
       const line = this.batches().flatMap(batch => batch.lines).find(one => one.proposal.id === ask.id);
       if (!line) return;
       if (ask.kind === 'forget') this.asking.set({ kind: 'forgetOne', line });
+      // A message's bin asks what it was (24b): "not a movement" teaches its source.
+      else if (ask.kind === 'discard' && line.proposal.source === 'notification') this.whatIsIt.set(line);
       else if (ask.kind === 'discard') this.asking.set({ kind: 'discardOne', line });
       else void this.separate(line);
     });
   });
+
+  /** "¿Qué es este mensaje?": the bin of a proposal from a message (mockup 24b). */
+  readonly whatIsIt = signal<Line | null>(null);
+
+  /**
+   * "No es un movimiento": thrown away, and its source learns the shape of
+   * those words; a second such answer makes the source take only messages
+   * saying money DID move. "Deshacer" puts all of it back (24c).
+   */
+  async notAMovement(line: Line): Promise<void> {
+    this.whatIsIt.set(null);
+    this.closeAnswered(line);
+    this.working.set(true);
+    try {
+      const proposals = new ProposalsRepository(this.database.driver);
+      const { strict, before } = await proposals.notAMovement(line.proposal.id);
+      this.database.dataChanged();
+      await this.refresh();
+      // The phone's notice learns it on the pass, and stops ringing for it.
+      void this.notices.read();
+      const said = this.read(line.proposal);
+      const from = [said['sender'], said['app'], said['file'], line.account?.name]
+        .find((one): one is string => typeof one === 'string' && one.trim().length > 0)
+        ?? this.i18n.t('ui.review.notMovement.thisSource');
+      this.toast.say(this.i18n.t(strict ? 'ui.review.notMovement.strict' : 'ui.review.notMovement.done', { from }), 7000, {
+        icon: 'school-outline',
+        action: {
+          label: this.i18n.t('ui.review.notMovement.undo'),
+          run: () => void this.undoNotAMovement(line.proposal.id, before),
+        },
+      });
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  private async undoNotAMovement(id: number, before: Quiet): Promise<void> {
+    await new ProposalsRepository(this.database.driver).undoNotAMovement(id, before);
+    this.database.dataChanged();
+    await this.refresh();
+    void this.notices.read();
+  }
+
+  /** "Es un movimiento, pero no lo quiero": only thrown away, nothing learned. */
+  async onlyDiscard(line: Line): Promise<void> {
+    this.whatIsIt.set(null);
+    this.closeAnswered(line);
+    await this.rejectOne(line);
+  }
 
   /** Closes the form a proposal was answered from, once the answer is yes. */
   private closeAnswered(line: Line): void {

@@ -59,6 +59,8 @@ final class MovementAlert {
     static final String ACTION_DISMISS = "com.josemoncada.finance.DISMISS_MOVEMENT";
     /** "Más tarde": the notice goes, the movement waits in Movimientos por revisar. */
     static final String ACTION_LATER = "com.josemoncada.finance.LATER_MOVEMENT";
+    /** "No es movimiento": never proposed, and the app learns its shape (mockup 24a). */
+    static final String ACTION_NOT_MOVEMENT = "com.josemoncada.finance.NOT_MOVEMENT";
     /** The app's own colour (Zafiro), for the notice's icon and name. */
     private static final int ACCENT = 0xFF6378FF;
 
@@ -67,6 +69,15 @@ final class MovementAlert {
     private static final String DISMISSED = "dismissed";
     /** What already rang, kept past the app opening: a late copy never rings twice. */
     private static final String RANG = "rang";
+    /** Messages answered "No es movimiento", until the app takes them to learn from. */
+    private static final String NOT_MOVEMENT = "notMovement";
+    /**
+     * What the person taught the app is NOT a movement, handed over by the
+     * app on every pass (`setQuiet`): the shapes of such messages per source,
+     * the sources that only take money that moved, and the shapes the person
+     * saved (which always pass). Patterns over folded text, from molds.ts.
+     */
+    private static final String QUIET = "quiet";
     /**
      * What became of each message handed here - rang, or why not - with no
      * words of it (Jose, 2026-10-08: two bank notices arrived and nothing
@@ -141,6 +152,8 @@ final class MovementAlert {
         if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
         if (isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
+        String taught = silenced(context, source, text, folded);
+        if (taught != null) { note(context, source, at, taught, null); return; }
         int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
         if (direction == 0 && has(folded, NOT_A_MOVEMENT)) { note(context, source, at, "notMovement", null); return; }
         if (!NotificationStore.looksLikeMoney(text)) { note(context, source, at, "noMoney", null); return; }
@@ -196,6 +209,46 @@ final class MovementAlert {
             // A notice that could not be posted is still proposed when the app opens.
             note(context, source, at, "error", broken.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * "taught" when the message fits a shape the person said is not a
+     * movement, "strict" when its source only takes money that moved and it
+     * does not say so; null to ring. Kept in step with `silencedBy` in molds.ts.
+     */
+    static String silenced(Context context, String source, String text, String folded) {
+        try {
+            JSONObject quiet = new JSONObject(prefs(context).getString(QUIET, "{}"));
+            String shaped = fold(text.replaceAll("\\s+", " ").trim());
+            if (fits(quiet.optJSONArray("molds"), source, shaped)) return null;
+            if (fits(quiet.optJSONArray("notMolds"), source, shaped)) return "taught";
+            JSONArray strict = quiet.optJSONArray("strict");
+            if (strict != null && !has(folded, HAPPENED)) {
+                for (int i = 0; i < strict.length(); i += 1) if (source.equals(strict.optString(i))) return "strict";
+            }
+        } catch (Exception broken) {
+            // Nothing taught can be read: the message rings as before.
+        }
+        return null;
+    }
+
+    private static boolean fits(JSONArray shapes, String source, String shaped) {
+        if (shapes == null) return false;
+        for (int i = 0; i < shapes.length(); i += 1) {
+            JSONObject one = shapes.optJSONObject(i);
+            if (one == null || !source.equals(one.optString("source"))) continue;
+            try {
+                if (Pattern.compile(one.optString("pattern")).matcher(shaped).find()) return true;
+            } catch (Exception badPattern) {
+                // A shape Java cannot read is skipped, never fatal.
+            }
+        }
+        return false;
+    }
+
+    /** What the app taught, handed over on each pass. */
+    static void setQuiet(Context context, String json) {
+        prefs(context).edit().putString(QUIET, json == null ? "{}" : json).apply();
     }
 
     /** Remembers what became of one message: no words of it, only why. */
@@ -280,6 +333,8 @@ final class MovementAlert {
         PendingIntent drop = PendingIntent.getBroadcast(context, ID, dismiss, flags);
         Intent wait = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_LATER);
         PendingIntent later = PendingIntent.getBroadcast(context, ID + 1, wait, flags);
+        Intent notMovement = new Intent(context, MovementAlertReceiver.class).setAction(ACTION_NOT_MOVEMENT);
+        PendingIntent notOne = PendingIntent.getBroadcast(context, ID + 2, notMovement, flags);
 
         NotificationCompat.Builder built = new NotificationCompat.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_movement)
@@ -295,7 +350,8 @@ final class MovementAlert {
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .addAction(0, spanish ? "Revisar y guardar" : "Review and save", tap)
                 .addAction(0, spanish ? "Más tarde" : "Later", later)
-                .addAction(0, spanish ? (count == 1 ? "Descartar" : "Descartar todos") : (count == 1 ? "Dismiss" : "Dismiss all"), drop);
+                .addAction(0, spanish ? (count == 1 ? "No es movimiento" : "Descartar todos") : (count == 1 ? "Not a movement" : "Dismiss all"),
+                        count == 1 ? notOne : drop);
         Bitmap logo = logoOf(context);
         if (logo != null) built.setLargeIcon(logo);
         try {
@@ -373,6 +429,27 @@ final class MovementAlert {
         while (dismissed.length() > 200) dismissed.remove(0);
         prefs(context).edit().putString(DISMISSED, dismissed.toString()).putString(PENDING, "[]").apply();
         NotificationManagerCompat.from(context).cancel(ID);
+    }
+
+    /**
+     * "No es movimiento": what was waiting is kept for the app to learn its
+     * shape when it opens (it is then never offered, nor rings again), and
+     * the notice goes.
+     */
+    static void notMovement(Context context) {
+        JSONArray pending = array(context, PENDING);
+        JSONArray marked = array(context, NOT_MOVEMENT);
+        for (int i = 0; i < pending.length(); i += 1) marked.put(pending.opt(i));
+        while (marked.length() > 200) marked.remove(0);
+        prefs(context).edit().putString(NOT_MOVEMENT, marked.toString()).putString(PENDING, "[]").apply();
+        NotificationManagerCompat.from(context).cancel(ID);
+    }
+
+    /** The messages marked "No es movimiento", handed to the app once. */
+    static JSONArray takeNotMovements(Context context) {
+        JSONArray marked = array(context, NOT_MOVEMENT);
+        prefs(context).edit().putString(NOT_MOVEMENT, "[]").commit();
+        return marked;
     }
 
     /** The app opened: what was waiting is now in "Por revisar", so the notice goes. */

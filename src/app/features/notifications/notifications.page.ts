@@ -35,7 +35,10 @@ import { ProposalsRepository, type ProposalStatus } from '../../core/database/re
 import type { AccountRow } from '../../core/database/types';
 import { formatMoney } from '../../core/database/money';
 import { SEVERAL_ACCOUNTS, noticeKey, noticeSource } from '../../core/notices/notice-proposals';
-import { readNotice } from '../../core/notices/read-notice';
+import { readNotice, saysItHappened } from '../../core/notices/read-notice';
+import { fitsNotMold, silencedBy, type Mold, type Quiet } from '../../core/notices/molds';
+import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
+import { ToastService } from '../../shared/ui/toast.service';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 
 /** One place the app hears from: an app, or an SMS sender inside one. */
@@ -90,6 +93,8 @@ export class NotificationsPage {
   }
 
   private readonly router = inject(Router);
+  private readonly inbox = inject(NoticeInboxService);
+  private readonly toast = inject(ToastService);
 
   /** How many proposals wait in Movimientos por revisar. */
   readonly waiting = signal(0);
@@ -220,7 +225,10 @@ export class NotificationsPage {
   private readonly learnedAccounts = signal<ReadonlyMap<string, number[]>>(new Map());
   /** Which account the person said each source is. */
   private readonly assigned = signal<ReadonlyMap<string, number>>(new Map());
-  private readonly outcomes = signal<ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null }>>(new Map());
+  private readonly outcomes = signal<ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null; id: number }>>(new Map());
+  /** What the person said is not a movement, and the shapes they saved (which always pass). */
+  readonly quiet = signal<Quiet>({ notMolds: [], strict: [] });
+  private readonly molds = signal<Mold[]>([]);
   /** Whether the SMS inbox may be read (null until asked). */
   readonly smsGranted = signal<boolean | null>(null);
 
@@ -535,11 +543,60 @@ export class NotificationsPage {
       }));
   });
 
+  /** How many of its messages the person marked "No es un movimiento", and whether it is strict (24d). */
+  readonly shownQuiet = computed(() => {
+    const source = this.shown();
+    if (!source) return null;
+    const quiet = this.quiet();
+    const marked = quiet.notMolds.filter(one => one.source === source.key).length;
+    const strict = quiet.strict.includes(source.key);
+    return marked > 0 || strict ? { marked, strict } : null;
+  });
+
+  /** The switch: only messages saying money moved, or every one. */
+  async setStrict(on: boolean): Promise<void> {
+    const source = this.shown();
+    if (!source || this.database.status() !== 'ready') return;
+    await new ProposalsRepository(this.database.driver).setStrict(source.key, on);
+    await this.readLedger();
+    // Read again with the new rule: what it held back may be offered now.
+    void this.inbox.read().then(() => this.readLedger());
+  }
+
+  /**
+   * "Sí era un movimiento": the shapes it fits are forgotten, its source no
+   * longer strict, and the message offered again - the proposal thrown away
+   * waits once more, or one never proposed is proposed on this pass.
+   */
+  async itWasAMovement(one: CaughtNotification, proposalId: number | null): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    await new ProposalsRepository(this.database.driver).isAMovement(noticeSource(one), one.text, proposalId);
+    this.database.dataChanged();
+    await this.inbox.read();
+    await this.readLedger();
+    this.toast.say(this.i18n.t('ui.notifications.notMovement.undone'), 4500, { icon: 'school-outline' });
+  }
+
   private outcomeOf(
     one: CaughtNotification,
-    outcomes: ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null }>,
-  ): { outcome: string; tone: 'grn' | 'blu' | 'mu' | 'yel' } {
+    outcomes: ReadonlyMap<string, { status: ProposalStatus | 'joined'; amount: number | null; id: number }>,
+  ): { outcome: string; tone: 'grn' | 'blu' | 'mu' | 'yel' | 'red'; undo: number | null | false } {
     const found = outcomes.get(noticeKey(one));
+    const source = noticeSource(one);
+    // What the person said is not a movement, offered back with "Sí era un movimiento".
+    const silenced = silencedBy(source, one.text, this.quiet(), this.molds(), saysItHappened(one.text, one.title));
+    if (found?.status === 'rejected' && fitsNotMold(source, one.text, this.quiet().notMolds)) {
+      return { outcome: this.i18n.t('ui.notifications.out.notMovement'), tone: 'red', undo: found.id };
+    }
+    if (!found && silenced === 'taught') return { outcome: this.i18n.t('ui.notifications.out.taught'), tone: 'mu', undo: null };
+    if (!found && silenced === 'strict') return { outcome: this.i18n.t('ui.notifications.out.strict'), tone: 'mu', undo: null };
+    const plain = this.plainOutcome(one, found);
+    return { ...plain, undo: false };
+  }
+
+  private plainOutcome(
+    one: CaughtNotification, found: { status: ProposalStatus | 'joined'; amount: number | null } | undefined,
+  ): { outcome: string; tone: 'grn' | 'blu' | 'mu' | 'yel' } {
     const amount = found?.amount == null ? '' : `${found.amount < 0 ? '−' : '+'}${formatMoney(Math.abs(found.amount), 'COP', { withSymbol: false })}`;
     if (found?.status === 'pending') return { outcome: this.i18n.t('ui.notifications.out.pending', { amount }), tone: 'yel' };
     if (found?.status === 'accepted') return { outcome: this.i18n.t('ui.notifications.out.accepted', { amount }), tone: 'grn' };
@@ -738,6 +795,7 @@ export class NotificationsPage {
       shown: 'ui.notifications.alert.shown', same: 'ui.notifications.alert.same', off: 'ui.notifications.alert.off',
       empty: 'ui.notifications.alert.empty', notMovement: 'ui.notifications.alert.notMovement',
       noMoney: 'ui.notifications.alert.noMoney', noAmount: 'ui.notifications.alert.noAmount',
+      taught: 'ui.notifications.alert.taught', strict: 'ui.notifications.alert.strict',
     } as const;
     const key = words[near.reason as keyof typeof words] ?? 'ui.notifications.alert.error';
     const said = this.i18n.t(key, { other: near.detail ?? '' });
@@ -755,9 +813,12 @@ export class NotificationsPage {
     const db = this.database.driver;
     const proposals = new ProposalsRepository(db);
     this.waiting.set(await proposals.pendingCount());
-    const [accounts, answers, assigned, outcomes] = await Promise.all([
+    const [accounts, answers, assigned, outcomes, quiet, molds] = await Promise.all([
       new AccountsRepository(db).list(), proposals.noticeAnswers(), proposals.sourceAccounts(), proposals.noticeOutcomes(),
+      proposals.quiet(), proposals.molds(),
     ]);
+    this.quiet.set(quiet);
+    this.molds.set(molds);
     const counted = new Map<string, Map<number, number>>();
     for (const answer of answers) {
       const one = counted.get(answer.package) ?? new Map<number, number>();
