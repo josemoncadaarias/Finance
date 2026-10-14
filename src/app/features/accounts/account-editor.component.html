@@ -95,8 +95,8 @@
       <label class="ui-field">
         <span class="in">
           <span class="lab">{{ 'accounts.opening' | t }}</span>
-          <input inputmode="decimal" [value]="openingBalance().text || '0,00'"
-                 (input)="onAmount('opening', $any($event.target).value ?? '')">
+          <input inputmode="decimal" [value]="openingBalance().text" placeholder="0,00"
+                 [appAmountInput]="openingBalance()" (amountChange)="openingBalance.set($event)">
         </span>
         <span class="unit">{{ currency() }}</span>
       </label>
@@ -116,8 +116,8 @@
         <label class="ui-field">
           <span class="in">
             <span class="lab">{{ 'accounts.creditLimit' | t }}</span>
-            <input inputmode="decimal" [value]="creditLimit().text || '0,00'"
-                   (input)="onAmount('limit', $any($event.target).value ?? '')">
+            <input inputmode="decimal" [value]="creditLimit().text" placeholder="0,00"
+                   [appAmountInput]="creditLimit()" (amountChange)="creditLimit.set($event)">
           </span>
           <span class="unit">{{ currency() }}</span>
         </label>

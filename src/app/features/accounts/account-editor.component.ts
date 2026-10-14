@@ -41,12 +41,13 @@ import { AmountBuffer } from '../entry/amount-buffer';
 import { formatMoney } from '../../core/database/money';
 import { shortDay } from '../../core/filters/period';
 import type { AccountRow, AccountType } from '../../core/database/types';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
 
 @Component({
   selector: 'app-account-editor',
-  imports: [
+  imports: [AmountInputDirective, 
     CurrencyDialogComponent, TranslatePipe, BusyOverlayComponent, ConfirmComponent,
     BadgeComponent, FaceEditorComponent, IonIcon, IonModal, IonDatetime,
   ],
@@ -371,16 +372,6 @@ export class AccountEditorComponent implements OnInit {
     return formatMoney(minor, this.currency(), { withSymbol: false });
   }
 
-  /** Types into an amount field. Bound through ngModel on a plain input. */
-  onAmount(which: 'opening' | 'limit', text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',' || character === '.') buffer.separator();
-    }
-    if (which === 'opening') this.openingBalance.set(buffer);
-    else this.creditLimit.set(buffer);
-  }
 
   async save(): Promise<void> {
     if (!this.canSave() || this.saving()) return;

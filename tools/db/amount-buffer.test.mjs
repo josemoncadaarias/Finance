@@ -198,3 +198,20 @@ test('the cursor anywhere: a selection typed over', () => {
   assert.equal(edit.buffer.text, '451');
   assert.equal(edit.caret, 3);
 });
+
+// An account's opening balance (Jose, 2026-10-14): pasted "3.800.000" read as
+// "3,8000000", and each digit typed went after the comma. Every plain amount
+// box now reads the keyboard through typedInto, as the movement form does.
+test('a plain amount box: pasted thousands stay pesos, typed digits stay before the cents', async () => {
+  const { typedInto } = await import('../../src/app/features/entry/amount-buffer.ts');
+  const pasted = typedInto(new AmountBuffer(), '3.800.000');
+  assert.equal(pasted.buffer.minor, 3_800_000_00);
+  assert.equal(pasted.buffer.text, '3.800.000');
+
+  let typed = new AmountBuffer();
+  for (const digit of '3800000') typed = typedInto(typed, typed.text + digit).buffer;
+  assert.equal(typed.minor, 3_800_000_00);
+
+  const cents = typedInto(typedInto(pasted.buffer, '3.800.000,').buffer, '3.800.000,5').buffer;
+  assert.equal(cents.minor, 3_800_000_50);
+});

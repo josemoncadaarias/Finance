@@ -28,6 +28,7 @@ import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { AmountBuffer } from '../entry/amount-buffer';
 import { parseDecimal, plain, uvrText } from './card-words';
 import { UVR_SCALE, type UvrLookup } from '../../core/loans/uvr';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 /** The faces a loan can wear, each with its colour. */
 export const LOAN_FACES: [string, string][] = [
@@ -39,7 +40,7 @@ export const LOAN_FACES: [string, string][] = [
   selector: 'app-loan-editor',
   templateUrl: './loan-editor.component.html',
   styleUrls: ['./loan-editor.component.scss'],
-  imports: [TranslatePipe, BadgeComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, IonIcon, IonModal],
+  imports: [AmountInputDirective, TranslatePipe, BadgeComponent, ConfirmComponent, AccountPickerComponent, DateFieldComponent, IonIcon, IonModal],
 })
 export class LoanEditorComponent implements OnInit {
   private readonly database = inject(DatabaseService);
@@ -309,14 +310,6 @@ export class LoanEditorComponent implements OnInit {
     if (t.balanceAfterBeforeMinor !== null && t.unit !== 'UVR') this.balanceStated.set(AmountBuffer.from(t.balanceAfterBeforeMinor));
   }
 
-  onAmount(which: 'principal' | 'insurance' | 'bank' | 'balance', text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    ({ principal: this.principal, insurance: this.insurance, bank: this.bankInstallment, balance: this.balanceStated })[which].set(buffer);
-  }
 
   money(minor: number | null): string {
     return minor === null ? '' : plain(minor);

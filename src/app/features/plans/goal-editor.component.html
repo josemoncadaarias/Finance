@@ -34,14 +34,14 @@
         <div class="pair"><span class="ui-mu">{{ 'goals.emergency.spend' | t }}</span><b>{{ money(goals.monthlySpendMinor()) }}</b></div>
         <div class="pair"><span class="ui-mu">× {{ 'goals.emergency.months' | t:{ count: months() ?? 0 } }}</span></div>
         <div class="pair total"><b>{{ 'goals.emergency.target' | t }}</b>
-          <input class="target" inputmode="decimal" [value]="amount().text" (input)="onAmount($any($event.target).value)" [attr.aria-label]="'goals.emergency.target' | t">
+          <input class="target" inputmode="decimal" [value]="amount().text" [appAmountInput]="amount()" (amountChange)="amount.set($event)" [attr.aria-label]="'goals.emergency.target' | t">
         </div>
       </div>
       <p class="ui-sub foot">{{ 'goals.emergency.note' | t }}</p>
     } @else {
       <div class="figure">
         <span class="ui-lab">{{ 'goals.form.amount' | t }}</span>
-        <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" (input)="onAmount($any($event.target).value)"
+        <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" [appAmountInput]="amount()" (amountChange)="amount.set($event)"
                [attr.aria-label]="'goals.form.amount' | t">
       </div>
     }

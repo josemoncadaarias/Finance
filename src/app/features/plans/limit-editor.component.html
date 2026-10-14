@@ -15,7 +15,7 @@
 
     <div class="figure">
       <span class="ui-lab">{{ 'plans.form.amount' | t }}</span>
-      <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" (input)="onAmount($any($event.target).value)"
+      <input class="big" inputmode="decimal" [value]="amount().text" placeholder="0" [appAmountInput]="amount()" (amountChange)="amount.set($event)"
              [attr.aria-label]="'plans.form.amount' | t">
       @if (average(); as avg) {
         <button type="button" class="ui-chip avg" (click)="useAverage()">

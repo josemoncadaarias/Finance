@@ -22,6 +22,7 @@ import { AmountBuffer } from '../entry/amount-buffer';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { GOAL_FACES } from './goal-words';
 import { monthLabel, plain } from './plans-words';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 interface Chosen { accountId: number; productId: number | null; counts: PlaceCounts }
 interface Spot { accountId: number; productId: number | null; nativeMinor: number; pesos: number | null }
@@ -30,7 +31,7 @@ interface Spot { accountId: number; productId: number | null; nativeMinor: numbe
   selector: 'app-goal-editor',
   templateUrl: './goal-editor.component.html',
   styleUrls: ['./limit-editor.component.scss', './goal-editor.component.scss'],
-  imports: [TranslatePipe, BadgeComponent, IonIcon, IonModal],
+  imports: [AmountInputDirective, TranslatePipe, BadgeComponent, IonIcon, IonModal],
 })
 export class GoalEditorComponent {
   readonly goals = inject(GoalsService);
@@ -167,14 +168,6 @@ export class GoalEditorComponent {
     this.allNow.set(await this.goals.allAccountsNow(this.goalId()));
   }
 
-  onAmount(text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    this.amount.set(buffer);
-  }
 
   setMonths(months: number): void {
     this.months.set(months);

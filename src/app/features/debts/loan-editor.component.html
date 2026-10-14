@@ -53,7 +53,7 @@
       <label class="ui-field">
         <span class="in">
           <span class="lab">{{ 'loans.form.principal' | t }}</span>
-          <input inputmode="decimal" [value]="principal().text" placeholder="0" (input)="onAmount('principal', $any($event.target).value)">
+          <input inputmode="decimal" [value]="principal().text" placeholder="0" [appAmountInput]="principal()" (amountChange)="principal.set($event)">
         </span>
         <span class="unit">COP</span>
       </label>
@@ -181,7 +181,7 @@
           <span class="lab">{{ 'loans.form.insurance' | t }}</span>
           <span class="rate-row">
             @if (insuranceKind() === 'fixed') {
-              <input inputmode="decimal" [value]="insurance().text" placeholder="0" (input)="onAmount('insurance', $any($event.target).value)">
+              <input inputmode="decimal" [value]="insurance().text" placeholder="0" [appAmountInput]="insurance()" (amountChange)="insurance.set($event)">
             } @else {
               <input inputmode="decimal" [value]="insuranceRateText()" placeholder="0,05" (input)="insuranceRateText.set($any($event.target).value)">
               <span class="unit">%</span>
@@ -244,7 +244,7 @@
         } @else {
           <label class="line">
             <span class="ui-sub">{{ 'loans.form.bank' | t }}</span>
-            <input class="fig" inputmode="decimal" [value]="bankInstallment().text" placeholder="0" (input)="onAmount('bank', $any($event.target).value)">
+            <input class="fig" inputmode="decimal" [value]="bankInstallment().text" placeholder="0" [appAmountInput]="bankInstallment()" (amountChange)="bankInstallment.set($event)">
           </label>
         }
         @if (bankLine()) { <p class="ui-sub ok">{{ bankLine() }}</p> }
@@ -265,7 +265,7 @@
             <div class="line"><span class="ui-sub">{{ 'loans.form.owedWorked' | t }}</span><b>{{ money(owedWorked()) }}</b></div>
             <label class="line">
               <span class="ui-sub">{{ 'loans.form.owedBank' | t }}</span>
-              <input class="fig" inputmode="decimal" [value]="balanceStated().text" placeholder="0" (input)="onAmount('balance', $any($event.target).value)">
+              <input class="fig" inputmode="decimal" [value]="balanceStated().text" placeholder="0" [appAmountInput]="balanceStated()" (amountChange)="balanceStated.set($event)">
             </label>
           }
         }
