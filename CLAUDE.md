@@ -209,7 +209,8 @@ these):
   as 1). `tour-versions.test.mjs` fails on a step without its words in both
   languages. Version 2 (2026-10-14): Por revisar - what is chosen is
   remembered, "No es un movimiento"; Notificaciones - each bank's page,
-  "Ignorar publicidad".
+  "Ignorar publicidad"; Deudas - a loan already being paid ("¿Ya lo
+  vienes pagando?" on top of the loan form).
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
