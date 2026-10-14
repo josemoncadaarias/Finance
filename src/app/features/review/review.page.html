@@ -172,7 +172,7 @@
               @for (shop of repeatedOf(batch); track shop.merchant) {
                 @let shopLines = linesOfShop(shop);
                 <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
-                     (click)="selecting() && toggleMany(shopLines)" (contextmenu)="pressedMany($event, shopLines)">
+                     (click)="selecting() ? toggleMany(shopLines) : openGroup(shop)" (contextmenu)="pressedMany($event, shopLines)">
                   @if (selecting()) {
                     <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
                       @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
@@ -188,13 +188,8 @@
                     <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
                   </span>
                   @if (!selecting()) {
-                    <button type="button" class="ui-chip cat" [disabled]="working()" (click)="$event.stopPropagation(); choosingMerchant.set(shop)">
-                      @if (shop.category; as category) {
-                        <span class="ui-one">{{ category.name }}</span>
-                      } @else {
-                        <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'review.pickCategory' | t }}</span>
-                      }
-                    </button>
+                    <!-- Its page: every movement it found, answered alone or together (25b). -->
+                    <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
                   }
                 </div>
               }
@@ -333,8 +328,9 @@
         </button>
       </div>
       <div class="acts tiles">
-        <button type="button" [disabled]="working() || selectedLines().length === 0" (click)="choosingForSelection.set(true)">
-          <ion-icon name="pricetag-outline"></ion-icon><span>{{ 'entry.category' | t }}</span>
+        <!-- Everything one movement can change, for all the chosen ones (25f, 25g). -->
+        <button type="button" class="edit" [disabled]="working() || selectedLines().length === 0" (click)="editSelected()">
+          <ion-icon name="create-outline"></ion-icon><span>{{ 'ui.review.edit' | t }}</span>
         </button>
         <button type="button" [disabled]="working() || selectedLines().length === 0" (click)="asking.set({ kind: 'forgetSelected' })">
           <ion-icon name="eye-off-outline"></ion-icon><span>{{ 'ui.review.notAgain' | t }}</span>
@@ -360,6 +356,68 @@
     </div>
   }
 </ion-content>
+
+<!-- One group of movements that repeat (25b, 25c). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet group-sheet" [isOpen]="group() !== null" (didDismiss)="group.set(null)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host group-body">
+      <div class="grab"></div>
+      <div class="sheet-head">
+        <button type="button" class="link left" (click)="group.set(null)">{{ 'entry.cancel' | t }}</button>
+        <h2>{{ 'ui.review.group.title' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      @if (group(); as shop) {
+        <div class="ui-card group-head">
+          @if (shop.category; as category) {
+            <app-badge [size]="46" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+          } @else {
+            <app-badge [size]="46" builtin="storefront" fixed="#2ec4b6"></app-badge>
+          }
+          <span class="ui-tx">
+            <b class="ui-one">{{ shop.sample }}</b>
+            <small>{{ groupTotal() }}</small>
+          </span>
+        </div>
+        <div class="ui-seg group-view">
+          <button type="button" [class.on]="groupView() === 'day'" (click)="groupView.set('day')">{{ 'ui.review.group.byDay' | t }}</button>
+          <button type="button" [class.on]="groupView() === 'category'" (click)="groupView.set('category')">{{ 'ui.review.group.byCategory' | t }}</button>
+        </div>
+        @for (section of groupSections(); track section.key) {
+          <section class="ui-list ui-group">
+            <div class="ui-row head">
+              @if (section.category; as category) {
+                <app-badge [size]="30" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+              }
+              <span class="ui-tx"><b class="ui-one">{{ section.title }}</b><small>{{ countOf(section.lines.length) }}</small></span>
+              <span class="total" [class.ui-r]="section.totalMinor < 0" [class.ui-g]="section.totalMinor > 0">{{ section.totalMinor > 0 ? '+' : '' }}{{ money(section.totalMinor, section.lines[0]?.account?.currency_code) }}</span>
+            </div>
+            @for (line of section.lines; track line.proposal.id) {
+              <div class="ui-row line" role="button" (click)="openFromGroup(line)">
+                @if (categoryOf(line); as category) {
+                  <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+                } @else {
+                  <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
+                }
+                <span class="ui-tx">
+                  <b class="ui-one">{{ line.proposal.description || ('review.noDescription' | t) }}</b>
+                  <small class="ui-one">{{ groupView() === 'day' ? (categoryOf(line)?.name ?? ('ui.review.group.noCategory' | t)) : longDay(line.proposal.occurred_on) }}</small>
+                </span>
+                <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
+                  {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
+                </span>
+              </div>
+            }
+          </section>
+        }
+        <p class="ui-sub group-hint">{{ 'ui.review.group.hint' | t }}</p>
+        <button type="button" class="ui-btn group-answer" (click)="answerGroup()">
+          <ion-icon name="layers-outline"></ion-icon>{{ 'ui.review.group.answer' | t:{ count: groupLines().length } }}
+        </button>
+      }
+    </div>
+  </ng-template>
+</ion-modal>
 
 <!-- Mostrar and Ordenar, one sheet (6k). -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingView()" (didDismiss)="choosingView.set(false)">

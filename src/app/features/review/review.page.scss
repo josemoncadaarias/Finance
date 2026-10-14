@@ -126,3 +126,12 @@
     &.off { background: rgba(var(--app-yel-rgb), 0.2); color: var(--app-yel); }
   }
 }
+
+// One group of movements that repeat (25b, 25c).
+.group-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: calc(16px + var(--ion-safe-area-bottom, 0px)); }
+.group-head { display: flex; gap: 12px; align-items: center; padding: 14px; .ui-tx b { font-size: 16px; } }
+.group-view { margin: 0; }
+.group-body .ui-row.line { cursor: pointer; }
+.group-body .head .total { font-weight: 600; font-size: 14px; white-space: nowrap; }
+.group-hint { margin: 2px 4px 0; text-align: center; }
+.group-answer { position: sticky; bottom: 0; }

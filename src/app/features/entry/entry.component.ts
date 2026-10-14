@@ -115,6 +115,26 @@ export interface EntryRequest {
    * null when nobody knows yet; `said` is what was read, shown on top.
    */
   proposal?: EntryProposal;
+  /**
+   * Several proposals answered at once - a group of movements that repeat,
+   * or several chosen on the review screen (Jose, 2026-10-14, mockups 25).
+   * The form asks everything it asks for one, but no amount and no day: each
+   * keeps its own. A category or a note left untouched keeps each one's own.
+   */
+  many?: EntryMany;
+}
+
+export interface EntryMany {
+  items: EntryManyItem[];
+}
+
+export interface EntryManyItem {
+  proposal: EntryProposal;
+  /** Signed as it was read; null when the reading found none. */
+  amountMinor: number | null;
+  onDate: string;
+  /** Its own note when none is typed for all: the shop's or as it came. */
+  note: string;
 }
 
 export interface EntryProposal {
@@ -548,6 +568,8 @@ export class EntryComponent implements OnInit, OnDestroy {
 
 
   readonly title = computed(() => {
+    const many = this.many();
+    if (many) return this.i18n.t('ui.many.title', { count: many.items.length });
     if (this.request().proposal) return this.i18n.t('ui.review.check');
     if (this.betweenProducts() && this.isEditing()) return this.i18n.t('entry.editTransfer');
     if (this.isEditing()) return this.i18n.t(this.isTransfer() ? 'entry.editTransfer' : 'entry.editMovement');
@@ -685,6 +707,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   private readonly effectiveMinor = computed(() => this.amount().minor);
 
   readonly missing = computed<string | null>(() => {
+    if (this.many()) return this.manyMissing();
     if (this.effectiveMinor() <= 0) return this.i18n.t('entry.need.amount');
     if (this.loanEntry() && this.loanCapital() < 0) return this.i18n.t('loans.pay.tooLittle');
     if (this.accountId() === null) return this.i18n.t('entry.need.account');
@@ -711,6 +734,114 @@ export class EntryComponent implements OnInit, OnDestroy {
   });
 
   readonly canSave = computed(() => this.missing() === null);
+
+  // ---------------------------------------------------------------------------
+  // Several proposals at once (mockups 25d, 25e, 25g)
+  // ---------------------------------------------------------------------------
+
+  readonly many = computed(() => this.request().many ?? null);
+
+  /** The ones that can be saved with what is chosen: an amount, and a category unless a transfer. */
+  private readonly manyReady = computed(() => {
+    const many = this.many();
+    if (!many) return [];
+    const chosen = this.categoryId();
+    return many.items.filter(item => Math.abs(item.amountMinor ?? 0) > 0
+      && (this.isTransfer() || (chosen ?? item.proposal.categoryId ?? null) !== null));
+  });
+
+  /** How many stay on the review screen, still needing something. */
+  readonly manyLeft = computed(() => (this.many()?.items.length ?? 0) - this.manyReady().length);
+
+  private manyMissing(): string | null {
+    if (this.accountId() === null) return this.i18n.t('entry.need.account');
+    if (this.isTransfer()) {
+      if (this.toAccountId() === null) return this.i18n.t('entry.need.destination');
+      if (this.toAccountId() === this.accountId()) {
+        if (!this.splitAccount()) return this.i18n.t('entry.need.differentAccounts');
+        if (this.productId() === null || this.productId() === this.toProductId()) return this.i18n.t('entry.need.differentProducts');
+      }
+      if (this.crossesCurrency()) return this.i18n.t('ui.many.currencies');
+    }
+    if (this.manyReady().length === 0) return this.i18n.t('entry.need.category');
+    return null;
+  }
+
+  /** "5 movimientos · −750.000". */
+  readonly manyHead = computed(() => {
+    const many = this.many();
+    if (!many) return '';
+    const total = many.items.reduce((sum, item) => sum + (item.amountMinor ?? 0), 0);
+    return this.i18n.t('ui.many.head', { count: many.items.length, total: (total < 0 ? '−' : '+') + formatMoney(Math.abs(total), this.currency(), { withSymbol: false }) });
+  });
+
+  /** "Del 2 al 28 de septiembre. Cada uno conserva su monto y su fecha." */
+  readonly manyDays = computed(() => {
+    const many = this.many();
+    if (!many) return '';
+    const days = many.items.map(item => item.onDate).sort();
+    const first = days[0], last = days[days.length - 1];
+    const words = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'long' });
+    const span = first === last ? words(first) : this.i18n.t('ui.many.span', { from: words(first), to: words(last) });
+    return this.i18n.t('ui.many.days', { span });
+  });
+
+  readonly manySaveLabel = computed(() => {
+    if (!this.many()) return null;
+    const count = this.manyReady().length;
+    return this.i18n.t(count === 1 ? 'ui.many.saveOne' : 'ui.many.save', { count });
+  });
+
+  /** The proposal being written: the one opened, or each of several in turn. */
+  private current: EntryProposal | null = null;
+
+  private proposalNow(): EntryProposal | undefined {
+    return this.current ?? this.request().proposal;
+  }
+
+  /**
+   * Each one written as if it had been opened alone with these answers: its
+   * own amount and day, the category and note chosen or else its own. Those
+   * still needing something stay on the review screen, and the toast says so.
+   */
+  private async saveMany(): Promise<void> {
+    const many = this.many()!;
+    // What the form shows stands for all of them: nothing follows the
+    // category or the note while they are written one by one.
+    this.scopeTouched = true;
+    this.noteIsTheirs = true;
+    const ready = this.manyReady();
+    const category = this.categoryId();
+    const note = this.note().trim();
+    const scoped = !this.isTransfer() && this.asksScope() && this.scope() !== 'both';
+    let saved = 0;
+    try {
+      for (const item of ready) {
+        this.current = item.proposal;
+        this.amount.set(AmountBuffer.from(Math.abs(item.amountMinor ?? 0)));
+        this.occurredOn.set(item.onDate);
+        if (this.isTransfer()) {
+          await this.saveTransfer();
+        } else {
+          this.categoryId.set(category ?? item.proposal.categoryId ?? null);
+          this.note.set(note || item.note);
+          const written = scoped ? await this.saveScoped() : await this.saveMovement();
+          await this.teach();
+          await this.answerProposal(written);
+        }
+        saved++;
+      }
+    } finally {
+      this.current = null;
+    }
+    // The yields of the accounts touched, worked out once from the earliest day.
+    if (ready.length > 0) {
+      this.occurredOn.set(ready.map(item => item.onDate).sort()[0]);
+      await this.workOutAgain();
+    }
+    const left = many.items.length - saved;
+    this.toast.say(this.i18n.t(left > 0 ? 'ui.many.savedLeft' : 'ui.many.saved', { count: saved, left }), 4000);
+  }
 
   private readonly tour = inject(TourService);
 
@@ -952,7 +1083,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.autofocusAmount.set(!this.isEditing() && !this.request().loan);
+    this.autofocusAmount.set(!this.isEditing() && !this.request().loan && !this.request().many);
     // The phone's keyboard closing is the end of writing a note, however it
     // was closed - the back button included, which does not blur the field.
     if (Capacitor.isNativePlatform()) {
@@ -1060,8 +1191,18 @@ export class EntryComponent implements OnInit, OnDestroy {
       }
     } else {
       const proposal = this.request().proposal;
-      // A proposal starts on the account its reading points at, and on none
-      // when nobody knows yet: guessing one would file it somewhere unasked.
+      const many = this.request().many;
+      if (many) {
+        // Several start on the account they share, if they share one; a
+        // category or a note they all share is shown, else each keeps its own.
+        const shared = <T>(values: T[]) => values.every(value => value === values[0]) ? values[0] : null;
+        const preferred = this.request().preferredAccountId ?? shared(many.items.map(item => item.proposal.accountId));
+        this.accountId.set(preferred != null && accounts.some(account => account.id === preferred) ? preferred : null);
+        this.categoryId.set(shared(many.items.map(item => item.proposal.categoryId ?? null)));
+        const note = shared(many.items.map(item => item.note));
+        this.noteIsTheirs = true;
+        if (note && !this.request().start?.note) this.note.set(note);
+      } else
       this.accountId.set(proposal
         ? (accounts.some(account => account.id === proposal.accountId) ? proposal.accountId : null)
         : await this.defaultAccount(accounts));
@@ -1190,7 +1331,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       // A card on show is paid, not drawn from (Jose, 2026-10-08): the
       // transfer goes INTO it, from the account that usually pays it.
       // A message's own side wins: it says which way the money went.
-      const isCard = !this.request().proposal && accounts.find(a => a.id === selected)?.type === 'credit';
+      const isCard = !this.request().proposal && !this.request().many && accounts.find(a => a.id === selected)?.type === 'credit';
       // Leaving it: to wherever this account sends money most often.
       if (this.request().preferredSide === 'from' && !isCard) {
         return { from: selected, to: await this.counterpart(accounts, selected, 'from') };
@@ -1552,6 +1693,12 @@ export class EntryComponent implements OnInit, OnDestroy {
     try {
       let written: number | null = null;
       const loan = this.loanEntry();
+      if (this.many()) {
+        await this.saveMany();
+        this.database.dataChanged();
+        this.saved.emit();
+        return;
+      }
       if (loan) await this.saveLoanPayment(loan);
       else if (this.isTransfer()) await this.saveTransfer();
       else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
@@ -1882,7 +2029,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    * after all, is let go of that pairing first.
    */
   private async answerProposal(written: number | null): Promise<void> {
-    const asked = this.request().proposal!;
+    const asked = this.proposalNow()!;
     const proposals = new ProposalsRepository(this.database.driver);
     const said = await proposals.byId(asked.id);
     if (!said) return;
@@ -2077,7 +2224,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     }
 
     const created = await transfers.create(transfer);
-    const proposal = this.request().proposal;
+    const proposal = this.proposalNow();
     if (proposal) {
       const legs = await this.legsOf(created);
       // The message's end is the one its money moved on - leaving for money
@@ -2129,7 +2276,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.switchTo.emit({
       kind,
       preferredAccountId: account ?? this.request().preferredAccountId,
-      preferredSide: kind === 'transfer' ? (proposal && this.kind() === 'income' ? 'to' : 'from') : undefined,
+      preferredSide: kind === 'transfer' ? ((proposal || this.request().many) && this.kind() === 'income' ? 'to' : 'from') : undefined,
       start: {
         amountMinor: this.amount().minor,
         onDate: this.occurredOn(),
@@ -2137,6 +2284,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         again: this.again(),
       },
       ...(proposal ? { proposal: { ...proposal, accountId: account ?? proposal.accountId, categoryId: this.categoryId() ?? proposal.categoryId } } : {}),
+      ...(this.request().many ? { many: this.request().many } : {}),
     });
   }
 

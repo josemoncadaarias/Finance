@@ -403,6 +403,109 @@ export class ReviewPage {
     return lines.filter(line => ids.has(line.proposal.id)).length;
   }
 
+  // ---------------------------------------------------------------------------
+  // One group of movements that repeat, on a page of its own (mockups 25b, 25c)
+  // ---------------------------------------------------------------------------
+
+  /** The group whose movements are on show, or null. */
+  readonly group = signal<Repeated | null>(null);
+  readonly groupView = signal<'day' | 'category'>('day');
+
+  readonly groupLines = computed(() => {
+    const group = this.group();
+    return group ? this.linesOfShop(group) : [];
+  });
+
+  /** "5 movimientos · −750.000 en total". */
+  readonly groupTotal = computed(() => {
+    const lines = this.groupLines();
+    const total = lines.reduce((sum, line) => sum + (line.proposal.amount_minor ?? 0), 0);
+    const currency = lines[0]?.account?.currency_code;
+    return this.i18n.t('ui.review.group.total', { count: lines.length, total: `${total > 0 ? '+' : ''}${this.money(total, currency)}` });
+  });
+
+  /** Its movements by day, newest first, or by category, largest first. */
+  readonly groupSections = computed(() => {
+    const byCategory = this.groupView() === 'category';
+    const sections = new Map<string, { key: string; title: string; category: CategoryRow | null; lines: Line[]; totalMinor: number }>();
+    for (const line of this.groupLines()) {
+      const category = this.categoryOf(line);
+      const key = byCategory ? `c${category?.id ?? 0}` : line.proposal.occurred_on ?? '';
+      const title = byCategory ? category?.name ?? this.i18n.t('ui.review.group.noCategory') : this.longDay(line.proposal.occurred_on);
+      const found = sections.get(key) ?? { key, title, category: byCategory ? category : null, lines: [], totalMinor: 0 };
+      found.lines.push(line);
+      found.totalMinor += line.proposal.amount_minor ?? 0;
+      sections.set(key, found);
+    }
+    const list = [...sections.values()];
+    return byCategory
+      ? list.sort((a, b) => Math.abs(b.totalMinor) - Math.abs(a.totalMinor))
+      : list.sort((a, b) => b.key.localeCompare(a.key));
+  });
+
+  openGroup(shop: Repeated): void {
+    this.groupView.set('day');
+    this.group.set(shop);
+  }
+
+  /** One of the group, reviewed alone in the one form. */
+  openFromGroup(line: Line): void {
+    this.group.set(null);
+    this.tapped(line);
+  }
+
+  /** "Responder los N": the whole group in the one form. */
+  answerGroup(): void {
+    const lines = this.groupLines();
+    this.group.set(null);
+    void this.openMany(lines);
+  }
+
+  /** "Editar" on the selection bar: the chosen ones in the one form (25f, 25g). */
+  editSelected(): void {
+    void this.openMany(this.selectedLines());
+  }
+
+  /**
+   * Several proposals in the one movement form, asked as for one but with no
+   * amount and no day (Jose, 2026-10-14). What is already on record is left
+   * out: it is answered apart, never saved again.
+   */
+  private async openMany(lines: readonly Line[]): Promise<void> {
+    const open = lines.filter(line => line.sameAs === null);
+    if (open.length === 0) return;
+    if (open.length === 1) { this.tapped(open[0]); return; }
+    const memory = await new ProposalsRepository(this.database.driver).shopMemory();
+    const signs = open.map(line => Math.sign(line.proposal.amount_minor ?? -1));
+    const income = signs.every(sign => sign > 0);
+    const shared = <T>(values: T[]) => values.every(value => value === values[0]) ? values[0] : null;
+    const transferTo = shared(open.map(line => line.transferTo));
+    const account = shared(open.map(line => line.proposal.account_id));
+    const items = open.map(line => {
+      const shop = shopMemoryOf(memory, line.proposal.description);
+      return {
+        proposal: { ...this.proposalOf(line), productId: shop?.productId ?? null, scope: shop?.scope ?? null },
+        amountMinor: line.proposal.amount_minor,
+        onDate: line.proposal.occurred_on || todayIso(),
+        note: shop?.note ?? line.proposal.description ?? '',
+      };
+    });
+    // Saved as a transfer to one same account before: they open as one.
+    if (transferTo !== null && account !== null) {
+      this.compose.entry.set({
+        kind: 'transfer',
+        route: income ? { from: transferTo, to: account } : { from: account, to: transferTo },
+        many: { items },
+      });
+      return;
+    }
+    this.compose.entry.set({
+      kind: income ? 'income' : 'expense',
+      preferredAccountId: account,
+      many: { items },
+    });
+  }
+
   /** The rows of a repeated shop, wherever they are. */
   linesOfShop(shop: Repeated): Line[] {
     return this.linesByMerchant().get(`${shop.batch}|${shop.merchant}`) ?? [];

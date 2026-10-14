@@ -70,7 +70,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <ion-icon [name]="again() ? 'checkbox' : 'square-outline'"></ion-icon>{{ 'entry.again' | t }}
           </button>
         }
-        <button type="button" class="save" [disabled]="!canSave()" (click)="save.emit()">{{ 'entry.save' | t }}</button>
+        <button type="button" class="save" [disabled]="!canSave()" (click)="save.emit()">{{ label() || ('entry.save' | t) }}</button>
       </div>
     </footer>
   `,
@@ -80,6 +80,8 @@ export class FormFootComponent {
   readonly canSave = input(false);
   readonly offerAgain = input(false);
   readonly again = input(false);
+  /** The save button's own words, where "Guardar" alone says too little. */
+  readonly label = input<string | null>(null);
 
   readonly save = output<void>();
   readonly againChange = output<boolean>();

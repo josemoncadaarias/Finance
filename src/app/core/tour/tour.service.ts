@@ -168,6 +168,9 @@ const TOUR_LIST = {
       // 2026-10-13/14: everything chosen is remembered; "No es un movimiento".
       { title: 'tour.review.4.title', text: 'tour.review.4.text', since: 2 },
       { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 2 },
+      // 2026-10-14: a group that repeats answered whole; "Editar" for several chosen.
+      { sel: 'app-review .shops', title: 'tour.review.6.title', text: 'tour.review.6.text', since: 3 },
+      { title: 'tour.review.7.title', text: 'tour.review.7.text', since: 3 },
     ],
   },
   notifications: {

@@ -535,3 +535,12 @@
 .tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 6px; font-weight: 500; }
 .tag.learned { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
 .tag.guessed { background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); }
+
+// Several proposals answered at once (25d, 25e, 25g).
+.many-card {
+  display: flex; gap: 12px; align-items: center; margin: 12px 0 10px; padding: 12px 14px;
+  background: rgba(var(--app-pr-rgb), 0.1); border-color: rgba(var(--app-pr-rgb), 0.35);
+  .ui-tx b { font-size: 15px; }
+  .ui-tx small { line-height: 1.35; }
+  .left { color: var(--app-yel); }
+}
