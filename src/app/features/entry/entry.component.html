@@ -86,6 +86,18 @@
           }
         }
 
+        <!-- Several proposals answered at once: no amount and no day, each
+             keeps its own (mockups 25d, 25e, 25g). -->
+        @if (many(); as group) {
+          <div class="ui-card many-card">
+            <app-badge shape="ci" [size]="38" builtin="layers-outline" [fixed]="accentColor()"></app-badge>
+            <span class="ui-tx">
+              <b>{{ manyHead() }}</b>
+              <small class="wrap">{{ manyDays() }}</small>
+              @if (manyLeft() > 0) { <small class="wrap left">{{ 'ui.many.left' | t:{ count: manyLeft() } }}</small> }
+            </span>
+          </div>
+        } @else {
         <!-- The amount, and nothing competing with it. -->
         @if (crossesCurrency()) {
           <div class="pair">
@@ -142,6 +154,7 @@
           <p class="holds-now">{{ 'ui.entry.holdsNow' | t }} · <b>{{ holdsNowText() }}</b></p>
         }
 
+        }
         @if (error()) {
           <p class="error">{{ error() }}</p>
         }
@@ -168,7 +181,7 @@
                   <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b>{{ category.name }}@if (proposalTag(); as tag) {<span class="tag" [class.learned]="tag === 'learned'" [class.guessed]="tag === 'guessed'">{{ (tag === 'learned' ? 'review.learned' : 'review.fromWords') | t }}</span>}</b></span>
                 } @else {
                   <app-badge [size]="42" builtin="pricetag-outline" fixed="#f6b93b"></app-badge>
-                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span><b class="ui-y">{{ 'entry.need.category' | t }}</b></span>
+                  <span class="ui-tx"><span class="k">{{ 'entry.category' | t }}</span>@if (many()) {<b class="ui-mu">{{ 'ui.many.ownCategory' | t }}</b><small class="wrap">{{ 'ui.many.untouched' | t }}</small>} @else {<b class="ui-y">{{ 'entry.need.category' | t }}</b>}</span>
                 }
               </button>
               <button type="button" class="edit" (click)="editChosenCategory()"
@@ -185,7 +198,7 @@
                 <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
               </button>
             }
-            <ng-container *ngTemplateOutlet="dayTpl"></ng-container>
+            @if (!many()) { <ng-container *ngTemplateOutlet="dayTpl"></ng-container> }
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           }
         </div>
@@ -246,7 +259,7 @@
 
         @if (isTransfer()) {
           <div class="ui-list details">
-            <ng-container *ngTemplateOutlet="dayTpl"></ng-container>
+            @if (!many()) { <ng-container *ngTemplateOutlet="dayTpl"></ng-container> }
             <ng-container *ngTemplateOutlet="noteTpl"></ng-container>
           </div>
         }
@@ -256,8 +269,8 @@
   <!-- Saving at the foot, always. -->
   @if (!writingNote()) {
     <app-form-foot [missing]="missing()" [canSave]="canSave() && !saving()"
-                   [offerAgain]="!isEditing() && !request().proposal" [again]="again()" (againChange)="setAgain($event)"
-                   (save)="save()"></app-form-foot>
+                   [offerAgain]="!isEditing() && !request().proposal && !many()" [again]="again()" (againChange)="setAgain($event)"
+                   [label]="manySaveLabel()" (save)="save()"></app-form-foot>
   }
 </div>
 
@@ -332,6 +345,7 @@
                 (focus)="startNote()" (blur)="endNote()"
                 (input)="onNoteInput($any($event.target).value ?? '')"></textarea>
       @if (!writingNote() && usualNoteShown()) { <small>{{ 'ui.note.usual' | t }}</small> }
+      @if (!writingNote() && many() && note() === '') { <small>{{ 'ui.many.ownNote' | t }}</small> }
     </span>
     @if (note() !== '') {
       <button type="button" class="clear-note" (pointerdown)="clearNote($event)" (click)="clearNote()"

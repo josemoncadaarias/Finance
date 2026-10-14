@@ -210,7 +210,8 @@ these):
   languages. Version 2 (2026-10-14): Por revisar - what is chosen is
   remembered, "No es un movimiento"; Notificaciones - each bank's page,
   "Ignorar publicidad"; Deudas - a loan already being paid ("¿Ya lo
-  vienes pagando?" on top of the loan form).
+  vienes pagando?" on top of the loan form). Version 3 (2026-10-14): Por revisar
+  - "Movimientos que se repiten" answered whole, "Editar" for several.
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -361,6 +362,26 @@ these):
   (`EntryProposal.productId/scope`), and "Guardar los listos" writes them
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
+
+- **Several proposals answered in the one form** (Jose, 2026-10-14,
+  mockups `25`, option A: saving saves them all). "Comercios que se
+  repiten" is "Movimientos que se repiten"; tapping a group opens its page
+  (a sheet: by day or by category, a row opens alone, "Responder los N"),
+  and the selection bar's "Categoría" tile became "Editar" (Jose: the
+  category is part of editing). Both open `app-entry` with
+  `EntryRequest.many` (`EntryManyItem`: each proposal, its signed amount,
+  its day and its own note): Gasto / Ingreso / Transferir, account,
+  product, "¿Qué cambia?", category and note, with no amount and no day -
+  each keeps its own. A category or note left untouched keeps each one's
+  own ("Cada uno con la suya"); one they all share starts on screen.
+  `saveMany` writes each through the same writers as one proposal
+  (`saveMovement`/`saveScoped`/`saveTransfer`, `teach`, `answerProposal`,
+  via `proposalNow`), then works out yields once from the earliest day;
+  those lacking an amount or a category stay in Por revisar and the toast
+  says how many. Between currencies a transfer asks to save them one by
+  one. What the ledger already holds is never included. Checked in a
+  browser on the sample data (a group of 2, a selection of 3 with
+  different categories, switching to Transferir and back).
 
 - **A loan already being paid is asked for on top** (Jose, 2026-10-14,
   mockup `27`). The loan form keeps every field it had; "Cuotas ya pagadas"
