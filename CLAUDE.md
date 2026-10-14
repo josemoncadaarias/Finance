@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (779 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (783 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -197,6 +197,19 @@ these):
   keys (`i18n.test.mjs` checks it).
 - A new control that appears on two screens is defined once in
   `src/global.scss` (the `ui-*` classes).
+- **Every update brings its guide** (Jose, 2026-10-14: "actualizar todas
+  las guías con cada actualización"). A change a person can see or use adds
+  or rewrites the steps of that screen's tour (`TOURS` in
+  `core/tour/tour.service.ts`, words `tour.<id>.<n>.*` in both languages).
+  A step added to a tour someone may already have seen carries
+  `since: <next version>`: whoever saw the tour before is shown only the
+  steps newer than what they saw, once, marked "Nuevo"; a new person sees
+  the whole tour (`stepsToShow` in `core/tour/tour-versions.ts`; seen
+  versions kept as `id@v` in `finance.tours.seen`, an old bare id counting
+  as 1). `tour-versions.test.mjs` fails on a step without its words in both
+  languages. Version 2 (2026-10-14): Por revisar - what is chosen is
+  remembered, "No es un movimiento"; Notificaciones - each bank's page,
+  "Ignorar publicidad".
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people

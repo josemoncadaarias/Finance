@@ -16,6 +16,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 
 import type { TranslationKey } from '../i18n/translations';
+import { parseSeenVersions, stepsToShow, versionOf } from './tour-versions';
 
 
 export interface TourStep {
@@ -28,6 +29,13 @@ export interface TourStep {
   sel?: string;
   title: TranslationKey;
   text: TranslationKey;
+  /**
+   * The version of the tour this step arrived with (Jose, 2026-10-14: every
+   * update brings its guide). Someone who saw the tour before sees only the
+   * steps newer than what they saw, once, marked "Nuevo"; a new person sees
+   * them all. Leave it out on the steps a tour was born with.
+   */
+  since?: number;
 }
 
 interface Tour { welcome?: { title: TranslationKey; text: TranslationKey }; steps: TourStep[] }
@@ -156,12 +164,17 @@ const TOUR_LIST = {
       { title: 'tour.review.1.title', text: 'tour.review.1.text' },
       { sel: 'app-review .origin-head', title: 'tour.review.2.title', text: 'tour.review.2.text' },
       { sel: 'app-review .ui-search', title: 'tour.review.3.title', text: 'tour.review.3.text' },
+      // 2026-10-13/14: everything chosen is remembered; "No es un movimiento".
+      { title: 'tour.review.4.title', text: 'tour.review.4.text', since: 2 },
+      { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 2 },
     ],
   },
   notifications: {
     steps: [
       { title: 'tour.notifications.1.title', text: 'tour.notifications.1.text' },
       { sel: 'app-notifications .ui-search', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text' },
+      // 2026-10-14: a source's page, "Ignorar publicidad", "Sí era un movimiento".
+      { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 2 },
     ],
   },
   export: {
@@ -210,13 +223,18 @@ export interface ActiveTour {
   id: TourId;
   /** -1 is the welcome card, before the first step. */
   step: number;
+  /** The steps on show: all of them, or only what is new since last seen. */
+  steps: TourStep[];
+  /** Only what changed since the person last saw this tour. */
+  news: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class TourService {
   readonly enabled = signal(read(ON_KEY) !== '0');
   readonly active = signal<ActiveTour | null>(null);
-  private seen = new Set<TourId>(parseSeen(read(SEEN_KEY)));
+  /** The version of each tour this device has seen. */
+  private seen = parseSeenVersions<TourId>(read(SEEN_KEY), TOUR_LIST);
   /** Asked while another tour was on screen: started when that one ends. */
   private waiting: TourId[] = [];
   private readonly router = inject(Router);
@@ -236,7 +254,7 @@ export class TourService {
 
   /** Starts a tour the first time it is asked for, if tours are on. */
   offer(id: TourId): void {
-    if (!this.enabled() || this.seen.has(id)) return;
+    if (!this.enabled() || !stepsToShow(TOURS[id], this.seen.get(id) ?? 0)) return;
     if (this.active()) {
       if (this.active()!.id !== id && !this.waiting.includes(id)) this.waiting.push(id);
       return;
@@ -252,13 +270,13 @@ export class TourService {
   /** Starts a tour whether it was seen or not (Más → Guías). */
   replay(id: TourId): void {
     this.waiting = [];
-    this.start(id);
+    this.start(id, true);
   }
 
   next(): void {
     const now = this.active();
     if (!now) return;
-    if (now.step + 1 < TOURS[now.id].steps.length) this.active.set({ id: now.id, step: now.step + 1 });
+    if (now.step + 1 < now.steps.length) this.active.set({ ...now, step: now.step + 1 });
     else this.end();
   }
 
@@ -266,11 +284,13 @@ export class TourService {
   end(): void {
     const now = this.active();
     if (!now) return;
-    this.seen.add(now.id);
-    write(SEEN_KEY, [...this.seen].join(','));
+    this.seen.set(now.id, versionOf(TOURS[now.id]));
+    write(SEEN_KEY, [...this.seen].map(([id, v]) => `${id}@${v}`).join(','));
     this.active.set(null);
     const following = this.waiting.shift();
-    if (following && this.enabled() && !this.seen.has(following)) setTimeout(() => this.start(following), 400);
+    if (following && this.enabled() && stepsToShow(TOURS[following], this.seen.get(following) ?? 0)) {
+      setTimeout(() => this.start(following), 400);
+    }
   }
 
   setEnabled(on: boolean): void {
@@ -285,13 +305,12 @@ export class TourService {
     write(SEEN_KEY, '');
   }
 
-  private start(id: TourId): void {
-    this.active.set({ id, step: TOURS[id].welcome ? -1 : 0 });
+  private start(id: TourId, whole = false): void {
+    const shown = whole ? { steps: TOURS[id].steps, news: false } : stepsToShow(TOURS[id], this.seen.get(id) ?? 0);
+    if (!shown) return;
+    // What is new comes without the welcome card: it was already said.
+    this.active.set({ id, step: TOURS[id].welcome && !shown.news ? -1 : 0, ...shown });
   }
-}
-
-function parseSeen(raw: string | null): TourId[] {
-  return (raw ?? '').split(',').filter((t): t is TourId => t in TOUR_LIST);
 }
 
 function read(key: string): string | null {
