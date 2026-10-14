@@ -40,6 +40,7 @@ const PAD = 6;
         @let c = steps()[now.step];
         <div class="dim"></div>
         <div class="bubble centred" role="dialog" aria-modal="true">
+          @if (now.news) { <span class="new">{{ 'tour.new' | t }}</span> }
           <b>{{ c.title | t }}</b>
           <p>{{ c.text | t }}</p>
           <ng-container *ngTemplateOutlet="foot; context: { now: now }"></ng-container>
@@ -54,6 +55,7 @@ const PAD = 6;
           @if (placement() !== 'inside') {
             <span class="arrow" [class.up]="placement() === 'below'" [style.left.px]="arrowX()"></span>
           }
+          @if (now.news) { <span class="new">{{ 'tour.new' | t }}</span> }
           <b>{{ s.title | t }}</b>
           <p>{{ s.text | t }}</p>
           <ng-container *ngTemplateOutlet="foot; context: { now: now }"></ng-container>
@@ -76,6 +78,8 @@ const PAD = 6;
   `,
   styles: [`
     :host { position: fixed; inset: 0; z-index: 60000; pointer-events: none; }
+    .new { display: inline-block; align-self: flex-start; width: fit-content; margin-bottom: 6px; padding: 2px 9px; border-radius: 10px; font-size: 11.5px; font-weight: 700;
+      background: rgba(var(--app-grn-rgb), 0.18); color: var(--app-grn); }
     :host:empty { display: none; }
     .catch { position: fixed; inset: 0; pointer-events: auto; }
     .dim { position: fixed; inset: 0; background: rgba(3, 6, 14, 0.78); }
@@ -128,7 +132,7 @@ export class TourOverlayComponent {
   private viewW = window.innerWidth;
   private radiusOf = 18;
 
-  readonly steps = computed(() => { const now = this.tour.active(); return now ? TOURS[now.id].steps : []; });
+  readonly steps = computed(() => this.tour.active()?.steps ?? []);
   readonly welcome = computed(() => { const now = this.tour.active(); return now ? TOURS[now.id].welcome : undefined; });
   readonly last = computed(() => { const now = this.tour.active(); return !!now && now.step === this.steps().length - 1; });
   /**
@@ -159,7 +163,7 @@ export class TourOverlayComponent {
   readonly centred = computed(() => {
     const now = this.tour.active();
     if (!now || now.step < 0) return false;
-    const step = TOURS[now.id].steps[now.step];
+    const step = now.steps[now.step];
     return !step.target && !step.sel;
   });
 
@@ -170,7 +174,7 @@ export class TourOverlayComponent {
       const now = this.tour.active();
       this.box.set(null);
       if (!now || now.step < 0) return;
-      const step = TOURS[now.id].steps[now.step];
+      const step = now.steps[now.step];
       if (!step.target && !step.sel) return;
       untracked(() => this.place(selectorOf(step), true, 0));
     });
@@ -180,7 +184,7 @@ export class TourOverlayComponent {
   onResize(): void {
     const now = this.tour.active();
     if (!now || now.step < 0) return;
-    const step = TOURS[now.id].steps[now.step];
+    const step = now.steps[now.step];
     if (step.target || step.sel) this.place(selectorOf(step), false, 0);
   }
 
