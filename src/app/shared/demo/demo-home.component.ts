@@ -88,14 +88,14 @@ class Cancelled extends Error {}
     .restore { color: var(--app-mu); font-size: 12.8px; margin-top: 16px; }
     .restore button { background: none; border: 0; padding: 0; color: var(--app-pr); font: inherit; cursor: pointer; }
     .ui-banner { margin-top: 10px; text-align: left; }
-    .strip { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; padding: 10px 12px; border-radius: 14px;
+    .strip { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; padding: 10px 12px; border-radius: 14px;
       background: rgba(155, 123, 255, .16); border: 1px solid rgba(155, 123, 255, .4); }
     .strip > ion-icon { font-size: 20px; color: #9b7bff; flex: none; }
-    .words { flex: 1; min-width: 0; font-size: 13px; line-height: 1.35; }
+    .words { flex: 1 1 170px; min-width: 0; font-size: 13px; line-height: 1.35; }
     .words b { color: #c9b8ff; }
     .words small { display: block; color: var(--app-mu); font-size: 12.3px; }
     .strip button { padding: 7px 11px; border-radius: 11px; border: 0; background: rgba(155, 123, 255, .3); color: var(--app-tx);
-      font: inherit; font-weight: 600; font-size: 12.8px; cursor: pointer; flex: none; }
+      font: inherit; font-weight: 600; font-size: 12.8px; cursor: pointer; flex: none; margin-left: auto; }
   `],
 })
 export class DemoHomeComponent {
