@@ -465,8 +465,19 @@ export const SPANISH = {
   // --- editing a category -----------------------------------------------
   'nav.categories': 'Categorías',
   'nav.categories.hint': 'Crear, renombrar y archivar',
-  'categories.kind.locked':
-    'No se puede cambiar: lo que ya está clasificado aquí se registró como gasto o como ingreso.',
+  'categories.kind.willTurn': 'Al guardar, sus {count} movimientos también cambian de lado.',
+  'categories.kind.willTurnOne': 'Al guardar, su movimiento también cambia de lado.',
+  'categories.kind.toExpenseOne':
+    'Su movimiento pasa de ingreso a gasto: lo que hoy suma a tu cuenta pasará a restar, y su saldo cambia. Puedes devolverlo cuando quieras.',
+  'categories.kind.toIncomeOne':
+    'Su movimiento pasa de gasto a ingreso: lo que hoy resta de tu cuenta pasará a sumar, y su saldo cambia. Puedes devolverlo cuando quieras.',
+  'categories.kind.ask': '¿Pasar {name} a {kind}?',
+  'categories.kind.toExpense':
+    'Sus {count} movimientos pasan de ingreso a gasto: lo que hoy suma a tus cuentas pasará a restar, y sus saldos cambian. Puedes devolverlo cuando quieras.',
+  'categories.kind.toIncome':
+    'Sus {count} movimientos pasan de gasto a ingreso: lo que hoy resta de tus cuentas pasará a sumar, y sus saldos cambian. Puedes devolverlo cuando quieras.',
+  'categories.kind.turn': 'Cambiar',
+  'categories.kind.taken': 'Ya tienes una categoría «{name}» del otro lado. Cámbiale el nombre a una de las dos primero.',
   'categories.usedIn': 'Usada en',
   'categories.archivedHint':
     'Ya no se ofrecen al registrar, pero lo que quedó clasificado en ellas no cambió.',
@@ -1521,8 +1532,19 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'nav.categories': 'Categories',
   'nav.categories.hint': 'Create, rename and archive',
-  'categories.kind.locked':
-    'Cannot change: what is already filed here was recorded as spending or as income.',
+  'categories.kind.willTurn': 'On saving, its {count} movements change side too.',
+  'categories.kind.willTurnOne': 'On saving, its movement changes side too.',
+  'categories.kind.toExpenseOne':
+    'Its movement changes from income to spending: what adds to your account today will subtract, and its balance changes. You can turn it back any time.',
+  'categories.kind.toIncomeOne':
+    'Its movement changes from spending to income: what subtracts from your account today will add, and its balance changes. You can turn it back any time.',
+  'categories.kind.ask': 'Move {name} to {kind}?',
+  'categories.kind.toExpense':
+    'Its {count} movements change from income to spending: what adds to your accounts today will subtract, and their balances change. You can turn it back any time.',
+  'categories.kind.toIncome':
+    'Its {count} movements change from spending to income: what subtracts from your accounts today will add, and their balances change. You can turn it back any time.',
+  'categories.kind.turn': 'Change',
+  'categories.kind.taken': 'You already have a category “{name}” on the other side. Rename one of the two first.',
   'categories.usedIn': 'Used in',
   'categories.archivedHint':
     'No longer offered when recording, but what was filed under them is unchanged.',

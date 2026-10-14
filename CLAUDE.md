@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (783 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (788 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -211,7 +211,7 @@ these):
   remembered, "No es un movimiento"; Notificaciones - each bank's page,
   "Ignorar publicidad"; Deudas - a loan already being paid ("¿Ya lo
   vienes pagando?" on top of the loan form). Version 3 (2026-10-14): Por revisar
-  - "Movimientos que se repiten" answered whole, "Editar" for several.
+  - "Movimientos que se repiten" answered whole, "Editar" for several. Categorías - a category's side can be changed.
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -362,6 +362,20 @@ these):
   (`EntryProposal.productId/scope`), and "Guardar los listos" writes them
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
+
+- **A category's side can be changed even once used** (Jose, 2026-10-14:
+  it was locked, so a category set up as income that was spending had no way
+  out). The category editor's "Para" opens the same sheet as for a new one;
+  saving another side asks first ("¿Pasar {name} a {kind}?", how many
+  movements, that balances change, that it can be turned back).
+  `changeCategoryKind` (`core/categories/change-kind.ts`) does it in one
+  transaction: the category's kind; every movement under it negated, its peso
+  value too, and marked `locked`; a product's own movement under it negated;
+  a "Solo el patrimonio" movement keeps that answer - its half on the product
+  turns from a cash-out into an entry or back, so the product does not move.
+  A name already taken on the other side is refused (`KindTaken`). Yields
+  are redone by the next pass through the month marks. Tests in
+  `category-kind.test.mjs`; checked in a browser on the sample data.
 
 - **Several proposals answered in the one form** (Jose, 2026-10-14,
   mockups `25`, option A: saving saves them all). "Comercios que se
