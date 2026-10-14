@@ -152,7 +152,7 @@ export class ComposeHostComponent {
     if (done === 'again') { this.file().nativeElement.click(); return; }
     if (done === null) return;
     this.database.dataChanged();
-    await this.router.navigateByUrl('/review');
+    await this.router.navigate(['/review'], { queryParams: { batch: done.batch } });
     const read = done.proposed === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count: done.proposed });
     const known = done.knownAlready > 0
       ? this.i18n.t('ui.import.done.known', { count: done.knownAlready })

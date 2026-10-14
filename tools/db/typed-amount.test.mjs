@@ -43,3 +43,20 @@ test('what a field shows reads back as the same amount', () => {
   assert.equal(typedAmountOf(600_000_000), '6.000.000');
   assert.equal(typedAmountOf(600_000_050), '6.000.000,50');
 });
+
+test('the cursor stays where the digit was typed after regrouping', async () => {
+  const { caretAfterRegroup, groupTypedAmount } = await import('../../src/app/core/database/typed-amount.ts');
+  // "3.800.000", a 5 typed after the 3: "35.800.000" -> "35.800.000", cursor after the 5.
+  const typed = '35.800.000';
+  const grouped = groupTypedAmount(typed);
+  assert.equal(grouped, '35.800.000');
+  assert.equal(caretAfterRegroup(typed, 2, grouped), 2);
+  // "380.000" with a 0 typed after the 8: "3800.000" regroups to "3.800.000", cursor after that 0.
+  assert.equal(groupTypedAmount('3800.000'), '3.800.000');
+  assert.equal(caretAfterRegroup('3800.000', 3, '3.800.000'), 4);
+  // A full stop at the end becomes the comma, and the cursor follows it.
+  assert.equal(groupTypedAmount('3.800.'), '3.800,');
+  assert.equal(caretAfterRegroup('3.800.', 6, '3.800,'), 6);
+  // Pasted thousands stay pesos.
+  assert.equal(groupTypedAmount('3.800.000'), '3.800.000');
+});

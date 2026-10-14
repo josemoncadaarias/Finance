@@ -153,7 +153,7 @@
       @if (tab() === 'ahead' && !s.done) {
         <div class="ui-card ahead">
           <span class="ui-lab">{{ 'loans.ahead.label' | t }}</span>
-          <input class="big-in" inputmode="decimal" [value]="aheadAmount().text" placeholder="0" (input)="onAhead($any($event.target).value)">
+          <input class="big-in" inputmode="decimal" [value]="aheadAmount().text" placeholder="0" [appAmountInput]="aheadAmount()" (amountChange)="aheadAmount.set($event)">
           <div class="chips center">
             @for (a of amounts; track a) {
               <button type="button" class="ui-chip" [class.on]="aheadMinor() === a" (click)="pickAmount(a)">{{ millions(a) }} M</button>

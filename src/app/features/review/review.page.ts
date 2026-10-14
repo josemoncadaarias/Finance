@@ -1180,6 +1180,16 @@ export class ReviewPage {
     void this.notices.read();
     // "Movimiento detectado" tapped on the phone: its message's proposal opens.
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      // A statement just imported: its origin opens, every filter cleared so
+      // it is on view, and the address is cleaned so coming back does not reopen it.
+      const batch = params.get('batch');
+      if (batch) {
+        this.search.set('');
+        this.showOnly.set('all');
+        this.accountFilter.set(null);
+        this.batchState.set(new Map([[batch, true]]));
+        void this.router.navigate([], { queryParams: { batch: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
       const raw = params.get('notice');
       if (!raw) return;
       try {

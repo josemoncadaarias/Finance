@@ -57,7 +57,7 @@ import { accrueAllAndSettle, accrueAndSettle, cdtMaturity, cdtPreview } from '..
 import { EA_SCALE, parsePercentToScaled, scaledPercentToString, type WithholdingRule } from '../../core/yields/yield-math';
 import { addDays, endOfMonth } from '../../core/yields/days';
 import { amountsHidden, HIDDEN_AMOUNT, parseTypedAmountToMinor } from '../../core/database/money';
-import { groupTypedAmount, typedAmountOf } from '../../core/database/typed-amount';
+import { caretAfterRegroup, groupTypedAmount, typedAmountOf } from '../../core/database/typed-amount';
 import type { AccountRow, CategoryRow, IsoDate } from '../../core/database/types';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { outlined } from '../../core/icons/icon-catalog';
@@ -3111,8 +3111,15 @@ export class ProductsPage {
    */
   amountTyped(target: unknown, allowNegative = false): string {
     const input = target as { value?: string | number | null } | null;
-    const grouped = groupTypedAmount(String(input?.value ?? ''), { allowNegative });
-    if (input && String(input.value ?? '') !== grouped) input.value = grouped;
+    const before = String(input?.value ?? '');
+    const grouped = groupTypedAmount(before, { allowNegative });
+    if (input && before !== grouped) {
+      // The cursor stays after the digit just typed, wherever it was.
+      const field = input as HTMLInputElement;
+      const caret = caretAfterRegroup(before, field.selectionStart ?? before.length, grouped);
+      field.value = grouped;
+      try { field.setSelectionRange?.(caret, caret); } catch { /* not focused */ }
+    }
     return grouped;
   }
 

@@ -90,7 +90,7 @@ import { AccentService } from '../../core/theme/accent.service';
   `,
   styles: [`
     .screen {
-      position: fixed; inset: 0; z-index: 20000; background: var(--app-bg); color: var(--app-tx);
+      position: fixed; inset: 0; z-index: 40000; background: var(--app-bg); color: var(--app-tx);
       display: flex; flex-direction: column;
     }
     .top {
@@ -114,9 +114,9 @@ import { AccentService } from '../../core/theme/accent.service';
     .safe { margin-top: 12px; display: flex; gap: 6px; justify-content: center; align-items: center; }
     .safe ion-icon { font-size: 16px; color: var(--app-grn); }
     .foot { padding: 12px 16px calc(24px + var(--ion-safe-area-bottom, 0px)); }
-    .scrim { position: fixed; inset: 0; z-index: 20001; background: var(--app-scrim); }
+    .scrim { position: fixed; inset: 0; z-index: 40001; background: var(--app-scrim); }
     .fixed {
-      position: fixed; left: 22px; right: 22px; top: 50%; transform: translateY(-50%); z-index: 20002;
+      position: fixed; left: 22px; right: 22px; top: 50%; transform: translateY(-50%); z-index: 40002;
       max-width: 24rem; margin: 0 auto;
     }
     .pass {

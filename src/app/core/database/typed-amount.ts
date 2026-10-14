@@ -41,3 +41,22 @@ export function typedAmountOf(minor: number): string {
   const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `${negative ? '-' : ''}${grouped}${cents === 0 ? '' : `,${String(cents).padStart(2, '0')}`}`;
 }
+
+/**
+ * Where the cursor goes once a typed amount is regrouped (Jose, 2026-10-14:
+ * fixing a digit in the middle sent the cursor to the end). What counts is
+ * how many digits, commas and minus signs stood before it; it lands after as
+ * many in the regrouped text. A full stop typed at the very end became the
+ * comma, so it counts as one there.
+ */
+export function caretAfterRegroup(before: string, caret: number, after: string): number {
+  const head = before.slice(0, caret);
+  let wanted = head.replace(/[^\d,-]/g, '').length;
+  if (!before.includes(',') && head.endsWith('.') && caret === before.length) wanted += 1;
+  if (wanted === 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < after.length; i++) {
+    if (/[\d,-]/.test(after[i]) && ++seen === wanted) return i + 1;
+  }
+  return after.length;
+}

@@ -399,6 +399,32 @@ export class AccountEditorComponent implements OnInit {
         await accounts.update(account.id, { ...shared, archived: this.archived() });
         await this.saveLimit(account.id);
       } else {
+        // From a statement, the account and its proposals are written together:
+        // a reading that fails leaves no account behind (Jose, 2026-10-14: the
+        // account looked made while nothing of the statement had come in).
+        const read = this.fromStatement();
+        if (read !== null) {
+          this.busyLabel.set(this.i18n.t('ui.import.savingNew', { count: read.reading.rows.length }));
+          const db = this.database.driver;
+          let done: { batch: string; proposed: number } | null = null;
+          await db.transaction(async () => {
+            const id = await accounts.create({
+              ...shared,
+              currency_code: this.currency(),
+              opening_balance_base_minor: this.currency() === 'COP' ? this.openingBalance().minor : 0,
+            });
+            await this.saveLimit(id);
+            done = await this.statements.proposeRead(id, read);
+          });
+          this.fromStatement.set(null);
+          this.database.dataChanged();
+          // Straight to that statement on Por revisar, opened; leaving closes this sheet.
+          const imported = done as unknown as { batch: string; proposed: number };
+          await this.router.navigate(['/review'], { queryParams: { batch: imported.batch } });
+          this.saved.emit();
+          this.toast.say(this.i18n.t('ui.import.newDone', { count: imported.proposed }), 5000);
+          return;
+        }
         const id = await accounts.create({
           ...shared,
           currency_code: this.currency(),
@@ -409,23 +435,6 @@ export class AccountEditorComponent implements OnInit {
             this.currency() === 'COP' ? this.openingBalance().minor : 0,
         });
         await this.saveLimit(id);
-
-        // The statement that filled this form in now has an account to
-        // belong to. Its movements are proposed, not written: the review
-        // screen is still where a person answers for each of them.
-        const read = this.fromStatement();
-        if (read !== null) {
-          await this.statements.proposeRead(id, read);
-          this.fromStatement.set(null);
-          this.database.dataChanged();
-          this.saved.emit();
-          // After the sheet has closed, not while it is closing. Routing out
-          // from under an ion-modal mid-dismiss left Jose on the form he had
-          // just saved, with the movements waiting on a screen he could only
-          // reach by reloading.
-          await this.leaveFor('/review');
-          return;
-        }
       }
 
       this.database.dataChanged();
@@ -528,7 +537,7 @@ export class AccountEditorComponent implements OnInit {
     if (done === null) return;
     this.database.dataChanged();
     this.cancelled.emit();
-    await this.leaveFor('/review');
+    await this.leaveFor(`/review?batch=${encodeURIComponent(done.batch)}`);
     const read = done.proposed === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count: done.proposed });
     const known = done.knownAlready > 0
       ? this.i18n.t('ui.import.done.known', { count: done.knownAlready })
