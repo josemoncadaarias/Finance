@@ -37,6 +37,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         registerPlugin(BankNotificationsPlugin.class);
         registerPlugin(DriveAuthPlugin.class);
         super.onCreate(savedInstanceState);
+        followFontSize();
         remember(getIntent());
         ListenerKeeper.schedule(getApplicationContext());
         ListenerGuard.start(getApplicationContext());
@@ -50,8 +51,26 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     @Override
     public void onResume() {
         super.onResume();
+        followFontSize();
         new android.os.Handler(android.os.Looper.getMainLooper())
                 .postDelayed(() -> NotificationCatcher.ensureBound(getApplicationContext()), 3_000);
+    }
+
+    /**
+     * The most the app's text grows with the phone's own font size (Jose,
+     * 2026-10-14: on a phone set to the largest letters a strip's words stood
+     * one letter per line and "Cuentas" broke into three). Android hands the
+     * WebView the system's font scale as its text zoom, up to 200 %; the app
+     * follows it up to 130 % - larger than the default, as the person asked -
+     * and stops there, where every screen still reads whole.
+     */
+    private static final int MAX_TEXT_ZOOM = 130;
+
+    private void followFontSize() {
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        float scale = getResources().getConfiguration().fontScale;
+        int zoom = Math.min(Math.round(scale * 100), MAX_TEXT_ZOOM);
+        getBridge().getWebView().getSettings().setTextZoom(zoom);
     }
 
     /** "Movimiento detectado" tapped while the app was already running. */

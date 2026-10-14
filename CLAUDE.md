@@ -330,6 +330,16 @@ these):
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
 
+- **The app's text follows the phone's font size up to 130 %** (Jose,
+  2026-10-14, screenshots of a phone set to the largest letters: the sample
+  strip's words stood one letter per line, "Cuentas" broke into three).
+  Android hands the WebView the system font scale as its text zoom, up to
+  200 %; `MainActivity.followFontSize` sets it to the scale capped at
+  `MAX_TEXT_ZOOM` (130), on creation and on every resume. The strip wraps
+  its button under the words when they need the room. Checked in a browser
+  by multiplying every font size (1.8 reproduced the screenshots; 1.3 and
+  1.0 read whole); the Java not yet compiled by a Store bundle.
+
 ---
 
 ## Decisions already made
