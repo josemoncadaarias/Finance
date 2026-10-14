@@ -353,10 +353,10 @@
             <app-badge shape="ci" [size]="40" builtin="school" fixed="#2ecc71"></app-badge>
             <span class="ui-tx">
               <b class="wrap">{{ 'ui.notifications.strict.title' | t }}</b>
-              @if (q.marked > 0) {
-                <small class="wrap">{{ 'ui.notifications.strict.learned' | t:{ count: q.marked } }}</small>
-              }
               <small class="wrap">{{ (q.strict ? 'ui.notifications.strict.on' : 'ui.notifications.strict.off') | t }}</small>
+              @if (q.marked > 0) {
+                <small class="wrap marked">{{ (q.marked === 1 ? 'ui.notifications.strict.learned.one' : 'ui.notifications.strict.learned') | t:{ count: q.marked } }}</small>
+              }
             </span>
             <button type="button" class="ui-switch" role="switch" [class.on]="q.strict" [attr.aria-checked]="q.strict"
                     [attr.aria-label]="'ui.notifications.strict.title' | t" (click)="setStrict(!q.strict)"></button>

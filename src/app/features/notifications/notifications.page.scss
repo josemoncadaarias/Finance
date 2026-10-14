@@ -150,6 +150,7 @@
   .hint { color: var(--app-mu); padding: 0 6px; }
   /* What the person taught it is not a movement, with its switch (24d). */
   .quiet-card { display: flex; gap: 12px; align-items: center; padding: 14px; margin-top: 12px; }
+  .quiet-card .marked { font-style: italic; margin-top: 4px; }
 }
 
 /* The shortcut to Movimientos por revisar, with the bar's orange dot. */

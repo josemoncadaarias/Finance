@@ -322,8 +322,9 @@ these):
   `takeNotMovements`); the bin of Revisar movimiento on a message, which asks
   "¿Qué es este mensaje?" (statement rows keep the plain question), with a
   notice and "Deshacer" (`notAMovement`/`undoNotAMovement`, `ToastService`
-  now takes an action); and a source's page, with the switch "Solo lo que
-  diga que la plata se movió" and "Sí era un movimiento" beside each message
+  now takes an action); and a source's page, with the switch "Ignorar
+  publicidad" (renamed at Jose's word, 2026-10-14: the first wording read as
+  nothing) and "Sí era un movimiento" beside each message
   held back (`isAMovement`: forgets the shapes it fits and the strictness,
   and the message is offered again). The phone's notice learns it too: each
   inbox pass hands Java the shapes only, no words (`quietForPhone` ->
