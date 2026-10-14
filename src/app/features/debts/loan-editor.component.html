@@ -30,6 +30,25 @@
       </div>
     </div>
 
+    <section class="ui-card begun">
+      <div class="head">
+        <span class="mark"><ion-icon name="checkmark-done-outline"></ion-icon></span>
+        <span class="words">
+          <b>{{ 'loans.form.begun.ask' | t }}</b>
+          <small>{{ 'loans.form.begun.askHint' | t }}</small>
+        </span>
+      </div>
+      <label class="count">
+        <span>{{ 'loans.form.paidBefore' | t }}</span>
+        <span class="fig-wrap">
+          <input class="fig" inputmode="numeric" [value]="paidBeforeText() ?? paidBefore()" (input)="paidBeforeText.set($any($event.target).value)">
+          @if (count(); as n) { <span class="of">{{ 'loans.form.paidBefore.of' | t:{ count: n } }}</span> }
+        </span>
+      </label>
+      @if (paidBefore() > 0) { <p class="ui-sub">{{ 'loans.form.paidBefore.hint' | t }}</p> }
+      @if (paidBefore() > dueAlready()) { <p class="ui-sub ahead">{{ 'loans.form.paidBefore.ahead' | t:{ count: dueAlready() } }}</p> }
+    </section>
+
     <div class="ui-list">
       <label class="ui-field">
         <span class="in">
@@ -232,14 +251,9 @@
       </div>
     }
 
-    @if (dueAlready() > 0) {
+    @if (owedWorked() !== null) {
       <h3 class="ui-h">{{ 'loans.form.begun' | t }}</h3>
       <div class="ui-card installment">
-        <label class="line">
-          <span class="ui-sub">{{ 'loans.form.paidBefore' | t }}</span>
-          <input class="fig" inputmode="numeric" [value]="paidBefore()" (input)="paidBeforeText.set($any($event.target).value)">
-        </label>
-        <p class="ui-sub">{{ 'loans.form.paidBefore.hint' | t }}</p>
         @if (owedWorked() !== null) {
           @if (unit() === 'UVR') {
             <div class="line"><span class="ui-sub">{{ 'loans.uvr.owedWorked' | t }}</span><b>{{ owedWorkedUvr() }}</b></div>

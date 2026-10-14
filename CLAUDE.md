@@ -361,6 +361,15 @@ these):
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
 
+- **A loan already being paid is asked for on top** (Jose, 2026-10-14,
+  mockup `27`). The loan form keeps every field it had; "Cuotas ya pagadas"
+  left its section at the foot - shown only once the dates typed fell in the
+  past, so nobody found it - for an amber card under the name, "¿Ya lo vienes
+  pagando?", always shown. The worked-out and the bank's balance stay at the
+  foot, under "Ya habías empezado a pagarlo", once something is paid; a count
+  past what the dates make due says so in amber, without blocking the save.
+  Debts' tour has a step for it (`since: 2`).
+
 - **The app's text follows the phone's font size up to 130 %** (Jose,
   2026-10-14, screenshots of a phone set to the largest letters: the sample
   strip's words stood one letter per line, "Cuentas" broke into three).

@@ -117,6 +117,7 @@ const TOUR_LIST = {
       { sel: 'app-debts section.owed', title: 'tour.debts.1.title', text: 'tour.debts.1.text' },
       { sel: 'app-debts .ui-main .ui-list', title: 'tour.debts.2.title', text: 'tour.debts.2.text' },
       { sel: 'app-debts .ui-bigtitle .ui-pill', title: 'tour.debts.3.title', text: 'tour.debts.3.text' },
+      { title: 'tour.debts.4.title', text: 'tour.debts.4.text', since: 2 },
     ],
   },
   card: {
