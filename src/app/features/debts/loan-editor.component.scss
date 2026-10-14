@@ -74,3 +74,30 @@ input[type='date'] { color-scheme: dark; }
   }
   .link { align-self: flex-start; border: 0; background: none; color: var(--app-pr); font: inherit; font-size: 14px; padding: 6px 0 0; cursor: pointer; }
 }
+
+// "¿Ya lo vienes pagando?": the installments paid before the app, asked on
+// top in amber so a loan already running is seen to fit here (mockup 27).
+.begun {
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(246, 185, 59, 0.12); border: 1.5px solid rgba(246, 185, 59, 0.55);
+  .head { display: flex; gap: 11px; align-items: center; }
+  .mark {
+    width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(246, 185, 59, 0.18); color: var(--app-yel); font-size: 21px;
+  }
+  .words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .words b { font-size: 15.5px; }
+  .words small { font-size: 13px; line-height: 1.35; color: var(--app-mu); }
+  .count {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 12px; border-radius: 11px; background: var(--app-s2);
+  }
+  .fig-wrap { display: flex; align-items: center; gap: 6px; flex: none; }
+  .fig {
+    width: 64px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-bg, transparent);
+    color: var(--app-yel); font: inherit; font-size: 18px; font-weight: 700; text-align: right; padding: 4px 8px;
+  }
+  .of { color: var(--app-mu); font-size: 13px; }
+  .ahead { color: var(--app-yel); }
+  p { margin: 0; }
+}
