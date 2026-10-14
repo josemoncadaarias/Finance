@@ -19,12 +19,13 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { plain } from './plans-words';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 @Component({
   selector: 'app-limit-editor',
   templateUrl: './limit-editor.component.html',
   styleUrls: ['./limit-editor.component.scss'],
-  imports: [TranslatePipe, BadgeComponent, CategorySheetComponent, AccountPickerComponent, IonIcon],
+  imports: [AmountInputDirective, TranslatePipe, BadgeComponent, CategorySheetComponent, AccountPickerComponent, IonIcon],
 })
 export class LimitEditorComponent {
   private readonly limits = inject(LimitsService);
@@ -96,14 +97,6 @@ export class LimitEditorComponent {
     this.average.set(average === null ? null : roundedAverage(average));
   }
 
-  onAmount(text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    this.amount.set(buffer);
-  }
 
   useAverage(): void {
     const average = this.average();

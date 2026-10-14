@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (790 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (791 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -362,6 +362,19 @@ these):
   (`EntryProposal.productId/scope`), and "Guardar los listos" writes them
   too (`accept.ts`, through `writeScoped` when the answer is not "both").
   Tests in `proposals.test.mjs`; checked in a browser on the sample data.
+
+- **Every plain amount box reads the keyboard as the movement form does**
+  (Jose, 2026-10-14, from his partner's phone: an account's opening balance
+  pasted as "3,8000000", and each digit typed went after the comma - the box
+  showed "0,00" as its value and took every full stop for the cents).
+  `shared/ui/amount-input.directive.ts` (`[appAmountInput]` +
+  `(amountChange)`) runs `typedInto` with the cursor: digits land where the
+  cursor is, thousands' full stops stay grouping, a comma or one full stop
+  typed alone starts the cents, pasted "3.800.000" is 3,800,000. Used by an
+  account's opening balance and limit, a loan's amounts, a cap and a goal;
+  "0,00" is a placeholder now, never the value. Test in
+  `amount-buffer.test.mjs`; checked in a browser (typed, pasted, a digit
+  changed in the middle).
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
