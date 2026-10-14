@@ -66,11 +66,23 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
      */
     private static final int MAX_TEXT_ZOOM = 130;
 
+    private boolean capped = false;
+
     private void followFontSize() {
         if (getBridge() == null || getBridge().getWebView() == null) return;
-        float scale = getResources().getConfiguration().fontScale;
-        int zoom = Math.min(Math.round(scale * 100), MAX_TEXT_ZOOM);
-        getBridge().getWebView().getSettings().setTextZoom(zoom);
+        android.webkit.WebSettings settings = getBridge().getWebView().getSettings();
+        // Only past the cap: every phone at or under 130 % keeps exactly
+        // what Android gave it. The display size (the other "make everything
+        // bigger" setting) is not text zoom and is left alone. If the letter
+        // size comes back under the cap, only what the app itself set is undone.
+        int system = Math.round(getResources().getConfiguration().fontScale * 100);
+        if (system > MAX_TEXT_ZOOM) {
+            settings.setTextZoom(MAX_TEXT_ZOOM);
+            capped = true;
+        } else if (capped) {
+            settings.setTextZoom(system);
+            capped = false;
+        }
     }
 
     /** "Movimiento detectado" tapped while the app was already running. */
