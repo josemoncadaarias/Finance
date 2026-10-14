@@ -180,9 +180,10 @@ import { foldText } from '../../core/text/fold-text';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { AutoGrowDirective } from '../../shared/ui/auto-grow.directive';
 import { ToastService } from '../../shared/ui/toast.service';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 @Component({
   selector: 'app-entry',
-  imports: [
+  imports: [AmountInputDirective, 
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
     CategoryEditorComponent, ConfirmComponent, FormFootComponent, AmountFieldComponent, AutoGrowDirective,
     IonIcon, IonDatetime, IonModal,
@@ -1250,14 +1251,6 @@ export class EntryComponent implements OnInit, OnDestroy {
   readonly loanCapital = computed(() =>
     this.effectiveMinor() - this.loanInterest().minor - this.loanInsurance().minor - this.loanLate().minor);
 
-  onLoanFigure(which: 'interest' | 'insurance' | 'late', text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    (which === 'interest' ? this.loanInterest : which === 'insurance' ? this.loanInsurance : this.loanLate).set(buffer);
-  }
 
   private async saveLoanPayment(loan: LoanEntry): Promise<void> {
     await new LoansRepository(this.database.driver).recordPayment({

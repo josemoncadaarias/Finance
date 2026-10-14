@@ -175,7 +175,7 @@
         <label class="ui-field">
           <span class="in">
             <span class="lab">{{ 'cards.bank.sheet.label' | t:{ date: short(s()?.cutOn ?? null) } }}</span>
-            <input inputmode="decimal" [value]="figure().text" placeholder="0" (input)="onFigure($any($event.target).value)">
+            <input inputmode="decimal" [value]="figure().text" placeholder="0" [appAmountInput]="figure()" (amountChange)="figure.set($event)">
           </span>
           <span class="unit">{{ card()?.account?.currency_code }}</span>
         </label>

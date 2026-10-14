@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (791 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (792 on 2026-10-14, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -375,6 +375,28 @@ these):
   "0,00" is a placeholder now, never the value. Test in
   `amount-buffer.test.mjs`; checked in a browser (typed, pasted, a digit
   changed in the middle).
+  **Every other money box too** (Jose, 2026-10-14: "revisa que no pase de
+  nuevo"): a loan payment's interest, insurance and default interest, a
+  loan's payment ahead and a card's bank figure use the directive; the
+  products screen's boxes keep their own `amountTyped`, which now keeps the
+  cursor where the digit was typed (`caretAfterRegroup` in
+  `typed-amount.ts`, tested). Rates, UVR values and counts are not money and
+  stay plain; Por revisar's "Escribir otro" balance stays plain because it
+  may be negative.
+
+- **A new account from a statement is made in one step, and lands on its
+  statement** (Jose, 2026-10-14: no loading screen, the password asked
+  behind the form, and saving went to Cuentas with the account made and
+  nothing of the statement to see). The reading screen and its password
+  dialog sit above every sheet (`statement-flow` at z-index 40000). Saving
+  writes the account and the statement's proposals in ONE transaction
+  (`account-editor` `save`, "Guardando la cuenta y sus N movimientos…"), so a
+  failure leaves no account behind, then opens Por revisar with that
+  statement open (`/review?batch=<key>`: the review page opens that origin,
+  clears its filters and the parameter) and says "Cuenta creada. Revisa sus
+  N movimientos del extracto". Importing into an existing account (the "+"
+  and the account form) opens its batch the same way. Checked in a browser
+  with `pruebas/extracto-banco-azul-septiembre.pdf`.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app

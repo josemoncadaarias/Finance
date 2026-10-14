@@ -32,12 +32,13 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { longDay, plain, shortDate } from './card-words';
 import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 @Component({
   selector: 'app-card',
   templateUrl: './card.page.html',
   styleUrls: ['./card.page.scss'],
-  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class CardPage {
   private readonly database = inject(DatabaseService);
@@ -164,14 +165,6 @@ export class CardPage {
     this.typing.set(true);
   }
 
-  onFigure(text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    this.figure.set(buffer);
-  }
 
   async saveFigure(): Promise<void> {
     const cutOn = this.s()?.cutOn;

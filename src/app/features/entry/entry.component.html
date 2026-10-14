@@ -228,18 +228,18 @@
               <label class="ui-row">
                 <app-badge [size]="36" builtin="trending-up-outline" fixed="#f6b93b"></app-badge>
                 <span class="ui-tx"><b>{{ 'loans.pay.interest' | t }}</b><small>{{ 'loans.pay.spending' | t:{ category: ('loans.category.interest' | t) } }}</small></span>
-                <input class="fig" inputmode="decimal" [value]="loanInterest().text || '0'" (input)="onLoanFigure('interest', $any($event.target).value)">
+                <input class="fig" inputmode="decimal" [value]="loanInterest().text" placeholder="0" [appAmountInput]="loanInterest()" (amountChange)="loanInterest.set($event)">
               </label>
               @if (loan.kind === 'installment') {
                 <label class="ui-row">
                   <app-badge [size]="36" builtin="shield-checkmark-outline" fixed="#9b7bff"></app-badge>
                   <span class="ui-tx"><b>{{ 'loans.pay.insurance' | t }}</b><small>{{ 'loans.pay.spending' | t:{ category: ('loans.category.insurance' | t) } }}</small></span>
-                  <input class="fig" inputmode="decimal" [value]="loanInsurance().text || '0'" (input)="onLoanFigure('insurance', $any($event.target).value)">
+                  <input class="fig" inputmode="decimal" [value]="loanInsurance().text" placeholder="0" [appAmountInput]="loanInsurance()" (amountChange)="loanInsurance.set($event)">
                 </label>
                 <label class="ui-row">
                   <app-badge [size]="36" builtin="time-outline" fixed="#ff6b6b"></app-badge>
                   <span class="ui-tx"><b>{{ 'loans.pay.late' | t }}</b><small>{{ 'loans.pay.late.hint' | t }}</small></span>
-                  <input class="fig" inputmode="decimal" [value]="loanLate().text || '0'" (input)="onLoanFigure('late', $any($event.target).value)">
+                  <input class="fig" inputmode="decimal" [value]="loanLate().text" placeholder="0" [appAmountInput]="loanLate()" (amountChange)="loanLate.set($event)">
                 </label>
               }
             } @else {

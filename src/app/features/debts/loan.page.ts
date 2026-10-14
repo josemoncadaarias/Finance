@@ -32,6 +32,7 @@ import { LoanEditorComponent } from './loan-editor.component';
 import { longDay, plain, shortDate, uvrText } from './card-words';
 import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 import { amountsHidden, HIDDEN_AMOUNT } from '../../core/database/money';
+import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 
 type Tab = 'summary' | 'installments' | 'ahead';
 type Every = PlannedExtra['every'];
@@ -42,7 +43,7 @@ const AMOUNTS = [1_000_000_00, 2_000_000_00, 5_000_000_00, 10_000_000_00];
   selector: 'app-loan',
   templateUrl: './loan.page.html',
   styleUrls: ['./loan.page.scss'],
-  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class LoanPage {
   private readonly database = inject(DatabaseService);
@@ -289,14 +290,6 @@ export class LoanPage {
     this.aheadAmount.set(AmountBuffer.from(minor));
   }
 
-  onAhead(text: string): void {
-    const buffer = new AmountBuffer();
-    for (const character of text) {
-      if (/[0-9]/.test(character)) buffer.push(character);
-      else if (character === ',') buffer.separator();
-    }
-    this.aheadAmount.set(buffer);
-  }
 
   toAhead(): void {
     this.aheadAmount.set(AmountBuffer.from(this.suggested()));
