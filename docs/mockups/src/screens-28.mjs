@@ -26,8 +26,9 @@ S['28b-inicio-oculto'] = hide(withEye(G1['1a-inicio'], true));
 const oneWithEye = (html, hidden) => html.replace('<div style="display:flex;gap:8px">', `<div style="display:flex;gap:8px">${eye(hidden)}`);
 S['28c-cuenta-oculta'] = hide(oneWithEye(G1['1b-inicio-cuenta-con-productos'], true));
 
-// 3. Cuentas, and every other screen with money, stays hidden too.
-S['28d-cuentas-oculto'] = hide(G2['2a-cuentas']);
+// 3. Every screen with money has the same eye, in the same place: the top
+//    right of its big card (Jose: hidden in Cuentas with no eye to undo it).
+S['28d-cuentas-oculto'] = hide(withEye(G2['2a-cuentas'], true));
 
 // 4. Más → Preferencias: start hidden every time the app opens.
 const row = `<div class="row">${sq('eye-off-outline', C.gry ?? '#8c9bb5', 40)}<div class="tx"><b>Ocultar montos al abrir</b><small class="wrap">La app empieza con los montos ocultos. El ojo de Inicio los muestra.</small></div>${sw(true)}</div>`;
