@@ -3,7 +3,7 @@
  * `6v`, `6y`), drawn once in the shell for StatementFlowService.
  */
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -134,4 +134,35 @@ export class StatementFlowComponent {
   readonly stages = ['opening', 'pages', 'reading', 'writing'];
   readonly show = signal(false);
   readonly accent = inject(AccentService);
+  private readonly typed = viewChild<ElementRef<HTMLInputElement>>('typed');
+
+  /**
+   * Shown over an open sheet (the account form reading its statement), these
+   * dialogs live outside that ion-modal, and Ionic pulls the focus back into
+   * the topmost modal: the password box could not be typed into (Jose,
+   * 2026-10-14). While anything here is on screen, the open modals let go.
+   */
+  private freed: Element[] = [];
+
+  constructor() {
+    effect(() => {
+      const over = this.flow.active() || this.flow.askingPassword() || this.flow.unreadable() !== null;
+      if (over) {
+        for (const modal of Array.from(document.querySelectorAll('ion-modal'))) {
+          if (!modal.classList.contains('ion-disable-focus-trap')) {
+            modal.classList.add('ion-disable-focus-trap');
+            this.freed.push(modal);
+          }
+        }
+      } else {
+        for (const modal of this.freed) modal.classList.remove('ion-disable-focus-trap');
+        this.freed = [];
+      }
+    });
+    // The password box takes the focus as it appears, so the keyboard comes up.
+    effect(() => {
+      const input = this.typed()?.nativeElement;
+      if (this.flow.askingPassword() && input) setTimeout(() => input.focus(), 60);
+    });
+  }
 }

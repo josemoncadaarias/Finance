@@ -397,6 +397,13 @@ these):
   N movimientos del extracto". Importing into an existing account (the "+"
   and the account form) opens its batch the same way. Checked in a browser
   with `pruebas/extracto-banco-azul-septiembre.pdf`.
+  **The password box could not be typed into** (Jose, 2026-10-14, from the
+  phone): the dialogs live outside the account form's ion-modal, and Ionic
+  pulls the focus back into the topmost modal. While the reading screen or a
+  dialog is up, `statement-flow` adds `ion-disable-focus-trap` to the open
+  modals (and takes it off after), and the password box takes the focus
+  itself. Checked in a browser with a copy of that PDF locked with a
+  password.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
