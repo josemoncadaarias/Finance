@@ -376,11 +376,11 @@ export const SPANISH = {
   'accounts.netWorth': 'Patrimonio',
   'accounts.brokersCaveat': 'Los brókers muestran lo que metiste, no lo que valen hoy.',
   'accounts.currencies': '{count} monedas',
-  'accounts.availableOf': '{available} disponible de {limit}',
+  'accounts.availableOf': 'Disponible {available}',
   'accounts.archived': 'archivada',
   'accounts.whereFrom': '¿De dónde sale?',
   'accounts.breakdown.title': 'Cómo se arma el patrimonio',
-  'accounts.breakdown.body': 'Cada cuenta que cuenta, con lo que aporta al total.',
+  'accounts.breakdown.body': 'Lo que tienes menos lo que debes, cuenta por cuenta.',
   'accounts.breakdown.rates':
     'Lo que tienes en otra moneda vale la tasa de hoy, no la de cuando lo ' +
     'compraste. Cada movimiento sí conserva la tasa de su día — eso dice qué te ' +
@@ -1443,11 +1443,11 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.netWorth': 'Net worth',
   'accounts.brokersCaveat': 'Brokers show what you put in, not what it is worth today.',
   'accounts.currencies': '{count} currencies',
-  'accounts.availableOf': '{available} available of {limit}',
+  'accounts.availableOf': '{available} available',
   'accounts.archived': 'archived',
   'accounts.whereFrom': 'Where from?',
   'accounts.breakdown.title': 'How net worth is built',
-  'accounts.breakdown.body': 'Every account that counts, with what it adds to the total.',
+  'accounts.breakdown.body': 'What you have minus what you owe, account by account.',
   'accounts.breakdown.rates':
     "What you hold in another currency is worth today's rate, not the rate you " +
     'bought it at. Each movement does keep its own day rate — that says what it ' +

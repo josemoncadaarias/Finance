@@ -58,10 +58,27 @@
 .ui-period { margin-top: 10px; }
 
 .figures {
-  .top { display: flex; align-items: flex-start; gap: 8px; }
-  .what { flex: 1; min-width: 0; }
+  .top { display: flex; align-items: center; gap: 8px; min-height: 40px; }
+  .top .ui-lab { flex: 1; min-width: 0; }
   .ui-big { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; small { font-size: 14px; color: var(--app-mu); } }
+  .ui-big.s { font-size: 27px; }
+  .ui-big.xs { font-size: 23px; }
   .quick { display: flex; gap: 8px; flex: none; }
+  .used { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13.5px; }
+  .used + .credit { height: 9px; margin-top: 6px; }
+  .room { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px;
+    > div { display: flex; flex-direction: column; min-width: 0; }
+    .end { text-align: right; align-items: flex-end; }
+    span { font-size: 12px; color: var(--app-mu); }
+    b { font-size: 15px; white-space: nowrap; }
+  }
+  .bill { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 9px 11px; border-radius: 13px;
+    background: rgba(var(--app-bg-rgb), 0.35); color: inherit; font: inherit; font-size: 13px; text-align: left;
+    > ion-icon:first-child { font-size: 17px; color: var(--app-yel); flex: none; }
+    span { flex: 1; min-width: 0; }
+    .ui-chev { font-size: 15px; flex: none; }
+    &.late > ion-icon:first-child { color: var(--app-red); }
+  }
   .quick ion-icon { font-size: 22px; }
   .credit { margin-top: 8px; i { background: var(--app-yel); } }
   .tiles { margin-top: 12px; }

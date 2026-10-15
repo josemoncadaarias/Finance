@@ -32,10 +32,27 @@
       </div>
     } @else {
       <section class="ui-hero worth">
-        <app-amounts-eye class="corner"></app-amounts-eye>
-        <span class="ui-lab">{{ 'ui.account.worthToday' | t }}</span>
-        <div class="ui-big">$ {{ netWorthMinor() | money }} <small>COP</small></div>
-        <p class="ui-sub">{{ 'accounts.brokersCaveat' | t }}</p>
+        <!-- The label and the eye share the top line, so the figure and the two
+             tiles under it have the card's whole width (Jose, 2026-10-15). -->
+        <div class="top">
+          <span class="ui-lab">{{ 'ui.account.worthToday' | t }}</span>
+          <app-amounts-eye></app-amounts-eye>
+        </div>
+        <div class="ui-big" [class.ui-y]="netWorthMinor() < 0" [class.long]="isLong(netWorthMinor(), 10)">$ {{ netWorthMinor() | money }} <small>COP</small></div>
+        <p class="ui-sub">{{ 'worth.lead' | t }}</p>
+        <!-- What you have and what you owe: the total's own lines split by sign (29a). -->
+        <div class="sides" data-tour="worth-sides">
+          <div class="side have">
+            <span class="head"><ion-icon name="wallet-outline"></ion-icon>{{ 'worth.have' | t }}</span>
+            <b [class.long]="isLong(split().haveMinor)">{{ split().haveMinor | money }}</b>
+            <small>{{ haveLine() }}</small>
+          </div>
+          <button type="button" class="side owe" (click)="openDebts()">
+            <span class="head"><ion-icon name="card-outline"></ion-icon>{{ 'worth.owe' | t }}<ion-icon class="go" name="chevron-forward-outline"></ion-icon></span>
+            <b [class.long]="isLong(split().oweMinor)">{{ split().oweMinor | money }}</b>
+            <small>{{ oweLine() }}</small>
+          </button>
+        </div>
         <button type="button" class="ui-chip where" (click)="showBreakdown.set(true)">
           <ion-icon name="information-circle-outline"></ion-icon>{{ 'accounts.whereFrom' | t }}
         </button>
@@ -152,35 +169,58 @@
       <div class="grab"></div>
       <h2 class="center">{{ 'accounts.breakdown.title' | t }}</h2>
       <p class="hint center">{{ 'accounts.breakdown.body' | t }}</p>
-      <div class="ui-list">
-        @for (line of worth()?.lines ?? []; track line.account_id) {
-          <div class="ui-row">
-            <app-badge shape="ci" [size]="38" [builtin]="iconOf(line.account_id)" [customId]="customOf(line.account_id)"
-                       [tone]="colorOf(line.account_id)" [seed]="line.account_id" fallback="wallet"></app-badge>
-            <span class="ui-tx">
-              <b class="ui-one">{{ line.name }}</b>
-              @if (line.currency_code !== 'COP') {
-                @if (line.rate) {
-                  <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} × {{ rateText(line.rate.rate_scaled) }}</small>
-                } @else {
-                  <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} · {{ 'accounts.noRate' | t }}</small>
-                }
-              } @else if (isCard(line.account_id)) {
-                <small>{{ 'ui.account.debt' | t }}</small>
-              }
-            </span>
-            <span class="ui-am" [class.ui-y]="(line.baseMinor ?? 0) < 0">
-              @if (line.baseMinor !== null) { {{ line.baseMinor | money }} } @else { — }
-            </span>
+      @for (side of sides(); track side.key) {
+        <h3 class="ui-h side-title" [class.have]="side.key === 'have'" [class.owe]="side.key === 'owe'">{{ side.title | t }}</h3>
+        <div class="ui-list">
+          @for (line of side.lines; track line.account_id) {
+            <ng-container *ngTemplateOutlet="worthLine; context: { line }"></ng-container>
+          }
+          <div class="ui-row total">
+            <span class="ui-tx"><b>{{ 'report.categories.total' | t }}</b></span>
+            <span class="ui-am" [class.ui-y]="side.key === 'owe'">{{ side.totalMinor | money }}</span>
           </div>
-        }
+        </div>
+      }
+      @if (unvalued().length > 0) {
+        <div class="ui-list unvalued">
+          @for (line of unvalued(); track line.account_id) {
+            <ng-container *ngTemplateOutlet="worthLine; context: { line }"></ng-container>
+          }
+        </div>
+      }
+      <div class="ui-list net">
         <div class="ui-row total">
           <span class="ui-tx"><b>{{ 'accounts.netWorth' | t }}</b></span>
-          <span class="ui-am">{{ netWorthMinor() | money }}</span>
+          <span class="ui-am" [class.ui-y]="netWorthMinor() < 0">{{ netWorthMinor() | money }}</span>
         </div>
       </div>
+      @if (split().cards > 0) { <p class="hint">{{ 'worth.creditNote' | t }}</p> }
+      <p class="hint">{{ 'accounts.brokersCaveat' | t }}</p>
       <p class="hint">{{ 'accounts.breakdown.rates' | t }} {{ 'accounts.breakdown.excluded' | t }}</p>
       <button type="button" class="see" (click)="showBreakdown.set(false); openCurrencies()">{{ 'ui.currencies.see' | t }}</button>
     </div>
   </ng-template>
 </ion-modal>
+
+<!-- One account in the breakdown: what it adds, in pesos. -->
+<ng-template #worthLine let-line="line">
+  <div class="ui-row">
+    <app-badge shape="ci" [size]="38" [builtin]="iconOf(line.account_id)" [customId]="customOf(line.account_id)"
+               [tone]="colorOf(line.account_id)" [seed]="line.account_id" fallback="wallet"></app-badge>
+    <span class="ui-tx">
+      <b class="ui-one">{{ line.name }}</b>
+      @if (line.currency_code !== 'COP') {
+        @if (line.rate) {
+          <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} × {{ rateText(line.rate.rate_scaled) }}</small>
+        } @else {
+          <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} · {{ 'accounts.noRate' | t }}</small>
+        }
+      } @else if (creditFreeOf(line.account_id); as free) {
+        <small class="ui-one">{{ free }}</small>
+      }
+    </span>
+    <span class="ui-am" [class.ui-y]="(line.baseMinor ?? 0) < 0">
+      @if (line.baseMinor !== null) { {{ line.baseMinor | money }} } @else { — }
+    </span>
+  </div>
+</ng-template>

@@ -64,3 +64,10 @@ node docs/mockups/src/render.mjs c0         (only the ones whose name has c0)
 
 `MOCK_ACCENT` / `MOCK_ACCENT2` try another accent without touching the code;
 `MOCK_CHROME` points at a Chromium binary if Playwright's own is not there.
+
+## 29 - Cuentas: lo que tienes y lo que debes; la tarjeta en Inicio (2026-10-15, propuesta)
+
+- `29a` Saldos con "Lo que tienes" y "Lo que debes" bajo el patrimonio (suman exactamente el patrimonio); la tarjeta dice "Disponible".
+- `29b` Lo mismo con el patrimonio negativo.
+- `29c` "¿De dónde sale?" partido en lo que tienes, lo que debes y el total.
+- `29d` Inicio en una tarjeta, hoy. `29e` propuesta: "Cupo usado" con su %, cupo disponible y total, la factura por pagar. `29f` sin fechas de corte. `29g` sin cupo registrado.
