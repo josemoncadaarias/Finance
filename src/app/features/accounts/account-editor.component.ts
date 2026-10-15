@@ -521,6 +521,13 @@ export class AccountEditorComponent implements OnInit {
       this.openingBalance.set(AmountBuffer.from(read.account.opening_minor));
     }
     if (read.account.opened_on) this.openedOn.set(read.account.opened_on);
+    // A card's statement makes a card, with the limit it prints.
+    if (read.account.card) {
+      this.type.set('credit');
+      if (read.account.credit_limit_minor !== null && this.creditLimit().minor === 0) {
+        this.creditLimit.set(AmountBuffer.from(read.account.credit_limit_minor));
+      }
+    }
   }
 
   /** Lets the sheet finish closing, then goes. */

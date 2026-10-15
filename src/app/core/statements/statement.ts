@@ -75,6 +75,14 @@ export interface StatementReading {
   balances: 'checked' | 'off' | 'unclear' | 'unchecked';
   offBy_minor: number;
   year: number | null;
+  /**
+   * A credit card's statement: its signs run the other way - a purchase is
+   * printed as it is and a payment carries the minus - and its own figures
+   * are what was owed, not what was held.
+   */
+  card: boolean;
+  /** The card's limit, as the statement prints it ("Cupo total"). */
+  credit_limit_minor: number | null;
 }
 
 /** How far apart two pieces of text may sit and still be one line. */
@@ -128,20 +136,34 @@ const CAME_IN = /\b(abono|deposito|depósito|consignacion|consignación|recibida
  * `minorUnits` is the account's, because what the numbers mean is decided by
  * the account the statement belongs to and never guessed from the page.
  */
-export function readStatement(items: readonly TextItem[], minorUnits: number): StatementReading {
+export function readStatement(
+  items: readonly TextItem[],
+  minorUnits: number,
+  options: { card?: boolean } = {},
+): StatementReading {
   const lines = linesOf(items);
-  const year = yearIn(lines.map(line => line.text).join(' '));
+  const whole = lines.map(line => line.text).join(' ');
+  const year = yearIn(whole);
+  const card = options.card ?? looksLikeCard(whole);
+  // On a card the balance is a debt: it grows as money leaves.
+  const way = card ? -1 : 1;
+  // What the account held, in the app's terms, from a figure as printed.
+  const held = (token: MoneyToken): number => way * signedOf(token);
 
-  const stated = statedBalances(lines, minorUnits);
+  const stated = card ? cardBalances(lines, minorUnits) : statedBalances(lines, minorUnits);
 
   // Every line that begins with a date is a movement; everything else on the
   // page is a heading, a total or the bank's telephone number.
+  const dateOfLine = datingOf(lines, year);
   const dated = lines
-    .map(line => ({ line, on: dateIn(line.text, year), money: moneyTokensIn(line.items, minorUnits) }))
+    .map(line => ({ line, on: dateOfLine(line), money: moneyTokensIn(line.items, minorUnits) }))
     .filter((row): row is { line: StatementLine; on: IsoDate; money: MoneyToken[] } =>
       row.on !== null && row.money.length > 0);
 
-  const balanceColumn = balanceColumnOf(dated);
+  // A card's statement has no running balance: its other columns (what was
+  // billed of an installment purchase, what is left of it) can still line
+  // up by chance with a purchase, and must not be taken for one.
+  const balanceColumn = card ? null : balanceColumnOf(dated);
   const rows: StatementRow[] = [];
   let previous = stated.opening;
 
@@ -157,7 +179,7 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
     let amount: number | null = null;
     let confidence: 'high' | 'low' = 'low';
     if (balance !== null && previous !== null) {
-      const moved = signedOf(balance) - previous;
+      const moved = held(balance) - previous;
       const written = others.map(token => token.minor);
       if (moved !== 0 && (written.length === 0 || written.includes(Math.abs(moved)))) {
         amount = moved;
@@ -169,14 +191,14 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
       // the balance column was never found the first amount is the movement
       // and a second one is the balance nobody could prove.
       const token = others[0];
-      amount = token.minor * signFromWords(line.text, token);
+      amount = token.minor * signFromWords(line.text, token, card);
       // A sign written on the line itself, in the bank's own ink, is not the
       // last resort this function usually is, and the review screen should
       // not warn about it.
       if (token.negative || token.positive) confidence = 'high';
     }
     if (amount === null || amount === 0) {
-      if (balance !== null) previous = signedOf(balance);
+      if (balance !== null) previous = held(balance);
       continue;
     }
 
@@ -184,12 +206,12 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
       occurred_on: on,
       amount_minor: amount,
       description: descriptionOf(line, money),
-      balance_minor: balance === null ? null : signedOf(balance),
+      balance_minor: balance === null ? null : held(balance),
       line: line.text,
       page: line.page,
       confidence,
     });
-    if (balance !== null) previous = signedOf(balance);
+    if (balance !== null) previous = held(balance);
     else if (previous !== null) previous += amount;
   }
 
@@ -243,6 +265,8 @@ export function readStatement(items: readonly TextItem[], minorUnits: number): S
     balances,
     offBy_minor: balances === 'off' ? closing! - (opening! + read) : 0,
     year,
+    card,
+    credit_limit_minor: card ? figureAfter(lines, CARD_LIMIT, minorUnits) : null,
   };
 }
 
@@ -275,7 +299,9 @@ function balanceColumnOf(dated: readonly { money: MoneyToken[] }[]): number | nu
       const here = money.find(token => Math.abs(token.x - x) <= SAME_COLUMN);
       if (!here) continue;
       const value = signedOf(here);
-      if (previous !== null) {
+      // A column that stays put proves nothing: a card statement's
+      // "capital pendiente" sits at 0,00 line after line, beside other 0,00s.
+      if (previous !== null && value !== previous) {
         checked += 1;
         const moved = Math.abs(value - previous);
         if (money.some(token => token !== here && token.minor === moved)) agreed += 1;
@@ -294,14 +320,17 @@ function balanceColumnOf(dated: readonly { money: MoneyToken[] }[]): number | nu
   return best?.x ?? null;
 }
 
+/** A card statement's other columns: rates, "N/A", "1 de 8" installments. */
+const NOT_WORDS = /^(N\/A|-|\d+([.,]\d+)?\s*%|\d+\s+de\s+\d+)$/i;
+
 /** What the line says, with the numbers and the date taken out of it. */
 function descriptionOf(line: StatementLine, money: readonly MoneyToken[]): string {
   const amounts = new Set(money.map(token => token.text));
   return line.items
     .map(item => item.text.trim())
-    .filter(text => text.length > 0 && !amounts.has(text))
+    .filter(text => text.length > 0 && !amounts.has(text) && !NOT_WORDS.test(text))
     .join(' ')
-    .replace(/^\S*\d{1,4}[-/.]\d{1,2}([-/.]\d{2,4})?\S*\s*/, '')
+    .replace(/^([^\s\d]{1,12}\s+)?\S*\d{1,4}[-/.]\d{1,2}([-/.]\d{2,4})?\S*\s*/, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -313,11 +342,92 @@ function descriptionOf(line: StatementLine, money: readonly MoneyToken[]): strin
  * can say it was a guess. A statement that says nothing either way is read as
  * money leaving, which is what most lines of most statements are.
  */
-function signFromWords(text: string, token: MoneyToken): -1 | 1 {
+function signFromWords(text: string, token: MoneyToken, card = false): -1 | 1 {
+  // A card's statement prints what was charged as it is and what was paid
+  // with a minus: the minus is money coming back into the card.
+  if (card) return token.negative ? 1 : -1;
   if (token.negative) return -1;
   if (token.positive) return 1;
   if (CAME_IN.test(text) && !WENT_OUT.test(text)) return 1;
   return -1;
+}
+
+/**
+ * The date a movement's line starts with - or starts with right after one
+ * short word that the statement puts in front of many of its rows. A card
+ * statement begins each row with the card ("Virtual", "Física") or a dash
+ * (Rappi Card, Jose, 2026-10-15), and reading the date only at the very
+ * start found none of its forty rows. The word has to lead at least two
+ * dated rows and carry no digit, so a heading such as "Corte 20/09/2026"
+ * never becomes a movement and a reference number is never a date.
+ */
+function datingOf(lines: readonly StatementLine[], year: number | null): (line: StatementLine) => IsoDate | null {
+  const split = (line: StatementLine) => {
+    const words = line.text.split(' ');
+    return { lead: words[0] ?? '', rest: words.slice(1).join(' ') };
+  };
+  const leads = new Map<string, number>();
+  for (const line of lines) {
+    if (dateIn(line.text, year) !== null) continue;
+    const { lead, rest } = split(line);
+    if (lead.length === 0 || lead.length > 12 || /\d/.test(lead)) continue;
+    if (dateIn(rest, year) !== null) leads.set(lead.toLowerCase(), (leads.get(lead.toLowerCase()) ?? 0) + 1);
+  }
+  return line => {
+    const at = dateIn(line.text, year);
+    if (at !== null) return at;
+    const { lead, rest } = split(line);
+    return (leads.get(lead.toLowerCase()) ?? 0) >= 2 ? dateIn(rest, year) : null;
+  };
+}
+
+/**
+ * A credit card's statement says so in words every bank uses - at least two
+ * of them, since a debit account's statement may well list a "PAGO TARJETA
+ * DE CREDITO" among its movements.
+ */
+const CARD_WORDS = [
+  /pago\s+m[ií]nimo/i,
+  /cupo\s+(total|utilizado|disponible)/i,
+  /pago\s+total/i,
+  /fecha\s+(l[ií]mite\s+)?de\s+pago/i,
+  /tarjeta\s+de\s+cr[eé]dito/i,
+];
+const looksLikeCard = (text: string): boolean => CARD_WORDS.filter(words => words.test(text)).length >= 2;
+const CARD_OPENING = /saldo\s+(del\s+)?(periodo|per[ií]odo|mes)\s+anterior/i;
+const CARD_CLOSING = /pago\s+total/i;
+const CARD_LIMIT = /cupo\s+total/i;
+
+/**
+ * The figure printed right after some words, on the first line that has
+ * them: "Pago total $1.487.278,42". Read by position, since the same line of
+ * a card statement also carries the minimum, the limit or the cashback.
+ */
+function figureAfter(lines: readonly StatementLine[], words: RegExp, minorUnits: number): number | null {
+  for (const line of lines) {
+    const at = line.items.findIndex(item => words.test(item.text));
+    if (at < 0) continue;
+    const after = line.items[at].text.replace(new RegExp(`^.*?${words.source}`, 'i'), '');
+    const pieces = [after, ...line.items.slice(at + 1).map(item => item.text)];
+    for (const piece of pieces) {
+      const money = moneyIn(piece.replace(/^[\s:]+/, ''), minorUnits);
+      if (money) return money.negative ? -money.minor : money.minor;
+    }
+  }
+  return null;
+}
+
+/** A card's two figures, as what was owed: a debt is negative in the app. */
+function cardBalances(lines: readonly StatementLine[], minorUnits: number): {
+  opening: number | null;
+  closing: number | null;
+} {
+  const before = figureAfter(lines, CARD_OPENING, minorUnits);
+  const total = figureAfter(lines, CARD_CLOSING, minorUnits);
+  return {
+    opening: before === null ? null : 0 - before,
+    closing: total === null ? null : 0 - total,
+  };
 }
 
 /** The two figures the statement states about itself. */
@@ -352,6 +462,9 @@ function statedBalances(lines: readonly StatementLine[], minorUnits: number): {
  */
 export interface StatementAccount {
   name: string | null;
+  /** A credit card's statement, and the limit it prints. */
+  card: boolean;
+  credit_limit_minor: number | null;
   opening_minor: number | null;
   opened_on: IsoDate | null;
 }
@@ -387,6 +500,8 @@ export function accountIn(reading: StatementReading, items: readonly TextItem[])
 
   return {
     name: name === null || name.length === 0 ? null : name,
+    card: reading.card,
+    credit_limit_minor: reading.credit_limit_minor,
     opening_minor: reading.opening_minor,
     opened_on: first === null ? null : first.occurred_on,
   };

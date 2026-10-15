@@ -330,3 +330,82 @@ test('a statement that says nothing about its account invents nothing', () => {
   assert.equal(said.opening_minor, null);
   assert.equal(said.name, null, 'a movement is not a bank');
 });
+
+// ---------------------------------------------------------------------------
+// A credit card's statement (Rappi Card, laid out as Jose's of September 2026;
+// names and figures copied from its screenshots, 2026-10-15)
+// ---------------------------------------------------------------------------
+
+function cardStatement() {
+  const row = (card, on, what, amount, billed, quotas, pending, mv, ea) => [
+    [40, card], [100, on], [170, what], [330, amount], [420, billed],
+    [500, quotas], [560, pending], [640, mv], [690, ea],
+  ];
+  return page([
+    [[40, 'RappiCard']],
+    [[40, 'Producto emitido por Davivienda S.A.']],
+    [[40, 'Extracto de tarjeta de crédito']],
+    [[40, 'Cupo utilizado'], [200, 'Pago mínimo'], [330, 'Periodo facturado'], [500, 'Fecha de pago']],
+    [[40, '$ 1.487.278,42'], [200, '$ 365.660,79'], [330, 'Desde 21 ago 2026'], [500, '01 oct 2026']],
+    [[40, 'Cupo total:'], [100, '$7.950.000,00'], [200, 'Pago total'], [260, '$ 1.487.278,42'], [330, 'Hasta 20 sept 2026']],
+    [[40, 'Cashback'], [150, 'Saldo anterior'], [300, '$2.549,90'], [500, 'Saldo disponible'], [600, '$2.549,90']],
+    [[40, 'Saldo en mora'], [250, '$0,00'], [330, 'Saldo periodo anterior'], [600, '$0,00']],
+    [[40, '+ Capital facturado consumos del mes'], [250, '$354.559,37'], [330, '+ Consumos del mes'], [600, '$9.136.880,00']],
+    [[40, 'Pago mínimo'], [250, '$365.660,79'], [330, 'Pago total'], [600, '$1.487.278,42']],
+    [[40, 'Tarjeta'], [100, 'Fecha'], [170, 'Descripción'], [330, 'Valor transacción']],
+    row('Virtual', '2026-08-26', 'RAPPI', '$4.549,00', '$0,00', 'N/A', '$0,00', '0,0000%', '0,00%'),
+    row('Virtual', '2026-08-26', 'RAPPI', '$29.388,00', '$0,00', 'N/A', '$0,00', '0,0000%', '0,00%'),
+    row('-', '2026-08-28', 'PAGOS RAPPIPAY APP', '$-43.834,00', 'N/A', 'N/A', 'N/A', '0%', '0,00%'),
+    row('Virtual', '2026-08-28', 'AVIANCA SA C3UPZJ', '$6.056.850,00', '$0,00', 'N/A', '$0,00', '0,0000%', '0,00%'),
+    row('-', '2026-09-03', 'PAGOS POR PSE', '$-3.000.000,00', 'N/A', 'N/A', 'N/A', '0%', '0,00%'),
+    row('Virtual', '2026-09-09', 'AJUSTE COMPRA REDIFERIDO', '$1.284.887,00', '$163.269,37', '1 de 8', '$1.121.617,63', '2,1600%', '29,23%'),
+    row('-', '2026-09-09', 'AJUSTE PAGO REDIFERIDO', '$-1.284.887,00', 'N/A', 'N/A', 'N/A', '0%', '0,00%'),
+    row('Virtual', '2026-09-13', 'DLOCAL COLOMBIA SAS', '$13.914,00', '$13.914,00', '1 de 1', '$0,00', '0,0000%', '0,00%'),
+    row('Virtual', '2026-09-15', 'DLOCAL COLOMBIA SAS', '$16.440,00', '$16.440,00', '1 de 1', '$0,00', '0,0000%', '0,00%'),
+    [[40, 'Transacciones: JOSE AUGUSTO MONCADA ARIAS *5813 (Compartida)']],
+    row('Virtual', '2026-09-17', 'RAPPI COLOMBIA*DL', '$27.200,00', '$27.200,00', '1 de 1', '$0,00', '0,0000%', '0,00%'),
+    [[40, 'Pago total'], [600, '$27.200,00']],
+  ]);
+}
+
+test("a card statement's rows are read after the card's word, with its signs turned around", () => {
+  const items = cardStatement();
+  const read = readStatement(items, COP);
+
+  assert.equal(read.card, true, 'it says it is a card in several ways');
+  assert.equal(read.rows.length, 10, 'every dated row, behind "Virtual" or a dash');
+  assert.deepEqual(read.rows.map(row => row.amount_minor), [
+    -454_900, -2_938_800, 4_383_400, -605_685_000, 300_000_000,
+ -128_488_700, 128_488_700, -1_391_400, -1_644_000, -2_720_000,
+  ], 'a purchase leaves the card, a payment printed "$-..." comes back to it');
+  assert.equal(read.rows[0].description, 'RAPPI');
+  assert.equal(read.rows[5].description, 'AJUSTE COMPRA REDIFERIDO', 'no rates, quotas or N/A in it');
+  assert.ok(read.rows.every(row => row.balance_minor === null), 'no column is taken for a balance');
+
+  assert.equal(read.opening_minor, 0, 'what was owed before the period');
+  assert.equal(read.closing_minor, -148_727_842, 'the first "Pago total", owed as a debt');
+  assert.equal(read.credit_limit_minor, 795_000_000);
+
+  const said = accountIn(read, items);
+  assert.equal(said.card, true);
+  assert.equal(said.credit_limit_minor, 795_000_000);
+  assert.equal(said.opening_minor, 0, 'nothing was owed when the period began');
+});
+
+test('a heading with a date behind one word is still not a movement', () => {
+  const read = readStatement(page([
+    [[40, 'Corte'], [100, '20/09/2026'], [330, '$1.487.278,42']],
+    [[40, '02/09/2026'], [100, 'COMPRA'], [330, '-45.000,00']],
+    [[40, '03/09/2026'], [100, 'COMPRA'], [330, '-12.000,00']],
+  ]), COP);
+  assert.equal(read.rows.length, 2);
+});
+
+test('a debit statement that pays a card is not taken for a card', () => {
+  const read = readStatement(page([
+    [[40, '02/09/2026'], [100, 'PAGO TARJETA DE CREDITO'], [330, '-45.000,00']],
+    [[40, '03/09/2026'], [100, 'NOMINA'], [330, '+12.000,00']],
+  ]), COP);
+  assert.equal(read.card, false);
+  assert.deepEqual(read.rows.map(row => row.amount_minor), [-4_500_000, 1_200_000]);
+});

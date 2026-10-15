@@ -15,7 +15,8 @@ import { ProposalsRepository } from '../database/repositories/proposals.reposito
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { DEFAULT_MINOR_UNITS } from '../database/money';
 import { accountIn, readStatement, type StatementAccount, type StatementReading } from './statement';
-import { textOfPdf, stopIfCancelled, type ReadingProgress } from './pdf-text';
+import { textOfPdf, stopIfCancelled, StatementUnreadable, type ReadingProgress } from './pdf-text';
+import { I18nService } from '../i18n/i18n.service';
 
 /** What a caller passes to watch a reading, and to stop it. */
 export interface ReadingWatch {
@@ -46,6 +47,7 @@ export interface ImportedStatement {
 @Injectable({ providedIn: 'root' })
 export class StatementsService {
   private readonly database = inject(DatabaseService);
+  private readonly i18n = inject(I18nService);
 
   /**
    * What the last statement said, for the screen that opens next.
@@ -76,6 +78,7 @@ export class StatementsService {
     const items = await textOfPdf(await file.arrayBuffer(), password, undefined, watch);
     watch.onProgress?.({ part: 0.7, stage: 'reading' });
     const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    if (reading.rows.length === 0) throw new StatementUnreadable(this.i18n.t('ui.import.noRows'));
     stopIfCancelled(watch.signal);
     watch.onProgress?.({ part: 1, stage: 'writing' });
     return { reading, account: accountIn(reading, items), file };
@@ -114,7 +117,10 @@ export class StatementsService {
     watch.onProgress?.({ part: 0.68, stage: 'reading' });
     // Both currencies this app holds keep two, and the table says so per
     // currency; the default is what every one of them uses today.
-    const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    // The account says whether it is a card, which decides which way its
+    // statement's signs run.
+    const reading = readStatement(items, DEFAULT_MINOR_UNITS, { card: account.type === 'credit' });
+    if (reading.rows.length === 0) throw new StatementUnreadable(this.i18n.t('ui.import.noRows'));
     stopIfCancelled(watch.signal);
 
     // What the person has already filed, before anything is proposed: without
