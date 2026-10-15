@@ -11,6 +11,7 @@
  * the page while folded (hidden) so their counts are always at hand.
  */
 
+import { input } from '@angular/core';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 
@@ -26,6 +27,9 @@ const OPEN_KEY = 'finance.attentionOpen';
 @Component({
   selector: 'app-attention-home',
   standalone: true,
+  // Hidden from "Personaliza tu vista", it still shows a payment already late
+  // or a cap gone over (31f): those are never kept quiet.
+  host: { '[hidden]': 'onlyUrgent() && !urgent()' },
   imports: [TranslatePipe, IonIcon, DueHomeComponent, LimitsHomeComponent],
   template: `
     @if (total() > 0) {
@@ -49,6 +53,7 @@ const OPEN_KEY = 'finance.attentionOpen';
   `,
   styles: [`
     :host { display: block; }
+    :host([hidden]) { display: none; }
     .bar {
       display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
       font: inherit; color: inherit; cursor: pointer; padding: 11px 14px; margin-bottom: 10px;
@@ -77,6 +82,8 @@ export class AttentionHomeComponent {
   private readonly due = viewChild(DueHomeComponent);
 
   readonly open = signal(readOpen());
+  /** Set when the person turned Pendientes off. */
+  readonly onlyUrgent = input(false);
 
   readonly payments = computed(() => this.due()?.rows().length ?? 0);
   readonly paymentsLate = computed(() => (this.due()?.rows() ?? []).some(r => r.item.overdue));

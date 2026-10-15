@@ -108,6 +108,12 @@
 
     <div class="ui-h">{{ 'more.preferences' | t }}</div>
     <div class="ui-list" data-tour="more-prefs">
+      <!-- What each screen shows (31d). -->
+      <button type="button" class="ui-row" (click)="go('/view')">
+        <app-badge [size]="40" builtin="options-outline" fixed="#9b7bff"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'view.title' | t }}</b><small class="wrap">{{ 'view.row' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
       <!-- Start every opening with the amounts hidden (28e). -->
       <div class="ui-row">
         <app-badge [size]="40" builtin="eye-off-outline" fixed="#8c9bb5"></app-badge>

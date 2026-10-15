@@ -22,6 +22,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FilterService } from '../../core/filters/filter.service';
+import { ViewPrefsService } from '../../core/ui/view-prefs.service';
 import {
   PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName, isoDay,
 } from '../../core/filters/period';
@@ -69,6 +70,16 @@ export class MovementsPage {
   readonly MOVE = MOVE_COLOR;
 
   readonly filter = inject(FilterService);
+  /** "Personaliza tu vista": which of Inicio's blocks show (31f). */
+  readonly view = inject(ViewPrefsService);
+  /** A face turned off is never the one on show (save the list a chart tap opened). */
+  private readonly faceWatch = effect(() => {
+    const chart = this.view.shown('home.chart'), list = this.view.shown('home.list');
+    untracked(() => {
+      if (!chart && !this.filter.showList()) this.filter.showList.set(true);
+      if (!list && this.filter.showList() && !this.filter.categoryFilter()) this.filter.showList.set(false);
+    });
+  });
   readonly store = inject(MovementsStore);
   readonly database = inject(DatabaseService);
   /** The sample data: the welcome on an empty app, the strip while it is loaded (21a, 21c). */

@@ -497,8 +497,9 @@ function movementsSheet(data: ReportData, movements: readonly Movement[]): Sheet
 // ---------------------------------------------------------------------------
 
 /** The whole file. */
-export function reportWorkbook(data: ReportData): Uint8Array<ArrayBuffer> {
-  const blocks = buildReport(data);
+export function reportWorkbook(data: ReportData, hidden: ReadonlySet<string> = new Set()): Uint8Array<ArrayBuffer> {
+  // What the person turned off in "Personaliza tu vista" is not on the sheet either (31h).
+  const blocks = buildReport(data).filter(block => !hidden.has(block.id));
   return writeXlsx([summarySheet(data, blocks), movementsSheet(data, data.movements)], STYLES);
 }
 

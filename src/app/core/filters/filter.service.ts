@@ -6,7 +6,8 @@
  * disagree about what is being asked.
  */
 
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { ViewPrefsService } from '../ui/view-prefs.service';
 
 import { currentPeriod, shiftPeriod, type Period, type PeriodKind } from './period';
 import type { Grouping, SortWithin } from '../../features/movements/group-movements';
@@ -33,8 +34,13 @@ export class FilterService {
 
   readonly search = signal('');
 
-  /** The list is shown over the donut; the control beside the balance toggles. */
-  readonly showList = signal(false);
+  /**
+   * The list is shown over the donut; the control beside the balance toggles.
+   * It opens on what "Personaliza tu vista" says (31f): the face chosen to
+   * come first, or the only one left shown.
+   */
+  private readonly view = inject(ViewPrefsService);
+  readonly showList = signal(!this.view.shown('home.chart') || (this.view.shown('home.list') && this.view.first() === 'list'));
 
   /**
    * Whether "all accounts" also counts the ones kept out of net worth.

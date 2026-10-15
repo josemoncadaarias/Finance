@@ -58,7 +58,7 @@
 
     <!-- What needs attention - cards and loans due (11o), caps and goals (14f,
          14i, 14m) - folded into one line that opens to them (23b, 23c). -->
-    <app-attention-home></app-attention-home>
+    <app-attention-home [onlyUrgent]="!view.shown('home.attention')"></app-attention-home>
 
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
@@ -144,7 +144,9 @@
       </section>
     }
 
-    <!-- Chart or list: two faces of one selector. -->
+    <!-- Chart or list: two faces of one selector - only while both are shown
+         (31f), or while a category tapped on the chart opened the list. -->
+    @if ((view.shown('home.chart') && view.shown('home.list')) || (!view.shown('home.list') && filter.showList())) {
     <div class="ui-seg faces" data-tour="faces">
       <button type="button" [class.on]="!filter.showList()" [attr.aria-pressed]="!filter.showList()"
               (click)="filter.showList() && filter.toggleList()">
@@ -155,6 +157,7 @@
         <ion-icon name="list-outline"></ion-icon><span>{{ 'summary.movements' | t }} · {{ store.visible().length }}</span>
       </button>
     </div>
+    }
 
     @if (store.loading() && store.groups().length === 0) {
       <div class="state"><ion-spinner></ion-spinner></div>

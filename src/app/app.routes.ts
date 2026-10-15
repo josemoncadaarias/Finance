@@ -86,5 +86,14 @@ export const routes: Routes = [
     path: 'more',
     loadComponent: () => import('./features/more/more.page').then(m => m.MorePage),
   },
+  {
+    // Más → Preferencias → Personaliza tu vista (31e-31h).
+    path: 'view',
+    loadComponent: () => import('./features/view/view.page').then(m => m.ViewPage),
+  },
+  {
+    path: 'view/:screen',
+    loadComponent: () => import('./features/view/view.page').then(m => m.ViewPage),
+  },
   { path: '', redirectTo: 'movements', pathMatch: 'full' },
 ];
