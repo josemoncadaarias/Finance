@@ -63,15 +63,10 @@
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
       <section class="ui-hero figures" data-tour="hero">
+        <!-- The label and the buttons share the top line; the figure has the
+             whole width under them, so it is read whole (Jose, 2026-10-15). -->
         <div class="top">
-          <div class="what">
-            <div class="ui-lab">{{ standing.label }}</div>
-            <div class="ui-big" [class.ui-y]="standing.kind === 'credit' && standing.amountMinor < 0"
-                 [class.ui-r]="standing.kind !== 'credit' && standing.amountMinor < 0">
-              @if (standing.kind === 'net-worth') { $ }{{ standing.amountMinor | money:standing.currency }}
-              @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
-            </div>
-          </div>
+          <div class="ui-lab">{{ standing.label }}</div>
           <!-- One account's quick buttons: first where it leads - a card's
                debt, an earning account's products and yields - then editing
                it (Jose, 2026-10-01). -->
@@ -100,11 +95,32 @@
           }
           </span>
         </div>
+        @let card = standing.kind === 'credit';
+        <div class="ui-big" [ngClass]="bigSize(standing.amountMinor)"
+             [class.ui-y]="card && standing.amountMinor < 0"
+             [class.ui-r]="!card && standing.amountMinor < 0">
+          @if (standing.kind === 'net-worth') { $ }{{ (card && standing.amountMinor < 0 ? -standing.amountMinor : standing.amountMinor) | money:standing.currency }}
+          @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+        </div>
 
-        @if (standing.kind === 'credit' && standing.detail) {
-          <div class="ui-sub">{{ standing.detail }}</div>
-          @if (usedShare(standing); as share) {
-            <div class="ui-pbar credit"><i [style.width.%]="share"></i></div>
+        <!-- A card: how much of its limit is used, what is left and the limit,
+             and its statement when it has the two days (29e-29g). -->
+        @if (card) {
+          @if (standing.limitMinor && standing.availableMinor !== null && standing.availableMinor !== undefined) {
+            <div class="used"><span>{{ 'summary.creditUsed' | t }}</span><b>{{ usedPercent(standing) }} %</b></div>
+            <div class="ui-pbar credit"><i [style.width.%]="usedShare(standing) ?? 0"></i></div>
+            <div class="room">
+              <div><span>{{ 'summary.creditFree' | t }}</span><b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b></div>
+              <div class="end"><span>{{ 'summary.creditLimit' | t }}</span><b>{{ standing.limitMinor | money:standing.currency }}</b></div>
+            </div>
+          } @else {
+            <div class="ui-sub">{{ 'summary.creditNoLimit' | t }}</div>
+          }
+          @if (statementLine(); as line) {
+            <button type="button" class="bill" [class.late]="line.late" (click)="toDebt(store.selectedAccount()!.id)">
+              <ion-icon name="calendar-outline"></ion-icon><span>{{ line.text }}</span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
           }
         }
 

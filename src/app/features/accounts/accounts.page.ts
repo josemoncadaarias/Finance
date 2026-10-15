@@ -6,6 +6,8 @@
  * ledger rather than of a cached number that could have drifted.
  */
 
+import { splitWorth } from '../../core/worth/worth-split';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -87,6 +89,68 @@ export class AccountsPage {
 
   /** Currencies holding money that has no rate to value it with. */
   readonly missingRates = computed(() => this.worth()?.missingRatesFor ?? []);
+
+  /**
+   * Net worth as what the person has and what they owe (29a-29c): the very
+   * lines of the total split by sign, so the two always add up to it.
+   */
+  readonly split = computed(() => {
+    this.grouped();
+    const loans = this.loanIds();
+    return splitWorth(this.worth()?.lines ?? [], id =>
+      loans.has(id) ? 'loan' : this.isCard(id) ? 'card' : 'other');
+  });
+
+  /** The breakdown's two sections, each only when it holds something. */
+  readonly sides = computed(() => {
+    const s = this.split();
+    return [
+      { key: 'have', title: 'worth.have' as TranslationKey, lines: s.have, totalMinor: s.haveMinor },
+      { key: 'owe', title: 'worth.owe' as TranslationKey, lines: s.owe, totalMinor: -s.oweMinor },
+    ].filter(side => side.lines.length > 0);
+  });
+
+  /** Lines the total cannot value (no rate), said apart rather than dropped. */
+  readonly unvalued = computed(() => (this.worth()?.lines ?? []).filter(l => l.baseMinor === null && l.balance_minor !== 0));
+
+  /** "En 6 cuentas", or that there is nothing yet. */
+  readonly haveLine = computed(() => {
+    const n = this.split().haveCount;
+    if (n === 0) return this.i18n.t('worth.nothingHeld');
+    return n === 1 ? this.i18n.t('worth.inOne') : this.i18n.t('worth.inMany', { count: n });
+  });
+
+  /** "1 tarjeta · 1 préstamo", or "Sin deudas". */
+  readonly oweLine = computed(() => {
+    const s = this.split();
+    const part = (n: number, one: TranslationKey, many: TranslationKey) =>
+      n === 0 ? null : n === 1 ? this.i18n.t(one) : this.i18n.t(many, { count: n });
+    const parts = [
+      part(s.cards, 'worth.cardOne', 'worth.cardMany'),
+      part(s.loans, 'worth.loanOne', 'worth.loanMany'),
+      part(s.others, 'worth.redOne', 'worth.redMany'),
+    ].filter((p): p is string => p !== null);
+    return parts.length === 0 ? this.i18n.t('worth.nothingOwed') : parts.join(' · ');
+  });
+
+  /** A figure with this many digits of pesos or more steps its type down, so it is read whole. */
+  isLong(minor: number, digits = 9): boolean {
+    return String(Math.abs(Math.trunc(minor / 100))).length >= digits;
+  }
+
+  /** Open Deudas, from the "what you owe" tile. */
+  openDebts(): void {
+    void this.router.navigate(['/debts']);
+  }
+
+  /** A card's free credit under it in the breakdown, or ''. */
+  creditFreeOf(id: number): string {
+    const balance = this.balanceOf(id);
+    if (!balance || balance.available_credit_minor === null || !balance.account.credit_limit_minor) return '';
+    return this.i18n.t('worth.creditFree', {
+      amount: formatMoney(balance.available_credit_minor, balance.account.currency_code, { withSymbol: false }),
+    });
+  }
 
   readonly status = this.database.status;
   readonly error = this.database.error;
@@ -325,8 +389,12 @@ export class AccountsPage {
   }
 
   private accountOf(id: number): AccountRow | undefined {
+    return this.balanceOf(id)?.account;
+  }
+
+  private balanceOf(id: number): AccountBalance | undefined {
     for (const entry of this.grouped() ?? []) {
-      for (const balance of entry.balances) if (balance.account.id === id) return balance.account;
+      for (const balance of entry.balances) if (balance.account.id === id) return balance;
     }
     return undefined;
   }

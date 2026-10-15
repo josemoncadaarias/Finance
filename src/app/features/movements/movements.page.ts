@@ -23,7 +23,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FilterService } from '../../core/filters/filter.service';
 import {
-  PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName,
+  PERIOD_KINDS, periodLabel, includesToday, rangePeriod, monthName, isoDay,
 } from '../../core/filters/period';
 import { MovementsStore } from './movements.store';
 import { SpendingChartComponent } from './spending-chart.component';
@@ -38,6 +38,9 @@ import type { AccountRow, TransactionRow } from '../../core/database/types';
 import { ScopeSheetsComponent } from '../../shared/scope/scope-sheets.component';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CustomIconsService } from '../../core/icons/custom-icons.service';
+import { cardStatement } from '../../core/cards/statement';
+import { bankFigures, cardMovements } from '../../core/cards/card-data';
+import { cardLine } from '../debts/card-words';
 import { todayIso } from '../../core/yields/days';
 import { LoansRepository } from '../../core/loans/loans.repository';
 import { YieldsRepository } from '../../core/database/repositories/yields.repository';
@@ -94,6 +97,37 @@ export class MovementsPage {
       const enrolled = await new YieldsRepository(this.database.driver).accounts();
       this.earning.set(new Set(enrolled.map(entry => entry.account_id)));
       this.loanIds.set(new Set(await new LoansRepository(this.database.driver).ids()));
+    });
+  });
+
+  /**
+   * The open card's statement, said in one line under its credit (29e):
+   * what to pay and by when, or that it is late. Nothing without the two days.
+   */
+  readonly statementLine = signal<{ text: string; late: boolean } | null>(null);
+
+  private readonly statementWatch = effect(() => {
+    this.database.dataVersion();
+    const account = this.store.selectedAccount();
+    if (this.database.status() !== 'ready' || !account || account.type !== 'credit') {
+      this.statementLine.set(null);
+      return;
+    }
+    void untracked(async () => {
+      const db = this.database.driver;
+      const statement = cardStatement({
+        statementDay: account.statement_day,
+        dueDay: account.due_day,
+        today: isoDay(new Date()),
+        openingMinor: account.opening_balance_minor,
+        movements: await cardMovements(db, account.id),
+        bankFigures: (await bankFigures(db)).get(account.id),
+      });
+      if (this.store.selectedAccount()?.id !== account.id) return;
+      const shown = statement.state === 'due' || statement.state === 'partial' || statement.state === 'overdue';
+      this.statementLine.set(shown
+        ? { text: cardLine(statement, this.i18n, account.currency_code), late: statement.state === 'overdue' }
+        : null);
     });
   });
 
@@ -507,6 +541,22 @@ export class MovementsPage {
     const limit = standing.limitMinor ?? null;
     if (!limit || limit <= 0) return null;
     return Math.min(100, Math.max(2, Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100)));
+  }
+
+  /** The same share as a figure, "52 %": 0 when nothing is owed. */
+  usedPercent(standing: Standing): number {
+    const limit = standing.limitMinor ?? 0;
+    if (limit <= 0) return 0;
+    return Math.min(100, Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100));
+  }
+
+  /**
+   * The big figure's size: a long one steps down so it is read whole on a
+   * narrow phone (Jose, 2026-10-15: "-7.780.959..." cut by the buttons).
+   */
+  bigSize(minor: number): string {
+    const digits = String(Math.abs(Math.trunc(minor / 100))).length;
+    return digits >= 11 ? 'xs' : digits >= 9 ? 's' : '';
   }
 
   toggle(key: string): void {

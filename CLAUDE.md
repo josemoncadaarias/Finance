@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (802 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (805 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -224,6 +224,8 @@ these):
   missing to add up, brought from the statement's summary); Cuentas - "Una
   cuenta desde su extracto" (a card's statement and one with a password
   fill the new account, and saving opens Por revisar on it).
+  Version 5 (2026-10-15): Cuentas - "Lo que tienes y lo que debes"
+  (accounts tour); Inicio - "Tu tarjeta de un vistazo" (home tour, `since: 4`).
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -475,6 +477,28 @@ these):
   card, an unsigned purchase is no longer flagged as a guessed sign.
   Review tour step `since: 4`. Tests in `statement.test.mjs`; checked in a
   browser with a card PDF carrying its interest only in the summary.
+
+- **Net worth is said as what you have and what you owe, and a card as
+  its credit** (Jose, 2026-10-15, mockups `29a`-`29g`, from a screen his
+  partner got from another AI: its "Dinero disponible" was a card's free
+  credit, which is the bank's money, not the person's). Cuentas → Saldos:
+  under "Patrimonio hoy", "Lo que tienes menos lo que debes" and two tiles,
+  "Lo que tienes" (how many accounts) and "Lo que debes" (cards · loans ·
+  accounts below zero, opening Deudas). Both come from the total's own lines
+  split by sign (`splitWorth` in `core/worth/worth-split.ts`,
+  `worth-split.test.mjs`), so they always add up to it; a line with no rate
+  stays out as it does of the total. "¿De dónde sale?" is the same two
+  sections with their totals, a card saying its "Cupo disponible", and a
+  note that free credit does not add up. A card's row in the list says
+  "Disponible X". **Inicio on a card**: "Debes hoy" without the minus (the
+  label says it), "Cupo usado N %", the bar, "Cupo disponible" and "Cupo
+  total", and, with its two days, the statement line (`cardLine`, due or
+  late) opening the card's page; without a limit, how to add one. **The big
+  figure has a line of its own** under the label and the buttons on Inicio
+  and on Cuentas (Jose's screenshot: "-7.780.959..." cut by three round
+  buttons), and steps down in size past 9 and 11 digits (`bigSize`,
+  `isLong`). Tour steps `since: 5` (accounts) and `since: 4` (home).
+  Checked in a browser at 360 px on the sample data. Not seen on the phone.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
@@ -2711,7 +2735,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 802 tests (2026-10-15) that run against a real
+by 805 tests (2026-10-15) that run against a real
 SQLite engine with no dependencies:
 
 ```
