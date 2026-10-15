@@ -127,10 +127,13 @@ export function moneyIn(text: string, minorUnits: number): MoneyToken | null {
   const raw = text.trim().replace(DASHES, '-');
   if (raw.length === 0) return null;
 
-  const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw) || /-$/.test(raw)
+  // The sign may sit after the currency: "$-43.834,00" is as negative as
+  // "-$43.834,00" (Rappi Card's payments, Jose, 2026-10-15).
+  const bare = raw.replace(/^(\$|COP|USD|EUR)\s*/i, '');
+  const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw) || /^-/.test(bare) || /-$/.test(raw)
     || /\b(DB|DEBITO|DÉBITO)\b/i.test(raw);
   const positive = !negative
-    && (/^\+/.test(raw) || /\+$/.test(raw) || /\b(CR|CREDITO|CRÉDITO)\b/i.test(raw));
+    && (/^\+/.test(raw) || /^\+/.test(bare) || /\+$/.test(raw) || /\b(CR|CREDITO|CRÉDITO)\b/i.test(raw));
 
   const digits = raw
     .replace(/\((.*)\)/, '$1')

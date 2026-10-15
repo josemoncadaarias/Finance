@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (792 on 2026-10-14, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (795 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -404,6 +404,29 @@ these):
   modals (and takes it off after), and the password box takes the focus
   itself. Checked in a browser with a copy of that PDF locked with a
   password.
+  **A credit card's statement is read too** (Jose, 2026-10-15: Rappi Card's
+  statement, from screenshots, read "0 movimientos"). Three causes, all in
+  `core/statements/`: each row starts with the card ("Virtual") or a dash
+  before its date, and a date was only read at the very start of a line -
+  now one short word without digits may lead it, when that same word leads
+  at least two dated rows (`datingOf`), so "Corte 20/09/2026" is still no
+  movement; a payment is printed "$-43.834,00", minus after the currency,
+  which read as positive (`moneyIn`); and a card prints purchases as they
+  are and payments with the minus. A statement is a card's when the account
+  is a card or, for a new account, when it says two of "pago mínimo",
+  "cupo total/utilizado", "pago total", "fecha de pago", "tarjeta de crédito"
+  (`looksLikeCard`): then a minus is money back into the card, anything else
+  a spending, no column is taken for a running balance, the opening is
+  minus "Saldo periodo anterior" and the closing minus the first "Pago
+  total" (`cardBalances`, the figure right after the words), and a new
+  account becomes a Tarjeta with the printed "Cupo total". Rates, "N/A" and
+  "1 de 8" leave the description. The check then says "No cuadra" by the
+  interest, which is no movement of the list. A statement with no movement
+  read no longer says "Leí 0 movimientos": nothing is saved and the dialog
+  says no movement with a date and an amount was found (`ui.import.noRows`).
+  Tests in `statement.test.mjs` (the layout copied from the screenshots);
+  checked in a browser with a PDF written in that layout - not with the real
+  file, which the session never had.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
