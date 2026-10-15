@@ -45,7 +45,9 @@ export const BOX_W = 356;
  */
 export const BOX_H = 390;
 /** Room for one line of amount under a percent. */
-const AMOUNT_LINE = 13;
+export const AMOUNT_LINE = 13;
+/** The row of places above the ring; its lines come up into the icons from below. */
+export const TOP_ROW_Y = 30;
 const CX = BOX_W / 2;
 export const CY = 180 + AMOUNT_LINE;
 /** A thinner ring than at first (62): a wider hole for the figures inside it (Jose, 2026-10-15). */
@@ -105,7 +107,7 @@ export interface DonutLayout {
 
 const SLOTS: Spot[] = [[54, 30], [140, 30], [216, 30], [302, 30], [326, 132], [326, 228],
   [302, 330], [216, 330], [140, 330], [54, 330], [30, 228], [30, 132]]
-  .map(([x, y]) => [x, y === 30 ? y : y + AMOUNT_LINE])
+  .map(([x, y]) => [x, y === TOP_ROW_Y ? y : y + AMOUNT_LINE])
   .map(([x, y]) => ({ x, y, angle: (Math.atan2(x - CX, -(y - CY)) * 180 / Math.PI + 360) % 360 }))
   .sort((a, b) => a.angle - b.angle);
 

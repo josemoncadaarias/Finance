@@ -32,7 +32,7 @@ import { ThemeService } from '../../core/theme/theme.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Slice } from './group-movements';
 import {
-  BOX_H, BOX_W, CY, R_IN, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
+  AMOUNT_LINE, BOX_H, BOX_W, CY, R_IN, TOP_ROW_Y, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
   arcPath, chartColours, layoutDonut,
 } from './donut-layout';
 
@@ -76,7 +76,9 @@ interface Part {
   dot: [number, number];
   /** Where its icon sits, as a share of the box. */
   left: number;
-  top: number;
+  /** Where the icon starts, or - on the row above the ring - where it ends. */
+  top: number | null;
+  bottom: number | null;
 }
 
 @Component({
@@ -104,7 +106,7 @@ interface Part {
             </svg>
             @for (part of parts(); track part.key) {
               <button type="button" class="spot" [class.dim]="isDim(part)"
-                      [style.left.%]="part.left" [style.top.%]="part.top" (click)="pick(part)"
+                      [style.left.%]="part.left" [style.top.%]="part.top" [style.bottom.%]="part.bottom" (click)="pick(part)"
                       [attr.aria-label]="labelOf(part) + ', ' + part.pct + '%'">
                 @if (part.slice; as slice) {
                   <span class="face" [class.picture]="slice.customIconId != null" [style.--ring]="part.color">
@@ -208,7 +210,8 @@ interface Part {
   `,
   styles: [`
     :host { display: block; }
-    .chart { padding: 12px; }
+    /* A container, so the room under the ring can follow the ring's width. */
+    .chart { padding: 12px; container-type: inline-size; }
     .box { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: ${BOX_W} / ${BOX_H}; container-type: inline-size; }
     svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
     svg path { cursor: pointer; transition: opacity 0.15s; }
@@ -258,7 +261,14 @@ interface Part {
     .picked-line .go ion-icon { font-size: 15px; }
     /* A slice tapped: its share over its figure. */
     .center.picked .ui-lab { font-size: min(12px, ${HOLE * 0.1}cqw); font-weight: 600; letter-spacing: 0; }
-    .hint { margin: 2px 0 0; text-align: center; color: var(--app-mu); font-size: 12.5px; }
+    /*
+     * The icons round the ring keep their size while the ring scales with the
+     * phone, so on a narrow one the lowest icon's figure reaches past the
+     * box. The box keeps that much room under it, plus a clear gap, before
+     * the hint (Jose, 2026-10-15: the hint sat on a slice's figure).
+     */
+    .box { margin-bottom: max(14px, calc(84px - 20cqw)); margin-top: max(0px, calc(71px - 22cqw)); }
+    .hint { margin: 0; text-align: center; color: var(--app-mu); font-size: 12.5px; }
     .bars { margin-top: 12px; }
     .bar { gap: 12px; }
     .bar.inner { padding-left: 30px; background: var(--app-s2); }
@@ -376,7 +386,11 @@ export class SpendingChartComponent {
         line: layout.lines[i],
         dot: layout.dots[i],
         left: spot.x / BOX_W * 100,
-        top: (spot.y - 24) / BOX_H * 100,
+        // The row above the ring is anchored by its foot, just over where its
+        // line comes in: the icons keep their size while the ring scales with
+        // the phone, so anchored by the head they slid down onto the line.
+        top: spot.y === TOP_ROW_Y ? null : (spot.y - 24) / BOX_H * 100,
+        bottom: spot.y === TOP_ROW_Y ? (BOX_H - (spot.y + 38 + AMOUNT_LINE - 3)) / BOX_H * 100 : null,
       };
     });
   });
