@@ -74,8 +74,11 @@ export function isUnlocked(entitled: boolean, charging: boolean, previewFree: bo
 /** Days with everything open after installing. */
 export const TRIAL_DAYS = 7;
 
-/** Prices in pesos (Jose, 2026-09-24): monthly and yearly. */
-export const PRICES = { monthly: 11_900, yearly: 69_900 } as const;
+/**
+ * Prices in pesos, shown only until the store answers with its own: Play
+ * rounded the 11,900 and 69,900 Jose typed to 12,000 and 70,000 (2026-10-15).
+ */
+export const PRICES = { monthly: 12_000, yearly: 70_000 } as const;
 
 /**
  * Whether one more of `feature` may be used, with `used` already in use (this

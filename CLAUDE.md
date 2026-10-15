@@ -1860,12 +1860,14 @@ backup restore against iOS's own SQLite backend.
      everything open (`isUnlocked`), and a purchase made while previewing the
      free version unlocks it, so the whole cycle can be tried with a license
      tester. The privacy policy (`site/`) gained "Suscripción Finance Pro";
-     Jose must upload `site/` to Netlify again. **Still to do, in order**: a
-     Store bundle with the plugin (the first build is its compile check - no
-     Android SDK in the cloud session); then in Play Console the subscription
-     (`finance_pro`, base plans `monthly` 11,900 and `yearly` 69,900 COP,
-     7-day free trial offer); the service account JSON for RevenueCat; the
-     products attached to the entitlement and the offering in RevenueCat.
+     **Done in Play Console the same day**: the subscription `finance_pro`,
+     base plans `monthly` and `yearly`, each with the offer `prueba-7-dias`
+     (new customers, 7 days free), in 175 countries. Play rounded the prices
+     typed (11,900 and 69,900) to **12,000 and 70,000 COP**; `PRICES` follows,
+     and the screen shows the store's own price once it answers. **Still to
+     do**: the service account JSON for RevenueCat, the products attached to
+     the entitlement and the offering there, and a purchase tried with a
+     license tester. `site/` is deployed by Netlify from `main` by itself.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
