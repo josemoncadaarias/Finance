@@ -30,7 +30,7 @@
         }
         <!-- With cards AND loans, what each kind adds up to (30i); each tile
              takes the page to its list. -->
-        @if (cards.length > 0 && loans().length > 0) {
+        @if (cards.length > 0 && loans().length > 0 && view.shown('debts.cards') && view.shown('debts.loans')) {
           <div class="kinds">
             <button type="button" class="kind cards" (click)="goTo('debts-cards')">
               <span class="head"><ion-icon name="card-outline"></ion-icon>{{ 'cards.title' | t }}</span>
@@ -48,7 +48,7 @@
 
       <!-- Only what the person has (Jose, 2026-10-15, 31b): a kind with
            nothing in it is not a section, only a line saying where to add one. -->
-      @if (cards.length > 0) {
+      @if (cards.length > 0 && view.shown('debts.cards')) {
         <h3 class="ui-h with-total" id="debts-cards">
           <span>{{ 'cards.title' | t }} · {{ cards.length }}</span>
           <b>{{ cardsOwedMinor() | money }}</b>
@@ -73,7 +73,7 @@
         </div>
       }
 
-      @if (loans().length > 0) {
+      @if (loans().length > 0 && view.shown('debts.loans')) {
         <h3 class="ui-h with-total" id="debts-loans">
           <span>{{ 'loans.title' | t }} · {{ loans().length }}</span>
           <b>{{ loansOwedMinor() | money }}</b>
@@ -103,7 +103,7 @@
           <p class="ui-sub">{{ 'debts.empty.hint' | t }}</p>
           <button type="button" class="ui-chip add" (click)="choosing.set(true)"><ion-icon name="add"></ion-icon>{{ 'debts.empty.add' | t }}</button>
         </div>
-      } @else if (cards.length === 0 || loans().length === 0) {
+      } @else if ((cards.length === 0 && view.shown('debts.cards')) || (loans().length === 0 && view.shown('debts.loans'))) {
         <button type="button" class="add-line" (click)="cards.length === 0 ? choosing.set(true) : newLoan.set(true)">
           <ion-icon name="information-circle-outline"></ion-icon>
           <span>{{ (cards.length === 0 ? 'debts.hint.card' : 'debts.hint.loan') | t }} <b>{{ 'loans.newDebt' | t }}</b></span>

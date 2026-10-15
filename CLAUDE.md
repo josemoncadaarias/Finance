@@ -564,6 +564,27 @@ these):
   show); Más → Productos y rendimientos stays the way in to set up the
   first one. Checked in a browser on an empty app and on the sample data.
 
+- **"Personaliza tu vista": each person chooses what Inicio, Deudas and
+  the Reporte show** (Jose, 2026-10-15, part 2, mockups `31d`-`31h`). Más →
+  Preferencias → "Personaliza tu vista" (`/view`, then `/view/home|debts|
+  report`, `features/view/view.page.ts`): each screen's blocks with a switch;
+  the first of each (Inicio's balance, Deudas' total, the report's figures)
+  says "Siempre". `ViewPrefsService` (`core/ui/view-prefs.service.ts`,
+  `VIEW_SCREENS`) keeps what is hidden on the device (`finance.view`), with
+  "Volver a como viene la app". Hiding deletes nothing. Inicio: Pendientes
+  turned off still shows when a payment is late or a cap gone over
+  (`app-attention-home [onlyUrgent]`); the chart and the list cannot both be
+  off (turning one off turns the other on), and the Gráfico/Movimientos
+  selector shows only while both are on - or while a slice tapped opened the
+  list; "Al abrir Inicio, mostrar primero" sets the face it opens on
+  (`FilterService.showList`'s first value). Deudas: Tarjetas and Préstamos can
+  be turned off (the two tiles show only while both are on). Reporte: any
+  section but the first, left out of the screen AND the spreadsheet
+  (`reportWorkbook(data, hidden)`); the yields summary is not affected. The
+  ORDER of the blocks is not chosen yet (mockups drew a handle): the next
+  step if Jose wants it. Tours: Más `since: 2`, a new `view` tour. Checked in
+  a browser on the sample data (every switch, the reset).
+
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
   (`PrivacyService.hidden`, not kept between openings): the same round eye

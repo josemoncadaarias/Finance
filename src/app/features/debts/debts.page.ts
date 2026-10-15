@@ -20,6 +20,7 @@ import { AccountsFacesComponent } from '../../shared/ui/accounts-faces.component
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { cardLine, plain, shortDate } from './card-words';
+import { ViewPrefsService } from '../../core/ui/view-prefs.service';
 import { LoansRepository, type LoanRow } from '../../core/loans/loans.repository';
 import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
 import { LoanEditorComponent } from './loan-editor.component';
@@ -45,6 +46,8 @@ export class DebtsPage {
   readonly accent = inject(AccentService);
 
   readonly cards = signal<CardSummary[] | null>(null);
+  /** "Personaliza tu vista": Tarjetas and Préstamos can be turned off (31g). */
+  readonly view = inject(ViewPrefsService);
   readonly loans = signal<LoanSummary[]>([]);
   readonly choosing = signal(false);
   readonly newLoan = signal(false);
