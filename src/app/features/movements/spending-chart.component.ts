@@ -23,6 +23,7 @@
 
 import { Component, ElementRef, afterRenderEffect, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 
+import { IonIcon } from '@ionic/angular';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { amountsHidden, formatMoney } from '../../core/database/money';
@@ -37,8 +38,25 @@ import {
 
 /** The ring's hole, as a share of the box's width in container units (cqw). */
 const HOLE = 2 * R_IN / BOX_W * 100;
-/** The widest the middle figure may be, as a share of the hole: room to spare on both sides. */
-const FIT = 0.8;
+/** The smallest a line in the hole may get before a long name takes a second line. */
+const MIN_FONT = 9;
+
+/**
+ * Shrinks one line of the hole until it is no wider than `allowed` px: from
+ * the stylesheet's size, measured as drawn, so the phone's font and letter
+ * size count. A name that may wrap stays within two lines.
+ */
+function fitLine(el: HTMLElement, allowed: number): void {
+  el.style.fontSize = '';
+  el.style.maxWidth = `${allowed}px`;
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  const lineHeight = () => parseFloat(getComputedStyle(el).lineHeight) || size * 1.2;
+  const tooBig = () => el.scrollWidth > allowed + 0.5 || el.scrollHeight > lineHeight() * 2 + 1;
+  for (let i = 0; i < 12 && tooBig() && size > MIN_FONT; i++) {
+    size = Math.max(MIN_FONT, size * Math.min(0.94, allowed / el.scrollWidth));
+    el.style.fontSize = `${size.toFixed(1)}px`;
+  }
+}
 
 const REST = '__rest';
 
@@ -64,7 +82,7 @@ interface Part {
 @Component({
   selector: 'app-spending-chart',
   standalone: true,
-  imports: [TranslatePipe, BadgeComponent],
+  imports: [TranslatePipe, BadgeComponent, IonIcon],
   template: `
     @if (slices().length === 0) {
       <div class="ui-card empty">
@@ -99,20 +117,35 @@ interface Part {
                 <span class="val">{{ whole(part.amountMinor, false) }}</span>
               </button>
             }
-            <button type="button" class="center" [class.picked]="chosen()" (click)="centerTapped()">
+            <button type="button" class="center" #centre [class.picked]="chosen()" (click)="centerTapped()">
               @if (chosen(); as part) {
-                <span class="ui-lab" [class.ui-one]="part.slice" [class.two]="!part.slice">{{ labelOf(part) }}</span>
-                <b #fig>{{ whole(part.amountMinor) }}</b>
-                <small>{{ shareLine(part) }}</small>
-                @if (part.slice) { <small class="open">{{ 'chart.open' | t }}</small> }
+                <span class="ui-lab" data-fit="0.6">{{ part.pct }} %</span>
+                <b data-fit="0.8">{{ whole(part.amountMinor) }}</b>
               } @else {
-                <span class="ui-lab">{{ 'chart.spent' | t }}</span>
-                <b #fig>{{ whole(spentMinor()) }}</b>
-                <small>{{ countLine(spentCount()) }}</small>
+                <span class="ui-lab" data-fit="0.66">{{ 'chart.spent' | t }}</span>
+                <b data-fit="0.8">{{ whole(spentMinor()) }}</b>
+                <small data-fit="0.7">{{ countLine(spentCount()) }}</small>
               }
             </button>
           </div>
-          <p class="hint">{{ 'chart.tapHint' | t }}</p>
+          <!-- The slice tapped is named under the ring, where its words have
+               room; the hole keeps only its share and its figure (Jose,
+               2026-10-15: nothing cut short inside the donut). -->
+          @if (chosen(); as part) {
+            <button type="button" class="picked-line" (click)="centerTapped()">
+              @if (part.slice; as slice) {
+                <span class="face" [class.picture]="slice.customIconId != null" [style.--ring]="part.color">
+                  <app-badge [size]="30" [builtin]="slice.icon" [customId]="slice.customIconId" [fixed]="part.color"></app-badge>
+                </span>
+              } @else {
+                <span class="more">+{{ part.folded.length }}</span>
+              }
+              <span class="what"><b>{{ labelOf(part) }}</b><small>{{ countLine(part.count) }}</small></span>
+              @if (part.slice) { <span class="go">{{ 'chart.open' | t }}<ion-icon name="chevron-forward-outline"></ion-icon></span> }
+            </button>
+          } @else {
+            <p class="hint">{{ 'chart.tapHint' | t }}</p>
+          }
         </div>
 
         <!-- The categories, each with a bar of its share in its slice's colour. -->
@@ -199,7 +232,7 @@ interface Part {
     }
     .more.big { width: 38px; height: 38px; font-size: 12px; border-radius: 12px; }
     .center {
-      position: absolute; left: 50%; top: ${CY / BOX_H * 100}%; transform: translate(-50%, -50%); width: ${HOLE * FIT}cqw;
+      position: absolute; left: 50%; top: ${CY / BOX_H * 100}%; transform: translate(-50%, -50%); width: ${HOLE * 0.82}cqw;
       border: 0; background: none; padding: 0; font-family: inherit; color: var(--app-tx); text-align: center; cursor: pointer;
       display: flex; flex-direction: column; align-items: center;
     }
@@ -207,15 +240,24 @@ interface Part {
        a narrow phone shrinks the ring, and the words shrink with it. */
     /* The lines above and below the figure sit where the hole is narrower:
        they get less width than the figure, which has the widest middle. */
-    .center > :not(b) { max-width: ${HOLE * 0.72}cqw; }
     .center .ui-lab { font-size: min(10.5px, ${HOLE * 0.085}cqw); }
     /* "20 categorías más" is the app's own words: shown whole, on two lines. */
-    .center .ui-lab.two { white-space: normal; line-height: 1.15; }
+    /* Nothing in the hole ends in "…": every line is shrunk to fit instead
+       (Jose, 2026-10-15). A category's name may take two lines. */
+    .center > * { white-space: nowrap; overflow: visible; }
     .center b { font-size: min(25px, ${HOLE * 0.26}cqw); letter-spacing: -0.4px; margin-top: 2px; line-height: 1.15; white-space: nowrap; }
-    .center small { color: var(--app-mu); font-size: min(12px, ${HOLE * 0.09}cqw); line-height: 1.2; margin-top: 1px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .center .open { color: var(--app-pr); margin-top: 1px; max-width: ${HOLE * 0.66}cqw; }
-    /* A slice tapped says four lines: the figure gives up a little height. */
-    .center.picked b { font-size: min(20px, ${HOLE * 0.21}cqw); }
+    .center small { color: var(--app-mu); font-size: min(12px, ${HOLE * 0.09}cqw); line-height: 1.2; margin-top: 1px; }
+    .picked-line {
+      display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 4px; padding: 8px 10px;
+      border: 0; border-radius: 14px; background: var(--app-s2); color: var(--app-tx); font: inherit; text-align: left; cursor: pointer;
+    }
+    .picked-line .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .picked-line .what b { font-weight: 600; font-size: 14.5px; white-space: normal; }
+    .picked-line .what small { color: var(--app-mu); font-size: 12.5px; }
+    .picked-line .go { display: flex; align-items: center; gap: 2px; color: var(--app-pr); font-size: 13px; font-weight: 600; flex: none; }
+    .picked-line .go ion-icon { font-size: 15px; }
+    /* A slice tapped: its share over its figure. */
+    .center.picked .ui-lab { font-size: min(12px, ${HOLE * 0.1}cqw); font-weight: 600; letter-spacing: 0; }
     .hint { margin: 2px 0 0; text-align: center; color: var(--app-mu); font-size: 12.5px; }
     .bars { margin-top: 12px; }
     .bar { gap: 12px; }
@@ -254,12 +296,14 @@ export class SpendingChartComponent {
   readonly restOpen = signal(false);
 
   private readonly box = viewChild<ElementRef<HTMLElement>>('box');
-  private readonly fig = viewChild<ElementRef<HTMLElement>>('fig');
+  private readonly centre = viewChild<ElementRef<HTMLElement>>('centre');
   private readonly boxWidth = signal(0);
-  /** The figure in the middle, as drawn. */
+  /** What the middle says, as drawn: any change to it fits it again. */
   private readonly centreText = computed(() => {
     const part = this.chosen();
-    return this.whole(part ? part.amountMinor : this.spentMinor());
+    return part
+      ? `${part.pct}|${this.whole(part.amountMinor)}`
+      : `${this.whole(this.spentMinor())}|${this.countLine(this.spentCount())}|${this.i18n.language()}`;
   });
 
   constructor() {
@@ -278,13 +322,11 @@ export class SpendingChartComponent {
     afterRenderEffect(() => {
       const width = this.boxWidth();
       this.centreText();
-      const el = this.fig()?.nativeElement;
-      if (!el || width <= 0) return;
-      el.style.fontSize = '';
-      const allowed = width * HOLE / 100 * FIT;
-      const natural = el.scrollWidth;
-      if (natural > allowed) {
-        el.style.fontSize = `${(parseFloat(getComputedStyle(el).fontSize) * allowed / natural).toFixed(1)}px`;
+      const centre = this.centre()?.nativeElement;
+      if (!centre || width <= 0) return;
+      const hole = width * HOLE / 100;
+      for (const el of Array.from(centre.querySelectorAll<HTMLElement>('[data-fit]'))) {
+        fitLine(el, hole * Number(el.dataset['fit']));
       }
     });
 
@@ -374,10 +416,6 @@ export class SpendingChartComponent {
 
   countLine(count: number): string {
     return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count });
-  }
-
-  shareLine(part: Part): string {
-    return this.i18n.t('chart.share', { pct: part.pct, count: this.countLine(part.count) });
   }
 
   pctOf(minor: number): number {

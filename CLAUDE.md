@@ -508,16 +508,18 @@ these):
   read as 1.4 million by everybody, and someone with several cards and loans
   wants each kind added up). The middle of the donut is the whole figure
   ("$ 1.396.098", `whole` in `spending-chart.component.ts`), also for a
-  slice tapped. **It never touches the ring** (Jose, the same day): the
-  figure is MEASURED as drawn and shrunk until it is at most `FIT` (80 %) of
-  the hole's width (`afterRenderEffect`, only when the figure or the ring's
-  width change, read by a ResizeObserver - never on scroll), so the phone's
-  font, its letter size and its width all count; the lines above and below
-  are held to 72 % and 66 % of the hole and sized in container units of the
-  box (`HOLE`, `cqw`), and a tapped slice's figure gives up a little height
-  for its four lines. Checked in a browser by measuring every line's corners
-  against the hole at 320, 360 and 412 px, totals up to $ 1.234.567.890 and
-  every slice tapped: at least 4 px clear everywhere. And
+  slice tapped. **It never touches the ring, and nothing in it ends in "…"** (Jose, the
+  same day: TRANSPO…, "3 movimien…" did not read well). The ring is thinner
+  (`R_IN` 68, was 62) for a wider hole; each line of the hole carries
+  `data-fit` (its share of the hole's width) and is MEASURED as drawn and
+  shrunk to fit (`fitLine`, `afterRenderEffect` keyed on what the middle says
+  and the ring's width via a ResizeObserver - never on scroll), so the
+  phone's font, letter size and width all count. A slice tapped keeps only
+  its percent and its figure inside; its name, its movements and "Ver
+  movimientos ›" are a row under the ring (`.picked-line`), where the words
+  have room. Checked by measuring every line's corners against the hole at
+  320, 360 and 412 px, totals up to $ 1.234.567.890 and every slice tapped:
+  at least 7 px clear, nothing overflowing. And
   each icon round the ring says its amount under its percent. The layout box
   grew by that line (`BOX_H` 390, `AMOUNT_LINE` in `donut-layout.ts`): the
   ring and every place but the top row moved down, the top row's lines enter
