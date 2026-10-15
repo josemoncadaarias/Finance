@@ -519,7 +519,15 @@ these):
   movimientos ›" are a row under the ring (`.picked-line`), where the words
   have room. Checked by measuring every line's corners against the hole at
   320, 360 and 412 px, totals up to $ 1.234.567.890 and every slice tapped:
-  at least 7 px clear, nothing overflowing. And
+  at least 7 px clear, nothing overflowing. **The icons keep their size
+  while the ring scales with the phone**, so on a narrow one the lowest
+  figure reached past the box onto "Toca una porción…" and the top row slid
+  down onto its own lines (Jose, 2026-10-15). The card is a container and the
+  box keeps room under it and over it in container units (`.box` margins);
+  the top row is anchored by its foot just over where its line comes in
+  (`Part.bottom`, `TOP_ROW_Y`). Measured at 320, 360 and 412 px: no line
+  crosses a percent, a figure or an icon, and about 18 px clear above the
+  top row and before the hint. And
   each icon round the ring says its amount under its percent. The layout box
   grew by that line (`BOX_H` 390, `AMOUNT_LINE` in `donut-layout.ts`): the
   ring and every place but the top row moved down, the top row's lines enter
