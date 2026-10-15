@@ -31,7 +31,7 @@ import { ThemeService } from '../../core/theme/theme.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Slice } from './group-movements';
 import {
-  BOX_H, BOX_W, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
+  BOX_H, BOX_W, CY, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
   arcPath, chartColours, layoutDonut,
 } from './donut-layout';
 
@@ -91,17 +91,18 @@ interface Part {
                   <span class="more">+{{ part.folded.length }}</span>
                 }
                 <span class="pct">{{ part.pct }}%</span>
+                <span class="val">{{ whole(part.amountMinor, false) }}</span>
               </button>
             }
             <button type="button" class="center" (click)="centerTapped()">
               @if (chosen(); as part) {
                 <span class="ui-lab" [class.ui-one]="part.slice" [class.two]="!part.slice">{{ labelOf(part) }}</span>
-                <b>{{ short(part.amountMinor) }}</b>
+                <b [class]="sizeOf(part.amountMinor)">{{ whole(part.amountMinor) }}</b>
                 <small>{{ shareLine(part) }}</small>
                 @if (part.slice) { <small class="open">{{ 'chart.open' | t }}</small> }
               } @else {
                 <span class="ui-lab">{{ 'chart.spent' | t }}</span>
-                <b>{{ short(spentMinor()) }}</b>
+                <b [class]="sizeOf(spentMinor())">{{ whole(spentMinor()) }}</b>
                 <small>{{ countLine(spentCount()) }}</small>
               }
             </button>
@@ -183,6 +184,7 @@ interface Part {
     }
     .spot.dim, .bar.dim { opacity: 0.32; }
     .pct { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+    .val { font-size: 10.5px; color: var(--app-mu); font-variant-numeric: tabular-nums; line-height: 1; margin-top: -5px; white-space: nowrap; }
     .face { display: inline-grid; border-radius: 11px; flex: none; }
     /* A picture of its own keeps its look and wears its slice's colour as a ring. */
     .face.picture { box-shadow: 0 0 0 2px var(--app-s1), 0 0 0 4.5px var(--ring); }
@@ -192,14 +194,16 @@ interface Part {
     }
     .more.big { width: 38px; height: 38px; font-size: 12px; border-radius: 12px; }
     .center {
-      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34%;
+      position: absolute; left: 50%; top: ${CY / BOX_H * 100}%; transform: translate(-50%, -50%); width: 36%;
       border: 0; background: none; padding: 0; font-family: inherit; color: var(--app-tx); text-align: center; cursor: pointer;
       display: flex; flex-direction: column; align-items: center;
     }
     .center .ui-lab { font-size: 10.5px; max-width: 100%; }
     /* "20 categorías más" is the app's own words: shown whole, on two lines. */
     .center .ui-lab.two { white-space: normal; line-height: 1.25; }
-    .center b { font-size: 25px; letter-spacing: -0.4px; margin-top: 2px; line-height: 1.15; }
+    .center b { font-size: 25px; letter-spacing: -0.4px; margin-top: 2px; line-height: 1.15; white-space: nowrap; }
+    .center b.s { font-size: 21px; }
+    .center b.xs { font-size: 18px; }
     .center small { color: var(--app-mu); font-size: 12px; margin-top: 1px; }
     .center .open { color: var(--app-pr); margin-top: 3px; }
     .hint { margin: 2px 0 0; text-align: center; color: var(--app-mu); font-size: 12.5px; }
@@ -355,20 +359,22 @@ export class SpendingChartComponent {
     return formatMoney(Math.abs(minor), this.currency(), { withSymbol: false });
   }
 
-  /** "5,24 M", "845 mil": the figure inside the ring, short enough to fit. */
-  short(minor: number): string {
+  /**
+   * The whole figure, in pesos without cents: "$ 1.396.098" in the middle
+   * and "153.571" under a percent (Jose, 2026-10-15: "1,40 M" was not read
+   * as 1.4 million by everybody).
+   */
+  whole(minor: number, symbol = true): string {
     if (amountsHidden()) return '••••';
-    const units = Math.abs(minor) / 100;
-    const locale = this.i18n.dateLocale();
-    if (units >= 1_000_000) {
-      return this.i18n.t('chart.millions', {
-        n: (units / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }),
-      });
-    }
-    if (units >= 1_000) {
-      return this.i18n.t('chart.thousands', { n: Math.round(units / 1_000).toLocaleString(locale) });
-    }
-    return Math.round(units).toLocaleString(locale);
+    const n = Math.round(Math.abs(minor) / 100).toLocaleString('es-CO');
+    if (!symbol) return n;
+    return this.currency() === 'COP' ? `$ ${n}` : `${n} ${this.currency()}`;
+  }
+
+  /** The middle figure steps down as it grows, so it stays inside the ring. */
+  sizeOf(minor: number): string {
+    const digits = String(Math.round(Math.abs(minor) / 100)).length;
+    return digits >= 9 ? 'xs' : digits >= 7 ? 's' : '';
   }
 }
 

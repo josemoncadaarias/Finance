@@ -12,8 +12,10 @@
 
     @if (cards(); as cards) {
       <section class="ui-hero owed">
-        <app-amounts-eye class="corner"></app-amounts-eye>
-        <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
+        <div class="top">
+          <span class="ui-lab">{{ 'cards.owedToday' | t }}</span>
+          <app-amounts-eye></app-amounts-eye>
+        </div>
         <div class="ui-big">$ {{ owedMinor() | money }}</div>
         @if (thisMonth().pay > 0) {
           <div class="ui-mini month">
@@ -23,9 +25,28 @@
         } @else {
           <p class="ui-sub">{{ (cards.length === 0 && loans().length === 0 ? 'cards.none.all' : loans().length === 0 ? 'cards.onlyCards' : 'loans.nothingThisMonth') | t }}</p>
         }
+        <!-- With cards AND loans, what each kind adds up to (30i); each tile
+             takes the page to its list. -->
+        @if (cards.length > 0 && loans().length > 0) {
+          <div class="kinds">
+            <button type="button" class="kind cards" (click)="goTo('debts-cards')">
+              <span class="head"><ion-icon name="card-outline"></ion-icon>{{ 'cards.title' | t }}</span>
+              <b>{{ cardsOwedMinor() | money }}</b>
+              <small>{{ countOf(cards.length, 'card') }}</small>
+            </button>
+            <button type="button" class="kind loans" (click)="goTo('debts-loans')">
+              <span class="head"><ion-icon name="cash-outline"></ion-icon>{{ 'loans.title' | t }}</span>
+              <b>{{ loansOwedMinor() | money }}</b>
+              <small>{{ countOf(loans().length, 'loan') }}</small>
+            </button>
+          </div>
+        }
       </section>
 
-      <h3 class="ui-h">{{ 'cards.title' | t }}</h3>
+      <h3 class="ui-h with-total" id="debts-cards">
+        <span>{{ 'cards.title' | t }}@if (cards.length > 0) { · {{ cards.length }} }</span>
+        @if (cards.length > 0) { <b>{{ cardsOwedMinor() | money }}</b> }
+      </h3>
       @if (cards.length > 0) {
         <div class="ui-list">
           @for (card of cards; track card.account.id) {
@@ -53,7 +74,10 @@
         </div>
       }
 
-      <h3 class="ui-h">{{ 'loans.title' | t }}</h3>
+      <h3 class="ui-h with-total" id="debts-loans">
+        <span>{{ 'loans.title' | t }}@if (loans().length > 0) { · {{ loans().length }} }</span>
+        @if (loans().length > 0) { <b>{{ loansOwedMinor() | money }}</b> }
+      </h3>
       @if (loans().length > 0) {
         <div class="ui-list">
           @for (l of loans(); track l.loan.account.id) {

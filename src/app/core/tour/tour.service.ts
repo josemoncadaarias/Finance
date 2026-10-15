@@ -50,6 +50,7 @@ const TOUR_LIST = {
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
       { sel: 'app-movements .figures .used', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 4 },
+      { sel: 'app-movements app-spending-chart .box', title: 'tour.home.donut.title', text: 'tour.home.donut.text', since: 4 },
       { target: 'faces', title: 'tour.home.faces.title', text: 'tour.home.faces.text' },
       { target: 'tabs', title: 'tour.home.tabs.title', text: 'tour.home.tabs.text' },
       { target: 'more', title: 'tour.home.end.title', text: 'tour.home.end.text' },
@@ -125,6 +126,7 @@ const TOUR_LIST = {
       { sel: 'app-debts .ui-main .ui-list', title: 'tour.debts.2.title', text: 'tour.debts.2.text' },
       { sel: 'app-debts .ui-bigtitle .ui-pill', title: 'tour.debts.3.title', text: 'tour.debts.3.text' },
       { title: 'tour.debts.4.title', text: 'tour.debts.4.text', since: 2 },
+      { sel: 'app-debts .ui-h.with-total', title: 'tour.debts.5.title', text: 'tour.debts.5.text', since: 3 },
     ],
   },
   card: {

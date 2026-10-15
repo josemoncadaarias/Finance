@@ -38,9 +38,16 @@ export const MAX_NAMED = CHART_DARK.length;
 
 /** The box everything is laid out in; the screen scales it to its width. */
 export const BOX_W = 356;
-export const BOX_H = 360;
+/**
+ * Taller than wide since each icon says its amount under its percent (Jose,
+ * 2026-10-15, mockup 30d): the ring and every place but the top row moved
+ * down by that line, so the top row's lines keep their distance from the ring.
+ */
+export const BOX_H = 390;
+/** Room for one line of amount under a percent. */
+const AMOUNT_LINE = 13;
 const CX = BOX_W / 2;
-const CY = BOX_H / 2;
+export const CY = 180 + AMOUNT_LINE;
 export const R_IN = 62;
 export const R_OUT = 92;
 
@@ -97,6 +104,7 @@ export interface DonutLayout {
 
 const SLOTS: Spot[] = [[54, 30], [140, 30], [216, 30], [302, 30], [326, 132], [326, 228],
   [302, 330], [216, 330], [140, 330], [54, 330], [30, 228], [30, 132]]
+  .map(([x, y]) => [x, y === 30 ? y : y + AMOUNT_LINE])
   .map(([x, y]) => ({ x, y, angle: (Math.atan2(x - CX, -(y - CY)) * 180 / Math.PI + 360) % 360 }))
   .sort((a, b) => a.angle - b.angle);
 
@@ -272,7 +280,7 @@ function routePoints(mid: number, spot: Spot, { lane, side }: { lane: number; si
   const [sx, sy] = pointAt(R_OUT + 6, mid);
   let pts: Pt[];
   if (side === 'top') {
-    const ay = spot.y + 38, y = ay + 6 + lane * 6;
+    const ay = spot.y + 38 + AMOUNT_LINE, y = ay + 6 + lane * 6;
     pts = Math.abs(spot.x - sx) < JOG ? [[sx, sy], [sx, ay]] : [[sx, sy], [sx, y], [spot.x, y], [spot.x, ay]];
   } else if (side === 'bottom') {
     const ay = spot.y - 28, y = ay - 6 - lane * 6;

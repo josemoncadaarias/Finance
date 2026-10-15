@@ -225,7 +225,9 @@ these):
   cuenta desde su extracto" (a card's statement and one with a password
   fill the new account, and saving opens Por revisar on it).
   Version 5 (2026-10-15): Cuentas - "Lo que tienes y lo que debes"
-  (accounts tour); Inicio - "Tu tarjeta de un vistazo" (home tour, `since: 4`).
+  (accounts tour); Inicio - "Tu tarjeta de un vistazo" and "Lo que gastaste,
+  en pesos" (home tour, `since: 4`); Deudas - "Cuánto debes en cada cosa"
+  (debts tour, `since: 3`).
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -499,6 +501,22 @@ these):
   buttons), and steps down in size past 9 and 11 digits (`bigSize`,
   `isLong`). Tour steps `since: 5` (accounts) and `since: 4` (home).
   Checked in a browser at 360 px on the sample data. Not seen on the phone.
+
+- **The donut says whole figures, and Deudas each kind's total** (Jose,
+  2026-10-15, mockups `30d` and `30i`, from his partner: "1,40 M" was not
+  read as 1.4 million by everybody, and someone with several cards and loans
+  wants each kind added up). The middle of the donut is the whole figure
+  ("$ 1.396.098", stepping down in size past 7 and 9 digits, `whole` and
+  `sizeOf` in `spending-chart.component.ts`), also for a slice tapped, and
+  each icon round the ring says its amount under its percent. The layout box
+  grew by that line (`BOX_H` 390, `AMOUNT_LINE` in `donut-layout.ts`): the
+  ring and every place but the top row moved down, the top row's lines enter
+  under the amount. The list of categories under the donut is unchanged (Jose:
+  keep it). Deudas: "Debes hoy" has the eye on its top line, and with cards
+  AND loans two tiles, Tarjetas and Préstamos, each with its count, taking
+  the page down to its list; each section's heading says "TARJETAS · 2" and
+  its total (pesos only, as the big figure). Tour steps: home `since: 4`,
+  debts `since: 3`. Checked in a browser on the sample data at 360 px.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
