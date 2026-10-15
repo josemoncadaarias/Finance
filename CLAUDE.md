@@ -1803,6 +1803,28 @@ backup restore against iOS's own SQLite backend.
 
    **A 7-day free trial with everything unlocked**, then the free limits above.
 
+   **The list, decided by Jose on 2026-10-15** (replacing the lists above where
+   they differ; `core/paywall/plan.ts` is the table, `paywall-plan.test.mjs`):
+   - Free: accounts in pesos, movements, transfers, Inicio and its chart,
+     the starter categories (rename, hide), credit cards with their statement
+     and reminder, ONE loan, ONE cap, ONE goal, ONE product, the first
+     statement, ONE bank source (app or SMS) with **15 movements a month**
+     saved from messages, backups (local, Drive), CSV, every preference
+     (language, theme, **every accent colour**, the view, the bar, hiding
+     amounts, guides, sample data, erasing), Monedas y TRM to look at, and
+     the report's headline, against the period before, where it went and the
+     biggest movements.
+   - Paid: accounts in other currencies, more statements, products, loans,
+     caps and goals, more bank sources and movements past 15 a month (they
+     keep arriving and wait in Por revisar, locked: "Tienes N movimientos
+     detectados. Desbloquea para guardarlos con un toque"; typing them by hand
+     stays free), the rest of the report and its spreadsheet, the tax
+     simulator, creating categories, own pictures.
+   - Built so far: the table and `PaywallService` (`core/paywall/`), which
+     answers everything unlocked (no store yet); `finance.paywall.preview` =
+     'free' shows the free version. Nothing asks it yet: screens and locks are
+     drawn for Jose's word first.
+
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
    - Subscriptions: Wallet by BudgetBakers ~EUR 4.49/month with a yearly
@@ -5046,4 +5068,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages)
