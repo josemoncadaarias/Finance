@@ -48,7 +48,8 @@ export const BOX_H = 390;
 const AMOUNT_LINE = 13;
 const CX = BOX_W / 2;
 export const CY = 180 + AMOUNT_LINE;
-export const R_IN = 62;
+/** A thinner ring than at first (62): a wider hole for the figures inside it (Jose, 2026-10-15). */
+export const R_IN = 68;
 export const R_OUT = 92;
 
 /** What a category brings to the choice of its colour. */
