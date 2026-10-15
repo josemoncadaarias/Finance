@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (805 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (809 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -227,7 +227,8 @@ these):
   Version 5 (2026-10-15): Cuentas - "Lo que tienes y lo que debes"
   (accounts tour); Inicio - "Tu tarjeta de un vistazo" and "Lo que gastaste,
   en pesos" (home tour, `since: 4`); Deudas - "Cuánto debes en cada cosa"
-  (debts tour, `since: 3`).
+  (debts tour, `since: 3`); a card - "Te avisamos el día de pago" (card
+  tour, `since: 2`).
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -517,6 +518,29 @@ these):
   the page down to its list; each section's heading says "TARJETAS · 2" and
   its total (pesos only, as the big figure). Tour steps: home `since: 4`,
   debts `since: 3`. Checked in a browser on the sample data at 360 px.
+
+- **A card's payment day rings on the phone** (Jose, 2026-10-15: a reminder
+  in the style of "Movimiento detectado", only when the card has its two
+  days and something is left to pay). `CardDueService` (started by the app
+  shell) works out on every data change, from `loadCards`, which reminders
+  there should be (`duePlans` in `core/cards/due-reminder.ts`, pure,
+  `due-reminder.test.mjs`): a statement `due` or `partial` with something
+  left, on its payment day at 8:00 (`DUE_HOUR`), or at once when the app is
+  opened on that day after 8 - each card and payday once (`finance.cardDue.told`).
+  It cancels what it scheduled before and schedules again, so a payment saved
+  takes back a reminder on its way, and removes one already shown for a
+  statement now paid. Scheduled with the phone's alarms
+  (`@capacitor/local-notifications`, inexact on purpose so Android does not
+  send the person to "Alarms & reminders"), so it rings with the app closed.
+  "💳 Hoy pagas {tarjeta} · $ X", what is left of the statement of the cut-off
+  of {día} (and what was already paid), on its own channel `card_due` at high
+  importance, private on the lock screen, the app's icon (`drawable-nodpi/
+  ic_notice_logo.png`) and its accent; "Pagar ahora" opens the card's page
+  with `?pay=1`, which opens the payment as its "Pagar" does, and "Ver la
+  tarjeta" (or a tap) the card's page. Never with the sample data loaded. The
+  permission is asked once, only when there is a reminder to set. Card tour
+  step `since: 2`. Checked in a browser: `?pay=1` opens the payment; the
+  notification itself only on the phone, not seen yet.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
@@ -2753,7 +2777,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 805 tests (2026-10-15) that run against a real
+by 809 tests (2026-10-15) that run against a real
 SQLite engine with no dependencies:
 
 ```

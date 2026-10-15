@@ -15,6 +15,7 @@
  * 2026-10-02, after his Rappi Card said 34,591.00 and the app 98,606.99).
  */
 
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -83,9 +84,28 @@ export class CardPage {
     });
   }
 
+  /**
+   * Opened from the payment-day reminder's "Pagar ahora": the payment form,
+   * once - also when this card's page was already the one on show.
+   */
+  private payAsked = false;
+  private readonly payWatch = this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(query => {
+    if (query.get('pay') !== '1') return;
+    this.payAsked = true;
+    this.payIfAsked();
+  });
+
+  private payIfAsked(): void {
+    if (!this.payAsked || !this.card()) return;
+    this.payAsked = false;
+    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    void this.pay();
+  }
+
   private async load(): Promise<void> {
     const cards = await loadCards(this.database.driver, isoDay(new Date()));
     this.card.set(cards.find(card => card.account.id === this.id) ?? null);
+    this.payIfAsked();
   }
 
   money(minor: number): string {

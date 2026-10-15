@@ -133,6 +133,7 @@ const TOUR_LIST = {
     steps: [
       { sel: 'app-card section.bill', title: 'tour.card.1.title', text: 'tour.card.1.text' },
       { sel: 'app-card .ui-seg.faces', title: 'tour.card.2.title', text: 'tour.card.2.text' },
+      { title: 'tour.card.3.title', text: 'tour.card.3.text', since: 2 },
     ],
   },
   loan: {
