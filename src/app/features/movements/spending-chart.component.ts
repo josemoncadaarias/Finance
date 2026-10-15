@@ -21,7 +21,7 @@
  * was neither spent nor earned (Jose, 2026-09-28).
  */
 
-import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { Component, ElementRef, afterRenderEffect, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -31,9 +31,14 @@ import { ThemeService } from '../../core/theme/theme.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Slice } from './group-movements';
 import {
-  BOX_H, BOX_W, CY, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
+  BOX_H, BOX_W, CY, R_IN, CHART_DARK, CHART_LIGHT, MAX_NAMED, REST_DARK, REST_LIGHT, R_OUT,
   arcPath, chartColours, layoutDonut,
 } from './donut-layout';
+
+/** The ring's hole, as a share of the box's width in container units (cqw). */
+const HOLE = 2 * R_IN / BOX_W * 100;
+/** The widest the middle figure may be, as a share of the hole: room to spare on both sides. */
+const FIT = 0.8;
 
 const REST = '__rest';
 
@@ -69,7 +74,7 @@ interface Part {
     } @else {
       @if (parts().length > 0) {
         <div class="ui-card chart">
-          <div class="box">
+          <div class="box" #box>
             <svg [attr.viewBox]="'0 0 ' + boxW + ' ' + boxH" aria-hidden="true">
               @for (part of parts(); track part.key) {
                 <g [class.dim]="isDim(part)">
@@ -94,15 +99,15 @@ interface Part {
                 <span class="val">{{ whole(part.amountMinor, false) }}</span>
               </button>
             }
-            <button type="button" class="center" (click)="centerTapped()">
+            <button type="button" class="center" [class.picked]="chosen()" (click)="centerTapped()">
               @if (chosen(); as part) {
                 <span class="ui-lab" [class.ui-one]="part.slice" [class.two]="!part.slice">{{ labelOf(part) }}</span>
-                <b [class]="sizeOf(part.amountMinor)">{{ whole(part.amountMinor) }}</b>
+                <b #fig>{{ whole(part.amountMinor) }}</b>
                 <small>{{ shareLine(part) }}</small>
                 @if (part.slice) { <small class="open">{{ 'chart.open' | t }}</small> }
               } @else {
                 <span class="ui-lab">{{ 'chart.spent' | t }}</span>
-                <b [class]="sizeOf(spentMinor())">{{ whole(spentMinor()) }}</b>
+                <b #fig>{{ whole(spentMinor()) }}</b>
                 <small>{{ countLine(spentCount()) }}</small>
               }
             </button>
@@ -171,7 +176,7 @@ interface Part {
   styles: [`
     :host { display: block; }
     .chart { padding: 12px; }
-    .box { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: ${BOX_W} / ${BOX_H}; }
+    .box { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: ${BOX_W} / ${BOX_H}; container-type: inline-size; }
     svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
     svg path { cursor: pointer; transition: opacity 0.15s; }
     svg .line { fill: none; stroke-width: 1.5; stroke-linejoin: round; opacity: 0.9; pointer-events: none; }
@@ -194,18 +199,23 @@ interface Part {
     }
     .more.big { width: 38px; height: 38px; font-size: 12px; border-radius: 12px; }
     .center {
-      position: absolute; left: 50%; top: ${CY / BOX_H * 100}%; transform: translate(-50%, -50%); width: 36%;
+      position: absolute; left: 50%; top: ${CY / BOX_H * 100}%; transform: translate(-50%, -50%); width: ${HOLE * FIT}cqw;
       border: 0; background: none; padding: 0; font-family: inherit; color: var(--app-tx); text-align: center; cursor: pointer;
       display: flex; flex-direction: column; align-items: center;
     }
-    .center .ui-lab { font-size: 10.5px; max-width: 100%; }
+    /* Everything in the middle is measured against the hole, never the screen:
+       a narrow phone shrinks the ring, and the words shrink with it. */
+    /* The lines above and below the figure sit where the hole is narrower:
+       they get less width than the figure, which has the widest middle. */
+    .center > :not(b) { max-width: ${HOLE * 0.72}cqw; }
+    .center .ui-lab { font-size: min(10.5px, ${HOLE * 0.085}cqw); }
     /* "20 categorías más" is the app's own words: shown whole, on two lines. */
-    .center .ui-lab.two { white-space: normal; line-height: 1.25; }
-    .center b { font-size: 25px; letter-spacing: -0.4px; margin-top: 2px; line-height: 1.15; white-space: nowrap; }
-    .center b.s { font-size: 21px; }
-    .center b.xs { font-size: 18px; }
-    .center small { color: var(--app-mu); font-size: 12px; margin-top: 1px; }
-    .center .open { color: var(--app-pr); margin-top: 3px; }
+    .center .ui-lab.two { white-space: normal; line-height: 1.15; }
+    .center b { font-size: min(25px, ${HOLE * 0.26}cqw); letter-spacing: -0.4px; margin-top: 2px; line-height: 1.15; white-space: nowrap; }
+    .center small { color: var(--app-mu); font-size: min(12px, ${HOLE * 0.09}cqw); line-height: 1.2; margin-top: 1px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .center .open { color: var(--app-pr); margin-top: 1px; max-width: ${HOLE * 0.66}cqw; }
+    /* A slice tapped says four lines: the figure gives up a little height. */
+    .center.picked b { font-size: min(20px, ${HOLE * 0.21}cqw); }
     .hint { margin: 2px 0 0; text-align: center; color: var(--app-mu); font-size: 12.5px; }
     .bars { margin-top: 12px; }
     .bar { gap: 12px; }
@@ -243,7 +253,41 @@ export class SpendingChartComponent {
   readonly selected = signal<string | null>(null);
   readonly restOpen = signal(false);
 
+  private readonly box = viewChild<ElementRef<HTMLElement>>('box');
+  private readonly fig = viewChild<ElementRef<HTMLElement>>('fig');
+  private readonly boxWidth = signal(0);
+  /** The figure in the middle, as drawn. */
+  private readonly centreText = computed(() => {
+    const part = this.chosen();
+    return this.whole(part ? part.amountMinor : this.spentMinor());
+  });
+
   constructor() {
+    // The middle figure is measured as drawn and shrunk until it fits the
+    // ring's hole with room to spare (Jose, 2026-10-15: "que no vaya a salirse
+    // o tocar"). Measured, not estimated: the phone's font, its letter size
+    // (up to 130 %) and the screen's width all count. Only when the figure or
+    // the ring's width change - never on scroll.
+    effect(onCleanup => {
+      const box = this.box()?.nativeElement;
+      if (!box || typeof ResizeObserver === 'undefined') return;
+      const watch = new ResizeObserver(() => this.boxWidth.set(box.clientWidth));
+      watch.observe(box);
+      onCleanup(() => watch.disconnect());
+    });
+    afterRenderEffect(() => {
+      const width = this.boxWidth();
+      this.centreText();
+      const el = this.fig()?.nativeElement;
+      if (!el || width <= 0) return;
+      el.style.fontSize = '';
+      const allowed = width * HOLE / 100 * FIT;
+      const natural = el.scrollWidth;
+      if (natural > allowed) {
+        el.style.fontSize = `${(parseFloat(getComputedStyle(el).fontSize) * allowed / natural).toFixed(1)}px`;
+      }
+    });
+
     // Another period or account is another ring: nothing stays chosen on it.
     effect(() => {
       this.slices();
@@ -371,11 +415,6 @@ export class SpendingChartComponent {
     return this.currency() === 'COP' ? `$ ${n}` : `${n} ${this.currency()}`;
   }
 
-  /** The middle figure steps down as it grows, so it stays inside the ring. */
-  sizeOf(minor: number): string {
-    const digits = String(Math.round(Math.abs(minor) / 100)).length;
-    return digits >= 9 ? 'xs' : digits >= 7 ? 's' : '';
-  }
 }
 
 /**
