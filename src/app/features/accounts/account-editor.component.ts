@@ -42,6 +42,7 @@ import { formatMoney } from '../../core/database/money';
 import { shortDay } from '../../core/filters/period';
 import type { AccountRow, AccountType } from '../../core/database/types';
 import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
+import { balanceFromAvailable, balanceFromOwed, openingFor, standingOf } from '../../core/cards/card-setup';
 
 const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
 
@@ -185,6 +186,92 @@ export class AccountEditorComponent implements OnInit {
   readonly isNew = computed(() => this.editing() === null);
   readonly isCredit = computed(() => this.type() === 'credit');
 
+  // -------------------------------------------------------------------------
+  // A card set up by what the bank's app shows (32a-32d)
+  // -------------------------------------------------------------------------
+
+  /**
+   * A card is asked "Cupo total" and "Cupo disponible hoy" (or what is owed),
+   * never an opening balance. Not when it comes from a statement: there the
+   * opening is the statement's, and its movements go on top of it.
+   */
+  readonly cardSetup = computed(() => this.isCredit() && this.fromStatement() === null);
+  /** "Sé mi cupo disponible" or "Sé lo que debo". */
+  readonly cardMode = signal<'available' | 'owed'>('available');
+  /** The two answers are offered on a new card, and on one with no limit or past it. */
+  readonly cardModes = signal(true);
+  readonly available = signal(new AmountBuffer());
+  /** Set once the available credit is typed: until then, editing the limit keeps the debt. */
+  private availableTyped = false;
+  readonly owed = signal(new AmountBuffer());
+
+  /** What the movements on record add up to: the balance today less the opening. */
+  private readonly movementsSum = computed(() => {
+    const account = this.editing();
+    const held = this.held();
+    return account === null || held === null ? 0 : held.balance - account.opening_balance_minor;
+  });
+
+  /** The balance the card is to hold today, or null while a figure is missing. */
+  readonly cardBalance = computed<number | null>(() => {
+    if (this.cardMode() === 'owed') return balanceFromOwed(this.owed().minor);
+    const limit = this.creditLimit().minor;
+    if (limit <= 0 || this.available().isEmpty) return null;
+    return balanceFromAvailable(limit, this.available().minor);
+  });
+
+  /** The card under the two figures: what they mean, said back before saving. */
+  readonly cardResult = computed<{ label: string; amount: string; tone: 'y' | 'g' | 'r' | ''; line: string } | null>(() => {
+    const balance = this.cardBalance();
+    if (balance === null) return null;
+    const editingLine = this.isNew() ? null : this.movements() === 1
+      ? this.i18n.t('cards.setup.withOne')
+      : this.i18n.t('cards.setup.withMovements', { count: this.movements().toLocaleString(this.i18n.dateLocale()) });
+    if (this.cardMode() === 'owed') {
+      const limit = this.creditLimit().minor;
+      if (limit <= 0) return editingLine === null ? null : { label: this.i18n.t('summary.owedToday'), amount: this.money(-balance), tone: 'y', line: editingLine };
+      const left = limit + balance;
+      return left < 0
+        ? { label: this.i18n.t('summary.creditOver'), amount: this.money(-left), tone: 'r', line: editingLine ?? this.i18n.t('cards.setup.over.hint') }
+        : { label: this.i18n.t('cards.available'), amount: this.money(left), tone: 'g', line: editingLine ?? this.i18n.t('cards.setup.left.hint') };
+    }
+    switch (standingOf(balance)) {
+      case 'owes': return { label: this.i18n.t('summary.owedToday'), amount: this.money(-balance), tone: 'y', line: editingLine ?? this.i18n.t('cards.setup.owes.hint') };
+      case 'favour': return { label: this.i18n.t('summary.inFavour'), amount: this.money(balance), tone: 'g', line: editingLine ?? this.i18n.t('cards.setup.favour.hint') };
+      default: return { label: this.i18n.t('summary.owedNothing'), amount: this.money(0), tone: '', line: editingLine ?? this.i18n.t('cards.setup.clear.hint') };
+    }
+  });
+
+  /** A limit typed: on a card in use, the debt stays and the available credit follows. */
+  onLimit(buffer: AmountBuffer): void {
+    this.creditLimit.set(buffer);
+    const held = this.held();
+    if (!this.isNew() && !this.availableTyped && held !== null && buffer.minor + held.balance >= 0) {
+      this.available.set(AmountBuffer.from(buffer.minor + held.balance));
+    }
+  }
+
+  onAvailable(buffer: AmountBuffer): void {
+    this.availableTyped = true;
+    this.available.set(buffer);
+  }
+
+  /** Whether the limit typed differs from the one in force, so "Vigente desde" is asked. */
+  readonly limitChanged = computed(() => {
+    const account = this.editing();
+    return account !== null && this.creditLimit().minor > 0 && this.creditLimit().minor !== account.credit_limit_minor;
+  });
+
+  /** The opening figure to save: worked out from the card's figures, or as typed. */
+  private openingToSave(): number {
+    if (!this.cardSetup()) return this.openingBalance().minor;
+    const balance = this.cardBalance();
+    const account = this.editing();
+    if (balance === null) return account?.opening_balance_minor ?? 0;
+    if (account !== null && this.held() === null) return account.opening_balance_minor;
+    return openingFor(balance, this.movementsSum());
+  }
+
   readonly title = computed(() =>
     this.i18n.t(this.isNew() ? 'accounts.new' : 'accounts.edit'));
 
@@ -195,6 +282,10 @@ export class AccountEditorComponent implements OnInit {
   readonly missing = computed<string | null>(() => {
     if (this.name().trim() === '') return this.i18n.t('accounts.need.name');
     if (this.isNew() && this.currency() === '') return this.i18n.t('accounts.need.currency');
+    if (this.cardSetup() && this.cardMode() === 'available') {
+      if (this.creditLimit().minor <= 0) return this.i18n.t('cards.setup.need.limit');
+      if (this.available().isEmpty) return this.i18n.t('cards.setup.need.available');
+    }
     return null;
   });
 
@@ -249,7 +340,18 @@ export class AccountEditorComponent implements OnInit {
     this.color.set(account.color);
     void new AccountsRepository(this.database.driver).balances({ includeArchived: true }).then(rows => {
       const row = rows.find(r => r.account.id === account.id);
-      if (row) this.held.set({ balance: row.balance_minor, available: row.available_credit_minor });
+      if (!row) return;
+      this.held.set({ balance: row.balance_minor, available: row.available_credit_minor });
+      // A card in use starts on what it holds today (32d).
+      const limit = account.credit_limit_minor ?? 0;
+      if (limit > 0 && limit + row.balance_minor >= 0) {
+        this.cardModes.set(false);
+        this.cardMode.set('available');
+        this.available.set(AmountBuffer.from(limit + row.balance_minor));
+      } else {
+        this.cardMode.set('owed');
+        this.owed.set(AmountBuffer.from(Math.max(0, -row.balance_minor)));
+      }
     });
     this.includeInNetWorth.set(account.include_in_net_worth === 1);
     this.archived.set(account.archived === 1);
@@ -389,7 +491,7 @@ export class AccountEditorComponent implements OnInit {
         custom_icon_id: this.customIconId(),
         ...(this.color() !== null ? { color: this.color()! } : {}),
         include_in_net_worth: this.includeInNetWorth(),
-        opening_balance_minor: this.openingBalance().minor,
+        opening_balance_minor: this.openingToSave(),
         opened_on: this.openedOn(),
         statement_day: this.isCredit() ? dayOf(this.statementDay()) : null,
         due_day: this.isCredit() ? dayOf(this.dueDay()) : null,
@@ -432,7 +534,7 @@ export class AccountEditorComponent implements OnInit {
           // A foreign one starts at zero until a rate says otherwise, rather
           // than pretending dollars are pesos.
           opening_balance_base_minor:
-            this.currency() === 'COP' ? this.openingBalance().minor : 0,
+            this.currency() === 'COP' ? shared.opening_balance_minor : 0,
         });
         await this.saveLimit(id);
       }
