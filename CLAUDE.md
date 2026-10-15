@@ -679,6 +679,30 @@ these):
   by multiplying every font size (1.8 reproduced the screenshots; 1.3 and
   1.0 read whole); the Java not yet compiled by a Store bundle.
 
+- **A card's Inicio says what its balance is, and a tour always shows what
+  it lights** (Jose, 2026-10-15, two screenshots). A card saved with its
+  limit typed as a POSITIVE opening balance read "Debes hoy 7.500.000",
+  "Cupo disponible 0,00": `availableCreditMinor` took `|balance|`, so money
+  in favour counted as debt. It is now limit + balance (rule 4: a card's
+  balance is minus the debt), and Inicio's card says "Debes hoy", "No debes
+  nada" or "Saldo a favor" (green) by the balance's sign; past the limit,
+  "Cupo usado" says the real percent in red and "Te pasaste del cupo por X"
+  replaces "Cupo disponible". The sample data has the four missing cards:
+  Arena (nothing owed), Menta (in favour), Roja (over its limit), Nube (no
+  limit). **Proposed, not built**: a new card asks "Cupo total" and "Cupo
+  disponible hoy" instead of "Saldo inicial" and works out the debt
+  (mockups `32a`-`32d`; `32e`-`32g` draw the states above, built).
+  **Tours**: a step's element was brought in with `scrollIntoView
+  ('nearest')`, which left it at the bottom edge - under the floating bar -
+  and the lit box was clipped to a sliver there (the Más tour's "Personaliza
+  tu vista"). Now `bringIntoView` (tour-overlay) scrolls the page's own
+  scroller so the element and the bubble's room fit between the title bar
+  and the floating bar (`areaFor`; an element in the bar, a modal or a
+  fixed layer keeps the whole screen), a taller one with its top under the
+  title, and the lit box is clipped to that area, never to the screen.
+  Checked in a browser on the sample data: every tour of every screen at
+  393×700.
+
 ---
 
 ## Decisions already made

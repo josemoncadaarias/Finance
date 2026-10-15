@@ -57,6 +57,8 @@ export const SPANISH = {
 
   'summary.balanceToday': 'Saldo hoy',
   'summary.owedToday': 'Debes hoy',
+  'summary.owedNothing': 'No debes nada',
+  'summary.inFavour': 'Saldo a favor',
   'summary.netWorthToday': 'Patrimonio hoy',
   'summary.available': 'Disponible {available} de {limit}',
 
@@ -1127,6 +1129,8 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'summary.balanceToday': 'Balance today',
   'summary.owedToday': 'You owe today',
+  'summary.owedNothing': 'You owe nothing',
+  'summary.inFavour': 'Balance in your favour',
   'summary.netWorthToday': 'Net worth today',
   'summary.available': '{available} available of {limit}',
 

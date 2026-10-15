@@ -89,7 +89,7 @@ test('a credit card reports what is left of its limit', () => {
   assert.equal(availableCreditMinor(110000000, -4770940), 105229060);
   assert.equal(formatMoney(availableCreditMinor(110000000, -4770940), 'COP', { withSymbol: false }), '1.052.290,60');
   // The balance sign must not matter to the arithmetic.
-  assert.equal(availableCreditMinor(110000000, 4770940), 105229060);
+  assert.equal(availableCreditMinor(110000000, 4770940), 114770940);
 });
 
 test('refuses amounts too large to stay exact', () => {

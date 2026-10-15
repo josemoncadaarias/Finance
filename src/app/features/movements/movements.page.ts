@@ -564,14 +564,17 @@ export class MovementsPage {
   usedShare(standing: Standing): number | null {
     const limit = standing.limitMinor ?? null;
     if (!limit || limit <= 0) return null;
-    return Math.min(100, Math.max(2, Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100)));
+    const owed = Math.abs(Math.min(standing.amountMinor, 0));
+    if (owed === 0) return 0;
+    return Math.min(100, Math.max(2, Math.round(owed / limit * 100)));
   }
 
   /** The same share as a figure, "52 %": 0 when nothing is owed. */
   usedPercent(standing: Standing): number {
     const limit = standing.limitMinor ?? 0;
     if (limit <= 0) return 0;
-    return Math.min(100, Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100));
+    // Past 100 when the card went over its limit: said as it is, the bar stops full.
+    return Math.round(Math.abs(Math.min(standing.amountMinor, 0)) / limit * 100);
   }
 
   /**

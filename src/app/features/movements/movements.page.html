@@ -112,6 +112,7 @@
         @let card = standing.kind === 'credit';
         <div class="ui-big" [ngClass]="bigSize(standing.amountMinor)"
              [class.ui-y]="card && standing.amountMinor < 0"
+             [class.ui-g]="card && standing.amountMinor > 0"
              [class.ui-r]="!card && standing.amountMinor < 0">
           @if (standing.kind === 'net-worth') { $ }{{ (card && standing.amountMinor < 0 ? -standing.amountMinor : standing.amountMinor) | money:standing.currency }}
           @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
@@ -121,10 +122,14 @@
              and its statement when it has the two days (29e-29g). -->
         @if (card) {
           @if (standing.limitMinor && standing.availableMinor !== null && standing.availableMinor !== undefined) {
-            <div class="used"><span>{{ 'summary.creditUsed' | t }}</span><b>{{ usedPercent(standing) }} %</b></div>
+            <div class="used"><span>{{ 'summary.creditUsed' | t }}</span><b [class.ui-r]="usedPercent(standing) > 100">{{ usedPercent(standing) }} %</b></div>
             <div class="ui-pbar credit"><i [style.width.%]="usedShare(standing) ?? 0"></i></div>
             <div class="room">
-              <div><span>{{ 'summary.creditFree' | t }}</span><b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b></div>
+              @if (standing.availableMinor < 0) {
+                <div><span>{{ 'summary.creditOver' | t }}</span><b class="ui-r">{{ -standing.availableMinor | money:standing.currency }}</b></div>
+              } @else {
+                <div><span>{{ 'summary.creditFree' | t }}</span><b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b></div>
+              }
               <div class="end"><span>{{ 'summary.creditLimit' | t }}</span><b>{{ standing.limitMinor | money:standing.currency }}</b></div>
             </div>
           } @else {

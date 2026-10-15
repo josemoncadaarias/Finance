@@ -419,6 +419,22 @@ await move(TODAY, azul, coral, Math.round(coralStatement / 100 * 0.4), 'Abono ta
 await spend(vieja, C.ropa, D('2025-10-11'), 210_000, 'Chaqueta');
 await move(D('2025-11-05'), azul, vieja, 210_000, 'Pago tarjeta antigua');
 await accounts.archive(vieja);
+
+// Every other way a card's Inicio can read (Jose, 2026-10-15: "cubrir todos
+// los escenarios"): nothing owed, a balance in the person's favour, over its
+// limit, and with no limit on record.
+const arena = await make('Tarjeta Arena', { type: 'credit', builtin_icon: 'card-outline', color: '#e0b26b', credit_limit_minor: P(2_000_000) });
+await spend(arena, C.restaurante, D('2026-09-12'), 95_000, 'Almuerzo de cumpleaños');
+await move(D('2026-09-20'), azul, arena, 95_000, 'Pago tarjeta Arena');
+const menta = await make('Tarjeta Menta', { type: 'credit', builtin_icon: 'card-outline', color: '#3ccfae', credit_limit_minor: P(3_000_000) });
+await spend(menta, C.tecnologia, D('2026-09-05'), 260_000, 'Teclado');
+await move(D('2026-09-15'), azul, menta, 260_000, 'Pago tarjeta Menta');
+await earn(menta, C.tecnologia, D('2026-09-22'), 260_000, 'Devolución del teclado');
+const roja = await make('Tarjeta Roja', { type: 'credit', builtin_icon: 'card-outline', color: '#ef5b66', credit_limit_minor: P(1_000_000) });
+await spend(roja, C.viajes, D('2026-09-08'), 780_000, 'Tiquetes de bus');
+await spend(roja, C.viajes, D('2026-09-18'), 290_000, 'Hotel');
+const nube = await make('Tarjeta Nube', { type: 'credit', builtin_icon: 'card-outline', color: '#8fb4ff' });
+await spend(nube, C.mercado, D('2026-09-25'), 132_400, 'Mercado de la semana');
 // The gym category: used until March, then archived.
 await categories.archive(gimnasio);
 
