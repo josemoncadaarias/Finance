@@ -18,12 +18,14 @@
 import { Injectable, inject, signal } from '@angular/core';
 
 import { FilterService } from '../filters/filter.service';
+import { PaywallService } from '../paywall/paywall.service';
 import type { EntryKind, EntryRequest } from '../../features/entry/entry.component';
 import type { TransactionRow } from '../database/types';
 
 @Injectable({ providedIn: 'root' })
 export class ComposeService {
   private readonly filter = inject(FilterService);
+  private readonly pro = inject(PaywallService);
 
   /** The movement form, open while this is not null. */
   readonly entry = signal<EntryRequest | null>(null);
@@ -80,9 +82,10 @@ export class ComposeService {
     });
   }
 
-  startImport(): void {
+  /** The first statement is free (rule 21); past it the lock says why. */
+  async startImport(): Promise<void> {
     this.sheet.set(false);
-    this.importing.set(true);
+    if (await this.pro.allow('statements')) this.importing.set(true);
   }
 
   close(): void {

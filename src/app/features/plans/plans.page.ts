@@ -8,6 +8,7 @@
  * opens Avisos, where each notice is turned off and back on.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -39,6 +40,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 })
 export class PlansPage {
   readonly limits = inject(LimitsService);
+  private readonly pro = inject(PaywallService);
   private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
@@ -96,7 +98,8 @@ export class PlansPage {
       .slice(0, 3));
   }
 
-  newGoal(kind: GoalKind = 'custom'): void {
+  async newGoal(kind: GoalKind = 'custom'): Promise<void> {
+    if (!(await this.pro.allow('goals'))) return;
     this.newGoalKind.set(kind);
     this.editingGoal.set(0);
   }
@@ -130,7 +133,8 @@ export class PlansPage {
     void this.router.navigateByUrl(`/plans/${view.terms.id}`);
   }
 
-  newLimit(categoryId: number | null = null): void {
+  async newLimit(categoryId: number | null = null): Promise<void> {
+    if (!(await this.pro.allow('limits'))) return;
     this.startOn.set(categoryId);
     this.editing.set(0);
   }

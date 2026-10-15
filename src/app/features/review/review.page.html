@@ -23,6 +23,29 @@
         </button>
       </div>
     } @else {
+      <!-- Finance Pro: 15 movements a month from bank messages (34d). The rest
+           keep arriving and wait here; typing them by hand stays free. -->
+      @if (!pro.unlocked() && messagesWaiting() > 0) {
+        <div class="ui-card pro-month" data-tour="review-pro">
+          <div class="line"><span>{{ 'pro.msgs.month' | t }}</span><b>{{ 'pro.msgs.of' | t:{ used: messagesUsed(), free: messagesFree } }}</b></div>
+          <div class="bar"><i [style.width.%]="messagesUsed() >= messagesFree ? 100 : messagesUsed() * 100 / messagesFree"></i></div>
+          <small>{{ 'pro.msgs.renews' | t:{ date: messagesRenew() } }}</small>
+        </div>
+        @if (messagesLocked()) {
+          <div class="ui-card pro-waiting">
+            <div class="top">
+              <app-badge shape="ci" [size]="44" builtin="lock-closed-outline" fixed="#f6b93b"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ (messagesWaiting() === 1 ? 'pro.msgs.waiting.one' : 'pro.msgs.waiting') | t:{ count: messagesWaiting() } }}</b>
+                <small class="wrap">{{ 'pro.msgs.unlock' | t }}</small>
+              </span>
+            </div>
+            <button type="button" class="ui-btn" (click)="seePro()">{{ 'pro.see' | t }}</button>
+            <small class="safe">{{ 'pro.msgs.safe' | t }}</small>
+          </div>
+        }
+      }
+
       <!-- The account, centred, with "Todas las cuentas" first in its list. -->
       <div class="account-row">
         <button type="button" class="ui-chip account" (click)="pickingAccount.set(true)">

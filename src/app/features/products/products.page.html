@@ -24,7 +24,7 @@
         <app-badge shape="ci" [size]="72" builtin="trending-up" fixed="#34c98b"></app-badge>
         <h2>{{ 'products.empty.title' | t }}</h2>
         <p>{{ 'products.empty.body' | t }}</p>
-        <button type="button" class="ui-btn" (click)="picking.set(true)">
+        <button type="button" class="ui-btn" (click)="startEnrol()">
           <ion-icon name="add"></ion-icon>{{ 'products.add' | t }}
         </button>
       </div>
@@ -78,7 +78,7 @@
       }
 
       <div class="ui-list add-account">
-        <button type="button" class="ui-row plain" (click)="picking.set(true)">
+        <button type="button" class="ui-row plain" (click)="startEnrol()">
           <ion-icon name="add" class="ui-p"></ion-icon>
           <span class="ui-tx"><b class="ui-p">{{ 'products.add' | t }}</b></span>
         </button>
@@ -326,7 +326,7 @@
                         <span class="ui-am">{{ money(totalHeld(line), line.account.currency_code) }}</span>
                       </div>
                     }
-                    <button type="button" class="ui-row plain" (click)="openProduct(null)">
+                    <button type="button" class="ui-row plain" (click)="newProduct()">
                       <ion-icon name="add" class="ui-p"></ion-icon>
                       <span class="ui-tx"><b class="ui-p">{{ 'ui.yields.addProduct' | t }}</b></span>
                     </button>

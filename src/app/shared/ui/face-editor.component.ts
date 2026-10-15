@@ -11,6 +11,7 @@
  * form that opened it, and that form saves them with everything else.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { IonIcon, IonModal } from '@ionic/angular';
 
@@ -62,7 +63,7 @@ type Tab = 'icon' | 'color' | 'image';
             <div class="tabs" role="tablist">
               <button type="button" role="tab" [class.on]="tab() === 'icon'" (click)="tab.set('icon')">{{ 'face.tab.icon' | t }}</button>
               <button type="button" role="tab" [class.on]="tab() === 'color'" (click)="tab.set('color')">{{ 'face.tab.color' | t }}</button>
-              <button type="button" role="tab" [class.on]="tab() === 'image'" (click)="tab.set('image')">{{ 'face.tab.image' | t }}</button>
+              <button type="button" role="tab" [class.on]="tab() === 'image'" (click)="openImages()">{{ 'face.tab.image' | t }}@if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon></span> }</button>
             </div>
 
             @switch (tab()) {
@@ -183,6 +184,7 @@ type Tab = 'icon' | 'color' | 'image';
 })
 export class FaceEditorComponent {
   private readonly database = inject(DatabaseService);
+  readonly pro = inject(PaywallService);
   private readonly icons = inject(CustomIconsService);
   private readonly i18n = inject(I18nService);
 
@@ -201,6 +203,12 @@ export class FaceEditorComponent {
   readonly startColor = input<string | null>(null);
   /** Opens on a tab of its own: the pencil over an image opens on the image. */
   readonly startTab = input<Tab>('icon');
+
+  /** Own pictures are Pro; one already chosen is still shown (a lock hides nothing on record). */
+  openImages(): void {
+    if (!this.pro.can('ownImages') && this.startTab() !== 'image') { this.pro.ask('ownImages'); return; }
+    this.tab.set('image');
+  }
 
   readonly done = output<FaceChoice>();
   readonly cancelled = output<void>();

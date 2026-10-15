@@ -24,6 +24,16 @@
       }
     }
 
+    <!-- Finance Pro (34f-34h): a block of its own, well apart from the one above. -->
+    <button type="button" class="ui-pro-card" data-tour="more-pro" (click)="go('/pro')">
+      <app-badge shape="ci" [size]="44" builtin="diamond-outline" fixed="#f6b93b"></app-badge>
+      <span class="ui-tx">
+        <b class="wrap">{{ (pro.unlocked() ? 'pro.name' : 'pro.card.free') | t }}</b>
+        <small class="wrap">{{ proLine() }}</small>
+      </span>
+      <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+    </button>
+
     <!-- What left the bottom bar (33f): on top, so nothing is out of reach. -->
     @if (offBar().length) {
       <div class="ui-h">{{ 'bar.offBar' | t }}</div>
@@ -116,6 +126,7 @@
       <button type="button" class="ui-row" (click)="go('/tax')">
         <app-badge [size]="40" builtin="calculator-outline" fixed="#ff9152"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.tax' | t }}</b><small>{{ 'more.tax.hint' | t:{ year } }}</small></span>
+        @if (!pro.unlocked()) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
     </div>

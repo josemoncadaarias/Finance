@@ -54,6 +54,8 @@ test('no phrase is left empty or accidentally identical', () => {
     'report.headline.balance', 'report.categories.total',
     // A loan's capital, and a variable rate: the same word in both.
     'loans.pay.capital', 'loans.form.variable', 'loans.uvr.pesos',
+    // The plan's name and its tag are a brand, the same in both.
+    'pro.name', 'pro.tag', 'tour.more.7.title',
   ]);
   const identical = Object.keys(SPANISH)
     .filter(key => SPANISH[key] === ENGLISH[key] && !sameOnPurpose.has(key));

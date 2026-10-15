@@ -14,6 +14,7 @@
  * later pass over the data leaves the correction alone.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import {
   Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild,
   type OnDestroy, type OnInit,
@@ -193,6 +194,7 @@ import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 })
 export class EntryComponent implements OnInit, OnDestroy {
   private readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   readonly i18n = inject(I18nService);
 
   readonly request = input.required<EntryRequest>();
@@ -1483,6 +1485,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   newCategory(): void {
+    if (!this.pro.can('newCategories')) { this.pro.ask('newCategories'); return; }
     this.editingCategory.set({ category: null, kind: this.kind() === 'expense' ? 'expense' : 'income' });
   }
 

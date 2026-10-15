@@ -135,3 +135,14 @@
 .group-body .head .total { font-weight: 600; font-size: 14px; white-space: nowrap; }
 .group-hint { margin: 2px 4px 0; text-align: center; }
 .group-answer { position: sticky; bottom: 0; }
+
+/* Finance Pro: the month's messages (34d). */
+.pro-month { padding: 14px 16px; margin-bottom: 12px;
+  .line { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+  .bar { height: 8px; border-radius: 4px; margin-top: 8px; background: var(--app-s2); overflow: hidden;
+    i { display: block; height: 100%; background: var(--app-yel); border-radius: 4px; } }
+  small { display: block; color: var(--app-mu); font-size: 12.5px; margin-top: 8px; } }
+.pro-waiting { padding: 16px; margin-bottom: 14px; border: 1px solid rgba(var(--app-yel-rgb), 0.5); background: rgba(var(--app-yel-rgb), 0.08);
+  .top { display: flex; gap: 12px; align-items: center; }
+  .ui-btn { width: 100%; margin-top: 12px; }
+  .safe { display: block; text-align: center; color: var(--app-mu); font-size: 12.5px; margin-top: 8px; } }

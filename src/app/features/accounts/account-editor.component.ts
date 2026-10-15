@@ -13,6 +13,7 @@
  * which leaves a trail.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import {
   Component, HostListener, computed, inject, input, output, signal, type OnInit,
 } from '@angular/core';
@@ -71,6 +72,24 @@ export class AccountEditorComponent implements OnInit {
 
   private readonly flow = inject(StatementFlowService);
   private readonly toast = inject(ToastService);
+  private readonly pro = inject(PaywallService);
+
+  /** Pesos are free; an account in another currency is Pro (rule 21). */
+  chooseCurrency(code: string): void {
+    this.pickingCurrency.set(false);
+    if (code !== 'COP' && !this.pro.can('currencies')) { this.pro.ask('currencies'); return; }
+    this.currency.set(code);
+  }
+
+  addCurrency(): void {
+    if (!this.pro.can('currencies')) { this.pro.ask('currencies'); return; }
+    this.addingCurrency.set(true);
+  }
+
+  /** The first statement is free; the file picker opens only when one more may be read. */
+  async pickStatement(input: HTMLInputElement): Promise<void> {
+    if (await this.pro.allow('statements')) input.click();
+  }
 
   /** Open while the face - icon, colour, image - is being chosen (2l-2n). */
   readonly editingFace = signal(false);

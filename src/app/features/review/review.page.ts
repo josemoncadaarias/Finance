@@ -12,6 +12,8 @@
  * are the same rows on the same screen.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
+import { PLAN } from '../../core/paywall/plan';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -108,6 +110,7 @@ interface Batch {
 })
 export class ReviewPage {
   private readonly database = inject(DatabaseService);
+  readonly pro = inject(PaywallService);
   private readonly notices = inject(NoticeInboxService);
   readonly i18n = inject(I18nService);
   private readonly statements = inject(StatementsService);
@@ -476,6 +479,7 @@ export class ReviewPage {
   private async openMany(lines: readonly Line[]): Promise<void> {
     const open = lines.filter(line => line.sameAs === null);
     if (open.length === 0) return;
+    if (this.messagesBlocked(open.map(line => line.proposal))) return;
     if (open.length === 1) { this.tapped(open[0]); return; }
     const memory = await new ProposalsRepository(this.database.driver).shopMemory();
     const signs = open.map(line => Math.sign(line.proposal.amount_minor ?? -1));
@@ -528,6 +532,10 @@ export class ReviewPage {
 
   /** A row tapped: ticked while choosing, opened in the movement form otherwise. */
   tapped(line: Line): void {
+    if (!this.selecting() && line.proposal.source === 'notification' && this.messagesLocked()) {
+      this.pro.ask('noticeMovements');
+      return;
+    }
     if (this.selecting()) this.toggle(line);
     // Saved as a transfer last time: it opens as one, ready to save.
     else if ((line.transferTo !== null || this.partnerOf(line) !== null) && line.proposal.account_id !== null) this.asTransfer(line);
@@ -1268,6 +1276,7 @@ export class ReviewPage {
       const accounts = new AccountsRepository(db);
       const categories = new CategoriesRepository(db);
       const transactions = new TransactionsRepository(db);
+      this.messagesUsed.set(await this.pro.messagesThisMonth());
 
       const [waiting, allAccounts, allCategories] = await Promise.all([
         proposals.pending(), accounts.list(), categories.list(),
@@ -1759,7 +1768,37 @@ export class ReviewPage {
     }
   }
 
+  // --- Finance Pro: 15 movements a month from bank messages (rule 21) -------
+
+  /** Movements saved from messages since the 1st, read with the list. */
+  readonly messagesUsed = signal(0);
+  readonly messagesFree = PLAN.noticeMovements.free;
+  /** Messages waiting to be answered, the ledger's twins aside. */
+  readonly messagesWaiting = computed(() => this.batches()
+    .reduce((n, batch) => n + batch.lines.filter(line => line.proposal.source === 'notification' && line.sameAs === null).length, 0));
+  readonly messagesLocked = computed(() => !this.pro.unlocked() && this.messagesUsed() >= this.messagesFree);
+  /** "Se renueva el 1 de noviembre". */
+  readonly messagesRenew = computed(() => {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return next.toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'long' });
+  });
+
+  /** Saving these would pass this month's free messages: the sheet says so and nothing is written. */
+  private messagesBlocked(proposals: readonly MovementProposal[]): boolean {
+    if (this.pro.unlocked()) return false;
+    const count = proposals.filter(one => one.source === 'notification').length;
+    if (count === 0 || this.messagesUsed() + count <= this.messagesFree) return false;
+    this.pro.ask('noticeMovements');
+    return true;
+  }
+
+  seePro(): void {
+    void this.router.navigateByUrl('/pro');
+  }
+
   private async write(proposals: readonly MovementProposal[]): Promise<void> {
+    if (this.messagesBlocked(proposals)) return;
     this.working.set(true);
     this.error.set('');
     try {

@@ -10,6 +10,7 @@
  * makes archiving an informed decision rather than a guess.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
@@ -51,6 +52,7 @@ function readOrder(): 'use' | 'name' {
 })
 export class CategoriesPage {
   readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   readonly status = this.database.status;
 
   private readonly rawExpenses = signal<UsedCategory[]>([]);
@@ -187,6 +189,7 @@ export class CategoriesPage {
    * looked for.
    */
   startNew(): void {
+    if (!this.pro.can('newCategories')) { this.pro.ask('newCategories'); return; }
     this.choosingList.set(true);
   }
 

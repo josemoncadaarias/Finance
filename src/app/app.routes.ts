@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 
 import { ViewPrefsService } from './core/ui/view-prefs.service';
+import { proGuard } from './core/paywall/paywall.service';
 
 export const routes: Routes = [
   {
@@ -58,6 +59,7 @@ export const routes: Routes = [
   },
   {
     path: 'tax',
+    canActivate: [proGuard('tax')],
     loadComponent: () => import('./features/tax/tax.page').then(m => m.TaxPage),
   },
   {
@@ -83,6 +85,11 @@ export const routes: Routes = [
     // Más → Tus datos → Borrar todos los datos (21f).
     path: 'erase',
     loadComponent: () => import('./features/erase/erase.page').then(m => m.ErasePage),
+  },
+  {
+    // Finance Pro (34a): what it opens and what it costs.
+    path: 'pro',
+    loadComponent: () => import('./features/pro/pro.page').then(m => m.ProPage),
   },
   {
     // Más: everything the drawer held that is not a tab.

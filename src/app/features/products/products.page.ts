@@ -20,6 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { TourService } from '../../core/tour/tour.service';
 import { DateFieldComponent } from '../../shared/ui/date-field.component';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
@@ -186,6 +187,7 @@ export class ProductsPage {
   readonly MOVE = MOVE_COLOR;
 
   readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   private readonly compose = inject(ComposeService);
   private readonly accent = inject(AccentService);
 
@@ -1937,6 +1939,15 @@ export class ProductsPage {
    * different - alcancias, bolsillos, metas, espacios - and inventing one
    * word for all of them would only be right for one bank.
    */
+  /** One product is free (rule 21): an account that earns brings its first. */
+  async startEnrol(): Promise<void> {
+    if (await this.pro.allow('products')) this.picking.set(true);
+  }
+
+  async newProduct(): Promise<void> {
+    if (await this.pro.allow('products')) await this.openProduct(null);
+  }
+
   async openProduct(product: YieldProduct | null): Promise<void> {
     const line = this.openLine();
     if (!line) return;

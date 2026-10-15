@@ -2632,3 +2632,17 @@ ion-app::before {
 // big card, the same place on every screen.
 .ui-hero:has(> app-amounts-eye.corner), .ui-card:has(> app-amounts-eye.corner) { position: relative; padding-right: 60px; }
 app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }
+
+/* Finance Pro: the tag beside something locked (34b, 34e), on every screen. */
+.ui-pro {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; vertical-align: middle;
+  padding: 2px 8px; border-radius: 9px; font-size: 11.5px; font-weight: 700; line-height: 1.4;
+  background: rgba(var(--app-yel-rgb), 0.18); color: var(--app-yel);
+  ion-icon { font-size: 11px; }
+}
+/* Its card in Más (34f-34h): a block of its own, with room above and below. */
+.ui-pro-card {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 16px 0 6px; padding: 14px 16px;
+  border-radius: 20px; background: var(--app-s1); border: 1px solid rgba(var(--app-yel-rgb), 0.45);
+  color: var(--app-tx); font: inherit; text-align: left; cursor: pointer;
+}
