@@ -464,3 +464,39 @@ test('the date leaves the description however it was written', () => {
   ]), COP);
   assert.deepEqual(read.rows.map(row => row.description), ['Redención Cashback', 'Envío a otra llave']);
 });
+
+// ---------------------------------------------------------------------------
+// What is missing to add up, found among the statement's own summary lines
+// (Jose, 2026-10-15: Rappi Card's 11.101,42 of interest is printed in its
+// summary but in no row)
+// ---------------------------------------------------------------------------
+
+function cardWithInterest(interestLine) {
+  return page([
+    [[40, 'Extracto de tarjeta de crédito'], [300, 'Pago mínimo'], [400, '$50.000,00']],
+    [[40, 'Saldo periodo anterior'], [300, '$0,00']],
+    ...(interestLine ? [[[40, '+ Intereses corrientes del mes'], [200, '$1.500,00'], [300, '+ Intereses corrientes'], [450, '$1.500,00']]] : []),
+    [[40, 'Pago total'], [300, '$61.500,00']],
+    [[40, 'Virtual'], [100, '2026-09-02'], [170, 'SUPERMERCADO'], [330, '$60.000,00']],
+    [[40, 'Virtual'], [100, '2026-09-05'], [170, 'FARMACIA'], [330, '$40.000,00']],
+    [[40, '-'], [100, '2026-09-08'], [170, 'PAGOS POR PSE'], [330, '$-15.000,00']],
+    [[40, '-'], [100, '2026-09-10'], [170, 'PAGOS POR PSE'], [330, '$-25.000,00']],
+  ]);
+}
+
+test('a figure missing to add up, printed in the summary, becomes one more movement', () => {
+  const read = readStatement(cardWithInterest(true), COP);
+  assert.equal(read.balances, 'checked');
+  const last = read.rows[read.rows.length - 1];
+  assert.equal(last.summary, true);
+  assert.equal(last.amount_minor, -150_000, 'interest is a spending of the card');
+  assert.equal(last.description, 'Intereses corrientes del mes');
+  assert.equal(last.occurred_on, '2026-09-10', 'dated on the last day of the list');
+});
+
+test('a figure found nowhere but in a total leaves the statement "off", with nothing invented', () => {
+  const read = readStatement(cardWithInterest(false), COP);
+  assert.equal(read.balances, 'off');
+  assert.equal(read.offBy_minor, -150_000);
+  assert.ok(read.rows.every(row => !row.summary));
+});

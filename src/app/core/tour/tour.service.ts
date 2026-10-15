@@ -175,6 +175,7 @@ const TOUR_LIST = {
       // 2026-10-14: a group that repeats answered whole; "Editar" for several chosen.
       { sel: 'app-review .shops', title: 'tour.review.6.title', text: 'tour.review.6.text', since: 3 },
       { title: 'tour.review.7.title', text: 'tour.review.7.text', since: 3 },
+      { title: 'tour.review.8.title', text: 'tour.review.8.text', since: 4 },
     ],
   },
   notifications: {

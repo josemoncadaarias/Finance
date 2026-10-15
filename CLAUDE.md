@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (800 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (802 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -447,6 +447,22 @@ these):
   22), and a movement whose description runs onto a second line keeps only
   its first line. A statement that reads no movement says so and saves
   nothing; one that does not add up says "No cuadra" and by how much.
+  **What is missing to add up is looked for in the statement's own summary**
+  (Jose, 2026-10-15: Rappi Card's statement was off by exactly its 11.101,42
+  of "Intereses corrientes", printed in its summary and in no row). When
+  opening plus what was read misses the closing figure, every line that is
+  not a movement is searched for exactly that amount (`summaryLineFor`): the
+  words printed just before it say what it is, and a total or a balance
+  ("saldo", "total", "cupo", "mínimo", "pago total", "consumos del mes"...)
+  is never taken. Found, it is one more proposal - the missing amount,
+  signed so the statement adds up, dated on the list's last day, its words
+  as the description, `summary: true` in its evidence - and the statement
+  "Cuadra"; Por revisar marks it "Del resumen del extracto" (counted under
+  "Con aviso"), and nothing is saved without the person, as always. Found
+  nowhere, the statement stays "No cuadra" and nothing is invented. On a
+  card, an unsigned purchase is no longer flagged as a guessed sign.
+  Review tour step `since: 4`. Tests in `statement.test.mjs`; checked in a
+  browser with a card PDF carrying its interest only in the summary.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
