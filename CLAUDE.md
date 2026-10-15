@@ -718,6 +718,26 @@ these):
   after, over five orders of Inicio, chart and list, all accounts and five
   kinds of account, Deudas reordered and every other screen (86 views).
 
+- **"Barra de abajo": the floating bar's three buttons are chosen** (Jose,
+  2026-10-15, mockups `33a`-`33f`, approved as drawn). Personaliza tu vista
+  → Barra de abajo (`/view/bar`, `features/view/bar.page.ts`): the bar as it
+  will look on top, its three buttons (Inicio, Cuentas, Reporte as the app
+  comes), each tapped to choose another screen in a sheet - Deudas,
+  Presupuestos, Rendimientos, Por revisar, Categorías, Monedas, Renta - and
+  dragged by ☰; one already on the bar swaps places. The "+" in the middle
+  and Más at the end never move. Kept with the rest of the view on the device
+  (`finance.view` → `bar`, `ViewPrefsService.bar`); the arithmetic is pure in
+  `core/ui/bar-choice.ts` (`barOf`, `withChoice`, `movedBar`, `buttonFor`,
+  `startRoute`, `leftTheBar`; `bar-choice.test.mjs`). **The app opens on the
+  first button** (the `''` route redirects through `startRoute`). A screen
+  lights the button whose routes match it most closely (Deudas on the bar
+  lights for `/debts`, not Cuentas), anything else lights Más. Inicio or
+  Reporte off the bar are listed on top of Más under "No están en tu barra"
+  (Cuentas is always under Tus finanzas). Tours: view step `since: 2`, a new
+  `bar` tour. Checked in a browser on the sample data: choosing, the swap,
+  dragging with the real handle, the lit button per screen, Más, opening on
+  Deudas, the reset.
+
 ---
 
 ## Decisions already made

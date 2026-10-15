@@ -12,6 +12,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { VIEW_SCREENS, firstFace, movedKeys, orderedBlocks, type ViewBlock, type ViewScreen } from './view-order';
+import { DEFAULT_BAR, barOf, movedBar, startRoute, withChoice, type BarId } from './bar-choice';
 
 export { VIEW_SCREENS, type ViewBlock, type ViewScreen } from './view-order';
 
@@ -21,6 +22,8 @@ interface Stored {
   hidden: string[];
   /** Each screen's blocks in the order chosen; empty for how the app comes. */
   order: Partial<Record<ViewScreen, string[]>>;
+  /** The bottom bar's three buttons (33b); none for how the app comes. */
+  bar?: BarId[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,6 +49,33 @@ export class ViewPrefsService {
 
   /** What Inicio opens on: whichever of the chart and the list comes first. */
   readonly first = computed<'chart' | 'list'>(() => firstFace(this.homeOrder()));
+
+  /** The bottom bar's three buttons, in order (33b). */
+  readonly bar = computed<BarId[]>(() => barOf(this.stored().bar));
+  /** Where the app opens: the bar's first button. */
+  startRoute(): string {
+    return startRoute(this.bar());
+  }
+
+  /** Button `slot` of the bar becomes `id` (one already on it swaps places). */
+  setBarButton(slot: number, id: BarId): void {
+    this.saveBar(withChoice(this.bar(), slot, id));
+  }
+
+  /** The bar's button at `from` dragged to `to`. */
+  moveBarButton(from: number, to: number): void {
+    if (from !== to) this.saveBar(movedBar(this.bar(), from, to));
+  }
+
+  resetBar(): void {
+    this.saveBar([...DEFAULT_BAR]);
+  }
+
+  private saveBar(bar: BarId[]): void {
+    const comes = bar.every((id, i) => id === DEFAULT_BAR[i]);
+    const { bar: _, ...rest } = this.stored();
+    this.save(comes ? rest : { ...rest, bar });
+  }
 
   /** Moves the block at `from` to `to` among a screen's movable blocks. */
   move(screen: ViewScreen, from: number, to: number): void {
@@ -78,7 +108,7 @@ export class ViewPrefsService {
   }
 
   /** Whether anything differs from how the app comes. */
-  readonly changed = computed(() => this.stored().hidden.length > 0
+  readonly changed = computed(() => this.stored().hidden.length > 0 || !!this.stored().bar
     || (Object.keys(VIEW_SCREENS) as ViewScreen[]).some(s => {
       const now = this.orderOf(s).map(b => b.key), comes = VIEW_SCREENS[s].blocks.map(b => b.key);
       return now.some((k, i) => k !== comes[i]);
@@ -104,9 +134,11 @@ function read(): Stored {
     }
     // A first face chosen before the order existed (2026-10-15): the list ahead of the chart.
     if (raw?.first === 'list' && !order.home) order.home = ['home.attention', 'home.figures', 'home.list', 'home.chart'];
+    const bar = raw?.bar === undefined ? undefined : barOf(raw.bar);
     return {
       hidden: Array.isArray(raw?.hidden) ? raw.hidden.filter((k): k is string => typeof k === 'string') : [],
       order,
+      ...(bar ? { bar } : {}),
     };
   } catch {
     return { hidden: [], order: {} };

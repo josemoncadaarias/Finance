@@ -33,6 +33,7 @@ import G29 from './screens-29.mjs';
 import G30 from './screens-30.mjs';
 import G31 from './screens-31.mjs';
 import G32 from './screens-32.mjs';
+import G33 from './screens-33.mjs';
 
 const require = createRequire((process.env.MOCK_DEPS ?? process.cwd()) + '/');
 const { chromium } = require('playwright-core');
@@ -51,7 +52,7 @@ const accents = `<div style="padding:20px 16px"><div style="font-size:21px;font-
  <div style="display:flex;gap:10px">${swatch('Zafiro', '#6378ff', '#4a5ef0', 'Recomendado. El azul del ícono, con un toque violeta: propio y tranquilo.')}${swatch('Cobalto', '#3f7bf2', '#2f5fd8', 'Más cerca del de hoy, un poco más profundo.')}</div>
  <div style="display:flex;gap:10px;margin-top:10px">${swatch('Índigo', '#7c6cff', '#6352f0', 'Más violeta: se distingue de todos los bancos.')}${swatch('Hoy', '#4d8dff', '#3a6fe0', 'El que tiene la app ahora.')}</div></div>`;
 
-const all = { '00-azul-opciones': accents, ...G1, ...G2, ...G3, ...G4, ...G5, ...G6, ...G7, ...G8, ...G9, ...G10, ...G11, ...G12, ...G13, ...G14, ...G15, ...G16, ...G17, ...G21, ...G22, ...G23, ...G24, ...G25, ...G26, ...G27, ...G28, ...G29, ...G30, ...G31, ...G32 };
+const all = { '00-azul-opciones': accents, ...G1, ...G2, ...G3, ...G4, ...G5, ...G6, ...G7, ...G8, ...G9, ...G10, ...G11, ...G12, ...G13, ...G14, ...G15, ...G16, ...G17, ...G21, ...G22, ...G23, ...G24, ...G25, ...G26, ...G27, ...G28, ...G29, ...G30, ...G31, ...G32, ...G33 };
 const only = process.argv[2];
 const browser = await chromium.launch({ executablePath: process.env.MOCK_CHROME });
 const p = await browser.newPage({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2 });

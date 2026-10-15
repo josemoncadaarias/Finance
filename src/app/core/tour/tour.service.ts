@@ -82,7 +82,15 @@ const TOUR_LIST = {
   view: {
     steps: [
       { title: 'tour.view.1.title', text: 'tour.view.1.text' },
-      { sel: 'app-view .ui-list', title: 'tour.view.2.title', text: 'tour.view.2.text' },
+      { target: 'view-screens', title: 'tour.view.2.title', text: 'tour.view.2.text' },
+      // 2026-10-15: the bottom bar's buttons are chosen here too (33a).
+      { target: 'view-bar', title: 'tour.view.3.title', text: 'tour.view.3.text', since: 2 },
+    ],
+  },
+  bar: {
+    steps: [
+      { target: 'bar-preview', title: 'tour.bar.1.title', text: 'tour.bar.1.text' },
+      { target: 'bar-buttons', title: 'tour.bar.2.title', text: 'tour.bar.2.text' },
     ],
   },
   accounts: {
@@ -231,7 +239,7 @@ export const TOURS: Record<TourId, Tour> = TOUR_LIST;
 
 /** Which screen's tour a route offers; the first match wins, most specific first. */
 const ROUTE_TOURS: [RegExp, TourId][] = [
-  [/^\/more/, 'more'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
+  [/^\/more/, 'more'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
   [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
   [/^\/debts/, 'debts'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
