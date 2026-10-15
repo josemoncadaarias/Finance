@@ -29,11 +29,11 @@ const OPEN_KEY = 'finance.attentionOpen';
   standalone: true,
   // Hidden from "Personaliza tu vista", it still shows a payment already late
   // or a cap gone over (31f): those are never kept quiet.
-  host: { '[hidden]': 'onlyUrgent() && !urgent()' },
+  host: { '[hidden]': '(onlyUrgent() && !urgent()) || total() === 0' },
   imports: [TranslatePipe, IonIcon, DueHomeComponent, LimitsHomeComponent],
   template: `
     @if (total() > 0) {
-      <button type="button" class="ui-card bar" data-tour="attention" (click)="toggle()" [attr.aria-expanded]="open()">
+      <button type="button" class="ui-card bar" [class.open]="open()" data-tour="attention" (click)="toggle()" [attr.aria-expanded]="open()">
         <span class="bell" [class.red]="urgent()"><ion-icon name="notifications-outline"></ion-icon></span>
         <span class="what">
           <b>{{ 'home.attention.title' | t:{ count: total() } }}</b>
@@ -56,7 +56,7 @@ const OPEN_KEY = 'finance.attentionOpen';
     :host([hidden]) { display: none; }
     .bar {
       display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-      font: inherit; color: inherit; cursor: pointer; padding: 11px 14px; margin-bottom: 10px;
+      font: inherit; color: inherit; cursor: pointer; padding: 11px 14px;
     }
     .bell {
       width: 36px; height: 36px; border-radius: 50%; flex: none; display: grid; place-items: center;
@@ -72,6 +72,12 @@ const OPEN_KEY = 'finance.attentionOpen';
     }
     .pill.red { background: rgba(var(--app-red-rgb), 0.18); color: var(--app-red); }
     .pill.goal { background: rgba(var(--app-pr-rgb), 0.18); color: var(--app-pr); }
+    /* The space around this block is the page's (Inicio's slots); inside it,
+       the bar and its rows are 10px apart, and nothing hangs off the end. */
+    .bar.open { margin-bottom: 10px; }
+    .rows { display: flex; flex-direction: column; gap: 10px; }
+    .rows > * { margin: 0 !important; }
+    .rows > :empty { display: none; }
     .rows[hidden] { display: none; }
   `],
 })
