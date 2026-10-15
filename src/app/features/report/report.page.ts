@@ -11,6 +11,7 @@
  * to say twice what the app already knows.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonContent, IonIcon, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -57,6 +58,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
 })
 export class ReportPage {
   private readonly report = inject(ReportService);
+  readonly pro = inject(PaywallService);
   private readonly yieldsReport = inject(YieldsReportService);
   readonly privacy = inject(PrivacyService);
   readonly filter = inject(FilterService);
@@ -205,7 +207,13 @@ export class ReportPage {
     }
   }
 
+  /** A paid section of the money report while Pro is not on (rule 21): its title and what it tells, never its figures. */
+  locked(block: { id: string }): boolean {
+    return this.mode() === 'money' && !this.pro.sectionOpen(block.id);
+  }
+
   async exportExcel(): Promise<void> {
+    if (!this.pro.can('reportExport')) { this.pro.ask('reportExport'); return; }
     const yields = this.mode() === 'yields' ? this.yieldsData() : null;
     const data = this.mode() === 'yields' ? null : this.data();
     if (yields === null && data === null) return;

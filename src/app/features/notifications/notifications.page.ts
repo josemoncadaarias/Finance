@@ -12,6 +12,7 @@
  * the raw list of everything kept (Jose: it no longer served anything).
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
@@ -83,6 +84,7 @@ function lateBy(note: AlertNote): number {
 })
 export class NotificationsPage {
   readonly i18n = inject(I18nService);
+  private readonly pro = inject(PaywallService);
   private readonly location = inject(Location);
   private readonly database = inject(DatabaseService);
 
@@ -288,6 +290,11 @@ export class NotificationsPage {
   }
 
   /** Every app and sender as one kind of row. */
+  /** Sources being read today, as the free allowance counts them. */
+  private watchedCount(): number {
+    return this.sources().filter(one => one.watched).length;
+  }
+
   readonly sources = computed<Source[]>(() => {
     const out: Source[] = [];
     for (const app of this.apps()) {
@@ -468,6 +475,8 @@ export class NotificationsPage {
   /** Starts or stops reading one source. */
   async watchSource(one: Source, on: boolean): Promise<void> {
     if (one.watched === on) return;
+    // One bank is free (rule 21); turning a source off is always allowed.
+    if (on && !(await this.pro.allow('noticeSources', this.watchedCount()))) return;
     if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
     else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
     if (on) await this.askAlerts();
@@ -679,8 +688,11 @@ export class NotificationsPage {
   }
 
   async watchSelected(on: boolean): Promise<void> {
+    let watching = this.watchedCount();
     for (const one of this.selectedSources()) {
       if (one.watched === on) continue;
+      if (on && !(await this.pro.allow('noticeSources', watching))) break;
+      if (on) watching++;
       if (one.sender) await BankNotifications.watchSender({ package: one.sender.package, sender: one.sender.sender, on });
       else if (one.app) await BankNotifications.watch({ package: one.app.package, on });
     }

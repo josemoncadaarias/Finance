@@ -8,6 +8,7 @@
  * archive it once reached. Nothing here moves money by itself.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -35,6 +36,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 })
 export class GoalPage {
   readonly goals = inject(GoalsService);
+  private readonly pro = inject(PaywallService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
@@ -165,7 +167,8 @@ export class GoalPage {
     this.back();
   }
 
-  newGoal(): void {
+  async newGoal(): Promise<void> {
+    if (!(await this.pro.allow('goals'))) return;
     void this.router.navigateByUrl('/plans?face=goals&new=1');
   }
 

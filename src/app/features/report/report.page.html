@@ -75,21 +75,25 @@
       </div>
 
       @for (block of blocks(); track block.id) {
-        <section class="ui-card block" [class.open]="isOpen(block.id)">
-          <div class="bhead" (click)="toggle(block.id)" [attr.aria-expanded]="isOpen(block.id)" role="button">
+        @let shut = locked(block);
+        <section class="ui-card block" [class.open]="isOpen(block.id) && !shut">
+          <div class="bhead" (click)="shut ? pro.ask('reportFull') : toggle(block.id)" [attr.aria-expanded]="isOpen(block.id) && !shut" role="button">
             <app-badge [size]="38" [builtin]="iconOf(block)" [fixed]="colorOf(block)"></app-badge>
             <span class="ui-tx">
               <b class="wrap title">{{ block.title }}</b>
-              @if (!isOpen(block.id) && keyOf(block); as key) { <small class="wrap">{{ key }}</small> }
+              @if (shut) { <small class="wrap">{{ block.about }}</small> }
+              @else if (!isOpen(block.id) && keyOf(block); as key) { <small class="wrap">{{ key }}</small> }
             </span>
+            @if (shut) { <span class="ui-pro"><ion-icon name="lock-closed"></ion-icon>{{ 'pro.tag' | t }}</span> } @else {
             @if (isOpen(block.id) && block.about) {
               <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(block.about)"
                     [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
             }
             <ion-icon class="ui-chev" [name]="isOpen(block.id) ? 'chevron-down-outline' : 'chevron-forward-outline'"></ion-icon>
+            }
           </div>
 
-          @if (isOpen(block.id)) {
+          @if (isOpen(block.id) && !shut) {
             <div class="bbody">
               <!-- ---------------- the headline figures ---------------- -->
               @if (block.kind === 'figures') {
@@ -278,6 +282,9 @@
             </div>
           }
         </section>
+      }
+      @if (mode() === 'money' && !pro.unlocked()) {
+        <p class="pro-export"><ion-icon name="lock-closed"></ion-icon> {{ 'pro.report.export' | t }}</p>
       }
       <div class="ui-page-end"></div>
     }

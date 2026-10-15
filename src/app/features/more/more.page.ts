@@ -13,6 +13,8 @@
  * (Jose, 2026-09-28).
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
+import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
 import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -64,6 +66,12 @@ export class MorePage {
   private readonly goals = inject(GoalsService);
   readonly demo = inject(DemoService);
   private readonly view = inject(ViewPrefsService);
+  readonly pro = inject(PaywallService);
+  /** Movements saved from bank messages this month, for the free card. */
+  private readonly messagesUsed = signal(0);
+  readonly proLine = computed(() => this.pro.unlocked()
+    ? this.i18n.t('pro.card.open')
+    : this.i18n.t('pro.card.free.line', { days: TRIAL_DAYS, used: this.messagesUsed(), free: PLAN.noticeMovements.free }));
   /** Inicio or Reporte when no longer on the bottom bar (33f); Cuentas is always under Tus finanzas. */
   readonly offBar = computed(() => leftTheBar(this.view.bar()).filter(id => id !== 'accounts').map(barScreen));
 
@@ -120,6 +128,7 @@ export class MorePage {
   private async load(): Promise<void> {
     const db = this.database.driver;
     this.waiting.set(await new ProposalsRepository(db).pendingCount());
+    this.messagesUsed.set(await this.pro.messagesThisMonth());
     const row = await db.queryOne<{ active: number; archived: number }>(
       `SELECT SUM(CASE WHEN archived = 0 THEN 1 ELSE 0 END) AS active,
               SUM(CASE WHEN archived = 1 THEN 1 ELSE 0 END) AS archived FROM categories`);

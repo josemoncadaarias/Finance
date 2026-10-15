@@ -111,7 +111,7 @@
           <button type="button" class="ui-chip add" (click)="choosing.set(true)"><ion-icon name="add"></ion-icon>{{ 'debts.empty.add' | t }}</button>
         </div>
       } @else if ((cards.length === 0 && view.shown('debts.cards')) || (loans().length === 0 && view.shown('debts.loans'))) {
-        <button type="button" class="add-line" (click)="cards.length === 0 ? choosing.set(true) : newLoan.set(true)">
+        <button type="button" class="add-line" (click)="cards.length === 0 ? choosing.set(true) : startLoan()">
           <ion-icon name="information-circle-outline"></ion-icon>
           <span>{{ (cards.length === 0 ? 'debts.hint.card' : 'debts.hint.loan') | t }} <b>{{ 'loans.newDebt' | t }}</b></span>
         </button>

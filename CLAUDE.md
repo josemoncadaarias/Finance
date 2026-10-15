@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (826 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (830 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1802,6 +1802,47 @@ backup restore against iOS's own SQLite backend.
    - **Bank notifications**, when that feature resumes (rule 22).
 
    **A 7-day free trial with everything unlocked**, then the free limits above.
+
+   **The list, decided by Jose on 2026-10-15** (replacing the lists above where
+   they differ; `core/paywall/plan.ts` is the table, `paywall-plan.test.mjs`):
+   - Free: accounts in pesos, movements, transfers, Inicio and its chart,
+     the starter categories (rename, hide), credit cards with their statement
+     and reminder, ONE loan, ONE cap, ONE goal, ONE product, the first
+     statement, ONE bank source (app or SMS) with **15 movements a month**
+     saved from messages, backups (local, Drive), CSV, every preference
+     (language, theme, **every accent colour**, the view, the bar, hiding
+     amounts, guides, sample data, erasing), Monedas y TRM to look at, and
+     the report's headline, against the period before, where it went and the
+     biggest movements.
+   - Paid: accounts in other currencies, more statements, products, loans,
+     caps and goals, more bank sources and movements past 15 a month (they
+     keep arriving and wait in Por revisar, locked: "Tienes N movimientos
+     detectados. Desbloquea para guardarlos con un toque"; typing them by hand
+     stays free), the rest of the report and its spreadsheet, the tax
+     simulator, creating categories, own pictures.
+   - **Built (2026-10-15, mockups `34a`-`34h`, approved by Jose)**: the table
+     and `PaywallService` (`core/paywall/`), which answers everything unlocked
+     while there is no store, so nobody notices anything. On the Finance Pro
+     screen (`/pro`, `features/pro/pro.page.ts`) "Ver la app como alguien sin
+     Pro" (`finance.paywall.preview`) shows the free version, to try the locks
+     on the phone; the buy and restore buttons say purchases arrive with the
+     store. **Hide that switch in production when billing is plugged in.**
+     The locks, each through `allow(feature)` (counts in the database) or
+     `can`/`ask`: `/tax` by a route guard (`proGuard`), creating a category
+     (categories page and the movement form), the Imagen propia tab
+     (`face-editor`, an image already chosen still opens), a currency other
+     than COP and "Agregar una moneda" in the account form, reading a
+     statement (the "+" and the account form), a product (enrolling and
+     "Agregar producto"), a loan, a cap, a goal, turning on a bank source
+     past the first, the report's paid sections (title and its `about`, a
+     PRO tag, never figures) and its spreadsheet, and Por revisar past 15
+     message movements this month (card with "15 de 15", the waiting count
+     and "Ver Finance Pro"; opening, Editar and saving those rows ask).
+     `app-pro-sheet` in the shell is the sheet every lock opens. Más carries
+     the Finance Pro card (`.ui-pro-card` in global.scss, with room above
+     and below - Jose: never stuck to the block above). `.ui-pro` is the
+     tag. Tours: Más `since: 3`, a new `pro` tour. Checked in a browser on
+     the sample data in both modes; not on the phone.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
@@ -5046,4 +5087,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages)

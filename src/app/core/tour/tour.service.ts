@@ -77,6 +77,14 @@ const TOUR_LIST = {
       { target: 'more-tools', title: 'tour.more.4.title', text: 'tour.more.4.text' },
       { target: 'more-prefs', title: 'tour.more.5.title', text: 'tour.more.5.text' },
       { target: 'more-prefs', title: 'tour.more.6.title', text: 'tour.more.6.text', since: 2 },
+      // 2026-10-15: Finance Pro, what is free and what is paid (34f).
+      { target: 'more-pro', title: 'tour.more.7.title', text: 'tour.more.7.text', since: 3 },
+    ],
+  },
+  pro: {
+    steps: [
+      { target: 'pro-perks', title: 'tour.pro.1.title', text: 'tour.pro.1.text' },
+      { target: 'pro-prices', title: 'tour.pro.2.title', text: 'tour.pro.2.text' },
     ],
   },
   view: {
@@ -240,7 +248,7 @@ export const TOURS: Record<TourId, Tour> = TOUR_LIST;
 
 /** Which screen's tour a route offers; the first match wins, most specific first. */
 const ROUTE_TOURS: [RegExp, TourId][] = [
-  [/^\/more/, 'more'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
+  [/^\/more/, 'more'], [/^\/pro/, 'pro'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
   [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
   [/^\/debts/, 'debts'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],

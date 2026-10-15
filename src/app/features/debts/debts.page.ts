@@ -6,6 +6,7 @@
  * their section says there are none.
  */
 
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
@@ -41,6 +42,7 @@ export interface LoanSummary { loan: LoanRow; s: LoanSchedule }
 })
 export class DebtsPage {
   private readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   private readonly router = inject(Router);
   private readonly i18n = inject(I18nService);
   readonly accent = inject(AccentService);
@@ -126,8 +128,9 @@ export class DebtsPage {
     void this.router.navigate(['/debts/loan', l.loan.account.id]);
   }
 
-  startLoan(): void {
+  async startLoan(): Promise<void> {
     this.choosing.set(false);
+    if (!(await this.pro.allow('loans'))) return;
     this.newLoan.set(true);
   }
 

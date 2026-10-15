@@ -31,7 +31,7 @@
         </div>
       } @else {
         <div class="ui-list">
-          <button type="button" class="ui-row" (click)="statementFile.click()">
+          <button type="button" class="ui-row" (click)="pickStatement(statementFile)">
             <app-badge shape="ci" [size]="42" builtin="document-text" fixed="#9b7bff"></app-badge>
             <span class="ui-tx">
               <b class="wrap">{{ 'statement.import' | t }}</b>
@@ -77,7 +77,7 @@
           </span>
           <ion-icon name="chevron-down-outline"></ion-icon>
         </button>
-        <button type="button" class="ui-field add" (click)="addingCurrency.set(true)">
+        <button type="button" class="ui-field add" (click)="addCurrency()">
           <ion-icon name="add" class="accent"></ion-icon>
           <span class="in"><span class="val accent">{{ 'accounts.currency.add' | t }}</span></span>
         </button>
@@ -259,7 +259,7 @@
                   [attr.aria-checked]="archived()" [attr.aria-label]="'accounts.archive' | t"
                   (click)="archived.set(!archived())"></button>
         </div>
-        <button type="button" class="ui-row" (click)="statementFile.click()">
+        <button type="button" class="ui-row" (click)="pickStatement(statementFile)">
           <app-badge shape="ci" [size]="42" builtin="document-text" fixed="#9b7bff"></app-badge>
           <span class="ui-tx">
             <b class="wrap">{{ 'statement.import' | t }}</b>
@@ -298,7 +298,7 @@
       </div>
       <div class="ui-list">
         @for (option of currencies(); track option.code) {
-          <button type="button" class="ui-row" (click)="currency.set(option.code); pickingCurrency.set(false)">
+          <button type="button" class="ui-row" (click)="chooseCurrency(option.code)">
             <span class="code-badge">{{ option.code }}</span>
             <span class="ui-tx"><b>{{ option.name }}</b></span>
             @if (currency() === option.code) {
