@@ -42,6 +42,9 @@ import { LimitsService } from '../../core/limits/limits.service';
 import { GoalsService } from '../../core/goals/goals.service';
 import { PrivacyService } from '../../core/ui/privacy.service';
 
+import { ViewPrefsService } from '../../core/ui/view-prefs.service';
+import { barScreen, leftTheBar } from '../../core/ui/bar-choice';
+
 @Component({
   selector: 'app-more',
   templateUrl: './more.page.html',
@@ -60,6 +63,9 @@ export class MorePage {
   private readonly limits = inject(LimitsService);
   private readonly goals = inject(GoalsService);
   readonly demo = inject(DemoService);
+  private readonly view = inject(ViewPrefsService);
+  /** Inicio or Reporte when no longer on the bottom bar (33f); Cuentas is always under Tus finanzas. */
+  readonly offBar = computed(() => leftTheBar(this.view.bar()).filter(id => id !== 'accounts').map(barScreen));
 
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);

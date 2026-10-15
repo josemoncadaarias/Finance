@@ -1,4 +1,7 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+
+import { ViewPrefsService } from './core/ui/view-prefs.service';
 
 export const routes: Routes = [
   {
@@ -92,8 +95,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/view/view.page').then(m => m.ViewPage),
   },
   {
+    // Personaliza tu vista → Barra de abajo (33b).
+    path: 'view/bar',
+    loadComponent: () => import('./features/view/bar.page').then(m => m.BarPage),
+  },
+  {
     path: 'view/:screen',
     loadComponent: () => import('./features/view/view.page').then(m => m.ViewPage),
   },
-  { path: '', redirectTo: 'movements', pathMatch: 'full' },
+  // The app opens on the bottom bar's first button (Inicio unless chosen otherwise, 33e).
+  { path: '', redirectTo: () => inject(ViewPrefsService).startRoute().slice(1), pathMatch: 'full' },
 ];

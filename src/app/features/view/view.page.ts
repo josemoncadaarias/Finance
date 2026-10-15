@@ -17,6 +17,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { VIEW_SCREENS, ViewPrefsService, type ViewBlock, type ViewScreen } from '../../core/ui/view-prefs.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
+import { barScreen } from '../../core/ui/bar-choice';
 
 @Component({
   selector: 'app-view',
@@ -74,6 +75,17 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
           </div>
         } @else {
           <p class="lead">{{ 'view.lead' | t }}</p>
+          <!-- The bottom bar first: it is on every screen (33a). -->
+          <div class="ui-list bar-row" data-tour="view-bar">
+            <button type="button" class="ui-row" (click)="openBar()">
+              <app-badge [size]="40" builtin="apps-outline" fixed="#4cb8f5"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ 'bar.title' | t }}</b>
+                <small class="wrap">{{ barLine() }}</small>
+              </span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
+          </div>
           <div class="ui-list" data-tour="view-screens">
             @for (s of order; track s) {
               <button type="button" class="ui-row" (click)="open(s)">
@@ -100,6 +112,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
     .lead { margin: 4px 4px 12px; color: var(--app-mu); font-size: 14px; line-height: 1.4; }
     .always { color: var(--app-mu); font-size: 12.5px; flex: none; }
     .lead.after { margin: 10px 4px 0; font-size: 13px; }
+    .bar-row { margin-bottom: 12px; }
     ion-reorder-group { display: block; }
     .grip { flex: none; display: grid; place-items: center; width: 34px; height: 40px; margin-right: -6px; color: var(--app-mu); }
     .grip ion-icon { font-size: 24px; }
@@ -148,6 +161,13 @@ export class ViewPage {
   /** "3 de 4 bloques". */
   countLine(s: ViewScreen): string {
     return this.i18n.t('view.count', { shown: this.prefs.shownCount(s), of: VIEW_SCREENS[s].blocks.length });
+  }
+
+  /** "Inicio · Cuentas · Reporte": the bar's buttons, in order. */
+  readonly barLine = computed(() => this.prefs.bar().map(id => this.i18n.t(barScreen(id).label)).join(' · '));
+
+  openBar(): void {
+    void this.router.navigate(['/view', 'bar']);
   }
 
   open(s: ViewScreen): void {

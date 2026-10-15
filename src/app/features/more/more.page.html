@@ -24,6 +24,20 @@
       }
     }
 
+    <!-- What left the bottom bar (33f): on top, so nothing is out of reach. -->
+    @if (offBar().length) {
+      <div class="ui-h">{{ 'bar.offBar' | t }}</div>
+      <div class="ui-list" data-tour="more-offbar">
+        @for (s of offBar(); track s.id) {
+          <button type="button" class="ui-row" (click)="go(s.route)">
+            <app-badge [size]="40" [builtin]="s.icon" [fixed]="s.color"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ s.label | t }}</b><small>{{ s.about | t }}</small></span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
+      </div>
+    }
+
     <div class="ui-h">{{ 'more.finances' | t }}</div>
     <div class="ui-list" data-tour="more-finances">
       <button type="button" class="ui-row" (click)="go('/accounts')">

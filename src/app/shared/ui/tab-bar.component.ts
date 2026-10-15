@@ -1,5 +1,6 @@
 /**
- * The floating bar: Inicio, Cuentas, the "+", Reporte, Más.
+ * The floating bar: three buttons the person chooses (Inicio, Cuentas and
+ * Reporte as the app comes - "Barra de abajo", 33b), the "+" and Más.
  *
  * It replaces the drawer (group 8 of the redesign, approved by Jose on
  * 2026-09-28). The drawer had been chosen because Android's own buttons own
@@ -15,6 +16,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { NgTemplateOutlet } from '@angular/common';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -22,41 +24,35 @@ import { ComposeService } from '../../core/ui/compose.service';
 import { DatabaseService } from '../../core/database/database.service';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { LimitsService } from '../../core/limits/limits.service';
+import { ViewPrefsService } from '../../core/ui/view-prefs.service';
+import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
 
-type Tab = 'home' | 'accounts' | 'report' | 'more';
-
-const TAB_OF: [string, Tab][] = [
-  ['/movements', 'home'],
-  ['/accounts', 'accounts'], ['/products', 'accounts'], ['/debts', 'accounts'], ['/currencies', 'accounts'],
-  ['/report', 'report'],
-  ['/more', 'more'], ['/review', 'more'], ['/categories', 'more'], ['/notifications', 'more'],
-  ['/export', 'more'], ['/account', 'more'], ['/tax', 'more'], ['/plans', 'more'],
-];
 
 @Component({
   selector: 'app-tab-bar',
   standalone: true,
-  imports: [IonIcon, TranslatePipe],
+  imports: [IonIcon, TranslatePipe, NgTemplateOutlet],
   template: `
     <nav data-tour="tabs">
-      <button type="button" [class.on]="tab() === 'home'" (click)="go('/movements')">
-        <ion-icon name="home-outline"></ion-icon><span>{{ 'ui.tab.home' | t }}</span>
-      </button>
-      <button type="button" [class.on]="tab() === 'accounts'" (click)="go('/accounts')">
-        <ion-icon name="wallet-outline"></ion-icon><span>{{ 'ui.tab.accounts' | t }}</span>
-      </button>
-      <button type="button" class="plus" data-tour="plus" (click)="compose.sheet.set(true)"
-              [attr.aria-label]="'ui.tab.new' | t" [title]="'ui.tab.new' | t">
-        <ion-icon name="add"></ion-icon>
-      </button>
-      <button type="button" [class.on]="tab() === 'report'" (click)="go('/report')">
-        <ion-icon name="stats-chart-outline"></ion-icon><span>{{ 'ui.tab.report' | t }}</span>
-      </button>
+      <!-- The three buttons chosen on "Barra de abajo" (33b), the "+" after the
+           second, the More button always last. -->
+      @for (b of buttons(); track b.id; let i = $index) {
+        @if (i === 2) { <ng-container *ngTemplateOutlet="plus"></ng-container> }
+        <button type="button" [class.on]="tab() === b.id" (click)="go(b.route)">
+          <ion-icon [name]="b.icon"></ion-icon><span>{{ b.label | t }}</span>
+        </button>
+      }
       <button type="button" data-tour="more" [class.on]="tab() === 'more'" (click)="go('/more')">
         <ion-icon name="grid-outline"></ion-icon><span>{{ 'ui.tab.more' | t }}</span>
         @if (waiting() > 0 || limitPassed()) { <i class="dot"></i> }
       </button>
     </nav>
+    <ng-template #plus>
+      <button type="button" class="plus" data-tour="plus" (click)="compose.sheet.set(true)"
+              [attr.aria-label]="'ui.tab.new' | t" [title]="'ui.tab.new' | t">
+        <ion-icon name="add"></ion-icon>
+      </button>
+    </ng-template>
   `,
   styles: [`
     :host {
@@ -141,13 +137,12 @@ export class TabBarComponent {
     { initialValue: this.router.url },
   );
 
-  readonly tab = computed<Tab | null>(() => {
-    const path = this.url().split(/[?#]/)[0];
-    for (const [prefix, tab] of TAB_OF) {
-      if (path === prefix || path.startsWith(prefix + '/')) return tab;
-    }
-    return null;
-  });
+  private readonly view = inject(ViewPrefsService);
+  /** The bar's three chosen buttons (Inicio, Cuentas, Reporte as the app comes). */
+  readonly buttons = computed(() => this.view.bar().map(barScreen));
+
+  /** The button the screen on show belongs to; any screen not on the bar is Más's. */
+  readonly tab = computed<BarId | 'more'>(() => buttonFor(this.view.bar(), this.url()));
 
   /** Movements a statement proposed and nobody has answered yet. */
   readonly waiting = signal(0);
