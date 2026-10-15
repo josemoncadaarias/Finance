@@ -143,3 +143,19 @@
 }
 
 .date-sheet ion-datetime { margin: 0 auto; --background: transparent; }
+
+/* A card set up by what the bank shows (32a-32d). */
+.ui-seg.card-mode { margin: 0 0 10px; > button { font-size: 13.5px; } }
+.ui-field .hint { white-space: normal; }
+.card-result {
+  display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px 14px;
+  border-radius: 16px; background: var(--app-s1); border: 1px solid var(--app-border);
+  > ion-icon { flex: none; font-size: 22px; color: var(--app-pr); }
+  .in { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  small { color: var(--app-mu); font-size: 12.5px; }
+  small.line { font-size: 12px; line-height: 1.35; }
+  b { font-size: 19px; font-weight: 600; }
+  b.y { color: var(--app-yel); }
+  b.g { color: var(--app-grn); }
+  b.r { color: var(--app-red); }
+}

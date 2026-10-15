@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (815 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (826 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -689,9 +689,21 @@ these):
   "Cupo usado" says the real percent in red and "Te pasaste del cupo por X"
   replaces "Cupo disponible". The sample data has the four missing cards:
   Arena (nothing owed), Menta (in favour), Roja (over its limit), Nube (no
-  limit). **Proposed, not built**: a new card asks "Cupo total" and "Cupo
-  disponible hoy" instead of "Saldo inicial" and works out the debt
-  (mockups `32a`-`32d`; `32e`-`32g` draw the states above, built).
+  limit). **A card is set up as the bank's app shows it** (Jose, 2026-10-15,
+  mockups `32a`-`32d`, built the same day): the account form asks a card
+  "Cómo está hoy" instead of "Saldo inicial" - "Sé mi cupo disponible"
+  (Cupo total + Cupo disponible hoy) or "Sé lo que debo" (what is owed, no
+  minus, the limit optional) - and says back under them what that means
+  (Debes hoy, Saldo a favor, No debes nada, or Cupo disponible / Te pasaste
+  del cupo). The balance is available − limit, or minus what is owed, and the
+  opening figure saved is that balance less the movements already on record
+  (`core/cards/card-setup.ts`, `card-setup.test.mjs`), so editing a card in
+  use ("Con tus N movimientos desde que la abriste") moves only the opening
+  figure, never a movement; changing only its limit keeps the debt. A card
+  read from a statement keeps the statement's opening field. Accounts tour
+  step `since: 6`. Checked in a browser on the sample data: four new cards
+  saved with the right figures, and Tarjeta Coral edited (232 movements
+  untouched, balance moved by exactly what was typed).
   **Tours**: a step's element was brought in with `scrollIntoView
   ('nearest')`, which left it at the bottom edge - under the floating bar -
   and the lit box was clipped to a sliver there (the Más tour's "Personaliza

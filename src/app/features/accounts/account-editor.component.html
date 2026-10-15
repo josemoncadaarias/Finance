@@ -92,14 +92,16 @@
           <ion-icon name="lock-closed-outline"></ion-icon>
         </div>
       }
-      <label class="ui-field">
-        <span class="in">
-          <span class="lab">{{ 'accounts.opening' | t }}</span>
-          <input inputmode="decimal" [value]="openingBalance().text" placeholder="0,00"
-                 [appAmountInput]="openingBalance()" (amountChange)="openingBalance.set($event)">
-        </span>
-        <span class="unit">{{ currency() }}</span>
-      </label>
+      @if (!cardSetup()) {
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'accounts.opening' | t }}</span>
+            <input inputmode="decimal" [value]="openingBalance().text" placeholder="0,00"
+                   [appAmountInput]="openingBalance()" (amountChange)="openingBalance.set($event)">
+          </span>
+          <span class="unit">{{ currency() }}</span>
+        </label>
+      }
       <button type="button" class="ui-field" (click)="showDate.set('opened')">
         <span class="in">
           <span class="lab">{{ 'accounts.openedOn' | t }}</span>
@@ -109,8 +111,73 @@
       </button>
     </div>
 
+    <!-- A card set up by what the bank's app shows (32a-32d): the debt is worked out, never typed with a minus. -->
+    @if (cardSetup()) {
+      <h3 class="ui-h">{{ 'cards.setup.today' | t }}</h3>
+      @if (cardModes()) {
+        <div class="ui-seg card-mode">
+          <button type="button" [class.on]="cardMode() === 'available'" (click)="cardMode.set('available')">{{ 'cards.setup.byAvailable' | t }}</button>
+          <button type="button" [class.on]="cardMode() === 'owed'" (click)="cardMode.set('owed')">{{ 'cards.setup.byOwed' | t }}</button>
+        </div>
+      }
+      <div class="ui-list" data-tour="card-setup">
+        @if (cardMode() === 'owed') {
+          <label class="ui-field">
+            <span class="in">
+              <span class="lab">{{ 'cards.setup.owed' | t }}</span>
+              <input inputmode="decimal" [value]="owed().text" placeholder="0,00"
+                     [appAmountInput]="owed()" (amountChange)="owed.set($event)">
+              <span class="hint">{{ 'cards.setup.owed.hint' | t }}</span>
+            </span>
+            <span class="unit">{{ currency() }}</span>
+          </label>
+        }
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'accounts.creditLimit' | t }}</span>
+            <input inputmode="decimal" [value]="creditLimit().text"
+                   [placeholder]="cardMode() === 'owed' ? ('cards.setup.limitOptional' | t) : '0,00'"
+                   [appAmountInput]="creditLimit()" (amountChange)="onLimit($event)">
+            @if (cardMode() === 'owed') { <span class="hint">{{ 'cards.setup.limitOptional.hint' | t }}</span> }
+          </span>
+          <span class="unit">{{ currency() }}</span>
+        </label>
+        @if (cardMode() === 'available') {
+          <label class="ui-field">
+            <span class="in">
+              <span class="lab">{{ 'cards.setup.available' | t }}</span>
+              <input inputmode="decimal" [value]="available().text" placeholder="0,00"
+                     [appAmountInput]="available()" (amountChange)="onAvailable($event)">
+              <span class="hint">{{ (isNew() ? 'cards.setup.available.hint' : 'cards.setup.available.editHint') | t }}</span>
+            </span>
+            <span class="unit">{{ currency() }}</span>
+          </label>
+        }
+        @if (limitChanged()) {
+          <button type="button" class="ui-field" (click)="showDate.set('limit')">
+            <span class="in">
+              <span class="lab">{{ 'accounts.limitFrom' | t }}</span>
+              <span class="val">{{ longDate(limitEffectiveOn()) }}</span>
+            </span>
+            <ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
+        }
+      </div>
+      @if (cardResult(); as r) {
+        <div class="card-result">
+          <ion-icon name="calculator-outline"></ion-icon>
+          <span class="in">
+            <small>{{ r.label }}</small>
+            <b [class]="r.tone">{{ r.amount }}</b>
+            <small class="line">{{ r.line }}</small>
+          </span>
+        </div>
+      }
+    }
+
     <!-- A credit card's limit, with the history behind it. -->
     @if (isCredit()) {
+      @if (!cardSetup()) {
       <h3 class="ui-h">{{ 'ui.account.limit' | t }}</h3>
       <div class="ui-list">
         <label class="ui-field">
@@ -130,6 +197,7 @@
         </button>
       </div>
       <p class="explain">{{ 'accounts.creditLimit.hint' | t }}</p>
+      }
 
       <!-- Its two days, both optional (12c). -->
       <h3 class="ui-h">{{ 'cards.dates' | t }}</h3>
