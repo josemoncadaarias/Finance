@@ -72,10 +72,23 @@ export class DebtsPage {
   });
 
   /** Only pesos are added up; a card in another currency is listed on its own. */
-  readonly owedMinor = computed(() => (this.cards() ?? [])
+  readonly cardsOwedMinor = computed(() => (this.cards() ?? [])
     .filter(card => card.account.currency_code === 'COP')
-    .reduce((total, card) => total + card.statement.debtMinor, 0)
-    + this.loans().reduce((total, l) => total + l.s.balanceMinor, 0));
+    .reduce((total, card) => total + card.statement.debtMinor, 0));
+  readonly loansOwedMinor = computed(() => this.loans().reduce((total, l) => total + l.s.balanceMinor, 0));
+  readonly owedMinor = computed(() => this.cardsOwedMinor() + this.loansOwedMinor());
+
+  /** "2 tarjetas", "1 préstamo": under each tile and beside each heading (30i). */
+  countOf(n: number, kind: 'card' | 'loan'): string {
+    return kind === 'card'
+      ? (n === 1 ? this.i18n.t('worth.cardOne') : this.i18n.t('worth.cardMany', { count: n }))
+      : (n === 1 ? this.i18n.t('worth.loanOne') : this.i18n.t('worth.loanMany', { count: n }));
+  }
+
+  /** A tile takes the page down to its own list. */
+  goTo(id: string): void {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   constructor() {
     effect(() => {

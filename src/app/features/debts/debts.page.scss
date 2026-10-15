@@ -2,7 +2,29 @@
 
 app-accounts-faces { margin-bottom: 12px; }
 
-.owed .ui-sub { margin: 2px 0 0; }
+.owed {
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; margin-top: -4px; }
+  .ui-sub { margin: 2px 0 0; }
+}
+
+/* What each kind of debt adds up to: in the big card and beside each heading (30i). */
+.kinds { display: flex; gap: 8px; margin-top: 12px; }
+.kind {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 12px; border: 0; border-radius: 16px; background: rgba(var(--app-bg-rgb), 0.35);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  .head { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+  .head ion-icon { font-size: 16px; }
+  b { font-size: 16px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  small { font-size: 11.5px; color: var(--app-mu); }
+}
+.kind.cards .head { color: var(--app-yel); }
+.kind.loans .head { color: #9b7bff; }
+.ui-h.with-total {
+  display: flex; align-items: baseline; gap: 8px; scroll-margin-top: 12px;
+  span { flex: 1; min-width: 0; }
+  b { text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 700; color: var(--app-tx); font-variant-numeric: tabular-nums; }
+}
 
 .card {
   align-items: flex-start;
@@ -23,5 +45,5 @@ app-accounts-faces { margin-bottom: 12px; }
 
 .state { text-align: center; padding: 40px 16px; }
 
-.month { margin-top: 10px; > div { background: rgba(7, 13, 26, 0.35); } }
+.month { margin-top: 10px; > div { background: rgba(var(--app-bg-rgb), 0.35); } }
 .empty .add { display: inline-flex; align-items: center; gap: 6px; color: var(--app-pr); margin-top: 6px; }
