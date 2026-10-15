@@ -44,19 +44,26 @@ import { ToastService } from '../../shared/ui/toast.service';
           <button type="button" class="price" [class.on]="plan() === 'yearly'" (click)="plan.set('yearly')">
             <span class="save">{{ 'pro.saving' | t:{ n: saving } }}</span>
             <small>{{ 'pro.yearly' | t }}</small>
-            <b>{{ peso(prices.yearly) }}</b>
+            <b>{{ pro.plans()?.yearly?.price ?? peso(prices.yearly) }}</b>
             <small>{{ 'pro.perMonth' | t:{ amount: peso(perMonth) } }}</small>
           </button>
           <button type="button" class="price" [class.on]="plan() === 'monthly'" (click)="plan.set('monthly')">
             <small>{{ 'pro.monthly' | t }}</small>
-            <b>{{ peso(prices.monthly) }}</b>
+            <b>{{ pro.plans()?.monthly?.price ?? peso(prices.monthly) }}</b>
             <small>{{ 'pro.eachMonth' | t }}</small>
           </button>
         </div>
 
-        <button type="button" class="ui-btn buy" (click)="buy()">{{ 'pro.trial' | t:{ days: days } }}</button>
-        <p class="small">{{ after() }}</p>
-        <button type="button" class="link" (click)="buy()">{{ 'pro.restore' | t }}</button>
+        @if (pro.entitled()) {
+          <div class="ui-card active">
+            <ion-icon name="checkmark-circle"></ion-icon>
+            <span class="ui-tx"><b class="wrap">{{ 'pro.active' | t }}</b><small class="wrap">{{ 'pro.active.hint' | t }}</small></span>
+          </div>
+        } @else {
+          <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="buy()">{{ 'pro.trial' | t:{ days: days } }}</button>
+          <p class="small">{{ after() }}</p>
+          <button type="button" class="link" [disabled]="busy()" (click)="restore()">{{ 'pro.restore' | t }}</button>
+        }
         <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
 
         <div class="ui-list preview">
@@ -92,6 +99,8 @@ import { ToastService } from '../../shared/ui/toast.service';
     .link { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 0; background: none;
       color: var(--app-pr); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
     .preview { margin-top: 28px; }
+    .active { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 14px 16px;
+      ion-icon { font-size: 28px; color: var(--app-grn); flex: none; } }
   `],
 })
 export class ProPage {
@@ -105,6 +114,11 @@ export class ProPage {
   readonly perMonth = Math.round(PRICES.yearly / 12);
   readonly saving = Math.round((1 - PRICES.yearly / (PRICES.monthly * 12)) * 100);
   readonly plan = signal<'yearly' | 'monthly'>('yearly');
+  readonly busy = signal(false);
+
+  constructor() {
+    void this.pro.loadPlans();
+  }
   readonly perks = [
     { key: 'notices', icon: 'notifications-outline', color: '#f6b93b' },
     { key: 'yields', icon: 'trending-up-outline', color: '#2ec4b6' },
@@ -114,17 +128,39 @@ export class ProPage {
     { key: 'report', icon: 'stats-chart-outline', color: '#6378ff' },
   ];
 
-  readonly after = computed(() => this.plan() === 'yearly'
-    ? this.i18n.t('pro.after.yearly', { amount: this.peso(PRICES.yearly) })
-    : this.i18n.t('pro.after.monthly', { amount: this.peso(PRICES.monthly) }));
+  readonly after = computed(() => {
+    const store = this.pro.plans()?.[this.plan()]?.price;
+    return this.plan() === 'yearly'
+      ? this.i18n.t('pro.after.yearly', { amount: store ?? this.peso(PRICES.yearly) })
+      : this.i18n.t('pro.after.monthly', { amount: store ?? this.peso(PRICES.monthly) });
+  });
 
   peso(amount: number): string {
     return '$ ' + amount.toLocaleString('es-CO');
   }
 
-  /** No store yet: said plainly, nothing charged. */
-  buy(): void {
-    this.toast.say(this.i18n.t('pro.notYet'), 5000);
+  /** Through Google Play; in a browser there is no store, and it says so. */
+  async buy(): Promise<void> {
+    if (!this.pro.storeAvailable) { this.toast.say(this.i18n.t('pro.notYet'), 5000); return; }
+    this.busy.set(true);
+    try {
+      const result = await this.pro.buy(this.plan());
+      if (result === 'bought') this.toast.say(this.i18n.t('pro.bought'), 5000);
+      else if (result === 'failed') this.toast.say(this.i18n.t('pro.failed'), 5000);
+      else if (result === 'unavailable') this.toast.say(this.i18n.t('pro.unavailable'), 5000);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async restore(): Promise<void> {
+    if (!this.pro.storeAvailable) { this.toast.say(this.i18n.t('pro.notYet'), 5000); return; }
+    this.busy.set(true);
+    try {
+      this.toast.say(this.i18n.t(await this.pro.restore() ? 'pro.restored' : 'pro.notFound'), 5000);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   back(): void {
