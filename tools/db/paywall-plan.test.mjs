@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PLAN, canUse, freeLeft, inTrial, reportSectionFree } from '../../src/app/core/paywall/plan.ts';
+import { PLAN, canUse, freeLeft, inTrial, isUnlocked, reportSectionFree } from '../../src/app/core/paywall/plan.ts';
 
 test('unlocked answers yes to everything', () => {
   for (const feature of Object.keys(PLAN)) assert.equal(canUse(feature, 999, true), true, feature);
@@ -40,4 +40,12 @@ test('the trial lasts seven days', () => {
   assert.equal(inTrial('2026-10-01', '2026-10-07'), true);
   assert.equal(inTrial('2026-10-01', '2026-10-08'), false);
   assert.equal(inTrial(null, '2026-10-08'), false);
+});
+
+test('who has everything open: a purchase always; nobody else once the app charges', () => {
+  assert.equal(isUnlocked(true, true, false), true);
+  assert.equal(isUnlocked(true, false, true), true, 'a test purchase unlocks the free preview');
+  assert.equal(isUnlocked(false, false, false), true, 'before charging, everything is open');
+  assert.equal(isUnlocked(false, false, true), false, 'the preview shows the free version');
+  assert.equal(isUnlocked(false, true, false), false);
 });

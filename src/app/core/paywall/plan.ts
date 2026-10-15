@@ -54,6 +54,23 @@ export const PLAN: Record<Feature, Allowance> = {
 /** The report's sections anybody sees; the rest are `reportFull`. */
 export const FREE_REPORT_SECTIONS: readonly string[] = ['headline', 'versus', 'categories', 'biggest'];
 
+/**
+ * Whether the app charges yet. While false, everybody has everything open
+ * (the store sells nothing until Jose says so); the preview switch still
+ * shows the free version, and a purchase made to test it unlocks it.
+ * Turning it on is this one line.
+ */
+export const CHARGING = false;
+
+/**
+ * Whether everything is open: a purchase or the trial (an active
+ * entitlement in the store), or - while the app does not charge - anybody
+ * not looking at the free version on purpose.
+ */
+export function isUnlocked(entitled: boolean, charging: boolean, previewFree: boolean): boolean {
+  return entitled || (!charging && !previewFree);
+}
+
 /** Days with everything open after installing. */
 export const TRIAL_DAYS = 7;
 

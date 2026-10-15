@@ -16,5 +16,12 @@ export const environment = {
    * A client id is not a secret. It identifies the app, it does not authorise
    * anything, and it is visible in any app that ships one.
    */
+  /**
+   * RevenueCat's public key for Google Play (rule 21: what sits between the
+   * app and Play Billing). Public by design, like the client id below: it
+   * only lets the app ask about its own purchases.
+   */
+  revenueCatGoogleKey: 'goog_ThwIJtddGUvdQHEGbEPOtrkjZYH',
+
   googleWebClientId: '76504816542-p6s2f3akpfkoaker8fojjlpqluvsgtfu.apps.googleusercontent.com',
 };

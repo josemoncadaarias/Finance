@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (830 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (831 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1843,6 +1843,29 @@ backup restore against iOS's own SQLite backend.
      and below - Jose: never stuck to the block above). `.ui-pro` is the
      tag. Tours: Más `since: 3`, a new `pro` tour. Checked in a browser on
      the sample data in both modes; not on the phone.
+   - **Google Play through RevenueCat, wired (2026-10-15)**: Jose created the
+     payments profile in Play Console (Colombia only offers "Organización";
+     business name Jadex Labs, public address left without his home - to
+     replace with a virtual office before launch), added himself as a license
+     tester (My List), and made the RevenueCat project "Finance" (account
+     jadex.apps@gmail.com, entitlement "Finance pro", default offering Monthly
+     + Yearly, no lifetime) with the Play Store app `com.jadexlabs.finance`.
+     Its public key `goog_...` is in `environment*.ts` (`revenueCatGoogleKey`,
+     public by design). `@revenuecat/purchases-capacitor` 13.6.1 (pinned, over
+     two weeks old) is imported lazily by `PaywallService` on Android only:
+     it connects 4 s after opening, any active entitlement is Pro
+     (`entitled`, cached in `finance.pro.entitled` so offline the last answer
+     holds), `loadPlans` reads the store's prices, `buy`/`restore` go through
+     Google Play. **`CHARGING` in `plan.ts` is false**: everybody keeps
+     everything open (`isUnlocked`), and a purchase made while previewing the
+     free version unlocks it, so the whole cycle can be tried with a license
+     tester. The privacy policy (`site/`) gained "Suscripción Finance Pro";
+     Jose must upload `site/` to Netlify again. **Still to do, in order**: a
+     Store bundle with the plugin (the first build is its compile check - no
+     Android SDK in the cloud session); then in Play Console the subscription
+     (`finance_pro`, base plans `monthly` 11,900 and `yearly` 69,900 COP,
+     7-day free trial offer); the service account JSON for RevenueCat; the
+     products attached to the entitlement and the offering in RevenueCat.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):

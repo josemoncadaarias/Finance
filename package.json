@@ -34,6 +34,7 @@
     "@capacitor/status-bar": "8.0.3",
     "@capgo/capacitor-social-login": "^8.5.9",
     "@ionic/angular": "^9.0.0",
+    "@revenuecat/purchases-capacitor": "13.6.1",
     "ionicons": "^8.1.0",
     "jeep-sqlite": "^2.8.0",
     "pdfjs-dist": "^6.3.289",

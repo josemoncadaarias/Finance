@@ -69,7 +69,9 @@ export class MorePage {
   readonly pro = inject(PaywallService);
   /** Movements saved from bank messages this month, for the free card. */
   private readonly messagesUsed = signal(0);
-  readonly proLine = computed(() => this.pro.unlocked()
+  readonly proLine = computed(() => this.pro.entitled()
+    ? this.i18n.t('pro.card.active')
+    : this.pro.unlocked()
     ? this.i18n.t('pro.card.open')
     : this.i18n.t('pro.card.free.line', { days: TRIAL_DAYS, used: this.messagesUsed(), free: PLAN.noticeMovements.free }));
   /** Inicio or Reporte when no longer on the bottom bar (33f); Cuentas is always under Tus finanzas. */
