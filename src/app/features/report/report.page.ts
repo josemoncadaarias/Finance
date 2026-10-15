@@ -41,6 +41,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 import { map } from 'rxjs';
 import type { Block, Value } from '../../core/report/blocks';
 import { ViewPrefsService } from '../../core/ui/view-prefs.service';
+import { inOrder } from '../../core/ui/view-order';
 import type { ReportData } from '../../core/report/report-data';
 import { saveFile } from '../../core/files/save-file';
 import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
@@ -178,6 +179,7 @@ export class ReportPage {
       this.privacy.hidden();
       // A section turned on or off in "Personaliza tu vista".
       this.view.reportHidden();
+      this.view.reportOrder();
       if (this.database.status() === 'ready') void this.build();
     });
   }
@@ -194,7 +196,7 @@ export class ReportPage {
         this.data.set(data);
         // The sections turned off in "Personaliza tu vista" (31h); the first always stays.
         const hidden = this.view.reportHidden();
-        this.blocks.set(blocks.filter(block => block.id === 'headline' || !hidden.has(block.id)));
+        this.blocks.set(inOrder(blocks.filter(block => block.id === 'headline' || !hidden.has(block.id)), this.view.reportOrder()));
       }
       // Another period is another question, and it starts closed.
       this.open.set(new Set());
@@ -216,7 +218,7 @@ export class ReportPage {
       // The spreadsheet carries the real figures even while the eye hides them.
       const bytes = await withAmountsShown(async () => yields
         ? yieldsWorkbook(yields, this.privacy.hidden() ? (await this.yieldsReport.build()).blocks : this.blocks())
-        : reportWorkbook(data!, this.view.reportHidden()));
+        : reportWorkbook(data!, this.view.reportHidden(), this.view.reportOrder()));
       const saved = await saveFile(new Blob([bytes], { type: XLSX_MIME }), name);
       if (saved) this.toast.say(this.i18n.t('report.saved'));
     } catch (error) {

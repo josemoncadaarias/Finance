@@ -56,10 +56,24 @@
     <!-- The sample data is loaded: said on top, always, with the way out (21c). -->
     @if (demo.active()) { <app-demo-home part="strip"></app-demo-home> }
 
+    <!-- Inicio's blocks in the order chosen on "Personaliza tu vista" (31f):
+         Pendientes, the balance, and the chart or list. -->
+    @for (slot of homeSlots(); track slot) {
+      @switch (slot) {
+        @case ('attention') { <ng-container *ngTemplateOutlet="attentionBlock"></ng-container> }
+        @case ('figures') { <ng-container *ngTemplateOutlet="figuresBlock"></ng-container> }
+        @case ('faces') { <ng-container *ngTemplateOutlet="facesBlock"></ng-container> }
+      }
+    }
+
+    <ng-template #attentionBlock>
     <!-- What needs attention - cards and loans due (11o), caps and goals (14f,
          14i, 14m) - folded into one line that opens to them (23b, 23c). -->
     <app-attention-home [onlyUrgent]="!view.shown('home.attention')"></app-attention-home>
 
+    </ng-template>
+
+    <ng-template #figuresBlock>
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
       <section class="ui-hero figures" data-tour="hero">
@@ -144,11 +158,16 @@
       </section>
     }
 
+    </ng-template>
+
+    <ng-template #facesBlock>
     <!-- Chart or list: two faces of one selector - only while both are shown
          (31f), or while a category tapped on the chart opened the list. -->
     @if ((view.shown('home.chart') && view.shown('home.list')) || (!view.shown('home.list') && filter.showList())) {
     <div class="ui-seg faces" data-tour="faces">
+      <!-- The two faces in the order chosen: the one above opens first (31f). -->
       <button type="button" [class.on]="!filter.showList()" [attr.aria-pressed]="!filter.showList()"
+              [style.order]="view.first() === 'list' ? 2 : 0"
               (click)="filter.showList() && filter.toggleList()">
         <ion-icon name="pie-chart-outline"></ion-icon><span>{{ 'summary.chart' | t }}</span>
       </button>
@@ -281,6 +300,7 @@
                             (tapped)="filter.openCategory($event)"></app-spending-chart>
       </div>
     }
+    </ng-template>
   }
     <div class="ui-page-end"></div>
   </main>

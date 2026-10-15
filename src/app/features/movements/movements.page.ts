@@ -72,10 +72,23 @@ export class MovementsPage {
   readonly filter = inject(FilterService);
   /** "Personaliza tu vista": which of Inicio's blocks show (31f). */
   readonly view = inject(ViewPrefsService);
+  /** Inicio's three places in the order chosen: Pendientes, the balance, the chart or list. */
+  readonly homeSlots = computed(() => {
+    const slots: ('attention' | 'figures' | 'faces')[] = [];
+    for (const key of this.view.homeOrder()) {
+      const slot = key === 'home.attention' ? 'attention' : key === 'home.figures' ? 'figures' : 'faces';
+      if (!slots.includes(slot)) slots.push(slot);
+    }
+    return slots;
+  });
+
   /** A face turned off is never the one on show (save the list a chart tap opened). */
   private readonly faceWatch = effect(() => {
     const chart = this.view.shown('home.chart'), list = this.view.shown('home.list');
+    const first = this.view.first();
     untracked(() => {
+      // The face dragged above the other is the one on show (31f).
+      if (chart && list && !this.filter.categoryFilter()) this.filter.showList.set(first === 'list');
       if (!chart && !this.filter.showList()) this.filter.showList.set(true);
       if (!list && this.filter.showList() && !this.filter.categoryFilter()) this.filter.showList.set(false);
     });

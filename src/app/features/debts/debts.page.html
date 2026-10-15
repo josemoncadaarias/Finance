@@ -48,52 +48,59 @@
 
       <!-- Only what the person has (Jose, 2026-10-15, 31b): a kind with
            nothing in it is not a section, only a line saying where to add one. -->
+      <!-- Tarjetas and Préstamos in the order chosen on "Personaliza tu vista" (31g). -->
+      @for (key of view.debtsOrder(); track key) {
+        @if (key === 'debts.cards') {
       @if (cards.length > 0 && view.shown('debts.cards')) {
-        <h3 class="ui-h with-total" id="debts-cards">
-          <span>{{ 'cards.title' | t }} · {{ cards.length }}</span>
-          <b>{{ cardsOwedMinor() | money }}</b>
-        </h3>
-        <div class="ui-list">
-          @for (card of cards; track card.account.id) {
-            <button type="button" class="ui-row card" (click)="open(card)">
-              <app-badge shape="ci" [size]="42" [builtin]="card.account.builtin_icon" [customId]="card.account.custom_icon_id"
-                         [tone]="card.account.color" [seed]="card.account.id" fallback="card"></app-badge>
-              <span class="ui-tx">
-                <b class="ui-one">{{ card.account.name }}</b>
-                <small class="ui-one">{{ used(card) }}</small>
-                @if (line(card); as line) {
-                  <small class="wrap" [class.ui-y]="card.statement.state === 'due' || card.statement.state === 'partial'"
-                         [class.ui-r]="card.statement.state === 'overdue'"
-                         [class.ui-g]="card.statement.state === 'paid'">{{ line }}</small>
-                }
-              </span>
-              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-            </button>
-          }
-        </div>
-      }
+          <h3 class="ui-h with-total" id="debts-cards">
+            <span>{{ 'cards.title' | t }} · {{ cards.length }}</span>
+            <b>{{ cardsOwedMinor() | money }}</b>
+          </h3>
+          <div class="ui-list">
+            @for (card of cards; track card.account.id) {
+              <button type="button" class="ui-row card" (click)="open(card)">
+                <app-badge shape="ci" [size]="42" [builtin]="card.account.builtin_icon" [customId]="card.account.custom_icon_id"
+                           [tone]="card.account.color" [seed]="card.account.id" fallback="card"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ card.account.name }}</b>
+                  <small class="ui-one">{{ used(card) }}</small>
+                  @if (line(card); as line) {
+                    <small class="wrap" [class.ui-y]="card.statement.state === 'due' || card.statement.state === 'partial'"
+                           [class.ui-r]="card.statement.state === 'overdue'"
+                           [class.ui-g]="card.statement.state === 'paid'">{{ line }}</small>
+                  }
+                </span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
+          </div>
+        }
 
+        } @else if (key === 'debts.loans') {
       @if (loans().length > 0 && view.shown('debts.loans')) {
-        <h3 class="ui-h with-total" id="debts-loans">
-          <span>{{ 'loans.title' | t }} · {{ loans().length }}</span>
-          <b>{{ loansOwedMinor() | money }}</b>
-        </h3>
-        <div class="ui-list">
-          @for (l of loans(); track l.loan.account.id) {
-            <button type="button" class="ui-row card" (click)="openLoan(l)">
-              <app-badge shape="ci" [size]="42" [builtin]="l.loan.account.builtin_icon" [customId]="l.loan.account.custom_icon_id"
-                         [tone]="l.loan.account.color" [seed]="l.loan.account.id" fallback="cash"></app-badge>
-              <span class="ui-tx">
-                <b class="ui-one">{{ l.loan.account.name }}</b>
-                <small class="ui-one">{{ loanSub(l) }}</small>
-                @if (loanLine(l); as line) {
-                  <small class="wrap" [class.ui-y]="l.s.next?.state === 'next'" [class.ui-r]="l.s.next?.state === 'overdue'" [class.ui-g]="l.s.done">{{ line }}</small>
-                }
-              </span>
-              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-            </button>
-          }
-        </div>
+          <h3 class="ui-h with-total" id="debts-loans">
+            <span>{{ 'loans.title' | t }} · {{ loans().length }}</span>
+            <b>{{ loansOwedMinor() | money }}</b>
+          </h3>
+          <div class="ui-list">
+            @for (l of loans(); track l.loan.account.id) {
+              <button type="button" class="ui-row card" (click)="openLoan(l)">
+                <app-badge shape="ci" [size]="42" [builtin]="l.loan.account.builtin_icon" [customId]="l.loan.account.custom_icon_id"
+                           [tone]="l.loan.account.color" [seed]="l.loan.account.id" fallback="cash"></app-badge>
+                <span class="ui-tx">
+                  <b class="ui-one">{{ l.loan.account.name }}</b>
+                  <small class="ui-one">{{ loanSub(l) }}</small>
+                  @if (loanLine(l); as line) {
+                    <small class="wrap" [class.ui-y]="l.s.next?.state === 'next'" [class.ui-r]="l.s.next?.state === 'overdue'" [class.ui-g]="l.s.done">{{ line }}</small>
+                  }
+                </span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
+          </div>
+        }
+
+        }
       }
 
       @if (cards.length === 0 && loans().length === 0) {
