@@ -738,6 +738,19 @@ these):
   dragging with the real handle, the lit button per screen, Más, opening on
   Deudas, the reset.
 
+- **The usual note on a product that is not the usual one needs no habit**
+  (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under
+  Ganancia offered no note). A product other than the account's usual one,
+  with its category, is as specific as a route: when it has no note written
+  twice, the last note written there for that category and side is offered
+  (`usualNote`, `lastWritten`), before the account's own habit. The usual
+  product still needs two uses. Test in `usual-note.test.mjs`; checked in a
+  browser on the sample data (one entry on Banco Índigo's "Para el impuesto
+  de renta", the note offered whether the category or the product is chosen
+  first). Not checked on Jose's data: why his own notes did not come is not
+  proved (fewer than two uses on that product and category, or filed under
+  another one, assumed).
+
 ---
 
 ## Decisions already made

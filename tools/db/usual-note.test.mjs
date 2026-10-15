@@ -125,3 +125,22 @@ test('a product with no habit of its own takes the account\'s, for that category
   assert.equal(await ask(savings, w.home), 'Cosas para la casa mercado or', 'another product of the account, same category');
   assert.equal(await ask(savings, w.food), null, 'never another category');
 });
+
+test('a product that is not the usual one needs no habit: once is enough, for its category', async () => {
+  // Jose's Plata, 2026-10-15: an income filed as "Solo el producto" on the
+  // Bolsillo under Ganancia offered no note.
+  const w = await world();
+  const { YieldsRepository } = await import('../../src/app/core/database/repositories/yields.repository.ts');
+  const yields = new YieldsRepository(w.db, NOW);
+  const pocket = await yields.addProduct({ account_id: w.bank, name: 'Bolsillo', source: 'manual', earns_from: '2026-01-01' });
+  const savings = await yields.addProduct({ account_id: w.bank, name: 'Cuenta Ahorros', source: 'manual', earns_from: '2026-01-01' });
+  const gain = await new CategoriesRepository(w.db, NOW).create({ name: 'Ganancia', kind: 'income', builtin_icon: 'cash' });
+  const ask = (productId, categoryId = gain) => usualNote(w.db, {
+    kind: 'product', accountId: w.bank, productId, usualProductId: savings, side: 'in', categoryId,
+  }, TODAY);
+  assert.equal(await ask(pocket), null, 'nothing written yet');
+  await yields.adjust({ account_id: w.bank, product_id: pocket, category_id: gain, kind: 'other', on_date: '2026-09-01', amount_minor: 28, note: 'Ganancia bolsillo plata' });
+  assert.equal(await ask(pocket), 'Ganancia bolsillo plata', 'one entry on that product and category');
+  assert.equal(await ask(savings), null, 'the usual product still needs a habit');
+  assert.equal(await ask(pocket, w.home), null, 'never another category');
+});
