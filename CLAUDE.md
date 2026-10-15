@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (809 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (815 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -580,10 +580,19 @@ these):
   (`FilterService.showList`'s first value). Deudas: Tarjetas and Préstamos can
   be turned off (the two tiles show only while both are on). Reporte: any
   section but the first, left out of the screen AND the spreadsheet
-  (`reportWorkbook(data, hidden)`); the yields summary is not affected. The
-  ORDER of the blocks is not chosen yet (mockups drew a handle): the next
-  step if Jose wants it. Tours: Más `since: 2`, a new `view` tour. Checked in
-  a browser on the sample data (every switch, the reset).
+  (`reportWorkbook(data, hidden, order)`); the yields summary is not affected.
+  **The order is dragged there too** (Jose, the same day): each row has a ☰
+  handle (`ion-reorder-group`, `ionReorderEnd` answered with `complete(false)`
+  and the order kept by the service, which redraws). Inicio's three places -
+  Pendientes, the balance, the chart or list - are drawn in that order
+  (`homeSlots`, one `ng-template` each), and of the chart and the list the
+  one higher opens Inicio and comes first in its selector (`firstFace`; the
+  old "mostrar primero" choice is read as that order). Deudas' Tarjetas and
+  Préstamos and the report's sections (screen and sheet, `inOrder`) follow
+  it; Deudas' total and the report's figures are pinned first. The order's
+  arithmetic is pure, in `core/ui/view-order.ts` (`view-prefs.test.mjs`).
+  Tours: Más `since: 2`, a new `view` tour. Checked in a browser on the
+  sample data (every switch, dragging on each screen, the reset).
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
@@ -2820,7 +2829,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 809 tests (2026-10-15) that run against a real
+by 815 tests (2026-10-15) that run against a real
 SQLite engine with no dependencies:
 
 ```

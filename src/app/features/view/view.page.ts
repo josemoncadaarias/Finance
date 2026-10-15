@@ -1,23 +1,26 @@
 /**
  * "Personaliza tu vista" (31e-31h): the screens, then one screen's blocks,
- * each with its switch. Más → Preferencias. Order is not chosen yet; the
- * blocks show in the app's own order.
+ * each with its switch and a handle to drag it up or down. Más →
+ * Preferencias.
  */
 import { Component, computed, inject } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
+import { NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon } from '@ionic/angular';
+import { IonReorderGroup } from '@ionic/angular/ion-reorder-group';
+import { IonReorder } from '@ionic/angular/ion-reorder';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { VIEW_SCREENS, ViewPrefsService, type ViewScreen } from '../../core/ui/view-prefs.service';
+import { VIEW_SCREENS, ViewPrefsService, type ViewBlock, type ViewScreen } from '../../core/ui/view-prefs.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 
 @Component({
   selector: 'app-view',
-  imports: [IonContent, IonIcon, TranslatePipe, BadgeComponent],
+  imports: [IonContent, IonIcon, IonReorderGroup, IonReorder, NgTemplateOutlet, TranslatePipe, BadgeComponent],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
@@ -31,35 +34,39 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
         @if (screen(); as s) {
           <p class="lead">{{ 'view.screen.lead' | t }}</p>
           <div class="ui-list" data-tour="view-blocks">
-            @for (block of screens[s].blocks; track block.key) {
-              <div class="ui-row">
-                <app-badge [size]="40" [builtin]="block.icon" [fixed]="block.color"></app-badge>
-                <span class="ui-tx">
-                  <b class="wrap">{{ block.title | t }}</b>
-                  @if (block.about) { <small class="wrap">{{ block.about | t }}</small> }
-                </span>
-                @if (block.fixed) {
-                  <small class="always">{{ 'view.always' | t }}</small>
-                } @else {
-                  <button type="button" class="ui-switch" [class.on]="prefs.shown(block.key)" role="switch"
-                          [attr.aria-checked]="prefs.shown(block.key)" [attr.aria-label]="block.title | t"
-                          (click)="prefs.set(block.key, !prefs.shown(block.key))"></button>
-                }
-              </div>
+            <!-- A pinned block stays first; the rest are dragged by their handle. -->
+            @for (block of pinnedOf(s); track block.key) {
+              <ng-container *ngTemplateOutlet="row; context: { block, movable: false }"></ng-container>
             }
+            <ion-reorder-group [disabled]="false" (ionReorderEnd)="reordered(s, $event)">
+              @for (block of movableOf(s); track block.key) {
+                <ng-container *ngTemplateOutlet="row; context: { block, movable: true }"></ng-container>
+              }
+            </ion-reorder-group>
           </div>
+          <p class="lead after">{{ (s === 'home' ? 'view.home.order' : 'view.order') | t }}</p>
 
-          @if (s === 'home' && prefs.shown('home.chart') && prefs.shown('home.list')) {
-            <div class="ui-h">{{ 'view.home.first' | t }}</div>
-            <div class="ui-seg">
-              <button type="button" [class.on]="prefs.first() === 'chart'" (click)="prefs.setFirst('chart')">
-                <ion-icon name="pie-chart-outline"></ion-icon>{{ 'summary.chart' | t }}
-              </button>
-              <button type="button" [class.on]="prefs.first() === 'list'" (click)="prefs.setFirst('list')">
-                <ion-icon name="list-outline"></ion-icon>{{ 'summary.movements' | t }}
-              </button>
+          <ng-template #row let-block="block" let-movable="movable">
+            <div class="ui-row">
+              <app-badge [size]="40" [builtin]="block.icon" [fixed]="block.color"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ block.title | t }}</b>
+                @if (block.about) { <small class="wrap">{{ block.about | t }}</small> }
+              </span>
+              @if (block.fixed) {
+                <small class="always">{{ 'view.always' | t }}</small>
+              } @else {
+                <button type="button" class="ui-switch" [class.on]="prefs.shown(block.key)" role="switch"
+                        [attr.aria-checked]="prefs.shown(block.key)" [attr.aria-label]="block.title | t"
+                        (click)="prefs.set(block.key, !prefs.shown(block.key))"></button>
+              }
+              @if (movable) {
+                <ion-reorder class="grip" [attr.aria-label]="'view.drag' | t">
+                  <ion-icon name="reorder-three-outline"></ion-icon>
+                </ion-reorder>
+              }
             </div>
-          }
+          </ng-template>
 
           <div class="ui-card promise">
             <ion-icon name="shield-checkmark-outline"></ion-icon>
@@ -92,7 +99,12 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
   styles: [`
     .lead { margin: 4px 4px 12px; color: var(--app-mu); font-size: 14px; line-height: 1.4; }
     .always { color: var(--app-mu); font-size: 12.5px; flex: none; }
-    .ui-seg button { gap: 6px; }
+    .lead.after { margin: 10px 4px 0; font-size: 13px; }
+    ion-reorder-group { display: block; }
+    .grip { flex: none; display: grid; place-items: center; width: 34px; height: 40px; margin-right: -6px; color: var(--app-mu); }
+    .grip ion-icon { font-size: 24px; }
+    /* The row being dragged lifts above the others. */
+    ion-reorder-group .ui-row.reorder-selected { background: var(--app-s2); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); border-radius: 14px; }
     .promise { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 12px 14px;
       color: var(--app-mu); font-size: 13.5px; line-height: 1.4;
       ion-icon { font-size: 20px; color: var(--app-yel); flex: none; } }
@@ -115,6 +127,23 @@ export class ViewPage {
     const s = this.param();
     return s === 'home' || s === 'debts' || s === 'report' ? s : null;
   });
+
+  pinnedOf(s: ViewScreen): ViewBlock[] {
+    this.prefs.hidden();
+    return this.prefs.orderOf(s).filter(b => b.pinned);
+  }
+
+  movableOf(s: ViewScreen): ViewBlock[] {
+    this.prefs.hidden();
+    return this.prefs.orderOf(s).filter(b => !b.pinned);
+  }
+
+  /** A block dropped somewhere else: the list goes back and is redrawn in the new order. */
+  reordered(s: ViewScreen, event: Event): void {
+    const detail = (event as CustomEvent<{ from: number; to: number; complete: (r?: boolean) => void }>).detail;
+    detail.complete(false);
+    this.prefs.move(s, detail.from, detail.to);
+  }
 
   /** "3 de 4 bloques". */
   countLine(s: ViewScreen): string {

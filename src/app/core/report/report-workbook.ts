@@ -12,6 +12,7 @@
  * text does none of that.
  */
 
+import { inOrder } from '../ui/view-order';
 import {
   writeXlsx, type CellStyle, type ChartSpec, type SheetCell, type SheetSpec,
 } from '../xlsx/xlsx-writer';
@@ -496,10 +497,14 @@ function movementsSheet(data: ReportData, movements: readonly Movement[]): Sheet
 
 // ---------------------------------------------------------------------------
 
+
 /** The whole file. */
-export function reportWorkbook(data: ReportData, hidden: ReadonlySet<string> = new Set()): Uint8Array<ArrayBuffer> {
-  // What the person turned off in "Personaliza tu vista" is not on the sheet either (31h).
-  const blocks = buildReport(data).filter(block => !hidden.has(block.id));
+export function reportWorkbook(
+  data: ReportData, hidden: ReadonlySet<string> = new Set(), order: readonly string[] = [],
+): Uint8Array<ArrayBuffer> {
+  // What the person turned off in "Personaliza tu vista" is not on the sheet
+  // either, and the sheet follows the order chosen there (31h).
+  const blocks = inOrder(buildReport(data).filter(block => !hidden.has(block.id)), order);
   return writeXlsx([summarySheet(data, blocks), movementsSheet(data, data.movements)], STYLES);
 }
 
