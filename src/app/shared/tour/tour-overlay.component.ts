@@ -131,6 +131,8 @@ export class TourOverlayComponent {
   readonly viewH = signal(window.innerHeight);
   private viewW = window.innerWidth;
   private radiusOf = 18;
+  /** Where the room for what is lit ends: over the floating bar. */
+  private areaBottom = window.innerHeight;
 
   readonly steps = computed(() => this.tour.active()?.steps ?? []);
   readonly welcome = computed(() => { const now = this.tour.active(); return now ? TOURS[now.id].welcome : undefined; });
@@ -144,7 +146,7 @@ export class TourOverlayComponent {
     const b = this.box();
     if (!b) return 'below';
     const room = 210;
-    const under = this.viewH() - (b.y + b.h);
+    const under = this.areaBottom - (b.y + b.h);
     const over = b.y;
     const prefer = b.y + b.h / 2 < this.viewH() / 2 ? 'below' : 'above';
     if (prefer === 'below' && under >= room) return 'below';
@@ -198,20 +200,90 @@ export class TourOverlayComponent {
       this.timer = setTimeout(() => tries < 6 ? this.place(selector, scroll, tries + 1) : this.tour.next(), 250);
       return;
     }
-    if (scroll) element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    this.timer = setTimeout(() => {
+    const measure = () => {
+      const area = areaFor(element);
       const r = element.getBoundingClientRect();
       this.viewH.set(window.innerHeight);
       this.viewW = window.innerWidth;
+      this.areaBottom = area.bottom;
       const style = getComputedStyle(element);
       this.radiusOf = Math.max(14, Math.min(parseFloat(style.borderTopLeftRadius) || 18, 40) + PAD);
-      // Only the part on screen is lit: a list longer than the screen is
-      // cut at its edges rather than lit beyond them.
-      const top = Math.max(r.top - PAD, 8);
-      const bottom = Math.min(r.bottom + PAD, window.innerHeight - 8);
+      // Only the part on screen is lit, never what the floating bar or the
+      // title covers: a list longer than the screen is cut at those edges.
+      const top = Math.max(r.top - PAD, area.top);
+      const bottom = Math.min(r.bottom + PAD, area.bottom);
       this.box.set({ x: r.left - PAD, y: top, w: r.width + PAD * 2, h: Math.max(bottom - top, 24) });
-    }, scroll ? 380 : 0);
+    };
+    if (!scroll) { measure(); return; }
+    void bringIntoView(element).then(moved => {
+      if (!moved) { measure(); return; }
+      // Measured once the scroll has settled, and again in case it ran long.
+      this.timer = setTimeout(() => { measure(); this.timer = setTimeout(measure, 350); }, 420);
+    });
   }
+}
+
+/** Room the bubble needs beside what is lit. */
+const BUBBLE_ROOM = 220;
+
+/**
+ * The part of the screen where a lit element can be seen: under the page's
+ * title bar and above the floating tab bar - unless the element is IN the
+ * tab bar or another fixed layer, which never scrolls.
+ */
+function areaFor(element: HTMLElement): { top: number; bottom: number } {
+  const full = { top: 8, bottom: window.innerHeight - 8 };
+  if (element.closest('app-tab-bar') || !element.closest('ion-content')) return full;
+  const header = element.closest('.ion-page')?.querySelector<HTMLElement>(':scope > ion-header');
+  const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+  const bar = document.querySelector<HTMLElement>('app-tab-bar nav');
+  const barRect = bar?.getBoundingClientRect();
+  const barTop = barRect && barRect.height > 0 && !element.closest('ion-modal') ? barRect.top : window.innerHeight;
+  return { top: Math.max(headerBottom + 6, 8), bottom: Math.min(barTop - 8, window.innerHeight - 8) };
+}
+
+/**
+ * Scrolls what holds the element so it sits in full view with room for the
+ * bubble beside it, or, when it is taller than that, its top just under the
+ * title. Answers whether anything moved.
+ */
+async function bringIntoView(element: HTMLElement): Promise<boolean> {
+  const area = areaFor(element);
+  const r = element.getBoundingClientRect();
+  const free = area.bottom - area.top;
+  const seen = r.top >= area.top && r.bottom <= area.bottom;
+  const room = Math.max(area.bottom - r.bottom, r.top - area.top);
+  if (seen && (room >= BUBBLE_ROOM || r.height + BUBBLE_ROOM > free)) return false;
+  const scroller = await scrollerOf(element);
+  if (!scroller) {
+    element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return true;
+  }
+  // Short enough: it and the bubble under it, together in the middle of the
+  // room. Taller: its top under the title, the bubble over its lower part.
+  const wantTop = r.height + BUBBLE_ROOM <= free
+    ? area.top + Math.max(12, (free - r.height - BUBBLE_ROOM) / 2)
+    : area.top + 12;
+  const before = scroller.scrollTop;
+  const delta = r.top - wantTop;
+  const max = scroller.scrollHeight - scroller.clientHeight;
+  const to = Math.max(0, Math.min(before + delta, max));
+  if (Math.abs(to - before) < 2) return false;
+  scroller.scrollTo({ top: to, behavior: 'smooth' });
+  return true;
+}
+
+/** The element that scrolls it: an ion-content's inner scroll, or the nearest scrolling parent. */
+async function scrollerOf(element: HTMLElement): Promise<HTMLElement | null> {
+  const content = element.closest('ion-content') as (HTMLElement & { getScrollElement?: () => Promise<HTMLElement> }) | null;
+  if (content?.getScrollElement) {
+    try { return await content.getScrollElement(); } catch { /* falls through to the parents */ }
+  }
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+  }
+  return null;
 }
 
 function selectorOf(step: TourStep): string {

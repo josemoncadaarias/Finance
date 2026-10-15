@@ -207,9 +207,14 @@ export function deriveRateScaled(baseMinor: number, foreignMinor: number): numbe
   return assertSafe(scaled, 'Derived rate');
 }
 
-/** Available credit on a card: the limit less what is owed. */
+/**
+ * Available credit on a card: the limit less what is owed. A card's balance is
+ * minus what is owed (rule 4); a balance above zero is money in the person's
+ * favour - paid over, or a refund - which the bank adds to what can be spent,
+ * never takes from it. Below zero when the card went over its limit.
+ */
 export function availableCreditMinor(creditLimitMinor: number, balanceMinor: number): number {
-  return creditLimitMinor - Math.abs(balanceMinor);
+  return creditLimitMinor + balanceMinor;
 }
 
 /**

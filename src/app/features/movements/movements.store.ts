@@ -277,7 +277,9 @@ export class MovementsStore {
       const limit = balance.account.credit_limit_minor;
       this.standing.set({
         kind: 'credit',
-        label: this.i18n.t('summary.owedToday'),
+        // What the big figure is: a debt, nothing owed, or money in the person's favour.
+        label: this.i18n.t(balance.balance_minor < 0 ? 'summary.owedToday'
+          : balance.balance_minor > 0 ? 'summary.inFavour' : 'summary.owedNothing'),
         amountMinor: balance.balance_minor,
         availableMinor: balance.available_credit_minor,
         limitMinor: limit,
