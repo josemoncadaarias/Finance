@@ -174,6 +174,7 @@ const place = mids => {
 // side for the two columns. Lanes are handed out so that the lines nearest
 // the ring are the ones that travel least, which keeps them from crossing.
 const laneOf = new Map();
+let extra = 0; // room under each percent when its amount is shown too
 const lanes = (slices, spots) => {
   laneOf.clear();
   const groups = { top: [], bottom: [], left: [], right: [] };
@@ -187,7 +188,7 @@ const lanes = (slices, spots) => {
 const route = (i, mid, sp) => {
   const [sx, sy] = pt(ROUT + 6, mid), { k, g } = laneOf.get(i);
   let pts;
-  if (g === 'top') { const ay = sp.y + 38, lane = ay + 6 + k * 6; pts = [[sx, sy], [sx, lane], [sp.x, lane], [sp.x, ay]]; }
+  if (g === 'top') { const ay = sp.y + 38 + extra, lane = ay + 6 + k * 6; pts = [[sx, sy], [sx, lane], [sp.x, lane], [sp.x, ay]]; }
   else if (g === 'bottom') { const ay = sp.y - 28, lane = ay - 6 - k * 6; pts = [[sx, sy], [sx, lane], [sp.x, lane], [sp.x, ay]]; }
   else { const dir = g === 'right' ? 1 : -1, ax = sp.x - dir * 22, ay = sp.y - 8, lane = ax - dir * (6 + k * 6);
     pts = [[sx, sy], [lane, sy], [lane, ay], [ax, ay]]; }
@@ -212,6 +213,7 @@ const framed = (items, { on = -1, total = '358 mil', count = '31 movimientos', t
   const slices = items.map(it => { const a0 = acc / 100 * 360, a1 = (acc + it.p) / 100 * 360; acc += it.p; return { ...it, a0, a1, mid: (a0 + a1) / 2 }; });
   const spots = place(slices.map(s => s.mid));
   const dimmed = i => on >= 0 && i !== on;
+  extra = items.some(it => it.amt) ? 14 : 0;
   lanes(slices, spots);
   const svg = slices.map((s, i) => {
     const gap = .8, path = arc(s.a0 + gap, s.a1 - gap, RIN, i === on ? ROUT + 5 : ROUT);
@@ -219,7 +221,7 @@ const framed = (items, { on = -1, total = '358 mil', count = '31 movimientos', t
   }).join('');
   const icons = slices.map((s, i) => { const sp = spots[i];
     return `<div style="position:absolute;left:${sp.x - 28}px;top:${sp.y - 24}px;width:56px;text-align:center;opacity:${dimmed(i) ? .3 : 1}">${s.rest ? `<span class="sq" style="display:grid;place-items:center;width:32px;height:32px;margin:0 auto;background:var(--s3);color:var(--mu);font-size:11px">+${s.rest}</span>` : `<div style="width:32px;margin:0 auto">${inChart(s.c, s.color, 32)}</div>`}
-      <div style="font-size:12.5px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--tx)">${s.p}%</div></div>`; }).join('');
+      <div style="font-size:12.5px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--tx)">${s.p}%</div>${s.amt ? `<div style="font-size:10.5px;color:var(--mu);margin-top:1px;white-space:nowrap;font-variant-numeric:tabular-nums">${s.amt}</div>` : ''}</div>`; }).join('');
   return `<div class="card" style="padding:12px"><div style="position:relative;width:${W}px;height:${H}px">
     <svg width="${W}" height="${H}" style="position:absolute;inset:0">${svg}</svg>${icons}
     <div style="position:absolute;left:${CX - 60}px;top:${CY - 40}px;width:120px;text-align:center"><div class="lab" style="font-size:10.5px">${top}</div><b style="display:block;font-size:${total.length > 8 ? 20 : 25}px;margin-top:2px;letter-spacing:-.4px">${total}</b><div class="sub" style="font-size:12px;margin-top:1px">${sub ?? count}</div></div></div></div>`;
@@ -254,4 +256,5 @@ S['16m-opcion-a-iconos-tema-claro'] = screen(label('Íconos alrededor · tema cl
   .replace(/^/, `<style>:root{--bg:#f3f5fa;--top:#ffffff;--s1:#ffffff;--s2:#eef1f7;--s3:#e2e7f1;--line:#e3e8f2;--tx:#121a2b;--mu:#5d6880}
    body{background:var(--bg)}.card,.list,.seg,.month{border-color:#e3e8f2!important}.bar-top{background:#fff}</style>`);
 
+export { framed, screen, label, inChart };
 export default S;

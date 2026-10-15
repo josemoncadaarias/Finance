@@ -71,3 +71,8 @@ node docs/mockups/src/render.mjs c0         (only the ones whose name has c0)
 - `29b` Lo mismo con el patrimonio negativo.
 - `29c` "¿De dónde sale?" partido en lo que tienes, lo que debes y el total.
 - `29d` Inicio en una tarjeta, hoy. `29e` propuesta: "Cupo usado" con su %, cupo disponible y total, la factura por pagar. `29f` sin fechas de corte. `29g` sin cupo registrado.
+
+## 30 - La dona con la cifra completa; Deudas con el total de cada clase (2026-10-15, propuesta)
+
+- `30a` la dona hoy ("1,40 M"). `30b` opción 1: la cifra completa en el centro. `30c` opción 2: el valor bajo cada porcentaje. `30d` las dos (recomendada). `30e` al tocar una porción.
+- `30f` Deudas hoy con varias tarjetas y préstamos. `30g` opción A: el total en el título de cada sección. `30h` opción B: dos cuadros, Tarjetas y Préstamos, dentro del "Debes hoy". `30i` A + B (recomendada).
