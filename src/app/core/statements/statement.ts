@@ -45,6 +45,11 @@ export interface StatementRow {
    * 'low' where it had to be guessed from the words, which is not.
    */
   confidence: 'high' | 'low';
+  /**
+   * Not a row of the list: the figure that made the statement add up, found
+   * among its own summary lines ("Intereses corrientes $11.101,42").
+   */
+  summary?: boolean;
 }
 
 export interface StatementReading {
@@ -200,7 +205,9 @@ export function readStatement(
       // A sign written on the line itself, in the bank's own ink, is not the
       // last resort this function usually is, and the review screen should
       // not warn about it.
-      if (token.negative || token.positive) confidence = 'high';
+      // On a card, an unsigned row being a purchase is the statement's own
+      // convention, not a guess.
+      if (token.negative || token.positive || card) confidence = 'high';
     }
     if (amount === null || amount === 0) {
       if (balance !== null) previous = held(balance);
@@ -222,7 +229,7 @@ export function readStatement(
 
   acrossNewYear(rows);
 
-  const read = rows.reduce((sum, row) => sum + row.amount_minor, 0);
+  let read = rows.reduce((sum, row) => sum + row.amount_minor, 0);
 
   /*
    * Which pair of figures to believe.
@@ -251,6 +258,30 @@ export function readStatement(
 
   const opening = fromColumn ? first.balance_minor! - first.amount_minor : stated.opening;
   const closing = fromColumn ? last.balance_minor : stated.closing;
+
+  // What is missing for the statement to add up may be printed on it, just
+  // not as a row: a card's interest, a fee, the 4x1000 - in its summary
+  // ("+ Intereses corrientes $11.101,42"). Found there, it is proposed as one
+  // more movement, saying where it came from; found nowhere, the statement
+  // stays "No cuadra" (Jose, 2026-10-15).
+  if (opening !== null && closing !== null && rows.length > 0 && opening + read !== closing) {
+    const missing = closing - (opening + read);
+    const found = summaryLineFor(lines, Math.abs(missing), minorUnits, new Set(dated.map(row => row.line)));
+    if (found !== null) {
+      const last = rows.reduce((latest, row) => (row.occurred_on > latest ? row.occurred_on : latest), rows[0].occurred_on);
+      rows.push({
+        occurred_on: last,
+        amount_minor: missing,
+        description: found.label,
+        balance_minor: null,
+        line: found.line.text,
+        page: found.line.page,
+        confidence: 'high',
+        summary: true,
+      });
+      read += missing;
+    }
+  }
 
   const balances = ((): 'checked' | 'off' | 'unclear' | 'unchecked' => {
     if (opening === null || closing === null) return 'unchecked';
@@ -379,6 +410,36 @@ function acrossNewYear(rows: StatementRow[]): void {
     const back = `${Number(row.occurred_on.slice(0, 4)) - 1}${row.occurred_on.slice(4)}`;
     row.occurred_on = back as IsoDate;
   }
+}
+
+/**
+ * A summary line carrying exactly the figure that is missing, and the words
+ * printed just before it on that line - which say what it is. Never a line
+ * already read as a movement, and never a total or a balance: those carry
+ * the same figures for other reasons ("Pago total", "Saldo", "Cupo").
+ */
+const NOT_A_CHARGE = /(saldo|total|cupo|disponible|m[ií]nimo|l[ií]mite|pago\s+(total|m)|consumos\s+del|capital\s+facturado|acumulaci|redenci)/i;
+
+function summaryLineFor(
+  lines: readonly StatementLine[], missing: number, minorUnits: number, movements: ReadonlySet<StatementLine>,
+): { line: StatementLine; label: string } | null {
+  for (const line of lines) {
+    if (movements.has(line)) continue;
+    let label: string[] = [];
+    for (const item of line.items) {
+      const money = moneyIn(item.text, minorUnits);
+      if (money === null) {
+        label.push(item.text.trim());
+        continue;
+      }
+      const words = label.join(' ').replace(/^[+\-\s]+/, '').trim();
+      if (money.minor === missing && /[A-Za-zÁÉÍÓÚáéíóú]{3}/.test(words) && !NOT_A_CHARGE.test(words)) {
+        return { line, label: words };
+      }
+      label = [];
+    }
+  }
+  return null;
 }
 
 /** A card statement's other columns: rates, "N/A", "1 de 8" installments. */

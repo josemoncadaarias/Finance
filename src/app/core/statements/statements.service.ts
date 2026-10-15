@@ -157,6 +157,7 @@ export class StatementsService {
         page: row.page,
         confidence: row.confidence,
         balance_minor: row.balance_minor,
+        ...(row.summary ? { summary: true } : {}),
       },
     })));
 

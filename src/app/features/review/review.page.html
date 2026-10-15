@@ -281,6 +281,9 @@
                     @if (line.guessed) {
                       <small class="flag"><ion-icon name="help-circle-outline"></ion-icon>{{ 'ui.review.signGuessed' | t }}</small>
                     }
+                    @if (line.summary) {
+                      <small class="flag"><ion-icon name="receipt-outline"></ion-icon>{{ 'ui.review.fromSummary' | t }}</small>
+                    }
                     @if (line.twin) {
                       <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.twin }}</small>
                     }

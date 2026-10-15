@@ -59,6 +59,8 @@ interface Line {
   evidence: string;
   /** True where the sign was guessed from the words rather than proved. */
   guessed: boolean;
+  /** Not a row of the statement: the figure that made it add up, from its summary. */
+  summary: boolean;
   /** The other messages that told this same movement, in words. */
   seenBy: string | null;
   /** A message from another source that may be this one, in words. */
@@ -189,7 +191,7 @@ export class ReviewPage {
       if (account !== null && line.proposal.account_id !== account) return false;
       if (term.length > 0 && !this.matches(line, term)) return false;
       if (only === 'waiting') return !this.ready(line);
-      if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed || line.twin !== null;
+      if (only === 'flagged') return line.sameAs !== null || line.pairedWith !== null || line.guessed || line.summary || line.twin !== null;
       return true;
     });
 
@@ -303,7 +305,7 @@ export class ReviewPage {
   readonly waitingCount = computed(() => this.batches().reduce((sum, batch) => sum + this.waitingOn(batch), 0));
   readonly flaggedCount = computed(() => this.batches().reduce((sum, batch) =>
     sum + batch.lines.filter(line => line.sameAs !== null || line.pairedWith !== null || line.guessed
-      || line.twin !== null).length, 0));
+      || line.summary || line.twin !== null).length, 0));
 
   /** A batch's rows, by day, the first day open (the rule for every list). */
   private readonly daysByBatch = computed(() =>
@@ -1330,6 +1332,7 @@ export class ReviewPage {
           pairedWith,
           evidence,
           guessed: this.guessedOf(proposal),
+          summary: this.read(proposal)['summary'] === true,
           seenBy: messagePair
             ? this.i18n.t('ui.review.seenBy', { files: [...new Set([...this.sightingsOf(proposal), ...this.sightingsOf(other!)].map(one => one.file)
               .concat(String(this.read(other!)['file'] ?? '')).filter(Boolean))].join(' · ') })
