@@ -66,7 +66,7 @@ categories, products and what the app can tell the user about them.
 
 ---
 
-## Start here: where things stand (updated 2026-10-02)
+## Start here: where things stand (updated 2026-10-15)
 
 Read this section first on any machine or in any session; everything below
 it is the detail and the reasoning.
@@ -132,6 +132,15 @@ detail of each is in the section named):
 | #56 | "Revisar qué le llega a la app": what the notification listener is handed, with no content | Rule 22 (SMS) |
 | #48 | The spending donut redrawn: its own eight colours, every icon round the ring with a right-angled line, "N categorías más" | "Group 1 v4" (the donut) |
 
+**From #57 on (2026-10-05 to 2026-10-15, up to #133)** each change is told
+in the dated bullets at the end of "How to work, wherever you are" below and
+in the rule it touches, rather than in a table. The last ones of 2026-10-14
+and 15: every money box reads pasted figures (#128); a new account from a
+statement lands on its statement in Por revisar (#129); the PDF password box
+takes typing over the account form (#130); credit card statements and other
+banks' layouts are read (#131, #132); a figure missing to add up is brought
+from the statement's summary (#133).
+
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
 `release-aab.yml`, `workflow_dispatch`) on that branch builds the old app
@@ -160,8 +169,7 @@ these):
   (Cuentas → Rendimientos, the round arrow): months already worked out with
   a late movement in them are only redone from then on.
 - **Not started, waiting for Jose's word** (proposed to him 2026-10-02):
-  the paywall service and screen (rule 21); the privacy policy and
-  site for Jadex Labs; several debts' strategies (avalanche, snowball); the
+  the paywall service and screen (rule 21); several debts' strategies (avalanche, snowball); the
   ideas from Lukas's atajos (rule 22).
 - The open questions of rule 21 (which report sections are paid, lifetime
   option, what sits between the app and Google Play) and the list in
@@ -212,6 +220,10 @@ these):
   "Ignorar publicidad"; Deudas - a loan already being paid ("¿Ya lo
   vienes pagando?" on top of the loan form). Version 3 (2026-10-14): Por revisar
   - "Movimientos que se repiten" answered whole, "Editar" for several. Categorías - a category's side can be changed. Inicio - the eye that hides amounts.
+  Version 4 (2026-10-15): Por revisar - "Extractos que cuadran" (a figure
+  missing to add up, brought from the statement's summary); Cuentas - "Una
+  cuenta desde su extracto" (a card's statement and one with a password
+  fill the new account, and saving opens Por revisar on it).
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people
@@ -2699,7 +2711,7 @@ backup restore against iOS's own SQLite backend.
 
 The SQLite schema, the migration runner, the money helpers, the repository
 layer, the yields module, the statement reader and the proposals are covered
-by 558 tests that run against a real
+by 802 tests (2026-10-15) that run against a real
 SQLite engine with no dependencies:
 
 ```
@@ -4799,6 +4811,20 @@ budget family (2/16, 1, 7), then the rest.
 - [ ] Try the amount with the phone's own keyboard (#45): whether the
       keyboard comes up by itself on a new movement, and the erase and X
       keys beside the figure.
+- [ ] Import Rappi Card's real statement again after the update with #133
+      (Más → Cuentas → Nueva cuenta → Importar extracto, or the "+"): the
+      password box takes typing, the account comes out a Tarjeta with its
+      cupo, the interest arrives marked "Del resumen del extracto" and the
+      statement says "Cuadra". Say what reads wrong.
+- [ ] The ~280,000 the app showed above the statement's "Pago total" after
+      the first import (2026-10-15): not explained yet - likely purchases
+      after the 20 Sep cut-off. Put the card's cut-off (20) and payment (1)
+      days and look at "Desde el corte", or send a backup to check.
+- [ ] Send other banks' statements (Ualá, Nu, Bancolombia, Davivienda,
+      Nequi...) to turn each layout into a test.
+- [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
+      say whether its "Tamaño de pantalla" is set large; scaling the app
+      down on narrow phones was proposed and not built.
 
 ## Documents
 
