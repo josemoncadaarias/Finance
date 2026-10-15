@@ -553,6 +553,17 @@ these):
   step `since: 2`. Checked in a browser: `?pay=1` opens the payment; the
   notification itself only on the phone, not seen yet.
 
+- **What the person does not use is not shown** (Jose, 2026-10-15, part 1
+  of "Personaliza tu vista", mockups `31a`-`31c`, from his partner). Deudas
+  lists Tarjetas and Préstamos only when there is one of that kind; the kind
+  missing is one quiet line, "¿Tienes un préstamo? Agrégalo en Nueva deuda"
+  (opening the loan form, or the "Nueva deuda" sheet for a card), and with
+  neither one card says so with "Agregar una deuda". The Cuentas tab shows
+  its Rendimientos face only while an account earns (`EarningService`, read
+  on every data change; shown while unknown and while it is the face on
+  show); Más → Productos y rendimientos stays the way in to set up the
+  first one. Checked in a browser on an empty app and on the sample data.
+
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app
   (`PrivacyService.hidden`, not kept between openings): the same round eye

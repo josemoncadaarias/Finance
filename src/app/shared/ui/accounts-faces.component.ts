@@ -3,7 +3,8 @@
  * 2026-09-28, and Deudas 2026-10-01). Saldos is every account with today's
  * balance and net worth; Rendimientos is only the accounts that earn, with
  * what they have been paid; Deudas is what is owed, card by card. Three
- * screens, one switch at the top of each.
+ * screens, one switch at the top of each. Rendimientos only shows while an
+ * account earns (31c).
  */
 
 import { Component, inject, input } from '@angular/core';
@@ -11,6 +12,7 @@ import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { EarningService } from '../../core/yields/earning.service';
 
 @Component({
   selector: 'app-accounts-faces',
@@ -21,9 +23,12 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       <button type="button" [class.on]="on() === 'balances'" (click)="go('/accounts')">
         <ion-icon name="wallet-outline"></ion-icon><span>{{ 'ui.face.balances' | t }}</span>
       </button>
-      <button type="button" [class.on]="on() === 'yields'" (click)="go('/products')">
-        <ion-icon name="trending-up-outline"></ion-icon><span>{{ 'ui.face.yields' | t }}</span>
-      </button>
+      <!-- Only when an account earns, or while it is the face on show (31c). -->
+      @if (on() === 'yields' || earning.any() !== false) {
+        <button type="button" [class.on]="on() === 'yields'" (click)="go('/products')">
+          <ion-icon name="trending-up-outline"></ion-icon><span>{{ 'ui.face.yields' | t }}</span>
+        </button>
+      }
       <button type="button" [class.on]="on() === 'debts'" (click)="go('/debts')">
         <ion-icon name="receipt-outline"></ion-icon><span>{{ 'ui.face.debts' | t }}</span>
       </button>
@@ -39,6 +44,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class AccountsFacesComponent {
   private readonly router = inject(Router);
+  readonly earning = inject(EarningService);
   readonly on = input<'balances' | 'yields' | 'debts'>('balances');
 
   go(url: string): void {

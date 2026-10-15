@@ -23,7 +23,10 @@
             <div><span class="ui-lab">{{ 'loans.thisMonth.interest' | t }}</span><b class="ui-y">{{ thisMonth().interest | money }}</b></div>
           </div>
         } @else {
-          <p class="ui-sub">{{ (cards.length === 0 && loans().length === 0 ? 'cards.none.all' : loans().length === 0 ? 'cards.onlyCards' : 'loans.nothingThisMonth') | t }}</p>
+          <!-- With nothing at all, the card under it says so; the same words twice read wrong. -->
+          @if (cards.length > 0 || loans().length > 0) {
+            <p class="ui-sub">{{ (loans().length === 0 ? 'cards.onlyCards' : 'loans.nothingThisMonth') | t }}</p>
+          }
         }
         <!-- With cards AND loans, what each kind adds up to (30i); each tile
              takes the page to its list. -->
@@ -43,11 +46,13 @@
         }
       </section>
 
-      <h3 class="ui-h with-total" id="debts-cards">
-        <span>{{ 'cards.title' | t }}@if (cards.length > 0) { · {{ cards.length }} }</span>
-        @if (cards.length > 0) { <b>{{ cardsOwedMinor() | money }}</b> }
-      </h3>
+      <!-- Only what the person has (Jose, 2026-10-15, 31b): a kind with
+           nothing in it is not a section, only a line saying where to add one. -->
       @if (cards.length > 0) {
+        <h3 class="ui-h with-total" id="debts-cards">
+          <span>{{ 'cards.title' | t }} · {{ cards.length }}</span>
+          <b>{{ cardsOwedMinor() | money }}</b>
+        </h3>
         <div class="ui-list">
           @for (card of cards; track card.account.id) {
             <button type="button" class="ui-row card" (click)="open(card)">
@@ -66,19 +71,13 @@
             </button>
           }
         </div>
-      } @else {
-        <div class="ui-card empty">
-          <app-badge shape="ci" [size]="46" builtin="card-outline" fixed="#f6b93b"></app-badge>
-          <b>{{ 'cards.empty' | t }}</b>
-          <p class="ui-sub">{{ 'cards.empty.hint' | t }}</p>
-        </div>
       }
 
-      <h3 class="ui-h with-total" id="debts-loans">
-        <span>{{ 'loans.title' | t }}@if (loans().length > 0) { · {{ loans().length }} }</span>
-        @if (loans().length > 0) { <b>{{ loansOwedMinor() | money }}</b> }
-      </h3>
       @if (loans().length > 0) {
+        <h3 class="ui-h with-total" id="debts-loans">
+          <span>{{ 'loans.title' | t }} · {{ loans().length }}</span>
+          <b>{{ loansOwedMinor() | money }}</b>
+        </h3>
         <div class="ui-list">
           @for (l of loans(); track l.loan.account.id) {
             <button type="button" class="ui-row card" (click)="openLoan(l)">
@@ -95,13 +94,20 @@
             </button>
           }
         </div>
-      } @else {
+      }
+
+      @if (cards.length === 0 && loans().length === 0) {
         <div class="ui-card empty">
-          <app-badge shape="ci" [size]="46" builtin="cash-outline" fixed="#9b7bff"></app-badge>
-          <b>{{ 'loans.none' | t }}</b>
-          <p class="ui-sub">{{ 'loans.none.hint' | t }}</p>
-          <button type="button" class="ui-chip add" (click)="newLoan.set(true)"><ion-icon name="add"></ion-icon>{{ 'loans.add' | t }}</button>
+          <app-badge shape="ci" [size]="46" builtin="receipt-outline" fixed="#9b7bff"></app-badge>
+          <b>{{ 'cards.none.all' | t }}</b>
+          <p class="ui-sub">{{ 'debts.empty.hint' | t }}</p>
+          <button type="button" class="ui-chip add" (click)="choosing.set(true)"><ion-icon name="add"></ion-icon>{{ 'debts.empty.add' | t }}</button>
         </div>
+      } @else if (cards.length === 0 || loans().length === 0) {
+        <button type="button" class="add-line" (click)="cards.length === 0 ? choosing.set(true) : newLoan.set(true)">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <span>{{ (cards.length === 0 ? 'debts.hint.card' : 'debts.hint.loan') | t }} <b>{{ 'loans.newDebt' | t }}</b></span>
+        </button>
       }
       <div class="ui-page-end"></div>
     } @else {

@@ -47,3 +47,13 @@ app-accounts-faces { margin-bottom: 12px; }
 
 .month { margin-top: 10px; > div { background: rgba(var(--app-bg-rgb), 0.35); } }
 .empty .add { display: inline-flex; align-items: center; gap: 6px; color: var(--app-pr); margin-top: 6px; }
+
+/* Where to add the kind the person does not have yet (31b): one quiet line. */
+.add-line {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+  margin: 16px 0 0; padding: 6px; border: 0; background: none; color: var(--app-mu);
+  font: inherit; font-size: 13.5px; text-align: center; cursor: pointer;
+  ion-icon { font-size: 16px; flex: none; }
+  b { color: var(--app-pr); font-weight: 600; }
+}
+section.owed + .empty { margin-top: 12px; }
