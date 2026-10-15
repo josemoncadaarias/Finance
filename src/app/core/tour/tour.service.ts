@@ -82,6 +82,7 @@ const TOUR_LIST = {
       { sel: 'app-accounts section.worth', title: 'tour.accounts.2.title', text: 'tour.accounts.2.text' },
       { sel: 'app-accounts .ui-list.accounts', title: 'tour.accounts.3.title', text: 'tour.accounts.3.text' },
       { sel: 'app-accounts .ui-bigtitle .ui-pill', title: 'tour.accounts.4.title', text: 'tour.accounts.4.text' },
+      { title: 'tour.accounts.5.title', text: 'tour.accounts.5.text', since: 4 },
     ],
   },
   currencies: {
