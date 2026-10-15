@@ -168,7 +168,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (795 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (800 on 2026-10-15, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -427,6 +427,26 @@ these):
   Tests in `statement.test.mjs` (the layout copied from the screenshots);
   checked in a browser with a PDF written in that layout - not with the real
   file, which the session never had.
+  **And the layouts other banks use** (Jose, 2026-10-15: "que la app sea
+  capaz de leer cualquier tipo de extracto"). Read now, each with its test
+  in `statement.test.mjs` (rows invented in each shape): whatever a
+  statement prints before every row's date - a card's word, a dash, an
+  authorisation number - as long as its shape repeats on two dated rows
+  (`datingOf`: words as they are, digits as "9"), and a bare run of digits
+  is no amount beside amounts written as such (`amountsOf`); a second date
+  (the posting day) after the first; the month first ("Sep 12, 2026", "SEP
+  12"), and no shop taken for a month ("12 MAYORISTA", `monthOf`);
+  "Débitos"/"Créditos" (or "Cargos"/"Abonos") columns with no sign and no
+  balance, the sign by the column under which the amount sits
+  (`sideColumnsOf`); a statement from December into January whose days carry
+  no year (`acrossNewYear`); on a card, "CR" and an unsigned row that STARTS
+  with "PAGO", "ABONO", "DEVOLUCIÓN"... as money back into the card, while
+  "MERCADO PAGO" stays a purchase (`CARD_CAME_IN`); and the date leaves the
+  description however it was written ("03 Ago 2026"). **What it still cannot
+  read**: a scanned PDF or a photo (no text inside - OCR is not built, rule
+  22), and a movement whose description runs onto a second line keeps only
+  its first line. A statement that reads no movement says so and saves
+  nothing; one that does not add up says "No cuadra" and by how much.
 
 - **The eye hides every amount** (Jose, 2026-10-14, mockups `28`; idea 3/H,
   turned down on 2026-09-28, asked for again). One switch for the whole app

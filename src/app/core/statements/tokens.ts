@@ -36,6 +36,24 @@ const MONTHS: Record<string, number> = {
   AGO: 8, AUG: 8, SEP: 9, SET: 9, OCT: 10, NOV: 11, DIC: 12, DEC: 12,
 };
 
+const MONTH_NAMES = [
+  'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'SETIEMBRE',
+  'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE', 'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'JUNE', 'JULY', 'AUGUST',
+  'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER', 'SEPT',
+];
+
+/**
+ * The month a word names: "SEP", "Sept", "septiembre" - but not "Mayorista"
+ * or "Marca", whose first three letters only look like one.
+ */
+export function monthOf(word: string): number | undefined {
+  const upper = word.toUpperCase().replace(/[ÁÉÍÓÚ]/g, c => 'AEIOU'['ÁÉÍÓÚ'.indexOf(c)]);
+  const month = MONTHS[upper.slice(0, 3)];
+  if (month === undefined) return undefined;
+  if (upper.length <= 4) return month;
+  return MONTH_NAMES.some(name => name.startsWith(upper)) ? month : undefined;
+}
+
 const TWO_DIGITS = /^\d{1,2}$/;
 
 /**
@@ -66,11 +84,23 @@ export function dateIn(text: string, year: number | null): IsoDate | null {
   // 10-SEP-2026, 10 SEP 26, 10 SEP.
   const named = start.match(/^(\d{1,2})[-\s.]*([A-Za-zÁÉÍÓÚáéíóú]{3,10})\.?[-\s.]*(\d{2,4})?/);
   if (named) {
-    const month = MONTHS[named[2].slice(0, 3).toUpperCase()];
+    const month = monthOf(named[2]);
     if (month !== undefined) {
       const written = named[3] === undefined ? null : Number(named[3]);
       const inYear = written === null ? year : (written < 100 ? 2000 + written : written);
       if (inYear !== null) return dateOf(inYear, month, Number(named[1]));
+    }
+  }
+
+  // Sep 10, 2026 and SEP 10: the month first, as statements in English and
+  // some cards print it. The month has to be a real one, so a word that
+  // happens to precede a number is never read as a date.
+  const monthFirst = start.match(/^([A-Za-zÁÉÍÓÚáéíóú]{3,10})\.?\s+(\d{1,2})(?!\d)(?:,?\s+(\d{4}))?/);
+  if (monthFirst) {
+    const month = monthOf(monthFirst[1]);
+    if (month !== undefined) {
+      const inYear = monthFirst[3] === undefined ? year : Number(monthFirst[3]);
+      if (inYear !== null) return dateOf(inYear, month, Number(monthFirst[2]));
     }
   }
 
