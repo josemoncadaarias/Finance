@@ -120,6 +120,13 @@ export async function usualNote(db: SqlDriver, context: NoteContext, today: stri
   // nothing the next time). A category alone is too vague for that.
   if (context.kind === 'transfer' || context.kind === 'betweenProducts') return lastWritten(db, context);
   if (context.kind !== 'product' || context.categoryId === null) return null;
+  // A product that is not the account's usual one, with its category, is as
+  // specific as a route: one note written there is enough, the last one
+  // (Jose, 2026-10-15: his Plata Bolsillo's "Ganancia" income offered nothing).
+  if (context.productId !== context.usualProductId) {
+    const last = await lastWritten(db, context);
+    if (last !== null) return last;
+  }
   // A product with no habit of its own falls back to the account's, for the
   // same side and category: a note says what was bought, not which pocket it
   // came out of. Found by Jose on 2026-09-25 - his "Cosas para la casa
