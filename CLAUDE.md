@@ -703,6 +703,21 @@ these):
   Checked in a browser on the sample data: every tour of every screen at
   393×700.
 
+- **Inicio's blocks keep one gap in any order** (Jose, 2026-10-15, three
+  screenshots: after reordering on "Personaliza tu vista" the balance card
+  touched the list above it and "N pendientes" below it, and the account's
+  name sat on the line under it). Each block carried an outside margin that
+  only fit the order the app comes in. Now `.home-slots` (movements page) is
+  a column with a 12px gap and the blocks keep no outside margin: Pendientes
+  hides itself whole when nothing is pending (`total() === 0` on its host)
+  and spaces its own bar and rows inside; the chart or list is one
+  `.faces-slot`. The header's name and line under it have 3px between them
+  and a 1.3 line height. Checked with a script that measures every card
+  against the one above it (`touching`: rounded, filled, under 6px apart):
+  it found the two touches of the screenshots on the build before, and none
+  after, over five orders of Inicio, chart and list, all accounts and five
+  kinds of account, Deudas reordered and every other screen (86 views).
+
 ---
 
 ## Decisions already made

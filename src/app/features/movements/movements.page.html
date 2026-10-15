@@ -58,13 +58,17 @@
 
     <!-- Inicio's blocks in the order chosen on "Personaliza tu vista" (31f):
          Pendientes, the balance, and the chart or list. -->
+    <!-- One space between the blocks whatever their order: each block keeps
+         no margin of its own on the outside. -->
+    <div class="home-slots">
     @for (slot of homeSlots(); track slot) {
       @switch (slot) {
         @case ('attention') { <ng-container *ngTemplateOutlet="attentionBlock"></ng-container> }
         @case ('figures') { <ng-container *ngTemplateOutlet="figuresBlock"></ng-container> }
-        @case ('faces') { <ng-container *ngTemplateOutlet="facesBlock"></ng-container> }
+        @case ('faces') { <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div> }
       }
     }
+    </div>
 
     <ng-template #attentionBlock>
     <!-- What needs attention - cards and loans due (11o), caps and goals (14f,
