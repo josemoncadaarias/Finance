@@ -409,3 +409,58 @@ test('a debit statement that pays a card is not taken for a card', () => {
   assert.equal(read.card, false);
   assert.deepEqual(read.rows.map(row => row.amount_minor), [-4_500_000, 1_200_000]);
 });
+
+// ---------------------------------------------------------------------------
+// Other layouts banks use (invented rows in each one's shape, 2026-10-15)
+// ---------------------------------------------------------------------------
+
+test('a card statement whose rows start with an authorisation number and carry two dates', () => {
+  const read = readStatement(page([
+    [[40, 'Extracto Tarjeta de Crédito Mastercard'], [400, 'Pago mínimo'], [480, '$120.000,00']],
+    [[40, 'Autorización'], [100, 'Fecha'], [160, 'Registro'], [220, 'Descripción'], [380, 'Valor original'], [470, 'Tasa'], [520, 'Saldo a diferir']],
+    [[40, '483920'], [100, '25/09/2026'], [160, '26/09/2026'], [220, 'COMPRA EXITO POBLADO'], [380, '$45.900,00'], [470, '28,40'], [520, '$0,00']],
+    [[40, '117355'], [100, '27/09/2026'], [160, '28/09/2026'], [220, 'MERCADO PAGO*HACEB'], [380, '$1.168.308,00'], [470, '28,40'], [520, '$973.590,00']],
+    [[40, '000000'], [100, '30/09/2026'], [160, '30/09/2026'], [220, 'PAGO PSE GRACIAS'], [380, '$500.000,00 CR'], [470, '0,00'], [520, '$0,00']],
+    [[40, '000001'], [100, '01/10/2026'], [160, '01/10/2026'], [220, 'PAGO SUCURSAL VIRTUAL'], [380, '$200.000,00'], [470, '0,00'], [520, '$0,00']],
+  ]), COP);
+  assert.equal(read.card, true);
+  assert.deepEqual(read.rows.map(row => row.amount_minor), [-4_590_000, -116_830_800, 50_000_000, 20_000_000],
+    'the authorisation number is no amount; CR and a row starting "PAGO" came back to the card, "MERCADO PAGO" did not');
+  assert.deepEqual(read.rows.map(row => row.description),
+    ['COMPRA EXITO POBLADO', 'MERCADO PAGO*HACEB', 'PAGO PSE GRACIAS', 'PAGO SUCURSAL VIRTUAL']);
+});
+
+test('a date with the month first is read, and a shop that starts like a month is not a date', () => {
+  assert.equal(dateIn('Sep 12, 2026 AMAZON', null), '2026-09-12');
+  assert.equal(dateIn('SEP 12 AMAZON', 2026), '2026-09-12');
+  assert.equal(dateIn('Septiembre 12 de 2026', 2026), '2026-09-12');
+  assert.equal(dateIn('12 MAYORISTA', 2026), null);
+  assert.equal(dateIn('MARCA 12 COMPRA', 2026), null);
+});
+
+test('debits and credits in columns of their own, with no sign and no balance', () => {
+  const read = readStatement(page([
+    [[40, 'Fecha'], [100, 'Descripción'], [330, 'Débitos'], [430, 'Créditos']],
+    [[40, '02/09/2026'], [100, 'COMPRA EN TIENDA'], [330, '45.000,00']],
+    [[40, '03/09/2026'], [100, 'TRANSFERENCIA RECIBIDA'], [430, '120.000,00']],
+    [[40, '05/09/2026'], [100, 'RETIRO CAJERO'], [330, '200.000,00']],
+  ]), COP);
+  assert.deepEqual(read.rows.map(row => row.amount_minor), [-4_500_000, 12_000_000, -20_000_000]);
+});
+
+test('a statement from December into January puts each day in its own year', () => {
+  const read = readStatement(page([
+    [[40, 'Periodo 21/12/2026 al 20/01/2027 - corte 2027 - pago 2027']],
+    [[40, '28/12'], [100, 'COMPRA'], [330, '-45.000,00']],
+    [[40, '05/01'], [100, 'COMPRA'], [330, '-12.000,00']],
+  ]), COP);
+  assert.deepEqual(read.rows.map(row => row.occurred_on), ['2026-12-28', '2027-01-05']);
+});
+
+test('the date leaves the description however it was written', () => {
+  const read = readStatement(page([
+    [[40, '03 Ago 2026'], [170, 'Redención Cashback'], [700, '+$329,99']],
+    [[40, '04 Ago 2026'], [170, 'Envío a otra llave'], [700, '−$26.180,00']],
+  ]), COP);
+  assert.deepEqual(read.rows.map(row => row.description), ['Redención Cashback', 'Envío a otra llave']);
+});

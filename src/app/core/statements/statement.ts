@@ -19,7 +19,7 @@
  */
 
 import type { IsoDate } from '../database/types';
-import { dateIn, moneyTokensIn, moneyIn, yearIn, type MoneyToken, type TextItem } from './tokens';
+import { dateIn, monthOf, moneyTokensIn, moneyIn, yearIn, type MoneyToken, type TextItem } from './tokens';
 
 /** One line of the statement: everything printed at the same height. */
 export interface StatementLine {
@@ -126,6 +126,9 @@ const NOT_A_BALANCE = /(promedio|disponible|m[ií]nimo|minimo|cupo|retenido|canj
 const OPENING = /saldo\s+(anterior|inicial|al\s+inicio|inicio)/i;
 const CLOSING = /(saldo\s+(final|actual|al\s+corte|nuevo)|nuevo\s+saldo|saldo\s+a\s+la\s+fecha)/i;
 
+/** How a row of a card's statement starts when money came back into the card. */
+const CARD_CAME_IN = /^(pagos?|abonos?|devoluci[oó]n|reverso|reintegro|nota\s+cr[eé]dito)\b/i;
+
 /** Words that say money left, for the statements with no balance column. */
 const WENT_OUT = /\b(compra|pago|retiro|debito|débito|cargo|transferencia\s+enviada|envio|envío|cuota|comision|comisión|iva|4x1000|gmf)\b/i;
 const CAME_IN = /\b(abono|deposito|depósito|consignacion|consignación|recibida|recibido|nomina|nómina|intereses|devolucion|devolución|reverso|credito|crédito)\b/i;
@@ -156,7 +159,7 @@ export function readStatement(
   // page is a heading, a total or the bank's telephone number.
   const dateOfLine = datingOf(lines, year);
   const dated = lines
-    .map(line => ({ line, on: dateOfLine(line), money: moneyTokensIn(line.items, minorUnits) }))
+    .map(line => ({ line, on: dateOfLine(line), money: amountsOf(line, minorUnits) }))
     .filter((row): row is { line: StatementLine; on: IsoDate; money: MoneyToken[] } =>
       row.on !== null && row.money.length > 0);
 
@@ -164,6 +167,7 @@ export function readStatement(
   // billed of an installment purchase, what is left of it) can still line
   // up by chance with a purchase, and must not be taken for one.
   const balanceColumn = card ? null : balanceColumnOf(dated);
+  const sides = sideColumnsOf(lines);
   const rows: StatementRow[] = [];
   let previous = stated.opening;
 
@@ -191,7 +195,8 @@ export function readStatement(
       // the balance column was never found the first amount is the movement
       // and a second one is the balance nobody could prove.
       const token = others[0];
-      amount = token.minor * signFromWords(line.text, token, card);
+      const byColumn = card || token.negative || token.positive ? null : sideOfColumn(sides, token);
+      amount = token.minor * (byColumn ?? signFromWords(line.text, token, card, descriptionOf(line, money, year)));
       // A sign written on the line itself, in the bank's own ink, is not the
       // last resort this function usually is, and the review screen should
       // not warn about it.
@@ -205,7 +210,7 @@ export function readStatement(
     rows.push({
       occurred_on: on,
       amount_minor: amount,
-      description: descriptionOf(line, money),
+      description: descriptionOf(line, money, year),
       balance_minor: balance === null ? null : held(balance),
       line: line.text,
       page: line.page,
@@ -214,6 +219,8 @@ export function readStatement(
     if (balance !== null) previous = held(balance);
     else if (previous !== null) previous += amount;
   }
+
+  acrossNewYear(rows);
 
   const read = rows.reduce((sum, row) => sum + row.amount_minor, 0);
 
@@ -320,19 +327,103 @@ function balanceColumnOf(dated: readonly { money: MoneyToken[] }[]): number | nu
   return best?.x ?? null;
 }
 
+/**
+ * The amounts of a movement's line. A bare run of digits - an authorisation
+ * or a reference number - is no amount beside amounts written as such
+ * ("45.900,00", "$45.900"): only where nothing on the line is written that
+ * way is it read as one.
+ */
+function amountsOf(line: StatementLine, minorUnits: number): MoneyToken[] {
+  const money = moneyTokensIn(line.items, minorUnits);
+  const written = money.filter(token => !/^[-+]?\d+$/.test(token.text));
+  return written.length > 0 ? written : money;
+}
+
+/**
+ * A statement that prints what left and what came in in two columns of their
+ * own - "Débitos" and "Créditos", "Cargos" and "Abonos" - says the sign by the
+ * column, and its headings say which column is which. Only used where the
+ * line carries no sign and no running balance proved one.
+ */
+const OUT_HEADING = /^(d[eé]bitos?|cargos?|retiros?|salidas?|egresos?|valor\s+d[eé]bito)$/i;
+const IN_HEADING = /^(cr[eé]ditos?|abonos?|dep[oó]sitos?|entradas?|ingresos?|valor\s+cr[eé]dito)$/i;
+
+function sideColumnsOf(lines: readonly StatementLine[]): { out: number; in: number } | null {
+  for (const line of lines) {
+    const out = line.items.find(item => OUT_HEADING.test(item.text.trim()));
+    const into = line.items.find(item => IN_HEADING.test(item.text.trim()));
+    if (out && into && Math.abs(out.x - into.x) > SAME_COLUMN) return { out: out.x, in: into.x };
+  }
+  return null;
+}
+
+function sideOfColumn(sides: { out: number; in: number } | null, token: MoneyToken): -1 | 1 | null {
+  if (sides === null) return null;
+  return Math.abs(token.x - sides.in) < Math.abs(token.x - sides.out) ? 1 : -1;
+}
+
+/**
+ * A statement from December into January that writes its days without a
+ * year ("28/12", "05/01") takes the one year its heading repeats for all of
+ * them, and one side lands a year off. Where both ends of the year are read
+ * that way, November and December belong to the year before January's.
+ */
+function acrossNewYear(rows: StatementRow[]): void {
+  const yearless = rows.filter(row => !/\b\d{4}\b|\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2}\b/.test(row.line.slice(0, 40)));
+  const month = (row: StatementRow) => Number(row.occurred_on.slice(5, 7));
+  const late = yearless.filter(row => month(row) >= 11);
+  const early = yearless.filter(row => month(row) <= 2);
+  if (late.length === 0 || early.length === 0) return;
+  for (const row of late) {
+    if (row.occurred_on.slice(0, 4) !== early[0].occurred_on.slice(0, 4)) continue;
+    const back = `${Number(row.occurred_on.slice(0, 4)) - 1}${row.occurred_on.slice(4)}`;
+    row.occurred_on = back as IsoDate;
+  }
+}
+
 /** A card statement's other columns: rates, "N/A", "1 de 8" installments. */
 const NOT_WORDS = /^(N\/A|-|\d+([.,]\d+)?\s*%|\d+\s+de\s+\d+)$/i;
 
 /** What the line says, with the numbers and the date taken out of it. */
-function descriptionOf(line: StatementLine, money: readonly MoneyToken[]): string {
+function descriptionOf(line: StatementLine, money: readonly MoneyToken[], year: number | null): string {
   const amounts = new Set(money.map(token => token.text));
-  return line.items
+  const words = line.items
     .map(item => item.text.trim())
-    .filter(text => text.length > 0 && !amounts.has(text) && !NOT_WORDS.test(text))
+    .filter(text => text.length > 0 && !amounts.has(text) && !amounts.has(moneyIn(text, 2)?.text ?? '') && !NOT_WORDS.test(text))
     .join(' ')
-    .replace(/^([^\s\d]{1,12}\s+)?\S*\d{1,4}[-/.]\d{1,2}([-/.]\d{2,4})?\S*\s*/, '')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .split(' ');
+  // What leads the date (a card's word, an authorisation number) and the
+  // date itself go, however it was written - and a second date right after
+  // it, which is the day the bank posted it.
+  let start = 0;
+  for (let lead = 0; lead <= LEAD_MAX && lead < words.length; lead++) {
+    const after = dateEnd(words, lead, year);
+    if (after > lead) {
+      start = after;
+      const second = dateEnd(words, start, year);
+      if (second > start) start = second;
+      break;
+    }
+  }
+  return words.slice(start).join(' ').trim();
+}
+
+/** Where a date starting at word `from` ends, or `from` when none starts there. */
+function dateEnd(words: readonly string[], from: number, year: number | null): number {
+  if (dateIn(words.slice(from).join(' '), year) === null) return from;
+  // The longest run of words that still reads as the same date: "03 Ago 2026"
+  // is three words, "2026-08-03" one.
+  const whole = dateIn(words.slice(from).join(' '), year);
+  // Only words a date is made of: with a digit, or a month's name.
+  let end = from;
+  for (let take = 1; take <= 3 && from + take <= words.length; take++) {
+    const word = words[from + take - 1].replace(/[.,]$/, '');
+    if (!/\d/.test(word) && monthOf(word) === undefined) break;
+    if (dateIn(words.slice(from, from + take).join(' '), year) === whole) end = from + take;
+  }
+  return end === from ? from + 1 : end;
 }
 
 /**
@@ -342,10 +433,16 @@ function descriptionOf(line: StatementLine, money: readonly MoneyToken[]): strin
  * can say it was a guess. A statement that says nothing either way is read as
  * money leaving, which is what most lines of most statements are.
  */
-function signFromWords(text: string, token: MoneyToken, card = false): -1 | 1 {
+function signFromWords(text: string, token: MoneyToken, card = false, description = ''): -1 | 1 {
   // A card's statement prints what was charged as it is and what was paid
-  // with a minus: the minus is money coming back into the card.
-  if (card) return token.negative ? 1 : -1;
+  // with a minus or "CR": either is money coming back into the card, and so
+  // is an unsigned row that STARTS by saying it is a payment or a refund -
+  // "PAGO POR PSE", never "MERCADO PAGO", which is a purchase.
+  if (card) {
+    if (token.negative || /\b(CR|CREDITO|CRÉDITO)\b/i.test(token.text)) return 1;
+    if (token.positive) return -1;
+    return CARD_CAME_IN.test(description) ? 1 : -1;
+  }
   if (token.negative) return -1;
   if (token.positive) return 1;
   if (CAME_IN.test(text) && !WENT_OUT.test(text)) return 1;
@@ -353,31 +450,56 @@ function signFromWords(text: string, token: MoneyToken, card = false): -1 | 1 {
 }
 
 /**
- * The date a movement's line starts with - or starts with right after one
- * short word that the statement puts in front of many of its rows. A card
- * statement begins each row with the card ("Virtual", "Física") or a dash
- * (Rappi Card, Jose, 2026-10-15), and reading the date only at the very
- * start found none of its forty rows. The word has to lead at least two
- * dated rows and carry no digit, so a heading such as "Corte 20/09/2026"
- * never becomes a movement and a reference number is never a date.
+ * The date of a movement's line: at its start, or after what the statement
+ * prints in front of every row - the card ("Virtual", "Física"), a dash, an
+ * authorisation number - which the very start missed (Rappi Card, Jose,
+ * 2026-10-15: none of its forty rows was read).
+ *
+ * What comes before the date has to have the same SHAPE on at least two
+ * dated rows: words as they are, every run of digits as one "9", so
+ * "Virtual" leads like "Virtual" and 483920 like 117355. A heading such as
+ * "Fecha de corte 20/09/2026" leads nothing else, and is never a movement.
+ * The date is looked for piece by piece (as the PDF placed them) and word by
+ * word (for a PDF that hands a row over as one piece), never past the fourth.
  */
+const LEAD_MAX = 3;
+
 function datingOf(lines: readonly StatementLine[], year: number | null): (line: StatementLine) => IsoDate | null {
-  const split = (line: StatementLine) => {
+  const shapeOf = (parts: readonly string[]): string =>
+    parts.map(part => part.trim().toLowerCase().replace(/\d+/g, '9')).join(' ');
+
+  /** Every way of splitting the line into a lead and a dated rest. */
+  const candidates = (line: StatementLine): { key: string; on: IsoDate }[] => {
+    const found: { key: string; on: IsoDate }[] = [];
+    const pieces = line.items.map(item => item.text.trim()).filter(Boolean);
     const words = line.text.split(' ');
-    return { lead: words[0] ?? '', rest: words.slice(1).join(' ') };
+    for (const parts of [pieces, words]) {
+      for (let skip = 1; skip <= LEAD_MAX && skip < parts.length; skip++) {
+        const lead = parts.slice(0, skip);
+        // A lead is a short tag, never a sentence or an amount.
+        if (lead.join(' ').length > 24 || lead.some(part => moneyIn(part, 2) !== null && !/^\d+$/.test(part))) break;
+        const on = dateIn(parts.slice(skip).join(' '), year);
+        if (on !== null) {
+          found.push({ key: shapeOf(lead), on });
+          break;
+        }
+      }
+    }
+    return found;
   };
+
   const leads = new Map<string, number>();
   for (const line of lines) {
     if (dateIn(line.text, year) !== null) continue;
-    const { lead, rest } = split(line);
-    if (lead.length === 0 || lead.length > 12 || /\d/.test(lead)) continue;
-    if (dateIn(rest, year) !== null) leads.set(lead.toLowerCase(), (leads.get(lead.toLowerCase()) ?? 0) + 1);
+    for (const key of new Set(candidates(line).map(found => found.key))) {
+      leads.set(key, (leads.get(key) ?? 0) + 1);
+    }
   }
+
   return line => {
     const at = dateIn(line.text, year);
     if (at !== null) return at;
-    const { lead, rest } = split(line);
-    return (leads.get(lead.toLowerCase()) ?? 0) >= 2 ? dateIn(rest, year) : null;
+    return candidates(line).find(found => (leads.get(found.key) ?? 0) >= 2)?.on ?? null;
   };
 }
 
