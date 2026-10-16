@@ -15,7 +15,7 @@
 
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
-import { daysLeft } from '../../core/paywall/subscription';
+import { buyOffer, daysLeft } from '../../core/paywall/subscription';
 import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -74,7 +74,28 @@ export class MorePage {
     ? this.paidLine()
     : this.pro.unlocked()
     ? this.i18n.t('pro.card.open')
-    : this.i18n.t('pro.card.free.line', { days: TRIAL_DAYS, used: this.messagesUsed(), free: PLAN.noticeMovements.free }));
+    : this.freeLine());
+  /** What the card offers while not paid: the same as the Finance Pro screen's button (34n-34p). */
+  readonly offer = computed(() => {
+    const plans = this.pro.plans();
+    const trialDays = plans ? plans.yearly?.trialDays ?? plans.monthly?.trialDays ?? null : TRIAL_DAYS;
+    return buyOffer({ trialDays, everPaid: this.pro.everPaid(), lapsed: this.pro.lapsed() });
+  });
+  readonly proTitle = computed(() => this.pro.unlocked() || this.offer() !== 'trial' ? 'pro.name' : 'pro.card.free');
+  private freeLine(): string {
+    const used = { used: this.messagesUsed(), free: PLAN.noticeMovements.free };
+    const offer = this.offer();
+    if (offer === 'trial') return this.i18n.t('pro.card.free.line', { days: TRIAL_DAYS, ...used });
+    const lapsed = this.pro.lapsed();
+    const end = lapsed ? new Date(lapsed) : null;
+    if (offer === 'return' && end && !Number.isNaN(end.getTime())) {
+      const date = end.toLocaleDateString(this.i18n.dateLocale(), {
+        day: 'numeric', month: 'short', ...(end.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+      });
+      return this.i18n.t('pro.card.ended.line', { date, ...used });
+    }
+    return this.i18n.t('pro.card.sub.line', used);
+  }
   /** What is paid for, in one line (34h): the trial, the renewal, or until when. */
   private paidLine(): string {
     const sub = this.pro.subscription();
