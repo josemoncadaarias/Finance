@@ -2646,3 +2646,14 @@ app-amounts-eye.corner { position: absolute; top: 12px; right: 12px; }
   border-radius: 20px; background: var(--app-s1); border: 1px solid rgba(var(--app-yel-rgb), 0.45);
   color: var(--app-tx); font: inherit; text-align: left; cursor: pointer;
 }
+
+/* An account list with nothing to choose, for a bank's message: one button
+   makes that bank's account (mockups 35a, 35b). Account picker and the
+   movement form's own list. */
+.ui-empty-new {
+  display: grid; justify-items: center; gap: 4px; text-align: center; padding: 14px 8px 4px;
+  app-badge { margin-bottom: 8px; }
+  b { font-size: 16px; }
+  small { color: var(--app-mu); font-size: 13.5px; }
+  .ui-btn { margin-top: 14px; width: 100%; display: flex; gap: 6px; justify-content: center; align-items: center; }
+}

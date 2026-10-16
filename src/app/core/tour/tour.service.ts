@@ -215,6 +215,7 @@ const TOUR_LIST = {
       { sel: 'app-notifications .ui-search', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text' },
       // 2026-10-14: a source's page, "Ignorar publicidad", "Sí era un movimiento".
       { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 2 },
+      { title: 'tour.notifications.4.title', text: 'tour.notifications.4.text', since: 3 },
     ],
   },
   export: {

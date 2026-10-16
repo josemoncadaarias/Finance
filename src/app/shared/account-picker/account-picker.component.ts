@@ -77,6 +77,11 @@ export class AccountPickerComponent {
   readonly detail = input<'balance' | 'kind'>('balance');
   /** "Es de una cuenta nueva" at the foot (importing a statement). */
   readonly offerNew = input(false);
+  /**
+   * The bank a message came from (mockups 35a, 35e): the foot row says
+   * "Crear la cuenta {bank}", and an empty list says so with one button.
+   */
+  readonly newFor = input<string | null>(null);
 
   readonly chosen = output<AccountRow>();
   readonly chosenAll = output<void>();

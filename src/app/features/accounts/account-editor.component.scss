@@ -159,3 +159,12 @@
   b.g { color: var(--app-grn); }
   b.r { color: var(--app-red); }
 }
+
+/* A bank's message brought the person here (mockup 35c). */
+.ui-banner.for-bank {
+  display: flex; gap: 10px; align-items: center; text-align: left;
+  font-size: 13.5px; line-height: 1.4; margin-bottom: 14px;
+  background: color-mix(in srgb, #9b7bff 12%, transparent);
+  border: 1px solid color-mix(in srgb, #9b7bff 45%, transparent);
+  ion-icon { font-size: 19px; flex: none; color: #9b7bff; }
+}

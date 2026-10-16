@@ -41,6 +41,7 @@ import { fitsNotMold, silencedBy, type Mold, type Quiet } from '../../core/notic
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
+import { AccountEditorComponent } from '../accounts/account-editor.component';
 
 /** One place the app hears from: an app, or an SMS sender inside one. */
 export interface Source {
@@ -78,7 +79,7 @@ function lateBy(note: AlertNote): number {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })
@@ -626,6 +627,25 @@ export class NotificationsPage {
     await new ProposalsRepository(this.database.driver).assignSource(source.key, SEVERAL_ACCOUNTS);
     this.database.dataChanged();
     await this.look();
+  }
+
+  /** The source whose account is being made from "Crear la cuenta {bank}". */
+  readonly creatingFor = signal<Source | null>(null);
+
+  createFor(): void {
+    const source = this.pickingFor();
+    this.pickingFor.set(null);
+    if (source) this.creatingFor.set(source);
+  }
+
+  /** The account made for a bank: it is that bank's now, and its waiting messages take it. */
+  async createdFor(source: Source, accountId: number | null): Promise<void> {
+    this.creatingFor.set(null);
+    if (accountId === null || this.database.status() !== 'ready') return;
+    const took = await new ProposalsRepository(this.database.driver).assignSource(source.key, accountId);
+    this.database.dataChanged();
+    await this.look();
+    this.toast.say(this.i18n.t(took > 0 ? 'ui.newBank.doneMany' : 'ui.newBank.done', { bank: source.name, count: took }), 4500);
   }
 
   /** "¿De qué cuenta es?" answered: remembered, and its waiting proposals take it. */

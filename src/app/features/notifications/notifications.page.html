@@ -394,7 +394,18 @@
                     [heading]="'ui.notifications.whichAccount' | t" detail="kind"
                     [showAll]="pickingFor()?.kind === 'sms'" [allLabel]="'ui.notifications.several' | t"
                     [allDetail]="'ui.notifications.several.hint' | t"
+                    [newFor]="pickingFor()?.name ?? null" (newAccount)="createFor()"
                     (chosenAll)="assignSeveral()" (chosen)="assign($event)" (closed)="pickingFor.set(null)"></app-account-picker>
+
+<!-- No account for this bank yet: made here, with its name, and given to it (35a, 35c). -->
+<ion-modal class="entry-sheet" [isOpen]="creatingFor() !== null" (didDismiss)="creatingFor.set(null)">
+  <ng-template>
+    @if (creatingFor(); as source) {
+      <app-account-editor [editing]="null" [forBank]="source.name"
+                          (saved)="createdFor(source, $event)" (cancelled)="creatingFor.set(null)"></app-account-editor>
+    }
+  </ng-template>
+</ion-modal>
 
 <app-confirm [open]="asking() !== null" icon="eye-off-outline"
              tone="danger" [title]="askTitle()" [body]="askBody()" [confirmLabel]="askConfirm()"

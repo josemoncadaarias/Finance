@@ -33,9 +33,22 @@ export interface Mold {
    * transfer to (or from) it.
    */
   otherAccountId?: number | null;
+  /**
+   * Saved as a transfer: the note and the products chosen at each end
+   * (Jose, 2026-10-16: everything chosen is learned), so the next one opens
+   * exactly as it was saved, only its amount new.
+   */
+  transfer?: TransferMemory | null;
   /** How many saves taught it, and when last: the newest is tried first. */
   uses: number;
   at: number;
+}
+
+/** What a transfer saved from a message carried besides its two accounts. */
+export interface TransferMemory {
+  note: string | null;
+  fromProductId: number | null;
+  toProductId: number | null;
 }
 
 /** What a mold reads out of a message that fits it. */
@@ -47,6 +60,8 @@ export interface MoldReading {
   categoryId: number | null;
   /** Saved as a transfer before: the account at its other end. */
   otherAccountId: number | null;
+  /** And its note and products. */
+  transfer: TransferMemory | null;
 }
 
 /** At most this many molds per source; the least used go first. */
@@ -78,6 +93,7 @@ export function moldFrom(input: {
   source: string; text: string; amountMinor: number; merchant: string | null;
   accountId: number | null; categoryId: number | null; at: number;
   otherAccountId?: number | null;
+  transfer?: TransferMemory | null;
 }): Mold | null {
   const text = normalise(input.text);
   if (!text) return null;
@@ -118,6 +134,7 @@ export function moldFrom(input: {
     accountId: input.accountId,
     categoryId: input.categoryId,
     otherAccountId: input.otherAccountId ?? null,
+    ...(input.transfer ? { transfer: input.transfer } : {}),
     uses: 1,
     at: input.at,
   };
@@ -170,6 +187,7 @@ export function readWithMolds(source: string, text: string, molds: readonly Mold
       // the mold's is the one the person gave.
       categoryId: mold.hasMerchant ? null : mold.categoryId,
       otherAccountId: mold.otherAccountId ?? null,
+      transfer: mold.otherAccountId != null ? mold.transfer ?? null : null,
     };
   }
   return null;

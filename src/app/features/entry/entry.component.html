@@ -390,6 +390,16 @@
         <h2>{{ (picking() === 'to' || (!isTransfer() && kind() === 'income') ? 'entry.toWhere' : 'entry.fromWhere') | t }}</h2>
         <span class="right"></span>
       </div>
+      @if (newBankFor() && accounts().length === 0) {
+        <div class="ui-empty-new">
+          <app-badge shape="ci" [size]="56" builtin="wallet" fixed="#6378ff"></app-badge>
+          <b>{{ 'ui.newBank.none' | t }}</b>
+          <small>{{ 'ui.newBank.noneHint' | t }}</small>
+          <button type="button" class="ui-btn" (click)="createBankAccount()">
+            <ion-icon name="add"></ion-icon>{{ 'ui.newBank.create' | t:{ bank: newBankFor()! } }}
+          </button>
+        </div>
+      } @else {
       <div class="ui-search">
         <ion-icon name="search-outline"></ion-icon>
         <input type="search" [placeholder]="'ui.picker.search' | t" [value]="accountSearch()"
@@ -414,6 +424,19 @@
           <p class="nothing">{{ 'ui.picker.nothing' | t:{ search: accountSearch() } }}</p>
         }
       </div>
+      @if (newBankFor(); as bank) {
+        <div class="ui-list new">
+          <button type="button" class="ui-row" (click)="createBankAccount()">
+            <app-badge shape="ci" [size]="40" builtin="add" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ 'ui.newBank.create' | t:{ bank: bank } }}</b>
+              <small class="wrap">{{ 'ui.newBank.hint' | t }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+      }
+      }
     </div>
   </ng-template>
 </ion-modal>
@@ -448,6 +471,16 @@
         </button>
       </div>
     </div>
+  </ng-template>
+</ion-modal>
+
+<!-- A message's bank with no account yet: made here with its name (35b-35d). -->
+<ion-modal class="entry-sheet" [isOpen]="creatingBank() !== null" (didDismiss)="creatingBank.set(null)">
+  <ng-template>
+    @if (creatingBank(); as bank) {
+      <app-account-editor [editing]="null" [forBank]="bank"
+                          (saved)="bankAccountCreated($event)" (cancelled)="creatingBank.set(null)"></app-account-editor>
+    }
   </ng-template>
 </ion-modal>
 

@@ -23,7 +23,12 @@
     <input #statementFile type="file" accept="application/pdf,.pdf" hidden
            (change)="onStatementPicked($any($event.target))" />
 
-    @if (isNew()) {
+    @if (forBank(); as bank) {
+      <div class="ui-banner for-bank">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <span>{{ 'ui.newBank.banner' | t:{ bank: bank } }}</span>
+      </div>
+    } @else if (isNew()) {
       @if (statementSaid(); as said) {
         <div class="ui-card from-statement">
           <ion-icon name="sparkles-outline"></ion-icon>
