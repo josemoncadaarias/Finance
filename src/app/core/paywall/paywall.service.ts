@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { environment } from '../../../environments/environment';
 import { DatabaseService } from '../database/database.service';
 import { CHARGING, PLAN, canUse, freeLeft, isUnlocked, reportSectionFree, type Feature } from './plan';
+import { changeModeFor, subscriptionOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
 
 const PREVIEW_KEY = 'finance.paywall.preview';
 /** The store's last answer, kept so no lock is felt offline (rule 21, 2). */
@@ -55,7 +56,10 @@ export class PaywallService {
   readonly previewFree = signal(readPreview());
 
   /** Whether the store says Finance Pro is active: bought, or in its trial. */
-  readonly entitled = signal(readEntitled());
+  readonly entitled = signal(readEntitled().on === true);
+
+  /** What is paid for, when it is: the plan, the trial, until when (34i-34l). */
+  readonly subscription = signal<Subscription | null>(readEntitled().sub ?? null);
 
   /** Whether everything is open: paid, in the trial, or the app not charging yet. */
   readonly unlocked = computed(() => isUnlocked(this.entitled(), CHARGING, this.previewFree()));
@@ -94,10 +98,12 @@ export class PaywallService {
   }
 
   /** Any active entitlement is Finance Pro: the app sells one thing. */
-  private heard(info: { entitlements: { active: Record<string, unknown> } }): void {
-    const on = Object.keys(info.entitlements.active).length > 0;
+  private heard(info: { entitlements: { active: Record<string, unknown> }; managementURL?: string | null }): void {
+    const sub = subscriptionOf(info.entitlements.active as Record<string, EntitlementLike>, info.managementURL ?? null);
+    const on = sub !== null;
     this.entitled.set(on);
-    try { localStorage.setItem(ENTITLED_KEY, JSON.stringify({ on, at: new Date().toISOString() })); } catch { /* kept for this opening */ }
+    this.subscription.set(sub);
+    try { localStorage.setItem(ENTITLED_KEY, JSON.stringify({ on, sub, at: new Date().toISOString() })); } catch { /* kept for this opening */ }
   }
 
   /** The store's prices for the two plans, for the Finance Pro screen. */
@@ -105,6 +111,8 @@ export class PaywallService {
     if (!(await this.connect())) return;
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      // Read again: a plan changed or cancelled in Google Play shows at once.
+      try { this.heard((await Purchases.getCustomerInfo()).customerInfo); } catch { /* the last answer holds */ }
       const offerings = await Purchases.getOfferings();
       const packages = offerings.current?.availablePackages ?? [];
       const of = (type: string): StorePlan | null => {
@@ -117,19 +125,36 @@ export class PaywallService {
     }
   }
 
-  /** Buys a plan through Google Play. Nothing is charged by the app itself. */
-  async buy(plan: 'monthly' | 'yearly'): Promise<BuyResult> {
+  /**
+   * Buys a plan through Google Play. Nothing is charged by the app itself.
+   * With a plan already paid it is a change of plan: to the year at once,
+   * crediting what is left of the month; to the month when the year is over.
+   */
+  async buy(plan: ProPlan): Promise<BuyResult> {
     if (!(await this.connect())) return 'unavailable';
     const chosen = this.plans()?.[plan];
     if (!chosen) return 'unavailable';
+    const current = this.subscription();
+    const change = current && current.plan !== plan
+      ? { oldProductIdentifier: current.productId, replacementMode: changeModeFor(plan) }
+      : null;
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
-      const { customerInfo } = await Purchases.purchasePackage({ aPackage: chosen.pkg as never });
+      const { customerInfo } = await Purchases.purchasePackage({ aPackage: chosen.pkg as never, storeProductChangeInfo: change as never });
       this.heard(customerInfo);
       return 'bought';
     } catch (error) {
       return (error as { userCancelled?: boolean | null })?.userCancelled ? 'cancelled' : 'failed';
     }
+  }
+
+  /** Google Play's page for this subscription: cancel, the card, payments, or reactivate. */
+  manage(): void {
+    const sub = this.subscription();
+    const url = sub?.manageUrl
+      ?? `https://play.google.com/store/account/subscriptions?sku=${sub?.productId ?? 'finance_pro'}&package=com.jadexlabs.finance`;
+    // Capacitor hands a URL outside the app to Android, which opens Google Play.
+    window.location.href = url;
   }
 
   /** A purchase made before (a new phone, a reinstall), brought back. */
@@ -215,11 +240,11 @@ export class PaywallService {
   }
 }
 
-function readEntitled(): boolean {
+function readEntitled(): { on?: boolean; sub?: Subscription | null } {
   try {
-    return JSON.parse(localStorage.getItem(ENTITLED_KEY) ?? '{}').on === true;
+    return JSON.parse(localStorage.getItem(ENTITLED_KEY) ?? '{}');
   } catch {
-    return false;
+    return {};
   }
 }
 

@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (831 on 2026-10-15, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (837 on 2026-10-16, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1876,7 +1876,24 @@ backup restore against iOS's own SQLite backend.
      prices showed, Google offered the trial and the test card, and the app
      said "Tienes Finance Pro" with the free-version preview on. **Before
      charging for real**: `CHARGING` to true, the preview switch hidden, Jose's
-     own access granted in RevenueCat, the public address replaced. `site/` is deployed by Netlify from `main` by itself.
+     own access granted in RevenueCat, the public address replaced.
+   - **Once paid, the Finance Pro screen stops selling** (Jose, 2026-10-16,
+     mockups `34i`-`34m`, approved: the two plans still showed after paying).
+     `subscriptionOf` (`core/paywall/subscription.ts`, `subscription.test.mjs`)
+     reads the store's entitlement - plan (the base plan id: monthly / yearly),
+     trial, renews, until - kept with the cached answer so it reads offline,
+     and read again each time the screen opens. On top what is paid and until
+     when (trial days left and the day it starts charging; "Pagas X al mes ·
+     se renueva el D"; cancelled: active until D, "Volver a activar"); the plan
+     paid for marked "TU PLAN"; "Cambiar a anual" at once crediting the month
+     (`WITH_TIME_PRORATION`), "Cambiar a mensual" when the year ends
+     (`DEFERRED`), each asked first (`storeProductChangeInfo` on
+     `purchasePackage`, old product `finance_pro`); "Administrar en Google
+     Play" (`manage`: RevenueCat's management URL, opened by Android); the
+     perks at the foot under "Lo que tienes". Más's card says the plan and its
+     date. Pro tour step `since: 2`. Checked in a browser with each state
+     faked in `finance.pro.entitled`; the change of plan itself not yet tried
+     with a license tester. `site/` is deployed by Netlify from `main` by itself.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):

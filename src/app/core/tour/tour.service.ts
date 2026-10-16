@@ -85,6 +85,7 @@ const TOUR_LIST = {
     steps: [
       { target: 'pro-perks', title: 'tour.pro.1.title', text: 'tour.pro.1.text' },
       { target: 'pro-prices', title: 'tour.pro.2.title', text: 'tour.pro.2.text' },
+      { target: 'pro-status', title: 'tour.pro.3.title', text: 'tour.pro.3.text', since: 2 },
     ],
   },
   view: {

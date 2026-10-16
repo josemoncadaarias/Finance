@@ -15,6 +15,7 @@
 
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
+import { daysLeft } from '../../core/paywall/subscription';
 import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -70,10 +71,23 @@ export class MorePage {
   /** Movements saved from bank messages this month, for the free card. */
   private readonly messagesUsed = signal(0);
   readonly proLine = computed(() => this.pro.entitled()
-    ? this.i18n.t('pro.card.active')
+    ? this.paidLine()
     : this.pro.unlocked()
     ? this.i18n.t('pro.card.open')
     : this.i18n.t('pro.card.free.line', { days: TRIAL_DAYS, used: this.messagesUsed(), free: PLAN.noticeMovements.free }));
+  /** What is paid for, in one line (34h): the trial, the renewal, or until when. */
+  private paidLine(): string {
+    const sub = this.pro.subscription();
+    const until = sub?.until ? new Date(sub.until) : null;
+    if (!sub?.plan || !until || Number.isNaN(until.getTime())) return this.i18n.t('pro.card.active');
+    const date = until.toLocaleDateString(this.i18n.dateLocale(), {
+      day: 'numeric', month: 'short', ...(until.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+    });
+    if (!sub.renews) return this.i18n.t('pro.card.until', { date });
+    if (sub.trial) return this.i18n.t('pro.card.trial', { n: daysLeft(sub.until, new Date()) });
+    return this.i18n.t('pro.card.renews', { plan: this.i18n.t(sub.plan === 'yearly' ? 'pro.yearly' : 'pro.monthly'), date });
+  }
+
   /** Inicio or Reporte when no longer on the bottom bar (33f); Cuentas is always under Tus finanzas. */
   readonly offBar = computed(() => leftTheBar(this.view.bar()).filter(id => id !== 'accounts').map(barScreen));
 
