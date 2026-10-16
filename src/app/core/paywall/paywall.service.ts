@@ -16,7 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { environment } from '../../../environments/environment';
 import { DatabaseService } from '../database/database.service';
 import { CHARGING, PLAN, canUse, freeLeft, isUnlocked, reportSectionFree, type Feature } from './plan';
-import { changeModeFor, subscriptionOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
+import { changeModeFor, lapsedOn, subscriptionOf, trialDaysOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
 
 const PREVIEW_KEY = 'finance.paywall.preview';
 /** The store's last answer, kept so no lock is felt offline (rule 21, 2). */
@@ -25,6 +25,8 @@ const ENTITLED_KEY = 'finance.pro.entitled';
 /** A plan as the store sells it: its price in the person's currency. */
 export interface StorePlan {
   price: string;
+  /** Days of free trial Google still offers this person on it, or null. */
+  trialDays: number | null;
   /** The store's own package, handed back to buy it. */
   pkg: unknown;
 }
@@ -60,6 +62,12 @@ export class PaywallService {
 
   /** What is paid for, when it is: the plan, the trial, until when (34i-34l). */
   readonly subscription = signal<Subscription | null>(readEntitled().sub ?? null);
+
+  /** Ever bought Finance Pro, so no free trial is promised again (34o). */
+  readonly everPaid = signal(readEntitled().everPaid === true);
+
+  /** When a Finance Pro no longer active ran out (34p). */
+  readonly lapsed = signal<string | null>(readEntitled().lapsed ?? null);
 
   /** Whether everything is open: paid, in the trial, or the app not charging yet. */
   readonly unlocked = computed(() => isUnlocked(this.entitled(), CHARGING, this.previewFree()));
@@ -98,12 +106,23 @@ export class PaywallService {
   }
 
   /** Any active entitlement is Finance Pro: the app sells one thing. */
-  private heard(info: { entitlements: { active: Record<string, unknown> }; managementURL?: string | null }): void {
-    const sub = subscriptionOf(info.entitlements.active as Record<string, EntitlementLike>, info.managementURL ?? null);
+  private heard(info: {
+    entitlements: { active: Record<string, unknown>; all?: Record<string, unknown> };
+    managementURL?: string | null; allPurchasedProductIdentifiers?: string[];
+  }): void {
+    const active = info.entitlements.active as Record<string, EntitlementLike>;
+    const all = (info.entitlements.all ?? {}) as Record<string, EntitlementLike>;
+    const sub = subscriptionOf(active, info.managementURL ?? null);
     const on = sub !== null;
+    const everPaid = Object.keys(all).length > 0 || (info.allPurchasedProductIdentifiers?.length ?? 0) > 0;
+    const lapsed = lapsedOn(all, active);
     this.entitled.set(on);
     this.subscription.set(sub);
-    try { localStorage.setItem(ENTITLED_KEY, JSON.stringify({ on, sub, at: new Date().toISOString() })); } catch { /* kept for this opening */ }
+    this.everPaid.set(everPaid);
+    this.lapsed.set(lapsed);
+    try {
+      localStorage.setItem(ENTITLED_KEY, JSON.stringify({ on, sub, everPaid, lapsed, at: new Date().toISOString() }));
+    } catch { /* kept for this opening */ }
   }
 
   /** The store's prices for the two plans, for the Finance Pro screen. */
@@ -117,7 +136,8 @@ export class PaywallService {
       const packages = offerings.current?.availablePackages ?? [];
       const of = (type: string): StorePlan | null => {
         const found = packages.find(p => p.packageType === type);
-        return found ? { price: found.product.priceString, pkg: found } : null;
+        // Google offers the trial's phase only to whom it still applies.
+        return found ? { price: found.product.priceString, trialDays: trialDaysOf(found.product.defaultOption?.freePhase), pkg: found } : null;
       };
       this.plans.set({ monthly: of('MONTHLY'), yearly: of('ANNUAL') });
     } catch {
@@ -240,7 +260,7 @@ export class PaywallService {
   }
 }
 
-function readEntitled(): { on?: boolean; sub?: Subscription | null } {
+function readEntitled(): { on?: boolean; sub?: Subscription | null; everPaid?: boolean; lapsed?: string | null } {
   try {
     return JSON.parse(localStorage.getItem(ENTITLED_KEY) ?? '{}');
   } catch {

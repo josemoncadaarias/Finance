@@ -71,3 +71,33 @@ export function daysLeft(until: string | null, now: Date): number {
   if (!until) return 0;
   return Math.max(0, Math.ceil((new Date(until).getTime() - now.getTime()) / 86_400_000));
 }
+
+/** The length of a free phase in days, as Google Play states it (P1W = 7). */
+export function trialDaysOf(phase: { billingPeriod?: { unit?: string; value?: number } | null } | null | undefined): number | null {
+  const unit = phase?.billingPeriod?.unit;
+  const value = phase?.billingPeriod?.value ?? 0;
+  if (!unit || value <= 0) return null;
+  const days = ({ DAY: 1, WEEK: 7, MONTH: 30, YEAR: 365 } as Record<string, number>)[unit];
+  return days ? days * value : null;
+}
+
+/**
+ * When the last Finance Pro that is no longer active ran out, or null when
+ * the person never had one or has one now (`34p`).
+ */
+export function lapsedOn(all: Record<string, EntitlementLike>, active: Record<string, EntitlementLike>): string | null {
+  if (Object.keys(active).length > 0) return null;
+  const ends = Object.values(all).map(e => e.expirationDate).filter((d): d is string => !!d).sort();
+  return ends.length > 0 ? ends[ends.length - 1] : null;
+}
+
+/**
+ * What the buy button offers (`34n`-`34p`): the free trial only when Google
+ * still offers it and the person never paid; coming back after it ran out;
+ * otherwise simply subscribing.
+ */
+export function buyOffer(o: { trialDays: number | null; everPaid: boolean; lapsed: string | null }): 'trial' | 'return' | 'subscribe' {
+  if (o.lapsed) return 'return';
+  if (o.everPaid || !o.trialDays) return 'subscribe';
+  return 'trial';
+}

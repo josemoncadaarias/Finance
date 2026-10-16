@@ -53,3 +53,27 @@ test('days left are whole and never negative', () => {
   assert.equal(daysLeft('2026-10-15T00:00:00Z', now), 0);
   assert.equal(daysLeft(null, now), 0);
 });
+
+import { buyOffer, lapsedOn, trialDaysOf } from '../../src/app/core/paywall/subscription.ts';
+
+test('a free phase in days, as Google states it', () => {
+  assert.equal(trialDaysOf({ billingPeriod: { unit: 'WEEK', value: 1 } }), 7);
+  assert.equal(trialDaysOf({ billingPeriod: { unit: 'DAY', value: 3 } }), 3);
+  assert.equal(trialDaysOf({ billingPeriod: { unit: 'MONTH', value: 1 } }), 30);
+  assert.equal(trialDaysOf(null), null);
+  assert.equal(trialDaysOf({ billingPeriod: null }), null);
+});
+
+test('lapsed is the last end of a Finance Pro no longer active', () => {
+  const old = { productIdentifier: 'finance_pro', expirationDate: '2026-11-15T00:00:00Z' };
+  assert.equal(lapsedOn({ finance_pro: old }, {}), '2026-11-15T00:00:00Z');
+  assert.equal(lapsedOn({ finance_pro: old }, { finance_pro: old }), null);
+  assert.equal(lapsedOn({}, {}), null);
+});
+
+test('the button promises only what will happen', () => {
+  assert.equal(buyOffer({ trialDays: 7, everPaid: false, lapsed: null }), 'trial');
+  assert.equal(buyOffer({ trialDays: null, everPaid: false, lapsed: null }), 'subscribe');
+  assert.equal(buyOffer({ trialDays: 7, everPaid: true, lapsed: null }), 'subscribe');
+  assert.equal(buyOffer({ trialDays: 7, everPaid: true, lapsed: '2026-11-15' }), 'return');
+});

@@ -10,7 +10,7 @@ import { Location, NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon } from '@ionic/angular';
 
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
-import { daysLeft, type ProPlan } from '../../core/paywall/subscription';
+import { buyOffer, daysLeft, type ProPlan } from '../../core/paywall/subscription';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -84,6 +84,12 @@ import { ToastService } from '../../shared/ui/toast.service';
           <div class="ui-h">{{ 'pro.youHave' | t }}</div>
           <ng-container *ngTemplateOutlet="perkList"></ng-container>
         } @else {
+        @if (pro.lapsed(); as ended) {
+          <div class="ui-card status warn lapsed">
+            <app-badge [size]="44" shape="ci" builtin="time-outline" fixed="#f6b93b"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ 'pro.lapsed' | t:{ date: dateOf(ended) ?? '' } }}</b><small class="wrap">{{ 'pro.lapsed.line' | t }}</small></span>
+          </div>
+        }
         <ng-container *ngTemplateOutlet="perkList"></ng-container>
 
         <div class="prices" data-tour="pro-prices">
@@ -100,7 +106,7 @@ import { ToastService } from '../../shared/ui/toast.service';
           </button>
         </div>
 
-        <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="buy()">{{ 'pro.trial' | t:{ days: days } }}</button>
+        <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="buy()">{{ buyLabel() }}</button>
         <p class="small">{{ after() }}</p>
         <button type="button" class="link" [disabled]="busy()" (click)="restore()">{{ 'pro.restore' | t }}</button>
         <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
@@ -145,6 +151,7 @@ import { ToastService } from '../../shared/ui/toast.service';
     .preview { margin-top: 28px; }
     .status { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgba(52, 201, 139, 0.45); }
     .status.warn { border-color: rgba(246, 185, 59, 0.5); }
+    .status.lapsed { margin-bottom: 16px; }
     .price.mine { border-color: var(--app-grn); background: rgba(52, 201, 139, 0.12); cursor: default; }
     .save.mine { background: var(--app-grn); }
     .save.soft { background: rgba(52, 201, 139, 0.22); color: var(--app-grn); }
@@ -208,11 +215,34 @@ export class ProPage {
     { key: 'report', icon: 'stats-chart-outline', color: '#6378ff' },
   ];
 
+  /**
+   * What the buy button offers (34n-34p). Google says who still has the
+   * trial; before the store answers (or in a browser) the trial is assumed
+   * only for someone never seen paying.
+   */
+  readonly offer = computed(() => {
+    const plans = this.pro.plans();
+    const trialDays = plans ? plans[this.plan()]?.trialDays ?? null : TRIAL_DAYS;
+    return { kind: buyOffer({ trialDays, everPaid: this.pro.everPaid(), lapsed: this.pro.lapsed() }), days: trialDays ?? TRIAL_DAYS };
+  });
+
+  readonly buyLabel = computed(() => {
+    const { kind, days } = this.offer();
+    const price = this.priceOf(this.plan());
+    const per = this.i18n.t(this.plan() === 'yearly' ? 'pro.per.year' : 'pro.per.month');
+    if (kind === 'trial') return this.i18n.t('pro.trial.start', { days });
+    return this.i18n.t(kind === 'return' ? 'pro.return' : 'pro.subscribe', { price, per });
+  });
+
+  /** Under the button: the day it starts charging, or how to cancel. */
   readonly after = computed(() => {
-    const store = this.pro.plans()?.[this.plan()]?.price;
-    return this.plan() === 'yearly'
-      ? this.i18n.t('pro.after.yearly', { amount: store ?? this.peso(PRICES.yearly) })
-      : this.i18n.t('pro.after.monthly', { amount: store ?? this.peso(PRICES.monthly) });
+    const { kind, days } = this.offer();
+    if (kind !== 'trial') return this.i18n.t('pro.cancelAny');
+    const starts = new Date(Date.now() + days * 86_400_000).toISOString();
+    return this.i18n.t('pro.trial.after', {
+      date: this.dateOf(starts) ?? '', price: this.priceOf(this.plan()),
+      per: this.i18n.t(this.plan() === 'yearly' ? 'pro.per.theYear' : 'pro.per.month'),
+    });
   });
 
   /** The store's price when it answered, the app's own otherwise. */
