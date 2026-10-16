@@ -28,7 +28,7 @@
     <button type="button" class="ui-pro-card" data-tour="more-pro" (click)="go('/pro')">
       <app-badge shape="ci" [size]="44" builtin="diamond-outline" fixed="#f6b93b"></app-badge>
       <span class="ui-tx">
-        <b class="wrap">{{ (pro.unlocked() ? 'pro.name' : 'pro.card.free') | t }}</b>
+        <b class="wrap">{{ proTitle() | t }}</b>
         <small class="wrap">{{ proLine() }}</small>
       </span>
       <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
