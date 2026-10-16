@@ -137,4 +137,19 @@ S['34m-cambiar-plan'] = S['34j-pro-mensual'] + `<div class="scrim"></div><div cl
  <div class="sub" style="margin:6px 8px 0;line-height:1.4">Pagas $ 70.000 por un año. Lo que no has usado de este mes se descuenta. Google te muestra el valor exacto antes de confirmar.</div></div>
  ${btn('Continuar en Google Play', 'margin-top:18px')}${link('Ahora no')}<div style="height:10px"></div></div>`;
 
+// 8. The button says what will really happen (Jose, 2026-10-16: "probar gratis"
+//    for someone who already used the trial promised what Google would not
+//    give). Google decides who still has the trial; the app reads it.
+const sell = (top, button, line) => paywall()
+  .replace('<div class="list" style="margin-top:16px">', `${top}<div class="list" style="margin-top:16px">`)
+  .replace('$ 69.900', '$ 70.000').replace('$ 11.900', '$ 12.000').replace('$ 5.825', '$ 5.833')
+  .replace(btn('Probar 7 días gratis', 'margin-top:16px'), btn(button, 'margin-top:16px'))
+  .replace('Luego $ 69.900 al año. Cancela cuando quieras en Google Play.', line);
+S['34n-nuevo-con-prueba'] = sell('', 'Empezar 7 días gratis',
+  'Hoy no pagas nada. El 23 de octubre se cobran $ 70.000 por el año. Cancela antes y no pagas.');
+S['34o-ya-uso-la-prueba'] = sell('', 'Suscribirme · $ 70.000 al año',
+  'Cancela cuando quieras en Google Play.');
+S['34p-se-le-vencio'] = sell(status('time-outline', C.yel, 'Tu Finance Pro terminó el 15 de noviembre', 'Tus datos siguen ahí, completos. Lo que es de Pro vuelve a tener límites.').replace('margin-top:16px', 'margin-top:14px'),
+  'Volver a Finance Pro · $ 70.000 al año', 'Cancela cuando quieras en Google Play.');
+
 export default S;

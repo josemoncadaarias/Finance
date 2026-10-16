@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (837 on 2026-10-16, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (840 on 2026-10-16, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1894,6 +1894,20 @@ backup restore against iOS's own SQLite backend.
      date. Pro tour step `since: 2`. Checked in a browser with each state
      faked in `finance.pro.entitled`; the change of plan itself not yet tried
      with a license tester. `site/` is deployed by Netlify from `main` by itself.
+   - **The buy button says what will really happen** (Jose, 2026-10-16,
+     mockups `34n`-`34p`, approved: "Probar 7 días gratis" was offered to
+     everybody, also to whom Google would charge at once). Google decides who
+     still has the trial: the offer's free phase comes in the package only for
+     them (`trialDaysOf(product.defaultOption.freePhase)`), and anybody ever
+     seen paying (`entitlements.all`, `allPurchasedProductIdentifiers` -
+     `everPaid`, cached) is never promised it. `buyOffer`: "Empezar 7 días
+     gratis" with "Hoy no pagas nada. El {fecha} se cobran {precio}..."; or
+     "Suscribirme · {precio} al mes/año"; or, once a Finance Pro ran out
+     (`lapsedOn`), a card "Tu Finance Pro terminó el {fecha}" and "Volver a
+     Finance Pro · {precio}". Before the store answers (and in a browser) the
+     trial is assumed only for someone never seen paying. Tested in
+     `subscription.test.mjs`; each case checked in a browser by faking the
+     cached answer.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
