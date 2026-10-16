@@ -100,7 +100,7 @@ const PAD = 6;
       background: rgba(var(--app-pr-rgb), 0.16); color: var(--app-pr); margin-bottom: 4px;
     }
     .welcome b { font-size: 20px; }
-    .welcome p, .bubble p { margin: 0; color: var(--app-mu); font-size: 14.5px; line-height: 1.45; }
+    .welcome p, .bubble p { margin: 0; color: var(--app-mu); font-size: 14.5px; line-height: 1.45; white-space: pre-line; }
     .welcome .ui-btn { margin-top: 12px; width: 100%; }
     .later { background: none; border: 0; color: var(--app-mu); font: inherit; font-size: 14px; padding: 8px; cursor: pointer; }
     .bubble.centred { top: 50%; transform: translateY(-50%); left: 22px; right: 22px; }
