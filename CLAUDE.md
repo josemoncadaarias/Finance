@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (840 on 2026-10-16, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (841 on 2026-10-16, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -749,6 +749,25 @@ these):
   `bar` tour. Checked in a browser on the sample data: choosing, the swap,
   dragging with the real handle, the lit button per screen, Más, opening on
   Deudas, the reset.
+
+- **A bank's message with no account to go to makes one** (Jose,
+  2026-10-16, mockups `35a`-`35e`, approved). "¿De qué cuenta es?" on
+  Notificaciones (`app-account-picker [newFor]`) and the account list of a
+  message opened as a spending or an income (`newBankFor` in the entry
+  form) offer "Crear la cuenta {bank}" - the whole sheet when there is no
+  account yet (`.ui-empty-new` in global.scss), a row at the foot otherwise.
+  It opens the account form with the bank's name and a line saying what it
+  is for (`AccountEditorComponent.forBank`; `saved` now hands back the id
+  made); saving goes back where the person was with that account chosen,
+  and the source is assigned to it (`assignSource`, which now says how many
+  waiting messages took it). **And a message saved as Transferir remembers
+  its note and the products of both ends** (`Mold.transfer`,
+  `TransferMemory`, read as `evidence.transferMemory` by `asTransfer`): the
+  next message of that shape opens as it was saved, only its amount new. A
+  spending or an income already remembered its note, product and answer
+  (migration 057). Notifications tour step `since: 3`. Tests in
+  `notice-molds.test.mjs`; checked in a browser on an empty app (both ways,
+  the form named, the account chosen on return).
 
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under

@@ -30,7 +30,7 @@ import type { NewProposal } from '../database/repositories/proposals.repository'
 import { merchantKeyOf } from '../proposals/merchant';
 import { foldText } from '../text/fold-text';
 import { readNotice, saysItHappened, type NoticeReading } from './read-notice';
-import { readWithMolds, silencedBy, type Mold, type Quiet } from './molds';
+import { readWithMolds, silencedBy, type Mold, type Quiet, type TransferMemory } from './molds';
 
 /** One message as the phone kept it. */
 export interface KeptNotice {
@@ -78,6 +78,8 @@ export interface NoticeEvidence {
    * account at the other end, so it is proposed as a transfer again.
    */
   transferTo?: number | null;
+  /** And the note and products it was saved with. */
+  transferMemory?: TransferMemory;
   /**
    * The other messages that reported this same movement - an SMS and the
    * bank app's own notification of one purchase - each kept whole, so the
@@ -375,7 +377,7 @@ export function readNotices(
       accountFrom: from,
       ...(molded ? { molded: true } : {}),
       ...(molded?.otherAccountId != null && accounts.some(a => a.id === molded.otherAccountId && !a.archived)
-        ? { transferTo: molded.otherAccountId } : {}),
+        ? { transferTo: molded.otherAccountId, ...(molded.transfer ? { transferMemory: molded.transfer } : {}) } : {}),
     };
     reads.push({
       key,

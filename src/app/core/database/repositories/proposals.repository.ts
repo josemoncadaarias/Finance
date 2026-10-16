@@ -17,7 +17,7 @@ import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
 import { foldText } from '../../text/fold-text';
 import { SEVERAL_ACCOUNTS, noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
 import {
-  learnMold, learnNotMovement, moldFrom, unlearnNotMovement, type Mold, type Quiet,
+  learnMold, learnNotMovement, moldFrom, unlearnNotMovement, type Mold, type Quiet, type TransferMemory,
 } from '../../notices/molds';
 
 const MOLDS = 'notices.molds';
@@ -556,11 +556,12 @@ export class ProposalsRepository {
    * transfer, `otherAccountId` is the account at the other end, and the
    * source's mold learns to propose a transfer to it next time.
    */
-  async accepted(id: number, transactionId: number | null, otherAccountId: number | null = null): Promise<void> {
+  async accepted(id: number, transactionId: number | null, otherAccountId: number | null = null,
+    transfer: TransferMemory | null = null): Promise<void> {
     await this.db.run(
       `UPDATE movement_proposals SET status = 'accepted', transaction_id = ?, updated_at = ? WHERE id = ?`,
       [transactionId, this.now(), id]);
-    await this.learnMoldsFrom(id, otherAccountId);
+    await this.learnMoldsFrom(id, otherAccountId, transfer);
   }
 
   /**
@@ -618,7 +619,8 @@ export class ProposalsRepository {
     return new Map(Object.entries(said ?? {}).filter(([, id]) => typeof id === 'number'));
   }
 
-  async assignSource(source: string, accountId: number | null): Promise<void> {
+  /** Answers which account a source is; says how many waiting messages took it. */
+  async assignSource(source: string, accountId: number | null): Promise<number> {
     const said = Object.fromEntries(await this.sourceAccounts());
     if (accountId === null) delete said[source];
     else said[source] = accountId;
@@ -627,11 +629,12 @@ export class ProposalsRepository {
     // SEVERAL (0) is "this sender writes for several of my accounts": nothing
     // takes it.
     if (accountId !== null && accountId !== SEVERAL_ACCOUNTS) {
-      await this.db.run(
+      return (await this.db.run(
         `UPDATE movement_proposals SET account_id = ?, updated_at = ?
          WHERE source = 'notification' AND status = 'pending' AND account_id IS NULL AND batch = ?`,
-        [accountId, this.now(), noticeBatch(source)]);
+        [accountId, this.now(), noticeBatch(source)])).changes;
     }
+    return 0;
   }
 
   /**
@@ -639,7 +642,7 @@ export class ProposalsRepository {
    * and the sightings folded into it, with the amount, shop, account and
    * category the person saved. A row from a statement teaches nothing here.
    */
-  private async learnMoldsFrom(id: number, otherAccountId: number | null = null): Promise<void> {
+  private async learnMoldsFrom(id: number, otherAccountId: number | null = null, transfer: TransferMemory | null = null): Promise<void> {
     const row = await this.db.queryOne<{
       source: string; evidence: string; amount_minor: number | null; description: string | null;
       account_id: number | null; category_id: number | null;
@@ -655,7 +658,7 @@ export class ProposalsRepository {
       const mold = moldFrom({
         source: one.package, text: one.text, amountMinor: row.amount_minor, merchant: row.description,
         accountId: row.account_id, categoryId: row.category_id, at: Date.parse(this.now()) || Date.now(),
-        otherAccountId,
+        otherAccountId, transfer: otherAccountId != null ? transfer : null,
       });
       if (!mold) continue;
       molds = learnMold(molds, mold);

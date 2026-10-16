@@ -8,7 +8,7 @@
         <span class="right"></span>
       </div>
 
-      @if (showAll()) {
+      @if (showAll() && !(newFor() && accounts().length === 0)) {
         <div class="ui-list">
           <button type="button" class="ui-row" (click)="chosenAll.emit()">
             <span class="all-badge"><ion-icon name="layers-outline"></ion-icon></span>
@@ -23,6 +23,16 @@
         </div>
       }
 
+      @if (newFor() && accounts().length === 0) {
+        <div class="ui-empty-new">
+          <app-badge shape="ci" [size]="56" builtin="wallet" fixed="#6378ff"></app-badge>
+          <b>{{ 'ui.newBank.none' | t }}</b>
+          <small>{{ 'ui.newBank.noneHint' | t }}</small>
+          <button type="button" class="ui-btn" (click)="newAccount.emit()">
+            <ion-icon name="add"></ion-icon>{{ 'ui.newBank.create' | t:{ bank: newFor()! } }}
+          </button>
+        </div>
+      } @else {
       <div class="ui-search">
         <ion-icon name="search-outline"></ion-icon>
         <input type="search" [placeholder]="'ui.picker.search' | t" [value]="search()"
@@ -53,17 +63,23 @@
         }
       </div>
 
-      @if (offerNew()) {
+      @if (offerNew() || newFor()) {
         <div class="ui-list new">
           <button type="button" class="ui-row" (click)="newAccount.emit()">
             <app-badge shape="ci" [size]="40" builtin="add" fixed="#9b7bff"></app-badge>
             <span class="ui-tx">
-              <b>{{ 'ui.import.newAccount' | t }}</b>
-              <small>{{ 'ui.import.newAccount.hint' | t }}</small>
+              @if (newFor(); as bank) {
+                <b class="wrap">{{ 'ui.newBank.create' | t:{ bank: bank } }}</b>
+                <small class="wrap">{{ 'ui.newBank.hint' | t }}</small>
+              } @else {
+                <b>{{ 'ui.import.newAccount' | t }}</b>
+                <small>{{ 'ui.import.newAccount.hint' | t }}</small>
+              }
             </span>
             <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
           </button>
         </div>
+      }
       }
     </div>
   </ng-template>

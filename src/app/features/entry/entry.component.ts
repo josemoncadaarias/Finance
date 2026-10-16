@@ -55,6 +55,7 @@ import { TaxParametersRepository } from '../../core/database/repositories/tax-pa
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import { outlined } from '../../core/icons/icon-catalog';
 import { CategoryEditorComponent } from '../categories/category-editor.component';
+import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ScopeSheetComponent, SCOPE_ICON, SCOPE_TONE, scopeOptionsIn } from '../../shared/scope-sheet/scope-sheet.component';
@@ -162,6 +163,9 @@ export interface EntryProposal {
   /** The product this shop was last saved in, and what it changed (Jose, 2026-10-13). */
   productId?: number | null;
   scope?: EntryScope | null;
+  /** A message's bank, by the name the phone gave it, and its source (mockups 35b-35d). */
+  bank?: string;
+  sourceKey?: string;
 }
 
 export interface LoanEntry {
@@ -186,7 +190,7 @@ import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
   selector: 'app-entry',
   imports: [AmountInputDirective, 
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
-    CategoryEditorComponent, ConfirmComponent, FormFootComponent, AmountFieldComponent, AutoGrowDirective,
+    CategoryEditorComponent, AccountEditorComponent, ConfirmComponent, FormFootComponent, AmountFieldComponent, AutoGrowDirective,
     IonIcon, IonDatetime, IonModal,
   ],
   templateUrl: './entry.component.html',
@@ -1613,6 +1617,38 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.browsingCategories.set(true);
   }
 
+  /**
+   * "Crear la cuenta {bank}" in the account list of a message read as a
+   * spending or an income (mockups 35b, 35d). A message opened as a transfer
+   * already has its own account at its end.
+   */
+  readonly newBankFor = computed(() => {
+    const asked = this.request().proposal;
+    return asked?.bank && !this.isTransfer() && this.picking() === 'from' ? asked.bank : null;
+  });
+  readonly creatingBank = signal<string | null>(null);
+
+  createBankAccount(): void {
+    const bank = this.newBankFor();
+    this.picking.set(null);
+    if (bank) this.creatingBank.set(bank);
+  }
+
+  /** The bank's account made: chosen here, the bank's from now on, its waiting messages with it. */
+  async bankAccountCreated(accountId: number | null): Promise<void> {
+    const bank = this.creatingBank();
+    this.creatingBank.set(null);
+    if (accountId === null || !bank) return;
+    await this.loadAccountsAndCategories();
+    const asked = this.request().proposal;
+    this.accountId.set(accountId);
+    await this.loadProducts();
+    let took = 0;
+    if (asked?.sourceKey) took = await new ProposalsRepository(this.database.driver).assignSource(asked.sourceKey, accountId);
+    this.database.dataChanged();
+    this.toast.say(this.i18n.t(took > 1 ? 'ui.newBank.doneMany' : 'ui.newBank.done', { bank, count: took }), 4500);
+  }
+
   async pickAccount(id: number): Promise<void> {
     // The products belong to the account, so the question changes with it.
     const toSide = this.picking() === 'to';
@@ -2232,16 +2268,23 @@ export class EntryComponent implements OnInit, OnDestroy {
       const mine = leaving ? transfer.from.account_id : transfer.to.account_id;
       const other = leaving ? transfer.to.account_id : transfer.from.account_id;
       const leg = legs.find(one => one.account_id === mine) ?? legs[0];
+      // The note and the products are remembered too (Jose, 2026-10-16):
+      // the next message of this shape opens exactly as this was saved.
+      const memory = {
+        note: transfer.description,
+        fromProductId: transfer.from.product_id,
+        toProductId: transfer.to.product_id,
+      };
       if (leg) {
         if (said && said.account_id !== mine) await proposals.correct(proposal.id, { account_id: mine });
-        await proposals.accepted(proposal.id, leg.id, other);
+        await proposals.accepted(proposal.id, leg.id, other, memory);
       }
       // The other bank's message about the same transfer is answered by it too.
       const otherLeg = legs.find(one => one.account_id === other);
       if (proposal.pairId !== undefined && otherLeg) {
         const pair = await proposals.byId(proposal.pairId);
         if (pair && pair.account_id !== other) await proposals.correct(proposal.pairId, { account_id: other });
-        await proposals.accepted(proposal.pairId, otherLeg.id, mine);
+        await proposals.accepted(proposal.pairId, otherLeg.id, mine, memory);
       }
     }
   }

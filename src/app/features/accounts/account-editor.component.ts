@@ -64,7 +64,14 @@ export class AccountEditorComponent implements OnInit {
   readonly editing = input<AccountRow | null>(null);
   /** The kind a new account starts as: Deudas opens it as a card. */
   readonly startType = input<AccountType | null>(null);
-  readonly saved = output<void>();
+  /**
+   * A bank's message with no account to go to (Jose, 2026-10-16, mockups
+   * 35a-35e): the form starts with that bank's name, says what it is for,
+   * and hands back the account it made.
+   */
+  readonly forBank = input<string | null>(null);
+  /** The account just made, or null after a correction or a delete. */
+  readonly saved = output<number | null>();
   readonly cancelled = output<void>();
 
   private readonly statements = inject(StatementsService);
@@ -170,7 +177,7 @@ export class AccountEditorComponent implements OnInit {
       await new Promise(resolve => setTimeout(resolve));
       await new AccountsRepository(this.database.driver).deleteWithHistory(account.id);
       this.database.dataChanged();
-      this.saved.emit();
+      this.saved.emit(null);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
@@ -338,6 +345,7 @@ export class AccountEditorComponent implements OnInit {
 
     const account = this.editing();
     if (!account && this.startType()) this.type.set(this.startType()!);
+    if (!account && this.forBank()) this.name.set(this.forBank()!);
     if (!account) {
       // Chosen as "Es de una cuenta nueva" from the "+": the statement was
       // read there, and this form is where it is filled in from.
@@ -516,6 +524,7 @@ export class AccountEditorComponent implements OnInit {
         due_day: this.isCredit() ? dayOf(this.dueDay()) : null,
       };
 
+      let createdId: number | null = null;
       if (account) {
         await accounts.update(account.id, { ...shared, archived: this.archived() });
         await this.saveLimit(account.id);
@@ -536,13 +545,14 @@ export class AccountEditorComponent implements OnInit {
             });
             await this.saveLimit(id);
             done = await this.statements.proposeRead(id, read);
+            createdId = id;
           });
           this.fromStatement.set(null);
           this.database.dataChanged();
           // Straight to that statement on Por revisar, opened; leaving closes this sheet.
           const imported = done as unknown as { batch: string; proposed: number };
           await this.router.navigate(['/review'], { queryParams: { batch: imported.batch } });
-          this.saved.emit();
+          this.saved.emit(createdId);
           this.toast.say(this.i18n.t('ui.import.newDone', { count: imported.proposed }), 5000);
           return;
         }
@@ -556,10 +566,11 @@ export class AccountEditorComponent implements OnInit {
             this.currency() === 'COP' ? shared.opening_balance_minor : 0,
         });
         await this.saveLimit(id);
+        createdId = id;
       }
 
       this.database.dataChanged();
-      this.saved.emit();
+      this.saved.emit(createdId);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {

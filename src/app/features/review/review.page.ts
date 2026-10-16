@@ -561,12 +561,15 @@ export class ReviewPage {
     if (accountId === null) return;
     const partner = this.partnerOf(line);
     const other = line.transferTo ?? partner?.account_id ?? null;
+    // What this shape of message was last saved with: its note and products.
+    const memory = line.transferTo !== null ? this.transferMemoryOf(line.proposal) : null;
+    const products = memory ? { fromProductId: memory.fromProductId, toProductId: memory.toProductId } : {};
     this.compose.entry.set({
       kind: 'transfer',
       ...(other !== null && other !== accountId
-        ? { route: sign < 0 ? { from: accountId, to: other } : { from: other, to: accountId } }
+        ? { route: sign < 0 ? { from: accountId, to: other, ...products } : { from: other, to: accountId, ...products } }
         : { preferredAccountId: accountId, preferredSide: sign < 0 ? 'from' as const : 'to' as const }),
-      start: { amountMinor: Math.abs(line.proposal.amount_minor ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: '' },
+      start: { amountMinor: Math.abs(line.proposal.amount_minor ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: memory?.note ?? '' },
       proposal: { ...this.proposalOf(line), ...(partner ? { pairId: partner.id } : {}) },
     });
   }
@@ -607,7 +610,19 @@ export class ReviewPage {
       twin: line.twin,
       sameAs: line.sameAs,
       guessed: line.guessed,
+      ...this.bankOf(proposal),
     };
+  }
+
+  /** The bank a message came from, by the name the phone gave it, and its source. */
+  private bankOf(proposal: MovementProposal): { bank?: string; sourceKey?: string } {
+    if (proposal.source !== 'notification') return {};
+    const said = this.read(proposal);
+    const pkg = typeof said['package'] === 'string' ? said['package'] : null;
+    const sender = typeof said['sender'] === 'string' && said['sender'] ? said['sender'] : null;
+    const app = typeof said['app'] === 'string' ? said['app'] : null;
+    if (!pkg) return {};
+    return { bank: sender ?? app ?? pkg, sourceKey: sender ? `${pkg}|${sender}` : pkg };
   }
 
   /**
@@ -1419,6 +1434,13 @@ export class ReviewPage {
     } finally {
       this.working.set(false);
     }
+  }
+
+  private transferMemoryOf(proposal: MovementProposal): { note: string | null; fromProductId: number | null; toProductId: number | null } | null {
+    const memory = this.read(proposal)['transferMemory'] as { note?: unknown; fromProductId?: unknown; toProductId?: unknown } | undefined;
+    if (!memory || typeof memory !== 'object') return null;
+    const id = (v: unknown) => typeof v === 'number' ? v : null;
+    return { note: typeof memory.note === 'string' ? memory.note : null, fromProductId: id(memory.fromProductId), toProductId: id(memory.toProductId) };
   }
 
   private transferToOf(proposal: MovementProposal): number | null {
