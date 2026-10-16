@@ -1,11 +1,16 @@
 /**
  * Finance Pro (mockup `34a`): what it opens, the two prices and the trial.
- * There is no store behind it yet (rule 21), so buying says so; the switch at
- * the foot shows the app as somebody without Pro sees it, to try the locks.
+ * Once paid (`34i`-`34m`, Jose, 2026-10-16) it stops selling: what is paid
+ * for and until when, "TU PLAN" on that plan, the other as a change, and
+ * Google Play for cancelling or the card. The switch at the foot shows the
+ * app as somebody without Pro sees it, to try the locks.
  */
 import { Component, computed, inject, signal } from '@angular/core';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon } from '@ionic/angular';
+
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { daysLeft, type ProPlan } from '../../core/paywall/subscription';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -16,7 +21,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 
 @Component({
   selector: 'app-pro',
-  imports: [IonContent, IonIcon, TranslatePipe, BadgeComponent],
+  imports: [IonContent, IonIcon, NgTemplateOutlet, TranslatePipe, BadgeComponent, ConfirmComponent],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
@@ -28,17 +33,58 @@ import { ToastService } from '../../shared/ui/toast.service';
         <div class="head" data-tour="pro-head">
           <div class="face"><app-badge shape="ci" [size]="64" builtin="diamond-outline" fixed="#f6b93b"></app-badge></div>
           <b>{{ 'pro.name' | t }}</b>
-          <p class="ui-sub">{{ 'pro.lead' | t }}</p>
+          <p class="ui-sub">{{ (pro.entitled() ? 'pro.owned.lead' : 'pro.lead') | t }}</p>
         </div>
 
-        <div class="ui-list" data-tour="pro-perks">
-          @for (p of perks; track p.key) {
-            <div class="ui-row plain">
-              <app-badge [size]="38" [builtin]="p.icon" [fixed]="p.color"></app-badge>
-              <span class="ui-tx"><b class="wrap">{{ $any('pro.perk.' + p.key) | t }}</b><small class="wrap">{{ $any('pro.perk.' + p.key + '.text') | t }}</small></span>
-            </div>
+        <ng-template #perkList>
+          <div class="ui-list" data-tour="pro-perks">
+            @for (p of perks; track p.key) {
+              <div class="ui-row plain">
+                <app-badge [size]="38" [builtin]="p.icon" [fixed]="p.color"></app-badge>
+                <span class="ui-tx"><b class="wrap">{{ $any('pro.perk.' + p.key) | t }}</b><small class="wrap">{{ $any('pro.perk.' + p.key + '.text') | t }}</small></span>
+              </div>
+            }
+          </div>
+        </ng-template>
+
+        @if (pro.entitled()) {
+          <div class="ui-card status" [class.warn]="status().warn" data-tour="pro-status">
+            <app-badge [size]="44" shape="ci" [builtin]="status().icon" [fixed]="status().warn ? '#f6b93b' : '#34c98b'"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ status().title }}</b><small class="wrap">{{ status().line }}</small></span>
+          </div>
+          <div class="prices" data-tour="pro-prices">
+            @for (p of ownedOrder(); track p) {
+              <div class="price" [class.mine]="p === mine()">
+                @if (p === mine()) { <span class="save mine">{{ 'pro.mine' | t }}</span> }
+                @else if (p === 'yearly') { <span class="save soft">{{ 'pro.saving' | t:{ n: saving } }}</span> }
+                <small>{{ (p === 'yearly' ? 'pro.yearly' : 'pro.monthly') | t }}</small>
+                <b>{{ priceOf(p) }}</b>
+                <small>{{ p === 'yearly' ? ('pro.perMonth.plain' | t:{ amount: peso(perMonth) }) : ('pro.eachMonth' | t) }}</small>
+              </div>
+            }
+          </div>
+          @if (sub() && !sub()!.renews) {
+            <button type="button" class="ui-btn buy" (click)="pro.manage()">{{ 'pro.reactivate' | t }}</button>
+            <p class="small">{{ 'pro.reactivate.hint' | t }}</p>
+          } @else if (mine() === 'monthly') {
+            <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="changing.set('yearly')">{{ 'pro.toYearly' | t:{ n: saving } }}</button>
+            <p class="small">{{ 'pro.toYearly.hint' | t }}</p>
+          } @else if (mine() === 'yearly') {
+            <button type="button" class="link" [disabled]="busy()" (click)="changing.set('monthly')">{{ 'pro.toMonthly' | t }}</button>
+            @if (untilDate()) { <p class="small tight">{{ 'pro.toMonthly.hint' | t:{ date: untilDate() ?? '' } }}</p> }
           }
-        </div>
+          <div class="ui-list manage">
+            <button type="button" class="ui-row" (click)="pro.manage()">
+              <app-badge [size]="38" builtin="logo-google-playstore" fixed="#34c98b"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ 'pro.manage' | t }}</b><small class="wrap">{{ 'pro.manage.hint' | t }}</small></span>
+              <ion-icon name="chevron-forward" class="chev"></ion-icon>
+            </button>
+          </div>
+          <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
+          <div class="ui-h">{{ 'pro.youHave' | t }}</div>
+          <ng-container *ngTemplateOutlet="perkList"></ng-container>
+        } @else {
+        <ng-container *ngTemplateOutlet="perkList"></ng-container>
 
         <div class="prices" data-tour="pro-prices">
           <button type="button" class="price" [class.on]="plan() === 'yearly'" (click)="plan.set('yearly')">
@@ -54,17 +100,11 @@ import { ToastService } from '../../shared/ui/toast.service';
           </button>
         </div>
 
-        @if (pro.entitled()) {
-          <div class="ui-card active">
-            <ion-icon name="checkmark-circle"></ion-icon>
-            <span class="ui-tx"><b class="wrap">{{ 'pro.active' | t }}</b><small class="wrap">{{ 'pro.active.hint' | t }}</small></span>
-          </div>
-        } @else {
-          <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="buy()">{{ 'pro.trial' | t:{ days: days } }}</button>
-          <p class="small">{{ after() }}</p>
-          <button type="button" class="link" [disabled]="busy()" (click)="restore()">{{ 'pro.restore' | t }}</button>
-        }
+        <button type="button" class="ui-btn buy" [disabled]="busy()" (click)="buy()">{{ 'pro.trial' | t:{ days: days } }}</button>
+        <p class="small">{{ after() }}</p>
+        <button type="button" class="link" [disabled]="busy()" (click)="restore()">{{ 'pro.restore' | t }}</button>
         <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
+        }
 
         <div class="ui-list preview">
           <div class="ui-row plain">
@@ -76,6 +116,10 @@ import { ToastService } from '../../shared/ui/toast.service';
         <div class="ui-page-end"></div>
       </div>
     </ion-content>
+    <app-confirm [open]="changing() !== null" tone="primary" icon="swap-horizontal-outline"
+                 [title]="(changing() === 'yearly' ? 'pro.change.yearly' : 'pro.change.monthly') | t"
+                 [body]="changeBody()" [confirmLabel]="'pro.change.go' | t" [busy]="busy()"
+                 (confirmed)="change()" (cancelled)="changing.set(null)"></app-confirm>
   `,
   styles: [`
     .head { text-align: center; margin: 0 0 18px; }
@@ -99,8 +143,15 @@ import { ToastService } from '../../shared/ui/toast.service';
     .link { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 0; background: none;
       color: var(--app-pr); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
     .preview { margin-top: 28px; }
-    .active { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 14px 16px;
-      ion-icon { font-size: 28px; color: var(--app-grn); flex: none; } }
+    .status { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgba(52, 201, 139, 0.45); }
+    .status.warn { border-color: rgba(246, 185, 59, 0.5); }
+    .price.mine { border-color: var(--app-grn); background: rgba(52, 201, 139, 0.12); cursor: default; }
+    .save.mine { background: var(--app-grn); }
+    .save.soft { background: rgba(52, 201, 139, 0.22); color: var(--app-grn); }
+    .tight { margin-top: 0; }
+    .manage { margin-top: 16px; }
+    .manage .ui-row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .chev { color: var(--app-mu); flex: none; }
   `],
 })
 export class ProPage {
@@ -112,6 +163,35 @@ export class ProPage {
   readonly days = TRIAL_DAYS;
   readonly prices = PRICES;
   readonly perMonth = Math.round(PRICES.yearly / 12);
+  /** The plan being changed to, while its question is up. */
+  readonly changing = signal<ProPlan | null>(null);
+  readonly sub = this.pro.subscription;
+  readonly mine = computed(() => this.sub()?.plan ?? null);
+  /** The plan paid for first, as in 34i-34l; the year first when unknown. */
+  readonly ownedOrder = computed<ProPlan[]>(() => this.mine() === 'monthly' ? ['monthly', 'yearly'] : ['yearly', 'monthly']);
+  readonly untilDate = computed(() => this.dateOf(this.sub()?.until ?? null));
+
+  /** What is paid for and until when, on top (34i-34l). */
+  readonly status = computed(() => {
+    const sub = this.sub();
+    const t = (key: string, args?: Record<string, string | number>) => this.i18n.t(key as never, args);
+    if (!sub || !sub.plan) return { icon: 'checkmark-circle', warn: false, title: t('pro.active'), line: t('pro.active.hint') };
+    const date = this.untilDate() ?? '';
+    const price = this.priceOf(sub.plan);
+    const per = t(sub.plan === 'yearly' ? 'pro.per.year' : 'pro.per.month');
+    if (!sub.renews) return { icon: 'alert-circle-outline', warn: true, title: t('pro.cancelled'), line: t('pro.cancelled.line', { date }) };
+    if (sub.trial) {
+      const n = daysLeft(sub.until, new Date());
+      return { icon: 'gift-outline', warn: false,
+        title: n <= 1 ? t('pro.trial.lastDay') : t('pro.trial.left', { n }),
+        line: t('pro.trial.line', { date, price, per }) };
+    }
+    return { icon: 'checkmark-circle', warn: false, title: t('pro.paying', { price, per }), line: t('pro.renews', { date }) };
+  });
+
+  readonly changeBody = computed(() => this.changing() === 'yearly'
+    ? this.i18n.t('pro.change.yearly.body', { price: this.priceOf('yearly') })
+    : this.i18n.t('pro.change.monthly.body', { price: this.priceOf('monthly'), date: this.untilDate() ?? '' }));
   readonly saving = Math.round((1 - PRICES.yearly / (PRICES.monthly * 12)) * 100);
   readonly plan = signal<'yearly' | 'monthly'>('yearly');
   readonly busy = signal(false);
@@ -134,6 +214,36 @@ export class ProPage {
       ? this.i18n.t('pro.after.yearly', { amount: store ?? this.peso(PRICES.yearly) })
       : this.i18n.t('pro.after.monthly', { amount: store ?? this.peso(PRICES.monthly) });
   });
+
+  /** The store's price when it answered, the app's own otherwise. */
+  priceOf(plan: ProPlan): string {
+    return this.pro.plans()?.[plan]?.price ?? this.peso(PRICES[plan]);
+  }
+
+  /** "22 de octubre", with the year when it is not this one. */
+  dateOf(iso: string | null): string | null {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const year = d.getFullYear() !== new Date().getFullYear();
+    return d.toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'long', ...(year ? { year: 'numeric' } : {}) });
+  }
+
+  /** A change of plan, through Google Play, after its question. */
+  async change(): Promise<void> {
+    const to = this.changing();
+    if (!to) return;
+    this.busy.set(true);
+    try {
+      const result = await this.pro.buy(to);
+      this.changing.set(null);
+      if (result === 'bought') this.toast.say(this.i18n.t(to === 'yearly' ? 'pro.changed.yearly' : 'pro.changed.monthly'), 5000);
+      else if (result === 'failed') this.toast.say(this.i18n.t('pro.change.failed'), 5000);
+      else if (result === 'unavailable') this.toast.say(this.i18n.t('pro.unavailable'), 5000);
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   peso(amount: number): string {
     return '$ ' + amount.toLocaleString('es-CO');
