@@ -81,3 +81,7 @@ node docs/mockups/src/render.mjs c0         (only the ones whose name has c0)
 
 - Parte 1, la app oculta sola lo que no usas: `31a` Deudas hoy sin préstamos, `31b` sin la sección Préstamos, `31c` Cuentas sin la pestaña Rendimientos cuando ninguna cuenta rinde.
 - Parte 2, cada quien elige: `31d` la fila en Más → Preferencias, `31e` la lista de pantallas, `31f` los bloques de Inicio (interruptor y arrastrar), `31g` Deudas, `31h` las secciones del Reporte, `31i` Inicio con el gráfico oculto.
+
+## 34 (cont.) - Finance Pro cuando ya pagaste (2026-10-16, propuesta)
+
+- `34i` mensual en la prueba gratis: "Tu plan", cuándo empieza a cobrar, "Cambiar a anual". `34j` mensual pagando. `34k` anual (cambiar a mensual empieza al acabar el año). `34l` cancelada pero activa hasta su fecha, "Volver a activar". `34m` la pregunta antes de cambiar de plan. En todas, "Administrar en Google Play".

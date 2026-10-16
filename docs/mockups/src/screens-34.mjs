@@ -85,4 +85,56 @@ S['34f-mas-gratis'] = withCard(card(`<b style="font-size:16px">Prueba Finance Pr
 S['34g-mas-en-prueba'] = withCard(card(`<b style="font-size:16px">Finance Pro · prueba</b><div class="sub">Te quedan 5 días · luego $ 69.900 al año</div>`));
 S['34h-mas-pro'] = withCard(card(`<b style="font-size:16px">Finance Pro</b><div class="sub">Anual · se renueva el 15 oct 2027</div>`));
 
+// 7. Once paid (Jose, 2026-10-16: "por qué se siguen viendo los dos planes si
+//    ya pagué"). The screen says which plan is the person's, when it renews or
+//    when the trial ends, offers the OTHER plan as a change, and sends to
+//    Google Play for cancelling or the card. Read from RevenueCat's customer
+//    info (product, period type, expiration, will renew, management URL).
+const mine = (t, big, sub) => `<div style="flex:1;position:relative;border-radius:18px;padding:14px 12px;background:${tint(C.grn, .12)};border:2px solid ${C.grn}">
+ <span style="position:absolute;top:-11px;right:10px;background:${C.grn};color:#06210f;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:9px">TU PLAN</span>
+ <div class="mu" style="font-size:13px">${t}</div><b style="display:block;font-size:21px;margin-top:4px">${big}</b><div class="mu" style="font-size:12px;margin-top:2px">${sub}</div></div>`;
+const other = (t, big, sub, tag) => `<div style="flex:1;position:relative;border-radius:18px;padding:14px 12px;background:var(--s1);border:2px solid #1f2c47;opacity:.9">
+ ${tag ? `<span style="position:absolute;top:-11px;right:10px;background:${tint(C.grn, .25)};color:${C.grn};font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:9px">${tag}</span>` : ''}
+ <div class="mu" style="font-size:13px">${t}</div><b style="display:block;font-size:21px;margin-top:4px">${big}</b><div class="mu" style="font-size:12px;margin-top:2px">${sub}</div></div>`;
+const status = (icon, color, title, line) => `<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-top:16px;border:1px solid ${tint(color, .45)}">${ci(icon, color, 44)}<div style="flex:1;min-width:0"><b style="font-size:16px">${title}</b><div class="sub wrap" style="margin-top:2px">${line}</div></div></div>`;
+const owned = (stat, prices, action, foot = '') => `${top('', { left: 'x' })}<main style="padding-top:4px">
+ <div style="text-align:center">${ci('diamond-outline', C.yel, 64).replace('display:grid', 'display:grid;margin:0 auto 10px')}
+  <b style="font-size:24px">Finance Pro</b><div class="sub" style="margin-top:4px">Todo está abierto. Gracias por apoyar la app.</div></div>
+ ${stat}
+ <div style="display:flex;gap:10px;margin-top:22px">${prices}</div>
+ ${action}
+ <div class="list" style="margin-top:16px">
+  <div class="row">${sq('logo-google-playstore', C.grn, 38)}<div class="tx"><b>Administrar en Google Play</b><small class="wrap">Cancelar, cambiar la tarjeta o ver tus pagos</small></div>${chev()}</div></div>
+ ${foot}
+ <div class="sub" style="text-align:center;margin-top:14px;font-size:12px">${ic('shield-checkmark-outline', '', 'width:14px;height:14px;vertical-align:-2px')} Sin anuncios. Tus datos siguen solo en tu celular.</div>
+ <div class="h" style="margin-top:22px">Lo que tienes</div>
+ <div class="list">
+  ${perk('notifications-outline', C.yel, 'Tus bancos, sin límite', 'Todos los mensajes y SMS')}
+  ${perk('document-text-outline', C.pur, 'Extractos en PDF', 'Los que quieras')}
+  ${perk('stats-chart-outline', C.blu, 'Reporte completo y en Excel', 'Más el simulador de renta')}</div>
+ <div style="height:30px"></div></main>`;
+const toYearly = `${btn('Cambiar a anual · ahorras 51 %', 'margin-top:16px')}
+ <div class="sub" style="text-align:center;margin-top:8px;font-size:12.5px">Google te descuenta lo que no has usado del mes.</div>`;
+S['34i-pro-mensual-en-prueba'] = owned(
+  status('gift-outline', C.grn, 'Prueba gratis · te quedan 5 días', 'El 22 de octubre empieza a cobrar $ 12.000 al mes. Si cancelas antes, no pagas nada.'),
+  mine('Mensual', '$ 12.000', 'Cada mes') + other('Anual', '$ 70.000', '$ 5.833 al mes', 'AHORRAS 51 %'),
+  toYearly);
+S['34j-pro-mensual'] = owned(
+  status('checkmark-circle', C.grn, 'Pagas $ 12.000 al mes', 'Se renueva el 15 de noviembre.'),
+  mine('Mensual', '$ 12.000', 'Cada mes') + other('Anual', '$ 70.000', '$ 5.833 al mes', 'AHORRAS 51 %'),
+  toYearly);
+S['34k-pro-anual'] = owned(
+  status('checkmark-circle', C.grn, 'Pagas $ 70.000 al año', 'Se renueva el 16 de octubre de 2027.'),
+  mine('Anual', '$ 70.000', '$ 5.833 al mes') + other('Mensual', '$ 12.000', 'Cada mes'),
+  link('Cambiar a mensual') + `<div class="sub" style="text-align:center;margin-top:4px;font-size:12.5px">Empezaría el 16 de octubre de 2027, cuando acabe tu año.</div>`);
+S['34l-pro-cancelado'] = owned(
+  status('alert-circle-outline', C.yel, 'Cancelaste tu suscripción', 'Sigues con Finance Pro hasta el 15 de noviembre. Después vuelven los límites; tus datos no se tocan.'),
+  mine('Mensual', '$ 12.000', 'Hasta el 15 nov') + other('Anual', '$ 70.000', '$ 5.833 al mes', 'AHORRAS 51 %'),
+  btn('Volver a activar', 'margin-top:16px') + `<div class="sub" style="text-align:center;margin-top:8px;font-size:12.5px">Se reactiva en Google Play, sin pagar de nuevo lo que ya pagaste.</div>`);
+// Changing plan asks first, saying what happens with the money.
+S['34m-cambiar-plan'] = S['34j-pro-mensual'] + `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+ <div style="text-align:center">${ci('swap-horizontal-outline', C.blu, 56).replace('display:grid', 'display:grid;margin:0 auto 10px')}<b style="font-size:18px">¿Cambiar a anual?</b>
+ <div class="sub" style="margin:6px 8px 0;line-height:1.4">Pagas $ 70.000 por un año. Lo que no has usado de este mes se descuenta. Google te muestra el valor exacto antes de confirmar.</div></div>
+ ${btn('Continuar en Google Play', 'margin-top:18px')}${link('Ahora no')}<div style="height:10px"></div></div>`;
+
 export default S;
