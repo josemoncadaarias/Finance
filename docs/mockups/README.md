@@ -85,3 +85,4 @@ node docs/mockups/src/render.mjs c0         (only the ones whose name has c0)
 ## 34 (cont.) - Finance Pro cuando ya pagaste (2026-10-16, propuesta)
 
 - `34i` mensual en la prueba gratis: "Tu plan", cuándo empieza a cobrar, "Cambiar a anual". `34j` mensual pagando. `34k` anual (cambiar a mensual empieza al acabar el año). `34l` cancelada pero activa hasta su fecha, "Volver a activar". `34m` la pregunta antes de cambiar de plan. En todas, "Administrar en Google Play".
+- `34n` nunca usó la prueba: "Empezar 7 días gratis" y el día en que empieza a cobrar. `34o` ya la usó o ya pagó: "Suscribirme · $ 70.000 al año", sin hablar de gratis. `34p` se le venció: "Tu Finance Pro terminó el ..." y "Volver a Finance Pro". Quién tiene prueba lo dice Google.
