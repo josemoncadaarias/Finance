@@ -1864,10 +1864,19 @@ backup restore against iOS's own SQLite backend.
      base plans `monthly` and `yearly`, each with the offer `prueba-7-dias`
      (new customers, 7 days free), in 175 countries. Play rounded the prices
      typed (11,900 and 69,900) to **12,000 and 70,000 COP**; `PRICES` follows,
-     and the screen shows the store's own price once it answers. **Still to
-     do**: the service account JSON for RevenueCat, the products attached to
-     the entitlement and the offering there, and a purchase tried with a
-     license tester. `site/` is deployed by Netlify from `main` by itself.
+     and the screen shows the store's own price once it answers. **Then, also
+     that day**: the service account `play-uploader` (the one GitHub uploads
+     with) got a JSON key uploaded to RevenueCat ("Valid credentials"), Play
+     permissions "View financial data" and "Manage orders and subscriptions",
+     and the Pub/Sub Admin role; real-time developer notifications run through
+     `projects/finance-508916/topics/Play-Store-Notifications` (test received);
+     both products are imported, attached to the entitlement and in the
+     default offering beside the Test Store ones. **A purchase was tried on
+     Jose's phone with the license tester** (bundle run 102): the store's
+     prices showed, Google offered the trial and the test card, and the app
+     said "Tienes Finance Pro" with the free-version preview on. **Before
+     charging for real**: `CHARGING` to true, the preview switch hidden, Jose's
+     own access granted in RevenueCat, the public address replaced. `site/` is deployed by Netlify from `main` by itself.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
