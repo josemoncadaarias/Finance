@@ -194,9 +194,11 @@
           <span class="ui-am" [class.ui-y]="netWorthMinor() < 0">{{ netWorthMinor() | money }}</span>
         </div>
       </div>
+      <p class="hint notes-head"><strong>{{ 'accounts.breakdown.notes' | t }}</strong></p>
       @if (split().cards > 0) { <p class="hint">{{ 'worth.creditNote' | t }}</p> }
       <p class="hint">{{ 'accounts.brokersCaveat' | t }}</p>
-      <p class="hint">{{ 'accounts.breakdown.rates' | t }} {{ 'accounts.breakdown.excluded' | t }}</p>
+      <p class="hint">{{ 'accounts.breakdown.rates' | t }}</p>
+      <p class="hint">{{ 'accounts.breakdown.excluded' | t }}</p>
       <button type="button" class="see" (click)="showBreakdown.set(false); openCurrencies()">{{ 'ui.currencies.see' | t }}</button>
     </div>
   </ng-template>

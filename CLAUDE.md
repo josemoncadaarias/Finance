@@ -769,6 +769,20 @@ these):
   `notice-molds.test.mjs`; checked in a browser on an empty app (both ways,
   the form named, the account chosen on return).
 
+- **Every word the app says is plain Spanish** (Jose's partner, 2026-10-16:
+  "está súper mal redactado", "brokers" not understood, titles that only make
+  sense after reading the text under them). Every Spanish string outside the
+  tax module was rewritten (about 640 in `translations*.ts`, the 188 tour
+  texts before that in #158): a title says what the thing is, "dinero" not
+  "plata", "Elige" not "Escoge", "intereses" where an explanation said
+  "rendimientos", no "brokers", "retefuente" or "backup", and each technical
+  term (TRM, CDT, UVR, E.A., retención en la fuente, cashback) carries a
+  short gloss the first time a screen says it. Screen names stay. The tax
+  module's words are untouched (rule above). Net worth's sheet is "Cómo se
+  calcula tu patrimonio" with a "Ten en cuenta:" list; a card is set up as
+  "Configura tu tarjeta como aparece en el banco". **New words follow the
+  same rule.** Checked in a browser on the sample data.
+
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under
   Ganancia offered no note). A product other than the account's usual one,
