@@ -1908,6 +1908,12 @@ backup restore against iOS's own SQLite backend.
      trial is assumed only for someone never seen paying. Tested in
      `subscription.test.mjs`; each case checked in a browser by faking the
      cached answer.
+     **Más's Finance Pro card says the same** (Jose, 2026-10-16: it still
+     offered "Prueba gratis" after his test subscription lapsed): it reads
+     the same `buyOffer` - "Prueba Finance Pro gratis" only for the trial,
+     "Finance Pro · Terminó el {fecha}" once lapsed, plain "Finance Pro" with
+     the month's messages otherwise (`proTitle`, `freeLine` in
+     `more.page.ts`).
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
