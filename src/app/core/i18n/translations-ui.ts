@@ -1526,7 +1526,7 @@ export const UI_ES = {
   'tour.entry.2.title': "Monto del movimiento",
   'tour.entry.2.text': "Ingresa el valor utilizando el teclado numérico. Junto al monto aparecen dos botones: la flecha borra la última cifra y la X borra todo el valor.",
   'tour.entry.3.title': "Cuenta, categoría, nota y fecha",
-  'tour.entry.3.text': "Selecciona la cuenta del movimiento y asígnale una categoría. Si lo deseas, agrega una nota y ajusta la fecha. La aplicación puede sugerirte notas que utilizas con frecuencia.",
+  'tour.entry.3.text': "Elige la cuenta del movimiento y la categoría correspondiente. Si lo necesitas, agrega una nota y selecciona la fecha del movimiento. La aplicación también te sugerirá notas que hayas utilizado anteriormente.",
   'tour.entry.4.title': "Registrar otro",
   'tour.entry.4.text': "Guarda y deja el formulario listo para el siguiente movimiento.",
 } as const;
@@ -3052,7 +3052,7 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.entry.2.title': "The amount",
   'tour.entry.2.text': "Type the amount with the number keyboard. Two buttons appear beside it: the arrow erases the last digit and the X clears the whole amount.",
   'tour.entry.3.title': "Account, category, note and date",
-  'tour.entry.3.text': "Choose the movement's account and give it a category. If you like, add a note and change the date. The app can suggest notes you use often.",
+  'tour.entry.3.text': "Choose the movement's account and its category. If you need to, add a note and pick the movement's date. The app will also suggest notes you have used before.",
   'tour.entry.4.title': "Record another",
   'tour.entry.4.text': "Saves and leaves the form ready for the next movement.",
 };
