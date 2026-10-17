@@ -1346,7 +1346,7 @@ export const UI_ES = {
   'tour.more.reset.done': 'Las guías se mostrarán de nuevo',
   // Every screen's own guided tour (Jose, 2026-10-12).
   'tour.more.1.title': "Más opciones",
-  'tour.more.1.text': "Aquí está todo lo que no está en Inicio, Cuentas ni Reporte, organizado por grupos.",
+  'tour.more.1.text': "Accede a las funciones adicionales de la aplicación, organizadas en grupos: Tus finanzas, Tus datos, Herramientas y Preferencias. Arriba también encuentras tu cuenta de Google, con la copia de seguridad, y Finance Pro.",
   'tour.more.2.title': "Tus finanzas",
   'tour.more.2.text': "Tus cuentas, tus deudas y tarjetas, los intereses que te pagan y tus presupuestos (topes y metas).",
   'tour.more.3.title': "Tus datos",
@@ -2872,7 +2872,7 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.more.reset.done': 'The guides will show again',
   // Every screen's own guided tour (Jose, 2026-10-12).
   'tour.more.1.title': "More options",
-  'tour.more.1.text': "Everything not in Home, Accounts or Report, grouped.",
+  'tour.more.1.text': "Reach the app's other features, organised in groups: Your finances, Your data, Tools and Preferences. At the top you also find your Google account, with the backup, and Finance Pro.",
   'tour.more.2.title': "Your finances",
   'tour.more.2.text': "Your accounts, debts and cards, the interest they pay you and your budgets (caps and goals).",
   'tour.more.3.title': "Your data",
