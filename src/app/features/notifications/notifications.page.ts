@@ -15,7 +15,7 @@
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -96,6 +96,7 @@ export class NotificationsPage {
   }
 
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly inbox = inject(NoticeInboxService);
   private readonly toast = inject(ToastService);
 
@@ -746,7 +747,20 @@ export class NotificationsPage {
   }
 
   ionViewWillEnter(): void {
-    void this.look();
+    void this.look().then(() => this.openAskedSource());
+  }
+
+  /**
+   * `?source=` from the notice that could not open a movement: that source's
+   * page opens, where each message says what became of it. The parameter is
+   * taken off so coming back does not reopen it.
+   */
+  private openAskedSource(): void {
+    const key = this.route.snapshot.queryParamMap.get('source');
+    if (!key) return;
+    const one = this.sources().find(source => source.key === key);
+    if (one) this.openSource.set(one);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { source: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   /** The spinner only the first time; after that the list is replaced in place. */

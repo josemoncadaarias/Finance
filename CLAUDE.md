@@ -794,6 +794,22 @@ these):
   itself with "No pudimos abrir el movimiento. Lo encuentras en Movimientos
   por revisar." Checked in a browser by setting the signal; the real tap
   only on the phone.
+  **When the message is not in Por revisar, it says so at once** (Jose,
+  2026-10-17: the overlay waited 20 s over an empty list and then claimed
+  the movement was there). Once the review screen has read the messages and
+  refreshed without finding it (`giveUpOnAskedNotice`), `notFound(source)`
+  ends the overlay and the notice says "Ese mensaje no quedó en Movimientos
+  por revisar" with "Ver qué pasó", which opens Notificaciones on that
+  source's page (`?source=`, `openAskedSource`), where each message says
+  what became of it. Why that message was not proposed is not known from
+  the cloud session (ignored, saved or discarded before, or joined to
+  another; assumed).
+  **No word of the app ends in "…"** (Jose, the same day): the phone's notice
+  actions are one word each ("Revisar", "Más tarde", "Ignorar"), its title
+  keeps the sign with the figure (a word joiner), and a `.ui-seg` choice
+  wraps onto two lines instead of cutting. Checked at 302 px (a 393 px phone
+  at 130 % letters) on every screen with the sample data: only names (an
+  account, a category) still end in "…", and those slide (marquee rule).
 
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under

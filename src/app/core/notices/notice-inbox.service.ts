@@ -43,8 +43,13 @@ export class NoticeInboxService {
    * opening Por revisar on it. Null when nothing is being opened.
    */
   readonly opening = signal<'data' | 'read' | 'review' | null>(null);
-  /** Set when the movement could not be found within the time allowed. */
-  readonly openingFailed = signal(false);
+  /**
+   * Set when the movement could not be opened: the message's source, so the
+   * notice can lead to its page, where each message says what became of it.
+   */
+  readonly openingFailed = signal<{ source: string } | null>(null);
+  /** The source of the message being opened, read from the notice's ask. */
+  private askedSource = '';
 
   constructor() {
     effect(() => {
@@ -76,6 +81,7 @@ export class NoticeInboxService {
       const { open } = await BankNotifications.takeOpen();
       if (!open) return;
       this.asked = open;
+      this.askedSource = sourceOf(open);
       this.startOpening(this.database.status() === 'ready' ? 'read' : 'data');
       if (this.database.status() === 'ready') void this.read();
     } catch {
@@ -84,15 +90,29 @@ export class NoticeInboxService {
   }
 
   private startOpening(step: 'data' | 'read' | 'review'): void {
-    this.openingFailed.set(false);
+    this.openingFailed.set(null);
     this.opening.set(step);
     if (this.openingTimer) clearTimeout(this.openingTimer);
     // Never a screen that waits for ever: past 20 s it says where to look.
     this.openingTimer = setTimeout(() => {
       if (!this.opening()) return;
-      this.opening.set(null);
-      this.openingFailed.set(true);
+      this.notFound(this.askedSource);
     }, 20_000);
+  }
+
+  /** A pass is reading the messages now. */
+  get busy(): boolean {
+    return this.running !== null;
+  }
+
+  /**
+   * Por revisar holds no movement for the message asked about: the message
+   * was ignored, saved or discarded before, or joined another one. Say so at
+   * once instead of waiting, and point at its source's page, which says why.
+   */
+  notFound(source: string): void {
+    this.openingDone();
+    this.openingFailed.set({ source });
   }
 
   /** Por revisar opened the movement, or there was nothing more to open. */
@@ -119,6 +139,7 @@ export class NoticeInboxService {
     try {
       const open = this.asked || (await BankNotifications.takeOpen()).open;
       this.asked = '';
+      if (open && !this.askedSource) this.askedSource = sourceOf(open);
       if (!open) return;
       if (!this.opening()) this.startOpening('review');
       this.opening.set('review');
@@ -182,6 +203,17 @@ export class NoticeInboxService {
       // nothing about it is worth stopping the app for.
       return 0;
     }
+  }
+}
+
+/** The source named in a notice's ask (a JSON message), or none. */
+function sourceOf(open: string): string {
+  if (open === 'review') return '';
+  try {
+    const asked = JSON.parse(open) as { source?: unknown };
+    return typeof asked.source === 'string' ? asked.source : '';
+  } catch {
+    return '';
   }
 }
 

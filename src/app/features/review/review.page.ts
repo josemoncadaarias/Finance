@@ -1202,7 +1202,13 @@ export class ReviewPage {
     });
     // The banks' messages that arrived since the last look: read now, so
     // opening this screen is enough. A new proposal redraws it by itself.
-    void this.notices.read();
+    // Once that reading is in, a message asked for by the phone's notice
+    // that is still not here never will be: say so rather than wait.
+    void this.notices.read().then(async () => {
+      if (!this.askedNotice) return;
+      await this.refresh();
+      this.giveUpOnAskedNotice();
+    });
     // "Movimiento detectado" tapped on the phone: its message's proposal opens.
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
       // A statement just imported: its origin opens, every filter cleared so
@@ -1277,6 +1283,15 @@ export class ReviewPage {
     this.askedNotice = null;
     this.notices.openingDone();
     this.tapped(best.line);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  /** The message asked for is not among the proposals after a full reading. */
+  private giveUpOnAskedNotice(): void {
+    const asked = this.askedNotice;
+    if (!asked || this.notices.busy) return;
+    this.askedNotice = null;
+    this.notices.notFound(asked.source);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
