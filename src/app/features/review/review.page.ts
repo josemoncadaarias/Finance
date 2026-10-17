@@ -1275,6 +1275,7 @@ export class ReviewPage {
     best ??= near ?? sameMoney;
     if (!best) return;
     this.askedNotice = null;
+    this.notices.openingDone();
     this.tapped(best.line);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
