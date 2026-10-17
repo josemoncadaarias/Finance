@@ -1363,12 +1363,14 @@ button.ui-row:active { background: var(--app-s2); }
     align-items: center;
     justify-content: center;
     gap: 6px;
-    white-space: nowrap;
     cursor: pointer;
     font-family: inherit;
+    line-height: 1.2;
 
     ion-icon { font-size: 17px; flex: none; }
-    > span { overflow: hidden; text-overflow: ellipsis; }
+    /* The app's own words are never cut with "…" (Jose, 2026-10-17): on a
+       narrow phone or with large letters a choice wraps onto two lines. */
+    > span { overflow-wrap: break-word; min-width: 0; }
 
     &.on { background: var(--app-s3); color: var(--app-tx); }
     &.on.red { background: rgba(var(--app-red-rgb), 0.2); color: var(--app-red); }

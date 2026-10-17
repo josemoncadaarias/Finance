@@ -305,8 +305,11 @@ final class MovementAlert {
                     ? (direction < 0 ? "💸 Gasto detectado" : direction > 0 ? "💰 Ingreso detectado" : "🔔 Movimiento detectado")
                     : (direction < 0 ? "💸 Spending detected" : direction > 0 ? "💰 Income detected" : "🔔 Movement detected");
             String sign = direction < 0 ? "−" : direction > 0 ? "+" : "";
-            // Non-breaking spaces: the figure never wraps away from its sign.
-            title = what + " ·\u00A0" + sign + "$\u00A0" + shortAmount(last.optString("amount"));
+            // Non-breaking spaces and a word joiner: the figure never wraps
+            // away from its sign (a phone broke "−" from "$ 11.229").
+            // The three actions are one word each: Android cuts a long one
+            // with "…" ("No es movimie…", 2026-10-17).
+            title = what + " ·\u00A0" + sign + "\u2060$\u00A0" + shortAmount(last.optString("amount"));
             // An SMS's sender is a short code that says nothing; the bank signs
             // its own words. An app's notice keeps the app's name in front.
             boolean sms = last.optString("source").startsWith(SmsInbox.PACKAGE + "|");
@@ -348,9 +351,9 @@ final class MovementAlert {
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .addAction(0, spanish ? "Revisar y guardar" : "Review and save", tap)
+                .addAction(0, spanish ? "Revisar" : "Review", tap)
                 .addAction(0, spanish ? "Más tarde" : "Later", later)
-                .addAction(0, spanish ? (count == 1 ? "No es movimiento" : "Descartar todos") : (count == 1 ? "Not a movement" : "Dismiss all"),
+                .addAction(0, spanish ? (count == 1 ? "Ignorar" : "Descartar") : (count == 1 ? "Ignore" : "Dismiss"),
                         count == 1 ? notOne : drop);
         Bitmap logo = logoOf(context);
         if (logo != null) built.setLargeIcon(logo);

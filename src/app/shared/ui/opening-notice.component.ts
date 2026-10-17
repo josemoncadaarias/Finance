@@ -1,4 +1,5 @@
 import { Component, effect, inject } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -62,9 +63,23 @@ export class OpeningNoticeComponent {
     data: 'ui.opening.step.data', read: 'ui.opening.step.read', review: 'ui.opening.step.review',
   } as const;
 
+  private readonly router = inject(Router);
+
   constructor() {
+    // Not in Por revisar: say so, and lead to the message's source, whose
+    // page says what became of each message (Jose, 2026-10-17: the notice
+    // said "Lo encuentras en Movimientos por revisar" over an empty list).
     effect(() => {
-      if (this.notices.openingFailed()) this.toast.say(this.i18n.t('ui.opening.failed'), 7000, { icon: 'information-circle' });
+      const failed = this.notices.openingFailed();
+      if (!failed) return;
+      this.toast.say(this.i18n.t('ui.opening.failed'), 9000, {
+        icon: 'information-circle',
+        action: {
+          label: this.i18n.t('ui.opening.why'),
+          run: () => void this.router.navigate(['/notifications'],
+            failed.source ? { queryParams: { source: failed.source } } : {}),
+        },
+      });
     });
   }
 
