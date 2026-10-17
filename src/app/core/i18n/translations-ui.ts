@@ -1526,7 +1526,7 @@ export const UI_ES = {
   'tour.entry.2.title': "El monto",
   'tour.entry.2.text': "Escríbelo con el teclado. La X lo borra.",
   'tour.entry.3.title': "Cuenta, categoría, nota y fecha",
-  'tour.entry.3.text': "De qué cuenta sale, en qué categoría va, una nota y la fecha. La app te sugiere la nota que sueles usar.",
+  'tour.entry.3.text': "Selecciona la cuenta del movimiento y asígnale una categoría. Si lo deseas, agrega una nota y ajusta la fecha. La aplicación puede sugerirte notas que utilizas con frecuencia.",
   'tour.entry.4.title': "Registrar otro",
   'tour.entry.4.text': "Guarda y deja el formulario listo para el siguiente movimiento.",
 } as const;
@@ -3052,7 +3052,7 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.entry.2.title': "The amount",
   'tour.entry.2.text': "Type it with the keyboard. The X clears it.",
   'tour.entry.3.title': "Account, category, note and date",
-  'tour.entry.3.text': "Which account it leaves, its category, a note and the date. The app suggests the note you usually use.",
+  'tour.entry.3.text': "Choose the movement's account and give it a category. If you like, add a note and change the date. The app can suggest notes you use often.",
   'tour.entry.4.title': "Record another",
   'tour.entry.4.text': "Saves and leaves the form ready for the next movement.",
 };
