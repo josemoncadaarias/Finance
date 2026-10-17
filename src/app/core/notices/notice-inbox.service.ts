@@ -13,7 +13,7 @@
  * iPhone) the plugin answers "not supported" and nothing else happens.
  */
 
-import { Injectable, effect, inject, untracked } from '@angular/core';
+import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -33,23 +33,78 @@ export class NoticeInboxService {
   private readonly demo = inject(DemoService);
   private running: Promise<number> | null = null;
   private started = false;
+  /** What "Movimiento detectado" asked to open, taken from the phone once. */
+  private asked = '';
+  private openingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * While a tapped "Movimiento detectado" is being opened (Jose, 2026-10-17,
+   * mockup 36 option A): opening the data, reading the bank's message, then
+   * opening Por revisar on it. Null when nothing is being opened.
+   */
+  readonly opening = signal<'data' | 'read' | 'review' | null>(null);
+  /** Set when the movement could not be found within the time allowed. */
+  readonly openingFailed = signal(false);
 
   constructor() {
     effect(() => {
       if (this.database.status() !== 'ready' || this.started) return;
       this.started = true;
-      // A moment after opening, past the first screen.
-      untracked(() => setTimeout(() => void this.read(), 2500));
+      // A moment after opening, past the first screen - at once when a
+      // tapped notice is waiting to be opened.
+      untracked(() => {
+        if (this.asked) void this.read();
+        else setTimeout(() => void this.read(), 2500);
+      });
     });
     if (Capacitor.isNativePlatform()) {
+      void this.lookForAsked();
       void App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive && this.database.status() === 'ready') void this.read();
+        if (!isActive) return;
+        void this.lookForAsked();
+        if (this.database.status() === 'ready') void this.read();
       });
     }
   }
 
+  /**
+   * Was the app opened from "Movimiento detectado"? Then say so on screen at
+   * once and read the message without waiting.
+   */
+  private async lookForAsked(): Promise<void> {
+    try {
+      const { open } = await BankNotifications.takeOpen();
+      if (!open) return;
+      this.asked = open;
+      this.startOpening(this.database.status() === 'ready' ? 'read' : 'data');
+      if (this.database.status() === 'ready') void this.read();
+    } catch {
+      // Nothing asked: the app opens as usual.
+    }
+  }
+
+  private startOpening(step: 'data' | 'read' | 'review'): void {
+    this.openingFailed.set(false);
+    this.opening.set(step);
+    if (this.openingTimer) clearTimeout(this.openingTimer);
+    // Never a screen that waits for ever: past 20 s it says where to look.
+    this.openingTimer = setTimeout(() => {
+      if (!this.opening()) return;
+      this.opening.set(null);
+      this.openingFailed.set(true);
+    }, 20_000);
+  }
+
+  /** Por revisar opened the movement, or there was nothing more to open. */
+  openingDone(): void {
+    if (this.openingTimer) clearTimeout(this.openingTimer);
+    this.openingTimer = null;
+    this.opening.set(null);
+  }
+
   /** Reads what is new; how many proposals it wrote. One pass at a time. */
   read(): Promise<number> {
+    if (this.opening() === 'data') this.opening.set('read');
     if (!this.running) {
       this.running = this.pass().finally(() => { this.running = null; void this.openAsked(); });
     }
@@ -62,11 +117,17 @@ export class NoticeInboxService {
    */
   private async openAsked(): Promise<void> {
     try {
-      const { open } = await BankNotifications.takeOpen();
+      const open = this.asked || (await BankNotifications.takeOpen()).open;
+      this.asked = '';
       if (!open) return;
+      if (!this.opening()) this.startOpening('review');
+      this.opening.set('review');
       await this.router.navigate(['/review'], open === 'review' ? {} : { queryParams: { notice: open } });
+      // The whole list was asked for: it is open.
+      if (open === 'review') this.openingDone();
     } catch {
       // Nothing asked, or nowhere to go: the app opens as usual.
+      this.openingDone();
     }
   }
 

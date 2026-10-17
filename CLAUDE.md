@@ -783,6 +783,18 @@ these):
   "Configura tu tarjeta como aparece en el banco". **New words follow the
   same rule.** Checked in a browser on the sample data.
 
+- **A tapped "Movimiento detectado" says what it is doing** (Jose,
+  2026-10-17, mockup `36`, option A: the app sat on Inicio "thinking" before
+  Por revisar opened). `NoticeInboxService.lookForAsked` takes the notice's
+  ask from the phone as the app opens or comes back, shows
+  `app-opening-notice` (the screen dimmed, "Abriendo el movimiento
+  detectado…", three steps: your data, the bank's message, Por revisar) and
+  reads the messages at once instead of after the usual 2.5 s. Por revisar
+  ends it when it opens the movement (`openingDone`); after 20 s it ends by
+  itself with "No pudimos abrir el movimiento. Lo encuentras en Movimientos
+  por revisar." Checked in a browser by setting the signal; the real tap
+  only on the phone.
+
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under
   Ganancia offered no note). A product other than the account's usual one,
