@@ -43,4 +43,13 @@ S['37c-agregar-de-la-lista'] = list + sheet(`<div style="display:flex;align-item
   ${pick('🇵🇪', 'PEN', 'Sol peruano', 'Sin fuente automática: escribes su tasa')}
   ${pick('🇯🇵', 'JPY', 'Yen japonés')}</div>`);
 
+// Choosing the main currency: every total, chart and report is said in it.
+S['37d-moneda-principal'] = list.replace('Tus monedas en pesos', 'Tus monedas en dólares') + sheet(`<div style="display:flex;align-items:center"><span class="p" style="font-size:14.5px;width:70px">Cancelar</span><b style="flex:1;text-align:center;font-size:17px">Moneda principal</b><span style="width:70px"></span></div>
+ <div class="sub" style="margin:8px 0 12px;text-align:center">Tu patrimonio, tus gráficos, tus reportes y tus topes se muestran en esta moneda. Tus movimientos no cambian.</div>
+ <div class="list">
+  <div class="row">${flag('🇨🇴', 38)}<div class="tx"><b>COP · Peso colombiano</b></div><span class="tick"></span></div>
+  <div class="row">${flag('🇺🇸', 38)}<div class="tx"><b>USD · Dólar estadounidense</b></div><span class="tick on">${ic('checkmark')}</span></div>
+  <div class="row">${flag('🇪🇺', 38)}<div class="tx"><b>EUR · Euro</b></div><span class="tick"></span></div></div>
+ <div class="hint" style="margin-top:10px">Solo en pesos colombianos: el simulador de renta, los préstamos en UVR y la comparación con la inflación del DANE.</div>`);
+
 export default S;
