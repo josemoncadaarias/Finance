@@ -57,6 +57,12 @@ import { MOVE_COLOR } from '../../core/theme/palette';
               <span class="ui-tx"><b>{{ 'ui.new.statement' | t }}</b></span>
               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
             </button>
+            <!-- A new account from the "+" too (38a; Jose, 2026-10-19). -->
+            <button type="button" class="ui-row" (click)="newAccount()">
+              <app-badge shape="ci" [size]="38" builtin="wallet-outline" [fixed]="MOVE"></app-badge>
+              <span class="ui-tx"><b>{{ 'ui.new.account' | t }}</b><small>{{ 'ui.new.account.hint' | t }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
           </div>
         </div>
       </ng-template>
@@ -111,6 +117,11 @@ export class ComposeHostComponent {
         this.accounts.set(await new AccountsRepository(this.database.driver).list());
       });
     });
+  }
+
+  async newAccount(): Promise<void> {
+    this.compose.sheet.set(false);
+    await this.router.navigate(['/accounts'], { queryParams: { new: 'account' } });
   }
 
   startImport(): void {

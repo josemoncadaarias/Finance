@@ -1438,6 +1438,32 @@ button.ui-row:active { background: var(--app-s2); }
   &:disabled { opacity: 0.45; cursor: default; }
 }
 
+/* "Agregar ...": a dashed card in the accent, first in its list (38b). */
+.ui-add {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 10px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  border: 1.5px dashed rgba(var(--app-pr-rgb), 0.7);
+  background: rgba(var(--app-pr-rgb), 0.1);
+  color: var(--app-tx);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  .plus {
+    width: 40px; height: 40px; border-radius: 50%; flex: none;
+    display: grid; place-items: center;
+    background: rgba(var(--app-pr-rgb), 0.2); color: var(--app-pr);
+    ion-icon { font-size: 22px; }
+  }
+  .ui-tx b { color: var(--app-pr); font-weight: 600; }
+}
+
 /* A round button: in a title bar, beside a figure. */
 .ui-round {
   width: 40px;
@@ -2353,6 +2379,34 @@ ion-modal.account-page {
   .product-form .tabs { margin: 0; }
   .product-form .hint { margin: -4px 4px 0; }
   .product-form .ui-h { margin: 4px 4px -4px; }
+
+  /* Its steps (38c-38h): the kind first, then sections that open and close. */
+  .product-form .kind-q { font-size: 19px; font-weight: 700; margin: 6px 4px -6px; }
+  .product-form .kind-card {
+    display: flex; align-items: center; gap: 14px; text-align: left; width: 100%;
+    font: inherit; color: var(--app-tx); cursor: pointer;
+    .ui-tx small { white-space: normal; }
+  }
+  .product-form .change { border: 0; background: none; color: var(--app-pr); font: inherit; font-size: 14px; cursor: pointer; padding: 6px 0 6px 8px; }
+  .product-form .step { overflow: visible; }
+  .product-form .step.lacking { border-color: rgba(var(--app-yel-rgb), 0.55); }
+  .product-form .step > .head { width: 100%; gap: 12px; }
+  .product-form .step .mark {
+    width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: var(--app-s3); color: var(--app-tx); font-weight: 700; font-size: 13.5px;
+    &.ok { background: rgba(var(--app-grn-rgb), 0.2); color: var(--app-grn); ion-icon { font-size: 16px; } }
+  }
+  .product-form .ui-tag { background: var(--app-s3); color: var(--app-mu); &.warn { background: rgba(var(--app-yel-rgb), 0.18); color: var(--app-yel); } }
+  .product-form .step-body {
+    display: flex; flex-direction: column; gap: 10px; padding: 0 12px 14px;
+    > .ui-list, > .ui-card { background: var(--app-s2); }
+    .hint { margin: 0 4px; }
+  }
+  .product-form .step-foot {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+    .lacks { margin: 0; text-align: center; color: var(--app-yel); font-size: 13.5px; }
+    .ui-btn.waiting { opacity: 0.45; }
+  }
 
   .identity {
     display: flex;

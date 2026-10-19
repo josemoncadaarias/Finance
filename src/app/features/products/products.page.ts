@@ -139,6 +139,20 @@ interface ProductLine {
 }
 
 /** One thing the bank actually hands over: a day, or a whole month. */
+type ProductStepId = 'name' | 'balance' | 'rate' | 'bonus' | 'settings' | 'cdtAmount' | 'cdtRate' | 'cdtMatures' | 'cdtPayments';
+
+/** One step of a product's form: done, missing, optional, or only to read. */
+interface ProductStep {
+  id: ProductStepId;
+  title: string;
+  state: 'ok' | 'missing' | 'optional' | 'info';
+  /** Saving waits while a required step is missing. */
+  required: boolean;
+  summary: string;
+  /** How "Te falta: ..." names it. */
+  lacks: string;
+}
+
 interface Payment {
   key: string;
   /** Each product is its own payment, as the bank's app shows them. */
@@ -198,25 +212,181 @@ export class ProductsPage {
   /** An account's page: Productos | Movimientos | Pagos | Días. */
   readonly pageTab = signal<'products' | 'movements' | 'payments' | 'days'>('products');
 
-  /** A product's form: Producto | Saldo | Tasa | Bonificación; a CDT: CDT | Al vencer | Pagos. */
-  readonly productTab = signal<'product' | 'balance' | 'rate' | 'bonus' | 'cdt' | 'matures' | 'cdtPayments'>('product');
+  // A product's form is one page of steps (38c-38h; Jose, 2026-10-19): the
+  // kind first, then sections that open and close, each saying whether it is
+  // done, missing or optional. Tabs that changed under the person, and a save
+  // that went through with half the form empty, are what it replaces.
 
-  readonly productTabs = computed(() => {
+  /** A new product asks its kind before anything else; an existing one has it. */
+  readonly kindChosen = signal(true);
+  /** Which steps are open. */
+  readonly openSteps = signal<ReadonlySet<ProductStepId>>(new Set());
+  /** A new high-yield product's spending bonus, typed with it (38e). */
+  readonly newBonusOn = signal(false);
+  readonly newBonusPercent = signal('');
+  readonly newBonusSpend = signal('');
+  readonly newBonusMonths = signal('1');
+
+  readonly productSteps = computed<ProductStep[]>(() => {
+    const product = this.editingProduct();
+    const line = this.openLine();
+    const currency = line?.account.currency_code ?? 'COP';
+    const t = (key: string, params?: Record<string, string | number>) => this.i18n.t(key as never, params);
+    const name = this.productName().trim();
+    const steps: ProductStep[] = [{
+      id: 'name', title: 'ui.steps.name', state: name ? 'ok' : 'missing', required: true,
+      summary: name || t('ui.steps.name.hint'), lacks: 'ui.steps.lacks.name',
+    }];
+
     if (this.productKind() === 'cdt') {
-      return [
-        { id: 'cdt' as const, label: 'products.product.kind.cdt' },
-        { id: 'matures' as const, label: 'ui.yields.tab.matures' },
-        { id: 'cdtPayments' as const, label: 'ui.yields.payments' },
-      ];
+      const capital = parseOrNull(this.productAmount());
+      const term = Number(this.cdtTerm().trim());
+      const fundedMissing = this.fundingAsked() && this.productFunding() === 'product' && this.productFundingFrom() === null;
+      const amountOk = capital !== null && capital > 0 && Number.isInteger(term) && term >= 1 && !fundedMissing;
+      steps.push({
+        id: 'cdtAmount', title: 'ui.steps.cdtAmount', state: amountOk ? 'ok' : 'missing', required: true,
+        summary: amountOk
+          ? t('ui.steps.cdtAmount.sum', { amount: this.money(capital!, currency), count: term, date: this.dayText(this.cdtOpenedOn()) })
+          : t('ui.steps.cdtAmount.hint'),
+        lacks: 'ui.steps.lacks.cdtAmount',
+      });
+      const rate = percentOrNull(this.cdtRate());
+      steps.push({
+        id: 'cdtRate', title: 'ui.steps.rate', state: rate !== null ? 'ok' : 'missing', required: true,
+        summary: rate !== null ? this.rateText(rate) : t('ui.steps.cdtRate.hint'), lacks: 'ui.steps.lacks.rate',
+      });
+      const category = this.incomeCategoryById(this.cdtCategory());
+      steps.push({
+        id: 'cdtMatures', title: 'ui.steps.cdtMatures', state: category ? 'ok' : 'missing', required: true,
+        summary: category
+          ? (this.cdtTargetName() ? t('ui.steps.cdtMatures.sum', { product: this.cdtTargetName(), category: category.name }) : category.name)
+          : t('ui.steps.cdtMatures.hint'),
+        lacks: 'ui.steps.lacks.category',
+      });
+      steps.push({ id: 'settings', title: 'ui.steps.settings', state: 'ok', required: false, summary: this.settingsSummary(), lacks: '' });
+      if (product) steps.push({ id: 'cdtPayments', title: 'ui.yields.payments', state: 'info', required: false, summary: t('ui.steps.cdtPayments.hint'), lacks: '' });
+      return steps;
     }
-    const tabs = [
-      { id: 'product' as const, label: 'ui.yields.tab.product' },
-      { id: 'balance' as const, label: 'ui.yields.tab.balance' },
-      { id: 'rate' as const, label: 'ui.yields.tab.rate' },
-    ];
-    if (this.editingProduct()) tabs.push({ id: 'bonus' as never, label: 'ui.yields.tab.bonus' });
-    return tabs;
+
+    // The balance: typed by the person, never assumed to be zero.
+    const amount = parseOrNull(this.productAmount());
+    const fundedMissing = this.fundingAsked() && this.productFunding() === 'product' && this.productFundingFrom() === null;
+    const balanceOk = amount !== null && amount >= 0 && !fundedMissing;
+    const from = this.fundingAsked() && this.productFunding() === 'product' && line
+      ? this.productById(line, this.productFundingFrom())?.name ?? '' : '';
+    steps.push({
+      id: 'balance', title: product ? 'ui.steps.balance.edit' : 'ui.steps.balance', state: balanceOk ? 'ok' : 'missing', required: true,
+      summary: product && balanceOk
+        ? t('ui.steps.balance.today', { amount: this.money(this.statedNow() + this.productMoved() + this.productYieldIn(), currency) })
+        : !balanceOk ? t('ui.steps.balance.hint')
+        : from ? t('ui.steps.balance.from', { amount: this.money(amount!, currency), product: from })
+        : t('ui.steps.balance.at', { amount: this.money(amount!, currency), date: this.dayText(this.productFrom()) }),
+      lacks: 'ui.steps.lacks.balance',
+    });
+
+    // The rate: typed with a new product; an existing one shows its history.
+    const months = Number(this.productMonths().trim());
+    const monthsOk = this.productPayout() === 'daily' || (Number.isInteger(months) && months >= 1);
+    const how = this.productPayout() === 'daily' ? t('ui.steps.pays.daily')
+      : months === 1 ? t('ui.steps.pays.monthly') : t('ui.steps.pays.months', { count: months });
+    if (product) {
+      const current = this.productBaseRates().find(rate => this.rateStatus(rate) === 'current') ?? this.productBaseRates().at(-1);
+      steps.push({
+        id: 'rate', title: 'ui.steps.rate', state: current ? 'ok' : 'missing', required: false,
+        summary: current ? `${this.rateText(current.annual_rate_scaled)} · ${how}` : t('ui.steps.rate.hint'), lacks: '',
+      });
+    } else {
+      const rate = percentOrNull(this.productRate());
+      const rateOk = rate !== null && monthsOk;
+      steps.push({
+        id: 'rate', title: 'ui.steps.rate', state: rateOk ? 'ok' : 'missing', required: true,
+        summary: rateOk ? `${this.rateText(rate)} · ${how}` : t('ui.steps.rate.hint'), lacks: 'ui.steps.lacks.rate',
+      });
+    }
+
+    // The spending bonus: always offered, for a new product too (Jose,
+    // 2026-10-19: it only showed when editing, so it was never found).
+    if (product) {
+      const bonus = this.productBonusRates().find(rate => this.rateStatus(rate) === 'current') ?? this.productBonusRates().at(-1);
+      steps.push({
+        id: 'bonus', title: 'ui.steps.bonus', state: bonus ? 'ok' : 'optional', required: false,
+        summary: bonus ? this.bonusSummary(bonus.annual_rate_scaled, bonus.requires_monthly_spend_minor ?? 0, bonus.payout_months ?? 1)
+          : t('ui.steps.bonus.hint'),
+        lacks: '',
+      });
+    } else if (this.newBonusOn()) {
+      const rate = percentOrNull(this.newBonusPercent());
+      const spend = parseOrNull(this.newBonusSpend().trim());
+      const bonusMonths = Number(this.newBonusMonths().trim());
+      const ok = rate !== null && rate > 0 && spend !== null && spend > 0 && Number.isInteger(bonusMonths) && bonusMonths >= 1;
+      steps.push({
+        id: 'bonus', title: 'ui.steps.bonus', state: ok ? 'ok' : 'missing', required: true,
+        summary: ok ? this.bonusSummary(rate!, spend!, bonusMonths) : t('ui.steps.bonus.hint'), lacks: 'ui.steps.lacks.bonus',
+      });
+    } else {
+      steps.push({ id: 'bonus', title: 'ui.steps.bonus', state: 'optional', required: false, summary: t('ui.steps.bonus.hint'), lacks: '' });
+    }
+
+    steps.push({ id: 'settings', title: 'ui.steps.settings', state: 'ok', required: false, summary: this.settingsSummary(), lacks: '' });
+    return steps;
   });
+
+  /** What still has to be filled before the product can be saved. */
+  readonly missingSteps = computed(() => this.productSteps().filter(step => step.required && step.state === 'missing'));
+  readonly missingText = computed(() => {
+    const parts = this.missingSteps().map(step => this.i18n.t(step.lacks as never));
+    if (parts.length === 0) return '';
+    const list = parts.length === 1 ? parts[0]
+      : `${parts.slice(0, -1).join(', ')} ${this.i18n.t('ui.steps.and')} ${parts.at(-1)}`;
+    return this.i18n.t('ui.steps.missing', { list });
+  });
+
+  isStepOpen(id: ProductStepId): boolean {
+    return this.openSteps().has(id);
+  }
+
+  toggleStep(id: ProductStepId): void {
+    const open = new Set(this.openSteps());
+    if (open.has(id)) open.delete(id); else open.add(id);
+    this.openSteps.set(open);
+  }
+
+  /** The kind, chosen first (38c); the first step opens with it. */
+  chooseKind(kind: YieldProduct['kind']): void {
+    this.setProductKind(kind);
+    this.kindChosen.set(true);
+    this.openSteps.set(new Set(['name']));
+  }
+
+  /** "Cambiar" on a new product's kind: back to the choice, keeping what was typed. */
+  changeKind(): void {
+    if (this.editingProduct()) return;
+    this.kindChosen.set(false);
+  }
+
+  /** Saving with something missing opens what is missing and saves nothing (38f). */
+  async trySaveProduct(): Promise<void> {
+    const missing = this.missingSteps();
+    if (missing.length > 0) {
+      this.openSteps.set(new Set([...this.openSteps(), ...missing.map(step => step.id)]));
+      return;
+    }
+    await this.saveProduct();
+  }
+
+  private bonusSummary(rate: number, spendMinor: number, months: number): string {
+    const params = { rate: this.rateText(rate), amount: this.money(spendMinor), count: months };
+    return this.i18n.t(months > 1 ? 'ui.steps.bonus.sumMonths' : 'ui.steps.bonus.sum', params);
+  }
+
+  private settingsSummary(): string {
+    const parts = [this.i18n.t(this.productWithholds() ? 'ui.steps.settings.withheld' : 'ui.steps.settings.notWithheld')];
+    if (!this.productIsDefault()) {
+      parts.push(this.i18n.t(this.productCounts() ? 'ui.steps.settings.inWorth' : 'ui.steps.settings.outOfWorth'));
+    }
+    if (this.productIsDefault() && this.productKind() !== 'cdt') parts.push(this.i18n.t('ui.steps.settings.usual'));
+    return parts.join(' · ');
+  }
 
   readonly choosingFunding = signal(false);
   readonly choosingFundingFrom = signal(false);
@@ -243,7 +413,6 @@ export class ProductsPage {
 
   setProductKind(kind: YieldProduct['kind']): void {
     this.productKind.set(kind);
-    this.productTab.set(kind === 'cdt' ? 'cdt' : 'product');
   }
 
   faceOf(product: YieldProduct): string {
@@ -1958,7 +2127,14 @@ export class ProductsPage {
     const fromRate = this.form() === 'rate';
     this.editingProduct.set(product);
     this.confirmingProductDelete.set(false);
-    if (!fromRate) this.productTab.set(product?.kind === 'cdt' ? 'cdt' : 'product');
+    if (!fromRate) {
+      this.kindChosen.set(product !== null);
+      this.openSteps.set(new Set());
+      this.newBonusOn.set(false);
+      this.newBonusPercent.set('');
+      this.newBonusSpend.set('');
+      this.newBonusMonths.set('1');
+    }
     this.error.set('');
 
     // The account's products and rates, fresh. Only the settings screen used
@@ -1977,8 +2153,8 @@ export class ProductsPage {
     this.productKind.set(product?.kind ?? 'high_yield');
     this.productPayout.set(product?.payout ?? 'daily');
     this.productMonths.set(String(product?.payout_months ?? 1));
-    // Zero until told otherwise: a product with no rate earns nothing.
-    this.productRate.set('0');
+    // Empty until typed: a new product asks for its rate (0 is a rate too).
+    this.productRate.set('');
     // A brand new product is not the usual one unless the account has none.
     this.productIsDefault.set(product
       ? product.is_default === 1
@@ -2026,7 +2202,8 @@ export class ProductsPage {
       this.productYieldIn.set(
         (await yields.landedByProduct(line.account.id, today())).total.get(product?.id ?? -1) ?? 0);
     } else {
-      this.productAmount.set('0');
+      // Empty until typed: a balance of zero is said, never assumed (38f).
+      this.productAmount.set('');
       this.productFunding.set('product');
       this.productFundingFrom.set((line.products.find(other => other.is_default === 1) ?? line.products[0])?.id ?? null);
       this.productFrom.set(today());
@@ -2137,6 +2314,18 @@ export class ProductsPage {
           await yields.setRate({
             account_id: line.account.id, product_id: id, component: 'base',
             payout, payout_months: months, valid_from: this.productFrom(), annual_rate_scaled: firstRate,
+          });
+        }
+        // A spending bonus typed with a new product (38e): a second line of
+        // its rate, judged on each period's spending and paid at its end.
+        const bonusRate = percentOrNull(this.newBonusPercent());
+        const bonusSpend = parseOrNull(this.newBonusSpend().trim());
+        const bonusMonths = Number(this.newBonusMonths().trim());
+        if (!existing && this.newBonusOn() && bonusRate !== null && bonusRate > 0 && bonusSpend !== null && bonusSpend > 0) {
+          await yields.setRate({
+            account_id: line.account.id, product_id: id, component: this.i18n.t('products.rate.bonusName'),
+            payout: 'monthly', payout_months: bonusMonths, valid_from: this.productFrom(), valid_to: null,
+            annual_rate_scaled: bonusRate, requires_monthly_spend_minor: bonusSpend, fallback_annual_rate_scaled: null,
           });
         }
 
@@ -3265,6 +3454,16 @@ export class ProductsPage {
    * decimal and nothing else, which meant the figure this app had just
    * displayed - 4.917.434,98 - was rejected when typed back into its own form.
    */
+/** A percentage as typed, scaled; null while it is empty or not a number. */
+function percentOrNull(raw: string): number | null {
+  if (raw.trim().length === 0) return null;
+  try {
+    return parsePercentToScaled(raw);
+  } catch {
+    return null;
+  }
+}
+
 function parseOrNull(raw: string): number | null {
   if (raw.trim().length === 0) return null;
   try {
