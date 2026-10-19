@@ -7,10 +7,17 @@ import { ic, C, tint, top, tag, chev, ci, sq, tabs, catIcon, accIcon } from './l
 const S = {};
 const sheet = inner => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>${inner}<div style="height:14px"></div></div>`;
 const me = t => `<div style="display:flex;justify-content:flex-end;margin-top:12px"><div style="max-width:78%;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;padding:10px 14px;border-radius:18px 18px 6px 18px;font-size:14.5px;line-height:1.35">${t}</div></div>`;
-const app = t => `<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end">${ci('sparkles-outline', C.blu, 30)}<div style="max-width:82%;background:var(--s1);border:1px solid #1c2944;padding:10px 14px;border-radius:18px 18px 18px 6px;font-size:14.5px;line-height:1.4">${t}</div></div>`;
+const app = t => `<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end">${ci('sparkles-outline', C.blu, 30)}<div style="max-width:82%;background:var(--s1);border:1px solid #1c2944;padding:10px 14px;border-radius:18px 18px 18px 6px;font-size:14.5px;line-height:1.4">${t.replace(/\$ /g, '$\u00a0')}</div></div>`;
 const card = (inner, border = '#22314f') => `<div style="margin:8px 0 0 38px;background:var(--s1);border:1px solid ${border};border-radius:18px;padding:12px 14px">${inner}</div>`;
 const chips = (...t) => `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0 38px">${t.map(x => `<span class="chip" style="color:var(--pr)">${x}</span>`).join('')}</div>`;
 const line = (k, v, cls = '') => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.8px"><span class="mu">${k}</span><b class="${cls}" style="font-weight:600;white-space:nowrap">${v}</b></div>`;
+// What stays free is always said as what is left for the rest of the month
+// and what that means a day, never a bare "X · Y al día" (Jose, 2026-10-19).
+const rest = (total, day, what = 'Te quedaría libre') => `<div style="margin-top:10px;background:${tint(C.blu, .1)};border-radius:14px;padding:10px 12px">
+  <div class="lab" style="margin-bottom:4px">Para el resto del mes · del 19 al 31 de octubre (13 días)</div>
+  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>${what}</span><b style="font-weight:600;white-space:nowrap">${total}</b></div>
+  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Eso es, para gastar cada día</span><b style="font-weight:600;white-space:nowrap">${day}</b></div>
+  <div class="sub" style="margin-top:4px;font-size:12.5px">Ya descontados tus pagos que vienen y lo que falta para tus metas.</div></div>`;
 const bar = `<div style="position:absolute;left:0;right:0;bottom:0;padding:10px 16px 24px;background:#0b1324;border-top:1px solid #18243d;display:flex;gap:10px;align-items:center">
  <div class="search" style="flex:1;padding:12px 14px">Escribe o habla: «gasté 45 mil en almuerzo»</div>
  <span style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:grid;place-items:center;color:#fff;flex:none">${ic('mic-outline', '', 'width:22px;height:22px')}</span></div>`;
@@ -56,7 +63,7 @@ S['39c-registrar-gasto'] = chat(`
 // figures it comes from.
 S['39d-me-alcanza'] = chat(`
  ${me('¿Me alcanza para unos tenis de 300 mil?')}
- ${app('Te alcanza, pero <b>pasas tu tope de Ropa por $ 80.000</b>. Sin los tenis te quedan $ 220.000 de ese tope hasta el 31.')}
+ ${app('Te alcanza, pero <b>pasas tu tope de Ropa por $ 80.000</b>. Sin los tenis te quedan $ 220.000 de ese tope para el resto del mes.')}
  ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.yel, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('alert-circle-outline', 'y')}<b class="y">Te alcanza, pero pasas un tope</b></div>
   <div class="lab" style="margin:4px 0 2px">Tope de Ropa · octubre</div>
   ${line('Llevas', '$ 180.000 de $ 400.000')}
@@ -66,7 +73,7 @@ S['39d-me-alcanza'] = chat(`
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
   ${line('Lo que falta para tus metas', '−$ 200.000')}
   ${line('Libre para gastar', '$ 1.250.000', 'g')}
-  ${line('Después de los tenis', '$ 950.000 · $ 79.000 al día')}
+  ${rest('$ 950.000', '$ 73.100', 'Si compras los tenis, te quedaría libre')}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Ver el tope</div><div class="btn" style="height:42px">Registrar el gasto</div></div>`, tint(C.yel, .4))}`);
 
 // 39e - a word it does not know: it asks once and remembers.
@@ -78,7 +85,7 @@ S['39e-palabra-nueva'] = chat(`
  ${app('Listo, la próxima vez «guayos» va a <b>Deporte</b>. Tomé 250 como $ 250.000.')}
  ${card(`<div style="display:flex;align-items:center;gap:10px">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
   ${line('Deporte · sin tope', 'Llevas $ 60.000 este mes')}
-  ${line('Libre para gastar', '$ 1.250.000 → $ 1.000.000')}`)}`);
+  ${rest('$ 1.000.000', '$ 76.900', 'Si los compras, te quedaría libre')}`)}`);
 
 // 39f - registering or asking? When unsure it asks, and the answer is learned
 // for that shape of sentence.
@@ -98,12 +105,12 @@ S['39g-cuanto-llevo'] = chat(`
  ${card(`${line('Octubre, hasta hoy', '$ 412.000')}
   ${line('Septiembre, mismos días', '$ 354.000')}
   ${line('Tope de Restaurantes', '$ 412.000 de $ 500.000 · 82 %', 'y')}
-  ${line('Al día, para no pasarlo', '$ 7.300 hasta el 31')}
+  ${line('Para no pasarlo, cada día hasta el 31', '$ 6.700')}
   <div class="btn ghost" style="height:42px;margin-top:12px">Ver sus movimientos</div>`)}
  ${chips('¿Y el mes pasado?', '¿En qué más gasté?')}`);
 
 // 39h - voice: the phone's own dictation, the words shown as they come.
-S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo gastar al día?')}${app('Hasta el 31 te quedan <b>$ 59.500 al día</b> libres, después de tus pagos y tus metas.')}</main>
+S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo gastar al día?')}${app('Para el resto del mes, del 19 al 31 de octubre, te quedan <b>$ 773.500</b> libres: <b>$ 59.500 para gastar cada día</b>. Ya descontados tus pagos y lo que falta para tus metas.')}</main>
  <div class="scrim" style="background:rgba(2,6,14,.55)"></div>
  <div class="sheet" style="text-align:center;padding-top:18px">
   <div class="sub">Escuchando</div>
@@ -116,13 +123,13 @@ S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo 
 // what the goals still need this month (Jose, 2026-10-19).
 S['39i-me-alcanza-sin-categoria'] = chat(`
  ${me('¿Me puedo gastar 2 millones en algo?')}
- ${app('Sí, te alcanza: te quedarían <b>$ 650.000 libres</b> hasta el 31. No sé en qué categoría va, así que no reviso ningún tope.')}
+ ${app('Sí, te alcanza: te quedarían <b>$ 650.000 libres</b> para el resto del mes, unos $ 50.000 por día. No sé en qué categoría va, así que no reviso ningún tope.')}
  ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.grn, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
   ${line('En tus cuentas hoy', '$ 4.120.000')}
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
   ${line('Lo que falta para tus metas', '−$ 580.000')}
   ${line('Libre para gastar', '$ 2.650.000', 'g')}
-  ${line('Después de este gasto', '$ 650.000 · $ 54.000 al día')}
+  ${rest('$ 650.000', '$ 50.000', 'Con este gasto, te quedaría libre')}
   <div class="sub" style="margin-top:8px">Sin contar tus CDT ni lo que tienes fuera del patrimonio.</div>`, tint(C.grn, .4))}
  ${chips('Es tecnología', 'Es ropa', 'Otra categoría')}`);
 
@@ -131,7 +138,7 @@ S['39j-me-alcanza-cuenta'] = chat(`
  ${me('¿Puedo pagar 800 mil desde Bancolombia?')}
  ${app('Desde Bancolombia sí: tiene <b>$ 1.340.000</b> y te quedarían $ 540.000. Pero ojo, el 1 de noviembre sale de ahí la cuota del carro.')}
  ${card(`${line('Bancolombia hoy', '$ 1.340.000')}
-  ${line('Después de pagar', '$ 540.000')}
+  ${line('Quedaría en Bancolombia', '$ 540.000')}
   ${line('Cuota del carro · 1 nov', '−$ 980.000', 'r')}
   ${line('Te faltarían para la cuota', '$ 440.000', 'r')}
   <div class="sub" style="margin-top:8px">En todas tus cuentas sí te alcanza: tienes $ 2.650.000 libres.</div>`, tint(C.yel, .4))}`);

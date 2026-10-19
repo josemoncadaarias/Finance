@@ -5252,6 +5252,11 @@ with testers runs; the paywall is finished after them.
     cuenta tiene 3", "Cambiar"), never a question; a product named in the
     sentence ("del bolsillo viajes") is taken - and the account it belongs
     to.
+- **What stays free is always said whole** (Jose, 2026-10-19: "$ 650.000 ·
+  $ 54.000 al día" did not say what it was): "Para el resto del mes · del 19
+  al 31 de octubre (13 días)", then what would stay free and "Eso es, para
+  gastar cada día", with "Ya descontados tus pagos que vienen y lo que falta
+  para tus metas" under it. Never a bare "X · Y al día". The days count today.
 - **Voice**: the phone's own dictation into the same reader (`39h`).
   Assumed, not verified: offline only with the Spanish pack downloaded; on
   many phones the audio goes through Google - to say in the privacy policy.
