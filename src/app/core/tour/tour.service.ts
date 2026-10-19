@@ -64,6 +64,8 @@ const TOUR_LIST = {
       { target: 'yields-figure', title: 'tour.yields.figure.title', text: 'tour.yields.figure.text' },
       { target: 'yields-tabs', title: 'tour.yields.tabs.title', text: 'tour.yields.tabs.text' },
       { target: 'yields-products', title: 'tour.yields.products.title', text: 'tour.yields.products.text' },
+      // 2026-10-19: adding a product, first on the list and asked step by step (38b-38h).
+      { target: 'yields-add-product', title: 'tour.yields.add.title', text: 'tour.yields.add.text', since: 2 },
     ],
   },
   // Every other screen, the first time it is opened (Jose, 2026-10-12:
@@ -120,6 +122,8 @@ const TOUR_LIST = {
       { sel: 'app-currencies .ui-titlebar .ui-pill', title: 'tour.currencies.3.title', text: 'tour.currencies.3.text' },
       { sel: 'app-currencies .ui-list.yours .ui-row:nth-child(2)', title: 'tour.currencies.4.title', text: 'tour.currencies.4.text', since: 2 },
       { target: 'main-currency', title: 'tour.currencies.5.title', text: 'tour.currencies.5.text', since: 3 },
+      // 2026-10-19: a currency no account uses can be removed (37e-37g).
+      { title: 'tour.currencies.6.title', text: 'tour.currencies.6.text', since: 4 },
     ],
   },
   report: {

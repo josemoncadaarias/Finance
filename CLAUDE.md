@@ -871,6 +871,38 @@ these):
   Currencies tour step `since: 3`. Checked in a browser on the sample data
   with stubbed rates (Cuentas and Inicio 78,712,764.24 COP → 20,118.78 USD).
 
+- **A currency no account uses can be removed** (Jose, 2026-10-19, mockups
+  `37e`-`37g`). Its sheet on Monedas y TRM says "Ninguna cuenta usa esta
+  moneda." and offers "Quitar esta moneda", asked first; yes deletes its
+  `exchange_rates` rows and its `currencies` row in one transaction
+  (`remove` in `currencies.page.ts`, which counts the accounts again
+  inside it). Never pesos, never the main currency in force; an account
+  archived still counts as using it ("La usa N cuentas"). Currencies tour
+  step `since: 4`. Checked in a browser on the sample data.
+
+- **The "+" makes an account too, and a product is added step by step**
+  (Jose, 2026-10-19, mockups `38a`-`38h`). The "+" sheet has "Nueva cuenta"
+  under "Importar extracto PDF" (`/accounts?new=account`). An account's
+  Productos opens with "Agregar un producto" as a dashed accent card
+  (`.ui-add` in global.scss), no longer a row at the foot of the list. The
+  product form has no tabs: a new product asks its kind first ("¿Qué tipo
+  de producto es?", `kindChosen`), then steps that open and close
+  (`productSteps` in `products.page.ts`): Nombre, Saldo de hoy, Tasa,
+  Bonificación por gasto, Ajustes; a CDT Nombre, Monto y plazo, Tasa, Al
+  vencer, Ajustes (and Pagos once saved). Each says ✓, "Falta" or
+  "Opcional" with what it holds. A new product's balance and rate start
+  empty and must be typed (0 is an answer, nothing is assumed); "Guardar el
+  producto" stays dim with "Te falta: ..." and, pressed early, opens what is
+  missing and saves nothing (`trySaveProduct`). **The spending bonus was
+  only offered when editing** (the tab was pushed only for an existing
+  product), which is why Jose never found it: it is a step of every
+  high-yield product now, and a new one can carry it from the start
+  (`newBonus*`, saved as a second rate line in the same transaction). An
+  existing product opens on the same page, every step closed with its
+  summary, Guardar in the title bar. Yields tour step `since: 2`. Checked in
+  a browser on the sample data: a bolsillo with bonus and a CDT created,
+  reopened, the early save opening what was missing.
+
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under
   Ganancia offered no note). A product other than the account's usual one,

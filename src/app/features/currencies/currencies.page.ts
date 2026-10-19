@@ -25,6 +25,7 @@ import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-d
 import { catalogOf, currencyName, flagOf } from '../../core/currencies/catalog';
 import { rateToPesosOn } from '../../core/rates/historical-rates';
 import { ToastService } from '../../shared/ui/toast.service';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { MainCurrencyService } from '../../core/currencies/main-currency.service';
 import { JumpComponent } from '../../shared/ui/jump.component';
 
@@ -41,7 +42,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
 @Component({
   selector: 'app-currencies',
   standalone: true,
-  imports: [IonContent, IonIcon, IonModal, IonSpinner, TranslatePipe, CurrencyDialogComponent, JumpComponent],
+  imports: [IonContent, IonIcon, IonModal, IonSpinner, TranslatePipe, CurrencyDialogComponent, JumpComponent, ConfirmComponent],
   template: `
     <ion-content #page [scrollEvents]="true" (ionScroll)="jump.measure()">
       <header class="ui-titlebar">
@@ -175,11 +176,31 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
             @if (autoRate()) {
               <button type="button" class="ui-btn" [disabled]="busy()" (click)="useAuto(line)">{{ (line.code === 'USD' ? 'ui.currencies.useTrm' : 'ui.currencies.useRate') | t }}</button>
             }
-            <button type="button" class="ui-btn ghost" (click)="typeRate(line)">{{ 'ui.currencies.typeOther' | t }}</button>
+            @if (line.code !== 'COP') {
+              <button type="button" class="ui-btn ghost" (click)="typeRate(line)">{{ 'ui.currencies.typeOther' | t }}</button>
+            }
+            <!-- A currency no account uses can go (37e-37g; Jose, 2026-10-19).
+                 Pesos and the main currency never; archived accounts count. -->
+            @if (line.code !== 'COP') {
+              @if (line.used > 0) {
+                <p class="hint center">{{ (line.used === 1 ? 'ui.currencies.remove.inUse.one' : 'ui.currencies.remove.inUse') | t:{ count: line.used } }}</p>
+              } @else if (line.code === main.chosen()) {
+                <p class="hint center">{{ 'ui.currencies.remove.isMain' | t }}</p>
+              } @else {
+                <p class="hint center">{{ 'ui.currencies.remove.unused' | t }}</p>
+                <button type="button" class="ui-btn danger" (click)="removing.set(line)">
+                  <ion-icon name="trash-outline"></ion-icon>{{ 'ui.currencies.remove' | t }}
+                </button>
+              }
+            }
           </div>
         }
       </ng-template>
     </ion-modal>
+
+    <app-confirm [open]="removing() !== null" [title]="'ui.currencies.remove.ask' | t:{ name: removing()?.name ?? '' }"
+                 [body]="'ui.currencies.remove.body' | t" [busy]="busy()" [confirmLabel]="'ui.currencies.remove.yes' | t"
+                 (confirmed)="remove()" (cancelled)="removing.set(null)"></app-confirm>
 
     <!-- Choosing the main currency (37d): only one with a rate can be chosen. -->
     <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet"
@@ -281,6 +302,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
     .detail ion-spinner { width: 22px; height: 22px; }
     .wrap { white-space: normal; }
     .hint.center { text-align: center; margin: 0 4px 12px; }
+    .detail .hint.center { margin: 14px 4px 0; }
     button.ui-row:disabled .ui-tx b { opacity: 0.5; }
     .value { display: flex; flex-direction: column; align-items: flex-end; flex: none; text-align: right; }
     .value b { font-weight: 600; font-size: 15px; }
@@ -309,6 +331,7 @@ export class CurrenciesPage {
   readonly typing = signal<CurrencyLine | null>(null);
   readonly draft = signal('');
   readonly viewing = signal<CurrencyLine | null>(null);
+  readonly removing = signal<CurrencyLine | null>(null);
   /** The automatic value of the currency on view, fetched when it is opened. */
   readonly autoRate = signal<{ rate_scaled: number; source: string } | null>(null);
   readonly autoState = signal<'looking' | 'found' | 'none' | 'noSource'>('none');
@@ -481,6 +504,33 @@ export class CurrenciesPage {
     });
     this.typing.set(null);
     this.database.dataChanged();
+  }
+
+  /**
+   * Takes a currency no account uses out of the list, with its rates. Asked
+   * first; the database refuses it anyway while an account points at it.
+   */
+  async remove(): Promise<void> {
+    const line = this.removing();
+    if (!line || line.code === 'COP' || line.code === this.main.chosen()) return;
+    this.busy.set(true);
+    try {
+      const driver = this.database.driver;
+      await driver.transaction(async () => {
+        const [{ used }] = await driver.query<{ used: number }>(
+          'SELECT COUNT(*) AS used FROM accounts WHERE currency_code = ?', [line.code]);
+        if (used > 0) return;
+        await driver.run('DELETE FROM exchange_rates WHERE base_code = ? OR quote_code = ?', [line.code, line.code]);
+        await driver.run('DELETE FROM currencies WHERE code = ?', [line.code]);
+      });
+      this.removing.set(null);
+      this.viewing.set(null);
+      this.database.dataChanged();
+      await this.load();
+      this.toast.say(this.i18n.t('ui.currencies.removed', { name: line.name }));
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   async added(): Promise<void> {

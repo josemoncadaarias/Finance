@@ -302,6 +302,14 @@
 
               @switch (pageTab()) {
                 @case ('products') {
+                  <!-- First and easy to see (38b; Jose, 2026-10-19: at the foot it went unseen). -->
+                  <button type="button" class="ui-add" data-tour="yields-add-product" (click)="newProduct()">
+                    <span class="plus"><ion-icon name="add"></ion-icon></span>
+                    <span class="ui-tx">
+                      <b>{{ 'ui.yields.addProduct' | t }}</b>
+                      <small class="wrap">{{ 'ui.yields.addProduct.hint' | t }}</small>
+                    </span>
+                  </button>
                   <div class="ui-list" data-tour="yields-products">
                     @for (product of line.products; track product.id) {
                       <button type="button" class="ui-row" (click)="openProduct(product)">
@@ -326,10 +334,6 @@
                         <span class="ui-am">{{ money(totalHeld(line), line.account.currency_code) }}</span>
                       </div>
                     }
-                    <button type="button" class="ui-row plain" (click)="newProduct()">
-                      <ion-icon name="add" class="ui-p"></ion-icon>
-                      <span class="ui-tx"><b class="ui-p">{{ 'ui.yields.addProduct' | t }}</b></span>
-                    </button>
                   </div>
                   <p class="hint">{{ 'ui.yields.eachApart' | t }}</p>
 
@@ -684,365 +688,457 @@
         <ion-icon name="chevron-back"></ion-icon>
       </button>
       <h1>{{ editingProduct()?.name ?? ('ui.yields.addProduct' | t) }}</h1>
-      <button type="button" class="ui-pill" [disabled]="saving()" (click)="saveProduct()">
-        <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
-      </button>
+      @if (editingProduct()) {
+        <button type="button" class="ui-pill" [disabled]="saving()" (click)="trySaveProduct()">
+          <ion-icon name="checkmark"></ion-icon>{{ 'entry.save' | t }}
+        </button>
+      }
     </header>
 
     <div class="scroll">
       @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
 
-      <div class="identity">
-        <app-badge [size]="60" [builtin]="productKind() === 'cdt' ? 'lock-closed' : draftFace()" [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
-        <label class="ui-card name">
-          <span class="ui-lab">{{ 'accounts.currency.name' | t }}</span>
-          <input type="text" [value]="productName()" [placeholder]="'products.product.namePlaceholder' | t"
-                 (input)="productName.set($any($event.target).value ?? '')">
-        </label>
-      </div>
-
-      <div class="ui-seg tabs">
-        @for (tab of productTabs(); track tab.id) {
-          <button type="button" [class.on]="productTab() === tab.id" (click)="productTab.set(tab.id)">{{ $any(tab.label) | t }}</button>
+      @if (!kindChosen()) {
+        <!-- The kind before anything else (38c): it decides what is asked. -->
+        <h2 class="kind-q">{{ 'ui.steps.kind.question' | t }}</h2>
+        <p class="hint">{{ 'ui.steps.kind.lead' | t }}</p>
+        @for (kind of ['high_yield', 'cdt']; track kind) {
+          <button type="button" class="ui-card kind-card" [class.on]="productKind() === kind" (click)="chooseKind($any(kind))">
+            <app-badge [size]="48" [builtin]="kind === 'cdt' ? 'lock-closed' : 'wallet'" [seed]="kind === 'cdt' ? 5 : 3"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ (kind === 'cdt' ? 'products.product.kind.cdt' : 'products.product.kind.high_yield') | t }}</b>
+              <small class="wrap">{{ (kind === 'cdt' ? 'ui.steps.kind.cdt' : 'ui.steps.kind.highYield') | t }}</small>
+            </span>
+          </button>
         }
-      </div>
-
-      @switch (productTab()) {
-        @case ('product') {
-          @if (!editingProduct()) {
-            <div class="ui-seg">
-              <button type="button" [class.on]="productKind() === 'high_yield'" (click)="setProductKind('high_yield')">{{ 'products.product.kind.high_yield' | t }}</button>
-              <button type="button" [class.on]="productKind() === 'cdt'" (click)="setProductKind('cdt')">{{ 'products.product.kind.cdt' | t }}</button>
-            </div>
-          } @else {
-            <div class="ui-seg locked">
-              <button type="button" disabled [class.on]="productKind() === 'high_yield'">{{ 'products.product.kind.high_yield' | t }}</button>
-              <button type="button" disabled [class.on]="productKind() === 'cdt'">{{ 'products.product.kind.cdt' | t }}</button>
-            </div>
-          }
-          <div class="ui-list switches">
-            <div class="ui-row plain">
-              <span class="ui-tx">
-                <b class="wrap">{{ 'products.product.withholding' | t }}</b>
-                <small class="wrap">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</small>
-              </span>
-              <button type="button" class="ui-switch" [class.on]="productWithholds()" role="switch" [attr.aria-checked]="productWithholds()"
-                      (click)="productWithholds.set(!productWithholds())"></button>
-            </div>
-            <!-- The usual product always counts: every movement that names no product lands in it. -->
-            @if (!productIsDefault()) {
-              <div class="ui-row plain">
-                <span class="ui-tx">
-                  <b class="wrap">{{ 'products.product.netWorth' | t }}</b>
-                  <small class="wrap">{{ (productCounts() ? 'products.product.netWorthOn' : 'products.product.netWorthOff') | t }}</small>
-                </span>
-                <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
-                        (click)="productCounts.set(!productCounts())"></button>
-              </div>
+        <p class="hint">{{ 'ui.steps.kind.fixed' | t }}</p>
+      } @else {
+        <div class="ui-list">
+          <div class="ui-row plain">
+            <app-badge [size]="38" [builtin]="productKind() === 'cdt' ? 'lock-closed' : (editingProduct() ? faceOf(editingProduct()!) : 'wallet')"
+                       [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
+            <span class="ui-tx">
+              <small>{{ 'ui.steps.kind' | t }}</small>
+              <b class="wrap">{{ (productKind() === 'cdt' ? 'products.product.kind.cdt' : 'products.product.kind.high_yield') | t }}</b>
+            </span>
+            @if (!editingProduct()) {
+              <button type="button" class="change" (click)="changeKind()">{{ 'ui.steps.kind.change' | t }}</button>
             }
-            <div class="ui-row plain">
-              <span class="ui-tx">
-                <b class="wrap">{{ 'ui.yields.makeUsual' | t }}</b>
-                <small class="wrap">{{ 'products.product.makeDefault.hint' | t }}</small>
-              </span>
-              <button type="button" class="ui-switch" [class.on]="productIsDefault()" role="switch" [attr.aria-checked]="productIsDefault()"
-                      (click)="productIsDefault.set(!productIsDefault())"></button>
-            </div>
           </div>
-          <ng-container *ngTemplateOutlet="deleteProductRow"></ng-container>
-        }
+        </div>
 
-        @case ('balance') {
-          @if (editingProduct(); as product) {
-            <!-- A product's balance said as a sum: what it has today first. -->
-            <div class="ui-card sum-card">
-              <span class="ui-lab">{{ 'ui.yields.hasToday' | t }}</span>
-              <div class="ui-big" [class.ui-r]="statedNow() + productMoved() + productYieldIn() < 0">{{ money(statedNow() + productMoved() + productYieldIn(), line.account.currency_code) }}</div>
-              <div class="line"><span>{{ 'ui.yields.readAtBank' | t:{ date: dayText(productFrom()) } }}</span><b>{{ money(statedNow(), line.account.currency_code) }}</b></div>
-              <div class="line"><span>+ {{ 'ui.yields.movedSince' | t }}</span><b>{{ money(productMoved(), line.account.currency_code) }}</b></div>
-              <div class="line"><span>+ {{ 'ui.yields.earnedSince' | t }}</span><b class="ui-g">+{{ money(productYieldIn(), line.account.currency_code) }}</b></div>
-            </div>
-            <h3 class="ui-h">{{ 'ui.yields.theBalance' | t }}</h3>
-          } @else if (fundingAsked()) {
-            <!-- Money in a new product came from somewhere: nearly always another product. -->
-            <div class="ui-list">
-              <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
-                <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
-                <span class="ui-tx">
-                  <small>{{ 'products.product.fundingQuestion' | t }}</small>
-                  <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
-                  <small class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProductHint' : 'products.product.fundingManualHint') | t }}</small>
-                </span>
-                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-              </button>
-            </div>
-            @if (productFunding() === 'product') {
-              <div class="ui-list">
-                <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
-                  @let from = productById(line, productFundingFrom());
-                  @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
-                  <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
-                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-                </button>
-                <label class="ui-field">
-                  <span class="in">
-                    <span class="lab">{{ 'ui.yields.amount' | t }}</span>
-                    <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
-                  </span>
-                  @if (fundingHeld(line) > 0) {
-                    <button type="button" class="ui-chip" (click)="productAmount.set(decimalText(fundingHeld(line)))">
-                      {{ 'products.move.all' | t }} · {{ money(fundingHeld(line), line.account.currency_code) }}
+        <!-- One step per section, open or closed (38d-38h). -->
+        @for (step of productSteps(); track step.id; let i = $index) {
+          <div class="ui-list step" [class.lacking]="step.state === 'missing' && isStepOpen(step.id)">
+            <button type="button" class="ui-row plain head" (click)="toggleStep(step.id)">
+              @if (step.state === 'ok') {
+                <span class="mark ok"><ion-icon name="checkmark"></ion-icon></span>
+              } @else {
+                <span class="mark">{{ i + 1 }}</span>
+              }
+              <span class="ui-tx">
+                <b class="wrap">{{ $any(step.title) | t }}</b>
+                @if (!isStepOpen(step.id) || step.state !== 'ok') { <small class="ui-one">{{ step.summary }}</small> }
+              </span>
+              @if (step.state === 'missing') { <span class="ui-tag warn">{{ 'ui.steps.tag.missing' | t }}</span> }
+              @if (step.state === 'optional') { <span class="ui-tag">{{ 'ui.steps.tag.optional' | t }}</span> }
+              <ion-icon class="ui-chev" [name]="isStepOpen(step.id) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </button>
+            @if (isStepOpen(step.id)) {
+              <div class="step-body">
+            @switch (step.id) {
+              @case ('name') {
+                <div class="ui-list">
+                  <label class="ui-field">
+                    <span class="in">
+                      <span class="lab">{{ 'accounts.currency.name' | t }}</span>
+                      <input type="text" [value]="productName()" [placeholder]="'products.product.namePlaceholder' | t"
+                             (input)="productName.set($any($event.target).value ?? '')">
+                    </span>
+                  </label>
+                </div>
+              }
+
+              @case ('balance') {
+                @if (editingProduct(); as product) {
+                  <!-- A product's balance said as a sum: what it has today first. -->
+                  <div class="ui-card sum-card">
+                    <span class="ui-lab">{{ 'ui.yields.hasToday' | t }}</span>
+                    <div class="ui-big" [class.ui-r]="statedNow() + productMoved() + productYieldIn() < 0">{{ money(statedNow() + productMoved() + productYieldIn(), line.account.currency_code) }}</div>
+                    <div class="line"><span>{{ 'ui.yields.readAtBank' | t:{ date: dayText(productFrom()) } }}</span><b>{{ money(statedNow(), line.account.currency_code) }}</b></div>
+                    <div class="line"><span>+ {{ 'ui.yields.movedSince' | t }}</span><b>{{ money(productMoved(), line.account.currency_code) }}</b></div>
+                    <div class="line"><span>+ {{ 'ui.yields.earnedSince' | t }}</span><b class="ui-g">+{{ money(productYieldIn(), line.account.currency_code) }}</b></div>
+                  </div>
+                  <h3 class="ui-h">{{ 'ui.yields.theBalance' | t }}</h3>
+                } @else if (fundingAsked()) {
+                  <!-- Money in a new product came from somewhere: nearly always another product. -->
+                  <div class="ui-list">
+                    <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
+                      <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
+                      <span class="ui-tx">
+                        <small>{{ 'products.product.fundingQuestion' | t }}</small>
+                        <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
+                        <small class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProductHint' : 'products.product.fundingManualHint') | t }}</small>
+                      </span>
+                      <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                    </button>
+                  </div>
+                  @if (productFunding() === 'product') {
+                    <div class="ui-list">
+                      <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
+                        @let from = productById(line, productFundingFrom());
+                        @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
+                        <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
+                        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                      </button>
+                      <label class="ui-field">
+                        <span class="in">
+                          <span class="lab">{{ 'ui.yields.amount' | t }}</span>
+                          <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+                        </span>
+                        @if (fundingHeld(line) > 0) {
+                          <button type="button" class="ui-chip" (click)="productAmount.set(decimalText(fundingHeld(line)))">
+                            {{ 'products.move.all' | t }} · {{ money(fundingHeld(line), line.account.currency_code) }}
+                          </button>
+                        }
+                      </label>
+                      <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
+                    </div>
+                  }
+                }
+                @if (editingProduct() || !fundingAsked() || productFunding() === 'manual') {
+                  <div class="ui-list">
+                    <label class="ui-field">
+                      <span class="in">
+                        <span class="lab">{{ 'ui.yields.balance' | t }}</span>
+                        <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+                      </span>
+                      <span class="unit">{{ line.account.currency_code }}</span>
+                    </label>
+                    <ng-container *ngTemplateOutlet="dateField; context: { label: 'ui.yields.closeOf', value: productFrom(), set: 'from' }"></ng-container>
+                  </div>
+                  <p class="hint">{{ 'ui.yields.balanceHint' | t }}</p>
+                  <div class="ui-list">
+                    <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
+                  </div>
+                  <p class="hint">{{ 'products.product.earnsFrom.hint' | t }}</p>
+                }
+              }
+
+              @case ('rate') {
+                <div class="ui-list">
+                  @if (!editingProduct()) {
+                    <label class="ui-field">
+                      <span class="in">
+                        <span class="lab">{{ 'products.rate.percent' | t }}</span>
+                        <input inputmode="decimal" placeholder="0" [value]="productRate()" (input)="productRate.set(unsigned($event.target))">
+                      </span>
+                    </label>
+                  }
+                  @if (editingProduct() || productRateAboveZero()) {
+                    <button type="button" class="ui-field" (click)="choosingPayout.set(true)">
+                      <span class="in">
+                        <span class="lab">{{ 'ui.yields.howOften' | t }}</span>
+                        <span class="val">{{ (productPayout() === 'daily' ? 'products.payout.daily' : 'products.payout.byMonths') | t }}</span>
+                      </span>
+                      <ion-icon name="chevron-down-outline"></ion-icon>
+                    </button>
+                    @if (productPayout() === 'monthly') {
+                      <label class="ui-field">
+                        <span class="in">
+                          <span class="lab">{{ 'products.payout.months' | t }}</span>
+                          <input inputmode="numeric" [value]="productMonths()" (input)="productMonths.set(unsigned($event.target))">
+                          <span class="hint">{{ paydayPreview() || ('products.payout.monthsHint' | t) }}</span>
+                        </span>
+                      </label>
+                    }
+                  }
+                  @if (editingProduct()) {
+                    @for (rate of productBaseRates(); track rate.id) {
+                      <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
+                        <span class="ui-tx">
+                          <b>{{ rateText(rate.annual_rate_scaled) }}</b>
+                          <small>
+                            @if (rateEndsOn(rate); as ends) { {{ 'products.rates.between' | t:{ from: dayText(rate.valid_from), to: dayText(ends) } }} }
+                            @else { {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }} }
+                          </small>
+                        </span>
+                        <span class="state" [class]="rateStatus(rate)">
+                          @switch (rateStatus(rate)) {
+                            @case ('current') { {{ 'products.rates.current' | t }} }
+                            @case ('future') { {{ 'products.rates.future' | t }} }
+                            @default { {{ 'products.rates.ended' | t }} }
+                          }
+                        </span>
+                        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                      </button>
+                    }
+                    <button type="button" class="ui-row plain" (click)="startRateForm(null)">
+                      <ion-icon name="add" class="ui-p"></ion-icon>
+                      <span class="ui-tx"><b class="ui-p">{{ 'products.product.changeRate' | t }}</b></span>
                     </button>
                   }
-                </label>
-                <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
-              </div>
-            }
-          }
-          @if (editingProduct() || !fundingAsked() || productFunding() === 'manual') {
-            <div class="ui-list">
-              <label class="ui-field">
-                <span class="in">
-                  <span class="lab">{{ 'ui.yields.balance' | t }}</span>
-                  <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
-                </span>
-                <span class="unit">{{ line.account.currency_code }}</span>
-              </label>
-              <ng-container *ngTemplateOutlet="dateField; context: { label: 'ui.yields.closeOf', value: productFrom(), set: 'from' }"></ng-container>
-            </div>
-            <p class="hint">{{ 'ui.yields.balanceHint' | t }}</p>
-            <div class="ui-list">
-              <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.product.earnsFrom', value: productEarnsFrom(), set: 'earns' }"></ng-container>
-            </div>
-            <p class="hint">{{ 'products.product.earnsFrom.hint' | t }}</p>
-          }
-        }
-
-        @case ('rate') {
-          <div class="ui-list">
-            @if (!editingProduct()) {
-              <label class="ui-field">
-                <span class="in">
-                  <span class="lab">{{ 'products.rate.percent' | t }}</span>
-                  <input inputmode="decimal" placeholder="0" [value]="productRate()" (input)="productRate.set(unsigned($event.target))">
-                </span>
-              </label>
-            }
-            @if (editingProduct() || productRateAboveZero()) {
-              <button type="button" class="ui-field" (click)="choosingPayout.set(true)">
-                <span class="in">
-                  <span class="lab">{{ 'ui.yields.howOften' | t }}</span>
-                  <span class="val">{{ (productPayout() === 'daily' ? 'products.payout.daily' : 'products.payout.byMonths') | t }}</span>
-                </span>
-                <ion-icon name="chevron-down-outline"></ion-icon>
-              </button>
-              @if (productPayout() === 'monthly') {
-                <label class="ui-field">
-                  <span class="in">
-                    <span class="lab">{{ 'products.payout.months' | t }}</span>
-                    <input inputmode="numeric" [value]="productMonths()" (input)="productMonths.set(unsigned($event.target))">
-                    <span class="hint">{{ paydayPreview() || ('products.payout.monthsHint' | t) }}</span>
-                  </span>
-                </label>
+                </div>
+                @if (editingProduct() && productBaseRates().length === 0) {
+                  <div class="ui-banner warn">{{ 'products.product.noRateHint' | t }}</div>
+                }
+                <p class="hint">{{ 'products.rates.hint' | t }}</p>
               }
-            }
-            @if (editingProduct()) {
-              @for (rate of productBaseRates(); track rate.id) {
-                <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
-                  <span class="ui-tx">
-                    <b>{{ rateText(rate.annual_rate_scaled) }}</b>
-                    <small>
-                      @if (rateEndsOn(rate); as ends) { {{ 'products.rates.between' | t:{ from: dayText(rate.valid_from), to: dayText(ends) } }} }
-                      @else { {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }} }
-                    </small>
-                  </span>
-                  <span class="state" [class]="rateStatus(rate)">
-                    @switch (rateStatus(rate)) {
-                      @case ('current') { {{ 'products.rates.current' | t }} }
-                      @case ('future') { {{ 'products.rates.future' | t }} }
-                      @default { {{ 'products.rates.ended' | t }} }
-                    }
-                  </span>
-                  <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-                </button>
-              }
-              <button type="button" class="ui-row plain" (click)="startRateForm(null)">
-                <ion-icon name="add" class="ui-p"></ion-icon>
-                <span class="ui-tx"><b class="ui-p">{{ 'products.product.changeRate' | t }}</b></span>
-              </button>
-            }
-          </div>
-          @if (editingProduct() && productBaseRates().length === 0) {
-            <div class="ui-banner warn">{{ 'products.product.noRateHint' | t }}</div>
-          }
-          <p class="hint">{{ 'products.rates.hint' | t }}</p>
-        }
 
-        @case ('bonus') {
-          <div class="ui-list">
-            @for (rate of productBonusRates(); track rate.id) {
-              <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
-                <span class="ui-tx">
-                  <b>+{{ rateText(rate.annual_rate_scaled) }}</b>
-                  <small class="wrap">
-                    @if ((rate.payout_months ?? 1) > 1) {
-                      {{ 'products.rate.conditionMonths' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0), count: rate.payout_months } }}
-                    } @else {
-                      {{ 'products.rate.condition' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0) } }}
+              @case ('bonus') {
+                @if (editingProduct()) {
+                  <div class="ui-list">
+                    @for (rate of productBonusRates(); track rate.id) {
+                      <button type="button" class="ui-row plain" (click)="startRateForm(rate)">
+                        <span class="ui-tx">
+                          <b>+{{ rateText(rate.annual_rate_scaled) }}</b>
+                          <small class="wrap">
+                            @if ((rate.payout_months ?? 1) > 1) {
+                              {{ 'products.rate.conditionMonths' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0), count: rate.payout_months } }}
+                            } @else {
+                              {{ 'products.rate.condition' | t:{ amount: money(rate.requires_monthly_spend_minor ?? 0) } }}
+                            }
+                            · {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }}
+                          </small>
+                        </span>
+                        <span class="state" [class]="rateStatus(rate)">
+                          @switch (rateStatus(rate)) {
+                            @case ('current') { {{ 'products.rates.current' | t }} }
+                            @case ('future') { {{ 'products.rates.future' | t }} }
+                            @default { {{ 'products.rates.ended' | t }} }
+                          }
+                        </span>
+                        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                      </button>
                     }
-                    · {{ 'products.rates.from' | t:{ date: dayText(rate.valid_from) } }}
-                  </small>
-                </span>
-                <span class="state" [class]="rateStatus(rate)">
-                  @switch (rateStatus(rate)) {
-                    @case ('current') { {{ 'products.rates.current' | t }} }
-                    @case ('future') { {{ 'products.rates.future' | t }} }
-                    @default { {{ 'products.rates.ended' | t }} }
+                    <button type="button" class="ui-row plain" (click)="startRateForm(null, true)">
+                      <ion-icon name="add" class="ui-p"></ion-icon>
+                      <span class="ui-tx"><b class="ui-p">{{ 'products.product.addBonus' | t }}</b></span>
+                    </button>
+                  </div>
+                  <p class="hint">{{ 'products.product.bonusHint' | t }}</p>
+                } @else {
+                  <div class="ui-list switches">
+                    <div class="ui-row plain">
+                      <span class="ui-tx">
+                        <b class="wrap">{{ 'ui.steps.bonus.has' | t }}</b>
+                        <small class="wrap">{{ 'products.product.bonusHint' | t }}</small>
+                      </span>
+                      <button type="button" class="ui-switch" [class.on]="newBonusOn()" role="switch" [attr.aria-checked]="newBonusOn()"
+                              (click)="newBonusOn.set(!newBonusOn())"></button>
+                    </div>
+                  </div>
+                  @if (newBonusOn()) {
+                    <div class="ui-list">
+                      <label class="ui-field">
+                        <span class="in">
+                          <span class="lab">{{ 'ui.yields.extraRate' | t }}</span>
+                          <input inputmode="decimal" placeholder="5,5" [value]="newBonusPercent()" (input)="newBonusPercent.set(unsigned($event.target))">
+                        </span>
+                      </label>
+                      <label class="ui-field">
+                        <span class="in">
+                          <span class="lab">{{ 'products.rate.spend' | t }}</span>
+                          <input inputmode="decimal" placeholder="400.000" [value]="newBonusSpend()" (input)="newBonusSpend.set(amountTyped($event.target))">
+                        </span>
+                        <span class="unit">{{ line.account.currency_code }}</span>
+                      </label>
+                      <label class="ui-field">
+                        <span class="in">
+                          <span class="lab">{{ 'products.rate.bonusMonths' | t }}</span>
+                          <input inputmode="numeric" [value]="newBonusMonths()" (input)="newBonusMonths.set(unsigned($event.target))">
+                        </span>
+                      </label>
+                    </div>
+                    <p class="hint">{{ 'products.rate.bonusMonthsHint' | t }}</p>
                   }
-                </span>
-                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-              </button>
-            }
-            <button type="button" class="ui-row plain" (click)="startRateForm(null, true)">
-              <ion-icon name="add" class="ui-p"></ion-icon>
-              <span class="ui-tx"><b class="ui-p">{{ 'products.product.addBonus' | t }}</b></span>
-            </button>
-          </div>
-          <p class="hint">{{ 'products.product.bonusHint' | t }}</p>
-        }
-
-        @case ('cdt') {
-          @if (!editingProduct()) {
-            <div class="ui-seg">
-              <button type="button" [class.on]="productKind() === 'high_yield'" (click)="setProductKind('high_yield')">{{ 'products.product.kind.high_yield' | t }}</button>
-              <button type="button" [class.on]="productKind() === 'cdt'" (click)="setProductKind('cdt')">{{ 'products.product.kind.cdt' | t }}</button>
-            </div>
-          } @else {
-            <div class="ui-seg locked">
-              <button type="button" disabled>{{ 'products.product.kind.high_yield' | t }}</button>
-              <button type="button" disabled class="on">{{ 'products.product.kind.cdt' | t }}</button>
-            </div>
-          }
-          <p class="hint">{{ 'products.product.cdtHint' | t }}</p>
-          @if (fundingAsked()) {
-            <div class="ui-list">
-              <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
-                <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
-                <span class="ui-tx">
-                  <small>{{ 'products.product.fundingQuestion' | t }}</small>
-                  <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
-                </span>
-                <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-              </button>
-              @if (productFunding() === 'product') {
-                <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
-                  @let from = productById(line, productFundingFrom());
-                  @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
-                  <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
-                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-                </button>
+                }
               }
-            </div>
-          }
-          <div class="ui-list">
-            <label class="ui-field">
-              <span class="in">
-                <span class="lab">{{ 'products.cdt.amount' | t }}</span>
-                <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
-              </span>
-              <span class="unit">{{ line.account.currency_code }}</span>
-            </label>
-            <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.cdt.openedOn', value: cdtOpenedOn(), set: 'cdt' }"></ng-container>
-            <div class="ui-field pair">
-              <label class="in">
-                <span class="lab">{{ 'products.cdt.term' | t }}</span>
-                <input inputmode="numeric" [value]="cdtTerm()" (input)="cdtTerm.set(unsigned($event.target))">
-              </label>
-              <label class="in right">
-                <span class="lab">{{ 'ui.yields.rate' | t }}</span>
-                <input inputmode="decimal" placeholder="10,5" [value]="cdtRate()" (input)="cdtRate.set(unsigned($event.target))">
-              </label>
-            </div>
-            @if (cdtPreviewNow(); as preview) {
-              <div class="ui-field">
-                <span class="in">
-                  <span class="lab">{{ 'products.cdt.maturesOn' | t }}</span>
-                  <span class="val">{{ longDate(preview.maturesOn) }}</span>
-                </span>
+
+              @case ('settings') {
+                @if (productKind() === 'cdt') {
+                  <div class="ui-list switches">
+                    <div class="ui-row plain">
+                      <span class="ui-tx">
+                        <b class="wrap">{{ 'products.product.withholding' | t }}</b>
+                        <small class="wrap">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</small>
+                      </span>
+                      <button type="button" class="ui-switch" [class.on]="productWithholds()" role="switch" [attr.aria-checked]="productWithholds()"
+                              (click)="productWithholds.set(!productWithholds())"></button>
+                    </div>
+                    @if (!productIsDefault()) {
+                      <div class="ui-row plain">
+                        <span class="ui-tx"><b class="wrap">{{ 'products.product.netWorth' | t }}</b></span>
+                        <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
+                                (click)="productCounts.set(!productCounts())"></button>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="ui-list switches">
+                    <div class="ui-row plain">
+                      <span class="ui-tx">
+                        <b class="wrap">{{ 'products.product.withholding' | t }}</b>
+                        <small class="wrap">{{ (productWithholds() ? 'products.product.withholdingOn' : 'products.product.withholdingOff') | t }}</small>
+                      </span>
+                      <button type="button" class="ui-switch" [class.on]="productWithholds()" role="switch" [attr.aria-checked]="productWithholds()"
+                              (click)="productWithholds.set(!productWithholds())"></button>
+                    </div>
+                    <!-- The usual product always counts: every movement that names no product lands in it. -->
+                    @if (!productIsDefault()) {
+                      <div class="ui-row plain">
+                        <span class="ui-tx">
+                          <b class="wrap">{{ 'products.product.netWorth' | t }}</b>
+                          <small class="wrap">{{ (productCounts() ? 'products.product.netWorthOn' : 'products.product.netWorthOff') | t }}</small>
+                        </span>
+                        <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
+                                (click)="productCounts.set(!productCounts())"></button>
+                      </div>
+                    }
+                    <div class="ui-row plain">
+                      <span class="ui-tx">
+                        <b class="wrap">{{ 'ui.yields.makeUsual' | t }}</b>
+                        <small class="wrap">{{ 'products.product.makeDefault.hint' | t }}</small>
+                      </span>
+                      <button type="button" class="ui-switch" [class.on]="productIsDefault()" role="switch" [attr.aria-checked]="productIsDefault()"
+                              (click)="productIsDefault.set(!productIsDefault())"></button>
+                    </div>
+                  </div>
+                }
+              }
+
+              @case ('cdtAmount') {
+                <p class="hint">{{ 'products.product.cdtHint' | t }}</p>
+                @if (fundingAsked()) {
+                  <div class="ui-list">
+                    <button type="button" class="ui-row plain" (click)="choosingFunding.set(true)">
+                      <app-badge shape="ci" [size]="38" [builtin]="productFunding() === 'product' ? 'swap-horizontal' : 'create'" [fixed]="accentColor()"></app-badge>
+                      <span class="ui-tx">
+                        <small>{{ 'products.product.fundingQuestion' | t }}</small>
+                        <b class="wrap">{{ (productFunding() === 'product' ? 'products.product.fundingProduct' : 'products.product.fundingManual') | t }}</b>
+                      </span>
+                      <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                    </button>
+                    @if (productFunding() === 'product') {
+                      <button type="button" class="ui-row plain" (click)="choosingFundingFrom.set(true)">
+                        @let from = productById(line, productFundingFrom());
+                        @if (from) { <app-badge [size]="38" [builtin]="faceOf(from)" [seed]="seedOf(from)"></app-badge> }
+                        <span class="ui-tx"><small>{{ 'ui.yields.leavesFrom' | t }}</small><b class="ui-one">{{ from?.name ?? '—' }}</b></span>
+                        <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                      </button>
+                    }
+                  </div>
+                }
+                <div class="ui-list">
+                  <label class="ui-field">
+                    <span class="in">
+                      <span class="lab">{{ 'products.cdt.amount' | t }}</span>
+                      <input inputmode="decimal" [value]="productAmount()" (input)="productAmount.set(amountTyped($event.target))">
+                    </span>
+                    <span class="unit">{{ line.account.currency_code }}</span>
+                  </label>
+                  <ng-container *ngTemplateOutlet="dateField; context: { label: 'products.cdt.openedOn', value: cdtOpenedOn(), set: 'cdt' }"></ng-container>
+                  <label class="ui-field">
+                    <span class="in">
+                      <span class="lab">{{ 'products.cdt.term' | t }}</span>
+                      <input inputmode="numeric" [value]="cdtTerm()" (input)="cdtTerm.set(unsigned($event.target))">
+                    </span>
+                  </label>
+                </div>
+              }
+
+              @case ('cdtRate') {
+                <div class="ui-list">
+                  <label class="ui-field">
+                    <span class="in">
+                      <span class="lab">{{ 'products.rate.percent' | t }}</span>
+                      <input inputmode="decimal" placeholder="10,5" [value]="cdtRate()" (input)="cdtRate.set(unsigned($event.target))">
+                    </span>
+                  </label>
+                  @if (cdtPreviewNow(); as preview) {
+                    <div class="ui-field">
+                      <span class="in">
+                        <span class="lab">{{ 'products.cdt.maturesOn' | t }}</span>
+                        <span class="val">{{ longDate(preview.maturesOn) }}</span>
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+
+              @case ('cdtMatures') {
+                @if (cdtPreviewNow(); as preview) {
+                  <div class="ui-list">
+                    <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.gross' | t:{ days: preview.days } }}</span><span class="val">{{ money(preview.grossMinor, line.account.currency_code) }}</span></span></div>
+                    <div class="ui-field"><span class="in">
+                      <span class="lab">{{ (preview.withheldMinor === null ? 'products.cdt.withheldUnknown' : 'products.cdt.withheld') | t }}</span>
+                      <span class="val">@if (preview.withheldMinor === null) { — } @else { −{{ money(preview.withheldMinor, line.account.currency_code) }} }</span>
+                    </span></div>
+                    <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.net' | t }}</span><span class="val">+{{ money(preview.netMinor, line.account.currency_code) }}</span></span></div>
+                    <div class="ui-field total"><span class="in"><span class="lab">{{ 'products.cdt.receive' | t }}</span><span class="val big">{{ money(preview.receiveMinor, line.account.currency_code) }}</span></span></div>
+                  </div>
+                } @else {
+                  <p class="hint">{{ 'ui.yields.cdtFillFirst' | t }}</p>
+                }
+                <div class="ui-list ends">
+                  <div class="ui-row end">
+                    <span class="side">{{ 'ui.yields.goesTo' | t }}</span>
+                    <div class="what">
+                      <span class="acc">
+                        <app-badge shape="ci" [size]="28" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
+                                   [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
+                        <b class="ui-one">{{ line.account.name }}</b>
+                      </span>
+                      <button type="button" class="prod" (click)="choosingCdtInto.set(true)">
+                        <span class="hang"></span>
+                        @let into = productById(line, cdtInto());
+                        @if (into) { <app-badge [size]="24" [builtin]="faceOf(into)" [seed]="seedOf(into)"></app-badge> }
+                        <span class="ui-one">{{ cdtTargetName() }}</span>
+                      </button>
+                    </div>
+                    <ion-icon class="ui-chev" name="chevron-down-outline" (click)="choosingCdtInto.set(true)"></ion-icon>
+                  </div>
+                  <button type="button" class="ui-row plain" (click)="choosingCdtCategory.set(true)">
+                    @let category = incomeCategoryById(cdtCategory());
+                    <app-badge [size]="38" [builtin]="category?.builtin_icon" [customId]="category?.custom_icon_id"
+                               [tone]="category?.color" [seed]="category?.id ?? 0"></app-badge>
+                    <span class="ui-tx"><small>{{ 'ui.yields.withCategory' | t }}</small><b class="ui-one">{{ category?.name ?? '—' }}</b></span>
+                    <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                  </button>
+                </div>
+                <p class="hint">{{ 'products.cdt.closes' | t:{ target: cdtTargetName() } }}</p>
+              }
+
+              @case ('cdtPayments') {
+                <div class="ui-list">
+                  @for (payment of productPayments(); track payment.key) {
+                    <div class="ui-row">
+                      <app-badge [size]="42" builtin="lock-closed" [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
+                      <span class="ui-tx">
+                        <b class="ui-one">{{ longDate(payment.on) }}</b>
+                        <small class="ui-one">{{ 'ui.yields.sumOfDays' | t:{ count: payment.days } }}@if (payment.pending) { · {{ 'ui.yields.notYetPaid' | t }} }</small>
+                      </span>
+                      <span class="ui-am ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</span>
+                    </div>
+                  } @empty {
+                    <div class="ui-row plain"><span class="ui-tx"><small class="wrap">{{ 'products.days.none' | t }}</small></span></div>
+                  }
+                </div>
+                <p class="hint">{{ 'ui.yields.cdtPaymentsHint' | t }}</p>
+              }
+            }
               </div>
             }
           </div>
-          @if (!productIsDefault()) {
-            <div class="ui-list switches">
-              <div class="ui-row plain">
-                <span class="ui-tx"><b class="wrap">{{ 'products.product.netWorth' | t }}</b></span>
-                <button type="button" class="ui-switch" [class.on]="productCounts()" role="switch" [attr.aria-checked]="productCounts()"
-                        (click)="productCounts.set(!productCounts())"></button>
-              </div>
-            </div>
-          }
+        }
+
+        @if (editingProduct()) {
           <ng-container *ngTemplateOutlet="deleteProductRow"></ng-container>
-        }
-
-        @case ('matures') {
-          @if (cdtPreviewNow(); as preview) {
-            <div class="ui-list">
-              <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.gross' | t:{ days: preview.days } }}</span><span class="val">{{ money(preview.grossMinor, line.account.currency_code) }}</span></span></div>
-              <div class="ui-field"><span class="in">
-                <span class="lab">{{ (preview.withheldMinor === null ? 'products.cdt.withheldUnknown' : 'products.cdt.withheld') | t }}</span>
-                <span class="val">@if (preview.withheldMinor === null) { — } @else { −{{ money(preview.withheldMinor, line.account.currency_code) }} }</span>
-              </span></div>
-              <div class="ui-field"><span class="in"><span class="lab">{{ 'products.cdt.net' | t }}</span><span class="val">+{{ money(preview.netMinor, line.account.currency_code) }}</span></span></div>
-              <div class="ui-field total"><span class="in"><span class="lab">{{ 'products.cdt.receive' | t }}</span><span class="val big">{{ money(preview.receiveMinor, line.account.currency_code) }}</span></span></div>
-            </div>
-          } @else {
-            <p class="hint">{{ 'ui.yields.cdtFillFirst' | t }}</p>
-          }
-          <div class="ui-list ends">
-            <div class="ui-row end">
-              <span class="side">{{ 'ui.yields.goesTo' | t }}</span>
-              <div class="what">
-                <span class="acc">
-                  <app-badge shape="ci" [size]="28" [builtin]="line.account.builtin_icon" [customId]="line.account.custom_icon_id"
-                             [tone]="line.account.color" [seed]="line.account.id" fallback="wallet"></app-badge>
-                  <b class="ui-one">{{ line.account.name }}</b>
-                </span>
-                <button type="button" class="prod" (click)="choosingCdtInto.set(true)">
-                  <span class="hang"></span>
-                  @let into = productById(line, cdtInto());
-                  @if (into) { <app-badge [size]="24" [builtin]="faceOf(into)" [seed]="seedOf(into)"></app-badge> }
-                  <span class="ui-one">{{ cdtTargetName() }}</span>
-                </button>
-              </div>
-              <ion-icon class="ui-chev" name="chevron-down-outline" (click)="choosingCdtInto.set(true)"></ion-icon>
-            </div>
-            <button type="button" class="ui-row plain" (click)="choosingCdtCategory.set(true)">
-              @let category = incomeCategoryById(cdtCategory());
-              <app-badge [size]="38" [builtin]="category?.builtin_icon" [customId]="category?.custom_icon_id"
-                         [tone]="category?.color" [seed]="category?.id ?? 0"></app-badge>
-              <span class="ui-tx"><small>{{ 'ui.yields.withCategory' | t }}</small><b class="ui-one">{{ category?.name ?? '—' }}</b></span>
-              <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-            </button>
+        } @else {
+          <div class="step-foot">
+            @if (missingText()) { <p class="lacks">{{ missingText() }}</p> }
+            <button type="button" class="ui-btn" [class.waiting]="missingText()" [disabled]="saving()" (click)="trySaveProduct()">{{ 'ui.steps.save' | t }}</button>
           </div>
-          <p class="hint">{{ 'products.cdt.closes' | t:{ target: cdtTargetName() } }}</p>
-        }
-
-        @case ('cdtPayments') {
-          <div class="ui-list">
-            @for (payment of productPayments(); track payment.key) {
-              <div class="ui-row">
-                <app-badge [size]="42" builtin="lock-closed" [seed]="editingProduct() ? seedOf(editingProduct()!) : 3"></app-badge>
-                <span class="ui-tx">
-                  <b class="ui-one">{{ longDate(payment.on) }}</b>
-                  <small class="ui-one">{{ 'ui.yields.sumOfDays' | t:{ count: payment.days } }}@if (payment.pending) { · {{ 'ui.yields.notYetPaid' | t }} }</small>
-                </span>
-                <span class="ui-am ui-g">+{{ money(payment.netMinor, line.account.currency_code) }}</span>
-              </div>
-            } @empty {
-              <div class="ui-row plain"><span class="ui-tx"><small class="wrap">{{ 'products.days.none' | t }}</small></span></div>
-            }
-          </div>
-          <p class="hint">{{ 'ui.yields.cdtPaymentsHint' | t }}</p>
         }
       }
     </div>
