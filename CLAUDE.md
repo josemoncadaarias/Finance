@@ -5197,6 +5197,51 @@ alone had paid. A day's title cut short on Días or Pagos already slides
 (checked in a browser: the marquee wraps it, text and its "· Bonificación"
 part together).
 
+### The assistant: register and ask by text or voice, with no AI (proposed 2026-10-19, nothing built)
+
+Asked for by Jose on 2026-10-19 after Lukas's chat ("¿Puedo gastar $ 210.000
+hoy sin afectar mi presupuesto?", answered with a "Viabilidad de tu gasto de
+hoy" card: te alcanza pero se come N días, saldo del periodo, pagos
+pendientes, reservado para tus límites, libre para gastar). **No real AI**:
+costs per use are what he wants to avoid at all costs. Mockups `39a`-`39h`
+(our style, nothing copied). **Payments stay last**: Jose wants every value
+proposal built first, while Google approves the release and the 14-day test
+with testers runs; the paywall is finished after them.
+
+- **How**: a reader of phrases by rules, on the phone, offline: the intent
+  (register a spending / income / transfer, or a question: "¿me alcanza
+  para X?", "¿cuánto llevo en X?", "¿cuánto puedo gastar al día?", a cap, a
+  goal, a card's payment) and its pieces (amount - `moneyIn` reads figures
+  already, words like "45 mil", "dos millones", "luca" are new -, account,
+  category, day, period). **Every figure in an answer comes from the engines
+  already there** (limits, goals, the report's sections, the card's
+  statement): never computed a second way (rule 20).
+- **It learns, nothing is burned in** (Jose: "no quemar cada frase"): what
+  it does not know it asks once with chips, and keeps the answer, as the
+  merchant dictionary and the molds do - a word to a category ("guayos" ->
+  Deporte, `39e`), a shape of sentence to an intent ("200 mil en mercado" =
+  register, `39f`), an account for a word ("la Rappi"). Kept in the
+  database, so it travels in the backup. A test file of phrases and what
+  each must give, like `read-notice.test.mjs`.
+- **Registering is a summary to confirm** (`39c`): Guardar writes it when
+  everything is known (still a tap: never saved alone, rule 22), Revisar
+  opens the one movement form filled in; a missing piece is asked with chips.
+- **"¿Me alcanza?" is a question, not a movement** (`39d`): the verdict (te
+  alcanza / te alcanza pero pasas un tope / no te alcanza), the category's
+  cap with and without it, and "Libre para gastar" = what the accounts hold
+  less payments coming (card statements, loan installments) and what goals
+  still need this month - a definition still to settle with Jose (idea 1,
+  "Seguro para gastar"); a per-day figure to the month's end.
+- **Voice**: the phone's own dictation into the same reader (`39h`).
+  Assumed, not verified: offline only with the Spanish pack downloaded; on
+  many phones the audio goes through Google - to say in the privacy policy.
+- **Reached from the "+"** ("Asistente", `39a`). Paid, with some free
+  questions a month; registering by chat should not be blocked, since
+  typing movements is free (rule 21) - Jose's to decide.
+- Suggested phases: (1) registering by text and voice + five or six
+  questions; (2) "¿me alcanza?" and "cuánto puedo gastar"; (3) more
+  questions and learning from corrections.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -5311,4 +5356,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant, proposed)
