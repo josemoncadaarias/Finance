@@ -17,6 +17,8 @@ import { FilterService } from '../../core/filters/filter.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { AccountRow } from '../../core/database/types';
 import { formatMoney as money } from '../../core/database/money';
+import { MainCurrencyService } from '../../core/currencies/main-currency.service';
+import { movementInMain, worthInMain } from '../../core/currencies/in-main';
 import {
   flowOf, groupMovements, matchesSearch, slicesOf, totalsOf,
   type AmountBasis, type Movement, type MovementGroup, type Slice, type Totals,
@@ -27,6 +29,7 @@ export class MovementsStore {
   private readonly database = inject(DatabaseService);
   private readonly filter = inject(FilterService);
   private readonly i18n = inject(I18nService);
+  private readonly main = inject(MainCurrencyService);
 
   readonly accounts = signal<AccountRow[]>([]);
   readonly loading = signal(false);
@@ -106,7 +109,7 @@ export class MovementsStore {
     return groups.length > 0 && groups.every(group => this.collapsed().has(group.key));
   });
 
-  readonly currency = computed(() => this.selectedAccount()?.currency_code ?? 'COP');
+  readonly currency = computed(() => this.selectedAccount()?.currency_code ?? this.main.code());
 
   constructor() {
     // Groups arrive closed but the first. Reading `groups()` here is what makes this fire
@@ -122,6 +125,8 @@ export class MovementsStore {
       this.filter.accountId();
       this.filter.period();
       this.filter.includeExcluded();
+      // Several accounts' figures are shown in the main currency (37d).
+      this.main.version();
 
       if (this.database.status() === 'ready') void this.load();
     });
@@ -257,8 +262,8 @@ export class MovementsStore {
       this.standing.set({
         kind: 'net-worth',
         label: this.i18n.t('summary.netWorthToday'),
-        amountMinor: await accounts.netWorthMinor(),
-        currency: 'COP',
+        amountMinor: worthInMain((await accounts.netWorth()).lines, this.main.code(), this.main.todayRate()).totalMinor,
+        currency: this.main.code(),
         detail: null,
       });
       return;
@@ -379,7 +384,15 @@ export class MovementsStore {
     const inScope = new Set(scope);
     const leaveOut = !this.filter.includeExcluded();
 
-    const visible = detailed.filter(row => {
+    // Several accounts at once add up their value in the main currency: the
+    // pesos of each movement at its own day's rate, or its own amount when it
+    // is already in that currency (37d). Nothing stored changes.
+    const main = this.main.code();
+    const book = this.main.book();
+    const rows = main === 'COP' ? detailed
+      : detailed.map(row => ({ ...row, amount_base_minor: movementInMain(row, main, book) }));
+
+    const visible = rows.filter(row => {
       if (leaveOut && row.product_set_aside === 1) return false;
       return row.transfer_id === null ||
         row.other_account_id === null ||
@@ -389,7 +402,7 @@ export class MovementsStore {
         (leaveOut && row.other_product_set_aside === 1);
     });
 
-    const movedBetween = detailed
+    const movedBetween = rows
       .filter(row => row.transfer_id !== null && row.amount_minor < 0 && row.sibling_leg_id != null
         && row.other_account_id !== null && inScope.has(row.other_account_id)
         && !(leaveOut && (row.product_set_aside === 1 || row.other_product_set_aside === 1)))

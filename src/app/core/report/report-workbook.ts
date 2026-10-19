@@ -454,7 +454,8 @@ function movementsSheet(data: ReportData, movements: readonly Movement[]): Sheet
     words['report.movement.kind'],
     words['report.movement.amount'],
     words['report.movement.currency'],
-    words['report.movement.inPesos'],
+    // The main currency's code when it is not the peso (37d).
+    data.main && data.main !== 'COP' ? data.main : words['report.movement.inPesos'],
   ];
   headings.forEach((heading, col) => sheet.text(col, col >= 5 ? 'headRight' : 'head', heading));
   sheet.row += 1;

@@ -24,6 +24,7 @@ import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-d
 import { catalogOf, currencyName, flagOf } from '../../core/currencies/catalog';
 import { rateToPesosOn } from '../../core/rates/historical-rates';
 import { ToastService } from '../../shared/ui/toast.service';
+import { MainCurrencyService } from '../../core/currencies/main-currency.service';
 import { JumpComponent } from '../../shared/ui/jump.component';
 
 interface CurrencyLine {
@@ -89,8 +90,21 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
           </div>
         </section>
 
-        <h3 class="ui-h">{{ 'ui.currencies.yours' | t }}</h3>
+        <!-- The currency balances and reports are shown in (37d). -->
+        <h3 class="ui-h">{{ 'ui.main.title' | t }}</h3>
         <div class="ui-list">
+          <button type="button" class="ui-row" data-tour="main-currency" (click)="choosingMain.set(true)">
+            @if (flag(main.code()); as f) { <span class="code flag">{{ f }}</span> }
+            <span class="ui-tx">
+              <b class="ui-one">{{ main.code() }} · {{ nameOfCode(main.code()) }}</b>
+              <small class="wrap">{{ 'ui.main.row' | t }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+
+        <h3 class="ui-h">{{ 'ui.currencies.yours' | t }}</h3>
+        <div class="ui-list yours">
           @for (line of lines(); track line.code) {
             <button type="button" class="ui-row" [disabled]="line.code === 'COP'" (click)="view(line)">
               @if (flag(line.code); as f) { <span class="code flag">{{ f }}</span> }
@@ -166,6 +180,37 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
       </ng-template>
     </ion-modal>
 
+    <!-- Choosing the main currency (37d): only one with a rate can be chosen. -->
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet"
+               [isOpen]="choosingMain()" (didDismiss)="choosingMain.set(false)">
+      <ng-template>
+        <div class="ui-sheet-body ion-content-scroll-host">
+          <div class="grab"></div>
+          <div class="sheet-head">
+            <button type="button" class="link left" (click)="choosingMain.set(false)">{{ 'entry.cancel' | t }}</button>
+            <h2>{{ 'ui.main.title' | t }}</h2>
+            <span class="right"></span>
+          </div>
+          <p class="hint center">{{ 'ui.main.lead' | t }}</p>
+          <div class="ui-list">
+            @for (line of lines(); track line.code) {
+              <button type="button" class="ui-row" [disabled]="!canBeMain(line)" (click)="chooseMain(line)">
+                @if (flag(line.code); as f) { <span class="code flag">{{ f }}</span> }
+                @else { <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span> }
+                <span class="ui-tx">
+                  <b class="ui-one">{{ line.code }} · {{ line.name }}</b>
+                  @if (!canBeMain(line)) { <small class="wrap">{{ 'ui.main.noRate' | t }}</small> }
+                </span>
+                @if (main.code() === line.code) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+              </button>
+            }
+          </div>
+          <p class="hint">{{ 'ui.main.nearest' | t }}</p>
+          <p class="hint">{{ 'ui.main.pesosOnly' | t }}</p>
+        </div>
+      </ng-template>
+    </ion-modal>
+
     <!-- Today's rate for one currency, typed by hand (2d). -->
     <ion-modal class="confirm-sheet" [isOpen]="typing() !== null" (didDismiss)="typing.set(null)">
       <ng-template>
@@ -233,6 +278,9 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
     .detail .amount { font-size: 16px; font-weight: 700; flex: none; }
     .detail .ui-btn { width: 100%; margin-top: 10px; }
     .detail ion-spinner { width: 22px; height: 22px; }
+    .wrap { white-space: normal; }
+    .hint.center { text-align: center; margin: 0 4px 12px; }
+    button.ui-row:disabled .ui-tx b { opacity: 0.5; }
     .value { display: flex; flex-direction: column; align-items: flex-end; flex: none; text-align: right; }
     .value b { font-weight: 600; font-size: 15px; }
     .value small { color: var(--app-mu); font-size: 12px; }
@@ -264,6 +312,8 @@ export class CurrenciesPage {
   readonly autoRate = signal<{ rate_scaled: number; source: string } | null>(null);
   readonly autoState = signal<'looking' | 'found' | 'none' | 'noSource'>('none');
   private readonly toast = inject(ToastService);
+  readonly main = inject(MainCurrencyService);
+  readonly choosingMain = signal(false);
 
   readonly draftValid = computed(() => {
     const value = parseRate(this.draft());
@@ -322,6 +372,23 @@ export class CurrenciesPage {
 
   flag(code: string): string {
     return flagOf(code);
+  }
+
+  nameOfCode(code: string): string {
+    return this.lines().find(line => line.code === code)?.name ?? currencyName(code, code, this.i18n.language());
+  }
+
+  /** The peso always; any other once it has a rate on record. */
+  canBeMain(line: CurrencyLine): boolean {
+    return line.code === 'COP' || line.rate !== null;
+  }
+
+  async chooseMain(line: CurrencyLine): Promise<void> {
+    if (!this.canBeMain(line)) return;
+    this.choosingMain.set(false);
+    if (line.code === this.main.chosen()) return;
+    await this.main.choose(line.code);
+    this.toast.say(this.i18n.t('ui.main.done', { name: line.name }));
   }
 
   /** Opens a currency; a typed value looks its automatic one up beside it. */

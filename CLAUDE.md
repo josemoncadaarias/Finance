@@ -180,7 +180,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (845 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (849 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -833,9 +833,30 @@ these):
   rates**: its invented TRM dated today was taken for the official one and
   the real one was never fetched (yesterday's stands offline). Tour
   `currencies` step `since: 2`. Checked in a browser with the TRM and the
-  ECB answered by stubs (the session's network refuses both). **Next, agreed
-  with Jose: a main currency for showing balances and reports only
-  (`37d`); the app stays in pesos inside.**
+  ECB answered by stubs (the session's network refuses both).
+
+- **A main currency for showing, never for storing** (Jose, 2026-10-19,
+  mockup `37d`: "solo para efectos de mostrar saldos, reportes"; the app
+  stays in pesos inside). Monedas y TRM → "Moneda principal" (a sheet of the
+  currencies kept; one with no rate on record cannot be chosen), kept on the
+  device (`finance.mainCurrency`, `MainCurrencyService`). Its rate book is
+  the rates on record for it plus the rate each movement of an account in it
+  was saved with (`rateBook`, `rateOn`: the last on or before a day, else the
+  first); choosing the dollar brings ~400 days of TRM in (`backfillTrm`,
+  `INSERT OR IGNORE`, never over a typed one). What changes, all in
+  `core/currencies/in-main.ts` (pure, `in-main.test.mjs`): with several
+  accounts, `MovementsStore.readPeriod` replaces each row's
+  `amount_base_minor` IN MEMORY by its value in the main currency - its own
+  amount when it is already in it, else its pesos at its own day's rate
+  (`movementInMain`) - so Inicio's totals, the donut, the groups, "movido
+  entre tus cuentas" and the movements report (screen and spreadsheet, whose
+  column says the code, `ReportData.main`) follow; net worth on Inicio,
+  Cuentas and the account list is each line at today's rate, the total their
+  sum (`worthInMain`). Always pesos: yields and their summary, the tax
+  simulator, debts and loans, caps, goals and Monedas y TRM's own card. A
+  movement or account row shows its code only when it is not the main one.
+  Currencies tour step `since: 3`. Checked in a browser on the sample data
+  with stubbed rates (Cuentas and Inicio 78,712,764.24 COP → 20,118.78 USD).
 
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under

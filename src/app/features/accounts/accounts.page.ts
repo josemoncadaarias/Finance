@@ -7,6 +7,8 @@
  */
 
 import { splitWorth } from '../../core/worth/worth-split';
+import { MainCurrencyService } from '../../core/currencies/main-currency.service';
+import { worthInMain } from '../../core/currencies/in-main';
 import type { TranslationKey } from '../../core/i18n/translations';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -54,6 +56,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
 })
 export class AccountsPage {
   private readonly database = inject(DatabaseService);
+  readonly main = inject(MainCurrencyService);
   private readonly filter = inject(FilterService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -258,6 +261,7 @@ export class AccountsPage {
       // Reads dataVersion so an import elsewhere in the app refreshes this
       // screen, not just the first open.
       this.database.dataVersion();
+      this.main.version();
       if (this.database.status() === 'ready') void this.load();
     });
   }
@@ -273,8 +277,11 @@ export class AccountsPage {
     ]);
     this.grouped.set(grouped);
     this.loanIds.set(new Set(await new LoansRepository(this.database.driver).ids()));
-    this.worth.set(worth);
-    this.netWorthMinor.set(worth.totalMinor);
+    // In the main currency when it is not the peso (37d): today's rate, and
+    // the total is its lines' sum so what you have and owe still add up.
+    const shown = worthInMain(worth.lines, this.main.code(), this.main.todayRate());
+    this.worth.set({ ...worth, lines: shown.lines, totalMinor: shown.totalMinor });
+    this.netWorthMinor.set(shown.totalMinor);
     await this.loadCurrencies();
     await this.loadIcons();
     await this.rates.load();

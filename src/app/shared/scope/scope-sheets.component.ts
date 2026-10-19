@@ -29,6 +29,8 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import { AccountEditorComponent } from '../../features/accounts/account-editor.component';
 import { AccountPickerComponent } from '../account-picker/account-picker.component';
 import { formatMoney } from '../../core/database/money';
+import { MainCurrencyService } from '../../core/currencies/main-currency.service';
+import { worthInMain } from '../../core/currencies/in-main';
 import { todayIso } from '../../core/yields/days';
 import type { AccountRow } from '../../core/database/types';
 
@@ -43,6 +45,7 @@ export class ScopeSheetsComponent {
   readonly store = inject(MovementsStore);
   readonly i18n = inject(I18nService);
   private readonly database = inject(DatabaseService);
+  private readonly main = inject(MainCurrencyService);
 
   readonly periodKinds = PERIOD_KINDS;
   readonly today = todayIso();
@@ -76,7 +79,8 @@ export class ScopeSheetsComponent {
   openAccounts(): void {
     this.showAccountSheet.set(true);
     if (this.database.status() === 'ready') {
-      void new AccountsRepository(this.database.driver).netWorthMinor().then(minor => this.netWorth.set(minor));
+      void new AccountsRepository(this.database.driver).netWorth().then(worth =>
+        this.netWorth.set(worthInMain(worth.lines, this.main.code(), this.main.todayRate()).totalMinor));
     }
 
     // Read when the sheet opens rather than kept in step: it is one query,
@@ -157,7 +161,7 @@ export class ScopeSheetsComponent {
       .filter(a => !a.archived && (this.filter.includeExcluded() || a.include_in_net_worth === 1)).length;
     const accounts = this.i18n.t(counted === 1 ? 'ui.count.account' : 'ui.count.accounts', { count: counted });
     if (worth !== null) {
-      return `${this.i18n.t('ui.netWorth')} ${formatMoney(worth, 'COP', { withSymbol: false })} · ${accounts}`;
+      return `${this.i18n.t('ui.netWorth')} ${formatMoney(worth, this.main.code(), { withSymbol: false })} · ${accounts}`;
     }
     return accounts;
   });
