@@ -834,6 +834,19 @@ these):
   the real one was never fetched (yesterday's stands offline). Tour
   `currencies` step `since: 2`. Checked in a browser with the TRM and the
   ECB answered by stubs (the session's network refuses both).
+  **The sample's invented rates were shown as official and outlived
+  "Actualizar"** (Jose, 2026-10-19, on the phone: the dollar at ~3,400 as
+  "TRM oficial" while the real one was ~3,170). The sample wrote an invented
+  rate for EVERY calendar day, and the TRM service has rows only on the days
+  a rate takes effect - so the invented row of a weekend or holiday sat
+  between the last real quote and today and kept answering. Now the sample
+  marks its rates `demo` ("Valor de ejemplo", amber), `RatesService.refresh`
+  also writes the TRM in force under today's date (never over a value typed
+  today), and a currency's sheet looks up the official rate beside any rate
+  that is typed, invented or not today's, with "Usar la TRM oficial" /
+  "Usar la tasa oficial"; its title says what the rate in use really is,
+  never "de hoy" for another day's. Checked in a browser with the TRM
+  answered by a stub whose last quote was a Saturday.
 
 - **A main currency for showing, never for storing** (Jose, 2026-10-19,
   mockup `37d`: "solo para efectos de mostrar saldos, reportes"; the app

@@ -227,6 +227,8 @@ const on = (month, d) => {
 const thisMonth = TODAY.slice(0, 7);
 
 // A TRM for every day, drifting the way it does; the euro once a week.
+// Invented, so marked 'demo': never shown as an official rate, and the
+// first refresh with a network puts today's real one on top.
 const trmOf = new Map();
 let trm = 4_050_0000;
 for (const d of days(FROM, TODAY)) {
@@ -239,14 +241,14 @@ for (const d of days(FROM, TODAY)) {
   if (d === TODAY) continue;
   await db.run(
     `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
-     VALUES (?, 'USD', 'COP', ?, 'trm', ?)`, [d, trm, NOW()]);
+     VALUES (?, 'USD', 'COP', ?, 'demo', ?)`, [d, trm, NOW()]);
 }
 const eurDays = days(FROM, TODAY).slice(0, -1);
 for (const [i, d] of eurDays.entries()) {
   if (i % 7 === 0 || i === eurDays.length - 1) {
     await db.run(
       `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
-       VALUES (?, 'EUR', 'COP', ?, 'derived', ?)`, [d, Math.round(trmOf.get(d) * 1.09), NOW()]);
+       VALUES (?, 'EUR', 'COP', ?, 'demo', ?)`, [d, Math.round(trmOf.get(d) * 1.09), NOW()]);
   }
 }
 

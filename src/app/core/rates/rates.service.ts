@@ -115,7 +115,7 @@ export class RatesService {
       const quotes = await fetchTrm(existing === null ? FIRST_RUN_DAYS : 5);
 
       // A value typed by hand today stands, for the dollar as for every other
-      // currency (rule 7); "Usar el automático" on Monedas y TRM puts it back.
+      // currency (rule 7); "Usar la TRM oficial" on Monedas y TRM puts it back.
       const typedToday = existing?.on_date === today && existing.source === 'manual';
       for (const quote of quotes) {
         if (typedToday && quote.on_date === today) continue;
@@ -125,6 +125,20 @@ export class RatesService {
           quote_code: BASE_CURRENCY,
           rate_scaled: quote.rate_scaled,
           source: 'trm',
+        });
+      }
+
+      // The TRM in force today is also written under today: a day with no
+      // row of its own (a weekend, a holiday) would otherwise be answered by
+      // whatever row sits between the last quote and today - an invented one
+      // of the sample data, which no refresh could then replace (Jose,
+      // 2026-10-19).
+      const inForceToday = quotes.filter(quote => quote.on_date <= today)
+        .sort((a, b) => (a.on_date < b.on_date ? 1 : -1))[0];
+      if (inForceToday && !typedToday) {
+        await rates.set({
+          on_date: today, base_code: TRM_CURRENCY, quote_code: BASE_CURRENCY,
+          rate_scaled: inForceToday.rate_scaled, source: 'trm',
         });
       }
 
