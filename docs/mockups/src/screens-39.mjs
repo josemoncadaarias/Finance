@@ -111,4 +111,54 @@ S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo 
   <span style="width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:inline-grid;place-items:center;color:#fff;box-shadow:0 0 0 12px ${tint(C.blu, .18)},0 0 0 24px ${tint(C.blu, .08)}">${ic('mic-outline', '', 'width:34px;height:34px')}</span>
   <div class="sub" style="margin-top:22px">Toca para terminar · Cancelar</div></div>`;
 
+// 39i - no category: the whole picture. What the accounts hold (CDTs and
+// anything set aside from net worth left out), less the payments coming and
+// what the goals still need this month (Jose, 2026-10-19).
+S['39i-me-alcanza-sin-categoria'] = chat(`
+ ${me('¿Me puedo gastar 2 millones en algo?')}
+ ${app('Sí, te alcanza: te quedarían <b>$ 650.000 libres</b> hasta el 31. No sé en qué categoría va, así que no reviso ningún tope.')}
+ ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.grn, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
+  ${line('En tus cuentas hoy', '$ 4.120.000')}
+  ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
+  ${line('Lo que falta para tus metas', '−$ 580.000')}
+  ${line('Libre para gastar', '$ 2.650.000', 'g')}
+  ${line('Después de este gasto', '$ 650.000 · $ 54.000 al día')}
+  <div class="sub" style="margin-top:8px">Sin contar tus CDT ni lo que tienes fuera del patrimonio.</div>`, tint(C.grn, .4))}
+ ${chips('Es tecnología', 'Es ropa', 'Otra categoría')}`);
+
+// 39j - from one account: only what that account can pay.
+S['39j-me-alcanza-cuenta'] = chat(`
+ ${me('¿Puedo pagar 800 mil desde Bancolombia?')}
+ ${app('Desde Bancolombia sí: tiene <b>$ 1.340.000</b> y te quedarían $ 540.000. Pero ojo, el 1 de noviembre sale de ahí la cuota del carro.')}
+ ${card(`${line('Bancolombia hoy', '$ 1.340.000')}
+  ${line('Después de pagar', '$ 540.000')}
+  ${line('Cuota del carro · 1 nov', '−$ 980.000', 'r')}
+  ${line('Te faltarían para la cuota', '$ 440.000', 'r')}
+  <div class="sub" style="margin-top:8px">En todas tus cuentas sí te alcanza: tienes $ 2.650.000 libres.</div>`, tint(C.yel, .4))}`);
+
+// 39k - not enough, but interest not yet cashed out could cover it.
+S['39k-no-alcanza-intereses'] = chat(`
+ ${me('¿Me alcanza para un viaje de 3 millones?')}
+ ${app('Hoy no te alcanza: te faltan <b>$ 350.000</b>. Pero tienes <b>$ 1.351.000 en intereses</b> que todavía no has pasado a tus cuentas.')}
+ ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.red, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('alert-circle-outline', 'r')}<b class="r">No te alcanza por $ 350.000</b></div>
+  ${line('Libre para gastar', '$ 2.650.000')}
+  ${line('El viaje', '−$ 3.000.000')}
+  <div class="lab" style="margin:12px 0 2px">Intereses sin pasar a tu saldo</div>
+  ${line('Banco Índigo', '$ 1.120.000', 'g')}
+  ${line('Bolsillo Plata', '$ 231.000', 'g')}
+  <div class="sub" style="margin-top:8px">Si los pasas a tu saldo, este gasto sí te alcanza. Mientras no lo hagas, no los cuento.</div>
+  <div class="btn ghost" style="height:42px;margin-top:12px">Pasar intereses a mi saldo</div>`, tint(C.red, .4))}`);
+
+// 39l - an account with products: the usual product, said quietly, and
+// changed with a tap or in the sentence ("del bolsillo viajes").
+const acc = (n, sub) => `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">${sq('wallet-outline', C.blu, 30)}<div class="tx"><b style="font-size:14px">${n}</b><small>${sub}</small></div><span class="p" style="font-size:13.5px">Cambiar</span></div>`;
+S['39l-gasto-con-producto'] = chat(`
+ ${me('Gasté 120 mil en almuerzo con Banco Índigo')}
+ ${app('Este es el gasto que entendí:')}
+ ${card(`<div style="display:flex;align-items:center;gap:12px">${catIcon('rest', 42)}<div class="tx"><b>Restaurantes</b><small>Banco Índigo · Hoy</small></div><b class="r" style="font-size:18px">−$ 120.000</b></div>
+  ${acc('Sale de Ahorros', 'Tu producto habitual · la cuenta tiene 3')}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Revisar</div><div class="btn" style="height:42px">Guardar</div></div>`)}
+ ${me('Gasté 50 mil del bolsillo viajes')}
+ ${app('Lo saco de <b>Bolsillo viajes</b>, en Banco Índigo.')}`);
+
 export default S;

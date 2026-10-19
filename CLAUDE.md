@@ -5232,6 +5232,26 @@ with testers runs; the paywall is finished after them.
   less payments coming (card statements, loan installments) and what goals
   still need this month - a definition still to settle with Jose (idea 1,
   "Seguro para gastar"); a per-day figure to the month's end.
+- **Decided with Jose the same day** (`39i`-`39l`):
+  - **"Libre para gastar"** = what the accounts counted in net worth hold
+    (ledger balances), **less CDTs** and anything set aside from net worth,
+    less payments coming this month (card statements, loan installments),
+    less what the goals still need this month. Interest a product earned and
+    not yet cashed out (rule 15) is **never counted**, only said: when the
+    answer is short, "tienes X en intereses sin pasar a tu saldo" per
+    account, with "Pasar intereses a mi saldo" (`39k`); when nothing is
+    waiting, nothing is said.
+  - **No category is needed** (`39i`): "¿me puedo gastar 2 millones en
+    algo?" answers on the whole picture, says no cap was checked, and offers
+    chips to name the category.
+  - **One account named** (`39j`): what that account holds and what is due
+    from it soon (a loan installment, a card it pays), and in one line
+    whether all the accounts together could.
+  - **Registering on an account with products** (`39l`): the usual product,
+    said quietly in the card ("Sale de Ahorros · tu producto habitual · la
+    cuenta tiene 3", "Cambiar"), never a question; a product named in the
+    sentence ("del bolsillo viajes") is taken - and the account it belongs
+    to.
 - **Voice**: the phone's own dictation into the same reader (`39h`).
   Assumed, not verified: offline only with the Spanish pack downloaded; on
   many phones the audio goes through Google - to say in the privacy policy.
