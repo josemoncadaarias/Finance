@@ -34,6 +34,10 @@ Keep it up to date whenever we make new decisions.
   words change with the language: the formulas and the engine do not.
   Decision by Jose, 2026-09-18, replacing the 2026-09-09 rule that kept the
   whole module in Spanish.
+- **How the app's words are written: `.claude/skills/app-copy/SKILL.md`.**
+  Read it before adding or changing any user-facing string (Jose,
+  2026-10-19, after "Usar el automático": name the thing, never an
+  adjective alone; buttons say the result).
 
 ---
 
@@ -820,8 +824,10 @@ these):
   una moneda" (`currency-dialog`, both screens) is that list with a search
   by country, name or code; one already kept says "Ya la tienes". Names
   show in the app's language. Tapping a currency on Monedas y TRM opens its
-  value; a typed one shows the automatic one beside it (fetched on opening,
-  `rateToPesosOn`) and "Usar el automático" writes it dated today. The
+  value; a typed one shows the official one beside it ("TRM oficial de hoy"
+  for the dollar, "Tasa oficial de hoy" for the rest, fetched on opening,
+  `rateToPesosOn`) and "Usar la TRM oficial" / "Usar la tasa oficial"
+  writes it dated today. The
   dollar's refresh no longer writes over a value typed today either (rule
   7, as every other currency). **The sample data no longer writes today's
   rates**: its invented TRM dated today was taken for the official one and

@@ -391,7 +391,7 @@ export const SPANISH = {
   'accounts.breakdown.excluded':
     "Las cuentas archivadas y las que marcaste como excluidas del patrimonio no se cuentan.",
   'accounts.trm.on': 'TRM del {date}',
-  'accounts.trm.official': 'oficial',
+  'accounts.trm.official': "TRM oficial",
   'accounts.trm.typed': 'escrita a mano',
   'accounts.trm.none': "Todavía no hay TRM (tasa de cambio del dólar)",
   'accounts.trm.refresh': 'Actualizar',
@@ -1447,7 +1447,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'accounts.breakdown.excluded':
     'Left out: archived accounts, and the ones marked as set aside from net worth.',
   'accounts.trm.on': 'TRM of {date}',
-  'accounts.trm.official': 'official',
+  'accounts.trm.official': "Official TRM",
   'accounts.trm.typed': 'typed by hand',
   'accounts.trm.none': 'No TRM for the dollar yet',
   'accounts.trm.refresh': 'Refresh',
