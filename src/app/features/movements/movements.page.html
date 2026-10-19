@@ -161,7 +161,7 @@
         @if (store.movedBetween() > 0) {
           <div class="ui-sub moved-line">
             <ion-icon name="swap-horizontal" class="ui-t"></ion-icon>
-            <span class="ui-one">{{ 'ui.movedBetween' | t:{ amount: (store.movedBetween() | money:'COP') } }}</span>
+            <span class="ui-one">{{ 'ui.movedBetween' | t:{ amount: (store.movedBetween() | money:store.currency()) } }}</span>
           </div>
         }
       </section>
@@ -277,7 +277,7 @@
                   </span>
                   <span class="ui-am" [class]="toneOf(movement.flow)">
                     {{ signed(movement.transaction.amount_minor, movement.currency) }}
-                    @if (filter.allAccounts() && movement.currency !== 'COP') { <small>{{ movement.currency }}</small> }
+                    @if (filter.allAccounts() && movement.currency !== store.currency()) { <small>{{ movement.currency }}</small> }
                   </span>
                 </button>
               }

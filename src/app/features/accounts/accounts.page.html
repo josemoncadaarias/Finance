@@ -38,18 +38,18 @@
           <span class="ui-lab">{{ 'ui.account.worthToday' | t }}</span>
           <app-amounts-eye></app-amounts-eye>
         </div>
-        <div class="ui-big" [class.ui-y]="netWorthMinor() < 0" [class.long]="isLong(netWorthMinor(), 10)">$ {{ netWorthMinor() | money }} <small>COP</small></div>
+        <div class="ui-big" [class.ui-y]="netWorthMinor() < 0" [class.long]="isLong(netWorthMinor(), 10)">$ {{ netWorthMinor() | money:main.code() }} <small>{{ main.code() }}</small></div>
         <p class="ui-sub">{{ 'worth.lead' | t }}</p>
         <!-- What you have and what you owe: the total's own lines split by sign (29a). -->
         <div class="sides" data-tour="worth-sides">
           <div class="side have">
             <span class="head"><ion-icon name="wallet-outline"></ion-icon>{{ 'worth.have' | t }}</span>
-            <b [class.long]="isLong(split().haveMinor)">{{ split().haveMinor | money }}</b>
+            <b [class.long]="isLong(split().haveMinor)">{{ split().haveMinor | money:main.code() }}</b>
             <small>{{ haveLine() }}</small>
           </div>
           <button type="button" class="side owe" (click)="openDebts()">
             <span class="head"><ion-icon name="card-outline"></ion-icon>{{ 'worth.owe' | t }}<ion-icon class="go" name="chevron-forward-outline"></ion-icon></span>
-            <b [class.long]="isLong(split().oweMinor)">{{ split().oweMinor | money }}</b>
+            <b [class.long]="isLong(split().oweMinor)">{{ split().oweMinor | money:main.code() }}</b>
             <small>{{ oweLine() }}</small>
           </button>
         </div>
@@ -141,7 +141,7 @@
             }
           </span>
           <span class="ui-am" [class.ui-y]="!past && balance.balance_minor < 0">
-            {{ balance.balance_minor | money:account.currency_code }}@if (account.currency_code !== 'COP') {<small> {{ account.currency_code }}</small>}
+            {{ balance.balance_minor | money:account.currency_code }}@if (account.currency_code !== main.code()) {<small> {{ account.currency_code }}</small>}
           </span>
         </button>
         <button type="button" class="pen" (click)="edit(account)" [attr.aria-label]="'accounts.edit.action' | t">
@@ -177,7 +177,7 @@
           }
           <div class="ui-row total">
             <span class="ui-tx"><b>{{ 'report.categories.total' | t }}</b></span>
-            <span class="ui-am" [class.ui-y]="side.key === 'owe'">{{ side.totalMinor | money }}</span>
+            <span class="ui-am" [class.ui-y]="side.key === 'owe'">{{ side.totalMinor | money:main.code() }}</span>
           </div>
         </div>
       }
@@ -191,7 +191,7 @@
       <div class="ui-list net">
         <div class="ui-row total">
           <span class="ui-tx"><b>{{ 'accounts.netWorth' | t }}</b></span>
-          <span class="ui-am" [class.ui-y]="netWorthMinor() < 0">{{ netWorthMinor() | money }}</span>
+          <span class="ui-am" [class.ui-y]="netWorthMinor() < 0">{{ netWorthMinor() | money:main.code() }}</span>
         </div>
       </div>
       <p class="hint notes-head"><strong>{{ 'accounts.breakdown.notes' | t }}</strong></p>
@@ -211,9 +211,11 @@
                [tone]="colorOf(line.account_id)" [seed]="line.account_id" fallback="wallet"></app-badge>
     <span class="ui-tx">
       <b class="ui-one">{{ line.name }}</b>
-      @if (line.currency_code !== 'COP') {
-        @if (line.rate) {
+      @if (line.currency_code !== main.code()) {
+        @if (line.rate && main.code() === 'COP') {
           <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} × {{ rateText(line.rate.rate_scaled) }}</small>
+        } @else if (line.baseMinor !== null) {
+          <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }}</small>
         } @else {
           <small class="ui-one">{{ line.balance_minor | money:line.currency_code }} {{ line.currency_code }} · {{ 'accounts.noRate' | t }}</small>
         }
@@ -222,7 +224,7 @@
       }
     </span>
     <span class="ui-am" [class.ui-y]="(line.baseMinor ?? 0) < 0">
-      @if (line.baseMinor !== null) { {{ line.baseMinor | money }} } @else { — }
+      @if (line.baseMinor !== null) { {{ line.baseMinor | money:main.code() }} } @else { — }
     </span>
   </div>
 </ng-template>

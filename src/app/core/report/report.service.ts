@@ -17,6 +17,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { FilterService } from '../filters/filter.service';
 import { periodLabel } from '../filters/period';
 import { MovementsStore } from '../../features/movements/movements.store';
+import { MainCurrencyService } from '../currencies/main-currency.service';
 import { todayIso } from '../yields/days';
 import { buildReport } from './sections';
 import type { Block } from './blocks';
@@ -28,6 +29,7 @@ export class ReportService {
   private readonly store = inject(MovementsStore);
   private readonly filter = inject(FilterService);
   private readonly i18n = inject(I18nService);
+  private readonly main = inject(MainCurrencyService);
 
   /** Everything the analyses need, for the period and account on screen. */
   async gather(): Promise<ReportData> {
@@ -46,6 +48,7 @@ export class ReportService {
       movements,
       basis: this.store.basis(),
       currency: this.store.currency(),
+      main: this.main.code(),
       before: null,
       today,
       locale,

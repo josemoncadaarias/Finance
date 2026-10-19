@@ -50,6 +50,11 @@ export interface ReportData {
    */
   basis: AmountBasis;
   currency: string;
+  /**
+   * The main currency several accounts are shown in (37d): each movement's
+   * `amount_base_minor` is already in it when it is not the peso.
+   */
+  main?: string;
 
   /**
    * The same stretch of the period before, and what happened in it.
