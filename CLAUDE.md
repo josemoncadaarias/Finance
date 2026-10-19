@@ -154,6 +154,13 @@ Nothing about the data would need undoing: the redesign wrote no migration.
 **How Jose updates his phone**: Actions tab → "Store bundle" → Run workflow
 on `main` → it uploads to the internal track → the Play Store updates the
 app. A debug APK can no longer be installed on that phone (other key).
+If Play Store does not offer the update although Play Console says
+"Available to internal testers" (Jose, 2026-10-19: versions 1117 and 1118
+did not show for over an hour), Play Store's own cache is stale: Play Store's
+app info → Forzar detención → Borrar datos → Borrar caché and Borrar todos
+los datos (on Xiaomi the button is "Borrar datos" at the foot). The version
+Play's "Detalles" shows is the listing's (the closed test's), not the one
+installed; that one is in Ajustes → Apps → Finance.
 
 **Waiting for Jose, or to check on the phone** (a browser cannot show
 these):
@@ -180,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (849 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (874 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5197,6 +5204,157 @@ alone had paid. A day's title cut short on Días or Pagos already slides
 (checked in a browser: the marquee wraps it, text and its "· Bonificación"
 part together).
 
+### The assistant: register and ask by text or voice, with no AI (BUILT 2026-10-19)
+
+Asked for by Jose on 2026-10-19 after Lukas's chat ("¿Puedo gastar $ 210.000
+hoy sin afectar mi presupuesto?", answered with a "Viabilidad de tu gasto de
+hoy" card: te alcanza pero se come N días, saldo del periodo, pagos
+pendientes, reservado para tus límites, libre para gastar). **No real AI**:
+costs per use are what he wants to avoid at all costs. Mockups `39a`-`39h`
+(our style, nothing copied). **Payments stay last**: Jose wants every value
+proposal built first, while Google approves the release and the 14-day test
+with testers runs; the paywall is finished after them.
+
+- **How**: a reader of phrases by rules, on the phone, offline: the intent
+  (register a spending / income / transfer, or a question: "¿me alcanza
+  para X?", "¿cuánto llevo en X?", "¿cuánto puedo gastar al día?", a cap, a
+  goal, a card's payment) and its pieces (amount - `moneyIn` reads figures
+  already, words like "45 mil", "dos millones", "luca" are new -, account,
+  category, day, period). **Every figure in an answer comes from the engines
+  already there** (limits, goals, the report's sections, the card's
+  statement): never computed a second way (rule 20).
+- **It learns, nothing is burned in** (Jose: "no quemar cada frase"): what
+  it does not know it asks once with chips, and keeps the answer, as the
+  merchant dictionary and the molds do - a word to a category ("guayos" ->
+  Deporte, `39e`), a shape of sentence to an intent ("200 mil en mercado" =
+  register, `39f`), an account for a word ("la Rappi"). Kept in the
+  database, so it travels in the backup. A test file of phrases and what
+  each must give, like `read-notice.test.mjs`.
+- **Registering is a summary to confirm** (`39c`): Guardar writes it when
+  everything is known (still a tap: never saved alone, rule 22), Revisar
+  opens the one movement form filled in; a missing piece is asked with chips.
+- **"¿Me alcanza?" is a question, not a movement** (`39d`): the verdict (te
+  alcanza / te alcanza pero pasas un tope / no te alcanza), the category's
+  cap with and without it, and "Libre para gastar" = what the accounts hold
+  less payments coming (card statements, loan installments) and what goals
+  still need this month - a definition still to settle with Jose (idea 1,
+  "Seguro para gastar"); a per-day figure to the month's end.
+- **Decided with Jose the same day** (`39i`-`39l`):
+  - **"Libre para gastar"** = what the accounts counted in net worth hold
+    (ledger balances), **less CDTs** and anything set aside from net worth,
+    less payments coming this month (card statements, loan installments),
+    less what the goals still need this month. Interest a product earned and
+    not yet cashed out (rule 15) is **never counted**, only said: when the
+    answer is short, "tienes X en intereses sin pasar a tu saldo" per
+    account, with "Pasar intereses a mi saldo" (`39k`); when nothing is
+    waiting, nothing is said.
+  - **No category is needed** (`39i`): "¿me puedo gastar 2 millones en
+    algo?" answers on the whole picture, says no cap was checked, and offers
+    chips to name the category.
+  - **One account named** (`39j`): what that account holds and what is due
+    from it soon (a loan installment, a card it pays), and in one line
+    whether all the accounts together could.
+  - **Registering on an account with products** (`39l`): the usual product,
+    said quietly in the card ("Sale de Ahorros · tu producto habitual · la
+    cuenta tiene 3", "Cambiar"), never a question; a product named in the
+    sentence ("del bolsillo viajes") is taken - and the account it belongs
+    to.
+- **What stays free is always said whole** (Jose, 2026-10-19: "$ 650.000 ·
+  $ 54.000 al día" did not say what it was): "Para el resto del mes · del 19
+  al 31 de octubre (13 días)", then what would stay free and "Eso es, para
+  gastar cada día", with "Ya descontados tus pagos que vienen y lo que falta
+  para tus metas" under it. Never a bare "X · Y al día". The days count today.
+- **A message wraps between its phrases, never abruptly** (Jose, 2026-10-19:
+  "Tu producto habitual · la cuenta tiene" with the "3" alone below). Two
+  ideas are two lines ("Es tu producto habitual" / "Banco Índigo tiene 3
+  productos"), never joined by "·" to wrap anywhere; a figure stays with its
+  "$" and its unit ("300 mil"), a name and a date stay whole (non-breaking
+  spaces), the bubbles and cards use `text-wrap: pretty` so no word is left
+  alone on the last line, and a row whose value is long splits into two rows
+  rather than squeezing its label.
+- **Goals have no fixed instalment, and that is said** (Jose, 2026-10-19,
+  mockups `39m`-`39o`). Verified in `goalStatus` (`core/goals/goals.ts`):
+  a goal stores no monthly figure; a goal with a date works out
+  `neededPerMonthMinor` (what it lacks over the months left), one without a
+  date has only its pace (what came in a month over the last 3 months). So
+  "Aporte a tus metas este mes" is an ESTIMATE per goal: with a date, that
+  monthly need; without one, the person's own average (none when there is
+  no history); less what already went in this month, never below 0; a goal
+  reached sets nothing aside. **Proposed, for Jose's word**: what the goals'
+  places already hold ("Ya guardado en tus metas") is also not free money.
+  "¿Cómo calculo lo de tus metas?" opens each goal's figure and how it came
+  out, saying it is a suggestion, not a debt (`39n`); a goal's page without a
+  date shows "Aporte sugerido", "Ya aportaste", "Te falta este mes" (`39o`).
+- **The assistant's button sits at the top right of every screen** (Jose,
+  2026-10-19, `39p`-`39r`): a round sparkles button, last in the title bar,
+  besides the row in the "+" sheet.
+- **What was built (2026-10-19, at Jose's word "dale comienza con todo")**:
+  - `core/assistant/read-phrase.ts` (pure, `read-phrase.test.mjs`): the
+    intent (register spending / income / transfer, "¿me alcanza?", "¿cuánto
+    llevo en X?", "¿cuánto puedo gastar al día?", "¿cómo calculas lo de mis
+    metas?", or `unsure` - an amount and a thing with no verb), amounts in
+    every shape ("45 mil", "$45.000", "1,5 millones", "dos millones
+    quinientos mil", "50 lucas", "2 palos"; a bare "250" is 250 mil and said
+    back), the day (hoy, ayer, antier, a weekday, "el 15"), an account or
+    product only when said as a place ("con la", "desde", "a" - so "un viaje"
+    is never the pocket Viaje), the category by its name (plurals too), by
+    the merchant dictionary, then by `common-words.ts`. What it cannot place
+    is handed back.
+  - `core/assistant/free-money.ts` (pure, `free-money.test.mjs`): "Libre para
+    gastar" = counted accounts (no card, loan, CDT or set-aside product) less
+    what the goals hold up to their figure (taken first from money not counted
+    anyway), less the payments coming (what is left of each card's statement,
+    loan installments due by the month's end and late ones), less what the
+    goals would want this month (`goalThisMonth`: dated - what it lacked at the
+    month's start over the months left; undated - the 3-month average; less
+    what went in this month; reached - nothing). Per day rounds down to whole
+    hundreds. `afford` gives yes / yes but a cap / no and by how much.
+  - `AssistantService` reads it all from the app (balances, `loadCards`,
+    `loanSchedule`, `GoalsService`, `LimitsService`, the products screen's own
+    "available" interest) and saves a confirmed spending or income as the
+    form does (`writeScoped` 'both' on an account with products, the note
+    taught to the dictionary, yields worked out again). Learned words: a
+    thing's category goes to the merchant dictionary; an account word and a
+    sentence shape to `settings` `assistant.learned` - both travel in the backup.
+  - `/assistant` (`features/assistant`): chat, cards and chips as `39b`-`39n`;
+    "Guardar" only for a peso account whose habit is an ordinary movement,
+    otherwise "Revisar y guardar" (the one form, now taking
+    `start.categoryId/productId`); a transfer is always confirmed in the form.
+    The floating bar hides there (`TabBarComponent.away`).
+  - **The button on every screen**: `shared/ui/ask-button.component.ts`, the
+    last thing in every page's title bar (Inicio beside the account, Cuentas,
+    Rendimientos and an account's page, Deudas, a card, a loan, Reporte, Más,
+    Presupuestos, a cap, a goal, Monedas, Categorías, Por revisar,
+    Notificaciones, Importar, Google, Renta, Pro, Personaliza, Barra, Borrar
+    todo). To make room, **titles in `.ui-titlebar` wrap between words**
+    instead of ending in "…" (never splitting a word), and "Nueva categoría"
+    and "Nuevo tope / Nueva meta" moved from the title bar to a `.ui-add` card
+    on top of their lists, as a product's (38b) - a change of place Jose has
+    not seen yet. Checked at 360 px: no title cut on any screen.
+  - **Voice**: `SpeechPlugin.java` (RecognizerIntent, with its `<queries>` in
+    the manifest): the phone listens and hands back the words; no microphone
+    permission, no audio kept (privacy policy section added). In a browser,
+    the Web Speech API where it exists. Java not compiled in the session: the
+    Store bundle is its check.
+  - Goal page (`39o`): "Este mes" - Aporte sugerido, Ya aportaste, Te falta
+    este mes, and why it is no instalment (`GoalsService.atMonthStart`).
+  - Tours: home `since: 5` (the button), goal `since: 2`, a new `assistant`
+    tour. Checked in a browser on the sample data (every card, chips, saving,
+    the cap sheet after saving, Revisar opening the form filled, light and
+    dark); not on the phone. Not built yet: paid limits for it (rule 21, CHARGING
+    is off anyway) and more questions (phase 3).
+- **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
+  versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
+- **Voice**: the phone's own dictation into the same reader (`39h`).
+  Assumed, not verified: offline only with the Spanish pack downloaded; on
+  many phones the audio goes through Google - to say in the privacy policy.
+- **Reached from the "+"** ("Asistente", `39a`). Paid, with some free
+  questions a month; registering by chat should not be blocked, since
+  typing movements is free (rule 21) - Jose's to decide.
+- Suggested phases: (1) registering by text and voice + five or six
+  questions; (2) "¿me alcanza?" and "cuánto puedo gastar"; (3) more
+  questions and learning from corrections.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
@@ -5311,4 +5469,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant, proposed: chat, goals' estimate, the button on every screen)

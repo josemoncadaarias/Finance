@@ -8,6 +8,7 @@
  * is written until it is saved there.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -43,7 +44,7 @@ const AMOUNTS = [1_000_000_00, 2_000_000_00, 5_000_000_00, 10_000_000_00];
   selector: 'app-loan',
   templateUrl: './loan.page.html',
   styleUrls: ['./loan.page.scss'],
-  imports: [AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AskButtonComponent, AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, LoanEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class LoanPage {
   private readonly database = inject(DatabaseService);

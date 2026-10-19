@@ -15,6 +15,7 @@
  * 2026-10-02, after his Rappi Card said 34,591.00 and the app 98,606.99).
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
@@ -39,7 +40,7 @@ import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
   selector: 'app-card',
   templateUrl: './card.page.html',
   styleUrls: ['./card.page.scss'],
-  imports: [AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AskButtonComponent, AmountInputDirective, AmountsEyeComponent, TranslatePipe, BadgeComponent, AccountEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class CardPage {
   private readonly database = inject(DatabaseService);

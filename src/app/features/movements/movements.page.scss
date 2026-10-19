@@ -10,6 +10,14 @@
   &::after { display: none; }
 }
 
+/* The account on show, and the assistant's button beside it (39p). */
+.identity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .identity { flex: 1; min-width: 0; }
+}
+
 .identity {
   display: flex;
   align-items: center;

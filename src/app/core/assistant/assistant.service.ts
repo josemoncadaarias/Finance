@@ -1,0 +1,325 @@
+/**
+ * What the assistant reads from the app to answer, and what it writes when
+ * the person confirms (Jose, 2026-10-19, mockups `39a`-`39o`).
+ *
+ * Every figure comes from what the rest of the app already works out - the
+ * accounts' balances, the cards' statements, the loans' schedules, the goals,
+ * the caps - never computed a second way (rule 20). What the person teaches
+ * it is kept in the database, so it travels in the backup: a word for a
+ * category in the merchant dictionary every other screen learns from, a word
+ * for an account and the shape of a sentence under `assistant.learned`.
+ */
+
+import { Injectable, inject } from '@angular/core';
+
+import { DatabaseService } from '../database/database.service';
+import { AccountsRepository } from '../database/repositories/accounts.repository';
+import { CategoriesRepository } from '../database/repositories/categories.repository';
+import { ProposalsRepository } from '../database/repositories/proposals.repository';
+import { TaxParametersRepository } from '../database/repositories/tax-parameters.repository';
+import { TransactionsRepository } from '../database/repositories/transactions.repository';
+import { YieldsRepository, type YieldProduct } from '../database/repositories/yields.repository';
+import type { AccountRow, CategoryRow } from '../database/types';
+import { AccrualEngine } from '../yields/accrual';
+import { accrueAndSettle } from '../yields/cdt';
+import { usualScope, writeScoped } from '../yields/entry-scope';
+import { loadCards, usualPayer } from '../cards/card-data';
+import { LoansRepository } from '../loans/loans.repository';
+import { loanSchedule } from '../loans/schedule';
+import { GoalsRepository, inPesos, savedOn } from '../goals/goals.repository';
+import { GoalsService } from '../goals/goals.service';
+import { LimitsService, type LimitView } from '../limits/limits.service';
+import { monthOf, shiftMonth, daysInMonth } from '../limits/limits';
+import { wordCategoryOf } from '../proposals/common-words';
+import { isoDay } from '../filters/period';
+import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { NOTHING_LEARNED, fold, type Learned, type PhraseContext } from './read-phrase';
+
+const LEARNED_KEY = 'assistant.learned';
+
+export interface AccountMoney {
+  account: AccountRow;
+  /** What it holds that counts as free, in pesos (no CDT, nothing set aside). */
+  holdsMinor: number;
+}
+
+export interface Picture {
+  free: FreeMoney;
+  accounts: AccountMoney[];
+  /** Interest products earned and nobody moved into the balance yet, by account, in pesos. */
+  interest: { account: AccountRow; minor: number }[];
+}
+
+export interface SpentIn {
+  category: CategoryRow;
+  /** This month up to today, and last month up to the same day, in pesos. */
+  nowMinor: number;
+  beforeMinor: number;
+  cap: LimitView | null;
+}
+
+@Injectable({ providedIn: 'root' })
+export class AssistantService {
+  private readonly database = inject(DatabaseService);
+  private readonly goals = inject(GoalsService);
+  private readonly limits = inject(LimitsService);
+
+  private get db() {
+    return this.database.driver;
+  }
+
+  // -------------------------------------------------------------------------
+  // What a sentence is read against
+  // -------------------------------------------------------------------------
+
+  async context(): Promise<PhraseContext & { accountRows: AccountRow[]; categoryRows: CategoryRow[]; productRows: YieldProduct[] }> {
+    const db = this.db;
+    const [accounts, categories, products, merchants, learned] = await Promise.all([
+      new AccountsRepository(db).list(),
+      new CategoriesRepository(db).list(),
+      new YieldsRepository(db).allProducts(),
+      db.query<{ merchant: string; category_id: number }>('SELECT merchant, category_id FROM merchant_categories'),
+      this.learned(),
+    ]);
+    const live = new Set(accounts.map(a => a.id));
+    const kinds = new Map(categories.map(c => [c.id, c]));
+    return {
+      accounts: accounts.map(a => ({ id: a.id, name: a.name, type: a.type })),
+      products: products.filter(p => live.has(p.account_id)).map(p => ({ id: p.id, accountId: p.account_id, name: p.name })),
+      categories: categories.filter(c => c.kind === 'income' || c.kind === 'expense')
+        .map(c => ({ id: c.id, name: c.name, kind: c.kind as 'income' | 'expense' })),
+      merchants: new Map(merchants.filter(m => kinds.has(m.category_id)).map(m => [m.merchant, m.category_id])),
+      commonWord: (word, side) => wordCategoryOf(word, side === 'income' ? 1 : -1)?.es ?? null,
+      learned,
+      today: isoDay(new Date()),
+      accountRows: accounts,
+      categoryRows: categories,
+      productRows: products,
+    };
+  }
+
+  async learned(): Promise<Learned> {
+    const row = await this.db.queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [LEARNED_KEY]);
+    if (!row) return { accounts: {}, shapes: {} };
+    try {
+      const parsed = JSON.parse(row.value) as Partial<Learned>;
+      return { accounts: parsed.accounts ?? {}, shapes: parsed.shapes ?? {} };
+    } catch {
+      return { ...NOTHING_LEARNED, accounts: {}, shapes: {} };
+    }
+  }
+
+  private async keep(learned: Learned): Promise<void> {
+    await this.db.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [LEARNED_KEY, JSON.stringify(learned), new Date().toISOString()]);
+  }
+
+  /** "la rappi" means this account from now on. */
+  async learnAccountWord(words: string, accountId: number): Promise<void> {
+    const key = fold(words).replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!key) return;
+    const learned = await this.learned();
+    learned.accounts[key] = accountId;
+    await this.keep(learned);
+  }
+
+  /** A sentence of this shape, with no verb, meant this. */
+  async learnShape(shape: string, meant: 'register' | 'afford'): Promise<void> {
+    const learned = await this.learned();
+    learned.shapes[shape] = meant;
+    await this.keep(learned);
+  }
+
+  /** A word for a thing filed under a category: the same dictionary every screen learns from. */
+  async learnWord(word: string, categoryId: number): Promise<void> {
+    await new ProposalsRepository(this.db).learn(word, categoryId, isoDay(new Date()));
+  }
+
+  // -------------------------------------------------------------------------
+  // The picture: what is free, and why
+  // -------------------------------------------------------------------------
+
+  async picture(): Promise<Picture> {
+    const db = this.db;
+    const today = isoDay(new Date());
+    const month = monthOf(today);
+    const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`;
+    const goalsRepo = new GoalsRepository(db);
+    const yields = new YieldsRepository(db);
+    const [facts, rates, balances, products, cards, loans] = await Promise.all([
+      goalsRepo.accountFacts(),
+      goalsRepo.rates(today),
+      new AccountsRepository(db).balances({ leaveOutSetAside: true }),
+      yields.allProducts(),
+      loadCards(db, today),
+      new LoansRepository(db).all(),
+    ]);
+
+    // What each counted account holds, its CDTs left out.
+    const counted = balances.filter(b => facts.get(b.account.id)?.inAll);
+    const cdts = products.filter(p => p.kind === 'cdt' && p.include_in_net_worth === 1 && counted.some(b => b.account.id === p.account_id));
+    const cdtHeld = cdts.length > 0 ? await goalsRepo.holdsOn(cdts.map(p => ({ accountId: p.account_id, productId: p.id })), today) : new Map<string, number>();
+    const accounts: AccountMoney[] = counted.map(b => {
+      const inCdts = cdts.filter(p => p.account_id === b.account.id)
+        .reduce((sum, p) => sum + Math.max(0, cdtHeld.get(`${p.account_id}:${p.id}`) ?? 0), 0);
+      return { account: b.account, holdsMinor: inPesos(b.balance_minor - inCdts, b.account.currency_code, rates) ?? 0 };
+    });
+    const inAccountsMinor = accounts.reduce((sum, a) => sum + a.holdsMinor, 0);
+
+    // The payments coming: what is left of each card's statement, the installments due by the month's end.
+    const payments: DuePayment[] = [];
+    for (const card of cards) {
+      const s = card.statement;
+      if ((s.state !== 'due' && s.state !== 'partial' && s.state !== 'overdue') || s.remainingMinor <= 0) continue;
+      const pesos = inPesos(s.remainingMinor, card.account.currency_code, rates);
+      if (pesos === null) continue;
+      payments.push({ kind: 'card', id: card.account.id, name: card.account.name, amountMinor: pesos,
+        dueOn: s.dueOn ?? today, fromAccountId: await usualPayer(db, card.account.id) });
+    }
+    for (const loan of loans) {
+      if (loan.account.archived) continue;
+      const schedule = loanSchedule(loan.terms, loan.payments, today);
+      for (const row of schedule.rows) {
+        if (row.type !== 'installment') continue;
+        if (row.state === 'overdue' || ((row.state === 'next' || row.state === 'future') && row.dueOn <= monthEnd)) {
+          payments.push({ kind: 'loan', id: loan.account.id, name: loan.account.name, amountMinor: row.totalMinor,
+            dueOn: row.dueOn, fromAccountId: loan.paidFromAccountId });
+        }
+      }
+    }
+    payments.sort((a, b) => a.dueOn.localeCompare(b.dueOn));
+
+    // The goals: what they hold, and what this month would want.
+    await this.goals.load();
+    const live = this.goals.live();
+    const lastMonthEnd = `${shiftMonth(month, -1)}-${String(daysInMonth(shiftMonth(month, -1))).padStart(2, '0')}`;
+    const before = await savedOn(goalsRepo, live.map(g => g.terms), lastMonthEnd, rates);
+    const freeProduct = (p: YieldProduct | null) => p === null || (p.kind !== 'cdt' && p.include_in_net_worth === 1);
+    const goalMoney: GoalMoney[] = live.map(g => {
+      const saved = Math.max(0, g.status.savedMinor);
+      const countedMinor = g.terms.allAccounts ? saved
+        : Math.max(0, g.places.filter(p => facts.get(p.place.accountId)?.inAll && freeProduct(p.product))
+          .reduce((sum, p) => sum + p.pesos, 0));
+      const atStart = g.terms.allAccounts ? saved : Math.max(0, before.saved.get(g.terms.id) ?? 0);
+      return {
+        id: g.terms.id, name: g.terms.name, icon: g.terms.icon, color: g.terms.color,
+        amountMinor: g.terms.amountMinor, savedMinor: saved, savedAtMonthStartMinor: atStart,
+        dueMonth: g.terms.dueMonth, paceMinor: g.status.paceMinor,
+        reached: g.status.state === 'reached', countedMinor: Math.min(saved, countedMinor),
+      };
+    });
+
+    return {
+      free: freeMoney({ inAccountsMinor, payments, goals: goalMoney, today }),
+      accounts,
+      interest: await this.interest(rates),
+    };
+  }
+
+  /**
+   * What each account's products earned beyond what the account itself
+   * counts - the products screen's "available" figure, worked out the same way.
+   */
+  private async interest(rates: Awaited<ReturnType<GoalsRepository['rates']>>): Promise<{ account: AccountRow; minor: number }[]> {
+    const db = this.db;
+    const today = isoDay(new Date());
+    const yields = new YieldsRepository(db);
+    const enrolled = await yields.accounts();
+    if (enrolled.length === 0) return [];
+    const all = await new AccountsRepository(db).balances();
+    const products = await yields.allProducts();
+    const productsOf = new Map<number, YieldProduct[]>();
+    for (const e of enrolled) productsOf.set(e.account_id, products.filter(p => p.account_id === e.account_id));
+    const held = await new AccrualEngine(db, yields, new TaxParametersRepository(db)).heldByProducts(today, productsOf);
+    const landed = await yields.landedByProducts(today, productsOf);
+    const out: { account: AccountRow; minor: number }[] = [];
+    for (const [accountId, list] of productsOf) {
+      const balance = all.find(b => b.account.id === accountId);
+      if (!balance || balance.account.archived || list.length === 0) continue;
+      const productsMinor = list.reduce((sum, p) => sum + (held.get(accountId)?.get(p.id) ?? 0) + (landed.get(accountId)?.total.get(p.id) ?? 0), 0);
+      const available = productsMinor - balance.balance_minor;
+      const pesos = inPesos(available, balance.account.currency_code, rates);
+      if (pesos !== null && pesos >= 100) out.push({ account: balance.account, minor: pesos });
+    }
+    return out.sort((a, b) => b.minor - a.minor);
+  }
+
+  /** The cap this category falls under this month, if any. */
+  capOf(categoryId: number | null): LimitView | null {
+    if (categoryId === null) return null;
+    return this.limits.current().limits.find(l => l.terms.categoryIds.includes(categoryId)) ?? null;
+  }
+
+  async spentIn(category: CategoryRow): Promise<SpentIn> {
+    const today = isoDay(new Date());
+    const month = monthOf(today);
+    const day = Number(today.slice(8, 10));
+    const last = shiftMonth(month, -1);
+    const lastDay = Math.min(day, daysInMonth(last));
+    const sum = async (from: string, to: string) => (await this.db.queryOne<{ total: number | null }>(
+      `SELECT SUM(amount_base_minor) AS total FROM transactions
+        WHERE category_id = ? AND transfer_id IS NULL AND occurred_on BETWEEN ? AND ?`,
+      [category.id, from, to]))?.total ?? 0;
+    const sign = category.kind === 'expense' ? -1 : 1;
+    return {
+      category,
+      nowMinor: sign * await sum(`${month}-01`, today),
+      beforeMinor: sign * await sum(`${last}-01`, `${last}-${String(lastDay).padStart(2, '0')}`),
+      cap: this.capOf(category.id),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Saving what was confirmed
+  // -------------------------------------------------------------------------
+
+  /**
+   * The product a movement on this account lands in by habit, and whether
+   * the habit answers "¿Qué cambia?" as an ordinary movement.
+   */
+  async usual(accountId: number, side: 'expense' | 'income', categoryId: number | null): Promise<{ products: YieldProduct[]; productId: number | null; ordinary: boolean }> {
+    const products = await new YieldsRepository(this.db).products(accountId);
+    if (products.length === 0) return { products, productId: null, ordinary: true };
+    const productId = (products.find(p => p.is_default === 1) ?? products[0]).id;
+    const scope = await usualScope(this.db, { accountId, side: side === 'income' ? 'in' : 'out', categoryId });
+    return { products, productId, ordinary: scope === 'both' };
+  }
+
+  /**
+   * A spending or an income written as the movement form writes an ordinary
+   * one: on the account, its product when it has several, the note taught to
+   * the dictionary, and the account's yields worked out again from that day.
+   */
+  async register(input: {
+    side: 'expense' | 'income'; accountId: number; productId: number | null; categoryId: number;
+    amountMinor: number; onDate: string; note: string;
+  }): Promise<void> {
+    const db = this.db;
+    const yields = new YieldsRepository(db);
+    const products = await yields.products(input.accountId);
+    const note = input.note.trim() || null;
+    if (products.length > 0) {
+      await db.transaction(async () => {
+        await writeScoped(db, yields, {
+          scope: 'both', kind: input.side, accountId: input.accountId, categoryId: input.categoryId,
+          productId: input.productId, movementProductId: products.length > 1 ? input.productId : null,
+          onDate: input.onDate, amountMinor: input.amountMinor, note,
+        });
+        await yields.clearDays(input.accountId, input.onDate);
+      });
+      await accrueAndSettle(db, yields, new TaxParametersRepository(db), input.accountId, isoDay(new Date()));
+      await yields.markAccrued(isoDay(new Date()), { onlyIfKnown: true });
+    } else {
+      await new TransactionsRepository(db).create({
+        account_id: input.accountId, category_id: input.categoryId, product_id: null,
+        occurred_on: input.onDate,
+        amount_minor: input.side === 'expense' ? -input.amountMinor : input.amountMinor,
+        description: note, source: 'manual',
+      });
+    }
+    if (note) await new ProposalsRepository(db).learn(note, input.categoryId, input.onDate);
+    this.database.dataChanged();
+  }
+}

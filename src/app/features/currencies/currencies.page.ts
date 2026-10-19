@@ -10,6 +10,7 @@
  * rate is dated today as before (rule 4), and history is never recalculated.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
@@ -42,7 +43,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
 @Component({
   selector: 'app-currencies',
   standalone: true,
-  imports: [IonContent, IonIcon, IonModal, IonSpinner, TranslatePipe, CurrencyDialogComponent, JumpComponent, ConfirmComponent],
+  imports: [AskButtonComponent, IonContent, IonIcon, IonModal, IonSpinner, TranslatePipe, CurrencyDialogComponent, JumpComponent, ConfirmComponent],
   template: `
     <ion-content #page [scrollEvents]="true" (ionScroll)="jump.measure()">
       <header class="ui-titlebar">
@@ -53,6 +54,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
         <button type="button" class="ui-pill line" (click)="adding.set(true)">
           <ion-icon name="add"></ion-icon>{{ 'ui.currencies.add' | t }}
         </button>
+        <app-ask-button></app-ask-button>
       </header>
 
       <div class="ui-main">

@@ -6,6 +6,7 @@
  * ledger rather than of a cached number that could have drifted.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { splitWorth } from '../../core/worth/worth-split';
 import { MainCurrencyService } from '../../core/currencies/main-currency.service';
 import { worthInMain } from '../../core/currencies/in-main';
@@ -47,7 +48,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
   selector: 'app-accounts',
   templateUrl: './accounts.page.html',
   styleUrls: ['./accounts.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     AmountsEyeComponent,
     NgTemplateOutlet, MoneyPipe, TranslatePipe, AccountEditorComponent,
     BadgeComponent, JumpComponent, AccountsFacesComponent,

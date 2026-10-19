@@ -12,6 +12,7 @@
  * are the same rows on the same screen.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN } from '../../core/paywall/plan';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
@@ -100,7 +101,7 @@ interface Batch {
 @Component({
   selector: 'app-review',
   standalone: true,
-  imports: [
+  imports: [AskButtonComponent, 
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
     BadgeComponent, JumpComponent, AccountPickerComponent,
     IonContent, IonIcon, IonSpinner, IonModal,

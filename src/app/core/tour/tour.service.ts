@@ -51,6 +51,8 @@ const TOUR_LIST = {
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
       { sel: 'app-movements .figures .used', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 4 },
       { sel: 'app-movements app-spending-chart .box', title: 'tour.home.donut.title', text: 'tour.home.donut.text', since: 4 },
+      // 2026-10-19: the assistant, on every screen (39p).
+      { sel: 'app-movements app-ask-button button', title: 'tour.home.ask.title', text: 'tour.home.ask.text', since: 5 },
       { target: 'faces', title: 'tour.home.faces.title', text: 'tour.home.faces.text' },
       { target: 'tabs', title: 'tour.home.tabs.title', text: 'tour.home.tabs.text' },
       { target: 'more', title: 'tour.home.end.title', text: 'tour.home.end.text' },
@@ -139,7 +141,7 @@ const TOUR_LIST = {
     steps: [
       { sel: 'app-categories section.side', title: 'tour.categories.1.title', text: 'tour.categories.1.text' },
       { sel: 'app-categories .tools .ui-seg', title: 'tour.categories.2.title', text: 'tour.categories.2.text' },
-      { sel: 'app-categories .ui-titlebar .ui-pill', title: 'tour.categories.3.title', text: 'tour.categories.3.text' },
+      { sel: 'app-categories .ui-add', title: 'tour.categories.3.title', text: 'tour.categories.3.text' },
       // 2026-10-14: a category's side can be changed, with its movements.
       { title: 'tour.categories.4.title', text: 'tour.categories.4.text', since: 3 },
     ],
@@ -176,7 +178,7 @@ const TOUR_LIST = {
   plans: {
     steps: [
       { sel: 'app-plans .ui-seg.faces', title: 'tour.plans.1.title', text: 'tour.plans.1.text' },
-      { sel: 'app-plans .ui-titlebar .ui-chip.new', title: 'tour.plans.2.title', text: 'tour.plans.2.text' },
+      { sel: 'app-plans .ui-add', title: 'tour.plans.2.title', text: 'tour.plans.2.text' },
       { sel: 'app-plans .ui-titlebar .bell', title: 'tour.plans.3.title', text: 'tour.plans.3.text' },
     ],
   },
@@ -190,6 +192,15 @@ const TOUR_LIST = {
     steps: [
       { sel: 'app-goal section.ui-hero', title: 'tour.goal.1.title', text: 'tour.goal.1.text' },
       { title: 'tour.goal.2.title', text: 'tour.goal.2.text' },
+      // 2026-10-19: this month's suggested contribution, never an instalment (39o).
+      { sel: 'app-goal .ui-card.month', title: 'tour.goal.3.title', text: 'tour.goal.3.text', since: 2 },
+    ],
+  },
+  assistant: {
+    steps: [
+      { title: 'tour.assistant.1.title', text: 'tour.assistant.1.text' },
+      { sel: 'app-assistant .compose-bar', title: 'tour.assistant.2.title', text: 'tour.assistant.2.text' },
+      { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text' },
     ],
   },
   tax: {
@@ -260,7 +271,7 @@ const ROUTE_TOURS: [RegExp, TourId][] = [
   [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
   [/^\/debts/, 'debts'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
-  [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'],
+  [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'], [/^\/assistant/, 'assistant'],
 ];
 
 const ON_KEY = 'finance.tours.on';

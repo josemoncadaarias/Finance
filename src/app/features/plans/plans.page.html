@@ -10,15 +10,7 @@
     <button type="button" class="bell" (click)="avisos.set(true)" [attr.aria-label]="'plans.notices.title' | t" [title]="'plans.notices.title' | t">
       <ion-icon name="notifications-outline"></ion-icon>
     </button>
-    @if (face() === 'limits') {
-      <button type="button" class="ui-chip new" (click)="newLimit()">
-        <ion-icon name="add"></ion-icon>{{ 'plans.new' | t }}
-      </button>
-    } @else {
-      <button type="button" class="ui-chip new" (click)="newGoal()">
-        <ion-icon name="add"></ion-icon>{{ 'goals.new' | t }}
-      </button>
-    }
+    <app-ask-button></app-ask-button>
   </header>
 
   <div class="ui-main">
@@ -30,6 +22,16 @@
         <ion-icon name="flag-outline"></ion-icon>{{ 'plans.face.goals' | t }}
       </button>
     </div>
+
+    <!-- A new cap or goal: a card on top of its list, the way a product is
+         added (38b), so the title bar keeps room for the title and the
+         assistant's button (39p). The empty states keep their own. -->
+    @if (face() === 'limits' ? view().limits.length > 0 : goals.live().length > 0) {
+      <button type="button" class="ui-add" (click)="face() === 'limits' ? newLimit() : newGoal()">
+        <span class="plus"><ion-icon name="add"></ion-icon></span>
+        <span class="ui-tx"><b>{{ (face() === 'limits' ? 'plans.new' : 'goals.new') | t }}</b></span>
+      </button>
+    }
 
     @if (face() === 'goals') {
       @if (!goals.loaded()) {

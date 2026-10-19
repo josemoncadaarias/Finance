@@ -50,6 +50,8 @@ export class GoalsService {
   readonly today = signal(isoDay(new Date()));
   /** What is spent a month, for an emergency fund. */
   readonly monthlySpendMinor = signal(0);
+  /** What each goal held at the close of last month: what went in this month is the rest (39o). */
+  readonly atMonthStart = signal<Map<number, number>>(new Map());
 
   readonly live = computed(() => this.goals().filter(g => !g.terms.archived));
   readonly inCourse = computed(() => this.live().filter(g => g.status.state !== 'reached')
@@ -90,6 +92,9 @@ export class GoalsService {
     this.loans = new Set(loans.map(l => l.account_id));
     const now = await savedOn(repo, terms, today, rates);
     const before = await savedOn(repo, terms, shiftDay(today, -3), rates);
+    const lastMonth = shiftMonth(monthOf(today), -1);
+    const [ly, lm] = lastMonth.split('-').map(Number);
+    const monthStart = await savedOn(repo, terms, `${lastMonth}-${String(new Date(Date.UTC(ly, lm, 0)).getUTCDate()).padStart(2, '0')}`, rates);
 
     const views: GoalView[] = [];
     for (const goal of terms) {
@@ -114,6 +119,7 @@ export class GoalsService {
     this.accounts.set(accounts);
     this.products.set(products);
     this.monthlySpendMinor.set(monthlySpend(spend, today));
+    this.atMonthStart.set(monthStart.saved);
     this.goals.set(views);
     this.loaded.set(true);
   }

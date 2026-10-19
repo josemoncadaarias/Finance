@@ -12,6 +12,7 @@
  * the raw list of everything kept (Jose: it no longer served anything).
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, DestroyRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
@@ -79,7 +80,7 @@ function lateBy(note: AlertNote): number {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [AskButtonComponent, NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })

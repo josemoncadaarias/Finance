@@ -92,6 +92,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/pro/pro.page').then(m => m.ProPage),
   },
   {
+    // The assistant (39a-39n): from the "+" and from the button on every screen.
+    path: 'assistant',
+    loadComponent: () => import('./features/assistant/assistant.page').then(m => m.AssistantPage),
+  },
+  {
     // Más: everything the drawer held that is not a tab.
     path: 'more',
     loadComponent: () => import('./features/more/more.page').then(m => m.MorePage),

@@ -14,6 +14,7 @@
  * day of entries disappears.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonSpinner, IonIcon, IonModal } from '@ionic/angular';
@@ -38,7 +39,7 @@ import { AvatarComponent } from '../../core/cloud/avatar.component';
   selector: 'app-account',
   templateUrl: './account.page.html',
   styleUrls: ['./account.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     TranslatePipe, BusyOverlayComponent, AvatarComponent, BadgeComponent, ConfirmComponent,
     IonContent, IonSpinner, IonIcon, IonModal,
   ],

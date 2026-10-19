@@ -6,6 +6,7 @@
  * app is as it was installed - the welcome of Inicio (21a) is where it lands.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
@@ -23,7 +24,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 
 @Component({
   selector: 'app-erase',
-  imports: [IonContent, IonIcon, TranslatePipe],
+  imports: [AskButtonComponent, IonContent, IonIcon, TranslatePipe],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
@@ -31,6 +32,7 @@ import { ToastService } from '../../shared/ui/toast.service';
           <ion-icon name="close"></ion-icon>
         </button>
         <h1>{{ 'erase.title' | t }}</h1>
+        <app-ask-button></app-ask-button>
       </header>
 
       <div class="ui-main">

@@ -3,6 +3,7 @@
  * each with its switch and a handle to drag it up or down. Más →
  * Preferencias.
  */
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, inject } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -21,7 +22,7 @@ import { barScreen } from '../../core/ui/bar-choice';
 
 @Component({
   selector: 'app-view',
-  imports: [IonContent, IonIcon, IonReorderGroup, IonReorder, NgTemplateOutlet, TranslatePipe, BadgeComponent],
+  imports: [AskButtonComponent, IonContent, IonIcon, IonReorderGroup, IonReorder, NgTemplateOutlet, TranslatePipe, BadgeComponent],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
@@ -29,6 +30,7 @@ import { barScreen } from '../../core/ui/bar-choice';
           <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
         <h1>{{ (screen() ? screens[screen()!].title : 'view.title') | t }}</h1>
+        <app-ask-button></app-ask-button>
       </header>
 
       <div class="ui-main">

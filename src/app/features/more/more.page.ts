@@ -13,6 +13,7 @@
  * (Jose, 2026-09-28).
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
 import { buyOffer, daysLeft } from '../../core/paywall/subscription';
@@ -20,6 +21,8 @@ import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -52,7 +55,7 @@ import { barScreen, leftTheBar } from '../../core/ui/bar-choice';
   selector: 'app-more',
   templateUrl: './more.page.html',
   styleUrls: ['./more.page.scss'],
-  imports: [TranslatePipe, AvatarComponent, BadgeComponent, FlagComponent, IonContent, IonIcon, IonModal],
+  imports: [AskButtonComponent, TranslatePipe, AvatarComponent, BadgeComponent, FlagComponent, IonContent, IonIcon, IonModal],
 })
 export class MorePage {
   readonly privacy = inject(PrivacyService);
@@ -147,6 +150,8 @@ export class MorePage {
   private readonly toast = inject(ToastService);
 
   readonly year = new Date().getFullYear();
+  /** The installed version, as Android names it ("1.0.1118"): which Store bundle the phone runs. */
+  readonly version = signal<string | null>(null);
 
   constructor() {
     effect(() => {
@@ -160,6 +165,9 @@ export class MorePage {
       const { apps } = await BankNotifications.apps();
       this.markedApps.set(apps.filter(app => app.watched && !app.hidden).length);
     }).catch(() => this.notificationsSupported.set(false));
+    if (Capacitor.isNativePlatform()) {
+      void App.getInfo().then(info => this.version.set(info.version)).catch(() => undefined);
+    }
   }
 
   private async load(): Promise<void> {

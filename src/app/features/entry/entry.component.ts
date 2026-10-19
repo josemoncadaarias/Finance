@@ -87,7 +87,11 @@ export interface EntryRequest {
    * has no products: the amount, the day and the note were the right ones,
    * only the form was not.
    */
-  start?: { amountMinor: number; onDate: string; note: string; again?: boolean };
+  start?: {
+    amountMinor: number; onDate: string; note: string; again?: boolean;
+    /** The assistant's summary (39c): the category and the product it understood. */
+    categoryId?: number | null; productId?: number | null;
+  };
   /**
    * Both ends of a transfer, already chosen: the products screen's move
    * between products hands itself here when one end is pointed at another
@@ -1222,6 +1226,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.occurredOn.set(start.onDate);
       this.note.set(start.note);
       if (start.again) this.again.set(true);
+      if (start.categoryId != null && !this.isTransfer()) this.categoryId.set(start.categoryId);
     }
     const loan = this.request().loan;
     if (loan) {
@@ -1808,7 +1813,8 @@ export class EntryComponent implements OnInit, OnDestroy {
       editing && editing.account_id === accountId ? editing.product_id ?? null
         : entry && entry.account_id === accountId ? entry.product_id ?? null
         // The product this shop was last saved in, while on its account.
-        : proposal?.productId != null && proposal.accountId === accountId ? proposal.productId : null;
+        : proposal?.productId != null && proposal.accountId === accountId ? proposal.productId
+        : this.request().start?.productId ?? null;
 
     // A transfer between two products of one account has the same account on
     // both legs, so which leg a stored product belongs to cannot be told from
