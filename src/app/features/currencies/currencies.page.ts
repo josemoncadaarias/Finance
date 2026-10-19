@@ -140,8 +140,8 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               @if (line.rate) {
                 <div class="ui-row plain">
                   <span class="ui-tx">
-                    <b>{{ line.rate.source === 'manual' ? ('ui.currencies.yours.value' | t) : ('ui.currencies.auto.value' | t) }}</b>
-                    <small>{{ freshness(line) }}</small>
+                    <b>{{ line.rate.source === 'manual' ? ('ui.currencies.yours.value' | t) : (autoTitle(line) | t) }}</b>
+                    <small>{{ line.rate.source === 'manual' && isToday(line) ? ('ui.currencies.inUse' | t) : freshness(line) }}</small>
                   </span>
                   <b class="amount" [class.ui-y]="line.rate.source === 'manual'">{{ rateText(line.rate.rate_scaled) }}</b>
                 </div>
@@ -149,7 +149,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               @if (!line.rate || line.rate.source === 'manual') {
                 <div class="ui-row plain">
                   <span class="ui-tx">
-                    <b>{{ 'ui.currencies.auto.value' | t }}</b>
+                    <b>{{ autoTitle(line) | t }}</b>
                     <small>{{ autoLine(line) }}</small>
                   </span>
                   @if (autoRate(); as rate) { <b class="amount">{{ rateText(rate.rate_scaled) }}</b> }
@@ -158,7 +158,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               }
             </div>
             @if (autoRate()) {
-              <button type="button" class="ui-btn" [disabled]="busy()" (click)="useAuto(line)">{{ 'ui.currencies.useAuto' | t }}</button>
+              <button type="button" class="ui-btn" [disabled]="busy()" (click)="useAuto(line)">{{ (line.code === 'USD' ? 'ui.currencies.useTrm' : 'ui.currencies.useRate') | t }}</button>
             }
             <button type="button" class="ui-btn ghost" (click)="typeRate(line)">{{ 'ui.currencies.typeOther' | t }}</button>
           </div>
@@ -349,8 +349,12 @@ export class CurrenciesPage {
     if (state === 'looking') return this.i18n.t('ui.currencies.auto.looking');
     if (state === 'noSource') return this.i18n.t('ui.currencies.noSource');
     if (state === 'none') return this.i18n.t('ui.currencies.unreachable');
-    const from = line.code === 'USD' ? 'ui.currencies.fromTrm' : 'ui.currencies.fromEcb';
-    return `${this.i18n.t(from)} · ${this.i18n.t('ui.currencies.sinceToday')}`;
+    return this.i18n.t(line.code === 'USD' ? 'ui.currencies.auto.trm.from' : 'ui.currencies.auto.rate.from');
+  }
+
+  /** "TRM oficial de hoy" for the dollar, "Tasa oficial de hoy" for the rest: never a bare "automático". */
+  autoTitle(line: CurrencyLine): 'ui.currencies.auto.trm' | 'ui.currencies.auto.rate' {
+    return line.code === 'USD' ? 'ui.currencies.auto.trm' : 'ui.currencies.auto.rate';
   }
 
   /** Today's automatic value replaces the typed one, dated today (rule 4). */
@@ -366,7 +370,7 @@ export class CurrenciesPage {
       this.viewing.set(null);
       this.database.dataChanged();
       if (line.code === 'USD') await this.rates.load();
-      this.toast.say(this.i18n.t('ui.currencies.backToAuto', { code: line.code }));
+      this.toast.say(this.i18n.t(line.code === 'USD' ? 'ui.currencies.backToTrm' : 'ui.currencies.backToRate', { name: line.name }));
     } finally {
       this.busy.set(false);
     }
