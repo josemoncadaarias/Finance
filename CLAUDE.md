@@ -5257,6 +5257,14 @@ with testers runs; the paywall is finished after them.
   al 31 de octubre (13 días)", then what would stay free and "Eso es, para
   gastar cada día", with "Ya descontados tus pagos que vienen y lo que falta
   para tus metas" under it. Never a bare "X · Y al día". The days count today.
+- **A message wraps between its phrases, never abruptly** (Jose, 2026-10-19:
+  "Tu producto habitual · la cuenta tiene" with the "3" alone below). Two
+  ideas are two lines ("Es tu producto habitual" / "Banco Índigo tiene 3
+  productos"), never joined by "·" to wrap anywhere; a figure stays with its
+  "$" and its unit ("300 mil"), a name and a date stay whole (non-breaking
+  spaces), the bubbles and cards use `text-wrap: pretty` so no word is left
+  alone on the last line, and a row whose value is long splits into two rows
+  rather than squeezing its label.
 - **Voice**: the phone's own dictation into the same reader (`39h`).
   Assumed, not verified: offline only with the Spanish pack downloaded; on
   many phones the audio goes through Google - to say in the privacy policy.

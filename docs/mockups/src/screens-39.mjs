@@ -5,19 +5,24 @@
 import { ic, C, tint, top, tag, chev, ci, sq, tabs, catIcon, accIcon } from './lib.mjs';
 
 const S = {};
+// A message wraps between phrases, never leaving one word or a figure's half
+// alone on a line (Jose, 2026-10-19): a figure stays with its unit, a name
+// stays whole, and the browser balances the last line (text-wrap: pretty).
+const keep = t => t.replace(/\$ /g, '$\u00a0').replace(/(\d) (mil|millones)/g, '$1\u00a0$2').replace(/Banco Índigo/g, 'Banco\u00a0Índigo').replace(/(\d+) de (octubre|noviembre)/g, '$1\u00a0de\u00a0$2');
 const sheet = inner => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>${inner}<div style="height:14px"></div></div>`;
-const me = t => `<div style="display:flex;justify-content:flex-end;margin-top:12px"><div style="max-width:78%;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;padding:10px 14px;border-radius:18px 18px 6px 18px;font-size:14.5px;line-height:1.35">${t}</div></div>`;
-const app = t => `<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end">${ci('sparkles-outline', C.blu, 30)}<div style="max-width:82%;background:var(--s1);border:1px solid #1c2944;padding:10px 14px;border-radius:18px 18px 18px 6px;font-size:14.5px;line-height:1.4">${t.replace(/\$ /g, '$\u00a0')}</div></div>`;
-const card = (inner, border = '#22314f') => `<div style="margin:8px 0 0 38px;background:var(--s1);border:1px solid ${border};border-radius:18px;padding:12px 14px">${inner}</div>`;
+const me = t => `<div style="display:flex;justify-content:flex-end;margin-top:12px"><div style="max-width:78%;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;padding:10px 14px;border-radius:18px 18px 6px 18px;font-size:14.5px;line-height:1.35;text-wrap:pretty">${keep(t)}</div></div>`;
+const app = t => `<div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end">${ci('sparkles-outline', C.blu, 30)}<div style="max-width:82%;background:var(--s1);border:1px solid #1c2944;padding:10px 14px;border-radius:18px 18px 18px 6px;font-size:14.5px;line-height:1.4;text-wrap:pretty">${keep(t)}</div></div>`;
+const card = (inner, border = '#22314f') => `<div style="margin:8px 0 0 38px;text-wrap:pretty;background:var(--s1);border:1px solid ${border};border-radius:18px;padding:12px 14px">${keep(inner)}</div>`;
 const chips = (...t) => `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0 38px">${t.map(x => `<span class="chip" style="color:var(--pr)">${x}</span>`).join('')}</div>`;
 const line = (k, v, cls = '') => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.8px"><span class="mu">${k}</span><b class="${cls}" style="font-weight:600;white-space:nowrap">${v}</b></div>`;
 // What stays free is always said as what is left for the rest of the month
 // and what that means a day, never a bare "X · Y al día" (Jose, 2026-10-19).
-const rest = (total, day, what = 'Te quedaría libre') => `<div style="margin-top:10px;background:${tint(C.blu, .1)};border-radius:14px;padding:10px 12px">
-  <div class="lab" style="margin-bottom:4px">Para el resto del mes · del 19 al 31 de octubre (13 días)</div>
-  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>${what}</span><b style="font-weight:600;white-space:nowrap">${total}</b></div>
-  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Eso es, para gastar cada día</span><b style="font-weight:600;white-space:nowrap">${day}</b></div>
-  <div class="sub" style="margin-top:4px;font-size:12.5px">Ya descontados tus pagos que vienen y lo que falta para tus metas.</div></div>`;
+const rest = (total, day) => `<div style="margin-top:10px;background:${tint(C.blu, .1)};border-radius:14px;padding:10px 12px">
+  <div class="lab">Para el resto del mes</div>
+  <div class="sub" style="font-size:12.5px;margin-bottom:4px">Del 19 al 31 de octubre · 13 días</div>
+  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Te quedaría libre</span><b style="font-weight:600;white-space:nowrap">${total}</b></div>
+  <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Para gastar cada día</span><b style="font-weight:600;white-space:nowrap">${day}</b></div>
+  <div class="sub" style="margin-top:4px;font-size:12.5px">Ya descontados tus pagos que vienen <span style="white-space:nowrap">y lo que falta para tus metas.</span></div></div>`;
 const bar = `<div style="position:absolute;left:0;right:0;bottom:0;padding:10px 16px 24px;background:#0b1324;border-top:1px solid #18243d;display:flex;gap:10px;align-items:center">
  <div class="search" style="flex:1;padding:12px 14px">Escribe o habla: «gasté 45 mil en almuerzo»</div>
  <span style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:grid;place-items:center;color:#fff;flex:none">${ic('mic-outline', '', 'width:22px;height:22px')}</span></div>`;
@@ -29,7 +34,7 @@ const home = `${top('Inicio', { left: '' })}<main><div class="card hero"><div cl
 const kind = (i, c, t) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">${ci(i, c, 54)}<b style="font-weight:500">${t}</b></div>`;
 S['39a-mas-asistente'] = home + sheet(`<div style="display:flex;padding:6px 0 16px">${kind('arrow-up', C.red, 'Gasto')}${kind('arrow-down', C.grn, 'Ingreso')}${kind('swap-horizontal', C.blu, 'Transferir')}</div>
  <div class="list">
-  <div class="row">${ci('sparkles-outline', C.blu, 38)}<div class="tx"><b>Asistente</b><small>«Gasté 45 mil en almuerzo» o «¿me alcanza para unos tenis?»</small></div>${ic('mic-outline', 'p', 'width:20px;height:20px')}${chev()}</div>
+  <div class="row">${ci('sparkles-outline', C.blu, 38)}<div class="tx"><b>Asistente</b><small style="display:block">«Gasté 45 mil en almuerzo»</small><small style="display:block">«¿Me alcanza para unos tenis?»</small></div>${ic('mic-outline', 'p', 'width:20px;height:20px')}${chev()}</div>
   <div class="row">${ci('document-text-outline', C.pur, 38)}<div class="tx"><b>Importar extracto PDF</b></div>${chev()}</div>
   <div class="row">${ci('wallet-outline', C.blu, 38)}<div class="tx"><b>Nueva cuenta</b><small>Banco, efectivo, tarjeta o inversión</small></div>${chev()}</div></div>`);
 
@@ -73,7 +78,7 @@ S['39d-me-alcanza'] = chat(`
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
   ${line('Lo que falta para tus metas', '−$ 200.000')}
   ${line('Libre para gastar', '$ 1.250.000', 'g')}
-  ${rest('$ 950.000', '$ 73.100', 'Si compras los tenis, te quedaría libre')}
+  ${rest('$ 950.000', '$ 73.100')}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Ver el tope</div><div class="btn" style="height:42px">Registrar el gasto</div></div>`, tint(C.yel, .4))}`);
 
 // 39e - a word it does not know: it asks once and remembers.
@@ -85,7 +90,7 @@ S['39e-palabra-nueva'] = chat(`
  ${app('Listo, la próxima vez «guayos» va a <b>Deporte</b>. Tomé 250 como $ 250.000.')}
  ${card(`<div style="display:flex;align-items:center;gap:10px">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
   ${line('Deporte · sin tope', 'Llevas $ 60.000 este mes')}
-  ${rest('$ 1.000.000', '$ 76.900', 'Si los compras, te quedaría libre')}`)}`);
+  ${rest('$ 1.000.000', '$ 76.900')}`)}`);
 
 // 39f - registering or asking? When unsure it asks, and the answer is learned
 // for that shape of sentence.
@@ -104,7 +109,8 @@ S['39g-cuanto-llevo'] = chat(`
  ${app('Este mes llevas <b>$ 412.000</b> en Restaurantes, $ 58.000 más que a esta altura del mes pasado.')}
  ${card(`${line('Octubre, hasta hoy', '$ 412.000')}
   ${line('Septiembre, mismos días', '$ 354.000')}
-  ${line('Tope de Restaurantes', '$ 412.000 de $ 500.000 · 82 %', 'y')}
+  ${line('Tope de Restaurantes', '$ 500.000')}
+  ${line('Ya usaste del tope', '82 %', 'y')}
   ${line('Para no pasarlo, cada día hasta el 31', '$ 6.700')}
   <div class="btn ghost" style="height:42px;margin-top:12px">Ver sus movimientos</div>`)}
  ${chips('¿Y el mes pasado?', '¿En qué más gasté?')}`);
@@ -129,7 +135,7 @@ S['39i-me-alcanza-sin-categoria'] = chat(`
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
   ${line('Lo que falta para tus metas', '−$ 580.000')}
   ${line('Libre para gastar', '$ 2.650.000', 'g')}
-  ${rest('$ 650.000', '$ 50.000', 'Con este gasto, te quedaría libre')}
+  ${rest('$ 650.000', '$ 50.000')}
   <div class="sub" style="margin-top:8px">Sin contar tus CDT ni lo que tienes fuera del patrimonio.</div>`, tint(C.grn, .4))}
  ${chips('Es tecnología', 'Es ropa', 'Otra categoría')}`);
 
@@ -158,12 +164,12 @@ S['39k-no-alcanza-intereses'] = chat(`
 
 // 39l - an account with products: the usual product, said quietly, and
 // changed with a tap or in the sentence ("del bolsillo viajes").
-const acc = (n, sub) => `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">${sq('wallet-outline', C.blu, 30)}<div class="tx"><b style="font-size:14px">${n}</b><small>${sub}</small></div><span class="p" style="font-size:13.5px">Cambiar</span></div>`;
+const acc = (n, sub) => `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">${sq('wallet-outline', C.blu, 30)}<div class="tx"><b style="font-size:14px">${n}</b>${sub.map(x => `<small style="display:block">${x}</small>`).join('')}</div><span class="p" style="font-size:13.5px">Cambiar</span></div>`;
 S['39l-gasto-con-producto'] = chat(`
  ${me('Gasté 120 mil en almuerzo con Banco Índigo')}
  ${app('Este es el gasto que entendí:')}
  ${card(`<div style="display:flex;align-items:center;gap:12px">${catIcon('rest', 42)}<div class="tx"><b>Restaurantes</b><small>Banco Índigo · Hoy</small></div><b class="r" style="font-size:18px">−$ 120.000</b></div>
-  ${acc('Sale de Ahorros', 'Tu producto habitual · la cuenta tiene 3')}
+  ${acc('Sale de Ahorros', ['Es tu producto habitual', 'Banco Índigo tiene 3 productos'])}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Revisar</div><div class="btn" style="height:42px">Guardar</div></div>`)}
  ${me('Gasté 50 mil del bolsillo viajes')}
  ${app('Lo saco de <b>Bolsillo viajes</b>, en Banco Índigo.')}`);
