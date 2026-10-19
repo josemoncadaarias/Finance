@@ -18,6 +18,7 @@ import { DatabaseService } from '../../core/database/database.service';
 import { RatesRepository, RATE_SCALE, type Rate } from '../../core/database/repositories/rates.repository';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { RatesService } from '../../core/rates/rates.service';
 import { shortDay } from '../../core/filters/period';
 import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
@@ -118,7 +119,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
                   <b>{{ 'ui.currencies.main' | t }}</b>
                 } @else if (line.rate) {
                   <b>{{ rateText(line.rate.rate_scaled) }}</b>
-                  <small [class.ui-y]="line.rate.source === 'manual'">{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'manual' ? ('ui.currencies.typed' | t) : ('ui.currencies.derived' | t) }}</small>
+                  <small [class.ui-y]="line.rate.source === 'manual' || line.rate.source === 'demo'">{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'manual' ? ('ui.currencies.typed' | t) : line.rate.source === 'demo' ? ('ui.currencies.fromDemo' | t) : ('ui.currencies.derived' | t) }}</small>
                 } @else {
                   <b class="ui-y">{{ 'ui.currencies.noRate' | t }}</b>
                   <small>{{ 'ui.currencies.cannotValue' | t }}</small>
@@ -154,13 +155,13 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               @if (line.rate) {
                 <div class="ui-row plain">
                   <span class="ui-tx">
-                    <b>{{ line.rate.source === 'manual' ? ('ui.currencies.yours.value' | t) : (autoTitle(line) | t) }}</b>
+                    <b>{{ currentTitle(line) | t }}</b>
                     <small>{{ line.rate.source === 'manual' && isToday(line) ? ('ui.currencies.inUse' | t) : freshness(line) }}</small>
                   </span>
                   <b class="amount" [class.ui-y]="line.rate.source === 'manual'">{{ rateText(line.rate.rate_scaled) }}</b>
                 </div>
               }
-              @if (!line.rate || line.rate.source === 'manual') {
+              @if (needsOfficial(line)) {
                 <div class="ui-row plain">
                   <span class="ui-tx">
                     <b>{{ autoTitle(line) | t }}</b>
@@ -361,7 +362,8 @@ export class CurrenciesPage {
       return this.i18n.t('ui.currencies.noSource');
     }
     const from = line.rate.source === 'trm' ? 'ui.currencies.fromTrm'
-      : line.rate.source === 'manual' ? 'ui.currencies.fromHand' : 'ui.currencies.fromEcb';
+      : line.rate.source === 'manual' ? 'ui.currencies.fromHand'
+      : line.rate.source === 'demo' ? 'ui.currencies.fromDemo' : 'ui.currencies.fromEcb';
     const when = this.isToday(line)
       ? this.i18n.t('ui.currencies.sinceToday')
       : this.i18n.t('ui.currencies.since', { date: this.shortDate(line.rate.on_date) });
@@ -396,7 +398,7 @@ export class CurrenciesPage {
     if (line.code === 'COP') return;
     this.viewing.set(line);
     this.autoRate.set(null);
-    if (line.rate && line.rate.source !== 'manual') { this.autoState.set('none'); return; }
+    if (!this.needsOfficial(line)) { this.autoState.set('none'); return; }
     this.autoState.set('looking');
     let found: { rate_scaled: number; source: string } | null = null;
     try {
@@ -417,6 +419,24 @@ export class CurrenciesPage {
     if (state === 'noSource') return this.i18n.t('ui.currencies.noSource');
     if (state === 'none') return this.i18n.t('ui.currencies.unreachable');
     return this.i18n.t(line.code === 'USD' ? 'ui.currencies.auto.trm.from' : 'ui.currencies.auto.rate.from');
+  }
+
+  /**
+   * The official rate is looked up beside the one in use whenever that one is
+   * not today's official rate: typed by hand, invented by the sample data, or
+   * of an earlier day.
+   */
+  needsOfficial(line: CurrencyLine): boolean {
+    const rate = line.rate;
+    return !rate || rate.source === 'manual' || rate.source === 'demo' || !this.isToday(line);
+  }
+
+  /** What the rate in use is, said for what it really is - never "de hoy" for another day's. */
+  currentTitle(line: CurrencyLine): TranslationKey {
+    const source = line.rate?.source;
+    if (source === 'manual') return 'ui.currencies.yours.value';
+    if (source === 'demo') return 'ui.currencies.demo.value';
+    return source === 'trm' ? 'ui.currencies.fromTrm' : 'ui.currencies.fromEcb';
   }
 
   /** "TRM oficial de hoy" for the dollar, "Tasa oficial de hoy" for the rest: never a bare "automático". */
