@@ -23,7 +23,7 @@ S['38b-agregar-producto-arriba'] = `${top('Banco Índigo', { sub: 'Rendimientos'
  <div class="h">Tus productos · 3</div>
  <div class="list">
   ${prod('wallet', C.blu, 'Cuenta de ahorros', '9,00 % E.A. · el habitual', '$ 3.420.000')}
-  ${prod('star', C.yel, 'Bolsillo viajes', '10,50 % E.A. · con bonificación', '$ 1.250.000')}
+  ${prod('airplane-outline', C.cya, 'Bolsillo viajes', '10,50 % E.A. · con bonificación', '$ 1.250.000')}
   ${prod('lock-closed', C.pur, 'CDT 6 meses', '11,20 % E.A. · vence 12 mar', '$ 5.000.000')}
   <div class="row plain"><div class="tx"><b>Todos los productos</b></div><div class="am">$ 9.670.000</div></div></div>
  <div class="hint">Cada producto rinde por separado, con su propia tasa.</div></main>${tabs('Cuentas')}`;
@@ -101,7 +101,7 @@ S['38g-cdt-pasos'] = `${head('Agregar un producto')}<main>
 // 38h: an existing product opens on the same page, every step closed with
 // what it holds.
 S['38h-producto-editar'] = `${top('Bolsillo viajes', { left: 'x', right: '<span class="p" style="font-weight:500">Guardar</span>' })}<main>
- <div class="card" style="display:flex;gap:12px;align-items:center">${sq('star', C.yel, 48)}<div class="tx"><small>Tiene hoy</small><b style="font-size:20px">$ 1.262.418</b><small>Ahorro de alta rentabilidad</small></div></div>
+ <div class="card" style="display:flex;gap:12px;align-items:center">${sq('airplane-outline', C.cya, 48)}<div class="tx"><small>Tiene hoy</small><b style="font-size:20px">$ 1.262.418</b><small>Ahorro de alta rentabilidad</small></div></div>
  ${step(1, 'Nombre', 'ok', 'Bolsillo viajes')}
  ${step(2, 'Saldo', 'ok', '$ 1.250.000 al cierre del 19 oct · + $ 12.418 desde entonces')}
  ${step(3, 'Tasa', 'ok', '5,00 % E.A. desde el 1 sept · paga cada día')}
