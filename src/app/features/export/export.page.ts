@@ -11,6 +11,7 @@
  *     against the bank — and cannot restore anything.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 import { Location } from '@angular/common';
@@ -39,7 +40,7 @@ import { ConfirmComponent } from '../../shared/confirm/confirm.component';
   selector: 'app-export',
   templateUrl: './export.page.html',
   styleUrls: ['./export.page.scss'],
-  imports: [TranslatePipe, BusyOverlayComponent, BadgeComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [AskButtonComponent, TranslatePipe, BusyOverlayComponent, BadgeComponent, IonContent, IonIcon, IonSpinner, IonModal],
 })
 export class ExportPage {
   readonly database = inject(DatabaseService);

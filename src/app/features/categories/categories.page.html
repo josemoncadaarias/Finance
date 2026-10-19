@@ -7,12 +7,16 @@
       <ion-icon name="chevron-back"></ion-icon>
     </button>
     <h1>{{ 'categories.title' | t }}</h1>
-    <button type="button" class="ui-pill line" (click)="startNew()">
-      <ion-icon name="add"></ion-icon>{{ 'categories.new' | t }}
-    </button>
+    <app-ask-button></app-ask-button>
   </header>
 
   <div class="ui-main">
+    <!-- A new category: a card on top, as a product is added (38b), so the
+         title bar keeps room for the title and the assistant's button (39p). -->
+    <button type="button" class="ui-add" (click)="startNew()">
+      <span class="plus"><ion-icon name="add"></ion-icon></span>
+      <span class="ui-tx"><b>{{ 'categories.new' | t }}</b></span>
+    </button>
     <div class="tools">
       <div class="ui-seg">
         <button type="button" [class.on]="order() === 'use'" (click)="setOrder('use')">{{ 'entry.order.use' | t }}</button>

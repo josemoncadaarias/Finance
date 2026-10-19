@@ -5,6 +5,7 @@
  * Google Play for cancelling or the card. The switch at the foot shows the
  * app as somebody without Pro sees it, to try the locks.
  */
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon } from '@ionic/angular';
@@ -21,13 +22,15 @@ import { ToastService } from '../../shared/ui/toast.service';
 
 @Component({
   selector: 'app-pro',
-  imports: [IonContent, IonIcon, NgTemplateOutlet, TranslatePipe, BadgeComponent, ConfirmComponent],
+  imports: [AskButtonComponent, IonContent, IonIcon, NgTemplateOutlet, TranslatePipe, BadgeComponent, ConfirmComponent],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
         <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
           <ion-icon name="close"></ion-icon>
         </button>
+        <span style="flex: 1"></span>
+        <app-ask-button></app-ask-button>
       </header>
       <div class="ui-main">
         <div class="head" data-tour="pro-head">

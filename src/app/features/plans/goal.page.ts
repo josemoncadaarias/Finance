@@ -8,6 +8,8 @@
  * archive it once reached. Nothing here moves money by itself.
  */
 
+import { goalThisMonth } from '../../core/assistant/free-money';
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
@@ -32,7 +34,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
   selector: 'app-goal',
   templateUrl: './goal.page.html',
   styleUrls: ['./limit.page.scss', './goal.page.scss'],
-  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, GoalEditorComponent, IonContent, IonIcon, IonModal],
+  imports: [AskButtonComponent, AmountsEyeComponent, TranslatePipe, BadgeComponent, ConfirmComponent, GoalEditorComponent, IonContent, IonIcon, IonModal],
 })
 export class GoalPage {
   readonly goals = inject(GoalsService);
@@ -51,6 +53,23 @@ export class GoalPage {
 
   readonly view = computed(() => this.goals.view(this.id));
   readonly s = computed(() => this.view()?.status ?? null);
+
+  /**
+   * What this month would want (39o). Never a fixed instalment: with a date,
+   * what the goal lacks over the months left; without one, the person's own
+   * average of the last three months; less what already went in this month.
+   */
+  readonly month = computed(() => {
+    const v = this.view();
+    if (!v || v.status.state === 'reached') return null;
+    const saved = Math.max(0, v.status.savedMinor);
+    const start = v.terms.allAccounts ? saved : Math.max(0, this.goals.atMonthStart().get(v.terms.id) ?? 0);
+    return goalThisMonth({
+      id: v.terms.id, name: v.terms.name, icon: v.terms.icon, color: v.terms.color, amountMinor: v.terms.amountMinor,
+      savedMinor: saved, savedAtMonthStartMinor: start, dueMonth: v.terms.dueMonth, paceMinor: v.status.paceMinor,
+      reached: false,
+    }, this.goals.today());
+  });
 
   readonly sub = computed(() => {
     const v = this.view();

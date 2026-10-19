@@ -52,6 +52,12 @@ const ALLOWED = [
   // The words of both languages that say a bank's message moved money -
   // compraste, recibiste, saldo - read out of the message, never shown.
   'core/notices/read-notice.ts',
+  // The words of both languages a sentence to the assistant is read by -
+  // gasté, me llegó, ¿me alcanza? - read out of what was typed, never shown.
+  'core/assistant/read-phrase.ts',
+  // Folding what was typed, with the "ñ" kept: no word of the screen.
+  'core/assistant/assistant.service.ts',
+  'features/assistant/assistant.page.ts',
   // The plain words of a bank's name ("banco", "cuenta") left out when an app's
   // name is matched to an account's - never shown.
   'core/notices/notice-proposals.ts',

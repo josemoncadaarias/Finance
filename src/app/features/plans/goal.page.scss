@@ -32,3 +32,20 @@
   i.now { background: var(--app-pr); }
   .line.goal { border-top-color: var(--app-grn); }
 }
+
+/* This month, as a suggestion (39o). */
+.ui-card.month {
+  padding: 4px 14px 14px;
+  margin-bottom: 12px;
+  .line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--app-line);
+    span { color: var(--app-mu); }
+    b { white-space: nowrap; }
+  }
+  .ui-sub { margin: 10px 0 0; white-space: normal; text-wrap: pretty; }
+  .ui-btn { margin-top: 12px; height: 44px; }
+}

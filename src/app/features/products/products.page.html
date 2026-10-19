@@ -10,6 +10,7 @@
             [attr.aria-label]="'ui.recalculate' | t" [title]="'ui.recalculate' | t">
       <ion-icon name="refresh-outline"></ion-icon>
     </button>
+    <app-ask-button></app-ask-button>
   </div>
 
   <div class="ui-main">
@@ -237,6 +238,7 @@
               <span class="name marquee-loop">{{ line.account.name }}</span>
               @if (canSwitchAccount()) { <ion-icon class="down" name="chevron-down-outline"></ion-icon> }
             </button>
+            <app-ask-button></app-ask-button>
           </header>
 
           <ion-content #sheet [scrollEvents]="true" (ionScroll)="onSheetScroll(); sheetJump.measure()">

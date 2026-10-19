@@ -34,3 +34,10 @@ small.late { color: var(--app-red) !important; }
 
 .danger { color: var(--app-red); }
 .ui-row:disabled { opacity: .55; }
+
+.version {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--app-mu);
+}

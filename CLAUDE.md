@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (849 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (874 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5204,7 +5204,7 @@ alone had paid. A day's title cut short on Días or Pagos already slides
 (checked in a browser: the marquee wraps it, text and its "· Bonificación"
 part together).
 
-### The assistant: register and ask by text or voice, with no AI (proposed 2026-10-19, nothing built)
+### The assistant: register and ask by text or voice, with no AI (BUILT 2026-10-19)
 
 Asked for by Jose on 2026-10-19 after Lukas's chat ("¿Puedo gastar $ 210.000
 hoy sin afectar mi presupuesto?", answered with a "Viabilidad de tu gasto de
@@ -5288,6 +5288,63 @@ with testers runs; the paywall is finished after them.
 - **The assistant's button sits at the top right of every screen** (Jose,
   2026-10-19, `39p`-`39r`): a round sparkles button, last in the title bar,
   besides the row in the "+" sheet.
+- **What was built (2026-10-19, at Jose's word "dale comienza con todo")**:
+  - `core/assistant/read-phrase.ts` (pure, `read-phrase.test.mjs`): the
+    intent (register spending / income / transfer, "¿me alcanza?", "¿cuánto
+    llevo en X?", "¿cuánto puedo gastar al día?", "¿cómo calculas lo de mis
+    metas?", or `unsure` - an amount and a thing with no verb), amounts in
+    every shape ("45 mil", "$45.000", "1,5 millones", "dos millones
+    quinientos mil", "50 lucas", "2 palos"; a bare "250" is 250 mil and said
+    back), the day (hoy, ayer, antier, a weekday, "el 15"), an account or
+    product only when said as a place ("con la", "desde", "a" - so "un viaje"
+    is never the pocket Viaje), the category by its name (plurals too), by
+    the merchant dictionary, then by `common-words.ts`. What it cannot place
+    is handed back.
+  - `core/assistant/free-money.ts` (pure, `free-money.test.mjs`): "Libre para
+    gastar" = counted accounts (no card, loan, CDT or set-aside product) less
+    what the goals hold up to their figure (taken first from money not counted
+    anyway), less the payments coming (what is left of each card's statement,
+    loan installments due by the month's end and late ones), less what the
+    goals would want this month (`goalThisMonth`: dated - what it lacked at the
+    month's start over the months left; undated - the 3-month average; less
+    what went in this month; reached - nothing). Per day rounds down to whole
+    hundreds. `afford` gives yes / yes but a cap / no and by how much.
+  - `AssistantService` reads it all from the app (balances, `loadCards`,
+    `loanSchedule`, `GoalsService`, `LimitsService`, the products screen's own
+    "available" interest) and saves a confirmed spending or income as the
+    form does (`writeScoped` 'both' on an account with products, the note
+    taught to the dictionary, yields worked out again). Learned words: a
+    thing's category goes to the merchant dictionary; an account word and a
+    sentence shape to `settings` `assistant.learned` - both travel in the backup.
+  - `/assistant` (`features/assistant`): chat, cards and chips as `39b`-`39n`;
+    "Guardar" only for a peso account whose habit is an ordinary movement,
+    otherwise "Revisar y guardar" (the one form, now taking
+    `start.categoryId/productId`); a transfer is always confirmed in the form.
+    The floating bar hides there (`TabBarComponent.away`).
+  - **The button on every screen**: `shared/ui/ask-button.component.ts`, the
+    last thing in every page's title bar (Inicio beside the account, Cuentas,
+    Rendimientos and an account's page, Deudas, a card, a loan, Reporte, Más,
+    Presupuestos, a cap, a goal, Monedas, Categorías, Por revisar,
+    Notificaciones, Importar, Google, Renta, Pro, Personaliza, Barra, Borrar
+    todo). To make room, **titles in `.ui-titlebar` wrap between words**
+    instead of ending in "…" (never splitting a word), and "Nueva categoría"
+    and "Nuevo tope / Nueva meta" moved from the title bar to a `.ui-add` card
+    on top of their lists, as a product's (38b) - a change of place Jose has
+    not seen yet. Checked at 360 px: no title cut on any screen.
+  - **Voice**: `SpeechPlugin.java` (RecognizerIntent, with its `<queries>` in
+    the manifest): the phone listens and hands back the words; no microphone
+    permission, no audio kept (privacy policy section added). In a browser,
+    the Web Speech API where it exists. Java not compiled in the session: the
+    Store bundle is its check.
+  - Goal page (`39o`): "Este mes" - Aporte sugerido, Ya aportaste, Te falta
+    este mes, and why it is no instalment (`GoalsService.atMonthStart`).
+  - Tours: home `since: 5` (the button), goal `since: 2`, a new `assistant`
+    tour. Checked in a browser on the sample data (every card, chips, saving,
+    the cap sheet after saving, Revisar opening the form filled, light and
+    dark); not on the phone. Not built yet: paid limits for it (rule 21, CHARGING
+    is off anyway) and more questions (phase 3).
+- **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
+  versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
 - **Voice**: the phone's own dictation into the same reader (`39h`).
   Assumed, not verified: offline only with the Spanish pack downloaded; on
   many phones the audio goes through Google - to say in the privacy policy.

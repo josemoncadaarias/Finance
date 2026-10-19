@@ -2,6 +2,7 @@
   <!-- What you are looking at: the account's own badge, its name on one line
        (it slides when it does not fit), and what that selection includes.
        The whole row opens the list of accounts (mockup 1a). -->
+  <div class="identity-row">
   <button type="button" class="identity" (click)="scope.openAccounts()">
     @if (store.selectedAccount(); as account) {
       <app-badge shape="ci" [size]="40" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
@@ -17,6 +18,8 @@
       <span class="hint marquee-loop">{{ accountHint() }}</span>
     </span>
   </button>
+  <app-ask-button></app-ask-button>
+  </div>
 
   <!-- The period: one full row, round arrows at its edges, the period in the
        middle opening its sheet. -->

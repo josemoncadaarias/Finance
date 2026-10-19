@@ -52,6 +52,12 @@ import { MOVE_COLOR } from '../../core/theme/palette';
             </button>
           </div>
           <div class="ui-list statement">
+            <!-- The assistant (39a): a movement said in words, or a question. -->
+            <button type="button" class="ui-row" (click)="openAssistant()" data-tour="plus-assistant">
+              <app-badge shape="ci" [size]="38" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><b>{{ 'ai.title' | t }}</b><small class="wrap">{{ 'ai.plus.hint1' | t }}</small><small class="wrap">{{ 'ai.plus.hint2' | t }}</small></span>
+              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+            </button>
             <button type="button" class="ui-row" (click)="startImport()">
               <app-badge shape="ci" [size]="38" builtin="document-text-outline" fixed="#9b7bff"></app-badge>
               <span class="ui-tx"><b>{{ 'ui.new.statement' | t }}</b></span>
@@ -117,6 +123,11 @@ export class ComposeHostComponent {
         this.accounts.set(await new AccountsRepository(this.database.driver).list());
       });
     });
+  }
+
+  async openAssistant(): Promise<void> {
+    this.compose.sheet.set(false);
+    await this.router.navigate(['/assistant']);
   }
 
   async newAccount(): Promise<void> {

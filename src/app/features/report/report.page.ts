@@ -11,6 +11,7 @@
  * to say twice what the app already knows.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonContent, IonIcon, IonSpinner } from '@ionic/angular';
@@ -51,7 +52,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   selector: 'app-report',
   templateUrl: './report.page.html',
   styleUrls: ['./report.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, BusyOverlayComponent, AmountsEyeComponent,
     IonContent, IonIcon, IonSpinner,
   ],

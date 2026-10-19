@@ -5,6 +5,7 @@
  * tapped to choose another screen and dragged by ☰; the "+" and Más said as
  * fixed; and the way back to how the app comes.
  */
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
@@ -18,7 +19,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 
 @Component({
   selector: 'app-bar-choice',
-  imports: [IonContent, IonIcon, IonModal, IonReorderGroup, IonReorder, TranslatePipe, BadgeComponent],
+  imports: [AskButtonComponent, IonContent, IonIcon, IonModal, IonReorderGroup, IonReorder, TranslatePipe, BadgeComponent],
   template: `
     <ion-content [fullscreen]="true">
       <header class="ui-titlebar">
@@ -26,6 +27,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
           <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
         <h1>{{ 'bar.title' | t }}</h1>
+        <app-ask-button></app-ask-button>
       </header>
 
       <div class="ui-main">

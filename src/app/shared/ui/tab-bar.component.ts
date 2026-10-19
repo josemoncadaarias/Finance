@@ -32,6 +32,7 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
   selector: 'app-tab-bar',
   standalone: true,
   imports: [IonIcon, TranslatePipe, NgTemplateOutlet],
+  host: { '[class.away]': 'away()' },
   template: `
     <nav data-tour="tabs">
       <!-- The three buttons chosen on "Barra de abajo" (33b), the "+" after the
@@ -55,6 +56,8 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
     </ng-template>
   `,
   styles: [`
+    /* The assistant has its own bar at the foot, where its words are typed (39b). */
+    :host(.away) { display: none; }
     :host {
       position: fixed;
       left: 0;
@@ -143,6 +146,9 @@ export class TabBarComponent {
 
   /** The button the screen on show belongs to; any screen not on the bar is Más's. */
   readonly tab = computed<BarId | 'more'>(() => buttonFor(this.view.bar(), this.url()));
+
+  /** Screens with a bar of their own at the foot. */
+  readonly away = computed(() => this.url().startsWith('/assistant'));
 
   /** Movements a statement proposed and nobody has answered yet. */
   readonly waiting = signal(0);

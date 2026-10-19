@@ -2120,15 +2120,19 @@ ion-modal.modal-default.show-modal ~ ion-modal.ui-dialog {
   border-bottom: 1px solid var(--app-line);
   flex: none;
 
+  /* A title is said whole: on a narrow phone, beside the assistant's button,
+     it wraps onto a second line between its words (39p) rather than ending in "…". */
   h1 {
     flex: 1;
     min-width: 0;
     margin: 0;
     font-size: 21px;
     font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.2;
+    text-wrap: balance;
+    /* Between words only: a word is never split. */
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .x, .back {

@@ -1,0 +1,240 @@
+<!-- The assistant (mockups 39a-39n): register or ask, by text or by voice. -->
+<header class="ui-titlebar">
+  <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+    <ion-icon name="chevron-back"></ion-icon>
+  </button>
+  <h1 class="titled">{{ 'ai.title' | t }}<small>{{ 'ai.subtitle' | t }}</small></h1>
+</header>
+
+<ion-content class="chat">
+  <main class="ui-main">
+    @if (empty()) {
+      <!-- Nothing said yet: what it can do, as examples to tap (39b). -->
+      <div class="welcome">
+        <app-badge shape="ci" [size]="60" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
+        <h2>{{ 'ai.welcome' | t }}</h2>
+        <p>{{ 'ai.welcome.hint' | t }}</p>
+      </div>
+      <div class="ui-h">{{ 'ai.group.register' | t }}</div>
+      <div class="ui-list">
+        @for (key of examples.slice(0, 3); track key; let i = $index) {
+          <button type="button" class="ui-row" (click)="example(key)">
+            <ion-icon [class]="i === 0 ? 'ui-r' : i === 1 ? 'ui-g' : 'ui-p'" [name]="i === 0 ? 'arrow-up' : i === 1 ? 'arrow-down' : 'swap-horizontal'"></ion-icon>
+            <span class="ui-tx"><b class="wrap">{{ key | t }}</b></span>
+          </button>
+        }
+      </div>
+      <div class="ui-h">{{ 'ai.group.ask' | t }}</div>
+      <div class="ui-list">
+        @for (key of examples.slice(3); track key) {
+          <button type="button" class="ui-row" (click)="example(key)">
+            <ion-icon class="ui-p" name="help-circle-outline"></ion-icon>
+            <span class="ui-tx"><b class="wrap">{{ key | t }}</b></span>
+          </button>
+        }
+      </div>
+    }
+
+    @for (m of messages(); track m.id) {
+      @if (m.who === 'me') {
+        <div class="me"><p>{{ m.parts[0].text }}</p></div>
+      } @else {
+        <div class="app">
+          <app-badge shape="ci" [size]="30" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
+          <p>@for (p of m.parts; track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p>
+        </div>
+
+        @if (m.card; as card) {
+          <div class="card" [class]="'card ' + (card.kind === 'free' ? card.tone : '')">
+            @switch (card.kind) {
+              @case ('register') {
+                <div class="what">
+                  <app-badge [size]="42" [builtin]="card.category.builtin_icon" [customId]="card.category.custom_icon_id"
+                             [tone]="card.category.color" [seed]="card.category.id"></app-badge>
+                  <span class="tx">
+                    <b>{{ card.category.name }}</b>
+                    <small class="segs">@if (card.note) {<span>{{ card.note }}</span>}<span>{{ card.account.name }}</span><span>{{ dayText(card.onDate) }}</span></small>
+                  </span>
+                  <b class="amount" [class.ui-r]="card.side === 'expense'" [class.ui-g]="card.side === 'income'">
+                    {{ card.side === 'expense' ? '−' : '+' }}{{ pesos(card.amountMinor) }}
+                  </b>
+                </div>
+                @if (productLine(card).length > 0 && card.product) {
+                  <div class="product">
+                    <app-badge [size]="30" builtin="wallet-outline" fixed="#6378ff"></app-badge>
+                    <span class="tx">
+                      <b>{{ (card.side === 'expense' ? 'ai.register.from' : 'ai.register.into') | t:{ product: card.product.name } }}</b>
+                      @for (line of productLine(card); track $index) { <small class="block">{{ line }}</small> }
+                    </span>
+                    @if (card.state === 'open') {
+                      <button type="button" class="link" (click)="changeProduct(card)">{{ 'ai.register.change' | t }}</button>
+                    }
+                  </div>
+                }
+                @if (card.state === 'saved') {
+                  <div class="done"><ion-icon name="checkmark-circle"></ion-icon>{{ 'ai.register.savedLine' | t }}</div>
+                } @else if (card.state === 'opened') {
+                  <div class="done muted"><ion-icon name="create-outline"></ion-icon>{{ 'ai.register.openedLine' | t }}</div>
+                } @else if (card.canSave) {
+                  <div class="two">
+                    <button type="button" class="ui-btn ghost" (click)="review(card)">{{ 'ai.register.review' | t }}</button>
+                    <button type="button" class="ui-btn" [disabled]="busy()" (click)="save(card)">{{ 'ai.register.save' | t }}</button>
+                  </div>
+                } @else {
+                  <p class="note">{{ 'ai.register.onlyForm' | t }}</p>
+                  <button type="button" class="ui-btn" (click)="review(card)">{{ 'ai.register.reviewAndSave' | t }}</button>
+                }
+              }
+
+              @case ('transfer') {
+                <div class="what">
+                  <app-badge shape="ci" [size]="42" builtin="swap-horizontal" fixed="#4c9bff"></app-badge>
+                  <span class="tx">
+                    <b>{{ 'ai.transfer.title' | t }}</b>
+                    <small class="segs"><span>{{ card.from ? card.from.name : ('ai.transfer.fromUsual' | t) }} → {{ card.to.name }}</span><span>{{ dayText(card.onDate) }}</span></small>
+                  </span>
+                  <b class="amount move">{{ pesos(card.amountMinor) }}</b>
+                </div>
+                @if (card.state === 'opened') {
+                  <div class="done muted"><ion-icon name="create-outline"></ion-icon>{{ 'ai.register.openedLine' | t }}</div>
+                } @else {
+                  <button type="button" class="ui-btn" (click)="review(card)">{{ 'ai.register.reviewAndSave' | t }}</button>
+                }
+              }
+
+              @case ('free') {
+                @if (card.tone !== 'plain' && card.account === null) {
+                  <div class="verdict">
+                    @if (card.tone === 'ok') { <ion-icon name="checkmark-circle-outline"></ion-icon> } @else { <ion-icon name="alert-circle-outline"></ion-icon> }
+                    <b>{{ card.headline }}</b>
+                  </div>
+                }
+                @if (card.account; as acc) {
+                  <div class="line"><span>{{ 'ai.account.holds' | t:{ account: acc.row.name } }}</span><b>{{ pesos(acc.holdsMinor) }}</b></div>
+                  <div class="line"><span>{{ 'ai.account.after' | t:{ account: acc.row.name } }}</span><b>{{ pesos(acc.holdsMinor - (card.amountMinor ?? 0)) }}</b></div>
+                  @for (d of acc.dues; track $index) {
+                    <div class="line"><span>{{ d.name }} · {{ dayText(d.dueOn) }}</span><b class="ui-r">−{{ pesos(d.amountMinor) }}</b></div>
+                  }
+                  <p class="note">{{ (card.restMinor >= 0 ? 'ai.account.allYes' : 'ai.account.allNo') | t:{ free: pesos(card.picture.free.freeMinor) } }}</p>
+                } @else {
+                  @if (card.cap; as cap) {
+                    <div class="lab">{{ 'ai.cap.title' | t:{ name: cap.name } }}</div>
+                    <div class="line"><span>{{ 'ai.cap.spent' | t }}</span><b>{{ 'ai.cap.of' | t:{ spent: pesos(cap.status.spentMinor), amount: pesos(cap.status.amountMinor) } }}</b></div>
+                    @if (card.amountMinor !== null) {
+                      <div class="line"><span>{{ card.thing ? ('ai.cap.withThing' | t:{ thing: card.thing }) : ('ai.cap.withIt' | t) }}</span>
+                        <b [class.ui-r]="cap.status.spentMinor + card.amountMinor > cap.status.amountMinor">{{ pesos(cap.status.spentMinor + card.amountMinor) }}</b></div>
+                    }
+                    <div class="lab">{{ 'ai.money.title' | t }}</div>
+                  }
+                  <div class="line"><span>{{ 'ai.money.accounts' | t }}</span><b>{{ pesos(card.picture.free.inAccountsMinor) }}</b></div>
+                  @if (card.picture.free.inGoalsMinor > 0) {
+                    <div class="line"><span>{{ 'ai.money.inGoals' | t }}</span><b>−{{ pesos(card.picture.free.inGoalsMinor) }}</b></div>
+                  }
+                  <div class="line"><span>{{ 'ai.money.payments' | t }}</span><b>{{ card.picture.free.paymentsMinor > 0 ? '−' : '' }}{{ pesos(card.picture.free.paymentsMinor) }}</b></div>
+                  <div class="line"><span>{{ 'ai.money.goals' | t }}</span><b>{{ card.picture.free.goalsMonthMinor > 0 ? '−' : '' }}{{ pesos(card.picture.free.goalsMonthMinor) }}</b></div>
+                  <div class="line"><span>{{ 'ai.money.free' | t }}</span><b [class.ui-g]="card.picture.free.freeMinor > 0" [class.ui-r]="card.picture.free.freeMinor < 0">{{ pesos(card.picture.free.freeMinor) }}</b></div>
+                  @if (card.amountMinor !== null) {
+                    <div class="line"><span>{{ card.thing ? cap1(card.thing) : ('ai.money.thisSpend' | t) }}</span><b>−{{ pesos(card.amountMinor) }}</b></div>
+                  }
+
+                  @if (card.restMinor >= 0) {
+                    <div class="rest">
+                      <div class="lab">{{ 'ai.rest.title' | t }}</div>
+                      <small class="block">{{ 'ai.rest.days' | t:{ end: monthEndText(card.picture.free.monthEnd), count: card.picture.free.daysLeft } }}</small>
+                      <div class="row"><span>{{ 'ai.rest.free' | t }}</span><b>{{ pesos(card.restMinor) }}</b></div>
+                      <div class="row"><span>{{ 'ai.rest.perDay' | t }}</span><b>{{ pesos(perDayOf(card)) }}</b></div>
+                      <small class="block">{{ 'ai.rest.hint' | t }}</small>
+                    </div>
+                  }
+
+                  @if (card.restMinor < 0 && card.picture.interest.length > 0) {
+                    <div class="lab">{{ 'ai.interest.title' | t }}</div>
+                    @for (i of card.picture.interest; track i.account.id) {
+                      <div class="line"><span>{{ i.account.name }}</span><b class="ui-g">{{ pesos(i.minor) }}</b></div>
+                    }
+                    <p class="note">{{ (interestTotal(card) + card.restMinor >= 0 ? 'ai.interest.wouldReach' : 'ai.interest.wouldNotReach') | t }}</p>
+                    <button type="button" class="ui-btn ghost" (click)="cashInterest(card)">{{ 'ai.interest.cash' | t }}</button>
+                  }
+
+                  @if (card.noCategory && card.amountMinor !== null) {
+                    <p class="note">{{ 'ai.money.noCategory' | t }}</p>
+                  }
+                  <p class="note">{{ 'ai.money.left' | t }}</p>
+                  @if (card.cap; as cap) {
+                    <button type="button" class="ui-btn ghost" (click)="seeCap(cap)">{{ 'ai.cap.see' | t:{ name: cap.name } }}</button>
+                  }
+                  @if (card.picture.free.goals.length > 0) {
+                    <button type="button" class="ui-btn ghost" (click)="explainGoals()">
+                      <ion-icon name="help-circle-outline"></ion-icon>{{ 'ai.goals.how' | t }}
+                    </button>
+                  }
+                }
+              }
+
+              @case ('spent') {
+                <div class="line"><span>{{ 'ai.spent.now' | t }}</span><b>{{ pesos(card.nowMinor) }}</b></div>
+                <div class="line"><span>{{ 'ai.spent.before' | t }}</span><b>{{ pesos(card.beforeMinor) }}</b></div>
+                @if (card.cap; as cap) {
+                  <div class="line"><span>{{ 'ai.spent.cap' | t:{ name: cap.name } }}</span><b>{{ pesos(cap.status.amountMinor) }}</b></div>
+                  <div class="line"><span>{{ 'ai.spent.used' | t }}</span><b [class.ui-y]="cap.status.percent >= 80 && cap.status.percent <= 100" [class.ui-r]="cap.status.percent > 100">{{ cap.status.percent }} %</b></div>
+                  @if (cap.status.remainingMinor > 0) {
+                    <div class="line"><span>{{ 'ai.spent.perDay' | t }}</span><b>{{ pesos(cap.status.perDayMinor) }}</b></div>
+                  } @else if (cap.status.overMinor > 0) {
+                    <div class="line"><span>{{ 'ai.spent.over' | t }}</span><b class="ui-r">{{ pesos(cap.status.overMinor) }}</b></div>
+                  }
+                }
+              }
+
+              @case ('goals') {
+                <div class="lab">{{ 'ai.goals.kept' | t:{ amount: pesos(card.picture.free.inGoalsMinor) } }}</div>
+                <small class="block">{{ 'ai.goals.keptHint' | t }}</small>
+                <div class="lab">{{ 'ai.goals.month' | t:{ amount: pesos(card.picture.free.goalsMonthMinor) } }}</div>
+                @for (g of card.picture.free.goals; track g.goal.id) {
+                  <div class="goal">
+                    <div class="head">
+                      <app-badge shape="ci" [size]="34" [builtin]="g.goal.icon" [fixed]="g.goal.color ?? '#34c98b'"></app-badge>
+                      <b class="name">{{ g.goal.name }}</b>
+                      <b>{{ pesos(g.leftMinor) }}</b>
+                    </div>
+                    <small class="block">{{ goalHow(g) }}</small>
+                    @if (goalAlready(g)) { <small class="block">{{ goalAlready(g) }}</small> }
+                  </div>
+                }
+                <p class="note">{{ 'ai.goals.notADebt' | t }}</p>
+              }
+            }
+          </div>
+        }
+
+        @if (m.chips?.length) {
+          <div class="chips">
+            @for (c of m.chips; track $index) {
+              <button type="button" class="ui-chip" (click)="c.act()">{{ c.label }}</button>
+            }
+          </div>
+        }
+      }
+    }
+    @if (busy()) {
+      <div class="app thinking"><app-badge shape="ci" [size]="30" builtin="sparkles-outline" fixed="#6378ff"></app-badge><p>…</p></div>
+    }
+  </main>
+</ion-content>
+
+<!-- Where words are typed or said (39b, 39h). -->
+<footer class="compose-bar">
+  <textarea #box rows="1" [value]="typed()" (input)="typed.set($any($event.target).value)" (keydown)="onKey($event)"
+            [placeholder]="'ai.placeholder' | t" enterkeyhint="send"></textarea>
+  @if (typed().trim()) {
+    <button type="button" class="round" (click)="send()" [attr.aria-label]="'ai.send' | t"><ion-icon name="send"></ion-icon></button>
+  } @else {
+    <button type="button" class="round" [class.listening]="listening()" (click)="speak()" [attr.aria-label]="'ai.voice' | t">
+      <ion-icon name="mic-outline"></ion-icon>
+    </button>
+  }
+</footer>
+
+<app-category-sheet [open]="categorySheet() !== null" [kind]="categorySheet() ?? 'expense'"
+                    (picked)="pickedCategory($event)" (cancelled)="categorySheet.set(null)"></app-category-sheet>
+<app-account-picker [open]="accountSheet()" [accounts]="accountsForSheet()" [heading]="'ai.account.heading' | t"
+                    (chosen)="pickedAccount($event)" (closed)="accountSheet.set(false)"></app-account-picker>

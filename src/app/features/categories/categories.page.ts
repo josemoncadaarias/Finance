@@ -10,6 +10,7 @@
  * makes archiving an informed decision rather than a guess.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
@@ -45,7 +46,7 @@ function readOrder(): 'use' | 'name' {
   selector: 'app-categories',
   templateUrl: './categories.page.html',
   styleUrls: ['./categories.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     TranslatePipe, CategoryEditorComponent, ProductKindEditorComponent, BadgeComponent, JumpComponent,
     IonContent, IonIcon, IonSpinner, IonModal,
   ],

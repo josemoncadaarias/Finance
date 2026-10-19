@@ -7,6 +7,7 @@
  * (Jose asked for it not to be forgotten); and the movements that count.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
@@ -28,7 +29,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
   selector: 'app-limit',
   templateUrl: './limit.page.html',
   styleUrls: ['./limit.page.scss'],
-  imports: [AmountsEyeComponent, TranslatePipe, BadgeComponent, LimitBarComponent, LimitEditorComponent, ConfirmComponent, IonContent, IonIcon, IonModal],
+  imports: [AskButtonComponent, AmountsEyeComponent, TranslatePipe, BadgeComponent, LimitBarComponent, LimitEditorComponent, ConfirmComponent, IonContent, IonIcon, IonModal],
 })
 export class LimitPage {
   readonly limits = inject(LimitsService);

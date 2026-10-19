@@ -20,6 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { TourService } from '../../core/tour/tour.service';
 import { DateFieldComponent } from '../../shared/ui/date-field.component';
@@ -189,7 +190,7 @@ interface Payment {
   selector: 'app-products',
   templateUrl: './products.page.html',
   styleUrls: ['./products.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     AmountsEyeComponent,
     BusyOverlayComponent, DateFieldComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
     EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,

@@ -8,6 +8,7 @@
  * opens Avisos, where each notice is turned off and back on.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location, NgTemplateOutlet } from '@angular/common';
@@ -36,7 +37,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
   selector: 'app-plans',
   templateUrl: './plans.page.html',
   styleUrls: ['./plans.page.scss'],
-  imports: [AmountsEyeComponent, TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, GoalEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
+  imports: [AskButtonComponent, AmountsEyeComponent, TranslatePipe, NgTemplateOutlet, BadgeComponent, LimitBarComponent, LimitEditorComponent, GoalEditorComponent, IonContent, IonIcon, IonModal, IonSpinner],
 })
 export class PlansPage {
   readonly limits = inject(LimitsService);

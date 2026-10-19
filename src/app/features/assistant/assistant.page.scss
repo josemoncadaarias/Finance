@@ -1,0 +1,251 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--app-bg);
+}
+
+.ui-titlebar h1.titled {
+  display: flex;
+  flex-direction: column;
+  white-space: normal;
+
+  small {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--app-mu);
+    margin-top: 2px;
+  }
+}
+
+ion-content.chat {
+  flex: 1;
+  /* The bar at the foot is the page's own, not the floating one. */
+  --padding-bottom: calc(24px + var(--ion-safe-area-bottom, 0px)) !important;
+}
+
+.welcome {
+  text-align: center;
+  margin: 14px 0 4px;
+
+  app-badge { display: inline-block; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 19px; font-weight: 700; }
+  p { margin: 6px 0 0; color: var(--app-mu); font-size: 14px; line-height: 1.4; text-wrap: pretty; }
+}
+
+.ui-list .ui-row ion-icon { font-size: 21px; flex: none; }
+
+/* What the person said, and what the app answers (39c-39n). */
+.me {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+
+  p {
+    margin: 0;
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 18px 18px 6px 18px;
+    background: linear-gradient(135deg, var(--app-pr), var(--app-pr2));
+    color: #fff;
+    font-size: 14.5px;
+    line-height: 1.35;
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+  }
+}
+
+.app {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: flex-end;
+
+  app-badge { flex: none; }
+  p {
+    margin: 0;
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 18px 18px 18px 6px;
+    background: var(--app-s1);
+    border: 1px solid var(--app-line);
+    font-size: 14.5px;
+    line-height: 1.4;
+    text-wrap: pretty;
+    b { font-weight: 700; }
+  }
+  &.thinking p { color: var(--app-mu); }
+}
+
+.card {
+  margin: 8px 0 0 38px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--app-s1);
+  border: 1px solid var(--app-line);
+  text-wrap: pretty;
+  overflow: hidden;
+
+  &.ok { border-color: rgba(var(--app-grn-rgb), 0.45); }
+  &.warn { border-color: rgba(var(--app-yel-rgb), 0.5); }
+  &.bad { border-color: rgba(var(--app-red-rgb), 0.45); }
+
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -12px -14px 8px;
+    padding: 12px 14px;
+    ion-icon { font-size: 22px; flex: none; }
+    b { font-weight: 700; }
+  }
+  &.ok .verdict { background: rgba(var(--app-grn-rgb), 0.14); color: var(--app-grn); }
+  &.warn .verdict { background: rgba(var(--app-yel-rgb), 0.14); color: var(--app-yel); }
+  &.bad .verdict { background: rgba(var(--app-red-rgb), 0.14); color: var(--app-red); }
+
+  .what, .product, .goal .head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    small { color: var(--app-mu); font-size: 13px; }
+  }
+  .amount { font-size: 18px; white-space: nowrap; }
+  /* Each piece whole, joined by a dot; a line breaks between pieces only. */
+  .segs span { white-space: nowrap; }
+  .segs span + span::before { content: ' · '; }
+  .amount.move { color: var(--app-move); }
+  .product {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--app-line);
+    b { font-size: 14px; }
+  }
+  .link {
+    border: 0;
+    background: none;
+    color: var(--app-pr);
+    font: inherit;
+    font-size: 13.5px;
+    padding: 4px 0;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .lab {
+    font-size: 11.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--app-mu);
+    margin: 12px 0 2px;
+    &:first-child { margin-top: 2px; }
+  }
+  .line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid var(--app-line);
+    font-size: 13.8px;
+    span { color: var(--app-mu); }
+    b { font-weight: 600; white-space: nowrap; }
+  }
+  .block { display: block; color: var(--app-mu); font-size: 12.8px; line-height: 1.4; }
+
+  .rest {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(var(--app-pr-rgb), 0.1);
+    .lab { margin-top: 0; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 4px 0;
+      font-size: 13.8px;
+      b { font-weight: 600; white-space: nowrap; }
+    }
+    .block:last-child { margin-top: 4px; }
+  }
+
+  .goal {
+    padding: 10px 0;
+    border-top: 1px solid var(--app-line);
+    .head .name { flex: 1; min-width: 0; font-size: 14.5px; }
+    .block { margin-left: 46px; margin-top: 4px; }
+  }
+
+  .note { margin: 8px 0 0; font-size: 12.8px; color: var(--app-mu); line-height: 1.4; }
+  .done {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    color: var(--app-grn);
+    font-weight: 600;
+    font-size: 14px;
+    ion-icon { font-size: 20px; }
+    &.muted { color: var(--app-mu); font-weight: 500; }
+  }
+  .two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    &:empty { display: none; }
+    .wide { grid-column: 1 / -1; }
+  }
+  > .ui-btn { margin-top: 10px; height: 44px; font-size: 14px; }
+  .two .ui-btn { height: 44px; font-size: 14px; }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0 38px;
+  .ui-chip { color: var(--app-pr); white-space: normal; text-align: left; }
+}
+
+/* The bar at the foot: what is typed, the microphone or the send button. */
+.compose-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 16px calc(14px + var(--ion-safe-area-bottom, 0px));
+  background: var(--app-top);
+  border-top: 1px solid var(--app-line);
+  flex: none;
+
+  textarea {
+    flex: 1;
+    min-height: 46px;
+    max-height: 120px;
+    resize: none;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--app-line);
+    background: var(--app-s1);
+    color: var(--app-tx);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.35;
+    outline: none;
+    &::placeholder { color: var(--app-mu); }
+  }
+  .round {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 0;
+    flex: none;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--app-pr), var(--app-pr2));
+    color: #fff;
+    cursor: pointer;
+    ion-icon { font-size: 22px; }
+    &.listening { box-shadow: 0 0 0 8px rgba(var(--app-pr-rgb), 0.25); }
+  }
+}

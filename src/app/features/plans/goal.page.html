@@ -14,6 +14,7 @@
         <ion-icon name="create-outline"></ion-icon>
       </button>
     }
+    <app-ask-button></app-ask-button>
   </header>
 
   <div class="ui-main">
@@ -47,6 +48,22 @@
           <span class="gbar"><i [style.width.%]="st.percent" [class.late]="st.state === 'late'"></i></span>
           <p class="ui-sub">{{ line() }}</p>
         </section>
+
+        <!-- This month, as a suggestion and never an instalment (39o). -->
+        @if (month(); as m) {
+          @if (m.how !== 'noHistory') {
+            <h3 class="ui-h">{{ 'goals.month.title' | t }}</h3>
+            <div class="ui-card month">
+              <div class="line"><span>{{ 'goals.month.aim' | t }}</span><b>{{ money(m.aimMinor) }}</b></div>
+              <div class="line"><span>{{ 'goals.month.already' | t }}</span><b>{{ money(m.alreadyMinor) }}</b></div>
+              <div class="line"><span>{{ 'goals.month.left' | t }}</span><b class="ui-p">{{ money(m.leftMinor) }}</b></div>
+              <p class="ui-sub">{{ (m.how === 'dated' ? 'goals.month.dated' : 'goals.month.average') | t:{ count: m.monthsLeft } }}</p>
+              @if (m.how === 'average') {
+                <button type="button" class="ui-btn ghost" (click)="editing.set(true)">{{ 'goals.month.setDate' | t }}</button>
+              }
+            </div>
+          }
+        }
 
         <div class="ui-list">
           <div class="ui-row">

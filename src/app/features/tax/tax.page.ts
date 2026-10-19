@@ -16,6 +16,7 @@
  * with the DIAN's own terms kept in Spanish so they still match the form.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
@@ -89,7 +90,7 @@ const SECTION_FACE: Record<string, { icon: string; color: string }> = {
   selector: 'app-tax',
   templateUrl: './tax.page.html',
   styleUrls: ['./tax.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     TranslatePipe, BusyOverlayComponent, BadgeComponent, JumpComponent,
     IonContent, IonHeader, IonIcon, IonSpinner, IonModal,
   ],

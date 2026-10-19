@@ -6,6 +6,7 @@
  * their section says there are none.
  */
 
+import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
@@ -34,7 +35,7 @@ export interface LoanSummary { loan: LoanRow; s: LoanSchedule }
   selector: 'app-debts',
   templateUrl: './debts.page.html',
   styleUrls: ['./debts.page.scss'],
-  imports: [
+  imports: [AskButtonComponent, 
     AmountsEyeComponent,
     TranslatePipe, MoneyPipe, AccountsFacesComponent, BadgeComponent, LoanEditorComponent, AccountEditorComponent,
     IonContent, IonIcon, IonModal, IonSpinner,

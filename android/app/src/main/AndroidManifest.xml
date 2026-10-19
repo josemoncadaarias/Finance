@@ -100,6 +100,14 @@
         </provider>
     </application>
 
+    <!-- The assistant's dictation: Android 11+ only lets the app see the
+         phone's speech service when it says it will ask for it. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
