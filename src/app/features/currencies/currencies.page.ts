@@ -21,6 +21,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { RatesService } from '../../core/rates/rates.service';
 import { shortDay } from '../../core/filters/period';
 import { CurrencyDialogComponent } from '../../shared/currency-dialog/currency-dialog.component';
+import { catalogOf, currencyName, flagOf } from '../../core/currencies/catalog';
+import { rateToPesosOn } from '../../core/rates/historical-rates';
+import { ToastService } from '../../shared/ui/toast.service';
 import { JumpComponent } from '../../shared/ui/jump.component';
 
 interface CurrencyLine {
@@ -59,9 +62,10 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
           </div>
           @for (line of foreign(); track line.code) {
             <div class="fx">
-              <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span>
+              @if (flag(line.code); as f) { <span class="code flag">{{ f }}</span> }
+              @else { <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span> }
               <span class="ui-tx">
-                <b class="ui-one">{{ line.name }}</b>
+                <b class="ui-one">{{ line.code }} · {{ line.name }}</b>
                 <small [class.behind]="!isToday(line)">{{ freshness(line) }}</small>
               </span>
               @if (line.rate) { <b class="fx-value">{{ rateText(line.rate.rate_scaled) }}</b> }
@@ -88,10 +92,11 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
         <h3 class="ui-h">{{ 'ui.currencies.yours' | t }}</h3>
         <div class="ui-list">
           @for (line of lines(); track line.code) {
-            <button type="button" class="ui-row" [disabled]="line.code === 'COP'" (click)="typeRate(line)">
-              <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span>
+            <button type="button" class="ui-row" [disabled]="line.code === 'COP'" (click)="view(line)">
+              @if (flag(line.code); as f) { <span class="code flag">{{ f }}</span> }
+              @else { <span class="code" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span> }
               <span class="ui-tx">
-                <b class="ui-one">{{ line.name }} {{ line.symbol }}</b>
+                <b class="ui-one">{{ line.code }} · {{ line.name }}</b>
                 <small>{{ usedText(line.used) }}</small>
               </span>
               <span class="value">
@@ -99,7 +104,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
                   <b>{{ 'ui.currencies.main' | t }}</b>
                 } @else if (line.rate) {
                   <b>{{ rateText(line.rate.rate_scaled) }}</b>
-                  <small>{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'manual' ? ('ui.currencies.typed' | t) : ('ui.currencies.derived' | t) }}</small>
+                  <small [class.ui-y]="line.rate.source === 'manual'">{{ line.rate.source === 'trm' ? ('accounts.trm.official' | t) : line.rate.source === 'manual' ? ('ui.currencies.typed' | t) : ('ui.currencies.derived' | t) }}</small>
                 } @else {
                   <b class="ui-y">{{ 'ui.currencies.noRate' | t }}</b>
                   <small>{{ 'ui.currencies.cannotValue' | t }}</small>
@@ -117,12 +122,57 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
       <app-jump #jump [content]="page"></app-jump>
     </ion-content>
 
+    <!-- One currency: the value in use and, when typed, the automatic one to
+         go back to (37b; Jose, 2026-10-19: there was no way back). -->
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet"
+               [isOpen]="viewing() !== null" (didDismiss)="viewing.set(null)">
+      <ng-template>
+        @if (viewing(); as line) {
+          <div class="ui-sheet-body detail">
+            <div class="grab"></div>
+            <div class="head">
+              @if (flag(line.code); as f) { <span class="code flag big">{{ f }}</span> }
+              @else { <span class="code big" [style.color]="colorOf(line.code)" [style.background]="tintOf(line.code)">{{ line.code }}</span> }
+              <b>{{ line.code }} · {{ line.name }}</b>
+              <p>{{ 'ui.currencies.sheet.hint' | t:{ one: oneOf(line) } }}</p>
+            </div>
+            <div class="ui-list">
+              @if (line.rate) {
+                <div class="ui-row plain">
+                  <span class="ui-tx">
+                    <b>{{ line.rate.source === 'manual' ? ('ui.currencies.yours.value' | t) : ('ui.currencies.auto.value' | t) }}</b>
+                    <small>{{ freshness(line) }}</small>
+                  </span>
+                  <b class="amount" [class.ui-y]="line.rate.source === 'manual'">{{ rateText(line.rate.rate_scaled) }}</b>
+                </div>
+              }
+              @if (!line.rate || line.rate.source === 'manual') {
+                <div class="ui-row plain">
+                  <span class="ui-tx">
+                    <b>{{ 'ui.currencies.auto.value' | t }}</b>
+                    <small>{{ autoLine(line) }}</small>
+                  </span>
+                  @if (autoRate(); as rate) { <b class="amount">{{ rateText(rate.rate_scaled) }}</b> }
+                  @else if (autoState() === 'looking') { <ion-spinner name="dots"></ion-spinner> }
+                </div>
+              }
+            </div>
+            @if (autoRate()) {
+              <button type="button" class="ui-btn" [disabled]="busy()" (click)="useAuto(line)">{{ 'ui.currencies.useAuto' | t }}</button>
+            }
+            <button type="button" class="ui-btn ghost" (click)="typeRate(line)">{{ 'ui.currencies.typeOther' | t }}</button>
+          </div>
+        }
+      </ng-template>
+    </ion-modal>
+
     <!-- Today's rate for one currency, typed by hand (2d). -->
     <ion-modal class="confirm-sheet" [isOpen]="typing() !== null" (didDismiss)="typing.set(null)">
       <ng-template>
         @if (typing(); as line) {
           <div class="confirm-dialog">
-            <span class="badge gold">{{ line.code }}</span>
+            @if (flag(line.code); as f) { <span class="badge flag">{{ f }}</span> }
+            @else { <span class="badge gold">{{ line.code }}</span> }
             <h2>{{ 'ui.currencies.todayRate' | t:{ code: line.code } }}</h2>
             <p>{{ 'ui.currencies.todayRate.hint' | t:{ one: oneOf(line) } }}</p>
             <div class="ui-inputs">
@@ -174,9 +224,19 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
       width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none;
       font-size: 11.5px; font-weight: 700;
     }
+    .code.flag { background: var(--app-s2); font-size: 23px; line-height: 1; }
+    .code.big { width: 56px; height: 56px; font-size: 32px; margin: 0 auto 8px; }
+    .badge.flag { font-size: 30px; background: var(--app-s2); }
+    .detail .head { text-align: center; margin: 4px 0 14px; }
+    .detail .head b { font-size: 18px; display: block; }
+    .detail .head p { margin: 4px 0 0; color: var(--app-mu); font-size: 14px; }
+    .detail .amount { font-size: 16px; font-weight: 700; flex: none; }
+    .detail .ui-btn { width: 100%; margin-top: 10px; }
+    .detail ion-spinner { width: 22px; height: 22px; }
     .value { display: flex; flex-direction: column; align-items: flex-end; flex: none; text-align: right; }
     .value b { font-weight: 600; font-size: 15px; }
     .value small { color: var(--app-mu); font-size: 12px; }
+    .value small.ui-y { color: var(--app-yel); }
     button.ui-row:disabled { opacity: 1; cursor: default; }
     .hint { margin: 10px 4px 0; font-size: 13.5px; line-height: 1.45; color: var(--app-mu); }
   `],
@@ -199,6 +259,11 @@ export class CurrenciesPage {
   readonly adding = signal(false);
   readonly typing = signal<CurrencyLine | null>(null);
   readonly draft = signal('');
+  readonly viewing = signal<CurrencyLine | null>(null);
+  /** The automatic value of the currency on view, fetched when it is opened. */
+  readonly autoRate = signal<{ rate_scaled: number; source: string } | null>(null);
+  readonly autoState = signal<'looking' | 'found' | 'none' | 'noSource'>('none');
+  private readonly toast = inject(ToastService);
 
   readonly draftValid = computed(() => {
     const value = parseRate(this.draft());
@@ -218,7 +283,8 @@ export class CurrenciesPage {
               (SELECT COUNT(*) FROM accounts a WHERE a.currency_code = c.code) AS used
        FROM currencies c ORDER BY used DESC, c.code`);
     const inForce = await new RatesRepository(this.database.driver).allInForce('COP', todayIso());
-    this.lines.set(rows.map(row => ({ ...row, rate: inForce.get(row.code) ?? null })));
+    const lang = this.i18n.language();
+    this.lines.set(rows.map(row => ({ ...row, name: currencyName(row.code, row.name, lang), rate: inForce.get(row.code) ?? null })));
     await this.rates.load();
   }
 
@@ -254,8 +320,61 @@ export class CurrenciesPage {
     return `${this.i18n.t(from)} · ${when}${extra}`;
   }
 
+  flag(code: string): string {
+    return flagOf(code);
+  }
+
+  /** Opens a currency; a typed value looks its automatic one up beside it. */
+  async view(line: CurrencyLine): Promise<void> {
+    if (line.code === 'COP') return;
+    this.viewing.set(line);
+    this.autoRate.set(null);
+    if (line.rate && line.rate.source !== 'manual') { this.autoState.set('none'); return; }
+    this.autoState.set('looking');
+    let found: { rate_scaled: number; source: string } | null = null;
+    try {
+      found = await rateToPesosOn(line.code, todayIso());
+    } catch {
+      found = null;
+    }
+    if (this.viewing()?.code !== line.code) return;
+    this.autoRate.set(found);
+    // A currency the app knows how to fetch could not be reached; any other has
+    // no source at all.
+    this.autoState.set(found ? 'found' : catalogOf(line.code)?.auto === false ? 'noSource' : 'none');
+  }
+
+  autoLine(line: CurrencyLine): string {
+    const state = this.autoState();
+    if (state === 'looking') return this.i18n.t('ui.currencies.auto.looking');
+    if (state === 'noSource') return this.i18n.t('ui.currencies.noSource');
+    if (state === 'none') return this.i18n.t('ui.currencies.unreachable');
+    const from = line.code === 'USD' ? 'ui.currencies.fromTrm' : 'ui.currencies.fromEcb';
+    return `${this.i18n.t(from)} · ${this.i18n.t('ui.currencies.sinceToday')}`;
+  }
+
+  /** Today's automatic value replaces the typed one, dated today (rule 4). */
+  async useAuto(line: CurrencyLine): Promise<void> {
+    const rate = this.autoRate();
+    if (!rate) return;
+    this.busy.set(true);
+    try {
+      await new RatesRepository(this.database.driver).set({
+        on_date: todayIso(), base_code: line.code, quote_code: 'COP',
+        rate_scaled: rate.rate_scaled, source: rate.source,
+      });
+      this.viewing.set(null);
+      this.database.dataChanged();
+      if (line.code === 'USD') await this.rates.load();
+      this.toast.say(this.i18n.t('ui.currencies.backToAuto', { code: line.code }));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   typeRate(line: CurrencyLine): void {
     if (line.code === 'COP') return;
+    this.viewing.set(null);
     this.draft.set(line.rate ? this.rateText(line.rate.rate_scaled) : '');
     this.typing.set(line);
   }

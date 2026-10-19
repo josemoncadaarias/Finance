@@ -39,6 +39,9 @@ const ALLOWED = [
   // in the same row: they become the user's own data the moment they land, so
   // they are seeded once in the app's language and never translated again.
   'core/database/starter-categories.ts',
+  // The currencies a person can add, each named in both languages in the
+  // same row and shown in the app's language (37c).
+  'core/currencies/catalog.ts',
   // The sample data a new user can load (21a): invented people's accounts
   // and notes, which are data the moment they are written, like anybody's.
   'core/demo/showcase.ts',

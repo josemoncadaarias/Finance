@@ -118,6 +118,7 @@ const TOUR_LIST = {
       { sel: 'app-currencies section.trm', title: 'tour.currencies.1.title', text: 'tour.currencies.1.text' },
       { sel: 'app-currencies .refresh', title: 'tour.currencies.2.title', text: 'tour.currencies.2.text' },
       { sel: 'app-currencies .ui-titlebar .ui-pill', title: 'tour.currencies.3.title', text: 'tour.currencies.3.text' },
+      { sel: 'app-currencies .ui-list .ui-row:nth-child(2)', title: 'tour.currencies.4.title', text: 'tour.currencies.4.text', since: 2 },
     ],
   },
   report: {

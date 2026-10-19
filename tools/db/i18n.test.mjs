@@ -35,8 +35,6 @@ test('no phrase is left empty or accidentally identical', () => {
   const sameOnPurpose = new Set([
     'ui.notifications.chip.app', 'ui.notifications.chip.sms',
     'summary.moved', 'entry.transfer', 'ui.tax.uvt',
-    // Currency codes are the same in every language.
-    'accounts.currency.codeHint',
     // "no" is spelled the same in Spanish and English.
     'csv.no',
     // A colour's name, the same word in both.

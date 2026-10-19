@@ -13,6 +13,7 @@
  * which leaves a trail.
  */
 
+import { currencyName, flagOf } from '../../core/currencies/catalog';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import {
   Component, HostListener, computed, inject, input, output, signal, type OnInit,
@@ -436,8 +437,19 @@ export class AccountEditorComponent implements OnInit {
     this.editingFace.set(false);
   }
 
-  readonly currencyName = computed(() =>
-    this.currencies().find(c => c.code === this.currency())?.name ?? '');
+  readonly currencyName = computed(() => {
+    const kept = this.currencies().find(c => c.code === this.currency());
+    return kept ? this.nameOf(kept) : '';
+  });
+
+  flag(code: string): string {
+    return flagOf(code);
+  }
+
+  /** A currency's name in the app's language (the catalogue's), else as kept. */
+  nameOf(option: { code: string; name: string }): string {
+    return currencyName(option.code, option.name, this.i18n.language());
+  }
 
   typeIcon(type: AccountType): string {
     switch (type) {

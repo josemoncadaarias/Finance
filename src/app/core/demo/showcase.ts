@@ -232,14 +232,18 @@ let trm = 4_050_0000;
 for (const d of days(FROM, TODAY)) {
   trm += next(-140_000, 110_000);
   trmOf.set(d, trm);
-  // OR IGNORE: on a phone the app has already fetched today's real TRM by
-  // the time the sample is asked for, and that one stays.
+  // Never today's: an invented figure dated today would be taken for the
+  // day's official TRM and the app would not fetch the real one (Jose,
+  // 2026-10-19). Today's comes from the TRM; offline, yesterday's stands.
+  // OR IGNORE: a real TRM already fetched for an earlier day stays.
+  if (d === TODAY) continue;
   await db.run(
     `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
      VALUES (?, 'USD', 'COP', ?, 'trm', ?)`, [d, trm, NOW()]);
 }
-for (const [i, d] of days(FROM, TODAY).entries()) {
-  if (i % 7 === 0 || d === TODAY) {
+const eurDays = days(FROM, TODAY).slice(0, -1);
+for (const [i, d] of eurDays.entries()) {
+  if (i % 7 === 0 || i === eurDays.length - 1) {
     await db.run(
       `INSERT OR IGNORE INTO exchange_rates (on_date, base_code, quote_code, rate_scaled, source, fetched_at)
        VALUES (?, 'EUR', 'COP', ?, 'derived', ?)`, [d, Math.round(trmOf.get(d) * 1.09), NOW()]);
