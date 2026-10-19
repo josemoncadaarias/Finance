@@ -154,6 +154,13 @@ Nothing about the data would need undoing: the redesign wrote no migration.
 **How Jose updates his phone**: Actions tab → "Store bundle" → Run workflow
 on `main` → it uploads to the internal track → the Play Store updates the
 app. A debug APK can no longer be installed on that phone (other key).
+If Play Store does not offer the update although Play Console says
+"Available to internal testers" (Jose, 2026-10-19: versions 1117 and 1118
+did not show for over an hour), Play Store's own cache is stale: Play Store's
+app info → Forzar detención → Borrar datos → Borrar caché and Borrar todos
+los datos (on Xiaomi the button is "Borrar datos" at the foot). The version
+Play's "Detalles" shows is the listing's (the closed test's), not the one
+installed; that one is in Ajustes → Apps → Finance.
 
 **Waiting for Jose, or to check on the phone** (a browser cannot show
 these):
