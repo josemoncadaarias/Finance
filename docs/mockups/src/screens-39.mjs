@@ -2,7 +2,10 @@
 // behind it (Jose, 2026-10-19, after Lukas's "¿Puedo gastar...?"). Every
 // answer comes from the app's own figures; what it does not understand it
 // asks, and remembers the answer. Figures invented.
-import { ic, C, tint, top, tag, chev, ci, sq, tabs, catIcon, accIcon } from './lib.mjs';
+import { ic, C, tint, top, tag, chev, ci, sq, tabs, catIcon, accIcon, bigTitle } from './lib.mjs';
+import S1 from './screens-1.mjs';
+import S2 from './screens-2.mjs';
+import S5 from './screens-5.mjs';
 
 const S = {};
 // A message wraps between phrases, never leaving one word or a figure's half
@@ -22,7 +25,7 @@ const rest = (total, day) => `<div style="margin-top:10px;background:${tint(C.bl
   <div class="sub" style="font-size:12.5px;margin-bottom:4px">Del 19 al 31 de octubre · 13 días</div>
   <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Te quedaría libre</span><b style="font-weight:600;white-space:nowrap">${total}</b></div>
   <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13.8px"><span>Para gastar cada día</span><b style="font-weight:600;white-space:nowrap">${day}</b></div>
-  <div class="sub" style="margin-top:4px;font-size:12.5px">Ya descontados tus pagos que vienen <span style="white-space:nowrap">y lo que falta para tus metas.</span></div></div>`;
+  <div class="sub" style="margin-top:4px;font-size:12.5px">Ya descontados tus pagos que vienen <span style="white-space:nowrap">y el aporte a tus metas.</span></div></div>`;
 const bar = `<div style="position:absolute;left:0;right:0;bottom:0;padding:10px 16px 24px;background:#0b1324;border-top:1px solid #18243d;display:flex;gap:10px;align-items:center">
  <div class="search" style="flex:1;padding:12px 14px">Escribe o habla: «gasté 45 mil en almuerzo»</div>
  <span style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:grid;place-items:center;color:#fff;flex:none">${ic('mic-outline', '', 'width:22px;height:22px')}</span></div>`;
@@ -76,7 +79,7 @@ S['39d-me-alcanza'] = chat(`
   <div class="lab" style="margin:12px 0 2px">Tu dinero este mes</div>
   ${line('En tus cuentas hoy', '$ 2.340.000')}
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
-  ${line('Lo que falta para tus metas', '−$ 200.000')}
+  ${line('Aporte a tus metas este mes', '−$ 200.000')}
   ${line('Libre para gastar', '$ 1.250.000', 'g')}
   ${rest('$ 950.000', '$ 73.100')}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Ver el tope</div><div class="btn" style="height:42px">Registrar el gasto</div></div>`, tint(C.yel, .4))}`);
@@ -116,7 +119,7 @@ S['39g-cuanto-llevo'] = chat(`
  ${chips('¿Y el mes pasado?', '¿En qué más gasté?')}`);
 
 // 39h - voice: the phone's own dictation, the words shown as they come.
-S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo gastar al día?')}${app('Para el resto del mes, del 19 al 31 de octubre, te quedan <b>$ 773.500</b> libres: <b>$ 59.500 para gastar cada día</b>. Ya descontados tus pagos y lo que falta para tus metas.')}</main>
+S['39h-voz'] = `${head}<main style="padding-bottom:110px">${me('¿Cuánto puedo gastar al día?')}${app('Para el resto del mes, del 19 al 31 de octubre, te quedan <b>$ 773.500</b> libres: <b>$ 59.500 para gastar cada día</b>. Ya descontados tus pagos y el aporte a tus metas.')}</main>
  <div class="scrim" style="background:rgba(2,6,14,.55)"></div>
  <div class="sheet" style="text-align:center;padding-top:18px">
   <div class="sub">Escuchando</div>
@@ -133,7 +136,7 @@ S['39i-me-alcanza-sin-categoria'] = chat(`
  ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.grn, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
   ${line('En tus cuentas hoy', '$ 4.120.000')}
   ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
-  ${line('Lo que falta para tus metas', '−$ 580.000')}
+  ${line('Aporte a tus metas este mes', '−$ 580.000')}
   ${line('Libre para gastar', '$ 2.650.000', 'g')}
   ${rest('$ 650.000', '$ 50.000')}
   <div class="sub" style="margin-top:8px">Sin contar tus CDT ni lo que tienes fuera del patrimonio.</div>`, tint(C.grn, .4))}
@@ -173,5 +176,62 @@ S['39l-gasto-con-producto'] = chat(`
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><div class="btn ghost" style="height:42px">Revisar</div><div class="btn" style="height:42px">Guardar</div></div>`)}
  ${me('Gasté 50 mil del bolsillo viajes')}
  ${app('Lo saco de <b>Bolsillo viajes</b>, en Banco Índigo.')}`);
+
+// 39m - goals have no fixed instalment. What "¿me alcanza?" sets aside for
+// them this month is an estimate, said as one: a goal with a date, what it
+// lacks over the months left; without a date, the person's own average of the
+// last 3 months; less what already went in this month. And what a goal
+// already holds is not free money (Jose, 2026-10-19).
+S['39m-me-alcanza-metas'] = chat(`
+ ${me('¿Me alcanza para unos tenis de 300 mil?')}
+ ${app('Sí, te alcanza. Para el resto del mes te quedarían <b>$ 3.173.750 libres</b>, unos $ 244.100 por día.')}
+ ${card(`<div style="display:flex;align-items:center;gap:10px;background:${tint(C.grn, .14)};margin:-12px -14px 8px;padding:12px 14px;border-radius:17px 17px 0 0">${ic('checkmark-circle-outline', 'g')}<b class="g">Te alcanza</b></div>
+  ${line('En tus cuentas hoy', '$ 9.120.000')}
+  ${line('Ya guardado en tus metas', '−$ 4.250.000')}
+  ${line('Pagos que vienen (tarjeta, cuota)', '−$ 890.000')}
+  ${line('Aporte a tus metas este mes', '−$ 506.250')}
+  ${line('Libre para gastar', '$ 3.473.750', 'g')}
+  ${rest('$ 3.173.750', '$ 244.100')}
+  <div class="btn ghost" style="height:42px;margin-top:12px">${ic('help-circle-outline', '', 'width:18px;height:18px;margin-right:6px')}¿Cómo calculo lo de tus metas?</div>`, tint(C.grn, .4))}`);
+
+// 39n - tapping it: one goal per row, how its figure came out, and that none
+// of it is an instalment the person owes.
+const goalRow = (i, c, name, how, already, set) => `<div style="padding:10px 0;border-top:1px solid var(--line)">
+  <div style="display:flex;align-items:center;gap:10px">${ci(i, c, 34)}<b style="flex:1;font-size:14.5px">${name}</b><b style="white-space:nowrap">${set}</b></div>
+  <div class="sub" style="margin:6px 0 0 44px;font-size:13px;line-height:1.4">${how}</div>
+  <div class="sub" style="margin:2px 0 0 44px;font-size:13px">${already}</div></div>`;
+S['39n-como-calculo-metas'] = chat(`
+ ${me('¿Cómo calculas lo de mis metas?')}
+ ${app('Tus metas no tienen una cuota fija. Calculo cuánto te convendría aportar este mes y lo aparto, para no decirte que ese dinero está libre.')}
+ ${card(`<div class="lab" style="margin-bottom:2px">Ya guardado en tus metas · $ 4.250.000</div>
+  <div class="sub" style="font-size:13px;margin-bottom:8px">Es lo que hoy tienen las cuentas y productos de cada meta. No lo cuento como libre.</div>
+  <div class="lab" style="margin:8px 0 2px">Aporte de este mes · $ 506.250</div>
+  ${goalRow('airplane-outline', C.cya, 'Viaje a Cartagena', 'Tiene fecha: te faltan $ 3.650.000 para junio de 2027, en 8 meses. Son $ 456.250 al mes.', 'Este mes ya aportaste $ 100.000.', '$ 356.250')}
+  ${goalRow('car-outline', C.org, 'Carro', 'No tiene fecha: tomo tu promedio de los últimos 3 meses, $ 150.000 al mes.', 'Este mes no has aportado.', '$ 150.000')}
+  ${goalRow('school-outline', C.blu, 'Matrícula', 'Ya la lograste.', '', '$ 0')}
+  <div class="sub" style="margin-top:8px;font-size:12.5px">Es una sugerencia, no una deuda: si este mes aportas menos, no pasa nada. Cada vez que aportas, la cifra baja.</div>`)}
+ ${chips('Ver mis metas', 'Ponerle fecha al Carro')}`);
+
+// 39o - the same estimate on a goal's own page, for a goal without a date.
+S['39o-meta-sin-fecha'] = `${top('Carro', { sub: 'Bolsillo Carro · Banco Índigo' })}<main>
+ <div class="card hero"><div class="lab">Llevas</div>
+  <div class="big">1.900.000 <span class="mu" style="font-size:15px;font-weight:500">de 30.000.000</span></div>
+  <div class="sub" style="margin-top:8px;white-space:normal">Sin fecha. A tu ritmo tardarías más de 10 años.</div></div>
+ <div class="h">Este mes</div>
+ <div class="card" style="padding:14px;text-wrap:pretty">
+  ${line('Aporte sugerido', '$ 150.000')}
+  ${line('Ya aportaste', '$ 0')}
+  ${line('Te falta este mes', '$ 150.000', 'p')}
+  <div class="sub" style="margin-top:8px;font-size:13px">No es una cuota fija. Como la meta no tiene fecha, sugiero tu promedio de los últimos 3 meses.</div>
+  <div class="btn ghost" style="height:42px;margin-top:12px">Ponerle una fecha</div></div>
+ <div class="list" style="margin-top:10px"><div class="row">${ci('speedometer-outline', C.grn, 40)}<div class="tx"><b>Tu ritmo</b><small style="display:block">Entraron $ 150.000 al mes</small><small style="display:block">en los últimos 3 meses</small></div></div></div>
+ <div style="height:110px"></div></main>${tabs('Más')}`;
+
+// 39p-39r - the assistant's button on the top right of every screen.
+const ask = `<div class="btn-r" style="background:${tint(C.blu, .2)};color:var(--pr);margin-left:6px">${ic('sparkles-outline')}</div>`;
+const once = (html, find, add) => { const i = html.indexOf(find); if (i < 0) throw new Error(find); return html.slice(0, i + find.length) + add + html.slice(i + find.length); };
+S['39p-boton-inicio'] = once(S1['1a-inicio'], '7 cuentas, todas incluidas</div></div>', ask);
+S['39q-boton-cuentas'] = once(S2['2a-cuentas'], 'Nueva cuenta</div>', ask);
+S['39r-boton-reporte'] = S5['5a-reporte-movimientos'].replace(/(<div class="btn-r">[\s\S]*?<\/div>)/, `$1${ask}`);
 
 export default S;

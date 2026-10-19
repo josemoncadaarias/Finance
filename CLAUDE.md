@@ -5265,6 +5265,22 @@ with testers runs; the paywall is finished after them.
   spaces), the bubbles and cards use `text-wrap: pretty` so no word is left
   alone on the last line, and a row whose value is long splits into two rows
   rather than squeezing its label.
+- **Goals have no fixed instalment, and that is said** (Jose, 2026-10-19,
+  mockups `39m`-`39o`). Verified in `goalStatus` (`core/goals/goals.ts`):
+  a goal stores no monthly figure; a goal with a date works out
+  `neededPerMonthMinor` (what it lacks over the months left), one without a
+  date has only its pace (what came in a month over the last 3 months). So
+  "Aporte a tus metas este mes" is an ESTIMATE per goal: with a date, that
+  monthly need; without one, the person's own average (none when there is
+  no history); less what already went in this month, never below 0; a goal
+  reached sets nothing aside. **Proposed, for Jose's word**: what the goals'
+  places already hold ("Ya guardado en tus metas") is also not free money.
+  "¿Cómo calculo lo de tus metas?" opens each goal's figure and how it came
+  out, saying it is a suggestion, not a debt (`39n`); a goal's page without a
+  date shows "Aporte sugerido", "Ya aportaste", "Te falta este mes" (`39o`).
+- **The assistant's button sits at the top right of every screen** (Jose,
+  2026-10-19, `39p`-`39r`): a round sparkles button, last in the title bar,
+  besides the row in the "+" sheet.
 - **Voice**: the phone's own dictation into the same reader (`39h`).
   Assumed, not verified: offline only with the Spanish pack downloaded; on
   many phones the audio goes through Google - to say in the privacy policy.
@@ -5389,4 +5405,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant, proposed)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant, proposed: chat, goals' estimate, the button on every screen)
