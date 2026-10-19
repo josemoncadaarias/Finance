@@ -114,7 +114,11 @@ export class RatesService {
       // app was closed can still be valued at their own day's rate.
       const quotes = await fetchTrm(existing === null ? FIRST_RUN_DAYS : 5);
 
+      // A value typed by hand today stands, for the dollar as for every other
+      // currency (rule 7); "Usar el automático" on Monedas y TRM puts it back.
+      const typedToday = existing?.on_date === today && existing.source === 'manual';
       for (const quote of quotes) {
+        if (typedToday && quote.on_date === today) continue;
         await rates.set({
           on_date: quote.on_date,
           base_code: TRM_CURRENCY,

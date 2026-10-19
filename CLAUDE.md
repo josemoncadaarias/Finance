@@ -176,7 +176,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (841 on 2026-10-16, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (845 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -810,6 +810,26 @@ these):
   wraps onto two lines instead of cutting. Checked at 302 px (a 393 px phone
   at 130 % letters) on every screen with the sample data: only names (an
   account, a category) still end in "…", and those slide (marquee rule).
+
+- **A currency is chosen from a list, never typed, and a typed value can
+  go back to the automatic one** (Jose, 2026-10-19, mockups `37a`-`37c`).
+  `core/currencies/catalog.ts` (`CATALOG`, `searchCatalog`, `flagOf`,
+  `currencyName`; `currency-catalog.test.mjs`): about sixty currencies with
+  flag, both names and symbol; `auto` marks the dollar and the ECB's list,
+  the rest ("Sin fuente automática: escribes su valor") are typed. "Agregar
+  una moneda" (`currency-dialog`, both screens) is that list with a search
+  by country, name or code; one already kept says "Ya la tienes". Names
+  show in the app's language. Tapping a currency on Monedas y TRM opens its
+  value; a typed one shows the automatic one beside it (fetched on opening,
+  `rateToPesosOn`) and "Usar el automático" writes it dated today. The
+  dollar's refresh no longer writes over a value typed today either (rule
+  7, as every other currency). **The sample data no longer writes today's
+  rates**: its invented TRM dated today was taken for the official one and
+  the real one was never fetched (yesterday's stands offline). Tour
+  `currencies` step `since: 2`. Checked in a browser with the TRM and the
+  ECB answered by stubs (the session's network refuses both). **Next, agreed
+  with Jose: a main currency for showing balances and reports only
+  (`37d`); the app stays in pesos inside.**
 
 - **The usual note on a product that is not the usual one needs no habit**
   (Jose, 2026-10-15: an income "Solo el producto" on Plata's Bolsillo under
@@ -5219,4 +5239,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency)

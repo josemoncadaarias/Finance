@@ -78,7 +78,7 @@
         <button type="button" class="ui-field" (click)="pickingCurrency.set(true)">
           <span class="in">
             <span class="lab">{{ 'accounts.currency' | t }}</span>
-            <span class="val">{{ currency() }} · {{ currencyName() }}</span>
+            <span class="val">{{ flag(currency()) }} {{ currency() }} · {{ currencyName() }}</span>
           </span>
           <ion-icon name="chevron-down-outline"></ion-icon>
         </button>
@@ -91,7 +91,7 @@
         <div class="ui-field">
           <span class="in">
             <span class="lab">{{ 'accounts.currency' | t }}</span>
-            <span class="val">{{ currency() }} · {{ currencyName() }}</span>
+            <span class="val">{{ flag(currency()) }} {{ currency() }} · {{ currencyName() }}</span>
             <span class="hint">{{ 'accounts.currency.locked' | t }}</span>
           </span>
           <ion-icon name="lock-closed-outline"></ion-icon>
@@ -304,8 +304,9 @@
       <div class="ui-list">
         @for (option of currencies(); track option.code) {
           <button type="button" class="ui-row" (click)="chooseCurrency(option.code)">
-            <span class="code-badge">{{ option.code }}</span>
-            <span class="ui-tx"><b>{{ option.name }}</b></span>
+            @if (flag(option.code); as f) { <span class="code-badge flag">{{ f }}</span> }
+            @else { <span class="code-badge">{{ option.code }}</span> }
+            <span class="ui-tx"><b>{{ option.code }} · {{ nameOf(option) }}</b></span>
             @if (currency() === option.code) {
               <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span>
             }
