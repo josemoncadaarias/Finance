@@ -259,3 +259,27 @@ ion-content.chat {
   color: var(--app-mu);
   text-wrap: pretty;
 }
+
+/* The whole picture's answers (40b-40j). */
+.card {
+  .step {
+    display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--app-line);
+    .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+    .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; b { font-size: 14.5px; } }
+  }
+  .rrow, .ranked {
+    padding: 9px 0; border-top: 1px solid var(--app-line);
+    .head { display: flex; align-items: center; gap: 10px; }
+    .name { flex: 1; min-width: 0; font-size: 14.5px; }
+    .value, .head > b { white-space: nowrap; }
+    .block { margin: 3px 0 0 44px; }
+  }
+  .ranked {
+    .name { font-weight: 500; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 0 40px; small { white-space: nowrap; font-size: 12.5px; } }
+    .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--app-s3); i { display: block; height: 6px; border-radius: 3px; background: var(--app-pr); } }
+  }
+  .ui-btn + .ui-btn { margin-top: 0; }
+  > .ui-btn, > div > .ui-btn { margin-top: 10px; width: 100%; }
+}
+.card .block b, .card .note b { font-size: inherit; color: var(--app-tx); font-weight: 700; }

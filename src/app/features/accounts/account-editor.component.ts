@@ -45,6 +45,7 @@ import { shortDay } from '../../core/filters/period';
 import type { AccountRow, AccountType } from '../../core/database/types';
 import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
 import { balanceFromAvailable, balanceFromOwed, openingFor, standingOf } from '../../core/cards/card-setup';
+import { EA_SCALE, eaFromMonthly, monthlyFromEa } from '../../core/loans/schedule';
 
 const TYPES: AccountType[] = ['debit', 'credit', 'cash', 'investment'];
 
@@ -196,6 +197,23 @@ export class AccountEditorComponent implements OnInit {
   /** A card's cut-off and payment days, both optional; '' is none. */
   readonly statementDay = signal('');
   readonly dueDay = signal('');
+  /** The rate the card charges, as typed, and how the bank quotes it. */
+  readonly cardRateText = signal('');
+  readonly cardRateQuoted = signal<'ea' | 'mv'>('ea');
+  /** The typed rate as E.A. scaled, whichever way it was typed; null when empty. */
+  readonly cardRateScaled = computed(() => {
+    const typed = rateScaledOf(this.cardRateText());
+    if (typed === null || typed === 0) return null;
+    return this.cardRateQuoted() === 'ea' ? typed : eaFromMonthly(typed);
+  });
+  /** "Es 2,11 % cada mes" or "Equivale a 28,50 % E.A.". */
+  readonly cardRateLine = computed(() => {
+    const ea = this.cardRateScaled();
+    if (ea === null) return '';
+    return this.cardRateQuoted() === 'ea'
+      ? this.i18n.t('loans.form.rate.monthly', { rate: rateText(monthlyFromEa(ea), 2) })
+      : this.i18n.t('loans.form.rate.annual', { rate: rateText(ea, 2) });
+  });
   /** Paid in the month it closes when the payment day comes after the cut-off. */
   readonly sameMonth = computed(() => Number(this.dueDay()) > Number(this.statementDay()) && this.statementDay() !== '');
 
@@ -391,6 +409,9 @@ export class AccountEditorComponent implements OnInit {
     }
     this.statementDay.set(account.statement_day === null ? '' : String(account.statement_day));
     this.dueDay.set(account.due_day === null ? '' : String(account.due_day));
+    this.cardRateQuoted.set(account.card_rate_quoted ?? 'ea');
+    this.cardRateText.set(account.card_rate_scaled == null ? ''
+      : rateText(account.card_rate_quoted === 'mv' ? monthlyFromEa(account.card_rate_scaled) : account.card_rate_scaled, 2));
     await this.loadLimitHistory();
   }
 
@@ -534,6 +555,8 @@ export class AccountEditorComponent implements OnInit {
         opened_on: this.openedOn(),
         statement_day: this.isCredit() ? dayOf(this.statementDay()) : null,
         due_day: this.isCredit() ? dayOf(this.dueDay()) : null,
+        card_rate_scaled: this.isCredit() ? this.cardRateScaled() : null,
+        card_rate_quoted: this.isCredit() && this.cardRateScaled() !== null ? this.cardRateQuoted() : null,
       };
 
       let createdId: number | null = null;
@@ -708,4 +731,14 @@ function todayIso(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** "28,5" or "2.1" as a percentage scaled by 1,000,000; null when it is no number. */
+function rateScaledOf(text: string): number | null {
+  const n = Number(text.trim().replace(',', '.'));
+  return text.trim() !== '' && Number.isFinite(n) && n >= 0 && n < 1000 ? Math.round(n * EA_SCALE / 100) : null;
+}
+
+function rateText(scaled: number, digits: number): string {
+  return new Intl.NumberFormat('es-CO', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(scaled * 100 / EA_SCALE);
 }

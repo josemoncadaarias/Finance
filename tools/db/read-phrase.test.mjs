@@ -339,3 +339,58 @@ for (const [sentence, side] of NOT_MOVES) {
     assert.equal(readPhrase(sentence, others()).side, side);
   });
 }
+
+// The questions about the whole picture (mockups 40a-40j), said the way
+// different people would say them.
+const ASKED = [
+  ['¿Cómo voy este mes?', 'howAmI'], ['como me va', 'howAmI'], ['¿Cómo estoy en septiembre?', 'howAmI'],
+  ['¿cómo vamos esta semana?', 'howAmI'], ['dame un resumen del mes', 'howAmI'], ['how am I doing this month', 'howAmI'],
+  ['¿En qué gasté más?', 'topSpending'], ['en que se me va la plata', 'topSpending'], ['¿dónde se me fue el dinero este mes?', 'topSpending'],
+  ['cuáles son mis mayores gastos', 'topSpending'], ['what did I spend the most on', 'topSpending'],
+  ['¿Cuánto debo?', 'debts'], ['cuantas deudas tengo', 'debts'], ['¿cuáles son mis deudas?', 'debts'], ['mis préstamos', 'debts'], ['how much do I owe', 'debts'],
+  ['¿Qué deuda pago primero?', 'payFirst'], ['cuál préstamo me conviene pagar primero', 'payFirst'], ['qué debería pagar primero', 'payFirst'],
+  ['que deuda me cobra más intereses', 'payFirst'], ['which debt should I pay first', 'payFirst'],
+  ['¿Qué pagos tengo este mes?', 'due'], ['qué tengo que pagar esta semana', 'due'], ['cuándo vence la tarjeta', 'due'], ['¿qué cuotas me faltan?', 'due'],
+  ['¿Cuánto tengo?', 'have'], ['¿cuánta plata tengo?', 'have'], ['¿cuál es mi patrimonio?', 'have'], ['¿cuánto hay en Nequi?', 'have'],
+  ['¿Cómo van mis topes y mis metas?', 'plans'], ['como voy con mis metas', 'plans'], ['mis presupuestos', 'plans'],
+  ['¿cuánto me queda libre?', 'perDay'],
+  ['¿Cómo calculas lo de mis metas?', 'howGoals'],
+];
+for (const [said, intent] of ASKED) {
+  test(`a question, said another way: "${said}"`, () => {
+    assert.equal(readPhrase(said, others()).intent, intent);
+  });
+}
+
+test('paying more names its amount', () => {
+  for (const said of ['¿Y si abono 500 mil al mes?', 'si pago 500 mil extra cada mes', 'qué pasa si le meto 500 mil más', 'what if I pay 500k extra']) {
+    const r = readPhrase(said, others());
+    assert.equal(r.intent, 'payMore', said);
+    assert.equal(r.amountMinor, P(500_000), said);
+  }
+});
+
+test('an account named in "¿cuánto me queda en Nequi?" is that account', () => {
+  const r = readPhrase('¿cuánto me queda en Nequi?', others());
+  assert.equal(r.intent, 'have');
+  assert.equal(r.accountId, 2);
+});
+
+test('the period a question names', () => {
+  const at = said => readPhrase(said, others()).period;
+  assert.deepEqual(at('¿cómo voy este mes?'), { kind: 'month', from: '2026-10-01', to: '2026-10-31' });
+  assert.deepEqual(at('¿cómo me fue el mes pasado?'), { kind: 'month', from: '2026-09-01', to: '2026-09-30' });
+  assert.deepEqual(at('¿en qué gasté más en agosto?'), { kind: 'month', from: '2026-08-01', to: '2026-08-31' });
+  assert.deepEqual(at('¿cómo me fue en diciembre?'), { kind: 'month', from: '2025-12-01', to: '2025-12-31' });
+  assert.deepEqual(at('¿cómo voy en marzo del 2026?'), { kind: 'month', from: '2026-03-01', to: '2026-03-31' });
+  assert.equal(at('¿cómo voy este año?').kind, 'year');
+  assert.equal(at('¿cómo voy este año?').from, '2026-01-01');
+  assert.equal(at('¿cómo me fue el año pasado?').from, '2025-01-01');
+  assert.equal(at('¿cómo voy esta semana?').kind, 'week');
+  assert.equal(at('¿cómo voy?'), null);
+});
+
+test('registering is not taken for a question', () => {
+  assert.equal(readPhrase('pagué la cuota del carro 1.480.000 desde bancolombia', others()).intent, 'register');
+  assert.equal(readPhrase('gasté 80 mil en mercado con nequi', others()).side, 'expense');
+});

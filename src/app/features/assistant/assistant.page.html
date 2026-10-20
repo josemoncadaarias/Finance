@@ -20,24 +20,17 @@
         <h2>{{ 'ai.welcome' | t }}</h2>
         <p>{{ 'ai.welcome.hint' | t }}</p>
       </div>
-      <div class="ui-h">{{ 'ai.group.register' | t }}</div>
-      <div class="ui-list">
-        @for (key of examples.slice(0, 3); track key; let i = $index) {
-          <button type="button" class="ui-row" (click)="example(key)">
-            <ion-icon [class]="i === 0 ? 'ui-r' : i === 1 ? 'ui-g' : 'ui-p'" [name]="i === 0 ? 'arrow-up' : i === 1 ? 'arrow-down' : 'swap-horizontal'"></ion-icon>
-            <span class="ui-tx"><b class="wrap">{{ key | t }}</b></span>
-          </button>
-        }
-      </div>
-      <div class="ui-h">{{ 'ai.group.ask' | t }}</div>
-      <div class="ui-list">
-        @for (key of examples.slice(3); track key) {
-          <button type="button" class="ui-row" (click)="example(key)">
-            <ion-icon class="ui-p" name="help-circle-outline"></ion-icon>
-            <span class="ui-tx"><b class="wrap">{{ key | t }}</b></span>
-          </button>
-        }
-      </div>
+      @for (g of welcomeGroups; track g.title) {
+        <div class="ui-h">{{ g.title | t }}</div>
+        <div class="ui-list">
+          @for (r of g.rows; track r.key) {
+            <button type="button" class="ui-row" (click)="example(r.key)">
+              <ion-icon [class]="r.cls" [name]="r.icon"></ion-icon>
+              <span class="ui-tx"><b class="wrap">{{ r.key | t }}</b></span>
+            </button>
+          }
+        </div>
+      }
     }
 
     @if (!empty()) { <p class="kept">{{ 'ai.history.kept' | t:{ days: historyDays } }}</p> }
@@ -51,7 +44,7 @@
         </div>
 
         @if (m.card; as card) {
-          <div class="card" [class]="'card ' + (card.kind === 'free' ? card.tone : '')">
+          <div class="card" [class]="'card ' + (card.kind === 'free' || card.kind === 'rich' ? card.tone : '')">
             @switch (card.kind) {
               @case ('register') {
                 <div class="what">
@@ -190,6 +183,60 @@
                   } @else if (cap.status.overMinor > 0) {
                     <div class="line"><span>{{ 'ai.spent.over' | t }}</span><b class="ui-r">{{ pesos(cap.status.overMinor) }}</b></div>
                   }
+                }
+              }
+
+              @case ('rich') {
+                <!-- The whole picture's answers (40b-40j): plain pieces, kept in the history. -->
+                @if (card.band) {
+                  <div class="verdict" [class]="'verdict ' + card.tone"><ion-icon name="alert-circle-outline"></ion-icon><b>{{ card.band }}</b></div>
+                }
+                @for (b of card.blocks; track $index) {
+                  @if (b.lab) { <div class="lab">{{ b.lab }}</div> }
+                  @if (b.line; as l) {
+                    <div class="line"><span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b></div>
+                  }
+                  @if (b.step; as st) {
+                    <div class="step">
+                      <span class="n" [style.color]="st.color" [style.background]="st.color + '33'">{{ st.n }}</span>
+                      <div class="tx">
+                        <b>{{ st.title }}</b>
+                        @for (x of st.lines; track $index) {
+                          <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
+                        }
+                      </div>
+                    </div>
+                  }
+                  @if (b.row; as r) {
+                    <div class="rrow">
+                      <div class="head">
+                        <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
+                        <b class="name">{{ r.title }}</b>
+                        @if (r.value) { <b class="value">{{ r.value }}</b> }
+                      </div>
+                      @for (x of r.lines; track $index) {
+                        <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
+                      }
+                    </div>
+                  }
+                  @if (b.ranked; as k) {
+                    <div class="ranked">
+                      <div class="head">
+                        <app-badge [size]="30" [builtin]="k.icon" [customId]="k.customId" [tone]="k.color" [seed]="k.seed"></app-badge>
+                        <span class="name">{{ k.name }}</span>
+                        <b>{{ k.amount }}</b>
+                      </div>
+                      <div class="bar-row"><span class="bar"><i [style.width.%]="k.pct"></i></span>@if (k.change) {<small [class]="k.cls">{{ k.change }}</small>}</div>
+                    </div>
+                  }
+                  @if (b.note) { <p class="note">@for (p of bits(b.note); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p> }
+                }
+                @if (card.buttons.length > 0) {
+                  <div [class.two]="card.buttons.length > 1">
+                    @for (btn of card.buttons; track $index) {
+                      <button type="button" class="ui-btn" [class.ghost]="btn.ghost" (click)="go(btn)">{{ btn.label }}</button>
+                    }
+                  </div>
                 }
               }
 

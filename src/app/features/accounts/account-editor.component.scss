@@ -170,3 +170,10 @@
 }
 
 .code-badge.flag { background: var(--app-s2); font-size: 23px; line-height: 1; }
+
+/* The card's rate: the figure, its %, and how the bank quotes it. */
+.rate-row {
+  display: flex; align-items: center; gap: 8px;
+  input { flex: 1; min-width: 0; }
+}
+.ui-seg.mini { margin: 0; flex: none; button { padding: 6px 10px; font-size: 13px; } }

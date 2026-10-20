@@ -201,6 +201,7 @@ const TOUR_LIST = {
       { title: 'tour.assistant.1.title', text: 'tour.assistant.1.text' },
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.2.title', text: 'tour.assistant.2.text' },
       { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text' },
+      { title: 'tour.assistant.4.title', text: 'tour.assistant.4.text', since: 2 },
     ],
   },
   tax: {

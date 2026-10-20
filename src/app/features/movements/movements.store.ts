@@ -346,8 +346,12 @@ export class MovementsStore {
    * decide the figures, and a comparison whose two sides were filtered
    * differently would invent a change that never happened.
    */
-  async movementsFor(period: Period, accounts?: readonly AccountRow[]): Promise<Movement[]> {
-    return (await this.readPeriod(period, accounts)).movements;
+  /**
+   * `everywhere`: every account counted in net worth whatever is chosen on
+   * screen, in pesos - what the assistant reads (40b).
+   */
+  async movementsFor(period: Period, accounts?: readonly AccountRow[], everywhere = false): Promise<Movement[]> {
+    return (await this.readPeriod(period, accounts, everywhere)).movements;
   }
 
   /**
@@ -361,10 +365,10 @@ export class MovementsStore {
   readonly movedBetween = signal(0);
 
   private async readPeriod(
-    period: Period, accounts?: readonly AccountRow[],
+    period: Period, accounts?: readonly AccountRow[], everywhere = false,
   ): Promise<{ movements: Movement[]; movedBetween: number }> {
     const driver = this.database.driver;
-    const scope = this.filter.scopeFor(accounts ?? this.accounts());
+    const scope = this.filter.scopeFor(accounts ?? this.accounts(), everywhere);
 
     const detailed = await new TransactionsRepository(driver).listDetailed({
       accountIds: scope,
@@ -387,7 +391,7 @@ export class MovementsStore {
     // Several accounts at once add up their value in the main currency: the
     // pesos of each movement at its own day's rate, or its own amount when it
     // is already in that currency (37d). Nothing stored changes.
-    const main = this.main.code();
+    const main = everywhere ? 'COP' : this.main.code();
     const book = this.main.book();
     const rows = main === 'COP' ? detailed
       : detailed.map(row => ({ ...row, amount_base_minor: movementInMain(row, main, book) }));
