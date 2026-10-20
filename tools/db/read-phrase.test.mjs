@@ -251,3 +251,91 @@ test('a product of one account to another account', () => {
   assert.equal(r.toAccountId, 1);
   assert.equal(r.toProductId, null);
 });
+
+// Other people, other words (Jose, 2026-10-19: "no tienen que ser palabras
+// mías exactas"). Invented accounts and products; each sentence is said the
+// way somebody else might say the same thing.
+const others = () => ({
+  accounts: [
+    { id: 1, name: 'Bancolombia', type: 'debit' },
+    { id: 2, name: 'Nequi', type: 'debit' },
+    { id: 3, name: 'Daviplata', type: 'debit' },
+    { id: 4, name: 'Efectivo', type: 'cash' },
+    { id: 5, name: 'Tarjeta Visa', type: 'credit' },
+    { id: 7, name: 'Banco Azul', type: 'debit' },
+  ],
+  products: [
+    { id: 70, accountId: 7, name: 'Principal' },
+    { id: 71, accountId: 7, name: 'Bolsillo Viajes' },
+    { id: 72, accountId: 7, name: 'Cajita Emergencias' },
+    { id: 20, accountId: 2, name: 'Colchón' },
+  ],
+  categories: [
+    { id: 10, name: 'Mercado', kind: 'expense' },
+    { id: 11, name: 'Familia', kind: 'expense' },
+    { id: 20, name: 'Salario', kind: 'income' },
+  ],
+  merchants: new Map(),
+  learned: NOTHING_LEARNED,
+  today: TODAY,
+});
+
+const MOVES = [
+  // [sentence, from account, from product, to account, to product]
+  ['Pasé 100 mil de Bancolombia a Nequi', 1, null, 2, null],
+  ['le pasé 100 mil a nequi desde bancolombia', 1, null, 2, null],
+  ['transferí 100.000 de bancolombia para nequi', 1, null, 2, null],
+  ['hice una transferencia de 100 mil de Bancolombia a Nequi', 1, null, 2, null],
+  ['mandé cien mil a Nequi de Bancolombia', 1, null, 2, null],
+  ['envié 100 lucas de bancolombia a nequi', 1, null, 2, null],
+  ['trasladamos 100 mil de Bancolombia hacia Nequi', 1, null, 2, null],
+  ['voy a pasar 100 mil de bancolombia a nequi', 1, null, 2, null],
+  ['moví 100 mil desde Daviplata hasta Bancolombia', 3, null, 1, null],
+  ['consigné 300 mil en Bancolombia desde Daviplata', 3, null, 1, null],
+  ['giro de 50 mil de nequi a daviplata', 2, null, 3, null],
+  ['100 mil de bancolombia a nequi', 1, null, 2, null],
+  ['metí 200 mil al bolsillo viajes', 7, null, 7, 71],
+  ['guardé 200 mil en la cajita emergencias de banco azul', 7, null, 7, 72],
+  ['separé 150 mil para el bolsillo de viajes', 7, null, 7, 71],
+  ['saqué 80 mil del bolsillo viajes a la principal', 7, 71, 7, 70],
+  ['retiré 50 mil de la cajita emergencias', 7, 72, 7, null],
+  ['muevo 1 millón de la principal a la cajita de emergencias', 7, 70, 7, 72],
+  ['pásale 20 mil al colchón', 2, null, 2, 20],
+  ['saqué 200 mil del cajero de Bancolombia', 1, null, 4, null],
+  ['retiré 100 mil de nequi', 2, null, 4, null],
+  ['pagué la tarjeta visa 500 mil desde bancolombia', 1, null, 5, null],
+  ['abono de 300 mil a la tarjeta visa con nequi', 2, null, 5, null],
+  ['pagué 400 mil a la visa', null, null, 5, null],
+  ['pago de la tarjeta visa 250 mil desde nequi', 2, null, 5, null],
+  ['transferred 100 thousand from Bancolombia to Nequi', 1, null, 2, null],
+  ['I moved 200k into bolsillo viajes', 7, null, 7, 71],
+  ['pase 100 mil de banco lombia a neki', 1, null, 2, null],
+  ['pasé 100 mil de davi plata a nequi', 3, null, 2, null],
+];
+
+for (const [sentence, from, fromProduct, to, toProduct] of MOVES) {
+  test(`a move, said another way: "${sentence}"`, () => {
+    const r = readPhrase(sentence, others());
+    assert.equal(r.side, 'transfer', 'side');
+    assert.equal(r.accountId, from, 'from');
+    assert.equal(r.fromProductId ?? null, fromProduct, 'from product');
+    assert.equal(r.toAccountId, to, 'to');
+    assert.equal(r.toProductId ?? null, toProduct, 'to product');
+  });
+}
+
+const NOT_MOVES = [
+  // [sentence, side]
+  ['me pasaron 200 mil a Nequi', 'income'],
+  ['me consignaron el sueldo, 3 millones, en bancolombia', 'income'],
+  ['me devolvieron 50 mil en daviplata', 'income'],
+  ['gasté 80 mil en mercado con nequi', 'expense'],
+  ['compré mercado de 120 mil con la tarjeta visa', 'expense'],
+  ['pagué 60 mil de mercado con bancolombia', 'expense'],
+  ['pagué el mercado con la tarjeta visa, 90 mil', 'expense'],
+];
+for (const [sentence, side] of NOT_MOVES) {
+  test(`not a move: "${sentence}"`, () => {
+    assert.equal(readPhrase(sentence, others()).side, side);
+  });
+}
