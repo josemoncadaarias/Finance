@@ -29,6 +29,13 @@ test('the statement first, then what can be finished soon by rate, a mortgage ap
   assert.deepEqual(a.apart.map(o => o.debt.name), ['Carro', 'Hipoteca']);
 });
 
+test('a loan of a year and a half is in the order; one of three years is not', () => {
+  const moto = { ...base, kind: 'loan', id: 5, name: 'Moto', balanceMinor: P(9_000_000), rateScaled: EA(24), installmentMinor: P(450_000), installmentsLeft: 24 };
+  const a = advise([moto, car], P(500_000));
+  assert.deepEqual(a.order.map(o => [o.debt.name, o.months]), [['Moto', 18]]);
+  assert.deepEqual(a.apart.map(o => o.debt.name), ['Carro']);
+});
+
 test('nothing free: nothing is "pay first", everything is apart', () => {
   const a = advise([phone, car], 0);
   assert.equal(a.order.length, 0);
@@ -47,8 +54,8 @@ test('a debt with no rate cannot be weighed, and says so', () => {
   assert.deepEqual(a.order.map(o => o.debt.name), ['Celular']);
 });
 
-test('reach is at most twelve months, counting the money free today', () => {
-  assert.equal(REACH_MONTHS, 12);
+test('reach is at most 24 months, counting the money free today', () => {
+  assert.equal(REACH_MONTHS, 24);
   assert.equal(monthsToFinish(P(12_000_000), P(1_000_000)), 12);
   assert.equal(monthsToFinish(P(12_000_001), P(1_000_000)), 13);
   assert.equal(monthsToFinish(P(1), 0), Infinity);
