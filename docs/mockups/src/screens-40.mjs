@@ -61,7 +61,7 @@ S['40b-como-voy'] = chat(`
  ${card(`<div class="lab" style="margin-bottom:2px">Octubre, del 1 al 19</div>
   ${line('Entró', '+$ 5.400.000', 'g')}
   ${line('Salió', '−$ 4.140.000', 'r')}
-  ${line('Ahorrado', '$ 1.260.000 · 23 %', 'g')}
+  ${line('Te quedó (entró menos salió)', '$ 1.260.000', 'g')}
   ${lab('Contra septiembre, mismos días')}
   ${line('Gastaste', '6 % menos', 'g')}
   ${line('Lo que más subió', 'Restaurantes · +$ 58.000', 'y')}
@@ -98,10 +98,10 @@ S['40d-cuanto-debo'] = chat(`
  ${card(`${line('Tarjetas · 1', '$ 2.400.000')}
   ${line('Préstamos · 3', '$ 222.300.000')}
   ${line('Intereses este mes', '$ 2.360.000', 'r')}
-  ${debt('card-outline', C.yel, 'Tarjeta Visa', '$ 2.400.000', ['Factura de $ 1.150.000 · vence el 25 de octubre', 'Tasa 28,5 % E.A. · intereses del mes $ 50.600'])}
-  ${debt('phone-portrait-outline', C.pur, 'Celular', '$ 1.800.000', ['Tasa 33,9 % E.A. · 9 cuotas de $ 210.000', 'Intereses que faltan $ 262.000'], 'sq')}
-  ${debt('car-outline', C.org, 'Carro', '$ 38.500.000', ['Tasa 16,5 % E.A. · 31 cuotas de $ 1.480.000', 'Intereses que faltan $ 8.900.000'], 'sq')}
-  ${debt('home-outline', C.cya, 'Hipoteca', '$ 182.000.000', ['Tasa 12,3 % E.A. · 211 cuotas de $ 1.950.000', 'Intereses que faltan $ 229.000.000'], 'sq')}
+  ${debt('card-outline', C.yel, 'Tarjeta Visa', '$ 2.400.000', ['Factura de $ 1.150.000 · vence el 25 de octubre', 'Tasa 28,5 % E.A. · este mes te cobra $ 50.600 de intereses'])}
+  ${debt('phone-portrait-outline', C.pur, 'Celular', '$ 1.800.000', ['Tasa 33,9 % E.A. · 9 cuotas de $ 210.000', 'Te faltan $ 262.000 de intereses por pagar'], 'sq')}
+  ${debt('car-outline', C.org, 'Carro', '$ 38.500.000', ['Tasa 16,5 % E.A. · 31 cuotas de $ 1.480.000', 'Te faltan $ 8.900.000 de intereses por pagar'], 'sq')}
+  ${debt('home-outline', C.cya, 'Hipoteca', '$ 182.000.000', ['Tasa 12,3 % E.A. · 211 cuotas de $ 1.950.000', 'Te faltan $ 229.000.000 de intereses por pagar'], 'sq')}
   ${btns('Ver mis deudas')}`)}
  ${chips('¿Qué deuda pago primero?', '¿Qué pagos tengo este mes?')}`);
 
@@ -113,11 +113,11 @@ S['40e-que-pago-primero'] = chat(`
  ${me('¿Qué deuda pago primero?')}
  ${app('Primero la <b>factura de la Visa</b>: pagándola completa no te cobran intereses. Después el <b>Celular</b>: es la tasa más alta y la puedes cerrar pronto.')}
  ${card(`${lab('En este orden', 0)}
-  ${step(1, C.yel, 'Factura de la Visa · $ 1.150.000', ['Antes del 25 de octubre.', 'Si pagas solo el mínimo, el resto paga 28,5 % E.A.'])}
-  ${step(2, C.pur, 'Celular · $ 1.800.000', ['La tasa más alta: 33,9 % E.A.', 'Con lo que te queda libre cada mes la cierras en unos 2 meses.', 'Si la pagas hoy te ahorras <b class="g">$ 262.000</b> de intereses.'])}
-  ${step(3, C.org, 'Carro · $ 38.500.000', ['16,5 % E.A. Cuando cierres el celular, abona aquí la cuota que pagabas.', 'Cada abono acorta el plazo: tú le dices al banco que sea al plazo.'])}
+  ${step(1, C.yel, 'Factura de la Visa · $ 1.150.000', ['Antes del 25 de octubre.', 'Si pagas solo el mínimo, lo que quede te cobra intereses: 28,5 % E.A.'])}
+  ${step(2, C.pur, 'Celular · $ 1.800.000', ['La tasa más alta: 33,9 % E.A.', 'Con lo que te queda libre cada mes la terminas de pagar en unos 2 meses.', 'Si la pagas hoy te ahorras <b class="g">$ 262.000</b> de intereses.'])}
+  ${step(3, C.org, 'Carro · $ 38.500.000', ['16,5 % E.A. Cuando termines el celular, abona aquí lo que pagabas de su cuota.', 'Al abonar, pídele al banco que sea para pagar menos cuotas: así ahorras más intereses.'])}
   ${lab('No te la recomiendo de primera')}
-  ${debt('home-outline', C.cya, 'Hipoteca · $ 182.000.000', '', ['Es la tasa más baja (12,3 % E.A.) y el saldo es muy grande para cerrarla pronto.', 'Sigue con su cuota. Abonar aquí rinde menos que en las otras.'], 'sq')}
+  ${debt('home-outline', C.cya, 'Hipoteca · $ 182.000.000', '', ['Tiene la tasa más baja (12,3 % E.A.) y debes mucho: no la vas a terminar pronto.', 'Sigue pagando su cuota. Cada peso abonado aquí te ahorra menos intereses que en las otras.'], 'sq')}
   ${note('Es una sugerencia con tus cifras: no tiene en cuenta multas, seguros que cambien ni lo que te diga tu banco. Abonar a capital es tu derecho y no tiene penalidad (Ley 1555 de 2012).')}
   ${btns('Pagar la factura', 'Abonar al celular')}`)}
  ${chips('¿Y si abono 500 mil al mes?', '¿Cuánto debo?')}`);
@@ -127,17 +127,16 @@ S['40e-que-pago-primero'] = chat(`
 // schedule engine works it out; nothing is written.
 S['40f-si-abono'] = chat(`
  ${me('¿Y si abono 500 mil al mes?')}
- ${app('Abonando <b>$ 500.000 al mes</b> en ese orden te ahorras unos <b>$ 3.640.000 en intereses</b> y sales del carro 19 meses antes.')}
- ${card(`${lab('Así irían cerrando', 0)}
-  ${line('Celular', 'enero 2027 · antes julio 2027')}
-  ${line('Carro', 'octubre 2028 · antes mayo 2030')}
-  ${line('Hipoteca', 'sigue con su cuota')}
-  ${lab('Lo que ahorras')}
-  ${line('Intereses del celular', '$ 118.000', 'g')}
-  ${line('Intereses del carro', '$ 3.522.000', 'g')}
+ ${app('Si cada mes pagas <b>$ 500.000 además de tus cuotas</b>, terminas tus deudas antes y pagas menos intereses. <b>Te ahorrarías $ 3.640.000.</b>')}
+ ${card(`${lab('Así funcionaría', 0)}
+  ${step(1, C.pur, 'Primero, el celular', ['Los $ 500.000 extra van al celular.', 'Lo terminas de pagar en enero de 2027. Pagando solo la cuota terminarías en julio de 2027.'])}
+  ${step(2, C.org, 'Después, el carro', ['Cuando termines el celular, los $ 500.000 y los $ 210.000 que pagabas de su cuota van al carro.', 'Lo terminas de pagar en octubre de 2028. Pagando solo la cuota terminarías en mayo de 2030.'])}
+  ${step(3, C.cya, 'La hipoteca sigue igual', ['Sigues pagando su cuota de siempre.'])}
+  ${lab('Intereses que dejas de pagar')}
+  ${line('En el celular', '$ 118.000', 'g')}
+  ${line('En el carro', '$ 3.522.000', 'g')}
   ${line('En total', '$ 3.640.000', 'g')}
-  ${note('Cuando cierras una deuda, su cuota se suma al abono de la siguiente. ¿Te alcanzan los $ 500.000? Este mes te quedan $ 950.000 libres.')}
-  ${btns('Ver el carro')}`)}
+  ${note('Este mes te quedan $ 950.000 libres, así que sí puedes abonar los $ 500.000.')}`)}
  ${chips('¿Y con 1 millón?', '¿Qué deuda pago primero?')}`);
 
 // 40g - a card with no rate on record: asked once, with a reference until then.
@@ -146,7 +145,7 @@ S['40g-tarjeta-sin-tasa'] = chat(`
  ${app('Para comparar tu <b>Tarjeta Visa</b> con los préstamos necesito su tasa, y no la tengo. ¿Cuál te cobra el banco?')}
  ${card(`${line('Tarjeta Visa', 'Debes $ 2.400.000')}
   ${line('Tasa', 'Sin escribir', 'y')}
-  ${note('La encuentras en el extracto o en la app del banco, como «tasa de interés E.A.» o «M.V.». Mientras no la escribas, uso la tasa máxima legal del mes como referencia: las tarjetas suelen cobrar cerca de ella.')}
+  ${note('La encuentras en el extracto o en la app del banco, como «tasa efectiva anual (E.A.)» o «tasa mensual (M.V.)». Mientras no la escribas, uso la tasa máxima legal del mes como referencia: las tarjetas suelen cobrar cerca de ella.')}
   ${btns('Usar la de referencia', 'Escribir la tasa')}`, tint(C.yel, .4))}
  ${me('2,1 % mensual')}
  ${app('Listo: 2,1 % M.V. son <b>28,3 % E.A.</b> Lo guardé en la Visa para la próxima.')}`);
@@ -155,15 +154,16 @@ S['40g-tarjeta-sin-tasa'] = chat(`
 // still to pay, with the day and where they usually leave from.
 S['40h-pagos-del-mes'] = chat(`
  ${me('¿Qué pagos tengo este mes?')}
- ${app('Te quedan <b>3 pagos</b> hasta el 31 de octubre, por $ 3.640.000. Ninguno está atrasado.')}
- ${card(`${debt('card-outline', C.yel, 'Factura Visa', '$ 1.150.000', ['Vence el 25 de octubre · sale de Bancolombia'])}
+ ${app('Te quedan <b>3 pagos</b> antes del 31 de octubre, por $ 2.840.000 en total. Ojo: <b>en Bancolombia no te alcanza</b> para los dos que salen de ahí.')}
+ ${card(`${band('alert-circle-outline', 'y', C.yel, 'En Bancolombia te faltan $ 230.000')}
+  ${debt('card-outline', C.yel, 'Factura Visa', '$ 1.150.000', ['El 25 de octubre · sale de Bancolombia'])}
   ${debt('car-outline', C.org, 'Cuota del carro', '$ 1.480.000', ['El 28 de octubre · sale de Bancolombia'], 'sq')}
   ${debt('phone-portrait-outline', C.pur, 'Cuota del celular', '$ 210.000', ['El 30 de octubre · sale de Nequi'], 'sq')}
-  ${line('En total', '$ 3.640.000')}
-  ${line('Bancolombia tiene', '$ 2.900.000')}
-  ${line('Le faltan para sus pagos', '$ 270.000', 'r')}
-  ${note('La hipoteca ya está pagada este mes.')}
-  ${btns('Ver mis deudas')}`, tint(C.yel, .4))}
+  ${lab('¿Te alcanza en cada cuenta?')}
+  ${debt('wallet-outline', C.blu, 'Bancolombia', '', ['Tienes $ 2.400.000 y de ahí salen $ 2.630.000 (la factura y el carro).', '<b class="r">Te faltan $ 230.000.</b> Pásalos desde otra cuenta antes del 25 de octubre.'])}
+  ${debt('wallet-outline', C.pur, 'Nequi', '', ['Tienes $ 640.000 y de ahí sale $ 210.000.', '<b class="g">Te alcanza.</b>'])}
+  ${note('La cuota de la hipoteca de este mes ya está pagada.')}
+  ${btns('Pasar dinero a Bancolombia')}`, tint(C.yel, .4))}
  ${chips('¿Qué deuda pago primero?', '¿Cuánto me queda libre?')}`);
 
 // 40i - "¿Cuánto tengo?": net worth said as what one has and owes; one
@@ -174,7 +174,7 @@ S['40i-cuanto-tengo'] = chat(`
  ${card(`${line('Lo que tienes · 6 cuentas', '$ 48.215.300', 'g')}
   ${line('Lo que debes · 4 deudas', '−$ 224.700.000', 'r')}
   ${line('Patrimonio', '−$ 176.484.700')}
-  ${note('Sin contar lo que tienes fuera del patrimonio ni los intereses que aún no pasas a tu saldo.')}
+  ${note('Es normal que dé negativo con una hipoteca: la casa no está en la app como una cuenta, pero la deuda sí. No cuenta los intereses que aún no pasas a tu saldo.')}
   ${btns('Ver mis cuentas')}`)}
  ${me('¿Y en Nequi?')}
  ${app('Nequi tiene <b>$ 640.000</b>. El 30 de octubre sale de ahí la cuota del celular, $ 210.000.')}`);
