@@ -5442,6 +5442,21 @@ with testers runs; the paywall is finished after them.
     ("2,1 % mensual" is understood, `rateSaid`) and saves it.
   - Assistant tour step `since: 2`. Checked in a browser on the sample data
     (every answer, the rate asked and saved); not on the phone.
+  - **"Libre para gastar" counts everything in net worth, and says where it
+    comes from** (Jose, 2026-10-20, after "Libre hasta el 31 de octubre
+    $ 239.295.631" on his data read as a mistake: 220 M of it were
+    Fiducuenta and Multinversión). Decided: every account counted in net
+    worth, funds and investments included, "y punto" - no account is told
+    apart; CDTs stay out (money not in hand until they end, when it lands in
+    a product that counts or not); the emergency fund and every goal's money
+    are taken off. So the figure did not change; what changed is that
+    "¿Cómo voy?" shows it line by line, as the "¿me alcanza?" card does:
+    Tienes hoy en tus cuentas, Ya está guardado para tus metas, Pagos que te
+    faltan este mes, Sugerido para tus metas este mes, Libre para gastar,
+    "Para gastar cada día, durante N días", and a note saying what is added
+    and what is not (`ai.money.left`). The period's lines say "Te entró",
+    "Gastaste", "Te sobró" / "Gastaste de más" (no "entró menos salió"), and
+    a number keeps its "%" on its line (a non-breaking space).
 - **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
   versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
 - **Voice**: the phone's own dictation into the same reader (`39h`).
