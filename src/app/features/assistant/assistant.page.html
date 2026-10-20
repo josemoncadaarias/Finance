@@ -4,6 +4,11 @@
     <ion-icon name="chevron-back"></ion-icon>
   </button>
   <h1 class="titled">{{ 'ai.title' | t }}<small>{{ 'ai.subtitle' | t }}</small></h1>
+  @if (!empty()) {
+    <button type="button" class="ui-round" (click)="clear()" [attr.aria-label]="'ai.history.clear' | t">
+      <ion-icon name="trash-outline"></ion-icon>
+    </button>
+  }
 </header>
 
 <ion-content class="chat">
@@ -35,6 +40,7 @@
       </div>
     }
 
+    @if (!empty()) { <p class="kept">{{ 'ai.history.kept' | t:{ days: historyDays } }}</p> }
     @for (m of messages(); track m.id) {
       @if (m.who === 'me') {
         <div class="me"><p>{{ m.parts[0].text }}</p></div>
@@ -90,12 +96,14 @@
                 <div class="what">
                   <app-badge shape="ci" [size]="42" builtin="swap-horizontal" fixed="#4c9bff"></app-badge>
                   <span class="tx">
-                    <b>{{ 'ai.transfer.title' | t }}</b>
-                    <small class="segs"><span>{{ card.from ? card.from.name : ('ai.transfer.fromUsual' | t) }} → {{ card.to.name }}</span><span>{{ dayText(card.onDate) }}</span></small>
+                    <b>{{ (transferAccount(card) ? 'ai.transfer.titleProducts' : 'ai.transfer.title') | t }}</b>
+                    <small class="segs"><span class="ends">{{ transferEnds(card) }}</span>@if (transferAccount(card); as acc) {<span>{{ acc }}</span>}<span>{{ dayText(card.onDate) }}</span></small>
                   </span>
                   <b class="amount move">{{ pesos(card.amountMinor) }}</b>
                 </div>
-                @if (card.state === 'opened') {
+                @if (card.state === 'saved') {
+                  <div class="done"><ion-icon name="checkmark-circle"></ion-icon>{{ 'ai.register.savedLine' | t }}</div>
+                } @else if (card.state === 'opened') {
                   <div class="done muted"><ion-icon name="create-outline"></ion-icon>{{ 'ai.register.openedLine' | t }}</div>
                 } @else {
                   <button type="button" class="ui-btn" (click)="review(card)">{{ 'ai.register.reviewAndSave' | t }}</button>

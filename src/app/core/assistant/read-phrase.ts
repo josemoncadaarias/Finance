@@ -74,6 +74,9 @@ export interface Reading {
   /** A transfer's other end. */
   toAccountId: number | null;
   productId: number | null;
+  /** A transfer's products, when named: "del bolsillo principal a la cuenta de ahorros". */
+  fromProductId: number | null;
+  toProductId: number | null;
   categoryId: number | null;
   /** How the category was found, for the card's word under it. */
   categoryFrom: 'name' | 'learned' | 'common' | null;
@@ -215,7 +218,7 @@ const SPENT_IN = /\b(cuanto|que tanto)\b.*\b(llevo|he gastado|gaste|gastado|va|v
 const AFFORD = /\b(alcanza|alcanzaria|me puedo|puedo (gastar|comprar|pagar|darme|permitirme)\w*|podria (gastar|comprar|pagar)\w*|can i (afford|spend|buy|pay)|afford)\b/;
 const EXPENSE = /\b(gaste|gastamos|me gaste|pague|pagamos|compre|compramos|me compre|me costo|costo|spent|paid|bought|gasto de|un gasto)\b/;
 const INCOME = /\b(me llego|llego|me llegaron|llegaron|recibi|me pagaron|me consignaron|me transfirieron|me depositaron|gane|cobre|ingreso|ingresaron|received|got paid|earned|got)\b/;
-const TRANSFER = /\b(pase|pasamos|transferi|movi|mande|envie|consigne|meti|ahorre|transferred|moved|sent)\b/;
+const TRANSFER = /\b(pase|pasamos|pasar|paso|transferi|transferir|transferencia|transfiere|traslade|trasladar|traslado|movi|mover|muevo|mande|envie|consigne|meti|ahorre|recargue|transferred|moved|sent|transfer|move)\b/;
 
 /** Words that join a sentence and say nothing about its money. */
 const FILLER = new Set([
@@ -231,6 +234,8 @@ const FILLER = new Set([
   'gastado', 'he', 'dia', 'al', 'quiero', 'voy', 'iba', 'necesito', 'darme', 'permitirme', 'podria', 'ahi',
   'aqui', 'eh', 'bueno', 'pues', 'ok', 'gastarme', 'meti', 'ahorre', 'cuenta', 'tarjeta', 'cuentas',
   'aproximadamente', 'masomenos', 'mil', 'luca', 'lucas', 'pasamos', 'compramos', 'pagamos', 'gastos',
+  'transferencia', 'transferir', 'traslado', 'traslade', 'trasladar', 'pasar', 'paso', 'mover', 'muevo', 'entre',
+  'recargue', 'otra', 'otro', 'mismo', 'misma', 'producto', 'productos',
 ]);
 
 const DAYS_ES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -307,6 +312,55 @@ function findRun(tokens: Token[], run: readonly string[]): number {
   return -1;
 }
 
+/**
+ * How a word sounds, the way a phone's dictation may write it: "Rappi" heard
+ * as "rapi" or "rap y", "Nequi" as "neki", "Davivienda" as "dabibienda".
+ * Letters that sound alike are one, doubled letters one, spaces none.
+ */
+export function soundOf(text: string): string {
+  return fold(text).replace(/[^a-z0-9ñ]+/g, '')
+    .replace(/qu/g, 'k').replace(/c([ei])/g, 's$1').replace(/c/g, 'k')
+    .replace(/z/g, 's').replace(/v/g, 'b').replace(/ll/g, 'y').replace(/y/g, 'i')
+    .replace(/(^|[^c])h/g, '$1').replace(/w/g, 'u')
+    .replace(/([a-z])\1+/g, '$1');
+}
+
+/** Two sounds that are one name, allowing one slip in a long one. */
+function soundsAlike(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.min(a.length, b.length) < 7 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  let j = 0;
+  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  return Math.max(a.length, b.length) - i - j <= 1;
+}
+
+/**
+ * Where a name sits in the sentence: word for word first, then by sound over
+ * one to a few running words ("rap y cuenta" for "Rappi cuenta"). Answers
+ * where it starts and how many words of the sentence it took.
+ */
+function findName(tokens: Token[], run: readonly string[]): { at: number; length: number } | null {
+  const exact = findRun(tokens, run);
+  if (exact >= 0) return { at: exact, length: run.length };
+  const sound = soundOf(run.join(''));
+  if (sound.length < 4) return null;
+  for (let i = 0; i < tokens.length; i++) {
+    let joined = '';
+    for (let k = i; k < tokens.length && k < i + run.length + 2; k++) {
+      if (tokens[k].used) break;
+      joined += tokens[k].word;
+      const heard = soundOf(joined);
+      if (heard.length > sound.length + 2) break;
+      // The first word must sound like the start of the name: "y cuenta" is no "Rappi cuenta".
+      if (k === i && !sound.startsWith(soundOf(tokens[i].word).slice(0, 2))) break;
+      if (soundsAlike(heard, sound)) return { at: i, length: k - i + 1 };
+    }
+  }
+  return null;
+}
+
 interface Found<T> { item: T; at: number; length: number }
 
 /**
@@ -314,7 +368,7 @@ interface Found<T> { item: T; at: number; length: number }
  * them carries. Several names sharing the word said are all handed back.
  */
 /** Words that come before an account's name: "con la", "desde", "a mi". */
-const BEFORE_NAME = new Set(['con', 'desde', 'de', 'del', 'en', 'a', 'al', 'para', 'from', 'with', 'to', 'into', 'on', 'in']);
+const BEFORE_NAME = new Set(['con', 'desde', 'de', 'del', 'en', 'a', 'al', 'para', 'entre', 'hacia', 'from', 'with', 'to', 'into', 'on', 'in', 'between']);
 const ARTICLES = new Set(['la', 'el', 'los', 'las', 'mi', 'mis', 'tu', 'the', 'my']);
 
 /**
@@ -331,9 +385,12 @@ function saidAsPlace(tokens: Token[], at: number): boolean {
 function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => string): Found<T>[] {
   const whole: Found<T>[] = [];
   for (const item of [...items].sort((a, b) => wordsOf(nameOf(b)).length - wordsOf(nameOf(a)).length)) {
-    const run = wordsOf(nameOf(item));
-    const at = findRun(tokens, run);
-    if (at >= 0 && !whole.some(f => at < f.at + f.length && f.at < at + run.length)) whole.push({ item, at, length: run.length });
+    const found = findName(tokens, wordsOf(nameOf(item)));
+    if (!found) continue;
+    const { at, length } = found;
+    // The same words may name several (a "Cuenta de ahorros" in two banks): all are handed back.
+    const clash = (f: Found<T>) => at < f.at + f.length && f.at < at + length && !(f.at === at && f.length === length);
+    if (!whole.some(clash)) whole.push({ item, at, length });
   }
   if (whole.length > 0) return whole;
 
@@ -344,7 +401,9 @@ function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => s
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (t.used || t.word.length < 3 || GENERIC.has(t.word)) continue;
-    const carrying = items.filter(item => wordsOf(nameOf(item)).includes(t.word));
+    const heard = soundOf(t.word);
+    const carrying = items.filter(item => wordsOf(nameOf(item)).some(w => w === t.word
+      || (w.length >= 4 && !GENERIC.has(w) && soundsAlike(soundOf(w), heard))));
     for (const item of carrying) partial.push({ item, at: i, length: 1 });
     if (carrying.length > 0 && count.get(t.word) === carrying.length) continue;
   }
@@ -374,30 +433,23 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   else intent = 'unknown';
   if (intent === 'afford') side = 'expense';
 
-  // A product names its account too: "del bolsillo viajes".
+  const transfer = side === 'transfer';
+  // A product names its account too: "del bolsillo viajes". In a transfer the
+  // ends need no "a" or "de" in front: dictation drops them.
   const accountWords = new Set(ctx.accounts.flatMap(a => wordsOf(a.name)));
-  const products = namesIn(tokens, ctx.products, p => p.name)
-    .filter(f => saidAsPlace(tokens, f.at))
+  const productHits = namesIn(tokens, ctx.products, p => p.name)
+    .filter(f => transfer || saidAsPlace(tokens, f.at))
     .filter(f => f.length > 1 || wordsOf(f.item.name).length === 1 || !accountWords.has(tokens[f.at].word));
-  let productId: number | null = null;
-  let productAccount: number | null = null;
-  if (products.length === 1) {
-    productId = products[0].item.id;
-    productAccount = products[0].item.accountId;
-    for (let k = 0; k < products[0].length; k++) tokens[products[0].at + k].used = true;
-  }
+  for (const f of productHits) for (let k = 0; k < f.length; k++) tokens[f.at + k].used = true;
 
   // Accounts: learned words first ("la rappi"), then their names.
-  let accountId: number | null = productAccount;
-  let toAccountId: number | null = null;
-  let accountChoices: number[] = [];
   const learnedHits: Found<number>[] = [];
   for (const [phrase, id] of Object.entries(ctx.learned.accounts)) {
     if (!ctx.accounts.some(a => a.id === id)) continue;
     const at = findRun(tokens, phrase.split(' '));
     if (at >= 0) learnedHits.push({ item: id, at, length: phrase.split(' ').length });
   }
-  const named = namesIn(tokens, ctx.accounts, a => a.name).filter(f => saidAsPlace(tokens, f.at));
+  const named = namesIn(tokens, ctx.accounts, a => a.name).filter(f => transfer || saidAsPlace(tokens, f.at));
   const hits: { ids: number[]; at: number; length: number }[] = [
     ...learnedHits.map(h => ({ ids: [h.item], at: h.at, length: h.length })),
   ];
@@ -408,20 +460,72 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   }
   hits.sort((a, b) => a.at - b.at);
   for (const hit of hits) for (let k = 0; k < hit.length; k++) tokens[hit.at + k].used = true;
+  const namedAccounts = new Set(hits.flatMap(h => h.ids));
 
-  if (side === 'transfer') {
-    // "pasé 200 mil de Bancolombia a Ahorros": "a" before the destination.
+  // Each place a product was named: the one product, or, when the name is in
+  // several accounts, the one in an account the sentence also names.
+  const productsAt = new Map<number, PhraseProduct[]>();
+  for (const f of productHits) productsAt.set(f.at, [...(productsAt.get(f.at) ?? []), f.item]);
+  const productEnds: { at: number; product: PhraseProduct }[] = [];
+  for (const [at, list] of productsAt) {
+    const inNamed = list.filter(p => namedAccounts.has(p.accountId));
+    const pick = list.length === 1 ? list : inNamed.length === 1 ? inNamed : [];
+    if (pick.length === 1) productEnds.push({ at, product: pick[0] });
+  }
+  productEnds.sort((a, b) => a.at - b.at);
+
+  let accountId: number | null = null;
+  let toAccountId: number | null = null;
+  let accountChoices: number[] = [];
+  let productId: number | null = null;
+  let fromProductId: number | null = null;
+  let toProductId: number | null = null;
+
+  if (transfer) {
+    const wordBefore = (at: number) => {
+      let i = at - 1;
+      while (i >= 0 && ARTICLES.has(tokens[i].word)) i--;
+      return tokens[i]?.word ?? '';
+    };
+    const INTO = new Set(['a', 'al', 'hacia', 'para', 'to', 'into']);
+    const OUT = new Set(['de', 'del', 'desde', 'entre', 'con', 'from', 'between', 'with']);
+    type End = { at: number; account: number; product: number | null; dir: 'to' | 'from' | 'none' };
+    const ends: End[] = productEnds.map(e => {
+      const w = wordBefore(e.at);
+      return { at: e.at, account: e.product.accountId, product: e.product.id, dir: INTO.has(w) ? 'to' : OUT.has(w) ? 'from' : 'none' };
+    });
     for (const hit of hits) {
-      const before = tokens[hit.at - 1]?.word ?? '';
-      const into = before === 'a' || before === 'al' || before === 'hacia' || before === 'to' || before === 'para';
+      // "la cuenta de ahorros de Rappi cuenta": the account a product named is
+      // in says where it is, it is no end of its own.
+      if (hit.ids.some(id => ends.some(e => e.account === id && e.product !== null))) continue;
       if (hit.ids.length !== 1) { accountChoices = hit.ids; continue; }
-      if (into && toAccountId === null) toAccountId = hit.ids[0];
-      else if (accountId === null) accountId = hit.ids[0];
-      else if (toAccountId === null) toAccountId = hit.ids[0];
+      const w = wordBefore(hit.at);
+      ends.push({ at: hit.at, account: hit.ids[0], product: null, dir: INTO.has(w) ? 'to' : OUT.has(w) ? 'from' : 'none' });
     }
-  } else if (accountId === null && hits.length > 0) {
-    if (hits[0].ids.length === 1) accountId = hits[0].ids[0];
-    else accountChoices = hits[0].ids;
+    ends.sort((a, b) => a.at - b.at);
+    let from = ends.find(e => e.dir === 'from') ?? null;
+    let to = ends.find(e => e.dir === 'to' && e !== from) ?? null;
+    const rest = ends.filter(e => e !== from && e !== to);
+    rest.forEach((e, i) => {
+      const more = i < rest.length - 1;
+      if (!from && (to || more)) from = e;
+      else if (!to) to = e;
+      else if (!from) from = e;
+    });
+    // A product alone: the money moves inside its account.
+    if (to && !from && to.product !== null) from = { at: -1, account: to.account, product: null, dir: 'from' };
+    if (from && !to && from.product !== null) to = { at: -1, account: from.account, product: null, dir: 'to' };
+    accountId = from?.account ?? null;
+    toAccountId = to?.account ?? null;
+    fromProductId = from?.product ?? null;
+    toProductId = to?.product ?? null;
+  } else {
+    const product = productEnds.length === 1 && productsAt.size === 1 ? productEnds[0].product : null;
+    if (product) { productId = product.id; accountId = product.accountId; }
+    if (accountId === null && hits.length > 0) {
+      if (hits[0].ids.length === 1) accountId = hits[0].ids[0];
+      else accountChoices = hits[0].ids;
+    }
   }
 
   // What is left says what it was about.
@@ -491,7 +595,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   return {
     intent, side, amountMinor, amountGuessed: guessed, amountText: amount?.text ?? null,
     onDate: day.onDate, dayWord: day.word,
-    accountId, accountChoices, toAccountId, productId,
+    accountId, accountChoices, toAccountId, productId, fromProductId, toProductId,
     categoryId, categoryFrom, thing, shape,
   };
 }
