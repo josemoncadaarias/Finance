@@ -65,13 +65,15 @@ const PAD = 6;
       }
     }
     <ng-template #foot let-now="now">
-      <div class="foot">
-        @if (steps().length > 1) {
+      @if (steps().length > 1) {
+        <div class="progress">
           <span class="dots">
             @for (d of steps(); track $index) { <i [class.on]="$index === now.step"></i> }
           </span>
           <span class="of">{{ 'tour.of' | t:{ step: now.step + 1, count: steps().length } }}</span>
-        }
+        </div>
+      }
+      <div class="foot">
         <span class="grow"></span>
         @if (!last()) { <button type="button" class="skip" (click)="tour.end()">{{ 'tour.skip' | t }}</button> }
         <button type="button" class="go" (click)="tour.next()">{{ (last() ? (steps().length > 1 ? 'tour.done' : 'tour.gotIt') : 'tour.next') | t }}</button>
@@ -115,11 +117,15 @@ const PAD = 6;
       bottom: -8px; border-right: 1px solid var(--app-line); border-bottom: 1px solid var(--app-line);
     }
     .arrow.up { bottom: auto; top: -8px; border: 0; border-left: 1px solid var(--app-line); border-top: 1px solid var(--app-line); }
-    .foot { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
-    .dots { display: inline-flex; gap: 5px; }
+    /* The count has a line of its own over the buttons: beside them, ten
+       dots and a big letter size squeezed "1 de 10" onto three lines. */
+    .progress { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+    .foot { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+    .dots { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; flex: 1; }
+    .dots i { flex: none; }
     .dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--app-s3); }
     .dots i.on { width: 16px; background: var(--app-pr); }
-    .of { color: var(--app-mu); font-size: 12.5px; }
+    .of { color: var(--app-mu); font-size: 12.5px; white-space: nowrap; flex: none; }
     .grow { flex: 1; }
     .skip { background: none; border: 0; color: var(--app-mu); font: inherit; font-size: 14px; padding: 8px 6px; cursor: pointer; }
     .go {

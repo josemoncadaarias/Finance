@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (965 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (966 on 2026-10-20, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -240,6 +240,16 @@ these):
   en pesos" (home tour, `since: 4`); Deudas - "Cuánto debes en cada cosa"
   (debts tour, `since: 3`); a card - "Te avisamos el día de pago" (card
   tour, `since: 2`).
+  Version 6 (2026-10-20): Inicio - the "+" step says everything the sheet
+  holds (spending, income, transfer, the assistant, a PDF statement, a new
+  account; `since: 6`), and the bar's step and the assistant's button say it
+  too; a card - "La tasa de interés de tu tarjeta" (card tour, `since: 3`).
+  **A step whose words change because the screen changed is marked with
+  the next version**, so whoever saw the old words is shown it once more.
+  **The bubble's count ("1 de 10") has a line of its own over the buttons**
+  (`.progress` in tour-overlay, never wrapping): beside ten dots and the
+  buttons, at a large letter size it broke onto three lines (Jose,
+  2026-10-20). Checked at 302 px.
 - **A demo backup with every feature in use** (Jose, 2026-10-02):
   `node --import ./tools/db/register-ts.mjs tools/db/showcase-data.mjs
   <folder>` writes `finance-demostracion-completa.json` - invented people

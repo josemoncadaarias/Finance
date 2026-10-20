@@ -44,7 +44,8 @@ const TOUR_LIST = {
   home: {
     welcome: { title: 'tour.home.welcome.title', text: 'tour.home.welcome.text' },
     steps: [
-      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text' },
+      // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a).
+      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 6 },
       { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text' },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.
@@ -167,6 +168,8 @@ const TOUR_LIST = {
       { sel: 'app-card section.bill', title: 'tour.card.1.title', text: 'tour.card.1.text' },
       { sel: 'app-card .ui-seg.faces', title: 'tour.card.2.title', text: 'tour.card.2.text' },
       { title: 'tour.card.3.title', text: 'tour.card.3.text', since: 2 },
+      // 2026-10-19: the card's optional rate, for which debt to pay first (40d).
+      { sel: 'app-card .pen', title: 'tour.card.4.title', text: 'tour.card.4.text', since: 3 },
     ],
   },
   loan: {
