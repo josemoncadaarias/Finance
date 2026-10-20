@@ -5414,14 +5414,14 @@ with testers runs; the paywall is finished after them.
   - **Which debt first** (`core/assistant/debts-advice.ts`, pure,
     `debts-advice.test.mjs`): a card's statement still to pay first (paid
     whole, no interest); then, from the highest rate down (same rate: smaller
-    first), the debts that can be finished within `REACH_MONTHS` = 12 paying
+    first), the debts that can be finished within `REACH_MONTHS` = 24 paying
     them one after another with the money free today plus what is left over
     each month; a debt too big for that (a mortgage) is said apart with why,
     never "pay first". What paying it today saves is the schedule's interest
     left less paying it off today. "Paying more each month" walks month by
     month: each loan pays its installment, the extra goes to the first of the
     order, a finished loan's installment joins it; loans said apart keep their
-    installment. Jose approved 12 months once explained with an example.
+    installment. Jose approved 12 months once explained with an example, then asked for more since loans run up to 3 years: 24 (2026-10-20).
   - **A card's rate** (migration 058, `accounts.card_rate_scaled` E.A. and
     `card_rate_quoted`): optional, in the card's form under the dates ("Tasa de
     interés · opcional", E.A. or Mensual, said back in the other). Without it a

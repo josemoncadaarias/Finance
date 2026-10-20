@@ -25,7 +25,7 @@
 import { EA_SCALE } from '../loans/schedule';
 
 /** A debt is "finished soon" when the money free today and what is left over each month pay it in this many months. */
-export const REACH_MONTHS = 12;
+export const REACH_MONTHS = 24;
 /** A simulation never runs past this: a debt that would never end is said so. */
 const MAX_MONTHS = 600;
 
