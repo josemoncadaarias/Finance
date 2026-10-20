@@ -43,9 +43,19 @@ export interface RestoreResult {
 }
 
 export class RestoreError extends Error {
-  constructor(message: string) {
+  /**
+   * What went wrong, for the screen to say in the person's language; the
+   * message stays the technical detail. 'newer': written by a newer app;
+   * 'failed': nothing was changed; 'failedBoth': putting back failed too.
+   */
+  readonly kind: 'newer' | 'failed' | 'failedBoth' | 'other';
+  readonly detail: string;
+
+  constructor(message: string, kind: 'newer' | 'failed' | 'failedBoth' | 'other' = 'other', detail: string = message) {
     super(message);
     this.name = 'RestoreError';
+    this.kind = kind;
+    this.detail = detail;
   }
 }
 
@@ -110,7 +120,7 @@ export async function restoreBackup(
   if (backup.schemaVersion > latest) {
     throw new RestoreError(
       `That backup was written by a newer version of the app (schema ` +
-      `${backup.schemaVersion}, this build knows up to ${latest}). Update the app first.`,
+      `${backup.schemaVersion}, this build knows up to ${latest}). Update the app first.`, 'newer',
     );
   }
 
@@ -125,11 +135,12 @@ export async function restoreBackup(
       throw new RestoreError(
         `The backup could not be restored (${messageOf(error)}), and putting back what was ` +
         `there failed too (${messageOf(fallback)}). The backup file itself is untouched.`,
+        'failedBoth', `${messageOf(error)} / ${messageOf(fallback)}`,
       );
     }
     throw new RestoreError(
       `The backup could not be restored: ${messageOf(error)}. Nothing was changed - ` +
-      `the data is exactly as it was before.`,
+      `the data is exactly as it was before.`, 'failed', messageOf(error),
     );
   }
 }
@@ -151,6 +162,14 @@ export async function eraseEverything(db: SqlDriver, sources: readonly Migration
   await db.execute('PRAGMA user_version = 0');
   await migrate(db, sources);
 }
+
+/** Columns that point at a row of their own table, which goes in after every row is there. */
+const SELF_REFERENCES: Record<string, string> = {
+  categories: 'parent_id',
+  products: 'matures_into_product_id',
+  yield_pockets: 'matures_into_pocket_id',
+  movement_proposals: 'pairs_with',
+};
 
 /** Drops everything, rebuilds the schema the rows came from, and puts them in. */
 async function replaceWith(
@@ -205,6 +224,16 @@ async function replaceWith(
           : table === 'products' ? parentsFirst(stored, 'matures_into_product_id')
           : table === 'yield_pockets' ? parentsFirst(stored, 'matures_into_pocket_id')
           : stored;
+        // And a reference to its own table goes in empty, then is filled once
+        // every row is there: two proposals paired with each other point at
+        // each other, so no order puts both parents first. Turning foreign
+        // keys off is not enough on its own - in the browser the pragma did
+        // not take, and Jose's backup of 2026-10-20 failed on exactly this.
+        const selfRef = SELF_REFERENCES[table];
+        const keyed = rows as Record<string, unknown>[];
+        const later = selfRef ? keyed.filter(row => row[selfRef] !== null && row[selfRef] !== undefined)
+          .map(row => [row[selfRef], row['id']] as const) : [];
+        const toInsert = selfRef && later.length > 0 ? keyed.map(row => ({ ...row, [selfRef]: null })) : rows;
 
         // A migration may have seeded the table already — currencies and the
         // tax parameters both do. The backup is the authority.
@@ -215,7 +244,7 @@ async function replaceWith(
         // cost, so 16,389 rows were 16,389 crossings: Jose's real backup was
         // restoring at about one percent every two minutes on the emulator.
         // Batched, the same backup is a few hundred statements.
-        for (const batch of batches(rows)) {
+        for (const batch of batches(toInsert)) {
           const columns = Object.keys(batch[0]);
           const names = columns.map(column => `"${column}"`).join(', ');
           const one = `(${columns.map(() => '?').join(', ')})`;
@@ -225,6 +254,9 @@ async function replaceWith(
           );
           written += batch.length;
           await onProgress?.({ done: written, total: totalRows });
+        }
+        for (const [points, id] of later) {
+          await db.run(`UPDATE "${table}" SET "${selfRef}" = ? WHERE id = ?`, [points, id]);
         }
         restored.push({ table, rows: rows.length });
         await onProgress?.({ done: written, total: totalRows });

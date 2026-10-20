@@ -107,7 +107,7 @@ export function howAmI(s: Speech, pic: PeriodPicture, picture: Picture | null, l
     { lab: s.t('ai.period.span', { label: pic.label, from: s.date(pic.from), to: s.date(pic.to) }) },
     { line: { k: s.t('ai.period.in'), v: `+${s.pesos(pic.inMinor)}`, cls: 'ui-g' } },
     { line: { k: s.t('ai.period.out'), v: `−${s.pesos(pic.outMinor)}`, cls: 'ui-r' } },
-    { line: { k: s.t('ai.period.left'), v: s.pesos(saved), cls: saved >= 0 ? 'ui-g' : 'ui-r' } },
+    { line: { k: s.t(saved >= 0 ? 'ai.period.leftUp' : 'ai.period.leftDown'), v: s.pesos(Math.abs(saved)), cls: saved >= 0 ? 'ui-g' : 'ui-r' } },
   ];
   let said: Said = saved >= 0
     ? { key: 'ai.period.answerUp', values: { label: pic.label, in: s.pesos(pic.inMinor), out: s.pesos(pic.outMinor), saved: s.pesos(saved) } }
@@ -117,8 +117,8 @@ export function howAmI(s: Speech, pic: PeriodPicture, picture: Picture | null, l
     const b = pic.before;
     const change = Math.round((pic.outMinor - b.outMinor) * 100 / b.outMinor);
     blocks.push({ lab: s.t(pic.partial ? 'ai.period.vsSameDays' : 'ai.period.vs', { label: b.label }) });
-    blocks.push({ line: { k: s.t('ai.period.spentThen'), v: s.pesos(b.outMinor) } });
-    blocks.push({ line: { k: s.t('ai.period.spentNow'), v: s.pesos(pic.outMinor) } });
+    blocks.push({ line: { k: s.t('ai.period.spentIn', { label: b.label }), v: s.pesos(b.outMinor) } });
+    blocks.push({ line: { k: s.t('ai.period.spentIn', { label: pic.label }), v: s.pesos(pic.outMinor) } });
     blocks.push({ line: { k: s.t('ai.period.difference'),
       v: change === 0 ? s.t('ai.period.same') : s.t(change < 0 ? 'ai.period.less' : 'ai.period.more', { pct: Math.abs(change) }),
       cls: change < 0 ? 'ui-g' : change > 0 ? 'ui-y' : '' } });
@@ -142,9 +142,17 @@ export function howAmI(s: Speech, pic: PeriodPicture, picture: Picture | null, l
   }
   if (current && picture) {
     const f = picture.free;
-    blocks.push({ lab: s.t('ai.period.rest') });
-    blocks.push({ line: { k: s.t('ai.period.restFree', { end: s.date(f.monthEnd) }), v: s.pesos(Math.max(0, f.freeMinor)) } });
-    blocks.push({ line: { k: s.t('ai.rest.perDay'), v: s.pesos(perDay(f.freeMinor, f.daysLeft)) } });
+    // Where the free money comes from, line by line (Jose, 2026-10-20: 239
+    // million said alone read as a mistake).
+    const minus = (minor: number) => minor > 0 ? `−${s.pesos(minor)}` : s.pesos(0);
+    blocks.push({ lab: s.t('ai.period.rest', { end: s.date(f.monthEnd) }) });
+    blocks.push({ line: { k: s.t('ai.money.accounts'), v: s.pesos(f.inAccountsMinor) } });
+    if (f.inGoalsMinor > 0) blocks.push({ line: { k: s.t('ai.money.inGoals'), v: minus(f.inGoalsMinor) } });
+    blocks.push({ line: { k: s.t('ai.money.payments'), v: minus(f.paymentsMinor) } });
+    blocks.push({ line: { k: s.t('ai.money.goals'), v: minus(f.goalsMonthMinor) } });
+    blocks.push({ line: { k: s.t('ai.money.free'), v: s.pesos(Math.max(0, f.freeMinor)), cls: f.freeMinor > 0 ? 'ui-g' : 'ui-r' } });
+    blocks.push({ line: { k: s.t(f.daysLeft === 1 ? 'ai.period.perDay.one' : 'ai.period.perDay', { count: f.daysLeft }), v: s.pesos(perDay(f.freeMinor, f.daysLeft)) } });
+    blocks.push({ note: s.t('ai.money.left') });
   }
   return {
     said,
