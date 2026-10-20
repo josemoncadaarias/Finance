@@ -218,12 +218,34 @@ const SPENT_IN = /\b(cuanto|que tanto)\b.*\b(llevo|he gastado|gaste|gastado|va|v
 const AFFORD = /\b(alcanza|alcanzaria|me puedo|puedo (gastar|comprar|pagar|darme|permitirme)\w*|podria (gastar|comprar|pagar)\w*|can i (afford|spend|buy|pay)|afford)\b/;
 const EXPENSE = /\b(gaste|gastamos|me gaste|pague|pagamos|compre|compramos|me compre|me costo|costo|spent|paid|bought|gasto de|un gasto)\b/;
 const INCOME = /\b(me llego|llego|me llegaron|llegaron|recibi|me pagaron|me consignaron|me transfirieron|me depositaron|gane|cobre|ingreso|ingresaron|received|got paid|earned|got)\b/;
-const TRANSFER = /\b(pase|pasamos|pasar|paso|transferi|transferir|transferencia|transfiere|traslade|trasladar|traslado|movi|mover|muevo|mande|envie|consigne|meti|ahorre|recargue|transferred|moved|sent|transfer|move)\b/;
+/**
+ * Money moving between one's own places, said any way a person says it: any
+ * tense or person of the verbs people use for it, and their nouns - never a
+ * list of one person's sentences. "pasé", "pásale", "voy a pasar", "le paso",
+ * "trasladamos", "consigné", "transferencia", "un giro", "saqué", "metí",
+ * "guardé en el bolsillo", "moved", "sent"...
+ */
+const AR_ENDS = '(?:o|as|a|amos|an|ais|e|es|en|emos|aste|asteis|aron|ar|arle|arlo|arla|arles|arte|arme|ando|ado|ada|ados|adas|ale|alo|ame|ara|aria|are)';
+const ER_ENDS = '(?:o|es|e|emos|en|i|io|imos|ieron|iste|er|erlo|erla|erle|iendo|ido|ida|a|ia)';
+export const TRANSFER_WORD = new RegExp('^(?:'
+  + `(?:pas|traslad|traspas|mand|envi|consign|recarg|abon|deposit|gir|fonde|guard|separ|retir|apart|ahorr|reserv)${AR_ENDS}`
+  + '|(?:sac|saq)(?:o|as|a|amos|an|ue|ues|uen|aste|aron|ar|arle|arlo|ando|ado|ada)'
+  + `|(?:mov|muev|met|devolv|devuelv)${ER_ENDS}`
+  + '|transf(?:er|ier|ir)\\w*'
+  + '|transferencias?|traslados?|traspasos?|giros?|envios?|consignacion(?:es)?|recargas?|abonos?|depositos?|retiros?'
+  + '|transfers?|transferred|transferring|move|moved|moving|send|sent|sending|withdr(?:ew|aw|awn)|deposited|topped|top'
+  + ')$');
+/** Paying a card or a loan is money moving to it, not spending. */
+const PAY_WORD = /^(?:pag|abon|cancel)(?:o|as|a|amos|an|e|ue|es|ues|aste|aron|ar|arle|arla|ando|ado|ada)$|^paid$|^pay$/;
+/** Taking cash out: with no destination, it lands in the cash account. */
+const CASH_OUT_WORD = /^(?:retir|sac|saq)\w*$|^cajeros?$|^atm$|^withdr\w*$/;
+/** "me pasaron", "nos consignó", "me devolvieron": money that came in from someone. */
+const CAME_IN = /\b(?:me|nos)\s+(\w+(?:aron|ieron|io|o))\b/;
 
 /** Words that join a sentence and say nothing about its money. */
 const FILLER = new Set([
   'de', 'del', 'la', 'el', 'los', 'las', 'lo', 'un', 'una', 'unos', 'unas', 'en', 'con', 'para', 'por', 'a', 'al',
-  'mi', 'mis', 'me', 'te', 'se', 'y', 'o', 'que', 'pesos', 'peso', 'plata', 'dinero', 'hoy', 'ayer', 'antier',
+  'mi', 'mis', 'me', 'te', 'se', 'le', 'les', 'nos', 'y', 'o', 'que', 'pesos', 'peso', 'plata', 'dinero', 'hoy', 'ayer', 'antier',
   'anteayer', 'si', 'es', 'esta', 'este', 'esto', 'eso', 'ese', 'algo', 'cosa', 'cosas', 'tengo', 'gastar',
   'comprar', 'comprarme', 'pagar', 'gaste', 'gastamos', 'pague', 'compre', 'me', 'llego', 'recibi', 'pagaron',
   'puedo', 'alcanza', 'cuanto', 'llevo', 'va', 'ya', 'casi', 'como', 'mas', 'menos', 'desde', 'hacia',
@@ -325,6 +347,9 @@ export function soundOf(text: string): string {
     .replace(/([a-z])\1+/g, '$1');
 }
 
+/** Words a person may put inside a name that the name does not carry. */
+const INSIDE_NAME = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'para', 'of', 'the']);
+
 /** Two sounds that are one name, allowing one slip in a long one. */
 function soundsAlike(a: string, b: string): boolean {
   if (a === b) return true;
@@ -348,8 +373,10 @@ function findName(tokens: Token[], run: readonly string[]): { at: number; length
   if (sound.length < 4) return null;
   for (let i = 0; i < tokens.length; i++) {
     let joined = '';
-    for (let k = i; k < tokens.length && k < i + run.length + 2; k++) {
+    for (let k = i; k < tokens.length && k < i + run.length + 3; k++) {
       if (tokens[k].used) break;
+      // "bolsillo de viajes" for "Bolsillo Viajes": a joining word inside is skipped.
+      if (k > i && INSIDE_NAME.has(tokens[k].word) && !run.includes(tokens[k].word)) continue;
       joined += tokens[k].word;
       const heard = soundOf(joined);
       if (heard.length > sound.length + 2) break;
@@ -382,7 +409,7 @@ function saidAsPlace(tokens: Token[], at: number): boolean {
   return i < 0 || BEFORE_NAME.has(tokens[i].word);
 }
 
-function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => string): Found<T>[] {
+function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => string, generic: ReadonlySet<string> = GENERIC): Found<T>[] {
   const whole: Found<T>[] = [];
   for (const item of [...items].sort((a, b) => wordsOf(nameOf(b)).length - wordsOf(nameOf(a)).length)) {
     const found = findName(tokens, wordsOf(nameOf(item)));
@@ -400,10 +427,10 @@ function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => s
   const partial: Found<T>[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
-    if (t.used || t.word.length < 3 || GENERIC.has(t.word)) continue;
+    if (t.used || t.word.length < 3 || generic.has(t.word)) continue;
     const heard = soundOf(t.word);
     const carrying = items.filter(item => wordsOf(nameOf(item)).some(w => w === t.word
-      || (w.length >= 4 && !GENERIC.has(w) && soundsAlike(soundOf(w), heard))));
+      || (w.length >= 4 && !generic.has(w) && soundsAlike(soundOf(w), heard))));
     for (const item of carrying) partial.push({ item, at: i, length: 1 });
     if (carrying.length > 0 && count.get(t.word) === carrying.length) continue;
   }
@@ -414,45 +441,39 @@ function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => s
 // The reading
 // ---------------------------------------------------------------------------
 
-export function readPhrase(text: string, ctx: PhraseContext): Reading {
-  const folded = fold(text).replace(/[¿?¡!]/g, ' ');
-  const tokens = tokensOf(text);
-  const amount = amountIn(tokens);
-  const day = dayIn(tokens, ctx.today);
+interface Places {
+  hits: { ids: number[]; at: number; length: number }[];
+  productEnds: { at: number; product: PhraseProduct }[];
+  productsAt: Map<number, PhraseProduct[]>;
+  /** Accounts a word could mean, when it means more than one. */
+  choices: number[];
+}
 
-  let intent: Intent;
-  let side: Side | null = null;
-  if (has(folded, HOW_GOALS)) intent = 'howGoals';
-  else if (has(folded, AFFORD) && amount) intent = 'afford';
-  else if (has(folded, PER_DAY) || (!amount && has(folded, AFFORD))) intent = 'perDay';
-  else if (has(folded, SPENT_IN) && !amount) intent = 'spentIn';
-  else if (amount && has(folded, TRANSFER) && !has(folded, EXPENSE)) { intent = 'register'; side = 'transfer'; }
-  else if (amount && has(folded, INCOME) && !has(folded, EXPENSE)) { intent = 'register'; side = 'income'; }
-  else if (amount && has(folded, EXPENSE)) { intent = 'register'; side = 'expense'; }
-  else if (amount) intent = 'unsure';
-  else intent = 'unknown';
-  if (intent === 'afford') side = 'expense';
+/** Words of a product's name that say nothing on their own: "la cuenta". */
+const PRODUCT_GENERIC = new Set(['cuenta', 'cuentas', 'de', 'del', 'la', 'el', 'los', 'las', 'mi', 'mis', 'y', 'en',
+  'para', 'con', 'producto', 'account', 'my', 'the', 'of']);
 
-  const transfer = side === 'transfer';
-  // A product names its account too: "del bolsillo viajes". In a transfer the
-  // ends need no "a" or "de" in front: dictation drops them.
+/**
+ * The accounts and products the sentence names, marking their words used.
+ * `relaxed`: a name counts with nothing in front ("pasé 200 ahorros"), as in
+ * a transfer, where dictation drops the "a"; otherwise only when said as a
+ * place ("con la", "desde", "a"), so "un viaje" stays a trip.
+ */
+function placesIn(tokens: Token[], ctx: PhraseContext, relaxed: boolean): Places {
   const accountWords = new Set(ctx.accounts.flatMap(a => wordsOf(a.name)));
-  const productHits = namesIn(tokens, ctx.products, p => p.name)
-    .filter(f => transfer || saidAsPlace(tokens, f.at))
+  const productHits = namesIn(tokens, ctx.products, p => p.name, PRODUCT_GENERIC)
+    .filter(f => relaxed || saidAsPlace(tokens, f.at))
     .filter(f => f.length > 1 || wordsOf(f.item.name).length === 1 || !accountWords.has(tokens[f.at].word));
   for (const f of productHits) for (let k = 0; k < f.length; k++) tokens[f.at + k].used = true;
 
   // Accounts: learned words first ("la rappi"), then their names.
-  const learnedHits: Found<number>[] = [];
+  const hits: Places['hits'] = [];
   for (const [phrase, id] of Object.entries(ctx.learned.accounts)) {
     if (!ctx.accounts.some(a => a.id === id)) continue;
     const at = findRun(tokens, phrase.split(' '));
-    if (at >= 0) learnedHits.push({ item: id, at, length: phrase.split(' ').length });
+    if (at >= 0) hits.push({ ids: [id], at, length: phrase.split(' ').length });
   }
-  const named = namesIn(tokens, ctx.accounts, a => a.name).filter(f => transfer || saidAsPlace(tokens, f.at));
-  const hits: { ids: number[]; at: number; length: number }[] = [
-    ...learnedHits.map(h => ({ ids: [h.item], at: h.at, length: h.length })),
-  ];
+  const named = namesIn(tokens, ctx.accounts, a => a.name).filter(f => relaxed || saidAsPlace(tokens, f.at));
   for (const f of named) {
     if (hits.some(h => h.at === f.at)) continue;
     const same = named.filter(o => o.at === f.at).map(o => o.item.id);
@@ -463,16 +484,105 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   const namedAccounts = new Set(hits.flatMap(h => h.ids));
 
   // Each place a product was named: the one product, or, when the name is in
-  // several accounts, the one in an account the sentence also names.
+  // several accounts, the one in an account the sentence also names - or,
+  // failing that, the only one in the account a single name pointed at.
   const productsAt = new Map<number, PhraseProduct[]>();
   for (const f of productHits) productsAt.set(f.at, [...(productsAt.get(f.at) ?? []), f.item]);
-  const productEnds: { at: number; product: PhraseProduct }[] = [];
+  const productEnds: Places['productEnds'] = [];
   for (const [at, list] of productsAt) {
     const inNamed = list.filter(p => namedAccounts.has(p.accountId));
     const pick = list.length === 1 ? list : inNamed.length === 1 ? inNamed : [];
     if (pick.length === 1) productEnds.push({ at, product: pick[0] });
   }
   productEnds.sort((a, b) => a.at - b.at);
+  return { hits, productEnds, productsAt, choices: [] };
+}
+
+interface End { at: number; account: number; product: number | null; dir: 'to' | 'from' | 'none' }
+
+/** Words that say money arrives there, or leaves from there. */
+const INTO = new Set(['a', 'al', 'hacia', 'para', 'hasta', 'to', 'into', 'towards']);
+const OUT_OF = new Set(['de', 'del', 'desde', 'entre', 'con', 'por', 'from', 'between', 'with', 'out', 'of']);
+
+/**
+ * The places as ends of a movement, each with the way money goes by the word
+ * before it. The account a named product is in only says where it is.
+ */
+function endsOf(tokens: Token[], places: Places, ctx: PhraseContext): End[] {
+  const dirOf = (at: number): End['dir'] => {
+    let i = at - 1;
+    while (i >= 0 && ARTICLES.has(tokens[i].word)) i--;
+    const w = tokens[i]?.word ?? '';
+    // "el pago de la tarjeta": what is paid, not where the money comes from.
+    if ((w === 'de' || w === 'del') && PAY_WORD.test(tokens[i - 1]?.word ?? '')) return 'none';
+    return INTO.has(w) ? 'to' : OUT_OF.has(w) ? 'from' : 'none';
+  };
+  const ends: End[] = places.productEnds.map(e => ({ at: e.at, account: e.product.accountId, product: e.product.id, dir: dirOf(e.at) }));
+  for (const hit of places.hits) {
+    if (hit.ids.some(id => ends.some(e => e.account === id && e.product !== null))) continue;
+    if (hit.ids.length !== 1) { places.choices = hit.ids; continue; }
+    ends.push({ at: hit.at, account: hit.ids[0], product: null, dir: dirOf(hit.at) });
+  }
+  void ctx;
+  // One place said in two pieces ("bolsillo ... viajes") is one end, with the
+  // first way that was said.
+  const one: End[] = [];
+  for (const e of ends.sort((a, b) => a.at - b.at)) {
+    const same = one.find(o => o.account === e.account && o.product === e.product);
+    if (!same) one.push(e);
+    else if (same.dir === 'none') same.dir = e.dir;
+  }
+  return one;
+}
+
+/** A card named as what is paid - "pagué la tarjeta", "abono a la Visa" -, not what pays. */
+function paidCard(end: End, ctx: PhraseContext): boolean {
+  return end.product === null && end.dir !== 'from'
+    && ctx.accounts.find(a => a.id === end.account)?.type === 'credit';
+}
+
+export function readPhrase(text: string, ctx: PhraseContext): Reading {
+  const folded = fold(text).replace(/[¿?¡!]/g, ' ');
+  const tokens = tokensOf(text);
+  const amount = amountIn(tokens);
+  const day = dayIn(tokens, ctx.today);
+
+  // Words that belong to a name are no verb: "Ahorro Verde" is an account.
+  const nameWords = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name)].flatMap(wordsOf));
+  const said = (test: RegExp) => tokens.some(t => !t.used && !nameWords.has(t.word) && test.test(t.word));
+  const cameIn = (() => {
+    const m = CAME_IN.exec(folded);
+    return !!m && (TRANSFER_WORD.test(m[1]) || PAY_WORD.test(m[1]) || /^(?:dier|deposit|consign|gir|abon)/.test(m[1]));
+  })();
+
+  let intent: Intent;
+  let side: Side | null = null;
+  if (has(folded, HOW_GOALS)) intent = 'howGoals';
+  else if (has(folded, AFFORD) && amount) intent = 'afford';
+  else if (has(folded, PER_DAY) || (!amount && has(folded, AFFORD))) intent = 'perDay';
+  else if (has(folded, SPENT_IN) && !amount) intent = 'spentIn';
+  else if (amount && cameIn && !has(folded, EXPENSE)) { intent = 'register'; side = 'income'; }
+  else if (amount && said(TRANSFER_WORD) && !has(folded, EXPENSE)) { intent = 'register'; side = 'transfer'; }
+  else if (amount && has(folded, INCOME) && !has(folded, EXPENSE)) { intent = 'register'; side = 'income'; }
+  else if (amount && has(folded, EXPENSE)) { intent = 'register'; side = 'expense'; }
+  else if (amount) intent = 'unsure';
+  else intent = 'unknown';
+  if (intent === 'afford') side = 'expense';
+
+  // Whatever the verb, two of one's own places with money between them is a
+  // transfer: "pagué la tarjeta desde Bancolombia", "200 mil del bolsillo a
+  // la cuenta". So is paying a card with no other place said.
+  if (amount && (intent === 'register' || intent === 'unsure') && side !== 'transfer') {
+    const probe = tokens.map(t => ({ ...t }));
+    const ends = endsOf(probe, placesIn(probe, ctx, true), ctx);
+    const distinct = new Set(ends.map(e => `${e.account}:${e.product ?? ''}`));
+    if (distinct.size >= 2 && ends.some(e => e.dir !== 'none')) { intent = 'register'; side = 'transfer'; }
+    else if (side === 'expense' && said(PAY_WORD) && ends.some(e => paidCard(e, ctx))) { intent = 'register'; side = 'transfer'; }
+  }
+
+  const transfer = side === 'transfer';
+  const found = placesIn(tokens, ctx, transfer);
+  const { hits, productEnds, productsAt } = found;
 
   let accountId: number | null = null;
   let toAccountId: number | null = null;
@@ -482,27 +592,8 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   let toProductId: number | null = null;
 
   if (transfer) {
-    const wordBefore = (at: number) => {
-      let i = at - 1;
-      while (i >= 0 && ARTICLES.has(tokens[i].word)) i--;
-      return tokens[i]?.word ?? '';
-    };
-    const INTO = new Set(['a', 'al', 'hacia', 'para', 'to', 'into']);
-    const OUT = new Set(['de', 'del', 'desde', 'entre', 'con', 'from', 'between', 'with']);
-    type End = { at: number; account: number; product: number | null; dir: 'to' | 'from' | 'none' };
-    const ends: End[] = productEnds.map(e => {
-      const w = wordBefore(e.at);
-      return { at: e.at, account: e.product.accountId, product: e.product.id, dir: INTO.has(w) ? 'to' : OUT.has(w) ? 'from' : 'none' };
-    });
-    for (const hit of hits) {
-      // "la cuenta de ahorros de Rappi cuenta": the account a product named is
-      // in says where it is, it is no end of its own.
-      if (hit.ids.some(id => ends.some(e => e.account === id && e.product !== null))) continue;
-      if (hit.ids.length !== 1) { accountChoices = hit.ids; continue; }
-      const w = wordBefore(hit.at);
-      ends.push({ at: hit.at, account: hit.ids[0], product: null, dir: INTO.has(w) ? 'to' : OUT.has(w) ? 'from' : 'none' });
-    }
-    ends.sort((a, b) => a.at - b.at);
+    const ends = endsOf(tokens, found, ctx);
+    accountChoices = found.choices;
     let from = ends.find(e => e.dir === 'from') ?? null;
     let to = ends.find(e => e.dir === 'to' && e !== from) ?? null;
     const rest = ends.filter(e => e !== from && e !== to);
@@ -512,9 +603,21 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
       else if (!to) to = e;
       else if (!from) from = e;
     });
+    // "Pagué la tarjeta": the card is where the money goes, whatever the order.
+    const card = said(PAY_WORD) ? ends.find(e => paidCard(e, ctx)) ?? null : null;
+    if (card && to !== card) {
+      if (from === card) from = to && to !== card ? to : null;
+      to = card;
+      if (!from) from = ends.find(e => e !== card && e.account !== card.account) ?? null;
+    }
     // A product alone: the money moves inside its account.
     if (to && !from && to.product !== null) from = { at: -1, account: to.account, product: null, dir: 'from' };
     if (from && !to && from.product !== null) to = { at: -1, account: from.account, product: null, dir: 'to' };
+    // Cash taken out with nowhere said: the one cash account, when there is one.
+    if (from && !to && said(CASH_OUT_WORD)) {
+      const cash = ctx.accounts.filter(a => a.type === 'cash' && a.id !== from!.account);
+      if (cash.length === 1) to = { at: -1, account: cash[0].id, product: null, dir: 'to' };
+    }
     accountId = from?.account ?? null;
     toAccountId = to?.account ?? null;
     fromProductId = from?.product ?? null;
@@ -530,7 +633,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
 
   // What is left says what it was about.
   const left = tokens.filter(t => !t.used && !FILLER.has(t.word) && !/^\d+$/.test(t.word)
-    && !EXPENSE.test(t.word) && !INCOME.test(t.word) && !TRANSFER.test(t.word));
+    && !EXPENSE.test(t.word) && !INCOME.test(t.word) && !(side === 'transfer' && TRANSFER_WORD.test(t.word)));
   const thing = left.length > 0 ? left.map(t => t.raw).join(' ') : null;
 
   // The category: its own name said, the person's dictionary, then a common word.

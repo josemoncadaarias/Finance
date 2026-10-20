@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (879 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (915 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5357,6 +5357,22 @@ with testers runs; the paywall is finished after them.
     (its usual product, else another). In a transfer the ends need no "a"/"de"
     in front. Opens the one form with both products (`route.fromProductId/
     toProductId`). Tests in `read-phrase.test.mjs` with his sentences.
+  - **Read by structure, never by one person's sentences** (Jose, the same
+    day: "no tienen que ser palabras mías exactas"). A transfer is any tense
+    or person of the verbs people use for it and their nouns (`TRANSFER_WORD`:
+    pasar, trasladar, mandar, enviar, consignar, girar, mover, meter, guardar,
+    separar, sacar, retirar, transferencia, giro, retiro, transfer, move,
+    sent...), words of an account's or product's name never counting as one.
+    **Two of one's own places with money between them is a transfer whatever
+    the verb**, and "pagué la tarjeta"/"pago de la Visa" (a card said as what
+    is paid, not "con la tarjeta") is money into the card. "me pasaron", "me
+    consignaron", "nos devolvieron" is income. Cash taken out with no place
+    said lands in the one cash account. "a/al/hacia/para/hasta" mark where it
+    lands, "de/desde/entre/con/por" where it leaves; a word inside a name is
+    skipped ("bolsillo de viajes"). When the destination is still not
+    understood the chat offers the likely accounts, any other, or "Fue un
+    gasto" - money given to someone. `read-phrase.test.mjs` holds 35 sentences
+    said the way OTHER people would, on invented accounts.
   - **The conversation is kept on the device for 3 days** (`HISTORY_DAYS`,
     `finance.assistant.history`, chips not kept), said on top, with a bin in
     the title bar to clear it. To become a preference later.

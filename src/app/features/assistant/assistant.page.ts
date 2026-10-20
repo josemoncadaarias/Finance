@@ -129,7 +129,8 @@ const HISTORY_KEY = 'finance.assistant.history';
 type Waiting =
   | { kind: 'account'; reading: Reading; said: string; choices: number[] }
   | { kind: 'category'; reading: Reading; said: string }
-  | { kind: 'shape'; reading: Reading; said: string };
+  | { kind: 'shape'; reading: Reading; said: string }
+  | { kind: 'transferTo'; reading: Reading; said: string };
 
 const EXAMPLES: TranslationKey[] = ['ai.example.spend', 'ai.example.income', 'ai.example.move', 'ai.example.afford', 'ai.example.spent', 'ai.example.perDay'];
 
@@ -388,7 +389,7 @@ export class AssistantPage {
 
   private async register(reading: Reading, said: string): Promise<void> {
     if (reading.amountMinor === null) return this.say('ai.register.noAmount');
-    if (reading.side === 'transfer') return this.transfer(reading);
+    if (reading.side === 'transfer') return this.transfer(reading, said);
 
     const side = reading.side === 'income' ? 'income' : 'expense';
     if (reading.categoryId === null) return this.askCategory({ ...reading, side }, said);
@@ -415,9 +416,9 @@ export class AssistantPage {
     this.say(side === 'income' ? 'ai.register.understoodIncome' : 'ai.register.understood', {}, { card });
   }
 
-  private transfer(reading: Reading): void {
+  private transfer(reading: Reading, said = ''): void {
     const to = reading.toAccountId !== null ? this.accounts.find(a => a.id === reading.toAccountId) ?? null : null;
-    if (!to) return this.say('ai.transfer.noTo');
+    if (!to) return void this.askTransferTo(reading, said);
     const from = reading.accountId !== null ? this.accounts.find(a => a.id === reading.accountId) ?? null : null;
     const product = (id: number | null) => id === null ? null : this.products.find(p => p.id === id) ?? null;
     let fromProduct = product(reading.fromProductId);
@@ -436,6 +437,39 @@ export class AssistantPage {
         onDate: reading.onDate, note: reading.thing ?? '', state: 'open',
       },
     });
+  }
+
+  /**
+   * Where the money went was not understood: never a dead end. The accounts
+   * it most likely went to, any other, or "it was a spending" (money given to
+   * somebody is no transfer between one's own accounts).
+   */
+  private async askTransferTo(reading: Reading, said: string): Promise<void> {
+    this.waiting = { kind: 'transferTo', reading, said };
+    const used = await new AccountsRepository(this.database.driver).timesUsed();
+    const offer = [...this.accounts].filter(a => a.id !== reading.accountId && a.type !== 'investment')
+      .sort((a, b) => (used.get(b.id) ?? 0) - (used.get(a.id) ?? 0)).slice(0, 3);
+    const chips: Chip[] = offer.map(a => ({ label: a.name, act: () => void this.transferToIs(a) }));
+    chips.push({ label: this.i18n.t('ai.account.other'), act: () => { this.accountsForSheet.set(this.accounts); this.accountSheet.set(true); } });
+    chips.push({ label: this.i18n.t('ai.transfer.wasSpending'), act: () => void this.wasSpending() });
+    this.say('ai.transfer.askTo', {}, { chips });
+  }
+
+  private async transferToIs(account: AccountRow): Promise<void> {
+    const w = this.waiting;
+    if (w?.kind !== 'transferTo') return;
+    this.waiting = null;
+    this.heard(account.name);
+    this.transfer({ ...w.reading, toAccountId: account.id }, w.said);
+  }
+
+  private async wasSpending(): Promise<void> {
+    const w = this.waiting;
+    if (w?.kind !== 'transferTo') return;
+    this.waiting = null;
+    this.heard(this.i18n.t('ai.transfer.wasSpending'));
+    await this.register({ ...w.reading, side: 'expense', toAccountId: null, fromProductId: null, toProductId: null,
+      productId: w.reading.fromProductId }, w.said);
   }
 
   /** Where a transfer's money leaves and lands, product first: "Bolsillo Principal → Cuenta de ahorros". */
@@ -505,7 +539,8 @@ export class AssistantPage {
 
   pickedAccount(account: AccountRow): void {
     this.accountSheet.set(false);
-    void this.accountIs(account);
+    if (this.waiting?.kind === 'transferTo') void this.transferToIs(account);
+    else void this.accountIs(account);
   }
 
   private async accountIs(account: AccountRow): Promise<void> {
