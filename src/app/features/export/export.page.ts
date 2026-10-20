@@ -28,7 +28,7 @@ import {
 } from '../../core/database/export/export-csv';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { exportBackup, backupSummary, toJson } from '../../core/database/export/export-backup';
-import { parseBackup, restoreBackup } from '../../core/database/export/restore-backup';
+import { parseBackup, restoreBackup, RestoreError } from '../../core/database/export/restore-backup';
 import { MIGRATION_SOURCES } from '../../core/database/migrations/statements.generated';
 import { rememberSeen } from '../../core/cloud/cloud-backup.service';
 import { saveFile } from '../../core/files/save-file';
@@ -334,7 +334,15 @@ export class ExportPage {
       this.picked.set(null);
       this.database.dataChanged();
     } catch (error) {
-      this.error.set(messageOf(error));
+      // Said in the person's language; the technical detail goes after it,
+      // so it can be passed on when asking for help.
+      if (error instanceof RestoreError && error.kind !== 'other') {
+        const key = error.kind === 'newer' ? 'restore.failed.newer'
+          : error.kind === 'failedBoth' ? 'restore.failed.both' : 'restore.failed';
+        this.error.set(this.i18n.t(key) + (error.kind === 'newer' ? '' : '\n\n' + this.i18n.t('restore.failed.detail', { detail: error.detail })));
+      } else {
+        this.error.set(messageOf(error));
+      }
     } finally {
       this.working.set(null);
       this.busy.set(null);

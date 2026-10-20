@@ -3295,6 +3295,19 @@ review screen always did. `tools/db/confirm-dialogs.test.mjs` fails on the
 other shape, because this failure looks exactly like a button that does
 nothing.
 
+**A row pointing at a row of its own table goes in empty and is filled
+after** (2026-10-20). Jose's backup of that day would not restore in the
+browser: "FOREIGN KEY constraint failed" on `movement_proposals`. Two bank
+messages telling one transfer point at each other (`pairs_with`), in
+different INSERT statements, and `PRAGMA foreign_keys = OFF` did not take
+there - so no order could put both first. `SELF_REFERENCES` in
+`restore-backup.ts` (categories' parent, products' maturity, proposals'
+pair) now inserts that column as NULL and sets it once every row is in;
+`restore.test.mjs` reproduces it with foreign keys left on. Not proved
+whether the phone met the same failure. A failed restore now says so in the
+app's language, with the technical detail after it (`restore.failed*`,
+`RestoreError.kind`).
+
 **A dangerous question is asked where the decision is made.** Restoring a
 backup asks the moment the file is chosen - by then it has been read and
 described, and the only thing left to say is yes or no - names the file in the

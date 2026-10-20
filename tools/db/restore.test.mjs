@@ -363,3 +363,30 @@ test('a restore says how far along it is, in rows, ending at the total', async (
   await target.db.close();
   await plain.db.close();
 });
+
+test('two proposals paired with each other come back, even where foreign keys cannot be turned off', async () => {
+  // Jose's backup of 2026-10-20 would not restore in the browser: two bank
+  // messages telling one transfer point at each other (pairs_with), and the
+  // pragma that turns foreign keys off did not take there.
+  const source = await seeded();
+  const at = '2026-10-08T12:00:00Z';
+  // Enough rows that the two of a pair land in different INSERT statements.
+  for (let id = 1; id <= 150; id++) {
+    await source.db.run(
+      `INSERT INTO movement_proposals (id, source, account_id, occurred_on, amount_minor, evidence, status, pairs_with, batch, created_at, updated_at)
+       VALUES (?, 'notification', ?, '2026-10-08', -1000000, '{}', 'pending', NULL, 'notice:x', ?, ?)`,
+      [id, source.ids.rappi, at, at]);
+  }
+  await source.db.run('UPDATE movement_proposals SET pairs_with = 150 WHERE id = 1');
+  await source.db.run('UPDATE movement_proposals SET pairs_with = 1 WHERE id = 150');
+  const text = toJson(await exportBackup(source.db));
+
+  const target = await seeded();
+  const execute = target.db.execute.bind(target.db);
+  target.db.execute = async sql => { if (/foreign_keys = OFF/.test(sql)) return; return execute(sql); };
+  await restoreBackup(target.db, parseBackup(text), MIGRATION_SOURCES);
+
+  const rows = await target.db.query('SELECT id, pairs_with FROM movement_proposals WHERE pairs_with IS NOT NULL ORDER BY id');
+  assert.deepEqual(rows.map(r => [r.id, r.pairs_with]), [[1, 150], [150, 1]]);
+  assert.equal((await target.db.query('SELECT COUNT(*) AS n FROM movement_proposals'))[0].n, 150);
+});
