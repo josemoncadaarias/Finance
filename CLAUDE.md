@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (915 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (965 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5394,6 +5394,44 @@ with testers runs; the paywall is finished after them.
   none`, touchmove and wheel cancelled), and nothing blocks while nothing is
   drawn. Measured in a browser: each step in ~250 ms, scroll and taps under
   it do nothing. Not yet felt on the phone.
+- **It answers about the whole picture** (Jose, 2026-10-19, mockups
+  `40a`-`40j`, approved after two rounds: "siempre hay que ser muy claros").
+  New intents in `read-phrase.ts`, each said any way a person says it (tested
+  on ~35 phrasings): `howAmI` ("¿cómo voy este mes?"), `topSpending` ("¿en qué
+  gasté más?"), `debts` ("¿cuánto debo?"), `payFirst` ("¿qué deuda pago
+  primero?"), `payMore` ("¿y si abono 500 mil al mes?"), `due` ("¿qué pagos
+  tengo?"), `have` ("¿cuánto tengo?", "¿cuánto hay en Nequi?"), `plans` ("¿cómo
+  van mis topes y metas?"); a `period` is read from the words ("este mes", "el
+  mes pasado", "en agosto", "este año", "esta semana"). Answers live in
+  `features/assistant/answers.ts`: a sentence and a `rich` card of plain
+  pieces (heading, line, numbered step, row, note, buttons that go somewhere),
+  so it is kept in the 3-day history as it is. Figures from
+  `AssistantService`: `periodPicture` (every account in pesos through the
+  summary's own store, `movementsFor(..., everywhere)`, `totalsOf`/`slicesOf`,
+  against the same days before), `debts` (cards' statements, loans' schedules
+  and `payoffToday`), `holdings` (net worth split), `leftOverPerMonth` (what
+  came in less what went out, average of the 3 whole months before).
+  - **Which debt first** (`core/assistant/debts-advice.ts`, pure,
+    `debts-advice.test.mjs`): a card's statement still to pay first (paid
+    whole, no interest); then, from the highest rate down (same rate: smaller
+    first), the debts that can be finished within `REACH_MONTHS` = 12 paying
+    them one after another with the money free today plus what is left over
+    each month; a debt too big for that (a mortgage) is said apart with why,
+    never "pay first". What paying it today saves is the schedule's interest
+    left less paying it off today. "Paying more each month" walks month by
+    month: each loan pays its installment, the extra goes to the first of the
+    order, a finished loan's installment joins it; loans said apart keep their
+    installment. Jose approved 12 months once explained with an example.
+  - **A card's rate** (migration 058, `accounts.card_rate_scaled` E.A. and
+    `card_rate_quoted`): optional, in the card's form under the dates ("Tasa de
+    interés · opcional", E.A. or Mensual, said back in the other). Without it a
+    card is weighed at the month's legal maximum (`core/debts/usury.ts`, the
+    months known: 2026-08 29,66 %, 2026-09 29,24 %; a later month takes the
+    latest, and says which), said as a reference; asking which debt to pay
+    first asks once a conversation for the rate of the card owing most
+    ("2,1 % mensual" is understood, `rateSaid`) and saves it.
+  - Assistant tour step `since: 2`. Checked in a browser on the sample data
+    (every answer, the rate asked and saved); not on the phone.
 - **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
   versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
 - **Voice**: the phone's own dictation into the same reader (`39h`).
@@ -5520,4 +5558,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant, proposed: chat, goals' estimate, the button on every screen)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments)

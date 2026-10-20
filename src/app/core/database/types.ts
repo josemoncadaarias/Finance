@@ -76,6 +76,9 @@ export interface AccountRow {
   /** Credit cards only, both optional: the day the statement closes and the day it is paid by. */
   statement_day: number | null;
   due_day: number | null;
+  /** Credit cards only, optional: the rate it charges, E.A. scaled by 1,000,000, and how the bank quotes it. */
+  card_rate_scaled: number | null;
+  card_rate_quoted: 'ea' | 'mv' | null;
   archived: SqlBool;
   sort_order: number;
   created_at: IsoDateTime;

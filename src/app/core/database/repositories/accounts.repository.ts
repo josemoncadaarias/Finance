@@ -56,6 +56,9 @@ export interface NewAccount {
   /** Credit cards only: the day the statement closes and the day it is paid by. */
   statement_day?: number | null;
   due_day?: number | null;
+  /** Credit cards only, optional: the rate it charges, as E.A. scaled by 1,000,000, and how the bank quotes it. */
+  card_rate_scaled?: number | null;
+  card_rate_quoted?: 'ea' | 'mv' | null;
   sort_order?: number;
 }
 
@@ -80,7 +83,7 @@ export interface SetAsideOption {
 
 const COLUMNS = `id, name, type, currency_code, group_id, builtin_icon, custom_icon_id, color,
   credit_limit_minor, include_in_net_worth, opening_balance_minor, opening_balance_base_minor, opened_on,
-  statement_day, due_day, archived, sort_order, created_at, updated_at`;
+  statement_day, due_day, card_rate_scaled, card_rate_quoted, archived, sort_order, created_at, updated_at`;
 
 export class AccountsRepository {
   /**
@@ -175,6 +178,8 @@ export class AccountsRepository {
     // older than migration 049 - which is what restoring an old backup does.
     if (account.statement_day != null) values['statement_day'] = account.statement_day;
     if (account.due_day != null) values['due_day'] = account.due_day;
+    if (account.card_rate_scaled != null) values['card_rate_scaled'] = account.card_rate_scaled;
+    if (account.card_rate_quoted != null) values['card_rate_quoted'] = account.card_rate_quoted;
     const columns = Object.keys(values);
     const result = await this.db.run(
       `INSERT INTO accounts (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
@@ -318,6 +323,8 @@ export class AccountsRepository {
     if (changes.opened_on !== undefined) set('opened_on', changes.opened_on);
     if (changes.statement_day !== undefined) set('statement_day', changes.statement_day);
     if (changes.due_day !== undefined) set('due_day', changes.due_day);
+    if (changes.card_rate_scaled !== undefined) set('card_rate_scaled', changes.card_rate_scaled);
+    if (changes.card_rate_quoted !== undefined) set('card_rate_quoted', changes.card_rate_quoted);
     if (changes.sort_order !== undefined) set('sort_order', changes.sort_order);
     if (changes.group_id !== undefined) set('group_id', changes.group_id);
     if (changes.include_in_net_worth !== undefined) set('include_in_net_worth', changes.include_in_net_worth ? 1 : 0);

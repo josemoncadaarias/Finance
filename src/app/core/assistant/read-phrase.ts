@@ -14,6 +14,8 @@
  * Pure: everything it needs comes in, nothing is read or written here.
  */
 
+import { periodContaining, shiftPeriod, type Period } from '../filters/period';
+
 export type Intent =
   /** "Gasté 45 mil en almuerzo": a movement to confirm. */
   | 'register'
@@ -25,6 +27,22 @@ export type Intent =
   | 'perDay'
   /** "¿Cómo calculas lo de mis metas?" */
   | 'howGoals'
+  /** "¿Cómo voy este mes?": the period in figures, against the one before. */
+  | 'howAmI'
+  /** "¿En qué gasté más?": the categories, largest first. */
+  | 'topSpending'
+  /** "¿Cuánto debo?": every debt, what it costs. */
+  | 'debts'
+  /** "¿Qué deuda pago primero?" */
+  | 'payFirst'
+  /** "¿Y si abono 500 mil al mes?" */
+  | 'payMore'
+  /** "¿Qué pagos tengo este mes?" */
+  | 'due'
+  /** "¿Cuánto tengo?", "¿cuánto hay en Nequi?" */
+  | 'have'
+  /** "¿Cómo van mis topes y mis metas?" */
+  | 'plans'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -84,6 +102,8 @@ export interface Reading {
   thing: string | null;
   /** The shape of a sentence with no verb, to learn what it meant. */
   shape: string | null;
+  /** The period a question is about ("en septiembre", "este año"); null when none was said. */
+  period: Period | null;
 }
 
 /** Lower case, no accents, the way every comparison here is made. */
@@ -212,7 +232,18 @@ function amountIn(tokens: Token[]): Amount | null {
 
 const has = (folded: string, pattern: RegExp) => pattern.test(folded);
 
-const HOW_GOALS = /\bmetas?\b.*\b(calcul\w*|como|aporte\w*|cuota\w*)|\b(calcul\w*|como)\b.*\bmetas?\b|\bhow\b.*\bgoals?\b/;
+const HOW_GOALS = /\bmetas?\b.*\b(calcul\w*|aporte\w*|cuota\w*)|\b(calcul\w*|aporte\w*|cuota\w*)\b.*\bmetas?\b|\bhow\b.*\bgoals?\b.*\b(work|calculat\w*)\b|\bhow\b.*\b(work|calculat\w*)\b.*\bgoals?\b/;
+// The questions about the whole picture (mockups 40a-40j): said any way a
+// person says them, never one person's sentences.
+const PAY_MORE = /\b(si|y si|que pasa si|cuanto (me )?ahorro si|what if|if i)\b.*\b(abon\w*|pag[oau]\w*|met[oie]\w*|pongo|pusiera|extra|adicional|pay|paid)\b/;
+const PAY_FIRST = /\b(que|cual|cuales)\b.*\b(deudas?|prestamos?|credito|tarjeta)?\b.*\b(pago|pagar|abono|abonar|cancelo|cancelar|liquido|salgo)\b.*\b(primero|antes|primera|de primeras)\b|\b(que|cual)\b.*\b(deudas?|prestamos?)\b.*\b(me conviene|conviene|mas cara|cuesta mas|cobra mas|mas interes\w*|primero)\b|\b(which|what)\b.*\b(debt|loan)\b.*\bfirst\b|\bpay\b.*\bfirst\b/;
+const DEBTS = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(debo|adeudo)\b|\b(cuantas|cuales|que|mis)\b.*\b(deudas|prestamos|creditos)\b|\b(que|a quien)\b.*\bdebo\b|\bhow much\b.*\bowe\b|\bmy debts\b/;
+const DUE = /\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por pagar)\b|\b(que|cuando)\b.*\b(tengo que pagar|me toca pagar|debo pagar|vence\w*|hay que pagar)\b|\bproximos pagos\b|\b(what|which)\b.*\b(payments|bills)\b|\bwhat do i have to pay\b/;
+const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
+const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|year|week|going|go)\b/;
+const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va\w*|se me fue|se fue|se me esta yendo|se va)\b|\b(mayores?|mas grandes?|principales)\b.*\bgastos?\b|\b(en que|que)\b.*\bcategorias?\b|\bwhat did i spend\b.*\bmost\b|\bwhere\b.*\bmoney\b.*\bgo\w*\b/;
+const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
+const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
 const PER_DAY = /\b(cuanto|que tanto)\b.*\b(puedo gastar|me queda|tengo)\b.*\b(dia|diario|hoy|semana|mes)\b|\bal dia\b.*\bcuanto\b|\bhow much\b.*\b(can i spend|left)\b/;
 const SPENT_IN = /\b(cuanto|que tanto)\b.*\b(llevo|he gastado|gaste|gastado|va|van|voy)\b|\bhow much\b.*\b(spent|have i spent|did i spend)\b/;
 const AFFORD = /\b(alcanza|alcanzaria|me puedo|puedo (gastar|comprar|pagar|darme|permitirme)\w*|podria (gastar|comprar|pagar)\w*|can i (afford|spend|buy|pay)|afford)\b/;
@@ -262,6 +293,7 @@ const FILLER = new Set([
 
 const DAYS_ES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 const DAYS_EN = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const MONTHS_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function shift(iso: string, days: number): string {
@@ -441,6 +473,51 @@ function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => s
 // The reading
 // ---------------------------------------------------------------------------
 
+/**
+ * The period a question names: "este mes", "el mes pasado", "en septiembre",
+ * "septiembre del 2025", "esta semana", "la semana pasada", "este año", "el año
+ * pasado", "hoy", "ayer". Null when none is said; its words are marked used.
+ */
+function periodIn(tokens: Token[], today: string): Period | null {
+  const [y, m, d] = today.split('-').map(Number);
+  const now = new Date(Date.UTC(y, m - 1, d));
+  const words = tokens.map(t => t.word);
+  const at = (run: string[]) => {
+    for (let i = 0; i + run.length <= words.length; i++) {
+      if (run.every((w, k) => words[i + k] === w)) return i;
+    }
+    return -1;
+  };
+  const take = (i: number, n: number) => { for (let k = i; k < i + n && k < tokens.length; k++) tokens[k].used = true; };
+  const kinds: [string[], 'week' | 'month' | 'year', number][] = [
+    [['semana', 'pasada'], 'week', -1], [['semana', 'anterior'], 'week', -1], [['last', 'week'], 'week', -1],
+    [['mes', 'pasado'], 'month', -1], [['mes', 'anterior'], 'month', -1], [['last', 'month'], 'month', -1],
+    [['ano', 'pasado'], 'year', -1], [['ano', 'anterior'], 'year', -1], [['last', 'year'], 'year', -1],
+    [['esta', 'semana'], 'week', 0], [['this', 'week'], 'week', 0],
+    [['este', 'mes'], 'month', 0], [['this', 'month'], 'month', 0],
+    [['este', 'ano'], 'year', 0], [['this', 'year'], 'year', 0], [['el', 'ano'], 'year', 0],
+  ];
+  for (const [run, kind, steps] of kinds) {
+    const i = at(run);
+    if (i >= 0) { take(i, run.length); return shiftPeriod(periodContaining(kind, now), steps); }
+  }
+  // A month by its name, with its year or the latest one that has begun.
+  for (let i = 0; i < words.length; i++) {
+    const month = MONTHS.indexOf(words[i]) >= 0 ? MONTHS.indexOf(words[i]) : MONTHS_EN.indexOf(words[i]);
+    if (month < 0) continue;
+    let year = y;
+    let used = 1;
+    const next = words[i + 1] === 'de' || words[i + 1] === 'del' ? i + 2 : i + 1;
+    if (/^(19|20)\d\d$/.test(words[next] ?? '')) { year = Number(words[next]); used = next - i + 1; }
+    else if (month + 1 > m) year -= 1;
+    take(i, used);
+    return periodContaining('month', new Date(Date.UTC(year, month, 1)));
+  }
+  const day = at(['hoy']) >= 0 ? 0 : at(['today']) >= 0 ? 0 : at(['ayer']) >= 0 || at(['yesterday']) >= 0 ? -1 : null;
+  if (day !== null) return shiftPeriod(periodContaining('day', now), day);
+  return null;
+}
+
 interface Places {
   hits: { ids: number[]; at: number; length: number }[];
   productEnds: { at: number; product: PhraseProduct }[];
@@ -558,9 +635,17 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   let intent: Intent;
   let side: Side | null = null;
   if (has(folded, HOW_GOALS)) intent = 'howGoals';
+  else if (amount && has(folded, PAY_MORE)) intent = 'payMore';
+  else if (has(folded, PAY_FIRST)) intent = 'payFirst';
   else if (has(folded, AFFORD) && amount) intent = 'afford';
-  else if (has(folded, PER_DAY) || (!amount && has(folded, AFFORD))) intent = 'perDay';
+  else if (has(folded, PER_DAY) || has(folded, FREE_NOW) || (!amount && has(folded, AFFORD))) intent = 'perDay';
+  else if (!amount && has(folded, DUE)) intent = 'due';
+  else if (!amount && has(folded, DEBTS)) intent = 'debts';
+  else if (!amount && has(folded, PLANS)) intent = 'plans';
   else if (has(folded, SPENT_IN) && !amount) intent = 'spentIn';
+  else if (!amount && has(folded, TOP_SPENDING)) intent = 'topSpending';
+  else if (!amount && has(folded, HOW_AM_I)) intent = 'howAmI';
+  else if (!amount && has(folded, HAVE)) intent = 'have';
   else if (amount && cameIn && !has(folded, EXPENSE)) { intent = 'register'; side = 'income'; }
   else if (amount && said(TRANSFER_WORD) && !has(folded, EXPENSE)) { intent = 'register'; side = 'transfer'; }
   else if (amount && has(folded, INCOME) && !has(folded, EXPENSE)) { intent = 'register'; side = 'income'; }
@@ -580,6 +665,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     else if (side === 'expense' && said(PAY_WORD) && ends.some(e => paidCard(e, ctx))) { intent = 'register'; side = 'transfer'; }
   }
 
+  const period = periodIn(tokens, ctx.today);
   const transfer = side === 'transfer';
   const found = placesIn(tokens, ctx, transfer);
   const { hits, productEnds, productsAt } = found;
@@ -630,6 +716,9 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
       else accountChoices = hits[0].ids;
     }
   }
+
+  // "¿Cuánto me queda en Nequi?": what that account holds, not the month's free money.
+  if (intent === 'perDay' && accountId !== null && !has(folded, PER_DAY)) intent = 'have';
 
   // What is left says what it was about.
   const left = tokens.filter(t => !t.used && !FILLER.has(t.word) && !/^\d+$/.test(t.word)
@@ -699,6 +788,6 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     intent, side, amountMinor, amountGuessed: guessed, amountText: amount?.text ?? null,
     onDate: day.onDate, dayWord: day.word,
     accountId, accountChoices, toAccountId, productId, fromProductId, toProductId,
-    categoryId, categoryFrom, thing, shape,
+    categoryId, categoryFrom, thing, shape, period,
   };
 }

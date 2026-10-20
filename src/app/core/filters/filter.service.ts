@@ -63,9 +63,9 @@ export class FilterService {
    * excluded account is still viewable on its own; it just does not join the
    * total.
    */
-  scopeFor(accounts: readonly AccountRow[]): number[] {
+  scopeFor(accounts: readonly AccountRow[], everywhere = false): number[] {
     const selected = this.accountId();
-    if (selected !== null) return [selected];
+    if (selected !== null && !everywhere) return [selected];
 
     return accounts
       .filter(account => !account.archived)

@@ -226,6 +226,26 @@
       </div>
       <p class="explain">{{ 'cards.dates.hint' | t }}</p>
 
+      <!-- The rate it charges, optional: what lets the assistant weigh it against a loan (40g). -->
+      <h3 class="ui-h">{{ 'cards.rate' | t }}</h3>
+      <div class="ui-list">
+        <div class="ui-field col">
+          <span class="in">
+            <span class="lab">{{ 'cards.rate.label' | t }}</span>
+            <span class="rate-row">
+              <input inputmode="decimal" [value]="cardRateText()" placeholder="0,00" (input)="cardRateText.set($any($event.target).value)">
+              <span class="unit">%</span>
+              <span class="ui-seg mini">
+                <button type="button" [class.on]="cardRateQuoted() === 'ea'" (click)="cardRateQuoted.set('ea')">E.A.</button>
+                <button type="button" [class.on]="cardRateQuoted() === 'mv'" (click)="cardRateQuoted.set('mv')">{{ 'cards.rate.monthly' | t }}</button>
+              </span>
+            </span>
+            @if (cardRateLine()) { <span class="hint">{{ cardRateLine() }}</span> }
+          </span>
+        </div>
+      </div>
+      <p class="explain">{{ 'cards.rate.hint' | t }}</p>
+
       @if (limitHistory().length > 0) {
         <h3 class="ui-h">{{ 'accounts.limitHistory' | t }}</h3>
         <div class="ui-list">

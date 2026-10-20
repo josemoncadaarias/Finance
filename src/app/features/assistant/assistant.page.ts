@@ -33,6 +33,9 @@ import { CategorySheetComponent } from '../../shared/category-sheet/category-she
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import * as A from './answers';
+import type { RichButton, RichCard, Speech } from './answers';
+import { FilterService } from '../../core/filters/filter.service';
 import { afford, perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
 import { isoDay } from '../../core/filters/period';
@@ -106,7 +109,7 @@ interface GoalsCard {
   picture: Picture;
 }
 
-type Card = RegisterCard | TransferCard | FreeCard | SpentCard | GoalsCard;
+type Card = RegisterCard | TransferCard | FreeCard | SpentCard | GoalsCard | RichCard;
 
 interface Message {
   id: number;
@@ -130,9 +133,24 @@ type Waiting =
   | { kind: 'account'; reading: Reading; said: string; choices: number[] }
   | { kind: 'category'; reading: Reading; said: string }
   | { kind: 'shape'; reading: Reading; said: string }
-  | { kind: 'transferTo'; reading: Reading; said: string };
+  | { kind: 'transferTo'; reading: Reading; said: string }
+  | { kind: 'cardRate'; cardId: number; then: 'payFirst' | 'debts' | 'payMore'; extraMinor: number };
 
 const EXAMPLES: TranslationKey[] = ['ai.example.spend', 'ai.example.income', 'ai.example.move', 'ai.example.afford', 'ai.example.spent', 'ai.example.perDay'];
+/** The welcome's three groups (40a): registering, the month, the debts. */
+const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
+  { title: 'ai.group.register', rows: [
+    { key: 'ai.example.spend', icon: 'arrow-up', cls: 'ui-r' },
+    { key: 'ai.example.move', icon: 'swap-horizontal', cls: 'ui-p' }] },
+  { title: 'ai.group.month', rows: [
+    { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
+    { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
+    { key: 'ai.example.afford', icon: 'help-circle-outline', cls: 'ui-p' }] },
+  { title: 'ai.group.debts', rows: [
+    { key: 'ai.example.debts', icon: 'card-outline', cls: 'ui-p' },
+    { key: 'ai.example.payFirst', icon: 'flag-outline', cls: 'ui-p' },
+    { key: 'ai.example.due', icon: 'calendar-outline', cls: 'ui-p' }] },
+];
 
 @Component({
   selector: 'app-assistant',
@@ -146,6 +164,7 @@ export class AssistantPage {
   private readonly assistant = inject(AssistantService);
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
+  private readonly filter = inject(FilterService);
   readonly i18n = inject(I18nService);
 
   private readonly content = viewChild(IonContent);
@@ -157,6 +176,7 @@ export class AssistantPage {
   readonly listening = signal(false);
   readonly voice = signal(true);
   readonly examples = EXAMPLES;
+  readonly welcomeGroups = WELCOME;
   readonly historyDays = HISTORY_DAYS;
 
   /** The category sheet, open for "Otra categoría". */
@@ -222,6 +242,7 @@ export class AssistantPage {
   /** Clears the conversation on screen and on the device. */
   clear(): void {
     this.waiting = null;
+    this.rateAsked = false;
     this.messages.set([]);
   }
 
@@ -347,6 +368,18 @@ export class AssistantPage {
 
   private async answer(text: string): Promise<void> {
     const ctx = await this.load();
+    // The card's rate asked for (40g): "2,1 % mensual" answers it.
+    const w = this.waiting;
+    if (w?.kind === 'cardRate') {
+      const r = A.rateSaid(text);
+      if (r) {
+        this.waiting = null;
+        await this.assistant.setCardRate(w.cardId, r.eaScaled, r.quoted);
+        const name = this.accounts.find(a => a.id === w.cardId)?.name ?? '';
+        this.say(r.quoted === 'mv' ? 'ai.rate.savedMonthly' : 'ai.rate.saved', { rate: A.rateText(r.eaScaled), card: name });
+        return this.debtsAnswer(w.then, w.extraMinor, true);
+      }
+    }
     const reading = readPhrase(text, ctx);
     this.waiting = null;
     switch (reading.intent) {
@@ -355,6 +388,14 @@ export class AssistantPage {
       case 'perDay': return this.howMuchADay();
       case 'spentIn': return this.spent(reading, text);
       case 'howGoals': return this.howGoals();
+      case 'howAmI': return this.howAmI(reading);
+      case 'topSpending': return this.topSpending(reading);
+      case 'debts': return this.debtsAnswer('debts', 0);
+      case 'payFirst': return this.debtsAnswer('payFirst', 0);
+      case 'payMore': return this.debtsAnswer('payMore', reading.amountMinor ?? 0);
+      case 'due': return this.dueAnswer();
+      case 'have': return this.haveAnswer(reading);
+      case 'plans': return this.plansAnswer();
       case 'unsure': return this.askShape(reading, text);
       default:
         this.say('ai.unknown', {}, { chips: this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) })) });
@@ -747,6 +788,131 @@ export class AssistantPage {
   cashInterest(card: FreeCard): void {
     const top = card.picture.interest[0];
     if (top) void this.router.navigate(['/products'], { queryParams: { account: top.account.id } });
+  }
+
+  // ---- The whole picture (40b-40j) -------------------------------------------
+
+  private speech(): Speech {
+    const locale = this.i18n.language() === 'en' ? 'en-US' : 'es-CO';
+    return {
+      t: (key, values) => this.i18n.t(key, values),
+      pesos: minor => this.pesos(minor),
+      date: iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(locale, { day: 'numeric', month: 'long' }); },
+      month: ym => { const [y, m] = ym.split('-').map(Number); return y ? new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' }) : ''; },
+      today: isoDay(new Date()),
+    };
+  }
+
+  private give(answer: A.Answer): void {
+    const chips = answer.next.map(key => {
+      const label = this.i18n.t(key);
+      return { label, act: () => void this.send(label) };
+    });
+    const extra = { ...(answer.card ? { card: answer.card } : {}), chips };
+    if (answer.said.text) {
+      this.messages.update(list => [...list, { id: this.nextId++, who: 'app', at: Date.now(), parts: this.parts(answer.said.text!), ...extra }]);
+      this.scroll();
+    } else {
+      this.say(answer.said.key, answer.said.values, extra);
+    }
+  }
+
+  private async howAmI(reading: Reading): Promise<void> {
+    const pic = await this.assistant.periodPicture(reading.period);
+    const picture = pic.partial ? await this.assistant.picture() : null;
+    this.give(A.howAmI(this.speech(), pic, picture, this.assistant.plans().limits));
+  }
+
+  private async topSpending(reading: Reading): Promise<void> {
+    this.give(A.topSpending(this.speech(), await this.assistant.periodPicture(reading.period)));
+  }
+
+  /** The debts' three answers; a card with no rate of its own is asked for it once first (40g). */
+  private async debtsAnswer(then: 'debts' | 'payFirst' | 'payMore', extraMinor: number, asked = false): Promise<void> {
+    const { debts } = await this.assistant.debts();
+    if (then !== 'debts' && !asked) {
+      // Asked once a conversation: the card owing most of those without a rate.
+      const unknown = this.rateAsked ? undefined : debts.filter(d => d.kind === 'card' && d.rateFrom === 'reference')
+        .sort((a, b) => b.balanceMinor - a.balanceMinor)[0];
+      if (unknown) {
+        this.rateAsked = true;
+        this.waiting = { kind: 'cardRate', cardId: unknown.id, then, extraMinor };
+        this.say('ai.rate.ask', { card: unknown.name, owed: this.pesos(unknown.balanceMinor) }, {
+          chips: [
+            { label: this.i18n.t('ai.rate.useReference'), act: () => { this.heard(this.i18n.t('ai.rate.useReference')); this.waiting = null; void this.debtsAnswer(then, extraMinor, true); } },
+            { label: this.i18n.t('ai.rate.write'), act: () => { this.heard(this.i18n.t('ai.rate.write')); this.say('ai.rate.howToWrite'); } },
+          ],
+        });
+        return;
+      }
+    }
+    const s = this.speech();
+    if (then === 'debts') return this.give(A.debts(s, debts));
+    const leftOver = await this.assistant.leftOverPerMonth();
+    if (then === 'payFirst') {
+      const picture = await this.assistant.picture();
+      return this.give(A.payFirst(s, debts, picture.free.freeMinor, leftOver));
+    }
+    this.give(A.payMoreAnswer(s, debts, extraMinor, leftOver));
+  }
+
+  /** A card's rate is asked once a conversation; after that the reference is used. */
+  private rateAsked = false;
+
+  private async dueIn(): Promise<{ list: A.DueIn[]; monthEnd: string }> {
+    const picture = await this.assistant.picture();
+    const list = picture.free.payments.map(p => {
+      const account = this.accounts.find(a => a.id === p.id) ?? null;
+      return { name: p.name, kind: p.kind, id: p.id, amountMinor: p.amountMinor, dueOn: p.dueOn,
+        from: p.fromAccountId !== null ? this.accounts.find(a => a.id === p.fromAccountId) ?? null : null,
+        icon: account?.builtin_icon ?? null, color: account?.color ?? null };
+    });
+    return { list, monthEnd: picture.free.monthEnd };
+  }
+
+  private async dueAnswer(): Promise<void> {
+    const { list, monthEnd } = await this.dueIn();
+    const h = await this.assistant.holdings();
+    this.give(A.due(this.speech(), list, new Map(h.balances.map(b => [b.account.id, b.minor])), monthEnd));
+  }
+
+  private async haveAnswer(reading: Reading): Promise<void> {
+    const h = await this.assistant.holdings();
+    if (reading.accountId !== null) {
+      const at = h.balances.find(b => b.account.id === reading.accountId);
+      if (at) {
+        const { list } = await this.dueIn();
+        return this.give(A.accountHas(this.speech(), at.account, at.minor, list));
+      }
+    }
+    this.give(A.have(this.speech(), h));
+  }
+
+  private async plansAnswer(): Promise<void> {
+    await this.assistant.loadGoals();
+    const p = this.assistant.plans();
+    this.give(A.plans(this.speech(), p.limits, p.goals));
+  }
+
+  /** A button of an answer's card. */
+  go(button: RichButton): void {
+    if (button.transferTo) {
+      this.compose.open('transfer', { preferredAccountId: button.transferTo.accountId, preferredSide: 'to',
+        start: { amountMinor: button.transferTo.amountMinor, onDate: isoDay(new Date()), note: '' } });
+      return;
+    }
+    if (button.report) {
+      this.filter.selectAccount(null);
+      this.filter.period.set(button.report);
+      void this.router.navigate(['/report']);
+      return;
+    }
+    if (button.route) void this.router.navigate(button.route, button.query ? { queryParams: button.query } : {});
+  }
+
+  /** What is said in bold, inside a card's line. */
+  bits(text: string): Part[] {
+    return this.parts(text);
   }
 
   seeCap(cap: LimitView): void {

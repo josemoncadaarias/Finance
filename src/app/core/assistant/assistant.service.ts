@@ -25,13 +25,20 @@ import { accrueAndSettle } from '../yields/cdt';
 import { usualScope, writeScoped } from '../yields/entry-scope';
 import { loadCards, usualPayer } from '../cards/card-data';
 import { LoansRepository } from '../loans/loans.repository';
-import { loanSchedule } from '../loans/schedule';
+import { loanSchedule, payoffToday } from '../loans/schedule';
 import { GoalsRepository, inPesos, savedOn } from '../goals/goals.repository';
 import { GoalsService } from '../goals/goals.service';
 import { LimitsService, type LimitView } from '../limits/limits.service';
 import { monthOf, shiftMonth, daysInMonth } from '../limits/limits';
 import { wordCategoryOf } from '../proposals/common-words';
-import { isoDay } from '../filters/period';
+import { isoDay, periodContaining, periodLabel, type Period } from '../filters/period';
+import { MovementsStore } from '../../features/movements/movements.store';
+import { slicesOf, totalsOf, type Slice } from '../../features/movements/group-movements';
+import { daysBetween, equivalentBefore } from '../report/report-data';
+import { I18nService } from '../i18n/i18n.service';
+import { splitWorth } from '../worth/worth-split';
+import { usuryOn } from '../debts/usury';
+import type { DebtIn } from './debts-advice';
 import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { NOTHING_LEARNED, fold, type Learned, type PhraseContext } from './read-phrase';
 
@@ -58,11 +65,39 @@ export interface SpentIn {
   cap: LimitView | null;
 }
 
+/** A period in figures, against the same days of the one before (40b, 40c). */
+export interface PeriodPicture {
+  period: Period;
+  label: string;
+  /** The period reaches today: only its days so far are counted, and compared. */
+  partial: boolean;
+  /** The first and last day counted. */
+  from: string;
+  to: string;
+  inMinor: number;
+  outMinor: number;
+  before: { label: string; from: string; to: string; inMinor: number; outMinor: number; slices: Slice[] } | null;
+  /** Spending by category, largest first. */
+  slices: Slice[];
+}
+
+/** One debt as the assistant speaks of it (40d-40h). */
+export interface DebtView extends DebtIn {
+  account: AccountRow;
+  /** The next payment: its day and what it is (a statement, an installment with its insurance). */
+  nextOn: string | null;
+  nextMinor: number;
+  /** The month the reference rate is of, when it is the reference. */
+  referenceMonth: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssistantService {
   private readonly database = inject(DatabaseService);
   private readonly goals = inject(GoalsService);
   private readonly limits = inject(LimitsService);
+  private readonly store = inject(MovementsStore);
+  private readonly i18n = inject(I18nService);
 
   private get db() {
     return this.database.driver;
@@ -269,6 +304,146 @@ export class AssistantService {
       beforeMinor: sign * await sum(`${last}-01`, `${last}-${String(lastDay).padStart(2, '0')}`),
       cap: this.capOf(category.id),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // The whole picture (40b-40j)
+  // -------------------------------------------------------------------------
+
+  /**
+   * A period across every account counted in net worth, in pesos, read the
+   * way the summary and the report read it (`totalsOf`, `slicesOf`): only its
+   * days so far when it reaches today, against the same days of the one before.
+   */
+  async periodPicture(asked: Period | null): Promise<PeriodPicture> {
+    const today = isoDay(new Date());
+    const period = asked ?? periodContaining('month', new Date());
+    const from = period.from ?? today;
+    const to = period.to !== null && period.to < today ? period.to : today;
+    const partial = period.to === null || period.to >= today;
+    const counted: Period = { ...period, from, to };
+    const locale = this.i18n.dateLocale();
+    const all = this.i18n.t('period.all');
+    const movements = await this.store.movementsFor(counted, undefined, true);
+    const totals = totalsOf(movements, 'base');
+    const spending = (list: typeof movements) => slicesOf(list, 'base')
+      .filter(slice => slice.flow === 'out' && slice.amountMinor > 0)
+      .sort((a, b) => b.amountMinor - a.amountMinor);
+    const earlier = equivalentBefore(period, daysBetween(from, to) + 1);
+    let before: PeriodPicture['before'] = null;
+    if (earlier !== null && earlier.from !== null && earlier.to !== null) {
+      const list = await this.store.movementsFor(earlier, undefined, true);
+      const t = totalsOf(list, 'base');
+      before = { label: periodLabel(earlier, locale, all), from: earlier.from, to: earlier.to,
+        inMinor: t.inMinor, outMinor: t.outMinor, slices: spending(list) };
+    }
+    return {
+      period, label: periodLabel(period, locale, all), partial, from, to,
+      inMinor: totals.inMinor, outMinor: totals.outMinor, before, slices: spending(movements),
+    };
+  }
+
+  /**
+   * Every debt in pesos: each card with what it owes, what is left of its
+   * statement and its rate (typed on the card, or the month's legal maximum as
+   * a reference); each loan with its schedule's balance, installment, interest
+   * still to pay and what paying it off today would cost.
+   */
+  async debts(): Promise<{ debts: DebtView[]; reference: { rateScaled: number; month: string } }> {
+    const db = this.db;
+    const today = isoDay(new Date());
+    const reference = usuryOn(today);
+    const [cards, loans, rates] = await Promise.all([
+      loadCards(db, today), new LoansRepository(db).all(), new GoalsRepository(db).rates(today),
+    ]);
+    const out: DebtView[] = [];
+    for (const card of cards) {
+      const owed = inPesos(Math.max(0, -card.balanceMinor), card.account.currency_code, rates);
+      if (owed === null || owed <= 0) continue;
+      const s = card.statement;
+      const statementDue = (s.state === 'due' || s.state === 'partial' || s.state === 'overdue') && s.remainingMinor > 0;
+      const left = statementDue ? inPesos(s.remainingMinor, card.account.currency_code, rates) ?? 0 : 0;
+      const typed = card.account.card_rate_scaled;
+      out.push({
+        kind: 'card', id: card.account.id, name: card.account.name, account: card.account,
+        balanceMinor: owed, rateScaled: typed ?? reference.rateScaled, rateFrom: typed ? 'typed' : 'reference',
+        referenceMonth: typed ? null : reference.month,
+        installmentMinor: 0, installmentsLeft: 0, interestLeftMinor: 0, payoffInterestMinor: 0,
+        statementLeftMinor: left, dueOn: statementDue ? s.dueOn : null,
+        nextOn: statementDue ? s.dueOn : null, nextMinor: left,
+      });
+    }
+    for (const loan of loans) {
+      if (loan.account.archived) continue;
+      const schedule = loanSchedule(loan.terms, loan.payments, today);
+      if (schedule.done || schedule.balanceMinor <= 0) continue;
+      const rate = [...loan.terms.rates].sort((a, b) => a.validFrom.localeCompare(b.validFrom))
+        .filter(r => r.validFrom <= today).pop() ?? loan.terms.rates[0];
+      const next = schedule.overdue[0] ?? schedule.next;
+      out.push({
+        kind: 'loan', id: loan.account.id, name: loan.account.name, account: loan.account,
+        balanceMinor: schedule.balanceMinor, rateScaled: rate?.annualRateScaled ?? null, rateFrom: rate ? 'typed' : null,
+        referenceMonth: null,
+        installmentMinor: next ? next.capitalMinor + next.interestMinor : 0,
+        installmentsLeft: Math.max(0, schedule.totalCount - schedule.paidCount),
+        interestLeftMinor: schedule.interestLeftMinor,
+        payoffInterestMinor: payoffToday(loan.terms, loan.payments, today).interestMinor,
+        statementLeftMinor: 0, dueOn: next?.dueOn ?? null,
+        nextOn: next?.dueOn ?? null, nextMinor: next?.totalMinor ?? 0,
+      });
+    }
+    return { debts: out, reference };
+  }
+
+  /**
+   * What is left over in a month, on average: what came in less what went out
+   * over the last three whole months, every account counted (never below
+   * nothing). What paying a debt off "soon" is measured with.
+   */
+  async leftOverPerMonth(): Promise<number> {
+    const today = new Date();
+    let total = 0;
+    for (let back = 1; back <= 3; back++) {
+      const month = periodContaining('month', new Date(today.getFullYear(), today.getMonth() - back, 1));
+      const t = totalsOf(await this.store.movementsFor(month, undefined, true), 'base');
+      total += t.inMinor - t.outMinor;
+    }
+    return Math.max(0, Math.round(total / 3));
+  }
+
+  /** The rate a card charges, typed in the chat (40g). */
+  async setCardRate(accountId: number, rateScaled: number, quoted: 'ea' | 'mv'): Promise<void> {
+    await new AccountsRepository(this.db).update(accountId, { card_rate_scaled: rateScaled, card_rate_quoted: quoted });
+    this.database.dataChanged();
+  }
+
+  /** What every account holds today, in pesos, and net worth as what one has and owes (40i). */
+  async holdings(): Promise<{ haveMinor: number; oweMinor: number; haveCount: number; oweCount: number; worthMinor: number;
+    balances: { account: AccountRow; minor: number }[] }> {
+    const db = this.db;
+    const accounts = new AccountsRepository(db);
+    const [worth, loanIds, balances, rates] = await Promise.all([
+      accounts.netWorth(), new LoansRepository(db).ids(), accounts.balances({ leaveOutSetAside: true }),
+      new GoalsRepository(db).rates(isoDay(new Date())),
+    ]);
+    const loans = new Set(loanIds);
+    const types = new Map(balances.map(b => [b.account.id, b.account.type]));
+    const split = splitWorth(worth.lines, id => loans.has(id) ? 'loan' : types.get(id) === 'credit' ? 'card' : 'other');
+    return {
+      haveMinor: split.haveMinor, oweMinor: split.oweMinor, haveCount: split.haveCount,
+      oweCount: split.owe.length, worthMinor: worth.totalMinor,
+      balances: balances.filter(b => !b.account.archived)
+        .map(b => ({ account: b.account, minor: inPesos(b.balance_minor, b.account.currency_code, rates) ?? 0 })),
+    };
+  }
+
+  /** The caps of this month and the goals, as their own screens have them (40j). */
+  plans(): { limits: LimitView[]; goals: ReturnType<GoalsService['live']> } {
+    return { limits: this.limits.current().limits, goals: this.goals.live() };
+  }
+
+  async loadGoals(): Promise<void> {
+    await this.goals.load();
   }
 
   // -------------------------------------------------------------------------
