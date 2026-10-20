@@ -23,7 +23,9 @@ const PAD = 6;
   imports: [TranslatePipe, IonIcon, NgTemplateOutlet],
   template: `
     @if (tour.active(); as now) {
-      <div class="catch" (click)="$event.stopPropagation()"></div>
+      @if (now.step < 0 || centred() || box()) {
+        <div class="catch" (click)="$event.stopPropagation()"></div>
+      }
       @if (now.step < 0) {
         @let w = welcome();
         <div class="dim"></div>
@@ -46,8 +48,8 @@ const PAD = 6;
           <ng-container *ngTemplateOutlet="foot; context: { now: now }"></ng-container>
         </div>
       } @else if (box(); as b) {
-        <div class="hole" [style.left.px]="b.x" [style.top.px]="b.y" [style.width.px]="b.w" [style.height.px]="b.h"
-             [style.border-radius.px]="radius()"></div>
+        <div class="hole" [style.transform]="'translate3d(' + b.x + 'px,' + b.y + 'px,0)'" [style.width.px]="b.w" [style.height.px]="b.h"
+             [style.border-radius.px]="radius()" (click)="$event.stopPropagation()"></div>
         @let s = steps()[now.step];
         <div class="bubble" role="dialog" aria-modal="true"
              [style.top.px]="placement() === 'below' ? b.y + b.h + 14 : null"
@@ -81,14 +83,16 @@ const PAD = 6;
     .new { display: inline-block; align-self: flex-start; width: fit-content; margin-bottom: 6px; padding: 2px 9px; border-radius: 10px; font-size: 11.5px; font-weight: 700;
       background: rgba(var(--app-grn-rgb), 0.18); color: var(--app-grn); }
     :host:empty { display: none; }
-    .catch { position: fixed; inset: 0; pointer-events: auto; }
+    .catch { position: fixed; inset: 0; pointer-events: auto; touch-action: none; }
     .dim { position: fixed; inset: 0; background: rgba(3, 6, 14, 0.78); }
     .hole {
-      position: fixed; box-shadow: 0 0 0 4000px rgba(3, 6, 14, 0.74); border: 2px solid var(--app-pr);
-      transition: all 0.25s ease;
+      /* No transition: animating a 4000px shadow repaints the whole screen
+         every frame, which froze slower phones. */
+      position: fixed; left: 0; top: 0; pointer-events: auto; touch-action: none; will-change: transform;
+      box-shadow: 0 0 0 4000px rgba(3, 6, 14, 0.74); border: 2px solid var(--app-pr);
     }
     .welcome, .bubble {
-      position: fixed; left: 16px; right: 16px; pointer-events: auto; color: var(--app-tx);
+      position: fixed; left: 16px; right: 16px; pointer-events: auto; touch-action: none; color: var(--app-tx);
       background: var(--app-s2); border: 1px solid var(--app-line); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
     }
     .welcome {
@@ -182,6 +186,13 @@ export class TourOverlayComponent {
     });
   }
 
+  /** Nothing under the tour scrolls while it is up: what is lit would drift away from its frame. */
+  @HostListener('touchmove', ['$event'])
+  @HostListener('wheel', ['$event'])
+  holdStill(event: Event): void {
+    if (this.tour.active() && event.cancelable) event.preventDefault();
+  }
+
   @HostListener('window:resize')
   onResize(): void {
     const now = this.tour.active();
@@ -197,6 +208,7 @@ export class TourOverlayComponent {
     if (!element) {
       // Not drawn yet, or not on this screen at all (an account with no
       // products): looked for again for a moment, then the step is skipped.
+      // Nothing blocks the screen meanwhile (the catch layer waits for a frame).
       this.timer = setTimeout(() => tries < 6 ? this.place(selector, scroll, tries + 1) : this.tour.next(), 250);
       return;
     }
@@ -217,8 +229,9 @@ export class TourOverlayComponent {
     if (!scroll) { measure(); return; }
     void bringIntoView(element).then(moved => {
       if (!moved) { measure(); return; }
-      // Measured once the scroll has settled, and again in case it ran long.
-      this.timer = setTimeout(() => { measure(); this.timer = setTimeout(measure, 350); }, 420);
+      // The jump is instant: measured on the next frame, and once more in case
+      // the page was still laying itself out.
+      requestAnimationFrame(() => { measure(); this.timer = setTimeout(measure, 200); });
     });
   }
 }
@@ -256,7 +269,7 @@ async function bringIntoView(element: HTMLElement): Promise<boolean> {
   if (seen && (room >= BUBBLE_ROOM || r.height + BUBBLE_ROOM > free)) return false;
   const scroller = await scrollerOf(element);
   if (!scroller) {
-    element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    element.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
     return true;
   }
   // Short enough: it and the bubble under it, together in the middle of the
@@ -269,7 +282,8 @@ async function bringIntoView(element: HTMLElement): Promise<boolean> {
   const max = scroller.scrollHeight - scroller.clientHeight;
   const to = Math.max(0, Math.min(before + delta, max));
   if (Math.abs(to - before) < 2) return false;
-  scroller.scrollTo({ top: to, behavior: 'smooth' });
+  // Instant: a smooth scroll on a slow phone ran long under the tour.
+  scroller.scrollTo({ top: to, behavior: 'instant' as ScrollBehavior });
   return true;
 }
 

@@ -192,3 +192,62 @@ test('English too', () => {
   assert.equal(r.onDate, '2026-10-18');
   assert.equal(r.categoryId, 12);
 });
+
+// Jose, 2026-10-19, from the phone: a move between products of one account,
+// said by voice, with "Rappi" heard as "rap y".
+const withPockets = () => ctx({
+  products: [
+    { id: 50, accountId: 5, name: 'Ahorros Índigo' },
+    { id: 51, accountId: 5, name: 'Bolsillo viajes' },
+    { id: 60, accountId: 2, name: 'Bolsillo Principal' },
+    { id: 61, accountId: 2, name: 'Cuenta de ahorros' },
+    { id: 62, accountId: 1, name: 'Cuenta de ahorros' },
+  ],
+});
+
+test('"transferencia ... entre un producto a otro de rap y cuenta": a move between products', () => {
+  const r = readPhrase('transferencia de $200,000 entre bolsillo principal a la cuenta de ahorros de rap y cuenta', withPockets());
+  assert.equal(r.intent, 'register');
+  assert.equal(r.side, 'transfer');
+  assert.equal(r.amountMinor, P(200000));
+  assert.equal(r.accountId, 2);
+  assert.equal(r.toAccountId, 2);
+  assert.equal(r.fromProductId, 60);
+  assert.equal(r.toProductId, 61);
+});
+
+test('only where it went, inside the account named by sound', () => {
+  const r = readPhrase('pasé $200,000 a la cuenta de ahorros en la rap y cuenta', withPockets());
+  assert.equal(r.side, 'transfer');
+  assert.equal(r.accountId, 2);
+  assert.equal(r.toAccountId, 2);
+  assert.equal(r.fromProductId, null);
+  assert.equal(r.toProductId, 61);
+});
+
+test('dictation drops the "a": "pasé 200 mil ahorros en la rappi cuenta"', () => {
+  // With no account called "Ahorros": one so named would be that account.
+  const c = withPockets();
+  c.accounts = c.accounts.filter(a => a.id !== 6);
+  const r = readPhrase('pasé $200,000 ahorros en la rappi cuenta', c);
+  assert.equal(r.accountId, 2);
+  assert.equal(r.toAccountId, 2);
+  assert.equal(r.toProductId, 61);
+});
+
+test('an account heard by sound: "rapi cuenta", "neki"', () => {
+  const r = readPhrase('pasé 50 mil de bancolombia a la rapi cuenta', withPockets());
+  assert.equal(r.accountId, 1);
+  assert.equal(r.toAccountId, 2);
+  const s = readPhrase('gasté 20 mil en mercado con neki', ctx({ accounts: [{ id: 9, name: 'Nequi', type: 'debit' }] }));
+  assert.equal(s.accountId, 9);
+});
+
+test('a product of one account to another account', () => {
+  const r = readPhrase('moví 100 mil del bolsillo viajes a Bancolombia', withPockets());
+  assert.equal(r.side, 'transfer');
+  assert.equal(r.accountId, 5);
+  assert.equal(r.fromProductId, 51);
+  assert.equal(r.toAccountId, 1);
+  assert.equal(r.toProductId, null);
+});

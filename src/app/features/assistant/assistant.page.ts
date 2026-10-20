@@ -13,7 +13,7 @@
  * the month, from today to its last day, and what that is a day.
  */
 
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonContent, IonIcon } from '@ionic/angular';
 
@@ -66,9 +66,12 @@ interface TransferCard {
   amountMinor: number;
   from: AccountRow | null;
   to: AccountRow;
+  /** The products named, when the money moves between products. */
+  fromProduct: YieldProduct | null;
+  toProduct: YieldProduct | null;
   onDate: string;
   note: string;
-  state: 'open' | 'opened';
+  state: 'open' | 'saved' | 'opened';
 }
 
 /** "¿Me alcanza?", "¿cuánto puedo gastar?" (39d, 39e, 39i-39m). */
@@ -111,7 +114,16 @@ interface Message {
   parts: Part[];
   card?: Card;
   chips?: Chip[];
+  /** When it was said, to forget it after a few days. */
+  at: number;
 }
+
+/**
+ * The conversation is kept on the device for this many days (Jose,
+ * 2026-10-19: "por lo menos unos 3 días"; to be made a preference later).
+ */
+export const HISTORY_DAYS = 3;
+const HISTORY_KEY = 'finance.assistant.history';
 
 /** A question the next answer completes. */
 type Waiting =
@@ -144,6 +156,7 @@ export class AssistantPage {
   readonly listening = signal(false);
   readonly voice = signal(true);
   readonly examples = EXAMPLES;
+  readonly historyDays = HISTORY_DAYS;
 
   /** The category sheet, open for "Otra categoría". */
   readonly categorySheet = signal<'expense' | 'income' | null>(null);
@@ -159,8 +172,56 @@ export class AssistantPage {
 
   readonly empty = computed(() => this.messages().length === 0);
 
+  /** The card whose movement is open in the form, and the saves counted before it opened. */
+  private inForm: { card: RegisterCard | TransferCard; savesBefore: number } | null = null;
+
   constructor() {
     void canListen().then(can => this.voice.set(can));
+    this.restore();
+    // The form closed: saved there, the card says so; closed without saving,
+    // the card offers it again (Jose, 2026-10-19: it could not be reopened).
+    effect(() => {
+      const open = this.compose.entry() !== null;
+      const saves = this.compose.saved();
+      untracked(() => {
+        if (open || !this.inForm) return;
+        this.inForm.card.state = saves > this.inForm.savesBefore ? 'saved' : 'open';
+        this.inForm = null;
+        this.messages.update(list => [...list]);
+      });
+    });
+    // Every change is kept, without the answers to tap: they belonged to a question of that moment.
+    effect(() => {
+      const list = this.messages();
+      untracked(() => this.keep(list));
+    });
+  }
+
+  private restore(): void {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (!raw) return;
+      const since = Date.now() - HISTORY_DAYS * 86_400_000;
+      const kept = (JSON.parse(raw) as Message[]).filter(m => typeof m.at === 'number' && m.at >= since);
+      for (const m of kept) if (m.card && 'state' in m.card && m.card.state === 'opened') m.card.state = 'open';
+      this.messages.set(kept);
+      this.nextId = kept.reduce((top, m) => Math.max(top, m.id), 0) + 1;
+      if (kept.length > 0) this.scroll();
+    } catch { /* a history that cannot be read starts afresh */ }
+  }
+
+  private keep(list: Message[]): void {
+    try {
+      const since = Date.now() - HISTORY_DAYS * 86_400_000;
+      const plain = list.filter(m => m.at >= since).map(({ chips: _chips, ...rest }) => rest);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(plain));
+    } catch { /* the device keeps nothing: the chat still works */ }
+  }
+
+  /** Clears the conversation on screen and on the device. */
+  clear(): void {
+    this.waiting = null;
+    this.messages.set([]);
   }
 
   back(): void {
@@ -201,14 +262,14 @@ export class AssistantPage {
   }
 
   private say(key: TranslationKey, values: Record<string, string | number> = {}, extra: Partial<Message> = {}): void {
-    this.messages.update(list => [...list, { id: this.nextId++, who: 'app', parts: this.parts(this.i18n.t(key, values)), ...extra }]);
+    this.messages.update(list => [...list, { id: this.nextId++, who: 'app', at: Date.now(), parts: this.parts(this.i18n.t(key, values)), ...extra }]);
     this.scroll();
   }
 
   private heard(text: string): void {
     // The last answer's chips go: they belonged to that question.
     this.messages.update(list => [...list.map(m => m.chips ? { ...m, chips: undefined } : m),
-      { id: this.nextId++, who: 'me', parts: [{ text, bold: false }] }]);
+      { id: this.nextId++, who: 'me', at: Date.now(), parts: [{ text, bold: false }] }]);
     this.scroll();
   }
 
@@ -358,9 +419,37 @@ export class AssistantPage {
     const to = reading.toAccountId !== null ? this.accounts.find(a => a.id === reading.toAccountId) ?? null : null;
     if (!to) return this.say('ai.transfer.noTo');
     const from = reading.accountId !== null ? this.accounts.find(a => a.id === reading.accountId) ?? null : null;
-    this.say('ai.transfer.understood', {}, {
-      card: { kind: 'transfer', amountMinor: reading.amountMinor!, from, to, onDate: reading.onDate, note: reading.thing ?? '', state: 'open' },
+    const product = (id: number | null) => id === null ? null : this.products.find(p => p.id === id) ?? null;
+    let fromProduct = product(reading.fromProductId);
+    let toProduct = product(reading.toProductId);
+    // Between products of one account with one end said: the other is the
+    // account's usual product, or else another of its products.
+    if (from && from.id === to.id && (fromProduct === null) !== (toProduct === null)) {
+      const named = (fromProduct ?? toProduct)!;
+      const others = this.products.filter(p => p.account_id === to.id && p.id !== named.id);
+      const other = others.find(p => p.source === 'ledger') ?? others[0] ?? null;
+      if (fromProduct === null) fromProduct = other; else toProduct = other;
+    }
+    this.say(from && from.id === to.id ? 'ai.transfer.understoodProducts' : 'ai.transfer.understood', { account: to.name }, {
+      card: {
+        kind: 'transfer', amountMinor: reading.amountMinor!, from, to, fromProduct, toProduct,
+        onDate: reading.onDate, note: reading.thing ?? '', state: 'open',
+      },
     });
+  }
+
+  /** Where a transfer's money leaves and lands, product first: "Bolsillo Principal → Cuenta de ahorros". */
+  transferEnds(card: TransferCard): string {
+    const from = card.fromProduct?.name ?? card.from?.name ?? this.i18n.t('ai.transfer.fromUsual');
+    const to = card.toProduct?.name ?? card.to.name;
+    const same = card.from !== null && card.from.id === card.to.id;
+    const fromWord = same && !card.fromProduct ? this.i18n.t('ai.transfer.fromUsualProduct') : from;
+    return `${fromWord} → ${to}`;
+  }
+
+  /** The account both ends are in, said apart, for a move between products. */
+  transferAccount(card: TransferCard): string | null {
+    return card.from !== null && card.from.id === card.to.id ? card.to.name : null;
   }
 
   private async topCategories(kind: 'expense' | 'income', count: number): Promise<CategoryRow[]> {
@@ -471,10 +560,13 @@ export class AssistantPage {
       });
     } else {
       this.compose.open('transfer', {
-        ...(card.from ? { route: { from: card.from.id, to: card.to.id } } : { preferredAccountId: card.to.id, preferredSide: 'to' as const }),
+        ...(card.from
+          ? { route: { from: card.from.id, to: card.to.id, fromProductId: card.fromProduct?.id ?? null, toProductId: card.toProduct?.id ?? null } }
+          : { preferredAccountId: card.to.id, preferredSide: 'to' as const }),
         start: { amountMinor: card.amountMinor, onDate: card.onDate, note: card.note },
       });
     }
+    this.inForm = { card, savesBefore: this.compose.saved() };
     card.state = 'opened';
     this.messages.update(list => [...list]);
   }

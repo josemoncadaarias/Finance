@@ -74,7 +74,8 @@ class Cancelled extends Error {}
   `,
   styles: [`
     :host { display: block; }
-    .welcome { text-align: center; padding-top: 18px; }
+    /* No title bar above it: the status bar's room is its own. */
+    .welcome { text-align: center; padding-top: calc(18px + var(--ion-safe-area-top, 0px)); }
     .spark { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 10px;
       background: rgba(var(--app-pr-rgb), .16); color: var(--app-pr); font-size: 36px; }
     h1 { font-size: 24px; margin: 6px 0; }

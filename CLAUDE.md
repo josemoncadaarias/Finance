@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (874 on 2026-10-19, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (879 on 2026-10-19, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5343,6 +5343,41 @@ with testers runs; the paywall is finished after them.
     the cap sheet after saving, Revisar opening the form filled, light and
     dark); not on the phone. Not built yet: paid limits for it (rule 21, CHARGING
     is off anyway) and more questions (phase 3).
+- **From Jose's first day with it on the phone (2026-10-19)**:
+  - **Names are matched by sound too** (`soundOf`, `findName` in
+    `read-phrase.ts`): dictation writes "Rappi cuenta" as "rap y cuenta" or
+    "rapi cuenta", "Nequi" as "neki"; letters that sound alike are one (y/i,
+    v/b, z/s, soft c/s, qu/k/c, h silent), doubled letters one, spaces none,
+    and a long name allows one slip. **A transfer can be between products**:
+    "transferencia", "traslado", "mover"... read as one; both ends may be
+    products ("entre el bolsillo principal a la cuenta de ahorros de Rappi
+    cuenta"), the account a product is in says where it is and is no end of
+    its own, a product name shared by two accounts is settled by the account
+    said, and with only one product said the other end is the same account
+    (its usual product, else another). In a transfer the ends need no "a"/"de"
+    in front. Opens the one form with both products (`route.fromProductId/
+    toProductId`). Tests in `read-phrase.test.mjs` with his sentences.
+  - **The conversation is kept on the device for 3 days** (`HISTORY_DAYS`,
+    `finance.assistant.history`, chips not kept), said on top, with a bin in
+    the title bar to clear it. To become a preference later.
+  - **A card opened in the form can be opened again**: closing the form
+    without saving gives the card its button back; saving there marks it
+    "Guardado" (`inForm`, read from `ComposeService.entry`/`saved`).
+  - The sparkles sat off-centre (the page's scss set the badge to
+    `inline-block`, undoing its grid), and the welcome's icon sat under the
+    status bar (Inicio hides its header with no account): fixed.
+- **Tours no longer freeze the phone or let the page scroll under them**
+  (Jose, 2026-10-19). Causes read from `tour-overlay`: the lit frame animated
+  `all` with a 4000px shadow (the whole screen repainted every frame); the
+  scroll to a step was smooth and the step waited ~0.8 s for it; the frame
+  let touches through to the page, so it scrolled away from the frame; and
+  while a step's element was looked for (up to 1.5 s) an invisible layer
+  blocked every tap with nothing on screen. Now the frame moves by
+  `transform` with no transition, the scroll is instant and measured on the
+  next frame, the frame and every layer take the touch (`touch-action:
+  none`, touchmove and wheel cancelled), and nothing blocks while nothing is
+  drawn. Measured in a browser: each step in ~250 ms, scroll and taps under
+  it do nothing. Not yet felt on the phone.
 - **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
   versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
 - **Voice**: the phone's own dictation into the same reader (`39h`).

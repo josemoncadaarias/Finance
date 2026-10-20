@@ -28,7 +28,7 @@ ion-content.chat {
   text-align: center;
   margin: 14px 0 4px;
 
-  app-badge { display: inline-block; margin-bottom: 10px; }
+  app-badge { margin-bottom: 10px; } // keeps its own inline-grid, or the icon sits off-centre
   h2 { margin: 0; font-size: 19px; font-weight: 700; }
   p { margin: 6px 0 0; color: var(--app-mu); font-size: 14px; line-height: 1.4; text-wrap: pretty; }
 }
@@ -113,6 +113,8 @@ ion-content.chat {
   .amount { font-size: 18px; white-space: nowrap; }
   /* Each piece whole, joined by a dot; a line breaks between pieces only. */
   .segs span { white-space: nowrap; }
+  /* Two names and an arrow may not fit on one line: they wrap between words. */
+  .segs span.ends { white-space: normal; }
   .segs span + span::before { content: ' · '; }
   .amount.move { color: var(--app-move); }
   .product {
@@ -248,4 +250,12 @@ ion-content.chat {
     ion-icon { font-size: 22px; }
     &.listening { box-shadow: 0 0 0 8px rgba(var(--app-pr-rgb), 0.25); }
   }
+}
+
+.kept {
+  margin: 4px 0 10px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--app-mu);
+  text-wrap: pretty;
 }
