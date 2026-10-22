@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (999 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1000 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -262,6 +262,7 @@ these):
   that follows the account (`since: 5`). (A tour's `since` counts that tour's
   own versions.) Version 8 (2026-10-22): the assistant's new questions
   (fixed payments, interest, why it went up, a cap or goal by name; `since: 4`).
+  Version 9 (2026-10-22): Inicio's "+" step names "Pagos de este mes" (`since: 7`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5569,6 +5570,17 @@ with testers runs; the paywall is finished after them.
   - The welcome lists the two new examples. Checked in a browser on Jose's
     backup; a rich card's long row name now ends in "…" and slides instead of
     running under its figure.
+- **"Pagos de este mes" in the "+"** (Jose, 2026-10-22, option 1 of three
+  proposed): the fixed payments of `recurringOf` not seen yet this month,
+  by the day they are usually paid ("Suele ser el día 9 · {cuenta}"), each
+  with its usual amount; a tap opens the one movement form filled in - the
+  account, category and day of its last payment, its average (only for a
+  peso account; another currency gets its amount typed) and its name as the
+  note - and nothing is saved without the person. Five shown, the rest "Ver
+  los otros N en el asistente" (`/assistant?ask=`, which asks it at once).
+  Read when the sheet opens, once per data change and month
+  (`ComposeHostComponent.dueFixed`). Home tour's "+" step says it (`since: 7`).
+  Checked in a browser.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

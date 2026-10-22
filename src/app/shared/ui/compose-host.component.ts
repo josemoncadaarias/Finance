@@ -26,6 +26,10 @@ import { BadgeComponent } from './badge.component';
 import { ToastService } from './toast.service';
 import { AccentService } from '../../core/theme/accent.service';
 import { MOVE_COLOR } from '../../core/theme/palette';
+import { AssistantService } from '../../core/assistant/assistant.service';
+import type { FixedPayment } from '../../core/assistant/recurring';
+import { isoDay } from '../../core/filters/period';
+import { formatMoney } from '../../core/database/money';
 
 @Component({
   selector: 'app-compose-host',
@@ -51,6 +55,27 @@ import { MOVE_COLOR } from '../../core/theme/palette';
               <b>{{ 'ui.new.transfer' | t }}</b>
             </button>
           </div>
+          <!-- Fixed payments not seen yet this month (Jose, 2026-10-22): one tap opens
+               the form filled in; nothing is ever saved by itself. -->
+          @if (dueFixed().length > 0) {
+            <div class="ui-h due-h">{{ 'plus.due.title' | t }}</div>
+            <p class="hint due-hint">{{ 'plus.due.hint' | t }}</p>
+            <div class="ui-list due">
+              @for (f of dueFixed().slice(0, 5); track f.name) {
+                <button type="button" class="ui-row" (click)="registerFixed(f)">
+                  <app-badge shape="sq" [size]="38" builtin="repeat-outline" fixed="#ff6b6b"></app-badge>
+                  <span class="ui-tx"><b>{{ f.name }}</b><small>{{ dueLine(f) }}</small></span>
+                  <b class="due-amount">{{ pesos(f.averageMinor) }}</b>
+                </button>
+              }
+              @if (dueFixed().length > 5) {
+                <button type="button" class="ui-row" (click)="seeAllFixed()">
+                  <span class="ui-tx"><b class="more">{{ 'plus.due.more' | t:{ count: dueFixed().length - 5 } }}</b></span>
+                  <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          }
           <div class="ui-list statement">
             <!-- The assistant (39a): a movement said in words, or a question. -->
             <button type="button" class="ui-row" (click)="openAssistant()" data-tour="plus-assistant">
@@ -107,6 +132,7 @@ export class ComposeHostComponent {
   private readonly router = inject(Router);
   private readonly i18n = inject(I18nService);
   private readonly toast = inject(ToastService);
+  private readonly assistant = inject(AssistantService);
 
   private readonly file = viewChild.required<ElementRef<HTMLInputElement>>('file');
 
@@ -116,13 +142,66 @@ export class ComposeHostComponent {
   /** Which account the file being chosen is for; null for a new account. */
   private target: number | null = null;
 
+  /** Fixed payments not seen this month, by the day they are usually paid. */
+  readonly dueFixed = signal<FixedPayment[]>([]);
+  private dueRead = '';
+
   constructor() {
+    // Read when the sheet opens, once per data change and month: six months
+    // of movements is not read on every tap of the "+".
+    effect(() => {
+      const open = this.compose.sheet();
+      const version = this.database.dataVersion();
+      if (!open || this.database.status() !== 'ready') return;
+      const mark = `${version}:${isoDay(new Date()).slice(0, 7)}`;
+      if (mark === this.dueRead) return;
+      this.dueRead = mark;
+      void untracked(async () => {
+        try {
+          const [r, accounts] = await Promise.all([this.assistant.recurring(), new AccountsRepository(this.database.driver).list()]);
+          this.accountNames = new Map(accounts.map(a => [a.id, a.name]));
+          this.accountCurrency = new Map(accounts.map(a => [a.id, a.currency_code]));
+          this.dueFixed.set(r.fixed.filter(f => f.thisMonthMinor === 0 && f.accountId !== null)
+            .sort((a, b) => (a.day ?? 99) - (b.day ?? 99)));
+        } catch {
+          this.dueFixed.set([]);
+        }
+      });
+    });
     effect(() => {
       if (!this.compose.importing() || this.database.status() !== 'ready') return;
       void untracked(async () => {
         this.accounts.set(await new AccountsRepository(this.database.driver).list());
       });
     });
+  }
+
+  private accountNames = new Map<number, string>();
+  private accountCurrency = new Map<number, string>();
+
+  pesos(minor: number): string {
+    return formatMoney(minor, 'COP');
+  }
+
+  /** "Suele ser el día 5 · Bancolombia". */
+  dueLine(f: FixedPayment): string {
+    const account = f.accountId !== null ? this.accountNames.get(f.accountId) ?? '' : '';
+    const when = f.day ? this.i18n.t('plus.due.day', { day: f.day }) : '';
+    return [when, account].filter(Boolean).join(' · ');
+  }
+
+  /** The form, filled in with what this payment usually is; saved only by the person. */
+  registerFixed(f: FixedPayment): void {
+    this.compose.open('expense', {
+      preferredAccountId: f.accountId,
+      // The average is in pesos: an account in another currency gets its amount typed.
+      start: { amountMinor: this.accountCurrency.get(f.accountId ?? -1) === 'COP' ? f.averageMinor : 0, onDate: isoDay(new Date()), note: f.name, categoryId: f.categoryId },
+    });
+  }
+
+  async seeAllFixed(): Promise<void> {
+    this.compose.sheet.set(false);
+    await this.router.navigate(['/assistant'], { queryParams: { ask: this.i18n.t('ai.next.recurring') } });
   }
 
   async openAssistant(): Promise<void> {

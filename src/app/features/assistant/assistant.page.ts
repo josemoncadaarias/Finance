@@ -14,7 +14,7 @@
  */
 
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
@@ -227,6 +227,12 @@ export class AssistantPage {
   constructor() {
     void canListen().then(can => this.voice.set(can));
     this.restore();
+    // Opened with a question (the "+"'s "Ver todos tus pagos fijos"): asked at once.
+    const ask = inject(ActivatedRoute).snapshot.queryParamMap.get('ask');
+    if (ask) {
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      setTimeout(() => void this.send(ask), 300);
+    }
     // The form closed: saved there, the card says so; closed without saving,
     // the card offers it again (Jose, 2026-10-19: it could not be reopened).
     effect(() => {

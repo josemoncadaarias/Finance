@@ -34,9 +34,20 @@ export interface Face {
   seed: number | null;
 }
 
+/** A shop or note in one month: what it cost, and where and when it was last paid. */
+export interface ShopMonth {
+  minor: number;
+  name: string;
+  category: string;
+  /** The account, the category and the day of the month it was last paid on, when known. */
+  accountId?: number;
+  categoryId?: number | null;
+  day?: number;
+}
+
 /** One month: each shop or note with what it cost, and each spending category. */
 export interface MonthSpend {
-  shops: Map<string, { minor: number; name: string; category: string }>;
+  shops: Map<string, ShopMonth>;
   categories: Map<string, number>;
 }
 
@@ -46,6 +57,10 @@ export interface FixedPayment {
   monthsSeen: number;
   averageMinor: number;
   thisMonthMinor: number;
+  /** Where and when it was paid the last time: what "Pagos de este mes" starts the form on. */
+  accountId: number | null;
+  categoryId: number | null;
+  day: number | null;
 }
 
 export interface EveryMonthSpend {
@@ -93,12 +108,13 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
   if (looked < 3) return empty;
 
   // Fixed payments.
-  const shops = new Map<string, { amounts: number[]; name: string; category: string }>();
+  // Newest month first, so the first time a shop is met is its latest payment.
+  const shops = new Map<string, { amounts: number[]; last: ShopMonth }>();
   list.forEach(month => {
     for (const [key, at] of month.shops) {
       const was = shops.get(key);
       if (was) was.amounts.push(at.minor);
-      else shops.set(key, { amounts: [at.minor], name: at.name, category: at.category });
+      else shops.set(key, { amounts: [at.minor], last: at });
     }
   });
   const fixed: FixedPayment[] = [];
@@ -108,8 +124,9 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
     const average = Math.round(x.amounts.reduce((sum, v) => sum + v, 0) / x.amounts.length);
     if (average <= 0 || x.amounts.some(v => Math.abs(v - average) > average * STEADY)) continue;
     fixedKeys.add(key);
-    fixed.push({ name: x.name, category: x.category, monthsSeen: x.amounts.length, averageMinor: average,
-      thisMonthMinor: current.shops.get(key)?.minor ?? 0 });
+    fixed.push({ name: x.last.name, category: x.last.category, monthsSeen: x.amounts.length, averageMinor: average,
+      thisMonthMinor: current.shops.get(key)?.minor ?? 0,
+      accountId: x.last.accountId ?? null, categoryId: x.last.categoryId ?? null, day: x.last.day ?? null });
   }
   fixed.sort((a, b) => b.averageMinor - a.averageMinor);
 

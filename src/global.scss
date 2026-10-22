@@ -1904,6 +1904,14 @@ ion-modal.ui-dialog {
   }
 
   .ui-list.statement { margin-top: 10px; background: var(--app-s2); }
+
+  /* "Pagos de este mes" (Jose, 2026-10-22). */
+  .due-h { margin-top: 16px; }
+  .due-hint { margin: 2px 4px 8px; }
+  .ui-list.due { background: var(--app-s2); }
+  .ui-list.due .due-amount { flex: none; white-space: nowrap; font-size: 14.5px; }
+  .ui-list.due .more { color: var(--app-pr); }
+  .ui-list.due small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* A tab's own big title (Más, Cuentas), with the status bar's room above. */

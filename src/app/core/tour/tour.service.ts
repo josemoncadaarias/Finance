@@ -45,7 +45,7 @@ const TOUR_LIST = {
     welcome: { title: 'tour.home.welcome.title', text: 'tour.home.welcome.text' },
     steps: [
       // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a).
-      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 6 },
+      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 7 },
       { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text' },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.
