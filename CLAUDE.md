@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1045 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1052 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5686,7 +5686,7 @@ with testers runs; the paywall is finished after them.
   backup.
 - **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
   movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
-  receipt's photo is part 2, not built). On Android, the statement pickers
+  receipt's photo is part 2). On Android, the statement pickers
   (the "+" → "Importar un extracto", now "PDF, foto o captura de pantalla"
   under it, and the account form) accept images, several at once as the
   statement's pages in the order chosen (`statementFiles`, `statementAccept`
@@ -5711,6 +5711,25 @@ with testers runs; the paywall is finished after them.
   the Java's first compile). Known limit: a bank app's screenshot that lists
   movements under day headings, with no date on each row, reads no rows -
   the reader needs each movement's date on its line.
+- **A receipt's photo opens the spending form filled in** (Jose, 2026-10-22,
+  part 2 of the OCR door; free, as typing a movement is). The "+" has "Foto
+  de un recibo" on Android, which asks "Tomar la foto" (the phone's own
+  camera app through `capture="environment"`, no camera permission; the
+  manifest's `<queries>` names IMAGE_CAPTURE so Capacitor finds it) or
+  "Elegir de la galería". The photo is read on the phone as a statement's
+  is (`textOfImages`), then `readReceipt` (`core/receipts/read-receipt.ts`,
+  pure, `read-receipt.test.mjs` on invented receipts): the total is the
+  amount on the line that says "TOTAL A PAGAR" / "VALOR TOTAL" (ranked over a
+  plain "TOTAL"), or on the line under it, never a subtotal, the VAT, the
+  change, the cash given or a count of items; with no such line, the largest
+  amount, said to be unsure. The day is the first date anywhere on it, not in
+  the future nor over two years old (else today, said). The shop is the first
+  line at the top with words that is not its NIT, address, phone or legal
+  text, put in words if printed in capitals. `ReceiptService` then looks the
+  shop up in the merchant dictionary (its category, account and note), or
+  lets the ordinary words of its name suggest a starter category, and opens
+  the form; a toast says what to check. Nothing is saved by itself (rule 22).
+  Only on the phone; the UI checked in a browser by forcing it on.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

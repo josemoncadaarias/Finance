@@ -78,6 +78,9 @@ const ALLOWED = [
   // what it is reading, and translating them would stop it reading.
   'core/statements/statement.ts',
   'core/statements/tokens.ts',
+  // The words a receipt prints - 'total a pagar', 'cambio', 'NIT', 'desde' -
+  // read out of the photo, never shown.
+  'core/receipts/read-receipt.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */
