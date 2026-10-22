@@ -72,7 +72,7 @@
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
       <button type="button" class="ui-row" (click)="go('/reminders')">
-        <app-badge [size]="40" builtin="notifications-outline" fixed="#f5b544"></app-badge>
+        <app-badge [size]="40" builtin="alarm-outline" fixed="#f2709c"></app-badge>
         <span class="ui-tx"><b class="wrap">{{ 'more.reminders' | t }}</b><small [class.late]="remindersLate() > 0">{{ remindersLine() }}</small></span>
         @if (remindersLate() > 0) { <i class="dot"></i> }
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
