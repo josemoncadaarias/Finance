@@ -206,6 +206,7 @@ const TOUR_LIST = {
       { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text', since: 3 },
       { title: 'tour.assistant.4.title', text: 'tour.assistant.4.text', since: 2 },
       { title: 'tour.assistant.5.title', text: 'tour.assistant.5.text', since: 3 },
+      { title: 'tour.assistant.6.title', text: 'tour.assistant.6.text', since: 4 },
     ],
   },
   tax: {

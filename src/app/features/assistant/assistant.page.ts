@@ -33,7 +33,7 @@ import { CategorySheetComponent } from '../../shared/category-sheet/category-she
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
-import { readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
 import * as A from './answers';
 import type { RichButton, RichCard, Speech } from './answers';
 import { FilterService } from '../../core/filters/filter.service';
@@ -154,6 +154,9 @@ type Waiting =
   | { kind: 'transferTo'; reading: Reading; said: string }
   | { kind: 'cardRate'; cardId: number; then: 'payFirst' | 'debts' | 'payMore'; extraMinor: number };
 
+/** Words that say what is asked about, never which one. */
+const PLAN_WORDS = new Set(['meta', 'metas', 'tope', 'topes', 'presupuesto', 'presupuestos', 'goal', 'goals', 'budget', 'budgets']);
+
 const EXAMPLES: TranslationKey[] = ['ai.example.spend', 'ai.example.income', 'ai.example.move', 'ai.example.afford', 'ai.example.spent', 'ai.example.perDay'];
 /** The welcome's three groups (40a): registering, the month, the debts. */
 const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
@@ -163,6 +166,8 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
   { title: 'ai.group.month', rows: [
     { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
     { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
+    { key: 'ai.example.recurring', icon: 'repeat-outline', cls: 'ui-p' },
+    { key: 'ai.example.yields', icon: 'trending-up-outline', cls: 'ui-g' },
     { key: 'ai.example.afford', icon: 'help-circle-outline', cls: 'ui-p' }] },
   { title: 'ai.group.debts', rows: [
     { key: 'ai.example.debts', icon: 'card-outline', cls: 'ui-p' },
@@ -436,9 +441,14 @@ export class AssistantPage {
       case 'payMore': return this.debtsAnswer('payMore', reading.amountMinor ?? 0);
       case 'due': return this.dueAnswer();
       case 'have': return this.haveAnswer(reading);
-      case 'plans': return this.plansAnswer();
+      case 'plans': return void await this.plansAnswer(text);
+      case 'recurring': return this.give(A.recurring(this.speech(), await this.assistant.recurring()));
+      case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(reading.period, reading.accountId)));
+      case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(reading.period)));
       case 'unsure': return this.askShape(reading, text);
       default:
+        // "¿Cuánto me falta para el fondo de emergencia?": a goal or a cap by its name alone.
+        if (await this.plansAnswer(text, true)) return;
         this.say('ai.unknown', {}, { chips: this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) })) });
     }
   }
@@ -937,10 +947,33 @@ export class AssistantPage {
     this.give(A.have(this.speech(), h));
   }
 
-  private async plansAnswer(): Promise<void> {
+  /** With `onlyNamed`, answers only when one goal or cap is named, and says whether it did. */
+  private async plansAnswer(text = '', onlyNamed = false): Promise<boolean> {
     await this.assistant.loadGoals();
     const p = this.assistant.plans();
-    this.give(A.plans(this.speech(), p.limits, p.goals));
+    // One cap or one goal named: "¿cómo va la meta del viaje?", "el tope de Mercado".
+    const said = fold(text);
+    // Named by any word of its own (4 letters or more): "la meta de inversión"
+    // is "Inversión en bolsa de valores". The one carrying most of the words wins.
+    const saidWords = new Set(said.split(/[^a-z0-9ñ]+/));
+    const named = <T>(list: readonly T[], nameOf: (x: T) => string) => {
+      const scored = list.map(x => ({ x, n: fold(nameOf(x)).split(/[^a-z0-9ñ]+/)
+        .filter(w => w.length >= 4 && !PLAN_WORDS.has(w) && saidWords.has(w)).length }))
+        .filter(o => o.n > 0).sort((a, b) => b.n - a.n);
+      return scored.length === 0 ? [] : scored.filter(o => o.n === scored[0].n).map(o => o.x);
+    };
+    const goals = named(p.goals, g => g.terms.name);
+    const caps = named(p.limits, l => l.name);
+    const goalAsked = /\bmetas?\b|\bgoals?\b/.test(said);
+    const capAsked = /\btopes?\b|\bpresupuestos?\b|\bcaps?\b|\bbudgets?\b/.test(said);
+    if (goals.length === 1 && (goalAsked || caps.length === 0)) { this.give(A.oneGoal(this.speech(), goals[0])); return true; }
+    if (caps.length === 1 && (capAsked || goals.length === 0)) { this.give(A.oneCap(this.speech(), caps[0])); return true; }
+    if (onlyNamed) return false;
+    // Asked only about goals, or only about caps: only those.
+    if (goalAsked && !capAsked && p.goals.length > 0) this.give(A.plans(this.speech(), [], p.goals));
+    else if (capAsked && !goalAsked && p.limits.length > 0) this.give(A.plans(this.speech(), p.limits, []));
+    else this.give(A.plans(this.speech(), p.limits, p.goals));
+    return true;
   }
 
   /** A button of an answer's card. */

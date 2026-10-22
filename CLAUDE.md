@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (972 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (995 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -248,7 +248,8 @@ these):
   saved (step 3 reworded, `since: 3`), the conversation's days and the 20
   free questions (`since: 3`); Por revisar - a shop's account and the note
   that follows the account (`since: 5`). (A tour's `since` counts that tour's
-  own versions.)
+  own versions.) Version 8 (2026-10-22): the assistant's new questions
+  (fixed payments, interest, why it went up, a cap or goal by name; `since: 4`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5507,6 +5508,37 @@ with testers runs; the paywall is finished after them.
     working day), short of daily use; the market's free tiers of chat
     assistants run from about 25 to 100 messages a month (Tiny Talk 25,
     Chatty 100; Cleo's chat is inside its paid plan) - looked up 2026-10-22.
+- **The assistant answers more about one's money** (Jose, 2026-10-22: "es
+  agregar y agregar más contextos y preguntas", no mockups needed for these).
+  New intents in `read-phrase.ts`, each tested with several wordings:
+  - `recurring` ("¿qué pago cada mes?", "gastos fijos", "suscripciones"):
+    **fixed payments**, the same note or shop (`merchantKeyOf`) in at least
+    4 of the last 6 whole months (3 of 3...) at about the same amount each
+    time (within 25 %, `STEADY`), with its average, its category and whether
+    it is already paid this month; their total and its share of the month's
+    spending; categories spent on every month whose amount moves are named
+    apart, never added (`AssistantService.recurring`). By category alone it
+    read 26 "fixed" costs and 93 % of Jose's spending; by shop it finds his
+    EPM, Claro, Netflix, Spotify... (10, $ 901.616, 6 %).
+  - `yields` ("¿cuánto me han dado mis cuentas?", "intereses", "rentabilidad",
+    one account by name, any period): what each account that earns paid,
+    net of withholding, in pesos (`yieldsPicture`, `earnedBetween`), against
+    the same days before, the interest still waiting to be moved into the
+    balance (rule 15) and the last day worked out when it is behind.
+  - `whyMore` ("¿por qué gasté más?"): against the same days of the period
+    before, the categories that went up AND the ones that went down, said
+    together - "casi lo mismo" under 5 % of difference.
+  - One cap or one goal by its name, with or without "tope"/"meta" ("¿cuánto
+    me falta para el fondo de emergencia?"): any word of 4 letters or more of
+    its name (`oneCap`, `oneGoal`); asking only about goals or only about
+    caps shows only those.
+  - "¿Qué deuda pago primero?" also shows the snowball (the smallest first,
+    `advise(..., 'balance')`) when its order differs, saying it usually costs
+    a little more interest.
+  - The welcome lists the two new examples. Checked in a browser on Jose's
+    backup; a rich card's long row name now ends in "…" and slides instead of
+    running under its figure.
+- **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
   `learnFromLedger` (the account the shop's movements used most, the latest
@@ -5549,7 +5581,7 @@ with testers runs; the paywall is finished after them.
 | 20 | Empty state on every screen and section | Small, many places | - | Proposed |
 | 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
 | 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
-| 4 | Biometric or PIN lock (free) | Small, plugin | iOS rule | Proposed |
+| 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |

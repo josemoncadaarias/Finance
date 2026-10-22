@@ -41,8 +41,14 @@ export type Intent =
   | 'due'
   /** "¿Cuánto tengo?", "¿cuánto hay en Nequi?" */
   | 'have'
-  /** "¿Cómo van mis topes y mis metas?" */
+  /** "¿Cómo van mis topes y mis metas?" (one by its name too: "¿cómo va la meta del viaje?") */
   | 'plans'
+  /** "¿Qué pago cada mes?", "¿cuánto se me va en gastos fijos?" */
+  | 'recurring'
+  /** "¿Cuánto me han dado mis cuentas?", "¿cuánto llevo de intereses?" */
+  | 'yields'
+  /** "¿Por qué gasté más este mes?" */
+  | 'whyMore'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -260,9 +266,12 @@ const PAY_MORE = /\b(si|y si|que pasa si|cuanto (me )?ahorro si|what if|if i)\b.
 const PAY_FIRST = /\b(que|cual|cuales)\b.*\b(deudas?|prestamos?|credito|tarjeta)?\b.*\b(pago|pagar|abono|abonar|cancelo|cancelar|liquido|salgo)\b.*\b(primero|antes|primera|de primeras)\b|\b(que|cual)\b.*\b(deudas?|prestamos?)\b.*\b(me conviene|conviene|mas cara|cuesta mas|cobra mas|mas interes\w*|primero)\b|\b(which|what)\b.*\b(debt|loan)\b.*\bfirst\b|\bpay\b.*\bfirst\b/;
 const DEBTS = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(debo|adeudo)\b|\b(cuantas|cuales|que|mis)\b.*\b(deudas|prestamos|creditos)\b|\b(que|a quien)\b.*\bdebo\b|\bhow much\b.*\bowe\b|\bmy debts\b/;
 const DUE = /\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por pagar)\b|\b(que|cuando)\b.*\b(tengo que pagar|me toca pagar|debo pagar|vence\w*|hay que pagar)\b|\bproximos pagos\b|\b(what|which)\b.*\b(payments|bills)\b|\bwhat do i have to pay\b/;
-const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
+const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo|vamos)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(cuanto|que)\b.*\b(falta|queda|llevo)\b.*\b(topes?|metas?|presupuestos?)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
 const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|year|week|going|go)\b/;
 const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va\w*|se me fue|se fue|se me esta yendo|se va)\b|\b(mayores?|mas grandes?|principales)\b.*\bgastos?\b|\b(en que|que)\b.*\bcategorias?\b|\bwhat did i spend\b.*\bmost\b|\bwhere\b.*\bmoney\b.*\bgo\w*\b/;
+const RECURRING = /\b(que|cuales|cuanto|cuanta plata|cuanto dinero)\b.*\b(pago|pagamos|gasto|gastamos|se me va|se nos va|se va|tengo|hay)\b.*\b(cada mes|todos los meses|mes a mes|al mes|mensual\w*|fij[oa]s?)\b|\b(gastos?|pagos?|cuentas?|cobros?)\s+(fij[oa]s?|mensuales|recurrentes|que se repiten|de cada mes)\b|\bsuscripci\w*\b|\b(que|cuales)\b.*\bse (me )?repite\w*\b|\b(every month|each month|monthly bills|recurring|subscriptions?|fixed (costs|expenses|bills))\b/;
+const YIELDS = /\b(rendimient\w*|rentabilidad|rindi\w*|rendid\w*|rinden|rinde|intereses? (que )?(me )?(gan\w*|pag\w*|dier\w*|han dado|dan))\b|\bcuanto\b.*\b(gane|he ganado|ganado|me han dado|me dieron|me pagaron|me paga|me pagan|me dan|me da|produc\w*)\b.*\b(cuentas?|bancos?|ahorros?|bolsillos?|alcancias?|cdts?|productos?|intereses?)\b|\b(yields?|interest (earned|i earned|paid to me)|how much\b.*\b(earn\w*|interest))\b/;
+const WHY_MORE = /\bpor ?que\b.*\b(gast\w*|se me (fue|va|esta yendo)|subi\w*|aument\w*|tanta plata|tanto dinero)\b|\b(en que|que)\b.*\b(gaste|gastado|gastamos) (de mas|mas que|mas de la cuenta)\b|\bque (fue lo que )?(subio|aumento)\b|\bwhy\b.*\b(spen[dt]|more)\b/;
 const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
 const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
 const PER_DAY = /\b(cuanto|que tanto)\b.*\b(puedo gastar|me queda|tengo)\b.*\b(dia|diario|hoy|semana|mes)\b|\bal dia\b.*\bcuanto\b|\bhow much\b.*\b(can i spend|left)\b/;
@@ -673,11 +682,14 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   if (has(folded, HOW_GOALS)) intent = 'howGoals';
   else if (amount && has(folded, PAY_MORE)) intent = 'payMore';
   else if (has(folded, PAY_FIRST)) intent = 'payFirst';
+  else if (!amount && has(folded, RECURRING)) intent = 'recurring';
   else if (has(folded, AFFORD) && amount) intent = 'afford';
   else if (has(folded, PER_DAY) || has(folded, FREE_NOW) || (!amount && has(folded, AFFORD))) intent = 'perDay';
   else if (!amount && has(folded, DUE)) intent = 'due';
   else if (!amount && has(folded, DEBTS)) intent = 'debts';
   else if (!amount && has(folded, PLANS)) intent = 'plans';
+  else if (!amount && has(folded, YIELDS)) intent = 'yields';
+  else if (!amount && has(folded, WHY_MORE)) intent = 'whyMore';
   else if (has(folded, SPENT_IN) && !amount) intent = 'spentIn';
   else if (!amount && has(folded, TOP_SPENDING)) intent = 'topSpending';
   else if (!amount && has(folded, HOW_AM_I)) intent = 'howAmI';

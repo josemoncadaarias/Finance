@@ -277,8 +277,10 @@ ion-content.chat {
   .rrow, .ranked {
     padding: 9px 0; border-top: 1px solid var(--app-line);
     .head { display: flex; align-items: center; gap: 10px; }
-    .name { flex: 1; min-width: 0; font-size: 14.5px; }
+    /* A long name ends in "…" and slides (the marquee); the figure never shrinks. */
+    .name { flex: 1; min-width: 0; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .value, .head > b { white-space: nowrap; }
+    .value { flex: none; }
     .block { margin: 3px 0 0 44px; }
   }
   .ranked {
