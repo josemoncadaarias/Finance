@@ -62,50 +62,16 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
               <b>{{ 'ui.new.transfer' | t }}</b>
             </button>
           </div>
-          <!-- Fixed payments not seen yet this month (Jose, 2026-10-22): one tap opens
-               the form filled in; nothing is ever saved by itself. -->
-          @if (dueFixed().length > 0) {
-            <div class="ui-h due-h">{{ 'plus.due.title' | t }}</div>
-            <p class="hint due-hint">{{ 'plus.due.hint' | t }}</p>
-            <div class="ui-list due">
-              @for (f of dueFixed().slice(0, 5); track f.name) {
-                <button type="button" class="ui-row" (click)="registerFixed(f)">
-                  <app-badge shape="sq" [size]="38" builtin="repeat-outline" fixed="#ff6b6b"></app-badge>
-                  <span class="ui-tx"><b>{{ f.name }}</b><small>{{ dueLine(f) }}</small></span>
-                  <b class="due-amount">{{ pesos(f.averageMinor) }}</b>
-                </button>
-              }
-              @if (dueFixed().length > 5) {
-                <button type="button" class="ui-row" (click)="seeAllFixed()">
-                  <span class="ui-tx"><b class="more">{{ 'plus.due.more' | t:{ count: dueFixed().length - 5 } }}</b></span>
-                  <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-                </button>
-              }
-            </div>
-          }
-          <!-- What the person registers most (idea F, Jose, 2026-10-22): one tap opens
-               the form filled in, and nothing is saved by itself. -->
-          @if (frequent().length > 0) {
-            <div class="ui-h due-h">{{ 'plus.frequent.title' | t }}</div>
-            <p class="hint due-hint">{{ 'plus.frequent.hint' | t }}</p>
-            <div class="ui-list due">
-              @for (f of frequent(); track f.key) {
-                <button type="button" class="ui-row" (click)="registerFrequent(f)">
-                  @if (f.kind === 'transfer') {
-                    <app-badge shape="ci" [size]="38" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
-                  } @else {
-                    <app-badge shape="sq" [size]="38" [builtin]="categoryOf(f)?.builtin_icon" [customId]="categoryOf(f)?.custom_icon_id"
-                               [tone]="categoryOf(f)?.color" [seed]="f.categoryId"></app-badge>
-                  }
-                  <span class="ui-tx"><b>{{ frequentTitle(f) }}</b><small>{{ frequentLine(f) }}</small></span>
-                  @if (f.amountMinor !== null) {
-                    <b class="due-amount" [class.in]="f.kind === 'income'">{{ frequentAmount(f) }}</b>
-                  }
-                </button>
-              }
-            </div>
-          }
           <div class="ui-list statement">
+            <!-- Fixed payments and habits live one tap away, never over the "+"'s own
+                 options (Jose, 2026-10-22). -->
+            @if (dueFixed().length > 0 || frequent().length > 0) {
+              <button type="button" class="ui-row" (click)="quick.set(true)" data-tour="plus-quick">
+                <app-badge shape="ci" [size]="38" builtin="repeat-outline" fixed="#34c98b"></app-badge>
+                <span class="ui-tx"><b>{{ 'plus.quick.row' | t }}</b>@for (line of quickLines(); track line) { <small class="wrap">{{ line }}</small> }</span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
             <!-- The assistant (39a): a movement said in words, or a question. -->
             <button type="button" class="ui-row" (click)="openAssistant()" data-tour="plus-assistant">
               <app-badge shape="ci" [size]="38" builtin="sparkles-outline" fixed="#6378ff"></app-badge>
@@ -132,6 +98,60 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
             </button>
           </div>
+        </div>
+      </ng-template>
+    </ion-modal>
+
+    <!-- "Pagos fijos y frecuentes": what the "+" offers one tap away. -->
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="quick()" (didDismiss)="quick.set(false)">
+      <ng-template>
+        <div class="ui-sheet-body ion-content-scroll-host plus-sheet">
+          <button type="button" class="sheet-cancel" (click)="quick.set(false)">{{ 'entry.cancel' | t }}</button>
+          <div class="grab"></div>
+          <h2 class="center">{{ 'plus.quick.row' | t }}</h2>
+          <!-- Fixed payments not seen yet this month (Jose, 2026-10-22): one tap opens
+               the form filled in; nothing is ever saved by itself. -->
+          @if (dueFixed().length > 0) {
+            <div class="ui-h due-h">{{ 'plus.due.title' | t }}</div>
+            <p class="hint due-hint">{{ 'plus.due.hint' | t }}</p>
+            <div class="ui-list due">
+              @for (f of dueFixed().slice(0, 5); track f.name) {
+                <button type="button" class="ui-row" (click)="quick.set(false); registerFixed(f)">
+                  <app-badge shape="sq" [size]="38" builtin="repeat-outline" fixed="#ff6b6b"></app-badge>
+                  <span class="ui-tx"><b>{{ f.name }}</b><small>{{ dueLine(f) }}</small></span>
+                  <b class="due-amount">{{ pesos(f.averageMinor) }}</b>
+                </button>
+              }
+              @if (dueFixed().length > 5) {
+                <button type="button" class="ui-row" (click)="quick.set(false); seeAllFixed()">
+                  <span class="ui-tx"><b class="more">{{ 'plus.due.more' | t:{ count: dueFixed().length - 5 } }}</b></span>
+                  <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          }
+          <!-- What the person registers most (idea F, Jose, 2026-10-22): one tap opens
+               the form filled in, and nothing is saved by itself. -->
+          @if (frequent().length > 0) {
+            <div class="ui-h due-h">{{ 'plus.frequent.title' | t }}</div>
+            <p class="hint due-hint">{{ 'plus.frequent.hint' | t }}</p>
+            <div class="ui-list due">
+              @for (f of frequent(); track f.key) {
+                <button type="button" class="ui-row" (click)="quick.set(false); registerFrequent(f)">
+                  @if (f.kind === 'transfer') {
+                    <app-badge shape="ci" [size]="38" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
+                  } @else {
+                    <app-badge shape="sq" [size]="38" [builtin]="categoryOf(f)?.builtin_icon" [customId]="categoryOf(f)?.custom_icon_id"
+                               [tone]="categoryOf(f)?.color" [seed]="f.categoryId"></app-badge>
+                  }
+                  <span class="ui-tx"><b>{{ frequentTitle(f) }}</b><small>{{ frequentLine(f) }}</small></span>
+                  @if (f.amountMinor !== null) {
+                    <b class="due-amount" [class.in]="f.kind === 'income'">{{ frequentAmount(f) }}</b>
+                  }
+                </button>
+              }
+            </div>
+          }
         </div>
       </ng-template>
     </ion-modal>
@@ -354,6 +374,19 @@ export class ComposeHostComponent {
   }
 
   readonly receiptAsk = signal(false);
+
+  /** The sheet with "Pagos de este mes" and "Lo que más registras". */
+  readonly quick = signal(false);
+
+  /** What waits behind "Pagos fijos y frecuentes", one line each. */
+  quickLines(): string[] {
+    const due = this.dueFixed().length;
+    const often = this.frequent().length;
+    return [
+      due === 0 ? '' : due === 1 ? this.i18n.t('plus.quick.due.one') : this.i18n.t('plus.quick.due', { count: due }),
+      often === 0 ? '' : often === 1 ? this.i18n.t('plus.quick.frequent.one') : this.i18n.t('plus.quick.frequent', { count: often }),
+    ].filter(Boolean);
+  }
   private readonly receipts = inject(ReceiptService);
 
   pickReceipt(input: HTMLInputElement): void {
