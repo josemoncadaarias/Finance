@@ -21,10 +21,17 @@
  *   future nor more than two years old;
  * - **the shop** is the first line at the top with words in it that is not an
  *   ID number, an address, a phone or the invoice's legal text.
+ * - **the rows**: a phone's reader hands back loose pieces, and which ones
+ *   share a row depends on a height every phone may measure apart (Jose's
+ *   phone joined "DESCUENTO" and "AHORRO", another did not). So a photo is
+ *   laid out at every row height from half to one and a half times its usual
+ *   one (`readReceiptPhoto`), and the layout that joins the fewest of the
+ *   summary's words or figures on one row is read - the same on any phone.
  * Pure, tested in `read-receipt.test.mjs` on invented receipts.
  */
 
 import type { IsoDate } from '../database/types';
+import { itemsOfPage, middleHeight, type OcrPage } from '../statements/ocr-items';
 import { linesOf } from '../statements/statement';
 import { dateIn, moneyIn, type TextItem } from '../statements/tokens';
 
@@ -107,6 +114,9 @@ function partOf(text: string): Part {
 }
 
 interface Row { text: string; amounts: number[] }
+interface Word { part: Part; strong: boolean }
+/** A discount, a saving or a tax: words that may stand side by side on one row. */
+const ADJUSTMENT = /\b(descuentos?|ahorros?|discount|savings|iva|impuestos?|impoconsumo|propina|servicio|tip|vat|tax)\b/gi;
 interface Pairing { pairs: { part: Part; strong: boolean; minor: number }[] }
 
 /** The total a pairing gives: the strongest total line, the larger on a tie. */
@@ -174,7 +184,17 @@ function pairings(rows: readonly Row[]): Pairing[] {
     labels.push(i);
   }
   const first = labels[0], last = labels[labels.length - 1];
-  const words = labels.map(i => ({ part: partOf(rows[i].text), strong: STRONG.test(rows[i].text) }));
+  // A row may carry two words side by side ("DESCUENTO AHORRO 13.463"): one
+  // phone joins lines another keeps apart, so each word counts on its own.
+  const wordsOf = (i: number): Word[] => {
+    const text = rows[i].text;
+    const apart = OPENS_SUMMARY.test(text) ? [] : [...text.matchAll(ADJUSTMENT)];
+    return apart.length > 1
+      ? apart.map(m => ({ part: partOf(m[0]), strong: false }))
+      : [{ part: partOf(text), strong: STRONG.test(text) }];
+  };
+  const perRow = labels.map(wordsOf);
+  const words = perRow.flat();
   const figures = (from: number, to: number): number[] => rows.slice(Math.max(0, from), to + 1)
     .filter(r => r.amounts.length > 0).map(r => r.amounts[r.amounts.length - 1]);
   const paired = (amounts: number[]): Pairing => ({ pairs: words.map((w, i) => ({ ...w, minor: amounts[i] })) });
@@ -190,7 +210,8 @@ function pairings(rows: readonly Row[]): Pairing[] {
   labels.forEach((i, n) => {
     const below = rows[i + 1] && !SUMMARY.test(rows[i + 1].text) ? rows[i + 1].amounts : [];
     const minor = rows[i].amounts.length > 0 ? rows[i].amounts[rows[i].amounts.length - 1] : below[0];
-    if (minor !== undefined) own.pairs.push({ ...words[n], minor });
+    // Two words on a row with one figure: which is whose is not known here.
+    if (minor !== undefined && perRow[n].length === 1) own.pairs.push({ ...perRow[n][0], minor });
   });
   // Every word with a figure of its own line: the photo was level, trust it.
   if (own.pairs.length === words.length) found.unshift(own);
@@ -222,17 +243,36 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
   return { totalMinor, totalSure, onDate, shop: shopOf(lines) };
 }
 
+
+/** How many rows join two of a summary's words, or a summary word with two figures. */
+function joined(lines: readonly string[]): number {
+  let count = 0;
+  for (const text of lines) {
+    if (!SUMMARY.test(text) || COUNT.test(text)) continue;
+    const words = [...text.matchAll(ADJUSTMENT)].length + (OPENS_SUMMARY.test(text) ? 1 : 0);
+    if (words > 1 || figuresOf(text).length > 1) count++;
+  }
+  return count;
+}
+
 /**
- * Each step of reading a receipt, for "Copiar lo leído": the lines as they
- * were joined, the ways the summary was paired and which one was taken. A
- * total misread on one phone and not another is found here, not guessed.
+ * A receipt from what a phone's reader handed back. Its pieces are laid out
+ * at every row height from half to one and a half times the page's usual one,
+ * and the layout that joins the fewest summary words or figures on a row is
+ * read (the usual height first on a tie): which pieces share a row then no
+ * longer depends on the phone.
  */
-export function receiptSteps(items: readonly TextItem[]): unknown {
-  const lines = linesOf(items).map(l => l.text);
-  const rows: Row[] = lines.map(text => ({ text, amounts: figuresOf(text) }));
-  const ways = pairings(rows);
-  return {
-    lines,
-    ways: ways.map(w => ({ pairs: w.pairs.map(p => `${p.part}:${p.minor}`).join(' '), addsUp: addsUp(w), sensible: sensible(w) })),
-  };
+export function readReceiptPhoto(pages: readonly OcrPage[], today: IsoDate): Receipt {
+  let best: { items: TextItem[]; joins: number; off: number } | null = null;
+  for (let step = 0; step <= 20; step++) {
+    const factor = 0.5 + step * 0.05;
+    const items = pages.flatMap((page, i) => {
+      const usual = middleHeight(page.lines.map(l => Math.round(l.bottom - l.top)));
+      return itemsOfPage(page, i + 1, usual * factor);
+    });
+    const joins = joined(linesOf(items).map(l => l.text));
+    const off = Math.abs(factor - 1);
+    if (!best || joins < best.joins || (joins === best.joins && off < best.off)) best = { items, joins, off };
+  }
+  return readReceipt(best?.items ?? [], today);
 }
