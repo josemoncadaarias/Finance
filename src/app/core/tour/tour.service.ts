@@ -56,6 +56,8 @@ const TOUR_LIST = {
       { sel: 'app-movements app-ask-button button', title: 'tour.home.ask.title', text: 'tour.home.ask.text', since: 5 },
       { target: 'faces', title: 'tour.home.faces.title', text: 'tour.home.faces.text' },
       { target: 'tabs', title: 'tour.home.tabs.title', text: 'tour.home.tabs.text' },
+      // 2026-10-22: the shortcuts of the app's icon (a card in the middle).
+      { title: 'tour.home.shortcuts.title', text: 'tour.home.shortcuts.text', since: 9 },
       { target: 'more', title: 'tour.home.end.title', text: 'tour.home.end.text' },
     ],
   },

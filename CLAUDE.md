@@ -266,7 +266,8 @@ these):
   Version 10 (2026-10-22): a new `reminders` tour; Más - "Recordatorios"
   (`since: 4`). Version 11 (2026-10-22): the periods named in Inicio's
   account-and-period step (`since: 8`) and the report's period step
-  (`since: 2`) - quincena and semestre.
+  (`since: 2`) - quincena and semestre. Version 12 (2026-10-22): Inicio -
+  "Atajos desde el ícono" (`since: 9`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5623,6 +5624,19 @@ with testers runs; the paywall is finished after them.
   local parts, so on a phone in Colombia "en agosto" was July and "esta
   semana" on a Monday was the week before; it now builds a local date
   (checked with `TZ=America/Bogota`). Checked in a browser on Jose's backup.
+- **Shortcuts on the app's icon** (Jose, 2026-10-22, idea 22): a long press
+  on Finance offers Nuevo gasto, Nuevo ingreso, Asistente and Por revisar.
+  Dynamic shortcuts (`ShortcutsPlugin.java`, `ShortcutManagerCompat`), handed
+  over by `ShortcutsService` (`core/shortcuts/`, started by the shell) on
+  every opening and change of language, so their words are the app's
+  (`shortcut.*`); their icons are round vector tiles in
+  `res/drawable/ic_shortcut_*.xml`. A tap opens `MainActivity` with
+  `finance.shortcut`, kept until the app takes it (`take`, on opening and on
+  coming back) and answered once the database is ready: the movement form as
+  the "+" opens it (nothing saved by itself), `/assistant` or `/review`.
+  Android only; a browser or iPhone does nothing. Home tour step `since: 9`.
+  Checked in a browser by calling the answer directly; the Java not compiled
+  in the session (the Store bundle is its check) and not seen on the phone.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5669,7 +5683,7 @@ with testers runs; the paywall is finished after them.
 | 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | **Built** 2026-10-22 (trimestre already was) |
-| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
+| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Shortcuts **built** 2026-10-22; favourites proposed |
 | 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | **Built** as limits, 2026-10-01 |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |

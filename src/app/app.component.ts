@@ -21,6 +21,7 @@ import { CustomIconsService } from './core/icons/custom-icons.service';
 import { NoticeInboxService } from './core/notices/notice-inbox.service';
 import { CardDueService } from './core/cards/card-due.service';
 import { RemindersService } from './core/reminders/reminders.service';
+import { ShortcutsService } from './core/shortcuts/shortcuts.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
 import { ComposeHostComponent } from './shared/ui/compose-host.component';
@@ -88,6 +89,9 @@ export class AppComponent {
 
   /** Reminders, read and rung from the first screen on. */
   private readonly reminders = inject(RemindersService);
+
+  /** The shortcuts of the app's icon, handed to Android and answered. */
+  private readonly shortcuts = inject(ShortcutsService);
 
   /**
    * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:
