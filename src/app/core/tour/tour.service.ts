@@ -46,7 +46,7 @@ const TOUR_LIST = {
     steps: [
       // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a);
       // 2026-10-22: "Lo que más registras".
-      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 10 },
+      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 12 },
       { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text', since: 8 },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.
@@ -129,7 +129,7 @@ const TOUR_LIST = {
       { sel: 'app-accounts .worth .sides', title: 'tour.accounts.6.title', text: 'tour.accounts.6.text', since: 5 },
       { sel: 'app-accounts .ui-list.accounts', title: 'tour.accounts.3.title', text: 'tour.accounts.3.text' },
       { sel: 'app-accounts .ui-bigtitle .ui-pill', title: 'tour.accounts.4.title', text: 'tour.accounts.4.text' },
-      { title: 'tour.accounts.5.title', text: 'tour.accounts.5.text', since: 4 },
+      { title: 'tour.accounts.5.title', text: 'tour.accounts.5.text', since: 7 },
       { title: 'tour.accounts.7.title', text: 'tour.accounts.7.text', since: 6 },
     ],
   },

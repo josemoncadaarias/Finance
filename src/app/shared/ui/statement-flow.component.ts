@@ -78,8 +78,16 @@ import { AccentService } from '../../core/theme/accent.service';
       <div class="scrim"></div>
       <div class="ui-dialog-body fixed">
         <app-badge class="c" shape="ci" [size]="54" builtin="document-outline" fixed="#ff6b6b"></app-badge>
-        <h2>{{ 'ui.import.unreadable.title' | t }}</h2>
-        <p>{{ 'ui.import.unreadable.body' | t }}</p>
+        @if (flow.notReady()) {
+          <h2>{{ 'ui.import.notReady.title' | t }}</h2>
+          <p>{{ 'ui.import.notReady.body' | t }}</p>
+        } @else if (flow.images()) {
+          <h2>{{ 'ui.import.unreadableImage.title' | t }}</h2>
+          <p>{{ 'ui.import.unreadableImage.body' | t }}</p>
+        } @else {
+          <h2>{{ 'ui.import.unreadable.title' | t }}</h2>
+          <p>{{ 'ui.import.unreadable.body' | t }}</p>
+        }
         @if (flow.unreadable()) { <p class="reason">{{ flow.unreadable() }}</p> }
         <div class="answers">
           <button type="button" class="ui-btn ghost" (click)="flow.closeUnreadable(false)">{{ 'ui.close' | t }}</button>

@@ -16,6 +16,8 @@ import { AccountsRepository } from '../database/repositories/accounts.repository
 import { DEFAULT_MINOR_UNITS } from '../database/money';
 import { accountIn, readStatement, type StatementAccount, type StatementReading } from './statement';
 import { textOfPdf, stopIfCancelled, StatementUnreadable, type ReadingProgress } from './pdf-text';
+import { isImage, textOfImages } from './image-text';
+import type { TextItem } from './tokens';
 import { I18nService } from '../i18n/i18n.service';
 
 /** What a caller passes to watch a reading, and to stop it. */
@@ -30,6 +32,8 @@ export interface ReadStatement {
   /** What it says about the account itself, for the form being filled in. */
   account: StatementAccount;
   file: File;
+  /** What the batch is called: the file's name, or the first image's and how many more. */
+  name: string;
 }
 
 export interface ImportedStatement {
@@ -74,14 +78,16 @@ export class StatementsService {
    * to belong to. Nothing is proposed here, because a proposal has to point
    * at an account.
    */
-  async read(file: File, password?: string, watch: ReadingWatch = {}): Promise<ReadStatement> {
-    const items = await textOfPdf(await file.arrayBuffer(), password, undefined, watch);
+  async read(chosen: File | File[], password?: string, watch: ReadingWatch = {}): Promise<ReadStatement> {
+    const files = Array.isArray(chosen) ? chosen : [chosen];
+    const file = files[0];
+    const items = await textOf(files, password, watch);
     watch.onProgress?.({ part: 0.7, stage: 'reading' });
     const reading = readStatement(items, DEFAULT_MINOR_UNITS);
     if (reading.rows.length === 0) throw new StatementUnreadable(this.i18n.t('ui.import.noRows'));
     stopIfCancelled(watch.signal);
     watch.onProgress?.({ part: 1, stage: 'writing' });
-    return { reading, account: accountIn(reading, items), file };
+    return { reading, account: accountIn(reading, items), file, name: nameOf(files) };
   }
 
   /**
@@ -93,7 +99,7 @@ export class StatementsService {
   async proposeRead(accountId: number, read: ReadStatement): Promise<ImportedStatement> {
     const proposals = new ProposalsRepository(this.database.driver);
     await proposals.learnFromLedger();
-    return this.write(accountId, read.file.name, read.reading, proposals);
+    return this.write(accountId, read.name, read.reading, proposals);
   }
 
   /**
@@ -103,8 +109,9 @@ export class StatementsService {
    * currency of the account it belongs to, never in one guessed from the page.
    */
   async importInto(
-    accountId: number, file: File, password?: string, watch: ReadingWatch = {},
+    accountId: number, chosen: File | File[], password?: string, watch: ReadingWatch = {},
   ): Promise<ImportedStatement> {
+    const files = Array.isArray(chosen) ? chosen : [chosen];
     const db = this.database.driver;
     const accounts = new AccountsRepository(db);
     const proposals = new ProposalsRepository(db);
@@ -112,7 +119,7 @@ export class StatementsService {
     const account = await accounts.findById(accountId);
     if (!account) throw new Error(`No account ${accountId}`);
 
-    const items = await textOfPdf(await file.arrayBuffer(), password, undefined, watch);
+    const items = await textOf(files, password, watch);
 
     watch.onProgress?.({ part: 0.68, stage: 'reading' });
     // Both currencies this app holds keep two, and the table says so per
@@ -131,7 +138,7 @@ export class StatementsService {
     stopIfCancelled(watch.signal);
 
     watch.onProgress?.({ part: 0.9, stage: 'writing' });
-    const written = await this.write(accountId, file.name, reading, proposals);
+    const written = await this.write(accountId, nameOf(files), reading, proposals);
     watch.onProgress?.({ part: 1, stage: 'writing' });
     return written;
   }
@@ -168,4 +175,20 @@ export class StatementsService {
     this.lastImport.set(imported);
     return imported;
   }
+}
+
+/**
+ * The text of what was chosen: one PDF, or one or more photos or screenshots
+ * of a statement (read on the phone, `image-text.ts`), the pages in the order
+ * they were chosen.
+ */
+async function textOf(files: readonly File[], password: string | undefined, watch: ReadingWatch): Promise<TextItem[]> {
+  const images = files.filter(isImage);
+  if (images.length > 0) return textOfImages(images, watch);
+  return textOfPdf(await files[0].arrayBuffer(), password, undefined, watch);
+}
+
+/** "captura.jpg", or "captura.jpg (+2)" for three images. */
+export function nameOf(files: readonly File[]): string {
+  return files.length > 1 ? `${files[0].name} (+${files.length - 1})` : files[0].name;
 }

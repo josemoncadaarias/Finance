@@ -20,7 +20,7 @@
          where a person answers it (rule 22). On an account that does not
          exist yet it fills this form in first, and its movements wait until
          there is an account to belong to. -->
-    <input #statementFile type="file" accept="application/pdf,.pdf" hidden
+    <input #statementFile type="file" [accept]="statementAccept" [multiple]="readsImages" hidden
            (change)="onStatementPicked($any($event.target))" />
 
     @if (forBank(); as bank) {

@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         registerPlugin(DriveAuthPlugin.class);
         registerPlugin(SpeechPlugin.class);
         registerPlugin(ShortcutsPlugin.class);
+        registerPlugin(OcrPlugin.class);
         super.onCreate(savedInstanceState);
         followFontSize();
         remember(getIntent());

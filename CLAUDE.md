@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1040 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1045 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -507,8 +507,8 @@ these):
   with "PAGO", "ABONO", "DEVOLUCIÓN"... as money back into the card, while
   "MERCADO PAGO" stays a purchase (`CARD_CAME_IN`); and the date leaves the
   description however it was written ("03 Ago 2026"). **What it still cannot
-  read**: a scanned PDF or a photo (no text inside - OCR is not built, rule
-  22), and a movement whose description runs onto a second line keeps only
+  read**: a scanned PDF (no text inside; a photo or screenshot of it can be
+  read since 2026-10-22, below), and a movement whose description runs onto a second line keeps only
   its first line. A statement that reads no movement says so and saves
   nothing; one that does not add up says "No cuadra" and by how much.
   **What is missing to add up is looked for in the statement's own summary**
@@ -5684,6 +5684,33 @@ with testers runs; the paywall is finished after them.
   vista" (`home.today`, can be hidden and dragged; an order kept from before
   takes it last). Home tour step `since: 11`. Checked in a browser on Jose's
   backup.
+- **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
+  movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
+  receipt's photo is part 2, not built). On Android, the statement pickers
+  (the "+" → "Importar un extracto", now "PDF, foto o captura de pantalla"
+  under it, and the account form) accept images, several at once as the
+  statement's pages in the order chosen (`statementFiles`, `statementAccept`
+  in `core/statements/image-text.ts`). Each image is turned upright (EXIF)
+  and shrunk to 2400 px in the WebView, then read on the phone by Google's
+  text recognition through Play services (`OcrPlugin.java`,
+  `play-services-mlkit-text-recognition` 19.0.1, about 260 KB in the app; the
+  manifest's `com.google.mlkit.vision.DEPENDENCIES = ocr` asks Play services
+  to fetch the model at install). Nothing leaves the phone, nothing is paid
+  per use. Its lines, boxes in pixels, become the PDF reader's pieces
+  (`itemsOfPage` in `ocr-items.ts`: pieces whose middles sit within ~half a
+  line's height are one row, rows laid out down a ~600-point page, a space
+  inside a figure mended - "45. 900,00"; letters taken for digits are not
+  guessed), and `readStatement` reads them as any PDF - its balances check
+  ("Cuadra" / "No cuadra") is what catches a misread digit. The model still
+  downloading says "El lector de fotos se está preparando" (`ReaderNotReady`),
+  an image with no movement read says so with how to take a better photo.
+  The browser and iPhone keep PDF only. Tests in `ocr-items.test.mjs` (an
+  invented photographed statement, crooked, with a broken figure, reads its
+  three rows and "Cuadra"); the PDF import checked unchanged in a browser.
+  The recognition itself and the Java only on the phone (the Store bundle is
+  the Java's first compile). Known limit: a bank app's screenshot that lists
+  movements under day headings, with no date on each row, reads no rows -
+  the reader needs each movement's date on its line.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

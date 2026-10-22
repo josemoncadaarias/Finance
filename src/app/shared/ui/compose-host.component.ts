@@ -19,6 +19,7 @@ import { AccountsRepository } from '../../core/database/repositories/accounts.re
 import { StatementsService } from '../../core/statements/statements.service';
 import { StatementFlowService } from '../../core/statements/statement-flow.service';
 import { warmUpPdfReader } from '../../core/statements/pdf-text';
+import { canReadImages, statementAccept, statementFiles } from '../../core/statements/image-text';
 import type { AccountRow } from '../../core/database/types';
 import { EntryComponent } from '../../features/entry/entry.component';
 import { AccountPickerComponent } from '../account-picker/account-picker.component';
@@ -112,7 +113,7 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
             </button>
             <button type="button" class="ui-row" (click)="startImport()">
               <app-badge shape="ci" [size]="38" builtin="document-text-outline" fixed="#9b7bff"></app-badge>
-              <span class="ui-tx"><b>{{ 'ui.new.statement' | t }}</b></span>
+              <span class="ui-tx"><b>{{ 'ui.new.statement' | t }}</b>@if (images) { <small>{{ 'ui.new.statement.images' | t }}</small> }</span>
               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
             </button>
             <!-- A new account from the "+" too (38a; Jose, 2026-10-19). -->
@@ -142,7 +143,7 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
                         (chosen)="importFor($event)" (newAccount)="importForNew()"
                         (closed)="compose.importing.set(false)"></app-account-picker>
 
-    <input #file type="file" accept="application/pdf,.pdf" hidden (change)="picked($any($event.target))">
+    <input #file type="file" [accept]="accept" [multiple]="images" hidden (change)="picked($any($event.target))">
   `,
   styles: [`
     :host { display: contents; }
@@ -319,10 +320,14 @@ export class ComposeHostComponent {
     this.file().nativeElement.click();
   }
 
+  /** PDF, and on the phone photos or screenshots too, several at once. */
+  readonly accept = statementAccept();
+  readonly images = canReadImages();
+
   async picked(input: HTMLInputElement): Promise<void> {
-    const file = input.files?.[0];
+    const file = statementFiles(input.files);
     input.value = '';
-    if (!file) return;
+    if (file.length === 0) return;
 
     const accountId = this.target;
     if (accountId === null) {
