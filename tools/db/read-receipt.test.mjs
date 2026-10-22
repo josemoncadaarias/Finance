@@ -169,7 +169,8 @@ test('a pen stroke read as a figure, the column slid and a saving misread', () =
     ['DESCUENTO', '80.516'],
     ['AHORRO', '10.513'],
     ['VALOR TOTAL', '13.060'],
-  ], ['FORMA PAGO CONTADO 68.466', 'TARJETA DEBITO'], 0), TODAY);
+  ], ['FORMA PAGO CONTADO 68.466', 'TARJETA DEBITO', 'DISCRIMINACION TARIFAS IMPUESTOS',
+    'TARIFA COMPRA BASE IMPUESTO', 'A-IVA=19% 57.475 48.298 9.177', 'RES. DIAN 18764094333946'], 0), TODAY);
   assert.equal(r.totalMinor, 6846600);
   assert.equal(r.totalSure, true);
 });

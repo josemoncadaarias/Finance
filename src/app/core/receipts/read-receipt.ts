@@ -167,7 +167,11 @@ function pairings(rows: readonly Row[]): Pairing[] {
   if (start < 0) return [];
   const labels: number[] = [];
   for (let i = start; i < rows.length; i++) {
-    if (SUMMARY.test(rows[i].text) && !COUNT.test(rows[i].text)) labels.push(i);
+    if (!SUMMARY.test(rows[i].text) || COUNT.test(rows[i].text)) continue;
+    // The summary is one run of lines: a tax breakdown printed further down
+    // ("TARIFA BASE IMPUESTO", "IVA 19%") is another table, not part of it.
+    if (labels.length > 0 && i - labels[labels.length - 1] > 2) break;
+    labels.push(i);
   }
   const first = labels[0], last = labels[labels.length - 1];
   const words = labels.map(i => ({ part: partOf(rows[i].text), strong: STRONG.test(rows[i].text) }));

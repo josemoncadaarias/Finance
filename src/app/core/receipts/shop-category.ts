@@ -7,11 +7,12 @@
  * while the app learned it from a bank message or a note ("SUPERMERCADO X"),
  * so an exact key is rare. In order, all of it the person's own data:
  * 1. the shop exactly as learned - its category, account and note;
- * 2. a shop learned with the same first word, or two words in common - the
+ * 2. a category named after the shop's first word ("Éxito");
+ * 3. a shop learned with the same first word, or two words in common - the
  *    same chain at another branch;
- * 3. a category whose name is one of the shop's words ("Restaurante El
+ * 4. a category whose name is one of the shop's words ("Restaurante El
  *    Fogón" and a category "Restaurantes");
- * 4. what the person filed notes with the shop's first word under, twice or
+ * 5. what the person filed notes with the shop's first word under, twice or
  *    more.
  * None of it names a shop or a chain. Pure, tested in
  * `shop-category.test.mjs`; the caller falls back to the ordinary words of
@@ -73,6 +74,15 @@ export function shopMatch(
 
   const same = known.find(k => k.merchant === key);
   if (same) return { categoryId: same.categoryId, accountId: same.accountId, note: same.note, how: 'same' };
+
+  // A category the person named after the shop itself ("Éxito" for "ÉXITO
+  // SEDE NORTE") says more than another branch filed elsewhere.
+  const first = words[0].length >= 4 ? stem(words[0]) : null;
+  const own = first ? categories.find(c => {
+    const theirs = wordsOf(c.name);
+    return theirs.length > 0 && stem(theirs[0]) === first;
+  }) : undefined;
+  if (own) return { categoryId: own.id, accountId: null, note: null, how: 'name' };
 
   // The same chain: the first word in common, or two words.
   const stems = new Set(words.map(stem));

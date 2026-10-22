@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1064 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1065 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5790,11 +5790,17 @@ with testers runs; the paywall is finished after them.
   way that makes sense wins (`sensible`: the total no smaller than a
   discount or a tax, no larger than the subtotal with nothing added).
   Tested on an invented receipt with all three at once; the old code read
-  its misread saving. Not yet seen on the phone. **And the shop finds the person's own
+  its misread saving. **The real cause, found the same day**: the tax
+  breakdown printed under the total ("TARIFA COMPRA BASE IMPUESTO", "IVA
+  19%") joined the summary as more words, so no pairing lined up. The
+  summary is now one run of lines (no more than one line between two of
+  its words). **And the shop finds the person's own
   category** (`shop-category.ts`, `shopMatch`, tested): the shop as
   learned; the same chain at another branch (first word, or two words, in
   common with a learned shop); a category named by one of its words
-  (plurals folded: "Restaurante" ↔ "Restaurantes"); what the person filed
+  (plurals folded: "Restaurante" ↔ "Restaurantes"), and before the chain
+  a category named after the shop's first word (a person's "Éxito" over
+  another branch learned under "Casa"); what the person filed
   notes naming it under, twice or more; then the common words.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
