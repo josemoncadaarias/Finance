@@ -54,19 +54,34 @@ export function mendNumbers(text: string): string {
     .trim();
 }
 
+/** The middle value of whole heights (the lower one of the two middles). */
+export function middleHeight(heights: readonly number[]): number {
+  const counts = new Map<number, number>();
+  for (const h of heights) counts.set(h, (counts.get(h) ?? 0) + 1);
+  let seen = 0;
+  const want = Math.floor(heights.length / 2);
+  for (let h = Math.min(...heights); h <= Math.max(...heights); h++) {
+    seen += counts.get(h) ?? 0;
+    if (seen > want) return h;
+  }
+  return heights[0] ?? 0;
+}
+
 /** The pieces of one image, as the PDF reader takes them. */
-export function itemsOfPage(page: OcrPage, pageNumber: number): TextItem[] {
+export function itemsOfPage(page: OcrPage, pageNumber: number, lineHeightOverride?: number): TextItem[] {
   const lines = page.lines
     .map(line => ({ ...line, text: mendNumbers(line.text) }))
     .filter(line => line.text.length > 0 && line.bottom > line.top);
   if (lines.length === 0) return [];
 
-  const heights = lines.map(l => l.bottom - l.top).sort((a, b) => a - b);
-  const lineHeight = heights[Math.floor(heights.length / 2)];
+  // The middle line height, counted rather than sorted so it is the same
+  // number on every phone. Tests pass other heights to prove a receipt reads
+  // the same however a phone groups its rows.
+  const lineHeight = lineHeightOverride ?? middleHeight(lines.map(l => Math.round(l.bottom - l.top)));
   const middle = (l: OcrLine) => (l.top + l.bottom) / 2;
 
   const rows: { middle: number; lines: OcrLine[] }[] = [];
-  for (const line of [...lines].sort((a, b) => middle(a) - middle(b))) {
+  for (const line of [...lines].sort((a, b) => (middle(a) - middle(b)) || (a.left - b.left))) {
     const row = rows[rows.length - 1];
     if (row && Math.abs(middle(line) - row.middle) < lineHeight * SAME_ROW) {
       row.lines.push(line);

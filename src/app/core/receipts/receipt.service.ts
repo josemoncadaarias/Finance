@@ -20,7 +20,7 @@ import { ComposeService } from '../ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { isoDay } from '../filters/period';
 import { ReaderNotReady, lastPages, textOfImages } from '../statements/image-text';
-import { readReceipt, receiptSteps } from './read-receipt';
+import { readReceiptPhoto } from './read-receipt';
 import { leadingWord, shopMatch, type KnownShop, type NamedCategory, type PastNote } from './shop-category';
 
 @Injectable({ providedIn: 'root' })
@@ -37,9 +37,9 @@ export class ReceiptService {
     const today = isoDay(new Date());
     let receipt;
     try {
-      const items = await textOfImages([file]);
-      receipt = readReceipt(items, today);
-      this.lastRead = { phone: navigator.userAgent, receipt, steps: receiptSteps(items) };
+      await textOfImages([file]);
+      receipt = readReceiptPhoto(lastPages, today);
+      this.lastRead = { phone: navigator.userAgent, receipt };
     } catch (problem) {
       this.toast.say(this.i18n.t(problem instanceof ReaderNotReady ? 'receipt.notReady' : 'receipt.noText'), 7000, { icon: 'alert-circle' });
       return;

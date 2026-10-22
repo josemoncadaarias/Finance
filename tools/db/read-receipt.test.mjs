@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { amountsIn, readReceipt } from '../../src/app/core/receipts/read-receipt.ts';
+import { amountsIn, readReceipt, readReceiptPhoto } from '../../src/app/core/receipts/read-receipt.ts';
 import { itemsOfPage, itemsOfPages } from '../../src/app/core/statements/ocr-items.ts';
 
 const TODAY = '2026-10-22';
@@ -105,6 +105,10 @@ test('nothing readable gives nothing', () => {
  * 2026-10-22: "VALOR TOTAL" read the saving printed above it). Invented.
  */
 function tilted(itemsRows, summary, after, slide) {
+  return itemsOfPage(tiltedPage(itemsRows, summary, after, slide), 1);
+}
+
+function tiltedPage(itemsRows, summary, after, slide) {
   const lines = [];
   let top = 40;
   for (const [left, right] of itemsRows) {
@@ -121,7 +125,7 @@ function tilted(itemsRows, summary, after, slide) {
     lines.push({ text: left, left: 20, top, right: 400, bottom: top + 28 });
     top += 42;
   }
-  return itemsOfPage({ width: 720, height: top + 40, lines }, 1);
+  return { width: 720, height: top + 40, lines };
 }
 
 const ITEMS = [
@@ -190,4 +194,49 @@ test('a real reading: the total is the one under the slid column, not the saving
   const r = readReceipt(itemsOfPages(PHOTO_READ), TODAY);
   assert.equal(r.totalMinor, 13298000);
   assert.equal(r.onDate, '2026-09-26');
+});
+
+test('two words joined on one row by another phone still count as two', () => {
+  // Another phone (Chrome 155 WebView) joined DESCUENTO and AHORRO on one row,
+  // with the column of figures slid a row: the total is still the one to pay.
+  const r = readReceipt(photo([
+    ['SUBTOTAL', '148.030'],
+    ['DESCUENTO AHORRO', '13.463'],
+    ['VALOR TOTAL', '16.060'],
+    ['FORMA PAGO /CONTADO', '132.980'],
+    ['TARJETA DEBITO', null],
+  ]), TODAY);
+  assert.equal(r.totalMinor, 13298000);
+});
+
+test('a total with its tax on one row stays one word', () => {
+  const r = readReceipt(photo([
+    ['SUBTOTAL', '10.000'],
+    ['TOTAL IVA', '1.900'],
+    ['TOTAL A PAGAR', '11.900'],
+  ]), TODAY);
+  assert.equal(r.totalMinor, 1190000);
+});
+
+/**
+ * Every phone, as far as a test can stand in for one: each box a reader hands
+ * back taller or shorter by a few pixels, which moves the usual height and so
+ * which pieces would share a row. The photo's reading must not move with it.
+ */
+function onEveryPhone(page, expected) {
+  for (let grow = -8; grow <= 14; grow++) {
+    const lines = page.lines.map(l => ({ ...l, top: l.top - Math.floor(grow / 2), bottom: l.bottom + Math.ceil(grow / 2) }));
+    const r = readReceiptPhoto([{ ...page, lines }], TODAY);
+    assert.equal(r.totalMinor, expected, `boxes ${grow} px taller`);
+  }
+}
+
+test('the real reading gives the same total on every phone', () => {
+  onEveryPhone(PHOTO_READ[0], 13298000);
+});
+
+test('the invented receipts give the same total on every phone', () => {
+  const after = ['FORMA PAGO CONTADO', 'TARJETA DEBITO'];
+  for (const slide of [-30, -15, 0, 15, 30]) onEveryPhone(tiltedPage(ITEMS, SUMMARY_ROWS, after, slide), 6846600);
+  onEveryPhone(tiltedPage([['PANADERIA SOL', '']], [['SUBTOTAL', '12.605'], ['IVA', '2.395'], ['TOTAL', '15.000'], ['EFECTIVO', '20.000'], ['CAMBIO', '5.000']], [], 30), 1500000);
 });

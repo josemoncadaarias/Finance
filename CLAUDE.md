@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1065 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1070 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5797,7 +5797,19 @@ with testers runs; the paywall is finished after them.
   its words). **Still wrong on 1.0.1128**, so the guessing stops: the
   receipt's notice carries "Copiar lo leído", which copies what the phone's
   reader handed back (its lines and boxes, `lastPages` in `image-text.ts`,
-  never the image) to replay the misread exactly. **And the shop finds the person's own
+  never the image) to replay the misread exactly. **What it showed
+  (1.0.1131, 2026-10-22)**: the reading itself gave 16.060 on Jose's phone
+  (Chrome 155 WebView) and 132.980 on a computer from the very same boxes,
+  because the phone put "DESCUENTO" and "AHORRO" on one row - which pieces
+  share a row hung on one height, and the phone's came out larger. Now a
+  photo is laid out at every row height from 0.5 to 1.5 times its usual one
+  and the layout joining the fewest summary words or figures on a row is read
+  (`readReceiptPhoto`); two adjustment words on one row count as two
+  (`ADJUSTMENT`); the usual height is counted, not sorted (`middleHeight`).
+  `onEveryPhone` in `read-receipt.test.mjs` grows and shrinks every box by
+  -8 to +14 px and requires the same total: the old reading failed 9 of the
+  23 on the real receipt, the new one none. "Copiar lo leído" also copies
+  the reading and the WebView's user agent. **And the shop finds the person's own
   category** (`shop-category.ts`, `shopMatch`, tested): the shop as
   learned; the same chain at another branch (first word, or two words, in
   common with a learned shop); a category named by one of its words
