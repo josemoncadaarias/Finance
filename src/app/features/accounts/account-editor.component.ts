@@ -13,6 +13,7 @@
  * which leaves a trail.
  */
 
+import { canReadImages, statementAccept, statementFiles } from '../../core/statements/image-text';
 import { currencyName, flagOf } from '../../core/currencies/catalog';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import {
@@ -654,9 +655,14 @@ export class AccountEditorComponent implements OnInit {
    * framework: the reading finished, the rows were saved, and the screen went
    * on showing a spinner until it was reloaded.
    */
+  /** PDF, and on the phone photos or screenshots too, several at once. */
+  readonly statementAccept = statementAccept();
+  readonly readsImages = canReadImages();
+
   async onStatementPicked(input: HTMLInputElement): Promise<void> {
     const account = this.editing();
-    const file = input.files?.[0];
+    const chosen = statementFiles(input.files);
+    const file = chosen.length > 0 ? chosen : null;
     // Cleared straight away, or picking the same file twice in a row fires
     // nothing the second time: the value has not changed.
     input.value = '';
@@ -672,7 +678,7 @@ export class AccountEditorComponent implements OnInit {
    * the account held when the period began, and the day it began. Every field
    * it fills is a field that can be corrected before pressing save.
    */
-  private async readForNewAccount(file: File, input: HTMLInputElement): Promise<void> {
+  private async readForNewAccount(file: File[], input: HTMLInputElement): Promise<void> {
     this.error.set('');
     const read = await this.flow.run(file, (password, watch) => this.statements.read(file, password, watch));
     if (read === 'again') { input.click(); return; }
@@ -703,7 +709,7 @@ export class AccountEditorComponent implements OnInit {
     await this.router.navigateByUrl(url);
   }
 
-  private async readStatement(accountId: number, file: File, input: HTMLInputElement): Promise<void> {
+  private async readStatement(accountId: number, file: File[], input: HTMLInputElement): Promise<void> {
     this.error.set('');
     const done = await this.flow.run(file, (password, watch) =>
       this.statements.importInto(accountId, file, password, watch));

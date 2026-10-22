@@ -10,7 +10,7 @@
  * with "Elegir otro". This service holds that state, and
  * `StatementFlowComponent`, placed once in the shell, draws it.
  *
- *     const result = await flow.run(file, (password, watch) =>
+ *     const result = await flow.run(files, (password, watch) =>
  *       statements.importInto(accountId, file, password, watch));
  *
  * `run` answers the reader's result, `null` when the person stopped or gave
@@ -24,6 +24,7 @@ import {
   StatementCancelled, StatementLocked, StatementUnreadable,
   type ReadingProgress,
 } from './pdf-text';
+import { ReaderNotReady, isImage } from './image-text';
 
 export interface ReadingWatch {
   signal?: AbortSignal;
@@ -47,6 +48,10 @@ export class StatementFlowService {
   readonly askingPassword = signal(false);
   /** The file could not be read: the dialog, and what went wrong. */
   readonly unreadable = signal<string | null>(null);
+  /** What was being read: a PDF, or photos (the dialog says it differently). */
+  readonly images = signal(false);
+  /** The phone's text recognition is still being fetched (photos only). */
+  readonly notReady = signal(false);
 
   readonly percent = computed(() => Math.min(99, Math.round(this.part() * 100)));
   readonly stageIndex = computed(() =>
@@ -62,8 +67,11 @@ export class StatementFlowService {
   private answerPassword: ((typed: string | null) => void) | null = null;
   private answerUnreadable: ((again: boolean) => void) | null = null;
 
-  async run<T>(file: File, read: Reader<T>): Promise<T | null | 'again'> {
-    this.fileName.set(file.name);
+  async run<T>(chosen: File | File[], read: Reader<T>): Promise<T | null | 'again'> {
+    const files = Array.isArray(chosen) ? chosen : [chosen];
+    this.images.set(files.some(isImage));
+    this.notReady.set(false);
+    this.fileName.set(files.length > 1 ? `${files[0].name} (+${files.length - 1})` : files[0].name);
     this.active.set(true);
     let password: string | undefined;
     try {
@@ -73,6 +81,11 @@ export class StatementFlowService {
           return await read(password, this.watch());
         } catch (problem) {
           if (problem instanceof StatementCancelled) return null;
+          if (problem instanceof ReaderNotReady) {
+            this.notReady.set(true);
+            const again = await this.sayUnreadable('');
+            return again ? 'again' : null;
+          }
           if (problem instanceof StatementLocked) {
             const typed = await this.askPassword();
             if (typed === null) return null;
