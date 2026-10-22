@@ -234,16 +234,25 @@
       }
 
       @if (store.groups().length === 0) {
-        <div class="state">
-          <h2>{{ 'summary.empty.title' | t }}</h2>
-          <p>
-            @if (filter.search()) {
-              {{ 'summary.empty.search' | t:{ period: label(), search: filter.search() } }}
-            } @else {
-              {{ 'summary.empty.body' | t:{ period: label() } }}
-            }
-          </p>
-        </div>
+        @if (filter.search()) {
+          <app-empty [compact]="true" icon="search-outline" color="#8c9bb5"
+                     [title]="'summary.empty.searchTitle' | t"
+                     [text]="'summary.empty.search' | t:{ period: label(), search: filter.search() }"
+                     [action]="'summary.empty.clearSearch' | t" actionIcon="close"
+                     (act)="filter.search.set('')"></app-empty>
+        } @else if (atNewest()) {
+          <app-empty [compact]="true" icon="receipt-outline"
+                     [title]="'summary.empty.title' | t"
+                     [text]="'summary.empty.now' | t"
+                     [action]="'summary.empty.add' | t" actionIcon="add"
+                     (act)="add('expense')"></app-empty>
+        } @else {
+          <app-empty [compact]="true" icon="calendar-outline" color="#8c9bb5"
+                     [title]="'summary.empty.title' | t"
+                     [text]="'summary.empty.past' | t"
+                     [action]="'summary.empty.toToday' | t" actionIcon="today-outline"
+                     (act)="filter.setPeriodKind(filter.period().kind)"></app-empty>
+        }
       } @else {
         @for (group of shownGroups(); track group.key) {
           <div class="ui-list ui-group">
@@ -309,7 +318,8 @@
         <app-spending-chart [slices]="store.slices()" [currency]="store.currency()"
                             [spentMinor]="store.totals().outMinor"
                             [highlighted]="filter.categoryFilter()"
-                            (tapped)="filter.openCategory($event)"></app-spending-chart>
+                            (tapped)="filter.openCategory($event)"
+                            (add)="add('expense')"></app-spending-chart>
       </div>
     }
     </ng-template>

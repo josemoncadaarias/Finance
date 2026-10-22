@@ -29,6 +29,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { amountsHidden, formatMoney } from '../../core/database/money';
 import { DEFAULT_COLOR } from '../../core/theme/palette';
 import { ThemeService } from '../../core/theme/theme.service';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Slice } from './group-movements';
 import {
@@ -84,12 +85,13 @@ interface Part {
 @Component({
   selector: 'app-spending-chart',
   standalone: true,
-  imports: [TranslatePipe, BadgeComponent, IonIcon],
+  imports: [TranslatePipe, BadgeComponent, IonIcon, EmptyStateComponent],
   template: `
     @if (slices().length === 0) {
-      <div class="ui-card empty">
-        <app-badge class="c" shape="ci" [size]="64" builtin="pie-chart-outline" fixed="#8c9bb5"></app-badge>
-        <p>{{ 'donut.empty' | t }}</p>
+      <div class="ui-card">
+        <app-empty [compact]="true" icon="pie-chart-outline" color="#8c9bb5"
+                   [title]="'donut.empty' | t" [text]="'donut.empty.text' | t"
+                   [action]="'donut.empty.action' | t" actionIcon="add" (act)="add.emit()"></app-empty>
       </div>
     } @else {
       @if (parts().length > 0) {
@@ -282,9 +284,6 @@ interface Part {
     .track i { display: block; height: 100%; border-radius: 4px; min-width: 4px; }
     .chev { color: var(--app-mu); font-size: 14px; flex: none; }
     .all { margin-top: 12px; }
-    .empty { text-align: center; padding: 28px 16px; }
-    .empty .c { margin: 0 auto 12px; }
-    .empty p { margin: 0; color: var(--app-mu); font-size: 14px; }
   `],
 })
 export class SpendingChartComponent {
@@ -297,6 +296,8 @@ export class SpendingChartComponent {
   readonly spentMinor = input(0);
   readonly highlighted = input<string | null>(null);
   readonly tapped = output<string>();
+  /** "Registrar un gasto", from the empty chart. */
+  readonly add = output<void>();
 
   readonly boxW = BOX_W;
   readonly boxH = BOX_H;
