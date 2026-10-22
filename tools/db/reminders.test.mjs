@@ -9,7 +9,7 @@ import { NodeSqlDriver } from './node-sql-driver.mjs';
 import { migrate } from '../../src/app/core/database/migrations/migration-runner.ts';
 import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statements.generated.ts';
 import { RemindersRepository } from '../../src/app/core/reminders/reminders.repository.ts';
-import { dayIn, dueWithin, nextOccurrence, ringPlans, settledBy } from '../../src/app/core/reminders/reminders.ts';
+import { dayIn, dueWithin, nextOccurrence, ringKey, ringPlans, settledBy } from '../../src/app/core/reminders/reminders.ts';
 
 const base = { id: 1, title: 'Pagar el arriendo', amountMinor: null, accountId: null, categoryId: null, note: null,
   repeat: 'monthly', dayOfMonth: 5, onDate: null, hour: 8, daysBefore: 0, shop: null, active: true, doneMonth: null, snoozedTo: null };
@@ -78,4 +78,13 @@ test('stored and read back; settled, snoozed, paused, removed; carried by the ba
   const { TABLES } = await import('../../src/app/core/database/export/export-backup.ts');
   assert.ok(TABLES.includes('reminders'));
   await db.close();
+});
+
+test('a reminder rings at its minute, and a new time is a new ringing', () => {
+  const r = { ...base, repeat: 'once', dayOfMonth: null, onDate: '2026-10-22', hour: 21, minute: 30 };
+  const o = nextOccurrence(r, '2026-10-22');
+  assert.deepEqual(ringPlans([o], '2026-10-22', 21, 29).map(p => p.when), ['later']);
+  assert.deepEqual(ringPlans([o], '2026-10-22', 21, 30).map(p => p.when), ['now']);
+  const later = nextOccurrence({ ...r, minute: 45 }, '2026-10-22');
+  assert.notEqual(ringKey(o), ringKey(later));
 });

@@ -22,3 +22,20 @@ small.late { color: var(--app-red); }
   .clear { flex: none; border: 0; background: transparent; color: var(--app-mu); font-size: 18px; padding: 4px; display: grid; place-items: center; }
   .save { margin-top: 12px; }
 }
+
+/* What Android must allow for a reminder to ring (Jose, 2026-10-22). */
+.ui-banner.access {
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  .ui-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; b { color: var(--app-tx); } small { color: var(--app-mu); } }
+  .ui-btn { width: 100%; margin-top: 4px; }
+}
+.form {
+  .ui-chip.other { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 16px; } }
+  .rings-when { display: block; margin-top: 8px; color: var(--app-mu); }
+  .rings-when.now { color: var(--app-yel); }
+}
+.time-sheet {
+  h2 { margin: 4px 0 8px; font-size: 18px; }
+  ion-datetime { margin: 0 auto; --background: transparent; }
+}

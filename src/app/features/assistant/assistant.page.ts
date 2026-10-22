@@ -130,6 +130,7 @@ interface RemindCard {
   dayOfMonth: number | null;
   onDate: string | null;
   hour: number;
+  minute?: number;
   daysBefore: number;
   state: 'open' | 'saved';
 }
@@ -454,7 +455,7 @@ export class AssistantPage {
       const said = readReminder(text, isoDay(new Date()));
       if (said.dayOfMonth || said.onDate) {
         this.waiting = null;
-        return this.remindWhen({ ...w.draft, hour: said.hour ?? w.draft.hour, daysBefore: said.daysBefore ?? w.draft.daysBefore }, said);
+        return this.remindWhen({ ...w.draft, hour: said.hour ?? w.draft.hour, minute: said.hour !== null ? said.minute : w.draft.minute, daysBefore: said.daysBefore ?? w.draft.daysBefore }, said);
       }
     }
     const reading = readPhrase(text, ctx);
@@ -1025,7 +1026,7 @@ export class AssistantPage {
       amountMinor: reading.amountMinor !== null && !reading.amountGuessed ? reading.amountMinor : null,
       accountId: reading.accountId, categoryId: reading.categoryId,
       repeat: said.repeat ?? 'monthly', dayOfMonth: said.dayOfMonth, onDate: said.onDate,
-      hour: said.hour ?? 8, daysBefore: said.daysBefore ?? 0, state: 'open',
+      hour: said.hour ?? 8, minute: said.hour !== null ? said.minute : 0, daysBefore: said.daysBefore ?? 0, state: 'open',
     };
     if (!said.dayOfMonth && !said.onDate) {
       this.waiting = { kind: 'remindDay', draft };
@@ -1066,7 +1067,7 @@ export class AssistantPage {
     try {
       await this.reminders.create({
         title: card.title, amountMinor: card.amountMinor, accountId: card.accountId, categoryId: card.categoryId, note: card.title,
-        repeat: card.repeat, dayOfMonth: card.dayOfMonth, onDate: card.onDate, hour: card.hour, daysBefore: card.daysBefore, shop: null,
+        repeat: card.repeat, dayOfMonth: card.dayOfMonth, onDate: card.onDate, hour: card.hour, minute: card.minute ?? 0, daysBefore: card.daysBefore, shop: null,
       });
       card.state = 'saved';
       this.messages.update(list => [...list]);
@@ -1082,7 +1083,7 @@ export class AssistantPage {
     const when = card.repeat === 'monthly'
       ? this.i18n.t('reminders.monthly', { day: card.dayOfMonth ?? 1 })
       : this.i18n.t('reminders.once', { date: this.longDate(card.onDate ?? isoDay(new Date())) });
-    const hour = new Date(2026, 0, 1, card.hour).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
+    const hour = new Date(2026, 0, 1, card.hour, card.minute ?? 0).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
     const ring = card.daysBefore === 0 ? this.i18n.t('reminders.rings.same', { hour })
       : this.i18n.t(card.daysBefore === 1 ? 'reminders.rings.before.one' : 'reminders.rings.before', { count: card.daysBefore, hour });
     return `${when}. ${ring}${ring.endsWith(".") ? "" : "."}`;

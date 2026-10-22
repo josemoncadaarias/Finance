@@ -11,6 +11,7 @@
  */
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
+import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications, type ActionPerformed } from '@capacitor/local-notifications';
 
@@ -22,16 +23,19 @@ import { ComposeService } from '../ui/compose.service';
 import { fromIsoDay, isoDay } from '../filters/period';
 import { merchantKeyOf } from '../proposals/merchant';
 import { RemindersRepository, type ReminderInput } from './reminders.repository';
+import { BankNotifications } from '../notifications/bank-notifications';
 import {
-  addDays, dueWithin, monthOfDay, nextOccurrence, reminderNoticeId, ringPlans, settledBy,
+  addDays, dueWithin, monthOfDay, nextOccurrence, reminderNoticeId, ringKey, ringPlans, settledBy,
   type Occurrence, type Reminder,
 } from './reminders';
 
 const CHANNEL = 'reminders';
 const ACTIONS = 'reminder';
 const KIND = 'reminder';
-/** Occurrences already rung at once, as `id@dueOn`: one each. */
+/** Ringings already on the phone (`ringKey`): each rings once. */
 const TOLD_KEY = 'finance.reminders.told';
+/** Ringings handed to the phone's alarms, with when (`ringKey` → ms). */
+const SCHEDULED_KEY = 'finance.reminders.scheduled';
 const ASKED_KEY = 'finance.reminders.asked';
 
 @Injectable({ providedIn: 'root' })
@@ -50,6 +54,12 @@ export class RemindersService {
   });
   /** Late, or due within a week: Inicio's "Pendientes". */
   readonly soon = computed(() => dueWithin(this.occurrences(), isoDay(new Date())));
+  /**
+   * Whether the phone lets Finance post notices ('prompt': not asked yet),
+   * and whether it may ring at the exact minute; null in a browser.
+   */
+  readonly notices = signal<'granted' | 'denied' | 'prompt' | null>(null);
+  readonly exact = signal<boolean | null>(null);
 
   /** The form opened from a reminder: saving it settles that month. */
   private awaiting: { id: number; month: string; savesBefore: number } | null = null;
@@ -62,6 +72,9 @@ export class RemindersService {
     if (Capacitor.isNativePlatform()) {
       // Registered first thing, so a tap that opened the app is not missed.
       void LocalNotifications.addListener('localNotificationActionPerformed', action => void this.tapped(action));
+      // Back from Android's settings, or after a while away: what is allowed
+      // may have changed, and a ring the phone held back may be due now.
+      void App.addListener('resume', () => { if (this.database.status() === 'ready') void this.refresh(); });
     }
     effect(() => {
       this.database.dataVersion();
@@ -185,48 +198,95 @@ export class RemindersService {
     const now = new Date();
     const today = isoDay(now);
     const occurrences = this.demo.active() ? [] : list.map(r => nextOccurrence(r, today)).filter((o): o is Occurrence => o !== null);
-    const plans = ringPlans(occurrences, today, now.getHours());
+    const plans = ringPlans(occurrences, today, now.getHours(), now.getMinutes());
+    await this.readAccess();
 
-    // What this service put on the phone before goes; what still waits comes back.
+    // What was handed to the alarms before and whose time came has rung,
+    // unless it still waits in the phone's queue (an alarm the phone held
+    // back): then it is taken back and rung now, once.
     const pending = (await LocalNotifications.getPending()).notifications
       .filter(n => (n.extra as { kind?: string } | undefined)?.kind === KIND);
+    const queued = new Set(pending.map(n => n.id));
+    const told = this.told();
+    for (const [key, at] of Object.entries(this.scheduled())) {
+      if (at <= now.getTime() && !queued.has(reminderNoticeId(Number(key.split('@')[0])))) told.add(key);
+    }
     if (pending.length) await LocalNotifications.cancel({ notifications: pending.map(n => ({ id: n.id })) });
     const waiting = new Set(occurrences.map(o => o.reminder.id));
     const shown = (await LocalNotifications.getDeliveredNotifications()).notifications
       .filter(n => (n.extra as { kind?: string; id?: number } | undefined)?.kind === KIND
         && !waiting.has((n.extra as { id: number }).id));
     if (shown.length) await LocalNotifications.removeDeliveredNotifications({ notifications: shown });
-    if (plans.length === 0) return;
 
-    const told = this.told();
-    const toSend = plans.filter(p => p.when === 'later' || !told.has(`${p.occurrence.reminder.id}@${p.occurrence.dueOn}`));
-    if (toSend.length === 0 || !(await this.allowed())) return;
-    await this.setUp();
-    await LocalNotifications.schedule({
-      notifications: toSend.map(p => {
-        const o = p.occurrence;
-        const at = fromIsoDay(o.ringOn);
-        at.setHours(o.reminder.hour, 0, 0, 0);
-        return {
-          id: reminderNoticeId(o.reminder.id),
-          title: this.titleOf(o),
-          body: this.bodyOf(o),
-          largeBody: this.bodyOf(o),
-          channelId: CHANNEL,
-          smallIcon: 'ic_stat_movement',
-          largeIcon: 'ic_notice_logo',
-          iconColor: '#6378FF',
-          actionTypeId: ACTIONS,
-          autoCancel: true,
-          extra: { kind: KIND, id: o.reminder.id, month: o.month },
-          // Inexact on purpose, as the card's: no "Alarms & reminders" permission.
-          isExactNotification: false,
-          ...(p.when === 'later' ? { schedule: { at, allowWhileIdle: true } } : {}),
-        };
-      }),
-    });
-    for (const p of toSend) told.add(`${p.occurrence.reminder.id}@${p.occurrence.dueOn}`);
+    const toSend = plans.filter(p => p.when === 'later' || !told.has(ringKey(p.occurrence)));
+    const scheduled: Record<string, number> = {};
+    if (toSend.length > 0 && await this.allowed()) {
+      await this.setUp();
+      // At the exact minute when the phone allows it ("Alarmas y recordatorios");
+      // otherwise Android may ring a while later, never before.
+      const exact = this.exact() === true;
+      await LocalNotifications.schedule({
+        notifications: toSend.map(p => {
+          const o = p.occurrence;
+          const at = fromIsoDay(o.ringOn);
+          at.setHours(o.reminder.hour, o.reminder.minute ?? 0, 0, 0);
+          if (p.when === 'later') scheduled[ringKey(o)] = at.getTime();
+          else told.add(ringKey(o));
+          return {
+            id: reminderNoticeId(o.reminder.id),
+            title: this.titleOf(o),
+            body: this.bodyOf(o),
+            largeBody: this.bodyOf(o),
+            channelId: CHANNEL,
+            smallIcon: 'ic_stat_movement',
+            largeIcon: 'ic_notice_logo',
+            iconColor: '#6378FF',
+            actionTypeId: ACTIONS,
+            autoCancel: true,
+            extra: { kind: KIND, id: o.reminder.id, month: o.month },
+            isExactNotification: exact,
+            ...(p.when === 'later' ? { schedule: { at, allowWhileIdle: true } } : {}),
+          };
+        }),
+      });
+    }
     this.keep(told);
+    this.write(SCHEDULED_KEY, JSON.stringify(scheduled));
+  }
+
+  /** What the phone allows, for the screen to say and to ask. */
+  private async readAccess(): Promise<void> {
+    try {
+      const display = (await LocalNotifications.checkPermissions()).display;
+      this.notices.set(display === 'granted' ? 'granted' : display === 'denied' ? 'denied' : 'prompt');
+      this.exact.set((await LocalNotifications.checkExactNotificationSetting()).exact_alarm === 'granted');
+    } catch {
+      this.exact.set(false);
+    }
+  }
+
+  /** "Permitir avisos": Android's question while it still asks, its settings after. */
+  async allowNotices(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    const now = (await LocalNotifications.checkPermissions()).display;
+    if (now !== 'denied' && (await LocalNotifications.requestPermissions()).display === 'granted') {
+      this.write(ASKED_KEY, '1');
+    } else {
+      await BankNotifications.openAlertSettings();
+    }
+    void this.refresh();
+  }
+
+  /** "Sonar a la hora exacta": Android's "Alarmas y recordatorios" for Finance. */
+  async allowExact(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try { await LocalNotifications.changeExactNotificationSetting(); } catch { /* nothing to open */ }
+    void this.refresh();
+  }
+
+  /** Read again when the app comes back from Android's settings. */
+  recheck(): void {
+    void this.refresh();
   }
 
   private titleOf(o: Occurrence): string {
@@ -284,6 +344,10 @@ export class RemindersService {
     if (now.display === 'denied' || this.read(ASKED_KEY) === '1') return false;
     this.write(ASKED_KEY, '1');
     return (await LocalNotifications.requestPermissions()).display === 'granted';
+  }
+
+  private scheduled(): Record<string, number> {
+    try { return JSON.parse(this.read(SCHEDULED_KEY) ?? '{}') as Record<string, number>; } catch { return {}; }
   }
 
   private told(): Set<string> {

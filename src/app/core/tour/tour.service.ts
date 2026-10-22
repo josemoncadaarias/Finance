@@ -99,6 +99,8 @@ const TOUR_LIST = {
       { target: 'reminders-new', title: 'tour.reminders.2.title', text: 'tour.reminders.2.text' },
       { target: 'reminders-suggest', title: 'tour.reminders.3.title', text: 'tour.reminders.3.text' },
       { target: 'reminders-list', title: 'tour.reminders.4.title', text: 'tour.reminders.4.text' },
+      // 2026-10-22: any hour and minute, and what Android must allow to ring.
+      { title: 'tour.reminders.5.title', text: 'tour.reminders.5.text', since: 2 },
     ],
   },
   pro: {

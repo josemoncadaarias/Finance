@@ -20,6 +20,8 @@ export interface Reminder {
   dayOfMonth: number | null;
   onDate: string | null;
   hour: number;
+  /** The minute of that hour (migration 061); 0 when not said. */
+  minute?: number;
   /** Ring this many days before the day it is due (0: on the day). */
   daysBefore: number;
   /** A fixed payment's merchant key: seeing it in the month settles that month. */
@@ -110,16 +112,30 @@ export interface RingPlan {
   when: 'now' | 'later';
 }
 
+/** The minute of the day a reminder rings at. */
+export function ringMinute(r: Reminder): number {
+  return r.hour * 60 + (r.minute ?? 0);
+}
+
 /**
- * Every occurrence to ring: later when its ring day and hour are still ahead,
+ * Every occurrence to ring: later when its ring day and time are still ahead,
  * now when they passed and it is still waiting (the phone was off, the app
  * was closed). What was already rung is the caller's to remember.
  */
-export function ringPlans(occurrences: readonly Occurrence[], today: string, hourNow: number): RingPlan[] {
+export function ringPlans(occurrences: readonly Occurrence[], today: string, hourNow: number, minuteNow = 0): RingPlan[] {
+  const now = hourNow * 60 + minuteNow;
   return occurrences.map(o => ({
     occurrence: o,
-    when: o.ringOn > today || (o.ringOn === today && hourNow < o.reminder.hour) ? 'later' as const : 'now' as const,
+    when: o.ringOn > today || (o.ringOn === today && now < ringMinute(o.reminder)) ? 'later' as const : 'now' as const,
   }));
+}
+
+/**
+ * What one ringing is known by: the occurrence and the time it rings at, so
+ * changing the time makes it ring again, and it rings only once at that time.
+ */
+export function ringKey(o: Occurrence): string {
+  return `${o.reminder.id}@${o.dueOn}@${o.ringOn}@${ringMinute(o.reminder)}`;
 }
 
 /** Waiting now or soon, for Inicio: late, or due within `days`. */

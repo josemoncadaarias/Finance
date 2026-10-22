@@ -9,6 +9,21 @@
   </header>
 
   <div class="ui-main">
+    <!-- Without Android's leave, nothing rings: said, with the way to give it. -->
+    @if (reminders.notices() === 'denied' || (reminders.notices() === 'prompt' && reminders.all().length > 0)) {
+      <div class="ui-banner warn access">
+        <ion-icon name="notifications-off-outline"></ion-icon>
+        <span class="ui-tx"><b>{{ 'reminders.access.off' | t }}</b><small class="wrap">{{ 'reminders.access.off.hint' | t }}</small></span>
+        <button type="button" class="ui-btn small" (click)="reminders.allowNotices()">{{ 'reminders.access.allow' | t }}</button>
+      </div>
+    } @else if (reminders.notices() === 'granted' && reminders.exact() === false && reminders.all().length > 0) {
+      <div class="ui-banner info access">
+        <ion-icon name="alarm-outline"></ion-icon>
+        <span class="ui-tx"><b>{{ 'reminders.access.exact' | t }}</b><small class="wrap">{{ 'reminders.access.exact.hint' | t }}</small></span>
+        <button type="button" class="ui-btn small" (click)="reminders.allowExact()">{{ 'reminders.access.exactAllow' | t }}</button>
+      </div>
+    }
+
     <button type="button" class="ui-add" (click)="newOne()" data-tour="reminders-new">
       <span class="plus"><ion-icon name="add"></ion-icon></span>
       <span class="ui-tx"><b>{{ 'reminders.new' | t }}</b><small class="wrap">{{ 'reminders.new.hint' | t }}</small></span>
@@ -195,9 +210,14 @@
         </div>
         <div class="hours">
           @for (h of hours; track h) {
-            <button type="button" class="ui-chip" [class.on]="h === hour()" (click)="hour.set(h)">{{ hourText(h) }}</button>
+            <button type="button" class="ui-chip" [class.on]="h === hour() && minute() === 0" (click)="hour.set(h); minute.set(0)">{{ hourText(h) }}</button>
           }
+          <!-- Any hour and minute (Jose, 2026-10-22: to try one at once). -->
+          <button type="button" class="ui-chip other" [class.on]="customTime()" (click)="pickingTime.set(true)">
+            <ion-icon name="time-outline"></ion-icon>{{ customTime() ? hourText(hour(), minute()) : ('reminders.form.otherTime' | t) }}
+          </button>
         </div>
+        <small class="sub rings-when" [class.now]="ringsNow()">{{ ringsWhen() }}</small>
 
         <span class="lab">{{ 'reminders.form.fill' | t }}</span>
         <small class="sub">{{ 'reminders.form.fill.hint' | t }}</small>
@@ -220,6 +240,19 @@
         <button type="button" class="ui-btn save" (click)="save()">{{ 'reminders.form.save' | t }}</button>
       </div>
     </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Any hour and minute. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingTime()" (didDismiss)="pickingTime.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host time-sheet">
+      <div class="grab"></div>
+      <h2 class="center">{{ 'reminders.form.timeTitle' | t }}</h2>
+      <ion-datetime presentation="time" [preferWheel]="true" [value]="timeValue()" [locale]="i18n.dateLocale()"
+                    [showDefaultButtons]="true" [doneText]="'reminders.form.timeDone' | t" [cancelText]="'entry.cancel' | t"
+                    (ionChange)="pickTime($any($event.detail).value)" (ionCancel)="pickingTime.set(false)"></ion-datetime>
+    </div>
   </ng-template>
 </ion-modal>
 

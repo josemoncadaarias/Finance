@@ -81,6 +81,9 @@ const ALLOWED = [
   // The words a receipt prints - 'total a pagar', 'cambio', 'NIT', 'desde' -
   // read out of the photo, never shown.
   'core/receipts/read-receipt.ts',
+  // The words a person says to be reminded ("cada mes", "todos los 5"), read
+  // out of what was typed or dictated, never shown.
+  'core/assistant/read-reminder.ts',
 ];
 
 /** Words common enough in Spanish, and rare enough in code, to be a signal. */
