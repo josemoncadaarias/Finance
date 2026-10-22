@@ -593,8 +593,8 @@ function placesIn(tokens: Token[], ctx: PhraseContext, relaxed: boolean): Places
   // Each place a product was named: the one product, or, when the name is in
   // several accounts, the one in an account the sentence also names - or,
   // failing that, the only one in the account a single name pointed at.
-  // A product's words may also be part of a longer name: "bolsillo" is Plata's
-  // "Bolsillo" and Rappi's "Bolsillo Principal". With the account said, the
+  // A product's words may also be part of a longer name: "bolsillo" is one
+  // account's "Bolsillo" and another's "Bolsillo Principal". With the account said, the
   // product in it wins over the one whose name is exactly those words.
   const productsAt = new Map<number, PhraseProduct[]>();
   const wider = new Map<number, PhraseProduct[]>();

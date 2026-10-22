@@ -467,7 +467,8 @@ test('each parameter says whether it is official, borrowed or estimated', async 
 });
 
 test('filling the gaps never replaces a figure someone typed', async () => {
-  const { defaultInputs, fillGaps, SPREADSHEET_2026 } = await import('../../src/app/core/tax/defaults.ts');
+  const { defaultInputs, fillGaps } = await import('../../src/app/core/tax/defaults.ts');
+  const { SPREADSHEET_2026 } = await import('./tax-spreadsheet-2026.mjs');
 
   const typed = {
     ...defaultInputs(2026),
@@ -541,12 +542,6 @@ test('the fill is remembered per year, and only lands on the owner database', as
   await repo.markGapsFilled(2026);
   assert.equal(await repo.gapsFilled(2026), true);
   assert.equal(await repo.gapsFilled(2025), false, 'each year on its own');
-
-  assert.equal(await repo.hasAccountNamed('Rappi cuenta'), false, 'a fresh database is nobody\'s');
-  await new AccountsRepository(db, now).create({
-    name: 'Rappi cuenta', type: 'debit', currency_code: 'COP', builtin_icon: 'wallet', opened_on: '2021-07-01',
-  });
-  assert.equal(await repo.hasAccountNamed('Rappi cuenta'), true);
 
   await db.close();
 });

@@ -14,7 +14,8 @@ import assert from 'node:assert/strict';
 import jsdom from 'jsdom';
 
 import { simulate } from '../../src/app/core/tax/cedula-general.ts';
-import { defaultInputs, fillGaps, SPREADSHEET_2026 } from '../../src/app/core/tax/defaults.ts';
+import { defaultInputs, fillGaps } from '../../src/app/core/tax/defaults.ts';
+import { SPREADSHEET_2026 } from './tax-spreadsheet-2026.mjs';
 import {
   taxSheet, taxWorkbook, sheetValue, effectiveInput, TAX_SHEET_STYLES,
 } from '../../src/app/core/tax/tax-workbook.ts';

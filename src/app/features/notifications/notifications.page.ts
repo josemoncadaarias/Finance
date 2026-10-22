@@ -121,7 +121,7 @@ export class NotificationsPage {
   appIcon(pkg: string, label: string): string {
     const name = foldText(`${label} ${pkg}`);
     const words: [RegExp, string][] = [
-      [/bank|banco|bancolombia|finan|pay|pago|nequi|davi/, 'business-outline'],
+      [/bank|banco|finan|pay|pago/, 'business-outline'],
       [/card|tarjeta|credit|visa|master/, 'card-outline'],
       [/wallet|billetera|cartera/, 'wallet-outline'],
       [/chat|messag|mensaj|whatsapp|telegram|sms/, 'chatbubble-outline'],

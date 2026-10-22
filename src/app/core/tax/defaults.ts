@@ -319,46 +319,6 @@ export function defaultInputs(year: number, today: Date = new Date()): TaxInputs
   };
 }
 
-/**
- * Jose's own figures for 2026, from `Simulador_Tributario_2026.xlsx`.
- *
- * His estimate of the year, cell by cell, so the simulation opens as the
- * spreadsheet he has been maintaining rather than as an empty form. They are
- * his data - salary, dependents, withholding - in the same way the opening
- * balances in the early migrations are, and they are only ever laid into
- * boxes that are still at zero.
- *
- * The employment kind is `integral`: the spreadsheet's 70% contribution base
- * is that rule, and it is the kind that reproduces his figures.
- */
-/**
- * The account that identifies Jose's database.
- *
- * His spreadsheet figures belong to him and only ever go into his simulation.
- * The early migrations guard their real balances the same way - by an account
- * only his database has - so a fresh install, or anyone else's, starts from an
- * honest empty form rather than from someone else's salary.
- */
-export const SPREADSHEET_2026_OWNER_ACCOUNT = 'Rappi cuenta';
-
-export const SPREADSHEET_2026: Partial<TaxInputs> = {
-  employment: 'integral',
-  dependents: 2,
-  monthlySalaryMinor: 2_276_176_500,
-  monthsWorked: 12,
-  // The spreadsheet's "ingresos no laborales" of 10.000.000 were never that:
-  // they are the yields expected this year, casilla 58. Its 5.000.000 of
-  // "costos" was a guess at the componente inflacionario on them, casilla 59,
-  // which the form now works out from the year's percentage instead.
-  capitalIncomeMinor: 1_000_000_000,
-  financialYieldMinor: 1_000_000_000,
-  healthPolicyMinor: 443_770_000,
-  monthlyWithholdingMinor: [
-    286_100_000, 286_100_000, 273_700_000, 273_700_000, 273_700_000, 273_700_000,
-    273_700_000, 273_700_000, 273_700_000, 273_700_000, 273_700_000, 273_700_000,
-  ],
-  extraWithholdingMinor: [35_000_000, 0, 0, 0],
-};
 
 /**
  * Lays references into every box still at zero, and nothing else.

@@ -75,13 +75,6 @@ export class TaxSimulationsRepository {
       [`tax.gapsFilled.${year}`, now]);
   }
 
-  /** Whether an account by this exact name exists. */
-  async hasAccountNamed(name: string): Promise<boolean> {
-    const row = await this.db.queryOne<{ found: number }>(
-      'SELECT 1 AS found FROM accounts WHERE name = ? LIMIT 1', [name]);
-    return !!row;
-  }
-
   /** Every year with a simulation, newest first. */
   async years(): Promise<number[]> {
     const rows = await this.db.query<{ year: number }>(
