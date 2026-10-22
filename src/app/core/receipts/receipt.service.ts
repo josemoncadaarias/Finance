@@ -29,6 +29,8 @@ export class ReceiptService {
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
+  /** What the last photo gave the form, copied with the reading (`copyRead`). */
+  private lastRead: unknown = null;
 
   async fromPhoto(file: File): Promise<void> {
     this.toast.say(this.i18n.t('receipt.reading'), 20_000, { icon: 'receipt-outline' });
@@ -62,6 +64,7 @@ export class ReceiptService {
     const categoryId = match?.categoryId
       ?? (receipt.shop ? await new ProposalsRepository(db).guessedCategoryOf(receipt.shop, -1) : null);
 
+    this.lastRead = { receipt, categoryId, accountId: match?.accountId ?? null };
     this.compose.open('expense', {
       preferredAccountId: match?.accountId ?? null,
       start: {
@@ -87,7 +90,7 @@ export class ReceiptService {
    * and replayed exactly - lines and their boxes, never the image.
    */
   private async copyRead(): Promise<void> {
-    const text = JSON.stringify(lastPages);
+    const text = JSON.stringify({ read: this.lastRead, pages: lastPages });
     try {
       await navigator.clipboard.writeText(text);
     } catch {
