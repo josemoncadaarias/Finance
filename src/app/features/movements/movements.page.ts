@@ -8,6 +8,7 @@
  * and why it feels quick.
  */
 
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, ElementRef, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -59,7 +60,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
-  imports: [AskButtonComponent, 
+  imports: [AskButtonComponent, EmptyStateComponent, 
     AmountsEyeComponent,
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,

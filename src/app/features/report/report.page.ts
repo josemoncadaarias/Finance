@@ -24,6 +24,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { amountsHidden, formatMoney, HIDDEN_AMOUNT, withAmountsShown } from '../../core/database/money';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { JumpComponent } from '../../shared/ui/jump.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ComposeService } from '../../core/ui/compose.service';
 import { BusyOverlayComponent } from '../../shared/busy-overlay.component';
 import { ToastService } from '../../shared/ui/toast.service';
 import { AccentService } from '../../core/theme/accent.service';
@@ -53,7 +55,7 @@ import { XLSX_MIME } from '../../core/xlsx/xlsx-writer';
   templateUrl: './report.page.html',
   styleUrls: ['./report.page.scss'],
   imports: [AskButtonComponent, 
-    TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, BusyOverlayComponent, AmountsEyeComponent,
+    TranslatePipe, ScopeSheetsComponent, BadgeComponent, JumpComponent, EmptyStateComponent, BusyOverlayComponent, AmountsEyeComponent,
     IonContent, IonIcon, IonSpinner,
   ],
 })
@@ -100,6 +102,17 @@ export class ReportPage {
   });
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly compose = inject(ComposeService);
+
+  /** From an empty report: the one movement form, as the "+" opens it. */
+  addMovement(): void {
+    this.compose.open('expense');
+  }
+
+  /** From an empty yields summary: the accounts that earn. */
+  goEarning(): void {
+    void this.router.navigateByUrl('/products');
+  }
 
   /**
    * Which summary this is: of the money that moved, or of what the accounts

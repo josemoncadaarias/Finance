@@ -63,7 +63,17 @@
     @if (working()) {
       <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
     } @else if (blocks().length === 0) {
-      <div class="state"><p>{{ nothing() }}</p></div>
+      @if (mode() === 'yields') {
+        <app-empty icon="trending-up-outline" color="#34c98b"
+                   [title]="'report.yields.nothing' | t" [text]="'report.yields.nothingText' | t"
+                   [action]="'report.otherPeriod' | t" actionIcon="calendar-outline" (act)="scope.openPeriod()"
+                   [second]="'report.yields.seeAccounts' | t" (secondAct)="goEarning()"></app-empty>
+      } @else {
+        <app-empty icon="bar-chart-outline"
+                   [title]="'report.nothing' | t" [text]="'report.nothingText' | t"
+                   [action]="'report.otherPeriod' | t" actionIcon="calendar-outline" (act)="scope.openPeriod()"
+                   [second]="'summary.empty.add' | t" (secondAct)="addMovement()"></app-empty>
+      }
     } @else {
       <div class="lead">
         @if (daysGoneLine(); as gone) {
@@ -291,7 +301,8 @@
     }
   </div>
 
-  <app-jump #jump [content]="list" [folded]="allClosed()" (fold)="toggleAll()"></app-jump>
+  <app-jump #jump [content]="list" [folded]="allClosed()" (fold)="toggleAll()"
+            [style.display]="blocks().length > 0 ? null : 'none'"></app-jump>
 </ion-content>
 
 <!-- The dates and the account, shared with the summary screen. -->

@@ -5637,6 +5637,19 @@ with testers runs; the paywall is finished after them.
   Android only; a browser or iPhone does nothing. Home tour step `since: 9`.
   Checked in a browser by calling the answer directly; the Java not compiled
   in the session (the Store bundle is its check) and not seen on the phone.
+- **Every empty place says what to do next** (Jose, 2026-10-22, idea 20).
+  `shared/ui/empty-state.component.ts` (`app-empty`: a round icon, a title,
+  one sentence, one button, an optional second link; `compact` inside a
+  section) is the one definition. Checked first on an empty app and on the
+  sample data screen by screen: Cuentas, Rendimientos, Deudas, Presupuestos,
+  Recordatorios and Por revisar already had theirs; what was bare now uses
+  it - Inicio's chart ("Registrar un gasto") and list (now: "Registrar un
+  movimiento"; a past period: "Volver al periodo de hoy"; a search: "Borrar
+  la búsqueda"), the report on both faces ("Elegir otro periodo", and
+  "Registrar un movimiento" / "Ver mis cuentas con intereses"; its fold
+  button no longer floats over nothing), and an earning account's
+  Movimientos, Pagos and Días. A new screen or section uses `app-empty`.
+  Checked in a browser.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5677,7 +5690,7 @@ with testers runs; the paywall is finished after them.
 |---|---|---|---|---|
 | D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | **Built** with the redesign, 2026-09-28 |
 | 21 | Settings screen, grouped, value on each row | Medium | Drawer | **Built**: Más, 2026-09-28 |
-| 20 | Empty state on every screen and section | Small, many places | - | Proposed |
+| 20 | Empty state on every screen and section | Small, many places | - | **Built** 2026-10-22 (`app-empty`) |
 | 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
 | 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
 | 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |

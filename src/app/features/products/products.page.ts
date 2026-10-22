@@ -20,6 +20,7 @@
  * it never rewrites a day corrected by hand.
  */
 
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { TourService } from '../../core/tour/tour.service';
@@ -190,7 +191,7 @@ interface Payment {
   selector: 'app-products',
   templateUrl: './products.page.html',
   styleUrls: ['./products.page.scss'],
-  imports: [AskButtonComponent, 
+  imports: [AskButtonComponent, EmptyStateComponent, 
     AmountsEyeComponent,
     BusyOverlayComponent, DateFieldComponent, NgTemplateOutlet, BadgeComponent, JumpComponent, AccountsFacesComponent, TabBarComponent,
     EntryComponent, ConfirmComponent, AccountPickerComponent, TranslatePipe,
