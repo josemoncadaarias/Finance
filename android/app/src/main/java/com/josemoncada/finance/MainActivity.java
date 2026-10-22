@@ -37,6 +37,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         registerPlugin(BankNotificationsPlugin.class);
         registerPlugin(DriveAuthPlugin.class);
         registerPlugin(SpeechPlugin.class);
+        registerPlugin(ShortcutsPlugin.class);
         super.onCreate(savedInstanceState);
         followFontSize();
         remember(getIntent());
@@ -86,7 +87,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
         }
     }
 
-    /** "Movimiento detectado" tapped while the app was already running. */
+    /** "Movimiento detectado", or a shortcut, tapped while the app was already running. */
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -103,11 +104,25 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
             open = asked;
             intent.removeExtra(MovementAlert.EXTRA_OPEN);
         }
+        String cut = intent.getStringExtra(ShortcutsPlugin.EXTRA_SHORTCUT);
+        if (cut != null) {
+            shortcut = cut;
+            intent.removeExtra(ShortcutsPlugin.EXTRA_SHORTCUT);
+        }
     }
 
     static String takeOpen() {
         String asked = open;
         open = null;
+        return asked;
+    }
+
+    /** The icon's shortcut the app was opened from, until the app takes it. */
+    private static volatile String shortcut;
+
+    static String takeShortcut() {
+        String asked = shortcut;
+        shortcut = null;
         return asked;
     }
 
