@@ -800,7 +800,7 @@ test('the note, product and what it changed are remembered per shop, and a batch
     { note: 'Mercado semanal', productId: pocket, scope: 'both' });
   let memory = await proposals.shopMemory();
   const shop = shopMemoryOf(memory, 'COMPRA EXITO POBLADO 9902');
-  assert.deepEqual(shop, { note: 'Mercado semanal', productId: pocket, scope: 'both' });
+  assert.deepEqual(shop, { note: 'Mercado semanal', productId: pocket, scope: 'both', accountId: null });
 
   // A save that says nothing of them (a batch, a hand-typed one) keeps them.
   await proposals.learn('COMPRA EXITO POBLADO 5555', mercados, '2026-09-11');
@@ -823,5 +823,28 @@ test('the note, product and what it changed are remembered per shop, and a batch
   await proposals.learn('COMPRA EXITO POBLADO 7788', mercados, '2026-09-20',
     { note: 'COMPRA EXITO POBLADO 7788', productId: null, scope: null });
   memory = await proposals.shopMemory();
-  assert.equal(shopMemoryOf(memory, 'EXITO POBLADO'), null);
+  assert.equal(shopMemoryOf(memory, 'EXITO POBLADO').note, null);
+  // Saved on Rappi: that is the shop's account from now on.
+  assert.equal(shopMemoryOf(memory, 'EXITO POBLADO').accountId, rappi);
+  // A message of the same shop that names no account comes on it (Jose, 2026-10-22).
+  const { ids: [told] } = await proposals.propose('notice:sms', [{
+    source: 'notification', account_id: null, occurred_on: '2026-09-25',
+    amount_minor: -12_000_00, description: 'EXITO POBLADO', evidence: {},
+  }]);
+  assert.equal((await proposals.byId(told)).account_id, rappi);
+});
+
+test('a shop takes the account its movements used most, without overruling one chosen', async () => {
+  const { db, proposals, transactions, rappi, mercados } = await setup();
+  const other = (await db.queryOne(`SELECT id FROM accounts WHERE id <> ? ORDER BY id LIMIT 1`, [rappi])).id;
+  for (const [account, day] of [[other, '2026-09-01'], [rappi, '2026-09-02'], [rappi, '2026-09-03']]) {
+    await transactions.create({ account_id: account, category_id: mercados, occurred_on: day,
+      amount_minor: -10_000_00, description: 'TIENDA LA ESQUINA', source: 'manual' });
+  }
+  await proposals.learnFromLedger();
+  assert.equal(shopMemoryOf(await proposals.shopMemory(), 'TIENDA LA ESQUINA').accountId, rappi);
+  // Chosen in the form: the newest answer wins, and the ledger never takes it back.
+  await proposals.learn('TIENDA LA ESQUINA', mercados, '2026-09-04', undefined, other);
+  await proposals.learnFromLedger();
+  assert.equal(shopMemoryOf(await proposals.shopMemory(), 'TIENDA LA ESQUINA').accountId, other);
 });

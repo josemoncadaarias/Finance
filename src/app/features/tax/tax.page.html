@@ -11,12 +11,16 @@
       <h1>{{ text.title }}</h1>
       <small>{{ 'ui.tax.form' | t }}</small>
     </div>
-    <button type="button" class="ui-round" (click)="downloadExcel()" [disabled]="!!busyLabel()"
-            [attr.aria-label]="text.excelButton" [title]="text.excelButton">
-      <ion-icon name="download-outline"></ion-icon>
-    </button>
-    <span class="ui-info excel-info" role="button" (click)="info.set(text.excelHint + ' ' + excelFileName())"
-          [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+    <!-- The download and its explanation travel together: the (i) sits on
+         the button's own corner, whatever else the bar carries. -->
+    <span class="excel">
+      <button type="button" class="ui-round" (click)="downloadExcel()" [disabled]="!!busyLabel()"
+              [attr.aria-label]="text.excelButton" [title]="text.excelButton">
+        <ion-icon name="download-outline"></ion-icon>
+      </button>
+      <span class="ui-info excel-info" role="button" (click)="info.set(text.excelHint + ' ' + excelFileName())"
+            [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+    </span>
     <app-ask-button></app-ask-button>
   </div>
 

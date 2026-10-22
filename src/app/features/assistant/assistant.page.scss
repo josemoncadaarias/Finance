@@ -253,12 +253,19 @@ ion-content.chat {
 }
 
 .kept {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
   margin: 4px 0 10px;
   text-align: center;
   font-size: 12.5px;
   color: var(--app-mu);
   text-wrap: pretty;
+  .change { color: var(--app-pr); font-weight: 600; margin-left: 4px; white-space: nowrap; }
 }
+.sheet-hint { margin: 0 4px 12px; font-size: 13px; color: var(--app-mu); text-wrap: pretty; }
 
 /* The whole picture's answers (40b-40j). */
 .card {
@@ -281,5 +288,8 @@ ion-content.chat {
   }
   .ui-btn + .ui-btn { margin-top: 0; }
   > .ui-btn, > div > .ui-btn { margin-top: 10px; width: 100%; }
+  /* Two buttons side by side sit on one line (Jose, 2026-10-22: the first
+     took the margin above and the second did not). */
+  > .two > .ui-btn { margin-top: 0; }
 }
 .card .block b, .card .note b { font-size: inherit; color: var(--app-tx); font-weight: 700; }

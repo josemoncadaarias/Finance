@@ -590,9 +590,11 @@ export class ReviewPage {
     const shop = shopMemoryOf(memory, line.proposal.description);
     this.compose.entry.set({
       kind: (amount ?? -1) < 0 ? 'expense' : 'income',
-      preferredAccountId: line.proposal.account_id,
+      preferredAccountId: line.proposal.account_id ?? shop?.accountId ?? null,
       start: { amountMinor: Math.abs(amount ?? 0), onDate: line.proposal.occurred_on || todayIso(), note: shop?.note ?? line.proposal.description ?? '' },
-      proposal: { ...this.proposalOf(line), productId: shop?.productId ?? null, scope: shop?.scope ?? null },
+      // With no account read, the one this shop was saved on (or used most).
+      proposal: { ...this.proposalOf(line), accountId: line.proposal.account_id ?? shop?.accountId ?? null,
+        productId: shop?.productId ?? null, scope: shop?.scope ?? null },
     });
   }
 

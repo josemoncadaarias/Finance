@@ -15,7 +15,7 @@
 
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { IonContent, IonIcon } from '@ionic/angular';
+import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -31,6 +31,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
+import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { readPhrase, type Reading } from '../../core/assistant/read-phrase';
 import * as A from './answers';
@@ -40,6 +41,8 @@ import { afford, perDay, type GoalThisMonth } from '../../core/assistant/free-mo
 import { canListen, listen } from '../../core/assistant/speech';
 import { isoDay } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
+import { PaywallService } from '../../core/paywall/paywall.service';
+import { PLAN } from '../../core/paywall/plan';
 
 interface Part { text: string; bold: boolean }
 interface Chip { label: string; act: () => void }
@@ -61,6 +64,8 @@ interface RegisterCard {
   /** Saved here, or only through the form (a habit other than an ordinary movement, another currency). */
   canSave: boolean;
   state: 'open' | 'saved' | 'opened';
+  /** The sentence it came from, to learn where it was finally saved. */
+  phraseKey?: string | null;
 }
 
 /** A transfer to confirm in the form. */
@@ -75,6 +80,7 @@ interface TransferCard {
   onDate: string;
   note: string;
   state: 'open' | 'saved' | 'opened';
+  phraseKey?: string | null;
 }
 
 /** "¿Me alcanza?", "¿cuánto puedo gastar?" (39d, 39e, 39i-39m). */
@@ -122,11 +128,23 @@ interface Message {
 }
 
 /**
- * The conversation is kept on the device for this many days (Jose,
- * 2026-10-19: "por lo menos unos 3 días"; to be made a preference later).
+ * The conversation is kept on the device for this many days unless the
+ * person chooses another (Jose, 2026-10-19: "por lo menos unos 3 días";
+ * 2026-10-22: configurable, 60 at most).
  */
 export const HISTORY_DAYS = 3;
+export const HISTORY_DAY_CHOICES = [1, 3, 7, 15, 30, 60] as const;
 const HISTORY_KEY = 'finance.assistant.history';
+const HISTORY_DAYS_KEY = 'finance.assistant.historyDays';
+
+function storedHistoryDays(): number {
+  try {
+    const n = Number(localStorage.getItem(HISTORY_DAYS_KEY));
+    return Number.isInteger(n) && n >= 1 && n <= 60 ? n : HISTORY_DAYS;
+  } catch {
+    return HISTORY_DAYS;
+  }
+}
 
 /** A question the next answer completes. */
 type Waiting =
@@ -156,7 +174,7 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
   selector: 'app-assistant',
   templateUrl: './assistant.page.html',
   styleUrls: ['./assistant.page.scss'],
-  imports: [TranslatePipe, IonContent, IonIcon, BadgeComponent, CategorySheetComponent, AccountPickerComponent],
+  imports: [TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent],
 })
 export class AssistantPage {
   private readonly router = inject(Router);
@@ -165,6 +183,7 @@ export class AssistantPage {
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
   private readonly filter = inject(FilterService);
+  private readonly pro = inject(PaywallService);
   readonly i18n = inject(I18nService);
 
   private readonly content = viewChild(IonContent);
@@ -177,7 +196,10 @@ export class AssistantPage {
   readonly voice = signal(true);
   readonly examples = EXAMPLES;
   readonly welcomeGroups = WELCOME;
-  readonly historyDays = HISTORY_DAYS;
+  readonly historyDays = signal(storedHistoryDays());
+  readonly dayChoices = HISTORY_DAY_CHOICES;
+  readonly choosingDays = signal(false);
+  readonly clearing = signal(false);
 
   /** The category sheet, open for "Otra categoría". */
   readonly categorySheet = signal<'expense' | 'income' | null>(null);
@@ -206,7 +228,11 @@ export class AssistantPage {
       const saves = this.compose.saved();
       untracked(() => {
         if (open || !this.inForm) return;
-        this.inForm.card.state = saves > this.inForm.savesBefore ? 'saved' : 'open';
+        const saved = saves > this.inForm.savesBefore;
+        this.inForm.card.state = saved ? 'saved' : 'open';
+        // Whatever was changed in the form is what this sentence means from now on.
+        const route = this.compose.lastSaved();
+        if (saved && route && this.inForm.card.phraseKey) void this.assistant.learnPhrase(this.inForm.card.phraseKey, route);
         this.inForm = null;
         this.messages.update(list => [...list]);
       });
@@ -222,7 +248,7 @@ export class AssistantPage {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
-      const since = Date.now() - HISTORY_DAYS * 86_400_000;
+      const since = Date.now() - this.historyDays() * 86_400_000;
       const kept = (JSON.parse(raw) as Message[]).filter(m => typeof m.at === 'number' && m.at >= since);
       for (const m of kept) if (m.card && 'state' in m.card && m.card.state === 'opened') m.card.state = 'open';
       this.messages.set(kept);
@@ -233,14 +259,24 @@ export class AssistantPage {
 
   private keep(list: Message[]): void {
     try {
-      const since = Date.now() - HISTORY_DAYS * 86_400_000;
+      const since = Date.now() - this.historyDays() * 86_400_000;
       const plain = list.filter(m => m.at >= since).map(({ chips: _chips, ...rest }) => rest);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(plain));
     } catch { /* the device keeps nothing: the chat still works */ }
   }
 
-  /** Clears the conversation on screen and on the device. */
+  /** How long the conversation stays on the device; older messages go now. */
+  keepFor(days: number): void {
+    this.historyDays.set(days);
+    try { localStorage.setItem(HISTORY_DAYS_KEY, String(days)); } catch { /* the default stays */ }
+    this.choosingDays.set(false);
+    const since = Date.now() - days * 86_400_000;
+    this.messages.update(list => list.filter(m => m.at >= since));
+  }
+
+  /** Clears the conversation on screen and on the device, once the person says yes. */
   clear(): void {
+    this.clearing.set(false);
     this.waiting = null;
     this.rateAsked = false;
     this.messages.set([]);
@@ -382,6 +418,11 @@ export class AssistantPage {
     }
     const reading = readPhrase(text, ctx);
     this.waiting = null;
+    // Registering is free; a question counts against the month's free ones.
+    const question = !['register', 'unsure', 'unknown'].includes(reading.intent);
+    if (question && !(await this.pro.askQuestion())) {
+      return this.say('ai.pro.out', { free: PLAN.assistant.free });
+    }
     switch (reading.intent) {
       case 'register': return this.register(reading, text);
       case 'afford': return this.affordIt(reading, text);
@@ -445,13 +486,14 @@ export class AssistantPage {
     const card: RegisterCard = {
       kind: 'register', side, amountMinor: reading.amountMinor, category, account, product,
       productCount: usual.products.length, productNamed: reading.productId !== null && product?.id === reading.productId, onDate: reading.onDate, note: reading.thing ?? '',
-      canSave: account.currency_code === 'COP' && usual.ordinary, state: 'open',
+      canSave: account.currency_code === 'COP' && usual.ordinary, state: 'open', phraseKey: reading.phraseKey,
     };
     // "en mercado" named the category; it is no note of its own.
     if (reading.categoryFrom === 'name') card.note = '';
     else card.note = card.note.charAt(0).toUpperCase() + card.note.slice(1);
     if (reading.amountGuessed) this.say('ai.amount.guessed', { said: reading.amountText ?? '', amount: this.pesos(reading.amountMinor) });
-    if (reading.productId !== null && product) {
+    if (reading.fromMemory) this.say('ai.remembered');
+    else if (reading.productId !== null && product) {
       this.say('ai.register.fromProduct', { product: product.name, account: account.name });
     }
     this.say(side === 'income' ? 'ai.register.understoodIncome' : 'ai.register.understood', {}, { card });
@@ -461,6 +503,7 @@ export class AssistantPage {
     const to = reading.toAccountId !== null ? this.accounts.find(a => a.id === reading.toAccountId) ?? null : null;
     if (!to) return void this.askTransferTo(reading, said);
     const from = reading.accountId !== null ? this.accounts.find(a => a.id === reading.accountId) ?? null : null;
+    if (reading.fromMemory) this.say('ai.remembered');
     const product = (id: number | null) => id === null ? null : this.products.find(p => p.id === id) ?? null;
     let fromProduct = product(reading.fromProductId);
     let toProduct = product(reading.toProductId);
@@ -475,7 +518,7 @@ export class AssistantPage {
     this.say(from && from.id === to.id ? 'ai.transfer.understoodProducts' : 'ai.transfer.understood', { account: to.name }, {
       card: {
         kind: 'transfer', amountMinor: reading.amountMinor!, from, to, fromProduct, toProduct,
-        onDate: reading.onDate, note: reading.thing ?? '', state: 'open',
+        onDate: reading.onDate, note: reading.thing ?? '', state: 'open', phraseKey: reading.phraseKey,
       },
     });
   }
@@ -617,6 +660,12 @@ export class AssistantPage {
         categoryId: card.category.id, amountMinor: card.amountMinor, onDate: card.onDate, note: card.note,
       });
       card.state = 'saved';
+      if (card.phraseKey) {
+        await this.assistant.learnPhrase(card.phraseKey, {
+          side: card.side, accountId: card.account.id, productId: card.product?.id ?? null,
+          toAccountId: null, toProductId: null, categoryId: card.category.id,
+        });
+      }
       this.messages.update(list => [...list]);
       this.compose.saved.update(n => n + 1);
       this.toast.say(this.i18n.t('ai.register.saved'), 2500);

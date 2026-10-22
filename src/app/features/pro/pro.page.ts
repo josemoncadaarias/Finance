@@ -216,6 +216,7 @@ export class ProPage {
     { key: 'currencies', icon: 'globe-outline', color: '#a3d65c' },
     { key: 'debts', icon: 'receipt-outline', color: '#ff9152' },
     { key: 'report', icon: 'stats-chart-outline', color: '#6378ff' },
+    { key: 'assistant', icon: 'sparkles-outline', color: '#6378ff' },
   ];
 
   /**
