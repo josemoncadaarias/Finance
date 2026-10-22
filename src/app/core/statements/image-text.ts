@@ -75,6 +75,13 @@ async function upright(file: File): Promise<string> {
   return url.slice(url.indexOf(',') + 1);
 }
 
+/**
+ * What the phone's reader handed back for the last photos read, as it came:
+ * its lines and their boxes, no image. Kept in memory only, so a misread
+ * can be copied and replayed exactly (`ReceiptService`).
+ */
+export let lastPages: OcrPage[] = [];
+
 /** The text of the images, in the order chosen, one page each. */
 export async function textOfImages(
   files: readonly File[],
@@ -101,6 +108,7 @@ export async function textOfImages(
       throw new StatementUnreadable(`ocr: ${message}`);
     }
   }
+  lastPages = pages;
   const items = itemsOfPages(pages);
   if (items.length === 0) throw new StatementUnreadable('no text');
   return items;

@@ -19,7 +19,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { ComposeService } from '../ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { isoDay } from '../filters/period';
-import { ReaderNotReady, textOfImages } from '../statements/image-text';
+import { ReaderNotReady, lastPages, textOfImages } from '../statements/image-text';
 import { readReceipt } from './read-receipt';
 import { leadingWord, shopMatch, type KnownShop, type NamedCategory, type PastNote } from './shop-category';
 
@@ -76,6 +76,28 @@ export class ReceiptService {
       : !receipt.totalSure ? 'receipt.unsureTotal'
       : receipt.onDate === null ? 'receipt.noDate'
       : 'receipt.read';
-    this.toast.say(this.i18n.t(said), 6000, { icon: said === 'receipt.read' ? 'checkmark-circle' : 'alert-circle' });
+    this.toast.say(this.i18n.t(said), 8000, {
+      icon: said === 'receipt.read' ? 'checkmark-circle' : 'alert-circle',
+      action: { label: this.i18n.t('receipt.copyRead'), run: () => void this.copyRead() },
+    });
+  }
+
+  /**
+   * What the phone read, copied as it came, so a misread total can be sent
+   * and replayed exactly - lines and their boxes, never the image.
+   */
+  private async copyRead(): Promise<void> {
+    const text = JSON.stringify(lastPages);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const box = document.createElement('textarea');
+      box.value = text;
+      document.body.appendChild(box);
+      box.select();
+      document.execCommand('copy');
+      box.remove();
+    }
+    this.toast.say(this.i18n.t('receipt.copied'), 4000, { icon: 'copy-outline' });
   }
 }
