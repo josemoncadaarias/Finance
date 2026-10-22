@@ -1998,7 +1998,7 @@ ion-modal.ui-dialog {
     gap: 8px;
 
     .ui-chip { justify-content: center; padding: 8px 4px; }
-    .ui-chip.wide { grid-column: span 2; }
+    .ui-chip.wide { grid-column: 1 / -1; }
   }
 
   .include { margin-top: 12px; }

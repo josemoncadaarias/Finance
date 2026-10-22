@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1025 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1028 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -264,7 +264,9 @@ these):
   (fixed payments, interest, why it went up, a cap or goal by name; `since: 4`).
   Version 9 (2026-10-22): Inicio's "+" step names "Pagos de este mes" (`since: 7`).
   Version 10 (2026-10-22): a new `reminders` tour; Más - "Recordatorios"
-  (`since: 4`).
+  (`since: 4`). Version 11 (2026-10-22): the periods named in Inicio's
+  account-and-period step (`since: 8`) and the report's period step
+  (`since: 2`) - quincena and semestre.
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5606,6 +5608,21 @@ with testers runs; the paywall is finished after them.
   mes o una sola vez?") and lists them ("¿qué recordatorios tengo?"); neither
   counts as a question. The sample data carries three. Checked in a browser
   on Jose's backup; the phone notification itself not seen yet.
+- **Quincena and semestre are periods** (Jose, 2026-10-22, idea 17;
+  trimestre already was). `PeriodKind` gains `fortnight` (the 1st to the
+  15th, the 16th to the month's last day - how pay periods run here; it steps
+  by halves, never by days, so February skips none) and `half` (January-June,
+  July-December), in `period.ts` and its tests. The period sheet (Inicio, the
+  report, an account's movements on Rendimientos) offers Día, Semana,
+  Quincena, Mes / Trimestre, Semestre, Año, Todo / Entre dos fechas on its
+  own row. Everything that reads a period (the report, its comparison on the
+  same days, the assistant) takes them as they are. The assistant reads
+  "esta quincena", "la quincena pasada", "este trimestre", "el semestre
+  pasado" and the word alone. **Fixed with it**: the assistant built the
+  date a period is read from at UTC midnight while `periodContaining` reads
+  local parts, so on a phone in Colombia "en agosto" was July and "esta
+  semana" on a Monday was the week before; it now builds a local date
+  (checked with `TZ=America/Bogota`). Checked in a browser on Jose's backup.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5651,7 +5668,7 @@ with testers runs; the paywall is finished after them.
 | 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
 | 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
-| 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | Proposed |
+| 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | **Built** 2026-10-22 (trimestre already was) |
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Proposed |
 | 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | **Built** as limits, 2026-10-01 |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |

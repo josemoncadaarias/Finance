@@ -158,3 +158,33 @@ test('a quarter is three calendar months, and steps three at a time', () => {
     { kind: 'quarter', from: '2025-10-01', to: '2025-12-31' });
   assert.equal(periodLabel(periodContaining('quarter', on('2026-08-08'))), 'julio – septiembre 2026');
 });
+
+test('a fortnight is the 1st to the 15th or the 16th to the end of the month', () => {
+  assert.deepEqual(periodContaining('fortnight', on('2026-10-15')),
+    { kind: 'fortnight', from: '2026-10-01', to: '2026-10-15' });
+  assert.deepEqual(periodContaining('fortnight', on('2026-10-16')),
+    { kind: 'fortnight', from: '2026-10-16', to: '2026-10-31' });
+  assert.deepEqual(periodContaining('fortnight', on('2028-02-20')),
+    { kind: 'fortnight', from: '2028-02-16', to: '2028-02-29' });
+  // Stepping walks halves, never days: no half is skipped or repeated.
+  assert.deepEqual(shiftPeriod(periodContaining('fortnight', on('2026-02-20')), 1),
+    { kind: 'fortnight', from: '2026-03-01', to: '2026-03-15' });
+  assert.deepEqual(shiftPeriod(periodContaining('fortnight', on('2026-01-03')), -1),
+    { kind: 'fortnight', from: '2025-12-16', to: '2025-12-31' });
+  assert.deepEqual(shiftPeriod(periodContaining('fortnight', on('2026-10-03')), -3),
+    { kind: 'fortnight', from: '2026-08-16', to: '2026-08-31' });
+  assert.equal(periodLabel(periodContaining('fortnight', on('2026-10-20'))), '16–31 de octubre 2026');
+  assert.equal(periodLabel(periodContaining('fortnight', on('2026-10-20')), 'en-US'), '16–31 October 2026');
+});
+
+test('a half-year is January to June or July to December', () => {
+  assert.deepEqual(periodContaining('half', on('2026-06-30')),
+    { kind: 'half', from: '2026-01-01', to: '2026-06-30' });
+  assert.deepEqual(periodContaining('half', on('2026-07-01')),
+    { kind: 'half', from: '2026-07-01', to: '2026-12-31' });
+  assert.deepEqual(shiftPeriod(periodContaining('half', on('2026-03-31')), -1),
+    { kind: 'half', from: '2025-07-01', to: '2025-12-31' });
+  assert.deepEqual(shiftPeriod(periodContaining('half', on('2026-08-31')), 1),
+    { kind: 'half', from: '2027-01-01', to: '2027-06-30' });
+  assert.equal(periodLabel(periodContaining('half', on('2026-08-08'))), 'julio – diciembre 2026');
+});
