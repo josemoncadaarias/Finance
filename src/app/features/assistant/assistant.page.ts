@@ -35,6 +35,8 @@ import { AccountPickerComponent } from '../../shared/account-picker/account-pick
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
+import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
 import type { RichButton, RichCard, Speech } from './answers';
 import { FilterService } from '../../core/filters/filter.service';
@@ -116,7 +118,22 @@ interface GoalsCard {
   picture: Picture;
 }
 
-type Card = RegisterCard | TransferCard | FreeCard | SpentCard | GoalsCard | RichCard;
+/** "Recuérdame pagar el arriendo el 5" (Jose, 2026-10-22): the reminder to confirm. */
+interface RemindCard {
+  kind: 'remind';
+  title: string;
+  amountMinor: number | null;
+  accountId: number | null;
+  categoryId: number | null;
+  repeat: 'monthly' | 'once';
+  dayOfMonth: number | null;
+  onDate: string | null;
+  hour: number;
+  daysBefore: number;
+  state: 'open' | 'saved';
+}
+
+type Card = RegisterCard | TransferCard | FreeCard | SpentCard | GoalsCard | RichCard | RemindCard;
 
 interface Message {
   id: number;
@@ -153,7 +170,8 @@ type Waiting =
   | { kind: 'category'; reading: Reading; said: string }
   | { kind: 'shape'; reading: Reading; said: string }
   | { kind: 'transferTo'; reading: Reading; said: string }
-  | { kind: 'cardRate'; cardId: number; then: 'payFirst' | 'debts' | 'payMore'; extraMinor: number };
+  | { kind: 'cardRate'; cardId: number; then: 'payFirst' | 'debts' | 'payMore'; extraMinor: number }
+  | { kind: 'remindDay'; draft: RemindCard };
 
 /** Words that say what is asked about, never which one. */
 const PLAN_WORDS = new Set(['meta', 'metas', 'tope', 'topes', 'presupuesto', 'presupuestos', 'goal', 'goals', 'budget', 'budgets']);
@@ -163,7 +181,8 @@ const EXAMPLES: TranslationKey[] = ['ai.example.spend', 'ai.example.income', 'ai
 const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
   { title: 'ai.group.register', rows: [
     { key: 'ai.example.spend', icon: 'arrow-up', cls: 'ui-r' },
-    { key: 'ai.example.move', icon: 'swap-horizontal', cls: 'ui-p' }] },
+    { key: 'ai.example.move', icon: 'swap-horizontal', cls: 'ui-p' },
+    { key: 'ai.example.remind', icon: 'notifications-outline', cls: 'ui-y' }] },
   { title: 'ai.group.month', rows: [
     { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
     { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
@@ -190,6 +209,7 @@ export class AssistantPage {
   private readonly toast = inject(ToastService);
   private readonly filter = inject(FilterService);
   private readonly pro = inject(PaywallService);
+  private readonly reminders = inject(RemindersService);
   readonly i18n = inject(I18nService);
 
   private readonly content = viewChild(IonContent);
@@ -428,10 +448,18 @@ export class AssistantPage {
         return this.debtsAnswer(w.then, w.extraMinor, true);
       }
     }
+    // The day a reminder was asked for: "mañana", "el 5 de cada mes".
+    if (w?.kind === 'remindDay') {
+      const said = readReminder(text, isoDay(new Date()));
+      if (said.dayOfMonth || said.onDate) {
+        this.waiting = null;
+        return this.remindWhen({ ...w.draft, hour: said.hour ?? w.draft.hour, daysBefore: said.daysBefore ?? w.draft.daysBefore }, said);
+      }
+    }
     const reading = readPhrase(text, ctx);
     this.waiting = null;
     // Registering is free; a question counts against the month's free ones.
-    const question = !['register', 'unsure', 'unknown'].includes(reading.intent);
+    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
       return this.say('ai.pro.out', { free: PLAN.assistant.free });
     }
@@ -449,6 +477,8 @@ export class AssistantPage {
       case 'due': return this.dueAnswer();
       case 'have': return this.haveAnswer(reading);
       case 'plans': return void await this.plansAnswer(text);
+      case 'remind': return this.remind(reading, text);
+      case 'reminders': return this.remindersList();
       case 'recurring': return this.give(A.recurring(this.speech(), await this.assistant.recurring()));
       case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(reading.period, reading.accountId)));
       case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(reading.period)));
@@ -981,6 +1011,109 @@ export class AssistantPage {
     else if (capAsked && !goalAsked && p.limits.length > 0) this.give(A.plans(this.speech(), p.limits, []));
     else this.give(A.plans(this.speech(), p.limits, p.goals));
     return true;
+  }
+
+  // ---- Reminders (Jose, 2026-10-22) ----------------------------------------------
+
+  /** "Recuérdame pagar el arriendo el 5": what, when, and what fills the form. */
+  private remind(reading: Reading, text: string): void {
+    const said = readReminder(text, isoDay(new Date()));
+    const draft: RemindCard = {
+      kind: 'remind', title: said.title || reading.thing || this.i18n.t('ai.remind.untitled'),
+      // A bare number is the day or the hour, never an amount: only one said as money counts.
+      amountMinor: reading.amountMinor !== null && !reading.amountGuessed ? reading.amountMinor : null,
+      accountId: reading.accountId, categoryId: reading.categoryId,
+      repeat: said.repeat ?? 'monthly', dayOfMonth: said.dayOfMonth, onDate: said.onDate,
+      hour: said.hour ?? 8, daysBefore: said.daysBefore ?? 0, state: 'open',
+    };
+    if (!said.dayOfMonth && !said.onDate) {
+      this.waiting = { kind: 'remindDay', draft };
+      this.say('ai.remind.askDay', { title: draft.title }, { chips: [
+        { label: this.i18n.t('ai.remind.chip.tomorrow'), act: () => void this.send(this.i18n.t('ai.remind.chip.tomorrow')) },
+        { label: this.i18n.t('ai.remind.chip.first'), act: () => void this.send(this.i18n.t('ai.remind.chip.first')) },
+        { label: this.i18n.t('ai.remind.chip.fifteenth'), act: () => void this.send(this.i18n.t('ai.remind.chip.fifteenth')) },
+      ] });
+      return;
+    }
+    this.remindWhen(draft, said);
+  }
+
+  /** The day is known; "el 5" alone asks whether it is every month or this once. */
+  private remindWhen(draft: RemindCard, said: { repeat: 'monthly' | 'once' | null; dayOfMonth: number | null; onDate: string | null }): void {
+    const today = isoDay(new Date());
+    if (said.repeat === null && said.dayOfMonth) {
+      const day = said.dayOfMonth;
+      const once = nextDayOfMonth(today, day);
+      this.say('ai.remind.askRepeat', { day }, { chips: [
+        { label: this.i18n.t('ai.remind.chip.monthly', { day }), act: () => { this.heard(this.i18n.t('ai.remind.chip.monthly', { day })); this.showRemind({ ...draft, repeat: 'monthly', dayOfMonth: day, onDate: null }); } },
+        { label: this.i18n.t('ai.remind.chip.once', { date: this.longDate(once) }), act: () => { this.heard(this.i18n.t('ai.remind.chip.once', { date: this.longDate(once) })); this.showRemind({ ...draft, repeat: 'once', dayOfMonth: null, onDate: once }); } },
+      ] });
+      return;
+    }
+    const repeat = said.repeat ?? (said.onDate ? 'once' : 'monthly');
+    this.showRemind({ ...draft, repeat, dayOfMonth: repeat === 'monthly' ? said.dayOfMonth ?? Number((said.onDate ?? today).slice(8, 10)) : null,
+      onDate: repeat === 'once' ? said.onDate ?? nextDayOfMonth(today, said.dayOfMonth ?? 1) : null });
+  }
+
+  private showRemind(card: RemindCard): void {
+    this.say('ai.remind.understood', {}, { card });
+  }
+
+  async saveRemind(card: RemindCard): Promise<void> {
+    if (card.state !== 'open' || this.busy()) return;
+    this.busy.set(true);
+    try {
+      await this.reminders.create({
+        title: card.title, amountMinor: card.amountMinor, accountId: card.accountId, categoryId: card.categoryId, note: card.title,
+        repeat: card.repeat, dayOfMonth: card.dayOfMonth, onDate: card.onDate, hour: card.hour, daysBefore: card.daysBefore, shop: null,
+      });
+      card.state = 'saved';
+      this.messages.update(list => [...list]);
+    } catch (error) {
+      this.say('ai.error', { why: error instanceof Error ? error.message : String(error) });
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** "El 5 de cada mes" or "El 25 de octubre", and when the phone tells. */
+  remindWhenText(card: RemindCard): string {
+    const when = card.repeat === 'monthly'
+      ? this.i18n.t('reminders.monthly', { day: card.dayOfMonth ?? 1 })
+      : this.i18n.t('reminders.once', { date: this.longDate(card.onDate ?? isoDay(new Date())) });
+    const hour = new Date(2026, 0, 1, card.hour).toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
+    const ring = card.daysBefore === 0 ? this.i18n.t('reminders.rings.same', { hour })
+      : this.i18n.t(card.daysBefore === 1 ? 'reminders.rings.before.one' : 'reminders.rings.before', { count: card.daysBefore, hour });
+    return `${when}. ${ring}${ring.endsWith(".") ? "" : "."}`;
+  }
+
+  goReminders(): void {
+    void this.router.navigate(['/reminders']);
+  }
+
+  private longDate(day: string): string {
+    const [y, m, d] = day.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  /** "¿Qué recordatorios tengo?" */
+  private remindersList(): void {
+    const list = [...this.reminders.occurrences()].sort((a, b) => a.dueOn.localeCompare(b.dueOn));
+    if (list.length === 0) {
+      this.say('ai.reminders.none', {}, { chips: [{ label: this.i18n.t('ai.remind.example'), act: () => void this.send(this.i18n.t('ai.remind.example')) }] });
+      return;
+    }
+    const late = list.filter(o => o.late).length;
+    const blocks: A.RichBlock[] = list.slice(0, 12).map(o => ({ row: {
+      icon: 'notifications-outline', color: o.late ? '#ff6b6b' : '#f5b544', round: true, title: o.reminder.title,
+      value: o.reminder.amountMinor ? this.pesos(o.reminder.amountMinor) : '',
+      lines: [o.reminder.repeat === 'monthly' ? this.i18n.t('reminders.monthly', { day: o.reminder.dayOfMonth ?? 1 })
+        : this.i18n.t('reminders.once', { date: this.longDate(o.dueOn) }),
+        this.i18n.t(o.late ? 'ai.reminders.late' : 'ai.reminders.next', { date: this.longDate(o.dueOn) })] } }));
+    this.say(late > 0 ? 'ai.reminders.answerLate' : 'ai.reminders.answer', { count: list.length, late }, {
+      card: { kind: 'rich', tone: late > 0 ? 'warn' : 'plain', band: null, blocks,
+        buttons: [{ label: this.i18n.t('ai.reminders.see'), ghost: true, route: ['/reminders'] }] },
+    });
   }
 
   /** Opens or closes a section of an answer; kept with the conversation. */

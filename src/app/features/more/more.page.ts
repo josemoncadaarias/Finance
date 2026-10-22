@@ -19,6 +19,7 @@ import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
 import { buyOffer, daysLeft } from '../../core/paywall/subscription';
 import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
+import { RemindersService } from '../../core/reminders/reminders.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
@@ -117,6 +118,17 @@ export class MorePage {
 
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);
+  private readonly remindersService = inject(RemindersService);
+  /** Reminders whose day passed and nobody settled. */
+  readonly remindersLate = computed(() => this.remindersService.occurrences().filter(o => o.late).length);
+  readonly remindersLine = computed(() => {
+    const late = this.remindersLate();
+    if (late > 0) return this.i18n.t(late === 1 ? 'more.reminders.late.one' : 'more.reminders.late', { count: late });
+    const count = this.remindersService.occurrences().length;
+    if (count === 0) return this.i18n.t('more.reminders.hint');
+    return this.i18n.t(count === 1 ? 'more.reminders.count.one' : 'more.reminders.count', { count });
+  });
+
   readonly plansLine = computed(() => {
     const v = this.limits.current();
     const goals = this.goals.inCourse().length;

@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1000 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1025 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -263,6 +263,8 @@ these):
   own versions.) Version 8 (2026-10-22): the assistant's new questions
   (fixed payments, interest, why it went up, a cap or goal by name; `since: 4`).
   Version 9 (2026-10-22): Inicio's "+" step names "Pagos de este mes" (`since: 7`).
+  Version 10 (2026-10-22): a new `reminders` tour; Más - "Recordatorios"
+  (`since: 4`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5581,6 +5583,29 @@ with testers runs; the paywall is finished after them.
   Read when the sheet opens, once per data change and month
   (`ComposeHostComponent.dueFixed`). Home tour's "+" step says it (`since: 7`).
   Checked in a browser.
+- **Reminders** (Jose, 2026-10-22: "arranca con los recordatorios, todo lo
+  que se te ocurra"). `reminders` (migration 060, travels in the backup): a
+  title, an optional amount, account and category, a note, `repeat` monthly
+  (a day of the month, clamped to a short month's last day) or once (a date),
+  the hour and 0-7 days before to warn, an optional shop key, `done_month`
+  and `snoozed_to`. Pure arithmetic in `core/reminders/reminders.ts`
+  (`nextOccurrence`, `ringPlans`, `dueWithin`; `reminders.test.mjs`).
+  `RemindersService` (started by the shell) rings them with the phone's
+  alarms on channel `reminders`, inexact, with "Registrar", "Ya lo pagué"
+  and "Mañana"; a reminder tied to a shop is settled by itself once a
+  spending of that shop is on record this month. **It never writes a
+  movement** (rule 22): tapping opens the one movement form filled in, and
+  saving there settles the month. Screen `/reminders` (Más → Tus finanzas →
+  Recordatorios): Próximos, "¿Te aviso de estos pagos fijos?" (the
+  assistant's fixed payments with no reminder, "Avisarme" = monthly on its
+  usual day, a day before, 8:00), Pausados, Ya cumplidos, and the editor.
+  Inicio's Pendientes carries them (`app-reminders-home`, a "recordatorios"
+  pill, red once late). The assistant makes them ("recuérdame pagar el
+  arriendo el 5", "avísame mañana a las 7 de la noche que llame al banco";
+  `read-reminder.ts`, `read-reminder.test.mjs`; only a day said asks "¿cada
+  mes o una sola vez?") and lists them ("¿qué recordatorios tengo?"); neither
+  counts as a question. The sample data carries three. Checked in a browser
+  on Jose's backup; the phone notification itself not seen yet.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5632,7 +5657,7 @@ with testers runs; the paywall is finished after them.
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
 | 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed and drawn (`11l`, `11n`), "Debts and plans" |
-| 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | Proposed |
+| 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | **Built** 2026-10-22 (Recordatorios) |
 | 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
 | 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
 | 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |

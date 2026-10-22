@@ -20,6 +20,7 @@ import { ForeignConversionService } from './core/rates/foreign-conversion.servic
 import { CustomIconsService } from './core/icons/custom-icons.service';
 import { NoticeInboxService } from './core/notices/notice-inbox.service';
 import { CardDueService } from './core/cards/card-due.service';
+import { RemindersService } from './core/reminders/reminders.service';
 import { MarqueeService } from './core/ui/marquee.service';
 import { TabBarComponent } from './shared/ui/tab-bar.component';
 import { ComposeHostComponent } from './shared/ui/compose-host.component';
@@ -84,6 +85,9 @@ export class AppComponent {
 
   /** A card's payment day on the phone, scheduled from the first screen on. */
   private readonly cardDue = inject(CardDueService);
+
+  /** Reminders, read and rung from the first screen on. */
+  private readonly reminders = inject(RemindersService);
 
   /**
    * A sheet never outlives the screen it was opened on (Jose, 2026-09-28:

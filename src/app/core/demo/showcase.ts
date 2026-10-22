@@ -54,6 +54,9 @@ import { LoansRepository } from '../loans/loans.repository';
 import { loanSchedule, eaFromMonthly, EA_SCALE as LOAN_EA } from '../loans/schedule';
 import { LimitsRepository } from '../limits/limits.repository';
 import { GoalsRepository } from '../goals/goals.repository';
+import { RemindersRepository } from '../reminders/reminders.repository';
+import { addDays } from '../reminders/reminders';
+import { merchantKeyOf } from '../proposals/merchant';
 import { defaultInputs } from '../tax/defaults';
 
 /** The day the showcase was first written for; every date in it is moved from there to today. */
@@ -727,6 +730,16 @@ const bici = await goals.create({
 }, D('2026-01-01'));
 await goals.setReached(bici, D('2026-04-30'));
 await goals.setArchived(bici, true);
+
+// ---- Recordatorios (2026-10-22) ----
+
+const reminders = new RemindersRepository(db, NOW);
+await reminders.create({ title: 'Pagar el arriendo', amountMinor: P(1_650_000), accountId: azul, categoryId: C.casa, note: 'Arriendo',
+  repeat: 'monthly', dayOfMonth: 1, onDate: null, hour: 8, daysBefore: 1, shop: merchantKeyOf('Arriendo') || null });
+await reminders.create({ title: 'Internet y TV', amountMinor: P(89_900), accountId: azul, categoryId: C.facturas, note: 'Internet y TV',
+  repeat: 'monthly', dayOfMonth: 12, onDate: null, hour: 9, daysBefore: 0, shop: merchantKeyOf('Internet y TV') || null });
+await reminders.create({ title: 'Renovar el seguro del carro', amountMinor: null, accountId: null, categoryId: null, note: null,
+  repeat: 'once', dayOfMonth: null, onDate: addDays(TODAY, 20), hour: 9, daysBefore: 3, shop: null });
 
 // ---- Movimientos por revisar ----
 

@@ -14,6 +14,7 @@
  * Pure: everything it needs comes in, nothing is read or written here.
  */
 
+import { REMIND, REMINDERS_LIST } from './read-reminder';
 import { periodContaining, shiftPeriod, type Period } from '../filters/period';
 
 export type Intent =
@@ -49,6 +50,10 @@ export type Intent =
   | 'yields'
   /** "¿Por qué gasté más este mes?" */
   | 'whyMore'
+  /** "Recuérdame pagar el arriendo el 5" (read by `read-reminder.ts`). */
+  | 'remind'
+  /** "¿Qué recordatorios tengo?" */
+  | 'reminders'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -679,7 +684,9 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
 
   let intent: Intent;
   let side: Side | null = null;
-  if (has(folded, HOW_GOALS)) intent = 'howGoals';
+  if (has(folded, REMINDERS_LIST)) intent = 'reminders';
+  else if (has(folded, REMIND)) intent = 'remind';
+  else if (has(folded, HOW_GOALS)) intent = 'howGoals';
   else if (amount && has(folded, PAY_MORE)) intent = 'payMore';
   else if (has(folded, PAY_FIRST)) intent = 'payFirst';
   else if (!amount && has(folded, RECURRING)) intent = 'recurring';

@@ -1,6 +1,6 @@
 # The schema, drawn
 
-The 39 tables and how they relate. The authority is always
+The 40 tables and how they relate. The authority is always
 `src/app/core/database/migrations/001_initial_schema.sql`; this page is here to
 be looked at. `tools/db/schema-diagram.test.mjs` checks it against the real
 schema on every run, so it cannot quietly fall out of date.
@@ -304,6 +304,18 @@ erDiagram
         TEXT cut_on
         INTEGER amount_minor
     }
+    reminders {
+        INTEGER id PK
+        TEXT title
+        INTEGER amount_minor
+        INTEGER account_id FK
+        INTEGER category_id FK
+        TEXT repeat
+        INTEGER day_of_month
+        TEXT on_date
+        TEXT shop
+        TEXT done_month
+    }
     uvr_values {
         TEXT day PK
         INTEGER value_scaled
@@ -404,6 +416,8 @@ erDiagram
     accounts       ||--o{ goal_places  : "holds a goal's money"
     products       ||--o{ goal_places  : "holds a goal's money"
     accounts       ||--o{ card_statements : "was billed by the bank in"
+    accounts       ||--o{ reminders : "is what a reminder opens the form on"
+    categories     ||--o{ reminders : "is what a reminder files under"
     transactions   ||--o{ product_entries : "cashed in by"
     transfers      ||--o{ product_entries : "one end of"
     product_kinds  ||--o{ product_entries : "is a"
@@ -524,6 +538,13 @@ app works out of the movements (a purchase the bank posts after the cut-off,
 a fee nobody typed). One row per card and cut-off day (`UNIQUE`); the next
 cut-off goes back to the app's own figure. Nothing in the ledger moves.
 
+`reminders` (migration 060) ring on the phone and open the movement form
+filled in; they never write a movement. `repeat` is `monthly` (on
+`day_of_month`, the month's last day when it is shorter) or `once` (on
+`on_date`); `done_month` is the month already settled and `snoozed_to` moves
+the current ring. `shop` ties one to a fixed payment, whose sight in the month
+settles it. Both pointers are `SET NULL`: a reminder outlives its account.
+
 ### 4. Import bookkeeping
 
 `import_batches`, `review_queue`, `settings`. Not finance — the paper trail of
@@ -613,3 +634,4 @@ outright:
 | `idx_tax_parameters_key` | the parameter in force on a date |
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |
+| `idx_reminders_active` | the reminders still ringing |

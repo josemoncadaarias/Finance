@@ -637,7 +637,7 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
       r.everyMonth.length > 0 ? s.t(r.everyMonth.length === 1 ? 'ai.recurring.saidEveryOne' : 'ai.recurring.saidEvery', { count: r.everyMonth.length, amount: s.pesos(r.everyMonthMinor) }) : '',
       s.t('ai.recurring.saidTotal', { total: s.pesos(total), share: Math.min(100, share) }),
     ].filter(Boolean).join(' ') },
-    card: card(blocks),
+    card: card(blocks, r.fixed.length > 0 ? [{ label: s.t('ai.recurring.remind'), ghost: true, route: ['/reminders'] }] : []),
     next: ['ai.next.top', 'ai.next.howAmI'],
   };
 }
