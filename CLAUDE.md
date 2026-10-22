@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1063 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1064 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5781,7 +5781,16 @@ with testers runs; the paywall is finished after them.
   pairings the one whose figures add up (subtotal less some, plus some, is
   the total) wins (`pairings`, `addsUp` in `read-receipt.ts`); a bare small
   figure at a line's end counts ("IVA 19% 921"). Tests on an invented
-  receipt slid down, up and level. **And the shop finds the person's own
+  receipt slid down, up and level.
+  **Still 16.060 on 1.0.1126** (Jose, the same day, the same receipt): the
+  phone's reading was not the one tested. Now every run of figures in the
+  column, a row above to a row below the words, is a way to pair them, so a
+  pen stroke over the words read as a stray figure no longer blocks the
+  slid one; and when a misread digit stops every way adding up, the first
+  way that makes sense wins (`sensible`: the total no smaller than a
+  discount or a tax, no larger than the subtotal with nothing added).
+  Tested on an invented receipt with all three at once; the old code read
+  its misread saving. Not yet seen on the phone. **And the shop finds the person's own
   category** (`shop-category.ts`, `shopMatch`, tested): the shop as
   learned; the same chain at another branch (first word, or two words, in
   common with a learned shop); a category named by one of its words

@@ -161,6 +161,19 @@ test('the same receipt held level reads the same total', () => {
   assert.equal(r.totalMinor, 6846600);
 });
 
+test('a pen stroke read as a figure, the column slid and a saving misread', () => {
+  // The signature over the summary reads as a "4" beside SUBTOTAL, every
+  // figure sits a row low, and 12.050 came out 13.060, so nothing adds up.
+  const r = readReceipt(tilted(ITEMS, [
+    ['SUBTOTAL 4', ''],
+    ['DESCUENTO', '80.516'],
+    ['AHORRO', '10.513'],
+    ['VALOR TOTAL', '13.060'],
+  ], ['FORMA PAGO CONTADO 68.466', 'TARJETA DEBITO'], 0), TODAY);
+  assert.equal(r.totalMinor, 6846600);
+  assert.equal(r.totalSure, true);
+});
+
 test('cash handed over and change never pass for the total', () => {
   const r = readReceipt(tilted([['PANADERIA SOL', '']], [['SUBTOTAL', '12.605'], ['IVA', '2.395'], ['TOTAL', '15.000'], ['EFECTIVO', '20.000'], ['CAMBIO', '5.000']], [], 30), TODAY);
   assert.equal(r.totalMinor, 1500000);
