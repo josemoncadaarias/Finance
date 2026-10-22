@@ -17,6 +17,7 @@ import { Component, ElementRef, computed, effect, inject, signal, untracked, vie
 import { ActivatedRoute, Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
+import { JumpComponent } from '../../shared/ui/jump.component';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -199,7 +200,7 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
   selector: 'app-assistant',
   templateUrl: './assistant.page.html',
   styleUrls: ['./assistant.page.scss'],
-  imports: [NgTemplateOutlet, TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent],
+  imports: [NgTemplateOutlet, TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent, JumpComponent],
 })
 export class AssistantPage {
   private readonly router = inject(Router);

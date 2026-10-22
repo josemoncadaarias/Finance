@@ -271,7 +271,9 @@ these):
   "+" step names "Lo que más registras" (`since: 10`). Version 14
   (2026-10-22): Inicio - "Lo que puedes gastar hoy" (`since: 11`).
   Version 17 (2026-10-22): Inicio's "+" step names "Pagos fijos y
-  frecuentes" (`since: 14`).
+  frecuentes" (`since: 14`). Version 18 (2026-10-22): the assistant's step
+  on the conversation's days says where "Cambiar" is now and names the
+  arrows (`since: 5`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5514,9 +5516,14 @@ with testers runs; the paywall is finished after them.
     way again, it comes like that (`fromMemory`) and the chat says "Lo dejé
     como lo guardaste la última vez que lo dijiste así". 300 kept, newest
     last; one whose account is gone is not used.
-  - **The conversation's days are chosen**: "Cambiar" on the line over the
-    chat opens 1, 3, 7, 15, 30 or 60 days (`finance.assistant.historyDays`,
-    default 3); the bin asks first ("¿Borrar toda la conversación?").
+  - **The conversation's days are chosen**: "Cambiar" opens 1, 3, 7, 15,
+    30 or 60 days (`finance.assistant.historyDays`, default 3); the bin asks
+    first ("¿Borrar toda la conversación?"). **It lives under the title, not
+    over the chat** (Jose, 2026-10-22: at the top of the conversation it
+    took a long scroll to reach): once there is a conversation the title's
+    subtitle becomes an accent pill, a clock with "Se guarda N días ·
+    Cambiar", always in view. The chat has the two arrows of every long
+    list (`app-jump`). Checked in a browser, dark and light.
   - The register card's two buttons sit on one line (the first took the
     card's top margin).
   - **Paid, decided by recommendation (2026-10-22)**: registering by the
