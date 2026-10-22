@@ -272,7 +272,7 @@ const PAY_FIRST = /\b(que|cual|cuales)\b.*\b(deudas?|prestamos?|credito|tarjeta)
 const DEBTS = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(debo|adeudo)\b|\b(cuantas|cuales|que|mis)\b.*\b(deudas|prestamos|creditos)\b|\b(que|a quien)\b.*\bdebo\b|\bhow much\b.*\bowe\b|\bmy debts\b/;
 const DUE = /\b(que|cuales|cuantos)\b.*\b(pagos|cuotas|facturas|cuentas por pagar)\b|\b(que|cuando)\b.*\b(tengo que pagar|me toca pagar|debo pagar|vence\w*|hay que pagar)\b|\bproximos pagos\b|\b(what|which)\b.*\b(payments|bills)\b|\bwhat do i have to pay\b/;
 const PLANS = /\b(como|que tal)\b.*\b(van?|voy|estan?|llevo|vamos)\b.*\b(topes?|metas?|presupuestos?|ahorros?)\b|\bmis (topes|metas|presupuestos)\b|\b(cuanto|que)\b.*\b(falta|queda|llevo)\b.*\b(topes?|metas?|presupuestos?)\b|\b(how)\b.*\b(caps?|goals?|budgets?)\b/;
-const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|year|week|going|go)\b/;
+const HOW_AM_I = /\b(como)\b.*\b(voy|me va|estoy|vamos|me fue|me ha ido|van mis finanzas|van mis cuentas|ando)\b|\b(resumen|balance)\b.*\b(mes|semana|quincena|trimestre|semestre|ano|periodo)\b|\bhow am i doing\b|\bhow did i do\b|\bhow (is|was|did)\b.*\b(month|quarter|year|week|going|go)\b/;
 const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va\w*|se me fue|se fue|se me esta yendo|se va)\b|\b(mayores?|mas grandes?|principales)\b.*\bgastos?\b|\b(en que|que)\b.*\bcategorias?\b|\bwhat did i spend\b.*\bmost\b|\bwhere\b.*\bmoney\b.*\bgo\w*\b/;
 const RECURRING = /\b(que|cuales|cuanto|cuanta plata|cuanto dinero)\b.*\b(pago|pagamos|gasto|gastamos|se me va|se nos va|se va|tengo|hay)\b.*\b(cada mes|todos los meses|mes a mes|al mes|mensual\w*|fij[oa]s?)\b|\b(gastos?|pagos?|cuentas?|cobros?)\s+(fij[oa]s?|mensuales|recurrentes|que se repiten|de cada mes)\b|\bsuscripci\w*\b|\b(que|cuales)\b.*\bse (me )?repite\w*\b|\b(every month|each month|monthly bills|recurring|subscriptions?|fixed (costs|expenses|bills))\b/;
 const YIELDS = /\b(rendimient\w*|rentabilidad|rindi\w*|rendid\w*|rinden|rinde|intereses? (que )?(me )?(gan\w*|pag\w*|dier\w*|han dado|dan))\b|\bcuanto\b.*\b(gane|he ganado|ganado|me han dado|me dieron|me pagaron|me paga|me pagan|me dan|me da|produc\w*)\b.*\b(cuentas?|bancos?|ahorros?|bolsillos?|alcancias?|cdts?|productos?|intereses?)\b|\b(yields?|interest (earned|i earned|paid to me)|how much\b.*\b(earn\w*|interest))\b/;
@@ -510,12 +510,14 @@ function namesIn<T>(tokens: Token[], items: readonly T[], nameOf: (item: T) => s
 
 /**
  * The period a question names: "este mes", "el mes pasado", "en septiembre",
- * "septiembre del 2025", "esta semana", "la semana pasada", "este año", "el año
- * pasado", "hoy", "ayer". Null when none is said; its words are marked used.
+ * "septiembre del 2025", "esta semana", "la semana pasada", "esta quincena", "este
+ * trimestre", "el semestre pasado", "este año", "el año pasado", "hoy", "ayer". Null when none is said; its words are marked used.
  */
 function periodIn(tokens: Token[], today: string): Period | null {
   const [y, m, d] = today.split('-').map(Number);
-  const now = new Date(Date.UTC(y, m - 1, d));
+  // A local date, as `periodContaining` reads local parts: at UTC midnight a
+  // phone in Colombia is still on the day before.
+  const now = new Date(y, m - 1, d);
   const words = tokens.map(t => t.word);
   const at = (run: string[]) => {
     for (let i = 0; i + run.length <= words.length; i++) {
@@ -524,13 +526,21 @@ function periodIn(tokens: Token[], today: string): Period | null {
     return -1;
   };
   const take = (i: number, n: number) => { for (let k = i; k < i + n && k < tokens.length; k++) tokens[k].used = true; };
-  const kinds: [string[], 'week' | 'month' | 'year', number][] = [
+  const kinds: [string[], 'week' | 'fortnight' | 'month' | 'quarter' | 'half' | 'year', number][] = [
+    [['quincena', 'pasada'], 'fortnight', -1], [['quincena', 'anterior'], 'fortnight', -1],
+    [['esta', 'quincena'], 'fortnight', 0], [['la', 'quincena'], 'fortnight', 0],
+    [['trimestre', 'pasado'], 'quarter', -1], [['trimestre', 'anterior'], 'quarter', -1], [['last', 'quarter'], 'quarter', -1],
+    [['este', 'trimestre'], 'quarter', 0], [['this', 'quarter'], 'quarter', 0], [['el', 'trimestre'], 'quarter', 0],
+    [['semestre', 'pasado'], 'half', -1], [['semestre', 'anterior'], 'half', -1],
+    [['este', 'semestre'], 'half', 0], [['el', 'semestre'], 'half', 0],
     [['semana', 'pasada'], 'week', -1], [['semana', 'anterior'], 'week', -1], [['last', 'week'], 'week', -1],
     [['mes', 'pasado'], 'month', -1], [['mes', 'anterior'], 'month', -1], [['last', 'month'], 'month', -1],
     [['ano', 'pasado'], 'year', -1], [['ano', 'anterior'], 'year', -1], [['last', 'year'], 'year', -1],
     [['esta', 'semana'], 'week', 0], [['this', 'week'], 'week', 0],
     [['este', 'mes'], 'month', 0], [['this', 'month'], 'month', 0],
     [['este', 'ano'], 'year', 0], [['this', 'year'], 'year', 0], [['el', 'ano'], 'year', 0],
+    // Said alone ("resumen del semestre"), the one that is running.
+    [['quincena'], 'fortnight', 0], [['trimestre'], 'quarter', 0], [['quarter'], 'quarter', 0], [['semestre'], 'half', 0],
   ];
   for (const [run, kind, steps] of kinds) {
     const i = at(run);
@@ -546,7 +556,7 @@ function periodIn(tokens: Token[], today: string): Period | null {
     if (/^(19|20)\d\d$/.test(words[next] ?? '')) { year = Number(words[next]); used = next - i + 1; }
     else if (month + 1 > m) year -= 1;
     take(i, used);
-    return periodContaining('month', new Date(Date.UTC(year, month, 1)));
+    return periodContaining('month', new Date(year, month, 1));
   }
   const day = at(['hoy']) >= 0 ? 0 : at(['today']) >= 0 ? 0 : at(['ayer']) >= 0 || at(['yesterday']) >= 0 ? -1 : null;
   if (day !== null) return shiftPeriod(periodContaining('day', now), day);

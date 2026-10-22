@@ -1,7 +1,7 @@
 /**
  * The period every screen is filtered by.
  *
- * Day, week, month, quarter, year, all time, or a range picked by hand — and stepping
+ * Day, week, fortnight, month, quarter, half-year, year, all time, or a range picked by hand — and stepping
  * one period backwards or forwards, which is what the swipe gesture does. All
  * of it is plain data and pure functions, so it is testable without a browser
  * and cannot drift from what the screens show.
@@ -11,7 +11,8 @@
  * means and a half-open range would quietly drop the last day of every month.
  */
 
-export type PeriodKind = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all' | 'range';
+export type PeriodKind =
+  'day' | 'week' | 'fortnight' | 'month' | 'quarter' | 'half' | 'year' | 'all' | 'range';
 
 export interface Period {
   kind: PeriodKind;
@@ -97,6 +98,25 @@ export function periodContaining(kind: PeriodKind, date: Date): Period {
       return { kind, from: isoDay(first), to: isoDay(last) };
     }
 
+    case 'fortnight': {
+      // The 1st to the 15th, and the 16th to the month's last day: how a
+      // Colombian pay period runs (Jose, 2026-10-22).
+      const late = date.getDate() > 15;
+      const first = new Date(date.getFullYear(), date.getMonth(), late ? 16 : 1);
+      const last = late
+        ? new Date(date.getFullYear(), date.getMonth() + 1, 0)
+        : new Date(date.getFullYear(), date.getMonth(), 15);
+      return { kind, from: isoDay(first), to: isoDay(last) };
+    }
+
+    case 'half': {
+      // January-June and July-December.
+      const firstMonth = date.getMonth() < 6 ? 0 : 6;
+      const first = new Date(date.getFullYear(), firstMonth, 1);
+      const last = new Date(date.getFullYear(), firstMonth + 6, 0);
+      return { kind, from: isoDay(first), to: isoDay(last) };
+    }
+
     case 'quarter': {
       // January-March, April-June, July-September, October-December: the
       // period sheet's "Trimestre" (mockup 5h).
@@ -150,9 +170,21 @@ export function shiftPeriod(period: Period, steps: number): Period {
       start.setDate(1);
       start.setMonth(start.getMonth() + steps);
       break;
+    case 'fortnight': {
+      // Two halves a month: walk them as a count, never as days, so a short
+      // February never skips one.
+      const index = start.getFullYear() * 24 + start.getMonth() * 2 + (start.getDate() > 15 ? 1 : 0) + steps;
+      const year = Math.floor(index / 24);
+      const rest = index - year * 24;
+      return periodContaining('fortnight', new Date(year, Math.floor(rest / 2), rest % 2 ? 16 : 1));
+    }
     case 'quarter':
       start.setDate(1);
       start.setMonth(start.getMonth() + steps * 3);
+      break;
+    case 'half':
+      start.setDate(1);
+      start.setMonth(start.getMonth() + steps * 6);
       break;
     case 'year':
       start.setFullYear(start.getFullYear() + steps);
@@ -209,7 +241,13 @@ export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'All'):
     case 'month':
       return `${monthName(start, locale)} ${start.getFullYear()}`;
 
-    case 'quarter': {
+    case 'fortnight': {
+      const end = fromIsoDay(period.to);
+      return `${start.getDate()}–${end.getDate()}${joiner}${monthName(start, locale)} ${start.getFullYear()}`;
+    }
+
+    case 'quarter':
+    case 'half': {
       const end = fromIsoDay(period.to);
       return `${monthName(start, locale)} – ${monthName(end, locale)} ${start.getFullYear()}`;
     }
@@ -229,8 +267,10 @@ export function periodLabel(period: Period, locale = 'es-CO', allLabel = 'All'):
 export const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'day', label: 'period.day' },
   { kind: 'week', label: 'period.week' },
+  { kind: 'fortnight', label: 'period.fortnight' },
   { kind: 'month', label: 'period.month' },
   { kind: 'quarter', label: 'period.quarter' },
+  { kind: 'half', label: 'period.half' },
   { kind: 'year', label: 'period.year' },
   { kind: 'all', label: 'period.all' },
   { kind: 'range', label: 'period.range' },

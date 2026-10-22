@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 
 import { NOTHING_LEARNED, readPhrase } from '../../src/app/core/assistant/read-phrase.ts';
 import { wordCategoryOf } from '../../src/app/core/proposals/common-words.ts';
+import { fromIsoDay, periodContaining } from '../../src/app/core/filters/period.ts';
 
 const P = pesos => Math.round(pesos * 100);
 const TODAY = '2026-10-19'; // a Monday
@@ -400,6 +401,19 @@ test('the period a question names', () => {
   assert.equal(at('¿cómo me fue el año pasado?').from, '2025-01-01');
   assert.equal(at('¿cómo voy esta semana?').kind, 'week');
   assert.equal(at('¿cómo voy?'), null);
+});
+
+test('a fortnight, a quarter and a half-year are periods too', () => {
+  const at = said => readPhrase(said, others()).period;
+  const today = Number(TODAY.slice(8, 10));
+  assert.equal(at('¿cómo voy esta quincena?').kind, 'fortnight');
+  assert.equal(at('¿cómo voy esta quincena?').from, today > 15 ? TODAY.slice(0, 8) + '16' : TODAY.slice(0, 8) + '01');
+  assert.equal(at('¿cómo me fue la quincena pasada?').kind, 'fortnight');
+  assert.deepEqual(at('¿cómo voy este trimestre?'), periodContaining('quarter', fromIsoDay(TODAY)));
+  assert.equal(at('¿cuánto gasté el trimestre pasado?').kind, 'quarter');
+  assert.deepEqual(at('¿en qué gasté más este semestre?'), periodContaining('half', fromIsoDay(TODAY)));
+  assert.equal(at('resumen del semestre').kind, 'half');
+  assert.equal(readPhrase('¿cómo voy este trimestre?', others()).intent, 'howAmI');
 });
 
 test('registering is not taken for a question', () => {

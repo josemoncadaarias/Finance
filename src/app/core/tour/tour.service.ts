@@ -46,7 +46,7 @@ const TOUR_LIST = {
     steps: [
       // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a).
       { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 7 },
-      { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text' },
+      { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text', since: 8 },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
@@ -143,7 +143,7 @@ const TOUR_LIST = {
     steps: [
       { sel: 'app-report .ui-seg.which', title: 'tour.report.1.title', text: 'tour.report.1.text' },
       { sel: 'app-report .account-row', title: 'tour.report.2.title', text: 'tour.report.2.text' },
-      { sel: 'app-report .ui-period', title: 'tour.report.3.title', text: 'tour.report.3.text' },
+      { sel: 'app-report .ui-period', title: 'tour.report.3.title', text: 'tour.report.3.text', since: 2 },
       { sel: 'app-report section.block', title: 'tour.report.4.title', text: 'tour.report.4.text' },
       { sel: 'app-report .ui-bigtitle .ui-round', title: 'tour.report.5.title', text: 'tour.report.5.text' },
     ],
