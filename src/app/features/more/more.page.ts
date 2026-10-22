@@ -13,6 +13,7 @@
  * (Jose, 2026-09-28).
  */
 
+import { FeedbackService } from '../../core/feedback/feedback.service';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
@@ -72,6 +73,7 @@ export class MorePage {
   readonly demo = inject(DemoService);
   private readonly view = inject(ViewPrefsService);
   readonly pro = inject(PaywallService);
+  readonly feedback = inject(FeedbackService);
   /** Movements saved from bank messages this month, for the free card. */
   private readonly messagesUsed = signal(0);
   readonly proLine = computed(() => this.pro.entitled()

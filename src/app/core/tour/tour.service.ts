@@ -91,6 +91,8 @@ const TOUR_LIST = {
       { target: 'more-pro', title: 'tour.more.7.title', text: 'tour.more.7.text', since: 3 },
       // 2026-10-22: reminders, under Tus finanzas.
       { target: 'more-finances', title: 'tour.more.8.title', text: 'tour.more.8.text', since: 4 },
+      // 2026-10-22: reporting a fault or an idea, under Ayuda.
+      { target: 'more-help', title: 'tour.more.9.title', text: 'tour.more.9.text', since: 5 },
     ],
   },
   reminders: {
