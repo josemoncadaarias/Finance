@@ -221,3 +221,18 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
 
   return { totalMinor, totalSure, onDate, shop: shopOf(lines) };
 }
+
+/**
+ * Each step of reading a receipt, for "Copiar lo leído": the lines as they
+ * were joined, the ways the summary was paired and which one was taken. A
+ * total misread on one phone and not another is found here, not guessed.
+ */
+export function receiptSteps(items: readonly TextItem[]): unknown {
+  const lines = linesOf(items).map(l => l.text);
+  const rows: Row[] = lines.map(text => ({ text, amounts: figuresOf(text) }));
+  const ways = pairings(rows);
+  return {
+    lines,
+    ways: ways.map(w => ({ pairs: w.pairs.map(p => `${p.part}:${p.minor}`).join(' '), addsUp: addsUp(w), sensible: sensible(w) })),
+  };
+}

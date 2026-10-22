@@ -20,7 +20,7 @@ import { ComposeService } from '../ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { isoDay } from '../filters/period';
 import { ReaderNotReady, lastPages, textOfImages } from '../statements/image-text';
-import { readReceipt } from './read-receipt';
+import { readReceipt, receiptSteps } from './read-receipt';
 import { leadingWord, shopMatch, type KnownShop, type NamedCategory, type PastNote } from './shop-category';
 
 @Injectable({ providedIn: 'root' })
@@ -37,7 +37,9 @@ export class ReceiptService {
     const today = isoDay(new Date());
     let receipt;
     try {
-      receipt = readReceipt(await textOfImages([file]), today);
+      const items = await textOfImages([file]);
+      receipt = readReceipt(items, today);
+      this.lastRead = { phone: navigator.userAgent, receipt, steps: receiptSteps(items) };
     } catch (problem) {
       this.toast.say(this.i18n.t(problem instanceof ReaderNotReady ? 'receipt.notReady' : 'receipt.noText'), 7000, { icon: 'alert-circle' });
       return;
@@ -64,7 +66,7 @@ export class ReceiptService {
     const categoryId = match?.categoryId
       ?? (receipt.shop ? await new ProposalsRepository(db).guessedCategoryOf(receipt.shop, -1) : null);
 
-    this.lastRead = { receipt, categoryId, accountId: match?.accountId ?? null };
+    this.lastRead = { ...(this.lastRead as object), categoryId, accountId: match?.accountId ?? null };
     this.compose.open('expense', {
       preferredAccountId: match?.accountId ?? null,
       start: {
