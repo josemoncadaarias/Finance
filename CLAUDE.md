@@ -5971,6 +5971,57 @@ looked up for this note; to verify one by one):
 - **Risk**: an app that ranks stocks can read as advice; screeners and
   notifications must say they inform, never recommend.
 
+**What the data can really be, looked up 2026-10-22** (Jose: "esperaba que
+tú me dijeras"; he named Google Finance, Yahoo Finance, Finviz, GuruFocus,
+TradingView, Morningstar, Investing Pro, the companies' own sites). Read
+from search results, most of them secondhand - each to confirm on the
+provider's own terms page before a line is written:
+- **The sites people read are not sources an app may take from.** Yahoo
+  has had no public market-data API since 2017; libraries like yfinance
+  call undocumented endpoints for "personal use only", which Yahoo changes
+  and blocks without notice. Morningstar's terms forbid scraping and allow
+  personal, non-commercial browsing only. Finviz's, GuruFocus's,
+  TradingView's and Investing's terms were not found in the search;
+  assumed similar. So scraping them for an app sold to others is against
+  their terms and breaks without warning - not a foundation.
+- **Free APIs are for personal use.** Finnhub's free key: ~60 calls a
+  minute, personal and non-commercial; a monetised app or redistribution
+  needs a paid plan. Financial Modeling Prep's free key: 250 calls a day;
+  showing its data to others needs a separate display licence. EODHD:
+  public plans (fundamentals ~US$60/month) are not app licences;
+  commercial use is a custom-priced plan.
+- **What is truly free and public**: the SEC's EDGAR (every US-listed
+  company's filed statements as XBRL facts, `data.sec.gov`, no key, 10
+  requests a second with a contact User-Agent). Ratios (P/E needs a price;
+  ROE, ROIC, margins, growth, debt do not) can be worked out from it as
+  the app's own arithmetic, tested like the yields. US companies only;
+  the filings' text (risk factors, management's discussion) is the
+  qualitative part, the company's own words.
+- **So, three shapes, Jose's to choose** (the app has no server, rule 21):
+  1. **Each person's own free key**, called from their phone: their
+     personal use, within the provider's terms, no cost to Jadex Labs;
+     the cost is a setup step, and a free key's limits (250 a day) cover
+     one person's holdings, never a market-wide screener.
+  2. **A paid provider with a display licence**, which almost certainly
+     means a small server caching one feed for everybody (a cost per month
+     that grows with users, and the end of "no server"). The only shape in
+     which daily screeners over the whole market and price alerts for
+     popular stocks are honest.
+  3. **Public sources only**: EDGAR fundamentals, prices typed or taken
+     from the person's statements, no screener.
+- **Broker statements in PDF**: possible with the statement reader, one
+  layout per broker (each buy and sell: ticker, quantity, price, fees,
+  date, currency), checked by "what is held = buys - sells" against the
+  statement's positions; every figure editable (rule 7). Needs real
+  statements of each broker, anonymised, as tests.
+- **"Why it is falling"**: news is licensed too, and summarising it is a
+  language model with a cost per use; the free honest version is the
+  company's own filings and links to its news, never a sentence the app
+  invents.
+- **Price alerts**: on Android the app can look a few times an hour in the
+  background (WorkManager) for the person's own holdings with their own
+  key; alerts for the whole market need shape 2.
+
 ### The ideas, by what they would take
 
 | # | Idea | Size | Touches | Status |
