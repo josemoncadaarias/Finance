@@ -403,8 +403,10 @@ export class AssistantService {
         const key = m.flow === 'out' ? merchantKeyOf(m.transaction.description) : '';
         if (!key) continue;
         const at = shops.get(key);
-        if (at) { at.minor += minor; at.name = (m.transaction.description ?? '').trim(); }
-        else shops.set(key, { minor, name: (m.transaction.description ?? '').trim(), category: m.label });
+        const last = { name: (m.transaction.description ?? '').trim(), accountId: m.transaction.account_id,
+          categoryId: m.transaction.category_id, day: Number(m.transaction.occurred_on.slice(8, 10)) };
+        if (at) { at.minor += minor; if (!at.day || last.day >= at.day) Object.assign(at, last); }
+        else shops.set(key, { minor, category: m.label, ...last });
       }
       for (const [label, minor] of categories) if (minor <= 0) categories.delete(label);
       return { shops, categories };

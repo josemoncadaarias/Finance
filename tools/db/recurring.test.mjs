@@ -78,3 +78,16 @@ test('a category in 4 of 6 months is frequent, not every month; in 5 of 6 it is'
   assert.equal(ropa.averageMinor, Math.round(P(800_000) / 6)); // 4 x 200 mil over 6 months
   assert.equal(recurringOf(five, month([])).everyMonth.some(e => e.category === 'Ropa'), true);
 });
+
+test('a fixed payment remembers where and when it was paid last, for "Pagos de este mes"', () => {
+  const paid = (account, day) => {
+    const m = month([['', '', 'Otra', 1_000]]);
+    m.shops.set('GYM', { minor: P(90_000), name: 'Gimnasio', category: 'Deporte', accountId: account, categoryId: 7, day });
+    m.categories.set('Deporte', P(90_000));
+    return m;
+  };
+  // Newest first: the last payment was from account 2 on the 5th.
+  const r = recurringOf([paid(2, 5), paid(1, 3), paid(1, 3), paid(1, 4)], month([]));
+  const gym = r.fixed.find(f => f.name === 'Gimnasio');
+  assert.deepEqual([gym.accountId, gym.categoryId, gym.day, gym.thisMonthMinor], [2, 7, 5, 0]);
+});
