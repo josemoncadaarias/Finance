@@ -73,5 +73,8 @@ test('a category in 4 of 6 months is frequent, not every month; in 5 of 6 it is'
   const four = [1, 1, 0, 1, 0, 1].map(on => month(on ? [['', '', 'Ropa', 200_000], ['', '', 'Pan', 50_000]] : [['', '', 'Pan', 50_000]]));
   const five = [1, 1, 1, 0, 1, 1].map(on => month(on ? [['', '', 'Ropa', 200_000], ['', '', 'Pan', 50_000]] : [['', '', 'Pan', 50_000]]));
   assert.equal(recurringOf(four, month([])).everyMonth.some(e => e.category === 'Ropa'), false);
+  // Shown apart, never left out.
+  const ropa = recurringOf(four, month([])).frequent.find(e => e.category === 'Ropa');
+  assert.equal(ropa.averageMinor, Math.round(P(800_000) / 6)); // 4 x 200 mil over 6 months
   assert.equal(recurringOf(five, month([])).everyMonth.some(e => e.category === 'Ropa'), true);
 });

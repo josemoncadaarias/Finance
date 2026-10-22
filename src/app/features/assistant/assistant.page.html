@@ -198,44 +198,21 @@
                   <div class="verdict" [class]="'verdict ' + card.tone"><ion-icon name="alert-circle-outline"></ion-icon><b>{{ card.band }}</b></div>
                 }
                 @for (b of card.blocks; track $index) {
-                  @if (b.lab) { <div class="lab">{{ b.lab }}</div> }
-                  @if (b.line; as l) {
-                    <div class="line"><span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b></div>
-                  }
-                  @if (b.step; as st) {
-                    <div class="step">
-                      <span class="n" [style.color]="st.color" [style.background]="st.color + '33'">{{ st.n }}</span>
-                      <div class="tx">
-                        <b>{{ st.title }}</b>
-                        @for (x of st.lines; track $index) {
-                          <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
+                  <ng-container *ngTemplateOutlet="richBlock; context: { $implicit: b }"></ng-container>
+                  <!-- A section that opens: what would be too long to show, never left out. -->
+                  @if (b.fold; as f) {
+                    <button type="button" class="fold" (click)="toggleFold(f)" [attr.aria-expanded]="!!f.open">
+                      <span>{{ f.title }}</span>
+                      <ion-icon [name]="f.open ? 'chevron-up' : 'chevron-down'"></ion-icon>
+                    </button>
+                    @if (f.open) {
+                      <div class="folded">
+                        @for (c of f.blocks; track $index) {
+                          <ng-container *ngTemplateOutlet="richBlock; context: { $implicit: c }"></ng-container>
                         }
                       </div>
-                    </div>
+                    }
                   }
-                  @if (b.row; as r) {
-                    <div class="rrow">
-                      <div class="head">
-                        <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
-                        <b class="name">{{ r.title }}</b>
-                        @if (r.value) { <b class="value">{{ r.value }}</b> }
-                      </div>
-                      @for (x of r.lines; track $index) {
-                        <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
-                      }
-                    </div>
-                  }
-                  @if (b.ranked; as k) {
-                    <div class="ranked">
-                      <div class="head">
-                        <app-badge [size]="30" [builtin]="k.icon" [customId]="k.customId" [tone]="k.color" [seed]="k.seed"></app-badge>
-                        <span class="name">{{ k.name }}</span>
-                        <b>{{ k.amount }}</b>
-                      </div>
-                      <div class="bar-row"><span class="bar"><i [style.width.%]="k.pct"></i></span>@if (k.change) {<small [class]="k.cls">{{ k.change }}</small>}</div>
-                    </div>
-                  }
-                  @if (b.note) { <p class="note">@for (p of bits(b.note); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p> }
                 }
                 @if (card.buttons.length > 0) {
                   <div [class.two]="card.buttons.length > 1">
@@ -322,3 +299,45 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<!-- One piece of an answer's card (40b-40j), drawn the same at the top and inside a section that opens. -->
+<ng-template #richBlock let-b>
+  @if (b.lab) { <div class="lab">{{ b.lab }}</div> }
+  @if (b.line; as l) {
+    <div class="line"><span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b></div>
+  }
+  @if (b.step; as st) {
+    <div class="step">
+      <span class="n" [style.color]="st.color" [style.background]="st.color + '33'">{{ st.n }}</span>
+      <div class="tx">
+        <b>{{ st.title }}</b>
+        @for (x of st.lines; track $index) {
+          <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
+        }
+      </div>
+    </div>
+  }
+  @if (b.row; as r) {
+    <div class="rrow">
+      <div class="head">
+        <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
+        <b class="name">{{ r.title }}</b>
+        @if (r.value) { <b class="value">{{ r.value }}</b> }
+      </div>
+      @for (x of r.lines; track $index) {
+        <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
+      }
+    </div>
+  }
+  @if (b.ranked; as k) {
+    <div class="ranked">
+      <div class="head">
+        <app-badge [size]="30" [builtin]="k.icon" [customId]="k.customId" [tone]="k.color" [seed]="k.seed"></app-badge>
+        <span class="name">{{ k.name }}</span>
+        <b>{{ k.amount }}</b>
+      </div>
+      <div class="bar-row"><span class="bar"><i [style.width.%]="k.pct"></i></span>@if (k.change) {<small [class]="k.cls">{{ k.change }}</small>}</div>
+    </div>
+  }
+  @if (b.note) { <p class="note">@for (p of bits(b.note); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p> }
+</ng-template>

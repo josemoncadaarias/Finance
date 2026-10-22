@@ -5534,6 +5534,14 @@ with testers runs; the paywall is finished after them.
     first, never counted twice. The answer adds fixed payments and every-month
     spending into "Todo junto, en un mes normal". Superseded below: categories
     are no longer only named.
+  - **Nothing is left out** (Jose, the same day: "para no quitar información
+    que puede ser valiosa"). A category spent on in 4 of 6 months (often, not
+    every month) is `frequent`: in a section that opens, "Otras N categorías
+    que se repiten seguido", at what it comes to a month over the 6 months,
+    "Cuando aparece, entre X y Y", with its own sum and never in the totals.
+    Each list shows 6 and opens the rest ("Ver los otros N pagos fijos").
+    Answers can carry such a section now: `RichBlock.fold` (title, blocks,
+    open - kept in the history), drawn by the `richBlock` template.
   - `recurring` ("¿qué pago cada mes?", "gastos fijos", "suscripciones"):
     **fixed payments**, the same note or shop (`merchantKeyOf`) in at least
     4 of the last 6 whole months (3 of 3...) at about the same amount each

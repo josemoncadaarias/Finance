@@ -15,6 +15,7 @@
 
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -179,7 +180,7 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
   selector: 'app-assistant',
   templateUrl: './assistant.page.html',
   styleUrls: ['./assistant.page.scss'],
-  imports: [TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent],
+  imports: [NgTemplateOutlet, TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent],
 })
 export class AssistantPage {
   private readonly router = inject(Router);
@@ -974,6 +975,12 @@ export class AssistantPage {
     else if (capAsked && !goalAsked && p.limits.length > 0) this.give(A.plans(this.speech(), p.limits, []));
     else this.give(A.plans(this.speech(), p.limits, p.goals));
     return true;
+  }
+
+  /** Opens or closes a section of an answer; kept with the conversation. */
+  toggleFold(fold: { open?: boolean }): void {
+    fold.open = !fold.open;
+    this.messages.update(list => [...list]);
   }
 
   /** A button of an answer's card. */
