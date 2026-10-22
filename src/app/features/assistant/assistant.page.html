@@ -3,7 +3,19 @@
   <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
     <ion-icon name="chevron-back"></ion-icon>
   </button>
-  <h1 class="titled">{{ 'ai.title' | t }}<small>{{ 'ai.subtitle' | t }}</small></h1>
+  <h1 class="titled">{{ 'ai.title' | t }}
+    @if (empty()) {
+      <small>{{ 'ai.subtitle' | t }}</small>
+    } @else {
+      <!-- How long it stays, always in view and changed in one tap (Jose, 2026-10-22:
+           at the top of the chat it took a long scroll to reach). -->
+      <button type="button" class="kept" (click)="choosingDays.set(true)">
+        <ion-icon name="time-outline"></ion-icon>
+        <span>{{ (historyDays() === 1 ? 'ai.history.short.one' : 'ai.history.short') | t:{ days: historyDays() } }}</span>
+        <span class="change">{{ 'ai.history.change' | t }}</span>
+      </button>
+    }
+  </h1>
   @if (!empty()) {
     <button type="button" class="ui-round" (click)="clearing.set(true)" [attr.aria-label]="'ai.history.clear' | t">
       <ion-icon name="trash-outline"></ion-icon>
@@ -11,7 +23,7 @@
   }
 </header>
 
-<ion-content class="chat">
+<ion-content #chat class="chat" [scrollEvents]="true" (ionScroll)="jump.measure()">
   <main class="ui-main">
     @if (empty()) {
       <!-- Nothing said yet: what it can do, as examples to tap (39b). -->
@@ -33,13 +45,6 @@
       }
     }
 
-    @if (!empty()) {
-      <!-- How long it stays is the person's choice (Jose, 2026-10-22, up to 60 days). -->
-      <button type="button" class="kept" (click)="choosingDays.set(true)">
-        {{ (historyDays() === 1 ? 'ai.history.kept.one' : 'ai.history.kept') | t:{ days: historyDays() } }}
-        <span class="change">{{ 'ai.history.change' | t }}</span>
-      </button>
-    }
     @for (m of messages(); track m.id) {
       @if (m.who === 'me') {
         <div class="me"><p>{{ m.parts[0].text }}</p></div>
@@ -275,6 +280,7 @@
       <div class="app thinking"><app-badge shape="ci" [size]="30" builtin="sparkles-outline" fixed="#6378ff"></app-badge><p>…</p></div>
     }
   </main>
+  <app-jump #jump [content]="chat"></app-jump>
 </ion-content>
 
 <!-- Where words are typed or said (39b, 39h). -->

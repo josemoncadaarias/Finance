@@ -220,7 +220,7 @@ const TOUR_LIST = {
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.2.title', text: 'tour.assistant.2.text' },
       { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text', since: 3 },
       { title: 'tour.assistant.4.title', text: 'tour.assistant.4.text', since: 2 },
-      { title: 'tour.assistant.5.title', text: 'tour.assistant.5.text', since: 3 },
+      { title: 'tour.assistant.5.title', text: 'tour.assistant.5.text', since: 5 },
       { title: 'tour.assistant.6.title', text: 'tour.assistant.6.text', since: 4 },
     ],
   },
