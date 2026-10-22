@@ -52,7 +52,7 @@
         </div>
       }
 
-      <!-- Products set aside (the tax CDTs inside Pibank) hide inside a single
+      <!-- Products set aside (a CDT kept for a tax payment, say) hide inside a single
            account too, so the switch is offered there as well. -->
       @if ((filter.allAccounts() && store.hiddenCount() > 0) || store.setAsideProducts() > 0) {
         <div class="ui-list include">

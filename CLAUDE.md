@@ -34,6 +34,18 @@ Keep it up to date whenever we make new decisions.
   words change with the language: the formulas and the engine do not.
   Decision by Jose, 2026-09-18, replacing the 2026-09-09 rule that kept the
   whole module in Spanish.
+- **Jose's data is an example, never the rule** (Jose, 2026-10-22: "mis
+  datos son solo ejemplo nada más, todo debe funcionar de manera genérica con
+  cualquier info a cualquier usuario"). No code, threshold, word list, test
+  expectation or user-facing text may lean on his accounts, categories, shops
+  or figures. His backup is only for checking that a generic rule behaves
+  well on real data; tests use invented data. Found and removed the same day:
+  the tax simulator filled 2026 with his own figures when an account was
+  named "Rappi cuenta" (any user could have one) - those figures now live
+  only in `tools/db/tax-spreadsheet-2026.mjs`, as test data; and the
+  notifications screen's app icon matched two bank names. What stays on
+  purpose: international company names among the common words that suggest
+  a starter category (Uber, Netflix...), never anyone's own.
 - **How the app's words are written: `.claude/skills/app-copy/SKILL.md`.**
   Read it before adding or changing any user-facing string (Jose,
   2026-10-19, after "Usar el automático": name the thing, never an

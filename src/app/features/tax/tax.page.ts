@@ -35,7 +35,6 @@ import { YieldsReportService } from '../../core/report/yields-report.service';
 import { TaxSimulationsRepository } from '../../core/database/repositories/tax-simulations.repository';
 import { EMPLOYMENT_DEFAULTS, RATE_BANDS, simulate } from '../../core/tax/cedula-general';
 import {
-  SPREADSHEET_2026, SPREADSHEET_2026_OWNER_ACCOUNT,
   borrowedFromLater, defaultInputs, fillGaps, parametersFor, useThisYearsParameters, type Sourced,
 } from '../../core/tax/defaults';
 import {
@@ -229,9 +228,6 @@ export class TaxPage {
         minimumWageMinor: p.minimumWage.value,
         inflationaryScaled: p.inflationary.value,
       };
-      if (year === 2026 && await repo.hasAccountNamed(SPREADSHEET_2026_OWNER_ACCOUNT)) {
-        Object.assign(references, SPREADSHEET_2026);
-      }
 
       inputs = fillGaps(inputs, references);
       await repo.save(year, inputs);
