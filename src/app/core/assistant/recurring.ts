@@ -66,6 +66,12 @@ export interface Recurring {
   neededEvery: number;
   fixed: FixedPayment[];
   everyMonth: EveryMonthSpend[];
+  /**
+   * Categories spent on often - as often as a fixed payment, short of every
+   * month (Jose, 2026-10-22: shown apart, never left out). Their figure is
+   * what they come to a month over every month looked at. Not in the totals.
+   */
+  frequent: EveryMonthSpend[];
   fixedMinor: number;
   everyMonthMinor: number;
   /** The whole spending of an ordinary month, for the share. */
@@ -83,7 +89,7 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
   const looked = list.length;
   const needed = Math.max(3, Math.ceil(looked * FIXED_SHARE));
   const neededEvery = Math.max(3, Math.ceil(looked * EVERY_MONTH_SHARE));
-  const empty = { looked, needed, neededEvery, fixed: [], everyMonth: [], fixedMinor: 0, everyMonthMinor: 0, spendMinor: 0 };
+  const empty = { looked, needed, neededEvery, fixed: [], everyMonth: [], frequent: [], fixedMinor: 0, everyMonthMinor: 0, spendMinor: 0 };
   if (looked < 3) return empty;
 
   // Fixed payments.
@@ -120,21 +126,27 @@ export function recurringOf(months: readonly MonthSpend[], current: MonthSpend):
   const now = rest(current);
   const categories = new Set(rests.flatMap(m => [...m.keys()]));
   const everyMonth: EveryMonthSpend[] = [];
+  const frequent: EveryMonthSpend[] = [];
   for (const category of categories) {
     const amounts = rests.map(m => Math.max(0, m.get(category) ?? 0));
     const seen = amounts.filter(v => v > 0);
-    if (seen.length < neededEvery) continue;
-    const recent = amounts.slice(0, RECENT_MONTHS);
-    const average = Math.round(recent.reduce((sum, v) => sum + v, 0) / recent.length);
+    if (seen.length < needed) continue;
+    const every = seen.length >= neededEvery;
+    const into = every ? everyMonth : frequent;
+    // Every month: the last three months, to follow today's prices. Often but
+    // not every month: what it comes to a month over all the months looked at.
+    const window = every ? amounts.slice(0, RECENT_MONTHS) : amounts;
+    const average = Math.round(window.reduce((sum, v) => sum + v, 0) / window.length);
     if (average <= 0) continue;
-    everyMonth.push({ category, monthsSeen: seen.length, averageMinor: average,
+    into.push({ category, monthsSeen: seen.length, averageMinor: average,
       lowMinor: Math.min(...seen), highMinor: Math.max(...seen), thisMonthMinor: Math.max(0, now.get(category) ?? 0) });
   }
   everyMonth.sort((a, b) => b.averageMinor - a.averageMinor);
+  frequent.sort((a, b) => b.averageMinor - a.averageMinor);
 
   const all = list.reduce((sum, m) => sum + [...m.categories.values()].reduce((t, v) => t + v, 0), 0);
   return {
-    looked, needed, neededEvery, fixed, everyMonth,
+    looked, needed, neededEvery, fixed, everyMonth, frequent,
     fixedMinor: fixed.reduce((sum, f) => sum + f.averageMinor, 0),
     everyMonthMinor: everyMonth.reduce((sum, e) => sum + e.averageMinor, 0),
     spendMinor: Math.round(all / looked),

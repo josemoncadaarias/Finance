@@ -36,6 +36,8 @@ export interface RichBlock {
   row?: { icon: string; color: string; round: boolean; title: string; value: string; lines: string[] };
   ranked?: { icon: string | null; customId: number | null; color: string | null; seed: number | null; name: string; amount: string; pct: number; change: string; cls: string };
   note?: string;
+  /** A section that opens: its title says what and how many; nothing is left out of the answer. */
+  fold?: { title: string; blocks: RichBlock[]; open?: boolean };
 }
 
 /** Where a button goes. Plain data, so it survives in the history. */
@@ -574,32 +576,43 @@ export function oneGoal(s: Speech, g: GoalView): Answer {
 // "¿Qué pago cada mes?" (Jose, 2026-10-22)
 // ---------------------------------------------------------------------------
 
+/** How many of each list are on view before the rest open in a section. */
+const SHOWN = 6;
+
 export function recurring(s: Speech, r: RecurringPicture): Answer {
   if (r.looked < 3) return { said: { key: 'ai.recurring.tooSoon', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
-  if (r.fixed.length === 0 && r.everyMonth.length === 0) {
+  if (r.fixed.length === 0 && r.everyMonth.length === 0 && r.frequent.length === 0) {
     return { said: { key: 'ai.recurring.none', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
   }
   const face = (label: string) => r.faces.get(label);
   const blocks: RichBlock[] = [];
+  const fixedRow = (f: RecurringPicture['fixed'][number]): RichBlock => ({ row: {
+    icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
+    title: f.name, value: s.pesos(f.averageMinor),
+    lines: [`${f.category} · ${s.t('ai.recurring.months', { seen: f.monthsSeen, of: r.looked })}`,
+      s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
+  const categoryRow = (e: RecurringPicture['everyMonth'][number], when = false): RichBlock => ({ row: {
+    icon: face(e.category)?.icon ?? 'pricetag-outline', color: face(e.category)?.color ?? COLORS.org, round: false,
+    title: e.category, value: s.t('ai.recurring.about', { amount: s.pesos(e.averageMinor) }),
+    // Often but not every month: the average counts the months without it, so
+    // the range is said as "when it turns up".
+    lines: [s.t(when ? 'ai.recurring.rangeWhen' : 'ai.recurring.range', { low: s.pesos(e.lowMinor), high: s.pesos(e.highMinor), seen: e.monthsSeen, of: r.looked }),
+      e.thisMonthMinor > 0 ? s.t('ai.recurring.soFar', { amount: s.pesos(e.thisMonthMinor) }) : s.t('ai.recurring.notYet')] } });
+  /** The first few on view; the rest in a section that opens, never left out. */
+  const listed = <T>(list: readonly T[], row: (x: T) => RichBlock, one: TranslationKey, many: TranslationKey) => {
+    for (const x of list.slice(0, SHOWN)) blocks.push(row(x));
+    if (list.length > SHOWN) {
+      blocks.push({ fold: { title: s.t(list.length - SHOWN === 1 ? one : many, { count: list.length - SHOWN }),
+        blocks: list.slice(SHOWN).map(row) } });
+    }
+  };
   if (r.fixed.length > 0) {
     blocks.push({ lab: s.t('ai.recurring.fixedTitle') });
-    for (const f of r.fixed.slice(0, 10)) {
-      blocks.push({ row: { icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
-        title: f.name, value: s.pesos(f.averageMinor),
-        lines: [`${f.category} · ${s.t('ai.recurring.months', { seen: f.monthsSeen, of: r.looked })}`,
-          s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
-    }
-    if (r.fixed.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.fixed.length - 10 }) });
+    listed(r.fixed, fixedRow, 'ai.recurring.moreFixedOne', 'ai.recurring.moreFixed');
   }
   if (r.everyMonth.length > 0) {
     blocks.push({ lab: s.t('ai.recurring.everyMonthTitle') });
-    for (const e of r.everyMonth.slice(0, 10)) {
-      blocks.push({ row: { icon: face(e.category)?.icon ?? 'pricetag-outline', color: face(e.category)?.color ?? COLORS.org, round: false,
-        title: e.category, value: s.t('ai.recurring.about', { amount: s.pesos(e.averageMinor) }),
-        lines: [s.t('ai.recurring.range', { low: s.pesos(e.lowMinor), high: s.pesos(e.highMinor), seen: e.monthsSeen, of: r.looked }),
-          e.thisMonthMinor > 0 ? s.t('ai.recurring.soFar', { amount: s.pesos(e.thisMonthMinor) }) : s.t('ai.recurring.notYet')] } });
-    }
-    if (r.everyMonth.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.everyMonth.length - 10 }) });
+    listed(r.everyMonth, e => categoryRow(e), 'ai.recurring.moreEveryOne', 'ai.recurring.moreEvery');
   }
   const total = r.fixedMinor + r.everyMonthMinor;
   const share = r.spendMinor > 0 ? Math.round(total * 100 / r.spendMinor) : 0;
@@ -608,6 +621,15 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
   if (r.everyMonth.length > 0) blocks.push({ line: { k: s.t('ai.recurring.everyMonthSum'), v: s.pesos(r.everyMonthMinor) } });
   blocks.push({ line: { k: s.t('ai.recurring.total'), v: s.pesos(total), cls: 'ui-y' } });
   if (share > 0) blocks.push({ line: { k: s.t('ai.recurring.share'), v: `${Math.min(100, share)}\u00a0%` } });
+  // Spent on often, not every month (Jose, 2026-10-22: never left out).
+  if (r.frequent.length > 0) {
+    const sum = r.frequent.reduce((t, e) => t + e.averageMinor, 0);
+    blocks.push({ fold: { title: s.t(r.frequent.length === 1 ? 'ai.recurring.frequentOne' : 'ai.recurring.frequent', { count: r.frequent.length }), blocks: [
+      { note: s.t('ai.recurring.frequentNote', { needed: r.needed, every: r.neededEvery, count: r.looked }) },
+      ...r.frequent.map(e => categoryRow(e, true)),
+      { line: { k: s.t('ai.recurring.frequentSum'), v: s.pesos(sum) } },
+    ] } });
+  }
   blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, every: r.neededEvery, count: r.looked }) });
   return {
     said: { key: 'ai.recurring.saidTotal', values: {}, text: [

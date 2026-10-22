@@ -295,3 +295,14 @@ ion-content.chat {
   > .two > .ui-btn { margin-top: 0; }
 }
 .card .block b, .card .note b { font-size: inherit; color: var(--app-tx); font-weight: 700; }
+
+/* A section of an answer that opens (Jose, 2026-10-22: nothing valuable left out). */
+.card .fold {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; margin-top: 10px; padding: 11px 12px;
+  border: 1px solid var(--app-line); border-radius: 12px; background: var(--app-s2, transparent);
+  color: var(--app-pr); font: inherit; font-size: 14px; font-weight: 600; text-align: left;
+  span { flex: 1; min-width: 0; text-wrap: pretty; }
+  ion-icon { flex: none; font-size: 18px; }
+}
+.card .folded { margin-top: 2px; }
