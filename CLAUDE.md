@@ -5622,7 +5622,9 @@ with testers runs; the paywall is finished after them.
   assistant's fixed payments with no reminder, "Avisarme" = monthly on its
   usual day, a day before, 8:00), Pausados, Ya cumplidos, and the editor.
   Inicio's Pendientes carries them (`app-reminders-home`, a "recordatorios"
-  pill, red once late). The assistant makes them ("recuérdame pagar el
+  pill, red once late). **Their icon is an alarm clock** (`alarm-outline`,
+  pink `#f2709c` on Más), never the bell of Notificaciones del teléfono
+  (Jose, 2026-10-22: the two rows of Más looked the same). The assistant makes them ("recuérdame pagar el
   arriendo el 5", "avísame mañana a las 7 de la noche que llame al banco";
   `read-reminder.ts`, `read-reminder.test.mjs`; only a day said asks "¿cada
   mes o una sola vez?") and lists them ("¿qué recordatorios tengo?"); neither

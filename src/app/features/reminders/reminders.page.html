@@ -19,7 +19,7 @@
       <div class="ui-list" data-tour="reminders-list">
         @for (o of upcoming(); track o.reminder.id) {
           <button type="button" class="ui-row" (click)="picked.set(o)">
-            <app-badge [size]="40" [builtin]="category(o.reminder.categoryId)?.builtin_icon ?? 'notifications-outline'"
+            <app-badge [size]="40" [builtin]="category(o.reminder.categoryId)?.builtin_icon ?? 'alarm-outline'"
                        [customId]="category(o.reminder.categoryId)?.custom_icon_id ?? null"
                        [tone]="category(o.reminder.categoryId)?.color ?? null" [seed]="o.reminder.categoryId ?? o.reminder.id"></app-badge>
             <span class="ui-tx">
@@ -32,7 +32,7 @@
       </div>
     } @else if (reminders.all().length === 0) {
       <div class="ui-card notice">
-        <app-badge shape="ci" [size]="52" builtin="notifications-outline" fixed="#6378ff"></app-badge>
+        <app-badge shape="ci" [size]="52" builtin="alarm-outline" fixed="#6378ff"></app-badge>
         <b>{{ 'reminders.empty.title' | t }}</b>
         <p class="ui-sub">{{ 'reminders.empty.body' | t }}</p>
       </div>
@@ -50,7 +50,7 @@
               <b class="ui-one">{{ f.name }}</b>
               <small class="wrap">{{ 'reminders.suggest.line' | t:{ amount: money(f.averageMinor), day: f.day ?? 1 } }}</small>
             </span>
-            <button type="button" class="ui-chip add" (click)="remindOf(f)"><ion-icon name="notifications-outline"></ion-icon>{{ 'reminders.suggest.add' | t }}</button>
+            <button type="button" class="ui-chip add" (click)="remindOf(f)"><ion-icon name="alarm-outline"></ion-icon>{{ 'reminders.suggest.add' | t }}</button>
           </div>
         }
       </div>

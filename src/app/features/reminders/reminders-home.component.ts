@@ -23,7 +23,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
       <div class="ui-list">
         @for (o of reminders.soon(); track o.reminder.id) {
           <button type="button" class="ui-row" (click)="reminders.openForm(o)">
-            <app-badge shape="ci" [size]="40" builtin="notifications-outline" [fixed]="o.late ? '#ff6b6b' : '#f5b544'"></app-badge>
+            <app-badge shape="ci" [size]="40" builtin="alarm-outline" [fixed]="o.late ? '#ff6b6b' : '#f2709c'"></app-badge>
             <span class="ui-tx">
               <span class="kind" [class.late]="o.late">{{ (o.late ? 'home.kind.reminderLate' : 'home.kind.reminder') | t }}</span>
               <b class="ui-one">{{ o.reminder.title }}</b>
