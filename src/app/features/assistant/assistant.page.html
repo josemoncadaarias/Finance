@@ -52,6 +52,24 @@
         @if (m.card; as card) {
           <div class="card" [class]="'card ' + (card.kind === 'free' || card.kind === 'rich' ? card.tone : '')">
             @switch (card.kind) {
+              @case ('remind') {
+                <!-- "Recuérdame pagar el arriendo el 5" (Jose, 2026-10-22). -->
+                <div class="what">
+                  <app-badge shape="ci" [size]="42" builtin="notifications-outline" fixed="#f5b544"></app-badge>
+                  <span class="tx">
+                    <b>{{ card.title }}</b>
+                    <small class="block">{{ remindWhenText(card) }}</small>
+                  </span>
+                  @if (card.amountMinor) { <b class="amount">{{ pesos(card.amountMinor) }}</b> }
+                </div>
+                @if (card.state === 'saved') {
+                  <div class="done"><ion-icon name="checkmark-circle"></ion-icon>{{ 'ai.remind.saved' | t }}</div>
+                  <button type="button" class="ui-btn ghost" (click)="goReminders()">{{ 'ai.reminders.see' | t }}</button>
+                } @else {
+                  <p class="note">{{ 'ai.remind.note' | t }}</p>
+                  <button type="button" class="ui-btn" [disabled]="busy()" (click)="saveRemind(card)">{{ 'ai.remind.save' | t }}</button>
+                }
+              }
               @case ('register') {
                 <div class="what">
                   <app-badge [size]="42" [builtin]="card.category.builtin_icon" [customId]="card.category.custom_icon_id"

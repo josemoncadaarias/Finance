@@ -1,0 +1,230 @@
+<!-- Recordatorios (Jose, 2026-10-22). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ 'reminders.title' | t }}</h1>
+    <app-ask-button></app-ask-button>
+  </header>
+
+  <div class="ui-main">
+    <button type="button" class="ui-add" (click)="newOne()" data-tour="reminders-new">
+      <span class="plus"><ion-icon name="add"></ion-icon></span>
+      <span class="ui-tx"><b>{{ 'reminders.new' | t }}</b><small class="wrap">{{ 'reminders.new.hint' | t }}</small></span>
+    </button>
+
+    @if (upcoming().length > 0) {
+      <h3 class="ui-h">{{ 'reminders.upcoming' | t }}</h3>
+      <div class="ui-list" data-tour="reminders-list">
+        @for (o of upcoming(); track o.reminder.id) {
+          <button type="button" class="ui-row" (click)="picked.set(o)">
+            <app-badge [size]="40" [builtin]="category(o.reminder.categoryId)?.builtin_icon ?? 'notifications-outline'"
+                       [customId]="category(o.reminder.categoryId)?.custom_icon_id ?? null"
+                       [tone]="category(o.reminder.categoryId)?.color ?? null" [seed]="o.reminder.categoryId ?? o.reminder.id"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ o.reminder.title }}</b>
+              <small class="wrap" [class.late]="o.late">{{ lineOf(o) }}</small>
+            </span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
+      </div>
+    } @else if (reminders.all().length === 0) {
+      <div class="ui-card notice">
+        <app-badge shape="ci" [size]="52" builtin="notifications-outline" fixed="#6378ff"></app-badge>
+        <b>{{ 'reminders.empty.title' | t }}</b>
+        <p class="ui-sub">{{ 'reminders.empty.body' | t }}</p>
+      </div>
+    }
+
+    <!-- The fixed payments the app found, with no reminder yet. -->
+    @if (suggestions().length > 0) {
+      <h3 class="ui-h">{{ 'reminders.suggest.title' | t }}</h3>
+      <p class="hint">{{ 'reminders.suggest.hint' | t }}</p>
+      <div class="ui-list" data-tour="reminders-suggest">
+        @for (f of suggestions(); track f.name) {
+          <div class="ui-row">
+            <app-badge [size]="40" builtin="repeat-outline" fixed="#ff8a4c"></app-badge>
+            <span class="ui-tx">
+              <b class="ui-one">{{ f.name }}</b>
+              <small class="wrap">{{ 'reminders.suggest.line' | t:{ amount: money(f.averageMinor), day: f.day ?? 1 } }}</small>
+            </span>
+            <button type="button" class="ui-chip add" (click)="remindOf(f)"><ion-icon name="notifications-outline"></ion-icon>{{ 'reminders.suggest.add' | t }}</button>
+          </div>
+        }
+      </div>
+    }
+
+    @if (paused().length > 0) {
+      <h3 class="ui-h">{{ 'reminders.paused' | t }}</h3>
+      <div class="ui-list">
+        @for (r of paused(); track r.id) {
+          <button type="button" class="ui-row" (click)="picked.set(r)">
+            <app-badge [size]="40" builtin="pause-outline" fixed="#8a93a8"></app-badge>
+            <span class="ui-tx"><b class="ui-one">{{ r.title }}</b><small class="wrap">{{ whenOf(r) }}</small></span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
+      </div>
+    }
+
+    @if (finished().length > 0) {
+      <h3 class="ui-h">{{ 'reminders.finished' | t }}</h3>
+      <div class="ui-list">
+        @for (r of finished(); track r.id) {
+          <button type="button" class="ui-row" (click)="picked.set(r)">
+            <app-badge [size]="40" builtin="checkmark-done-outline" fixed="#34c98b"></app-badge>
+            <span class="ui-tx"><b class="ui-one">{{ r.title }}</b><small class="wrap">{{ whenOf(r) }}</small></span>
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        }
+      </div>
+    }
+
+    <p class="hint foot">{{ 'reminders.foot' | t }}</p>
+  </div>
+</ion-content>
+
+<!-- A reminder's actions. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="picked() !== null" (didDismiss)="picked.set(null)">
+  <ng-template>
+    @if (picked(); as x) {
+      <div class="ui-sheet-body ion-content-scroll-host">
+        <button type="button" class="sheet-cancel" (click)="picked.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <div class="sheet-head">
+          <b>{{ reminderOf(x).title }}</b>
+          <small>{{ whenOf(reminderOf(x)) }}@if (reminderOf(x).amountMinor; as a) { · {{ money(a) }} }</small>
+          <small>{{ ringsOf(reminderOf(x)) }}</small>
+          @if (reminderOf(x).accountId !== null) { <small>{{ 'reminders.from' | t:{ account: accountName(reminderOf(x).accountId) } }}</small> }
+        </div>
+        <div class="ui-list">
+          @if (isOccurrence(x)) {
+            <button type="button" class="ui-row" (click)="register(x)">
+              <app-badge shape="ci" [size]="36" builtin="create-outline" fixed="#6378ff"></app-badge>
+              <span class="ui-tx"><b>{{ 'reminders.register' | t }}</b><small class="wrap">{{ 'reminders.register.hint' | t }}</small></span>
+            </button>
+            <button type="button" class="ui-row" (click)="done(x)">
+              <app-badge shape="ci" [size]="36" builtin="checkmark" fixed="#34c98b"></app-badge>
+              <span class="ui-tx"><b>{{ (x.reminder.repeat === 'once' ? 'reminders.done.once' : 'reminders.done.month') | t }}</b>
+                <small class="wrap">{{ (x.reminder.repeat === 'once' ? 'reminders.done.once.hint' : 'reminders.done.month.hint') | t }}</small></span>
+            </button>
+            <button type="button" class="ui-row" (click)="tomorrow(x)">
+              <app-badge shape="ci" [size]="36" builtin="time-outline" fixed="#f5b544"></app-badge>
+              <span class="ui-tx"><b>{{ 'reminders.tomorrow' | t }}</b></span>
+            </button>
+          }
+          <button type="button" class="ui-row" (click)="edit(reminderOf(x))">
+            <app-badge shape="ci" [size]="36" builtin="pencil" fixed="#8a93a8"></app-badge>
+            <span class="ui-tx"><b>{{ 'reminders.edit' | t }}</b></span>
+          </button>
+          @if (reminderOf(x).active) {
+            <button type="button" class="ui-row" (click)="setActive(reminderOf(x), false)">
+              <app-badge shape="ci" [size]="36" builtin="pause-outline" fixed="#8a93a8"></app-badge>
+              <span class="ui-tx"><b>{{ 'reminders.pause' | t }}</b><small class="wrap">{{ 'reminders.pause.hint' | t }}</small></span>
+            </button>
+          } @else {
+            <button type="button" class="ui-row" (click)="setActive(reminderOf(x), true)">
+              <app-badge shape="ci" [size]="36" builtin="play-outline" fixed="#34c98b"></app-badge>
+              <span class="ui-tx"><b>{{ 'reminders.resume' | t }}</b></span>
+            </button>
+          }
+          <button type="button" class="ui-row" (click)="deleting.set(reminderOf(x))">
+            <app-badge shape="ci" [size]="36" builtin="trash-outline" fixed="#ff6b6b"></app-badge>
+            <span class="ui-tx"><b class="danger">{{ 'reminders.delete' | t }}</b></span>
+          </button>
+        </div>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<app-confirm [open]="deleting() !== null" icon="trash-outline" tone="danger"
+             [title]="'reminders.delete.title' | t:{ title: deleting()?.title ?? '' }" [body]="'reminders.delete.body' | t"
+             [confirmLabel]="'reminders.delete' | t" (confirmed)="remove()" (cancelled)="deleting.set(null)"></app-confirm>
+
+<!-- Make or change one. -->
+<ion-modal class="entry-sheet" [isOpen]="editing() !== null" (didDismiss)="editing.set(null)">
+  <ng-template>
+    <ion-content>
+      <header class="ui-titlebar">
+        <button type="button" class="back" (click)="editing.set(null)" [attr.aria-label]="'entry.cancel' | t">
+          <ion-icon name="close"></ion-icon>
+        </button>
+        <h1>{{ (editing() === 'new' ? 'reminders.form.new' : 'reminders.form.edit') | t }}</h1>
+      </header>
+      <div class="ui-main form">
+        <label class="field">
+          <span class="lab">{{ 'reminders.form.what' | t }}</span>
+          <input class="ui-input" type="text" [value]="title()" (input)="title.set($any($event.target).value)"
+                 [placeholder]="'reminders.form.what.placeholder' | t" maxlength="80">
+          @if (tried() && missing()) { <small class="err">{{ 'reminders.form.what.missing' | t }}</small> }
+        </label>
+
+        <label class="field">
+          <span class="lab">{{ 'reminders.form.amount' | t }}</span>
+          <input class="ui-input" inputmode="decimal" [value]="amount().text" [appAmountInput]="amount()" (amountChange)="amount.set($event)"
+                 [placeholder]="'reminders.form.amount.placeholder' | t">
+        </label>
+
+        <span class="lab">{{ 'reminders.form.when' | t }}</span>
+        <div class="ui-seg">
+          <button type="button" [class.on]="repeat() === 'monthly'" (click)="repeat.set('monthly')">{{ 'reminders.form.monthly' | t }}</button>
+          <button type="button" [class.on]="repeat() === 'once'" (click)="repeat.set('once')">{{ 'reminders.form.once' | t }}</button>
+        </div>
+        @if (repeat() === 'monthly') {
+          <small class="sub">{{ 'reminders.form.day' | t:{ day: day() } }}</small>
+          <div class="days">
+            @for (d of days; track d) {
+              <button type="button" [class.on]="d === day()" (click)="day.set(d)">{{ d }}</button>
+            }
+          </div>
+          @if (day() > 28) { <small class="sub">{{ 'reminders.form.dayShort' | t }}</small> }
+        } @else {
+          <app-date-field [value]="onDate()" [min]="thisMonth + '-01'" (changed)="onDate.set($event ?? onDate())"></app-date-field>
+        }
+
+        <span class="lab">{{ 'reminders.form.ring' | t }}</span>
+        <div class="ui-seg">
+          @for (b of before; track b) {
+            <button type="button" [class.on]="daysBefore() === b" (click)="daysBefore.set(b)">
+              {{ (b === 0 ? 'reminders.form.same' : b === 1 ? 'reminders.form.before.one' : 'reminders.form.before') | t:{ count: b } }}
+            </button>
+          }
+        </div>
+        <div class="hours">
+          @for (h of hours; track h) {
+            <button type="button" class="ui-chip" [class.on]="h === hour()" (click)="hour.set(h)">{{ hourText(h) }}</button>
+          }
+        </div>
+
+        <span class="lab">{{ 'reminders.form.fill' | t }}</span>
+        <small class="sub">{{ 'reminders.form.fill.hint' | t }}</small>
+        <div class="ui-list">
+          <button type="button" class="ui-row" (click)="pickingAccount.set(true)">
+            <app-badge shape="ci" [size]="36" builtin="wallet-outline" fixed="#4c9bff"></app-badge>
+            <span class="ui-tx"><b>{{ 'reminders.form.account' | t }}</b><small>{{ accountName(accountId()) || ('reminders.form.none' | t) }}</small></span>
+            @if (accountId() !== null) { <button type="button" class="clear" (click)="$event.stopPropagation(); accountId.set(null)" [attr.aria-label]="'reminders.form.clear' | t"><ion-icon name="close"></ion-icon></button> }
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+          <button type="button" class="ui-row" (click)="pickingCategory.set(true)">
+            <app-badge [size]="36" [builtin]="category(categoryId())?.builtin_icon ?? 'pricetag-outline'" [customId]="category(categoryId())?.custom_icon_id ?? null"
+                       [tone]="category(categoryId())?.color ?? null" [seed]="categoryId() ?? 0"></app-badge>
+            <span class="ui-tx"><b>{{ 'reminders.form.category' | t }}</b><small>{{ category(categoryId())?.name || ('reminders.form.none' | t) }}</small></span>
+            @if (categoryId() !== null) { <button type="button" class="clear" (click)="$event.stopPropagation(); categoryId.set(null)" [attr.aria-label]="'reminders.form.clear' | t"><ion-icon name="close"></ion-icon></button> }
+            <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+
+        <button type="button" class="ui-btn save" (click)="save()">{{ 'reminders.form.save' | t }}</button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<app-account-picker [open]="pickingAccount()" [accounts]="accounts()" [selectedId]="accountId()"
+                    [heading]="'reminders.form.account' | t" (chosen)="accountId.set($event.id); pickingAccount.set(false)"
+                    (closed)="pickingAccount.set(false)"></app-account-picker>
+<app-category-sheet [open]="pickingCategory()" [chosen]="categoryId()" kind="expense"
+                    (picked)="categoryId.set($event); pickingCategory.set(false)" (cancelled)="pickingCategory.set(false)"></app-category-sheet>

@@ -21,6 +21,8 @@ import { GoalsService } from '../../core/goals/goals.service';
 import { TourService } from '../../core/tour/tour.service';
 import { DueHomeComponent } from '../debts/due-home.component';
 import { LimitsHomeComponent } from '../plans/limits-home.component';
+import { RemindersHomeComponent } from '../reminders/reminders-home.component';
+import { RemindersService } from '../../core/reminders/reminders.service';
 
 const OPEN_KEY = 'finance.attentionOpen';
 
@@ -30,7 +32,7 @@ const OPEN_KEY = 'finance.attentionOpen';
   // Hidden from "Personaliza tu vista", it still shows a payment already late
   // or a cap gone over (31f): those are never kept quiet.
   host: { '[hidden]': '(onlyUrgent() && !urgent()) || total() === 0' },
-  imports: [TranslatePipe, IonIcon, DueHomeComponent, LimitsHomeComponent],
+  imports: [TranslatePipe, IonIcon, DueHomeComponent, LimitsHomeComponent, RemindersHomeComponent],
   template: `
     @if (total() > 0) {
       <button type="button" class="ui-card bar" [class.open]="open()" data-tour="attention" (click)="toggle()" [attr.aria-expanded]="open()">
@@ -39,6 +41,7 @@ const OPEN_KEY = 'finance.attentionOpen';
           <b>{{ 'home.attention.title' | t:{ count: total() } }}</b>
           <span class="pills">
             @if (payments() > 0) { <span class="pill" [class.red]="paymentsLate()">{{ 'home.attention.payments' | t:{ count: payments() } }}</span> }
+            @if (reminderCount() > 0) { <span class="pill" [class.red]="remindersLate()">{{ (reminderCount() === 1 ? 'home.attention.reminders.one' : 'home.attention.reminders') | t:{ count: reminderCount() } }}</span> }
             @if (caps() > 0) { <span class="pill" [class.red]="capsPassed()">{{ 'home.attention.caps' | t:{ count: caps() } }}</span> }
             @if (goalsLate() > 0) { <span class="pill goal">{{ 'home.attention.goals' | t:{ count: goalsLate() } }}</span> }
           </span>
@@ -48,6 +51,7 @@ const OPEN_KEY = 'finance.attentionOpen';
     }
     <div class="rows" [hidden]="!open() || total() === 0">
       <app-due-home></app-due-home>
+      <app-reminders-home></app-reminders-home>
       <app-limits-home></app-limits-home>
     </div>
   `,
@@ -85,6 +89,9 @@ export class AttentionHomeComponent {
   private readonly limits = inject(LimitsService);
   private readonly goals = inject(GoalsService);
   private readonly tour = inject(TourService);
+  private readonly reminders = inject(RemindersService);
+  readonly reminderCount = computed(() => this.reminders.soon().length);
+  readonly remindersLate = computed(() => this.reminders.soon().some(o => o.late));
   private readonly due = viewChild(DueHomeComponent);
 
   readonly open = signal(readOpen());
@@ -104,8 +111,8 @@ export class AttentionHomeComponent {
     return (v.total?.state === 'passed') || v.passed.length > 0;
   });
   readonly goalsLate = computed(() => this.goals.late().length);
-  readonly total = computed(() => this.payments() + this.caps() + this.goalsLate());
-  readonly urgent = computed(() => this.paymentsLate() || this.capsPassed());
+  readonly total = computed(() => this.payments() + this.reminderCount() + this.caps() + this.goalsLate());
+  readonly urgent = computed(() => this.paymentsLate() || this.remindersLate() || this.capsPassed());
 
   constructor() {
     // The first time something is pending, the tour says what this line is (23g).

@@ -46,6 +46,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/debts/card.page').then(m => m.CardPage),
   },
   {
+    path: 'reminders',
+    loadComponent: () => import('./features/reminders/reminders.page').then(m => m.RemindersPage),
+  },
+  {
     path: 'plans',
     loadComponent: () => import('./features/plans/plans.page').then(m => m.PlansPage),
   },

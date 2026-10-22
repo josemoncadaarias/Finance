@@ -84,6 +84,16 @@ const TOUR_LIST = {
       { target: 'more-prefs', title: 'tour.more.6.title', text: 'tour.more.6.text', since: 2 },
       // 2026-10-15: Finance Pro, what is free and what is paid (34f).
       { target: 'more-pro', title: 'tour.more.7.title', text: 'tour.more.7.text', since: 3 },
+      // 2026-10-22: reminders, under Tus finanzas.
+      { target: 'more-finances', title: 'tour.more.8.title', text: 'tour.more.8.text', since: 4 },
+    ],
+  },
+  reminders: {
+    steps: [
+      { title: 'tour.reminders.1.title', text: 'tour.reminders.1.text' },
+      { target: 'reminders-new', title: 'tour.reminders.2.title', text: 'tour.reminders.2.text' },
+      { target: 'reminders-suggest', title: 'tour.reminders.3.title', text: 'tour.reminders.3.text' },
+      { target: 'reminders-list', title: 'tour.reminders.4.title', text: 'tour.reminders.4.text' },
     ],
   },
   pro: {
@@ -276,7 +286,7 @@ export const TOURS: Record<TourId, Tour> = TOUR_LIST;
 const ROUTE_TOURS: [RegExp, TourId][] = [
   [/^\/more/, 'more'], [/^\/pro/, 'pro'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
   [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
-  [/^\/debts/, 'debts'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
+  [/^\/debts/, 'debts'], [/^\/reminders/, 'reminders'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
   [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'], [/^\/assistant/, 'assistant'],
 ];

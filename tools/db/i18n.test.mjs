@@ -35,6 +35,8 @@ test('no phrase is left empty or accidentally identical', () => {
   const sameOnPurpose = new Set([
     'ui.notifications.chip.app', 'ui.notifications.chip.sms',
     'summary.moved', 'entry.transfer', 'ui.tax.uvt',
+    // A reminder's notice title is its own name and amount, in no language.
+    'reminder.notice.title', 'reminder.notice.titleAmount',
     // "no" is spelled the same in Spanish and English.
     'csv.no',
     // A colour's name, the same word in both.

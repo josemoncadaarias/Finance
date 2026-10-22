@@ -364,6 +364,8 @@ const ASKED = [
   ['how much interest did I earn', 'yields'],
   ['¿Por qué gasté más este mes?', 'whyMore'], ['por qué se me fue tanta plata', 'whyMore'], ['¿en qué gasté de más?', 'whyMore'],
   ['qué subió este mes', 'whyMore'], ['why did I spend more', 'whyMore'],
+  ['recuérdame pagar el arriendo el 5', 'remind'], ['avísame mañana que pague la luz de 120 mil', 'remind'],
+  ['¿qué recordatorios tengo?', 'reminders'], ['remind me to pay the rent on the 1st', 'remind'],
   ['¿cómo va la meta del viaje?', 'plans'], ['cuánto me falta para la meta', 'plans'], ['¿cómo voy con el tope de Mercado?', 'plans'],
 ];
 for (const [said, intent] of ASKED) {
