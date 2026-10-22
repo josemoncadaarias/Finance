@@ -21,7 +21,7 @@ import type { Slice } from '../../features/movements/group-movements';
 import type { AccountRow } from '../../core/database/types';
 import type { LimitView } from '../../core/limits/limits.service';
 import type { GoalView } from '../../core/goals/goals.service';
-import type { DebtView, PeriodPicture, Picture } from '../../core/assistant/assistant.service';
+import type { DebtView, PeriodPicture, Picture, RecurringPicture, YieldsPicture } from '../../core/assistant/assistant.service';
 import { advise, interestThisMonth, monthAfter, payMore, type DebtIn } from '../../core/assistant/debts-advice';
 import { perDay } from '../../core/assistant/free-money';
 import { EA_SCALE } from '../../core/loans/schedule';
@@ -297,6 +297,16 @@ export function payFirst(s: Speech, list: readonly DebtView[], freeMinor: number
         lines: [leftOverMinor > 0 ? s.t('ai.first.tooBig', { save: s.pesos(leftOverMinor) }) : s.t('ai.first.nothingLeft'), s.t('ai.first.keepPaying', { rate: rate(d.rateScaled!) })] } });
     }
   }
+  // The other way people pay debts: the smallest first (Jose, 2026-10-22).
+  const snow = advise(list, leftOverMinor, free, 'balance');
+  const snowOrder = snow.order.filter(o => !snow.statements.includes(o.debt));
+  const sameOrder = snowOrder.map(o => o.debt.id).join() === a.order.map(o => o.debt.id).join();
+  if (snowOrder.length > 1 && !sameOrder) {
+    blocks.push({ lab: s.t('ai.first.snowball') });
+    snowOrder.forEach((o, i) => blocks.push({ line: { k: `${i + 1}. ${view(o.debt).name}`,
+      v: o.months === 0 ? s.t('ai.first.snowballNow') : s.t(o.months === 1 ? 'ai.first.snowballMonth' : 'ai.first.snowballMonths', { count: o.months }) } }));
+    blocks.push({ note: s.t('ai.first.snowballNote') });
+  }
   const referenced = list.filter(x => x.rateFrom === 'reference');
   if (referenced.length > 0) {
     blocks.push({ note: s.t(referenced.length === 1 ? 'ai.first.reference' : 'ai.first.referenceMany', {
@@ -500,6 +510,182 @@ export function plans(s: Speech, limits: readonly LimitView[], goals: readonly G
     card: card(blocks, [{ label: s.t('ai.plans.see'), ghost: true, route: ['/plans'] }]),
     next: ['ai.next.howGoals', 'ai.next.howAmI'],
   };
+}
+
+// ---------------------------------------------------------------------------
+// One cap or one goal, by its name (Jose, 2026-10-22)
+// ---------------------------------------------------------------------------
+
+export function oneCap(s: Speech, l: LimitView): Answer {
+  const st = l.status;
+  const passed = st.state === 'passed';
+  const blocks: RichBlock[] = [
+    { line: { k: s.t('ai.oneCap.spent'), v: s.pesos(st.spentMinor), cls: passed ? 'ui-r' : '' } },
+    { line: { k: s.t('ai.oneCap.amount'), v: s.pesos(st.amountMinor) } },
+    passed
+      ? { line: { k: s.t('ai.oneCap.over'), v: s.pesos(st.overMinor), cls: 'ui-r' } }
+      : { line: { k: s.t('ai.oneCap.left'), v: s.pesos(st.remainingMinor), cls: 'ui-g' } },
+  ];
+  if (!passed && st.daysLeft > 0) {
+    blocks.push({ line: { k: s.t(st.daysLeft === 1 ? 'ai.oneCap.perDay.one' : 'ai.oneCap.perDay', { count: st.daysLeft }), v: s.pesos(st.perDayMinor) } });
+  }
+  if (st.lastMonthSoFarMinor > 0) blocks.push({ line: { k: s.t('ai.oneCap.lastMonth'), v: s.pesos(st.lastMonthSoFarMinor) } });
+  const key: TranslationKey = passed ? 'ai.oneCap.answerPassed' : st.state === 'close' ? 'ai.oneCap.answerClose'
+    : st.state === 'fast' ? 'ai.oneCap.answerFast' : 'ai.oneCap.answerGood';
+  return {
+    said: { key, values: { name: l.name, pct: st.percent, spent: s.pesos(st.spentMinor), amount: s.pesos(st.amountMinor),
+      left: s.pesos(st.remainingMinor), over: s.pesos(st.overMinor), day: s.pesos(st.perDayMinor) } },
+    card: card(blocks, [{ label: s.t('ai.oneCap.see'), ghost: true, route: ['/plans', String(l.terms.id)] }],
+      passed ? 'bad' : st.state === 'good' ? 'plain' : 'warn'),
+    next: ['ai.next.plans', 'ai.next.howAmI'],
+  };
+}
+
+export function oneGoal(s: Speech, g: GoalView): Answer {
+  const st = g.status;
+  const blocks: RichBlock[] = [
+    { line: { k: s.t('ai.goal.saved'), v: s.pesos(st.savedMinor), cls: 'ui-g' } },
+    { line: { k: s.t('ai.goal.amount'), v: s.pesos(g.terms.amountMinor) } },
+  ];
+  let key: TranslationKey;
+  if (st.state === 'reached') key = 'ai.goal.answerReached';
+  else {
+    blocks.push({ line: { k: s.t('ai.goal.left'), v: s.pesos(st.remainingMinor) } });
+    if (st.neededPerMonthMinor !== null && g.terms.dueMonth) {
+      blocks.push({ line: { k: s.t('ai.goal.need', { month: s.month(g.terms.dueMonth) }), v: s.pesos(st.neededPerMonthMinor) } });
+    }
+    blocks.push({ line: { k: s.t('ai.goal.pace'), v: s.pesos(st.paceMinor) } });
+    if (st.arrivalMonth) blocks.push({ line: { k: s.t('ai.goal.arrives'), v: s.month(st.arrivalMonth), cls: st.state === 'late' ? 'ui-y' : 'ui-g' } });
+    else if (st.paceMinor > 0) blocks.push({ note: s.t('ai.goal.tooSlow') });
+    else blocks.push({ note: s.t('ai.goal.noPace') });
+    key = st.state === 'late' ? 'ai.goal.answerLate' : st.state === 'onTime' ? 'ai.goal.answerOnTime' : 'ai.goal.answerNoDate';
+  }
+  return {
+    said: { key, values: { name: g.terms.name, pct: st.percent, saved: s.pesos(st.savedMinor), amount: s.pesos(g.terms.amountMinor),
+      left: s.pesos(st.remainingMinor), need: st.neededPerMonthMinor !== null ? s.pesos(st.neededPerMonthMinor) : '',
+      date: g.terms.dueMonth ? s.month(g.terms.dueMonth) : '', arrives: st.arrivalMonth ? s.month(st.arrivalMonth) : '' } },
+    card: card(blocks, [{ label: s.t('ai.goal.see'), ghost: true, route: ['/plans', 'goal', String(g.terms.id)] }],
+      st.state === 'late' ? 'warn' : 'plain'),
+    next: ['ai.next.plans', 'ai.next.howGoals'],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Qué pago cada mes?" (Jose, 2026-10-22)
+// ---------------------------------------------------------------------------
+
+export function recurring(s: Speech, r: RecurringPicture): Answer {
+  if (r.looked < 3) return { said: { key: 'ai.recurring.tooSoon', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
+  const blocks: RichBlock[] = [];
+  if (r.items.length > 0) {
+    blocks.push({ lab: s.t('ai.recurring.span', { count: r.looked }) });
+    for (const i of r.items.slice(0, 10)) {
+      blocks.push({ row: { icon: i.icon ?? 'repeat-outline', color: i.color ?? COLORS.blu, round: false, title: i.name, value: s.pesos(i.averageMinor),
+        lines: [`${i.category} · ${s.t('ai.recurring.months', { seen: i.monthsSeen, of: r.looked })}`,
+          s.t(i.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
+    }
+    if (r.items.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.items.length - 10 }) });
+    const share = r.spendMinor > 0 ? Math.round(r.totalMinor * 100 / r.spendMinor) : 0;
+    blocks.push({ line: { k: s.t('ai.recurring.total'), v: s.pesos(r.totalMinor) } });
+    if (share > 0) blocks.push({ line: { k: s.t('ai.recurring.share'), v: `${share}\u00a0%` } });
+  }
+  if (r.everyMonth.length > 0) {
+    blocks.push({ lab: s.t('ai.recurring.everyMonthTitle') });
+    blocks.push({ note: s.t('ai.recurring.everyMonth', { names: names(s, r.everyMonth) }) });
+  }
+  blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, count: r.looked }) });
+  const share = r.spendMinor > 0 ? Math.round(r.totalMinor * 100 / r.spendMinor) : 0;
+  return {
+    said: r.items.length === 0
+      ? { key: 'ai.recurring.none', values: { count: r.looked } }
+      : { key: r.items.length === 1 ? 'ai.recurring.answerOne' : 'ai.recurring.answer', values: { count: r.items.length, total: s.pesos(r.totalMinor), share } },
+    card: card(blocks),
+    next: ['ai.next.top', 'ai.next.howAmI'],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Cuánto me han dado mis cuentas?" (Jose, 2026-10-22)
+// ---------------------------------------------------------------------------
+
+export function yieldsAnswer(s: Speech, y: YieldsPicture | null): Answer {
+  if (y === null) return { said: { key: 'ai.yields.none', values: {} }, card: null, next: ['ai.next.have'] };
+  const blocks: RichBlock[] = [{ lab: s.t('ai.period.span', { label: y.label, from: s.date(y.from), to: s.date(y.to) }) }];
+  for (const a of y.accounts) {
+    blocks.push({ row: { icon: a.account.builtin_icon ?? 'wallet-outline', color: a.account.color ?? COLORS.grn, round: true,
+      title: a.account.name, value: `+${s.pesos(a.minor)}`, lines: [] } });
+  }
+  blocks.push({ line: { k: s.t('ai.yields.total'), v: `+${s.pesos(y.totalMinor)}`, cls: 'ui-g' } });
+  let change: number | null = null;
+  if (y.before && y.before.minor > 0) {
+    change = Math.round((y.totalMinor - y.before.minor) * 100 / y.before.minor);
+    blocks.push({ line: { k: s.t(y.partial ? 'ai.yields.beforeSameDays' : 'ai.yields.before', { label: y.before.label }), v: s.pesos(y.before.minor) } });
+  }
+  const waiting = y.waiting.reduce((sum, w) => sum + w.minor, 0);
+  if (waiting > 0) {
+    blocks.push({ lab: s.t('ai.yields.waitingTitle') });
+    for (const w of y.waiting.slice(0, 5)) blocks.push({ line: { k: w.account.name, v: s.pesos(w.minor) } });
+    if (y.waiting.length > 5) {
+      const rest = y.waiting.slice(5);
+      blocks.push({ line: { k: s.t('ai.yields.waitingMore', { count: rest.length }), v: s.pesos(rest.reduce((sum, w) => sum + w.minor, 0)) } });
+    }
+    blocks.push({ line: { k: s.t('ai.yields.waitingTotal'), v: s.pesos(waiting), cls: 'ui-g' } });
+    blocks.push({ note: s.t('ai.yields.waitingNote') });
+  }
+  if (y.workedUntil) blocks.push({ note: s.t('ai.yields.workedUntil', { date: s.date(y.workedUntil) }) });
+  blocks.push({ note: s.t('ai.yields.net') });
+  const top = y.accounts[0];
+  const said: Said = y.totalMinor <= 0
+    ? { key: 'ai.yields.nothing', values: { label: y.label } }
+    : { key: change === null ? 'ai.yields.answer' : change >= 0 ? 'ai.yields.answerUp' : 'ai.yields.answerDown',
+      values: { label: y.label, total: s.pesos(y.totalMinor), name: top?.account.name ?? '', top: top ? s.pesos(top.minor) : '',
+        pct: Math.abs(change ?? 0), than: y.before?.label ?? '' } };
+  return {
+    said,
+    card: card(blocks, [{ label: s.t('ai.yields.see'), ghost: true, route: ['/products'] }]),
+    next: ['ai.next.yieldsYear', 'ai.next.have'],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Por qué gasté más?" (Jose, 2026-10-22)
+// ---------------------------------------------------------------------------
+
+export function whyMore(s: Speech, pic: PeriodPicture): Answer {
+  const b = pic.before;
+  if (!b || b.outMinor <= 0) return { said: { key: 'ai.why.noBefore', values: { label: pic.label } }, card: null, next: ['ai.next.top'] };
+  const diff = pic.outMinor - b.outMinor;
+  const was = new Map(b.slices.map(sl => [sl.label, sl.amountMinor]));
+  const is = new Map(pic.slices.map(sl => [sl.label, sl.amountMinor]));
+  const moves = [...new Set([...was.keys(), ...is.keys()])]
+    .map(label => ({ label, by: (is.get(label) ?? 0) - (was.get(label) ?? 0), now: is.get(label) ?? 0, before: was.get(label) ?? 0,
+      slice: pic.slices.find(sl => sl.label === label) ?? b.slices.find(sl => sl.label === label)! }));
+  const up = moves.filter(m => m.by > 0).sort((x, y) => y.by - x.by).slice(0, 4);
+  const down = moves.filter(m => m.by < 0).sort((x, y) => x.by - y.by).slice(0, 2);
+  const blocks: RichBlock[] = [
+    { lab: s.t(pic.partial ? 'ai.period.vsSameDays' : 'ai.period.vs', { label: b.label }) },
+    { line: { k: s.t('ai.period.spentIn', { label: b.label }), v: s.pesos(b.outMinor) } },
+    { line: { k: s.t('ai.period.spentIn', { label: pic.label }), v: s.pesos(pic.outMinor) } },
+    { line: { k: s.t('ai.period.difference'), v: `${diff >= 0 ? '+' : '−'}${s.pesos(Math.abs(diff))}`, cls: diff > 0 ? 'ui-r' : 'ui-g' } },
+  ];
+  if (up.length > 0) {
+    blocks.push({ lab: s.t('ai.why.up') });
+    for (const m of up) blocks.push({ row: { icon: m.slice.icon ?? 'pricetag-outline', color: m.slice.color ?? COLORS.org, round: false,
+      title: m.label, value: `+${s.pesos(m.by)}`, lines: [s.t('ai.why.fromTo', { before: s.pesos(m.before), now: s.pesos(m.now) })] } });
+  }
+  if (down.length > 0) {
+    blocks.push({ lab: s.t('ai.why.down') });
+    for (const m of down) blocks.push({ line: { k: m.label, v: `−${s.pesos(-m.by)}`, cls: 'ui-g' } });
+  }
+  // Said whole: what went up AND what went down, so a jump that another
+  // category made up for does not read as the whole story.
+  const same = Math.abs(diff) * 100 < b.outMinor * 5;
+  const parts = [s.t(same ? 'ai.why.same' : diff > 0 ? 'ai.why.more' : 'ai.why.less',
+    { label: pic.label, amount: s.pesos(Math.abs(diff)), than: b.label })];
+  if (up[0]) parts.push(s.t('ai.why.upPart', { name: up[0].label, by: s.pesos(up[0].by) }));
+  if (down[0]) parts.push(s.t('ai.why.downPart', { name: down[0].label, by: s.pesos(-down[0].by) }));
+  const said: Said = { key: 'ai.why.more', values: {}, text: parts.join(' ') };
+  return { said, card: card(blocks, [{ label: s.t('ai.period.report'), ghost: true, report: pic.period }]), next: ['ai.next.top', 'ai.next.recurring'] };
 }
 
 // ---------------------------------------------------------------------------

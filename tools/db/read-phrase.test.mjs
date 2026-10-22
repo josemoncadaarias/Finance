@@ -355,6 +355,16 @@ const ASKED = [
   ['¿Cómo van mis topes y mis metas?', 'plans'], ['como voy con mis metas', 'plans'], ['mis presupuestos', 'plans'],
   ['¿cuánto me queda libre?', 'perDay'],
   ['¿Cómo calculas lo de mis metas?', 'howGoals'],
+  // Jose, 2026-10-22: what comes back every month, what the accounts paid, why it went up, one cap or goal.
+  ['¿Qué pago cada mes?', 'recurring'], ['cuáles son mis gastos fijos', 'recurring'], ['cuánto se me va en suscripciones', 'recurring'],
+  ['qué gastos se repiten', 'recurring'], ['¿cuánto pago todos los meses?', 'recurring'], ['mis pagos mensuales', 'recurring'],
+  ['what are my monthly bills', 'recurring'],
+  ['¿Cuánto me han dado mis cuentas?', 'yields'], ['cuánto llevo de rendimientos', 'yields'], ['¿cuánto me ha rendido Nequi?', 'yields'],
+  ['cuántos intereses me pagaron este mes', 'yields'], ['qué rentabilidad tengo', 'yields'], ['cuánto he ganado en mis bolsillos', 'yields'],
+  ['how much interest did I earn', 'yields'],
+  ['¿Por qué gasté más este mes?', 'whyMore'], ['por qué se me fue tanta plata', 'whyMore'], ['¿en qué gasté de más?', 'whyMore'],
+  ['qué subió este mes', 'whyMore'], ['why did I spend more', 'whyMore'],
+  ['¿cómo va la meta del viaje?', 'plans'], ['cuánto me falta para la meta', 'plans'], ['¿cómo voy con el tope de Mercado?', 'plans'],
 ];
 for (const [said, intent] of ASKED) {
   test(`a question, said another way: "${said}"`, () => {

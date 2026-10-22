@@ -110,3 +110,11 @@ test('the legal maximum of the latest month known', () => {
   assert.equal(usuryOn('2026-10-19').month, '2026-09');
   assert.equal(usuryOn('2026-08-01').month, '2026-08');
 });
+
+test('the snowball: the smallest debt first, offered beside the highest rate (Jose, 2026-10-22)', () => {
+  const small = { ...base, kind: 'loan', id: 6, name: 'Electrodoméstico', balanceMinor: P(600_000), rateScaled: EA(20), installmentMinor: P(100_000), installmentsLeft: 6 };
+  const byRate = advise([phone, small], P(500_000));
+  assert.deepEqual(byRate.order.map(o => o.debt.name), ['Celular', 'Electrodoméstico']);
+  const byBalance = advise([phone, small], P(500_000), 0, 'balance');
+  assert.deepEqual(byBalance.order.map(o => [o.debt.name, o.months]), [['Electrodoméstico', 2], ['Celular', 5]]);
+});

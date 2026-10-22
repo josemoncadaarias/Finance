@@ -31,6 +31,7 @@ import { GoalsService } from '../goals/goals.service';
 import { LimitsService, type LimitView } from '../limits/limits.service';
 import { monthOf, shiftMonth, daysInMonth } from '../limits/limits';
 import { wordCategoryOf } from '../proposals/common-words';
+import { merchantKeyOf } from '../proposals/merchant';
 import { isoDay, periodContaining, periodLabel, type Period } from '../filters/period';
 import { MovementsStore } from '../../features/movements/movements.store';
 import { slicesOf, totalsOf, type Slice } from '../../features/movements/group-movements';
@@ -81,6 +82,61 @@ export interface PeriodPicture {
   before: { label: string; from: string; to: string; inMinor: number; outMinor: number; slices: Slice[] } | null;
   /** Spending by category, largest first. */
   slices: Slice[];
+}
+
+/**
+ * A fixed payment (Jose, 2026-10-22): the same shop or note, paid in most of
+ * the last months, for about the same amount each time - the rent, a plan,
+ * a subscription.
+ */
+export interface RecurringItem {
+  /** What it is called, as last written. */
+  name: string;
+  /** Its category, drawn beside it. */
+  category: string;
+  icon: string | null;
+  customIconId: number | null;
+  color: string | null;
+  seed: number | null;
+  /** In how many of the months looked at it turned up. */
+  monthsSeen: number;
+  /** What it costs in a month it turns up, on average. */
+  averageMinor: number;
+  /** What it has cost so far this month. */
+  thisMonthMinor: number;
+}
+
+export interface RecurringPicture {
+  /** How many whole months were looked at (up to six). */
+  looked: number;
+  /** In how many of them a payment has to turn up to count. */
+  needed: number;
+  items: RecurringItem[];
+  /** All of it in an ordinary month, and the whole average spending, for the share. */
+  totalMinor: number;
+  spendMinor: number;
+  /** Categories with spending every month, whose amount changes: named, not added. */
+  everyMonth: string[];
+}
+
+/** How far a month's amount may stray from the average and still be "the same" payment. */
+const STEADY = 0.25;
+
+/** What the accounts that earn paid over a period, net of withholding, in pesos. */
+export interface YieldsPicture {
+  period: Period;
+  label: string;
+  partial: boolean;
+  from: string;
+  to: string;
+  totalMinor: number;
+  accounts: { account: AccountRow; minor: number }[];
+  /** The same days of the period before. */
+  before: { label: string; minor: number } | null;
+  /** The last day worked out, when it is before the period's end. */
+  workedUntil: string | null;
+  /** Interest the products hold that is not in the balance yet (rule 15). */
+  waiting: { account: AccountRow; minor: number }[];
 }
 
 /** One debt as the assistant speaks of it (40d-40h). */
@@ -355,6 +411,123 @@ export class AssistantService {
     return {
       period, label: periodLabel(period, locale, all), partial, from, to,
       inMinor: totals.inMinor, outMinor: totals.outMinor, before, slices: spending(movements),
+    };
+  }
+
+  /**
+   * What comes back every month: each spending category that turned up in at
+   * least 4 of the last 6 whole months (3 of 3, 3 of 4, 3 of 5), the way the
+   * report's "Gastos que se repiten" judges it - by turning up, never by a
+   * name looking like a subscription.
+   */
+  async recurring(): Promise<RecurringPicture> {
+    const now = new Date();
+    type Movements = Awaited<ReturnType<MovementsStore['movementsFor']>>;
+    const spending = (list: Movements) => slicesOf(list, 'base').filter(slice => slice.flow === 'out' && slice.amountMinor > 0);
+    /** Each payment of a month by its shop or note: what it cost, and how it looks. */
+    const byShop = (list: Movements) => {
+      const out = new Map<string, { minor: number; m: Movements[number] }>();
+      for (const m of list) {
+        if (m.flow !== 'out') continue;
+        const key = merchantKeyOf(m.transaction.description);
+        if (!key) continue;
+        const at = out.get(key);
+        const minor = Math.abs(m.transaction.amount_base_minor);
+        if (at) { at.minor += minor; at.m = m; } else out.set(key, { minor, m });
+      }
+      return out;
+    };
+    const months: Movements[] = [];
+    for (let back = 1; back <= 6; back++) {
+      months.push(await this.store.movementsFor(periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1)), undefined, true));
+    }
+    // Months before anything was recorded are not months of the habit.
+    while (months.length > 0 && spending(months[months.length - 1]).length === 0) months.pop();
+    const looked = months.length;
+    const needed = Math.max(3, Math.ceil(looked * 0.6));
+    const current = byShop(await this.store.movementsFor(periodContaining('month', now), undefined, true));
+
+    const seen = new Map<string, { amounts: number[]; m: Movements[number] }>();
+    for (const list of [...months].reverse()) {
+      for (const [key, at] of byShop(list)) {
+        const was = seen.get(key);
+        if (was) { was.amounts.push(at.minor); was.m = at.m; } else seen.set(key, { amounts: [at.minor], m: at.m });
+      }
+    }
+    const items: RecurringItem[] = [];
+    if (looked >= 3) {
+      for (const [key, x] of seen) {
+        if (x.amounts.length < needed) continue;
+        const average = Math.round(x.amounts.reduce((sum, v) => sum + v, 0) / x.amounts.length);
+        if (average <= 0 || x.amounts.some(v => Math.abs(v - average) > average * STEADY)) continue;
+        const t = x.m;
+        items.push({ name: (t.transaction.description ?? '').trim(), category: t.label, icon: t.icon, customIconId: t.customIconId,
+          color: t.color ?? null, seed: t.seed ?? null, monthsSeen: x.amounts.length, averageMinor: average,
+          thisMonthMinor: current.get(key)?.minor ?? 0 });
+      }
+    }
+    items.sort((a, b) => b.averageMinor - a.averageMinor);
+    // Categories spent on every month, whose amount moves: said by name.
+    const counts = new Map<string, { months: number; total: number }>();
+    for (const list of months) for (const sl of spending(list)) {
+      const at = counts.get(sl.label) ?? { months: 0, total: 0 };
+      at.months += 1; at.total += sl.amountMinor;
+      counts.set(sl.label, at);
+    }
+    const fixedCategories = new Set(items.map(i => i.category));
+    const everyMonth = looked < 3 ? [] : [...counts.entries()]
+      .filter(([label, c]) => c.months === looked && !fixedCategories.has(label))
+      .sort((a, b) => b[1].total - a[1].total).slice(0, 6).map(([label]) => label);
+    const all = months.reduce((sum, list) => sum + spending(list).reduce((t, sl) => t + sl.amountMinor, 0), 0);
+    return {
+      looked, needed, items, everyMonth,
+      totalMinor: items.reduce((sum, i) => sum + i.averageMinor, 0),
+      spendMinor: looked > 0 ? Math.round(all / looked) : 0,
+    };
+  }
+
+  /**
+   * What the accounts that earn paid over a period (this month when none is
+   * said), net of withholding, each in pesos at today's rate; against the
+   * same days of the period before. Null when no account earns.
+   */
+  async yieldsPicture(asked: Period | null, accountId: number | null): Promise<YieldsPicture | null> {
+    const db = this.db;
+    const today = isoDay(new Date());
+    const yields = new YieldsRepository(db);
+    const enrolled = (await yields.accounts()).map(e => e.account_id)
+      .filter(id => accountId === null || id === accountId);
+    if (enrolled.length === 0) return null;
+    const period = asked ?? periodContaining('month', new Date());
+    const from = period.from ?? '2000-01-01';
+    const to = period.to !== null && period.to < today ? period.to : today;
+    const partial = period.to === null || period.to >= today;
+    const [rates, rows] = await Promise.all([new GoalsRepository(db).rates(today), new AccountsRepository(db).balances()]);
+    const pesos = (map: Map<number, number>) => {
+      const out: { account: AccountRow; minor: number }[] = [];
+      for (const [id, minor] of map) {
+        const account = rows.find(b => b.account.id === id)?.account;
+        const value = account ? inPesos(minor, account.currency_code, rates) : null;
+        if (account && value !== null && value !== 0) out.push({ account, minor: value });
+      }
+      return out.sort((a, b) => b.minor - a.minor);
+    };
+    const accounts = pesos(await yields.earnedBetween(enrolled, from, to));
+    const locale = this.i18n.dateLocale();
+    const all = this.i18n.t('period.all');
+    const earlier = period.from ? equivalentBefore(period, daysBetween(from, to) + 1) : null;
+    let before: YieldsPicture['before'] = null;
+    if (earlier && earlier.from && earlier.to) {
+      const was = pesos(await yields.earnedBetween(enrolled, earlier.from, earlier.to));
+      before = { label: periodLabel(earlier, locale, all), minor: was.reduce((sum, a) => sum + a.minor, 0) };
+    }
+    const last = (await db.queryOne<{ last: string | null }>(
+      `SELECT MAX(on_date) AS last FROM yield_days WHERE account_id IN (${enrolled.map(() => '?').join(',')})`, enrolled))?.last ?? null;
+    const waiting = (await this.interest(rates)).filter(w => accountId === null || w.account.id === accountId);
+    return {
+      period, label: periodLabel(period, locale, all), partial, from, to,
+      totalMinor: accounts.reduce((sum, a) => sum + a.minor, 0), accounts, before,
+      workedUntil: last !== null && last < to ? last : null, waiting,
     };
   }
 

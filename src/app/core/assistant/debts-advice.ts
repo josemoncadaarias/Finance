@@ -86,13 +86,21 @@ export interface Advice {
   unknown: DebtIn[];
 }
 
-export function advise(debts: readonly DebtIn[], leftOverPerMonthMinor: number, freeNowMinor = 0): Advice {
+/**
+ * Which debt to pay first. `rate` (the avalanche, what is advised): the
+ * highest rate first, so the least interest is paid. `balance` (the snowball,
+ * offered beside it on Jose's word, 2026-10-22): the smallest first, so a debt
+ * is closed sooner, usually at a little more interest.
+ */
+export function advise(debts: readonly DebtIn[], leftOverPerMonthMinor: number, freeNowMinor = 0, by: 'rate' | 'balance' = 'rate'): Advice {
   const owed = debts.filter(d => d.balanceMinor > 0);
   const statements = owed.filter(d => d.kind === 'card' && d.statementLeftMinor > 0)
     .sort((a, b) => (a.dueOn ?? '9999').localeCompare(b.dueOn ?? '9999'));
   const known = owed.filter(d => d.rateScaled !== null);
   const unknown = owed.filter(d => d.rateScaled === null);
-  const byRate = [...known].sort((a, b) => (b.rateScaled! - a.rateScaled!) || (a.balanceMinor - b.balanceMinor));
+  const byRate = by === 'balance'
+    ? [...known].sort((a, b) => (a.balanceMinor - b.balanceMinor) || (b.rateScaled! - a.rateScaled!))
+    : [...known].sort((a, b) => (b.rateScaled! - a.rateScaled!) || (a.balanceMinor - b.balanceMinor));
   const order: Advice['order'] = [];
   const apart: Advice['apart'] = [];
   // Paid one after another: each takes what the ones before it left.
