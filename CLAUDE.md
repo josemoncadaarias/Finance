@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1039 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1040 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -268,7 +268,8 @@ these):
   account-and-period step (`since: 8`) and the report's period step
   (`since: 2`) - quincena and semestre. Version 12 (2026-10-22): Inicio -
   "Atajos desde el ícono" (`since: 9`). Version 13 (2026-10-22): Inicio's
-  "+" step names "Lo que más registras" (`since: 10`).
+  "+" step names "Lo que más registras" (`since: 10`). Version 14
+  (2026-10-22): Inicio - "Lo que puedes gastar hoy" (`since: 11`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5667,6 +5668,22 @@ with testers runs; the paywall is finished after them.
   `frequent.test.mjs` (invented data). Checked in a browser on Jose's backup
   (two transfers and two spendings offered; the transfer between products
   opened on both products with its note).
+- **"Puedes gastar hoy" on Inicio** (Jose, 2026-10-22, idea 1): a block
+  under the balance with what is free to spend each day to the month's end
+  (`app-safe-today`, `features/movements/safe-today.component.ts`), and
+  under it "De $ X libres hasta el 31 de octubre, repartidos en N días"; at
+  zero or below, in red, how much is missing for the month's payments and
+  goals. A tap opens "Cómo se calcula lo que puedes gastar": the assistant's
+  lines (Tienes hoy en tus cuentas, Ya está guardado para tus metas, Pagos
+  que te faltan este mes with each payment, Sugerido para tus metas with
+  each goal, Libre para gastar, per day), a note on what is and is not
+  added, and "Preguntarle al asistente". The figure IS the assistant's
+  (`AssistantService.picture().free`, `perDay`), never worked out a second
+  way; read on every data change and new day. The same for every account
+  chosen on top: it is about all the money. A block of "Personaliza tu
+  vista" (`home.today`, can be hidden and dragged; an order kept from before
+  takes it last). Home tour step `since: 11`. Checked in a browser on Jose's
+  backup.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5715,7 +5732,7 @@ with testers runs; the paywall is finished after them.
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | **Built** 2026-10-22 (trimestre already was) |
 | 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Shortcuts **built** 2026-10-22; favourites proposed |
 | 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | **Built** as limits, 2026-10-01 |
-| 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | Proposed |
+| 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | **Built** 2026-10-22 ("Puedes gastar hoy" on Inicio) |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
 | 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed and drawn (`11l`, `11n`), "Debts and plans" |
 | 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | **Built** 2026-10-22 (Recordatorios) |

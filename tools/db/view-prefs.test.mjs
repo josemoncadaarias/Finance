@@ -11,13 +11,13 @@ import { firstFace, inOrder, movedKeys, orderedBlocks, VIEW_SCREENS } from '../.
 const keys = (s, stored = []) => orderedBlocks(s, stored).map(b => b.key);
 
 test('the app comes in its own order, and Inicio opens on the chart', () => {
-  assert.deepEqual(keys('home'), ['home.attention', 'home.figures', 'home.chart', 'home.list']);
+  assert.deepEqual(keys('home'), ['home.attention', 'home.figures', 'home.today', 'home.chart', 'home.list']);
   assert.equal(firstFace(keys('home')), 'chart');
 });
 
 test('a block dragged moves, and the list above the chart opens Inicio on the list', () => {
-  const order = movedKeys('home', [], 3, 0);
-  assert.deepEqual(keys('home', order), ['home.list', 'home.attention', 'home.figures', 'home.chart']);
+  const order = movedKeys('home', [], 4, 0);
+  assert.deepEqual(keys('home', order), ['home.list', 'home.attention', 'home.figures', 'home.today', 'home.chart']);
   assert.equal(firstFace(keys('home', order)), 'list');
 });
 
@@ -31,6 +31,11 @@ test('a pinned block stays first and is not among the movable ones', () => {
 test('a block the stored order does not know yet comes after it, in its own place', () => {
   assert.deepEqual(keys('debts', ['debts.loans']), ['debts.total', 'debts.loans', 'debts.cards']);
   assert.equal(keys('report', ['report.biggest']).length, VIEW_SCREENS.report.blocks.length);
+});
+
+test('a home order kept from before "Puedes gastar hoy" takes it after what it knew', () => {
+  const before = ['home.list', 'home.attention', 'home.figures', 'home.chart'];
+  assert.deepEqual(keys('home', before), [...before, 'home.today']);
 });
 
 test('a drop out of range changes nothing', () => {

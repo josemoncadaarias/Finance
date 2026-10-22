@@ -68,6 +68,7 @@
       @switch (slot) {
         @case ('attention') { <ng-container *ngTemplateOutlet="attentionBlock"></ng-container> }
         @case ('figures') { <ng-container *ngTemplateOutlet="figuresBlock"></ng-container> }
+        @case ('today') { <app-safe-today></app-safe-today> }
         @case ('faces') { <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div> }
       }
     }

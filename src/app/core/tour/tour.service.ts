@@ -51,6 +51,8 @@ const TOUR_LIST = {
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
+      // 2026-10-22: what can be spent today, and how (idea 1).
+      { sel: 'app-movements app-safe-today .today', title: 'tour.home.today.title', text: 'tour.home.today.text', since: 11 },
       { sel: 'app-movements .figures .used', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 4 },
       { sel: 'app-movements app-spending-chart .box', title: 'tour.home.donut.title', text: 'tour.home.donut.text', since: 4 },
       // 2026-10-19: the assistant, on every screen (39p).

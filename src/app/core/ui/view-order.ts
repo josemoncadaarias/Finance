@@ -28,6 +28,7 @@ export const VIEW_SCREENS: Record<ViewScreen, { title: TranslationKey; icon: str
     blocks: [
       { key: 'home.attention', title: 'view.home.attention', about: 'view.home.attention.about', icon: 'notifications-outline', color: '#ef5b66' },
       { key: 'home.figures', title: 'view.home.figures', about: 'view.home.figures.about', icon: 'wallet-outline', color: '#6378ff', fixed: true },
+      { key: 'home.today', title: 'view.home.today', about: 'view.home.today.about', icon: 'sunny-outline', color: '#34c98b' },
       { key: 'home.chart', title: 'view.home.chart', about: 'view.home.chart.about', icon: 'pie-chart-outline', color: '#ff9152' },
       { key: 'home.list', title: 'view.home.list', about: 'view.home.list.about', icon: 'list-outline', color: '#34c98b' },
     ],
