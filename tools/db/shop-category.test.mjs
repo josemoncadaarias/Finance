@@ -27,7 +27,7 @@ test('the shop exactly as the app learned it', () => {
 test('the same chain at another branch', () => {
   const m = shopMatch('MERCADO LAS PALMAS SEDE NORTE', KNOWN, CATEGORIES, []);
   assert.equal(m.categoryId, 1);
-  assert.equal(m.how, 'chain');
+  assert.equal(shopMatch('Cafe Aurora Calle 80', KNOWN, CATEGORIES, []).how, 'chain');
   assert.equal(shopMatch('Farmacia Rosa Calle 80', KNOWN, CATEGORIES, []).categoryId, 2);
 });
 
@@ -45,6 +45,12 @@ test('what the person filed notes naming the shop under', () => {
   const m = shopMatch('DONDE LUCHO PARRILLA', [], CATEGORIES, notes);
   assert.equal(m.how, 'notes');
   assert.equal(m.categoryId, 4);
+});
+
+test('a category named after the shop wins over a branch filed elsewhere', () => {
+  const known = [{ merchant: 'ALMACEN SOL CENTRO', categoryId: 6, accountId: 3, note: null, times: 9 }];
+  const categories = [{ id: 6, name: 'Casa' }, { id: 7, name: 'Almacén Sol' }];
+  assert.equal(shopMatch('ALMACEN SOL SEDE NORTE', known, categories, []).categoryId, 7);
 });
 
 test('one note is no habit, and a shop with nothing in common is nobody\'s', () => {
