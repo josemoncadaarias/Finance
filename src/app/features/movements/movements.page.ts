@@ -9,6 +9,7 @@
  */
 
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { SafeTodayComponent } from './safe-today.component';
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
 import { Component, ElementRef, computed, inject, signal, effect, untracked, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -60,7 +61,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
   selector: 'app-movements',
   templateUrl: './movements.page.html',
   styleUrls: ['./movements.page.scss'],
-  imports: [AskButtonComponent, EmptyStateComponent, 
+  imports: [AskButtonComponent, EmptyStateComponent, SafeTodayComponent, 
     AmountsEyeComponent,
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,
@@ -76,9 +77,11 @@ export class MovementsPage {
   readonly view = inject(ViewPrefsService);
   /** Inicio's three places in the order chosen: Pendientes, the balance, the chart or list. */
   readonly homeSlots = computed(() => {
-    const slots: ('attention' | 'figures' | 'faces')[] = [];
+    const slots: ('attention' | 'figures' | 'today' | 'faces')[] = [];
     for (const key of this.view.homeOrder()) {
-      const slot = key === 'home.attention' ? 'attention' : key === 'home.figures' ? 'figures' : 'faces';
+      if (key === 'home.today' && !this.view.shown('home.today')) continue;
+      const slot = key === 'home.attention' ? 'attention' : key === 'home.figures' ? 'figures'
+        : key === 'home.today' ? 'today' : 'faces';
       if (!slots.includes(slot)) slots.push(slot);
     }
     return slots;
