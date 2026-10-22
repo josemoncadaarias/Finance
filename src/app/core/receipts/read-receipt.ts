@@ -10,9 +10,12 @@
  *   column of words beside a column of figures, and in a photo held at an
  *   angle the figures slide a row up or down against their words (Jose,
  *   2026-10-22: "VALOR TOTAL" read the saving printed above it). So the words
- *   of the summary are paired with its figures BY ORDER, the figures shifted
- *   a row when one is missing, and of the ways to pair them the one whose
- *   figures add up (subtotal less discounts, plus taxes, is the total) wins.
+ *   of the summary are paired with its figures BY ORDER, the column shifted a
+ *   row either way or past a stray figure (a pen stroke over the words), and
+ *   of the ways to pair them the one whose figures add up (subtotal less
+ *   discounts, plus taxes, is the total) wins; when a misread digit stops
+ *   every way adding up, the first that makes sense (the total no smaller
+ *   than a discount or a tax, no larger than the subtotal with nothing added).
  *   With no such line, the largest amount on the receipt, marked unsure;
  * - **the day** is the first date written anywhere on it that is not in the
  *   future nor more than two years old;
@@ -134,6 +137,20 @@ function addsUp(p: Pairing): boolean {
 }
 
 /**
+ * Whether a pairing can be a receipt at all: the total is never smaller than a
+ * discount, a tax or a tip, and with nothing added it is never more than the
+ * subtotal. A misread digit stops a pairing adding up; this still tells the
+ * total from the saving printed beside it.
+ */
+function sensible(p: Pairing): boolean {
+  const total = totalOf(p);
+  if (total === null) return false;
+  if (p.pairs.some(x => (x.part === 'less' || x.part === 'more') && x.minor > total)) return false;
+  const sub = p.pairs.find(x => x.part === 'subtotal')?.minor;
+  return sub === undefined || p.pairs.some(x => x.part === 'more') || total <= sub;
+}
+
+/**
  * The figures of a line: its amounts, or a small one written bare at its end
  * ("IVA 19% 921") - on a summary line that is a figure, not a count.
  */
@@ -159,16 +176,11 @@ function pairings(rows: readonly Row[]): Pairing[] {
   const paired = (amounts: number[]): Pairing => ({ pairs: words.map((w, i) => ({ ...w, minor: amounts[i] })) });
 
   const found: Pairing[] = [];
-  const inside = figures(first, last);
-  if (inside.length === words.length) found.push(paired(inside));
-  if (inside.length === words.length - 1) {
-    // One figure slid out of the column: below its words, or above them.
-    if (rows[last + 1]?.amounts.length) found.push(paired(figures(first, last + 1)));
-    if (first > start || (first === start && first > 0 && rows[first - 1]?.amounts.length)) {
-      const above = figures(first - 1, last);
-      if (above.length === words.length) found.push(paired(above));
-    }
-  }
+  // The column of figures beside the words, a row above and below them too: a
+  // photo held at an angle slides it, and a stroke of a pen or a stamp may add
+  // a stray figure. Every run of as many figures as there are words is a way.
+  const column = figures(first - 1, last + 1);
+  for (let at = 0; at + words.length <= column.length; at++) found.push(paired(column.slice(at, at + words.length)));
   // Each word with the figure on its own line, or on the line under it.
   const own: Pairing = { pairs: [] };
   labels.forEach((i, n) => {
@@ -188,7 +200,7 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
   const rows: Row[] = lines.map(text => ({ text, amounts: figuresOf(text) }));
 
   const ways = pairings(rows);
-  const chosen = ways.find(addsUp) ?? ways[0];
+  const chosen = ways.find(addsUp) ?? ways.find(sensible) ?? ways[0];
   let totalMinor: number | null = chosen ? totalOf(chosen) : null;
   let totalSure = totalMinor !== null;
   if (totalMinor === null) {
