@@ -41,6 +41,7 @@ import { splitWorth } from '../worth/worth-split';
 import { usuryOn } from '../debts/usury';
 import type { DebtIn } from './debts-advice';
 import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 
 const LEARNED_KEY = 'assistant.learned';
@@ -84,43 +85,10 @@ export interface PeriodPicture {
   slices: Slice[];
 }
 
-/**
- * A fixed payment (Jose, 2026-10-22): the same shop or note, paid in most of
- * the last months, for about the same amount each time - the rent, a plan,
- * a subscription.
- */
-export interface RecurringItem {
-  /** What it is called, as last written. */
-  name: string;
-  /** Its category, drawn beside it. */
-  category: string;
-  icon: string | null;
-  customIconId: number | null;
-  color: string | null;
-  seed: number | null;
-  /** In how many of the months looked at it turned up. */
-  monthsSeen: number;
-  /** What it costs in a month it turns up, on average. */
-  averageMinor: number;
-  /** What it has cost so far this month. */
-  thisMonthMinor: number;
+/** What comes back every month, with each one's face (`recurringOf`). */
+export interface RecurringPicture extends Recurring {
+  faces: Map<string, Face>;
 }
-
-export interface RecurringPicture {
-  /** How many whole months were looked at (up to six). */
-  looked: number;
-  /** In how many of them a payment has to turn up to count. */
-  needed: number;
-  items: RecurringItem[];
-  /** All of it in an ordinary month, and the whole average spending, for the share. */
-  totalMinor: number;
-  spendMinor: number;
-  /** Categories with spending every month, whose amount changes: named, not added. */
-  everyMonth: string[];
-}
-
-/** How far a month's amount may stray from the average and still be "the same" payment. */
-const STEADY = 0.25;
 
 /** What the accounts that earn paid over a period, net of withholding, in pesos. */
 export interface YieldsPicture {
@@ -423,67 +391,30 @@ export class AssistantService {
   async recurring(): Promise<RecurringPicture> {
     const now = new Date();
     type Movements = Awaited<ReturnType<MovementsStore['movementsFor']>>;
-    const spending = (list: Movements) => slicesOf(list, 'base').filter(slice => slice.flow === 'out' && slice.amountMinor > 0);
-    /** Each payment of a month by its shop or note: what it cost, and how it looks. */
-    const byShop = (list: Movements) => {
-      const out = new Map<string, { minor: number; m: Movements[number] }>();
+    const faces = new Map<string, Face>();
+    const spendOf = (list: Movements): MonthSpend => {
+      const shops: MonthSpend['shops'] = new Map();
+      const categories: MonthSpend['categories'] = new Map();
       for (const m of list) {
-        if (m.flow !== 'out') continue;
-        const key = merchantKeyOf(m.transaction.description);
+        if (m.flow !== 'out' && m.flow !== 'refund') continue;
+        const minor = m.flow === 'refund' ? -Math.abs(m.transaction.amount_base_minor) : Math.abs(m.transaction.amount_base_minor);
+        categories.set(m.label, (categories.get(m.label) ?? 0) + minor);
+        if (!faces.has(m.label)) faces.set(m.label, { label: m.label, icon: m.icon, customIconId: m.customIconId, color: m.color ?? null, seed: m.seed ?? null });
+        const key = m.flow === 'out' ? merchantKeyOf(m.transaction.description) : '';
         if (!key) continue;
-        const at = out.get(key);
-        const minor = Math.abs(m.transaction.amount_base_minor);
-        if (at) { at.minor += minor; at.m = m; } else out.set(key, { minor, m });
+        const at = shops.get(key);
+        if (at) { at.minor += minor; at.name = (m.transaction.description ?? '').trim(); }
+        else shops.set(key, { minor, name: (m.transaction.description ?? '').trim(), category: m.label });
       }
-      return out;
+      for (const [label, minor] of categories) if (minor <= 0) categories.delete(label);
+      return { shops, categories };
     };
-    const months: Movements[] = [];
+    const months: MonthSpend[] = [];
     for (let back = 1; back <= 6; back++) {
-      months.push(await this.store.movementsFor(periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1)), undefined, true));
+      months.push(spendOf(await this.store.movementsFor(periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1)), undefined, true)));
     }
-    // Months before anything was recorded are not months of the habit.
-    while (months.length > 0 && spending(months[months.length - 1]).length === 0) months.pop();
-    const looked = months.length;
-    const needed = Math.max(3, Math.ceil(looked * 0.6));
-    const current = byShop(await this.store.movementsFor(periodContaining('month', now), undefined, true));
-
-    const seen = new Map<string, { amounts: number[]; m: Movements[number] }>();
-    for (const list of [...months].reverse()) {
-      for (const [key, at] of byShop(list)) {
-        const was = seen.get(key);
-        if (was) { was.amounts.push(at.minor); was.m = at.m; } else seen.set(key, { amounts: [at.minor], m: at.m });
-      }
-    }
-    const items: RecurringItem[] = [];
-    if (looked >= 3) {
-      for (const [key, x] of seen) {
-        if (x.amounts.length < needed) continue;
-        const average = Math.round(x.amounts.reduce((sum, v) => sum + v, 0) / x.amounts.length);
-        if (average <= 0 || x.amounts.some(v => Math.abs(v - average) > average * STEADY)) continue;
-        const t = x.m;
-        items.push({ name: (t.transaction.description ?? '').trim(), category: t.label, icon: t.icon, customIconId: t.customIconId,
-          color: t.color ?? null, seed: t.seed ?? null, monthsSeen: x.amounts.length, averageMinor: average,
-          thisMonthMinor: current.get(key)?.minor ?? 0 });
-      }
-    }
-    items.sort((a, b) => b.averageMinor - a.averageMinor);
-    // Categories spent on every month, whose amount moves: said by name.
-    const counts = new Map<string, { months: number; total: number }>();
-    for (const list of months) for (const sl of spending(list)) {
-      const at = counts.get(sl.label) ?? { months: 0, total: 0 };
-      at.months += 1; at.total += sl.amountMinor;
-      counts.set(sl.label, at);
-    }
-    const fixedCategories = new Set(items.map(i => i.category));
-    const everyMonth = looked < 3 ? [] : [...counts.entries()]
-      .filter(([label, c]) => c.months === looked && !fixedCategories.has(label))
-      .sort((a, b) => b[1].total - a[1].total).slice(0, 6).map(([label]) => label);
-    const all = months.reduce((sum, list) => sum + spending(list).reduce((t, sl) => t + sl.amountMinor, 0), 0);
-    return {
-      looked, needed, items, everyMonth,
-      totalMinor: items.reduce((sum, i) => sum + i.averageMinor, 0),
-      spendMinor: looked > 0 ? Math.round(all / looked) : 0,
-    };
+    const current = spendOf(await this.store.movementsFor(periodContaining('month', now), undefined, true));
+    return { ...recurringOf(months, current), faces };
   }
 
   /**

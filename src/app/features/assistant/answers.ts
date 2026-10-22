@@ -576,29 +576,45 @@ export function oneGoal(s: Speech, g: GoalView): Answer {
 
 export function recurring(s: Speech, r: RecurringPicture): Answer {
   if (r.looked < 3) return { said: { key: 'ai.recurring.tooSoon', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
+  if (r.fixed.length === 0 && r.everyMonth.length === 0) {
+    return { said: { key: 'ai.recurring.none', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
+  }
+  const face = (label: string) => r.faces.get(label);
   const blocks: RichBlock[] = [];
-  if (r.items.length > 0) {
-    blocks.push({ lab: s.t('ai.recurring.span', { count: r.looked }) });
-    for (const i of r.items.slice(0, 10)) {
-      blocks.push({ row: { icon: i.icon ?? 'repeat-outline', color: i.color ?? COLORS.blu, round: false, title: i.name, value: s.pesos(i.averageMinor),
-        lines: [`${i.category} · ${s.t('ai.recurring.months', { seen: i.monthsSeen, of: r.looked })}`,
-          s.t(i.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
+  if (r.fixed.length > 0) {
+    blocks.push({ lab: s.t('ai.recurring.fixedTitle') });
+    for (const f of r.fixed.slice(0, 10)) {
+      blocks.push({ row: { icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
+        title: f.name, value: s.pesos(f.averageMinor),
+        lines: [`${f.category} · ${s.t('ai.recurring.months', { seen: f.monthsSeen, of: r.looked })}`,
+          s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
     }
-    if (r.items.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.items.length - 10 }) });
-    const share = r.spendMinor > 0 ? Math.round(r.totalMinor * 100 / r.spendMinor) : 0;
-    blocks.push({ line: { k: s.t('ai.recurring.total'), v: s.pesos(r.totalMinor) } });
-    if (share > 0) blocks.push({ line: { k: s.t('ai.recurring.share'), v: `${share}\u00a0%` } });
+    if (r.fixed.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.fixed.length - 10 }) });
   }
   if (r.everyMonth.length > 0) {
     blocks.push({ lab: s.t('ai.recurring.everyMonthTitle') });
-    blocks.push({ note: s.t('ai.recurring.everyMonth', { names: names(s, r.everyMonth) }) });
+    for (const e of r.everyMonth.slice(0, 10)) {
+      blocks.push({ row: { icon: face(e.category)?.icon ?? 'pricetag-outline', color: face(e.category)?.color ?? COLORS.org, round: false,
+        title: e.category, value: s.t('ai.recurring.about', { amount: s.pesos(e.averageMinor) }),
+        lines: [s.t('ai.recurring.range', { low: s.pesos(e.lowMinor), high: s.pesos(e.highMinor), seen: e.monthsSeen, of: r.looked }),
+          e.thisMonthMinor > 0 ? s.t('ai.recurring.soFar', { amount: s.pesos(e.thisMonthMinor) }) : s.t('ai.recurring.notYet')] } });
+    }
+    if (r.everyMonth.length > 10) blocks.push({ note: s.t('ai.recurring.more', { count: r.everyMonth.length - 10 }) });
   }
-  blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, count: r.looked }) });
-  const share = r.spendMinor > 0 ? Math.round(r.totalMinor * 100 / r.spendMinor) : 0;
+  const total = r.fixedMinor + r.everyMonthMinor;
+  const share = r.spendMinor > 0 ? Math.round(total * 100 / r.spendMinor) : 0;
+  blocks.push({ lab: s.t('ai.recurring.sumTitle') });
+  if (r.fixed.length > 0) blocks.push({ line: { k: s.t('ai.recurring.fixedSum'), v: s.pesos(r.fixedMinor) } });
+  if (r.everyMonth.length > 0) blocks.push({ line: { k: s.t('ai.recurring.everyMonthSum'), v: s.pesos(r.everyMonthMinor) } });
+  blocks.push({ line: { k: s.t('ai.recurring.total'), v: s.pesos(total), cls: 'ui-y' } });
+  if (share > 0) blocks.push({ line: { k: s.t('ai.recurring.share'), v: `${Math.min(100, share)}\u00a0%` } });
+  blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, every: r.neededEvery, count: r.looked }) });
   return {
-    said: r.items.length === 0
-      ? { key: 'ai.recurring.none', values: { count: r.looked } }
-      : { key: r.items.length === 1 ? 'ai.recurring.answerOne' : 'ai.recurring.answer', values: { count: r.items.length, total: s.pesos(r.totalMinor), share } },
+    said: { key: 'ai.recurring.saidTotal', values: {}, text: [
+      r.fixed.length > 0 ? s.t(r.fixed.length === 1 ? 'ai.recurring.saidFixedOne' : 'ai.recurring.saidFixed', { count: r.fixed.length, amount: s.pesos(r.fixedMinor) }) : '',
+      r.everyMonth.length > 0 ? s.t(r.everyMonth.length === 1 ? 'ai.recurring.saidEveryOne' : 'ai.recurring.saidEvery', { count: r.everyMonth.length, amount: s.pesos(r.everyMonthMinor) }) : '',
+      s.t('ai.recurring.saidTotal', { total: s.pesos(total), share: Math.min(100, share) }),
+    ].filter(Boolean).join(' ') },
     card: card(blocks),
     next: ['ai.next.top', 'ai.next.howAmI'],
   };

@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (995 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (999 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5523,6 +5523,17 @@ with testers runs; the paywall is finished after them.
 - **The assistant answers more about one's money** (Jose, 2026-10-22: "es
   agregar y agregar más contextos y preguntas", no mockups needed for these).
   New intents in `read-phrase.ts`, each tested with several wordings:
+  - **Every-month spending too** (Jose, the same day: the market, the
+    supermarket... cost something every month, never the same). Now in pure
+    `core/assistant/recurring.ts` (`recurringOf`, `recurring.test.mjs`, all
+    invented data): a category spent on in at least 80 % of the last 6 whole
+    months (5 of 6, one gap allowed - frequent is not every month) counts at
+    the average of the last 3 whole months (a month with nothing as zero, so
+    it follows today's prices), shown with its lowest and highest month and
+    this month so far; what fixed payments in that category cost is taken out
+    first, never counted twice. The answer adds fixed payments and every-month
+    spending into "Todo junto, en un mes normal". Superseded below: categories
+    are no longer only named.
   - `recurring` ("¿qué pago cada mes?", "gastos fijos", "suscripciones"):
     **fixed payments**, the same note or shop (`merchantKeyOf`) in at least
     4 of the last 6 whole months (3 of 3...) at about the same amount each
