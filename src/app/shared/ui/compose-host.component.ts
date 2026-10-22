@@ -20,6 +20,7 @@ import { StatementsService } from '../../core/statements/statements.service';
 import { StatementFlowService } from '../../core/statements/statement-flow.service';
 import { warmUpPdfReader } from '../../core/statements/pdf-text';
 import { canReadImages, statementAccept, statementFiles } from '../../core/statements/image-text';
+import { ReceiptService } from '../../core/receipts/receipt.service';
 import type { AccountRow } from '../../core/database/types';
 import { EntryComponent } from '../../features/entry/entry.component';
 import { AccountPickerComponent } from '../account-picker/account-picker.component';
@@ -111,6 +112,14 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
               <span class="ui-tx"><b>{{ 'ai.title' | t }}</b><small class="wrap">{{ 'ai.plus.hint1' | t }}</small><small class="wrap">{{ 'ai.plus.hint2' | t }}</small></span>
               <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
             </button>
+            @if (images) {
+              <!-- A receipt's photo (Jose, 2026-10-22): the spending form, filled in. -->
+              <button type="button" class="ui-row" (click)="receiptAsk.set(true)">
+                <app-badge shape="ci" [size]="38" builtin="receipt-outline" fixed="#ff9152"></app-badge>
+                <span class="ui-tx"><b>{{ 'receipt.row' | t }}</b><small class="wrap">{{ 'receipt.row.hint' | t }}</small></span>
+                <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+              </button>
+            }
             <button type="button" class="ui-row" (click)="startImport()">
               <app-badge shape="ci" [size]="38" builtin="document-text-outline" fixed="#9b7bff"></app-badge>
               <span class="ui-tx"><b>{{ 'ui.new.statement' | t }}</b>@if (images) { <small>{{ 'ui.new.statement.images' | t }}</small> }</span>
@@ -144,6 +153,30 @@ import { merchantKeyOf } from '../../core/proposals/merchant';
                         (closed)="compose.importing.set(false)"></app-account-picker>
 
     <input #file type="file" [accept]="accept" [multiple]="images" hidden (change)="picked($any($event.target))">
+
+    <!-- Where the receipt's photo comes from: the camera, or the gallery. -->
+    <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="receiptAsk()" (didDismiss)="receiptAsk.set(false)">
+      <ng-template>
+        <div class="ui-sheet-body ion-content-scroll-host">
+          <button type="button" class="sheet-cancel" (click)="receiptAsk.set(false)">{{ 'entry.cancel' | t }}</button>
+          <div class="grab"></div>
+          <h2 class="center">{{ 'receipt.where' | t }}</h2>
+          <p class="hint center">{{ 'receipt.where.hint' | t }}</p>
+          <div class="ui-list">
+            <button type="button" class="ui-row" (click)="pickReceipt(camera)">
+              <app-badge shape="ci" [size]="38" builtin="camera-outline" fixed="#ff9152"></app-badge>
+              <span class="ui-tx"><b>{{ 'receipt.camera' | t }}</b></span>
+            </button>
+            <button type="button" class="ui-row" (click)="pickReceipt(gallery)">
+              <app-badge shape="ci" [size]="38" builtin="images-outline" fixed="#9b7bff"></app-badge>
+              <span class="ui-tx"><b>{{ 'receipt.gallery' | t }}</b></span>
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </ion-modal>
+    <input #camera type="file" accept="image/*" capture="environment" hidden (change)="receiptPicked($any($event.target))">
+    <input #gallery type="file" accept="image/*" hidden (change)="receiptPicked($any($event.target))">
   `,
   styles: [`
     :host { display: contents; }
@@ -318,6 +351,21 @@ export class ComposeHostComponent {
     this.target = null;
     this.compose.importing.set(false);
     this.file().nativeElement.click();
+  }
+
+  readonly receiptAsk = signal(false);
+  private readonly receipts = inject(ReceiptService);
+
+  pickReceipt(input: HTMLInputElement): void {
+    this.receiptAsk.set(false);
+    this.compose.sheet.set(false);
+    input.click();
+  }
+
+  async receiptPicked(input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    input.value = '';
+    if (file) await this.receipts.fromPhoto(file);
   }
 
   /** PDF, and on the phone photos or screenshots too, several at once. */
