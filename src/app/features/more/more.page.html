@@ -173,6 +173,15 @@
       </button>
     </div>
 
+    <div class="ui-h">{{ 'more.help' | t }}</div>
+    <div class="ui-list" data-tour="more-help">
+      <button type="button" class="ui-row" (click)="feedback.open()">
+        <app-badge [size]="40" builtin="chatbubbles-outline" fixed="#2ec4b6"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'more.feedback' | t }}</b><small class="wrap">{{ 'more.feedback.hint' | t }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
     <p class="version">{{ version() ? ('more.version' | t: { version: version()! }) : ('more.version.web' | t) }}</p>
 
     <div class="ui-page-end"></div>

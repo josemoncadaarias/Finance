@@ -18,6 +18,7 @@ import { ProposalsRepository } from '../database/repositories/proposals.reposito
 import { I18nService } from '../i18n/i18n.service';
 import { ComposeService } from '../ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
+import { FeedbackService } from '../feedback/feedback.service';
 import { isoDay } from '../filters/period';
 import { ReaderNotReady, lastPages, textOfImages } from '../statements/image-text';
 import { readReceiptPhoto } from './read-receipt';
@@ -29,8 +30,7 @@ export class ReceiptService {
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
-  /** What the last photo gave the form, copied with the reading (`copyRead`). */
-  private lastRead: unknown = null;
+  private readonly feedback = inject(FeedbackService);
 
   async fromPhoto(file: File): Promise<void> {
     this.toast.say(this.i18n.t('receipt.reading'), 20_000, { icon: 'receipt-outline' });
@@ -39,7 +39,7 @@ export class ReceiptService {
     try {
       await textOfImages([file]);
       receipt = readReceiptPhoto(lastPages, today);
-      this.lastRead = { phone: navigator.userAgent, receipt };
+      this.feedback.noteRead({ receipt });
     } catch (problem) {
       this.toast.say(this.i18n.t(problem instanceof ReaderNotReady ? 'receipt.notReady' : 'receipt.noText'), 7000, { icon: 'alert-circle' });
       return;
@@ -66,7 +66,6 @@ export class ReceiptService {
     const categoryId = match?.categoryId
       ?? (receipt.shop ? await new ProposalsRepository(db).guessedCategoryOf(receipt.shop, -1) : null);
 
-    this.lastRead = { ...(this.lastRead as object), categoryId, accountId: match?.accountId ?? null };
     this.compose.open('expense', {
       preferredAccountId: match?.accountId ?? null,
       start: {
@@ -81,28 +80,11 @@ export class ReceiptService {
       : !receipt.totalSure ? 'receipt.unsureTotal'
       : receipt.onDate === null ? 'receipt.noDate'
       : 'receipt.read';
-    this.toast.say(this.i18n.t(said), 8000, {
+    // Long enough to check the form under it; a misread is reported in one
+    // tap, with what the phone read kept in.
+    this.toast.say(this.i18n.t(said), 12_000, {
       icon: said === 'receipt.read' ? 'checkmark-circle' : 'alert-circle',
-      action: { label: this.i18n.t('receipt.copyRead'), run: () => void this.copyRead() },
+      action: { label: this.i18n.t('receipt.report'), run: () => this.feedback.open('bug', true) },
     });
-  }
-
-  /**
-   * What the phone read, copied as it came, so a misread total can be sent
-   * and replayed exactly - lines and their boxes, never the image.
-   */
-  private async copyRead(): Promise<void> {
-    const text = JSON.stringify({ read: this.lastRead, pages: lastPages });
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const box = document.createElement('textarea');
-      box.value = text;
-      document.body.appendChild(box);
-      box.select();
-      document.execCommand('copy');
-      box.remove();
-    }
-    this.toast.say(this.i18n.t('receipt.copied'), 4000, { icon: 'copy-outline' });
   }
 }

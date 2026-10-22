@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1070 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1074 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -275,7 +275,8 @@ these):
   on the conversation's days says where "Cambiar" is now and names the
   arrows (`since: 5`). Version 19 (2026-10-22): Recordatorios - "A la
   hora que quieras" (any time, when it rings, the notices to allow;
-  `since: 2`).
+  `since: 2`). Version 20 (2026-10-22): Más - "Reportar un fallo o
+  sugerir una mejora" under Ayuda (`since: 5`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -1005,6 +1006,39 @@ plugin in `package.json` is an official Capacitor one with iOS support, and
 - The same rule as Android decides an update from a reinstall: same bundle id
   plus same signing identity keeps the data, a different identity forces an
   uninstall.
+
+**What each feature would be on an iPhone** (Jose, 2026-10-22: offer on
+iOS everything that can be offered, said clearly to the person where it
+cannot; nothing built). Not verified on a device - from Apple's public
+documentation as known, each line to confirm on the day:
+
+| Feature (Android today) | On iOS | How |
+|---|---|---|
+| Everything in the WebView: accounts, movements, report, yields, debts, plans, assistant by text, tax simulator, backups to a file | Same | Capacitor; `@capacitor-community/sqlite` has an iOS backend (test a restore) |
+| Drive backup | Yes | Google sign-in for iOS needs its own OAuth client; iCloud could be offered beside it |
+| Reading other apps' notifications (`NotificationCatcher`) | **No** | iOS lets no app read another app's notifications. Say so on the screen; never a dead end (group 7 rule) |
+| Reading the SMS inbox / SMS by sender (`SmsInbox`, `SmsReceiver`) | **No** | No API. The door is a Shortcuts personal automation "When I get a message from {sender}" handing the text to the app through an App Intent - the person installs it once per sender (what Lukas's "Instalar atajo" is, rule 22) |
+| Bank mail | Partly | Shortcuts' "Email" trigger (Mail app only), same App Intent |
+| Card purchases with Apple Pay | Partly | Shortcuts' "Transaction" trigger (iOS 17+) gives amount and shop for Wallet cards; FinanceKit (Apple Card / Wallet data) needs an entitlement Apple grants case by case and began in the US |
+| "Movimiento detectado" notice and Por revisar | Yes, fed by those Shortcuts | The App Intent writes the same raw message the Java side writes; `readNotices`, molds, proposals and review need nothing new |
+| "Avisarme siempre al instante" (foreground service) | Not needed / not possible | No listener to keep alive |
+| Statement PDF | Yes | pdf.js in WKWebView |
+| Photo of a receipt or statement (ML Kit, `OcrPlugin`) | Yes | Apple Vision (`VNRecognizeTextRequest`) on the device, or ML Kit's iOS SDK; same `OcrPage` shape back |
+| Voice (`SpeechPlugin`) | Yes | Apple's Speech framework; asks microphone and speech-recognition permission (Android's RecognizerIntent asks none) |
+| Reminders, card due day, caps' notices | Yes | Local notifications; iOS keeps at most 64 pending, so schedule the nearest first |
+| Shortcuts on the icon (`ShortcutsPlugin`) | Yes | Home-screen quick actions (`UIApplicationShortcutItem`) |
+| Font size cap (`MainActivity.followFontSize`) | Different | Dynamic Type; the cap is done in CSS or the WKWebView |
+| Finance Pro | Yes | RevenueCat covers the App Store with the same SDK; an App Store subscription and its own trial |
+
+**How the app tells them apart**: `Capacitor.getPlatform()` ('android',
+'ios', 'web') in ONE place - a `DeviceService` answering "can this phone
+read notifications / SMS / Shortcuts" - and every screen asks it, as every
+lock asks `PaywallService` (the same "one place answers" rule). Where a
+feature does not exist, the entry is not offered or says, in the app's
+words, what the phone allows instead ("En iPhone, los SMS llegan con un
+atajo: Instalar el atajo de {remitente}"). Native code per platform
+(Java now, Swift then) behind the same plugin names, so the TypeScript
+does not change.
 
 Jose has no Mac and no iPhone as of this date, and is not paying for now. The
 eventual goal, when it happens, is the App Store. **So: write nothing that
@@ -5817,6 +5851,27 @@ with testers runs; the paywall is finished after them.
   a category named after the shop's first word (a person's "Éxito" over
   another branch learned under "Casa"); what the person filed
   notes naming it under, twice or more; then the common words.
+- **Reportar un fallo o sugerir una mejora** (Jose, 2026-10-22: "que todo
+  me llegue a mi correo de jadex apps"). Más → Ayuda (last group) opens
+  `app-feedback-sheet` (`shared/feedback/`, mounted once in the shell, so it
+  opens over any form); `FeedbackService.open(kind, withReading)`. Un fallo
+  / Una mejora / Una pregunta, the person's words, and two switches for
+  what goes under them: "Datos del teléfono" (version, the WebView's user
+  agent - model and Android -, language, screen size; on by default) and,
+  when a photo was read since the app opened, "Lo que la app leyó de la
+  última foto" (`lastPages` plus the receipt's result, no image; its hint
+  warns it may carry the person's name or ID). "Ver el mensaje completo"
+  shows exactly what goes. **No server**: "Abrir mi correo con el mensaje"
+  copies the whole message to the clipboard first, then opens a `mailto:`
+  to jadex.apps@gmail.com (`FEEDBACK_TO`) with subject "[Finance] Fallo ·
+  v1.0.1133" and the body (`feedbackMail`, pure, `feedback-mail.test.mjs`);
+  the person sends it from their own mail app, and the notice says where to
+  paste it if no mail app opened. **The receipt's notice** stays 12 s, asks
+  to check the total, the date and the category, and its button is
+  "Reportar un fallo" (the sheet with the reading switched on), replacing
+  "Copiar lo leído". Más tour step `since: 5`. Checked in a browser; the
+  mail app opening only on the phone. Not sent automatically on purpose:
+  a server would be the one thing this app refuses (rule 21).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5850,6 +5905,71 @@ with testers runs; the paywall is finished after them.
 - Suggested phases: (1) registering by text and voice + five or six
   questions; (2) "¿me alcanza?" and "cuánto puedo gastar"; (3) more
   questions and learning from corrections.
+
+### A stock market module (Jose, 2026-10-22: noted to analyse, nothing built, nothing decided)
+
+The next big piece of value after the release, with iOS (above). Written
+down as Jose asked, everything he named, so it can be analysed against what
+data can really be had. **Nothing starts without his word**, and the open
+questions at the end come first.
+
+**What he wants**:
+- **Holdings from the broker's statements**: import them, and take each
+  buy and sell of each ticker - stock, ETF... - with its original price,
+  quantity, date, fees and currency.
+- **Market value every day** of what is held, and the gain against what was
+  paid.
+- **Every financial figure of a company**: P/E, PEG, ROIC, ROE, margins,
+  debt, cash flow, growth, dividend yield... "todos todos los valores que
+  construyan una info financiera bien completa".
+- **Qualitative information**: why a stock is falling, why it is expensive,
+  what the company invests in, its products, news.
+- **Reports** on what is held: value today, growth, return this month, 6
+  months, this year, 1 year, 5 years, since the first buy; by holding and
+  all together.
+- **Screeners** over the figures and the qualitative information: the most
+  interesting stocks and ETFs each day.
+- **Notifications** when a holding, or one of the market's most popular
+  ones, rises or falls a lot.
+- "Un módulo completo de bolsa de valores": anything else that fits.
+
+**What the app has to build on** (verified in the code): investment
+accounts already exist (type Inversión), and their return is a movement
+under a "Ganancia o pérdida de inversión" category (rule 20). eToro and XTB
+record no such movement, and their market value is the decision deferred
+in "Pending from Jose" (2026-09-08: valuation and its tax treatment later,
+never in the same table as interest).
+
+**What has to be analysed first, and is NOT known yet** (nothing below was
+looked up for this note; to verify one by one):
+- **Broker statements**: which brokers, in which format. Many hand out CSV
+  or XLSX, and rule 22 ruled CSV out because of guessing columns - to
+  decide again for brokers, perhaps with one known layout per broker.
+  PDFs go through the statement reader; the check that a statement adds up
+  becomes: positions held = buys - sells.
+- **Prices**: a free, legal source of daily closing prices for US and
+  other markets, its limits per day and whether its terms allow showing the
+  figures in an app sold to others. Market data is licensed; some free
+  APIs forbid redistribution. Real-time is almost always paid; end of day
+  may be enough.
+- **Fundamentals**: which source gives the ratios for free (US filings at
+  the SEC are public; ratios worked out from them would be the app's own
+  arithmetic, tested like the yields), and for which markets.
+- **Qualitative information**: "why it is falling" is news, and
+  summarising it needs a language model - against Jose's rule of no cost
+  per use and rule "do not use an LLM for figures". Options to weigh:
+  headlines with their links only, a paid tier, or nothing.
+- **Offline-first (rule 1)**: every figure cached with its day and said
+  to be "al cierre del {día}" when there is no network.
+- **Currencies**: holdings in dollars or euros valued at today's TRM for
+  net worth (rule 3), each buy keeping its own day's rate (rule 4).
+- **Taxes**: dividends, the sale of shares and the withholding abroad are
+  taxed in Colombia, but the tax simulator stands apart and is never wired
+  into this (rule at the top).
+- **Paid or free** (rule 21): almost certainly Finance Pro, beyond one
+  holding perhaps.
+- **Risk**: an app that ranks stocks can read as advice; screeners and
+  notifications must say they inform, never recommend.
 
 ### The ideas, by what they would take
 
