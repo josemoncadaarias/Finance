@@ -1910,6 +1910,7 @@ ion-modal.ui-dialog {
   .due-hint { margin: 2px 4px 8px; }
   .ui-list.due { background: var(--app-s2); }
   .ui-list.due .due-amount { flex: none; white-space: nowrap; font-size: 14.5px; }
+  .ui-list.due .due-amount.in { color: var(--app-grn); }
   .ui-list.due .more { color: var(--app-pr); }
   .ui-list.due small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }

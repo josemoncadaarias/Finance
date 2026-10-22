@@ -44,8 +44,9 @@ const TOUR_LIST = {
   home: {
     welcome: { title: 'tour.home.welcome.title', text: 'tour.home.welcome.text' },
     steps: [
-      // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a).
-      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 7 },
+      // 2026-10-20: the + also asks the assistant and makes an account (38a, 39a);
+      // 2026-10-22: "Lo que más registras".
+      { target: 'plus', title: 'tour.home.plus.title', text: 'tour.home.plus.text', since: 10 },
       { target: 'scope', title: 'tour.home.scope.title', text: 'tour.home.scope.text', since: 8 },
       { target: 'hero', title: 'tour.home.hero.title', text: 'tour.home.hero.text' },
       // 2026-10-14: the eye that hides every amount.

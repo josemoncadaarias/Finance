@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1028 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1039 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -267,7 +267,8 @@ these):
   (`since: 4`). Version 11 (2026-10-22): the periods named in Inicio's
   account-and-period step (`since: 8`) and the report's period step
   (`since: 2`) - quincena and semestre. Version 12 (2026-10-22): Inicio -
-  "Atajos desde el ícono" (`since: 9`).
+  "Atajos desde el ícono" (`since: 9`). Version 13 (2026-10-22): Inicio's
+  "+" step names "Lo que más registras" (`since: 10`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5650,6 +5651,22 @@ with testers runs; the paywall is finished after them.
   button no longer floats over nothing), and an earning account's
   Movimientos, Pagos and Días. A new screen or section uses `app-empty`.
   Checked in a browser.
+- **"Lo que más registras" in the "+"** (Jose, 2026-10-22, idea F): under
+  "Pagos de este mes", up to four habits, each one tap to the one movement
+  form filled in - the account and its product, the category, the note, and
+  the amount only when it is steady (each of the last five within 15 % of
+  their middle value); a transfer opens with both ends and their products.
+  Nothing is saved by itself (rule 22). A habit is the same kind, account,
+  far account, category and note (folded: case, accents, spaces) at least 3
+  times in the last 90 days; most used first, at most 2 of one kind while
+  another kind has habits (someone who moves money between pockets every
+  day still sees the spending they repeat). Archived accounts, loans and
+  their payments, refunds and the fixed payments listed above are left out.
+  Pure in `core/compose/frequent.ts`, two queries in `frequent-data.ts`, read
+  with "Pagos de este mes" when the sheet opens (once per data change);
+  `frequent.test.mjs` (invented data). Checked in a browser on Jose's backup
+  (two transfers and two spendings offered; the transfer between products
+  opened on both products with its note).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -5706,7 +5723,7 @@ with testers runs; the paywall is finished after them.
 | 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
 | 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
 | 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
-| F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | Proposed, liked by Jose |
+| F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | **Built** 2026-10-22 ("Lo que más registras") |
 | H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
 | P | Choose the accent | Small | Design | **Decided** by Jose, 2026-09-28: Zafiro by default, changeable in Apariencia |
 | L | Loans, card dates, paying ahead, debt strategies | Large, new type and tables | Rules 4, 7, 11, 22 | Proposed and drawn (`11a`-`11j`), first in Jose's order |

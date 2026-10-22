@@ -30,6 +30,11 @@ import { AssistantService } from '../../core/assistant/assistant.service';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { isoDay } from '../../core/filters/period';
 import { formatMoney } from '../../core/database/money';
+import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
+import type { CategoryRow } from '../../core/database/types';
+import { frequentOf, type Frequent } from '../../core/compose/frequent';
+import { pastMovements } from '../../core/compose/frequent-data';
+import { merchantKeyOf } from '../../core/proposals/merchant';
 
 @Component({
   selector: 'app-compose-host',
@@ -72,6 +77,28 @@ import { formatMoney } from '../../core/database/money';
                 <button type="button" class="ui-row" (click)="seeAllFixed()">
                   <span class="ui-tx"><b class="more">{{ 'plus.due.more' | t:{ count: dueFixed().length - 5 } }}</b></span>
                   <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          }
+          <!-- What the person registers most (idea F, Jose, 2026-10-22): one tap opens
+               the form filled in, and nothing is saved by itself. -->
+          @if (frequent().length > 0) {
+            <div class="ui-h due-h">{{ 'plus.frequent.title' | t }}</div>
+            <p class="hint due-hint">{{ 'plus.frequent.hint' | t }}</p>
+            <div class="ui-list due">
+              @for (f of frequent(); track f.key) {
+                <button type="button" class="ui-row" (click)="registerFrequent(f)">
+                  @if (f.kind === 'transfer') {
+                    <app-badge shape="ci" [size]="38" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
+                  } @else {
+                    <app-badge shape="sq" [size]="38" [builtin]="categoryOf(f)?.builtin_icon" [customId]="categoryOf(f)?.custom_icon_id"
+                               [tone]="categoryOf(f)?.color" [seed]="f.categoryId"></app-badge>
+                  }
+                  <span class="ui-tx"><b>{{ frequentTitle(f) }}</b><small>{{ frequentLine(f) }}</small></span>
+                  @if (f.amountMinor !== null) {
+                    <b class="due-amount" [class.in]="f.kind === 'income'">{{ frequentAmount(f) }}</b>
+                  }
                 </button>
               }
             </div>
@@ -158,13 +185,24 @@ export class ComposeHostComponent {
       this.dueRead = mark;
       void untracked(async () => {
         try {
-          const [r, accounts] = await Promise.all([this.assistant.recurring(), new AccountsRepository(this.database.driver).list()]);
+          const db = this.database.driver;
+          const today = isoDay(new Date());
+          const [r, accounts, categories, past] = await Promise.all([
+            this.assistant.recurring(), new AccountsRepository(db).list(),
+            new CategoriesRepository(db).list({ includeArchived: true }), pastMovements(db, today),
+          ]);
           this.accountNames = new Map(accounts.map(a => [a.id, a.name]));
           this.accountCurrency = new Map(accounts.map(a => [a.id, a.currency_code]));
+          this.categories = new Map(categories.map(c => [c.id, c]));
           this.dueFixed.set(r.fixed.filter(f => f.thisMonthMinor === 0 && f.accountId !== null)
             .sort((a, b) => (a.day ?? 99) - (b.day ?? 99)));
+          // A fixed payment has its own row above (or is paid): never twice.
+          const skip = new Set(r.fixed.map(f => merchantKeyOf(f.name)).filter(Boolean));
+          const live = new Set(accounts.map(a => a.id));
+          this.frequent.set(frequentOf(past.filter(m => live.has(m.accountId)), today, skip));
         } catch {
           this.dueFixed.set([]);
+          this.frequent.set([]);
         }
       });
     });
@@ -173,6 +211,54 @@ export class ComposeHostComponent {
       void untracked(async () => {
         this.accounts.set(await new AccountsRepository(this.database.driver).list());
       });
+    });
+  }
+
+  /** What the person registers most (`frequentOf`). */
+  readonly frequent = signal<Frequent[]>([]);
+  private categories = new Map<number, CategoryRow>();
+
+  categoryOf(f: Frequent): CategoryRow | undefined {
+    return f.categoryId !== null ? this.categories.get(f.categoryId) : undefined;
+  }
+
+  /** Its note; else its category; a transfer with no note says where it goes. */
+  frequentTitle(f: Frequent): string {
+    if (f.note) return f.note;
+    if (f.kind === 'transfer') return this.i18n.t('plus.frequent.to', { account: this.accountNames.get(f.toAccountId ?? -1) ?? '' });
+    return this.categoryOf(f)?.name ?? '';
+  }
+
+  /** "Gasto · Comida · Banco Azul", "Transferencia · Banco Azul → Tarjeta Coral", "Entre productos · Banco Azul". */
+  frequentLine(f: Frequent): string {
+    const account = this.accountNames.get(f.accountId) ?? '';
+    if (f.kind === 'transfer') {
+      return f.toAccountId === f.accountId
+        ? `${this.i18n.t('plus.frequent.between')} · ${account}`
+        : `${this.i18n.t('plus.frequent.transfer')} · ${account} → ${this.accountNames.get(f.toAccountId ?? -1) ?? ''}`;
+    }
+    const kind = this.i18n.t(f.kind === 'income' ? 'plus.frequent.income' : 'plus.frequent.expense');
+    const category = f.note ? this.categoryOf(f)?.name : '';
+    return [kind, category, account].filter(Boolean).join(' · ');
+  }
+
+  frequentAmount(f: Frequent): string {
+    return formatMoney(f.amountMinor ?? 0, this.accountCurrency.get(f.accountId) ?? 'COP');
+  }
+
+  /** The one form, filled in as it was the last times; saved only by the person. */
+  registerFrequent(f: Frequent): void {
+    const start = { amountMinor: f.amountMinor ?? 0, onDate: isoDay(new Date()), note: f.note };
+    if (f.kind === 'transfer') {
+      this.compose.open('transfer', {
+        route: { from: f.accountId, to: f.toAccountId ?? f.accountId, fromProductId: f.productId, toProductId: f.toProductId },
+        start,
+      });
+      return;
+    }
+    this.compose.open(f.kind, {
+      preferredAccountId: f.accountId,
+      start: { ...start, categoryId: f.categoryId, productId: f.productId },
     });
   }
 
