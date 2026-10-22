@@ -5794,7 +5794,10 @@ with testers runs; the paywall is finished after them.
   breakdown printed under the total ("TARIFA COMPRA BASE IMPUESTO", "IVA
   19%") joined the summary as more words, so no pairing lined up. The
   summary is now one run of lines (no more than one line between two of
-  its words). **And the shop finds the person's own
+  its words). **Still wrong on 1.0.1128**, so the guessing stops: the
+  receipt's notice carries "Copiar lo leído", which copies what the phone's
+  reader handed back (its lines and boxes, `lastPages` in `image-text.ts`,
+  never the image) to replay the misread exactly. **And the shop finds the person's own
   category** (`shop-category.ts`, `shopMatch`, tested): the shop as
   learned; the same chain at another branch (first word, or two words, in
   common with a learned shop); a category named by one of its words
