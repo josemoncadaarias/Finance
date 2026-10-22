@@ -270,6 +270,8 @@ these):
   "Atajos desde el ícono" (`since: 9`). Version 13 (2026-10-22): Inicio's
   "+" step names "Lo que más registras" (`since: 10`). Version 14
   (2026-10-22): Inicio - "Lo que puedes gastar hoy" (`since: 11`).
+  Version 17 (2026-10-22): Inicio's "+" step names "Pagos fijos y
+  frecuentes" (`since: 14`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5577,6 +5579,14 @@ with testers runs; the paywall is finished after them.
   - The welcome lists the two new examples. Checked in a browser on Jose's
     backup; a rich card's long row name now ends in "…" and slides instead of
     running under its figure.
+- **The "+" keeps its own options in view** (Jose, 2026-10-22: the two
+  lists below covered Gasto, Ingreso, Transferir and the rows under them).
+  "Pagos de este mes" and "Lo que más registras" now live in a sheet of
+  their own, opened from one row, "Pagos fijos y frecuentes", first in the
+  "+"'s list and saying how many wait of each (`quick`, `quickLines` in
+  `compose-host.component.ts`); shown only when either has something. A
+  tap there closes that sheet and opens the form as before. Checked in a
+  browser on Jose's backup.
 - **"Pagos de este mes" in the "+"** (Jose, 2026-10-22, option 1 of three
   proposed): the fixed payments of `recurringOf` not seen yet this month,
   by the day they are usually paid ("Suele ser el día 9 · {cuenta}"), each
