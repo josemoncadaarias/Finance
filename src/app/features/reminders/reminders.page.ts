@@ -7,7 +7,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IonContent, IonIcon, IonModal } from '@ionic/angular';
+import { IonContent, IonDatetime, IonIcon, IonModal } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -26,11 +26,17 @@ import { AccountPickerComponent } from '../../shared/account-picker/account-pick
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
 import { ToastService } from '../../shared/ui/toast.service';
 import { RemindersService } from '../../core/reminders/reminders.service';
-import { addDays, monthOfDay, nextOccurrence, type Occurrence, type Reminder, type Repeat } from '../../core/reminders/reminders';
+import { addDays, dayIn, monthOfDay, nextOccurrence, shiftMonth, type Occurrence, type Reminder, type Repeat } from '../../core/reminders/reminders';
 import { AssistantService } from '../../core/assistant/assistant.service';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { merchantKeyOf } from '../../core/proposals/merchant';
 import { fromIsoDay, isoDay } from '../../core/filters/period';
+
+/** The next day of the month `day` falls on, from `today`. */
+function nextDue(today: string, day: number): string {
+  const here = dayIn(monthOfDay(today), day);
+  return here >= today ? here : dayIn(shiftMonth(monthOfDay(today), 1), day);
+}
 
 /** The hours offered to ring at. */
 const HOURS = [7, 8, 9, 12, 18, 20];
@@ -40,13 +46,13 @@ const BEFORE = [0, 1, 3] as const;
   selector: 'app-reminders',
   templateUrl: './reminders.page.html',
   styleUrls: ['./reminders.page.scss'],
-  imports: [TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, AskButtonComponent, ConfirmComponent,
+  imports: [TranslatePipe, IonContent, IonDatetime, IonIcon, IonModal, BadgeComponent, AskButtonComponent, ConfirmComponent,
     AccountPickerComponent, CategorySheetComponent, DateFieldComponent, AmountInputDirective],
 })
 export class RemindersPage {
   readonly reminders = inject(RemindersService);
   private readonly database = inject(DatabaseService);
-  private readonly i18n = inject(I18nService);
+  readonly i18n = inject(I18nService);
   private readonly assistant = inject(AssistantService);
   private readonly toast = inject(ToastService);
   private readonly location = inject(Location);
@@ -78,6 +84,23 @@ export class RemindersPage {
   readonly onDate = signal<string>(addDays(isoDay(new Date()), 1));
   readonly daysBefore = signal<number>(0);
   readonly hour = signal(8);
+  readonly minute = signal(0);
+  readonly pickingTime = signal(false);
+  /** A time not among the quick ones. */
+  readonly customTime = computed(() => this.minute() !== 0 || !HOURS.includes(this.hour()));
+  /** The time sheet's value: today at the hour chosen. */
+  readonly timeValue = computed(() => `${isoDay(new Date())}T${String(this.hour()).padStart(2, '0')}:${String(this.minute()).padStart(2, '0')}:00`);
+  /** When the form's reminder would ring next, to say it under the hours. */
+  private readonly ringAt = computed(() => {
+    const today = isoDay(new Date());
+    const due = this.repeat() === 'once' ? this.onDate()
+      : nextDue(today, this.day());
+    const on = addDays(due, -this.daysBefore());
+    const at = fromIsoDay(on);
+    at.setHours(this.hour(), this.minute(), 0, 0);
+    return at;
+  });
+  readonly ringsNow = computed(() => this.ringAt().getTime() <= Date.now());
   readonly accountId = signal<number | null>(null);
   readonly categoryId = signal<number | null>(null);
   private shop: string | null = null;
@@ -153,13 +176,31 @@ export class RemindersPage {
   }
 
   ringsOf(r: Reminder): string {
-    const at = this.hourText(r.hour);
+    const at = this.hourText(r.hour, r.minute ?? 0);
     return r.daysBefore === 0 ? this.i18n.t('reminders.rings.same', { hour: at })
       : this.i18n.t(r.daysBefore === 1 ? 'reminders.rings.before.one' : 'reminders.rings.before', { count: r.daysBefore, hour: at });
   }
 
-  hourText(hour: number): string {
-    const d = new Date(2026, 0, 1, hour, 0);
+  /** "Sonará el miércoles 22 de octubre a las 9:30 p. m.", or at once when that has passed. */
+  ringsWhen(): string {
+    if (this.ringsNow()) return this.i18n.t('reminders.form.ringsNow');
+    const at = this.ringAt();
+    const date = at.toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '');
+    const said = this.i18n.t('reminders.form.ringsOn', { date, hour: this.hourText(at.getHours(), at.getMinutes()) });
+    // "a las 9:30 p. m." already ends the sentence.
+    return said.endsWith('.') ? said : `${said}.`;
+  }
+
+  pickTime(value: string | null): void {
+    this.pickingTime.set(false);
+    const m = /T?(\d{2}):(\d{2})/.exec(value ?? '');
+    if (!m) return;
+    this.hour.set(Number(m[1]));
+    this.minute.set(Number(m[2]));
+  }
+
+  hourText(hour: number, minute = 0): string {
+    const d = new Date(2026, 0, 1, hour, minute);
     return d.toLocaleTimeString(this.i18n.dateLocale(), { hour: 'numeric', minute: '2-digit' });
   }
 
@@ -197,7 +238,7 @@ export class RemindersPage {
   async tomorrow(o: Occurrence): Promise<void> {
     this.picked.set(null);
     await this.reminders.snooze(o.reminder.id);
-    this.toast.say(this.i18n.t('reminders.snoozed', { hour: this.hourText(o.reminder.hour) }), 3000);
+    this.toast.say(this.i18n.t('reminders.snoozed', { hour: this.hourText(o.reminder.hour, o.reminder.minute ?? 0) }), 3000);
   }
 
   async setActive(r: Reminder, active: boolean): Promise<void> {
@@ -233,6 +274,7 @@ export class RemindersPage {
     this.onDate.set(addDays(isoDay(new Date()), 1));
     this.daysBefore.set(0);
     this.hour.set(8);
+    this.minute.set(0);
     this.accountId.set(null);
     this.categoryId.set(null);
     this.tried.set(false);
@@ -249,6 +291,7 @@ export class RemindersPage {
     this.onDate.set(r.onDate ?? addDays(isoDay(new Date()), 1));
     this.daysBefore.set(r.daysBefore);
     this.hour.set(r.hour);
+    this.minute.set(r.minute ?? 0);
     this.accountId.set(r.accountId);
     this.categoryId.set(r.categoryId);
     this.tried.set(false);
@@ -263,7 +306,7 @@ export class RemindersPage {
     const input = {
       title: this.title().trim(), amountMinor: minor > 0 ? minor : null, accountId: this.accountId(), categoryId: this.categoryId(),
       note: this.title().trim(), repeat: this.repeat(), dayOfMonth: this.day(), onDate: this.onDate(), hour: this.hour(),
-      daysBefore: this.daysBefore(), shop: this.shop,
+      minute: this.minute(), daysBefore: this.daysBefore(), shop: this.shop,
     };
     if (id === 'new') await this.reminders.create(input);
     else if (typeof id === 'number') {

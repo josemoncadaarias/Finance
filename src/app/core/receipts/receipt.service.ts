@@ -3,8 +3,10 @@
  * 2026-10-22): the total, the day and the shop read on the phone
  * (`textOfImages`, `readReceipt`), and what the app already learned about
  * that shop - its category, its account and the note written for it - from
- * the merchant dictionary (`merchant_categories`); for a shop never seen, the
- * ordinary words of its name may suggest a starter category. Nothing is
+ * the person's own data (`shopMatch`: the shop learned, the same chain at
+ * another branch, a category named by its words, notes naming it); for a
+ * shop never seen, the ordinary words of its name may suggest a starter
+ * category. Nothing is
  * saved by itself (rule 22): the form opens, and the person checks and saves.
  * Free, as typing a movement is (rule 21).
  */
@@ -17,9 +19,9 @@ import { I18nService } from '../i18n/i18n.service';
 import { ComposeService } from '../ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { isoDay } from '../filters/period';
-import { merchantKeyOf } from '../proposals/merchant';
 import { ReaderNotReady, textOfImages } from '../statements/image-text';
 import { readReceipt } from './read-receipt';
+import { leadingWord, shopMatch, type KnownShop, type NamedCategory, type PastNote } from './shop-category';
 
 @Injectable({ providedIn: 'root' })
 export class ReceiptService {
@@ -40,20 +42,32 @@ export class ReceiptService {
     }
 
     const db = this.database.driver;
-    const key = merchantKeyOf(receipt.shop);
-    const known = key
-      ? await db.queryOne<{ category_id: number; account_id: number | null; note: string | null }>(
-        'SELECT category_id, account_id, note FROM merchant_categories WHERE merchant = ?', [key])
-      : null;
-    const categoryId = known?.category_id
+    // The person's own shops, categories and notes, read once (shopMatch).
+    const known = receipt.shop ? await db.query<KnownShop>(
+      `SELECT m.merchant, m.category_id AS categoryId, m.account_id AS accountId, m.note, m.times
+         FROM merchant_categories m JOIN categories c ON c.id = m.category_id
+        WHERE c.kind = 'expense' AND c.archived = 0`) : [];
+    const categories = receipt.shop ? await db.query<NamedCategory>(
+      `SELECT id, name FROM categories WHERE kind = 'expense' AND archived = 0`) : [];
+    const lead = receipt.shop ? leadingWord(receipt.shop) : null;
+    const notes = lead ? await db.query<PastNote>(
+      `SELECT t.description AS text, t.category_id AS categoryId
+         FROM transactions t JOIN categories c ON c.id = t.category_id
+        WHERE t.amount_minor < 0 AND c.kind = 'expense' AND c.archived = 0 AND t.description LIKE ?
+        ORDER BY t.occurred_on DESC LIMIT 300`,
+        // Without its first letter, so an accent on it ("Éxito") still matches;
+        // shopMatch keeps only the notes that really name the shop.
+        [`%${(lead.length >= 5 ? lead.slice(1) : lead).toLowerCase()}%`]) : [];
+    const match = shopMatch(receipt.shop, known, categories, notes);
+    const categoryId = match?.categoryId
       ?? (receipt.shop ? await new ProposalsRepository(db).guessedCategoryOf(receipt.shop, -1) : null);
 
     this.compose.open('expense', {
-      preferredAccountId: known?.account_id ?? null,
+      preferredAccountId: match?.accountId ?? null,
       start: {
         amountMinor: receipt.totalMinor ?? 0,
         onDate: receipt.onDate ?? today,
-        note: known?.note?.trim() || receipt.shop || '',
+        note: match?.note?.trim() || receipt.shop || '',
         categoryId,
       },
     });

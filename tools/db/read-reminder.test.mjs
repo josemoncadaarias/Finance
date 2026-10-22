@@ -23,6 +23,7 @@ const CASES = [
   ['recuérdame pagar la administración un día antes del 10 de cada mes', { title: 'Pagar la administración', repeat: 'monthly', dayOfMonth: 10, daysBefore: 1 }],
   ['Remind me to pay the rent on the 1st of every month', { title: 'Pay the rent', repeat: 'monthly', dayOfMonth: 1 }],
   ['remind me tomorrow at 8am to call the bank', { title: 'Call the bank', repeat: 'once', onDate: '2026-10-23', hour: 8 }],
+  ['avísame hoy a las 9:45 de la noche que saque la basura', { repeat: 'once', onDate: '2026-10-22', hour: 21, minute: 45 }],
   ['hazme acordar de pagar el colegio el 3 de enero', { title: 'Pagar el colegio', repeat: 'once', onDate: '2027-01-03' }],
 ];
 

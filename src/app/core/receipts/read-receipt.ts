@@ -4,10 +4,16 @@
  * filled in, never to save anything by itself.
  *
  * Read by shape and by ordinary words, no shop or chain named:
- * - **the total** is the amount on the line that says it ("TOTAL A PAGAR",
- *   "VALOR TOTAL", "TOTAL"), or on the line under it; never a subtotal, the
- *   VAT, the change, the cash handed over or a count of items. With no such
- *   line, the largest amount on the receipt, marked unsure;
+ * - **the total** is the amount that goes with the line that says it ("TOTAL
+ *   A PAGAR", "VALOR TOTAL", "TOTAL"); never a subtotal, the VAT, the change,
+ *   the cash handed over or a count of items. A receipt's summary is a
+ *   column of words beside a column of figures, and in a photo held at an
+ *   angle the figures slide a row up or down against their words (Jose,
+ *   2026-10-22: "VALOR TOTAL" read the saving printed above it). So the words
+ *   of the summary are paired with its figures BY ORDER, the figures shifted
+ *   a row when one is missing, and of the ways to pair them the one whose
+ *   figures add up (subtotal less discounts, plus taxes, is the total) wins.
+ *   With no such line, the largest amount on the receipt, marked unsure;
  * - **the day** is the first date written anywhere on it that is not in the
  *   future nor more than two years old;
  * - **the shop** is the first line at the top with words in it that is not an
@@ -81,23 +87,109 @@ function shopOf(lines: readonly string[]): string | null {
   return null;
 }
 
+/** A line of a receipt's summary: a subtotal, a discount, a tax, a tip or a total. */
+const SUMMARY = /\b(sub\s*-?\s*total|total|descuentos?|ahorros?|iva|impuestos?|impoconsumo|propina|servicio|base|discount|savings|tip|vat|tax)\b/i;
+/** The line that opens a summary: a subtotal or a total, never a count of items. */
+const OPENS_SUMMARY = /\b(sub\s*-?\s*total|total)\b/i;
+const COUNT = /\btotal\s+(items?|[ií]tems?|art[ií]culos|unidades|productos|cantidad)\b/i;
+/** What a summary line is, for checking that its figures add up. */
+type Part = 'subtotal' | 'less' | 'more' | 'total' | 'other';
+
+function partOf(text: string): Part {
+  if (/\bsub\s*-?\s*total\b/i.test(text)) return 'subtotal';
+  if (STRONG.test(text) || (PLAIN.test(text) && !NOT_TOTAL.test(text))) return 'total';
+  if (/\b(descuentos?|ahorros?|discount|savings)\b/i.test(text)) return 'less';
+  if (/\b(iva|impuestos?|impoconsumo|propina|servicio|tip|vat|tax)\b/i.test(text)) return 'more';
+  return 'other';
+}
+
+interface Row { text: string; amounts: number[] }
+interface Pairing { pairs: { part: Part; strong: boolean; minor: number }[] }
+
+/** The total a pairing gives: the strongest total line, the larger on a tie. */
+function totalOf(p: Pairing): number | null {
+  let best: { score: number; minor: number } | null = null;
+  for (const pair of p.pairs) {
+    if (pair.part !== 'total') continue;
+    const score = pair.strong ? 2 : 1;
+    if (!best || score > best.score || (score === best.score && pair.minor > best.minor)) best = { score, minor: pair.minor };
+  }
+  return best?.minor ?? null;
+}
+
+/** Whether a pairing's figures add up: the subtotal, less some, plus some, is the total. */
+function addsUp(p: Pairing): boolean {
+  const total = totalOf(p);
+  const sub = p.pairs.find(x => x.part === 'subtotal')?.minor;
+  if (total === null || sub === undefined) return false;
+  const rest = p.pairs.filter(x => x.part === 'less' || x.part === 'more' || x.part === 'other').slice(0, 8);
+  for (let mask = 1; mask < 1 << rest.length; mask++) {
+    let sum = sub;
+    rest.forEach((x, i) => {
+      if (mask & (1 << i)) sum += x.part === 'less' ? -x.minor : x.part === 'more' ? x.minor : 0;
+    });
+    if (sum === total) return true;
+  }
+  return false;
+}
+
+/**
+ * The figures of a line: its amounts, or a small one written bare at its end
+ * ("IVA 19% 921") - on a summary line that is a figure, not a count.
+ */
+function figuresOf(text: string): number[] {
+  const found = amountsIn(text);
+  if (found.length > 0) return found;
+  const bare = /(?:^|\s)\$?\s*(\d{1,3})\s*$/.exec(text);
+  return bare && !/%\s*$/.test(text) && !COUNT.test(text) ? [Number(bare[1]) * 100] : [];
+}
+
+/** The ways the summary's words can be paired with its figures. */
+function pairings(rows: readonly Row[]): Pairing[] {
+  const start = rows.findIndex(r => OPENS_SUMMARY.test(r.text) && !COUNT.test(r.text));
+  if (start < 0) return [];
+  const labels: number[] = [];
+  for (let i = start; i < rows.length; i++) {
+    if (SUMMARY.test(rows[i].text) && !COUNT.test(rows[i].text)) labels.push(i);
+  }
+  const first = labels[0], last = labels[labels.length - 1];
+  const words = labels.map(i => ({ part: partOf(rows[i].text), strong: STRONG.test(rows[i].text) }));
+  const figures = (from: number, to: number): number[] => rows.slice(Math.max(0, from), to + 1)
+    .filter(r => r.amounts.length > 0).map(r => r.amounts[r.amounts.length - 1]);
+  const paired = (amounts: number[]): Pairing => ({ pairs: words.map((w, i) => ({ ...w, minor: amounts[i] })) });
+
+  const found: Pairing[] = [];
+  const inside = figures(first, last);
+  if (inside.length === words.length) found.push(paired(inside));
+  if (inside.length === words.length - 1) {
+    // One figure slid out of the column: below its words, or above them.
+    if (rows[last + 1]?.amounts.length) found.push(paired(figures(first, last + 1)));
+    if (first > start || (first === start && first > 0 && rows[first - 1]?.amounts.length)) {
+      const above = figures(first - 1, last);
+      if (above.length === words.length) found.push(paired(above));
+    }
+  }
+  // Each word with the figure on its own line, or on the line under it.
+  const own: Pairing = { pairs: [] };
+  labels.forEach((i, n) => {
+    const below = rows[i + 1] && !SUMMARY.test(rows[i + 1].text) ? rows[i + 1].amounts : [];
+    const minor = rows[i].amounts.length > 0 ? rows[i].amounts[rows[i].amounts.length - 1] : below[0];
+    if (minor !== undefined) own.pairs.push({ ...words[n], minor });
+  });
+  // Every word with a figure of its own line: the photo was level, trust it.
+  if (own.pairs.length === words.length) found.unshift(own);
+  else found.push(own);
+  return found.filter(p => totalOf(p) !== null);
+}
+
 /** The receipt in `items` (as `itemsOfPage` lays a photo out), read on `today`. */
 export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt {
   const lines = linesOf(items).map(l => l.text);
+  const rows: Row[] = lines.map(text => ({ text, amounts: figuresOf(text) }));
 
-  let best: { score: number; minor: number } | null = null;
-  lines.forEach((line, i) => {
-    if (!PLAIN.test(line) && !STRONG.test(line)) return;
-    if (NOT_TOTAL.test(line) && !STRONG.test(line)) return;
-    const here = amountsIn(line);
-    const below = lines[i + 1] && !PLAIN.test(lines[i + 1]) ? amountsIn(lines[i + 1]) : [];
-    const minor = here.length > 0 ? here[here.length - 1] : below[0];
-    if (minor === undefined) return;
-    const score = STRONG.test(line) ? 2 : 1;
-    if (!best || score > best.score || (score === best.score && minor > best.minor)) best = { score, minor };
-  });
-
-  let totalMinor: number | null = (best as { minor: number } | null)?.minor ?? null;
+  const ways = pairings(rows);
+  const chosen = ways.find(addsUp) ?? ways[0];
+  let totalMinor: number | null = chosen ? totalOf(chosen) : null;
   let totalSure = totalMinor !== null;
   if (totalMinor === null) {
     const all = lines.filter(l => !NOT_TOTAL.test(l) && !NOT_A_NAME.test(l)).flatMap(amountsIn);

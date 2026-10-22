@@ -16,6 +16,7 @@ interface Row {
   day_of_month: number | null;
   on_date: string | null;
   hour: number;
+  minute: number | null;
   days_before: number;
   shop: string | null;
   active: number;
@@ -29,7 +30,7 @@ export type ReminderInput = Omit<Reminder, 'id' | 'active' | 'doneMonth' | 'snoo
 function fromRow(row: Row): Reminder {
   return {
     id: row.id, title: row.title, amountMinor: row.amount_minor, accountId: row.account_id, categoryId: row.category_id,
-    note: row.note, repeat: row.repeat, dayOfMonth: row.day_of_month, onDate: row.on_date, hour: row.hour,
+    note: row.note, repeat: row.repeat, dayOfMonth: row.day_of_month, onDate: row.on_date, hour: row.hour, minute: row.minute ?? 0,
     daysBefore: row.days_before, shop: row.shop, active: row.active === 1, doneMonth: row.done_month, snoozedTo: row.snoozed_to,
   };
 }
@@ -62,11 +63,11 @@ export class RemindersRepository {
     const t = this.now();
     const result = await this.db.run(
       `INSERT INTO reminders (title, amount_minor, account_id, category_id, note, repeat, day_of_month, on_date,
-                              hour, days_before, shop, active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              hour, minute, days_before, shop, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [input.title.trim(), input.amountMinor, input.accountId, input.categoryId, input.note, input.repeat,
         input.repeat === 'monthly' ? input.dayOfMonth : null, input.repeat === 'once' ? input.onDate : null,
-        input.hour, input.daysBefore, input.shop, input.active === false ? 0 : 1, t, t]);
+        input.hour, input.minute ?? 0, input.daysBefore, input.shop, input.active === false ? 0 : 1, t, t]);
     return Number(result.lastId);
   }
 
@@ -74,11 +75,11 @@ export class RemindersRepository {
   async update(id: number, input: ReminderInput): Promise<void> {
     await this.db.run(
       `UPDATE reminders SET title = ?, amount_minor = ?, account_id = ?, category_id = ?, note = ?, repeat = ?,
-              day_of_month = ?, on_date = ?, hour = ?, days_before = ?, shop = ?, active = ?, snoozed_to = NULL,
+              day_of_month = ?, on_date = ?, hour = ?, minute = ?, days_before = ?, shop = ?, active = ?, snoozed_to = NULL,
               updated_at = ? WHERE id = ?`,
       [input.title.trim(), input.amountMinor, input.accountId, input.categoryId, input.note, input.repeat,
         input.repeat === 'monthly' ? input.dayOfMonth : null, input.repeat === 'once' ? input.onDate : null,
-        input.hour, input.daysBefore, input.shop, input.active === false ? 0 : 1, this.now(), id]);
+        input.hour, input.minute ?? 0, input.daysBefore, input.shop, input.active === false ? 0 : 1, this.now(), id]);
   }
 
   async setActive(id: number, active: boolean): Promise<void> {

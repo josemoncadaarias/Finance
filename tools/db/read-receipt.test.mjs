@@ -98,3 +98,70 @@ test('nothing readable gives nothing', () => {
   const r = readReceipt([], TODAY);
   assert.deepEqual(r, { totalMinor: null, totalSure: false, onDate: null, shop: null });
 });
+
+/**
+ * A long supermarket receipt photographed at an angle: the figures of the
+ * summary sit lower than their words, each beside the next word down (Jose,
+ * 2026-10-22: "VALOR TOTAL" read the saving printed above it). Invented.
+ */
+function tilted(itemsRows, summary, after, slide) {
+  const lines = [];
+  let top = 40;
+  for (const [left, right] of itemsRows) {
+    if (left) lines.push({ text: left, left: 20, top, right: 400, bottom: top + 28 });
+    if (right) lines.push({ text: right, left: 520, top, right: 700, bottom: top + 28 });
+    top += 42;
+  }
+  for (const [left, right] of summary) {
+    lines.push({ text: left, left: 20, top, right: 300, bottom: top + 28 });
+    if (right) lines.push({ text: right, left: 520, top: top + slide, right: 700, bottom: top + slide + 28 });
+    top += 42;
+  }
+  for (const left of after) {
+    lines.push({ text: left, left: 20, top, right: 400, bottom: top + 28 });
+    top += 42;
+  }
+  return itemsOfPage({ width: 720, height: top + 40, lines }, 1);
+}
+
+const ITEMS = [
+  ['MERCADO LAS PALMAS SEDE NORTE', ''],
+  ['FACTURA ELECTRONICA DE VENTA', ''],
+  ['2026-10-19 18:06:53', ''],
+  ['1 1/u x 40.500 V.Ahorro 4.050', ''],
+  ['1605752 Crema Manos', '36.450'],
+  ['2 1/u x 30.000 V.Ahorro 8.000', ''],
+  ['3534007 Jabon Barra', '22.000A'],
+  ['3401545 Galletas', '9.950A'],
+  ['6261 IMPUESTO BOLSA P', '66'],
+  ['Total Item :4', ''],
+];
+const SUMMARY_ROWS = [
+  ['SUBTOTAL', '80.516'],
+  ['DESCUENTO', '10.513'],
+  ['AHORRO', '12.050'],
+  ['VALOR TOTAL', '68.466'],
+];
+
+test('a tilted photo: the figures slid a row down still go with their words', () => {
+  const r = readReceipt(tilted(ITEMS, SUMMARY_ROWS, ['FORMA PAGO CONTADO', 'TARJETA DEBITO'], 30), TODAY);
+  assert.equal(r.totalMinor, 6846600);
+  assert.equal(r.totalSure, true);
+  assert.equal(r.onDate, '2026-10-19');
+  assert.equal(r.shop, 'Mercado Las Palmas Sede Norte');
+});
+
+test('a tilted photo the other way: the figures slid a row up', () => {
+  const r = readReceipt(tilted(ITEMS, SUMMARY_ROWS, ['FORMA PAGO CONTADO', 'TARJETA DEBITO'], -30), TODAY);
+  assert.equal(r.totalMinor, 6846600);
+});
+
+test('the same receipt held level reads the same total', () => {
+  const r = readReceipt(tilted(ITEMS, SUMMARY_ROWS, ['FORMA PAGO CONTADO', 'TARJETA DEBITO'], 0), TODAY);
+  assert.equal(r.totalMinor, 6846600);
+});
+
+test('cash handed over and change never pass for the total', () => {
+  const r = readReceipt(tilted([['PANADERIA SOL', '']], [['SUBTOTAL', '12.605'], ['IVA', '2.395'], ['TOTAL', '15.000'], ['EFECTIVO', '20.000'], ['CAMBIO', '5.000']], [], 30), TODAY);
+  assert.equal(r.totalMinor, 1500000);
+});

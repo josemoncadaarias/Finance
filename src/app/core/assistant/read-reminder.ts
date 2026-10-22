@@ -16,6 +16,8 @@ export interface ReminderSaid {
   dayOfMonth: number | null;
   onDate: string | null;
   hour: number | null;
+  /** "a las 7:30": its minute; 0 when only the hour was said. */
+  minute: number;
   daysBefore: number | null;
 }
 
@@ -64,6 +66,7 @@ export function readReminder(text: string, today: string): ReminderSaid {
   let dayOfMonth: number | null = null;
   let onDate: string | null = null;
   let hour: number | null = null;
+  let minute = 0;
   let daysBefore: number | null = null;
   let m: RegExpExecArray | null;
 
@@ -74,6 +77,7 @@ export function readReminder(text: string, today: string): ReminderSaid {
     if (/p ?m|tarde|noche/.test(part) && h < 12) h += 12;
     if (/a ?m|manana/.test(part) && h === 12) h = 0;
     if (h >= 0 && h <= 23) hour = h;
+    if (m[2] && Number(m[2]) < 60) minute = Number(m[2]);
     cut(new RegExp(m[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   } else if ((m = /\b(en|por) la (manana|tarde|noche)\b|\b(in the) (morning|afternoon|evening)\b/.exec(s))) {
     const part = m[2] ?? m[4];
@@ -149,7 +153,7 @@ export function readReminder(text: string, today: string): ReminderSaid {
     .replace(/\s+(de|del|el|la|por|para|a|al|en)$/, '');
   // Its words as the person wrote them: the original text, cut the same way.
   title = sameCase(text, title);
-  return { title: title ? title.charAt(0).toUpperCase() + title.slice(1) : '', repeat, dayOfMonth, onDate, hour, daysBefore };
+  return { title: title ? title.charAt(0).toUpperCase() + title.slice(1) : '', repeat, dayOfMonth, onDate, hour, minute, daysBefore };
 }
 
 /** The title's words in the case and accents the person typed them. */

@@ -4052,4 +4052,17 @@ CREATE TABLE reminders (
 CREATE INDEX idx_reminders_active ON reminders(active);
 `,
   },
+  {
+    version: 61,
+    name: 'reminder_minute',
+    file: '061_reminder_minute.sql',
+    sql: `-- Migration 061 - a reminder's minute
+--
+-- Jose, 2026-10-22: the hours offered (7, 8, 9...) were the only ones, so a
+-- reminder could not be tried at once nor set at 7:30. The hour stays as it
+-- was; \`minute\` joins it, 0 for every reminder already made.
+
+ALTER TABLE reminders ADD COLUMN minute INTEGER NOT NULL DEFAULT 0 CHECK (minute BETWEEN 0 AND 59);
+`,
+  },
 ];

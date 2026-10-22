@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1052 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1063 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -273,7 +273,9 @@ these):
   Version 17 (2026-10-22): Inicio's "+" step names "Pagos fijos y
   frecuentes" (`since: 14`). Version 18 (2026-10-22): the assistant's step
   on the conversation's days says where "Cambiar" is now and names the
-  arrows (`since: 5`).
+  arrows (`since: 5`). Version 19 (2026-10-22): Recordatorios - "A la
+  hora que quieras" (any time, when it rings, the notices to allow;
+  `since: 2`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5630,6 +5632,27 @@ with testers runs; the paywall is finished after them.
   mes o una sola vez?") and lists them ("¿qué recordatorios tengo?"); neither
   counts as a question. The sample data carries three. Checked in a browser
   on Jose's backup; the phone notification itself not seen yet.
+  **From Jose's first try (2026-10-22: a one-off for that day at 9:00 never
+  rang)**, read from the code - the cause on his phone is assumed, not
+  proved: (1) every data change cancelled the reminders' pending alarms and
+  scheduled them again, but a ringing was remembered as "told" once handed
+  to the alarms, so an alarm Android held back past its minute (inexact by
+  design) was cancelled and never sent again; (2) inexact alarms may come
+  many minutes late; (3) with Finance's notices off nothing rang and nothing
+  said so. Now: a ringing is known by its occurrence AND its time
+  (`ringKey`), "told" only once it is on the phone - sent now, or scheduled
+  and its time passed out of the phone's queue (`finance.reminders.scheduled`)
+  -, so one held back is taken back and rung at once, and a new time rings
+  again. It rings at the exact minute when Android allows it ("Alarmas y
+  recordatorios", `checkExactNotificationSetting`), inexact otherwise, and
+  the screen says both cases on top with a button: "Permitir avisos" (asks,
+  or opens Finance's notification settings) and "Sonar a la hora exacta"
+  (`changeExactNotificationSetting`); read again on coming back to the app.
+  **Any hour and minute** (migration 061, `reminders.minute`): "Otra hora"
+  beside the quick hours opens a time wheel, and under them "Sonará el
+  {día} a las {hora}" or "Esa hora ya pasó: sonará apenas lo guardes". The
+  assistant reads "a las 9:45" too. Tests in `reminders.test.mjs` and
+  `read-reminder.test.mjs`; the form checked in a browser.
 - **Quincena and semestre are periods** (Jose, 2026-10-22, idea 17;
   trimestre already was). `PeriodKind` gains `fortnight` (the 1st to the
   15th, the 16th to the month's last day - how pay periods run here; it steps
@@ -5749,6 +5772,21 @@ with testers runs; the paywall is finished after them.
   lets the ordinary words of its name suggest a starter category, and opens
   the form; a toast says what to check. Nothing is saved by itself (rule 22).
   Only on the phone; the UI checked in a browser by forcing it on.
+  **A tilted photo read the wrong total** (Jose, 2026-10-22, a supermarket
+  receipt: "VALOR TOTAL" gave the saving printed above it). A summary is a
+  column of words beside a column of figures, and held at an angle the
+  figures slide a row against their words. Now its words (subtotal,
+  discounts, savings, taxes, tip, totals; never "Total items") are paired
+  with its figures BY ORDER, shifted a row when one is missing, and of the
+  pairings the one whose figures add up (subtotal less some, plus some, is
+  the total) wins (`pairings`, `addsUp` in `read-receipt.ts`); a bare small
+  figure at a line's end counts ("IVA 19% 921"). Tests on an invented
+  receipt slid down, up and level. **And the shop finds the person's own
+  category** (`shop-category.ts`, `shopMatch`, tested): the shop as
+  learned; the same chain at another branch (first word, or two words, in
+  common with a learned shop); a category named by one of its words
+  (plurals folded: "Restaurante" ↔ "Restaurantes"); what the person filed
+  notes naming it under, twice or more; then the common words.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
