@@ -95,6 +95,8 @@ export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
 
 /** What a shop was last saved as, besides its category. */
 export interface ShopChoice {
+  /** The account it was last saved on; absent when the save did not say it. */
+  accountId?: number | null;
   note: string | null;
   productId: number | null;
   scope: 'both' | 'product' | 'netWorth' | null;
@@ -175,6 +177,7 @@ export class ProposalsRepository {
    */
   async propose(batch: string, readings: readonly NewProposal[]): Promise<Proposed> {
     if (readings.length === 0) return { ids: [], knownAlready: 0 };
+    readings = await this.withShopAccounts(readings);
     const timestamp = this.now();
 
     // What this screen already holds for these accounts, whatever was decided
@@ -929,7 +932,7 @@ export class ProposalsRepository {
    * Teaching it from hand-typed movements is what makes it useful from the
    * first week rather than the third.
    */
-  async learn(description: string | null, categoryId: number | null, on: IsoDate, chosen?: ShopChoice): Promise<void> {
+  async learn(description: string | null, categoryId: number | null, on: IsoDate, chosen?: ShopChoice, accountId?: number | null): Promise<void> {
     const merchant = merchantKeyOf(description);
     if (merchant.length === 0 || categoryId === null) return;
     const timestamp = this.now();
@@ -942,8 +945,8 @@ export class ProposalsRepository {
     const note = chosen?.note?.trim() && chosen.note.trim() !== (description ?? '').trim() ? chosen.note.trim() : null;
     await this.db.run(
       `INSERT INTO merchant_categories (merchant, category_id, sample, times, last_seen_on, created_at, updated_at,
-                                        note, product_id, scope)
-       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+                                        note, product_id, scope, account_id)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(merchant) DO UPDATE SET
          -- A merchant filed somewhere else now follows the newest answer, and
          -- the count starts again: the person changed their mind, and the app
@@ -955,9 +958,29 @@ export class ProposalsRepository {
          updated_at   = excluded.updated_at,
          note         = CASE WHEN ? = 1 THEN excluded.note ELSE note END,
          product_id   = CASE WHEN ? = 1 THEN excluded.product_id ELSE product_id END,
-         scope        = CASE WHEN ? = 1 THEN excluded.scope ELSE scope END`,
+         scope        = CASE WHEN ? = 1 THEN excluded.scope ELSE scope END,
+         account_id   = COALESCE(excluded.account_id, account_id)`,
       [merchant, categoryId, merchantSampleOf(description), on, timestamp, timestamp,
-        note, chosen?.productId ?? null, chosen?.scope ?? null, said, said, said]);
+        note, chosen?.productId ?? null, chosen?.scope ?? null, chosen?.accountId ?? accountId ?? null, said, said, said]);
+  }
+
+  /**
+   * A reading that came with no account takes the one its shop was last
+   * saved on, or the one its movements used most (Jose, 2026-10-22): the
+   * person only corrects it when it was another. Only an account still open.
+   */
+  private async withShopAccounts(readings: readonly NewProposal[]): Promise<readonly NewProposal[]> {
+    if (!readings.some(r => r.account_id == null && r.description)) return readings;
+    const shops = await this.db.query<{ merchant: string; account_id: number }>(
+      `SELECT m.merchant, m.account_id FROM merchant_categories m
+         JOIN accounts a ON a.id = m.account_id AND a.archived = 0`);
+    if (shops.length === 0) return readings;
+    const accountOf = new Map(shops.map(row => [row.merchant, row.account_id]));
+    return readings.map(reading => {
+      if (reading.account_id != null || !reading.description) return reading;
+      const account = accountOf.get(merchantKeyOf(reading.description));
+      return account === undefined ? reading : { ...reading, account_id: account };
+    });
   }
 
   /**
@@ -966,11 +989,11 @@ export class ProposalsRepository {
    * any of those for are left out.
    */
   async shopMemory(): Promise<Map<string, ShopChoice>> {
-    const rows = await this.db.query<{ merchant: string; note: string | null; product_id: number | null; scope: string | null }>(
-      `SELECT merchant, note, product_id, scope FROM merchant_categories
-        WHERE note IS NOT NULL OR product_id IS NOT NULL OR scope IS NOT NULL`);
+    const rows = await this.db.query<{ merchant: string; note: string | null; product_id: number | null; scope: string | null; account_id: number | null }>(
+      `SELECT merchant, note, product_id, scope, account_id FROM merchant_categories
+        WHERE note IS NOT NULL OR product_id IS NOT NULL OR scope IS NOT NULL OR account_id IS NOT NULL`);
     return new Map(rows.map(row => [row.merchant,
-      { note: row.note, productId: row.product_id, scope: row.scope as ShopChoice['scope'] }]));
+      { note: row.note, productId: row.product_id, scope: row.scope as ShopChoice['scope'], accountId: row.account_id }]));
   }
 
   /**
@@ -991,24 +1014,29 @@ export class ProposalsRepository {
     // trip across the bridge to the native plugin - and it ran on EVERY
     // import. It is the single biggest reason reading a statement took forty
     // seconds there and a moment in the browser.
-    const known = new Set((await this.db.query<{ merchant: string }>(
-      'SELECT merchant FROM merchant_categories')).map(row => row.merchant));
+    const knownRows = await this.db.query<{ merchant: string; account_id: number | null }>(
+      'SELECT merchant, account_id FROM merchant_categories');
+    const known = new Set(knownRows.map(row => row.merchant));
+    const withAccount = new Set(knownRows.filter(row => row.account_id !== null).map(row => row.merchant));
 
     const movements = await this.db.query<{
-      description: string; category_id: number; occurred_on: IsoDate;
-    }>(`SELECT description, category_id, occurred_on FROM transactions
+      description: string; category_id: number; occurred_on: IsoDate; account_id: number;
+    }>(`SELECT description, category_id, occurred_on, account_id FROM transactions
         WHERE description IS NOT NULL AND description <> '' AND category_id IS NOT NULL
         ORDER BY occurred_on`);
 
     const counted = new Map<string, {
-      sample: string; last: IsoDate; categories: Map<number, number>;
+      sample: string; last: IsoDate; categories: Map<number, number>; accounts: Map<number, number>;
     }>();
     for (const movement of movements) {
       const merchant = merchantKeyOf(movement.description);
       if (merchant.length === 0) continue;
       const seen = counted.get(merchant)
-        ?? { sample: merchantSampleOf(movement.description), last: movement.occurred_on, categories: new Map() };
+        ?? { sample: merchantSampleOf(movement.description), last: movement.occurred_on, categories: new Map(), accounts: new Map() };
       seen.categories.set(movement.category_id, (seen.categories.get(movement.category_id) ?? 0) + 1);
+      // The newest movements count last, so an equal count goes to the account used latest.
+      seen.accounts.delete(movement.account_id);
+      seen.accounts.set(movement.account_id, (seen.accounts.get(movement.account_id) ?? 0) + 1);
       seen.last = movement.occurred_on;
       seen.sample = merchantSampleOf(movement.description);
       counted.set(merchant, seen);
@@ -1019,22 +1047,26 @@ export class ProposalsRepository {
     const rows: unknown[][] = [];
     for (const [merchant, seen] of counted) {
       // Already answered for, by hand or by an earlier pass: never overruled,
-      // and never written again either. After the first import this leaves
+      // and never written again either - except an account it never had yet,
+      // the one its movements used most. After the first pass this leaves
       // nothing to do at all.
-      if (known.has(merchant)) continue;
+      if (known.has(merchant) && withAccount.has(merchant)) continue;
       const [categoryId, times] = [...seen.categories.entries()]
         .sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0];
-      rows.push([merchant, categoryId, seen.sample, times, seen.last, timestamp, timestamp]);
+      const most = Math.max(...seen.accounts.values());
+      const accountId = [...seen.accounts.entries()].filter(([, n]) => n === most).at(-1)![0];
+      rows.push([merchant, categoryId, seen.sample, times, seen.last, timestamp, timestamp, accountId]);
     }
     if (rows.length === 0) return 0;
 
     await this.db.transaction(async () => {
       await this.insertMany(
         `INSERT INTO merchant_categories
-           (merchant, category_id, sample, times, last_seen_on, created_at, updated_at)
-         VALUES `, 7, rows, ' ON CONFLICT(merchant) DO NOTHING');
+           (merchant, category_id, sample, times, last_seen_on, created_at, updated_at, account_id)
+         VALUES `, 8, rows,
+        ' ON CONFLICT(merchant) DO UPDATE SET account_id = COALESCE(merchant_categories.account_id, excluded.account_id)');
     });
-    return rows.length;
+    return rows.filter(row => !known.has(row[0] as string)).length;
   }
 
   /**

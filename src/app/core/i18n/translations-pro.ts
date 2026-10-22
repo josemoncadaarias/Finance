@@ -19,6 +19,8 @@ export const PRO_ES = {
   'pro.perk.debts.text': "Sin límite, con abonos a capital",
   'pro.perk.report': 'Reporte completo y en Excel',
   'pro.perk.report.text': 'Más el simulador de renta y tus propias imágenes',
+  'pro.perk.assistant': 'El asistente, sin límite',
+  'pro.perk.assistant.text': 'Pregúntale lo que quieras. Sin Pro tienes 20 preguntas gratis cada mes',
   'pro.yearly': 'Anual',
   'pro.monthly': 'Mensual',
   'pro.perMonth': 'Solo {amount} al mes',
@@ -121,6 +123,8 @@ export const PRO_ES = {
   'pro.f.newCategories.text': "Crea las categorías que quieras. Las que trae la app las puedes renombrar y ocultar gratis.",
   'pro.f.ownImages.title': 'Tus propias imágenes',
   'pro.f.ownImages.text': "Pon el logo de tu banco o la imagen que quieras en tus cuentas y categorías. Los íconos y colores son gratis.",
+  'pro.f.assistant.title': 'Ya usaste tus 20 preguntas gratis del mes',
+  'pro.f.assistant.text': "Con Finance Pro le preguntas al asistente todo lo que quieras. Registrar movimientos con el asistente sigue siendo gratis.",
 };
 
 export const PRO_EN: Record<keyof typeof PRO_ES, string> = {
@@ -138,6 +142,8 @@ export const PRO_EN: Record<keyof typeof PRO_ES, string> = {
   'pro.perk.debts.text': 'No limit, with extra payments',
   'pro.perk.report': 'Full report and Excel',
   'pro.perk.report.text': 'Plus the income-tax simulator and your own pictures',
+  'pro.perk.assistant': 'The assistant, no limit',
+  'pro.perk.assistant.text': 'Ask it anything. Without Pro you get 20 free questions every month',
   'pro.yearly': 'Yearly',
   'pro.monthly': 'Monthly',
   'pro.perMonth': 'Only {amount} a month',
@@ -240,4 +246,6 @@ export const PRO_EN: Record<keyof typeof PRO_ES, string> = {
   'pro.f.newCategories.text': 'Create the categories you want. The ones the app brings can be renamed and hidden for free.',
   'pro.f.ownImages.title': 'Your own pictures',
   'pro.f.ownImages.text': "Put your bank's logo or any picture on your accounts and categories. Icons and colours are free.",
+  'pro.f.assistant.title': "You used this month's 20 free questions",
+  'pro.f.assistant.text': 'With Finance Pro you ask the assistant as much as you want. Registering movements with the assistant stays free.',
 };

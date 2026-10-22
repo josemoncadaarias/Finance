@@ -199,6 +199,7 @@ erDiagram
         TEXT note
         INTEGER product_id FK
         TEXT scope
+        INTEGER account_id FK
     }
     product_kinds {
         INTEGER id PK
@@ -372,6 +373,7 @@ erDiagram
     products  ||--o{ yield_rates        : "earns at its own"
     products  ||--o{ yield_days        : "day by day"
     products  ||--o{ merchant_categories : "is where this shop was last saved"
+    accounts  ||--o{ merchant_categories : "is the account this shop uses most"
     accounts       ||--o{ yield_days        : "day by day"
     accounts       ||--o{ cashback_rules    : "rewards under"
     accounts       ||--o{ cashback_rules    : "conditioned on the balance of"

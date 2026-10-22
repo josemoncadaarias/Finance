@@ -49,3 +49,11 @@ test('who has everything open: a purchase always; nobody else once the app charg
   assert.equal(isUnlocked(false, false, true), false, 'the preview shows the free version');
   assert.equal(isUnlocked(false, true, false), false);
 });
+
+test('the assistant: 20 free questions a month (Jose, 2026-10-22)', () => {
+  assert.equal(PLAN.assistant.free, 20);
+  assert.equal(PLAN.assistant.per, 'month');
+  assert.equal(canUse('assistant', 19, false), true);
+  assert.equal(canUse('assistant', 20, false), false);
+  assert.equal(canUse('assistant', 99, true), true);
+});

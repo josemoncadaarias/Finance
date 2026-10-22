@@ -5,7 +5,7 @@
   </button>
   <h1 class="titled">{{ 'ai.title' | t }}<small>{{ 'ai.subtitle' | t }}</small></h1>
   @if (!empty()) {
-    <button type="button" class="ui-round" (click)="clear()" [attr.aria-label]="'ai.history.clear' | t">
+    <button type="button" class="ui-round" (click)="clearing.set(true)" [attr.aria-label]="'ai.history.clear' | t">
       <ion-icon name="trash-outline"></ion-icon>
     </button>
   }
@@ -33,7 +33,13 @@
       }
     }
 
-    @if (!empty()) { <p class="kept">{{ 'ai.history.kept' | t:{ days: historyDays } }}</p> }
+    @if (!empty()) {
+      <!-- How long it stays is the person's choice (Jose, 2026-10-22, up to 60 days). -->
+      <button type="button" class="kept" (click)="choosingDays.set(true)">
+        {{ (historyDays() === 1 ? 'ai.history.kept.one' : 'ai.history.kept') | t:{ days: historyDays() } }}
+        <span class="change">{{ 'ai.history.change' | t }}</span>
+      </button>
+    }
     @for (m of messages(); track m.id) {
       @if (m.who === 'me') {
         <div class="me"><p>{{ m.parts[0].text }}</p></div>
@@ -293,3 +299,26 @@
                     (picked)="pickedCategory($event)" (cancelled)="categorySheet.set(null)"></app-category-sheet>
 <app-account-picker [open]="accountSheet()" [accounts]="accountsForSheet()" [heading]="'ai.account.heading' | t"
                     (chosen)="pickedAccount($event)" (closed)="accountSheet.set(false)"></app-account-picker>
+
+<app-confirm [open]="clearing()" icon="trash-outline" tone="danger"
+             [title]="'ai.history.clear.title' | t" [body]="'ai.history.clear.body' | t"
+             [confirmLabel]="'ai.history.clear' | t" (confirmed)="clear()" (cancelled)="clearing.set(false)"></app-confirm>
+
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choosingDays()" (didDismiss)="choosingDays.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="choosingDays.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'ai.history.days.title' | t }}</h3>
+      <p class="sheet-hint">{{ 'ai.history.days.hint' | t }}</p>
+      <div class="ui-list">
+        @for (d of dayChoices; track d) {
+          <button type="button" class="ui-row" (click)="keepFor(d)">
+            <span class="ui-tx"><b>{{ (d === 1 ? 'ai.history.days.one' : 'ai.history.days') | t:{ days: d } }}</b></span>
+            @if (historyDays() === d) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>

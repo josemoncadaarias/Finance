@@ -22,6 +22,16 @@ import { PaywallService } from '../paywall/paywall.service';
 import type { EntryKind, EntryRequest } from '../../features/entry/entry.component';
 import type { TransactionRow } from '../database/types';
 
+/** Where a movement saved in the form went: its side, accounts, products and category. */
+export interface SavedChoice {
+  side: 'expense' | 'income' | 'transfer';
+  accountId: number | null;
+  productId: number | null;
+  toAccountId: number | null;
+  toProductId: number | null;
+  categoryId: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ComposeService {
   private readonly filter = inject(FilterService);
@@ -51,6 +61,9 @@ export class ComposeService {
 
   /** Bumped when a movement has been saved, for screens that want to know. */
   readonly saved = signal(0);
+
+  /** What the last movement saved in the form went through, for the assistant to learn from. */
+  readonly lastSaved = signal<SavedChoice | null>(null);
 
   private accountInView(): number | null {
     return this.context() ?? this.filter.accountId();

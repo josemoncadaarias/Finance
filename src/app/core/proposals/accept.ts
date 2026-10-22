@@ -156,7 +156,7 @@ export async function accept(
     // What it was filed under is what the next one from this shop will be
     // proposed as - including a category the person corrected here, which is
     // the app being taught rather than the app guessing again.
-    await repos.proposals.learn(proposal.description, proposal.category_id, proposal.occurred_on!);
+    await repos.proposals.learn(proposal.description, proposal.category_id, proposal.occurred_on!, undefined, proposal.account_id);
     done.add(proposal.id);
     result.written += 1;
   }

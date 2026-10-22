@@ -19,6 +19,8 @@ import { CHARGING, PLAN, canUse, freeLeft, isUnlocked, reportSectionFree, type F
 import { changeModeFor, lapsedOn, subscriptionOf, trialDaysOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
 
 const PREVIEW_KEY = 'finance.paywall.preview';
+/** The assistant's questions this month (`{ month, n }`). */
+const QUESTIONS_KEY = 'assistant.questions';
 /** The store's last answer, kept so no lock is felt offline (rule 21, 2). */
 const ENTITLED_KEY = 'finance.pro.entitled';
 
@@ -48,6 +50,7 @@ export const FEATURE_FACE: Record<Feature, { icon: string; color: string }> = {
   tax: { icon: 'calculator-outline', color: '#ff9152' },
   newCategories: { icon: 'pricetags-outline', color: '#d07bf0' },
   ownImages: { icon: 'image-outline', color: '#d07bf0' },
+  assistant: { icon: 'sparkles-outline', color: '#6378ff' },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -236,8 +239,38 @@ export class PaywallService {
       case 'limits': return count('SELECT COUNT(*) AS n FROM spending_limits');
       case 'goals': return count('SELECT COUNT(*) AS n FROM goals WHERE archived = 0');
       case 'noticeMovements': return this.messagesThisMonth();
+      case 'assistant': return (await this.questions()).n;
       default: return 0;
     }
+  }
+
+  /** The assistant's questions answered this month, kept in the database so a backup carries them. */
+  private async questions(): Promise<{ month: string; n: number }> {
+    const month = new Date().toISOString().slice(0, 7);
+    const row = await this.database.driver.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [QUESTIONS_KEY]);
+    try {
+      const kept = JSON.parse(row?.value ?? '{}') as { month?: string; n?: number };
+      return { month, n: kept.month === month && typeof kept.n === 'number' ? kept.n : 0 };
+    } catch {
+      return { month, n: 0 };
+    }
+  }
+
+  /**
+   * Whether the assistant may answer one more question, counting it when it
+   * may. Past the month's free ones the sheet says why; registering never asks.
+   */
+  async askQuestion(): Promise<boolean> {
+    if (this.database.status() !== 'ready') return true;
+    if (this.unlocked()) return true;
+    const { month, n } = await this.questions();
+    if (!(await this.allow('assistant', n))) return false;
+    await this.database.driver.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [QUESTIONS_KEY, JSON.stringify({ month, n: n + 1 }), new Date().toISOString()]);
+    return true;
   }
 
   /** Movements saved from bank messages since the 1st of this month. */

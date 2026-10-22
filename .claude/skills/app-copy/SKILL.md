@@ -60,6 +60,10 @@ own words. Never invent a term of the app's own.
 - Numbers with their unit: "1 euro", "3 movimientos", never a bare count.
 - Sentence case: only the first word and proper names in capitals.
 - No word ends in "…" (names slide instead). No "!" in the app's own voice.
+- No bank, shop or platform named in the app's own words ("como hace Ualá",
+  "eToro o XTB"): the person may not have it. An example is generic ("5% todos
+  los días, más 5,5% al mes si gastas cierto valor"); a name appears only when
+  it is the person's own data (Jose, 2026-10-22).
 
 ## 6. Agreement and articles
 

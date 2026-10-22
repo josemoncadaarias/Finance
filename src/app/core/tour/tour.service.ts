@@ -203,8 +203,9 @@ const TOUR_LIST = {
     steps: [
       { title: 'tour.assistant.1.title', text: 'tour.assistant.1.text' },
       { sel: 'app-assistant .compose-bar', title: 'tour.assistant.2.title', text: 'tour.assistant.2.text' },
-      { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text' },
+      { title: 'tour.assistant.3.title', text: 'tour.assistant.3.text', since: 3 },
       { title: 'tour.assistant.4.title', text: 'tour.assistant.4.text', since: 2 },
+      { title: 'tour.assistant.5.title', text: 'tour.assistant.5.text', since: 3 },
     ],
   },
   tax: {
@@ -228,6 +229,7 @@ const TOUR_LIST = {
       { sel: 'app-review .shops', title: 'tour.review.6.title', text: 'tour.review.6.text', since: 3 },
       { title: 'tour.review.7.title', text: 'tour.review.7.text', since: 3 },
       { title: 'tour.review.8.title', text: 'tour.review.8.text', since: 4 },
+      { title: 'tour.review.9.title', text: 'tour.review.9.text', since: 5 },
     ],
   },
   notifications: {

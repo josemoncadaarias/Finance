@@ -40,9 +40,11 @@ import { splitWorth } from '../worth/worth-split';
 import { usuryOn } from '../debts/usury';
 import type { DebtIn } from './debts-advice';
 import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
-import { NOTHING_LEARNED, fold, type Learned, type PhraseContext } from './read-phrase';
+import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 
 const LEARNED_KEY = 'assistant.learned';
+/** How many sentences and where they were saved are remembered. */
+const PHRASES_KEPT = 300;
 
 export interface AccountMoney {
   account: AccountRow;
@@ -135,12 +137,12 @@ export class AssistantService {
 
   async learned(): Promise<Learned> {
     const row = await this.db.queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [LEARNED_KEY]);
-    if (!row) return { accounts: {}, shapes: {} };
+    if (!row) return { accounts: {}, shapes: {}, phrases: {} };
     try {
       const parsed = JSON.parse(row.value) as Partial<Learned>;
-      return { accounts: parsed.accounts ?? {}, shapes: parsed.shapes ?? {} };
+      return { accounts: parsed.accounts ?? {}, shapes: parsed.shapes ?? {}, phrases: parsed.phrases ?? {} };
     } catch {
-      return { ...NOTHING_LEARNED, accounts: {}, shapes: {} };
+      return { accounts: {}, shapes: {}, phrases: {} };
     }
   }
 
@@ -164,6 +166,19 @@ export class AssistantService {
   async learnShape(shape: string, meant: 'register' | 'afford'): Promise<void> {
     const learned = await this.learned();
     learned.shapes[shape] = meant;
+    await this.keep(learned);
+  }
+
+  /** A sentence said this way was saved here: the next one said the same way goes there too. */
+  async learnPhrase(key: string, route: LearnedRoute): Promise<void> {
+    if (!key || route.accountId === null) return;
+    const learned = await this.learned();
+    const phrases = { ...(learned.phrases ?? {}) };
+    delete phrases[key];
+    learned.phrases = { ...phrases, [key]: route };
+    // The newest few hundred are kept; a sentence not said for long goes first.
+    const keys = Object.keys(learned.phrases);
+    if (keys.length > PHRASES_KEPT) for (const old of keys.slice(0, keys.length - PHRASES_KEPT)) delete learned.phrases[old];
     await this.keep(learned);
   }
 

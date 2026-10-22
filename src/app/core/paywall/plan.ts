@@ -26,7 +26,8 @@ export type Feature =
   | 'reportExport'     // the report as a spreadsheet
   | 'tax'              // the income-tax simulator
   | 'newCategories'    // creating a category (renaming and hiding are free)
-  | 'ownImages';       // an account's or category's own picture
+  | 'ownImages'        // an account's or category's own picture
+  | 'assistant';       // a question to the assistant, each month (registering by it is free)
 
 export interface Allowance {
   /** How many may be used without paying. */
@@ -49,6 +50,10 @@ export const PLAN: Record<Feature, Allowance> = {
   tax: { free: 0, per: 'ever' },
   newCategories: { free: 0, per: 'ever' },
   ownImages: { free: 0, per: 'ever' },
+  // Jose, 2026-10-22: some free, the rest paid. Nothing is charged per use
+  // (no AI behind it), so the allowance is generous: enough to make it a
+  // habit, short of asking every day. Registering by it is never counted.
+  assistant: { free: 20, per: 'month' },
 };
 
 /** The report's sections anybody sees; the rest are `reportFull`. */

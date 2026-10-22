@@ -59,9 +59,26 @@ export interface Learned {
   accounts: Record<string, number>;
   /** A shape of sentence with no verb, and what it turned out to mean. */
   shapes: Record<string, 'register' | 'afford'>;
+  /**
+   * A sentence, its figures and its day left out, and where the movement it
+   * asked for was finally saved: the next time it is said the same way it
+   * goes there (Jose, 2026-10-22: corrected once, asked again, the same
+   * wrong account came back).
+   */
+  phrases?: Record<string, LearnedRoute>;
 }
 
-export const NOTHING_LEARNED: Learned = { accounts: {}, shapes: {} };
+/** Where a sentence's movement was saved. */
+export interface LearnedRoute {
+  side: Side;
+  accountId: number | null;
+  productId: number | null;
+  toAccountId: number | null;
+  toProductId: number | null;
+  categoryId: number | null;
+}
+
+export const NOTHING_LEARNED: Learned = { accounts: {}, shapes: {}, phrases: {} };
 
 export interface PhraseContext {
   accounts: readonly PhraseAccount[];
@@ -104,6 +121,10 @@ export interface Reading {
   shape: string | null;
   /** The period a question is about ("en septiembre", "este año"); null when none was said. */
   period: Period | null;
+  /** The sentence without its figures and its day, to learn where it was saved. */
+  phraseKey: string | null;
+  /** The route came from what was saved for this same sentence before. */
+  fromMemory: boolean;
 }
 
 /** Lower case, no accents, the way every comparison here is made. */
@@ -563,12 +584,26 @@ function placesIn(tokens: Token[], ctx: PhraseContext, relaxed: boolean): Places
   // Each place a product was named: the one product, or, when the name is in
   // several accounts, the one in an account the sentence also names - or,
   // failing that, the only one in the account a single name pointed at.
+  // A product's words may also be part of a longer name: "bolsillo" is Plata's
+  // "Bolsillo" and Rappi's "Bolsillo Principal". With the account said, the
+  // product in it wins over the one whose name is exactly those words.
   const productsAt = new Map<number, PhraseProduct[]>();
-  for (const f of productHits) productsAt.set(f.at, [...(productsAt.get(f.at) ?? []), f.item]);
+  const wider = new Map<number, PhraseProduct[]>();
+  for (const f of productHits) {
+    productsAt.set(f.at, [...(productsAt.get(f.at) ?? []), f.item]);
+    const said = tokens.slice(f.at, f.at + f.length).map(t => t.word).filter(w => !PRODUCT_GENERIC.has(w));
+    if (said.length === 0) continue;
+    const also = ctx.products.filter(p => {
+      const words = wordsOf(p.name);
+      return said.every(w => words.includes(w));
+    });
+    wider.set(f.at, [...new Set([...(wider.get(f.at) ?? []), ...also])]);
+  }
   const productEnds: Places['productEnds'] = [];
   for (const [at, list] of productsAt) {
-    const inNamed = list.filter(p => namedAccounts.has(p.accountId));
-    const pick = list.length === 1 ? list : inNamed.length === 1 ? inNamed : [];
+    const all = [...new Set([...list, ...(wider.get(at) ?? [])])];
+    const inNamed = all.filter(p => namedAccounts.has(p.accountId));
+    const pick = inNamed.length === 1 ? inNamed : list.length === 1 ? list : [];
     if (pick.length === 1) productEnds.push({ at, product: pick[0] });
   }
   productEnds.sort((a, b) => a.at - b.at);
@@ -623,6 +658,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   const tokens = tokensOf(text);
   const amount = amountIn(tokens);
   const day = dayIn(tokens, ctx.today);
+  const phraseKey = keyOf(tokens);
 
   // Words that belong to a name are no verb: "Ahorro Verde" is an account.
   const nameWords = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name)].flatMap(wordsOf));
@@ -772,6 +808,46 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     else if (categoryId !== null && ctx.categories.find(c => c.id === categoryId)?.kind === 'income') side = 'income';
   }
 
+  // Said the same way before, and saved: where it went then (only while those
+  // accounts, products and category still exist).
+  let fromMemory = false;
+  const route = phraseKey && amount && (intent === 'register' || intent === 'unsure')
+    ? ctx.learned.phrases?.[phraseKey] : undefined;
+  if (route) {
+    const account = (id: number | null) => id !== null && ctx.accounts.some(a => a.id === id) ? id : null;
+    const product = (id: number | null, of: number | null) =>
+      id !== null && ctx.products.some(p => p.id === id && p.accountId === of) ? id : null;
+    const from = account(route.accountId);
+    if (from !== null) {
+      fromMemory = true;
+      intent = 'register';
+      side = route.side;
+      accountId = from;
+      accountChoices = [];
+      if (side === 'transfer') {
+        toAccountId = account(route.toAccountId);
+        fromProductId = product(route.productId, from);
+        toProductId = product(route.toProductId, toAccountId);
+        productId = null;
+        categoryId = null;
+        categoryFrom = null;
+      } else {
+        toAccountId = null;
+        fromProductId = null;
+        toProductId = null;
+        productId = product(route.productId, from);
+        const kind = side === 'income' ? 'income' : 'expense';
+        if (route.categoryId !== null && ctx.categories.some(c => c.id === route.categoryId && c.kind === kind)) {
+          categoryId = route.categoryId;
+          categoryFrom = 'learned';
+        } else if (categoryId !== null && ctx.categories.find(c => c.id === categoryId)?.kind !== kind) {
+          categoryId = null;
+          categoryFrom = null;
+        }
+      }
+    }
+  }
+
   // A bare "250" is 250 mil in a country where nothing costs 250 pesos.
   let amountMinor: number | null = null;
   let guessed = false;
@@ -788,6 +864,16 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     intent, side, amountMinor, amountGuessed: guessed, amountText: amount?.text ?? null,
     onDate: day.onDate, dayWord: day.word,
     accountId, accountChoices, toAccountId, productId, fromProductId, toProductId,
-    categoryId, categoryFrom, thing, shape, period,
+    categoryId, categoryFrom, thing, shape, period, phraseKey, fromMemory,
   };
 }
+
+/**
+ * A sentence as a key: its words once the amount and the day are taken out,
+ * so "50 mil" and "200 mil" said the same way are one sentence.
+ */
+function keyOf(tokens: Token[]): string | null {
+  const words = tokens.filter(t => !t.used && !/^\d+$/.test(t.word)).map(t => t.word);
+  return words.length > 0 ? words.join(' ') : null;
+}
+

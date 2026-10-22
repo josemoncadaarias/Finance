@@ -1072,14 +1072,26 @@ export class EntryComponent implements OnInit, OnDestroy {
     untracked(() => void this.fillUsualNote(context));
   });
 
+  /** The accounts the form opened on, to tell when the person chose others. */
+  private startEnds: string | null = null;
+
+  private endsNow(): string {
+    return `${this.accountId()}>${this.isTransfer() ? this.toAccountId() : ''}`;
+  }
+
   private async fillUsualNote(context: NoteContext): Promise<void> {
-    // Never over a movement being corrected, a note carried from another form,
-    // or one the person wrote.
-    if (this.isEditing() || this.request().start?.note || this.noteIsTheirs) return;
+    // Never over a movement being corrected, or one the person wrote. A note
+    // carried in (a bank's words, what was said to the assistant) stays while
+    // the accounts are the ones it came with; another account chosen brings
+    // that account's usual note (Jose, 2026-10-22), when it has one.
+    const carried = !!this.request().start?.note;
+    const moved = carried && this.startEnds !== null && this.endsNow() !== this.startEnds;
+    if (this.isEditing() || (carried && !moved) || this.noteIsTheirs) return;
     if (this.database.status() !== 'ready') return;
     const asked = ++this.usualNoteAsked;
     const found = await usualNote(this.database.driver, context, todayIso());
     if (asked !== this.usualNoteAsked || this.noteIsTheirs) return;
+    if (carried && !found) return;
     this.note.set(found ?? '');
     this.usualNoteShown.set(found !== null && found !== '');
     const field = this.noteField();
@@ -1117,6 +1129,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // picker never appeared: the account was still null, so there were no
     // products to show and the row decided there was nothing to ask.
     await this.loadAccountsAndCategories();
+    this.startEnds = this.endsNow();
     await this.loadProducts();
     const editing = this.request().editing;
     if (editing) {
@@ -1747,6 +1760,15 @@ export class EntryComponent implements OnInit, OnDestroy {
 
       await this.workOutAgain();
       this.database.dataChanged();
+      if (!loan) {
+        const transfer = this.isTransfer();
+        this.compose.lastSaved.set({
+          side: transfer ? 'transfer' : this.kind() === 'income' ? 'income' : 'expense',
+          accountId: this.accountId(), productId: this.productId(),
+          toAccountId: transfer ? this.toAccountId() : null, toProductId: transfer ? this.toProductId() : null,
+          categoryId: transfer ? null : this.categoryId(),
+        });
+      }
       if (this.again() && !this.isEditing()) {
         this.startNext();
         this.toast.say(this.i18n.t('entry.again.saved'), 2500);
@@ -1987,7 +2009,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     const proposals = new ProposalsRepository(this.database.driver);
     const categoryId = this.categoryId();
     const note = this.note().trim() || null;
-    if (categoryId !== null && note) await proposals.learn(note, categoryId, this.occurredOn());
+    if (categoryId !== null && note) await proposals.learn(note, categoryId, this.occurredOn(), undefined, this.accountId());
     const editing = this.request().editing;
     if (editing && !this.reshaped) {
       await proposals.movementCorrected(editing.id, { accountId: this.accountId()!, categoryId });
@@ -2085,6 +2107,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // category, the note, the product and what it changed.
     if (said.description && categoryId !== null) {
       await proposals.learn(said.description, categoryId, this.occurredOn(), {
+        accountId: this.accountId(),
         note: this.note(),
         productId: this.products().length > 0 ? this.productId() : null,
         scope: this.asksScope() ? this.scope() : null,

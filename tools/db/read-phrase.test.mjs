@@ -394,3 +394,62 @@ test('registering is not taken for a question', () => {
   assert.equal(readPhrase('pagué la cuota del carro 1.480.000 desde bancolombia', others()).intent, 'register');
   assert.equal(readPhrase('gasté 80 mil en mercado con nequi', others()).side, 'expense');
 });
+
+// Jose, 2026-10-22: "transferencia desde la cuenta de ahorros al bolsillo en
+// la rappi cuenta" went to another bank's "Bolsillo", and saving it right did
+// not teach it. Invented names in the same shape.
+const pockets = (extra = {}) => ctx({
+  products: [
+    { id: 50, accountId: 5, name: 'Ahorros Índigo' },
+    { id: 51, accountId: 5, name: 'Bolsillo viajes' },
+    { id: 60, accountId: 6, name: 'Bolsillo' },
+    { id: 70, accountId: 2, name: 'Cuenta de ahorros' },
+    { id: 71, accountId: 2, name: 'Bolsillo Principal' },
+  ],
+  ...extra,
+});
+
+test('a product word inside a longer name, with its account said, is that account\'s product', () => {
+  const r = readPhrase('transferencia de 50 mil desde la cuenta de ahorros al bolsillo en la rappi cuenta', pockets());
+  assert.equal(r.side, 'transfer');
+  assert.equal(r.accountId, 2);
+  assert.equal(r.fromProductId, 70);
+  assert.equal(r.toAccountId, 2);
+  assert.equal(r.toProductId, 71);
+  // With no account said, the product whose name is exactly the word.
+  const alone = readPhrase('pasé 20 mil al bolsillo', pockets());
+  assert.equal(alone.toProductId, 60);
+});
+
+test('a sentence saved somewhere goes there the next time it is said the same way', () => {
+  const said = 'mandé 30 mil al bolsillo';
+  const first = readPhrase(said, pockets());
+  assert.equal(first.toProductId, 60);
+  assert.equal(first.fromMemory, false);
+  const learned = { accounts: {}, shapes: {}, phrases: {
+    [first.phraseKey]: { side: 'transfer', accountId: 2, productId: 70, toAccountId: 2, toProductId: 71, categoryId: null },
+  } };
+  // Another amount and another day: still the same sentence.
+  const again = readPhrase('ayer mandé 45 mil al bolsillo', pockets({ learned }));
+  assert.equal(again.phraseKey, first.phraseKey);
+  assert.equal(again.fromMemory, true);
+  assert.equal(again.accountId, 2);
+  assert.equal(again.fromProductId, 70);
+  assert.equal(again.toProductId, 71);
+  assert.equal(again.amountMinor, P(45000));
+});
+
+test('a spending saved on another account and category is read that way next time', () => {
+  const said = 'gasté 20 mil en guayos';
+  const first = readPhrase(said, ctx());
+  const learned = { accounts: {}, shapes: {}, phrases: {
+    [first.phraseKey]: { side: 'expense', accountId: 1, productId: null, toAccountId: null, toProductId: null, categoryId: 14 },
+  } };
+  const again = readPhrase('gasté 80 mil en guayos', ctx({ learned }));
+  assert.equal(again.accountId, 1);
+  assert.equal(again.categoryId, 14);
+  assert.equal(again.side, 'expense');
+  // A remembered account that no longer exists is not used.
+  const gone = { accounts: {}, shapes: {}, phrases: { [first.phraseKey]: { ...learned.phrases[first.phraseKey], accountId: 99 } } };
+  assert.equal(readPhrase('gasté 80 mil en guayos', ctx({ learned: gone })).fromMemory, false);
+});

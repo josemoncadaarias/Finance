@@ -56,5 +56,6 @@
   "055_card_statements.sql": "c7afd1dadeecc476bae1a9c5cc540cb60e6b5146150c8f6def5586fa6b7d6d4a",
   "056_transfer_scopes.sql": "dd230ec43704d4f9780f7575e46611611a6207a8e4db8d17aaa47f67e1b9e07b",
   "057_merchant_memory.sql": "84adc5ea5376f49e099bbe27cb11818cb2ef43c2258a74d57f95ba21e0f358d2",
-  "058_card_rate.sql": "d004f011e56a695527efb8e261a01febf8d79efb4111d3d49953368cdbefe3d4"
+  "058_card_rate.sql": "d004f011e56a695527efb8e261a01febf8d79efb4111d3d49953368cdbefe3d4",
+  "059_shop_account.sql": "09c2787c462892bdfa81061d938e14852c1cc002142269b0555bde45247355f0"
 }

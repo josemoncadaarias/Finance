@@ -187,7 +187,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (966 on 2026-10-20, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (972 on 2026-10-22, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -244,6 +244,11 @@ these):
   holds (spending, income, transfer, the assistant, a PDF statement, a new
   account; `since: 6`), and the bar's step and the assistant's button say it
   too; a card - "La tasa de interés de tu tarjeta" (card tour, `since: 3`).
+  Version 7 (2026-10-22): the assistant - it learns where a sentence was
+  saved (step 3 reworded, `since: 3`), the conversation's days and the 20
+  free questions (`since: 3`); Por revisar - a shop's account and the note
+  that follows the account (`since: 5`). (A tour's `since` counts that tour's
+  own versions.)
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5470,6 +5475,59 @@ with testers runs; the paywall is finished after them.
     and what is not (`ai.money.left`). The period's lines say "Te entró",
     "Gastaste", "Te sobró" / "Gastaste de más" (no "entró menos salió"), and
     a number keeps its "%" on its line (a non-breaking space).
+- **It learns from every save, and the history is the person's to set**
+  (Jose, 2026-10-22: "transferencia desde la cuenta de ahorros al bolsillo en
+  la rappi cuenta" went to Plata's "Bolsillo", corrected and saved, and said
+  again went there again).
+  - A product word inside a longer name ("bolsillo" in "Bolsillo
+    Principal") with its account said is that account's product, over
+    another account's product named exactly that word (`placesIn`).
+  - **Every sentence remembers where it was saved**: `Learned.phrases` in
+    `assistant.learned` (settings, travels in the backup), keyed by the
+    sentence without its figures and its day (`keyOf`, `Reading.phraseKey`),
+    holding side, accounts, products and category (`LearnedRoute`). Learned
+    on "Guardar" in the chat and on a save in the form opened from a card
+    (`ComposeService.lastSaved`, set by the entry form's save). Said the same
+    way again, it comes like that (`fromMemory`) and the chat says "Lo dejé
+    como lo guardaste la última vez que lo dijiste así". 300 kept, newest
+    last; one whose account is gone is not used.
+  - **The conversation's days are chosen**: "Cambiar" on the line over the
+    chat opens 1, 3, 7, 15, 30 or 60 days (`finance.assistant.historyDays`,
+    default 3); the bin asks first ("¿Borrar toda la conversación?").
+  - The register card's two buttons sit on one line (the first took the
+    card's top margin).
+  - **Paid, decided by recommendation (2026-10-22)**: registering by the
+    assistant is always free (typing movements is); questions count, 20 free
+    a month (`PLAN.assistant`, `PaywallService.askQuestion`, the count in
+    settings `assistant.questions` as `{month, n}`), everything open in the
+    7-day trial and with Pro. Past them the chat says so and the Pro sheet
+    opens; Finance Pro lists "El asistente, sin límite". Only felt once
+    `CHARGING` is true. Why 20: nothing costs per use (no AI behind it), so
+    it can be generous - enough to make it a habit (about one question every
+    working day), short of daily use; the market's free tiers of chat
+    assistants run from about 25 to 100 messages a month (Tiny Talk 25,
+    Chatty 100; Cleo's chat is inside its paid plan) - looked up 2026-10-22.
+- **A shop remembers its account** (Jose, 2026-10-22, migration 059:
+  `merchant_categories.account_id`). Filled from the ledger by
+  `learnFromLedger` (the account the shop's movements used most, the latest
+  winning a tie, never over one already set) and by every save that says it
+  (the form's `teach` and `answerProposal`, "Guardar los listos"), the newest
+  answer winning. A message read with no account comes on its shop's account
+  (`withShopAccounts` in `propose`), and opening such a proposal starts on
+  it (`openInForm`). Tests in `proposals.test.mjs`.
+- **In Revisar movimiento the note follows the account** (Jose, 2026-10-22):
+  a note carried in (the bank's words, the shop's note, what was said to the
+  assistant) stays while the accounts are the ones the form opened with;
+  choosing another brings that account's usual note, when it has one
+  (`startEnds`, `fillUsualNote`). Checked in a browser on Jose's backup with
+  a proposal copied from an accepted one: "Almuerzo ejecutivo…" became that
+  category's usual note on the other account.
+- **No bank named in the app's own words** (Jose, 2026-10-22: "como hace
+  Ualá" in the bonus hint): the bonus and rate hints and the brokers' caveat
+  say it generically; the rule is in the app-copy skill.
+- **A title bar's (i) stays on its own button**: the tax simulator's download
+  and its (i) are one `.excel` group, so the ask button beside them no
+  longer sits on the (i).
 - **Más says the installed version at its foot** (Jose, 2026-10-19: "Finance ·
   versión 1.0.1118", from `App.getInfo()`; "versión de navegador" in a browser).
 - **Voice**: the phone's own dictation into the same reader (`39h`).
