@@ -6021,6 +6021,24 @@ provider's own terms page before a line is written:
 - **Price alerts**: on Android the app can look a few times an hour in the
   background (WorkManager) for the person's own holdings with their own
   key; alerts for the whole market need shape 2.
+- **A fourth shape, with the person's own Google account** (proposed to
+  Jose 2026-10-22, from memory, nothing verified, nothing tried - he asked
+  to leave it noted and pick it up only when he says): the app creates a
+  spreadsheet in the person's Drive with `=GOOGLEFINANCE("AAPL")` formulas
+  and reads the values back through the Sheets API, under `drive.file`
+  (only files the app made; believed non-sensitive), asked apart from the
+  backup's `drive.appdata`. No sign-up, no key, no cost, no server. Limits
+  as remembered: prices up to ~20 minutes late; history cannot be read
+  through the API (only today's value - the app would keep its own history
+  from the first day); only basic figures (price, P/E, EPS, market cap,
+  52-week high and low, beta), the rest from EDGAR; no market-wide
+  screener. To check before promising anything: Google's terms for this
+  use, that the Sheets API works under `drive.file`, how late a value
+  arrives. The proposed check is a small prototype on Jose's account (a
+  sheet with three tickers, read back).
+- **When Jose resumes this**, the job is to list, per feature he named,
+  what data each shape really gives, what cannot be had, and which
+  features would be complete or partial.
 
 ### The ideas, by what they would take
 
