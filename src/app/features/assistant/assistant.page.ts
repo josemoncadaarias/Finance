@@ -28,7 +28,7 @@ import type { AccountRow, CategoryRow } from '../../core/database/types';
 import type { YieldProduct } from '../../core/database/repositories/yields.repository';
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
-import { ComposeService } from '../../core/ui/compose.service';
+import { ComposeService, type SavedChoice } from '../../core/ui/compose.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
@@ -292,6 +292,9 @@ export class AssistantPage {
         // Whatever was changed in the form is what this sentence means from now on.
         const route = this.compose.lastSaved();
         if (saved && route && this.inForm.card.phraseKey) void this.assistant.learnPhrase(this.inForm.card.phraseKey, route);
+        // And the card says what was saved, not what was first understood
+        // (Jose, 2026-10-23: turned into an income, it still read "−$ 19.430").
+        if (saved && route) this.showAsSaved(this.inForm.card, route);
         this.inForm = null;
         this.messages.update(list => [...list]);
       });
@@ -648,6 +651,8 @@ export class AssistantPage {
 
     const account = this.accounts.find(a => a.id === reading.accountId)!;
     const category = this.categories.find(c => c.id === reading.categoryId)!;
+    // A movement under an income category is an income, whatever was guessed before.
+    if (category.kind !== side) return this.register({ ...reading, side: category.kind === 'income' ? 'income' : 'expense' }, said);
     const usual = await this.assistant.usual(account.id, side, category.id);
     const product = reading.productId !== null && usual.products.some(p => p.id === reading.productId)
       ? usual.products.find(p => p.id === reading.productId)!
@@ -1281,6 +1286,46 @@ export class AssistantPage {
       return;
     }
     if (button.route) void this.router.navigate(button.route, button.query ? { queryParams: button.query } : {});
+  }
+
+  /** A card opened in the form and saved there, redrawn as it was saved. */
+  private showAsSaved(card: RegisterCard | TransferCard, route: SavedChoice): void {
+    const message = this.messages().find(m => m.card === card);
+    const account = (id: number | null) => this.accounts.find(a => a.id === id) ?? null;
+    const product = (id: number | null) => this.products.find(p => p.id === id) ?? null;
+    const amountMinor = route.amountMinor ?? card.amountMinor;
+    const onDate = route.onDate ?? card.onDate;
+    const note = route.note ?? card.note;
+    if (route.side === 'transfer') {
+      const to = account(route.toAccountId);
+      if (!to) return;
+      const next: TransferCard = { kind: 'transfer', amountMinor, from: account(route.accountId), to,
+        fromProduct: product(route.productId), toProduct: product(route.toProductId), onDate, note,
+        state: 'saved', phraseKey: card.phraseKey };
+      if (message) message.card = next;
+    } else {
+      const category = this.categories.find(c => c.id === route.categoryId);
+      const at = account(route.accountId);
+      if (!category || !at) return;
+      const next: RegisterCard = card.kind === 'register'
+        ? { ...card, side: route.side, amountMinor, category, account: at, product: product(route.productId), onDate, note, state: 'saved' }
+        : { kind: 'register', side: route.side, amountMinor, category, account: at, product: product(route.productId),
+          productCount: 0, productNamed: false, onDate, note, canSave: false, state: 'saved', phraseKey: card.phraseKey };
+      if (message) message.card = next;
+    }
+    // Saved as something else than first understood: the line over the card says so.
+    const first = card.kind === 'transfer' ? 'transfer' : card.side;
+    if (message && route.side !== first) {
+      message.parts = this.parts(this.i18n.t(route.side === 'transfer' ? 'ai.register.savedTransfer'
+        : route.side === 'income' ? 'ai.register.savedIncome' : 'ai.register.savedExpense'));
+    }
+  }
+
+  /** A figure as it was typed: whole pesos, or with its cents when it has them. */
+  exact(minor: number): string {
+    if (amountsHidden()) return HIDDEN_AMOUNT;
+    if (minor % 100 === 0) return this.pesos(minor);
+    return `${minor < 0 ? '−' : ''}$ ${(Math.abs(minor) / 100).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   /** What is said in bold, inside a card's line. */

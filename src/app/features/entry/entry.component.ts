@@ -1767,6 +1767,7 @@ export class EntryComponent implements OnInit, OnDestroy {
           accountId: this.accountId(), productId: this.productId(),
           toAccountId: transfer ? this.toAccountId() : null, toProductId: transfer ? this.toProductId() : null,
           categoryId: transfer ? null : this.categoryId(),
+          amountMinor: this.amount().minor, onDate: this.occurredOn(), note: this.note().trim(),
         });
       }
       if (this.again() && !this.isEditing()) {

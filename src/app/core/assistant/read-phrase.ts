@@ -826,7 +826,16 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     const exact = byName.filter(f => wordsOf(f.item.name).join(' ') === left.slice(f.at, f.at + f.length).map(t => t.word).join(' '));
     const pick = (exact.length > 0 ? exact : byName);
     const ids = [...new Set(pick.map(f => f.item.id))];
-    if (ids.length === 1) { categoryId = ids[0]; categoryFrom = 'name'; }
+    // The category whose every word was said, the longest such name first:
+    // "ganancia de inversión" is "Ganancia de inversión", not "Ganancia" nor
+    // "Ajuste de ganancias", which share a word with it (Jose, 2026-10-23).
+    const said = (w: string) => left.some(t => t.word === w || t.word === `${w}s` || `${t.word}s` === w || t.word === `${w}es` || `${t.word}es` === w);
+    const meaningful = (c: { name: string }) => wordsOf(c.name).filter(w => !FILLER.has(w));
+    const whole = cats.filter(c => meaningful(c).length > 0 && meaningful(c).every(said));
+    const most = Math.max(0, ...whole.map(c => meaningful(c).length));
+    const best = whole.filter(c => meaningful(c).length === most);
+    if (best.length === 1) { categoryId = best[0].id; categoryFrom = 'name'; }
+    else if (ids.length === 1) { categoryId = ids[0]; categoryFrom = 'name'; }
     // Plurals and singulars: "restaurantes" for "Restaurante".
     if (categoryId === null) {
       for (const t of left) {
@@ -857,9 +866,15 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
     shape = ['amount', categoryId !== null || thing ? 'thing' : '', accountId !== null ? 'account' : '']
       .filter(Boolean).join('+');
     const meant = ctx.learned.shapes[shape];
-    if (meant === 'register') { intent = 'register'; side = 'expense'; }
-    else if (meant === 'afford') { intent = 'afford'; side = 'expense'; }
-    else if (categoryId !== null && ctx.categories.find(c => c.id === categoryId)?.kind === 'income') side = 'income';
+    // The side is the category's when one was named: "ganancia de 19.429 en
+    // el fondo" is an income because Ganancia is one, whatever shape the
+    // sentence had last time (Jose, 2026-10-23: it was saved as a spending).
+    const income = categoryId !== null && ctx.categories.find(c => c.id === categoryId)?.kind === 'income';
+    if (meant === 'register') { intent = 'register'; side = income ? 'income' : 'expense'; }
+    else if (meant === 'afford' && !income) { intent = 'afford'; side = 'expense'; }
+    else if (income) side = 'income';
+    // An income has nothing to afford: naming an income category is registering it.
+    if (intent === 'unsure' && income) intent = 'register';
   }
 
   // Said the same way before, and saved: where it went then (only while those

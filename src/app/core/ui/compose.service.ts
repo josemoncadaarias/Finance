@@ -30,6 +30,10 @@ export interface SavedChoice {
   toAccountId: number | null;
   toProductId: number | null;
   categoryId: number | null;
+  /** What was saved, so whoever opened the form can say it as it is now. */
+  amountMinor?: number;
+  onDate?: string;
+  note?: string;
 }
 
 @Injectable({ providedIn: 'root' })
