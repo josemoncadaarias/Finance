@@ -36,17 +36,16 @@
         <h2>{{ 'ai.welcome' | t }}</h2>
         <p>{{ 'ai.welcome.hint' | t }}</p>
       </div>
-      <!-- What the person registers most, as cards that slide sideways (42b). -->
-      @if (habitsShown().length > 0) {
-        <div class="ui-h">{{ 'plus.frequent.title' | t }}
-          @if (habitsAll().length > habitsShown().length) {
-            <button type="button" class="see" (click)="habitsOpen.set(true); ideas.set(true)">{{ 'habit.seeAll' | t:{ count: habitsAll().length } }}</button>
-          }
-        </div>
+      <!-- What the person registers most, as cards that slide sideways (42b):
+           the pinned first, with their star, then the five most used. -->
+      @if (anyHabit()) {
+        <div class="ui-h">{{ 'plus.frequent.title' | t }}</div>
         <div class="habit-cards">
+          @for (f of habitsPinned(); track f.key) { <app-habit-row [habit]="f" [card]="true"></app-habit-row> }
           @for (f of habitsShown(); track f.key) { <app-habit-row [habit]="f" [card]="true"></app-habit-row> }
         </div>
       }
+      <div class="ui-h">{{ 'ai.ideas.title' | t }}</div>
       <ng-container *ngTemplateOutlet="everything"></ng-container>
     }
 
@@ -396,55 +395,63 @@
   @if (b.note) { <p class="note">@for (p of bits(b.note); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p> }
 </ng-template>
 
-<!-- Everything it answers (40a, 41a): the welcome, and the bulb's sheet at any moment. -->
+<!-- Everything it answers (40a, 41a): the welcome, and the bulb's sheet at any
+     moment. One folding group each, closed until tapped, its icon and one line
+     saying what it holds (Jose, 2026-10-23: the list was too long). -->
 <ng-template #everything>
-  @if (forYou().length > 0) {
-    <div class="ui-h">{{ 'ai.group.forYou' | t }}</div>
-    <div class="ui-list">
-      @for (f of forYou(); track $index) {
-        <button type="button" class="ui-row" (click)="ask(f.text)">
-          <ion-icon class="ui-p" [name]="f.icon"></ion-icon>
-          <span class="ui-tx"><b class="wrap">«{{ f.text }}»</b><small class="wrap">{{ f.sub }}</small></span>
+  <div class="ask-groups">
+    @for (g of askGroups(); track g.id) {
+      @let open = openGroups().has(g.id);
+      <div class="ask-group" [class.open]="open">
+        <button type="button" class="ask-head" (click)="toggleGroup(g.id)" [attr.aria-expanded]="open">
+          <app-badge shape="ci" [size]="38" [builtin]="g.icon" [fixed]="g.color"></app-badge>
+          <span class="ui-tx"><b class="wrap">{{ g.title }}</b><small class="wrap">{{ g.sub }}</small></span>
+          <ion-icon class="chev" [name]="open ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
         </button>
-      }
-    </div>
-  }
-  @for (g of welcomeGroups; track g.title) {
-    <div class="ui-h">{{ g.title | t }}</div>
-    <div class="ui-list">
-      @for (r of g.rows; track r.key) {
-        <button type="button" class="ui-row" (click)="example(r.key)">
-          <ion-icon [class]="r.cls" [name]="r.icon"></ion-icon>
-          <span class="ui-tx"><b class="wrap">{{ r.key | t }}</b></span>
-        </button>
-      }
-    </div>
-  }
-  @if (forYou().length > 0) { <p class="sheet-hint">{{ 'ai.forYou.changes' | t }}</p> }
+        @if (open) {
+          <div class="ask-rows">
+            @for (r of g.rows; track $index) {
+              <button type="button" class="ui-row" (click)="ask(r.text)">
+                <ion-icon [class]="r.cls" [name]="r.icon"></ion-icon>
+                <span class="ui-tx"><b class="wrap">{{ r.text }}</b>@if (r.sub) {<small class="wrap">{{ r.sub }}</small>}</span>
+              </button>
+            }
+            @if (g.id === 'forYou') { <p class="sheet-hint">{{ 'ai.forYou.changes' | t }}</p> }
+          </div>
+        }
+      </div>
+    }
+  </div>
 </ng-template>
 
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="ideas()" (didDismiss)="ideas.set(false); habitsOpen.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet tall ideas-sheet" [isOpen]="ideas()" (didDismiss)="ideas.set(false)">
   <ng-template>
-    <div class="ui-sheet-body ion-content-scroll-host">
-      <button type="button" class="sheet-cancel" (click)="ideas.set(false)">{{ 'entry.cancel' | t }}</button>
-      <div class="grab"></div>
-      <!-- What the person registers most, first (42a, 42e). -->
-      @if (habitList().length > 0) {
-        <div class="ui-h first">{{ 'plus.frequent.title' | t }}
-          @if (habitsAll().length > habitsShown().length) {
-            <button type="button" class="see" (click)="habitsOpen.set(!habitsOpen())">
-              {{ habitsOpen() ? ('habit.seeLess' | t) : ('habit.seeAll' | t:{ count: habitsAll().length }) }}
-            </button>
-          }
-        </div>
-        <div class="ui-list">
-          @for (f of habitList(); track f.key) { <app-habit-row [habit]="f" [before]="closeIdeas"></app-habit-row> }
-        </div>
-        <p class="sheet-hint">{{ 'habit.hint' | t }}</p>
-      }
-      <h3 class="ui-h" [class.first]="habitList().length === 0">{{ 'ai.ideas.title' | t }}</h3>
-      <p class="sheet-hint">{{ 'ai.ideas.hint' | t }}</p>
-      <ng-container *ngTemplateOutlet="everything"></ng-container>
-    </div>
+    <ion-content #ideasPage [scrollEvents]="true" (ionScroll)="ideasJump.measure()">
+      <div class="ui-sheet-body">
+        <button type="button" class="sheet-cancel" (click)="ideas.set(false)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <!-- Fixed on top by the person, apart from the rest (42e). -->
+        @if (habitsPinned().length > 0) {
+          <div class="ui-h first"><span class="head"><ion-icon name="star" class="ui-y"></ion-icon>{{ 'habit.pinnedTitle' | t }}</span></div>
+          <div class="ui-list">
+            @for (f of habitsPinned(); track f.key) { <app-habit-row [habit]="f" [before]="closeIdeas"></app-habit-row> }
+          </div>
+        }
+        <!-- The five most used, open (42a). -->
+        @if (habitsShown().length > 0) {
+          <div class="ui-h" [class.first]="habitsPinned().length === 0">
+            <span class="head"><ion-icon name="flash-outline" class="ui-p"></ion-icon>{{ 'plus.frequent.title' | t }}</span>
+          </div>
+          <div class="ui-list">
+            @for (f of habitsShown(); track f.key) { <app-habit-row [habit]="f" [before]="closeIdeas"></app-habit-row> }
+          </div>
+        }
+        @if (anyHabit()) { <p class="sheet-hint">{{ 'habit.hint' | t }}</p> }
+        <h3 class="ui-h" [class.first]="!anyHabit()">{{ 'ai.ideas.title' | t }}</h3>
+        <p class="sheet-hint">{{ 'ai.ideas.hint' | t }}</p>
+        <ng-container *ngTemplateOutlet="everything"></ng-container>
+      </div>
+      <app-jump #ideasJump [content]="ideasPage" [folded]="allFolded()" (fold)="foldAll()"></app-jump>
+    </ion-content>
   </ng-template>
 </ion-modal>
