@@ -202,6 +202,9 @@ ion-content.chat {
   .two .ui-btn { height: 44px; font-size: 14px; }
 }
 
+.chips-title {
+  margin: 12px 0 0 38px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--app-mu);
+}
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -281,6 +284,22 @@ ion-content.chat {
     display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--app-line);
     .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
     .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; b { font-size: 14.5px; } }
+  }
+  /* A movement of an answer: the whole row opens it (41b-41g). */
+  .mrow {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border: 0; border-top: 1px solid var(--app-line);
+    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+    .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+      b { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      small { font-size: 12.5px; color: var(--app-mu); text-wrap: pretty; } }
+    .amount { flex: none; white-space: nowrap; font-weight: 600; }
+    .chev { flex: none; width: 16px; height: 16px; color: var(--app-mu); }
+  }
+  .mnote {
+    margin: 2px 0 6px 44px; padding: 9px 11px; border-radius: 12px; background: var(--app-s2);
+    font-size: 13px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere;
+    ion-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; color: var(--app-mu); }
+    mark { background: rgba(245, 181, 68, .3); color: inherit; border-radius: 3px; padding: 0 2px; }
   }
   .rrow, .ranked {
     padding: 9px 0; border-top: 1px solid var(--app-line);

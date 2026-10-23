@@ -36,6 +36,8 @@ import { AccountPickerComponent } from '../../shared/account-picker/account-pick
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
+import { termsOf } from '../../core/assistant/note-search';
+import { TransactionsRepository } from '../../core/database/repositories/transactions.repository';
 import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
@@ -43,7 +45,7 @@ import type { RichButton, RichCard, Speech } from './answers';
 import { FilterService } from '../../core/filters/filter.service';
 import { afford, perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
-import { isoDay } from '../../core/filters/period';
+import { isoDay, periodLabel } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN } from '../../core/paywall/plan';
@@ -143,6 +145,8 @@ interface Message {
   parts: Part[];
   card?: Card;
   chips?: Chip[];
+  /** Said over the chips: "También puedes preguntar" (41b). */
+  chipsTitle?: string;
   /** When it was said, to forget it after a few days. */
   at: number;
 }
@@ -179,7 +183,15 @@ type Waiting =
 const PLAN_WORDS = new Set(['meta', 'metas', 'tope', 'topes', 'presupuesto', 'presupuestos', 'goal', 'goals', 'budget', 'budgets']);
 
 const EXAMPLES: TranslationKey[] = ['ai.example.spend', 'ai.example.income', 'ai.example.move', 'ai.example.afford', 'ai.example.spent', 'ai.example.perDay'];
-/** The welcome's three groups (40a): registering, the month, the debts. */
+/** Month names, never something looked for in the notes. */
+const MONTH_WORDS = new Set(['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre',
+  'diciembre', 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+  'quincena', 'trimestre', 'semestre', 'quarter', 'anterior', 'pasado', 'pasada', 'este', 'esta']);
+
+/** A question made of the person's own data, for "Para ti, hoy" (41a). */
+interface ForYou { text: string; sub: string; icon: string }
+
+/** Everything it answers (40a, 41a): shown on opening, and again from the bulb at any moment. */
 const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
   { title: 'ai.group.register', rows: [
     { key: 'ai.example.spend', icon: 'arrow-up', cls: 'ui-r' },
@@ -191,10 +203,19 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
     { key: 'ai.example.recurring', icon: 'repeat-outline', cls: 'ui-p' },
     { key: 'ai.example.yields', icon: 'trending-up-outline', cls: 'ui-g' },
     { key: 'ai.example.afford', icon: 'help-circle-outline', cls: 'ui-p' }] },
+  { title: 'ai.group.search', rows: [
+    { key: 'ai.example.lastTime', icon: 'search-outline', cls: 'ui-p' },
+    { key: 'ai.example.costOf', icon: 'receipt-outline', cls: 'ui-p' },
+    { key: 'ai.example.biggest', icon: 'trending-up-outline', cls: 'ui-r' },
+    { key: 'ai.example.saveMore', icon: 'leaf-outline', cls: 'ui-g' }] },
   { title: 'ai.group.debts', rows: [
     { key: 'ai.example.debts', icon: 'card-outline', cls: 'ui-p' },
     { key: 'ai.example.payFirst', icon: 'flag-outline', cls: 'ui-p' },
     { key: 'ai.example.due', icon: 'calendar-outline', cls: 'ui-p' }] },
+  { title: 'ai.group.plans', rows: [
+    { key: 'ai.example.plans', icon: 'speedometer-outline', cls: 'ui-p' },
+    { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
+    { key: 'ai.example.perDay', icon: 'wallet-outline', cls: 'ui-g' }] },
 ];
 
 @Component({
@@ -228,6 +249,10 @@ export class AssistantPage {
   readonly dayChoices = HISTORY_DAY_CHOICES;
   readonly choosingDays = signal(false);
   readonly clearing = signal(false);
+  /** Everything it answers, open at any moment of the conversation (Jose, 2026-10-23). */
+  readonly ideas = signal(false);
+  /** Questions made of the person's own data (41a), read once on opening. */
+  readonly forYou = signal<ForYou[]>([]);
 
   /** The category sheet, open for "Otra categoría". */
   readonly categorySheet = signal<'expense' | 'income' | null>(null);
@@ -271,6 +296,7 @@ export class AssistantPage {
         this.messages.update(list => [...list]);
       });
     });
+    void this.readForYou();
     // Every change is kept, without the answers to tap: they belonged to a question of that moment.
     effect(() => {
       const list = this.messages();
@@ -294,7 +320,7 @@ export class AssistantPage {
   private keep(list: Message[]): void {
     try {
       const since = Date.now() - this.historyDays() * 86_400_000;
-      const plain = list.filter(m => m.at >= since).map(({ chips: _chips, ...rest }) => rest);
+      const plain = list.filter(m => m.at >= since).map(({ chips: _chips, chipsTitle: _title, ...rest }) => rest);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(plain));
     } catch { /* the device keeps nothing: the chat still works */ }
   }
@@ -390,7 +416,51 @@ export class AssistantPage {
   }
 
   example(key: TranslationKey): void {
+    this.ideas.set(false);
     void this.send(this.i18n.t(key).replace(/[«»“”]/g, ''));
+  }
+
+  ask(text: string): void {
+    this.ideas.set(false);
+    void this.send(text.replace(/[«»“”]/g, ''));
+  }
+
+  /**
+   * "Para ti, hoy" (41a): four questions made of the person's own figures -
+   * the category that grew most this month, what can be spent today, a fixed
+   * payment to look up in the notes, the payments due. Each only when there is
+   * something to say; read once, in the background.
+   */
+  private async readForYou(): Promise<void> {
+    try {
+      const out: ForYou[] = [];
+      const pic = await this.assistant.periodPicture(null);
+      const top = pic.slices[0];
+      const was = new Map((pic.before?.slices ?? []).map(sl => [sl.label, sl.amountMinor]));
+      const grew = [...pic.slices].map(sl => ({ sl, by: sl.amountMinor - (was.get(sl.label) ?? 0) }))
+        .filter(x => x.by > 0 && was.has(x.sl.label)).sort((a, b) => b.by - a.by)[0];
+      if (grew) out.push({ text: this.i18n.t('ai.forYou.spent', { category: grew.sl.label }), sub: this.i18n.t('ai.forYou.spentGrew'), icon: 'pie-chart-outline' });
+      else if (top) out.push({ text: this.i18n.t('ai.forYou.spent', { category: top.label }), sub: this.i18n.t('ai.forYou.spentTop'), icon: 'pie-chart-outline' });
+      const picture = await this.assistant.picture();
+      const day = perDay(picture.free.freeMinor, picture.free.daysLeft);
+      if (day > 0) {
+        // A figure a little over a day's free money, round, to ask about.
+        const ask = Math.max(5_000_000, Math.ceil(day * 2 / 1_000_000) * 1_000_000);
+        out.push({ text: this.i18n.t('ai.forYou.afford', { amount: this.pesos(ask) }), sub: this.i18n.t('ai.forYou.affordSub', { day: this.pesos(day) }), icon: 'help-circle-outline' });
+      }
+      const fixed = (await this.assistant.recurring()).fixed[0];
+      if (fixed) out.push({ text: this.i18n.t('ai.forYou.last', { name: fixed.name }), sub: this.i18n.t('ai.forYou.lastSub'), icon: 'search-outline' });
+      const due = picture.free.payments.length;
+      if (due > 0) out.push({ text: this.i18n.t('ai.example.due').replace(/[«»“”]/g, ''), sub: this.i18n.t(due === 1 ? 'ai.forYou.dueOne' : 'ai.forYou.due', { count: due }), icon: 'calendar-outline' });
+      this.forYou.set(out);
+    } catch { /* the welcome stands without it */ }
+  }
+
+  /** A movement of an answer, opened in the one movement form (41c). */
+  async openMovement(id: number): Promise<void> {
+    const row = await new TransactionsRepository(this.database.driver).findById(id);
+    if (!row) return this.toast.say(this.i18n.t('ai.find.gone'), 3000);
+    this.compose.edit(row);
   }
 
   async send(given?: string): Promise<void> {
@@ -458,10 +528,17 @@ export class AssistantPage {
         return this.remindWhen({ ...w.draft, hour: said.hour ?? w.draft.hour, minute: said.hour !== null ? said.minute : w.draft.minute, daysBefore: said.daysBefore ?? w.draft.daysBefore }, said);
       }
     }
-    const reading = readPhrase(text, ctx);
+    let reading = readPhrase(text, ctx);
     this.waiting = null;
+    // Not understood before, and the person chose what it meant (41f).
+    const meant = reading.intent === 'unknown' && reading.phraseKey ? ctx.learned.asked?.[reading.phraseKey] : undefined;
+    if (meant) {
+      this.say('ai.meant.remembered', { question: meant });
+      reading = readPhrase(meant, ctx);
+      text = meant;
+    }
     // Registering is free; a question counts against the month's free ones.
-    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders'].includes(reading.intent);
+    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
       return this.say('ai.pro.out', { free: PLAN.assistant.free });
     }
@@ -485,11 +562,54 @@ export class AssistantPage {
       case 'yields': return this.give(A.yieldsAnswer(this.speech(), await this.assistant.yieldsPicture(reading.period, reading.accountId)));
       case 'whyMore': return this.give(A.whyMore(this.speech(), await this.assistant.periodPicture(reading.period)));
       case 'unsure': return this.askShape(reading, text);
+      case 'lastTime': return this.give(A.lastTime(this.speech(), this.termsIn(text), await this.assistant.findInNotes(this.termsIn(text), reading.period)));
+      case 'biggest': return this.give(A.biggest(this.speech(), await this.assistant.biggest(reading.period)));
+      case 'saveMore': return this.give(A.saveMore(this.speech(), await this.assistant.periodPicture(null),
+        await this.assistant.smallRepeated(), (await this.assistant.recurring()).fixed));
+      case 'help':
+        this.say('ai.help.answer');
+        this.ideas.set(true);
+        return;
       default:
         // "¿Cuánto me falta para el fondo de emergencia?": a goal or a cap by its name alone.
         if (await this.plansAnswer(text, true)) return;
-        this.say('ai.unknown', {}, { chips: this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) })) });
+        return this.notUnderstood(reading, text);
     }
+  }
+
+  /** What a question looks for in the notes: its words, the period's left out. */
+  private termsIn(text: string): string[] {
+    return termsOf(text, MONTH_WORDS);
+  }
+
+  /**
+   * Not understood: never a dead end (41f). With a word to go on, the
+   * questions it could be - and the one chosen is remembered for that
+   * sentence; with none, examples.
+   */
+  private notUnderstood(reading: Reading, text: string): void {
+    const terms = this.termsIn(text);
+    if (terms.length === 0 || terms.length > 4) {
+      this.say('ai.unknown', {}, { chips: this.examples.slice(0, 4).map(key => ({ label: this.i18n.t(key).replace(/[«»“”]/g, ''), act: () => this.example(key) })),
+        chipsTitle: this.i18n.t('ai.ideas.more') });
+      return;
+    }
+    const words = terms.join(' ');
+    const choose = (question: string) => () => {
+      if (reading.phraseKey) void this.assistant.learnAsked(reading.phraseKey, question);
+      void this.send(question);
+    };
+    const cost = this.i18n.t('ai.meant.cost', { words });
+    const last = this.i18n.t('ai.meant.last', { words });
+    this.say('ai.meant.ask', {}, {
+      chips: [
+        { label: cost, act: choose(cost) },
+        { label: last, act: choose(last) },
+        { label: this.i18n.t('ai.meant.register', { words }), act: () => this.compose.open('expense', { start: { amountMinor: 0, onDate: isoDay(new Date()), note: this.cap1(words) } }) },
+        { label: this.i18n.t('ai.ideas.open'), act: () => this.ideas.set(true) },
+      ],
+      chipsTitle: this.i18n.t('ai.meant.title'),
+    });
   }
 
   // "200 mil en mercado": registering, or asking? (39f)
@@ -822,6 +942,17 @@ export class AssistantPage {
   // ---- "¿Cuánto llevo?" -----------------------------------------------------
 
   private async spent(reading: Reading, said: string): Promise<void> {
+    // "¿Cuánto me cuesta la moto?": no category by that name, so the notes that say it.
+    const terms = this.termsIn(said);
+    // A category named by its own name answers by category; a word the dictionary
+    // only learned ("arriendo" filed under Casa) is looked for in the notes first.
+    if ((reading.categoryId === null || reading.categoryFrom !== 'name') && terms.length > 0 && terms.length <= 4) {
+      const found = await this.assistant.findInNotes(terms, reading.period);
+      if (found.all.length > 0 || found.some.length > 0) {
+        const label = reading.period ? periodLabel(reading.period, this.i18n.dateLocale(), this.i18n.t('period.all')) : null;
+        return this.give(A.costOf(this.speech(), terms, found, label));
+      }
+    }
     if (reading.categoryId === null) {
       this.waiting = { kind: 'category', reading: { ...reading, intent: 'spentIn' }, said };
       const top = await this.topCategories('expense', 3);
@@ -902,11 +1033,8 @@ export class AssistantPage {
   }
 
   private give(answer: A.Answer): void {
-    const chips = answer.next.map(key => {
-      const label = this.i18n.t(key);
-      return { label, act: () => void this.send(label) };
-    });
-    const extra = { ...(answer.card ? { card: answer.card } : {}), chips };
+    const chips = [...(answer.ask ?? []), ...answer.next.map(key => this.i18n.t(key))].map(label => ({ label, act: () => void this.send(label) }));
+    const extra = { ...(answer.card ? { card: answer.card } : {}), chips, chipsTitle: chips.length > 0 ? this.i18n.t('ai.next.title') : undefined };
     if (answer.said.text) {
       this.messages.update(list => [...list, { id: this.nextId++, who: 'app', at: Date.now(), parts: this.parts(answer.said.text!), ...extra }]);
       this.scroll();

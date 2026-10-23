@@ -16,6 +16,10 @@
       </button>
     }
   </h1>
+  <!-- Everything it answers, at any moment of the conversation (Jose, 2026-10-23). -->
+  <button type="button" class="ui-round" data-tour="ai-ideas" (click)="ideas.set(true)" [attr.aria-label]="'ai.ideas.open' | t">
+    <ion-icon name="bulb-outline"></ion-icon>
+  </button>
   @if (!empty()) {
     <button type="button" class="ui-round" (click)="clearing.set(true)" [attr.aria-label]="'ai.history.clear' | t">
       <ion-icon name="trash-outline"></ion-icon>
@@ -32,17 +36,7 @@
         <h2>{{ 'ai.welcome' | t }}</h2>
         <p>{{ 'ai.welcome.hint' | t }}</p>
       </div>
-      @for (g of welcomeGroups; track g.title) {
-        <div class="ui-h">{{ g.title | t }}</div>
-        <div class="ui-list">
-          @for (r of g.rows; track r.key) {
-            <button type="button" class="ui-row" (click)="example(r.key)">
-              <ion-icon [class]="r.cls" [name]="r.icon"></ion-icon>
-              <span class="ui-tx"><b class="wrap">{{ r.key | t }}</b></span>
-            </button>
-          }
-        </div>
-      }
+      <ng-container *ngTemplateOutlet="everything"></ng-container>
     }
 
     @for (m of messages(); track m.id) {
@@ -268,6 +262,7 @@
         }
 
         @if (m.chips?.length) {
+          @if (m.chipsTitle) { <div class="chips-title">{{ m.chipsTitle }}</div> }
           <div class="chips">
             @for (c of m.chips; track $index) {
               <button type="button" class="ui-chip" (click)="c.act()">{{ c.label }}</button>
@@ -363,5 +358,56 @@
       <div class="bar-row"><span class="bar"><i [style.width.%]="k.pct"></i></span>@if (k.change) {<small [class]="k.cls">{{ k.change }}</small>}</div>
     </div>
   }
+  @if (b.mov; as v) {
+    <!-- A movement: the whole row opens it in the one movement form (41c). -->
+    <button type="button" class="mrow" (click)="openMovement(v.id)">
+      <app-badge [size]="34" [builtin]="v.icon" [customId]="v.customId" [tone]="v.color" [seed]="v.seed"></app-badge>
+      <span class="tx"><b>{{ v.title }}</b><small>{{ v.sub }}</small></span>
+      <b class="amount" [class]="'amount ' + v.cls">{{ v.amount }}</b>
+      <ion-icon name="chevron-forward" class="chev"></ion-icon>
+    </button>
+    @if (v.note) {
+      <p class="mnote"><ion-icon name="document-text-outline"></ion-icon>@for (p of v.note; track $index) {@if (p.hit) {<mark>{{ p.text }}</mark>} @else {{{ p.text }}}}</p>
+    }
+  }
   @if (b.note) { <p class="note">@for (p of bits(b.note); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</p> }
 </ng-template>
+
+<!-- Everything it answers (40a, 41a): the welcome, and the bulb's sheet at any moment. -->
+<ng-template #everything>
+  @if (forYou().length > 0) {
+    <div class="ui-h">{{ 'ai.group.forYou' | t }}</div>
+    <div class="ui-list">
+      @for (f of forYou(); track $index) {
+        <button type="button" class="ui-row" (click)="ask(f.text)">
+          <ion-icon class="ui-p" [name]="f.icon"></ion-icon>
+          <span class="ui-tx"><b class="wrap">«{{ f.text }}»</b><small class="wrap">{{ f.sub }}</small></span>
+        </button>
+      }
+    </div>
+  }
+  @for (g of welcomeGroups; track g.title) {
+    <div class="ui-h">{{ g.title | t }}</div>
+    <div class="ui-list">
+      @for (r of g.rows; track r.key) {
+        <button type="button" class="ui-row" (click)="example(r.key)">
+          <ion-icon [class]="r.cls" [name]="r.icon"></ion-icon>
+          <span class="ui-tx"><b class="wrap">{{ r.key | t }}</b></span>
+        </button>
+      }
+    </div>
+  }
+  @if (forYou().length > 0) { <p class="sheet-hint">{{ 'ai.forYou.changes' | t }}</p> }
+</ng-template>
+
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="ideas()" (didDismiss)="ideas.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="ideas.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h3 class="ui-h first">{{ 'ai.ideas.title' | t }}</h3>
+      <p class="sheet-hint">{{ 'ai.ideas.hint' | t }}</p>
+      <ng-container *ngTemplateOutlet="everything"></ng-container>
+    </div>
+  </ng-template>
+</ion-modal>
