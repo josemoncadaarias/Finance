@@ -135,6 +135,17 @@
             }
           </div>
         }
+        <!-- A habit's last different amounts, one tap each (mockup 42c). -->
+        @if (lastAmounts().length > 0) {
+          <div class="last-amounts">
+            <span class="lab">{{ 'habit.lastAmounts' | t }}</span>
+            <div class="chips">
+              @for (a of lastAmounts(); track a.minor) {
+                <button type="button" class="ui-chip" [class.on]="a.on" (click)="fillWith(a.minor)">{{ a.text }}</button>
+              }
+            </div>
+          </div>
+        }
         <!-- A card: the credit left for a spending, what is owed and left for a
              payment. Any other account, on an income: what it holds now. -->
         @if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
@@ -354,6 +365,17 @@
       </button>
     }
   </div>
+  <!-- A habit written with other notes: those notes, one tap each (mockup 42d). -->
+  @if (!writingNote() && otherNotes().length > 0) {
+    <div class="other-notes">
+      <span class="lab">{{ 'habit.otherNotes' | t }}</span>
+      <div class="chips">
+        @for (n of otherNotes(); track n) {
+          <button type="button" class="ui-chip" (click)="useOtherNote(n)">{{ n }}</button>
+        }
+      </div>
+    </div>
+  }
   <!-- The notes written before that match, under the note while it is written. -->
   @let asCame = request().proposal?.original ?? '';
   @if (writingNote() && (noteSuggestions().length > 0 || (asCame !== '' && note() !== asCame))) {

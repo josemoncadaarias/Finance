@@ -49,6 +49,9 @@ import { currentPeriod, isoDay, periodLabel } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN } from '../../core/paywall/plan';
+import { HabitsService } from '../../core/compose/habits.service';
+import type { Frequent } from '../../core/compose/frequent';
+import { HabitRowComponent } from '../../shared/ui/habit-row.component';
 
 interface Part { text: string; bold: boolean }
 interface Chip { label: string; act: () => void }
@@ -158,6 +161,8 @@ interface Message {
  */
 export const HISTORY_DAYS = 3;
 export const HISTORY_DAY_CHOICES = [1, 3, 7, 15, 30, 60] as const;
+/** How many habits the bulb shows before "Ver los N" (42a). */
+const HABITS_SHOWN = 5;
 const HISTORY_KEY = 'finance.assistant.history';
 const HISTORY_DAYS_KEY = 'finance.assistant.historyDays';
 
@@ -222,7 +227,7 @@ const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: strin
   selector: 'app-assistant',
   templateUrl: './assistant.page.html',
   styleUrls: ['./assistant.page.scss'],
-  imports: [NgTemplateOutlet, TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent, JumpComponent],
+  imports: [NgTemplateOutlet, TranslatePipe, IonContent, IonIcon, IonModal, BadgeComponent, CategorySheetComponent, AccountPickerComponent, ConfirmComponent, JumpComponent, HabitRowComponent],
 })
 export class AssistantPage {
   private readonly router = inject(Router);
@@ -253,6 +258,18 @@ export class AssistantPage {
   readonly ideas = signal(false);
   /** Questions made of the person's own data (41a), read once on opening. */
   readonly forYou = signal<ForYou[]>([]);
+  /**
+   * What the person registers most, first in the bulb and on the welcome
+   * (Jose, 2026-10-23, mockups 42a, 42b): the pinned, then the most used,
+   * the same habits the "+" offers (`HabitsService`).
+   */
+  private readonly habits = inject(HabitsService);
+  readonly habitsShown = signal<Frequent[]>([]);
+  readonly habitsAll = signal<Frequent[]>([]);
+  readonly habitsOpen = signal(false);
+  readonly habitList = computed(() => this.habitsOpen() ? this.habitsAll() : this.habitsShown());
+  /** Closes the bulb's sheet before a habit opens the form. */
+  readonly closeIdeas = () => this.ideas.set(false);
 
   /** The category sheet, open for "Otra categoría". */
   readonly categorySheet = signal<'expense' | 'income' | null>(null);
@@ -300,6 +317,11 @@ export class AssistantPage {
       });
     });
     void this.readForYou();
+    // The habits follow every save, pin and hide.
+    effect(() => {
+      this.database.dataVersion();
+      untracked(() => void this.readHabits());
+    });
     // Every change is kept, without the answers to tap: they belonged to a question of that moment.
     effect(() => {
       const list = this.messages();
@@ -457,6 +479,14 @@ export class AssistantPage {
       if (due > 0) out.push({ text: this.i18n.t('ai.example.due').replace(/[«»“”]/g, ''), sub: this.i18n.t(due === 1 ? 'ai.forYou.dueOne' : 'ai.forYou.due', { count: due }), icon: 'calendar-outline' });
       this.forYou.set(out);
     } catch { /* the welcome stands without it */ }
+  }
+
+  private async readHabits(): Promise<void> {
+    try {
+      const h = await this.habits.read({ shown: HABITS_SHOWN });
+      this.habitsShown.set([...h.pinned, ...h.frequent]);
+      this.habitsAll.set([...h.pinned, ...h.all]);
+    } catch { /* the welcome stands without them */ }
   }
 
   /** A movement of an answer, opened in the one movement form (41c). */

@@ -228,6 +228,8 @@ const TOUR_LIST = {
       { title: 'tour.assistant.6.title', text: 'tour.assistant.6.text', since: 4 },
       // 2026-10-23: the bulb with every question, notes searched, movements that open.
       { target: 'ai-ideas', title: 'tour.assistant.7.title', text: 'tour.assistant.7.text', since: 6 },
+      // 2026-10-23: what the person registers most, first in the bulb (42a-42f).
+      { target: 'ai-ideas', title: 'tour.assistant.8.title', text: 'tour.assistant.8.text', since: 7 },
     ],
   },
   tax: {

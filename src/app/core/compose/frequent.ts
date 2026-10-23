@@ -55,7 +55,36 @@ export interface Frequent {
   lastOn: string;
   /** The latest amount when the amounts are steady; null when they move. */
   amountMinor: number | null;
+  /** The last different amounts, latest first, offered as chips (mockup 42c). */
+  lastAmounts: number[];
+  /**
+   * True for a spending or an income repeated on one account and category
+   * with a different note each time (mockup 42d): `note` is the one written
+   * most, and `otherNotes` the rest, most used first.
+   */
+  loose: boolean;
+  otherNotes: string[];
+  /** Fixed on top by the person (mockups 42e, 42f). */
+  pinned: boolean;
 }
+
+/** A habit fixed on top: its whole shape, so it shows even when not used lately. */
+export interface PinnedHabit {
+  key: string;
+  kind: FrequentKind;
+  accountId: number;
+  toAccountId: number | null;
+  productId: number | null;
+  toProductId: number | null;
+  categoryId: number | null;
+  note: string;
+  loose: boolean;
+}
+
+/** How many different amounts are offered as chips. */
+export const LAST_SHOWN = 3;
+/** How many other notes a loose habit offers. */
+const OTHER_NOTES = 4;
 
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -70,6 +99,20 @@ function minusDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const at = new Date(Date.UTC(y, m - 1, d - days));
   return at.toISOString().slice(0, 10);
+}
+
+function lastDifferent(latestFirst: number[]): number[] {
+  const out: number[] = [];
+  for (const a of latestFirst) {
+    if (a > 0 && !out.includes(a)) out.push(a);
+    if (out.length >= LAST_SHOWN) break;
+  }
+  return out;
+}
+
+/** The key of a spending or an income on one account and category, whatever its note. */
+export function looseKey(m: Pick<PastMovement, 'kind' | 'accountId' | 'categoryId'>): string {
+  return ['loose', m.kind, m.accountId, m.categoryId ?? ''].join('|');
 }
 
 function steadyAmount(latestFirst: number[]): number | null {
@@ -105,23 +148,25 @@ export function frequentOf(
   }
 
   const found: Frequent[] = [];
+  const latestFirst = (a: PastMovement, b: PastMovement) => (a.onDate < b.onDate ? 1 : a.onDate > b.onDate ? -1 : 0);
+  // What is not an exact habit may still be one by its account and category
+  // (mockup 42d): the same spending, with another note each time.
+  const loose = new Map<string, PastMovement[]>();
   for (const [key, list] of groups) {
+    list.sort(latestFirst);
+    if (list.length < MIN_USES) {
+      const first = list[0];
+      if (first.kind === 'transfer' || first.categoryId === null) continue;
+      const lk = looseKey(first);
+      loose.set(lk, [...(loose.get(lk) ?? []), ...list]);
+      continue;
+    }
+    found.push(habitOf(key, list, false));
+  }
+  for (const [key, list] of loose) {
     if (list.length < MIN_USES) continue;
-    list.sort((a, b) => (a.onDate < b.onDate ? 1 : a.onDate > b.onDate ? -1 : 0));
-    const latest = list[0];
-    found.push({
-      key,
-      kind: latest.kind,
-      accountId: latest.accountId,
-      toAccountId: latest.toAccountId ?? null,
-      productId: latest.productId ?? null,
-      toProductId: latest.toProductId ?? null,
-      categoryId: latest.categoryId,
-      note: latest.note.trim(),
-      uses: list.length,
-      lastOn: latest.onDate,
-      amountMinor: steadyAmount(list.map(m => m.amountMinor)),
-    });
+    list.sort(latestFirst);
+    found.push(habitOf(key, list, true));
   }
   found.sort((a, b) => b.uses - a.uses || (a.lastOn < b.lastOn ? 1 : a.lastOn > b.lastOn ? -1 : 0));
   // A mix: someone who moves money between pockets every day still sees the
@@ -139,4 +184,92 @@ export function frequentOf(
     if (!picked.includes(f)) picked.push(f);
   }
   return picked.sort((a, b) => b.uses - a.uses || (a.lastOn < b.lastOn ? 1 : a.lastOn > b.lastOn ? -1 : 0));
+}
+
+/** A habit out of its movements, latest first. */
+function habitOf(key: string, list: PastMovement[], isLoose: boolean): Frequent {
+  const latest = list[0];
+  let note = latest.note.trim();
+  let otherNotes: string[] = [];
+  if (isLoose) {
+    // Notes by how often they are written, the latest spelling of each; the
+    // one written most is offered when it was written at least twice.
+    const byNote = new Map<string, { text: string; uses: number }>();
+    for (const m of list) {
+      const text = m.note.trim();
+      if (!text) continue;
+      const k = fold(text);
+      const seen = byNote.get(k);
+      if (seen) seen.uses++; else byNote.set(k, { text, uses: 1 });
+    }
+    const ranked = [...byNote.values()].sort((a, b) => b.uses - a.uses);
+    note = ranked[0] && ranked[0].uses >= 2 ? ranked[0].text : '';
+    otherNotes = ranked.map(r => r.text).filter(t => t !== note).slice(0, OTHER_NOTES);
+  }
+  const amounts = list.map(m => m.amountMinor);
+  return {
+    key,
+    kind: latest.kind,
+    accountId: latest.accountId,
+    toAccountId: latest.toAccountId ?? null,
+    productId: latest.productId ?? null,
+    toProductId: latest.toProductId ?? null,
+    categoryId: latest.categoryId,
+    note,
+    uses: list.length,
+    lastOn: latest.onDate,
+    amountMinor: steadyAmount(amounts),
+    lastAmounts: lastDifferent(amounts),
+    loose: isLoose,
+    otherNotes,
+    pinned: false,
+  };
+}
+
+export interface Habits {
+  /** Fixed on top by the person, in the order they were fixed. */
+  pinned: Frequent[];
+  /** The rest, most used first, none of them pinned or hidden. */
+  frequent: Frequent[];
+}
+
+/**
+ * The habits as the person sees them: the pinned first - built from their
+ * saved shape, with what the last weeks say about them (uses, amounts) - and
+ * then `frequentOf` without the pinned and without what the person hid.
+ */
+export function habitsOf(
+  rows: readonly PastMovement[],
+  today: string,
+  options: { skip?: ReadonlySet<string>; pins?: readonly PinnedHabit[]; hidden?: ReadonlySet<string>; shown?: number } = {},
+): Habits {
+  const pins = options.pins ?? [];
+  const hidden = options.hidden ?? new Set<string>();
+  const every = frequentOf(rows, today, options.skip, Number.MAX_SAFE_INTEGER);
+  const from = minusDays(today, WINDOW_DAYS);
+  const pinned = pins.map(pin => {
+    const seen = every.find(f => f.key === pin.key);
+    if (seen) return { ...seen, pinned: true };
+    const mine = rows
+      .filter(m => m.onDate >= from && m.onDate <= today && (pin.loose ? looseKey(m) === pin.key : habitKey(m) === pin.key))
+      .sort((a, b) => (a.onDate < b.onDate ? 1 : a.onDate > b.onDate ? -1 : 0));
+    return {
+      key: pin.key, kind: pin.kind, accountId: pin.accountId, toAccountId: pin.toAccountId,
+      productId: pin.productId, toProductId: pin.toProductId, categoryId: pin.categoryId, note: pin.note,
+      uses: mine.length, lastOn: mine[0]?.onDate ?? '', amountMinor: mine.length >= 2 ? steadyAmount(mine.map(m => m.amountMinor)) : null,
+      lastAmounts: lastDifferent(mine.map(m => m.amountMinor)), loose: pin.loose, otherNotes: [], pinned: true,
+    } satisfies Frequent;
+  });
+  const out = new Set([...pins.map(p => p.key), ...hidden]);
+  const rest = frequentOf(rows.filter(m => !out.has(habitKey(m))), today, options.skip, options.shown ?? SHOWN)
+    .filter(f => !out.has(f.key));
+  return { pinned, frequent: rest };
+}
+
+/** What a habit keeps when it is pinned. */
+export function pinOf(f: Frequent): PinnedHabit {
+  return {
+    key: f.key, kind: f.kind, accountId: f.accountId, toAccountId: f.toAccountId, productId: f.productId,
+    toProductId: f.toProductId, categoryId: f.categoryId, note: f.note, loose: f.loose,
+  };
 }

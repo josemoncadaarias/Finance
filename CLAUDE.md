@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1083 on 2026-10-23, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1088 on 2026-10-23, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5956,6 +5956,29 @@ with testers runs; the paywall is finished after them.
     conversation.
   Checked in a browser on the sample data (every new answer, the form opened
   from a row, the bulb's sheet); not on the phone.
+- **What the person registers most, first in the assistant's bulb**
+  (Jose, 2026-10-23, mockups `42a`-`42f`, all built). The bulb opens on "Lo
+  que más registras" (5, "Ver los N" for all), and the empty chat shows them
+  as cards that slide sideways; a tap opens the one movement form ready -
+  accounts, products, category, usual note, the cursor in the amount - and
+  nothing is saved by itself (rule 22). The same habits as the "+"
+  (`frequentOf`), now read by one `HabitsService` (`core/compose/
+  habits.service.ts`) and drawn by one `app-habit-row` in both places.
+  New in the engine (`frequent.ts`, `frequent.test.mjs`): a spending or an
+  income repeated on one account and category with a different note each
+  time is a habit too (`loose`, key `loose|kind|account|category`, made only
+  of rows that are no exact habit): its note is the one written most (at
+  least twice) and the form offers the others as chips, "Otras notas que
+  usas aquí" (`start.notes`). When the amount moves, "Los últimos valores
+  que usaste" offers the last three different ones (`lastAmounts`,
+  `start.amounts`). A long press (`contextmenu`) opens `app-habit-options`
+  (mounted once in the shell): "Fijar arriba" (pinned first, with a star,
+  even unused lately - its whole shape is kept), "Abrir el formulario",
+  "No mostrarlo aquí" with "Deshacer". Pins and hidden habits live in
+  `settings` `habits.choice` (`habitsOf`, `pinOf`), so they travel in the
+  backup. Assistant tour step `since: 7`. Checked in a browser on the sample
+  data (bulb, welcome cards, pin, a transfer between products opening with
+  both products, last amounts, other notes); not on the phone.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
