@@ -341,13 +341,25 @@ ion-content.chat {
 .card .folded { margin-top: 2px; }
 
 /* What the person registers most (42a, 42b). */
-.ui-h .see {
-  background: none; border: 0; padding: 0; color: var(--app-pr);
-  font: inherit; font-size: 13px; letter-spacing: 0; text-transform: none; cursor: pointer;
-}
+.ui-h .head { display: inline-flex; align-items: center; gap: 6px; ion-icon { font-size: 15px; } }
 .habit-cards {
   display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
   app-habit-row { flex: none; scroll-snap-align: start; }
 }
+
+/* The groups of questions, folded until tapped (Jose, 2026-10-23). */
+.ask-groups { display: flex; flex-direction: column; gap: 8px; }
+.ask-group {
+  background: var(--app-s1); border: 1px solid var(--app-line); border-radius: 18px; overflow: hidden;
+}
+.ask-head {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+  background: none; border: 0; color: var(--app-tx); font: inherit; text-align: left; cursor: pointer;
+  .ui-tx b { font-weight: 500; font-size: 15px; }
+  .ui-tx small { color: var(--app-mu); font-size: 12.8px; line-height: 1.35; }
+  .chev { flex: none; color: var(--app-mu); font-size: 18px; }
+}
+.ask-rows { border-top: 1px solid var(--app-line); .sheet-hint { margin: 8px 14px 12px; } }
+.ideas-sheet ion-content { --background: transparent; }

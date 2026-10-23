@@ -196,32 +196,46 @@ const MONTH_WORDS = new Set(['enero', 'febrero', 'marzo', 'abril', 'mayo', 'juni
 /** A question made of the person's own data, for "Para ti, hoy" (41a). */
 interface ForYou { text: string; sub: string; icon: string }
 
-/** Everything it answers (40a, 41a): shown on opening, and again from the bulb at any moment. */
-const WELCOME: { title: TranslationKey; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
-  { title: 'ai.group.register', rows: [
+/**
+ * Everything it answers (40a, 41a), shown on opening and again from the bulb
+ * at any moment. Each group says with its icon and one line what it holds,
+ * and opens only when tapped (Jose, 2026-10-23: the list was too long).
+ */
+const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color: string; rows: { key: TranslationKey; icon: string; cls: string }[] }[] = [
+  { title: 'ai.group.register', sub: 'ai.group.register.sub', icon: 'create-outline', color: '#3ccf91', rows: [
     { key: 'ai.example.spend', icon: 'arrow-up', cls: 'ui-r' },
     { key: 'ai.example.move', icon: 'swap-horizontal', cls: 'ui-p' },
     { key: 'ai.example.remind', icon: 'notifications-outline', cls: 'ui-y' }] },
-  { title: 'ai.group.month', rows: [
+  { title: 'ai.group.month', sub: 'ai.group.month.sub', icon: 'pie-chart-outline', color: '#5ab8f0', rows: [
     { key: 'ai.example.howAmI', icon: 'pulse-outline', cls: 'ui-p' },
     { key: 'ai.example.top', icon: 'pie-chart-outline', cls: 'ui-p' },
     { key: 'ai.example.recurring', icon: 'repeat-outline', cls: 'ui-p' },
     { key: 'ai.example.yields', icon: 'trending-up-outline', cls: 'ui-g' },
     { key: 'ai.example.afford', icon: 'help-circle-outline', cls: 'ui-p' }] },
-  { title: 'ai.group.search', rows: [
+  { title: 'ai.group.search', sub: 'ai.group.search.sub', icon: 'search-outline', color: '#f5b942', rows: [
     { key: 'ai.example.lastTime', icon: 'search-outline', cls: 'ui-p' },
     { key: 'ai.example.costOf', icon: 'receipt-outline', cls: 'ui-p' },
     { key: 'ai.example.biggest', icon: 'trending-up-outline', cls: 'ui-r' },
     { key: 'ai.example.saveMore', icon: 'leaf-outline', cls: 'ui-g' }] },
-  { title: 'ai.group.debts', rows: [
+  { title: 'ai.group.debts', sub: 'ai.group.debts.sub', icon: 'card-outline', color: '#f2706a', rows: [
     { key: 'ai.example.debts', icon: 'card-outline', cls: 'ui-p' },
     { key: 'ai.example.payFirst', icon: 'flag-outline', cls: 'ui-p' },
     { key: 'ai.example.due', icon: 'calendar-outline', cls: 'ui-p' }] },
-  { title: 'ai.group.plans', rows: [
+  { title: 'ai.group.plans', sub: 'ai.group.plans.sub', icon: 'speedometer-outline', color: '#a78bfa', rows: [
     { key: 'ai.example.plans', icon: 'speedometer-outline', cls: 'ui-p' },
     { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
     { key: 'ai.example.perDay', icon: 'wallet-outline', cls: 'ui-g' }] },
 ];
+
+/** One folding group of questions, as drawn. */
+interface AskGroup {
+  id: string;
+  title: string;
+  sub: string;
+  icon: string;
+  color: string;
+  rows: { text: string; sub?: string; icon: string; cls: string }[];
+}
 
 @Component({
   selector: 'app-assistant',
@@ -249,7 +263,6 @@ export class AssistantPage {
   readonly listening = signal(false);
   readonly voice = signal(true);
   readonly examples = EXAMPLES;
-  readonly welcomeGroups = WELCOME;
   readonly historyDays = signal(storedHistoryDays());
   readonly dayChoices = HISTORY_DAY_CHOICES;
   readonly choosingDays = signal(false);
@@ -264,12 +277,41 @@ export class AssistantPage {
    * the same habits the "+" offers (`HabitsService`).
    */
   private readonly habits = inject(HabitsService);
+  /** Fixed on top by the person (42e), kept apart from the rest. */
+  readonly habitsPinned = signal<Frequent[]>([]);
+  /** The most used, at most `HABITS_SHOWN` (Jose, 2026-10-23: five are enough). */
   readonly habitsShown = signal<Frequent[]>([]);
-  readonly habitsAll = signal<Frequent[]>([]);
-  readonly habitsOpen = signal(false);
-  readonly habitList = computed(() => this.habitsOpen() ? this.habitsAll() : this.habitsShown());
+  readonly anyHabit = computed(() => this.habitsPinned().length + this.habitsShown().length > 0);
   /** Closes the bulb's sheet before a habit opens the form. */
   readonly closeIdeas = () => this.ideas.set(false);
+
+  /** The groups of questions, "Para ti, hoy" first, each folded until tapped. */
+  readonly askGroups = computed<AskGroup[]>(() => {
+    const out: AskGroup[] = [];
+    const mine = this.forYou();
+    if (mine.length > 0) {
+      out.push({ id: 'forYou', title: this.i18n.t('ai.group.forYou'), sub: this.i18n.t('ai.group.forYou.sub'),
+        icon: 'sparkles-outline', color: '#6378ff', rows: mine.map(f => ({ text: f.text, sub: f.sub, icon: f.icon, cls: 'ui-p' })) });
+    }
+    for (const g of WELCOME) {
+      out.push({ id: g.title, title: this.i18n.t(g.title), sub: this.i18n.t(g.sub), icon: g.icon, color: g.color,
+        rows: g.rows.map(r => ({ text: this.i18n.t(r.key), icon: r.icon, cls: r.cls })) });
+    }
+    return out;
+  });
+  readonly openGroups = signal<ReadonlySet<string>>(new Set());
+  readonly allFolded = computed(() => this.openGroups().size === 0);
+
+  toggleGroup(id: string): void {
+    const open = new Set(this.openGroups());
+    if (open.has(id)) open.delete(id); else open.add(id);
+    this.openGroups.set(open);
+  }
+
+  /** The fold button between the arrows: open every group, or fold them all. */
+  foldAll(): void {
+    this.openGroups.set(this.allFolded() ? new Set(this.askGroups().map(g => g.id)) : new Set());
+  }
 
   /** The category sheet, open for "Otra categoría". */
   readonly categorySheet = signal<'expense' | 'income' | null>(null);
@@ -484,8 +526,8 @@ export class AssistantPage {
   private async readHabits(): Promise<void> {
     try {
       const h = await this.habits.read({ shown: HABITS_SHOWN });
-      this.habitsShown.set([...h.pinned, ...h.frequent]);
-      this.habitsAll.set([...h.pinned, ...h.all]);
+      this.habitsPinned.set(h.pinned);
+      this.habitsShown.set(h.frequent);
     } catch { /* the welcome stands without them */ }
   }
 

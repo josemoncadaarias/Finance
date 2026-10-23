@@ -27,9 +27,8 @@ import { BadgeComponent } from './badge.component';
                    [tone]="cat?.color" [seed]="f.categoryId"></app-badge>
       }
       <span class="ui-tx">
-        <b class="wrap">{{ habits.title(f) }}</b>
-        @if (!card()) { <small>{{ habits.kindLine(f) }}</small> }
-        <small>{{ habits.noteLine(f) }}</small>
+        <b [class.wrap]="card()">{{ habits.title(f) }}</b>
+        <small>{{ card() ? habits.noteLine(f) : habits.shortLine(f) }}</small>
       </span>
       <span class="amount">
         @if (f.amountMinor !== null) {
@@ -39,14 +38,14 @@ import { BadgeComponent } from './badge.component';
           <small>{{ 'habit.youType' | t }}</small>
         }
       </span>
-      @if (f.pinned && !card()) { <ion-icon class="star" name="star"></ion-icon> }
+      @if (f.pinned) { <ion-icon class="star" name="star"></ion-icon> }
     </button>
   `,
   styles: [`
     :host { display: block; }
     .habit { width: 100%; text-align: left; }
     .habit .ui-tx small { white-space: normal; }
-    .amount { display: flex; flex-direction: column; align-items: flex-end; flex: none; max-width: 38%; text-align: right; }
+    .amount { display: flex; flex-direction: column; align-items: flex-end; flex: none; max-width: 32%; text-align: right; }
     .amount b { font-weight: 600; color: var(--app-red); white-space: nowrap; }
     .amount b.in { color: var(--app-grn); }
     .amount b.move { color: var(--app-move); }
@@ -61,6 +60,8 @@ import { BadgeComponent } from './badge.component';
     .habit-card .ui-tx b { white-space: normal; font-size: 14px; line-height: 1.3; }
     .habit-card .ui-tx small { white-space: normal; }
     .habit-card .amount { align-items: flex-start; text-align: left; max-width: none; }
+    .habit-card { position: relative; }
+    .habit-card .star { position: absolute; top: 12px; right: 12px; }
   `],
 })
 export class HabitRowComponent {

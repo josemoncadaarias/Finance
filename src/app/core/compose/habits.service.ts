@@ -91,14 +91,16 @@ export class HabitsService {
     return [this.category(f)?.name, account].filter(Boolean).join(' · ');
   }
 
-  /** "Transferencia entre productos de Cajita Naranja", "Gasto", "Ingreso", or nothing. */
-  kindLine(f: Frequent): string {
-    if (f.kind === 'transfer') {
-      return f.toAccountId === f.accountId
-        ? this.i18n.t('habit.between', { account: this.accounts.get(f.accountId)?.name ?? '' })
-        : this.i18n.t('plus.frequent.transfer');
-    }
-    return this.i18n.t(f.kind === 'income' ? 'plus.frequent.income' : 'plus.frequent.expense');
+  /** One short line under a row: "Gasto · «Almuerzo» · 22 veces", "Cajita Naranja · «Retiro» · 18 veces". */
+  shortLine(f: Frequent): string {
+    const kind = f.kind === 'transfer' && f.toAccountId === f.accountId
+      ? this.accounts.get(f.accountId)?.name ?? ''
+      : f.kind === 'transfer' ? this.i18n.t('plus.frequent.transfer')
+      : this.i18n.t(f.kind === 'income' ? 'plus.frequent.income' : 'plus.frequent.expense');
+    const note = f.note ? `«${f.note}»` : f.loose ? this.i18n.t('habit.notes') : '';
+    const uses = f.uses === 0 ? this.i18n.t('habit.pinnedOnly')
+      : this.i18n.t(f.uses === 1 ? 'habit.times.one' : 'habit.times', { count: f.uses });
+    return [kind, note, uses].filter(Boolean).join(' · ');
   }
 
   /** "«Almuerzo» · 22 veces en 3 meses", "Notas distintas · 14 veces en 3 meses". */

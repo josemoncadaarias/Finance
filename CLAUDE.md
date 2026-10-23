@@ -5979,6 +5979,17 @@ with testers runs; the paywall is finished after them.
   backup. Assistant tour step `since: 7`. Checked in a browser on the sample
   data (bulb, welcome cards, pin, a transfer between products opening with
   both products, last amounts, other notes); not on the phone.
+  **The bulb's sheet, shortened** (Jose, 2026-10-23: "esas opciones están
+  demasiado largas"): it is a tall sheet with its own `ion-content` and the
+  two arrows (`app-jump`, its middle button opens or folds every group).
+  On top, open: "Fijados por ti" (star) apart from "Lo que más registras"
+  (five, no "Ver los N"); each habit is two lines - the name (one line,
+  sliding when long) and "Gasto · «nota» · 18 veces" (`shortLine`). Under
+  them every group of questions (`askGroups`: Para ti, hoy, Registrar, Tu
+  mes, Busca en tus movimientos, Tus deudas, Tus topes, metas y
+  recordatorios) is a card with its icon and one line saying what it holds
+  (`ai.group.*.sub`), folded until tapped (`openGroups`); the empty chat's
+  welcome shows the same groups. Checked in a browser on the sample data.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
