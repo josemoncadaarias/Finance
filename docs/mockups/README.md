@@ -86,3 +86,17 @@ node docs/mockups/src/render.mjs c0         (only the ones whose name has c0)
 
 - `34i` mensual en la prueba gratis: "Tu plan", cuándo empieza a cobrar, "Cambiar a anual". `34j` mensual pagando. `34k` anual (cambiar a mensual empieza al acabar el año). `34l` cancelada pero activa hasta su fecha, "Volver a activar". `34m` la pregunta antes de cambiar de plan. En todas, "Administrar en Google Play".
 - `34n` nunca usó la prueba: "Empezar 7 días gratis" y el día en que empieza a cobrar. `34o` ya la usó o ya pagó: "Suscribirme · $ 70.000 al año", sin hablar de gratis. `34p` se le venció: "Tu Finance Pro terminó el ..." y "Volver a Finance Pro". Quién tiene prueba lo dice Google.
+
+## 41 - El asistente busca en tus notas, abre movimientos y te conoce (2026-10-23, propuesta)
+
+Después del chat de Lukas. Sin IA: las notas se buscan por sus palabras, como el buscador de Inicio.
+
+- `41a` la bienvenida con tus datos: "Para ti, hoy" (tu categoría que más subió, tu "Puedes gastar hoy", algo de tus notas, tus pagos de la semana).
+- `41b` "¿Cuándo fue el último mantenimiento de la moto?": el movimiento encontrado por su nota, la nota completa con lo que coincidió resaltado, las veces anteriores y cada cuánto pasa.
+- `41c` tocar un movimiento de una respuesta abre el formulario de siempre; al cerrar se vuelve a la conversación.
+- `41d` varias veces ("¿Cuándo pagué el SOAT?"): la más reciente primero, cada cuánto y cuánto subió.
+- `41e` no lo encontró: lo dice, y ofrece lo parecido.
+- `41f` una pregunta que no entendió: "¿Te referías a…?" con preguntas cercanas, que recuerda la elegida.
+- `41g` "¿Cuál fue mi gasto más grande?": los 5 más grandes del periodo, cada uno se abre.
+- `41h` "¿Cómo ahorro más?": solo con tus cifras (lo que más subió, gastos pequeños repetidos, pagos fijos) y lo que ahorrarías.
+- Bajo cada respuesta, "También puedes preguntar" con 2 o 3 preguntas de seguimiento.
