@@ -100,3 +100,13 @@ Después del chat de Lukas. Sin IA: las notas se buscan por sus palabras, como e
 - `41g` "¿Cuál fue mi gasto más grande?": los 5 más grandes del periodo, cada uno se abre.
 - `41h` "¿Cómo ahorro más?": solo con tus cifras (lo que más subió, gastos pequeños repetidos, pagos fijos) y lo que ahorrarías.
 - Bajo cada respuesta, "También puedes preguntar" con 2 o 3 preguntas de seguimiento.
+
+## 42 - Lo que más registras, desde el bombillo del asistente (2026-10-23, propuesta)
+
+Los mismos hábitos de "Lo que más registras" del "+" (`core/compose/frequent.ts`), sin contarlos de otra forma.
+
+- `42a` el bombillo abre primero con "Lo que más registras": cada fila dice qué es, la nota de siempre, cuántas veces, y el valor solo cuando casi siempre es el mismo.
+- `42b` la bienvenida del asistente los muestra también, como tarjetas que se deslizan de lado.
+- `42c` al tocar uno: el formulario de siempre listo (cuentas, productos, nota), el cursor en el monto y "Los últimos que usaste" como atajos.
+- `42d` un gasto que se repite con notas distintas (misma cuenta y categoría) también cuenta: propone la nota que más escribes y ofrece las otras.
+- `42e` fijar favoritos: salen siempre de primero, con su estrella. `42f` dejar presionado: Fijar arriba, Abrir el formulario, No mostrarlo aquí.

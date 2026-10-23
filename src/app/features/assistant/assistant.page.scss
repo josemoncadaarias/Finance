@@ -339,3 +339,15 @@ ion-content.chat {
   ion-icon { flex: none; font-size: 18px; }
 }
 .card .folded { margin-top: 2px; }
+
+/* What the person registers most (42a, 42b). */
+.ui-h .see {
+  background: none; border: 0; padding: 0; color: var(--app-pr);
+  font: inherit; font-size: 13px; letter-spacing: 0; text-transform: none; cursor: pointer;
+}
+.habit-cards {
+  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  app-habit-row { flex: none; scroll-snap-align: start; }
+}

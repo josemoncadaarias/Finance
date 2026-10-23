@@ -36,6 +36,17 @@
         <h2>{{ 'ai.welcome' | t }}</h2>
         <p>{{ 'ai.welcome.hint' | t }}</p>
       </div>
+      <!-- What the person registers most, as cards that slide sideways (42b). -->
+      @if (habitsShown().length > 0) {
+        <div class="ui-h">{{ 'plus.frequent.title' | t }}
+          @if (habitsAll().length > habitsShown().length) {
+            <button type="button" class="see" (click)="habitsOpen.set(true); ideas.set(true)">{{ 'habit.seeAll' | t:{ count: habitsAll().length } }}</button>
+          }
+        </div>
+        <div class="habit-cards">
+          @for (f of habitsShown(); track f.key) { <app-habit-row [habit]="f" [card]="true"></app-habit-row> }
+        </div>
+      }
       <ng-container *ngTemplateOutlet="everything"></ng-container>
     }
 
@@ -412,12 +423,26 @@
   @if (forYou().length > 0) { <p class="sheet-hint">{{ 'ai.forYou.changes' | t }}</p> }
 </ng-template>
 
-<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="ideas()" (didDismiss)="ideas.set(false)">
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="ideas()" (didDismiss)="ideas.set(false); habitsOpen.set(false)">
   <ng-template>
     <div class="ui-sheet-body ion-content-scroll-host">
       <button type="button" class="sheet-cancel" (click)="ideas.set(false)">{{ 'entry.cancel' | t }}</button>
       <div class="grab"></div>
-      <h3 class="ui-h first">{{ 'ai.ideas.title' | t }}</h3>
+      <!-- What the person registers most, first (42a, 42e). -->
+      @if (habitList().length > 0) {
+        <div class="ui-h first">{{ 'plus.frequent.title' | t }}
+          @if (habitsAll().length > habitsShown().length) {
+            <button type="button" class="see" (click)="habitsOpen.set(!habitsOpen())">
+              {{ habitsOpen() ? ('habit.seeLess' | t) : ('habit.seeAll' | t:{ count: habitsAll().length }) }}
+            </button>
+          }
+        </div>
+        <div class="ui-list">
+          @for (f of habitList(); track f.key) { <app-habit-row [habit]="f" [before]="closeIdeas"></app-habit-row> }
+        </div>
+        <p class="sheet-hint">{{ 'habit.hint' | t }}</p>
+      }
+      <h3 class="ui-h" [class.first]="habitList().length === 0">{{ 'ai.ideas.title' | t }}</h3>
       <p class="sheet-hint">{{ 'ai.ideas.hint' | t }}</p>
       <ng-container *ngTemplateOutlet="everything"></ng-container>
     </div>

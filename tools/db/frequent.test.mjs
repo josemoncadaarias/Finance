@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { frequentOf, MIN_USES } from '../../src/app/core/compose/frequent.ts';
+import { frequentOf, habitsOf, pinOf, looseKey, MIN_USES } from '../../src/app/core/compose/frequent.ts';
 import { merchantKeyOf } from '../../src/app/core/proposals/merchant.ts';
 
 const TODAY = '2026-10-22';
@@ -132,4 +132,54 @@ test('the movements are read from the database: spending, income and transfers, 
   assert.equal(by('transfer')[0].toAccountId, card);
   assert.equal(by('transfer')[0].note, 'Pago tarjeta');
   assert.equal(by('transfer')[0].amountMinor, 30000000);
+});
+
+// Mockups 42a-42f (Jose, 2026-10-23): the same spending with another note each
+// time, the last amounts used, and habits fixed on top or hidden.
+const market = (onDate, note, amountMinor) => ({ kind: 'expense', accountId: 3, categoryId: 11, note, amountMinor, onDate });
+
+test('one account and category with a different note each time is still a habit', () => {
+  const found = frequentOf([
+    market('2026-10-20', 'Mercado semana', 8640000), market('2026-10-13', 'Fruver', 2390000),
+    market('2026-10-06', 'Mercado semana', 14200000), market('2026-09-29', 'Carnicería', 5100000),
+  ], TODAY);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].loose, true);
+  assert.equal(found[0].key, looseKey({ kind: 'expense', accountId: 3, categoryId: 11 }));
+  assert.equal(found[0].uses, 4);
+  assert.equal(found[0].note, 'Mercado semana');
+  assert.deepEqual(found[0].otherNotes, ['Fruver', 'Carnicería']);
+  assert.equal(found[0].amountMinor, null);
+  assert.deepEqual(found[0].lastAmounts, [8640000, 2390000, 14200000]);
+});
+
+test('a loose habit offers no note when none was written twice', () => {
+  const found = frequentOf([market('2026-10-20', 'Uno', 100), market('2026-10-13', 'Dos', 200), market('2026-10-06', 'Tres', 300)], TODAY);
+  assert.equal(found[0].note, '');
+  assert.deepEqual(found[0].otherNotes, ['Uno', 'Dos', 'Tres']);
+});
+
+test('an exact habit keeps its rows; only what is left joins by category', () => {
+  const found = frequentOf([
+    coffee('2026-10-20'), coffee('2026-10-13'), coffee('2026-10-06'),
+    { ...coffee('2026-10-05'), note: 'Pan' }, { ...coffee('2026-10-04'), note: 'Jugo' },
+  ], TODAY);
+  assert.deepEqual(found.map(f => [f.loose, f.uses]), [[false, 3]]);
+});
+
+test('the last amounts are the latest different ones', () => {
+  const found = frequentOf([coffee('2026-10-20', 900000), coffee('2026-10-13', 900000), coffee('2026-10-06', 850000), coffee('2026-10-01', 800000), coffee('2026-09-25', 700000)], TODAY);
+  assert.deepEqual(found[0].lastAmounts, [900000, 850000, 800000]);
+});
+
+test('a pinned habit comes first, even unused lately; a hidden one does not come', () => {
+  const lunch = d => ({ kind: 'expense', accountId: 1, categoryId: 6, note: 'Almuerzo', amountMinor: 1800000, onDate: d });
+  const rows = [coffee('2026-10-01'), coffee('2026-10-02'), coffee('2026-10-03'),
+    lunch('2026-10-01'), lunch('2026-10-02'), lunch('2026-10-03'), lunch('2026-10-04')];
+  const all = frequentOf(rows, TODAY);
+  const coffeeHabit = all.find(f => f.note === 'Café de la esquina');
+  const old = { key: 'transfer|1|5||pago tarjeta', kind: 'transfer', accountId: 1, toAccountId: 5, productId: null, toProductId: null, categoryId: null, note: 'Pago tarjeta', loose: false };
+  const habits = habitsOf(rows, TODAY, { pins: [old, pinOf(coffeeHabit)], hidden: new Set([all.find(f => f.note === 'Almuerzo').key]) });
+  assert.deepEqual(habits.pinned.map(f => [f.note, f.uses, f.pinned]), [['Pago tarjeta', 0, true], ['Café de la esquina', 3, true]]);
+  assert.deepEqual(habits.frequent, []);
 });

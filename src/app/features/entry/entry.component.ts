@@ -91,6 +91,8 @@ export interface EntryRequest {
     amountMinor: number; onDate: string; note: string; again?: boolean;
     /** The assistant's summary (39c): the category and the product it understood. */
     categoryId?: number | null; productId?: number | null;
+    /** A habit's last different amounts and its other notes, offered as chips (mockups 42c, 42d). */
+    amounts?: number[]; notes?: string[];
   };
   /**
    * Both ends of a transfer, already chosen: the products screen's move
@@ -1011,6 +1013,24 @@ export class EntryComponent implements OnInit, OnDestroy {
     }));
   });
 
+  /** A habit's last different amounts (mockup 42c), each one tap. */
+  readonly lastAmounts = computed<{ minor: number; text: string; on: boolean }[]>(() => {
+    if (this.isEditing()) return [];
+    const amount = this.amount().minor;
+    return (this.request().start?.amounts ?? []).map(minor => ({
+      minor, text: formatMoney(minor, this.currency()), on: minor === amount,
+    }));
+  });
+
+  /** A habit's other notes (mockup 42d), offered while the note is not written. */
+  readonly otherNotes = computed(() => {
+    const start = this.request().start;
+    if (!start?.notes?.length) return [];
+    // The note it came with stays among them, so it can be chosen back.
+    const all = [start.note, ...start.notes].filter((n, i, list) => n !== '' && list.indexOf(n) === i);
+    return all.filter(n => n !== this.note());
+  });
+
   /** Fills the amount with a tile's figure; "Invertir" clears it again. */
   fillWith(minor: number): void {
     this.amount.set(AmountBuffer.from(minor));
@@ -1562,6 +1582,13 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (field) field.nativeElement.value = '';
   }
 
+
+  /** One of a habit's other notes, chosen without opening the keyboard. */
+  useOtherNote(note: string): void {
+    this.noteIsTheirs = true;
+    this.note.set(note);
+    this.noteQuery++;
+  }
 
   useNote(note: string, pressed?: Event): void {
     // The press already chose; the click that follows it lands on whatever
