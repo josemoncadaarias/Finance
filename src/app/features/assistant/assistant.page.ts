@@ -41,11 +41,11 @@ import { TransactionsRepository } from '../../core/database/repositories/transac
 import { nextDayOfMonth, readReminder } from '../../core/assistant/read-reminder';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
-import type { RichButton, RichCard, Speech } from './answers';
+import type { OpenCategory, RichButton, RichCard, Speech } from './answers';
 import { FilterService } from '../../core/filters/filter.service';
 import { afford, perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
-import { isoDay, periodLabel } from '../../core/filters/period';
+import { currentPeriod, isoDay, periodLabel } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
 import { PaywallService } from '../../core/paywall/paywall.service';
 import { PLAN } from '../../core/paywall/plan';
@@ -967,7 +967,8 @@ export class AssistantPage {
     const key: TranslationKey = diff > 0 ? 'ai.spent.more' : diff < 0 ? 'ai.spent.less' : 'ai.spent.same';
     this.say(key, { amount: this.pesos(s.nowMinor), category: category.name, diff: this.pesos(Math.abs(diff)) }, {
       card: { kind: 'spent', category, nowMinor: s.nowMinor, beforeMinor: s.beforeMinor, cap: s.cap },
-      chips: [{ label: this.i18n.t('ai.spent.seeMovements'), act: () => void this.router.navigate(['/movements']) }],
+      chips: [{ label: this.i18n.t('ai.spent.seeMovements'),
+        act: () => this.openCategory({ category: category.name, period: currentPeriod('month') }) }],
     });
   }
 
@@ -1250,6 +1251,20 @@ export class AssistantPage {
   toggleFold(fold: { open?: boolean }): void {
     fold.open = !fold.open;
     this.messages.update(list => [...list]);
+  }
+
+  /**
+   * A category of an answer: its movements on Inicio, every account, over the
+   * period the answer spoke of (Jose, 2026-10-23: the chat's categories led
+   * nowhere).
+   */
+  openCategory(open: OpenCategory): void {
+    this.filter.selectAccount(null);
+    this.filter.period.set(open.period);
+    this.filter.search.set('');
+    this.filter.openCategory(open.category);
+    this.filter.revealList.update(n => n + 1);
+    void this.router.navigate(['/movements']);
   }
 
   /** A button of an answer's card. */

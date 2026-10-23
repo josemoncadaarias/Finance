@@ -5913,6 +5913,16 @@ with testers runs; the paywall is finished after them.
     it says nothing; "mantenimiento" in a category Carro still narrows).
     `byCategory` in `note-search.ts`; it feeds the last time and what
     something cost alike. Test with invented bills in `note-search.test.mjs`.
+  - **Every category in an answer opens its movements** (Jose, 2026-10-23:
+    "¿en qué gasté más?" listed categories that led nowhere). A block may carry
+    `open` (`OpenCategory`: the category and the period the answer spoke of);
+    its row shows a chevron and opens Inicio on every account, that period,
+    the list filtered by that category and scrolled to it (`openCategory` in
+    `assistant.page.ts`, `FilterService.revealList`). On: "En qué gasté más",
+    "Por qué gasté más" (up and down), the fixed payments and every-month
+    spending (over the months looked at), and "Ver los movimientos" after
+    "¿Cuánto llevo en X?" (it opened Inicio unfiltered). A card with such rows
+    says "Toca una categoría para ver sus movimientos". Checked in a browser.
   - **Every movement in an answer opens** (`RichBlock.mov`, `.mrow`) in the
     ONE movement form (`compose.edit`) - Jose asked why another form; there is
     none, mockup `41c` only drew the same one.

@@ -43,6 +43,21 @@ export interface RichBlock {
   mov?: MovBlock;
   /** A section that opens: its title says what and how many; nothing is left out of the answer. */
   fold?: { title: string; blocks: RichBlock[]; open?: boolean };
+  /** The row is a category: tapping it lists that category's movements on Inicio. */
+  open?: OpenCategory;
+}
+
+/** A category's movements over a period, every account: what a category row opens. */
+export interface OpenCategory {
+  category: string;
+  period: Period;
+}
+
+/** The whole months looked at up to today, for a row read over several months. */
+function monthsUpToToday(today: string, months: number): Period {
+  const [y, m] = today.split('-').map(Number);
+  const start = new Date(Date.UTC(y, m - 1 - months, 1));
+  return { kind: 'range', from: start.toISOString().slice(0, 10), to: today };
 }
 
 /** A movement inside an answer, as plain data so it survives in the history. */
@@ -218,11 +233,12 @@ export function topSpending(s: Speech, pic: PeriodPicture): Answer {
       amount: s.pesos(sl.amountMinor), pct: Math.max(4, Math.round(sl.amountMinor * 100 / first)),
       change: change === null ? (pic.before ? s.t('ai.top.new') : '') : change === 0 ? s.t('ai.top.same') : `${change > 0 ? '+' : '−'}${Math.abs(change)} %`,
       cls: change === null ? 'mu' : change > 0 ? 'ui-r' : change < 0 ? 'ui-g' : 'mu',
-    } });
+    }, open: { category: sl.label, period: pic.period } });
   }
   const rest = pic.slices.slice(5);
   if (rest.length > 0) blocks.push({ note: s.t('ai.top.more', { count: rest.length, amount: s.pesos(rest.reduce((sum, sl) => sum + sl.amountMinor, 0)) }) });
   if (pic.before) blocks.push({ note: s.t(pic.partial ? 'ai.top.vsSameDays' : 'ai.top.vs', { label: pic.before.label }) });
+  blocks.push({ note: s.t('ai.open.hint') });
   const moves = pic.before ? categoryChanges(pic.slices, pic.before.slices) : { up: null };
   return {
     said: moves.up
@@ -608,19 +624,21 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
     return { said: { key: 'ai.recurring.none', values: { count: r.looked } }, card: null, next: ['ai.next.top'] };
   }
   const face = (label: string) => r.faces.get(label);
+  const looked = monthsUpToToday(s.today, r.looked);
   const blocks: RichBlock[] = [];
   const fixedRow = (f: RecurringPicture['fixed'][number]): RichBlock => ({ row: {
     icon: face(f.category)?.icon ?? 'repeat-outline', color: face(f.category)?.color ?? COLORS.blu, round: false,
     title: f.name, value: s.pesos(f.averageMinor),
     lines: [`${f.category} · ${s.t('ai.recurring.months', { seen: f.monthsSeen, of: r.looked })}`,
-      s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] } });
+      s.t(f.thisMonthMinor > 0 ? 'ai.recurring.paid' : 'ai.recurring.notYet')] }, open: { category: f.category, period: looked } });
   const categoryRow = (e: RecurringPicture['everyMonth'][number], when = false): RichBlock => ({ row: {
     icon: face(e.category)?.icon ?? 'pricetag-outline', color: face(e.category)?.color ?? COLORS.org, round: false,
     title: e.category, value: s.t('ai.recurring.about', { amount: s.pesos(e.averageMinor) }),
     // Often but not every month: the average counts the months without it, so
     // the range is said as "when it turns up".
     lines: [s.t(when ? 'ai.recurring.rangeWhen' : 'ai.recurring.range', { low: s.pesos(e.lowMinor), high: s.pesos(e.highMinor), seen: e.monthsSeen, of: r.looked }),
-      e.thisMonthMinor > 0 ? s.t('ai.recurring.soFar', { amount: s.pesos(e.thisMonthMinor) }) : s.t('ai.recurring.notYet')] } });
+      e.thisMonthMinor > 0 ? s.t('ai.recurring.soFar', { amount: s.pesos(e.thisMonthMinor) }) : s.t('ai.recurring.notYet')] },
+    open: { category: e.category, period: looked } });
   /** The first few on view; the rest in a section that opens, never left out. */
   const listed = <T>(list: readonly T[], row: (x: T) => RichBlock, one: TranslationKey, many: TranslationKey) => {
     for (const x of list.slice(0, SHOWN)) blocks.push(row(x));
@@ -654,6 +672,7 @@ export function recurring(s: Speech, r: RecurringPicture): Answer {
     ] } });
   }
   blocks.push({ note: s.t('ai.recurring.how', { needed: r.needed, every: r.neededEvery, count: r.looked }) });
+  blocks.push({ note: s.t('ai.open.hint') });
   return {
     said: { key: 'ai.recurring.saidTotal', values: {}, text: [
       r.fixed.length > 0 ? s.t(r.fixed.length === 1 ? 'ai.recurring.saidFixedOne' : 'ai.recurring.saidFixed', { count: r.fixed.length, amount: s.pesos(r.fixedMinor) }) : '',
@@ -732,12 +751,14 @@ export function whyMore(s: Speech, pic: PeriodPicture): Answer {
   if (up.length > 0) {
     blocks.push({ lab: s.t('ai.why.up') });
     for (const m of up) blocks.push({ row: { icon: m.slice.icon ?? 'pricetag-outline', color: m.slice.color ?? COLORS.org, round: false,
-      title: m.label, value: `+${s.pesos(m.by)}`, lines: [s.t('ai.why.fromTo', { before: s.pesos(m.before), now: s.pesos(m.now) })] } });
+      title: m.label, value: `+${s.pesos(m.by)}`, lines: [s.t('ai.why.fromTo', { before: s.pesos(m.before), now: s.pesos(m.now) })] },
+      open: { category: m.label, period: pic.period } });
   }
   if (down.length > 0) {
     blocks.push({ lab: s.t('ai.why.down') });
-    for (const m of down) blocks.push({ line: { k: m.label, v: `−${s.pesos(-m.by)}`, cls: 'ui-g' } });
+    for (const m of down) blocks.push({ line: { k: m.label, v: `−${s.pesos(-m.by)}`, cls: 'ui-g' }, open: { category: m.label, period: pic.period } });
   }
+  if (up.length > 0 || down.length > 0) blocks.push({ note: s.t('ai.open.hint') });
   // Said whole: what went up AND what went down, so a jump that another
   // category made up for does not read as the whole story.
   const same = Math.abs(diff) * 100 < b.outMinor * 5;
