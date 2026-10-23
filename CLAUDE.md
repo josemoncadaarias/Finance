@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1081 on 2026-10-23, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1082 on 2026-10-23, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5904,6 +5904,15 @@ with testers runs; the paywall is finished after them.
     spendings of at most 2 % of the last 30 days' spending, 8 or more -, the
     fixed payments and the dearest; a disclaimer; "Crear un tope"). Data from
     `AssistantService.findInNotes`, `biggest`, `smallRepeated`.
+  - **A word naming a category stands for the whole category** (Jose,
+    2026-10-23: "¿cuándo pagué factura EPM?" answered 9 September while an
+    EPM movement of 8 October was on record - its note had no "factura",
+    and every word was required in the note). Now the category's movements
+    count, and the question's other words narrow them only when fewer than
+    half of that category's notes carry them ("factura" is in nearly all, so
+    it says nothing; "mantenimiento" in a category Carro still narrows).
+    `byCategory` in `note-search.ts`; it feeds the last time and what
+    something cost alike. Test with invented bills in `note-search.test.mjs`.
   - **Every movement in an answer opens** (`RichBlock.mov`, `.mrow`) in the
     ONE movement form (`compose.edit`) - Jose asked why another form; there is
     none, mockup `41c` only drew the same one.

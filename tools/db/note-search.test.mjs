@@ -97,3 +97,22 @@ test('the questions are read, said in different ways', () => {
   assert.equal(intent('¿Cómo van mis ahorros?'), 'plans');
   assert.equal(intent('¿Qué pagos tengo este mes?'), 'due');
 });
+
+test('a word naming a category stands for it: a word most of its notes carry is not required', () => {
+  const bills = [
+    { id: 21, onDate: '2026-10-08', note: 'EMPRESA DE ENERGIA DEL VALLE', category: 'Energía' },
+    { id: 22, onDate: '2026-09-09', note: 'Factura energía', category: 'Energía' },
+    { id: 23, onDate: '2026-08-10', note: 'Factura energía', category: 'Energía' },
+    { id: 24, onDate: '2026-07-09', note: 'Factura energía', category: 'Energía' },
+    { id: 25, onDate: '2026-10-01', note: 'Factura del celular', category: 'Celular' },
+  ];
+  const m = matchNotes(bills, termsOf('¿Cuándo pagué la factura energía por última vez?'));
+  assert.deepEqual(m.all.map(r => r.id), [21, 22, 23, 24]);
+  // A word few of the category's notes carry still narrows it.
+  const car = [
+    { id: 31, onDate: '2026-10-05', note: 'Peaje', category: 'Carro' },
+    { id: 32, onDate: '2026-09-20', note: 'Lavada', category: 'Carro' },
+    { id: 33, onDate: '2026-06-02', note: 'Mantenimiento 10.000 km', category: 'Carro' },
+  ];
+  assert.deepEqual(matchNotes(car, termsOf('¿Cuándo fue el último mantenimiento del carro?')).all.map(r => r.id), [33]);
+});
