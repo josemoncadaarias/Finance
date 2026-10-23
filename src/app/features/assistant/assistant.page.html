@@ -78,7 +78,7 @@
                     <small class="segs">@if (card.note) {<span>{{ card.note }}</span>}<span>{{ card.account.name }}</span><span>{{ dayText(card.onDate) }}</span></small>
                   </span>
                   <b class="amount" [class.ui-r]="card.side === 'expense'" [class.ui-g]="card.side === 'income'">
-                    {{ card.side === 'expense' ? '−' : '+' }}{{ pesos(card.amountMinor) }}
+                    {{ card.side === 'expense' ? '−' : '+' }}{{ exact(card.amountMinor) }}
                   </b>
                 </div>
                 @if (productLine(card).length > 0 && card.product) {
@@ -115,7 +115,7 @@
                     <b>{{ (transferAccount(card) ? 'ai.transfer.titleProducts' : 'ai.transfer.title') | t }}</b>
                     <small class="segs"><span class="ends">{{ transferEnds(card) }}</span>@if (transferAccount(card); as acc) {<span>{{ acc }}</span>}<span>{{ dayText(card.onDate) }}</span></small>
                   </span>
-                  <b class="amount move">{{ pesos(card.amountMinor) }}</b>
+                  <b class="amount move">{{ exact(card.amountMinor) }}</b>
                 </div>
                 @if (card.state === 'saved') {
                   <div class="done"><ion-icon name="checkmark-circle"></ion-icon>{{ 'ai.register.savedLine' | t }}</div>

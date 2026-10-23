@@ -479,3 +479,28 @@ test('a spending saved on another account and category is read that way next tim
   const gone = { accounts: {}, shapes: {}, phrases: { [first.phraseKey]: { ...learned.phrases[first.phraseKey], accountId: 99 } } };
   assert.equal(readPhrase('gasté 80 mil en guayos', ctx({ learned: gone })).fromMemory, false);
 });
+
+test('a sentence with no verb takes the side of the category it names, even a shape learned as a spending', () => {
+  const base = {
+    accounts: [{ id: 1, name: 'Fondo Ámbar', type: 'investment' }, { id: 2, name: 'Banco Azul', type: 'debit' }],
+    products: [],
+    categories: [{ id: 10, name: 'Ganancia', kind: 'income' }, { id: 11, name: 'Mercado', kind: 'expense' },
+      { id: 12, name: 'Ganancia de inversión', kind: 'income' }, { id: 13, name: 'Ajuste de ganancias', kind: 'expense' }],
+    merchants: new Map(), learned: NOTHING_LEARNED, today: '2026-10-23',
+  };
+  const text = 'ganancia de 19,429.77 en fondo ámbar';
+  const first = readPhrase(text, base);
+  assert.equal(first.side, 'income');
+  assert.equal(first.intent, 'register', 'an income category named is registering it');
+  // The category whose every word was said, among several sharing "ganancia".
+  const both = readPhrase('ganancia de inversión de 19.429,77 en fondo ámbar', base);
+  assert.equal(both.categoryId, 12);
+  assert.equal(both.side, 'income');
+  assert.equal(first.amountMinor, 1942977);
+  const learned = readPhrase(text, { ...base, learned: { ...NOTHING_LEARNED, shapes: { [first.shape]: 'register' } } });
+  assert.equal(learned.intent, 'register');
+  assert.equal(learned.side, 'income');
+  assert.equal(learned.categoryId, 10);
+  const spend = readPhrase('mercado de 45 mil en banco azul', { ...base, learned: { ...NOTHING_LEARNED, shapes: { [first.shape]: 'register' } } });
+  assert.equal(spend.side, 'expense');
+});

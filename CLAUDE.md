@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1082 on 2026-10-23, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1083 on 2026-10-23, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5923,6 +5923,20 @@ with testers runs; the paywall is finished after them.
     spending (over the months looked at), and "Ver los movimientos" after
     "¿Cuánto llevo en X?" (it opened Inicio unfiltered). A card with such rows
     says "Toca una categoría para ver sus movimientos". Checked in a browser.
+  - **An income category named is an income, and the card says what was
+    saved** (Jose, 2026-10-23: "ganancia de 19,429.77 en multiversión" was
+    read as a spending, and after he made it an income in the form the card
+    still said "−$ 19.430"). Three causes, all fixed: a sentence shape learned
+    as "register" forced the side to spending - it now takes the category's
+    side, and naming an income category with no verb registers it directly
+    (nothing to afford); a category sharing a word with others ("Ganancia",
+    "Ganancia de inversión", "Ajuste de ganancias") is the one whose every
+    word was said, the longest such name first; and a card saved through the
+    form is redrawn from what was saved (`SavedChoice` now carries amount,
+    day and note; `showAsSaved`), its line saying "Lo guardaste como
+    ingreso/gasto/transferencia" when the side changed. A movement under an
+    income category is always an income (`register`). The card's figure keeps
+    its cents (`exact`). Tests in `read-phrase.test.mjs`; checked in a browser.
   - **Every movement in an answer opens** (`RichBlock.mov`, `.mrow`) in the
     ONE movement form (`compose.edit`) - Jose asked why another form; there is
     none, mockup `41c` only drew the same one.
