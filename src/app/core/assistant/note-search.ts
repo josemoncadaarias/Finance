@@ -144,12 +144,52 @@ export function matchNotes<T extends NoteRow>(rows: readonly T[], terms: readonl
     hits.set(row.id, lit);
   }
   const newest = (a: { row: T }, b: { row: T }) => b.row.onDate.localeCompare(a.row.onDate) || b.row.id - a.row.id;
-  const all = scored.filter(s => s.found === terms.length).sort(newest).map(s => s.row);
+  const whole = new Set(scored.filter(s => s.found === terms.length).map(s => s.row));
+  for (const row of byCategory(rows, terms)) {
+    whole.add(row);
+    if (!hits.has(row.id)) hits.set(row.id, []);
+  }
+  const all = [...whole].map(row => ({ row })).sort(newest).map(s => s.row);
   if (all.length > 0) return { all, some: [], hits };
   const best = Math.max(0, ...scored.map(s => s.found));
   // At least half the words, and never one word of a long question by chance.
   const some = best * 2 >= terms.length && best > 0 ? scored.filter(s => s.found === best).sort(newest).map(s => s.row) : [];
   return { all: [], some, hits };
+}
+
+/**
+ * A word of the question that names a category stands for the whole category
+ * (Jose, 2026-10-23: "¿cuándo pagué factura EPM?" answered September because
+ * October's EPM movement had another note, without "factura"). The other words
+ * still narrow it, but only when they tell its movements apart: a word written
+ * in half the category's notes or more ("factura" in nearly every EPM note)
+ * says nothing more than the category does, so it is not required. A word few
+ * of them carry ("mantenimiento" in a category Carro) still is.
+ */
+function byCategory<T extends NoteRow>(rows: readonly T[], terms: readonly string[]): T[] {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = fold(row.category);
+    if (!key) continue;
+    const list = groups.get(key) ?? [];
+    list.push(row);
+    groups.set(key, list);
+  }
+  const found: T[] = [];
+  for (const list of groups.values()) {
+    const catWords = wordsIn(list[0].category);
+    const naming = terms.filter(t => catWords.some(w => nearWord(t, w)));
+    if (naming.length === 0) continue;
+    const notes = list.map(r => wordsIn(r.note));
+    const has = (words: string[], t: string) => words.some(w => nearWord(t, w));
+    const telling = terms
+      .filter(t => !naming.includes(t))
+      .filter(t => notes.filter(words => has(words, t)).length * 2 < list.length);
+    list.forEach((row, i) => {
+      if (telling.every(t => has(notes[i], t))) found.push(row);
+    });
+  }
+  return found;
 }
 
 /**
