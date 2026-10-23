@@ -32,9 +32,9 @@ import { LimitsService, type LimitView } from '../limits/limits.service';
 import { monthOf, shiftMonth, daysInMonth } from '../limits/limits';
 import { wordCategoryOf } from '../proposals/common-words';
 import { merchantKeyOf } from '../proposals/merchant';
-import { isoDay, periodContaining, periodLabel, type Period } from '../filters/period';
+import { ALL_TIME, isoDay, periodContaining, periodLabel, type Period } from '../filters/period';
 import { MovementsStore } from '../../features/movements/movements.store';
-import { slicesOf, totalsOf, type Slice } from '../../features/movements/group-movements';
+import { slicesOf, totalsOf, type Movement, type Slice } from '../../features/movements/group-movements';
 import { daysBetween, equivalentBefore } from '../report/report-data';
 import { I18nService } from '../i18n/i18n.service';
 import { splitWorth } from '../worth/worth-split';
@@ -43,6 +43,7 @@ import type { DebtIn } from './debts-advice';
 import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
+import { matchNotes, type NoteMatches, type NoteRow } from './note-search';
 
 const LEARNED_KEY = 'assistant.learned';
 /** How many sentences and where they were saved are remembered. */
@@ -164,7 +165,7 @@ export class AssistantService {
     if (!row) return { accounts: {}, shapes: {}, phrases: {} };
     try {
       const parsed = JSON.parse(row.value) as Partial<Learned>;
-      return { accounts: parsed.accounts ?? {}, shapes: parsed.shapes ?? {}, phrases: parsed.phrases ?? {} };
+      return { accounts: parsed.accounts ?? {}, shapes: parsed.shapes ?? {}, phrases: parsed.phrases ?? {}, asked: parsed.asked ?? {} };
     } catch {
       return { accounts: {}, shapes: {}, phrases: {} };
     }
@@ -203,6 +204,18 @@ export class AssistantService {
     // The newest few hundred are kept; a sentence not said for long goes first.
     const keys = Object.keys(learned.phrases);
     if (keys.length > PHRASES_KEPT) for (const old of keys.slice(0, keys.length - PHRASES_KEPT)) delete learned.phrases[old];
+    await this.keep(learned);
+  }
+
+  /** A sentence not understood means, from now on, the question chosen for it (41f). */
+  async learnAsked(key: string, question: string): Promise<void> {
+    if (!key || !question) return;
+    const learned = await this.learned();
+    const asked = { ...(learned.asked ?? {}) };
+    delete asked[key];
+    learned.asked = { ...asked, [key]: question };
+    const keys = Object.keys(learned.asked);
+    if (keys.length > PHRASES_KEPT) for (const old of keys.slice(0, keys.length - PHRASES_KEPT)) delete learned.asked[old];
     await this.keep(learned);
   }
 
@@ -343,6 +356,58 @@ export class AssistantService {
       beforeMinor: sign * await sum(`${last}-01`, `${last}-${String(lastDay).padStart(2, '0')}`),
       cap: this.capOf(category.id),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Found in the notes (41b-41g)
+  // -------------------------------------------------------------------------
+
+  /**
+   * The movements, every account, whose note or category carries the words
+   * asked - nearly or exactly (`matchNotes`) - over a period (all time when
+   * none is said), newest first. Transfers between one's own accounts count
+   * too: "¿cuándo pagué la tarjeta?" is one.
+   */
+  async findInNotes(terms: readonly string[], asked: Period | null): Promise<NoteMatches<NoteRow & { movement: Movement }>> {
+    const period = asked ?? ALL_TIME;
+    const today = isoDay(new Date());
+    const counted: Period = period.to !== null && period.to > today ? { ...period, to: today } : period;
+    const movements = await this.store.movementsFor(counted, undefined, true);
+    const rows = movements.map(m => ({ id: m.transaction.id, onDate: m.transaction.occurred_on, note: m.transaction.description ?? '', category: m.label, movement: m }));
+    return matchNotes(rows, terms);
+  }
+
+  /** The biggest spending of a period (this month when none is said), every account, in pesos. */
+  async biggest(asked: Period | null): Promise<{ period: Period; label: string; movements: Movement[]; outMinor: number }> {
+    const today = isoDay(new Date());
+    const period = asked ?? periodContaining('month', new Date());
+    const to = period.to !== null && period.to < today ? period.to : today;
+    const movements = await this.store.movementsFor({ ...period, to }, undefined, true);
+    const out = movements.filter(m => m.flow === 'out');
+    const total = totalsOf(movements, 'base').outMinor;
+    const sorted = [...out].sort((a, b) => Math.abs(b.transaction.amount_base_minor) - Math.abs(a.transaction.amount_base_minor));
+    return { period, label: periodLabel(period, this.i18n.dateLocale(), this.i18n.t('period.all')), movements: sorted, outMinor: total };
+  }
+
+  /**
+   * Small spending that repeats: over the last 30 days, each category's
+   * spendings of no more than 2 % of what was spent in those days, when there
+   * are at least 8 of them. Generic: the person's own categories and figures.
+   */
+  async smallRepeated(): Promise<{ label: string; count: number; totalMinor: number; averageMinor: number; face: Movement }[]> {
+    const now = new Date();
+    const from = isoDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
+    const movements = await this.store.movementsFor({ kind: 'range', from, to: isoDay(now) }, undefined, true);
+    const out = movements.filter(m => m.flow === 'out');
+    const total = out.reduce((sum, m) => sum + Math.abs(m.transaction.amount_base_minor), 0);
+    if (total <= 0) return [];
+    const small = out.filter(m => Math.abs(m.transaction.amount_base_minor) * 50 <= total);
+    const by = new Map<string, Movement[]>();
+    for (const m of small) by.set(m.label, [...(by.get(m.label) ?? []), m]);
+    return [...by.entries()].filter(([, list]) => list.length >= 8).map(([label, list]) => {
+      const sum = list.reduce((s, m) => s + Math.abs(m.transaction.amount_base_minor), 0);
+      return { label, count: list.length, totalMinor: sum, averageMinor: Math.round(sum / list.length), face: list[0] };
+    }).sort((a, b) => b.totalMinor - a.totalMinor);
   }
 
   // -------------------------------------------------------------------------

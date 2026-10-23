@@ -54,6 +54,14 @@ export type Intent =
   | 'remind'
   /** "¿Qué recordatorios tengo?" */
   | 'reminders'
+  /** "¿Cuándo fue el último mantenimiento de la moto?": found by the words of the notes. */
+  | 'lastTime'
+  /** "¿Cuál fue mi gasto más grande?": the biggest movements of a period. */
+  | 'biggest'
+  /** "¿Qué puedo hacer para ahorrar más?" */
+  | 'saveMore'
+  /** "¿Qué puedes hacer?": everything the assistant answers. */
+  | 'help'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -77,6 +85,12 @@ export interface Learned {
    * wrong account came back).
    */
   phrases?: Record<string, LearnedRoute>;
+  /**
+   * A sentence not understood, and the question the person chose for it
+   * from "¿Te referías a...?" (mockup `41f`): said the same way again, it is
+   * that question.
+   */
+  asked?: Record<string, string>;
 }
 
 /** Where a sentence's movement was saved. */
@@ -89,7 +103,7 @@ export interface LearnedRoute {
   categoryId: number | null;
 }
 
-export const NOTHING_LEARNED: Learned = { accounts: {}, shapes: {}, phrases: {} };
+export const NOTHING_LEARNED: Learned = { accounts: {}, shapes: {}, phrases: {}, asked: {} };
 
 export interface PhraseContext {
   accounts: readonly PhraseAccount[];
@@ -277,6 +291,13 @@ const TOP_SPENDING = /\b(en que|en donde|donde|a que|que)\b.*\b(gast\w*|se me va
 const RECURRING = /\b(que|cuales|cuanto|cuanta plata|cuanto dinero)\b.*\b(pago|pagamos|gasto|gastamos|se me va|se nos va|se va|tengo|hay)\b.*\b(cada mes|todos los meses|mes a mes|al mes|mensual\w*|fij[oa]s?)\b|\b(gastos?|pagos?|cuentas?|cobros?)\s+(fij[oa]s?|mensuales|recurrentes|que se repiten|de cada mes)\b|\bsuscripci\w*\b|\b(que|cuales)\b.*\bse (me )?repite\w*\b|\b(every month|each month|monthly bills|recurring|subscriptions?|fixed (costs|expenses|bills))\b/;
 const YIELDS = /\b(rendimient\w*|rentabilidad|rindi\w*|rendid\w*|rinden|rinde|intereses? (que )?(me )?(gan\w*|pag\w*|dier\w*|han dado|dan))\b|\bcuanto\b.*\b(gane|he ganado|ganado|me han dado|me dieron|me pagaron|me paga|me pagan|me dan|me da|produc\w*)\b.*\b(cuentas?|bancos?|ahorros?|bolsillos?|alcancias?|cdts?|productos?|intereses?)\b|\b(yields?|interest (earned|i earned|paid to me)|how much\b.*\b(earn\w*|interest))\b/;
 const WHY_MORE = /\bpor ?que\b.*\b(gast\w*|se me (fue|va|esta yendo)|subi\w*|aument\w*|tanta plata|tanto dinero)\b|\b(en que|que)\b.*\b(gaste|gastado|gastamos) (de mas|mas que|mas de la cuenta)\b|\bque (fue lo que )?(subio|aumento)\b|\bwhy\b.*\b(spen[dt]|more)\b/;
+// Found in the notes (mockups 41b-41e): "¿cuándo fue el último...?", "¿cuándo pagué...?".
+const LAST_TIME = /\bcuando\b.*\b(fue|fueron|pague|pagamos|pagaste|compre|compramos|fui|fuimos|hice|hicimos|lleve|llevamos|gaste|gastamos|tanquee|tuve|tuvimos|cambie|renove|me pagaron|me llego|recibi|vino)\b|\bultima vez\b|\bultim[oa]s?\s+(pagos?|compras?|gastos?|mantenimientos?|veces|cambios?|visitas?|citas?)\b|\bwhen did (i|we)\b|\blast time\b|\bwhen was\b.*\blast\b/;
+/** "¿Cuánto me cuesta la moto?": the movements whose notes say it, added up. */
+const COST_OF = /\bcuanto\b.*\b(cuesta|cuestan|costo|costaron|costado|sale|salio|ha salido)\b|\bhow much\b.*\b(cost|costs|did .* cost)\b/;
+const BIGGEST = /\b(gastos?|compras?|pagos?|movimientos?)\b.*\b(mas grandes?|mas car[oa]s?|mayor(es)?|mas alt[oa]s?)\b|\b(mayor|mas grande|mas car[oa]|mas alt[oa])\b.*\b(gasto|compra|pago)\b|\b(biggest|largest)\b.*\b(expenses?|purchases?|spending|payments?)\b/;
+const SAVE_MORE = /\b(como|que)\b.*\b(puedo|podria|debo|hago|hacer|podemos|deberia)\b.*\b(ahorr\w*|gastar menos)\b|\bahorr\w* mas\b|\bgastar menos\b|\bhow\b.*\b(save|spend less)\b|\bsave more\b/;
+const HELP = /\bque (mas )?(puedes|sabes|puedo) (hacer|preguntar\w*|decir\w*)( (aqui|contigo|con (esto|el asistente|la app)|en (el )?chat|por mi))?\s*$|\bque (mas )?haces\b|\bque te puedo preguntar\b|\bque preguntas\b|^\s*ayuda\s*$|\bwhat can (you|i) (do|ask)\b|^\s*help\s*$/;
 const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
 const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
 const PER_DAY = /\b(cuanto|que tanto)\b.*\b(puedo gastar|me queda|tengo)\b.*\b(dia|diario|hoy|semana|mes)\b|\bal dia\b.*\bcuanto\b|\bhow much\b.*\b(can i spend|left)\b/;
@@ -694,8 +715,12 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
 
   let intent: Intent;
   let side: Side | null = null;
-  if (has(folded, REMINDERS_LIST)) intent = 'reminders';
+  if (has(folded, HELP)) intent = 'help';
+  else if (has(folded, REMINDERS_LIST)) intent = 'reminders';
   else if (has(folded, REMIND)) intent = 'remind';
+  else if (!amount && has(folded, LAST_TIME)) intent = 'lastTime';
+  else if (!amount && has(folded, BIGGEST)) intent = 'biggest';
+  else if (!amount && has(folded, SAVE_MORE) && !has(folded, YIELDS)) intent = 'saveMore';
   else if (has(folded, HOW_GOALS)) intent = 'howGoals';
   else if (amount && has(folded, PAY_MORE)) intent = 'payMore';
   else if (has(folded, PAY_FIRST)) intent = 'payFirst';
@@ -707,7 +732,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   else if (!amount && has(folded, PLANS)) intent = 'plans';
   else if (!amount && has(folded, YIELDS)) intent = 'yields';
   else if (!amount && has(folded, WHY_MORE)) intent = 'whyMore';
-  else if (has(folded, SPENT_IN) && !amount) intent = 'spentIn';
+  else if ((has(folded, SPENT_IN) || has(folded, COST_OF)) && !amount) intent = 'spentIn';
   else if (!amount && has(folded, TOP_SPENDING)) intent = 'topSpending';
   else if (!amount && has(folded, HOW_AM_I)) intent = 'howAmI';
   else if (!amount && has(folded, HAVE)) intent = 'have';

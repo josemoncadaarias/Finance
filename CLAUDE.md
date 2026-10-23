@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1074 on 2026-10-22, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1081 on 2026-10-23, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -276,7 +276,9 @@ these):
   arrows (`since: 5`). Version 19 (2026-10-22): Recordatorios - "A la
   hora que quieras" (any time, when it rings, the notices to allow;
   `since: 2`). Version 20 (2026-10-22): Más - "Reportar un fallo o
-  sugerir una mejora" under Ayuda (`since: 5`).
+  sugerir una mejora" under Ayuda (`since: 5`). Version 21 (2026-10-23):
+  the assistant - the bulb with every question, notes searched, a
+  movement of an answer opens (`since: 6`).
   **A step whose words change because the screen changed is marked with
   the next version**, so whoever saw the old words is shown it once more.
   **The bubble's count ("1 de 10") has a line of its own over the buttons**
@@ -5872,6 +5874,55 @@ with testers runs; the paywall is finished after them.
   "Copiar lo leído". Más tour step `since: 5`. Checked in a browser; the
   mail app opening only on the phone. Not sent automatically on purpose:
   a server would be the one thing this app refuses (rule 21).
+- **The assistant searches the notes, opens movements and knows the
+  person** (Jose, 2026-10-23, after Lukas's chat; mockups `41a`-`41h`, approved
+  with three changes). No AI, as Inicio's search:
+  - **Words nearly written are the same word** (`nearWord` in
+    `core/assistant/note-search.ts`; Jose: "de odontólogo a odontología ...
+    debe reconocer"): equal, a plural, the same root (five letters or more in
+    common, all but the last two of the shorter: odontólog-o/-ía), one letter
+    off from five letters and two from nine (typos, dictation), or one of a
+    few ordinary synonyms (dentista/odontólogo, gasolina/tanqueo,
+    arriendo/alquiler - never "renta", which is also the income tax). The
+    words a question looks for are what is left without question words, verbs
+    of paying and month names (`termsOf`); a movement's note and its category
+    are searched (`matchNotes`): every word found, newest first; else those
+    with most of them, offered as "¿Te referías a esto?".
+  - New intents in `read-phrase.ts`: `lastTime` ("¿cuándo fue el último...?",
+    "¿cuándo pagué...?", "última vez que..."), `biggest` ("mi gasto más
+    grande"), `saveMore` ("¿qué puedo hacer para ahorrar más?"), `help`
+    ("¿qué puedes hacer?", free); "¿cuánto me cuesta X?" is `spentIn`, and
+    when X is no category by its own name (a word the dictionary only learned
+    counts as none) the notes that say it are added up, by year when it spans
+    several (`costOf`). Tests: `note-search.test.mjs` (invented notes).
+  - Answers in `answers.ts`: `lastTime` (the last one with its note whole and
+    the words that matched marked, the times before, how often - "más o menos
+    cada 6 meses" - and, when the note says "próximo ... N meses", whether that
+    time has come), `costOf`, `biggest` (the five biggest of the period, every
+    account), `saveMore` (only the person's figures: what grew against the same
+    days of the period before, small spending that repeats - a category's
+    spendings of at most 2 % of the last 30 days' spending, 8 or more -, the
+    fixed payments and the dearest; a disclaimer; "Crear un tope"). Data from
+    `AssistantService.findInNotes`, `biggest`, `smallRepeated`.
+  - **Every movement in an answer opens** (`RichBlock.mov`, `.mrow`) in the
+    ONE movement form (`compose.edit`) - Jose asked why another form; there is
+    none, mockup `41c` only drew the same one.
+  - **"También puedes preguntar"** over every answer's chips
+    (`Message.chipsTitle`; `Answer.ask` carries questions already in words).
+  - **Not understood is never a dead end**: with a word to go on, "¿Te
+    referías a una de estas?" (what it cost, the last time, register it, see
+    every question); the one chosen is remembered for that sentence
+    (`Learned.asked`, `learnAsked`) and answered next time.
+  - **Everything it does stays in view** (Jose: the reminders and the rest
+    must be known): the welcome keeps every group - Registrar, Tu mes, Busca
+    en tus movimientos, Tus deudas, Tus topes, metas y recordatorios - under
+    **"Para ti, hoy"**, four questions made of the person's own data (the
+    category that grew most, a figure to afford with today's free money, a
+    fixed payment to look up, the payments due; `readForYou`). The **bulb** in
+    the title bar opens all of it as a sheet at any moment of the
+    conversation.
+  Checked in a browser on the sample data (every new answer, the form opened
+  from a row, the bulb's sheet); not on the phone.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

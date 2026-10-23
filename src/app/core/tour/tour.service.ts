@@ -226,6 +226,8 @@ const TOUR_LIST = {
       { title: 'tour.assistant.4.title', text: 'tour.assistant.4.text', since: 2 },
       { title: 'tour.assistant.5.title', text: 'tour.assistant.5.text', since: 5 },
       { title: 'tour.assistant.6.title', text: 'tour.assistant.6.text', since: 4 },
+      // 2026-10-23: the bulb with every question, notes searched, movements that open.
+      { target: 'ai-ideas', title: 'tour.assistant.7.title', text: 'tour.assistant.7.text', since: 6 },
     ],
   },
   tax: {

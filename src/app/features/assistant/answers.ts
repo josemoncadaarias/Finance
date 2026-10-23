@@ -25,6 +25,9 @@ import type { DebtView, PeriodPicture, Picture, RecurringPicture, YieldsPicture 
 import { advise, interestThisMonth, monthAfter, payMore, type DebtIn } from '../../core/assistant/debts-advice';
 import { perDay } from '../../core/assistant/free-money';
 import { EA_SCALE } from '../../core/loans/schedule';
+import type { Movement } from '../../features/movements/group-movements';
+import { everyMonths, monthsBetween, nextInMonths, type NoteMatches, type NoteRow } from '../../core/assistant/note-search';
+import { fold } from '../../core/assistant/read-phrase';
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'plain';
 
@@ -36,8 +39,26 @@ export interface RichBlock {
   row?: { icon: string; color: string; round: boolean; title: string; value: string; lines: string[] };
   ranked?: { icon: string | null; customId: number | null; color: string | null; seed: number | null; name: string; amount: string; pct: number; change: string; cls: string };
   note?: string;
+  /** A movement: the whole row opens it in the one movement form (41b-41g). */
+  mov?: MovBlock;
   /** A section that opens: its title says what and how many; nothing is left out of the answer. */
   fold?: { title: string; blocks: RichBlock[]; open?: boolean };
+}
+
+/** A movement inside an answer, as plain data so it survives in the history. */
+export interface MovBlock {
+  /** The transaction it opens. */
+  id: number;
+  icon: string | null;
+  customId: number | null;
+  color: string | null;
+  seed: number | null;
+  title: string;
+  sub: string;
+  amount: string;
+  cls: string;
+  /** The note shown whole, with the words that matched marked. */
+  note?: { text: string; hit: boolean }[];
 }
 
 /** Where a button goes. Plain data, so it survives in the history. */
@@ -90,6 +111,8 @@ export interface Answer {
   card: RichCard | null;
   /** Chips to offer, as sentences the person could say next. */
   next: TranslationKey[];
+  /** More to offer, already in words: "¿Cuánto me ha costado la moto?". */
+  ask?: string[];
 }
 
 const COLORS = { yel: '#f5b544', pur: '#a07cff', org: '#ff8a4c', cya: '#38bdf8', blu: '#6378ff', grn: '#34c98b', red: '#ff6b6b' };
@@ -744,3 +767,200 @@ export function rateSaid(text: string): { eaScaled: number; quoted: 'ea' | 'mv' 
 }
 
 export { rate as rateText };
+
+// ---------------------------------------------------------------------------
+// Found in the notes (41b-41g)
+// ---------------------------------------------------------------------------
+
+type Found = NoteRow & { movement: Movement };
+
+/** "22 de abril", with its year when it is not this one. */
+function dayOf(s: Speech, iso: string): string {
+  return iso.slice(0, 4) === s.today.slice(0, 4) ? s.date(iso) : s.t('ai.find.dateYear', { date: s.date(iso), year: iso.slice(0, 4) });
+}
+
+/** A note in pieces, the words that matched marked. */
+function noteParts(note: string, lit: readonly string[]): { text: string; hit: boolean }[] {
+  const marked = new Set(lit);
+  return note.split(/([\p{L}\p{N}]+)/u).filter(Boolean).map(text => ({ text, hit: marked.has(fold(text)) }));
+}
+
+/** One movement as an answer's row: what it is, where and when, its figure. */
+export function movBlock(s: Speech, m: Movement, withNote = false, lit: readonly string[] = []): RichBlock {
+  const t = m.transaction;
+  const note = (t.description ?? '').trim();
+  const firstLine = note.split('\n')[0].trim();
+  const minor = Math.abs(t.amount_base_minor);
+  const sign = m.flow === 'out' ? '−' : m.flow === 'in' || m.flow === 'refund' ? '+' : '';
+  return { mov: {
+    id: t.id, icon: m.icon, customId: m.customIconId, color: m.color ?? null, seed: m.seed ?? null,
+    title: firstLine || m.label, sub: `${firstLine ? `${m.label} · ` : ''}${m.accountName} · ${dayOf(s, t.occurred_on)}`,
+    amount: `${sign}${s.pesos(minor)}`, cls: m.flow === 'out' ? 'ui-r' : m.flow === 'in' || m.flow === 'refund' ? 'ui-g' : 'ui-t',
+    ...(withNote && (note.includes('\n') || note.length > 40) ? { note: noteParts(note, lit) } : {}),
+  } };
+}
+
+/** "hace 6 meses", "hace 12 días", "hoy". */
+function ago(s: Speech, iso: string): string {
+  const months = monthsBetween(iso, s.today);
+  if (months >= 1) return s.t(months === 1 ? 'ai.find.agoMonth' : 'ai.find.agoMonths', { count: months });
+  const days = Math.round((Date.UTC(+s.today.slice(0, 4), +s.today.slice(5, 7) - 1, +s.today.slice(8, 10))
+    - Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))) / 86_400_000);
+  return days <= 0 ? s.t('ai.find.agoToday') : s.t(days === 1 ? 'ai.find.agoDay' : 'ai.find.agoDays', { count: days });
+}
+
+/** What was looked for, in quotes: «mantenimiento moto». */
+const quoted = (terms: readonly string[]) => `«${terms.join(' ')}»`;
+
+/** The ones that come after the first few, in a section that opens: never left out. */
+function more(s: Speech, blocks: RichBlock[], list: readonly Found[], shown: number): void {
+  for (const f of list.slice(0, shown)) blocks.push(movBlock(s, f.movement));
+  if (list.length > shown) {
+    const rest = list.slice(shown);
+    blocks.push({ fold: { title: s.t(rest.length === 1 ? 'ai.find.moreOne' : 'ai.find.more', { count: rest.length }), blocks: rest.map(f => movBlock(s, f.movement)) } });
+  }
+}
+
+/** Nothing has every word: the closest, as "¿Te referías a esto?" (41e). */
+function nearOnly(s: Speech, terms: readonly string[], found: NoteMatches<Found>): Answer {
+  if (found.some.length === 0) {
+    return { said: { key: 'ai.find.none', values: { words: quoted(terms) } }, card: card([{ note: s.t('ai.find.how') }]), next: ['ai.next.top', 'ai.next.howAmI'] };
+  }
+  const blocks: RichBlock[] = [{ lab: s.t('ai.find.meant') }];
+  more(s, blocks, found.some, 5);
+  blocks.push({ note: s.t('ai.find.how') });
+  return { said: { key: 'ai.find.near', values: { words: quoted(terms) } }, card: card(blocks), next: [] };
+}
+
+/** "¿Cuándo fue el último mantenimiento de la moto?" (41b, 41d). */
+export function lastTime(s: Speech, terms: readonly string[], found: NoteMatches<Found>): Answer {
+  if (terms.length === 0) return { said: { key: 'ai.find.what', values: {} }, card: null, next: [] };
+  if (found.all.length === 0) return nearOnly(s, terms, found);
+  const list = found.all;
+  const last = list[0];
+  const minor = Math.abs(last.movement.transaction.amount_base_minor);
+  const parts = [s.t(list.length === 1 ? 'ai.find.answerOnce' : 'ai.find.answer', {
+    date: dayOf(s, last.onDate), ago: ago(s, last.onDate), amount: s.pesos(minor), category: last.movement.label, count: list.length })];
+  // The note says when the next one is: say whether that time has come.
+  const next = nextInMonths(last.note);
+  if (next !== null) {
+    const passed = monthsBetween(last.onDate, s.today);
+    parts.push(passed >= next ? s.t('ai.find.dueNow', { count: next }) : s.t(next - passed === 1 ? 'ai.find.dueInOne' : 'ai.find.dueIn', { count: next, left: next - passed }));
+  }
+  const blocks: RichBlock[] = [{ lab: s.t('ai.find.found') }, movBlock(s, last.movement, true, found.hits.get(last.id) ?? [])];
+  if (list.length > 1) {
+    blocks.push({ lab: s.t('ai.find.before') });
+    more(s, blocks, list.slice(1), 4);
+    const total = list.reduce((sum, f) => sum + Math.abs(f.movement.transaction.amount_base_minor), 0);
+    const every = everyMonths(list.map(f => f.onDate));
+    blocks.push({ note: s.t(every ? (every === 1 ? 'ai.find.summaryMonthly' : 'ai.find.summaryEvery') : 'ai.find.summary',
+      { count: list.length, every: every ?? 0, total: s.pesos(total), since: dayOf(s, list[list.length - 1].onDate) }) });
+  }
+  const words = terms.join(' ');
+  return {
+    said: { key: 'ai.find.answer', values: {}, text: parts.join(' ') },
+    card: card(blocks),
+    next: [],
+    // The category's own question only when it is one: a transfer's label is an account.
+    ask: [s.t('ai.ask.costOf', { words }),
+      ...(last.movement.flow === 'out' || last.movement.flow === 'in' ? [s.t('ai.ask.categoryYear', { category: last.movement.label })] : [])],
+  };
+}
+
+/** "¿Cuánto me ha costado la moto?": what the notes that say it add up to (41b's follow-up). */
+export function costOf(s: Speech, terms: readonly string[], found: NoteMatches<Found>, label: string | null): Answer {
+  if (terms.length === 0) return { said: { key: 'ai.find.what', values: {} }, card: null, next: [] };
+  if (found.all.length === 0) return nearOnly(s, terms, found);
+  const list = found.all.filter(f => f.movement.flow === 'out' || f.movement.flow === 'refund');
+  if (list.length === 0) return nearOnly(s, terms, { all: [], some: found.all, hits: found.hits });
+  const signed = (f: Found) => (f.movement.flow === 'refund' ? -1 : 1) * Math.abs(f.movement.transaction.amount_base_minor);
+  const total = list.reduce((sum, f) => sum + signed(f), 0);
+  const blocks: RichBlock[] = [];
+  // By year, when it reaches over more than one.
+  const years = new Map<string, number>();
+  for (const f of list) years.set(f.onDate.slice(0, 4), (years.get(f.onDate.slice(0, 4)) ?? 0) + signed(f));
+  if (years.size > 1) {
+    blocks.push({ lab: s.t('ai.cost.byYear') });
+    for (const [year, minor] of [...years].sort((a, b) => b[0].localeCompare(a[0]))) blocks.push({ line: { k: year, v: s.pesos(minor) } });
+  }
+  blocks.push({ lab: s.t('ai.cost.list', { count: list.length }) });
+  more(s, blocks, list, 5);
+  blocks.push({ line: { k: s.t('ai.cost.total'), v: s.pesos(total), cls: 'ui-r' } });
+  return {
+    said: { key: label ? 'ai.cost.answerIn' : 'ai.cost.answer', values: { words: quoted(terms), total: s.pesos(total), count: list.length, label: label ?? '',
+      since: dayOf(s, list[list.length - 1].onDate) } },
+    card: card(blocks),
+    next: ['ai.next.top'],
+    ask: [s.t('ai.ask.lastOf', { words: terms.join(' ') })],
+  };
+}
+
+/** "¿Cuál fue mi gasto más grande?" (41g). */
+export function biggest(s: Speech, b: { period: Period; label: string; movements: Movement[]; outMinor: number }): Answer {
+  if (b.movements.length === 0) return { said: { key: 'ai.top.none', values: { label: b.label } }, card: null, next: ['ai.next.howAmI'] };
+  const top = b.movements.slice(0, 5);
+  const first = top[0];
+  const sum = top.reduce((t, m) => t + Math.abs(m.transaction.amount_base_minor), 0);
+  const blocks: RichBlock[] = [{ lab: s.t(top.length === 1 ? 'ai.biggest.titleOne' : 'ai.biggest.title', { count: top.length, label: b.label }) },
+    ...top.map(m => movBlock(s, m))];
+  if (b.outMinor > 0 && top.length > 1) blocks.push({ note: s.t('ai.biggest.share', { count: top.length, sum: s.pesos(sum), pct: Math.round(sum * 100 / b.outMinor) }) });
+  const second = top[1];
+  const name = (m: Movement) => (m.transaction.description ?? '').split('\n')[0].trim() || m.label;
+  return {
+    said: { key: second ? 'ai.biggest.answer' : 'ai.biggest.answerOne', values: { label: b.label, name: name(first),
+      amount: s.pesos(Math.abs(first.transaction.amount_base_minor)), date: s.date(first.transaction.occurred_on), next: second ? name(second) : '' } },
+    card: card(blocks, [{ label: s.t('ai.biggest.report'), ghost: true, report: b.period }]),
+    next: ['ai.next.top', 'ai.next.lastMonth'],
+  };
+}
+
+/** "¿Qué puedo hacer para ahorrar más?" (41h): only the person's own figures, never invented advice. */
+export function saveMore(s: Speech, pic: PeriodPicture, small: { label: string; count: number; totalMinor: number; averageMinor: number; face: Movement }[],
+  fixed: RecurringPicture['fixed']): Answer {
+  const blocks: RichBlock[] = [];
+  let n = 0;
+  const b = pic.before;
+  const ups: { label: string; by: number; now: number; before: number }[] = [];
+  if (b) {
+    const was = new Map(b.slices.map(sl => [sl.label, sl.amountMinor]));
+    for (const sl of pic.slices) {
+      const before = was.get(sl.label) ?? 0;
+      if (sl.amountMinor - before > 0 && before > 0) ups.push({ label: sl.label, by: sl.amountMinor - before, now: sl.amountMinor, before });
+    }
+    ups.sort((x, y) => y.by - x.by);
+  }
+  const rising = ups.slice(0, 2);
+  if (rising.length > 0) {
+    blocks.push({ lab: s.t('ai.save.up', { n: ++n }) });
+    for (const u of rising) {
+      blocks.push({ line: { k: u.label, v: `+${s.pesos(u.by)}`, cls: 'ui-r' } });
+      blocks.push({ note: s.t(pic.partial ? 'ai.save.upNoteSameDays' : 'ai.save.upNote', { now: s.pesos(u.now), before: s.pesos(u.before), label: b!.label }) });
+    }
+  }
+  const smallTop = small.slice(0, 3);
+  if (smallTop.length > 0) {
+    blocks.push({ lab: s.t('ai.save.small', { n: ++n }) });
+    for (const x of smallTop) {
+      blocks.push({ line: { k: s.t('ai.save.smallLine', { label: x.label, count: x.count }), v: s.pesos(x.totalMinor), cls: 'ui-y' } });
+    }
+    blocks.push({ note: s.t('ai.save.smallNote', { average: s.pesos(smallTop[0].averageMinor), label: smallTop[0].label }) });
+  }
+  if (fixed.length > 0) {
+    const total = fixed.reduce((t, f) => t + f.averageMinor, 0);
+    const dearest = [...fixed].sort((x, y) => y.averageMinor - x.averageMinor)[0];
+    blocks.push({ lab: s.t('ai.save.fixed', { n: ++n }) });
+    blocks.push({ line: { k: s.t('ai.save.fixedLine', { count: fixed.length }), v: s.t('ai.save.perMonth', { amount: s.pesos(total) }), cls: 'ui-y' } });
+    blocks.push({ note: s.t('ai.save.fixedNote', { names: names(s, fixed.slice(0, 4).map(f => f.name)), name: dearest.name, amount: s.pesos(dearest.averageMinor) }) });
+  }
+  if (blocks.length === 0) return { said: { key: 'ai.save.nothing', values: {} }, card: null, next: ['ai.next.recurring', 'ai.next.top'] };
+  const risen = rising.reduce((t, u) => t + u.by, 0);
+  blocks.push({ note: s.t('ai.save.disclaimer') });
+  const buttons: RichButton[] = rising.length > 0 ? [{ label: s.t('ai.save.cap', { name: rising[0].label }), ghost: true, route: ['/plans'] }] : [];
+  return {
+    said: risen > 0
+      ? { key: 'ai.save.answer', values: { amount: s.pesos(risen), names: names(s, rising.map(u => u.label)), label: b!.label } }
+      : { key: 'ai.save.answerCalm', values: {} },
+    card: card(blocks, buttons),
+    next: ['ai.next.recurring', 'ai.next.top'],
+  };
+}
