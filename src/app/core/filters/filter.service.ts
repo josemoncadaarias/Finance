@@ -118,6 +118,12 @@ export class FilterService {
     this.showList.set(true);
   }
 
+  /**
+   * Asked from another screen (the assistant's categories): Inicio scrolls
+   * down to its list on arriving, so what was asked for is in view.
+   */
+  readonly revealList = signal(0);
+
   clearCategory(): void {
     this.categoryFilter.set(null);
   }

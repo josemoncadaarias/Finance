@@ -323,7 +323,13 @@
 <ng-template #richBlock let-b>
   @if (b.lab) { <div class="lab">{{ b.lab }}</div> }
   @if (b.line; as l) {
-    <div class="line"><span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b></div>
+    @if (b.open; as o) {
+      <button type="button" class="line opens" (click)="openCategory(o)" [attr.aria-label]="'ai.open.label' | t:{ name: o.category }">
+        <span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b><ion-icon name="chevron-forward" class="chev"></ion-icon>
+      </button>
+    } @else {
+      <div class="line"><span>{{ l.k }}</span><b [class]="l.cls ?? ''">{{ l.v }}</b></div>
+    }
   }
   @if (b.step; as st) {
     <div class="step">
@@ -337,11 +343,14 @@
     </div>
   }
   @if (b.row; as r) {
-    <div class="rrow">
+    <div class="rrow" [class.opens]="!!b.open" (click)="b.open && openCategory(b.open)"
+      [attr.role]="b.open ? 'button' : null" [attr.tabindex]="b.open ? 0 : null" (keydown.enter)="b.open && openCategory(b.open)"
+      [attr.aria-label]="b.open ? ('ai.open.label' | t:{ name: b.open.category }) : null">
       <div class="head">
         <app-badge [shape]="r.round ? 'ci' : 'sq'" [size]="34" [builtin]="r.icon" [fixed]="r.color"></app-badge>
         <b class="name">{{ r.title }}</b>
         @if (r.value) { <b class="value">{{ r.value }}</b> }
+        @if (b.open) { <ion-icon name="chevron-forward" class="chev"></ion-icon> }
       </div>
       @for (x of r.lines; track $index) {
         <small class="block">@for (p of bits(x); track $index) {@if (p.bold) {<b>{{ p.text }}</b>} @else {{{ p.text }}}}</small>
@@ -349,11 +358,14 @@
     </div>
   }
   @if (b.ranked; as k) {
-    <div class="ranked">
+    <div class="ranked" [class.opens]="!!b.open" (click)="b.open && openCategory(b.open)"
+      [attr.role]="b.open ? 'button' : null" [attr.tabindex]="b.open ? 0 : null" (keydown.enter)="b.open && openCategory(b.open)"
+      [attr.aria-label]="b.open ? ('ai.open.label' | t:{ name: k.name }) : null">
       <div class="head">
         <app-badge [size]="30" [builtin]="k.icon" [customId]="k.customId" [tone]="k.color" [seed]="k.seed"></app-badge>
         <span class="name">{{ k.name }}</span>
         <b>{{ k.amount }}</b>
+        @if (b.open) { <ion-icon name="chevron-forward" class="chev"></ion-icon> }
       </div>
       <div class="bar-row"><span class="bar"><i [style.width.%]="k.pct"></i></span>@if (k.change) {<small [class]="k.cls">{{ k.change }}</small>}</div>
     </div>

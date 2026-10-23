@@ -372,6 +372,16 @@ export class MovementsPage {
   constructor() {
     this.listenForKeyboard();
 
+    // Sent here to see a category's movements (the assistant): the list
+    // comes into view, not the top of Inicio.
+    effect(() => {
+      if (this.filter.revealList() === 0) return;
+      setTimeout(() => {
+        const row = this.searchRow()?.nativeElement;
+        if (row) void this.content()?.scrollToPoint(0, Math.max(row.offsetTop - 8, 0), 300);
+      }, 700);
+    });
+
     // The first time Inicio shows accounts, the app's own tour (22a-22g).
     effect(() => {
       if (this.database.status() !== 'ready' || this.demo.empty() !== false || !this.store.standing()) return;

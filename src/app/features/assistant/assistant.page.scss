@@ -310,6 +310,12 @@ ion-content.chat {
     .value { flex: none; }
     .block { margin: 3px 0 0 44px; }
   }
+  /* A category of an answer: the whole row opens its movements on Inicio. */
+  .opens { cursor: pointer; -webkit-tap-highlight-color: transparent;
+    &:active { opacity: .7; }
+    .chev { flex: none; width: 16px; height: 16px; color: var(--app-mu); } }
+  button.line.opens { width: 100%; align-items: center; border-left: 0; border-right: 0; border-bottom: 0; background: none;
+    color: inherit; font: inherit; text-align: left; span { flex: 1; } }
   .ranked {
     .name { font-weight: 500; }
     .bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 0 40px; small { white-space: nowrap; font-size: 12.5px; } }
