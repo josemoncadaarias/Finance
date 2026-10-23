@@ -176,6 +176,7 @@ export function accountFor(
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
   assigned: ReadonlyMap<string, number> = new Map(),
+  moldAccount: number | null = null,
 ): { accountId: number | null; from: 'learned' | 'name' | null } {
   const open = accounts.filter(account => !account.archived);
   const alive = new Set(open.map(account => account.id));
@@ -187,13 +188,19 @@ export function accountFor(
     const same = mostOf(mine.filter(answer => answer.digits === reading.digits).map(answer => answer.account_id));
     if (same !== null) return { accountId: same, from: 'learned' };
   }
+  // Learned: what the person saved the last time a message of exactly this
+  // shape came from this source (its mold). It wins over what the source as a
+  // whole was said to be (Jose, 2026-10-23: the Rappi app is tied to Rappi
+  // cuenta, but its "Compra exitosa - Tu compra en ..." messages are card
+  // purchases, saved on the card every time, and still came on the account).
+  if (moldAccount !== null && alive.has(moldAccount)) return { accountId: moldAccount, from: 'learned' };
   // Signed by the bank: several banks text through one short code (899979
   // carries Rappi's and Bold's), and each starts its message with its own
   // name - "BoldCF: Realizaste...". The first word naming exactly one
   // account says whose it is, ahead of what the short code meant before
   // (Jose, 2026-10-08). Only the first word: a name later on is usually
   // where the money went ("Transferiste a Nequi").
-  const signed = signedBy(notice.text, open);
+  const signed = signedBy(notice.text, open) ?? namedWhole(notice.title, open);
   if (signed !== null) return { accountId: signed, from: 'name' };
   // Said by the person on the notifications screen: "this sender is Ualá".
   const told = assigned.get(source);
@@ -238,8 +245,24 @@ export function signedBy(text: string, accounts: readonly AccountRow[]): number 
   const first = foldText(text).split(/[^a-z0-9]+/).filter(Boolean).slice(0, 3)
     .find(word => /[a-z]/.test(word)) ?? '';
   if (first.length < 4) return null;
+  // A whole name run together says it best ("RappiCard" is "Rappi Card", not "Rappi cuenta").
+  const whole = namedWhole(first, accounts);
+  if (whole !== null) return whole;
   const named = accounts.filter(account =>
     wordsOf(account.name).some(word => word.length >= 4 && first.startsWith(word)));
+  return named.length === 1 ? named[0].id : null;
+}
+
+/**
+ * An account whose whole name, run together, is the first word of a line:
+ * "RappiCard" for an account named "Rappi Card", where `signedBy` cannot tell
+ * it from "Rappi cuenta" (both start with "rappi"). Read on a notice's title,
+ * which apps fill with their product's name.
+ */
+export function namedWhole(line: string, accounts: readonly AccountRow[]): number | null {
+  const first = foldText(line).split(/[^a-z0-9]+/).filter(Boolean)[0] ?? '';
+  if (first.length < 4) return null;
+  const named = accounts.filter(account => foldText(account.name).replace(/[^a-z0-9]+/g, '') === first);
   return named.length === 1 ? named[0].id : null;
 }
 
@@ -354,11 +377,7 @@ export function readNotices(
     if (reading.kind !== 'movement' && reading.kind !== 'unclear') continue;
     if (reading.amountMinor === null) continue;
 
-    let { accountId, from } = accountFor(notice, reading, answers, accounts, assigned);
-    if (accountId === null && molded?.accountId != null && accounts.some(a => a.id === molded.accountId && !a.archived)) {
-      accountId = molded.accountId;
-      from = 'learned';
-    }
+    const { accountId, from } = accountFor(notice, reading, answers, accounts, assigned, molded?.accountId ?? null);
     const signed = reading.direction === 'in' ? reading.amountMinor : -reading.amountMinor;
     const evidence: NoticeEvidence = {
       kind: 'notification',

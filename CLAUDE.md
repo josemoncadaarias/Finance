@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1088 on 2026-10-23, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1090 on 2026-10-23, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5999,6 +5999,20 @@ with testers runs; the paywall is finished after them.
   answer winning. A message read with no account comes on its shop's account
   (`withShopAccounts` in `propose`), and opening such a proposal starts on
   it (`openInForm`). Tests in `proposals.test.mjs`.
+- **A message's shape beats its source's account** (Jose, 2026-10-23: the
+  Rappi app is tied to Rappi cuenta on Notificaciones, and its "Compra
+  exitosa - Tu compra en {shop} por $ X" messages - card purchases - came
+  on Rappi cuenta although he saved every one on the card). Read from the
+  code: `accountFor` answered with the source's assigned account before
+  anything learned, and the mold's own account (the one saved last time for
+  that exact shape) was only used when nothing else answered, so it never
+  was. Now the order is: learned card digits, the mold's account, the
+  bank's signature, the source's assigned account, then the rest. And a
+  title or first word that is an account's whole name run together
+  ("RappiCard" for "Rappi Card", `namedWhole`) signs the message even
+  where two accounts start with the same word. Only new messages change;
+  proposals already waiting keep the account they came with. Tests in
+  `notice-proposals.test.mjs` (invented app and accounts).
 - **In Revisar movimiento the note follows the account** (Jose, 2026-10-22):
   a note carried in (the bank's words, the shop's note, what was said to the
   assistant) stays while the accounts are the ones the form opened with;

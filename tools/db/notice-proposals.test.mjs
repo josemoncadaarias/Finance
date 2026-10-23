@@ -18,6 +18,8 @@ import { ProposalsRepository } from '../../src/app/core/database/repositories/pr
 import { accept } from '../../src/app/core/proposals/accept.ts';
 import { SEVERAL_ACCOUNTS, accountFor, signedBy, noticeBatch, noticeKey, proposalsFrom, readNotices } from '../../src/app/core/notices/notice-proposals.ts';
 import { readNotice } from '../../src/app/core/notices/read-notice.ts';
+import { moldFrom } from '../../src/app/core/notices/molds.ts';
+import { namedWhole } from '../../src/app/core/notices/notice-proposals.ts';
 
 const NOW = () => '2026-10-02T15:00:00Z';
 const P = pesos => Math.round(pesos * 100);
@@ -323,4 +325,35 @@ test('a sender said to write for several accounts asks what its message does not
   const signed = notice('Bold: Compraste $5.000 en PAN');
   assert.equal(accountFor(signed, readNotice(signed.text), learned, accounts, several).accountId, 2, 'a signed one still says');
   assert.equal(accountFor(unsigned, readNotice(unsigned.text), learned, accounts).accountId, 1, 'one account told: that one');
+});
+
+// Jose, 2026-10-23: a wallet app tied to its account also sends its card's
+// purchases; saved on the card each time, the next one still came on the
+// account. Invented app, accounts and shops.
+test('a shape of message saved on another account than its source\'s comes on that account next time', () => {
+  const accounts = [account(1, 'Billetera Luna'), account(2, 'Luna Tarjeta', { type: 'credit' })];
+  const src = 'com.luna.app';
+  const purchase = shop => `Compra exitosa - Tu compra en ${shop} por $ 43.500 fue exitosa. Consulta los detalles de tu compra en tus transacciones.`;
+  const mold = moldFrom({ source: src, text: purchase('PIZZERIA SOL'), amountMinor: P(-43500), merchant: 'PIZZERIA SOL',
+    accountId: 2, categoryId: null, at: AT - 86_400_000 });
+  assert.ok(mold);
+  const assigned = new Map([[src, 1]]);
+  const luna = (text, extra = {}) => ({ package: src, app: 'Luna', title: 'Luna', text, postedAt: AT, ...extra });
+  const { fresh } = readNotices([
+    luna(purchase('CAFE CENTRAL')),
+    luna('Recibiste $ 200.000 de Juan Perez en tu cuenta', { postedAt: AT + 60_000 }),
+  ], new Set(), [], accounts, [], { molds: [mold], assigned });
+  const byAmount = new Map(fresh.map(f => [Math.abs(f.proposal.amount_minor), f.proposal.account_id]));
+  // The purchase follows its shape to the card; any other message keeps the source's account.
+  assert.equal(byAmount.get(P(43500)), 2);
+  assert.equal(byAmount.get(P(200000)), 1);
+});
+
+test('a title that is an account\'s whole name run together says whose message it is', () => {
+  const accounts = [account(1, 'Luna cuenta'), account(2, 'Luna Card')];
+  assert.equal(namedWhole('LunaCard', accounts), 2);
+  assert.equal(namedWhole('Luna', accounts), null);
+  assert.equal(signedBy('LunaCard: compra por $10.000', accounts), 2);
+  const n = { package: 'com.luna.app', app: 'Luna', title: 'LunaCard', text: 'Tu compra en KIOSKO por $ 9.000 fue exitosa', postedAt: AT };
+  assert.equal(accountFor(n, readNotice(n.text, n.title), [], accounts, new Map([['com.luna.app', 1]])).accountId, 2);
 });
