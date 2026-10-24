@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1091 on 2026-10-24, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1092 on 2026-10-24, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6014,6 +6014,15 @@ with testers runs; the paywall is finished after them.
   group "Ir a una pantalla"; assistant tour step `since: 8`. Next, when Jose
   says: a category, a goal. Tests in `read-phrase.test.mjs`; checked in a
   browser on the sample data.
+- **A transfer said without its amount is still a transfer** (Jose,
+  2026-10-24: "Transferencia de bolsillo a cuenta de ahorros en cuenta plata"
+  fell to "¿Te referías a...?"). `readPhrase` only read a transfer when an
+  amount was said; now a transfer word with two of one's own places, or a
+  product, is a transfer with no amount: the card says "Falta el valor", the
+  chat "No dijiste cuánto. Escribe el valor en el formulario", and "Revisar y
+  guardar" opens the one form with both ends and products, the amount empty.
+  A spending or income with no amount still asks for it. Test in
+  `read-phrase.test.mjs`; checked in a browser on the sample data.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

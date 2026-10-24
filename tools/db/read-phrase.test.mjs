@@ -528,3 +528,27 @@ test('opening an account\'s products, said any way (Jose, 2026-10-24)', () => {
   assert.equal(readPhrase('muéstrame cuánto me han dado mis rendimientos', ctx()).intent, 'yields');
   assert.equal(readPhrase('¿cuánto me han dado mis cuentas?', ctx()).intent, 'yields');
 });
+
+test('a move between products with no amount said is still a transfer (Jose, 2026-10-24)', () => {
+  const c = ctx({
+    accounts: [...ctx().accounts, { id: 7, name: 'Plata', type: 'debit' }],
+    products: [...ctx().products, { id: 70, accountId: 7, name: 'Bolsillo' }, { id: 71, accountId: 7, name: 'Cuenta de ahorros' }],
+  });
+  for (const said of [
+    'Transferencia de bolsillo a cuenta de ahorros en cuenta plata',
+    'pasar del bolsillo a la cuenta de ahorros de Plata',
+    'mover plata del bolsillo viajes a ahorros índigo',
+  ]) {
+    const r = readPhrase(said, c);
+    assert.equal(r.intent, 'register', said);
+    assert.equal(r.side, 'transfer', said);
+    assert.equal(r.amountMinor, null, said);
+  }
+  const r = readPhrase('Transferencia de bolsillo a cuenta de ahorros en cuenta plata', c);
+  assert.equal(r.accountId, 7);
+  assert.equal(r.toAccountId, 7);
+  assert.equal(r.fromProductId, 70);
+  assert.equal(r.toProductId, 71);
+  // A transfer word with no place said is still not understood.
+  assert.equal(readPhrase('transferencia', c).intent, 'unknown');
+});
