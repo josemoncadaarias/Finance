@@ -225,6 +225,8 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.plans', icon: 'speedometer-outline', cls: 'ui-p' },
     { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
     { key: 'ai.example.perDay', icon: 'wallet-outline', cls: 'ui-g' }] },
+  { title: 'ai.group.go', sub: 'ai.group.go.sub', icon: 'navigate-outline', color: '#38bdf8', rows: [
+    { key: 'ai.example.openProducts', icon: 'layers-outline', cls: 'ui-p' }] },
 ];
 
 /** One folding group of questions, as drawn. */
@@ -613,7 +615,7 @@ export class AssistantPage {
       text = meant;
     }
     // Registering is free; a question counts against the month's free ones.
-    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help'].includes(reading.intent);
+    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'openProducts'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
       return this.say('ai.pro.out', { free: PLAN.assistant.free });
     }
@@ -641,6 +643,7 @@ export class AssistantPage {
       case 'biggest': return this.give(A.biggest(this.speech(), await this.assistant.biggest(reading.period)));
       case 'saveMore': return this.give(A.saveMore(this.speech(), await this.assistant.periodPicture(null),
         await this.assistant.smallRepeated(), (await this.assistant.recurring()).fixed));
+      case 'openProducts': return this.give(A.openProducts(this.speech(), this.accountNamed(reading), this.earning()));
       case 'help':
         this.say('ai.help.answer');
         this.ideas.set(true);
@@ -650,6 +653,19 @@ export class AssistantPage {
         if (await this.plansAnswer(text, true)) return;
         return this.notUnderstood(reading, text);
     }
+  }
+
+  /** The account a sentence named, with its name. */
+  private accountNamed(reading: Reading): { id: number; name: string } | null {
+    return this.accounts.find(a => a.id === reading.accountId) ?? null;
+  }
+
+  /** The accounts that have products, the one with most first. */
+  private earning(): { id: number; name: string }[] {
+    const count = new Map<number, number>();
+    for (const p of this.products) count.set(p.account_id, (count.get(p.account_id) ?? 0) + 1);
+    return this.accounts.filter(a => count.has(a.id) && a.archived !== 1)
+      .sort((a, b) => (count.get(b.id) ?? 0) - (count.get(a.id) ?? 0));
   }
 
   /** What a question looks for in the notes: its words, the period's left out. */

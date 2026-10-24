@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1090 on 2026-10-23, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1091 on 2026-10-24, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5990,6 +5990,30 @@ with testers runs; the paywall is finished after them.
   recordatorios) is a card with its icon and one line saying what it holds
   (`ai.group.*.sub`), folded until tapped (`openGroups`); the empty chat's
   welcome shows the same groups. Checked in a browser on the sample data.
+- **The movement form brings the account's yields up to today first**
+  (Jose, 2026-10-24: a product's "Saldo actual" said yesterday's figure until
+  "Recalcular" on Productos y rendimientos). When the form shows an account
+  with products - opened by hand, from Por revisar, the assistant or a habit,
+  either end of a transfer and the product sheet alike - it works out THAT
+  account alone if it is stale for today (`upToToday` in
+  `entry.component.ts`: `staleAccounts`, `accrueAllAndSettle(..., [id])`,
+  `markAccrued({ only })`, as an account's page does), saying "Calculando los
+  intereses de hoy de esta cuenta" with a spinner meanwhile, then reads the
+  product's figure. Once per account while the form is open; saving waits for
+  it (one transaction at a time). Checked in a browser on the sample data with
+  the accrual mark removed.
+- **"Ábreme los productos de {cuenta}"** (Jose, 2026-10-24): intent
+  `openProducts` in `read-phrase.ts` (a verb of opening or going - abre,
+  muéstrame, llévame, quiero ver, open... - then productos / rendimientos /
+  bolsillos / alcancías / CDT, never with "cuánto", which stays the yields'
+  question; the account needs no "de" before it, a product named is its
+  account). The answer (`openProducts` in `answers.ts`) is a button, "Ir a los
+  productos de {name}" (`/products?account=ID`); an account with none says so
+  with "Ir a Productos y rendimientos"; no account said asks which, offering
+  the accounts with products as chips. Free, like registering. A welcome
+  group "Ir a una pantalla"; assistant tour step `since: 8`. Next, when Jose
+  says: a category, a goal. Tests in `read-phrase.test.mjs`; checked in a
+  browser on the sample data.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

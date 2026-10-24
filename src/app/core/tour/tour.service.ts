@@ -230,6 +230,8 @@ const TOUR_LIST = {
       { target: 'ai-ideas', title: 'tour.assistant.7.title', text: 'tour.assistant.7.text', since: 6 },
       // 2026-10-23: what the person registers most, first in the bulb (42a-42f).
       { target: 'ai-ideas', title: 'tour.assistant.8.title', text: 'tour.assistant.8.text', since: 7 },
+      // 2026-10-24: "ábreme los productos de..." answers with a button there.
+      { sel: 'app-assistant .compose-bar', title: 'tour.assistant.9.title', text: 'tour.assistant.9.text', since: 8 },
     ],
   },
   tax: {

@@ -22,7 +22,7 @@ import {
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import { IonIcon, IonDatetime, IonModal } from '@ionic/angular';
+import { IonIcon, IonDatetime, IonModal, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -50,7 +50,7 @@ import { bankFigures, cardMovements } from '../../core/cards/card-data';
 import { whatItHolds } from '../../core/yields/holdings';
 import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { transferEffect } from '../../core/transfers/transfer-effect';
-import { accrueAndSettle } from '../../core/yields/cdt';
+import { accrueAllAndSettle, accrueAndSettle } from '../../core/yields/cdt';
 import { TaxParametersRepository } from '../../core/database/repositories/tax-parameters.repository';
 import { usualNote, type NoteContext } from '../../core/notes/usual-note';
 import { outlined } from '../../core/icons/icon-catalog';
@@ -197,7 +197,7 @@ import { AmountInputDirective } from '../../shared/ui/amount-input.directive';
   imports: [AmountInputDirective, 
     CommonModule, NgTemplateOutlet, TranslatePipe, BadgeComponent, ScopeSheetComponent,
     CategoryEditorComponent, AccountEditorComponent, ConfirmComponent, FormFootComponent, AmountFieldComponent, AutoGrowDirective,
-    IonIcon, IonDatetime, IonModal,
+    IonIcon, IonDatetime, IonModal, IonSpinner,
   ],
   templateUrl: './entry.component.html',
   styleUrls: ['./entry.component.scss'],
@@ -884,16 +884,59 @@ export class EntryComponent implements OnInit, OnDestroy {
     const account = this.accountId();
     const product = this.splitAccount() ? this.productId() : null;
     const loan = this.request().loan;
+    const earns = this.products().length > 0;
     const asked = ++this.holdsAsked;
     this.fromHolds.set(null);
     this.holdsNow.set(null);
     if (loan || account === null || this.database.status() !== 'ready') return;
-    void whatItHolds(this.database.driver, account, product, todayIso()).then(held => {
+    void (async () => {
+      if (earns) await this.upToToday(account);
+      const held = await whatItHolds(this.database.driver, account, product, todayIso());
       if (asked !== this.holdsAsked) return;
       this.holdsNow.set(held);
       this.fromHolds.set(held > 0 ? held : null);
-    });
+    })();
   });
+
+  // ---------------------------------------------------------------------------
+  // Today's yields of the account on show (Jose, 2026-10-24)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * How many accounts are being worked out up to today right now. A
+   * product's figure holds what it earned, and until the yields screen ran
+   * today it said yesterday's: the form brings the account chosen up to
+   * date first - that one account, never the others - and says so meanwhile.
+   */
+  private readonly accruing = signal(0);
+  readonly accruingToday = computed(() => this.accruing() > 0);
+  /** One job per account while the form is open; saving waits for them. */
+  private readonly broughtUp = new Map<number, Promise<void>>();
+
+  private upToToday(accountId: number): Promise<void> {
+    let job = this.broughtUp.get(accountId);
+    if (!job) {
+      job = this.bringUpToday(accountId);
+      this.broughtUp.set(accountId, job);
+    }
+    return job;
+  }
+
+  private async bringUpToday(accountId: number): Promise<void> {
+    const db = this.database.driver;
+    const yields = new YieldsRepository(db);
+    const today = todayIso();
+    if (!(await yields.staleAccounts(today)).includes(accountId)) return;
+    this.accruing.update(n => n + 1);
+    try {
+      await accrueAllAndSettle(db, yields, new TaxParametersRepository(db), today, undefined, [accountId]);
+      await yields.markAccrued(today, { only: [accountId] });
+    } catch {
+      // The figure stays the one worked out last; the yields screen says why.
+    } finally {
+      this.accruing.update(n => n - 1);
+    }
+  }
 
   /**
    * What the account - or the product chosen in it - holds right now, signed:
@@ -1768,6 +1811,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.reshaped = false;
 
     try {
+      // Never write while the yields of an account are being worked out: one
+      // transaction at a time (BaseSqlDriver keeps one depth for the app).
+      await Promise.all(this.broughtUp.values());
       let written: number | null = null;
       const loan = this.loanEntry();
       if (this.many()) {
@@ -2475,6 +2521,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     if (account === null || this.database.status() !== 'ready') return;
     const list = this.productSide() === 'to' ? this.toProducts() : this.products();
     void untracked(async () => {
+      if (list.length > 0) await this.upToToday(account.id);
       const held = new Map<number, number>();
       for (const product of list) {
         held.set(product.id, await whatItHolds(this.database.driver, account.id, product.id, todayIso()));

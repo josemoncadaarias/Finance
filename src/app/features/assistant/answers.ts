@@ -985,3 +985,29 @@ export function saveMore(s: Speech, pic: PeriodPicture, small: { label: string; 
     next: ['ai.next.recurring', 'ai.next.top'],
   };
 }
+
+// ---------------------------------------------------------------------------
+// "Ábreme los productos de Nequi" (Jose, 2026-10-24): a button straight there
+// ---------------------------------------------------------------------------
+
+/**
+ * `account` is the one said, null when none was; `earning` the accounts that
+ * have products, which the answer offers when the one said has none or none
+ * was said.
+ */
+export function openProducts(s: Speech, account: { id: number; name: string } | null, earning: readonly { id: number; name: string }[]): Answer {
+  const others = earning.filter(a => a.id !== account?.id).slice(0, 4).map(a => s.t('ai.open.askFor', { name: a.name }));
+  if (account && earning.some(a => a.id === account.id)) {
+    return {
+      said: { key: 'ai.open.products', values: { name: account.name } },
+      card: card([], [{ label: s.t('ai.open.go', { name: account.name }), ghost: false, route: ['/products'], query: { account: String(account.id) } }]),
+      next: [],
+    };
+  }
+  const yields: RichButton = { label: s.t('ai.open.yields'), ghost: true, route: ['/products'] };
+  if (account) {
+    return { said: { key: 'ai.open.noProducts', values: { name: account.name } }, card: card([], [yields]), next: [], ask: others };
+  }
+  if (earning.length === 0) return { said: { key: 'ai.open.none', values: {} }, card: card([], [yields]), next: [] };
+  return { said: { key: 'ai.open.which', values: {} }, card: null, next: [], ask: others };
+}

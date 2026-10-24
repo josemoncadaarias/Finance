@@ -504,3 +504,27 @@ test('a sentence with no verb takes the side of the category it names, even a sh
   const spend = readPhrase('mercado de 45 mil en banco azul', { ...base, learned: { ...NOTHING_LEARNED, shapes: { [first.shape]: 'register' } } });
   assert.equal(spend.side, 'expense');
 });
+
+test('opening an account\'s products, said any way (Jose, 2026-10-24)', () => {
+  for (const said of [
+    'Ábreme los productos de Banco Índigo',
+    'por favor ábreme los productos de la cuenta banco indigo',
+    'llévame a los rendimientos de Banco Índigo',
+    'muéstrame los bolsillos de Banco Índigo',
+    'quiero ver los productos de banco índigo',
+    'open the products of Banco Índigo',
+  ]) {
+    const r = readPhrase(said, ctx());
+    assert.equal(r.intent, 'openProducts', said);
+    assert.equal(r.accountId, 5, said);
+  }
+  // A product named is its account.
+  const one = readPhrase('ábreme el bolsillo viajes', ctx());
+  assert.equal(one.intent, 'openProducts');
+  assert.equal(one.accountId, 5);
+  // No account said: the answer asks which.
+  assert.equal(readPhrase('ábreme mis productos', ctx()).accountId, null);
+  // How much is a question about the yields, not a screen.
+  assert.equal(readPhrase('muéstrame cuánto me han dado mis rendimientos', ctx()).intent, 'yields');
+  assert.equal(readPhrase('¿cuánto me han dado mis cuentas?', ctx()).intent, 'yields');
+});

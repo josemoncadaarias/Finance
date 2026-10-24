@@ -62,6 +62,8 @@ export type Intent =
   | 'saveMore'
   /** "¿Qué puedes hacer?": everything the assistant answers. */
   | 'help'
+  /** "Ábreme los productos de Nequi": a button straight to that account's products. */
+  | 'openProducts'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -297,6 +299,13 @@ const LAST_TIME = /\bcuando\b.*\b(fue|fueron|pague|pagamos|pagaste|compre|compra
 const COST_OF = /\bcuanto\b.*\b(cuesta|cuestan|costo|costaron|costado|sale|salio|ha salido)\b|\bhow much\b.*\b(cost|costs|did .* cost)\b/;
 const BIGGEST = /\b(gastos?|compras?|pagos?|movimientos?)\b.*\b(mas grandes?|mas car[oa]s?|mayor(es)?|mas alt[oa]s?)\b|\b(mayor|mas grande|mas car[oa]|mas alt[oa])\b.*\b(gasto|compra|pago)\b|\b(biggest|largest)\b.*\b(expenses?|purchases?|spending|payments?)\b/;
 const SAVE_MORE = /\b(como|que)\b.*\b(puedo|podria|debo|hago|hacer|podemos|deberia)\b.*\b(ahorr\w*|gastar menos)\b|\bahorr\w* mas\b|\bgastar menos\b|\bhow\b.*\b(save|spend less)\b|\bsave more\b/;
+/**
+ * "Ábreme los productos de Nequi", "llévame a los rendimientos de la cuenta de
+ * ahorros": a verb of going or opening, then what is opened. A question of
+ * how much ("muéstrame cuánto me han dado") is the yields' answer instead.
+ */
+const OPEN_PRODUCTS = /\b(abre|abreme|abrir|abrirme|abrime|abrame|muestra|muestrame|mostrar|mostrarme|ensename|llevame|lleva|ir|vamos|ve|entra|entrar|quiero ver|ver|open|show me|go to|take me)\b.*\b(productos?|rendimientos?|bolsillos?|alcancias?|cdts?|products?|yields?|pockets?)\b/;
+const HOW_MUCH = /\b(cuanto|cuanta|cuantos|how much)\b/;
 const HELP = /\bque (mas )?(puedes|sabes|puedo) (hacer|preguntar\w*|decir\w*)( (aqui|contigo|con (esto|el asistente|la app)|en (el )?chat|por mi))?\s*$|\bque (mas )?haces\b|\bque te puedo preguntar\b|\bque preguntas\b|^\s*ayuda\s*$|\bwhat can (you|i) (do|ask)\b|^\s*help\s*$/;
 const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
 const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
@@ -718,6 +727,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   if (has(folded, HELP)) intent = 'help';
   else if (has(folded, REMINDERS_LIST)) intent = 'reminders';
   else if (has(folded, REMIND)) intent = 'remind';
+  else if (!amount && has(folded, OPEN_PRODUCTS) && !has(folded, HOW_MUCH)) intent = 'openProducts';
   else if (!amount && has(folded, LAST_TIME)) intent = 'lastTime';
   else if (!amount && has(folded, BIGGEST)) intent = 'biggest';
   else if (!amount && has(folded, SAVE_MORE) && !has(folded, YIELDS)) intent = 'saveMore';
@@ -757,7 +767,8 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
 
   const period = periodIn(tokens, ctx.today);
   const transfer = side === 'transfer';
-  const found = placesIn(tokens, ctx, transfer);
+  // "los productos de la cuenta Banco Índigo": a screen's account needs no "con" or "de" before it.
+  const found = placesIn(tokens, ctx, transfer || intent === 'openProducts');
   const { hits, productEnds, productsAt } = found;
 
   let accountId: number | null = null;
