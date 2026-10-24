@@ -148,7 +148,9 @@
         }
         <!-- A card: the credit left for a spending, what is owed and left for a
              payment. Any other account, on an income: what it holds now. -->
-        @if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
+        @if (accruingToday()) {
+          <p class="holds-now accruing"><ion-spinner name="crescent"></ion-spinner>{{ 'ui.entry.accruing' | t }}</p>
+        } @else if (!isTransfer() && !isEditing() && !loanEntry() && cardLine(); as card) {
           <p class="holds-now" [class.over]="card.over">
             @if (kind() === 'expense') {
               @if (card.available !== null) {

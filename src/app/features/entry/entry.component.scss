@@ -501,6 +501,8 @@
 
 /* What the account holds now, under the amount of a new income. */
 .holds-now { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--app-mu); b { color: var(--app-tx); font-weight: 600; } }
+.holds-now.accruing { display: flex; align-items: center; justify-content: center; gap: 8px;
+  ion-spinner { width: 16px; height: 16px; color: var(--app-pr); } }
 .holds-now.over { color: var(--app-yel); b { color: var(--app-yel); } }
 
 // What a bank's message or a statement said, in one line (the proposal's
