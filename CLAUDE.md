@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1092 on 2026-10-24, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1095 on 2026-10-24, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6023,6 +6023,21 @@ with testers runs; the paywall is finished after them.
   guardar" opens the one form with both ends and products, the amount empty.
   A spending or income with no amount still asks for it. Test in
   `read-phrase.test.mjs`; checked in a browser on the sample data.
+- **A screenshot of a bank app's movement reads the movement, never the
+  balance** (Jose, 2026-10-24: a screenshot of a taxi charged "-$17.060,97",
+  with "$349.249,59 → $332.188,62" under it, opened the form on 349.249,59).
+  Two causes in `read-receipt.ts`: a minus in front of an amount made
+  `amountsIn` drop it as if it were a date's dash (a dash now only counts as a
+  date's when a digit stands before it), and with no line saying "total" the
+  largest figure won. Now, with no "total": the amount on a line at least 1.4
+  times as tall as every other line with an amount (`prominentAmount`, read
+  from the reader's boxes), else one written with a minus ("charged"), else
+  the largest - and never a line with an arrow or saldo/disponible/cupo
+  (`BALANCE`). The notice says which ("la cifra que se ve más grande", "con
+  signo menos"; `Receipt.totalFrom`). A day with its month and no year ("24
+  de oct") is this year's, or last year's when still ahead. Tests on an
+  invented screenshot in `read-receipt.test.mjs`; Jose's own reading checked
+  in the session only (17.060,97 and 24 Oct), never committed.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

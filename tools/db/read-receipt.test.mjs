@@ -96,7 +96,7 @@ test('a date in the future or two years old is not the receipt\'s', () => {
 
 test('nothing readable gives nothing', () => {
   const r = readReceipt([], TODAY);
-  assert.deepEqual(r, { totalMinor: null, totalSure: false, onDate: null, shop: null });
+  assert.deepEqual(r, { totalMinor: null, totalSure: false, totalFrom: null, onDate: null, shop: null });
 });
 
 /**
@@ -239,4 +239,50 @@ test('the invented receipts give the same total on every phone', () => {
   const after = ['FORMA PAGO CONTADO', 'TARJETA DEBITO'];
   for (const slide of [-30, -15, 0, 15, 30]) onEveryPhone(tiltedPage(ITEMS, SUMMARY_ROWS, after, slide), 6846600);
   onEveryPhone(tiltedPage([['PANADERIA SOL', '']], [['SUBTOTAL', '12.605'], ['IVA', '2.395'], ['TOTAL', '15.000'], ['EFECTIVO', '20.000'], ['CAMBIO', '5.000']], [], 30), 1500000);
+});
+
+/** A screenshot of a bank app's movement, invented: big charged figure, the balance before and after. */
+function screenshot() {
+  return {
+    width: 1080, height: 2400, lines: [
+      { text: '3:12', left: 70, top: 40, right: 140, bottom: 68 },
+      { text: 'Cuenta', left: 107, top: 1312, right: 271, bottom: 1349 },
+      { text: '20 de oct, 9:05 a.m.', left: 305, top: 157, right: 772, bottom: 206 },
+      { text: 'Taxi Rápido', left: 463, top: 681, right: 640, bottom: 713 },
+      { text: '-$23.415,50 O', left: 245, top: 754, right: 839, bottom: 843 },
+      { text: '+$1.170,78 Cashback', left: 356, top: 879, right: 725, bottom: 920 },
+      { text: '$512.300,10 → $488.884,60', left: 106, top: 1381, right: 605, bottom: 1416 },
+      { text: 'Monto del movimiento', left: 110, top: 1599, right: 527, bottom: 1631 },
+      { text: '$23.322', left: 821, top: 1596, right: 971, bottom: 1635 },
+      { text: '4x1.000', left: 107, top: 1749, right: 258, bottom: 1780 },
+      { text: '? $93,50', left: 782, top: 1742, right: 971, bottom: 1784 },
+    ],
+  };
+}
+
+test('a screenshot of a bank app: the charged figure, never the balance (Jose, 2026-10-24)', () => {
+  const r = readReceiptPhoto([screenshot()], TODAY);
+  assert.equal(r.totalMinor, 2341550);
+  assert.equal(r.totalSure, false);
+  assert.equal(r.totalFrom, 'prominent');
+  // Without the heights, the minus still says it was the money that went out.
+  const flat = readReceipt(itemsOfPage(screenshot(), 1), TODAY);
+  assert.equal(flat.totalMinor, 2341550);
+  assert.equal(flat.totalFrom, 'charged');
+});
+
+test('a minus is a sign, a dash between digits a date', () => {
+  assert.deepEqual(amountsIn('-$17.060,97'), [1706097]);
+  assert.deepEqual(amountsIn('2026-10-12'), []);
+});
+
+test('a day written with its month and no year is this year\'s', () => {
+  const r = readReceiptPhoto([screenshot()], TODAY);
+  assert.equal(r.onDate, '2026-10-20');
+  const later = readReceipt(itemsOfPage({ width: 720, height: 200, lines: [
+    { text: 'Tienda Sol', left: 20, top: 20, right: 300, bottom: 48 },
+    { text: '28 de dic, 4:10 p.m.', left: 20, top: 70, right: 300, bottom: 98 },
+    { text: 'TOTAL 12.000', left: 20, top: 120, right: 300, bottom: 148 },
+  ] }, 1), TODAY);
+  assert.equal(later.onDate, '2025-12-28');
 });

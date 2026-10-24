@@ -38,8 +38,14 @@ import { dateIn, moneyIn, type TextItem } from '../statements/tokens';
 export interface Receipt {
   /** The total paid, in minor units; null when no amount was read. */
   totalMinor: number | null;
-  /** False when no line said "total" and the largest amount was taken. */
+  /** False when no line said "total" and the amount was chosen another way. */
   totalSure: boolean;
+  /**
+   * How an unsure total was chosen: the amount printed largest (a screenshot of
+   * a bank's app shows the movement biggest), one written as money going out
+   * ("-$17.060"), or the largest figure. Null when a line said "total".
+   */
+  totalFrom?: 'prominent' | 'charged' | 'largest' | null;
   onDate: IsoDate | null;
   shop: string | null;
 }
@@ -57,9 +63,11 @@ export function amountsIn(text: string): number[] {
   const shape = /(?:\$\s*)?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\$\s*\d+(?:[.,]\d{1,2})?|\d+[.,]\d{2}(?!\d)|\d{4,}/g;
   for (const match of text.matchAll(shape)) {
     const at = match.index ?? 0;
-    // A date or an hour is not money: "12/10/2026", "10:45".
+    // A date or an hour is not money: "12/10/2026", "10:45", "2026-10-12".
+    // A minus in front of an amount is a sign, not a date: "-$17.060,97".
     const before = text[at - 1] ?? ' ', after = text[at + match[0].length] ?? ' ';
-    if (/[/:\-]/.test(before) || /[/:]/.test(after)) continue;
+    const dateDash = before === '-' && /\d/.test(text[at - 2] ?? '');
+    if (/[/:]/.test(before) || dateDash || /[/:]/.test(after)) continue;
     const money = moneyIn(match[0], 2);
     if (money && money.minor > 0) found.push(money.minor);
   }
@@ -71,7 +79,14 @@ function dateAnywhere(text: string, today: IsoDate): IsoDate | null {
   for (const match of text.matchAll(/\d{1,4}(?=[\s/\-.]*[\dA-Za-z])/g)) {
     const at = match.index ?? 0;
     if (at > 0 && /\d/.test(text[at - 1])) continue;
-    const day = dateIn(text.slice(at), null);
+    const rest = text.slice(at).replace(/^(\d{1,2})\s+de\s+/i, '$1 ');
+    let day = dateIn(rest, null);
+    // "24 de oct" with no year: this year's, or last year's when that is still ahead.
+    if (!day) {
+      const year = Number(today.slice(0, 4));
+      day = dateIn(rest, year);
+      if (day && day > today) day = dateIn(rest, year - 1);
+    }
     if (day && day <= today && day >= earliest) return day;
   }
   return null;
@@ -219,6 +234,24 @@ function pairings(rows: readonly Row[]): Pairing[] {
   return found.filter(p => totalOf(p) !== null);
 }
 
+/**
+ * A balance, before and after ("$349.249,59 → $332.188,62"), or what is
+ * available: never what was paid.
+ */
+const BALANCE = /→|->|\b(saldo|disponible|cupo|balance|available)\b/i;
+
+/** Whether a line's amount may be the total when no line says "total". */
+function couldBeTheTotal(line: string): boolean {
+  return !NOT_TOTAL.test(line) && !NOT_A_NAME.test(line) && !BALANCE.test(line);
+}
+
+/** The amounts of a line written with a minus in front: money that went out. */
+function chargedIn(line: string): number[] {
+  const found: number[] = [];
+  for (const match of line.matchAll(/(?:^|[^\d])[-−–]\s*(\$?\s*\d[\d.,]*)/g)) found.push(...amountsIn(match[1]));
+  return found;
+}
+
 /** The receipt in `items` (as `itemsOfPage` lays a photo out), read on `today`. */
 export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt {
   const lines = linesOf(items).map(l => l.text);
@@ -228,9 +261,14 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
   const chosen = ways.find(addsUp) ?? ways.find(sensible) ?? ways[0];
   let totalMinor: number | null = chosen ? totalOf(chosen) : null;
   let totalSure = totalMinor !== null;
+  let totalFrom: Receipt['totalFrom'] = null;
   if (totalMinor === null) {
-    const all = lines.filter(l => !NOT_TOTAL.test(l) && !NOT_A_NAME.test(l)).flatMap(amountsIn);
-    totalMinor = all.length > 0 ? Math.max(...all) : null;
+    const candidates = lines.filter(couldBeTheTotal);
+    // Money written as going out ("-$17.060,97") is what was paid.
+    const charged = candidates.flatMap(chargedIn);
+    const all = candidates.flatMap(amountsIn);
+    if (charged.length > 0) { totalMinor = Math.max(...charged); totalFrom = 'charged'; }
+    else if (all.length > 0) { totalMinor = Math.max(...all); totalFrom = 'largest'; }
     totalSure = false;
   }
 
@@ -240,7 +278,7 @@ export function readReceipt(items: readonly TextItem[], today: IsoDate): Receipt
     if (onDate) break;
   }
 
-  return { totalMinor, totalSure, onDate, shop: shopOf(lines) };
+  return { totalMinor, totalSure, totalFrom, onDate, shop: shopOf(lines) };
 }
 
 
@@ -274,5 +312,23 @@ export function readReceiptPhoto(pages: readonly OcrPage[], today: IsoDate): Rec
     const off = Math.abs(factor - 1);
     if (!best || joins < best.joins || (joins === best.joins && off < best.off)) best = { items, joins, off };
   }
-  return readReceipt(best?.items ?? [], today);
+  const receipt = readReceipt(best?.items ?? [], today);
+  if (receipt.totalSure) return receipt;
+  // No line says "total": the amount printed clearly larger than every other
+  // is the one the picture is about - a bank app's movement, a ticket's sum.
+  const prominent = prominentAmount(pages);
+  return prominent === null ? receipt : { ...receipt, totalMinor: prominent, totalFrom: 'prominent' };
+}
+
+/** The amount on a line at least 1.4 times as tall as any other line with an amount. */
+function prominentAmount(pages: readonly OcrPage[]): number | null {
+  const withMoney = pages.flatMap(page => page.lines)
+    .filter(line => couldBeTheTotal(line.text) && amountsIn(line.text).length > 0)
+    .map(line => ({ line, height: line.bottom - line.top }))
+    .sort((a, b) => b.height - a.height);
+  if (withMoney.length === 0) return null;
+  const [first, second] = withMoney;
+  if (second && first.height < second.height * 1.4) return null;
+  const charged = chargedIn(first.line.text);
+  return charged.length > 0 ? Math.max(...charged) : Math.max(...amountsIn(first.line.text));
 }
