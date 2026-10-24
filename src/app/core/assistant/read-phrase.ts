@@ -754,6 +754,16 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   else intent = 'unknown';
   if (intent === 'afford') side = 'expense';
 
+  // "Transferencia del bolsillo a la cuenta de ahorros en Plata", no amount
+  // said (Jose, 2026-10-24): still a transfer between one's own places, and
+  // the form asks the amount.
+  if (intent === 'unknown' && said(TRANSFER_WORD) && !has(folded, EXPENSE)) {
+    const probe = tokens.map(t => ({ ...t }));
+    const ends = endsOf(probe, placesIn(probe, ctx, true), ctx);
+    const distinct = new Set(ends.map(e => `${e.account}:${e.product ?? ''}`));
+    if (distinct.size >= 2 || ends.some(e => e.product !== null)) { intent = 'register'; side = 'transfer'; }
+  }
+
   // Whatever the verb, two of one's own places with money between them is a
   // transfer: "pagué la tarjeta desde Bancolombia", "200 mil del bolsillo a
   // la cuenta". So is paying a card with no other place said.

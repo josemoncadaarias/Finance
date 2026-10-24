@@ -363,3 +363,5 @@ ion-content.chat {
 }
 .ask-rows { border-top: 1px solid var(--app-line); .sheet-hint { margin: 8px 14px 12px; } }
 .ideas-sheet ion-content { --background: transparent; }
+
+.amount.missing { color: var(--app-yel); font-size: 13px; font-weight: 600; white-space: nowrap; }

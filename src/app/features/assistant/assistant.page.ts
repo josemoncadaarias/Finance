@@ -80,7 +80,8 @@ interface RegisterCard {
 /** A transfer to confirm in the form. */
 interface TransferCard {
   kind: 'transfer';
-  amountMinor: number;
+  /** Null when the sentence named no amount: the form asks it. */
+  amountMinor: number | null;
   from: AccountRow | null;
   to: AccountRow;
   /** The products named, when the money moves between products. */
@@ -730,8 +731,8 @@ export class AssistantPage {
   // ---- Registering ----------------------------------------------------------
 
   private async register(reading: Reading, said: string): Promise<void> {
-    if (reading.amountMinor === null) return this.say('ai.register.noAmount');
     if (reading.side === 'transfer') return this.transfer(reading, said);
+    if (reading.amountMinor === null) return this.say('ai.register.noAmount');
 
     const side = reading.side === 'income' ? 'income' : 'expense';
     if (reading.categoryId === null) return this.askCategory({ ...reading, side }, said);
@@ -777,9 +778,10 @@ export class AssistantPage {
       const other = others.find(p => p.source === 'ledger') ?? others[0] ?? null;
       if (fromProduct === null) fromProduct = other; else toProduct = other;
     }
+    if (reading.amountMinor === null) this.say('ai.transfer.noAmount');
     this.say(from && from.id === to.id ? 'ai.transfer.understoodProducts' : 'ai.transfer.understood', { account: to.name }, {
       card: {
-        kind: 'transfer', amountMinor: reading.amountMinor!, from, to, fromProduct, toProduct,
+        kind: 'transfer', amountMinor: reading.amountMinor, from, to, fromProduct, toProduct,
         onDate: reading.onDate, note: reading.thing ?? '', state: 'open', phraseKey: reading.phraseKey,
       },
     });
@@ -950,7 +952,7 @@ export class AssistantPage {
         ...(card.from
           ? { route: { from: card.from.id, to: card.to.id, fromProductId: card.fromProduct?.id ?? null, toProductId: card.toProduct?.id ?? null } }
           : { preferredAccountId: card.to.id, preferredSide: 'to' as const }),
-        start: { amountMinor: card.amountMinor, onDate: card.onDate, note: card.note },
+        start: { amountMinor: card.amountMinor ?? 0, onDate: card.onDate, note: card.note },
       });
     }
     this.inForm = { card, savesBefore: this.compose.saved() };
@@ -1396,8 +1398,8 @@ export class AssistantPage {
       const at = account(route.accountId);
       if (!category || !at) return;
       const next: RegisterCard = card.kind === 'register'
-        ? { ...card, side: route.side, amountMinor, category, account: at, product: product(route.productId), onDate, note, state: 'saved' }
-        : { kind: 'register', side: route.side, amountMinor, category, account: at, product: product(route.productId),
+        ? { ...card, side: route.side, amountMinor: amountMinor ?? 0, category, account: at, product: product(route.productId), onDate, note, state: 'saved' }
+        : { kind: 'register', side: route.side, amountMinor: amountMinor ?? 0, category, account: at, product: product(route.productId),
           productCount: 0, productNamed: false, onDate, note, canSave: false, state: 'saved', phraseKey: card.phraseKey };
       if (message) message.card = next;
     }
