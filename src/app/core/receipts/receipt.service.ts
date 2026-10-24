@@ -77,7 +77,8 @@ export class ReceiptService {
     });
 
     const said = receipt.totalMinor === null ? 'receipt.noTotal'
-      : !receipt.totalSure ? 'receipt.unsureTotal'
+      : !receipt.totalSure ? (receipt.totalFrom === 'prominent' ? 'receipt.prominentTotal'
+        : receipt.totalFrom === 'charged' ? 'receipt.chargedTotal' : 'receipt.unsureTotal')
       : receipt.onDate === null ? 'receipt.noDate'
       : 'receipt.read';
     // Long enough to check the form under it; a misread is reported in one
