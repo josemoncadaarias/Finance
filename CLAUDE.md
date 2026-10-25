@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1095 on 2026-10-24, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1096 on 2026-10-25, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6038,6 +6038,18 @@ with testers runs; the paywall is finished after them.
   de oct") is this year's, or last year's when still ahead. Tests on an
   invented screenshot in `read-receipt.test.mjs`; Jose's own reading checked
   in the session only (17.060,97 and 24 Oct), never committed.
+- **A spending says what it does to its category's cap, as it is typed**
+  (Jose, 2026-10-25, after Lukas): under the category of the movement form, a
+  card with a warning icon - amber from 80 % of the cap ("Con este gasto
+  llegas al 82 % de tu tope de {name}. Te quedan X"), red once it goes past
+  ("te pasas ... por X. Tu tope es Y al mes", or "ya estaba pasado ... quedas
+  X por encima"). Read by the cap's own arithmetic over the movement's month
+  (`capWith` in `core/limits/limits.ts`, `LimitsService.capWith`), the movement
+  being corrected left out, every account or the cap's one account as the cap
+  says. Only a spending in pesos (a cap is in pesos; another currency's peso
+  figure is known only once saved), not in several-at-once or a loan payment.
+  The sheet after saving is unchanged. Entry tour step `since: 2`. Test in
+  `limits.test.mjs`; checked in a browser on the sample data.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

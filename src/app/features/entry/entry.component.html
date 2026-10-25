@@ -203,6 +203,13 @@
               </button>
               <ion-icon class="ui-chev" name="chevron-down-outline" (click)="openCategories()"></ion-icon>
             </div>
+            <!-- The category's cap with this spending in it: amber from 80 %, red past it. -->
+            @if (capWarning(); as cap) {
+              <div class="cap-warning" [class.red]="cap.red" role="status">
+                <ion-icon [name]="cap.red ? 'alert-circle' : 'warning'"></ion-icon>
+                <span>{{ cap.text }}</span>
+              </div>
+            }
             <!-- ¿Qué cambia? on an account with products, started on the habit (4y). -->
             @if (asksScope()) {
               <button type="button" class="ui-row pick category scope" (click)="choosingScope.set(true)">

@@ -290,6 +290,7 @@ const TOUR_LIST = {
       { sel: 'app-entry app-amount-field', title: 'tour.entry.2.title', text: 'tour.entry.2.text' },
       { sel: 'app-entry .ui-list.ends', title: 'tour.entry.3.title', text: 'tour.entry.3.text' },
       { sel: 'app-entry app-form-foot .again', title: 'tour.entry.4.title', text: 'tour.entry.4.text' },
+      { title: 'tour.entry.5.title', text: 'tour.entry.5.text', since: 2 },
     ],
   },
 } satisfies Record<string, Tour>;

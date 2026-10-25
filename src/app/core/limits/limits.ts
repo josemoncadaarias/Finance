@@ -282,3 +282,49 @@ export function stillOver(before: ReadonlyMap<number | 'total', number>, after: 
   }
   return found;
 }
+
+/** What a spending being typed would do to the cap of its category (Jose, 2026-10-25). */
+export interface CapWith {
+  limitId: number;
+  /** 80 from 80 % of the cap, 100 past it. */
+  level: 80 | 100;
+  amountMinor: number;
+  /** Spent in the movement's month with it. */
+  spentMinor: number;
+  percent: number;
+  /** What would still be left, zero once past. */
+  remainingMinor: number;
+  /** What would go past the cap, zero while under it. */
+  overMinor: number;
+  /** Whether the cap was already past without it. */
+  wasOver: boolean;
+}
+
+/**
+ * The cap of a spending's category with that spending in it, read the way
+ * the cap itself reads its month. `replacing` is the movement being
+ * corrected, which leaves its old figure out. Null when no cap covers the
+ * spending (another category, another account, money not counted) or it
+ * stays under 80 %.
+ */
+export function capWith(limits: readonly LimitTerms[], rows: readonly SpendRow[], spending: SpendRow,
+                        replacing: number | null, today: string): CapWith | null {
+  const limit = limits.find(l => l.categoryIds.includes(spending.categoryId));
+  if (!limit || rowsOf(limit, [spending]).length === 0 || spendOf(spending) <= 0) return null;
+  const month = monthOf(spending.occurredOn);
+  const without = rows.filter(row => row.id !== replacing);
+  const before = limitStatus(limit, without, month, today);
+  const after = limitStatus(limit, [...without, spending], month, today);
+  const level = levelOf(after.spentMinor, after.amountMinor);
+  if (level === 0) return null;
+  return {
+    limitId: limit.id,
+    level,
+    amountMinor: after.amountMinor,
+    spentMinor: after.spentMinor,
+    percent: after.percent,
+    remainingMinor: after.remainingMinor,
+    overMinor: after.overMinor,
+    wasOver: before.spentMinor > before.amountMinor,
+  };
+}

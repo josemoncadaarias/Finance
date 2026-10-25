@@ -564,3 +564,27 @@
 }
 .other-notes { margin: 4px 14px 12px; }
 .writing-note .last-amounts, .writing-note .other-notes { display: none; }
+
+// A spending that takes its category near or past its cap (Jose, 2026-10-25).
+.cap-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 12px 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--app-yel-rgb), 0.55);
+  background: rgba(var(--app-yel-rgb), 0.14);
+  color: var(--app-tx);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  text-wrap: pretty;
+  ion-icon { flex: none; font-size: 26px; color: var(--app-yel); }
+  &.red {
+    border-color: rgba(var(--app-red-rgb), 0.6);
+    background: rgba(var(--app-red-rgb), 0.14);
+    ion-icon { color: var(--app-red); animation: cap-pulse 1.4s ease-in-out 2; }
+  }
+}
+@keyframes cap-pulse { 50% { transform: scale(1.18); } }
+@media (prefers-reduced-motion: reduce) { .cap-warning.red ion-icon { animation: none; } }
