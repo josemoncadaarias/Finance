@@ -286,3 +286,48 @@ test('a day written with its month and no year is this year\'s', () => {
   ] }, 1), TODAY);
   assert.equal(later.onDate, '2025-12-28');
 });
+
+/**
+ * A restaurant's electronic invoice, invented, laid out as the phone's reader
+ * handed back a real one (Jose, 2026-10-25): the items' tax column read as
+ * boxes of their own ("IVA 19 0", misread "IUA", "TVA"), the heading's
+ * "Total" apart, a count closing the list, and item codes of five
+ * digits that read as amounts, and the summary's tax a bare figure ("INCL
+ * 19% IVA = 4504"). The old reading took the discount for the total.
+ */
+function invoice() {
+  const box = (text, left, top, right, bottom) => ({ text, left, top, right, bottom });
+  const lines = [
+    box('PARRILLA DEL VALLE SAS', 728, 770, 1146, 812),
+    box('NIT. 900.111.222-3', 800, 801, 1073, 840),
+    box('RESPONSABLE DE IVA', 802, 874, 1084, 913),
+    box('Fecha Generacion Factura 2026-10-20 13:05:10', 473, 1047, 1193, 1088),
+    box('#DLV: 51234', 831, 1278, 1015, 1321),
+    box('Codigo Descripcion UN Cant Precio/u Imp.', 561, 1308, 1221, 1374),
+    box('Total', 1279, 1304, 1366, 1351),
+    box('48210', 984, 1346, 1070, 1391),
+    box('1 61020 Combo Parrilla 94 1', 526, 1356, 912, 1409),
+    box('IUA 19 48210', 1142, 1348, 1351, 1393),
+    box('2 62330 Gaseosa 94 1', 501, 1394, 926, 1443),
+    box('IVA 19 0', 1141, 1387, 1279, 1429),
+    box('3 64410 Papas 94 1', 520, 1429, 922, 1478),
+    box('IVA 19 0', 1142, 1426, 1279, 1466),
+    box('4 65520 Sin Salsa 94 1', 527, 1464, 1028, 1515),
+    box('TVA 19 0', 1144, 1468, 1279, 1508),
+    box('5 66710 Sin Cebolla 94 1', 527, 1511, 1006, 1548),
+    box('IVA 19 0', 1144, 1503, 1279, 1544),
+    box('6 67380 Para Llevar 94 1', 530, 1546, 925, 1584),
+    box('IVA 19 0', 1149, 1542, 1282, 1588),
+    box('Total Linea Detalles: 6', 494, 1691, 851, 1732),
+    box('Descuento 24504', 1099, 1736, 1360, 1795),
+    box('SUBTOTAL 23706', 1117, 1767, 1359, 1831),
+    box('INCL 19% IVA = 4504', 1019, 1800, 1359, 1867),
+    box('TOTAL COP 28210', 1101, 1837, 1362, 1904),
+    box('FORMA DE PAGO: Contado', 503, 1877, 840, 1918),
+  ];
+  return { width: 1800, height: 2400, lines };
+}
+
+test('an invoice whose items list a tax column reads the total, not the discount', () => {
+  onEveryPhone(invoice(), 2821000);
+});
