@@ -116,7 +116,7 @@ function shopOf(lines: readonly string[]): string | null {
 const SUMMARY = /\b(sub\s*-?\s*total|total|descuentos?|ahorros?|iva|impuestos?|impoconsumo|propina|servicio|base|discount|savings|tip|vat|tax)\b/i;
 /** The line that opens a summary: a subtotal or a total, never a count of items. */
 const OPENS_SUMMARY = /\b(sub\s*-?\s*total|total)\b/i;
-const COUNT = /\btotal\s+(items?|[ií]tems?|art[ií]culos|unidades|productos|cantidad)\b/i;
+const COUNT = /\btotal\s+(de\s+)?(items?|[ií]tems?|art[ií]culos|unidades|productos|cantidad|l[ií]neas?|detalles?|referencias)\b/i;
 /** What a summary line is, for checking that its figures add up. */
 type Part = 'subtotal' | 'less' | 'more' | 'total' | 'other';
 
@@ -182,13 +182,41 @@ function sensible(p: Pairing): boolean {
 function figuresOf(text: string): number[] {
   const found = amountsIn(text);
   if (found.length > 0) return found;
-  const bare = /(?:^|\s)\$?\s*(\d{1,3})\s*$/.exec(text);
+  // On a summary line a bare figure at its end may be longer: "IVA = 3681".
+  const bare = (SUMMARY.test(text) ? /(?:^|[\s=])\$?\s*(\d{1,7})\s*$/ : /(?:^|\s)\$?\s*(\d{1,3})\s*$/).exec(text);
   return bare && !/%\s*$/.test(text) && !COUNT.test(text) ? [Number(bare[1]) * 100] : [];
+}
+
+/**
+ * Where a receipt's summary begins. Read upwards from its total - the line
+ * saying "TOTAL A PAGAR", "TOTAL COP"... or else the last plain total -
+ * over the summary's own lines, and never past a count of the items ("Total
+ * Linea Detalles: 9"): above it is the list of items, whose tax column ("IVA
+ * 19 0") and heading ("Total") read like a summary too (Jose, 2026-10-25).
+ */
+function summaryStart(rows: readonly Row[]): number {
+  const isTotal = (r: Row) => PLAIN.test(r.text) && !NOT_TOTAL.test(r.text) && !COUNT.test(r.text);
+  let anchor = rows.findIndex(r => STRONG.test(r.text) && !COUNT.test(r.text));
+  if (anchor < 0) anchor = rows.map(isTotal).lastIndexOf(true);
+  if (anchor < 0) return rows.findIndex(r => OPENS_SUMMARY.test(r.text) && !COUNT.test(r.text));
+  let start = anchor;
+  for (let i = anchor - 1; i >= 0 && anchor - i <= 12; i--) {
+    const r = rows[i];
+    if (COUNT.test(r.text)) break;
+    if (!SUMMARY.test(r.text)) {
+      if (start - i > 2) break;
+      continue;
+    }
+    start = i;
+  }
+  // The summary opens on a subtotal or a total, as before.
+  for (let i = start; i <= anchor; i++) if (OPENS_SUMMARY.test(rows[i].text) && !COUNT.test(rows[i].text)) return i;
+  return anchor;
 }
 
 /** The ways the summary's words can be paired with its figures. */
 function pairings(rows: readonly Row[]): Pairing[] {
-  const start = rows.findIndex(r => OPENS_SUMMARY.test(r.text) && !COUNT.test(r.text));
+  const start = summaryStart(rows);
   if (start < 0) return [];
   const labels: number[] = [];
   for (let i = start; i < rows.length; i++) {

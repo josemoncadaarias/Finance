@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1096 on 2026-10-25, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1097 on 2026-10-25, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6038,6 +6038,19 @@ with testers runs; the paywall is finished after them.
   de oct") is this year's, or last year's when still ahead. Tests on an
   invented screenshot in `read-receipt.test.mjs`; Jose's own reading checked
   in the session only (17.060,97 and 24 Oct), never committed.
+- **An invoice whose items carry a tax column reads its total, not its
+  discount** (Jose, 2026-10-25: a fast-food electronic invoice opened the form
+  on "Descuento 14999" while it printed "TOTAL COP 23052"). Read from his
+  reading, which the session kept and never committed: the summary was taken
+  from the FIRST line saying "total" - the items' heading - so every item row
+  ("IVA 19 0") and its five-digit product codes (read as amounts) joined it
+  and slid the figures; and the tax "INCL 19% IVA = 3681" gave no figure (four
+  digits with no separator). Now the summary is read upwards from its total
+  (a strong one, "TOTAL COP", else the last plain total), never past a count
+  of the items ("Total Linea Detalles: 9", `COUNT` now takes lines and
+  detalles) (`summaryStart`), and a summary line's bare figure at its end may
+  be up to seven digits. Test on an invented invoice of that shape, every box
+  height (`read-receipt.test.mjs`); the old code took 23.706 there.
 - **A spending says what it does to its category's cap, as it is typed**
   (Jose, 2026-10-25, after Lukas): under the category of the movement form, a
   card with a warning icon - amber from 80 % of the cap ("Con este gasto
