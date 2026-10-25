@@ -15,7 +15,7 @@ import { TransactionsRepository } from '../../src/app/core/database/repositories
 import { TransfersRepository } from '../../src/app/core/database/repositories/transfers.repository.ts';
 import { LimitsRepository } from '../../src/app/core/limits/limits.repository.ts';
 import {
-  averageBefore, crossings, levelOf, stillOver, limitStatus, rowsOf, roundedAverage, roundedLimit, spendOf, spentIn, totalStatus,
+  averageBefore, capWith, crossings, levelOf, stillOver, limitStatus, rowsOf, roundedAverage, roundedLimit, spendOf, spentIn, totalStatus,
 } from '../../src/app/core/limits/limits.ts';
 
 const P = pesos => Math.round(pesos * 100);
@@ -175,4 +175,28 @@ test('the notices start on, and each is kept apart', async () => {
   assert.deepEqual(await w.limits.notices(), { atSave: false, phone: true, at80: true });
   await w.limits.setNotice('atSave', true);
   assert.equal((await w.limits.notices()).atSave, true);
+});
+
+test('a spending being typed: amber from 80 % of its cap, red past it, the corrected one left out', () => {
+  const rows = [row('2026-10-02', -900_000), row('2026-10-05', -50_000)];
+  const typed = (pesos, extra = {}) => row('2026-10-20', -pesos, { id: -1, ...extra });
+  assert.equal(capWith([MERCADO], rows, typed(5_000), null, '2026-10-20'), null); // 80 % not reached
+  const close = capWith([MERCADO], rows, typed(50_000), null, '2026-10-20');
+  assert.equal(close.level, 80);
+  assert.equal(close.remainingMinor, P(200_000));
+  const over = capWith([MERCADO], rows, typed(300_000), null, '2026-10-20');
+  assert.equal(over.level, 100);
+  assert.equal(over.overMinor, P(50_000));
+  assert.equal(over.wasOver, false);
+  // Correcting the 900,000 one: its old figure is not counted twice.
+  assert.equal(capWith([MERCADO], rows, typed(900_000), rows[0].id, '2026-10-20'), null);
+  // Another category, another month's cap, an income: no warning.
+  assert.equal(capWith([MERCADO], rows, typed(300_000, { categoryId: 2 }), null, '2026-10-20'), null);
+  assert.equal(capWith([MERCADO], rows, { ...typed(0), amountMinor: P(300_000) }, null, '2026-10-20'), null);
+  assert.equal(capWith([MERCADO], rows, typed(300_000, { occurredOn: '2026-11-01' }), null, '2026-10-20'), null);
+  // An account left out of net worth does not count for "every account".
+  assert.equal(capWith([MERCADO], rows, typed(300_000, { inNetWorth: false }), null, '2026-10-20'), null);
+  // Already past: it says so.
+  const past = [...rows, row('2026-10-06', -400_000)];
+  assert.equal(capWith([MERCADO], past, typed(20_000), null, '2026-10-20').wasOver, true);
 });

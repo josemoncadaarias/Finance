@@ -21,8 +21,8 @@ import { I18nService } from '../i18n/i18n.service';
 import { formatMoney } from '../database/money';
 import { isoDay } from '../filters/period';
 import {
-  crossings, levelOf, limitStatus, stillOver, monthOf, shiftMonth, totalStatus,
-  type Crossing, type Level, type LimitStatus, type LimitTerms, type SpendRow, type TotalStatus,
+  capWith, crossings, levelOf, limitStatus, stillOver, monthOf, shiftMonth, totalStatus,
+  type CapWith, type Crossing, type Level, type LimitStatus, type LimitTerms, type SpendRow, type TotalStatus,
 } from './limits';
 import { LimitsRepository, type LimitInput, type LimitNotices } from './limits.repository';
 
@@ -163,6 +163,18 @@ export class LimitsService {
       passed: limits.filter(l => l.status.state === 'passed'),
       fine: limits.filter(l => l.status.state !== 'passed'),
     };
+  }
+
+  /**
+   * What a spending being typed would do to its category's cap, and that cap
+   * by name - for the movement form's warning. Null when no cap covers it or
+   * it stays under 80 %.
+   */
+  capWith(spending: SpendRow, replacing: number | null): { check: CapWith; view: LimitView } | null {
+    const check = capWith(this.limits(), this.rows(), spending, replacing, this.today());
+    if (!check) return null;
+    const view = this.monthView(monthOf(spending.occurredOn)).limits.find(l => l.terms.id === check.limitId);
+    return view ? { check, view } : null;
   }
 
   view(id: number, month = this.month()): LimitView | null {

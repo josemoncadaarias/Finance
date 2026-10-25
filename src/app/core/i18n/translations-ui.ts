@@ -287,6 +287,9 @@ export const UI_ES = {
   'ui.entry.spendAll': 'Gastar todo',
   'ui.entry.holdsNow': 'Saldo actual',
   'ui.entry.accruing': 'Calculando los intereses de hoy de esta cuenta',
+  'ui.entry.cap.close': 'Con este gasto llegas al {percent}\u00a0% de tu tope de {name}. Te quedan {left}.',
+  'ui.entry.cap.over': 'Con este gasto te pasas de tu tope de {name} por {over}. Tu tope es {cap} al mes.',
+  'ui.entry.cap.stillOver': 'Tu tope de {name} ya estaba pasado. Con este gasto quedas {over} por encima.',
   'ui.entry.creditLeft': 'Cupo disponible',
   'ui.entry.overCredit': 'Supera tu cupo disponible',
   'ui.entry.owed': 'Debes',
@@ -2424,6 +2427,8 @@ export const UI_ES = {
   'tour.entry.3.text': "Elige la cuenta del movimiento y la categoría correspondiente. Si lo necesitas, agrega una nota y selecciona la fecha del movimiento. La aplicación también te sugerirá notas que hayas utilizado anteriormente.",
   'tour.entry.4.title': "Registrar otro",
   'tour.entry.4.text': "Guarda y deja el formulario listo para el siguiente movimiento.",
+  'tour.entry.5.title': "Aviso de tus topes de gasto",
+  'tour.entry.5.text': "Si la categoría tiene un tope, el formulario te avisa mientras escribes el valor: en amarillo cuando llegas al 80\u00a0%, en rojo cuando te pasas.",
 } as const;
 
 export const UI_EN: Record<keyof typeof UI_ES, string> = {
@@ -2708,6 +2713,9 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'ui.entry.spendAll': 'Spend it all',
   'ui.entry.holdsNow': 'Balance now',
   'ui.entry.accruing': "Working out this account's interest for today",
+  'ui.entry.cap.close': 'With this spending you reach {percent}% of your {name} cap. {left} left.',
+  'ui.entry.cap.over': 'With this spending you go over your {name} cap by {over}. Your cap is {cap} a month.',
+  'ui.entry.cap.stillOver': 'Your {name} cap was already over. With this spending you are {over} over it.',
   'ui.entry.creditLeft': 'Credit available',
   'ui.entry.overCredit': 'More than your credit available',
   'ui.entry.owed': 'You owe',
@@ -4845,4 +4853,6 @@ export const UI_EN: Record<keyof typeof UI_ES, string> = {
   'tour.entry.3.text': "Choose the movement's account and its category. If you need to, add a note and pick the movement's date. The app will also suggest notes you have used before.",
   'tour.entry.4.title': "Record another",
   'tour.entry.4.text': "Saves and leaves the form ready for the next movement.",
+  'tour.entry.5.title': "Your spending caps, as you type",
+  'tour.entry.5.text': "If the category has a cap, the form warns you while you type the amount: amber once you reach 80%, red once you go over.",
 };

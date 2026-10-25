@@ -61,6 +61,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ScopeSheetComponent, SCOPE_ICON, SCOPE_TONE, scopeOptionsIn } from '../../shared/scope-sheet/scope-sheet.component';
 import { productIcon, productSeed } from '../../core/icons/product-face';
 import { AccentService } from '../../core/theme/accent.service';
+import { LimitsService } from '../../core/limits/limits.service';
 
 export type EntryKind = 'expense' | 'income' | 'transfer';
 
@@ -971,6 +972,40 @@ export class EntryComponent implements OnInit, OnDestroy {
       owed: money(owed),
       available: available === null ? null : `${available < 0 ? '\u2212' : ''}${money(Math.abs(available))}`,
       over: available !== null && this.kind() === 'expense' && this.amount().minor > available,
+    };
+  });
+
+  private readonly limitsService = inject(LimitsService);
+
+  /**
+   * What this spending does to its category's cap (Jose, 2026-10-25, from
+   * Lukas): amber from 80 % of the cap, red once it goes past, said under the
+   * category as the amount is typed. Read by the cap's own arithmetic over its
+   * month, the movement being corrected left out. Pesos only: a cap is in
+   * pesos, and another currency's figure is not known in pesos until saved.
+   */
+  readonly capWarning = computed<{ red: boolean; text: string } | null>(() => {
+    const account = this.account();
+    const categoryId = this.categoryId();
+    const minor = this.amount().minor;
+    if (this.kind() !== 'expense' || this.isTransfer() || this.many() || this.loanEntry()
+      || !account || categoryId === null || minor <= 0 || account.currency_code !== 'COP') return null;
+    const editing = this.request().editing;
+    const found = this.limitsService.capWith({
+      id: -1, categoryId, accountId: account.id, accountType: account.type,
+      inNetWorth: account.include_in_net_worth === 1, occurredOn: this.occurredOn(),
+      amountMinor: -minor, description: null,
+    }, editing?.transfer_id == null ? editing?.id ?? null : null);
+    if (!found) return null;
+    const { check, view } = found;
+    const money = (value: number) => formatMoney(value, 'COP');
+    const name = view.name;
+    if (check.level === 80) {
+      return { red: false, text: this.i18n.t('ui.entry.cap.close', { percent: check.percent, name, left: money(check.remainingMinor) }) };
+    }
+    return {
+      red: true,
+      text: this.i18n.t(check.wasOver ? 'ui.entry.cap.stillOver' : 'ui.entry.cap.over', { name, over: money(check.overMinor), cap: money(check.amountMinor) }),
     };
   });
 
