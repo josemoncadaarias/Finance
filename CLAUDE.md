@@ -2162,15 +2162,26 @@ backup restore against iOS's own SQLite backend.
      (`PaywallService.follow`: `Purchases.logIn` with `proIdOf(email)` -
      "fp-" and 24 hex of the address's SHA-256, never the address itself,
      `core/paywall/pro-id.ts`, `pro-id.test.mjs`); a purchase made before
-     moves with it (RevenueCat's own rule). The Finance Pro screen shows
-     "Tu código de Finance Pro" with "Copiar mi código", and "Entrar con
-     Google" while it is still the anonymous one. **How to grant it** (from
+     moves with it (RevenueCat's own rule). **The id is no code to give
+     away** (Jose, 2026-10-28: he feared one subscription shared by many):
+     a phone gets Pro only from the store's answer for the Google account
+     signed in on it, and pasting someone's id does nothing - the app works
+     its own out from its own account. Sharing a subscription would mean
+     sharing the Google account itself (its Gmail, Drive and this app's
+     backup), as with any Play subscription; per-device was weighed and
+     refused (a new phone or a reinstall would lose what was paid).
+     Assumed, not closed: someone who rebuilds the app could log in as
+     another person's id if they know their address; only a server would
+     stop it. So the id is hidden: a long press on "Finance Pro" on the
+     Finance Pro screen shows "Identificador de tu cuenta" with "Copiar el
+     identificador" (and "Entrar con Google" while it is the anonymous one),
+     and another hides it; its tour step is gone. **How to grant it** (from
      memory, to confirm in the dashboard): RevenueCat → project Finance →
      Customers → search the code → Entitlements → Grant → "Finance pro" →
      Lifetime. Granted that way, `entitled` is true from the store's next
      answer and cached offline like any purchase. **Keep `CHARGING` false
-     until Jose's own code shows "Tienes Finance Pro"**; then turn it on and
-     hide the preview switch. Pro tour step `since: 3`. Checked in a browser
+     until Jose's own id shows "Tienes Finance Pro"**; then turn it on and
+     hide the preview switch. Checked in a browser
      with both kinds of code faked; the store's login only on the phone.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at

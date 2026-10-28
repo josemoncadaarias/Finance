@@ -37,7 +37,7 @@ import { copyText } from '../../core/feedback/feedback.service';
       <div class="ui-main">
         <div class="head" data-tour="pro-head">
           <div class="face"><app-badge shape="ci" [size]="64" builtin="diamond-outline" fixed="#f6b93b"></app-badge></div>
-          <b>{{ 'pro.name' | t }}</b>
+          <b (contextmenu)="toggleCode($event)">{{ 'pro.name' | t }}</b>
           <p class="ui-sub">{{ (pro.entitled() ? 'pro.owned.lead' : 'pro.lead') | t }}</p>
         </div>
 
@@ -117,7 +117,7 @@ import { copyText } from '../../core/feedback/feedback.service';
         <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
         }
 
-        @if (pro.proCode(); as code) {
+        @if (showCode() && pro.proCode(); as code) {
           <div class="ui-list code">
             <div class="ui-row plain">
               <span class="ui-tx">
@@ -321,6 +321,18 @@ export class ProPage {
   }
 
   private readonly router = inject(Router);
+
+  /**
+   * The account's id is not on show: it only serves to grant Finance Pro from
+   * RevenueCat, and on screen it read as a code to give away (Jose,
+   * 2026-10-28). A long press on "Finance Pro" shows it and hides it again.
+   */
+  readonly showCode = signal(false);
+
+  toggleCode(event: Event): void {
+    event.preventDefault();
+    this.showCode.update(on => !on);
+  }
 
   async copyCode(code: string): Promise<void> {
     await copyText(code);
