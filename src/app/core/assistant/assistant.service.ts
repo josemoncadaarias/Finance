@@ -40,7 +40,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { splitWorth } from '../worth/worth-split';
 import { usuryOn } from '../debts/usury';
 import type { DebtIn } from './debts-advice';
-import { freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { freeInAccount, freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 import { matchNotes, type NoteMatches, type NoteRow } from './note-search';
@@ -303,6 +303,27 @@ export class AssistantService {
       accounts,
       interest: await this.interest(rates),
     };
+  }
+
+  /**
+   * "Puedes gastar hoy" for one account (Inicio with an account chosen), or
+   * null when that account is not money of one's own to spend: a card, a
+   * loan, an account set aside from net worth or archived - exactly the
+   * accounts `picture` does not count. Read after `picture`, whose goals it
+   * uses as loaded.
+   */
+  accountFree(picture: Picture, accountId: number): FreeMoney | null {
+    const held = picture.accounts.find(a => a.account.id === accountId);
+    if (!held || held.account.archived) return null;
+    const freeProduct = (p: YieldProduct | null) => p === null || (p.kind !== 'cdt' && p.include_in_net_worth === 1);
+    const keptMinor = this.goals.live()
+      .filter(g => !g.terms.allAccounts)
+      .reduce((sum, g) => {
+        const here = g.places.filter(p => p.place.accountId === accountId && freeProduct(p.product))
+          .reduce((s, p) => s + Math.max(0, p.pesos), 0);
+        return sum + Math.min(here, g.terms.amountMinor);
+      }, 0);
+    return freeInAccount({ accountId, holdsMinor: held.holdsMinor, payments: picture.free.payments, keptMinor, today: isoDay(new Date()) });
   }
 
   /**
