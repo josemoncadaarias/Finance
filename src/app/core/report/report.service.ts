@@ -18,6 +18,7 @@ import { FilterService } from '../filters/filter.service';
 import { periodLabel } from '../filters/period';
 import { MovementsStore } from '../../features/movements/movements.store';
 import { MainCurrencyService } from '../currencies/main-currency.service';
+import { LimitsService } from '../limits/limits.service';
 import { todayIso } from '../yields/days';
 import { buildReport } from './sections';
 import type { Block } from './blocks';
@@ -30,6 +31,7 @@ export class ReportService {
   private readonly filter = inject(FilterService);
   private readonly i18n = inject(I18nService);
   private readonly main = inject(MainCurrencyService);
+  private readonly limits = inject(LimitsService);
 
   /** Everything the analyses need, for the period and account on screen. */
   async gather(): Promise<ReportData> {
@@ -64,6 +66,20 @@ export class ReportService {
         nowMinor: standing.amountMinor,
         since,
         movements: await this.store.movementsFor({ kind: 'range', from: since, to: today }),
+      };
+    }
+
+    // The caps of the period's month, for a period inside one month.
+    // One account in view: only the caps on that account, since the others count every account.
+    if (period.from !== null && period.to !== null && period.from.slice(0, 7) === period.to.slice(0, 7)) {
+      const view = this.limits.monthView(period.from.slice(0, 7));
+      const account = partial.account;
+      partial.caps = {
+        month: view.month,
+        rows: view.limits.filter(l => account === null || l.terms.accountId === account.id).map(l => ({
+          name: l.name, spentMinor: l.status.spentMinor, amountMinor: l.status.amountMinor,
+          percent: l.status.percent, state: l.status.state,
+        })),
       };
     }
 

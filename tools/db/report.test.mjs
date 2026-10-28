@@ -423,3 +423,18 @@ test('a chart reads a range of the sheet, quoted and absolute', () => {
   assert.ok(/<c:f>'[^']+'!\$A\$\d+:\$A\$\d+<\/c:f>/.test(xml), 'the labels');
   assert.ok(/<c:f>'[^']+'!\$B\$\d+:\$B\$\d+<\/c:f>/.test(xml), 'the figures');
 });
+
+test('the month\'s caps: each one against what it allows, the fullest first, only when there are caps', () => {
+  const caps = { month: '2026-09', rows: [
+    { name: 'Mercado', spentMinor: 87_630_00, amountMinor: 90_000_00, percent: 97, state: 'close' },
+    { name: 'Restaurante', spentMinor: 60_620_00, amountMinor: 30_000_00, percent: 202, state: 'passed' },
+    { name: 'Mascotas', spentMinor: 0, amountMinor: 20_000_00, percent: 0, state: 'good' },
+  ] };
+  const blocks = buildReport(data([movement({ amount: -10_000_00 })], { account: null, caps }));
+  const block = blocks.find(b => b.id === 'caps');
+  assert.ok(block);
+  assert.deepEqual(block.rows.map(r => r.label), ['Restaurante', 'Mercado', 'Mascotas']);
+  assert.equal(block.rows[0].share, 202, "a cap gone over says its real percent");
+  assert.match(block.rows[0].note, /30\.?620/);
+  assert.equal(buildReport(data([movement({ amount: -10_000_00 })])).some(b => b.id === 'caps'), false);
+});

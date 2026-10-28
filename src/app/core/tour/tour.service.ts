@@ -156,6 +156,7 @@ const TOUR_LIST = {
       { sel: 'app-report .ui-period', title: 'tour.report.3.title', text: 'tour.report.3.text', since: 2 },
       { sel: 'app-report section.block', title: 'tour.report.4.title', text: 'tour.report.4.text' },
       { sel: 'app-report .ui-bigtitle .ui-round', title: 'tour.report.5.title', text: 'tour.report.5.text' },
+      { title: 'tour.report.6.title', text: 'tour.report.6.text', since: 3 },
     ],
   },
   categories: {

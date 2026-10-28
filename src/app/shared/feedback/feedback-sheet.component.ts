@@ -5,6 +5,7 @@
  * phone's details, and what the reader made of the last photo. Mounted once
  * in the shell; `FeedbackService.open` opens it, over any form.
  */
+import { errorsText, keptErrors, type LoggedError } from '../../core/feedback/error-log';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { IonIcon, IonModal } from '@ionic/angular';
 
@@ -54,6 +55,14 @@ import { ToastService } from '../ui/toast.service';
                 <span class="ui-tx"><b class="wrap">{{ 'feedback.reading' | t }}</b><small class="wrap">{{ 'feedback.reading.hint' | t }}</small></span>
                 <button type="button" class="ui-switch" [class.on]="withReading()" role="switch" [attr.aria-checked]="withReading()"
                         [attr.aria-label]="'feedback.reading' | t" (click)="withReading.set(!withReading())"></button>
+              </div>
+            }
+            @if (errorCount() > 0) {
+              <div class="ui-row">
+                <app-badge [size]="38" builtin="bug-outline" fixed="#ff5c5c"></app-badge>
+                <span class="ui-tx"><b class="wrap">{{ (errorCount() === 1 ? 'feedback.errors.one' : 'feedback.errors') | t:{ count: errorCount() } }}</b><small class="wrap">{{ 'feedback.errors.hint' | t }}</small></span>
+                <button type="button" class="ui-switch" [class.on]="withErrors()" role="switch" [attr.aria-checked]="withErrors()"
+                        [attr.aria-label]="'feedback.errors.label' | t" (click)="withErrors.set(!withErrors())"></button>
               </div>
             }
           </div>
@@ -106,6 +115,9 @@ export class FeedbackSheetComponent {
   readonly withDevice = signal(true);
   readonly withReading = signal(false);
   readonly hasReading = signal(false);
+  readonly withErrors = signal(true);
+  readonly errors = signal<LoggedError[]>([]);
+  readonly errorCount = computed(() => this.errors().length);
   readonly preview = signal(false);
 
   readonly ready = computed(() => this.text().trim().length > 0);
@@ -125,10 +137,12 @@ export class FeedbackSheetComponent {
       version,
       device,
       reading: this.withReading() && this.hasReading() ? this.feedback.reading() : null,
+      errors: this.withErrors() && this.errorCount() > 0 ? errorsText(this.errors()) : null,
     }, {
       kind: { bug: t('feedback.subject.bug'), idea: t('feedback.subject.idea'), question: t('feedback.subject.question') },
       device: t('feedback.device'),
       reading: t('feedback.reading'),
+      errors: t('feedback.errors.label'),
     });
   });
 
@@ -141,6 +155,8 @@ export class FeedbackSheetComponent {
       this.kind.set(ask.kind);
       this.hasReading.set(this.feedback.hasReading());
       this.withReading.set(ask.withReading);
+      this.errors.set(keptErrors());
+      this.withErrors.set(ask.kind === 'bug');
       this.preview.set(false);
     });
   }
