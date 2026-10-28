@@ -552,3 +552,21 @@ test('a move between products with no amount said is still a transfer (Jose, 202
   // A transfer word with no place said is still not understood.
   assert.equal(readPhrase('transferencia', c).intent, 'unknown');
 });
+
+test('opening a category, a goal or a cap, said any way (Jose, 2026-10-28)', () => {
+  for (const said of ['Ábreme la categoría mercado', 'muéstrame la categoría Restaurante', 'llévame a la categoría salario', 'open the category Ropa']) {
+    const r = readPhrase(said, ctx());
+    assert.equal(r.intent, 'openCategory', said);
+    assert.notEqual(r.categoryId, null, said);
+  }
+  assert.equal(readPhrase('llévame a la categoría salario', ctx()).categoryId, 20);
+  assert.equal(readPhrase('ábreme mis categorías', ctx()).categoryId, null);
+  for (const said of ['llévame a la meta del viaje', 'ábreme mi meta fondo de emergencia', 'show me my goals']) {
+    assert.equal(readPhrase(said, ctx()).intent, 'openGoal', said);
+  }
+  for (const said of ['muéstrame el tope de restaurantes', 'abre mis presupuestos']) {
+    assert.equal(readPhrase(said, ctx()).intent, 'openCap', said);
+  }
+  // How much is still the question about the goal or the cap.
+  assert.notEqual(readPhrase('muéstrame cuánto me falta para la meta del viaje', ctx()).intent, 'openGoal');
+});

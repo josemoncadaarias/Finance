@@ -64,6 +64,12 @@ export type Intent =
   | 'help'
   /** "Ábreme los productos de Nequi": a button straight to that account's products. */
   | 'openProducts'
+  /** "Ábreme la categoría Mercado": its movements on Inicio. */
+  | 'openCategory'
+  /** "Llévame a la meta del viaje": that goal's page. */
+  | 'openGoal'
+  /** "Muéstrame el tope de restaurantes": that cap's page. */
+  | 'openCap'
   /** An amount and a thing, and nothing saying which of the two above it is. */
   | 'unsure'
   | 'unknown';
@@ -306,6 +312,11 @@ const SAVE_MORE = /\b(como|que)\b.*\b(puedo|podria|debo|hago|hacer|podemos|deber
  */
 const OPEN_PRODUCTS = /\b(abre|abreme|abrir|abrirme|abrime|abrame|muestra|muestrame|mostrar|mostrarme|ensename|llevame|lleva|ir|vamos|ve|entra|entrar|quiero ver|ver|open|show me|go to|take me)\b.*\b(productos?|rendimientos?|bolsillos?|alcancias?|cdts?|products?|yields?|pockets?)\b/;
 const HOW_MUCH = /\b(cuanto|cuanta|cuantos|how much)\b/;
+/** A verb of opening or going, then the screen of a category, a goal or a cap. */
+const OPEN_VERB = '\\b(abre|abreme|abrir|abrirme|abrime|abrame|muestra|muestrame|mostrar|mostrarme|ensename|llevame|lleva|ir|vamos|ve|entra|entrar|quiero ver|ver|open|show me|go to|take me)\\b';
+const OPEN_CATEGORY = new RegExp(`${OPEN_VERB}.*\\b(categorias?|categor(y|ies))\\b`);
+const OPEN_GOAL = new RegExp(`${OPEN_VERB}.*\\b(metas?|goals?)\\b`);
+const OPEN_CAP = new RegExp(`${OPEN_VERB}.*\\b(topes?|presupuestos?|caps?|budgets?)\\b`);
 const HELP = /\bque (mas )?(puedes|sabes|puedo) (hacer|preguntar\w*|decir\w*)( (aqui|contigo|con (esto|el asistente|la app)|en (el )?chat|por mi))?\s*$|\bque (mas )?haces\b|\bque te puedo preguntar\b|\bque preguntas\b|^\s*ayuda\s*$|\bwhat can (you|i) (do|ask)\b|^\s*help\s*$/;
 const HAVE = /\b(cuanto|cuanta plata|cuanto dinero)\b.*\b(tengo|hay|tiene|me queda)\b|\b(mi|cual es mi)\b.*\b(patrimonio|saldo)\b|\bsaldo\b|\bhow much\b.*\b(do i have|is in|have i got)\b|\bmy (net worth|balance)\b/;
 const FREE_NOW = /\bcuanto\b.*\b(me queda|tengo|hay)\b.*\blibre\b|\bcuanto puedo gastar\b|\bhow much\b.*\bfree\b/;
@@ -728,6 +739,9 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   else if (has(folded, REMINDERS_LIST)) intent = 'reminders';
   else if (has(folded, REMIND)) intent = 'remind';
   else if (!amount && has(folded, OPEN_PRODUCTS) && !has(folded, HOW_MUCH)) intent = 'openProducts';
+  else if (!amount && has(folded, OPEN_GOAL) && !has(folded, HOW_MUCH)) intent = 'openGoal';
+  else if (!amount && has(folded, OPEN_CAP) && !has(folded, HOW_MUCH)) intent = 'openCap';
+  else if (!amount && has(folded, OPEN_CATEGORY) && !has(folded, HOW_MUCH)) intent = 'openCategory';
   else if (!amount && has(folded, LAST_TIME)) intent = 'lastTime';
   else if (!amount && has(folded, BIGGEST)) intent = 'biggest';
   else if (!amount && has(folded, SAVE_MORE) && !has(folded, YIELDS)) intent = 'saveMore';
@@ -841,7 +855,7 @@ export function readPhrase(text: string, ctx: PhraseContext): Reading {
   let categoryId: number | null = null;
   let categoryFrom: Reading['categoryFrom'] = null;
   if (side !== 'transfer') {
-    const cats = ctx.categories.filter(c => c.kind === wanted || intent === 'unsure' || intent === 'spentIn');
+    const cats = ctx.categories.filter(c => c.kind === wanted || intent === 'unsure' || intent === 'spentIn' || intent === 'openCategory');
     const byName = namesIn(left.map(t => ({ ...t })), cats, c => c.name)
       .filter(f => wordsOf(f.item.name).every(w => w.length >= 3 || wordsOf(f.item.name).length > 1));
     const exact = byName.filter(f => wordsOf(f.item.name).join(' ') === left.slice(f.at, f.at + f.length).map(t => t.word).join(' '));

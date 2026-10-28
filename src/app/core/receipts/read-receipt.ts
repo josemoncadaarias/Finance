@@ -101,14 +101,38 @@ function tidyName(text: string): string {
   return name;
 }
 
+/** A company's legal form at the end of its name: "SAS", "S.A.S.", "LTDA", "Inc."... */
+const LEGAL_FORM = /\b(s\.?\s?a\.?\s?s\.?|s\.?\s?a\.?|ltda\.?|limitada|e\.?\s?u\.?|s\.?\s?en\s?c\.?|inc\.?|llc|corp\.?|gmbh|s\.?\s?l\.?|s\.?\s?de\s?r\.?\s?l\.?)\s*$/i;
+/** The line with the shop's tax number: what sits around it is the shop's name. */
+const TAX_ID = /\b(nit|rut|rfc|ruc|cuit|nif|cif)\b/i;
+
+function looksLikeName(line: string): boolean {
+  const letters = (line.match(/\p{L}/gu) ?? []).length;
+  const visible = line.replace(/\s/g, '').length;
+  return letters >= 3 && letters >= visible * 0.5 && !NOT_A_NAME.test(line) && !PLAIN.test(line);
+}
+
+/**
+ * The shop's name. A receipt prints it around its tax number: the legal name
+ * just above it ("ARCOS DORADOS COLOMBIA SAS"), and often the name on the door
+ * just under it ("MCDONALDS PUERTA DEL NORTE"), which is the one a person
+ * knows. Without a tax number, a line ending in a legal form; and only then the
+ * first line with words - a sticker or a handwritten mark on the photo can come
+ * before the shop (Jose, 2026-10-25: "Dobi", from "Doble aquí").
+ */
 function shopOf(lines: readonly string[]): string | null {
-  for (const line of lines.slice(0, 8)) {
-    const letters = (line.match(/\p{L}/gu) ?? []).length;
-    const visible = line.replace(/\s/g, '').length;
-    if (letters < 3 || letters < visible * 0.5) continue;
-    if (NOT_A_NAME.test(line) || PLAIN.test(line)) continue;
-    return tidyName(line);
+  const head = lines.slice(0, 25);
+  const taxAt = head.findIndex(line => TAX_ID.test(line));
+  if (taxAt >= 0) {
+    const above = taxAt > 0 && looksLikeName(head[taxAt - 1]) ? head[taxAt - 1] : null;
+    const below = head[taxAt + 1] && looksLikeName(head[taxAt + 1]) && !LEGAL_FORM.test(head[taxAt + 1]) ? head[taxAt + 1] : null;
+    if (above && LEGAL_FORM.test(above) && below) return tidyName(below);
+    if (above) return tidyName(above.replace(LEGAL_FORM, '').trim() || above);
+    if (below) return tidyName(below);
   }
+  const legal = head.find(line => LEGAL_FORM.test(line) && looksLikeName(line));
+  if (legal) return tidyName(legal.replace(LEGAL_FORM, '').trim() || legal);
+  for (const line of lines.slice(0, 8)) if (looksLikeName(line)) return tidyName(line);
   return null;
 }
 
