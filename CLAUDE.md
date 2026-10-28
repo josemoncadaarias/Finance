@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1110 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1111 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5812,6 +5812,19 @@ with testers runs; the paywall is finished after them.
   vista" (`home.today`, can be hidden and dragged; an order kept from before
   takes it last). Home tour step `since: 11`. Checked in a browser on Jose's
   backup.
+  **It follows the account chosen on top** (Jose, 2026-10-28: it showed the
+  whole picture on every account). "Todas las cuentas" keeps the figure
+  above; one account shows its own money (`accountFree` in
+  `AssistantService`, pure `freeInAccount` in `free-money.ts`, tested): what
+  it holds without its CDTs, less what goals keep in its own places (a goal
+  over "Todas tus cuentas" is not split), less the card and loan payments
+  usually made from it (`fromAccountId`); what the goals would want this
+  month is not split between accounts and stays in the whole figure only,
+  which the sheet says. A card, a loan, an account outside net worth or an
+  archived one - every account the whole figure does not count - shows
+  nothing. A foreign account is said in pesos, as the whole figure is. Home
+  tour step reworded, `since: 15`. Checked in a browser on the sample data
+  (all, three accounts, a card hidden, the sheet).
 - **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
   movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
   receipt's photo is part 2). On Android, the statement pickers

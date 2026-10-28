@@ -7,7 +7,10 @@
  * never worked out a second way (rule 20). What the accounts counted in net
  * worth hold, less what the goals already keep, the payments still due this
  * month (cards' statements, loan installments) and what the goals would
- * want this month. Read again on every data change and on a new day.
+ * want this month. Read again on every data change, on a new day and when
+ * the account chosen on top changes: one account shows its own money alone
+ * (`accountFree`), and a card, a loan or an account outside net worth shows
+ * nothing (Jose, 2026-10-28).
  */
 
 import { Component, effect, inject, signal, untracked } from '@angular/core';
@@ -21,6 +24,7 @@ import { AssistantService } from '../../core/assistant/assistant.service';
 import { perDay, type FreeMoney } from '../../core/assistant/free-money';
 import { formatMoney } from '../../core/database/money';
 import { isoDay } from '../../core/filters/period';
+import { FilterService } from '../../core/filters/filter.service';
 
 @Component({
   selector: 'app-safe-today',
@@ -36,10 +40,18 @@ import { isoDay } from '../../core/filters/period';
         </span>
         @if (f.freeMinor > 0) {
           <b class="big">{{ money(daily()) }}</b>
-          <small>{{ (f.daysLeft === 1 ? 'today.line.one' : 'today.line') | t:{ free: money(f.freeMinor), end: day(f.monthEnd), count: f.daysLeft } }}</small>
+          @if (account(); as name) {
+            <small>{{ (f.daysLeft === 1 ? 'today.line.one.account' : 'today.line.account') | t:{ free: money(f.freeMinor), end: day(f.monthEnd), count: f.daysLeft, account: name } }}</small>
+          } @else {
+            <small>{{ (f.daysLeft === 1 ? 'today.line.one' : 'today.line') | t:{ free: money(f.freeMinor), end: day(f.monthEnd), count: f.daysLeft } }}</small>
+          }
         } @else {
           <b class="big red">{{ money(0) }}</b>
-          <small>{{ 'today.short' | t:{ short: money(-f.freeMinor) } }}</small>
+          @if (account(); as name) {
+            <small>{{ 'today.short.account' | t:{ short: money(-f.freeMinor), account: name } }}</small>
+          } @else {
+            <small>{{ 'today.short' | t:{ short: money(-f.freeMinor) } }}</small>
+          }
         }
       </button>
 
@@ -49,10 +61,14 @@ import { isoDay } from '../../core/filters/period';
             <button type="button" class="sheet-cancel" (click)="open.set(false)">{{ 'ui.close' | t }}</button>
             <div class="grab"></div>
             <h2 class="center">{{ 'today.how.title' | t }}</h2>
-            <p class="hint center">{{ (f.daysLeft === 1 ? 'today.how.span.one' : 'today.how.span') | t:{ end: day(f.monthEnd), count: f.daysLeft } }}</p>
+            @if (account(); as name) {
+              <p class="hint center">{{ (f.daysLeft === 1 ? 'today.how.span.one.account' : 'today.how.span.account') | t:{ end: day(f.monthEnd), count: f.daysLeft, account: name } }}</p>
+            } @else {
+              <p class="hint center">{{ (f.daysLeft === 1 ? 'today.how.span.one' : 'today.how.span') | t:{ end: day(f.monthEnd), count: f.daysLeft } }}</p>
+            }
 
             <div class="ui-list">
-              <div class="ui-row plain"><span class="ui-tx"><b>{{ 'ai.money.accounts' | t }}</b></span><b>{{ money(f.inAccountsMinor) }}</b></div>
+              <div class="ui-row plain"><span class="ui-tx"><b>{{ account() ? ('today.how.inAccount' | t:{ account: account() ?? '' }) : ('ai.money.accounts' | t) }}</b></span><b>{{ money(f.inAccountsMinor) }}</b></div>
               @if (f.inGoalsMinor > 0) {
                 <div class="ui-row plain"><span class="ui-tx"><b>{{ 'ai.money.inGoals' | t }}</b></span><b>{{ minus(f.inGoalsMinor) }}</b></div>
               }
@@ -60,10 +76,12 @@ import { isoDay } from '../../core/filters/period';
               @for (p of f.payments; track p.kind + p.id + p.dueOn) {
                 <div class="ui-row plain sub"><span class="ui-tx"><small>{{ p.name }} · {{ day(p.dueOn) }}</small></span><small>{{ money(p.amountMinor) }}</small></div>
               }
-              <div class="ui-row plain"><span class="ui-tx"><b>{{ 'ai.money.goals' | t }}</b></span><b>{{ minus(f.goalsMonthMinor) }}</b></div>
-              @for (g of f.goals; track g.goal.id) {
-                @if (g.leftMinor > 0) {
-                  <div class="ui-row plain sub"><span class="ui-tx"><small>{{ g.goal.name }}</small></span><small>{{ money(g.leftMinor) }}</small></div>
+              @if (!account()) {
+                <div class="ui-row plain"><span class="ui-tx"><b>{{ 'ai.money.goals' | t }}</b></span><b>{{ minus(f.goalsMonthMinor) }}</b></div>
+                @for (g of f.goals; track g.goal.id) {
+                  @if (g.leftMinor > 0) {
+                    <div class="ui-row plain sub"><span class="ui-tx"><small>{{ g.goal.name }}</small></span><small>{{ money(g.leftMinor) }}</small></div>
+                  }
                 }
               }
               <div class="ui-row plain total">
@@ -76,7 +94,7 @@ import { isoDay } from '../../core/filters/period';
               </div>
             </div>
 
-            <p class="hint note">{{ 'today.how.note' | t }}</p>
+            <p class="hint note">{{ (account() ? 'today.how.note.account' : 'today.how.note') | t }}</p>
             <button type="button" class="ui-btn ghost" (click)="ask()">
               <ion-icon name="sparkles-outline"></ion-icon>{{ 'today.ask' | t }}
             </button>
@@ -112,23 +130,32 @@ export class SafeTodayComponent {
   private readonly assistant = inject(AssistantService);
   private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
+  private readonly filter = inject(FilterService);
 
   readonly free = signal<FreeMoney | null>(null);
   readonly daily = signal(0);
   readonly open = signal(false);
+  /** The account chosen on Inicio, by name, or null for every account. */
+  readonly account = signal<string | null>(null);
   private read = '';
 
   constructor() {
     effect(() => {
       const version = this.database.dataVersion();
+      const chosen = this.filter.accountId();
       if (this.database.status() !== 'ready') return;
-      const mark = `${version}:${isoDay(new Date())}`;
+      const mark = `${version}:${isoDay(new Date())}:${chosen ?? 'all'}`;
       if (mark === this.read) return;
       this.read = mark;
       void untracked(async () => {
         try {
-          const f = (await this.assistant.picture()).free;
+          const picture = await this.assistant.picture();
+          // One account chosen: that account's own money, or nothing for a
+          // card, a loan or an account outside net worth (Jose, 2026-10-28).
+          const f = chosen === null ? picture.free : this.assistant.accountFree(picture, chosen);
+          this.account.set(chosen === null ? null : picture.accounts.find(a => a.account.id === chosen)?.account.name ?? null);
           this.free.set(f);
+          if (f === null) return;
           this.daily.set(perDay(f.freeMinor, f.daysLeft));
         } catch {
           this.free.set(null);

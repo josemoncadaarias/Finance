@@ -133,6 +133,27 @@ export function freeMoney(input: {
   };
 }
 
+/**
+ * The same figure for one account alone (Jose, 2026-10-28: Inicio showed the
+ * whole picture whatever account was chosen on top). What the account holds,
+ * less what its own goal places keep, less the payments that usually leave
+ * from it this month. What the goals would want this month is not split
+ * between accounts - nothing says which account a goal is fed from - so it
+ * stays in the figure for every account together.
+ */
+export function freeInAccount(input: {
+  accountId: number;
+  holdsMinor: number;
+  payments: readonly DuePayment[];
+  /** What each goal keeps in this account, up to the goal's figure. */
+  keptMinor: number;
+  today: string;
+}): FreeMoney {
+  const whole = freeMoney({ inAccountsMinor: input.holdsMinor, payments: input.payments.filter(p => p.fromAccountId === input.accountId), goals: [], today: input.today });
+  const kept = Math.max(0, Math.min(input.keptMinor, Math.max(0, input.holdsMinor)));
+  return { ...whole, inGoalsMinor: kept, freeMinor: whole.freeMinor - kept };
+}
+
 /** A sum spread over the days left, rounded down to whole hundreds of pesos. */
 export function perDay(minor: number, days: number): number {
   if (minor <= 0 || days <= 0) return 0;

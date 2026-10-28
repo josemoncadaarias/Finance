@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afford, freeMoney, goalThisMonth, perDay } from '../../src/app/core/assistant/free-money.ts';
+import { afford, freeInAccount, freeMoney, goalThisMonth, perDay } from '../../src/app/core/assistant/free-money.ts';
 
 const P = pesos => Math.round(pesos * 100);
 const TODAY = '2026-10-19';
@@ -83,4 +83,19 @@ test('can it be afforded: free, its cap, or how much it lacks', () => {
   assert.equal(afford(P(1_250_000), P(300_000), null).verdict, 'yes');
   assert.deepEqual(afford(P(2_650_000), P(3_000_000), null),
     { verdict: 'no', afterMinor: -P(350_000), shortMinor: P(350_000), capOverMinor: 0 });
+});
+
+test('one account alone: what it holds, less its goal places and the payments that leave from it', () => {
+  const payments = [
+    { kind: 'card', id: 9, name: 'Tarjeta', amountMinor: P(400_000), dueOn: '2026-10-25', fromAccountId: 3 },
+    { kind: 'loan', id: 8, name: 'Préstamo', amountMinor: P(900_000), dueOn: '2026-10-28', fromAccountId: 4 },
+  ];
+  const one = freeInAccount({ accountId: 3, holdsMinor: P(2_000_000), payments, keptMinor: P(500_000), today: TODAY });
+  assert.deepEqual(one.payments.map(p => p.name), ['Tarjeta'], 'only what is paid from this account');
+  assert.equal(one.inGoalsMinor, P(500_000));
+  assert.equal(one.goalsMonthMinor, 0, 'a goal\'s month is not split between accounts');
+  assert.equal(one.freeMinor, P(1_100_000));
+  assert.equal(one.daysLeft, 13);
+  // A goal never keeps more than the account holds.
+  assert.equal(freeInAccount({ accountId: 3, holdsMinor: P(100_000), payments: [], keptMinor: P(500_000), today: TODAY }).freeMinor, 0);
 });
