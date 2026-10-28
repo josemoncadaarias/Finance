@@ -258,6 +258,7 @@ const TOUR_LIST = {
       { title: 'tour.review.7.title', text: 'tour.review.7.text', since: 3 },
       { title: 'tour.review.8.title', text: 'tour.review.8.text', since: 4 },
       { title: 'tour.review.9.title', text: 'tour.review.9.text', since: 5 },
+      { title: 'tour.review.10.title', text: 'tour.review.10.text', since: 6 },
     ],
   },
   notifications: {

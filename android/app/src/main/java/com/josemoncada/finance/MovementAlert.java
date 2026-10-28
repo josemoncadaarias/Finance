@@ -180,7 +180,11 @@ final class MovementAlert {
                 // source never reports one movement twice: the same amount
                 // again from it is another movement, and rings.
                 String other = one.optString("source");
-                if (sameMoney && near && !other.equals(source)) {
+                // Money leaving one bank and the same money arriving at
+                // another is a transfer's two halves, not one movement told
+                // twice: it joins the notice as that transfer (Jose, 2026-10-28).
+                boolean halves = direction != 0 && one.optInt("direction") == -direction;
+                if (sameMoney && near && !other.equals(source) && !halves) {
                     note(context, source, at, "same", one.optString("name", other));
                     return;
                 }
@@ -190,6 +194,7 @@ final class MovementAlert {
             mark.put("at", at);
             mark.put("source", source);
             mark.put("name", name);
+            mark.put("direction", direction);
             rang.put(mark);
             while (rang.length() > KEEP) rang.remove(0);
             JSONArray pending = array(context, PENDING);
@@ -299,7 +304,22 @@ final class MovementAlert {
         String body;
         Intent open = new Intent(context, MainActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        if (count == 1) {
+        int[] partner = transferHalves(pending);
+        int pairs = 0;
+        for (int i = 0; i < count; i += 1) if (partner[i] > i) pairs += 1;
+        int movements = count - pairs;
+        if (movements == 1 && pairs == 1) {
+            // One transfer told by both banks: said as the transfer, and the
+            // tap opens it - from the half where the money left.
+            JSONObject leaving = pending.optJSONObject(0).optInt("direction") < 0 ? pending.optJSONObject(0) : pending.optJSONObject(1);
+            JSONObject arriving = leaving == pending.optJSONObject(0) ? pending.optJSONObject(1) : pending.optJSONObject(0);
+            String figure = "\u2060$\u00A0" + shortAmount(leaving.optString("amount"));
+            title = (spanish ? "🔁 Transferencia detectada ·\u00A0" : "🔁 Transfer detected ·\u00A0") + figure;
+            body = spanish
+                    ? "Salió de " + leaving.optString("name") + " y llegó a " + arriving.optString("name")
+                    : "Left " + leaving.optString("name") + " and arrived at " + arriving.optString("name");
+            open.putExtra(EXTRA_OPEN, leaving.toString());
+        } else if (count == 1) {
             int direction = last.optInt("direction");
             String what = spanish
                     ? (direction < 0 ? "💸 Gasto detectado" : direction > 0 ? "💰 Ingreso detectado" : "🔔 Movimiento detectado")
@@ -316,14 +336,17 @@ final class MovementAlert {
             body = sms ? last.optString("text") : last.optString("name") + ": " + last.optString("text");
             open.putExtra(EXTRA_OPEN, last.toString());
         } else {
-            title = spanish ? "📥 " + count + " movimientos detectados" : "📥 " + count + " movements detected";
+            // A transfer told by both banks counts once, as "⇄ $ X".
+            title = spanish ? "📥 " + movements + " movimientos detectados" : "📥 " + movements + " movements detected";
             StringBuilder list = new StringBuilder();
             for (int i = 0; i < count; i += 1) {
                 JSONObject one = pending.optJSONObject(i);
                 if (one == null) continue;
+                if (partner[i] >= 0 && partner[i] < i) continue;
                 if (list.length() > 0) list.append(" · ");
                 int direction = one.optInt("direction");
-                list.append(direction > 0 ? "+" : direction < 0 ? "−" : "").append("$\u00A0").append(shortAmount(one.optString("amount")));
+                String sign = partner[i] >= 0 ? "⇄\u00A0" : direction > 0 ? "+" : direction < 0 ? "−" : "";
+                list.append(sign).append("$\u00A0").append(shortAmount(one.optString("amount")));
             }
             body = list.toString();
             open.putExtra(EXTRA_OPEN, "review");
@@ -364,6 +387,37 @@ final class MovementAlert {
             // The person turned this app's notifications off: proposals still wait in the app.
             return "off";
         }
+    }
+
+    /** Two banks telling one transfer: the same money, out of one and into another, within two hours. */
+    private static final long PAIR_WINDOW = 2L * 60 * 60 * 1000;
+
+    /**
+     * For each waiting message, the index of the other half of its transfer,
+     * or -1. Kept in step with `transferPairs` (core/proposals/matching.ts) with PAIR_WINDOW in proposals.repository.ts: the
+     * same amount, opposite directions, different sources, close in time;
+     * each message is one half of at most one transfer.
+     */
+    private static int[] transferHalves(JSONArray pending) {
+        int count = pending.length();
+        int[] partner = new int[count];
+        java.util.Arrays.fill(partner, -1);
+        for (int i = 0; i < count; i += 1) {
+            JSONObject one = pending.optJSONObject(i);
+            if (one == null || partner[i] >= 0 || one.optInt("direction") == 0) continue;
+            for (int j = i + 1; j < count; j += 1) {
+                JSONObject two = pending.optJSONObject(j);
+                if (two == null || partner[j] >= 0) continue;
+                if (two.optInt("direction") != -one.optInt("direction")) continue;
+                if (!one.optString("digits").equals(two.optString("digits"))) continue;
+                if (one.optString("source").equals(two.optString("source"))) continue;
+                if (Math.abs(one.optLong("at") - two.optLong("at")) > PAIR_WINDOW) continue;
+                partner[i] = j;
+                partner[j] = i;
+                break;
+            }
+        }
+        return partner;
     }
 
     private static void ensureChannel(Context context) {

@@ -49,6 +49,7 @@ import { todayIso } from '../../core/yields/days';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import type { Quiet } from '../../core/notices/molds';
 import { ToastService } from '../../shared/ui/toast.service';
+import { MOVE_COLOR } from '../../core/theme/palette';
 
 /** A proposal with everything the screen needs to explain it. */
 interface Line {
@@ -955,6 +956,29 @@ export class ReviewPage {
   });
 
   /** The category on a row, for the button that opens the sheet. */
+  /** Transfers keep their own blue, never the accent. */
+  readonly MOVE = MOVE_COLOR;
+
+  abs(minor: number | null): number {
+    return Math.abs(minor ?? 0);
+  }
+
+  /**
+   * Two banks telling one transfer read as that transfer (Jose, 2026-10-28:
+   * the row showed one bank's words and its learned category): where the
+   * money left and where it arrived, and no category - each half shows its
+   * own again once separated.
+   */
+  pairTitle(line: Line): string {
+    const name = (id: number | null) => (id === null ? null : this.accounts().find(one => one.id === id)?.name) ?? '';
+    const partner = line.partner;
+    if (!partner) return line.proposal.description ?? '';
+    const leaving = (line.proposal.amount_minor ?? 0) < 0;
+    const from = leaving ? line.proposal.account_id : partner.account_id;
+    const to = leaving ? partner.account_id : line.proposal.account_id;
+    return `${name(from)} → ${name(to)}`;
+  }
+
   categoryOf(line: Line): CategoryRow | null {
     const id = line.proposal.category_id;
     return id === null ? null : this.categoriesById().get(id) ?? null;
