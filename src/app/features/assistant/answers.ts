@@ -86,6 +86,8 @@ export interface RichButton {
   transferTo?: { accountId: number; amountMinor: number };
   /** Opens the report on this period, every account. */
   report?: Period;
+  /** Opens this category's movements on Inicio. */
+  category?: OpenCategory;
 }
 
 export interface RichCard {
@@ -1010,4 +1012,39 @@ export function openProducts(s: Speech, account: { id: number; name: string } | 
   }
   if (earning.length === 0) return { said: { key: 'ai.open.none', values: {} }, card: card([], [yields]), next: [] };
   return { said: { key: 'ai.open.which', values: {} }, card: null, next: [], ask: others };
+}
+
+/** "Ábreme la categoría Mercado": a button to its movements this month, or the names to choose from. */
+export function openCategory(s: Speech, category: { name: string } | null, period: Period, others: readonly string[]): Answer {
+  if (category) {
+    return {
+      said: { key: 'ai.openCat.go', values: { name: category.name } },
+      card: card([], [{ label: s.t('ai.openCat.button', { name: category.name }), ghost: false, category: { category: category.name, period } }]),
+      next: [],
+    };
+  }
+  return { said: { key: 'ai.openCat.which', values: {} }, card: null, next: [],
+    ask: others.slice(0, 4).map(name => s.t('ai.openCat.askFor', { name })) };
+}
+
+/** "Llévame a la meta del viaje" / "muéstrame el tope de Mercado": its page, or the ones to choose from. */
+export function openPlan(s: Speech, kind: 'goal' | 'cap', found: { id: number; name: string } | null,
+                         all: readonly { id: number; name: string }[]): Answer {
+  const list: RichButton = { label: s.t('ai.openPlan.list'), ghost: true, route: ['/plans'], query: kind === 'goal' ? { face: 'goals' } : {} };
+  if (found) {
+    const route = kind === 'goal' ? ['/plans', 'goal', String(found.id)] : ['/plans', String(found.id)];
+    return {
+      said: { key: kind === 'goal' ? 'ai.openPlan.goal' : 'ai.openPlan.cap', values: { name: found.name } },
+      card: card([], [{ label: s.t(kind === 'goal' ? 'ai.openPlan.goalButton' : 'ai.openPlan.capButton', { name: found.name }), ghost: false, route }]),
+      next: [],
+    };
+  }
+  if (all.length === 0) {
+    return { said: { key: kind === 'goal' ? 'ai.openPlan.noGoals' : 'ai.openPlan.noCaps', values: {} }, card: card([], [list]), next: [] };
+  }
+  return {
+    said: { key: kind === 'goal' ? 'ai.openPlan.whichGoal' : 'ai.openPlan.whichCap', values: {} },
+    card: card([], [list]), next: [],
+    ask: all.slice(0, 4).map(p => s.t(kind === 'goal' ? 'ai.openPlan.askGoal' : 'ai.openPlan.askCap', { name: p.name })),
+  };
 }

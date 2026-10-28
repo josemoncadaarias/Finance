@@ -331,3 +331,22 @@ function invoice() {
 test('an invoice whose items list a tax column reads the total, not the discount', () => {
   onEveryPhone(invoice(), 2821000);
 });
+
+test('the shop is named around its tax number, not by a sticker on the photo', () => {
+  const box = (text, top, left = 700) => ({ text, left, top, right: left + 14 * text.length, bottom: top + 40 });
+  const page = {
+    width: 1800, height: 2400, lines: [
+      box('Doblar aqui', 40), box('Cliente', 130), box('ATENCION NO ACEPTE', 420),
+      box('INVERSIONES AURORA ANDINA SAS', 770), box('NIT. 900.555.123-4', 810),
+      box('HAMBURGUESAS AURORA CENTRO', 850), box('RESPONSABLE DE IVA', 890),
+      box('Combo 1 1 25000', 1000, 500), box('TOTAL COP 25000', 1100, 1100),
+    ],
+  };
+  assert.equal(readReceiptPhoto([page], TODAY).shop, 'Hamburguesas Aurora Centro');
+  // The legal name alone, when nothing under the tax number is a name; its legal form left out.
+  const legalOnly = { ...page, lines: page.lines.filter(l => !l.text.startsWith('HAMBURGUESAS')) };
+  assert.equal(readReceiptPhoto([legalOnly], TODAY).shop, 'Inversiones Aurora Andina');
+  // A small shop printing its own name above the tax number keeps it.
+  const small = { ...page, lines: [box('Doblar aqui', 40), box('PANADERIA EL TRIGAL', 300), box('NIT 71.222.333-1', 340), box('TOTAL 8.500', 600)] };
+  assert.equal(readReceiptPhoto([small], TODAY).shop, 'Panaderia El Trigal');
+});

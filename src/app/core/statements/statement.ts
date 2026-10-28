@@ -147,7 +147,7 @@ const CAME_IN = /\b(abono|deposito|depósito|consignacion|consignación|recibida
 export function readStatement(
   items: readonly TextItem[],
   minorUnits: number,
-  options: { card?: boolean } = {},
+  options: { card?: boolean; today?: IsoDate } = {},
 ): StatementReading {
   const lines = linesOf(items);
   const whole = lines.map(line => line.text).join(' ');
@@ -163,10 +163,16 @@ export function readStatement(
   // Every line that begins with a date is a movement; everything else on the
   // page is a heading, a total or the bank's telephone number.
   const dateOfLine = datingOf(lines, year);
-  const dated = lines
+  let dated = lines
     .map(line => ({ line, on: dateOfLine(line), money: amountsOf(line, minorUnits) }))
     .filter((row): row is { line: StatementLine; on: IsoDate; money: MoneyToken[] } =>
       row.on !== null && row.money.length > 0);
+  // A bank app's screenshot lists the movements under a heading of their
+  // day ("Hoy", "Lunes 20 de octubre") with no date on each row: those rows
+  // take the heading's day, when that reads more movements than the dates did.
+  const headed = rowsUnderDayHeadings(lines, year, minorUnits, options.today ?? null, dateOfLine);
+  if (headed.length > dated.length) dated = headed;
+  const runOn = continuationsOf(lines, dated.map(d => d.line), dateOfLine, minorUnits);
 
   // A card's statement has no running balance: its other columns (what was
   // billed of an installment purchase, what is left of it) can still line
@@ -217,7 +223,7 @@ export function readStatement(
     rows.push({
       occurred_on: on,
       amount_minor: amount,
-      description: descriptionOf(line, money, year),
+      description: [descriptionOf(line, money, year), ...(runOn.get(line) ?? [])].filter(Boolean).join(' '),
       balance_minor: balance === null ? null : held(balance),
       line: line.text,
       page: line.page,
@@ -440,6 +446,89 @@ function summaryLineFor(
     }
   }
   return null;
+}
+
+/** Words of a heading or a total that never carry on a movement's description. */
+const NOT_RUN_ON = /(saldo|total|cupo|disponible|p[aá]gina|fecha|descripci[oó]n|valor|movimientos|resumen|extracto)/i;
+/** Words of a line that is no movement under a day heading. */
+const NOT_UNDER_HEADING = /(saldo|disponible|total|cupo|m[ií]nimo|l[ií]mite|promedio)/i;
+
+/**
+ * A movement's description that runs onto the lines under it ("COMPRA EN
+ * SUPERMERCADO" / "LA ESQUINA SEDE NORTE"): lines with no date and no amount,
+ * starting right of where the dated line starts and before its amounts, and
+ * closer to it than the rows are to each other. Two lines at most; none at
+ * all where the rows are too few to know how far apart they sit.
+ */
+function continuationsOf(
+  lines: readonly StatementLine[], rows: readonly StatementLine[],
+  dateOfLine: (line: StatementLine) => IsoDate | null, minorUnits: number,
+): Map<StatementLine, string[]> {
+  const found = new Map<StatementLine, string[]>();
+  const gaps: number[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].page === rows[i - 1].page) gaps.push(Math.abs(rows[i - 1].y - rows[i].y));
+  }
+  if (gaps.length === 0) return found;
+  gaps.sort((a, b) => a - b);
+  const rowGap = gaps[Math.floor(gaps.length / 2)];
+  const isRow = new Set(rows);
+  for (const row of rows) {
+    const at = lines.indexOf(row);
+    const left = Math.min(...row.items.map(item => item.x));
+    const money = amountsOf(row, minorUnits);
+    const right = money.length > 0 ? Math.min(...money.map(token => token.x)) : Infinity;
+    const more: string[] = [];
+    let previous = row;
+    for (let j = at + 1; j < lines.length && more.length < 2; j++) {
+      const line = lines[j];
+      if (isRow.has(line) || line.page !== row.page) break;
+      if (Math.abs(previous.y - line.y) >= rowGap * 0.75) break;
+      const start = Math.min(...line.items.map(item => item.x));
+      if (amountsOf(line, minorUnits).length > 0 || dateOfLine(line) !== null || NOT_RUN_ON.test(line.text)
+        || start <= left + 4 || start >= right || line.text.length > 60) break;
+      more.push(line.text);
+      previous = line;
+    }
+    if (more.length > 0) found.set(row, more);
+  }
+  return found;
+}
+
+/** The day a heading of a bank app's list names: "Hoy", "Ayer", "Lunes, 20 de octubre". */
+function headingDate(text: string, year: number | null, today: IsoDate | null): IsoDate | null {
+  const plain = text.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,]/g, ' ');
+  if (today && /^(hoy|today)$/.test(plain.trim())) return today;
+  if (today && /^(ayer|yesterday)$/.test(plain.trim())) {
+    const d = new Date(`${today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10) as IsoDate;
+  }
+  const words = plain.replace(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday|lun|mar|mie|jue|vie|sab|dom|mon|tue|wed|thu|fri|sat|sun|de|del)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  // Only a date's own words: "Fecha de corte 20/09/2026" is a heading of another kind.
+  const parts = words.split(' ');
+  if (!/\d/.test(words) || parts.length > 3
+    || !parts.every(w => /^\d{1,4}$/.test(w) || /^\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$/.test(w) || monthOf(w) !== undefined)) return null;
+  return dateIn(words, year ?? (today ? Number(today.slice(0, 4)) : null));
+}
+
+/** Rows read under day headings: each line with an amount and no date takes the last heading's day. */
+function rowsUnderDayHeadings(
+  lines: readonly StatementLine[], year: number | null, minorUnits: number, today: IsoDate | null,
+  dateOfLine: (line: StatementLine) => IsoDate | null,
+): { line: StatementLine; on: IsoDate; money: MoneyToken[] }[] {
+  const found: { line: StatementLine; on: IsoDate; money: MoneyToken[] }[] = [];
+  let day: IsoDate | null = null;
+  for (const line of lines) {
+    const money = amountsOf(line, minorUnits);
+    if (money.length === 0) {
+      if (line.text.length <= 40) day = headingDate(line.text, year, today) ?? day;
+      continue;
+    }
+    if (day !== null && dateOfLine(line) === null && !NOT_UNDER_HEADING.test(line.text)) found.push({ line, on: day, money });
+  }
+  return found;
 }
 
 /** A card statement's other columns: rates, "N/A", "1 de 8" installments. */

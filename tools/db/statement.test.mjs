@@ -500,3 +500,58 @@ test('a figure found nowhere but in a total leaves the statement "off", with not
   assert.equal(read.offBy_minor, -150_000);
   assert.ok(read.rows.every(row => !row.summary));
 });
+
+// ---------------------------------------------------------------------------
+// A description on two lines, and rows under day headings (Jose, 2026-10-28)
+// ---------------------------------------------------------------------------
+
+test('a movement whose description runs onto the next line keeps all of it', () => {
+  const at = (y, ...cells) => cells.map(([x, text]) => ({ text, x, y, page: 1 }));
+  const items = [
+    ...at(760, [40, 'Saldo anterior'], [500, '1.000.000,00']),
+    ...at(700, [40, '05/10/2026'], [110, 'COMPRA EN SUPERMERCADO'], [400, '-45.900,00'], [500, '954.100,00']),
+    ...at(690, [110, 'LA ESQUINA SEDE NORTE']),
+    ...at(676, [40, '07/10/2026'], [110, 'ABONO NOMINA'], [400, '2.000.000,00'], [500, '2.954.100,00']),
+    ...at(652, [40, '09/10/2026'], [110, 'PAGO SERVICIOS'], [400, '-100.000,00'], [500, '2.854.100,00']),
+    ...at(642, [110, 'ENERGIA HOGAR']),
+    ...at(600, [40, 'Saldo final'], [500, '2.854.100,00']),
+    ...at(560, [40, 'Linea de atencion 01 8000 000000']),
+  ];
+  const r = readStatement(items, COP);
+  assert.deepEqual(r.rows.map(row => row.description),
+    ['COMPRA EN SUPERMERCADO LA ESQUINA SEDE NORTE', 'ABONO NOMINA', 'PAGO SERVICIOS ENERGIA HOGAR']);
+  assert.equal(r.balances, 'checked');
+});
+
+test('a bank app screenshot lists its movements under the day, with no date on each row', () => {
+  const at = (y, ...cells) => cells.map(([x, text]) => ({ text, x, y, page: 1 }));
+  const items = [
+    ...at(760, [40, 'Saldo disponible'], [400, '$1.234.567']),
+    ...at(700, [40, 'Hoy']),
+    ...at(680, [40, 'Taxi aeropuerto'], [400, '-$12.300']),
+    ...at(660, [40, 'Ayer']),
+    ...at(640, [40, 'Nomina empresa'], [400, '+$2.000.000']),
+    ...at(620, [40, 'Lunes, 20 de octubre']),
+    ...at(600, [40, 'Tienda La Esquina'], [400, '-$45.900']),
+    ...at(580, [40, 'Panaderia Sol'], [400, '-$8.500']),
+  ];
+  const r = readStatement(items, COP, { today: '2026-10-28' });
+  assert.deepEqual(r.rows.map(row => [row.occurred_on, row.description, row.amount_minor]), [
+    ['2026-10-28', 'Taxi aeropuerto', -1230000],
+    ['2026-10-27', 'Nomina empresa', 200000000],
+    ['2026-10-20', 'Tienda La Esquina', -4590000],
+    ['2026-10-20', 'Panaderia Sol', -850000],
+  ]);
+});
+
+test('a heading that is not a day ("Fecha de corte") never dates the lines under it', () => {
+  const at = (y, ...cells) => cells.map(([x, text]) => ({ text, x, y, page: 1 }));
+  const items = [
+    ...at(760, [40, 'Fecha de corte 20/09/2026']),
+    ...at(740, [40, 'Intereses'], [400, '$11.101,42']),
+    ...at(700, [40, '05/09/2026'], [110, 'COMPRA'], [400, '$45.900,00']),
+    ...at(680, [40, '07/09/2026'], [110, 'COMPRA'], [400, '$12.000,00']),
+  ];
+  const r = readStatement(items, COP);
+  assert.equal(r.rows.length, 2);
+});

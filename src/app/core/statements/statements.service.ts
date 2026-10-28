@@ -18,6 +18,7 @@ import { accountIn, readStatement, type StatementAccount, type StatementReading 
 import { textOfPdf, stopIfCancelled, StatementUnreadable, type ReadingProgress } from './pdf-text';
 import { isImage, textOfImages } from './image-text';
 import type { TextItem } from './tokens';
+import { isoDay } from '../filters/period';
 import { I18nService } from '../i18n/i18n.service';
 
 /** What a caller passes to watch a reading, and to stop it. */
@@ -83,7 +84,7 @@ export class StatementsService {
     const file = files[0];
     const items = await textOf(files, password, watch);
     watch.onProgress?.({ part: 0.7, stage: 'reading' });
-    const reading = readStatement(items, DEFAULT_MINOR_UNITS);
+    const reading = readStatement(items, DEFAULT_MINOR_UNITS, { today: isoDay(new Date()) });
     if (reading.rows.length === 0) throw new StatementUnreadable(this.i18n.t('ui.import.noRows'));
     stopIfCancelled(watch.signal);
     watch.onProgress?.({ part: 1, stage: 'writing' });
@@ -126,7 +127,7 @@ export class StatementsService {
     // currency; the default is what every one of them uses today.
     // The account says whether it is a card, which decides which way its
     // statement's signs run.
-    const reading = readStatement(items, DEFAULT_MINOR_UNITS, { card: account.type === 'credit' });
+    const reading = readStatement(items, DEFAULT_MINOR_UNITS, { card: account.type === 'credit', today: isoDay(new Date()) });
     if (reading.rows.length === 0) throw new StatementUnreadable(this.i18n.t('ui.import.noRows'));
     stopIfCancelled(watch.signal);
 

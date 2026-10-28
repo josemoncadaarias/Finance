@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1097 on 2026-10-25, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1102 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -517,8 +517,9 @@ these):
   "MERCADO PAGO" stays a purchase (`CARD_CAME_IN`); and the date leaves the
   description however it was written ("03 Ago 2026"). **What it still cannot
   read**: a scanned PDF (no text inside; a photo or screenshot of it can be
-  read since 2026-10-22, below), and a movement whose description runs onto a second line keeps only
-  its first line. A statement that reads no movement says so and saves
+  read since 2026-10-22, below). Since 2026-10-28 a description that runs
+  onto the lines under it is kept whole, and a bank app's screenshot that
+  lists rows under day headings is read (below). A statement that reads no movement says so and saves
   nothing; one that does not add up says "No cuadra" and by how much.
   **What is missing to add up is looked for in the statement's own summary**
   (Jose, 2026-10-15: Rappi Card's statement was off by exactly its 11.101,42
@@ -6063,6 +6064,34 @@ with testers runs; the paywall is finished after them.
   figure is known only once saved), not in several-at-once or a loan payment.
   The sheet after saving is unchanged. Entry tour step `since: 2`. Test in
   `limits.test.mjs`; checked in a browser on the sample data.
+- **The shop of a receipt is named around its tax number** (Jose,
+  2026-10-25: a fast-food invoice came as "Dobi", read off the "Doble aquí"
+  sticker on top). `shopOf` in `read-receipt.ts`: with a NIT/RUT line, the
+  name on the door just under it when the line above is the legal name (ends
+  in SAS, S.A., LTDA, Inc...), else the line above with its legal form left
+  out; without one, a line ending in a legal form; only then the first line
+  with words. Test on an invented invoice with a sticker on top.
+- **The assistant opens a category, a goal or a cap** (Jose, 2026-10-28):
+  intents `openCategory` ("ábreme la categoría Mercado" - any side's
+  category; a button to its movements this month on Inicio, through
+  `RichButton.category`), `openGoal` and `openCap` ("llévame a la meta del
+  viaje", "muéstrame el tope de restaurantes": the one named by its own
+  words, `namedIn`, else the list as chips and "Ir a Presupuestos"). Free,
+  like opening products. Never with "cuánto", which stays the question about
+  it. Welcome examples and assistant tour step `since: 9`. Tests in
+  `read-phrase.test.mjs`; checked in a browser on the sample data.
+- **The statement reader keeps two-line descriptions and reads day
+  headings** (Jose, 2026-10-28). `continuationsOf` in `statement.ts`: lines
+  under a dated row with no date and no amount, starting right of where the
+  row starts and left of its amounts, closer than three quarters of the
+  usual gap between rows, no heading words - two at most, joined to the
+  description; none where there are too few rows to know the gap.
+  `rowsUnderDayHeadings`: a line that is only a day ("Hoy", "Ayer" - from
+  `options.today` -, "Lunes, 20 de octubre", "20 oct") dates every line with
+  an amount and no date of its own under it, skipping balances and totals;
+  used only when it reads more rows than the dates on the rows do, so a PDF
+  reads as before. "Fecha de corte 20/09/2026" is no day heading. Tests in
+  `statement.test.mjs` on invented statements (the old reader failed both).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

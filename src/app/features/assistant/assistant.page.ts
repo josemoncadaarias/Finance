@@ -227,7 +227,9 @@ const WELCOME: { title: TranslationKey; sub: TranslationKey; icon: string; color
     { key: 'ai.example.reminders', icon: 'alarm-outline', cls: 'ui-y' },
     { key: 'ai.example.perDay', icon: 'wallet-outline', cls: 'ui-g' }] },
   { title: 'ai.group.go', sub: 'ai.group.go.sub', icon: 'navigate-outline', color: '#38bdf8', rows: [
-    { key: 'ai.example.openProducts', icon: 'layers-outline', cls: 'ui-p' }] },
+    { key: 'ai.example.openProducts', icon: 'layers-outline', cls: 'ui-p' },
+    { key: 'ai.example.openCategory', icon: 'pricetags-outline', cls: 'ui-y' },
+    { key: 'ai.example.openGoal', icon: 'flag-outline', cls: 'ui-g' }] },
 ];
 
 /** One folding group of questions, as drawn. */
@@ -616,7 +618,7 @@ export class AssistantPage {
       text = meant;
     }
     // Registering is free; a question counts against the month's free ones.
-    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'openProducts'].includes(reading.intent);
+    const question = !['register', 'unsure', 'unknown', 'remind', 'reminders', 'help', 'openProducts', 'openCategory', 'openGoal', 'openCap'].includes(reading.intent);
     if (question && !(await this.pro.askQuestion())) {
       return this.say('ai.pro.out', { free: PLAN.assistant.free });
     }
@@ -645,6 +647,10 @@ export class AssistantPage {
       case 'saveMore': return this.give(A.saveMore(this.speech(), await this.assistant.periodPicture(null),
         await this.assistant.smallRepeated(), (await this.assistant.recurring()).fixed));
       case 'openProducts': return this.give(A.openProducts(this.speech(), this.accountNamed(reading), this.earning()));
+      case 'openCategory': return this.give(A.openCategory(this.speech(),
+        this.categories.find(c => c.id === reading.categoryId) ?? null, currentPeriod('month'), this.usedCategories()));
+      case 'openGoal':
+      case 'openCap': return this.openPlan(reading.intent === 'openGoal' ? 'goal' : 'cap', text);
       case 'help':
         this.say('ai.help.answer');
         this.ideas.set(true);
@@ -1210,6 +1216,31 @@ export class AssistantPage {
     this.give(A.have(this.speech(), h));
   }
 
+  /** The expense categories not archived: what "¿de cuál categoría?" offers. */
+  private usedCategories(): string[] {
+    return this.categories.filter(c => c.kind === 'expense' && c.archived !== 1).map(c => c.name);
+  }
+
+  /** "Llévame a la meta del viaje": the goal or cap named, by its own words. */
+  private async openPlan(kind: 'goal' | 'cap', text: string): Promise<void> {
+    await this.assistant.loadGoals();
+    const p = this.assistant.plans();
+    const all = kind === 'goal'
+      ? p.goals.map(g => ({ id: g.terms.id, name: g.terms.name }))
+      : p.limits.map(l => ({ id: l.terms.id, name: l.name }));
+    const found = this.namedIn(text, all, x => x.name);
+    this.give(A.openPlan(this.speech(), kind, found.length === 1 ? found[0] : null, all));
+  }
+
+  /** The items a sentence names by any word of their own (4 letters or more); the one carrying most words wins. */
+  private namedIn<T>(text: string, list: readonly T[], nameOf: (x: T) => string): T[] {
+    const saidWords = new Set(fold(text).split(/[^a-z0-9ñ]+/));
+    const scored = list.map(x => ({ x, n: fold(nameOf(x)).split(/[^a-z0-9ñ]+/)
+      .filter(w => w.length >= 4 && !PLAN_WORDS.has(w) && saidWords.has(w)).length }))
+      .filter(o => o.n > 0).sort((a, b) => b.n - a.n);
+    return scored.length === 0 ? [] : scored.filter(o => o.n === scored[0].n).map(o => o.x);
+  }
+
   /** With `onlyNamed`, answers only when one goal or cap is named, and says whether it did. */
   private async plansAnswer(text = '', onlyNamed = false): Promise<boolean> {
     await this.assistant.loadGoals();
@@ -1217,16 +1248,9 @@ export class AssistantPage {
     // One cap or one goal named: "¿cómo va la meta del viaje?", "el tope de Mercado".
     const said = fold(text);
     // Named by any word of its own (4 letters or more): "la meta de inversión"
-    // is "Inversión en bolsa de valores". The one carrying most of the words wins.
-    const saidWords = new Set(said.split(/[^a-z0-9ñ]+/));
-    const named = <T>(list: readonly T[], nameOf: (x: T) => string) => {
-      const scored = list.map(x => ({ x, n: fold(nameOf(x)).split(/[^a-z0-9ñ]+/)
-        .filter(w => w.length >= 4 && !PLAN_WORDS.has(w) && saidWords.has(w)).length }))
-        .filter(o => o.n > 0).sort((a, b) => b.n - a.n);
-      return scored.length === 0 ? [] : scored.filter(o => o.n === scored[0].n).map(o => o.x);
-    };
-    const goals = named(p.goals, g => g.terms.name);
-    const caps = named(p.limits, l => l.name);
+    // is "Inversión en bolsa de valores".
+    const goals = this.namedIn(text, p.goals, g => g.terms.name);
+    const caps = this.namedIn(text, p.limits, l => l.name);
     const goalAsked = /\bmetas?\b|\bgoals?\b/.test(said);
     const capAsked = /\btopes?\b|\bpresupuestos?\b|\bcaps?\b|\bbudgets?\b/.test(said);
     if (goals.length === 1 && (goalAsked || caps.length === 0)) { this.give(A.oneGoal(this.speech(), goals[0])); return true; }
@@ -1364,6 +1388,7 @@ export class AssistantPage {
 
   /** A button of an answer's card. */
   go(button: RichButton): void {
+    if (button.category) { this.openCategory(button.category); return; }
     if (button.transferTo) {
       this.compose.open('transfer', { preferredAccountId: button.transferTo.accountId, preferredSide: 'to',
         start: { amountMinor: button.transferTo.amountMinor, onDate: isoDay(new Date()), note: '' } });
