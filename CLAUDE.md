@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1109 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1110 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -3610,6 +3610,25 @@ Not done, on purpose: accruing in the background on app start.
 `BaseSqlDriver.transaction` keeps one depth counter for the whole app, so a
 background write running while the user saves would pull that save into its
 transaction, and a rollback would lose it. That has to be fixed first.
+
+**A clearing never leaves a hole of days behind - fixed 2026-10-28** (Jose,
+Dale: both alcancías read about 10,225,000 on opening, an entry of a few
+pesos and its deletion later they read 10,210,000, and putting the days back
+did nothing). Read off his backup: Dale had no days from 25 to 30 September,
+and October was worked out from the 24th's typed figure. `clearDays` keeps
+the days corrected by hand and throws away the rest, and the walk resumed
+from the top of the month of the LAST day standing - with three days of late
+October corrected, that was October, so "Recalcular" (or deleting a
+product's entry, which clears every day) left September's last days
+unwritten for good. The walk now resumes from the last day it wrote itself
+(`lastWorkedOutDay`, locked days left out), and a pass that finds a day
+missing between two worked-out days of a savings product goes back to its
+month (`firstMissingDay`), so a phone that already lost days gets them back
+on its next pass with no button. On his backup only Dale changes (25-30
+September back, October on the right base, 10,225,839.07 and 10,226,868.40
+on the 28th, what it read before); the other twelve accounts are identical
+to the centavo, on a pass and on "Recalcular". Test in `accrual.test.mjs`
+(fails on the code before).
 
 **A movement dated in a month already worked out changes that month's
 yields - fixed 2026-10-02** (it was known since 2026-09-24: a 5,000,000
