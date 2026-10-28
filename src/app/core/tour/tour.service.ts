@@ -110,6 +110,7 @@ const TOUR_LIST = {
       { target: 'pro-perks', title: 'tour.pro.1.title', text: 'tour.pro.1.text' },
       { target: 'pro-prices', title: 'tour.pro.2.title', text: 'tour.pro.2.text' },
       { target: 'pro-status', title: 'tour.pro.3.title', text: 'tour.pro.3.text', since: 2 },
+      { sel: 'app-pro .code', title: 'tour.pro.4.title', text: 'tour.pro.4.text', since: 3 },
     ],
   },
   view: {
