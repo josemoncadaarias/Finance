@@ -315,9 +315,7 @@ final class MovementAlert {
             JSONObject arriving = leaving == pending.optJSONObject(0) ? pending.optJSONObject(1) : pending.optJSONObject(0);
             String figure = "\u2060$\u00A0" + shortAmount(leaving.optString("amount"));
             title = (spanish ? "🔁 Transferencia detectada ·\u00A0" : "🔁 Transfer detected ·\u00A0") + figure;
-            body = spanish
-                    ? "Salió de " + leaving.optString("name") + " y llegó a " + arriving.optString("name")
-                    : "Left " + leaving.optString("name") + " and arrived at " + arriving.optString("name");
+            body = transferLine(context, leaving, arriving, spanish);
             open.putExtra(EXTRA_OPEN, leaving.toString());
         } else if (count == 1) {
             int direction = last.optInt("direction");
@@ -387,6 +385,38 @@ final class MovementAlert {
             // The person turned this app's notifications off: proposals still wait in the app.
             return "off";
         }
+    }
+
+    /**
+     * Where a transfer went, by account (Jose, 2026-10-28: "Salió de Rappi y
+     * llegó a 87047" said nothing - nobody knows a short code). The account
+     * the person tied each source to, handed over by the app with what it
+     * taught; else an app's own name; never an SMS sender. With neither end
+     * known, it says so in words.
+     */
+    private static String transferLine(Context context, JSONObject leaving, JSONObject arriving, boolean spanish) {
+        String from = placeOf(context, leaving);
+        String to = placeOf(context, arriving);
+        if (from != null && to != null) return spanish ? "De " + from + " a " + to : "From " + from + " to " + to;
+        if (from != null) return spanish ? "De " + from + " a otra de tus cuentas" : "From " + from + " to another of your accounts";
+        if (to != null) return spanish ? "A " + to + " desde otra de tus cuentas" : "To " + to + " from another of your accounts";
+        return spanish ? "Entre dos de tus cuentas" : "Between two of your accounts";
+    }
+
+    /** A source's account name, else its app's name; null for an SMS sender nobody tied to an account. */
+    private static String placeOf(Context context, JSONObject message) {
+        String source = message.optString("source");
+        try {
+            JSONObject names = new JSONObject(prefs(context).getString(QUIET, "{}")).optJSONObject("names");
+            String account = names == null ? "" : names.optString(source, "");
+            if (!account.isEmpty()) return account;
+        } catch (Exception broken) {
+            // Nothing handed over yet: the app's name or words.
+        }
+        if (source.startsWith(SmsInbox.PACKAGE + "|")) return null;
+        String name = message.optString("name", "").trim();
+        // A sender caught through the messaging app's notice is a short code too.
+        return name.isEmpty() || name.matches("[\\d\\s+().-]+") ? null : name;
     }
 
     /** Two banks telling one transfer: the same money, out of one and into another, within two hours. */

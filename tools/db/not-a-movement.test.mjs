@@ -14,7 +14,7 @@ import { MIGRATION_SOURCES } from '../../src/app/core/database/migrations/statem
 import { AccountsRepository } from '../../src/app/core/database/repositories/accounts.repository.ts';
 import { ProposalsRepository } from '../../src/app/core/database/repositories/proposals.repository.ts';
 import {
-  fitsNotMold, learnNotMovement, moldFrom, quietForPhone, silencedBy, unlearnNotMovement, STRICT_AFTER,
+  fitsNotMold, learnNotMovement, moldFrom, quietForPhone, silencedBy, sourceNames, unlearnNotMovement, STRICT_AFTER,
 } from '../../src/app/core/notices/molds.ts';
 import { readNotices } from '../../src/app/core/notices/notice-proposals.ts';
 import { saysItHappened } from '../../src/app/core/notices/read-notice.ts';
@@ -70,10 +70,20 @@ test('"Sí era un movimiento" forgets the shapes it fits and the strictness', ()
 test('the phone receives the shapes only, no words of any message', () => {
   const quiet = learnNotMovement(empty, APP, ADVERT, 1);
   const handed = JSON.parse(quietForPhone(quiet, []));
-  assert.deepEqual(Object.keys(handed).sort(), ['molds', 'notMolds', 'strict']);
+  assert.deepEqual(Object.keys(handed).sort(), ['molds', 'names', 'notMolds', 'strict']);
+  assert.deepEqual(handed.names, {});
   assert.deepEqual(Object.keys(handed.notMolds[0]).sort(), ['pattern', 'source']);
   // Java reads the same patterns: no flags, no lookbehind, anchored.
   assert.match(handed.notMolds[0].pattern, /^\^.*\$$/);
+});
+
+test('the phone is told each source by its account, never a sender with no account', () => {
+  const assigned = new Map([['com.banco.rojo', 3], ['sms|89123', 4], ['sms|55555', 0], ['com.app.ida', 99]]);
+  const accounts = [{ id: 3, name: 'Banco Rojo' }, { id: 4, name: 'Billetera Verde' }];
+  // "Varias cuentas" (0) and an account gone name nothing: the notice says it in words.
+  assert.deepEqual(sourceNames(assigned, accounts), { 'com.banco.rojo': 'Banco Rojo', 'sms|89123': 'Billetera Verde' });
+  const handed = JSON.parse(quietForPhone(empty, [], sourceNames(assigned, accounts)));
+  assert.equal(handed.names['sms|89123'], 'Billetera Verde');
 });
 
 test('end to end: marked once, the message goes and its like is never offered; undo puts both back', async () => {

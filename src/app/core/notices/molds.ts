@@ -288,11 +288,32 @@ export function silencedBy(
   return null;
 }
 
-/** What the phone's notice needs of what was taught: the shapes, never more. */
-export function quietForPhone(quiet: Quiet, molds: readonly Mold[]): string {
+/**
+ * What the phone's notice needs of what was taught: the shapes, and the
+ * name of the account each source was said to be - so a transfer's notice
+ * says "De Rappi cuenta a Plata", never an SMS's short code (Jose,
+ * 2026-10-28). Nothing else of the person's data goes to the phone's side.
+ */
+export function quietForPhone(quiet: Quiet, molds: readonly Mold[], names: Record<string, string> = {}): string {
   return JSON.stringify({
     notMolds: quiet.notMolds.map(one => ({ source: one.source, pattern: one.pattern })),
     strict: quiet.strict,
     molds: molds.map(one => ({ source: one.source, pattern: one.pattern })),
+    names,
   });
+}
+
+/**
+ * Each source's account name, from the person's own answer to "¿De qué
+ * cuenta es?". A source answered "Varias cuentas" (0) or tied to an account
+ * gone has none: the notice then says it in words instead.
+ */
+export function sourceNames(assigned: ReadonlyMap<string, number>, accounts: readonly { id: number; name: string }[]): Record<string, string> {
+  const byId = new Map(accounts.map(one => [one.id, one.name]));
+  const names: Record<string, string> = {};
+  for (const [source, id] of assigned) {
+    const name = byId.get(id);
+    if (name) names[source] = name;
+  }
+  return names;
 }
