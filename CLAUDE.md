@@ -6158,6 +6158,23 @@ with testers runs; the paywall is finished after them.
   - Waiting for mockups: offering to set the opening balance from a statement
     that adds up (rule 22, "The opening balance is what absorbs the history"),
     and the home that teaches a new user (idea 19).
+- **A transfer both banks told is one transfer on the phone's notice too**
+  (Jose, 2026-10-28, a screenshot: "2 movimientos detectados · −$ 42.679 ·
+  +$ 42.679" opened the list, and Por revisar's one row showed one bank's
+  words with a learned category). `MovementAlert.transferHalves` pairs the
+  waiting messages as `transferPairs` does (same amount, opposite
+  directions, different sources, within two hours): one such pair alone is
+  "🔁 Transferencia detectada · $ X", "Salió de {app} y llegó a {app}", and
+  its tap carries the leaving message, so Por revisar opens it straight as
+  the transfer (`tapped` → `asTransfer`); among others it counts once, as
+  "⇄ $ X". The same amount from another source no longer silences the
+  arriving half as "the same movement" when it goes the other way (`rang`
+  keeps the direction). In Por revisar the pair's row is the transfer:
+  "{cuenta} → {cuenta}", the swap icon and figure in blue, no category
+  (`pairTitle`); "Separar" gives each half its own category back. Review
+  tour step `since: 6`. The Java checked with the JDK on a copy of
+  `transferHalves` with invented messages; the row in a browser on the
+  sample data with a pair faked; the notice itself only on the phone.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
