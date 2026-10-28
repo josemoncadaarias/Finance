@@ -1129,6 +1129,45 @@ export class YieldsRepository {
     return row?.on_date ?? null;
   }
 
+  /**
+   * The last day the engine itself wrote and still stands: where a walk may
+   * resume from. Days corrected by hand are left out on purpose.
+   *
+   * `clearDays` keeps a corrected day and throws away the rest, so a corrected
+   * day in a later month survived a clearing that emptied the days before it,
+   * and the walk resumed from that later month: the days in between were never
+   * written again. Dale lost 25-30 September that way (Jose, 2026-10-28: three
+   * days of late October corrected, then "Recalcular"), and every product's
+   * balance on the screen fell by those six days' yield. A walk that starts
+   * earlier only redoes days that are written again the same way; the
+   * corrected ones are kept wherever it starts.
+   */
+  /**
+   * The first day missing between two days already worked out on the
+   * account's savings products, or null. Such a hole is what the walk above
+   * used to leave behind (`lastWorkedOutDay`), and nothing ever went back for
+   * it: the engine resumes from the top of the last month. Found, the walk
+   * starts from it, so a phone that already lost days gets them back on its
+   * next pass without anybody pressing "Recalcular". A CDT pays on its
+   * paydays only and is not looked at. A stretch with no rate in force is a
+   * hole too, and is only ever written again empty.
+   */
+  async firstMissingDay(accountId: number): Promise<IsoDate | null> {
+    const row = await this.db.queryOne<{ on_date: IsoDate | null }>(
+      `SELECT MIN(date(prev, '+1 day')) AS on_date FROM (
+         SELECT on_date, LAG(on_date) OVER (ORDER BY on_date) AS prev FROM (
+           SELECT DISTINCT y.on_date FROM yield_days y JOIN products p ON p.id = y.product_id
+           WHERE y.account_id = ? AND p.kind = 'high_yield'))
+       WHERE prev IS NOT NULL AND julianday(on_date) - julianday(prev) > 1`, [accountId]);
+    return row?.on_date ?? null;
+  }
+
+  async lastWorkedOutDay(accountId: number): Promise<IsoDate | null> {
+    const row = await this.db.queryOne<{ on_date: IsoDate }>(
+      'SELECT MAX(on_date) AS on_date FROM yield_days WHERE account_id = ? AND locked = 0', [accountId]);
+    return row?.on_date ?? null;
+  }
+
   /** What each account earned, net, over the days dated from `from` to `to`: one question for all. */
   async earnedBetween(accountIds: readonly number[], from: IsoDate, to: IsoDate): Promise<Map<number, number>> {
     if (accountIds.length === 0) return new Map();

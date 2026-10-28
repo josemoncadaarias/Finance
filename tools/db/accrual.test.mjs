@@ -1618,6 +1618,47 @@ test('a day in the future is removed, even when there is nothing to accrue', asy
   await db.close();
 });
 
+test('clearing every day while a later one is corrected leaves no hole', async () => {
+  // Dale, 2026-10-28: September worked out, a few days of late October
+  // corrected by hand (locked), then "Recalcular" - which throws away every
+  // day but the corrected ones. The walk resumed from the top of October, the
+  // month of the last day still standing, and 25-30 September were never
+  // written again: each product read six days of yield less on the screen.
+  const { db, yields, engine, ids } = await setup();
+  await yields.enrol({ account_id: ids.rappi, opening_on: '2026-09-09' });
+  await yields.setRate({
+    account_id: ids.rappi, component: 'base', payout: 'daily',
+    valid_from: '2026-09-09', annual_rate_scaled: 9 * 10_000,
+  });
+  const septemberDays = async () => (await db.query(
+    "SELECT COUNT(*) AS n FROM yield_days WHERE account_id = ? AND on_date BETWEEN '2026-09-10' AND '2026-09-30'",
+    [ids.rappi]))[0].n;
+
+  await engine.accrue(ids.rappi, '2026-10-28');
+  const whole = await yields.days(ids.rappi, '2026-10-28', '2026-10-28');
+  assert.equal(await septemberDays(), 21);
+
+  // The bank's last three days typed in, then everything else thrown away.
+  for (const on of ['2026-10-26', '2026-10-27', '2026-10-28']) {
+    const [day] = await yields.days(ids.rappi, on, on);
+    await yields.correctDay(day.product_id, on, day.net_minor);
+  }
+  await yields.clearDays(ids.rappi);
+  await engine.accrue(ids.rappi, '2026-10-28');
+  assert.equal(await septemberDays(), 21, 'September is worked out again');
+  assert.deepEqual((await yields.days(ids.rappi, '2026-10-28', '2026-10-28')).map(day => day.balance_minor),
+    whole.map(day => day.balance_minor), 'and every day after it earns on the same balance');
+
+  // A phone that already lost days gets them back on its next pass.
+  await db.run("DELETE FROM yield_days WHERE account_id = ? AND on_date BETWEEN '2026-09-25' AND '2026-09-30'", [ids.rappi]);
+  assert.equal(await yields.firstMissingDay(ids.rappi), '2026-09-25');
+  await engine.accrue(ids.rappi, '2026-10-28');
+  assert.equal(await septemberDays(), 21, 'the hole is filled without Recalcular');
+  assert.equal(await yields.firstMissingDay(ids.rappi), null);
+
+  await db.close();
+});
+
 test('each product holds its own figure plus what moved through it', async () => {
   // The question Jose actually needs answered, and the one an account's own
   // balance cannot: that figure is a summary of everything inside it and says

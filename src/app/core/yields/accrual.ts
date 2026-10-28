@@ -236,7 +236,7 @@ export class AccrualEngine {
     // Where to resume. A period already partly accrued is redone from its first
     // day, because a spend condition can only be judged on the whole period:
     // the month, or the N months of a bonus paid every N.
-    const last = await this.yields.lastAccruedDay(accountId);
+    const last = await this.yields.lastWorkedOutDay(accountId);
     const rates = await this.yields.rateHistory(accountId);
     // The day the bank actually paid, where the person corrected it.
     const corrections = await this.yields.paymentDates(accountId);
@@ -309,6 +309,11 @@ export class AccrualEngine {
     const before = last === null ? null : await this.yields.storedMonthMarks(accountId);
     const changed = before === null ? null : earliestChange(before, marks);
     if (changed !== null && changed < resume) resume = changed;
+
+    // Days missing between two days already worked out are worked out again
+    // from the top of their month (Dale, 2026-10-28: 25-30 September lost).
+    const missing = last === null ? null : await this.yields.firstMissingDay(accountId);
+    if (missing !== null && startOfMonth(missing) < resume) resume = startOfMonth(missing);
 
     const from = resume < firstEver ? firstEver : resume;
     if (from > upTo) {
