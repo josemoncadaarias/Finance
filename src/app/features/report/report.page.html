@@ -136,7 +136,7 @@
                         @if (row.note) { <small class="note">{{ row.note }}</small> }
                         @if (row.share !== undefined) {
                           <div class="barline">
-                            <span class="bar"><i [style.width]="barWidth(row.share)" [style.background]="barColor($index)"></i></span>
+                            <span class="bar"><i [style.width]="barWidth(row.share)" [style.background]="barColor($index, row.tone)"></i></span>
                             <span class="share">{{ percent(row.share) }}</span>
                           </div>
                         } @else if (row.behind !== undefined) {

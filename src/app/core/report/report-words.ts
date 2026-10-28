@@ -85,6 +85,11 @@ export const REPORT_KEYS = [
   'report.accounts',
   'report.accounts.row',
 
+  'report.caps',
+  'report.caps.row',
+  'report.caps.of',
+  'report.caps.over',
+
   'report.column.share',
   'report.column.amount',
   'report.column.count',
@@ -134,6 +139,7 @@ export const REPORT_KEYS = [
   'report.yields.inflation.borrowed',
   'report.yields.inflation.keptNote.withEstimate',
   'report.about.headline',
+  'report.about.caps',
   'report.about.versus',
   'report.about.jumps',
   'report.about.categories',

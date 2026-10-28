@@ -89,6 +89,19 @@ export interface ReportData {
     movements: readonly Movement[];
   } | null;
 
+  /**
+   * The spending caps of the period's month, as Presupuestos reads them -
+   * only for a period inside one month; with one account in view, only the
+   * caps on that account (the others count every account). Null where not loaded.
+   */
+  caps?: {
+    month: string;
+    rows: readonly {
+      name: string; spentMinor: number; amountMinor: number; percent: number;
+      state: 'good' | 'fast' | 'close' | 'passed';
+    }[];
+  } | null;
+
   /** Today, so a part-finished period can be recognised as one. */
   today: string;
 

@@ -285,7 +285,7 @@ export class ReportPage {
   /** How wide to draw a row's bar. Kept off zero so a tiny share still shows. */
   barWidth(share: number | undefined): string {
     if (share === undefined) return '0';
-    return `${Math.max(share, 1)}%`;
+    return `${Math.min(100, Math.max(share, 1))}%`;
   }
 
   /**
@@ -614,7 +614,11 @@ export class ReportPage {
     return this.isExpanded(block.id) ? block.rows : block.rows.slice(0, this.rowLimit);
   }
 
-  barColor(index: number): string {
+  barColor(index: number, tone?: string): string {
+    // A row that says how it is doing (a cap past its figure) is coloured by that.
+    if (tone === 'bad') return 'var(--app-red)';
+    if (tone === 'warn') return 'var(--app-yel)';
+    if (tone === 'good') return PALETTE.esmeralda;
     const colours = [PALETTE.mandarina, PALETTE.esmeralda, PALETTE.arena, PALETTE.coral, PALETTE.cielo, PALETTE.violeta, PALETTE.rosa, PALETTE.oro];
     return colours[index % colours.length];
   }

@@ -307,6 +307,46 @@ export const spendingByAccount: Section<ReportData> = data => {
 // ---------------------------------------------------------------------------
 
 /**
+ * The month's spending caps (Jose, 2026-10-28: idea approved): each cap,
+ * what it has spent of what it allows, by the caps' own arithmetic - read
+ * from Presupuestos, never worked out a second way. Only for a period inside
+ * one month, and never when nothing is capped.
+ */
+export const capsOfMonth: Section<ReportData> = data => {
+  const caps = data.caps;
+  if (!caps || caps.rows.length === 0) return null;
+  const rows: RankedBlock['rows'] = [...caps.rows]
+    .sort((a, b) => b.percent - a.percent)
+    .map(cap => ({
+      label: cap.name,
+      value: money(cap.spentMinor, 'COP'),
+      share: cap.percent,
+      note: fill(data.words[cap.state === 'passed' ? 'report.caps.over' : 'report.caps.of'], {
+        percent: cap.percent,
+        amount: plainMoney(cap.amountMinor, data.locale),
+        over: plainMoney(Math.max(0, cap.spentMinor - cap.amountMinor), data.locale),
+      }),
+      flow: 'out' as const,
+      tone: cap.state === 'passed' ? 'bad' as const : cap.state === 'good' ? 'good' as const : 'warn' as const,
+    }));
+  return {
+    kind: 'ranked',
+    id: 'caps',
+    title: data.words['report.caps'],
+    about: data.words['report.about.caps'],
+    rowsAre: data.words['report.caps.row'],
+    rows,
+  };
+};
+
+/** A figure in pesos for a sentence: "$ 350.000". */
+function plainMoney(minor: number, locale: string): string {
+  return `$ ${Math.round(minor / 100).toLocaleString(locale)}`;
+}
+
+// ---------------------------------------------------------------------------
+
+/**
  * The report, in the order it is read - on screen and on the sheet alike.
  *
  * A new analysis is a function above and a line here. Nothing else changes:
@@ -323,6 +363,7 @@ export const SECTIONS: readonly Section<ReportData>[] = [
   repeatedCharges,
   spendingByMonth,
   balanceAhead,
+  capsOfMonth,
   spendingByAccount,
   biggestMovements,
 ];

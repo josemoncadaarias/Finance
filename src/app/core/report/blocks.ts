@@ -77,7 +77,7 @@ export interface RankedBlock {
   rows: {
     label: string;
     value: Value;
-    /** 0 to 100. Absent where a share would mean nothing. */
+    /** 0 to 100 (a cap gone over says its real percent; its bar stops full). Absent where a share would mean nothing. */
     share?: number;
     /** How many movements are behind it. */
     behind?: number;

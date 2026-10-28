@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1104 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1108 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -1706,8 +1706,8 @@ backup restore against iOS's own SQLite backend.
    - **No tax section.** Stated by Jose: the simulator covers it and stands
      apart.
    - **No budgets** - lifted by Jose on 2026-10-01: spending limits exist now
-     (Planes, "Debts and plans"), but the report has no section for them
-     until he asks for one.
+     (Planes, "Debts and plans"), and since 2026-10-28, at his word, the
+     report has "Tus topes de gasto del mes" (below).
    - The order of work: the spreadsheet first (several sheets, which the
      writer does not do yet - it has `sheet1` fixed in four places), then the
      screen, then the analysis worth having, then a real Excel chart if it
@@ -6111,6 +6111,42 @@ with testers runs; the paywall is finished after them.
   used only when it reads more rows than the dates on the rows do, so a PDF
   reads as before. "Fecha de corte 20/09/2026" is no day heading. Tests in
   `statement.test.mjs` on invented statements (the old reader failed both).
+- **What Jose approved on 2026-10-28** (his answer to "what is pending"):
+  - **The report shows the month's caps** ("Tus topes de gasto del mes",
+    `capsOfMonth` in `sections.ts`), only for a period inside one month and
+    only when there are caps: each cap with what was spent, its percent (the
+    real one past 100 %; the bar stops full) and "Te pasaste por X" or "N %
+    de X", red past it, yellow from 80 % or ahead of the pace, green under.
+    The figures are `LimitsService.monthView` (never worked out a second
+    way); with one account on view, only the caps of that one account.
+    It is a block of "Personaliza tu vista" (`report.caps`) and goes into the
+    spreadsheet like any ranked block. Report tour step `since: 3`. Test in
+    `report.test.mjs`; checked in a browser on the sample data.
+  - **"Reportar un fallo" can carry the app's last errors**
+    (`core/feedback/error-log.ts`): Angular's `ErrorHandler` and the window's
+    `error`/`unhandledrejection` keep the last 5 of 14 days on the device
+    (`finance.errors`): kind, message and three frames, every figure of 4+
+    digits as `#`, never sent by themselves. The sheet has the switch "Los
+    últimos N errores de la app" (on for a fault). No crash service: Play's
+    Android vitals already see native crashes; Sentry and the like were not
+    added (a server of somebody else's, rule 21). Test in
+    `error-log.test.mjs`.
+  - **The privacy policy lists each provider** (`site/privacy.html`,
+    "Servicios de otras empresas que usa la aplicación": Google Play, ML Kit,
+    the phone's voice, Google sign-in and Drive, RevenueCat, datos.gov.co,
+    frankfurter.dev, the Banco de la República, Netlify). Live once Netlify
+    deploys `main`.
+  - **Mail is dropped** (rule 22's mail half): not to be proposed again.
+  - **Accruing in the background on opening: still not done**, and why: the
+    one transaction depth counter of `BaseSqlDriver` (see "The yields screen
+    works out only what changed") cannot tell a nested transaction from a
+    concurrent one, so a save during a background pass could be rolled back
+    with it. It needs a queue of transactions first. Meanwhile the movement
+    form brings its own account up to date (2026-10-24) and an account's page
+    its own.
+  - Waiting for mockups: offering to set the opening balance from a statement
+    that adds up (rule 22, "The opening balance is what absorbs the history"),
+    and the home that teaches a new user (idea 19).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -6312,8 +6348,8 @@ provider's own terms page before a line is written:
 | 15 | Savings goal as a target on a product or account | Medium | Rule 15 "five things" | Proposed and drawn (`11l`, `11n`), "Debts and plans" |
 | 6/12 | Local reminders (no server): rent, statements, review | Medium | Rule 22 (no invented movements) | **Built** 2026-10-22 (Recordatorios) |
 | 18 | Visible locks on paid features | Small, after the paywall | Rule 21 | Proposed |
-| 13 | Privacy policy listing each provider | Small, text | Store listing | Proposed |
-| 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | Proposed |
+| 13 | Privacy policy listing each provider | Small, text | Store listing | **Built** 2026-10-28 |
+| 11 | Crash reports: Play vitals first, Sentry opt-in only | Small | Privacy | **Built** 2026-10-28 as the last errors in "Reportar un fallo"; no Sentry |
 | 8/9 | Voice dictation / receipt photo into the review screen | Large | Rule 22 | Proposed, later |
 | F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | **Built** 2026-10-22 ("Lo que más registras") |
 | H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |

@@ -53,6 +53,7 @@ export const VIEW_SCREENS: Record<ViewScreen, { title: TranslationKey; icon: str
       { key: 'report.repeated', title: 'report.repeated', icon: 'copy-outline', color: '#d07bf0' },
       { key: 'report.by-month', title: 'report.byMonth', icon: 'bar-chart-outline', color: '#34c98b' },
       { key: 'report.ahead', title: 'report.ahead', icon: 'analytics-outline', color: '#4cb8f5' },
+      { key: 'report.caps', title: 'report.caps', icon: 'speedometer-outline', color: '#ff9152' },
       { key: 'report.accounts', title: 'report.accounts', icon: 'wallet-outline', color: '#a3d65c' },
       { key: 'report.biggest', title: 'report.biggest', icon: 'arrow-up-circle-outline', color: '#f6b93b' },
     ],

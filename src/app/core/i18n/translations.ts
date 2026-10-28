@@ -153,6 +153,7 @@ export const SPANISH = {
   'report.about.ahead': "Línea continua: tu saldo real. Línea punteada: un cálculo de cómo estará en 90 días si sigues como en los últimos {months} meses. Es una estimación, no un hecho.",
   'report.about.accounts': "De qué cuenta salió el gasto del periodo.",
   'report.about.biggest': 'Los gastos más grandes del periodo, uno por uno.',
+  'report.about.caps': 'Lo que llevas gastado en cada tope de Presupuestos este mes, frente a lo que te permite. Las mismas cifras de Presupuestos.',
   'report.yields.about.headline': "Lo que ganaste en el periodo: los intereses de tus cuentas y las ganancias o pérdidas registradas en tus inversiones. El dinero que pones o sacas no cuenta.",
   'report.yields.about.inflation': "Lo que ganaste comparado con la inflación (cuánto subieron los precios, según el DANE). Si la rentabilidad real es positiva, tu dinero rindió más que lo que subieron los precios.",
   'report.yields.about.growth': "Cuánto más o menos tenías al final de cada mes, comparado con el primero. Incluye lo que pusiste y sacaste, no solo intereses.",
@@ -265,6 +266,10 @@ export const SPANISH = {
 
   'report.biggest': 'Los movimientos más grandes',
   'report.biggest.row': 'Movimiento',
+  'report.caps': 'Tus topes de gasto del mes',
+  'report.caps.row': 'Tope',
+  'report.caps.of': '{percent} % de {amount}',
+  'report.caps.over': 'Te pasaste por {over} · tope de {amount}',
 
   'report.accounts': 'Por cuenta',
   'report.accounts.row': 'Cuenta',
@@ -1232,6 +1237,7 @@ export const ENGLISH: Record<TranslationKey, string> = {
   'report.about.ahead': 'Solid line: your real balance. Dashed: a 90-day projection at what your balance changed by on average over the last {months} months, not a fact.',
   'report.about.accounts': 'Which account the period’s spending came out of.',
   'report.about.biggest': 'The biggest expenses of the period, one by one.',
+  'report.about.caps': "What you have spent in each cap of Budgets this month, against what it allows. The same figures as Budgets.",
   'report.yields.about.headline': 'What you earned over the period: interest from your products and the gains or losses recorded on your investments. Money you put in or take out does not count.',
   'report.yields.about.inflation': 'Only what you earned, against inflation (the DANE CPI) on the money that was earning. A positive real return means your money gained buying power.',
   'report.yields.about.growth': 'How much more or less you held at the close of each month than at the first. It includes what you put in and took out, not only yields.',
@@ -1344,6 +1350,10 @@ export const ENGLISH: Record<TranslationKey, string> = {
 
   'report.biggest': 'The biggest movements',
   'report.biggest.row': 'Movement',
+  'report.caps': "This month's spending caps",
+  'report.caps.row': 'Cap',
+  'report.caps.of': '{percent}% of {amount}',
+  'report.caps.over': 'Over by {over} · cap of {amount}',
 
   'report.accounts': 'By account',
   'report.accounts.row': 'Account',

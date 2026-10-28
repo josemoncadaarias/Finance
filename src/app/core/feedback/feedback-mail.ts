@@ -20,6 +20,8 @@ export interface FeedbackWords {
   device: string;
   /** Heading of what was read from the last photo. */
   reading: string;
+  /** Heading of the app's last errors. */
+  errors?: string;
 }
 
 export interface FeedbackInput {
@@ -31,6 +33,8 @@ export interface FeedbackInput {
   device?: readonly string[];
   /** What the reader made of the last photo, as text, when kept in. */
   reading?: string | null;
+  /** The app's last errors, as text, when kept in. */
+  errors?: string | null;
 }
 
 export interface FeedbackMail {
@@ -46,6 +50,7 @@ export function feedbackMail(input: FeedbackInput, words: FeedbackWords): Feedba
   const parts = [input.text.trim()];
   if (input.device && input.device.length > 0) parts.push(`— ${words.device} —\n${input.device.join('\n')}`);
   if (input.reading) parts.push(`— ${words.reading} —\n${input.reading}`);
+  if (input.errors) parts.push(`— ${words.errors ?? 'Errors'} —\n${input.errors}`);
   const body = parts.join('\n\n');
   const href = `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   return { to: FEEDBACK_TO, subject, body, href };
