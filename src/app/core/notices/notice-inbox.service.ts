@@ -23,7 +23,7 @@ import { DemoService } from '../demo/demo.service';
 import { AccountsRepository } from '../database/repositories/accounts.repository';
 import { ProposalsRepository } from '../database/repositories/proposals.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
-import { quietForPhone } from './molds';
+import { quietForPhone, sourceNames } from './molds';
 import { noticeKey, noticeSource, readNotices, type KeptNotice } from './notice-proposals';
 
 @Injectable({ providedIn: 'root' })
@@ -164,9 +164,11 @@ export class NoticeInboxService {
       // "No es movimiento" on the phone's notice teaches before anything is read.
       const { marked } = await BankNotifications.takeNotMovements().catch(() => ({ marked: [] }));
       await proposals.notMovementsFromPhone(marked);
-      const [quiet, molds] = await Promise.all([proposals.quiet(), proposals.molds()]);
-      // The phone's notice learns it too, and does not ring for it.
-      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds) }).catch(() => undefined);
+      const [quiet, molds, assignedNow, accountsNow] = await Promise.all([
+        proposals.quiet(), proposals.molds(), proposals.sourceAccounts(), new AccountsRepository(db).list()]);
+      // The phone's notice learns it too, and does not ring for it; it is
+      // also told each source's account, to name accounts and not senders.
+      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow)) }).catch(() => undefined);
       const { caught } = await BankNotifications.caught();
       // Whatever was waiting is about to be in Por revisar: the phone's notice goes.
       void BankNotifications.clearAlerts().catch(() => undefined);

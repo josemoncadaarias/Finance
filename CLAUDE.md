@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1108 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1109 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6164,7 +6164,12 @@ with testers runs; the paywall is finished after them.
   words with a learned category). `MovementAlert.transferHalves` pairs the
   waiting messages as `transferPairs` does (same amount, opposite
   directions, different sources, within two hours): one such pair alone is
-  "🔁 Transferencia detectada · $ X", "Salió de {app} y llegó a {app}", and
+  "🔁 Transferencia detectada · $ X", "De {cuenta} a {cuenta}" - each
+  source's account as the person tied it ("¿De qué cuenta es?"), handed to
+  the phone with what was taught (`sourceNames`, `quietForPhone`'s
+  `names`), else an app's own name, never an SMS short code (Jose, the same
+  day: "87047" said nothing); with one end unknown "De X a otra de tus
+  cuentas", with neither "Entre dos de tus cuentas" -, and
   its tap carries the leaving message, so Por revisar opens it straight as
   the transfer (`tapped` → `asTransfer`); among others it counts once, as
   "⇄ $ X". The same amount from another source no longer silences the
