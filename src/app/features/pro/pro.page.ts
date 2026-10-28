@@ -19,6 +19,8 @@ import { PaywallService } from '../../core/paywall/paywall.service';
 import { PRICES, TRIAL_DAYS } from '../../core/paywall/plan';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ToastService } from '../../shared/ui/toast.service';
+import { Router } from '@angular/router';
+import { copyText } from '../../core/feedback/feedback.service';
 
 @Component({
   selector: 'app-pro',
@@ -115,6 +117,24 @@ import { ToastService } from '../../shared/ui/toast.service';
         <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
         }
 
+        @if (pro.proCode(); as code) {
+          <div class="ui-list code">
+            <div class="ui-row plain">
+              <span class="ui-tx">
+                <b class="wrap">{{ 'pro.code.title' | t }}</b>
+                <code>{{ code }}</code>
+                <small class="wrap">{{ (pro.codeFollows() ? 'pro.code.follows' : 'pro.code.anonymous') | t }}</small>
+              </span>
+            </div>
+            <div class="ui-row plain actions">
+              <button type="button" class="ui-btn ghost" (click)="copyCode(code)">{{ 'pro.code.copy' | t }}</button>
+              @if (!pro.codeFollows()) {
+                <button type="button" class="ui-btn ghost" (click)="signIn()">{{ 'pro.code.signIn' | t }}</button>
+              }
+            </div>
+          </div>
+        }
+
         <div class="ui-list preview">
           <div class="ui-row plain">
             <span class="ui-tx"><b class="wrap">{{ 'pro.preview' | t }}</b><small class="wrap">{{ 'pro.preview.hint' | t }}</small></span>
@@ -131,6 +151,9 @@ import { ToastService } from '../../shared/ui/toast.service';
                  (confirmed)="change()" (cancelled)="changing.set(null)"></app-confirm>
   `,
   styles: [`
+    .code code { display: block; margin: 6px 0; font-family: ui-monospace, monospace; font-size: 15px; color: var(--app-tx); word-break: break-all; user-select: all; }
+    .code .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .code .actions .ui-btn { flex: 1 1 140px; }
     .head { text-align: center; margin: 0 0 18px; }
     .head .face { display: flex; justify-content: center; margin-bottom: 10px; }
     .head b { font-size: 24px; }
@@ -295,6 +318,17 @@ export class ProPage {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  private readonly router = inject(Router);
+
+  async copyCode(code: string): Promise<void> {
+    await copyText(code);
+    this.toast.say(this.i18n.t('pro.code.copied'), 4000);
+  }
+
+  signIn(): void {
+    void this.router.navigate(['/account']);
   }
 
   async restore(): Promise<void> {

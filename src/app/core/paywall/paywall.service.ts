@@ -10,11 +10,13 @@
  * so no lock is ever felt offline. A lock stops something NEW, never what is
  * on record (rule 21, 1).
  */
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 
 import { environment } from '../../../environments/environment';
 import { DatabaseService } from '../database/database.service';
+import { GoogleAccountService } from '../cloud/google-account.service';
+import { isAnonymous, proIdOf } from './pro-id';
 import { CHARGING, PLAN, canUse, freeLeft, isUnlocked, reportSectionFree, type Feature } from './plan';
 import { changeModeFor, lapsedOn, subscriptionOf, trialDaysOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
 
@@ -56,6 +58,7 @@ export const FEATURE_FACE: Record<Feature, { icon: string; color: string }> = {
 @Injectable({ providedIn: 'root' })
 export class PaywallService {
   private readonly database = inject(DatabaseService);
+  private readonly google = inject(GoogleAccountService);
 
   /** Set while the free version is being looked at. */
   readonly previewFree = signal(readPreview());
@@ -83,9 +86,40 @@ export class PaywallService {
 
   private connecting: Promise<boolean> | null = null;
 
+  /**
+   * The id this person carries in the store, made from their Google account
+   * (`proIdOf`): the same on every phone and every install, so a Finance Pro
+   * given from RevenueCat's dashboard to it never runs out (Jose,
+   * 2026-10-28). Null until the store answers; the store's anonymous id
+   * while no Google account is signed in.
+   */
+  readonly proCode = signal<string | null>(readEntitled().code ?? null);
+
   constructor() {
     // A few seconds after opening, so nothing of it is felt at start.
     if (this.storeAvailable) setTimeout(() => void this.connect(), 4000);
+    // Signed in to Google, or into another account: the store follows it.
+    effect(() => {
+      const email = this.google.user()?.email ?? '';
+      if (!email || !this.storeAvailable) return;
+      void untracked(() => this.follow(email));
+    });
+  }
+
+  /** Logs the store into the id of this Google account, keeping what was bought before. */
+  private async follow(email: string): Promise<void> {
+    const id = await proIdOf(email);
+    if (!id || !(await this.connect())) return;
+    try {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      const { appUserID } = await Purchases.getAppUserID();
+      if (appUserID === id) return;
+      // A purchase made under the anonymous id moves to this one (RevenueCat's own rule).
+      const { customerInfo } = await Purchases.logIn({ appUserID: id });
+      this.heard(customerInfo);
+      this.proCode.set(id);
+      this.keep();
+    } catch { /* offline: tried again on the next opening */ }
   }
 
   /** Connects to the store once, and keeps its answer while the app runs. */
@@ -98,6 +132,7 @@ export class PaywallService {
         await Purchases.addCustomerInfoUpdateListener(info => this.heard(info));
         const { customerInfo } = await Purchases.getCustomerInfo();
         this.heard(customerInfo);
+        try { this.proCode.set((await Purchases.getAppUserID()).appUserID); this.keep(); } catch { /* shown once it answers */ }
         return true;
       } catch {
         // Offline or the store not reachable: the last answer holds.
@@ -123,10 +158,21 @@ export class PaywallService {
     this.subscription.set(sub);
     this.everPaid.set(everPaid);
     this.lapsed.set(lapsed);
+    this.keep();
+  }
+
+  /** The store's last answer, kept on the device so it holds offline. */
+  private keep(): void {
     try {
-      localStorage.setItem(ENTITLED_KEY, JSON.stringify({ on, sub, everPaid, lapsed, at: new Date().toISOString() }));
+      localStorage.setItem(ENTITLED_KEY, JSON.stringify({
+        on: this.entitled(), sub: this.subscription(), everPaid: this.everPaid(), lapsed: this.lapsed(),
+        code: this.proCode(), at: new Date().toISOString(),
+      }));
     } catch { /* kept for this opening */ }
   }
+
+  /** Whether the code is tied to a Google account, so it follows the person to another phone. */
+  readonly codeFollows = computed(() => !isAnonymous(this.proCode()));
 
   /** The store's prices for the two plans, for the Finance Pro screen. */
   async loadPlans(): Promise<void> {
@@ -293,7 +339,7 @@ export class PaywallService {
   }
 }
 
-function readEntitled(): { on?: boolean; sub?: Subscription | null; everPaid?: boolean; lapsed?: string | null } {
+function readEntitled(): { on?: boolean; sub?: Subscription | null; everPaid?: boolean; lapsed?: string | null; code?: string | null } {
   try {
     return JSON.parse(localStorage.getItem(ENTITLED_KEY) ?? '{}');
   } catch {

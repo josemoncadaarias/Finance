@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1102 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1104 on 2026-10-28, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -2153,6 +2153,25 @@ backup restore against iOS's own SQLite backend.
      "Finance Pro · Terminó el {fecha}" once lapsed, plain "Finance Pro" with
      the month's messages otherwise (`proTitle`, `freeLine` in
      `more.page.ts`).
+
+   - **Finance Pro for good, for Jose and whoever he chooses, with no
+     payment** (Jose, 2026-10-28: "algunos usuarios, yo incluido, ... lo
+     veamos siempre como pro"). The store's id was RevenueCat's anonymous
+     one, new on every install, so a grant to it would be lost on a
+     reinstall. Now the store follows the person's Google account
+     (`PaywallService.follow`: `Purchases.logIn` with `proIdOf(email)` -
+     "fp-" and 24 hex of the address's SHA-256, never the address itself,
+     `core/paywall/pro-id.ts`, `pro-id.test.mjs`); a purchase made before
+     moves with it (RevenueCat's own rule). The Finance Pro screen shows
+     "Tu código de Finance Pro" with "Copiar mi código", and "Entrar con
+     Google" while it is still the anonymous one. **How to grant it** (from
+     memory, to confirm in the dashboard): RevenueCat → project Finance →
+     Customers → search the code → Entitlements → Grant → "Finance pro" →
+     Lifetime. Granted that way, `entitled` is true from the store's next
+     answer and cached offline like any purchase. **Keep `CHARGING` false
+     until Jose's own code shows "Tienes Finance Pro"**; then turn it on and
+     hide the preview switch. Pro tour step `since: 3`. Checked in a browser
+     with both kinds of code faked; the store's login only on the phone.
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):
