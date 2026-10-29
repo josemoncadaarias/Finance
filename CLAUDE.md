@@ -280,7 +280,7 @@ could not prove.
   arrows (`since: 5`). Version 19 (2026-10-22): Recordatorios - "A la
   hora que quieras" (any time, when it rings, the notices to allow;
   `since: 2`). Version 20 (2026-10-22): Más - "Reportar un fallo o
-  sugerir una mejora" under Ayuda (`since: 5`). Version 21 (2026-10-23):
+  sugerir una mejora" under Ayuda (`since: 5`). Version 22 (2026-10-29): Inicio's card line and "Lo que no es gasto" (`since: 17`), Pendientes (attention `since: 2`). Version 21 (2026-10-23):
   the assistant - the bulb with every question, notes searched, a
   movement of an answer opens (`since: 6`).
   **A step whose words change because the screen changed is marked with
@@ -6419,6 +6419,25 @@ with testers runs; the paywall is finished after them.
   **The card is one row, the parts behind its (i)** (Jose, the same day:
   "reducir y ahorrarle espacio al usuario"): the title, the (i) and the
   total; a tap opens a sheet with the parts and "En total" (`partsOpen`).
+
+- **A calmer Inicio** (Jose, 2026-10-29, mockups `49a`-`49g` v2, approved:
+  "demasiada info junta"). Nothing lost, each thing a tap away; the chart and
+  its category list and the quick buttons are as they were. Pendientes is ONE
+  line (`app-attention-home`): the two first kinds by name and "y N más"
+  ("4 pagos por hacer · 1 tope pasado · y 6 más"), red only when something is
+  late or passed; a tap opens its rows as before in a sheet (`keepContentsMounted`
+  so their counts stay at hand). The balance card's figures are lines, not
+  tiles (`flowLines`): Entró · Salió, and in blue Recibido · Enviado, each only
+  when it has something, two figures on one line; "movido entre tus cuentas"
+  the same way. A card's credit is one line under the bar (`.credit-line`:
+  "Usas el 14 % · te quedan X de Y", or over the limit in red). "Puedes gastar
+  hoy" is one row (its line about the days left moved into its sheet). Under
+  the chart's category list, what is not spending has a heading each
+  (`otherGroups` in `spending-chart`): Ingresos, Devoluciones, Entre tus
+  cuentas (in blue), and "No son gastos, por eso no están en el gráfico".
+  Tours: attention `since: 2`, home card and "Lo que no es gasto" `since: 17`.
+  Checked in a browser on the sample data (an account, cards over the limit
+  and in favour, all accounts, the sheet).
 
 - **Fixed payments in the "+" were already built** (Jose, 2026-10-29, when I
   listed "favourites in the +" as pending: he sees them there). "Pagos fijos

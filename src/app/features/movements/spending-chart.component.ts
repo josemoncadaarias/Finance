@@ -190,10 +190,18 @@ interface Part {
         </div>
       }
 
-      <!-- Income and money moved, as the list always held them. -->
-      @if (others().length > 0) {
+      <!-- What is not spending, each under its own heading (49b, 49b2):
+           income, refunds that left a category below zero, and money that
+           only moved between one's own accounts. -->
+      @for (group of otherGroups(); track group.key) {
+        <div class="others-head">
+          <b>{{ group.title | t }}</b>
+          <span [class.ui-g]="group.key === 'in'" [class.ui-t]="group.key === 'between'">
+            @if (group.key === 'between') { {{ countLine(group.count) }} } @else { {{ group.key === 'in' ? '+' : '' }}{{ money(group.totalMinor) }} }
+          </span>
+        </div>
         <div class="ui-list all">
-          @for (row of others(); track row.label + row.flow) {
+          @for (row of group.rows; track row.label + row.flow) {
             <button type="button" class="ui-row" (click)="tapped.emit(row.label)">
               <app-badge [size]="42" [builtin]="row.icon" [customId]="row.customIconId"
                          [tone]="row.color" [seed]="row.seed"></app-badge>
@@ -201,13 +209,14 @@ interface Part {
                 <b>{{ row.label }}</b>
                 <small>{{ countLine(row.count ?? 0) }}</small>
               </span>
-              <span class="ui-am" [class.ui-g]="arrived(row)" [class.ui-t]="row.flow === 'moved'">
+              <span class="ui-am" [class.ui-g]="row.flow === 'in'" [class.ui-t]="row.flow === 'moved' || row.flow === 'received'">
                 {{ arrived(row) ? '+' : '' }}{{ money(row.amountMinor) }}
               </span>
             </button>
           }
         </div>
       }
+      @if (otherGroups().length > 0) { <p class="others-note">{{ 'chart.others.note' | t }}</p> }
     }
   `,
   styles: [`
@@ -283,7 +292,12 @@ interface Part {
     .bar.inner .track { background: var(--app-s3); }
     .track i { display: block; height: 100%; border-radius: 4px; min-width: 4px; }
     .chev { color: var(--app-mu); font-size: 14px; flex: none; }
-    .all { margin-top: 12px; }
+    .all { margin-top: 0; }
+    .others-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 18px 4px 8px; }
+    .others-head b { font-size: 15px; }
+    .others-head span { font-size: 13.5px; color: var(--app-mu); white-space: nowrap; }
+    .others-head span.ui-g { color: var(--app-grn); }
+    .others-note { margin: 8px 6px 0; font-size: 12.8px; color: var(--app-mu); line-height: 1.4; }
   `],
 })
 export class SpendingChartComponent {
@@ -353,6 +367,20 @@ export class SpendingChartComponent {
       .sort((a, b) => b.amountMinor - a.amountMinor));
 
   readonly others = computed(() => this.slices().filter(slice => !(slice.flow === 'out' && slice.amountMinor > 0)));
+  /** The others by what they are: income, refunds, money between one's own accounts. */
+  readonly otherGroups = computed(() => {
+    const rows = this.others();
+    const kinds = [
+      { key: 'in', title: 'chart.others.income' as const, rows: rows.filter(r => r.flow === 'in') },
+      { key: 'refund', title: 'chart.others.refunds' as const, rows: rows.filter(r => r.flow === 'out' || r.flow === 'refund') },
+      { key: 'between', title: 'chart.others.between' as const, rows: rows.filter(r => r.flow === 'moved' || r.flow === 'received') },
+    ];
+    return kinds.filter(k => k.rows.length > 0).map(k => ({
+      ...k,
+      totalMinor: k.rows.reduce((sum, r) => sum + r.amountMinor, 0),
+      count: k.rows.reduce((sum, r) => sum + (r.count ?? 0), 0),
+    }));
+  });
 
   private readonly spentTotal = computed(() =>
     this.spending().reduce((sum, slice) => sum + slice.amountMinor, 0));

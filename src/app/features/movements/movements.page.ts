@@ -576,6 +576,15 @@ export class MovementsPage {
     return tiles;
   });
 
+  /** The tiles as two lines: what came in and went out, then what moved (49a). */
+  readonly flowLines = computed(() => {
+    const icon: Record<string, string> = { in: 'arrow-down', out: 'arrow-up', received: 'swap-horizontal', sent: 'swap-horizontal' };
+    const tiles = this.tiles().map(t => ({ ...t, icon: icon[t.key] }));
+    // Two figures in all fit one line.
+    if (tiles.length <= 2) return tiles.length > 0 ? [tiles] : [];
+    return [tiles.filter(t => !t.transfer), tiles.filter(t => t.transfer)].filter(g => g.length > 0);
+  });
+
   /** How much of a card's limit the debt takes, for the bar under it. */
   usedShare(standing: Standing): number | null {
     const limit = standing.limitMinor ?? null;

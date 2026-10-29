@@ -93,16 +93,13 @@
   }
   .quick ion-icon { font-size: 22px; }
   .credit { margin-top: 8px; i { background: var(--app-yel); } }
-  .tiles { margin-top: 12px; }
-  .tiles .ui-lab ion-icon { font-size: 13px; vertical-align: -2px; margin-right: 4px; }
-  .moved-line {
-    margin-top: 9px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    ion-icon { font-size: 17px; flex: none; }
-  }
+  .credit.over i { background: var(--app-red); }
+  .credit-line { margin-top: 6px; font-size: 13.5px; line-height: 1.4; }
+  .flow-line { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 13.5px; color: var(--app-mu); }
+  .flows { margin-top: 4px; }
+  .flow { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+  .flow ion-icon { font-size: 14px; flex: none; }
+  .flow b { font-weight: 600; }
 }
 
 .faces { margin: 12px 0; }

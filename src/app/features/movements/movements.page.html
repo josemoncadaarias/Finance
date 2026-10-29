@@ -134,15 +134,16 @@
              and its statement when it has the two days (29e-29g). -->
         @if (card) {
           @if (standing.limitMinor && standing.availableMinor !== null && standing.availableMinor !== undefined) {
-            <div class="used"><span>{{ 'summary.creditUsed' | t }}</span><b [class.ui-r]="usedPercent(standing) > 100">{{ usedPercent(standing) }} %</b></div>
-            <div class="ui-pbar credit"><i [style.width.%]="usedShare(standing) ?? 0"></i></div>
-            <div class="room">
+            <!-- The bar and the credit in one line (49c, 49d). -->
+            <div class="ui-pbar credit" [class.over]="standing.availableMinor < 0"><i [style.width.%]="usedShare(standing) ?? 0"></i></div>
+            <div class="ui-sub credit-line">
               @if (standing.availableMinor < 0) {
-                <div><span>{{ 'summary.creditOver' | t }}</span><b class="ui-r">{{ -standing.availableMinor | money:standing.currency }}</b></div>
+                <span class="ui-r">{{ 'home.credit.over' | t:{ amount: (-standing.availableMinor | money:standing.currency) } }}</span> · {{ 'home.credit.limit' | t:{ amount: (standing.limitMinor | money:standing.currency) } }}
+              } @else if (usedPercent(standing) > 0) {
+                {{ 'home.credit.used' | t:{ pct: usedPercent(standing) } }} · {{ 'home.credit.left' | t }} <b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b> {{ 'home.credit.of' | t:{ amount: (standing.limitMinor | money:standing.currency) } }}
               } @else {
-                <div><span>{{ 'summary.creditFree' | t }}</span><b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b></div>
+                {{ 'home.credit.leftFirst' | t }} <b class="ui-g">{{ standing.availableMinor | money:standing.currency }}</b> {{ 'home.credit.ofCredit' | t }}
               }
-              <div class="end"><span>{{ 'summary.creditLimit' | t }}</span><b>{{ standing.limitMinor | money:standing.currency }}</b></div>
             </div>
           } @else {
             <div class="ui-sub">{{ 'summary.creditNoLimit' | t }}</div>
@@ -155,23 +156,25 @@
           }
         }
 
-        <div class="ui-mini tiles">
-          @for (tile of tiles(); track tile.key; let last = $last; let odd = $odd) {
-            <div [class.alone]="last && tiles().length % 2 === 1">
-              <span class="ui-lab">
-                @if (tile.transfer) { <ion-icon name="swap-horizontal"></ion-icon> }{{ tile.label }}
+        <!-- The same figures as ever, as two quiet lines (49a): what came in and
+             went out, and in blue what only moved between one's own accounts. -->
+        <div class="flows">
+        @for (group of flowLines(); track $index) {
+          <div class="flow-line">
+            @for (tile of group; track tile.key) {
+              <span class="flow">
+                <ion-icon [name]="tile.icon" [class]="tile.tone"></ion-icon>{{ tile.label }} <b [class]="tile.tone">{{ tile.amount | money:store.currency() }}</b>
               </span>
-              <b [class]="tile.tone">{{ tile.amount | money:store.currency() }}</b>
-            </div>
-          }
-        </div>
-
-        @if (store.movedBetween() > 0) {
-          <div class="ui-sub moved-line">
-            <ion-icon name="swap-horizontal" class="ui-t"></ion-icon>
-            <span class="ui-one">{{ 'ui.movedBetween' | t:{ amount: (store.movedBetween() | money:store.currency()) } }}</span>
+            }
           </div>
         }
+
+        @if (store.movedBetween() > 0) {
+          <div class="flow-line">
+            <span class="flow"><ion-icon name="swap-horizontal" class="ui-t"></ion-icon><b class="ui-t">{{ store.movedBetween() | money:store.currency() }}</b> {{ 'home.movedBetween' | t }}</span>
+          </div>
+        }
+        </div>
       </section>
     }
 
