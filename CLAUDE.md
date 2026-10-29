@@ -175,7 +175,10 @@ Play's "Detalles" shows is the listing's (the closed test's), not the one
 installed; that one is in Ajustes → Apps → Finance.
 
 **Waiting for Jose, or to check on the phone** (a browser cannot show
-these):
+these). **Jose, 2026-10-29: he reports what reads wrong as he uses the app
+on both phones, and asks for each fix then** - do not ask him to try the
+items below one by one; keep them here only as the record of what a browser
+could not prove.
 - The Drive copy's new progress bar and its messages (the browser cannot
   sign in to Google, so it was never seen running).
 - The long press that starts choosing (Android's `contextmenu`), now also on
@@ -192,14 +195,15 @@ these):
   (Cuentas → Rendimientos, the round arrow): months already worked out with
   a late movement in them are only redone from then on.
 - **Not started, waiting for Jose's word** (proposed to him 2026-10-02):
-  the paywall service and screen (rule 21); several debts' strategies (avalanche, snowball); the
-  ideas from Lukas's atajos (rule 22).
+  the ideas from Lukas's atajos (rule 22). (The paywall was built on
+  2026-10-15 and several debts' strategies on 2026-10-29, "Salir de tus
+  deudas".)
 - The open questions of rule 21 (which report sections are paid, lifetime
   option, what sits between the app and Google Play) and the list in
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1122 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1130 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6188,7 +6192,9 @@ with testers runs; the paywall is finished after them.
     frankfurter.dev, the Banco de la República, Netlify). Live once Netlify
     deploys `main`.
   - **Mail is dropped** (rule 22's mail half): not to be proposed again.
-  - **Accruing in the background on opening: still not done**, and why: the
+  - **Accruing in the background on opening: not for now** (Jose,
+    2026-10-29: "mejor no lo hagamos por ahora"; do not propose it again
+    until he raises it). Why it was not done: the
     one transaction depth counter of `BaseSqlDriver` (see "The yields screen
     works out only what changed") cannot tell a nested transaction from a
     concurrent one, so a save during a background pass could be rolled back
@@ -6335,6 +6341,70 @@ with testers runs; the paywall is finished after them.
   Yields tour steps 1 and 2 reworded, `since: 3`. Checked in a browser on the
   sample data (Banco Índigo, Cajita Naranja: each tab, a day of two products,
   the menu, a long list).
+- **"Salir de tus deudas": a plan for several debts** (Jose, 2026-10-29,
+  mockups `48a`-`48l`, approved as drawn). Deudas carries a card with the
+  plan's answer in one sentence (`planLine` in `debts.page.ts`), opening
+  `/debts/plan` (`features/debts/plan.page.ts`, routed before `debts/:id`).
+  On top "Puedo poner de más cada mes" (first half of what is left over a
+  month, in steps of 50,000, `suggestedExtra`; then what the person typed,
+  kept on the device with the order, `core/debts/plan-prefs.ts`); two orders,
+  "Pagar menos intereses" (highest rate first, recommended) and "Cerrar una
+  pronto" (smallest first), the choice hidden when both orders are the same;
+  the answer - the month free of debt, what is saved in interest and how many
+  months sooner - **against the same plan with nothing extra** (every debt
+  its usual payment, a finished one's payment moving to the next), so the
+  only difference said is what the extra does; one bar per debt to its end;
+  the order, each with what it owes, its rate, what it is paid and why it is
+  in that place, the first marked "Aquí va lo de más". A debt tapped says
+  what to pay it next month: a card opens the one transfer form from its
+  usual payer with its usual payment plus the extra, a loan its page on
+  Abonar (`/debts/loan/:id?tab=ahead`). "Ver otros valores" lists what
+  100,000, 300,000, 500,000, 1,000,000 (and what is left over, past a
+  million) each get. The arithmetic is pure, `core/debts/debt-plan.ts`
+  (`planDebts`, `debt-plan.test.mjs` on invented debts); the debts are the
+  assistant's own (`AssistantService.planInputs`): a loan pays its
+  installment, a card **what came into it on average over the last three
+  whole months** (transfers into it), or, with none, an estimate (its
+  month's interest and 1/24 of what it owes, said on screen); a card with no
+  rate is weighed at the month's legal maximum (one banner names them all);
+  **no new purchases on the cards are assumed** (said in the disclaimer). A
+  loan with more than 120 installments left (a mortgage) is kept apart with
+  its installment. The assistant's "¿Qué deuda pago primero?" ends with "Ver
+  mi plan para salir de las deudas" when there are two debts or more.
+  Debts tour step `since: 4`, a new `debtPlan` tour. Checked in a browser on
+  the sample data (the plan, the sheets, nothing extra); not on the phone.
+
+- **A bank's last messages can be read before it is tied to an account**
+  (Jose, 2026-10-29: he had to link an SMS sender to see its messages, to
+  check which bank they came from). A source not read yet keeps nothing, so
+  its page looks where the messages still are and keeps nothing:
+  `BankNotifications.peek` - an SMS sender's last ten from the inbox
+  (`SmsInbox.peek`, only business-like senders, with `READ_SMS`), an app's
+  from the status bar (`NotificationCatcher.peek`). A row of "Agregar un
+  banco" opens that page (`preview`; "Activar" beside it still turns it on),
+  and a source in "Tus bancos" still without an account opens its page
+  instead of the account picker (its "¿De qué cuenta es?" row is on top).
+  Checked in a browser with a faked peek; the Java not compiled in the
+  session (the Store bundle is its check), not seen on the phone.
+
+- **The yields summary's balance chart says why each month moved** (Jose,
+  2026-10-29: Rappi cuenta's October below zero read as a loss; his
+  screenshot did not reach the session, and this is the only yields section
+  that can go below zero - assumed, to confirm with him). "Tu saldo frente al
+  cierre de {mes}" is now "Cuánto cambió tu saldo desde {mes}", its (i) says
+  a bar goes down when money is taken out even while interest is earned, and
+  each month tapped says it in a sentence (`TrendBlock.points[].says`):
+  "Tienes X menos que al cierre de septiembre. Ganaste Y en intereses, pero
+  sacaste Z" - what was put in or out being the change less the yields since
+  the first month. The figures did not change. Checked in a browser on the
+  sample data.
+
+- **Fixed payments in the "+" were already built** (Jose, 2026-10-29, when I
+  listed "favourites in the +" as pending: he sees them there). "Pagos fijos
+  y frecuentes" in the "+" holds "Pagos de este mes" and "Lo que más
+  registras", and a habit can be pinned first ("Fijar arriba", 2026-10-23).
+  Before calling anything pending, look for it here and in the code.
+
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -6538,7 +6608,7 @@ provider's own terms page before a line is written:
 | 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
 | 17 | Quincena, trimestre, semestre as periods | Small (`period.ts`) | Report | **Built** 2026-10-22 (trimestre already was) |
-| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Shortcuts **built** 2026-10-22; favourites proposed |
+| 5/22 | Favourites ("registros comunes"), app-icon shortcuts | Medium | iOS rule | Shortcuts **built** 2026-10-22; favourites **built** as "Lo que más registras" with "Fijar arriba" (2026-10-22/23) |
 | 2/16 | Budgets per category: amount, period, renew | Large, new table | Rule 20 said "no budgets" | **Built** as limits, 2026-10-01 |
 | 1 | "Seguro para gastar" today, showing its working | Medium, needs 2 | - | **Built** 2026-10-22 ("Puedes gastar hoy" on Inicio) |
 | 7 | Month-end projection, as a report section | Small | Rule 20 | **Built** as "Tu saldo a futuro" (90 days), 2026-09-28 |
@@ -6551,7 +6621,7 @@ provider's own terms page before a line is written:
 | F | Frequent movements in the "+" sheet, one tap each | Medium | Rule 22 (never saved without the tap) | **Built** 2026-10-22 ("Lo que más registras") |
 | H | Hide amounts with the eye (same as 3) | - | - | **Rejected** by Jose, 2026-09-28 |
 | P | Choose the accent | Small | Design | **Decided** by Jose, 2026-09-28: Zafiro by default, changeable in Apariencia |
-| L | Loans, card dates, paying ahead, debt strategies | Large, new type and tables | Rules 4, 7, 11, 22 | Proposed and drawn (`11a`-`11j`), first in Jose's order |
+| L | Loans, card dates, paying ahead, debt strategies | Large, new type and tables | Rules 4, 7, 11, 22 | **Built**: loans and cards 2026-10-01, debt strategies 2026-10-29 ("Salir de tus deudas") |
 | - | Tags | - | - | **Rejected** by Jose, 2026-09-27 |
 | - | Ads, accounts, a cloud database, attribution | - | Rule 21 | **Not to copy** |
 
@@ -6640,4 +6710,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas)
