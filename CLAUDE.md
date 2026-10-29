@@ -6289,10 +6289,27 @@ with testers runs; the paywall is finished after them.
   up, only some words on the page disagree), but `squaringFor` (#250) took
   only `checked` as adding up and showed the blocked card "Este extracto no
   cuadra" for `unclear`. Now both add up; `unchecked` (nothing to compare)
-  says nothing at all. Test in `statement-anchor.test.mjs`. **Mockups
-  `46a`-`46e` propose Por revisar made simple** (a list of origins, then one
-  at a time; "Movimientos que se repiten" replaced by a question when a
-  shop's category is chosen), waiting for Jose's word.
+  says nothing at all. Test in `statement-anchor.test.mjs`. **And Por
+  revisar is simple now** (mockups `46a`-`46e`, built 2026-10-29 at Jose's
+  word). It opens on a list of origins (a statement, an app's notices, an SMS
+  sender), each one row with how many it brings and how many need something;
+  under it "Importar otro extracto". Tapping one opens it alone (`inBatch`,
+  `viewing`; the title bar says its name and back returns to the list): a card
+  with its account, whether it adds up in one sentence (`ui.rev2.squares` /
+  `squaresNot` - said once, so the blocked squaring card is gone), "Guardar
+  los N listos" and its "···"; then "Te falta elegir algo" (`needIn`), "Listos"
+  (`readyIn`, the first 3 and "Ver los otros N") and "N ya los tenías
+  registrados" folded. Each row says its day beside its category. **"Movimientos
+  que se repiten" is gone**: choosing a category in the form for a shop that
+  appears again in that origin asks "¿Les pongo {categoría} a los otros N?"
+  (`sameShop`, read from `ComposeService.lastSaved`; yes = `fileAllAs`).
+  Saving the last ones shows "Guardaste los N movimientos" (`done`) and only
+  then the opening-balance question; saving part says so in a notice. The
+  filters chip, the account chip, the fold button and the arrows are gone;
+  search shows inside an origin with more than 8 rows; a long press still
+  chooses several. `?batch=` and a tapped notice open their origin. Review
+  tour steps 2, 3 and 6 `since: 8`. Checked in a browser on the sample data
+  (list, origin, the shop question, saving all, back).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

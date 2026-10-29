@@ -251,13 +251,14 @@ const TOUR_LIST = {
   review: {
     steps: [
       { title: 'tour.review.1.title', text: 'tour.review.1.text' },
-      { sel: 'app-review .origin-head', title: 'tour.review.2.title', text: 'tour.review.2.text' },
-      { sel: 'app-review .ui-search', title: 'tour.review.3.title', text: 'tour.review.3.text' },
+      { sel: 'app-review .origins', title: 'tour.review.2.title', text: 'tour.review.2.text', since: 8 },
+      { title: 'tour.review.3.title', text: 'tour.review.3.text', since: 8 },
       // 2026-10-13/14: everything chosen is remembered; "No es un movimiento".
       { title: 'tour.review.4.title', text: 'tour.review.4.text', since: 2 },
       { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 2 },
       // 2026-10-14: a group that repeats answered whole; "Editar" for several chosen.
-      { sel: 'app-review .shops', title: 'tour.review.6.title', text: 'tour.review.6.text', since: 3 },
+      // 2026-10-29: one origin at a time (46a-46e); the same shop asked once.
+      { title: 'tour.review.6.title', text: 'tour.review.6.text', since: 8 },
       { title: 'tour.review.7.title', text: 'tour.review.7.text', since: 3 },
       { title: 'tour.review.8.title', text: 'tour.review.8.text', since: 4 },
       { title: 'tour.review.9.title', text: 'tour.review.9.text', since: 5 },

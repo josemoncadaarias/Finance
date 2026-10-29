@@ -1,19 +1,19 @@
 <!-- Movimientos por revisar (mockups 6a-6z): what a statement or a bank
      notification proposed, answered one by one or several at once. Nothing is
      written without that answer (rule 22). -->
-<ion-content #list [scrollEvents]="true" (ionScroll)="jump.measure()" [class.selecting]="selecting()">
+<ion-content [class.selecting]="selecting()">
   <header class="ui-titlebar">
     <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
       <ion-icon name="chevron-back"></ion-icon>
     </button>
-    <h1>{{ 'more.review' | t }}</h1>
+    <h1>{{ viewing()?.title ?? done()?.title ?? ('more.review' | t) }}</h1>
     <app-ask-button></app-ask-button>
   </header>
 
   <div class="ui-main">
     @if (loading() && batches().length === 0) {
       <div class="state"><ion-spinner></ion-spinner></div>
-    } @else if (total() === 0 && !squaring()) {
+    } @else if (total() === 0 && !squaring() && !done()) {
       <!-- Nothing waiting: an icon, one sentence, one action (6z). -->
       <div class="empty">
         <app-badge shape="ci" [size]="80" builtin="checkmark-done" fixed="#34c98b"></app-badge>
@@ -47,222 +47,74 @@
         }
       }
 
-      <!-- The account, centred, with "Todas las cuentas" first in its list. -->
-      <div class="account-row">
-        <button type="button" class="ui-chip account" (click)="pickingAccount.set(true)">
-          @if (shownAccount(); as account) {
-            <app-badge shape="ci" [size]="26" [builtin]="account.builtin_icon" [customId]="account.custom_icon_id"
-                       [tone]="account.color" [seed]="account.id" fallback="wallet"></app-badge>
-          } @else {
-            <app-badge shape="ci" [size]="26" builtin="layers" fixed="#6378ff"></app-badge>
-          }
-          <span class="ui-one">{{ accountLabel() }}</span>
-          <ion-icon name="chevron-down-outline"></ion-icon>
-        </button>
-      </div>
-
-      <div class="ui-search">
-        <ion-icon name="search-outline"></ion-icon>
-        <input type="search" [placeholder]="'ui.review.search' | t" [value]="search()"
-               (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
-        @if (search()) {
-          <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
-        }
-      </div>
-
-      <div class="controls">
-        <button type="button" class="ui-chip view" [class.on]="showOnly() !== 'all'" (click)="choosingView.set(true)">
-          <ion-icon name="funnel-outline"></ion-icon><span>{{ viewLabel() }}</span><ion-icon name="chevron-down-outline"></ion-icon>
-        </button>
-        <span class="grow"></span>
-        <button type="button" class="ui-fold" (click)="toggleAllDays()"
-                [attr.aria-label]="(allDaysClosed() ? 'ui.openAll' : 'ui.closeAll') | t">
-          <ion-icon [name]="allDaysClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-        </button>
-        @if (!selecting()) {
-          <button type="button" class="ui-chip" (click)="startSelecting()">
-            <ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}
-          </button>
-        } @else {
-          <button type="button" class="ui-chip on" (click)="stopSelecting()">
-            <ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}
-          </button>
-        }
-      </div>
-
-      @if (filtering() && shownCount() < total()) {
-        <div class="seen">
-          <ion-icon name="eye-off-outline"></ion-icon>
-          <span>{{ 'ui.review.seeing' | t:{ shown: shownCount(), total: total() } }}</span>
-          <button type="button" (click)="showEverything(); accountFilter.set(null)">{{ 'review.hidden.show' | t }}</button>
-        </div>
-      }
-
       @if (error()) { <div class="ui-banner bad">{{ error() }}</div> }
 
-      <!-- What the bank says the account holds, against what the app says
-           (6p-6s): the question before it changes anything. -->
-      @if (squaring(); as drift) {
-        @if (drift.kind === 'blocked') {
-        <!-- A statement that does not add up is never used to move anything (43d). -->
-        <div class="ui-card squaring">
-          <div class="shead">
-            <app-badge shape="ci" [size]="34" builtin="alert" fixed="#f6b93b"></app-badge>
-            <b>{{ 'review.square.blocked.title' | t:{ account: drift.accountName } }}</b>
-          </div>
-          <p class="snote">{{ 'review.square.blocked.text' | t }}</p>
-          <button type="button" class="ui-btn ghost" (click)="squaring.set(null)">{{ 'review.square.blocked.ok' | t }}</button>
-        </div>
-        } @else if (drift.kind === 'older') {
-        <!-- An older statement read later: the opening goes down, today stays (43e). -->
-        <div class="ui-card squaring">
-          <div class="shead">
-            <app-badge shape="ci" [size]="34" builtin="git-compare-outline" fixed="#6378ff"></app-badge>
-            <b>{{ 'review.square.older.title' | t:{ account: drift.accountName, date: dayText(drift.day) } }}</b>
-          </div>
-          <p class="snote">{{ 'review.square.older.text' | t }}</p>
-          <div class="sline"><span>{{ 'review.square.older.now' | t }}</span><b>{{ money(drift.opening, drift.currency) }}</b></div>
-          <div class="sline"><span>{{ 'review.square.older.new' | t }}</span><b class="ui-p">{{ money(drift.opening + drift.theirs - drift.ours, drift.currency) }}</b></div>
-          <div class="sline"><span>{{ 'review.square.older.today' | t }}</span><b class="ui-g">{{ 'review.square.older.same' | t }}</b></div>
-          <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.older.do' | t:{ amount: money(drift.opening + drift.theirs - drift.ours, drift.currency) } }}</button>
-          <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
-        </div>
-        } @else {
-        <div class="ui-card squaring">
-          <div class="shead">
-            <app-badge shape="ci" [size]="34" builtin="wallet" fixed="#6378ff"></app-badge>
-            <b class="ui-one">{{ 'review.square.title' | t:{ account: drift.accountName } }}</b>
-            <span class="ui-info" role="button" (click)="info.set(i18n.t('review.square.hint'))" [attr.aria-label]="'ui.info' | t">
-              <ion-icon name="information"></ion-icon>
-            </span>
-          </div>
-          <div class="sline"><span>{{ 'review.square.ours' | t:{ date: dayText(drift.day) } }}</span><b>{{ money(drift.ours, drift.currency) }}</b></div>
-          <div class="sline"><span>{{ 'review.square.theirs' | t }}</span><b>{{ money(drift.theirs, drift.currency) }}</b></div>
-          <div class="sline"><span>{{ 'review.square.gap' | t }}</span><b class="ui-p">{{ squaringGap() > 0 ? '+' : '' }}{{ money(squaringGap(), drift.currency) }}</b></div>
-          @if (typingBalance()) {
-            <div class="ui-inputs">
-              <label class="ui-input">
-                <span>{{ 'review.square.type' | t }}</span>
-                <input inputmode="decimal" [value]="typedBalance()" (input)="typedBalance.set($any($event.target).value ?? '')">
-              </label>
-            </div>
-            <div class="two">
-              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(false)">{{ 'entry.cancel' | t }}</button>
-              <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquareTyped()">{{ 'review.square.do' | t }}</button>
-            </div>
-          } @else {
-            <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.match' | t }}</button>
-            <div class="two">
-              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(true)">{{ 'review.square.other' | t }}</button>
-              <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
-            </div>
-          }
-        </div>
-        }
-      }
-
-      @for (batch of shownBatches(); track batch.key) {
-        <!-- One origin - a statement or a sender - is one block, folded or open;
-             its head stays pinned while its rows scroll (Jose, 2026-10-05). -->
-        <div class="origin" [class.shut]="!isBatchOpen(batch)">
-        <div class="origin-head" (click)="toggleBatch(batch)">
-          <app-badge shape="ci" [size]="36" [builtin]="batch.lines[0]?.proposal?.source === 'notification' ? 'notifications-outline' : 'document-text'" fixed="#9b7bff"></app-badge>
-          <span class="ui-tx">
-            <b class="ui-one">{{ batch.title }}</b>
-            <small class="ui-one">{{ fileName(batch) }} · @if (partial(batch)) { {{ 'ui.review.shownOf' | t:{ shown: shownIn(batch).length, count: batch.lines.length } }} } @else { {{ countOf(batch.lines.length) }} }</small>
-          </span>
-          @if (checkOf(batch); as check) {
-            <!-- Says one thing: the statement's own balances agree, or not. -->
-            <button type="button" class="check" [class.off]="check.off" (click)="$event.stopPropagation(); info.set(check.line)">
-              <ion-icon [name]="check.off ? 'alert' : 'checkmark'"></ion-icon>{{ (check.off ? 'ui.review.squaresNot' : 'ui.review.squares') | t }}
-            </button>
-          }
-          <ion-icon class="ui-chev" [name]="isBatchOpen(batch) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-        </div>
-        @if (isBatchOpen(batch)) {
-        <!-- A batch is one card: where it came from, how many, the check.
-             Not under a filter: it speaks of the whole origin. -->
-        @if (!partial(batch) && batch.lines.length - knownIn(batch).length > 0) {
-        <section class="ui-card batch">
-          @if (checkOf(batch); as check) {
-            @if (check.off) {
-              <p class="off"><ion-icon name="alert-circle-outline"></ion-icon>{{ 'ui.review.offBy' | t:{ amount: check.gap } }}</p>
-            }
-          }
-          <p class="count">{{ 'ui.review.toConfirm' | t:{ count: batch.lines.length - knownIn(batch).length } }}</p>
-          @if (waitingOn(batch) > 0) {
-            <p class="needs">• {{ (waitingOn(batch) === 1 ? 'ui.review.needsOne' : 'ui.review.needs') | t:{ count: waitingOn(batch) } }}</p>
-          }
-          <div class="bactions">
-            <button type="button" class="ui-btn" [disabled]="working() || readyLines(batch).length === 0"
-                    (click)="asking.set({ kind: 'accept', batch })">
-              <ion-icon name="checkmark-done"></ion-icon>
-              {{ (readyLines(batch).length === 1 ? 'ui.review.saveReadyOne' : 'ui.review.saveReady') | t:{ count: readyLines(batch).length } }}
-            </button>
+      @if (viewing(); as batch) {
+        <!-- One origin, on its own (46b): what it is and whether it adds up,
+             one button for the ready ones, then what still needs the person. -->
+        <section class="ui-card origin-card" data-tour="review-origin">
+          <div class="ohead">
+            <app-badge shape="ci" [size]="44" [builtin]="originIcon(batch)" fixed="#9b7bff"></app-badge>
+            <span class="ui-tx"><b class="wrap">{{ originName(batch) }}</b><small class="ui-one">{{ countOf(batch.lines.length) }}</small></span>
             <button type="button" class="ui-round" [disabled]="working()" (click)="batchMenu.set(batch)" [attr.aria-label]="'review.more' | t">
               <ion-icon name="ellipsis-horizontal"></ion-icon>
             </button>
           </div>
+          @if (checkOf(batch); as check) {
+            <p class="checkline" [class.off]="check.off">
+              <ion-icon [name]="check.off ? 'alert-circle' : 'checkmark-circle'"></ion-icon>
+              <span>{{ check.off ? ('ui.rev2.squaresNot' | t:{ amount: check.gap }) : ('ui.rev2.squares' | t) }}</span>
+            </p>
+          }
+          @if (readyLines(batch).length > 0) {
+            <button type="button" class="ui-btn" [disabled]="working()" (click)="asking.set({ kind: 'accept', batch })">
+              {{ (readyLines(batch).length === 1 ? 'ui.rev2.saveReady.one' : 'ui.rev2.saveReady') | t:{ count: readyLines(batch).length } }}
+            </button>
+          }
         </section>
-        }
-        <!-- The shops that turn up more than once in this origin, answered once each. -->
-        @if (!partial(batch) && repeatedOf(batch).length > 0) {
-          <section class="ui-list ui-group shops">
-            <div class="ui-row head" (click)="toggleShops(batch)" (contextmenu)="pressedMany($event, allShopLines(batch))">
-              <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
-              <span class="ui-tx">
-                <b>{{ 'review.repeated' | t }}</b>
-                <small>{{ (repeatedOf(batch).length === 1 ? 'ui.review.shopsOne' : 'ui.review.shops') | t:{ shops: repeatedOf(batch).length, count: allShopLines(batch).length } }}</small>
-              </span>
-              <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(i18n.t('review.repeated.hint'))"
-                    [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
-              <ion-icon class="ui-chev" [name]="shopsOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-            </div>
-            @if (shopsOpen().has(batch.key)) {
-              @for (shop of repeatedOf(batch); track shop.merchant) {
-                @let shopLines = linesOfShop(shop);
-                <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
-                     (click)="selecting() ? toggleMany(shopLines) : openGroup(shop)" (contextmenu)="pressedMany($event, shopLines)">
-                  @if (selecting()) {
-                    <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
-                      @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
-                    </span>
-                  }
-                  @if (shop.category; as category) {
-                    <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
-                  } @else {
-                    <app-badge [size]="38" builtin="storefront" fixed="#2ec4b6"></app-badge>
-                  }
-                  <span class="ui-tx">
-                    <b class="ui-one">{{ shop.sample }}</b>
-                    <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
-                  </span>
-                  @if (!selecting()) {
-                    <!-- Its page: every movement it found, answered alone or together (25b). -->
-                    <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
-                  }
-                </div>
-              }
+
+        @if (batch.lines.length > 8) {
+          <div class="ui-search">
+            <ion-icon name="search-outline"></ion-icon>
+            <input type="search" [placeholder]="'ui.review.search' | t" [value]="search()"
+                   (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
+            @if (search()) {
+              <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
             }
-          </section>
+          </div>
+        }
+
+        @if (needIn(batch); as need) {
+          @if (need.length > 0) {
+            <h3 class="ui-h">{{ 'ui.rev2.need' | t:{ count: need.length } }}</h3>
+            <div class="ui-list" data-tour="review-need">
+              @for (line of need; track line.proposal.id) { <ng-container *ngTemplateOutlet="lineRow; context: { $implicit: line }"></ng-container> }
+            </div>
+          }
+        }
+        @if (readyIn(batch); as ready) {
+          @if (ready.length > 0) {
+            <h3 class="ui-h">{{ 'ui.rev2.ready' | t:{ count: ready.length } }}</h3>
+            <div class="ui-list">
+              @for (line of readyShown(batch); track line.proposal.id) { <ng-container *ngTemplateOutlet="lineRow; context: { $implicit: line }"></ng-container> }
+              @if (readyShown(batch).length < ready.length) {
+                <button type="button" class="ui-row more" (click)="restShown.set(true)">
+                  <span class="ui-tx"><b class="ui-link">{{ (ready.length - readyShown(batch).length === 1 ? 'ui.rev2.seeRest.one' : 'ui.rev2.seeRest') | t:{ count: ready.length - readyShown(batch).length } }}</b></span>
+                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          }
         }
         @if (knownIn(batch).length > 0) {
-          <!-- What the ledger already holds, apart and folded (2026-10-05). -->
-          <section class="ui-list ui-group known">
-            <div class="ui-row head" (click)="toggleKnown(batch)">
-              <app-badge [size]="34" builtin="copy-outline" fixed="#8a94a6"></app-badge>
-              <span class="ui-tx">
-                <b class="wrap">{{ 'ui.review.known' | t }}</b>
-                <small class="wrap">{{ countOf(knownIn(batch).length) }} · {{ 'ui.review.known.hint' | t }}</small>
-              </span>
-              <ion-icon class="ui-chev" [name]="knownOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
-            </div>
+          <!-- What the ledger already holds: one quiet row, opened only if wanted. -->
+          <div class="ui-list known">
+            <button type="button" class="ui-row" (click)="toggleKnown(batch)">
+              <span class="ui-tx"><b class="wrap">{{ (knownIn(batch).length === 1 ? 'ui.rev2.known.one' : 'ui.rev2.known') | t:{ count: knownIn(batch).length } }}</b>
+                <small class="wrap">{{ 'ui.rev2.known.line' | t }}</small></span>
+              <ion-icon class="ui-chev" [name]="knownOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-forward'"></ion-icon>
+            </button>
             @if (knownOpen().has(batch.key)) {
-            <div class="ui-row plain">
-              <button type="button" class="ui-btn ghost" [disabled]="working()" (click)="asking.set({ kind: 'discardKnown', batch })">
-                <ion-icon name="trash-outline"></ion-icon>{{ (knownIn(batch).length === 1 ? 'ui.review.known.dropOne' : 'ui.review.known.drop') | t:{ count: knownIn(batch).length } }}
-              </button>
-            </div>
               @for (line of knownIn(batch); track line.proposal.id) {
                 <div class="ui-row line" (click)="tapped(line)">
                   <app-badge [size]="36" builtin="copy-outline" fixed="#8a94a6"></app-badge>
@@ -273,92 +125,47 @@
                   <span class="ui-am">{{ money(line.proposal.amount_minor, line.account?.currency_code) }}</span>
                 </div>
               }
-            }
-          </section>
-        }
-        @for (day of daysOf(batch); track day.key) {
-          <section class="ui-list ui-group">
-            @if (day.title) {
-              <div class="ui-row head" (click)="toggleDay(batch, day.key)" (contextmenu)="pressedMany($event, day.lines)">
-                @if (selecting()) {
-                  <span class="ui-tick" [class.on]="tickOf(day.lines) === 'on'" [class.half]="tickOf(day.lines) === 'half'"
-                        (click)="$event.stopPropagation(); toggleMany(day.lines)" aria-hidden="true">
-                    @if (tickOf(day.lines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(day.lines) === 'half') { <ion-icon name="remove"></ion-icon> }
-                  </span>
-                }
-                <span class="ui-tx">
-                  <b class="ui-one">{{ day.title }}</b>
-                  <small>
-                    @if (selecting() && pickedOf(day.lines) > 0) { {{ 'ui.review.picked' | t:{ picked: pickedOf(day.lines), count: day.lines.length } }} }
-                    @else { {{ countOf(day.lines.length) }} }
-                  </small>
-                </span>
-                <span class="total" [class.ui-r]="day.totalMinor < 0" [class.ui-g]="day.totalMinor > 0">{{ day.totalMinor > 0 ? '+' : '' }}{{ money(day.totalMinor, day.currency) }}</span>
-                <ion-icon class="ui-chev" [name]="isDayOpen(batch, day.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              <div class="ui-row plain">
+                <button type="button" class="ui-btn ghost" [disabled]="working()" (click)="asking.set({ kind: 'discardKnown', batch })">
+                  <ion-icon name="trash-outline"></ion-icon>{{ (knownIn(batch).length === 1 ? 'ui.review.known.dropOne' : 'ui.review.known.drop') | t:{ count: knownIn(batch).length } }}
+                </button>
               </div>
             }
-            @if (!day.title || isDayOpen(batch, day.key)) {
-              @for (line of day.lines; track line.proposal.id) {
-                <div class="ui-row line" [class.picked]="isSelected(line)" (click)="tapped(line)" (contextmenu)="pressed($event, line)"
-                     [attr.role]="selecting() ? 'checkbox' : 'button'" [attr.aria-checked]="selecting() ? isSelected(line) : null">
-                  @if (selecting()) {
-                    <span class="ui-tick" [class.on]="isSelected(line)" aria-hidden="true">
-                      @if (isSelected(line)) { <ion-icon name="checkmark"></ion-icon> }
-                    </span>
-                  }
-                  @if (line.partner) {
-                    <app-badge [size]="40" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
-                  } @else if (categoryOf(line); as category) {
-                    <app-badge [size]="40" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
-                               [tone]="category.color" [seed]="category.id"></app-badge>
-                  } @else {
-                    <app-badge [size]="40" builtin="help" fixed="#f6b93b"></app-badge>
-                  }
-                  <span class="ui-tx">
-                    <b class="ui-one">{{ line.partner ? pairTitle(line) : (line.proposal.description || ('review.noDescription' | t)) }}</b>
-                    @if (line.partner) {
-                      <!-- A transfer carries no category; each half shows its own once separated. -->
-                    } @else if (categoryOf(line); as category) {
-                      <small class="ui-one">{{ category.name }}
-                        @if (line.proposal.category_from === 'learned') { <span class="tag learned">{{ 'review.learned' | t }}</span> }
-                        @if (line.proposal.category_from === 'guessed') { <span class="tag guessed">{{ 'review.fromWords' | t }}</span> }
-                      </small>
-                    } @else if (missing(line); as needed) {
-                      <small class="ui-y wrap">{{ needed }}</small>
-                    }
-                    @if (line.sameAs) {
-                      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.sameAs }}</small>
-                    }
-                    @if (line.pairedWith) {
-                      <small class="flag"><ion-icon name="git-compare-outline"></ion-icon>{{ line.pairedWith }}</small>
-                    }
-                    @if (line.guessed) {
-                      <small class="flag"><ion-icon name="help-circle-outline"></ion-icon>{{ 'ui.review.signGuessed' | t }}</small>
-                    }
-                    @if (line.summary) {
-                      <small class="flag"><ion-icon name="receipt-outline"></ion-icon>{{ 'ui.review.fromSummary' | t }}</small>
-                    }
-                    @if (line.twin) {
-                      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.twin }}</small>
-                    }
-                    @if (line.seenBy) {
-                      <small class="seen"><ion-icon name="layers-outline"></ion-icon>{{ line.seenBy }}</small>
-                    }
-                  </span>
-                  @if (line.partner) {
-                    <span class="ui-am ui-t">{{ money(abs(line.proposal.amount_minor), line.account?.currency_code) }}</span>
-                  } @else {
-                  <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
-                    {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
-                  </span>
-                  }
-                </div>
-              }
-            }
-          </section>
+          </div>
         }
+        @if (search() && needIn(batch).length === 0 && readyIn(batch).length === 0 && knownIn(batch).length === 0) {
+          <p class="hint">{{ 'notifications.search.none' | t }}</p>
         }
+        @if (!search() && needIn(batch).length === 0 && readyIn(batch).length === 0) {
+          <ng-container *ngTemplateOutlet="squareCard"></ng-container>
+        }
+      } @else if (done(); as d) {
+        <!-- Everything saved (46e): what happened and, only now, the opening balance. -->
+        <section class="ui-card done">
+          <app-badge shape="ci" [size]="56" builtin="checkmark" fixed="#34c98b"></app-badge>
+          <b>{{ (d.count === 1 ? 'ui.rev2.done.one' : 'ui.rev2.done') | t:{ count: d.count } }}</b>
+          @if (d.account) { <small>{{ 'ui.rev2.done.in' | t:{ account: d.account } }}</small> }
+        </section>
+        <ng-container *ngTemplateOutlet="squareCard"></ng-container>
+        <button type="button" class="ui-btn ghost" (click)="backToOrigins()">{{ 'ui.rev2.backToList' | t }}</button>
+      } @else {
+        <!-- Every origin, one row each (46a). -->
+        <div class="ui-list origins" data-tour="review-origins">
+          @for (batch of batches(); track batch.key) {
+            <button type="button" class="ui-row origin-row" (click)="openOrigin(batch)">
+              <app-badge shape="ci" [size]="44" [builtin]="originIcon(batch)" fixed="#9b7bff"></app-badge>
+              <span class="ui-tx"><b class="wrap">{{ batch.title }}</b>
+                <small class="ui-one">{{ countOf(batch.lines.length) }}</small>
+                @if (originNeed(batch); as need) { <small class="ui-y wrap">{{ need }}</small> }</span>
+              <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
+            </button>
+          }
         </div>
+        <p class="hint">{{ 'ui.rev2.list.hint' | t }}</p>
+        <button type="button" class="ui-btn ghost import" (click)="startImport()">
+          <ion-icon name="document-text-outline"></ion-icon>{{ 'ui.rev2.import' | t }}
+        </button>
+        <ng-container *ngTemplateOutlet="squareCard"></ng-container>
       }
       <div class="ui-page-end"></div>
       <!-- Room for the selection bar, so the last rows can be scrolled above it. -->
@@ -366,7 +173,6 @@
     }
   </div>
 
-  <app-jump #jump [content]="list" [hidden]="selecting()" [folded]="total() > 0 ? allDaysClosed() : null" (fold)="toggleAllDays()"></app-jump>
 
   <!-- What to do with the ticked rows (6j). -->
   @if (selecting()) {
@@ -417,6 +223,133 @@
     </div>
   }
 </ion-content>
+
+<!-- One movement, the same row wherever it is listed. -->
+<ng-template #lineRow let-line>
+<div class="ui-row line" [class.picked]="isSelected(line)" (click)="tapped(line)" (contextmenu)="pressed($event, line)"
+     [attr.role]="selecting() ? 'checkbox' : 'button'" [attr.aria-checked]="selecting() ? isSelected(line) : null">
+  @if (selecting()) {
+    <span class="ui-tick" [class.on]="isSelected(line)" aria-hidden="true">
+      @if (isSelected(line)) { <ion-icon name="checkmark"></ion-icon> }
+    </span>
+  }
+  @if (line.partner) {
+    <app-badge [size]="40" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
+  } @else if (categoryOf(line); as category) {
+    <app-badge [size]="40" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
+               [tone]="category.color" [seed]="category.id"></app-badge>
+  } @else {
+    <app-badge [size]="40" builtin="help" fixed="#f6b93b"></app-badge>
+  }
+  <span class="ui-tx">
+    <b class="ui-one">{{ line.partner ? pairTitle(line) : (line.proposal.description || ('review.noDescription' | t)) }}</b>
+    @if (line.partner) {
+      <!-- A transfer carries no category; each half shows its own once separated. -->
+    } @else if (categoryOf(line); as category) {
+      <small class="ui-one">{{ shortDay(line.proposal.occurred_on) }} · {{ category.name }}
+        @if (line.proposal.category_from === 'guessed') { <span class="tag guessed">{{ 'review.fromWords' | t }}</span> }
+      </small>
+    } @else if (missing(line); as needed) {
+      <small class="ui-y wrap">{{ shortDay(line.proposal.occurred_on) }} · {{ needed }}</small>
+    }
+    @if (line.sameAs) {
+      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.sameAs }}</small>
+    }
+    @if (line.pairedWith) {
+      <small class="flag"><ion-icon name="git-compare-outline"></ion-icon>{{ line.pairedWith }}</small>
+    }
+    @if (line.guessed) {
+      <small class="flag"><ion-icon name="help-circle-outline"></ion-icon>{{ 'ui.review.signGuessed' | t }}</small>
+    }
+    @if (line.summary) {
+      <small class="flag"><ion-icon name="receipt-outline"></ion-icon>{{ 'ui.review.fromSummary' | t }}</small>
+    }
+    @if (line.twin) {
+      <small class="flag"><ion-icon name="copy-outline"></ion-icon>{{ line.twin }}</small>
+    }
+    @if (line.seenBy) {
+      <small class="seen"><ion-icon name="layers-outline"></ion-icon>{{ line.seenBy }}</small>
+    }
+  </span>
+  @if (line.partner) {
+    <span class="ui-am ui-t">{{ money(abs(line.proposal.amount_minor), line.account?.currency_code) }}</span>
+  } @else {
+  <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
+    {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
+  </span>
+  }
+</div>
+</ng-template>
+
+<!-- The same shop elsewhere in this origin, once a category is chosen (46c). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="sameShop() !== null" (didDismiss)="sameShop.set(null)">
+  <ng-template>
+    @if (sameShop(); as ask) {
+      <div class="ui-sheet-body same-shop">
+        <div class="grab"></div>
+        <app-badge [size]="56" [builtin]="ask.category.builtin_icon" [customId]="ask.category.custom_icon_id" [tone]="ask.category.color" [seed]="ask.category.id"></app-badge>
+        <h2>{{ 'ui.rev2.shop.title' | t:{ shop: ask.repeated.sample, count: ask.repeated.count } }}</h2>
+        <p>{{ (ask.others === 1 ? 'ui.rev2.shop.ask.one' : 'ui.rev2.shop.ask') | t:{ count: ask.others, category: ask.category.name } }}</p>
+        <button type="button" class="ui-btn" [disabled]="working()" (click)="sameShopToAll()">{{ (ask.others === 1 ? 'ui.rev2.shop.yes.one' : 'ui.rev2.shop.yes') | t:{ count: ask.others } }}</button>
+        <button type="button" class="ui-btn ghost" (click)="sameShop.set(null)">{{ 'ui.rev2.shop.no' | t }}</button>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- The opening balance, asked only once the origin is answered (46e). -->
+<ng-template #squareCard>
+      @if (squaring(); as drift) {
+        @if (drift.kind === 'blocked') {
+          <!-- Said once, on the origin's own line (46d). -->
+        } @else if (drift.kind === 'older') {
+        <!-- An older statement read later: the opening goes down, today stays (43e). -->
+        <div class="ui-card squaring">
+          <div class="shead">
+            <app-badge shape="ci" [size]="34" builtin="git-compare-outline" fixed="#6378ff"></app-badge>
+            <b>{{ 'review.square.older.title' | t:{ account: drift.accountName, date: dayText(drift.day) } }}</b>
+          </div>
+          <p class="snote">{{ 'review.square.older.text' | t }}</p>
+          <div class="sline"><span>{{ 'review.square.older.now' | t }}</span><b>{{ money(drift.opening, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.older.new' | t }}</span><b class="ui-p">{{ money(drift.opening + drift.theirs - drift.ours, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.older.today' | t }}</span><b class="ui-g">{{ 'review.square.older.same' | t }}</b></div>
+          <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.older.do' | t:{ amount: money(drift.opening + drift.theirs - drift.ours, drift.currency) } }}</button>
+          <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
+        </div>
+        } @else {
+        <div class="ui-card squaring">
+          <div class="shead">
+            <app-badge shape="ci" [size]="34" builtin="wallet" fixed="#6378ff"></app-badge>
+            <b class="ui-one">{{ 'review.square.title' | t:{ account: drift.accountName } }}</b>
+            <span class="ui-info" role="button" (click)="info.set(i18n.t('review.square.hint'))" [attr.aria-label]="'ui.info' | t">
+              <ion-icon name="information"></ion-icon>
+            </span>
+          </div>
+          <div class="sline"><span>{{ 'review.square.ours' | t:{ date: dayText(drift.day) } }}</span><b>{{ money(drift.ours, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.theirs' | t }}</span><b>{{ money(drift.theirs, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.gap' | t }}</span><b class="ui-p">{{ squaringGap() > 0 ? '+' : '' }}{{ money(squaringGap(), drift.currency) }}</b></div>
+          @if (typingBalance()) {
+            <div class="ui-inputs">
+              <label class="ui-input">
+                <span>{{ 'review.square.type' | t }}</span>
+                <input inputmode="decimal" [value]="typedBalance()" (input)="typedBalance.set($any($event.target).value ?? '')">
+              </label>
+            </div>
+            <div class="two">
+              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(false)">{{ 'entry.cancel' | t }}</button>
+              <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquareTyped()">{{ 'review.square.do' | t }}</button>
+            </div>
+          } @else {
+            <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.match' | t }}</button>
+            <div class="two">
+              <button type="button" class="ui-btn ghost" (click)="typingBalance.set(true)">{{ 'review.square.other' | t }}</button>
+              <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
+            </div>
+          }
+        </div>
+        }
+      }
+</ng-template>
 
 <!-- One group of movements that repeat (25b, 25c). -->
 <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet group-sheet" [isOpen]="group() !== null" (didDismiss)="group.set(null)">

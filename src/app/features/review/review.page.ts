@@ -105,7 +105,7 @@ interface Batch {
   standalone: true,
   imports: [AskButtonComponent, 
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
-    BadgeComponent, JumpComponent, AccountPickerComponent,
+    BadgeComponent, AccountPickerComponent,
     IonContent, IonIcon, IonSpinner, IonModal,
   ],
   templateUrl: './review.page.html',
@@ -125,7 +125,9 @@ export class ReviewPage {
   readonly info = signal<string | null>(null);
 
   back(): void {
-    this.location.back();
+    // Inside an origin, back is the list of origins (46b -> 46a).
+    if (this.inBatch() !== null || this.done() !== null) this.backToOrigins();
+    else this.location.back();
   }
 
   /** While choosing, the selection bar takes the tab bar's place. */
@@ -590,6 +592,9 @@ export class ReviewPage {
    */
   async openInForm(line: Line): Promise<void> {
     const amount = line.proposal.amount_minor;
+    const merchant = merchantKeyOf(line.proposal.description);
+    this.askShopFor = merchant.length === 0 ? null
+      : { batch: line.proposal.batch, merchant, id: line.proposal.id, seen: this.compose.lastSaved() };
     // What this shop was last saved as (Jose, 2026-10-13): the note written
     // instead of the bank's words, the product and what it changed.
     const memory = await new ProposalsRepository(this.database.driver).shopMemory();
@@ -1287,6 +1292,8 @@ export class ReviewPage {
         this.showOnly.set('all');
         this.accountFilter.set(null);
         this.batchState.set(new Map([[batch, true]]));
+        this.inBatch.set(batch);
+        this.done.set(null);
         void this.router.navigate([], { queryParams: { batch: null }, queryParamsHandling: 'merge', replaceUrl: true });
       }
       const raw = params.get('notice');
@@ -1350,6 +1357,7 @@ export class ReviewPage {
     if (!best) return;
     this.askedNotice = null;
     this.notices.openingDone();
+    this.inBatch.set(best.line.proposal.batch);
     this.tapped(best.line);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { notice: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
@@ -1614,6 +1622,120 @@ export class ReviewPage {
     this.knownOpen.set(next);
   }
 
+  // -------------------------------------------------------------------------
+  // One origin at a time (mockups 46a-46e, Jose 2026-10-29: "fácil y
+  // sencillo"): a list of origins, and the one opened on its own.
+  // -------------------------------------------------------------------------
+
+  /** The origin on view, or null for the list of them. */
+  readonly inBatch = signal<string | null>(null);
+  readonly viewing = computed(() => this.batches().find(batch => batch.key === this.inBatch()) ?? null);
+  /** "Ver los otros N": every ready row of the origin, not only the first few. */
+  readonly restShown = signal(false);
+  /** What was just saved from an origin that has nothing left (46e). */
+  readonly done = signal<{ title: string; count: number; account: string } | null>(null);
+  readonly READY_FIRST = 3;
+
+  openOrigin(batch: Batch): void {
+    this.search.set('');
+    this.showOnly.set('all');
+    this.restShown.set(false);
+    this.done.set(null);
+    this.inBatch.set(batch.key);
+    void this.content()?.scrollToTop(0);
+  }
+
+  backToOrigins(): void {
+    this.stopSelecting();
+    this.search.set('');
+    this.done.set(null);
+    this.inBatch.set(null);
+  }
+
+  /** The rows of an origin that still need the person, newest first. */
+  needIn(batch: Batch): Line[] {
+    const ready = new Set(this.readyLines(batch).map(line => line.proposal.id));
+    return this.byDay(this.shownIn(batch).filter(line => line.sameAs === null && !ready.has(line.proposal.id)));
+  }
+
+  /** The rows "Guardar los listos" writes, newest first. */
+  readyIn(batch: Batch): Line[] {
+    const ready = new Set(this.readyLines(batch).map(line => line.proposal.id));
+    return this.byDay(this.shownIn(batch).filter(line => ready.has(line.proposal.id)));
+  }
+
+  /** The first few ready ones, or all of them once asked or while searching. */
+  readyShown(batch: Batch): Line[] {
+    const all = this.readyIn(batch);
+    return this.restShown() || this.search().trim() !== '' ? all : all.slice(0, this.READY_FIRST);
+  }
+
+  private byDay(lines: Line[]): Line[] {
+    return [...lines].sort((one, other) => (other.proposal.occurred_on ?? '').localeCompare(one.proposal.occurred_on ?? ''));
+  }
+
+  /** A statement, an app's notices or an SMS sender. */
+  originIcon(batch: Batch): string {
+    const first = batch.lines[0]?.proposal;
+    if (first?.source !== 'notification') return 'document-text-outline';
+    return first.batch.includes('|') ? 'chatbubble-ellipses-outline' : 'notifications-outline';
+  }
+
+  /** "Septiembre · 18 movimientos" and, when something is missing, what. */
+  originNeed(batch: Batch): string | null {
+    const waiting = this.waitingOn(batch);
+    if (waiting === 0) return null;
+    return this.i18n.t(waiting === 1 ? 'ui.rev2.needs.one' : 'ui.rev2.needs', { count: waiting });
+  }
+
+  /** "28 sep" - the day of a row, short, beside its category. */
+  shortDay(iso: string | null): string {
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-').map(Number);
+    const name = new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
+      this.i18n.language() === 'en' ? 'en-GB' : 'es-CO', { month: 'short', timeZone: 'UTC' }).replace('.', '');
+    return `${day} ${name}`;
+  }
+
+  /** What an origin is, said by its account when it has one ("Banco Verde"). */
+  originName(batch: Batch): string {
+    const names = [...new Set(batch.lines.map(line => line.account?.name).filter((name): name is string => !!name))];
+    return names.length === 1 ? names[0] : this.fileName(batch);
+  }
+
+  /**
+   * The same shop elsewhere in this origin, asked once a category is chosen
+   * for one of them (46c) - it replaces the "Movimientos que se repiten"
+   * section.
+   */
+  readonly sameShop = signal<{ repeated: Repeated; category: CategoryRow; others: number } | null>(null);
+  private askShopFor: { batch: string; merchant: string; id: number; seen: unknown } | null = null;
+
+  private readonly listenSaved = effect(() => {
+    const saved = this.compose.lastSaved();
+    const asked = this.askShopFor;
+    if (!saved || !asked || saved === asked.seen) return;
+    this.askShopFor = null;
+    if (saved.side === 'transfer' || saved.categoryId === null) return;
+    const category = this.categories().find(one => one.id === saved.categoryId);
+    const batch = this.batches().find(one => one.key === asked.batch);
+    if (!category || !batch) return;
+    const others = batch.lines.filter(line => line.proposal.id !== asked.id && line.sameAs === null
+      && merchantKeyOf(line.proposal.description) === asked.merchant && line.proposal.category_id !== category.id);
+    if (others.length === 0) return;
+    const sample = batch.lines.find(line => line.proposal.id === asked.id)?.proposal.description ?? others[0].proposal.description ?? asked.merchant;
+    this.sameShop.set({ repeated: { batch: asked.batch, merchant: asked.merchant, sample, count: others.length + 1, category: null }, category, others: others.length });
+  });
+
+  async sameShopToAll(): Promise<void> {
+    const ask = this.sameShop();
+    this.sameShop.set(null);
+    if (!ask) return;
+    this.choosingMerchant.set(ask.repeated);
+    await this.fileAllAs(ask.category.id);
+    this.toast.say(this.i18n.t(ask.others === 1 ? 'ui.rev2.shop.done.one' : 'ui.rev2.shop.done', { count: ask.others, category: ask.category.name }), 3000);
+  }
+
   /** What a row is still missing, said rather than only greyed out. */
   missing(line: Line): string | null {
     const proposal = line.proposal;
@@ -1827,7 +1949,17 @@ export class ReviewPage {
     if (asking === null) return;
 
     if (asking.kind === 'accept') {
-      await this.write(this.readyLines(asking.batch).map(line => line.proposal));
+      const ready = this.readyLines(asking.batch);
+      await this.write(ready.map(line => line.proposal));
+      if (!this.error()) {
+        const names = [...new Set(ready.map(line => line.account?.name).filter((name): name is string => !!name))];
+        // Something left to answer: the origin stays on view, and a notice says what was saved.
+        if (this.batches().some(batch => batch.key === asking.batch.key)) {
+          this.toast.say(this.i18n.t(ready.length === 1 ? 'ui.rev2.saved.one' : 'ui.rev2.saved', { count: ready.length }), 3000);
+        } else {
+          this.done.set({ title: asking.batch.title, count: ready.length, account: names.length === 1 ? names[0] : '' });
+        }
+      }
     } else if (asking.kind === 'acceptOne') {
       await this.write([asking.line.proposal]);
     } else if (asking.kind === 'acceptSelected') {
