@@ -6416,6 +6416,9 @@ with testers runs; the paywall is finished after them.
   payday): October's interest, paid on 1 November, is "Octubre · lo que va
   del mes · te llega el 1 nov", no longer "Noviembre". Checked in a browser
   on the sample data (Banco Índigo, Cajita Naranja).
+  **The card is one row, the parts behind its (i)** (Jose, the same day:
+  "reducir y ahorrarle espacio al usuario"): the title, the (i) and the
+  total; a tap opens a sheet with the parts and "En total" (`partsOpen`).
 
 - **Fixed payments in the "+" were already built** (Jose, 2026-10-29, when I
   listed "favourites in the +" as pending: he sees them there). "Pagos fijos

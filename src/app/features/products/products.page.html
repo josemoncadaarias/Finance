@@ -431,37 +431,12 @@
                 @case ('payments') {
                   <!-- Intereses (47c): Pagos and Días together, one row per date. -->
                   @if (line.availableMinor > 0 || line.earned.accrued_minor > 0) {
-                    @let parts = interestParts(line);
-                    <div class="ui-list since">
-                      <div class="ui-row plain">
-                        <span class="ui-tx"><b class="wrap">{{ 'ui.int.available.title' | t }}</b><small class="wrap">{{ 'ui.int.available.hint' | t }}</small></span>
+                    <button type="button" class="ui-list since one" (click)="partsOpen.set(true)">
+                      <span class="ui-row plain">
+                        <span class="ui-tx"><b class="wrap">{{ 'ui.int.available.title' | t }} <span class="ui-info" [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span></b></span>
                         <span class="ui-am ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</span>
-                      </div>
-                      @if (parts.paidByApp > 0) {
-                        <div class="ui-row plain part">
-                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.paid' | t }}</small></span>
-                          <span class="ui-am">{{ signed(parts.paidByApp, line.account.currency_code) }}</span>
-                        </div>
-                      }
-                      @if (parts.byHand !== 0) {
-                        <div class="ui-row plain part">
-                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.byHand' | t }}</small></span>
-                          <span class="ui-am">{{ signed(parts.byHand, line.account.currency_code) }}</span>
-                        </div>
-                      }
-                      @if (parts.cashedOut > 0) {
-                        <div class="ui-row plain part">
-                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.cashedOut' | t }}</small></span>
-                          <span class="ui-am">{{ signed(-parts.cashedOut, line.account.currency_code) }}</span>
-                        </div>
-                      }
-                      @if (parts.rest !== 0) {
-                        <div class="ui-row plain part">
-                          <span class="ui-tx"><small class="wrap">{{ (parts.rest > 0 ? 'ui.int.part.before' : 'ui.int.part.less') | t }}</small></span>
-                          <span class="ui-am">{{ signed(parts.rest, line.account.currency_code) }}</span>
-                        </div>
-                      }
-                    </div>
+                      </span>
+                    </button>
                   }
                   @if (payments().length === 0) {
                     <app-empty [compact]="true" icon="sunny-outline" color="#f6b93b"
@@ -583,6 +558,34 @@
         <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
                             [selectedId]="line.account.id" [heading]="'summary.account' | t"
                             (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)"></app-account-picker>
+
+        <!-- What makes the interest not in the balance yet, one tap away. -->
+        <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="partsOpen()" (didDismiss)="partsOpen.set(false)">
+          <ng-template>
+            @let parts = interestParts(line);
+            <div class="ui-sheet-body ion-content-scroll-host int-parts">
+              <button type="button" class="sheet-cancel" (click)="partsOpen.set(false)">{{ 'entry.cancel' | t }}</button>
+              <div class="grab"></div>
+              <h2 class="center">{{ 'ui.int.available.title' | t }}</h2>
+              <p class="center sub">{{ 'ui.int.available.hint' | t }}</p>
+              <div class="ui-list">
+                @if (parts.paidByApp > 0) {
+                  <div class="ui-row plain"><span class="ui-tx"><span class="wrap">{{ 'ui.int.part.paid' | t }}</span></span><b>{{ signed(parts.paidByApp, line.account.currency_code) }}</b></div>
+                }
+                @if (parts.byHand !== 0) {
+                  <div class="ui-row plain"><span class="ui-tx"><span class="wrap">{{ 'ui.int.part.byHand' | t }}</span></span><b>{{ signed(parts.byHand, line.account.currency_code) }}</b></div>
+                }
+                @if (parts.cashedOut > 0) {
+                  <div class="ui-row plain"><span class="ui-tx"><span class="wrap">{{ 'ui.int.part.cashedOut' | t }}</span></span><b>{{ signed(-parts.cashedOut, line.account.currency_code) }}</b></div>
+                }
+                @if (parts.rest !== 0) {
+                  <div class="ui-row plain"><span class="ui-tx"><span class="wrap">{{ (parts.rest > 0 ? 'ui.int.part.before' : 'ui.int.part.less') | t }}</span></span><b>{{ signed(parts.rest, line.account.currency_code) }}</b></div>
+                }
+                <div class="ui-row plain"><span class="ui-tx"><b>{{ 'ui.int.parts.total' | t }}</b></span><b class="ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</b></div>
+              </div>
+            </div>
+          </ng-template>
+        </ion-modal>
 
         <!-- The "···" (47b): what is rarely needed, in plain words. -->
         <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pageMenu()" (didDismiss)="pageMenu.set(false)">
