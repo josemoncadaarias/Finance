@@ -269,10 +269,12 @@ const TOUR_LIST = {
   notifications: {
     steps: [
       { title: 'tour.notifications.1.title', text: 'tour.notifications.1.text' },
-      { sel: 'app-notifications .ui-search', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text' },
+      // 2026-10-29: the simple screen (45a-45e) - "Agregar un banco" and the status line.
+      { target: 'notices-add', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text', since: 4 },
       // 2026-10-14: a source's page, "Ignorar publicidad", "Sí era un movimiento".
       { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 2 },
       { title: 'tour.notifications.4.title', text: 'tour.notifications.4.text', since: 3 },
+      { target: 'notices-status', title: 'tour.notifications.5.title', text: 'tour.notifications.5.text', since: 4 },
     ],
   },
   export: {
