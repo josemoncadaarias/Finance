@@ -6442,6 +6442,25 @@ with testers runs; the paywall is finished after them.
   Checked in a browser on the sample data (an account, cards over the limit
   and in favour, all accounts, the sheet).
 
+- **"Nueva cuenta" from the "+" opened and closed at once, and tours came
+  where they should not** (Jose, 2026-10-29). The first: going to another
+  screen closes the sheets open (`closeOnLeaving` in `app.component.ts`),
+  but it closed one at a time until none was left - so the account form
+  Cuentas opens on arriving with `?new=account` was closed by the same pass.
+  It now closes only the sheets open when the navigation starts. The tours
+  (`TourService`): a screen's tour is not offered when the screen was asked
+  for with a query (a button that opens something inside it - `?new=`,
+  `?account=`, `?batch=`, `?pay=`...; `askedWithQuery` remembers it even when
+  the screen drops the query on arriving), nor for a change of query on the
+  same screen, nor while a form or sheet is open, nor on a screen showing a
+  whole-screen empty state, nor when fewer than half of what its steps light
+  is drawn (`screenReadyFor`, tried three times over ~4 s; otherwise it
+  waits for another visit, unseen). A tour that waited for another one to
+  end starts only on the screen it was asked on. Checked in a browser: the
+  "+" → Nueva cuenta form stays open and no tour comes after closing it; a
+  plain visit to Cuentas brings its tour; on an empty app Deudas,
+  Recordatorios, Por revisar and Cuentas bring none.
+
 - **Fixed payments in the "+" were already built** (Jose, 2026-10-29, when I
   listed "favourites in the +" as pending: he sees them there). "Pagos fijos
   y frecuentes" in the "+" holds "Pagos de este mes" and "Lo que más

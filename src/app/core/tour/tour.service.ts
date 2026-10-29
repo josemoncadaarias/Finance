@@ -13,7 +13,7 @@
  */
 
 import { Injectable, inject, signal } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, NavigationStart, Router } from '@angular/router';
 
 import type { TranslationKey } from '../i18n/translations';
 import { parseSeenVersions, stepsToShow, versionOf } from './tour-versions';
@@ -353,32 +353,68 @@ export class TourService {
   /** The version of each tour this device has seen. */
   private seen = parseSeenVersions<TourId>(read(SEEN_KEY), TOUR_LIST);
   /** Asked while another tour was on screen: started when that one ends. */
-  private waiting: TourId[] = [];
+  private waiting: { id: TourId; path: string }[] = [];
   private readonly router = inject(Router);
+
+  /** The screen the last navigation landed on, without its query. */
+  private lastPath = '';
+  /** The screen the last navigation to a new screen asked for with a query. */
+  private askedWithQuery: string | null = null;
 
   constructor() {
     // A screen's own tour the first time it is reached: offered a moment
     // after it opens, so what it lights has been drawn, and only if the
-    // person is still there.
+    // person is still there (Jose, 2026-10-29). Never when the screen was
+    // reached to do something in it (a query: a new account, one account's
+    // products, a statement...), never for a change of query on the same
+    // screen, and never while a form or a sheet is open or the screen has
+    // too little on it to explain - then it waits for another visit.
     this.router.events.subscribe(event => {
+      // Asked with a query, the screen may drop it before landing (Cuentas
+      // takes "?new=account" off at once): what was ASKED decides.
+      if (event instanceof NavigationStart) {
+        const asked = event.url.split('?')[0];
+        if (asked !== this.lastPath && asked !== this.askedWithQuery) this.askedWithQuery = event.url.includes('?') ? asked : null;
+        return;
+      }
       if (!(event instanceof NavigationEnd)) return;
       const url = event.urlAfterRedirects;
+      const path = url.split('?')[0];
+      const sameScreen = path === this.lastPath;
+      this.lastPath = path;
+      const asked = this.askedWithQuery === path;
+      if (!asked) this.askedWithQuery = null;
+      if (sameScreen || url.includes('?') || asked) return;
       const found = ROUTE_TOURS.find(([pattern]) => pattern.test(url));
-      if (!found) return;
-      setTimeout(() => { if (this.router.url === url) this.offer(found[1]); }, 1100);
+      if (found) this.offerWhenReady(found[1], url, 0);
     });
+  }
+
+  /** The route's tour once the screen is drawn and free; tried three times. */
+  private offerWhenReady(id: TourId, url: string, tries: number): void {
+    setTimeout(() => {
+      if (this.router.url !== url || !this.enabled()) return;
+      const shown = stepsToShow(TOURS[id], this.seen.get(id) ?? 0);
+      if (!shown) return;
+      if (!screenReadyFor(shown.steps)) {
+        if (tries < 2) this.offerWhenReady(id, url, tries + 1);
+        return;
+      }
+      this.offer(id);
+    }, tries === 0 ? 1100 : 1500);
   }
 
   /** Starts a tour the first time it is asked for, if tours are on. */
   offer(id: TourId): void {
     if (!this.enabled() || !stepsToShow(TOURS[id], this.seen.get(id) ?? 0)) return;
+    const path = this.router.url.split('?')[0];
     if (this.active()) {
-      if (this.active()!.id !== id && !this.waiting.includes(id)) this.waiting.push(id);
+      if (this.active()!.id !== id && !this.waiting.some(w => w.id === id)) this.waiting.push({ id, path });
       return;
     }
     // Inicio's own tour comes before any other, so the person meets the app first.
     if (id !== 'home' && !this.seen.has('home')) {
-      if (!this.waiting.includes(id)) this.waiting.push(id);
+      if (!this.waiting.some(w => w.id === id)) this.waiting.push({ id, path });
       return;
     }
     this.start(id);
@@ -404,10 +440,17 @@ export class TourService {
     this.seen.set(now.id, versionOf(TOURS[now.id]));
     write(SEEN_KEY, [...this.seen].map(([id, v]) => `${id}@${v}`).join(','));
     this.active.set(null);
+    // A tour that waited starts only on the screen it was asked on, and only
+    // if that screen still has what it explains; otherwise it waits for
+    // another visit, unseen.
     const following = this.waiting.shift();
-    if (following && this.enabled() && stepsToShow(TOURS[following], this.seen.get(following) ?? 0)) {
-      setTimeout(() => this.start(following), 400);
-    }
+    if (!following || !this.enabled()) return;
+    setTimeout(() => {
+      const shown = stepsToShow(TOURS[following.id], this.seen.get(following.id) ?? 0);
+      if (!shown || this.active() || this.router.url.split('?')[0] !== following.path) return;
+      if (!screenReadyFor(shown.steps, following.id === 'entry')) return;
+      this.start(following.id);
+    }, 400);
   }
 
   setEnabled(on: boolean): void {
@@ -428,6 +471,29 @@ export class TourService {
     // What is new comes without the welcome card: it was already said.
     this.active.set({ id, step: TOURS[id].welcome && !shown.news ? -1 : 0, ...shown });
   }
+}
+
+/**
+ * Whether the screen on show has what these steps explain: no form or sheet
+ * open over it (unless the tour is a form's own), no empty screen, and at
+ * least half of the things the steps light drawn.
+ */
+function screenReadyFor(steps: readonly TourStep[], inForm = false): boolean {
+  if (!inForm && Array.from(document.querySelectorAll('ion-modal')).some(m => !m.classList.contains('overlay-hidden'))) return false;
+  if (shown('ion-router-outlet > .ion-page:not(.ion-page-hidden) app-empty .ui-empty:not(.compact)')) return false;
+  const lit = steps.filter(s => s.sel || s.target);
+  if (lit.length === 0) return true;
+  const drawn = lit.filter(s => shown(s.sel ?? `[data-tour="${s.target}"]`)).length;
+  return drawn * 2 >= lit.length;
+}
+
+function shown(selector: string): boolean {
+  for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+    if (element.closest('.ion-page-hidden')) continue;
+    const r = element.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return true;
+  }
+  return false;
 }
 
 function read(key: string): string | null {
