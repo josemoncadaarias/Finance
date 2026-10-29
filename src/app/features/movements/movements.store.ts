@@ -461,6 +461,7 @@ function toMovement(row: DetailedTransaction, i18n: I18nService): Movement {
     accountSeed: row.account_id,
     productName: row.product_name ?? null,
     otherName: isTransfer ? other : null,
+    coveredFrom: row.covered_from ?? null,
   };
 }
 

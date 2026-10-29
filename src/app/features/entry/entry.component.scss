@@ -588,3 +588,25 @@
 }
 @keyframes cap-pulse { 50% { transform: scale(1.18); } }
 @media (prefers-reduced-motion: reduce) { .cap-warning.red ion-icon { animation: none; } }
+
+/* The product would go below zero: one quiet line to cover it from another (50a-50g). */
+.cover-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 12px 8px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--app-s2);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  text-wrap: pretty;
+  > ion-icon { flex: none; font-size: 20px; color: var(--app-yel); }
+  .ui-tx { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; color: var(--app-tx); font: inherit; }
+  .wrap { white-space: normal; display: block; }
+  small { color: var(--app-mu); }
+  .offer { color: var(--app-pr); font-weight: 500; }
+  &.on { background: rgba(var(--app-pr-rgb), 0.12); }
+  &.on > ion-icon { color: var(--app-move); }
+}
+.cover-always { margin-top: 12px; }

@@ -157,3 +157,11 @@
 
 /* An empty app shows only the welcome: no account to name, no period to step (21a). */
 .ui-header.hidden-empty { display: none; }
+
+/* The move between products that covered this movement (mockup 50h). */
+.movement .covered {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-move);
+  ion-icon { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+}

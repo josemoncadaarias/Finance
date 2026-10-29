@@ -29,3 +29,15 @@ export async function whatItHolds(
   const landed = await yields.landedByProduct(accountId, on);
   return (held.get(productId) ?? 0) + (landed.total.get(productId) ?? 0);
 }
+
+/** What each product of an account holds today, in one read (`whatItHolds` for all). */
+export async function holdingsOf(db: SqlDriver, accountId: number, on: IsoDate): Promise<Map<number, number>> {
+  const yields = new YieldsRepository(db);
+  const held = await new AccrualEngine(db, yields, new TaxParametersRepository(db)).heldByProduct(accountId, on);
+  const landed = await yields.landedByProduct(accountId, on);
+  const all = new Map<number, number>();
+  for (const id of new Set([...held.keys(), ...landed.total.keys()])) {
+    all.set(id, (held.get(id) ?? 0) + (landed.total.get(id) ?? 0));
+  }
+  return all;
+}

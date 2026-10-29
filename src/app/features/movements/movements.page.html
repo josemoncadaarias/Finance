@@ -294,6 +294,11 @@
                     <small class="ui-one">
                       {{ lineOf(movement) }}
                     </small>
+                    @if (movement.coveredFrom) {
+                      <small class="ui-one covered">
+                        <ion-icon name="swap-vertical"></ion-icon>{{ 'ui.cover.listed' | t: { name: movement.coveredFrom } }}
+                      </small>
+                    }
                   </span>
                   <span class="ui-am" [class]="toneOf(movement.flow)">
                     {{ signed(movement.transaction.amount_minor, movement.currency) }}

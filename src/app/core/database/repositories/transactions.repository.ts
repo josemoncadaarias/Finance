@@ -14,6 +14,7 @@ import type { SqlDriver } from '../sql-driver';
 import type { Confidence, IsoDate, RateSource, TransactionRow, TransactionSource, TransferLeg } from '../types';
 import { convertToBaseMinor } from '../money';
 import { loanPaymentOf, undoLoanPayment } from '../../loans/payment-links';
+import { dropCovers } from './cover-links';
 
 export interface NewTransaction {
   account_id: number;
@@ -97,6 +98,8 @@ export interface DetailedTransaction extends TransactionRow {
   other_account_id: number | null;
   /** 1 when this movement's product sits outside net worth. */
   product_set_aside: 0 | 1;
+  /** The product a move between products covered this movement from (migration 062). */
+  covered_from?: string | null;
   /**
    * What the redesign draws with, and nothing counts: the colours the account,
    * the category and the far account wear, and the name of this movement's
@@ -333,6 +336,7 @@ export class TransactionsRepository {
       // balance on its own, so it goes with the movement.
       await this.db.run('DELETE FROM product_cashouts WHERE transaction_id = ?', [id]);
       await this.db.run('DELETE FROM product_entries WHERE transaction_id = ?', [id]);
+      await dropCovers(this.db, [id]);
       await this.db.run('DELETE FROM transactions WHERE id = ?', [id]);
 
       if (row?.import_fingerprint != null && row.import_seq != null) {
@@ -421,7 +425,11 @@ export class TransactionsRepository {
               CASE WHEN own_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS product_set_aside,
               other_product.name AS other_product_name,
               sibling.id AS sibling_leg_id,
-              CASE WHEN other_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_product_set_aside
+              CASE WHEN other_product.include_in_net_worth = 0 THEN 1 ELSE 0 END AS other_product_set_aside,
+              (SELECT cover_product.name FROM transfers cover
+                 JOIN transactions cover_leg ON cover_leg.transfer_id = cover.id AND cover_leg.transfer_leg = 'from'
+                 LEFT JOIN products cover_product ON cover_product.id = cover_leg.product_id
+               WHERE cover.covers_transaction_id = t.id LIMIT 1) AS covered_from
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id

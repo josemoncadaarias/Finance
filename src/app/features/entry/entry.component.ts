@@ -47,7 +47,9 @@ import { deriveRateScaled, formatMoney } from '../../core/database/money';
 import { AmountBuffer } from './amount-buffer';
 import { cardStatement } from '../../core/cards/statement';
 import { bankFigures, cardMovements } from '../../core/cards/card-data';
-import { whatItHolds } from '../../core/yields/holdings';
+import { holdingsOf, whatItHolds } from '../../core/yields/holdings';
+import { coverFor, type CoverRoute } from '../../core/yields/cover';
+import { coverOf, linkCover, type CoverLink } from '../../core/database/repositories/cover-links';
 import { DEFAULT_SCOPE, rewriteScoped, scopeOfMovement, usualScope, writeScoped, type EntryScope } from '../../core/yields/entry-scope';
 import { transferEffect } from '../../core/transfers/transfer-effect';
 import { accrueAllAndSettle, accrueAndSettle } from '../../core/yields/cdt';
@@ -897,6 +899,212 @@ export class EntryComponent implements OnInit, OnDestroy {
       this.holdsNow.set(held);
       this.fromHolds.set(held > 0 ? held : null);
     })();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Covering the product a movement would leave below zero (mockups 50a-50h)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Jose, 2026-10-29: a spending leaves the account's usual product, often at
+   * 0, and he then moves the same money in from a pocket by hand. One small
+   * line under the account offers both in one save: the movement, and an
+   * ordinary move between the account's products for what is missing
+   * (`core/yields/cover.ts`, `transfers.covers_transaction_id`).
+   */
+  private readonly coverHolds = signal<ReadonlyMap<number, number>>(new Map());
+  private readonly coverRoutes = signal<CoverRoute[]>([]);
+  /** Per account, the product the person chose to always cover from (`cover.always`, travels in the backup). */
+  private readonly coverAlways = signal<Record<string, number>>({});
+  /** Null while the person has not touched the switch: it follows "cubrir siempre". */
+  private readonly coverSwitch = signal<boolean | null>(null);
+  private readonly coverChosen = signal<number | null>(null);
+  readonly pickingCover = signal(false);
+  private coverAsked = 0;
+
+  /** A new spending, or money sent to another account, leaving a product of a split account. */
+  private readonly coverApplies = computed(() => {
+    if (this.isEditing() || this.many() || this.loanEntry() || this.request().loan || !this.splitAccount()) return false;
+    if (this.productId() === null || this.amount().minor <= 0) return false;
+    if (this.isTransfer()) return this.toAccountId() !== null && this.toAccountId() !== this.accountId() && this.fromScope() === 'both';
+    return this.kind() === 'expense' && (!this.asksScope() || this.scope() === 'both');
+  });
+
+  private readonly readCover = effect(() => {
+    const account = this.accountId();
+    const split = this.splitAccount();
+    const products = this.products();
+    const editing = this.isEditing();
+    const asked = ++this.coverAsked;
+    this.coverHolds.set(new Map());
+    if (account === null || !split || editing || this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      await this.upToToday(account);
+      const db = this.database.driver;
+      const [holds, routes, always] = await Promise.all([
+        holdingsOf(db, account, todayIso()),
+        db.query<{ from_id: number | null; to_id: number | null; times: number }>(
+          `SELECT f.product_id AS from_id, t.product_id AS to_id, COUNT(*) AS times
+           FROM transactions f
+           JOIN transactions t ON t.transfer_id = f.transfer_id AND t.id <> f.id
+           WHERE f.account_id = ? AND t.account_id = f.account_id AND f.transfer_leg = 'from'
+           GROUP BY f.product_id, t.product_id`, [account]),
+        db.queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [COVER_KEY]),
+      ]);
+      if (asked !== this.coverAsked) return;
+      const usual = defaultProduct(products);
+      this.coverRoutes.set(routes.map(row => ({ from: row.from_id ?? usual ?? 0, to: row.to_id ?? usual ?? 0, times: row.times })));
+      this.coverAlways.set(readCoverAlways(always?.value));
+      this.coverHolds.set(holds);
+    });
+  });
+
+  /** What is missing and who can give it; null when nothing needs covering. */
+  readonly cover = computed(() => {
+    if (!this.coverApplies()) return null;
+    const account = this.accountId()!;
+    return coverFor({
+      amountMinor: this.amount().minor,
+      sourceId: this.productId()!,
+      products: this.products(),
+      holds: this.coverHolds(),
+      routes: this.coverRoutes(),
+      preferred: this.coverAlways()[String(account)] ?? null,
+    });
+  });
+
+  /** The product it would be covered from: the one chosen, else the first offered. */
+  readonly coverFrom = computed(() => {
+    const options = this.cover()?.options ?? [];
+    return options.find(option => option.productId === this.coverChosen()) ?? options[0] ?? null;
+  });
+
+  /** On by hand, or by "cubrir siempre" for this account while untouched. */
+  readonly coverOn = computed(() => {
+    if (!this.coverFrom()) return false;
+    const touched = this.coverSwitch();
+    return touched ?? this.coverAlways()[String(this.accountId())] !== undefined;
+  });
+
+  readonly coverAlwaysHere = computed(() => this.coverAlways()[String(this.accountId())] !== undefined);
+
+  readonly coverLine = computed(() => {
+    const cover = this.cover();
+    if (!cover) return null;
+    const product = this.productOf(this.products(), this.productId())?.name ?? '';
+    const from = this.coverFrom();
+    const fromName = from ? this.productOf(this.products(), from.productId)?.name ?? '' : '';
+    // A figure never breaks from its "$" or its minus.
+    const money = (minor: number) => formatMoney(minor, this.currency()).replace(/ /g, '\u00a0');
+    const held = this.coverHolds().get(this.productId()!) ?? 0;
+    const after = held - this.amount().minor;
+    return {
+      on: this.coverOn(),
+      none: from === null,
+      below: this.i18n.t('ui.cover.below', { product, amount: `\u2212\u2060${money(Math.abs(after))}` }),
+      offer: this.i18n.t('ui.cover.with', { name: fromName }),
+      onTitle: this.i18n.t('ui.cover.on', { name: fromName }),
+      moves: this.i18n.t('ui.cover.moves', { amount: money(cover.missingMinor), product }),
+      byHabit: this.coverSwitch() === null && this.coverAlwaysHere()
+        ? this.i18n.t('ui.cover.byChoice', { account: this.account()?.name ?? '' }) : '',
+      noneText: this.i18n.t('ui.cover.none', { account: this.account()?.name ?? '' }),
+    };
+  });
+
+  /** The products the sheet offers, each with what it holds. */
+  readonly coverChoices = computed(() => {
+    const cover = this.cover();
+    if (!cover) return [];
+    const chosen = this.coverFrom()?.productId ?? null;
+    const money = (minor: number) => formatMoney(minor, this.currency()).replace(/ /g, '\u00a0');
+    return cover.options.map(option => {
+      const product = this.productOf(this.products(), option.productId);
+      return {
+        id: option.productId,
+        product,
+        name: product?.name ?? '',
+        line: this.i18n.t(option.usual ? 'ui.cover.pick.usual' : 'ui.cover.pick.holds', { amount: money(option.holdsMinor) }),
+        on: option.productId === chosen,
+      };
+    });
+  });
+
+  toggleCover(): void {
+    this.coverSwitch.set(!this.coverOn());
+  }
+
+  chooseCover(productId: number): void {
+    this.coverChosen.set(productId);
+    this.coverSwitch.set(true);
+    this.pickingCover.set(false);
+  }
+
+  /** "Cubrir siempre en {cuenta}": kept in settings, with the product chosen. */
+  async setCoverAlways(on: boolean): Promise<void> {
+    const account = this.accountId();
+    const from = this.coverFrom();
+    if (account === null) return;
+    const next = { ...this.coverAlways() };
+    if (on && from) next[String(account)] = from.productId;
+    else delete next[String(account)];
+    this.coverAlways.set(next);
+    if (on) this.coverSwitch.set(true);
+    await this.database.driver.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [COVER_KEY, JSON.stringify(next), new Date().toISOString()]);
+  }
+
+  /** What to write beside the movement, read once as saving starts. */
+  private coverToWrite(): { fromProductId: number; toProductId: number; amountMinor: number } | null {
+    const cover = this.cover();
+    const from = this.coverFrom();
+    if (!cover || !from || !this.coverOn()) return null;
+    return { fromProductId: from.productId, toProductId: this.productId()!, amountMinor: cover.missingMinor };
+  }
+
+  /** The move between products, tied to the movement it covers. */
+  private async writeCover(cover: { fromProductId: number; toProductId: number; amountMinor: number }, coveredId: number): Promise<void> {
+    const db = this.database.driver;
+    const accountId = this.accountId()!;
+    const usual = defaultProduct(this.products()) ?? cover.toProductId;
+    const habit = await usualNote(db, {
+      kind: 'betweenProducts', accountId, fromProductId: cover.fromProductId, toProductId: cover.toProductId, usualProductId: usual,
+    }, todayIso());
+    const said = this.note().trim();
+    const description = habit ?? (said ? this.i18n.t('ui.cover.note', { note: said }) : this.i18n.t('ui.cover.noteBare'));
+    const id = await new TransfersRepository(db).create({
+      occurred_on: this.occurredOn(),
+      description,
+      from: { account_id: accountId, product_id: cover.fromProductId, amount_minor: cover.amountMinor },
+      to: { account_id: accountId, product_id: cover.toProductId, amount_minor: cover.amountMinor },
+      source: 'manual',
+    });
+    await linkCover(db, id, coveredId);
+  }
+
+  /** A movement being corrected that was covered when it was saved (said under its account). */
+  readonly coveredWith = signal<CoverLink | null>(null);
+
+  private readonly readCovered = effect(() => {
+    const editing = this.request().editing;
+    this.coveredWith.set(null);
+    if (!editing || this.database.status() !== 'ready') return;
+    void untracked(async () => {
+      // A transfer may be opened from either leg; the cover points at the leaving one.
+      const ids = editing.transfer_id == null ? [editing.id]
+        : (await this.legsOf(editing.transfer_id)).map(leg => leg.id);
+      for (const id of ids) {
+        const found = await coverOf(this.database.driver, id);
+        if (found) { this.coveredWith.set(found); return; }
+      }
+    });
+  });
+
+  readonly coveredText = computed(() => {
+    const link = this.coveredWith();
+    if (!link) return '';
+    return this.i18n.t('ui.cover.done', { name: link.productName ?? '', amount: formatMoney(link.amountMinor, this.currency()) });
   });
 
   // ---------------------------------------------------------------------------
@@ -1857,7 +2065,23 @@ export class EntryComponent implements OnInit, OnDestroy {
         this.saved.emit();
         return;
       }
+      const cover = loan ? null : this.coverToWrite();
       if (loan) await this.saveLoanPayment(loan);
+      else if (cover) {
+        // The movement and its cover are one save: neither is left alone.
+        await this.database.driver.transaction(async () => {
+          let covered: number | null;
+          if (this.isTransfer()) {
+            const created = await this.saveTransfer();
+            covered = created === null ? null
+              : (await this.legsOf(created)).find(leg => leg.account_id === this.accountId())?.id ?? null;
+          } else {
+            written = await this.saveMovement();
+            covered = written;
+          }
+          if (covered !== null) await this.writeCover(cover, covered);
+        });
+      }
       else if (this.isTransfer()) await this.saveTransfer();
       else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
@@ -1909,6 +2133,9 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.error.set('');
     this.amountField()?.focus();
     // The next one asks the habit again, once its category is chosen.
+    this.coverSwitch.set(null);
+    this.coverChosen.set(null);
+    this.coverHolds.set(new Map());
     this.scopeTouched = false;
     this.scope.set(DEFAULT_SCOPE);
   }
@@ -2348,7 +2575,8 @@ export class EntryComponent implements OnInit, OnDestroy {
     await yields.markAccrued(todayIso(), { onlyIfKnown: true });
   }
 
-  private async saveTransfer(): Promise<void> {
+  /** The transfer written, or null for one corrected. */
+  private async saveTransfer(): Promise<number | null> {
     const out = this.amount().minor;
     const into = this.crossesCurrency() ? this.targetAmount().minor : out;
 
@@ -2390,7 +2618,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         const other = leg.account_id === transfer.from.account_id ? transfer.to.account_id : transfer.from.account_id;
         await proposals.movementCorrected(leg.id, { accountId: leg.account_id, otherAccountId: other });
       }
-      return;
+      return null;
     }
 
     const created = await transfers.create(transfer);
@@ -2425,6 +2653,7 @@ export class EntryComponent implements OnInit, OnDestroy {
         await proposals.accepted(proposal.pairId, otherLeg.id, mine, memory);
       }
     }
+    return created;
   }
 
   private legsOf(transferId: number): Promise<{ id: number; account_id: number }[]> {
@@ -2593,10 +2822,16 @@ export class EntryComponent implements OnInit, OnDestroy {
       return this.i18n.t('entry.deleteTransfer.hintProducts', { account: this.account()?.name ?? '' });
     }
     if (this.isTransfer()) {
+      const covered = this.coveredWith();
       return `${this.i18n.t('entry.deleteTransfer.hint', {
-        from: this.account()?.name ?? '', to: this.toAccount()?.name ?? '' })} ${this.i18n.t('entry.delete.body')}`;
+        from: this.account()?.name ?? '', to: this.toAccount()?.name ?? '' })} ${this.i18n.t('entry.delete.body')}${covered
+        ? ` ${this.i18n.t('ui.cover.deleteToo', { amount: formatMoney(covered.amountMinor, this.currency()), name: covered.productName ?? '' })}` : ''}`;
     }
-    return this.i18n.t('entry.delete.body');
+    const covered = this.coveredWith();
+    const coverToo = covered
+      ? ` ${this.i18n.t('ui.cover.deleteToo', { amount: formatMoney(covered.amountMinor, this.currency()), name: covered.productName ?? '' })}`
+      : '';
+    return `${this.i18n.t('entry.delete.body')}${coverToo}`;
   });
 
   /**
@@ -2759,3 +2994,15 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+/** Per account, the product to always cover from (mockup 50d). */
+const COVER_KEY = 'cover.always';
+
+function readCoverAlways(value: string | undefined): Record<string, number> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, number> : {};
+  } catch {
+    return {};
+  }
+}

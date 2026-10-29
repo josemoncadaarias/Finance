@@ -200,3 +200,16 @@ Jose: "demasiada info junta que hace perder al usuario". v2 tras su revisión: e
 - `49e` todas las cuentas: patrimonio, Entró · Salió y lo movido entre tus cuentas.
 - `49f` al tocar Pendientes: pagos, topes, metas y recordatorios.
 - `49g` qué cambia y qué se queda igual.
+
+## 50 - Cubrir un producto que quedaría en negativo (2026-10-29, propuesta)
+
+Jose: un gasto sale del producto habitual, que suele estar en 0, y luego él pasa a mano el mismo dinero desde un bolsillo. Propuesta: una línea pequeña bajo la cuenta, solo cuando el producto no alcanza. Al guardar se escriben las mismas dos cosas que él hace a mano: el gasto y el paso entre productos. No se guarda nada nuevo.
+
+- `50a` el monto pasa lo que tiene el producto: "Cuenta principal queda en −$ 20.000 · Cubrir con Bolsillo Viajes", apagado.
+- `50b` encendido: qué se va a pasar al guardar.
+- `50c` el producto tenía algo: solo se pasa lo que falta.
+- `50d` al tocar el bolsillo: con cuál cubrir (solo los que alcanzan; primero de donde sueles pasar) y "Cubrir siempre en esta cuenta".
+- `50e` por costumbre ya sale encendido.
+- `50f` ningún producto alcanza: solo lo dice.
+- `50g` una transferencia (pagar la tarjeta) funciona igual.
+- `50h` ya guardado: el gasto con una línea "Cubierto con Bolsillo Viajes".

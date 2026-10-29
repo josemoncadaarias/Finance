@@ -100,6 +100,8 @@ export interface Movement {
   productName?: string | null;
   /** The far end of a transfer, as the label names it. */
   otherName?: string | null;
+  /** The product a move between products covered it from (mockup 50h). */
+  coveredFrom?: string | null;
 }
 
 export interface MovementGroup {
