@@ -6270,6 +6270,16 @@ with testers runs; the paywall is finished after them.
   `READ_SMS`. **Mockups `45a`-`45e` propose the whole screen made simple**
   (one status line, Tus bancos, "Agregar un banco", settings apart),
   waiting for Jose's word.
+- **A green "Cuadra" is never followed by "no cuadra"** (Jose, 2026-10-29,
+  a statement imported for a new account). The batch's pill says "Cuadra"
+  for a statement whose balances are `checked` OR `unclear` (its column adds
+  up, only some words on the page disagree), but `squaringFor` (#250) took
+  only `checked` as adding up and showed the blocked card "Este extracto no
+  cuadra" for `unclear`. Now both add up; `unchecked` (nothing to compare)
+  says nothing at all. Test in `statement-anchor.test.mjs`. **Mockups
+  `46a`-`46e` propose Por revisar made simple** (a list of origins, then one
+  at a time; "Movimientos que se repiten" replaced by a question when a
+  shop's category is chosen), waiting for Jose's word.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

@@ -138,3 +138,13 @@ Jose: "TIENE QUE SER SUPER SUPER SENCILLO Y CLARO DE ENTENDER". Una línea de es
 - `45c` la primera vez: "Elige tus bancos" y "Agregar un banco".
 - `45d` "Agregar un banco": primero lo que te ha enviado mensajes con dinero, con "Activar"; un buscador; y "Ver las 31 apps" por si el banco no aparece.
 - `45e` ajustes aparte: avisar al instante, leer SMS, avisos de Finance, apps ocultas.
+
+## 46 - Movimientos por revisar, sencilla (2026-10-29, propuesta)
+
+Jose: "es tanta información que el usuario se pierde... FÁCIL Y SENCILLO". Dos niveles: primero de dónde llegaron, luego uno a la vez.
+
+- `46a` la lista de orígenes: cada extracto o banco en una fila, cuántos movimientos trae y, si hace falta, qué falta.
+- `46b` un extracto: si cuadra, en una frase que explica qué significa; "Guardar los 15 listos"; primero los que necesitan algo, luego los listos (los demás en "Ver los otros 12"); al final "2 ya los tenías registrados".
+- `46c` al elegir la categoría de un comercio que se repite: "¿Les pongo Transporte a todos?" (reemplaza la sección "Movimientos que se repiten").
+- `46d` un extracto que no cuadra: se dice una vez, con qué hacer.
+- `46e` todo guardado: lo que pasó y, solo entonces, si la cuenta no dice lo mismo que el banco, la pregunta del saldo inicial.

@@ -61,12 +61,19 @@ export function squaringFor(input: SquaringInput): Squaring {
   if (statementDay === null || input.closingMinor === null || input.oursAtStatement === null) return null;
   const theirs = input.closingMinor;
   const ours = input.oursAtStatement;
+  // A statement adds up when its opening plus what was read is its closing:
+  // 'checked', and 'unclear' too - its column adds up, only some words on the
+  // page say another figure, and the screen shows it as "Cuadra" (Jose,
+  // 2026-10-29: a green "Cuadra" and then "no cuadra" read as nonsense).
+  const addsUp = input.balances === 'checked' || input.balances === 'unclear';
   if (ours === theirs) {
     // Only a statement that adds up is worth remembering as the bank's word.
-    return input.balances === 'checked' ? { kind: 'agrees', day: statementDay, theirs } : null;
+    return addsUp ? { kind: 'agrees', day: statementDay, theirs } : null;
   }
+  // One with nothing to check against says nothing: it neither adds up nor fails.
+  if (input.balances === 'unchecked') return null;
   // A misread closing figure would anchor the account to a wrong number.
-  if (input.balances !== 'checked') return { kind: 'blocked', day: statementDay, theirs, ours };
+  if (!addsUp) return { kind: 'blocked', day: statementDay, theirs, ours };
   return { kind: 'match', day: statementDay, theirs, ours };
 }
 

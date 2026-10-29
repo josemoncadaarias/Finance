@@ -18,9 +18,13 @@ test('a statement that adds up and differs offers the bank\'s figure (43a)', () 
 });
 
 test('a statement that does not add up offers nothing (43d)', () => {
-  for (const balances of ['off', 'unclear', 'unchecked']) {
-    assert.equal(squaringFor({ ...base, balances }).kind, 'blocked');
-  }
+  assert.equal(squaringFor({ ...base, balances: 'off' }).kind, 'blocked');
+});
+
+test('"Cuadra" on screen is never followed by "no cuadra": unclear adds up, unchecked says nothing', () => {
+  // 'unclear': the column adds up, the words on the page disagree - shown as "Cuadra".
+  assert.equal(squaringFor({ ...base, balances: 'unclear' }).kind, 'match');
+  assert.equal(squaringFor({ ...base, balances: 'unchecked' }), null);
 });
 
 test('one that agrees is kept as the anchor, only when it adds up', () => {
