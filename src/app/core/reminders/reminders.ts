@@ -98,12 +98,45 @@ export function nextOccurrence(r: Reminder, today: string): Occurrence | null {
   return at(dayIn(month, r.dayOfMonth), month);
 }
 
+/** A spending seen in a month: its shop and its day. */
+export interface ShopSpend {
+  shop: string;
+  on: string;
+}
+
+/** How many days before its day a payment may come and still be that one's. */
+export const PAID_EARLY_DAYS = 10;
+
+function daysBetween(a: string, b: string): number {
+  const at = (d: string) => { const [y, m, n] = d.split('-').map(Number); return Date.UTC(y, m - 1, n); };
+  return Math.round((at(a) - at(b)) / 86_400_000);
+}
+
 /**
- * The occurrence is settled by what happened: a fixed payment's shop seen in
- * its month. Anything else is settled only by the person.
+ * Which reminders a month's spendings settle by their shop (Jose, 2026-10-29:
+ * two payments to one person, on the 14th and the 29th, and the first one
+ * settled both). One spending answers one reminder: the one of its shop whose
+ * day is nearest, among those due at most `PAID_EARLY_DAYS` after it - so a
+ * payment made on the 15th is the 14th's, never the 29th's. Every active
+ * reminder of the shop takes part, settled or not, so a spending already
+ * answering one is never counted again for another. Anything without a shop
+ * is settled only by the person.
  */
-export function settledBy(o: Occurrence, shopsSeen: ReadonlyMap<string, readonly string[]>): boolean {
-  return !!o.reminder.shop && (shopsSeen.get(o.month) ?? []).includes(o.reminder.shop);
+export function paidByShop(reminders: readonly Reminder[], month: string, spends: readonly ShopSpend[]): Set<number> {
+  const due = reminders.flatMap(r => {
+    if (!r.active || !r.shop) return [];
+    const on = r.repeat === 'monthly' ? (r.dayOfMonth ? dayIn(month, r.dayOfMonth) : null)
+      : r.onDate && monthOfDay(r.onDate) === month ? r.onDate : null;
+    return on ? [{ id: r.id, shop: r.shop, on }] : [];
+  });
+  const paid = new Set<number>();
+  for (const spend of [...spends].filter(s => monthOfDay(s.on) === month).sort((a, b) => a.on.localeCompare(b.on))) {
+    const fits = due
+      .filter(d => !paid.has(d.id) && d.shop === spend.shop && daysBetween(d.on, spend.on) <= PAID_EARLY_DAYS)
+      .sort((a, b) => Math.abs(daysBetween(a.on, spend.on)) - Math.abs(daysBetween(b.on, spend.on)) || a.on.localeCompare(b.on));
+    if (fits[0]) paid.add(fits[0].id);
+  }
+  return paid;
 }
 
 /** What the phone should do for one occurrence: ring at a later time, or now. */

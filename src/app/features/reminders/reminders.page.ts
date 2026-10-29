@@ -320,15 +320,12 @@ export class RemindersPage {
     this.remindAgain.set(false);
     this.paidByShop.set(false);
     this.editingDone.set(r.repeat === 'monthly' ? r.doneMonth : null);
-    if (r.repeat === 'monthly' && r.shop && r.doneMonth === this.thisMonth) void this.readPaidByShop(r.shop);
+    if (r.repeat === 'monthly' && r.shop && r.doneMonth === this.thisMonth) void this.readPaidByShop(r.id);
     this.editing.set(r.id);
   }
 
-  private async readPaidByShop(shop: string): Promise<void> {
-    const rows = await this.database.driver.query<{ description: string | null }>(
-      'SELECT description FROM transactions WHERE amount_minor < 0 AND occurred_on BETWEEN ? AND ?',
-      [`${this.thisMonth}-01`, `${this.thisMonth}-31`]);
-    this.paidByShop.set(rows.some(row => merchantKeyOf(row.description) === shop));
+  private async readPaidByShop(id: number): Promise<void> {
+    this.paidByShop.set(await this.reminders.paidThisMonth(id));
   }
 
   async save(): Promise<void> {
