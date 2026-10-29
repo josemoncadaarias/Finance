@@ -148,3 +148,20 @@ Jose: "es tanta información que el usuario se pierde... FÁCIL Y SENCILLO". Dos
 - `46c` al elegir la categoría de un comercio que se repite: "¿Les pongo Transporte a todos?" (reemplaza la sección "Movimientos que se repiten").
 - `46d` un extracto que no cuadra: se dice una vez, con qué hacer.
 - `46e` todo guardado: lo que pasó y, solo entonces, si la cuenta no dice lo mismo que el banco, la pregunta del saldo inicial.
+
+## 47 - Productos e intereses de una cuenta, sencilla (2026-10-29, propuesta)
+
+Jose, con cuatro capturas de Banco Índigo: "confusas o enredadas y con mucha info". Dos pestañas en vez de cuatro.
+
+- `47a` Productos: arriba lo que te pagaron este mes y lo que ganas hoy; cada producto con su nombre completo, su saldo y una línea; al final "Agregar un producto" y "Ver los movimientos de esta cuenta" (en Inicio).
+- `47b` el menú "···": Resumen de intereses, Editar la cuenta, Volver a calcular, Dejar de calcular.
+- `47c` Intereses: Pagos y Días juntos, una fila por día con lo de todos los productos.
+- `47d` un día abierto: cada producto, lo que ganó, la retención y lo que te llegó; "El banco pagó otra cifra".
+- `47e` un banco que paga al mes, con bonificación pendiente: lo que lleva ganado y cuánto falta gastar.
+- `47f` una bonificación que no se ganó, dicha claro.
+- `47g` un CDT: nada día a día, lo que lleva ganado y su único pago.
+- `47h` una cuenta recién agregada: el primer pago llega mañana.
+- `47i` sin retención: se dice una vez.
+- `47j` lista larga: sin flechas encima de las cifras, un solo botón "Arriba".
+- `47k` calculando los intereses de hoy.
+- `47l` una cuenta con un solo producto.
