@@ -6543,6 +6543,26 @@ with testers runs; the paywall is finished after them.
   Entry tour step `since: 3`. Checked in a browser on the sample data (off,
   on, the sheet, saved, the list, the delete); not on the phone.
 
+- **A reminder already settled this month is said in its editor, and a
+  test notice says what the phone does** (Jose, 2026-10-29, a screenshot:
+  a monthly reminder set for that very minute never rang, while the form said
+  "Sonará el jueves 29 de octubre"). Read from the code: editing a reminder
+  keeps its `done_month`, so one marked paid this month (by "Ya lo pagué",
+  by saving the form it opened, or by a payment of its shop) does not ring
+  again until next month, and the editor worked its line out without that.
+  Assumed, not proved on his phone: his reminder was settled this month. Now
+  the editor's line comes from `nextOccurrence` like the phone's, says
+  "Este mes ya lo marcaste como pagado" (or "ya registraste este pago" when
+  its shop was seen) and offers "Avisarme también este mes" (`undoDone` on
+  saving; not offered when a payment of its shop would settle it again).
+  "Probar el aviso" at the foot of Recordatorios (phone only,
+  `RemindersService.testNotice`) posts one notice on the `reminders` channel
+  and says whether it was delivered, the notices are off, or the channel is
+  silenced, with "Abrir los ajustes"; ringing errors now go to the error log
+  of "Reportar un fallo" (`noteError`) instead of vanishing. Reminders tour
+  step `since: 3`. Checked in a browser on the sample data; the notice itself
+  only on the phone.
+
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

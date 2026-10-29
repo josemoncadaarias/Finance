@@ -28,6 +28,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import { addDays, dayIn, monthOfDay, nextOccurrence, shiftMonth, type Occurrence, type Reminder, type Repeat } from '../../core/reminders/reminders';
 import { AssistantService } from '../../core/assistant/assistant.service';
+import { Capacitor } from '@capacitor/core';
 import type { FixedPayment } from '../../core/assistant/recurring';
 import { merchantKeyOf } from '../../core/proposals/merchant';
 import { fromIsoDay, isoDay } from '../../core/filters/period';
@@ -90,13 +91,31 @@ export class RemindersPage {
   readonly customTime = computed(() => this.minute() !== 0 || !HOURS.includes(this.hour()));
   /** The time sheet's value: today at the hour chosen. */
   readonly timeValue = computed(() => `${isoDay(new Date())}T${String(this.hour()).padStart(2, '0')}:${String(this.minute()).padStart(2, '0')}:00`);
-  /** When the form's reminder would ring next, to say it under the hours. */
+  /**
+   * The month the reminder being edited is already settled for. Editing does
+   * not reopen it (Jose, 2026-10-29: a reminder set for the very minute never
+   * rang, and the form said it would): the form says so, and offers to ring
+   * this month too.
+   */
+  private readonly editingDone = signal<string | null>(null);
+  /** Settled because a payment of its shop is on record this month. */
+  readonly paidByShop = signal(false);
+  readonly remindAgain = signal(false);
+  readonly doneThisMonth = computed(() =>
+    this.repeat() === 'monthly' && !this.remindAgain() && (this.editingDone() ?? '') >= this.thisMonth);
+
+  /** When the form's reminder would ring next, the way the phone works it out. */
   private readonly ringAt = computed(() => {
     const today = isoDay(new Date());
-    const due = this.repeat() === 'once' ? this.onDate()
-      : nextDue(today, this.day());
-    const on = addDays(due, -this.daysBefore());
-    const at = fromIsoDay(on);
+    const draft: Reminder = {
+      id: 0, title: '', amountMinor: null, accountId: null, categoryId: null, note: null,
+      repeat: this.repeat(), dayOfMonth: this.day(), onDate: this.onDate(), hour: this.hour(), minute: this.minute(),
+      daysBefore: this.daysBefore(), shop: null, active: true,
+      doneMonth: this.repeat() === 'monthly' && !this.remindAgain() ? this.editingDone() : null, snoozedTo: null,
+    };
+    const ringOn = nextOccurrence(draft, today)?.ringOn
+      ?? addDays(this.repeat() === 'once' ? this.onDate() : nextDue(today, this.day()), -this.daysBefore());
+    const at = fromIsoDay(ringOn);
     at.setHours(this.hour(), this.minute(), 0, 0);
     return at;
   });
@@ -278,6 +297,9 @@ export class RemindersPage {
     this.accountId.set(null);
     this.categoryId.set(null);
     this.tried.set(false);
+    this.editingDone.set(null);
+    this.remindAgain.set(false);
+    this.paidByShop.set(false);
     this.editing.set('new');
   }
 
@@ -295,7 +317,18 @@ export class RemindersPage {
     this.accountId.set(r.accountId);
     this.categoryId.set(r.categoryId);
     this.tried.set(false);
+    this.remindAgain.set(false);
+    this.paidByShop.set(false);
+    this.editingDone.set(r.repeat === 'monthly' ? r.doneMonth : null);
+    if (r.repeat === 'monthly' && r.shop && r.doneMonth === this.thisMonth) void this.readPaidByShop(r.shop);
     this.editing.set(r.id);
+  }
+
+  private async readPaidByShop(shop: string): Promise<void> {
+    const rows = await this.database.driver.query<{ description: string | null }>(
+      'SELECT description FROM transactions WHERE amount_minor < 0 AND occurred_on BETWEEN ? AND ?',
+      [`${this.thisMonth}-01`, `${this.thisMonth}-31`]);
+    this.paidByShop.set(rows.some(row => merchantKeyOf(row.description) === shop));
   }
 
   async save(): Promise<void> {
@@ -312,6 +345,7 @@ export class RemindersPage {
     else if (typeof id === 'number') {
       const before = this.reminders.all().find(r => r.id === id);
       await this.reminders.update(id, { ...input, active: before?.active ?? true });
+      if (this.remindAgain()) await this.reminders.undoDone(id, null);
     }
     this.editing.set(null);
     this.toast.say(this.i18n.t('reminders.saved'), 2500);
@@ -319,6 +353,37 @@ export class RemindersPage {
 
   /** Today's month, for the form's line under "Cada mes". */
   readonly thisMonth = monthOfDay(isoDay(new Date()));
+
+  /** Only a phone can ring. */
+  readonly native = Capacitor.isNativePlatform();
+  readonly testing = signal(false);
+  readonly tested = signal<{ result: 'sent' | 'off' | 'channelOff' | 'failed'; detail?: string } | null>(null);
+
+  /** "Probar el aviso": one notice now, and what the phone did with it. */
+  async test(): Promise<void> {
+    this.testing.set(true);
+    try {
+      this.tested.set(await this.reminders.testNotice());
+    } finally {
+      this.testing.set(false);
+    }
+  }
+
+  readonly testIcon = computed(() => this.tested()?.result === 'sent' ? 'checkmark-circle-outline' : 'notifications-off-outline');
+  readonly testTitle = computed(() => {
+    const r = this.tested()?.result;
+    return r === 'sent' ? this.i18n.t('reminders.test.sent') : r === 'off' ? this.i18n.t('reminders.test.off')
+      : r === 'channelOff' ? this.i18n.t('reminders.test.channelOff') : this.i18n.t('reminders.test.failed');
+  });
+  readonly testHint = computed(() => {
+    const r = this.tested()?.result;
+    return r === 'sent' ? this.i18n.t('reminders.test.sent.hint') : r === 'off' ? this.i18n.t('reminders.test.off.hint')
+      : r === 'channelOff' ? this.i18n.t('reminders.test.channelOff.hint') : this.i18n.t('reminders.test.failed.hint');
+  });
+
+  openNoticeSettings(): void {
+    void this.reminders.openNoticeSettings();
+  }
 
   goAssistant(): void {
     void this.router.navigate(['/assistant']);
