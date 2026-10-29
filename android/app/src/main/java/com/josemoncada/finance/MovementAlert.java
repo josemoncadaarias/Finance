@@ -167,14 +167,17 @@ final class MovementAlert {
             break;
         }
         if (amount == null) { note(context, source, at, "noAmount", null); return; }
-        String digits = amount.replaceAll("\\D", "");
+        // The money in cents, however the bank wrote it: "10.000" and
+        // "$10.000,00" are the same 10.000 (Jose, 2026-10-28: the two halves
+        // of one transfer did not pair because one bank wrote the cents).
+        String digits = String.valueOf(centsOf(amount));
 
         try {
             JSONArray rang = array(context, RANG);
             for (int i = 0; i < rang.length(); i += 1) {
                 JSONObject one = rang.optJSONObject(i);
                 if (one == null) continue;
-                boolean sameMoney = digits.equals(one.optString("digits"));
+                boolean sameMoney = digits.equals(moneyOf(one));
                 boolean near = Math.abs(one.optLong("at") - at) < WINDOW;
                 // The same purchase from another source rang already. One
                 // source never reports one movement twice: the same amount
@@ -191,6 +194,7 @@ final class MovementAlert {
             }
             JSONObject mark = new JSONObject();
             mark.put("digits", digits);
+            mark.put("amount", amount);
             mark.put("at", at);
             mark.put("source", source);
             mark.put("name", name);
@@ -439,7 +443,7 @@ final class MovementAlert {
                 JSONObject two = pending.optJSONObject(j);
                 if (two == null || partner[j] >= 0) continue;
                 if (two.optInt("direction") != -one.optInt("direction")) continue;
-                if (!one.optString("digits").equals(two.optString("digits"))) continue;
+                if (!moneyOf(one).equals(moneyOf(two))) continue;
                 if (one.optString("source").equals(two.optString("source"))) continue;
                 if (Math.abs(one.optLong("at") - two.optLong("at")) > PAIR_WINDOW) continue;
                 partner[i] = j;
@@ -480,6 +484,36 @@ final class MovementAlert {
         text.append(question);
         text.setSpan(new StyleSpan(Typeface.BOLD), from, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return text;
+    }
+
+    /**
+     * An amount as written, in cents: the last "," or "." followed by one or
+     * two digits starts the cents ("10.000,5", "10,000.00"); anything else is
+     * a whole figure with its thousands grouped ("10.000", "1,234,567").
+     */
+    static long centsOf(String amount) {
+        String text = amount == null ? "" : amount.replaceAll("[^0-9.,]", "");
+        java.util.regex.Matcher cents = Pattern.compile("[.,](\\d{1,2})$").matcher(text);
+        String whole = text;
+        String part = "00";
+        if (cents.find()) {
+            whole = text.substring(0, cents.start());
+            part = cents.group(1).length() == 1 ? cents.group(1) + "0" : cents.group(1);
+        }
+        String digits = whole.replaceAll("\\D", "");
+        if (digits.isEmpty()) digits = "0";
+        try {
+            return Long.parseLong(digits) * 100 + Long.parseLong(part);
+        } catch (NumberFormatException tooLong) {
+            return -1;
+        }
+    }
+
+    /** A kept message's money in cents; an older one carries only its raw digits. */
+    private static String moneyOf(JSONObject one) {
+        String amount = one.optString("amount", "");
+        if (!amount.isEmpty()) return String.valueOf(centsOf(amount));
+        return one.optString("digits");
     }
 
     /** "1.234.567,00" -> "1.234.567": cents of zero say nothing in a title. */
