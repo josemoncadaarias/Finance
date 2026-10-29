@@ -133,6 +133,33 @@ export function freeMoney(input: {
   };
 }
 
+/** One place a goal keeps its money in, in pesos. */
+export interface GoalPlaceMoney {
+  accountId: number;
+  pesos: number;
+  /** False for a CDT or a product set aside: money not counted as free anyway. */
+  free: boolean;
+}
+
+/**
+ * What a goal keeps in one account (Jose, 2026-10-28: an emergency fund of
+ * 85 million over eleven accounts left every one of them at zero, because
+ * each was told the goal kept up to 85 million in it). A goal keeps its
+ * figure once, across all its places: first in money that is not free anyway
+ * (a CDT, a product set aside), as the whole figure does; what is left is
+ * shared among its free places in proportion to what each holds.
+ */
+export function goalKeptIn(places: readonly GoalPlaceMoney[], amountMinor: number, accountId: number): number {
+  const held = (p: GoalPlaceMoney) => Math.max(0, p.pesos);
+  const saved = places.reduce((sum, p) => sum + held(p), 0);
+  const elsewhere = places.filter(p => !p.free).reduce((sum, p) => sum + held(p), 0);
+  const freeTotal = saved - elsewhere;
+  const toKeep = Math.max(0, Math.min(saved, amountMinor) - elsewhere);
+  if (freeTotal <= 0 || toKeep <= 0) return 0;
+  const here = places.filter(p => p.free && p.accountId === accountId).reduce((sum, p) => sum + held(p), 0);
+  return Math.round(toKeep * here / freeTotal);
+}
+
 /**
  * The same figure for one account alone (Jose, 2026-10-28: Inicio showed the
  * whole picture whatever account was chosen on top). What the account holds,

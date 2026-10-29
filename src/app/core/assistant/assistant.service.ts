@@ -40,7 +40,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { splitWorth } from '../worth/worth-split';
 import { usuryOn } from '../debts/usury';
 import type { DebtIn } from './debts-advice';
-import { freeInAccount, freeMoney, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { freeInAccount, freeMoney, goalKeptIn, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 import { matchNotes, type NoteMatches, type NoteRow } from './note-search';
@@ -316,13 +316,12 @@ export class AssistantService {
     const held = picture.accounts.find(a => a.account.id === accountId);
     if (!held || held.account.archived) return null;
     const freeProduct = (p: YieldProduct | null) => p === null || (p.kind !== 'cdt' && p.include_in_net_worth === 1);
+    // Each goal's figure shared among its places, never the whole figure in each.
     const keptMinor = this.goals.live()
       .filter(g => !g.terms.allAccounts)
-      .reduce((sum, g) => {
-        const here = g.places.filter(p => p.place.accountId === accountId && freeProduct(p.product))
-          .reduce((s, p) => s + Math.max(0, p.pesos), 0);
-        return sum + Math.min(here, g.terms.amountMinor);
-      }, 0);
+      .reduce((sum, g) => sum + goalKeptIn(
+        g.places.map(p => ({ accountId: p.place.accountId, pesos: p.pesos, free: freeProduct(p.product) })),
+        g.terms.amountMinor, accountId), 0);
     return freeInAccount({ accountId, holdsMinor: held.holdsMinor, payments: picture.free.payments, keptMinor, today: isoDay(new Date()) });
   }
 

@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1111 on 2026-10-28, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1112 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5825,6 +5825,14 @@ with testers runs; the paywall is finished after them.
   nothing. A foreign account is said in pesos, as the whole figure is. Home
   tour step reworded, `since: 15`. Checked in a browser on the sample data
   (all, three accounts, a card hidden, the sheet).
+  **A goal keeps its figure once, shared among its places** (Jose,
+  2026-10-29: every account read 0 - his emergency fund of 85 million keeps
+  its money in eleven accounts, and each was told the goal kept up to 85
+  million in it). `goalKeptIn` (`free-money.ts`, tested): first in what is
+  not free anyway (a CDT, a product set aside), the rest shared among the
+  free places in proportion to what each holds. On his backup each of those
+  accounts keeps about 37 % of its balance, and what all accounts keep adds
+  up to the "Todas las cuentas" figure (88,218,095).
 - **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
   movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
   receipt's photo is part 2). On Android, the statement pickers
@@ -6212,6 +6220,13 @@ with testers runs; the paywall is finished after them.
   tour step `since: 6`. The Java checked with the JDK on a copy of
   `transferHalves` with invented messages; the row in a browser on the
   sample data with a pair faked; the notice itself only on the phone.
+  **Still "2 movimientos detectados" on the phone** (Jose, 2026-10-28,
+  after #244/#245): the halves were compared by their raw digits, so one
+  bank's "10.000" and another's "10.000,00" were never the same money.
+  Now both the pairing and the "same movement" check compare cents
+  (`centsOf`, `moneyOf` in `MovementAlert.java`: the last "," or "." with one
+  or two digits after it starts the cents). Checked with the JDK on invented
+  amounts; the notice itself only on the phone.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

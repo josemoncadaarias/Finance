@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afford, freeInAccount, freeMoney, goalThisMonth, perDay } from '../../src/app/core/assistant/free-money.ts';
+import { afford, freeInAccount, freeMoney, goalKeptIn, goalThisMonth, perDay } from '../../src/app/core/assistant/free-money.ts';
 
 const P = pesos => Math.round(pesos * 100);
 const TODAY = '2026-10-19';
@@ -98,4 +98,23 @@ test('one account alone: what it holds, less its goal places and the payments th
   assert.equal(one.daysLeft, 13);
   // A goal never keeps more than the account holds.
   assert.equal(freeInAccount({ accountId: 3, holdsMinor: P(100_000), payments: [], keptMinor: P(500_000), today: TODAY }).freeMinor, 0);
+});
+
+test('a goal keeps its figure once, shared among its places by what each holds', () => {
+  // An emergency fund of 6 million over three accounts holding 10 million in all.
+  const places = [
+    { accountId: 1, pesos: P(5_000_000), free: true },
+    { accountId: 2, pesos: P(3_000_000), free: true },
+    { accountId: 3, pesos: P(2_000_000), free: true },
+  ];
+  assert.equal(goalKeptIn(places, P(6_000_000), 1), P(3_000_000), 'never the whole figure in one account');
+  assert.equal(goalKeptIn(places, P(6_000_000), 2), P(1_800_000));
+  assert.equal(goalKeptIn(places, P(6_000_000), 3), P(1_200_000));
+  // Not reached yet: everything its places hold is kept.
+  assert.equal(goalKeptIn(places, P(20_000_000), 1), P(5_000_000));
+  // A CDT among its places keeps its part first; the free places share the rest.
+  const withCdt = [...places, { accountId: 4, pesos: P(4_000_000), free: false }];
+  assert.equal(goalKeptIn(withCdt, P(6_000_000), 1), P(1_000_000));
+  assert.equal(goalKeptIn(withCdt, P(3_000_000), 1), 0, 'the CDT alone covers it');
+  assert.equal(goalKeptIn(places, P(6_000_000), 9), 0, 'an account that is no place keeps nothing');
 });
