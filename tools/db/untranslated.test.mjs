@@ -52,6 +52,8 @@ const ALLOWED = [
   // The words of both languages that say a bank's message moved money -
   // compraste, recibiste, saldo - read out of the message, never shown.
   'core/notices/read-notice.ts',
+  // The word book's starting examples: messages to learn from, never shown.
+  'core/notices/word-book.ts',
   // The words of both languages a sentence to the assistant is read by -
   // gasté, me llegó, ¿me alcanza? - read out of what was typed, never shown.
   'core/assistant/read-phrase.ts',

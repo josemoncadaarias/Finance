@@ -166,9 +166,11 @@ export class NoticeInboxService {
       await proposals.notMovementsFromPhone(marked);
       const [quiet, molds, assignedNow, accountsNow] = await Promise.all([
         proposals.quiet(), proposals.molds(), proposals.sourceAccounts(), new AccountsRepository(db).list()]);
+      // What every answer taught, rebuilt on each pass so it is never stale.
+      const book = await proposals.wordBook(quiet);
       // The phone's notice learns it too, and does not ring for it; it is
       // also told each source's account, to name accounts and not senders.
-      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow)) }).catch(() => undefined);
+      void BankNotifications.setQuiet({ json: quietForPhone(quiet, molds, sourceNames(assignedNow, accountsNow), book) }).catch(() => undefined);
       const { caught } = await BankNotifications.caught();
       // Whatever was waiting is about to be in Por revisar: the phone's notice goes.
       void BankNotifications.clearAlerts().catch(() => undefined);
@@ -183,7 +185,7 @@ export class NoticeInboxService {
       for (const notice of thrownAway(caught, dismissed)) known.add(noticeKey(notice));
       // One purchase told by an SMS and by the bank's app is one proposal:
       // a later message joins the one already written.
-      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned, quiet });
+      const { fresh: made, joining } = readNotices(caught, known, answers, accounts, recent, { molds, assigned, quiet, book });
       const joined = await proposals.join(joining);
       if (made.length === 0) {
         // Halves of a transfer between two banks already waiting apart.

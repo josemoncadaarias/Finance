@@ -672,7 +672,7 @@ export class ReviewPage {
     this.working.set(true);
     try {
       const proposals = new ProposalsRepository(this.database.driver);
-      const { strict, before } = await proposals.notAMovement(line.proposal.id);
+      const { before } = await proposals.notAMovement(line.proposal.id);
       this.database.dataChanged();
       await this.refresh();
       // The phone's notice learns it on the pass, and stops ringing for it.
@@ -681,7 +681,7 @@ export class ReviewPage {
       const from = [said['sender'], said['app'], said['file'], line.account?.name]
         .find((one): one is string => typeof one === 'string' && one.trim().length > 0)
         ?? this.i18n.t('ui.review.notMovement.thisSource');
-      this.toast.say(this.i18n.t(strict ? 'ui.review.notMovement.strict' : 'ui.review.notMovement.done', { from }), 7000, {
+      this.toast.say(this.i18n.t('ui.review.notMovement.done', { from }), 7000, {
         icon: 'school-outline',
         action: {
           label: this.i18n.t('ui.review.notMovement.undo'),

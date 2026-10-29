@@ -203,7 +203,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1130 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1138 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6466,6 +6466,40 @@ with testers runs; the paywall is finished after them.
   y frecuentes" in the "+" holds "Pagos de este mes" and "Lo que más
   registras", and a habit can be pinned first ("Fijar arriba", 2026-10-23).
   Before calling anything pending, look for it here and in the code.
+
+- **The app learns by itself what is an advert and what is money that
+  moved, and "Ignorar publicidad" is gone** (Jose, 2026-10-29, three
+  screenshots: a Rappi SMS advert, "0% de interés hasta 6 cuotas ... $0
+  mínimo. Aplican T&C", rang as "Movimiento detectado · $ 0"; a real "Tu
+  compra en Claro por $ 40.799 fue exitosa" did not ring, "no dice que se
+  movió dinero"). Read from the code: the phone took "$0" for money and its
+  advert words lacked credit offers; the purchase's source was strict (two
+  "No es un movimiento" answers switched it on), and "fue exitosa" was no
+  word of money that moved. Now: an amount of 0 is never money (Java); a
+  credit offer and its small print are an advert (`ADVERT` + `OFFER` in
+  `read-notice.ts` and `MovementAlert.java`, in step); "fue exitosa",
+  "compra aprobada"... say money moved (`HAPPENED`), unless refused
+  (`DECLINED`). **The word book** (`core/notices/word-book.ts`,
+  `word-book.test.mjs`): every message saved from a source is an example of
+  a movement, every "No es un movimiento" (and "Sí era un movimiento", kept
+  in `Quiet.moves`) of the other kind; each word and pair of words gets a
+  weight (naive Bayes, a source's own examples first and everybody's at
+  0.35), and a message is judged by the sum (`verdictOf`, `LEAN` 2.5). It
+  hides an advert only once something was marked, never a message saying
+  money moved, and - while nothing of a source was ever saved - never one
+  naming a direction ("compra", "recibiste"). What it reads as a movement is
+  never taken for an advert (`readNotice(..., learnedMovement)`). A few
+  generic invented examples start it. It is rebuilt on every inbox pass from
+  the database (`ProposalsRepository.wordBook`: nothing new stored), and
+  handed to the phone with the shapes (`quietForPhone`, `book`: words and
+  weights, no figure), where `MovementAlert.verdict` adds the weights the
+  same way. `Quiet.strict` is always written empty. A source's page says
+  "Lo que la app aprendió de este banco" (movements saved, messages that
+  were not) instead of the switch; a message held back by the book says
+  "se parece a la publicidad que marcaste". Tours: review step 5 `since: 9`,
+  notifications step 3 `since: 5`. The Java's lists and word splitting
+  checked against the TS with the JDK on invented messages; the notice
+  itself only on the phone.
 
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:

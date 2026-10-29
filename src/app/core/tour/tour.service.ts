@@ -270,7 +270,7 @@ const TOUR_LIST = {
       { title: 'tour.review.3.title', text: 'tour.review.3.text', since: 8 },
       // 2026-10-13/14: everything chosen is remembered; "No es un movimiento".
       { title: 'tour.review.4.title', text: 'tour.review.4.text', since: 2 },
-      { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 2 },
+      { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 9 },
       // 2026-10-14: a group that repeats answered whole; "Editar" for several chosen.
       // 2026-10-29: one origin at a time (46a-46e); the same shop asked once.
       { title: 'tour.review.6.title', text: 'tour.review.6.text', since: 8 },
@@ -288,7 +288,7 @@ const TOUR_LIST = {
       // 2026-10-29: the simple screen (45a-45e) - "Agregar un banco" and the status line.
       { target: 'notices-add', title: 'tour.notifications.2.title', text: 'tour.notifications.2.text', since: 4 },
       // 2026-10-14: a source's page, "Ignorar publicidad", "Sí era un movimiento".
-      { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 2 },
+      { title: 'tour.notifications.3.title', text: 'tour.notifications.3.text', since: 5 },
       { title: 'tour.notifications.4.title', text: 'tour.notifications.4.text', since: 3 },
       { target: 'notices-status', title: 'tour.notifications.5.title', text: 'tour.notifications.5.text', since: 4 },
     ],

@@ -15,9 +15,10 @@ import type { SqlDriver } from '../sql-driver';
 import type { IsoDate } from '../types';
 import { merchantKeyOf, merchantSampleOf } from '../../proposals/merchant';
 import { foldText } from '../../text/fold-text';
+import { buildWordBook, type Example, type WordBook } from '../../notices/word-book';
 import { SEVERAL_ACCOUNTS, noticeBatch, type Joining, type NoticeEvidence, type RecentNotice } from '../../notices/notice-proposals';
 import {
-  learnMold, learnNotMovement, moldFrom, unlearnNotMovement, type Mold, type Quiet, type TransferMemory,
+  examplesOf, learnMold, learnNotMovement, moldFrom, unlearnNotMovement, type Mold, type Quiet, type TransferMemory,
 } from '../../notices/molds';
 
 const MOLDS = 'notices.molds';
@@ -670,12 +671,40 @@ export class ProposalsRepository {
     if (learned) await this.keep(MOLDS, molds);
   }
 
+  /**
+   * The word book (`core/notices/word-book.ts`): built afresh from every
+   * message the person saved from a source - and every one folded into it -
+   * and every answer "No es un movimiento" and "Sí era un movimiento". Nothing
+   * new is stored for it: what was answered IS the knowledge.
+   */
+  async wordBook(quiet?: Quiet): Promise<WordBook> {
+    const rows = await this.db.query<{ evidence: string }>(
+      `SELECT evidence FROM movement_proposals
+       WHERE source = 'notification' AND status = 'accepted'
+       ORDER BY id DESC LIMIT 400`);
+    const examples: Example[] = [];
+    for (const row of rows) {
+      try {
+        const evidence = JSON.parse(row.evidence) as NoticeEvidence;
+        for (const one of [evidence, ...(evidence.sightings ?? []).map(seen => seen.evidence)]) {
+          if (typeof one?.text === 'string' && typeof one.package === 'string') {
+            examples.push({ source: one.package, text: one.text, move: true });
+          }
+        }
+      } catch {
+        // Unreadable evidence teaches nothing.
+      }
+    }
+    return buildWordBook([...examples, ...examplesOf(quiet ?? await this.quiet())]);
+  }
+
   /** What the person said is NOT a movement, per source (`core/notices/molds.ts`). */
   async quiet(): Promise<Quiet> {
     const quiet = await this.setting<Partial<Quiet>>(QUIET, {});
     return {
       notMolds: Array.isArray(quiet?.notMolds) ? quiet.notMolds : [],
-      strict: Array.isArray(quiet?.strict) ? quiet.strict : [],
+      strict: [],
+      moves: Array.isArray(quiet?.moves) ? quiet.moves : [],
     };
   }
 
@@ -684,12 +713,12 @@ export class ProposalsRepository {
    * mockup 24b): it is thrown away like "Descartar", and its source learns
    * the shape of those words - and of every sighting folded into it - so a
    * message like it is never offered again. A row from a statement only
-   * goes. Says the source, and whether it is strict now.
+   * goes. Says the source.
    */
-  async notAMovement(id: number): Promise<{ source: string | null; strict: boolean; before: Quiet }> {
+  async notAMovement(id: number): Promise<{ source: string | null; before: Quiet }> {
     const before = await this.quiet();
     const row = await this.byId(id);
-    if (!row) return { source: null, strict: false, before };
+    if (!row) return { source: null, before };
     let source: string | null = null;
     if (row.source === 'notification') {
       try {
@@ -708,7 +737,7 @@ export class ProposalsRepository {
       }
     }
     await this.reject(id);
-    return { source, strict: source !== null && (await this.quiet()).strict.includes(source), before };
+    return { source, before };
   }
 
   /** "Deshacer" right after "No es un movimiento": as it was before, the proposal waiting again. */
@@ -731,12 +760,12 @@ export class ProposalsRepository {
 
   /**
    * "Sí era un movimiento" (mockups 24c, 24d): the shapes the message fits
-   * are forgotten and its source is no longer strict. A proposal thrown away
+   * are forgotten and it is kept as an example of a movement. A proposal thrown away
    * for it waits in "Por revisar" again; a message never proposed is offered
    * on the next pass.
    */
   async isAMovement(source: string, text: string, proposalId: number | null = null): Promise<void> {
-    await this.keep(QUIET, unlearnNotMovement(await this.quiet(), source, text));
+    await this.keep(QUIET, unlearnNotMovement(await this.quiet(), source, text, Date.parse(this.now()) || Date.now()));
     if (proposalId !== null) await this.restore(proposalId);
   }
 
@@ -749,12 +778,6 @@ export class ProposalsRepository {
       [this.now(), proposalId, proposalId, proposalId]);
   }
 
-  /** The switch on a source's page: only messages that say money moved, or all. */
-  async setStrict(source: string, on: boolean): Promise<void> {
-    const quiet = await this.quiet();
-    const strict = quiet.strict.filter(one => one !== source);
-    await this.keep(QUIET, { ...quiet, strict: on ? [...strict, source] : strict });
-  }
 
   /**
    * Thrown away, and it does not come back.

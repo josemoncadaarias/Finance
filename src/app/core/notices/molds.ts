@@ -15,6 +15,7 @@
  */
 
 import { moneyIn } from './read-notice';
+import { verdictOf, type Example, type WordBook } from './word-book';
 
 export interface Mold {
   /** The source it belongs to: an app's package, or `package|sender`. */
@@ -214,15 +215,18 @@ export interface NotMold {
 export interface Quiet {
   notMolds: NotMold[];
   /**
-   * Sources offered only messages that say money DID move ("compraste",
-   * "recibiste"...), or that fit a mold the person saved. Switched on by the
-   * second "No es un movimiento" from the same source, and off on its page.
+   * No longer used (Jose, 2026-10-29: the switch "Ignorar publicidad" hid
+   * real purchases). It was the sources offered only messages saying money
+   * did move; the word book (`word-book.ts`) learns that by itself now.
+   * Kept so an older backup reads; always written empty.
    */
   strict: string[];
+  /**
+   * Messages the person said WERE a movement ("Sí era un movimiento"),
+   * examples for the word book beside every message they saved.
+   */
+  moves?: { source: string; text: string; at: number }[];
 }
-
-/** After this many answers "No es un movimiento" from one source, it is strict. */
-export const STRICT_AFTER = 2;
 
 /** At most this many per source; the oldest go first. */
 const NOT_PER_SOURCE = 20;
@@ -254,37 +258,55 @@ export function learnNotMovement(quiet: Quiet, source: string, text: string, at:
   const mine = [...others.filter(one => one.source === source), mold]
     .sort((a, b) => b.at - a.at).slice(0, NOT_PER_SOURCE);
   const notMolds = [...others.filter(one => one.source !== source), ...mine];
-  const strict = mine.length >= STRICT_AFTER && !quiet.strict.includes(source)
-    ? [...quiet.strict, source] : quiet.strict;
-  return { notMolds, strict };
+  // Said now that it is not one: no longer an example of a movement.
+  const moves = (quiet.moves ?? []).filter(one => !(one.source === source && fold(one.text) === fold(normalise(text))));
+  return { notMolds, strict: [], moves };
 }
+
+
+/** At most this many "Sí era un movimiento" examples per source. */
+const MOVES_PER_SOURCE = 20;
 
 /**
  * "Sí era un movimiento": the shapes this message fits are forgotten, and
- * the source is no longer strict - the person just said one of its
- * messages without "compraste" was money that moved.
+ * the message is kept as an example of a movement, so the word book leans
+ * the other way for messages like it.
  */
-export function unlearnNotMovement(quiet: Quiet, source: string, text: string): Quiet {
+export function unlearnNotMovement(quiet: Quiet, source: string, text: string, at = Date.now()): Quiet {
   const folded = fold(normalise(text));
   const notMolds = quiet.notMolds.filter(one => {
     if (one.source !== source) return true;
     try { return !new RegExp(one.pattern).test(folded); } catch { return true; }
   });
-  return { notMolds, strict: quiet.strict.filter(one => one !== source) };
+  const said = normalise(text);
+  const others = (quiet.moves ?? []).filter(one => !(one.source === source && fold(one.text) === folded));
+  const mine = [...others.filter(one => one.source === source), ...(said ? [{ source, text: said, at }] : [])]
+    .sort((a, b) => b.at - a.at).slice(0, MOVES_PER_SOURCE);
+  return { notMolds, strict: [], moves: [...others.filter(one => one.source !== source), ...mine] };
+}
+
+/** What the person taught, as examples for the word book: theirs "no", and their "sí". */
+export function examplesOf(quiet: Quiet): Example[] {
+  return [
+    ...quiet.notMolds.map(one => ({ source: one.source, text: one.text, move: false })),
+    ...(quiet.moves ?? []).map(one => ({ source: one.source, text: one.text, move: true })),
+  ];
 }
 
 /**
  * Why a message is not offered, by what the person taught: 'taught' when it
- * fits a "not a movement" shape, 'strict' when its source only takes money
- * that moved and it does not say so; null when it may be offered. A message
- * that fits a mold the person SAVED is always offered.
+ * fits a "not a movement" shape, 'learned' when the word book - built from
+ * every answer - says it is an advert; null when it may be offered. A
+ * message that fits a mold the person SAVED, or that says money did move
+ * ("compraste", "fue exitosa"...), is never silenced by the book.
  */
 export function silencedBy(
   source: string, text: string, quiet: Quiet, molds: readonly Mold[], happened: boolean,
-): 'taught' | 'strict' | null {
+  book: WordBook | null = null, saysWhichWay = false,
+): 'taught' | 'learned' | null {
   if (readWithMolds(source, text, molds)) return null;
   if (fitsNotMold(source, text, quiet.notMolds)) return 'taught';
-  if (quiet.strict.includes(source) && !happened) return 'strict';
+  if (book && !happened && verdictOf(book, source, text, saysWhichWay) === 'advert') return 'learned';
   return null;
 }
 
@@ -292,14 +314,16 @@ export function silencedBy(
  * What the phone's notice needs of what was taught: the shapes, and the
  * name of the account each source was said to be - so a transfer's notice
  * says "De Rappi cuenta a Plata", never an SMS's short code (Jose,
- * 2026-10-28). Nothing else of the person's data goes to the phone's side.
+ * 2026-10-28) - and the word book, so the phone's notice judges an advert
+ * the way the app does: weights of words, never a message or a figure.
  */
-export function quietForPhone(quiet: Quiet, molds: readonly Mold[], names: Record<string, string> = {}): string {
+export function quietForPhone(quiet: Quiet, molds: readonly Mold[], names: Record<string, string> = {},
+  book: WordBook | null = null): string {
   return JSON.stringify({
     notMolds: quiet.notMolds.map(one => ({ source: one.source, pattern: one.pattern })),
-    strict: quiet.strict,
     molds: molds.map(one => ({ source: one.source, pattern: one.pattern })),
     names,
+    ...(book ? { book } : {}),
   });
 }
 

@@ -36,7 +36,8 @@ import { ProposalsRepository, type ProposalStatus } from '../../core/database/re
 import type { AccountRow } from '../../core/database/types';
 import { formatMoney } from '../../core/database/money';
 import { SEVERAL_ACCOUNTS, noticeKey, noticeSource } from '../../core/notices/notice-proposals';
-import { readNotice, saysItHappened } from '../../core/notices/read-notice';
+import { readNotice, saysItHappened, saysWhichWay } from '../../core/notices/read-notice';
+import type { WordBook } from '../../core/notices/word-book';
 import { fitsNotMold, silencedBy, type Mold, type Quiet } from '../../core/notices/molds';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import { ToastService } from '../../shared/ui/toast.service';
@@ -661,29 +662,29 @@ export class NotificationsPage {
     return source && !source.watched && peek?.key === source.key ? peek : null;
   });
 
-  /** How many of its messages the person marked "No es un movimiento", and whether it is strict (24d). */
-  readonly shownQuiet = computed(() => {
+  /**
+   * What the app learned of the source on show, said in figures: the
+   * movements saved from it and the messages marked as not one (Jose,
+   * 2026-10-29: no switch - the app decides by itself from those answers).
+   */
+  readonly shownLearned = computed(() => {
     const source = this.shown();
     if (!source) return null;
     const quiet = this.quiet();
-    const marked = quiet.notMolds.filter(one => one.source === source.key).length;
-    const strict = quiet.strict.includes(source.key);
-    return marked > 0 || strict ? { marked, strict } : null;
+    const notMoves = quiet.notMolds.filter(one => one.source === source.key).length;
+    const moves = (this.savedFrom().get(source.key) ?? 0)
+      + (quiet.moves ?? []).filter(one => one.source === source.key).length;
+    return moves > 0 || notMoves > 0 ? { moves, notMoves } : null;
   });
 
-  /** The switch: only messages saying money moved, or every one. */
-  async setStrict(on: boolean): Promise<void> {
-    const source = this.shown();
-    if (!source || this.database.status() !== 'ready') return;
-    await new ProposalsRepository(this.database.driver).setStrict(source.key, on);
-    await this.readLedger();
-    // Read again with the new rule: what it held back may be offered now.
-    void this.inbox.read().then(() => this.readLedger());
-  }
+  /** How many movements were saved from each source. */
+  private readonly savedFrom = signal<ReadonlyMap<string, number>>(new Map());
+  /** The word book, to say why a message was held back. */
+  private readonly book = signal<WordBook | null>(null);
 
   /**
-   * "Sí era un movimiento": the shapes it fits are forgotten, its source no
-   * longer strict, and the message offered again - the proposal thrown away
+   * "Sí era un movimiento": the shapes it fits are forgotten, it becomes an
+   * example of a movement, and the message offered again - the proposal thrown away
    * waits once more, or one never proposed is proposed on this pass.
    */
   async itWasAMovement(one: CaughtNotification, proposalId: number | null): Promise<void> {
@@ -702,12 +703,13 @@ export class NotificationsPage {
     const found = outcomes.get(noticeKey(one));
     const source = noticeSource(one);
     // What the person said is not a movement, offered back with "Sí era un movimiento".
-    const silenced = silencedBy(source, one.text, this.quiet(), this.molds(), saysItHappened(one.text, one.title));
+    const silenced = silencedBy(source, one.text, this.quiet(), this.molds(), saysItHappened(one.text, one.title),
+      this.book(), saysWhichWay(one.text, one.title));
     if (found?.status === 'rejected' && fitsNotMold(source, one.text, this.quiet().notMolds)) {
       return { outcome: this.i18n.t('ui.notifications.out.notMovement'), tone: 'red', undo: found.id };
     }
     if (!found && silenced === 'taught') return { outcome: this.i18n.t('ui.notifications.out.taught'), tone: 'mu', undo: null };
-    if (!found && silenced === 'strict') return { outcome: this.i18n.t('ui.notifications.out.strict'), tone: 'mu', undo: null };
+    if (!found && silenced === 'learned') return { outcome: this.i18n.t('ui.notifications.out.learned'), tone: 'mu', undo: null };
     const plain = this.plainOutcome(one, found);
     return { ...plain, undo: false };
   }
@@ -948,7 +950,7 @@ export class NotificationsPage {
       shown: 'ui.notifications.alert.shown', same: 'ui.notifications.alert.same', off: 'ui.notifications.alert.off',
       empty: 'ui.notifications.alert.empty', notMovement: 'ui.notifications.alert.notMovement',
       noMoney: 'ui.notifications.alert.noMoney', noAmount: 'ui.notifications.alert.noAmount',
-      taught: 'ui.notifications.alert.taught', strict: 'ui.notifications.alert.strict',
+      taught: 'ui.notifications.alert.taught', strict: 'ui.notifications.alert.strict', learned: 'ui.notifications.alert.learned',
     } as const;
     const key = words[near.reason as keyof typeof words] ?? 'ui.notifications.alert.error';
     const said = this.i18n.t(key, { other: near.detail ?? '' });
@@ -972,6 +974,10 @@ export class NotificationsPage {
     ]);
     this.quiet.set(quiet);
     this.molds.set(molds);
+    this.book.set(await proposals.wordBook(quiet));
+    const saved = new Map<string, number>();
+    for (const answer of answers) saved.set(answer.package, (saved.get(answer.package) ?? 0) + 1);
+    this.savedFrom.set(saved);
     const counted = new Map<string, Map<number, number>>();
     for (const answer of answers) {
       const one = counted.get(answer.package) ?? new Map<number, number>();

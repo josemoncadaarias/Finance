@@ -298,18 +298,15 @@
             <ion-icon name="pause-circle-outline"></ion-icon>{{ 'ui.notif2.stop' | t }}
           </button>
         }
-        @if (shownQuiet(); as q) {
+        @if (shownLearned(); as q) {
           <div class="ui-card quiet-card">
             <app-badge shape="ci" [size]="40" builtin="school" fixed="#2ecc71"></app-badge>
             <span class="ui-tx">
-              <b class="wrap">{{ 'ui.notifications.strict.title' | t }}</b>
-              <small class="wrap">{{ (q.strict ? 'ui.notifications.strict.on' : 'ui.notifications.strict.off') | t }}</small>
-              @if (q.marked > 0) {
-                <small class="wrap marked">{{ (q.marked === 1 ? 'ui.notifications.strict.learned.one' : 'ui.notifications.strict.learned') | t:{ count: q.marked } }}</small>
-              }
+              <b class="wrap">{{ 'ui.notifications.learn.title' | t }}</b>
+              <small class="wrap">{{ 'ui.notifications.learn.moves' | t:{ count: q.moves } }}</small>
+              <small class="wrap">{{ 'ui.notifications.learn.notMoves' | t:{ count: q.notMoves } }}</small>
+              <small class="wrap marked">{{ 'ui.notifications.learn.how' | t }}</small>
             </span>
-            <button type="button" class="ui-switch" role="switch" [class.on]="q.strict" [attr.aria-checked]="q.strict"
-                    [attr.aria-label]="'ui.notifications.strict.title' | t" (click)="setStrict(!q.strict)"></button>
           </div>
         }
         @if (shownPeek(); as peek) {
