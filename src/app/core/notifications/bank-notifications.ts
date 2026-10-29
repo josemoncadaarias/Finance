@@ -142,6 +142,13 @@ export interface BankNotificationsPlugin {
   watchSender(options: { package: string; sender: string; on: boolean }): Promise<void>;
   /** Hides a sender (and drops what was kept from it), or shows it again. */
   hideSender(options: { package: string; sender: string; on: boolean }): Promise<void>;
+  /**
+   * The last messages of a source not read yet, to look at before choosing
+   * its account: an SMS sender's from the inbox (`from: 'inbox'`), an app's
+   * from the status bar (`'bar'`, or `'unbound'` when Android has not bound
+   * the listener). Shown, never kept.
+   */
+  peek(options: { package: string; sender?: string }): Promise<{ from: 'inbox' | 'bar' | 'unbound' | 'none'; messages: { title: string; text: string; postedAt: number }[] }>;
   /** Everything kept so far. */
   caught(): Promise<{ caught: CaughtNotification[] }>;
   forgetCaught(): Promise<void>;
@@ -213,6 +220,7 @@ const nothing: BankNotificationsPlugin = {
   watchSender: async () => {},
   hideSender: async () => {},
   caught: async () => ({ caught: [] }),
+  peek: async () => ({ from: 'none', messages: [] }),
   forgetCaught: async () => {},
   forgetEverything: async () => {},
   diagnose: async () => ({ bound: false, defaultSms: '', active: [], recent: [] }),

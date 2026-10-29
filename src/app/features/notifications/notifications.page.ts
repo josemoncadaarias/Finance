@@ -451,7 +451,8 @@ export class NotificationsPage {
 
   /** A bank with one source opens that source's page; with several, shows them. */
   openBank(bank: { key: string; sources: Source[]; needsAccount: boolean }): void {
-    if (bank.needsAccount) return this.pickingFor.set(bank.sources[0]);
+    // Its page first, so its messages can be read before choosing (Jose, 2026-10-29).
+    if (bank.needsAccount || bank.sources.length === 1) return this.openSource.set(bank.sources[0]);
     if (bank.sources.length === 1) return this.openSource.set(bank.sources[0]);
     this.toggleOpen(`bank:${bank.key}`);
   }
@@ -482,6 +483,12 @@ export class NotificationsPage {
 
   /** What the person put away, to bring back from the settings. */
   readonly hiddenOnes = computed(() => this.sources().filter(one => one.hidden));
+
+  /** A row of "Agregar un banco" tapped: its page, with its last messages, before reading it. */
+  preview(one: Source): void {
+    this.closeAdd();
+    this.openSource.set(one);
+  }
 
   /** "Activar" in "Agregar un banco": read it, then "¿De qué cuenta es?". */
   async activate(one: Source): Promise<void> {
@@ -622,6 +629,36 @@ export class NotificationsPage {
         one, when: `${this.short(one.postedAt)} · ${this.hour(one.postedAt)}`,
         alert: this.alertOf(one), ...this.outcomeOf(one, outcomes),
       }));
+  });
+
+  /**
+   * A source not read yet keeps nothing, so its last messages are looked at
+   * where they still are - an SMS sender's in the inbox, an app's in the
+   * status bar - to check which bank they belong to before choosing its
+   * account (Jose, 2026-10-29). Shown, never kept.
+   */
+  readonly peeked = signal<{ key: string; from: 'inbox' | 'bar' | 'unbound' | 'none'; rows: { when: string; title: string; text: string }[] } | null>(null);
+  private readonly peekShown = effect(() => {
+    const source = this.shown();
+    if (!source || source.watched) return;
+    const key = source.key;
+    if (this.peeked()?.key === key) return;
+    const pkg = source.sender?.package ?? source.app?.package ?? '';
+    void BankNotifications.peek({ package: pkg, sender: source.sender?.sender })
+      .then(answer => this.peeked.set({
+        key, from: answer.from,
+        rows: answer.messages.sort((a, b) => b.postedAt - a.postedAt).map(one => ({
+          when: `${this.short(one.postedAt)} · ${this.hour(one.postedAt)}`, title: one.title, text: one.text,
+        })),
+      }))
+      .catch(() => this.peeked.set({ key, from: 'none', rows: [] }));
+  });
+
+  /** The peek of the source on show, or null while it is read (or read already). */
+  readonly shownPeek = computed(() => {
+    const source = this.shown();
+    const peek = this.peeked();
+    return source && !source.watched && peek?.key === source.key ? peek : null;
   });
 
   /** How many of its messages the person marked "No es un movimiento", and whether it is strict (24d). */

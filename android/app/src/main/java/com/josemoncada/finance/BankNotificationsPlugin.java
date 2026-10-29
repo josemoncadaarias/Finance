@@ -254,6 +254,31 @@ public class BankNotificationsPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * The last messages of a source not read yet: an SMS sender's from the
+     * inbox, an app's from the status bar. Shown, never kept.
+     */
+    @PluginMethod
+    public void peek(PluginCall call) {
+        String pkg = call.getString("package");
+        String sender = call.getString("sender");
+        JSObject answer = new JSObject();
+        JSONArray found;
+        if (SmsInbox.PACKAGE.equals(pkg)) {
+            found = SmsInbox.peek(getContext(), sender, 10);
+            answer.put("from", "inbox");
+        } else if (pkg != null && !pkg.isEmpty()) {
+            found = NotificationCatcher.peek(pkg);
+            answer.put("from", found == null ? "unbound" : "bar");
+            if (found == null) found = new JSONArray();
+        } else {
+            found = new JSONArray();
+            answer.put("from", "none");
+        }
+        answer.put("messages", toJs(found));
+        call.resolve(answer);
+    }
+
     /** Everything caught since the app last looked, still held. */
     @PluginMethod
     public void caught(PluginCall call) {

@@ -209,6 +209,32 @@ final class SmsInbox {
         return out;
     }
 
+    /**
+     * The last messages of one sender, ticked or not, to look at before
+     * choosing its account (Jose, 2026-10-29). Only shown: nothing is kept.
+     */
+    static JSONArray peek(Context context, String sender, int most) {
+        JSONArray out = new JSONArray();
+        if (!allowed(context) || sender == null || !looksLikeBusiness(sender)) return out;
+        try (Cursor rows = context.getContentResolver().query(
+                Uri.parse("content://sms/inbox"),
+                new String[] { "body", "date" },
+                "address = ?", new String[] { sender },
+                "date DESC")) {
+            if (rows == null) return out;
+            while (rows.moveToNext() && out.length() < most) {
+                JSONObject one = new JSONObject();
+                one.put("title", sender);
+                one.put("text", rows.getString(0) == null ? "" : rows.getString(0));
+                one.put("postedAt", rows.getLong(1));
+                out.put(one);
+            }
+        } catch (Exception unreadable) {
+            return out;
+        }
+        return out;
+    }
+
     /** "Borrar lo guardado": the inbox is not ours to empty, so nothing before now is read again. */
     static void forgetCaught(Context context) {
         prefs(context).edit().putLong(FLOOR, System.currentTimeMillis()).apply();

@@ -184,12 +184,12 @@
 </ion-modal>
 
 <ng-template #cand let-one>
-  <div class="ui-row app">
+  <div class="ui-row app" role="button" tabindex="0" (click)="preview(one)">
     <app-badge [shape]="one.kind === 'sms' ? 'ci' : 'sq'" [size]="38"
                [builtin]="one.kind === 'sms' ? 'chatbubble-ellipses-outline' : appIcon(one.key, one.name)" [seed]="appSeed(one.key)"></app-badge>
     <span class="ui-tx"><b class="ui-one">{{ one.name }}<span class="chan">{{ (one.kind === 'sms' ? 'ui.notifications.chip.sms' : 'ui.notifications.chip.app') | t }}</span></b>
       <small class="ui-one">{{ one.line }}</small></span>
-    <button type="button" class="ui-chip on activate" (click)="activate(one)">{{ 'ui.notif2.activate' | t }}</button>
+    <button type="button" class="ui-chip on activate" (click)="$event.stopPropagation(); activate(one)">{{ 'ui.notif2.activate' | t }}</button>
   </div>
 </ng-template>
 
@@ -312,6 +312,23 @@
                     [attr.aria-label]="'ui.notifications.strict.title' | t" (click)="setStrict(!q.strict)"></button>
           </div>
         }
+        @if (shownPeek(); as peek) {
+          <h3 class="ui-h">{{ 'ui.notifications.detail.last' | t }}</h3>
+          @if (peek.rows.length === 0) {
+            <p class="hint">{{ $any('ui.notif2.peek.none.' + peek.from) | t }}</p>
+          } @else {
+            <p class="hint">{{ (peek.from === 'inbox' ? 'ui.notif2.peek.inbox' : 'ui.notif2.peek.bar') | t }}</p>
+            <div class="ui-list">
+              @for (m of peek.rows; track $index) {
+                <div class="ui-row plain message">
+                  <span class="ui-tx"><small>{{ m.when }}</small>
+                    @if (m.title && one.kind !== 'sms') { <b class="wrap">{{ m.title }}</b> }
+                    <span class="said">{{ m.text }}</span></span>
+                </div>
+              }
+            </div>
+          }
+        } @else if (one.watched || shownMessages().length > 0) {
         <h3 class="ui-h">{{ 'ui.notifications.detail.last' | t }}</h3>
         @if (shownMessages().length === 0) {
           <p class="hint">{{ 'ui.notifications.detail.none' | t }}</p>
@@ -332,6 +349,7 @@
               </div>
             }
           </div>
+        }
         }
       </div>
     }
