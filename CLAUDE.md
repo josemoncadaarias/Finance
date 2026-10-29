@@ -6436,6 +6436,9 @@ with testers runs; the paywall is finished after them.
   (`otherGroups` in `spending-chart`): Ingresos, Devoluciones, Entre tus
   cuentas (in blue), and "No son gastos, por eso no están en el gráfico".
   Tours: attention `since: 2`, home card and "Lo que no es gasto" `since: 17`.
+  **The sample data's strip is one row too** (Jose, the same day): "Datos de
+  ejemplo", an (i) that shows what is paused under it, and "Empezar con los
+  míos" (`demo-home.component.ts`, `hint`).
   Checked in a browser on the sample data (an account, cards over the limit
   and in favour, all accounts, the sheet).
 
