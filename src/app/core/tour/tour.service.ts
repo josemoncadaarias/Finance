@@ -56,8 +56,11 @@ const TOUR_LIST = {
       // 2026-10-22: what can be spent today, and how (idea 1);
       // 2026-10-28: one account chosen shows that account's money alone.
       { sel: 'app-movements app-safe-today .today', title: 'tour.home.today.title', text: 'tour.home.today.text', since: 15 },
-      { sel: 'app-movements .figures .used', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 4 },
+      // 2026-10-29: the card's credit in one line under its bar (49c).
+      { sel: 'app-movements .figures .credit-line', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 17 },
       { sel: 'app-movements app-spending-chart .box', title: 'tour.home.donut.title', text: 'tour.home.donut.text', since: 4 },
+      // 2026-10-29: what is not spending, under its own heading (49b).
+      { sel: 'app-movements app-spending-chart .others-head', title: 'tour.home.others.title', text: 'tour.home.others.text', since: 17 },
       // 2026-10-19: the assistant, on every screen (39p).
       { sel: 'app-movements app-ask-button button', title: 'tour.home.ask.title', text: 'tour.home.ask.text', since: 5 },
       { target: 'faces', title: 'tour.home.faces.title', text: 'tour.home.faces.text' },
@@ -68,7 +71,8 @@ const TOUR_LIST = {
     ],
   },
   attention: {
-    steps: [{ target: 'attention', title: 'tour.attention.title', text: 'tour.attention.text' }],
+    // 2026-10-29: one line, its rows in a sheet (49a, 49f).
+    steps: [{ target: 'attention', title: 'tour.attention.title', text: 'tour.attention.text', since: 2 }],
   },
   yields: {
     steps: [

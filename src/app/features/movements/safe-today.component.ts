@@ -33,26 +33,12 @@ import { FilterService } from '../../core/filters/filter.service';
   imports: [TranslatePipe, IonIcon, IonModal],
   template: `
     @if (free(); as f) {
-      <button type="button" class="ui-card today" [class.short]="f.freeMinor <= 0" (click)="open.set(true)" data-tour="safe-today">
-        <span class="top">
-          <span class="lab">{{ 'today.title' | t }}</span>
-          <ion-icon name="information-circle-outline"></ion-icon>
-        </span>
-        @if (f.freeMinor > 0) {
-          <b class="big">{{ money(daily()) }}</b>
-          @if (account(); as name) {
-            <small>{{ (f.daysLeft === 1 ? 'today.line.one.account' : 'today.line.account') | t:{ free: money(f.freeMinor), end: day(f.monthEnd), count: f.daysLeft, account: name } }}</small>
-          } @else {
-            <small>{{ (f.daysLeft === 1 ? 'today.line.one' : 'today.line') | t:{ free: money(f.freeMinor), end: day(f.monthEnd), count: f.daysLeft } }}</small>
-          }
-        } @else {
-          <b class="big red">{{ money(0) }}</b>
-          @if (account(); as name) {
-            <small>{{ 'today.short.account' | t:{ short: money(-f.freeMinor), account: name } }}</small>
-          } @else {
-            <small>{{ 'today.short' | t:{ short: money(-f.freeMinor) } }}</small>
-          }
-        }
+      <!-- One row (49a); how it is worked out, one tap away. -->
+      <button type="button" class="ui-card today" (click)="open.set(true)" data-tour="safe-today">
+        <span class="sun"><ion-icon name="sunny-outline"></ion-icon></span>
+        <span class="lab">{{ 'today.title' | t }}</span>
+        <b class="big" [class.red]="f.freeMinor <= 0">{{ short(f.freeMinor > 0 ? daily() : 0) }}</b>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
 
       <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="open()" (didDismiss)="open.set(false)">
@@ -67,6 +53,9 @@ import { FilterService } from '../../core/filters/filter.service';
               <p class="hint center">{{ (f.daysLeft === 1 ? 'today.how.span.one' : 'today.how.span') | t:{ end: day(f.monthEnd), count: f.daysLeft } }}</p>
             }
 
+            @if (f.freeMinor <= 0) {
+              <p class="hint center short">{{ (account() ? 'today.short.account' : 'today.short') | t:{ short: money(-f.freeMinor), account: account() ?? '' } }}</p>
+            }
             <div class="ui-list">
               <div class="ui-row plain"><span class="ui-tx"><b>{{ account() ? ('today.how.inAccount' | t:{ account: account() ?? '' }) : ('ai.money.accounts' | t) }}</b></span><b>{{ money(f.inAccountsMinor) }}</b></div>
               @if (f.inGoalsMinor > 0) {
@@ -107,13 +96,15 @@ import { FilterService } from '../../core/filters/filter.service';
     :host { display: block; }
     .today {
       width: 100%; border: 0; text-align: left; font: inherit; color: var(--app-tx);
-      display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer;
     }
-    .top { display: flex; justify-content: space-between; align-items: center; }
-    .lab { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--app-mu); }
-    .top ion-icon { color: var(--app-mu); font-size: 18px; }
-    .big { font-size: 26px; font-weight: 700; color: var(--app-grn); }
+    .sun { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center;
+      background: rgba(var(--app-yel-rgb), 0.16); color: var(--app-yel); font-size: 18px; }
+    .lab { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 500; white-space: nowrap; }
+    .big { font-size: 15.5px; font-weight: 700; color: var(--app-grn); white-space: nowrap; }
     .big.red { color: var(--app-red); }
+    .today .ui-chev { flex: none; }
+    .short { color: var(--app-red); }
     small { color: var(--app-mu); font-size: 13.5px; line-height: 1.4; text-wrap: pretty; }
     .today-sheet h2 { margin: 4px 0 2px; }
     .today-sheet .ui-row.plain { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -162,6 +153,11 @@ export class SafeTodayComponent {
         }
       });
     });
+  }
+
+  /** The row's figure in whole pesos: it is rounded to hundreds anyway. */
+  short(minor: number): string {
+    return `$ ${formatMoney(Math.round(minor / 100), 'COP', { withSymbol: false, minorUnits: 0 })}`;
   }
 
   money(minor: number): string {
