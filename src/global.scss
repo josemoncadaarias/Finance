@@ -2580,6 +2580,8 @@ ion-modal.confirm-sheet .confirm-dialog .kept { display: flex; gap: 6px; align-i
 .ui-sheet-body:has(> .sheet-cancel) > h2,
 .ui-sheet-body:has(> .sheet-cancel) > .sheet-head h2 { padding-left: 78px; padding-right: 78px; }
 .ui-sheet-body:has(> .sheet-cancel):not(:has(> h2)):not(:has(> .sheet-head)) > .grab { margin-bottom: 40px; }
+/* A head with no h2 (a title of its own, as a reminder's) starts under Cancelar, never beside it. */
+.ui-sheet-body:has(> .sheet-cancel) > .sheet-head:not(:has(h2)) { margin-top: 30px; }
 
 /* Nothing that holds words is ever squeezed to fit (Jose, 2026-09-28: with
    the phone's larger text the account form's cards were cut in half). A

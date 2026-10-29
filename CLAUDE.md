@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1147 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1148 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6562,6 +6562,21 @@ with testers runs; the paywall is finished after them.
   of "Reportar un fallo" (`noteError`) instead of vanishing. Reminders tour
   step `since: 3`. Checked in a browser on the sample data; the notice itself
   only on the phone.
+
+- **One payment settles one reminder, by its day** (Jose, 2026-10-29, two
+  screenshots: two reminders to one person, on the 14th and the 29th, and the
+  29th's editor said "Este mes ya registraste este pago" - the 14th's payment
+  had settled both, since any spending of the shop in the month settled
+  every reminder of it). `paidByShop` (`core/reminders/reminders.ts`,
+  `reminders.test.mjs`) gives each spending to ONE reminder of its shop: the
+  one whose day is nearest, among those due at most `PAID_EARLY_DAYS` (10)
+  after it; every active reminder of the shop takes part, settled or not, so
+  a spending already answering one is never counted again. The editor asks
+  the same question (`RemindersService.paidThisMonth`). A month already
+  settled by the old rule stays settled; its editor says "Este mes ya quedó
+  como pagado" with "Avisarme también este mes". And a reminder's sheet puts
+  its title under "Cancelar", never beside it (global.scss, a `.sheet-head`
+  with no h2). Checked in a browser on the sample data.
 
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:

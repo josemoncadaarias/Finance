@@ -26,8 +26,8 @@ import { RemindersRepository, type ReminderInput } from './reminders.repository'
 import { BankNotifications } from '../notifications/bank-notifications';
 import { noteError } from '../feedback/error-log';
 import {
-  addDays, dueWithin, monthOfDay, nextOccurrence, reminderNoticeId, ringKey, ringPlans, settledBy,
-  type Occurrence, type Reminder,
+  addDays, dueWithin, monthOfDay, nextOccurrence, reminderNoticeId, ringKey, ringPlans, paidByShop,
+  type Occurrence, type Reminder, type ShopSpend,
 } from './reminders';
 
 const CHANNEL = 'reminders';
@@ -148,6 +148,20 @@ export class RemindersService {
     return this.all().find(r => r.shop === shop) ?? null;
   }
 
+  /** The month's spendings by shop, for `paidByShop`. */
+  private async spendsIn(month: string): Promise<ShopSpend[]> {
+    const rows = await this.database.driver.query<{ description: string | null; occurred_on: string }>(
+      'SELECT description, occurred_on FROM transactions WHERE amount_minor < 0 AND occurred_on BETWEEN ? AND ?',
+      [`${month}-01`, `${month}-31`]);
+    return rows.map(row => ({ shop: merchantKeyOf(row.description), on: row.occurred_on })).filter(s => s.shop !== '');
+  }
+
+  /** Whether a payment of its shop settles this reminder this month (the editor says so). */
+  async paidThisMonth(id: number): Promise<boolean> {
+    const month = monthOfDay(isoDay(new Date()));
+    return paidByShop(this.all(), month, await this.spendsIn(month)).has(id);
+  }
+
   /** The movement form, filled in with what the reminder says; saved only by the person. */
   openForm(o: Occurrence): void {
     const r = o.reminder;
@@ -180,18 +194,15 @@ export class RemindersService {
   private async refreshOnce(): Promise<void> {
     const today = isoDay(new Date());
     let list = await this.repo.all();
-    // A fixed payment seen in its month settles that month by itself.
+    // A fixed payment seen in its month settles that occurrence by itself,
+    // one payment for one reminder (`paidByShop`).
     const following = list.map(r => nextOccurrence(r, today)).filter((o): o is Occurrence => !!o && !!o.reminder.shop);
     if (following.length > 0) {
-      const months = [...new Set(following.map(o => o.month))];
-      const seen = new Map<string, string[]>();
-      for (const month of months) {
-        const rows = await this.database.driver.query<{ description: string | null }>(
-          `SELECT description FROM transactions WHERE amount_minor < 0 AND occurred_on BETWEEN ? AND ?`,
-          [`${month}-01`, `${month}-31`]);
-        seen.set(month, [...new Set(rows.map(row => merchantKeyOf(row.description)).filter(Boolean))]);
+      const settled: Occurrence[] = [];
+      for (const month of [...new Set(following.map(o => o.month))]) {
+        const paid = paidByShop(list, month, await this.spendsIn(month));
+        settled.push(...following.filter(o => o.month === month && paid.has(o.reminder.id)));
       }
-      const settled = following.filter(o => settledBy(o, seen));
       for (const o of settled) await this.repo.markDone(o.reminder.id, o.month);
       if (settled.length > 0) list = await this.repo.all();
     }
