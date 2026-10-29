@@ -1743,7 +1743,10 @@ export class ProductsPage {
     }>();
 
     for (const payment of this.payments()) {
-      const key = payment.on.slice(0, 7);
+      // A monthly payment belongs to the month it was earned in, not the one
+      // it lands in: October's interest, paid on 1 November, is October's
+      // (Jose, 2026-10-29: "Noviembre · lo que va del mes" read as wrong).
+      const key = (payment.payout === 'monthly' ? payment.lastOn : payment.on).slice(0, 7);
       const month = months.get(key) ?? { key, payments: [], netMinor: 0, withheldMinor: 0 };
       month.payments.push(payment);
       month.netMinor += payment.netMinor;
@@ -1775,6 +1778,28 @@ export class ProductsPage {
       })),
     };
   }));
+
+  /**
+   * The card on top of Intereses, said as parts that add up (Jose,
+   * 2026-10-29: "Rendido 907.498" next to 5.483.292 made no sense). What the
+   * products hold beyond the account's balance is the total; of it, what the
+   * app worked out and was already paid, and the rest - what the products
+   * held when the app began following the account and what was typed by hand.
+   */
+  interestParts(line: ProductLine): { paidByApp: number; byHand: number; cashedOut: number; rest: number } {
+    const e = line.earned;
+    const paidByApp = Math.max(0, e.accrued_minor - e.pendingMinor);
+    const byHand = e.adjusted_minor;
+    const cashedOut = Math.abs(e.withdrawn_minor);
+    // Whatever is left so the parts always add up to the total: what the
+    // products held when the app began, and anything else that moved in them.
+    const rest = line.availableMinor - paidByApp - byHand + cashedOut;
+    return { paidByApp, byHand, cashedOut, rest: Math.abs(rest) < 100 ? 0 : rest };
+  }
+
+  signed(minor: number, currency: string): string {
+    return `${minor < 0 ? '−' : '+'}${this.money(Math.abs(minor), currency)}`;
+  }
 
   /** What one date of Intereses says under it: the product, or how many. */
   payDayLine(line: ProductLine, payments: readonly Payment[]): string {

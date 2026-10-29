@@ -6399,6 +6399,24 @@ with testers runs; the paywall is finished after them.
   the first month. The figures did not change. Checked in a browser on the
   sample data.
 
+- **Intereses says its total as parts that add up** (Jose, 2026-10-29, a
+  screenshot of Rappi cuenta: "Rendido 907.498" beside "Intereses
+  disponibles 5.483.292" - "el mensaje es horrible" and the figure unrelated).
+  Read from the code: "Rendido" was every day the app ever worked out, the
+  month still running included (Rappi: September's 447,083 paid on 1 October
+  plus October's 460,414 on its way), while the total is what the products
+  hold beyond the account's balance - mostly what they held when the app
+  began. Now the card is "Intereses que aún no pasan a tu saldo" and under it
+  the parts that make it (`interestParts` in `products.page.ts`): what the
+  bank paid since the app works it out (worked out less what is still on its
+  way), what was recorded by hand, less what was moved into the balance, and
+  the rest - what the products already held, or what left them outside the
+  interest - so they always add up. **And a monthly payment sits in the month
+  it was earned** (`paymentsByMonth` keys it by its last day, not its
+  payday): October's interest, paid on 1 November, is "Octubre · lo que va
+  del mes · te llega el 1 nov", no longer "Noviembre". Checked in a browser
+  on the sample data (Banco Índigo, Cajita Naranja).
+
 - **Fixed payments in the "+" were already built** (Jose, 2026-10-29, when I
   listed "favourites in the +" as pending: he sees them there). "Pagos fijos
   y frecuentes" in the "+" holds "Pagos de este mes" and "Lo que más
