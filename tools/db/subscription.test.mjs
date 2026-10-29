@@ -23,7 +23,7 @@ test('a monthly plan in its trial', () => {
   } }, 'https://play.google.com/store/account/subscriptions');
   assert.deepEqual(s, {
     plan: 'monthly', trial: true, renews: true, until: '2026-10-22T12:00:00Z',
-    productId: 'finance_pro', manageUrl: 'https://play.google.com/store/account/subscriptions',
+    productId: 'finance_pro', manageUrl: 'https://play.google.com/store/account/subscriptions', granted: false,
   });
 });
 
@@ -35,6 +35,26 @@ test('cancelled is active until its date and does not renew', () => {
   assert.equal(s.trial, false);
   assert.equal(s.renews, false);
   assert.equal(s.productId, 'finance_pro');
+});
+
+test('a lifetime grant from the dashboard is no subscription to renew or manage', () => {
+  const s = subscriptionOf({ pro: {
+    productIdentifier: 'rc_promo_finance_pro_lifetime', store: 'PROMOTIONAL', periodType: 'NORMAL',
+    willRenew: false, expirationDate: null,
+  } }, 'https://play.google.com/store/account/subscriptions');
+  assert.equal(s.granted, true);
+  assert.equal(s.until, null);
+  assert.equal(s.manageUrl, null);
+  assert.equal(s.plan, null);
+});
+
+test('a purchase beside a grant is the one shown: it charges and can be managed', () => {
+  const s = subscriptionOf({
+    a: { productIdentifier: 'rc_promo_finance_pro_lifetime', store: 'PROMOTIONAL', willRenew: false, expirationDate: null },
+    b: { productIdentifier: 'finance_pro', productPlanIdentifier: 'monthly', store: 'PLAY_STORE', willRenew: true, expirationDate: '2026-11-29T00:00:00Z' },
+  }, null);
+  assert.equal(s.granted, false);
+  assert.equal(s.plan, 'monthly');
 });
 
 test('nothing active is no subscription', () => {

@@ -19,6 +19,12 @@ export interface Subscription {
   productId: string;
   /** Where the store manages it (cancel, card, payments). */
   manageUrl: string | null;
+  /**
+   * Given by Jadex Labs from RevenueCat's dashboard ("Grant"), never bought:
+   * nothing is paid, nothing renews and there is nothing to manage in
+   * Google Play (Jose, 2026-10-29: his lifetime grant read "Volver a activar").
+   */
+  granted: boolean;
 }
 
 /** The part of the store's entitlement read here. */
@@ -28,6 +34,13 @@ export interface EntitlementLike {
   periodType?: string | null;
   willRenew?: boolean | null;
   expirationDate?: string | null;
+  /** Where it came from: PLAY_STORE, APP_STORE... or PROMOTIONAL for one granted. */
+  store?: string | null;
+}
+
+/** Whether an entitlement was granted from the dashboard rather than bought. */
+export function isGranted(e: EntitlementLike): boolean {
+  return (e.store ?? '').toUpperCase() === 'PROMOTIONAL' || e.productIdentifier.startsWith('rc_promo');
 }
 
 /**
@@ -46,8 +59,13 @@ export function planOf(e: EntitlementLike): ProPlan | null {
 export function subscriptionOf(
   active: Record<string, EntitlementLike>, manageUrl: string | null,
 ): Subscription | null {
-  const e = Object.values(active)[0];
+  // One bought comes first: it is the one that charges and can be managed.
+  const all = Object.values(active);
+  const e = all.find(one => !isGranted(one)) ?? all[0];
   if (!e) return null;
+  if (isGranted(e)) {
+    return { plan: null, trial: false, renews: false, until: e.expirationDate ?? null, productId: e.productIdentifier, manageUrl: null, granted: true };
+  }
   return {
     plan: planOf(e),
     trial: (e.periodType ?? '').toUpperCase() === 'TRIAL',
@@ -55,6 +73,7 @@ export function subscriptionOf(
     until: e.expirationDate ?? null,
     productId: e.productIdentifier.split(':')[0],
     manageUrl,
+    granted: false,
   };
 }
 
