@@ -103,6 +103,31 @@
       <!-- What the bank says the account holds, against what the app says
            (6p-6s): the question before it changes anything. -->
       @if (squaring(); as drift) {
+        @if (drift.kind === 'blocked') {
+        <!-- A statement that does not add up is never used to move anything (43d). -->
+        <div class="ui-card squaring">
+          <div class="shead">
+            <app-badge shape="ci" [size]="34" builtin="alert" fixed="#f6b93b"></app-badge>
+            <b>{{ 'review.square.blocked.title' | t:{ account: drift.accountName } }}</b>
+          </div>
+          <p class="snote">{{ 'review.square.blocked.text' | t }}</p>
+          <button type="button" class="ui-btn ghost" (click)="squaring.set(null)">{{ 'review.square.blocked.ok' | t }}</button>
+        </div>
+        } @else if (drift.kind === 'older') {
+        <!-- An older statement read later: the opening goes down, today stays (43e). -->
+        <div class="ui-card squaring">
+          <div class="shead">
+            <app-badge shape="ci" [size]="34" builtin="git-compare-outline" fixed="#6378ff"></app-badge>
+            <b>{{ 'review.square.older.title' | t:{ account: drift.accountName, date: dayText(drift.day) } }}</b>
+          </div>
+          <p class="snote">{{ 'review.square.older.text' | t }}</p>
+          <div class="sline"><span>{{ 'review.square.older.now' | t }}</span><b>{{ money(drift.opening, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.older.new' | t }}</span><b class="ui-p">{{ money(drift.opening + drift.theirs - drift.ours, drift.currency) }}</b></div>
+          <div class="sline"><span>{{ 'review.square.older.today' | t }}</span><b class="ui-g">{{ 'review.square.older.same' | t }}</b></div>
+          <button type="button" class="ui-btn" [disabled]="working()" (click)="askToSquare()">{{ 'review.square.older.do' | t:{ amount: money(drift.opening + drift.theirs - drift.ours, drift.currency) } }}</button>
+          <button type="button" class="ui-btn ghost" (click)="asking.set({ kind: 'leaveBalance' })">{{ 'review.square.leave' | t }}</button>
+        </div>
+        } @else {
         <div class="ui-card squaring">
           <div class="shead">
             <app-badge shape="ci" [size]="34" builtin="wallet" fixed="#6378ff"></app-badge>
@@ -133,6 +158,7 @@
             </div>
           }
         </div>
+        }
       }
 
       @for (batch of shownBatches(); track batch.key) {

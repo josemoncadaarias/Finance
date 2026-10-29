@@ -67,7 +67,11 @@
     @for (slot of homeSlots(); track slot) {
       @switch (slot) {
         @case ('attention') { <ng-container *ngTemplateOutlet="attentionBlock"></ng-container> }
-        @case ('figures') { <ng-container *ngTemplateOutlet="figuresBlock"></ng-container> }
+        @case ('figures') {
+          <ng-container *ngTemplateOutlet="figuresBlock"></ng-container>
+          <!-- A new app's first steps, under the balance (44a). -->
+          <app-first-steps></app-first-steps>
+        }
         @case ('today') { <app-safe-today></app-safe-today> }
         @case ('faces') { <div class="faces-slot"><ng-container *ngTemplateOutlet="facesBlock"></ng-container></div> }
       }

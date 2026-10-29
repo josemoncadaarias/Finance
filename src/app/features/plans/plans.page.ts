@@ -52,7 +52,8 @@ export class PlansPage {
 
   readonly face = signal<'limits' | 'goals'>(this.route.snapshot.queryParamMap.get('face') === 'goals' ? 'goals' : 'limits');
   /** The goal editor: null closed, 0 a new goal, otherwise that goal. */
-  readonly editingGoal = signal<number | null>(this.route.snapshot.queryParamMap.get('new') ? 0 : null);
+  readonly editingGoal = signal<number | null>(
+    ['goal', 'yes', '1', 'true'].includes(this.route.snapshot.queryParamMap.get('new') ?? '') ? 0 : null);
   readonly newGoalKind = signal<GoalKind>('custom');
   readonly showReached = signal(false);
   readonly avisos = signal(false);
@@ -76,6 +77,8 @@ export class PlansPage {
 
   constructor() {
     this.limits.month.set(this.limits.thisMonth());
+    // From Inicio's first steps (44b): a new cap straight away.
+    if (this.route.snapshot.queryParamMap.get('new') === 'limit') void this.newLimit();
     effect(() => {
       if (!this.limits.loaded() || this.limits.limits().length > 0) return;
       this.limits.categories();

@@ -199,7 +199,7 @@ these):
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1112 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1122 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6195,11 +6195,43 @@ with testers runs; the paywall is finished after them.
     with it. It needs a queue of transactions first. Meanwhile the movement
     form brings its own account up to date (2026-10-24) and an account's page
     its own.
-  - Drawn 2026-10-29, waiting for Jose's word: `43a`-`43e` (the opening
-    balance from a statement) and `44a`-`44e` (Inicio's first steps).
-  - Was waiting for mockups: offering to set the opening balance from a statement
-    that adds up (rule 22, "The opening balance is what absorbs the history"),
-    and the home that teaches a new user (idea 19).
+  - **Built 2026-10-29 at Jose's word ("dale, construye los diseños 43 y
+    44")**, both drawn the same day:
+    - **The opening balance from a statement** (`43a`-`43e`; rule 22, "The
+      opening balance is what absorbs the history"). The card "Igualar
+      {cuenta} con el banco" already existed in Por revisar (`lookForDrift`,
+      `squareWith`); now it is decided by pure `squaringFor`
+      (`core/statements/anchor.ts`, `statement-anchor.test.mjs`): offered
+      only when the statement's balances are `checked` - one that does not
+      add up says so and offers nothing (`blocked`, 43d); squaring keeps the
+      ANCHOR, the day and figure the account now agrees with
+      (`statements.anchor.<id>` in `settings`, travels in the backup;
+      `anchorOf`/`setAnchor`), also stored silently when a statement that
+      adds up already agrees; an older statement read later (its last day
+      before the anchor's) offers putting the anchor's day back - the
+      opening goes down by what its movements added, today's balance does
+      not move (`older`, 43e). After squaring a toast says the new opening
+      with "Deshacer", which puts the opening and the anchor back
+      (`unsquare`, `setOpening`, 43c). Review tour step `since: 7`. Checked
+      in a browser: 500,000 -> 2,580,000 -> (older) 1,932,150, today's
+      balance 4,120,300 throughout, undo and the blocked card.
+    - **Inicio's "Primeros pasos"** (`44a`-`44e`, idea 19):
+      `app-first-steps` under the balance (`features/movements/
+      first-steps.component.ts`, pure `core/ui/first-steps.ts`,
+      `first-steps.test.mjs`): an account, the first spending, a cap, the
+      copy in Drive (only where Google sign-in works), a bank's app or SMS
+      sender read (only where the phone reads notices) - each ticked by
+      itself, the next one lit, a tap opening a sheet that says why and
+      takes there (the "+" form, `/plans?new=limit`, `/account`,
+      `/notifications`). Only for an app whose first account was made in
+      the last 30 days (`NEW_FOR_DAYS`; a restored backup keeps its dates,
+      so a person coming back is not taught) and never with the sample
+      data. All done: "Ya sabes lo principal" with Ocultar; the X asks and
+      hides it (`FirstStepsService`, `finance.firstSteps.hidden`), and Más ->
+      Preferencias -> Guías offers "Mostrar los primeros pasos" while hidden.
+      Home tour step `since: 16`. Checked in a browser on an empty app with
+      an account added (1 de 3, the sheet, the form opening, the X, all
+      done); Drive and notices steps only on the phone.
 - **A transfer both banks told is one transfer on the phone's notice too**
   (Jose, 2026-10-28, a screenshot: "2 movimientos detectados · −$ 42.679 ·
   +$ 42.679" opened the list, and Por revisar's one row showed one bank's
@@ -6427,7 +6459,7 @@ provider's own terms page before a line is written:
 | D | Floating bottom bar, 4 tabs, "+" sheet | Large | Drawer decision | **Built** with the redesign, 2026-09-28 |
 | 21 | Settings screen, grouped, value on each row | Medium | Drawer | **Built**: Más, 2026-09-28 |
 | 20 | Empty state on every screen and section | Small, many places | - | **Built** 2026-10-22 (`app-empty`) |
-| 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | Proposed |
+| 19 | Home that teaches a new user (cards) | Medium | Rule 21 (store) | **Built** 2026-10-29 ("Primeros pasos", `44a`-`44e`) |
 | 3 | Privacy mode: eye in the header hides amounts | - | - | **Rejected** by Jose, 2026-09-28 (little use) |
 | 4 | Biometric or PIN lock | - | - | **Rejected** by Jose (said twice, last 2026-10-22): the phone already locks an app with its own pattern or fingerprint. Never propose it again |
 | 23 | Version shown; "Eliminar mis datos" | Small | Play policy | Proposed |
