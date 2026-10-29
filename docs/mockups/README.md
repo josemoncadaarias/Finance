@@ -187,3 +187,14 @@ Deudas inventadas: Tarjeta Coral 4.200.000 al 28,5 % (le paga 220.000 al mes), L
 - `48j` una sola deuda: sin orden que elegir.
 - `48k` sin deudas.
 - `48l` el asistente lleva al plan.
+
+## 49 - Un Inicio más tranquilo (2026-10-29, propuesta)
+
+Jose: "demasiada info junta que hace perder al usuario". Nada se borra; cada cosa queda a un toque.
+
+- `49a` una cuenta: Pendientes en una línea (roja solo si algo está vencido o pasado), el saldo con una línea "Entró · Salió", "Puedes gastar hoy" en una fila, el gráfico.
+- `49a2` más abajo: "En qué gastaste" solo con gastos; "Lo que entró y lo que moviste" como sección aparte, una fila por tipo que se abre.
+- `49b` una tarjeta: lo que debes, una barra del cupo y cuándo pagar; el cupo disponible y el total quedan en la página de la tarjeta.
+- `49c` al tocar Pendientes: pagos, topes pasados y recordatorios en una hoja.
+- `49d` todas las cuentas: patrimonio, y lo movido entre tus cuentas en su sección.
+- `49e` qué cambia y a dónde se va cada cosa.

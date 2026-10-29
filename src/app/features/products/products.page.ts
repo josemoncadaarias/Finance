@@ -220,6 +220,8 @@ export class ProductsPage {
   readonly pageTab = signal<'products' | 'movements' | 'payments' | 'days'>('products');
   /** The "···" of an account's page: what is rarely needed (47b). */
   readonly pageMenu = signal(false);
+  /** The sheet saying what the interest not in the balance yet is made of. */
+  readonly partsOpen = signal(false);
   /** One date of Intereses opened, with every product it paid (47d). */
   readonly openPayDay = signal<{ on: IsoDate; payments: Payment[] } | null>(null);
 

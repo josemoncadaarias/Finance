@@ -48,7 +48,7 @@ app-accounts-faces { margin-bottom: 12px; }
 
 /* Mockups 47a-47q: an account's page made simple. */
 .figure .say { margin: 6px 0 0; font-size: 15px; line-height: 1.4; }
-.since { margin-bottom: 12px; .part { padding-top: 6px; padding-bottom: 6px; small { color: var(--app-mu); font-size: 13px; line-height: 1.35; } .ui-am { font-size: 14px; font-weight: 500; } } .two { gap: 12px; .ui-tx { flex: 1; display: flex; flex-direction: column; } } .ui-tx { display: flex; flex-direction: column; gap: 2px; } }
+.since { margin-bottom: 12px; &.one { display: block; width: 100%; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; } .ui-info { margin-left: 4px; } .two { gap: 12px; .ui-tx { flex: 1; display: flex; flex-direction: column; } } .ui-tx { display: flex; flex-direction: column; gap: 2px; } }
 .see-days { width: 100%; margin-top: 6px; }
 .back-int { margin-bottom: 10px; display: inline-flex; align-items: center; gap: 4px; }
 .to-top {
@@ -61,3 +61,7 @@ app-accounts-faces { margin-bottom: 12px; }
 .pay-day .ui-list { margin-top: 10px; }
 .pay-day .sub { color: var(--app-mu); font-size: 13.5px; margin: 2px 0 6px; }
 .ui-tx b.wrap, .ui-tx small.wrap { white-space: normal; }
+
+.int-parts .sub { color: var(--app-mu); font-size: 13.5px; margin: 2px 0 10px; }
+.int-parts .ui-tx { display: flex; flex-direction: column; } .int-parts .wrap { white-space: normal; line-height: 1.35; }
+.int-parts .ui-row b { white-space: nowrap; }
