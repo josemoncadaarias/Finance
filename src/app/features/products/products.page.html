@@ -430,16 +430,37 @@
 
                 @case ('payments') {
                   <!-- Intereses (47c): Pagos and Días together, one row per date. -->
-                  @if (line.earned.accrued_minor > 0) {
+                  @if (line.availableMinor > 0 || line.earned.accrued_minor > 0) {
+                    @let parts = interestParts(line);
                     <div class="ui-list since">
                       <div class="ui-row plain">
-                        <span class="ui-tx"><b class="wrap">{{ 'products.detail.total' | t }}</b><small class="wrap">{{ 'ui.int.available.hint' | t }}</small></span>
+                        <span class="ui-tx"><b class="wrap">{{ 'ui.int.available.title' | t }}</b><small class="wrap">{{ 'ui.int.available.hint' | t }}</small></span>
                         <span class="ui-am ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</span>
                       </div>
-                      <div class="ui-row plain two">
-                        <span class="ui-tx"><small>{{ 'products.part.accrued' | t }}</small><b>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</b></span>
-                        <span class="ui-tx"><small>{{ 'ui.yields.cashedOut' | t }}</small><b>{{ line.earned.withdrawn_minor ? money(-abs(line.earned.withdrawn_minor), line.account.currency_code) : money(0, line.account.currency_code) }}</b></span>
-                      </div>
+                      @if (parts.paidByApp > 0) {
+                        <div class="ui-row plain part">
+                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.paid' | t }}</small></span>
+                          <span class="ui-am">{{ signed(parts.paidByApp, line.account.currency_code) }}</span>
+                        </div>
+                      }
+                      @if (parts.byHand !== 0) {
+                        <div class="ui-row plain part">
+                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.byHand' | t }}</small></span>
+                          <span class="ui-am">{{ signed(parts.byHand, line.account.currency_code) }}</span>
+                        </div>
+                      }
+                      @if (parts.cashedOut > 0) {
+                        <div class="ui-row plain part">
+                          <span class="ui-tx"><small class="wrap">{{ 'ui.int.part.cashedOut' | t }}</small></span>
+                          <span class="ui-am">{{ signed(-parts.cashedOut, line.account.currency_code) }}</span>
+                        </div>
+                      }
+                      @if (parts.rest !== 0) {
+                        <div class="ui-row plain part">
+                          <span class="ui-tx"><small class="wrap">{{ (parts.rest > 0 ? 'ui.int.part.before' : 'ui.int.part.less') | t }}</small></span>
+                          <span class="ui-am">{{ signed(parts.rest, line.account.currency_code) }}</span>
+                        </div>
+                      }
                     </div>
                   }
                   @if (payments().length === 0) {
@@ -460,7 +481,7 @@
                           <span class="ui-tx">
                             <b>{{ monthText(month.key) }}</b>
                             <small class="wrap">
-                              @if (month.pending) { {{ 'ui.int.month.pending' | t }} }
+                              @if (month.pending) { {{ 'ui.int.month.pendingOn' | t:{ date: dayText(month.payments[0].on) } }} }
                               @else if (month.withheldMinor > 0) { {{ 'ui.int.month.net' | t:{ amount: money(month.withheldMinor, line.account.currency_code) } }} }
                               @else { {{ 'ui.int.month.paid' | t }} }
                             </small>
