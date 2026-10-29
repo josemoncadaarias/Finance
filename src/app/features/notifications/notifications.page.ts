@@ -25,7 +25,6 @@ import { IonContent, IonIcon, IonSpinner, IonModal } from '@ionic/angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge.component';
-import { JumpComponent } from '../../shared/ui/jump.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
 import { foldText } from '../../core/text/fold-text';
 import {
@@ -80,7 +79,7 @@ function lateBy(note: AlertNote): number {
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [AskButtonComponent, NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, JumpComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
+  imports: [AskButtonComponent, NgTemplateOutlet, TranslatePipe, ConfirmComponent, BadgeComponent, AccountPickerComponent, AccountEditorComponent, IonContent, IonIcon, IonSpinner, IonModal],
   templateUrl: './notifications.page.html',
   styleUrls: ['./notifications.page.scss'],
 })
@@ -403,6 +402,97 @@ export class NotificationsPage {
       : section === 'found' ? 'ui.notifications.sec.found.line'
       : 'ui.notifications.sec.hidden.line';
     return `${what} · ${this.i18n.t(hint)}`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // The simple screen (mockups 45a-45e, Jose 2026-10-29: "SUPER SENCILLO")
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The one status line: the single most important thing to fix, with the
+   * button that fixes it, or "Funcionando" and when a notice last arrived.
+   */
+  readonly status = computed<{ warn: boolean; title: string; line: string; action: string | null; fix: 'alerts' | 'access' | 'battery' | null }>(() => {
+    const t = (key: Parameters<I18nService['t']>[0], values?: Record<string, string | number>) => this.i18n.t(key, values);
+    if (!this.alertsAllowed()) {
+      return { warn: true, title: t('ui.notif2.st.alerts'), line: t('ui.notifications.alertsOff'), action: t('ui.notifications.alertsAllow'), fix: 'alerts' };
+    }
+    const heard = this.listening();
+    if (heard?.warn) return { warn: true, title: t('ui.notif2.st.listen'), line: heard.text, action: t('ui.notif2.st.listen.do'), fix: 'access' };
+    if (this.asleep()) return { warn: true, title: t('ui.notif2.st.asleep'), line: t('ui.notifications.asleep'), action: t('ui.notifications.asleepOpen'), fix: 'battery' };
+    if (this.myBanks().length === 0) return { warn: false, title: t('ui.notif2.st.ok'), line: t('ui.notif2.st.noBank'), action: null, fix: null };
+    const at = this.listener().heardAt;
+    return { warn: false, title: t('ui.notif2.st.ok'), line: at > 0 ? t('ui.notif2.st.last', { when: this.moment(at) }) : '', action: null, fix: null };
+  });
+
+  async fixStatus(): Promise<void> {
+    const fix = this.status().fix;
+    if (fix === 'alerts') await this.askAlerts();
+    else if (fix === 'access') await this.openSettings();
+    else if (fix === 'battery') await this.openAppSettings();
+  }
+
+  /** "Tus bancos": each bank read, and each source read whose account is still to say. */
+  readonly myBanks = computed(() => {
+    const kinds = (list: Source[]) => {
+      const app = list.some(one => one.kind === 'app'), sms = list.some(one => one.kind === 'sms');
+      return this.i18n.t(app && sms ? 'ui.notif2.how.both' : sms ? 'ui.notif2.how.sms' : 'ui.notif2.how.app');
+    };
+    const banks = this.banks().map(bank => ({
+      key: bank.key, ids: bank.ids, title: bank.title, sources: bank.sources,
+      several: bank.key.startsWith('several:'), needsAccount: false, line: kinds(bank.sources),
+    }));
+    const unknown = this.of('unknown').map(one => ({
+      key: `unknown:${one.key}`, ids: [] as number[], title: one.name, sources: [one],
+      several: false, needsAccount: true, line: this.i18n.t('ui.notifications.whichAccount'),
+    }));
+    return [...unknown, ...banks];
+  });
+
+  /** A bank with one source opens that source's page; with several, shows them. */
+  openBank(bank: { key: string; sources: Source[]; needsAccount: boolean }): void {
+    if (bank.needsAccount) return this.pickingFor.set(bank.sources[0]);
+    if (bank.sources.length === 1) return this.openSource.set(bank.sources[0]);
+    this.toggleOpen(`bank:${bank.key}`);
+  }
+
+  readonly addOpen = signal(false);
+  readonly settingsOpen = signal(false);
+  readonly showAllApps = signal(false);
+  readonly showHidden = signal(false);
+
+  openAdd(): void {
+    this.search.set('');
+    this.showAllApps.set(false);
+    this.addOpen.set(true);
+  }
+
+  closeAdd(): void {
+    this.addOpen.set(false);
+    this.search.set('');
+  }
+
+  /** Not read yet and worth offering first: SMS senders with money, apps new on the phone. */
+  readonly candidates = computed(() => [...this.of('found'), ...this.of('recent')].filter(one => !one.bySender));
+
+  /** Every other app on the phone, by name: "por si tu banco no aparece arriba". */
+  readonly otherApps = computed(() => this.of('hidden')
+    .filter(one => !one.hidden && !one.bySender)
+    .sort((a, b) => a.name.localeCompare(b.name)));
+
+  /** What the person put away, to bring back from the settings. */
+  readonly hiddenOnes = computed(() => this.sources().filter(one => one.hidden));
+
+  /** "Activar" in "Agregar un banco": read it, then "¿De qué cuenta es?". */
+  async activate(one: Source): Promise<void> {
+    this.closeAdd();
+    await this.watchSource(one, true);
+  }
+
+  /** "Dejar de leer este banco", on its page. */
+  async stopReading(one: Source): Promise<void> {
+    this.openSource.set(null);
+    await this.watchSource(one, false);
   }
 
   // --- folding: everything starts closed (Jose, 2026-10-05) -----------------

@@ -175,3 +175,44 @@
 .always-on .ui-switch { flex: none; margin-top: 2px; }
 .always-on .help ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; color: var(--app-mu); }
 .always-on .help li + li { margin-top: 6px; }
+
+/* Mockups 45a-45e: the screen made simple. */
+.status {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px; margin-bottom: 12px;
+  border: 1px solid rgba(var(--app-grn-rgb), 0.35);
+  &.warn { border-color: rgba(246, 185, 59, 0.45); }
+  .srow { display: flex; align-items: center; gap: 12px; }
+  .ui-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  b { font-size: 15.5px; }
+  small { color: var(--app-mu); font-size: 13.5px; line-height: 1.4; }
+  .ui-btn { width: 100%; }
+}
+.review-row { margin-bottom: 14px; .ui-pill { flex: none; } }
+.add { width: 100%; margin: 10px 0 14px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; ion-icon { font-size: 18px; } }
+.first {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 22px 16px; margin-bottom: 14px;
+  b { font-size: 16.5px; }
+  p { margin: 0 0 6px; color: var(--app-mu); font-size: 14px; line-height: 1.45; }
+  .ui-btn { width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+}
+.settings-row { margin-top: 4px; }
+.ui-tx small.wrap, .ui-tx b.wrap { white-space: normal; }
+.children .ui-row.nested {
+  position: relative; padding: 8px 8px 8px 20px; gap: 10px; border: 0; border-radius: 0; background: transparent;
+  b { font-size: 14.5px; } small { font-size: 12px; }
+  &::before { content: ''; position: absolute; left: 0; top: 50%; width: 14px; border-top: 2px solid var(--app-s3); }
+}
+.add-sheet, .settings-sheet {
+  .ui-h { margin: 16px 4px 8px; }
+  .ui-list { margin-bottom: 6px; }
+  .activate { flex: none; }
+  .ui-row .ui-btn { width: 100%; }
+  .ui-row .ui-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+  .ui-row.nested { padding-left: 24px; }
+  .ui-row.help ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; color: var(--app-mu); }
+  .ui-row.help li + li { margin-top: 6px; }
+  .ui-link { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--app-pr); font-size: 13.5px; margin-top: 4px; }
+  .ui-tx { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .tech { font-size: 12px; }
+}
+.source-page .stop { width: 100%; margin-top: 10px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; ion-icon { font-size: 18px; } }

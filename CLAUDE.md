@@ -6267,9 +6267,22 @@ with testers runs; the paywall is finished after them.
   banco por..." or "Llegaron 3 mensajes... sin texto"). `smsWaiting` (#50)
   listed every app the phone flags as messaging, chat apps included; it is
   gone with its five words - SMS senders come from the inbox since
-  `READ_SMS`. **Mockups `45a`-`45e` propose the whole screen made simple**
-  (one status line, Tus bancos, "Agregar un banco", settings apart),
-  waiting for Jose's word.
+  `READ_SMS`. **And the whole screen is simple now** (mockups `45a`-`45e`,
+  built 2026-10-29 at Jose's word: "mucho más entendible"). On top ONE status
+  card (`status` in `notifications.page.ts`: Finance's notices off, the
+  listener dropped, the phone freezing the app, no bank yet, or "Funcionando"
+  with the last notice heard), with its one button (`fixStatus`); then
+  Movimientos por revisar, "Tus bancos" (`myBanks`: sources still without an
+  account first, "¿De qué cuenta es?"; a bank of several sources folds them
+  under it) and "Agregar un banco", a sheet with what sent money-looking
+  messages first (`candidates`) and every other app behind "Ver las N apps"
+  (`otherApps`), "Activar" asking the account at once. "Ajustes de los
+  avisos" is a sheet: avisar al instante, the SMS permission, Finance's
+  notices, notification access, hidden apps (each with "Mostrar") and the
+  listener's technical line. Stopping a source is "Dejar de leer" on its own
+  page; no switches, no selection bar, no sections of apps on the main
+  screen. Notifications tour steps 2 and 5 `since: 4`. Checked in a browser
+  with invented apps and senders (banks, none, notices off).
 - **A green "Cuadra" is never followed by "no cuadra"** (Jose, 2026-10-29,
   a statement imported for a new account). The batch's pill says "Cuadra"
   for a statement whose balances are `checked` OR `unclear` (its column adds
