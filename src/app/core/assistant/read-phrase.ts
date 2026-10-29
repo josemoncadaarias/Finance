@@ -15,6 +15,7 @@
  */
 
 import { REMIND, REMINDERS_LIST } from './read-reminder';
+import { slipsOf, vocabularyOf, type Vocabulary } from './mend-slips';
 import { periodContaining, shiftPeriod, type Period } from '../filters/period';
 
 export type Intent =
@@ -720,60 +721,67 @@ function paidCard(end: End, ctx: PhraseContext): boolean {
 
 /**
  * A sentence read as it was typed, and - only when that understands nothing -
- * read again with its slips mended (Jose, 2026-10-29: "Absir productos de
- * rappi cuenta" was not understood; people do not type perfectly). A word of
- * five letters or more that the assistant does not know, one letter away
- * from exactly one word it does know with the same first letter, is taken
- * for that word. The mended reading is used only when it understands
- * something, so a sentence already understood is never changed.
+ * read again with its slips mended (`mend-slips.ts`; Jose, 2026-10-29:
+ * "Absir productos de rappi cuenta", "pueden ser demasiadas"). Each word the
+ * assistant does not know, that is no name of the person's, is taken for the
+ * nearest word of the assistant's own vocabulary; where several are as near,
+ * the one that makes the sentence understood. The mended reading is used
+ * only when it understands something, so a sentence already understood is
+ * never changed.
  */
 export function readPhrase(text: string, ctx: PhraseContext): Reading {
   const first = readAsTyped(text, ctx);
   if (first.intent !== 'unknown' && first.intent !== 'unsure') return first;
-  const mended = mendSlips(text, ctx);
+  const mended = mendSlips(text, ctx, candidate => understood(readAsTyped(candidate, ctx)));
   if (mended === text) return first;
   const second = readAsTyped(mended, ctx);
-  if (second.intent === 'unknown' || (second.intent === 'unsure' && first.intent === 'unsure')) return first;
+  if (!understood(second) && !(second.intent === 'unsure' && first.intent === 'unknown')) return first;
   return second;
 }
 
-/** Every word the assistant reads a meaning from, five letters or more. */
-const KNOWN_WORDS: ReadonlySet<string> = new Set([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
-  TOP_SPENDING, RECURRING, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
-  OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
-  TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST]
-  .flatMap(pattern => pattern.source.replace(/\\[bswdBSWD]/g, ' ').split(/[^a-z]+/))
-  .filter(word => word.length >= 5));
-
-/** The sentence with each slip mended to the one word it nearly is. */
-export function mendSlips(text: string, ctx: PhraseContext): string {
-  const names = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name),
-    ...(ctx.categories ?? []).map(c => c.name)].flatMap(wordsOf));
-  return text.replace(/[\p{L}]+/gu, written => {
-    const word = fold(written);
-    if (word.length < 5 || KNOWN_WORDS.has(word) || names.has(word)) return written;
-    const near = [...KNOWN_WORDS].filter(known => known[0] === word[0]
-      && Math.abs(known.length - word.length) <= 1 && oneSlip(word, known));
-    return near.length === 1 ? near[0] : written;
-  });
+function understood(reading: Reading): boolean {
+  return reading.intent !== 'unknown' && reading.intent !== 'unsure';
 }
 
-/** One letter changed, added or left out, or two side by side swapped. */
-function oneSlip(a: string, b: string): boolean {
-  if (a === b) return false;
-  if (a.length === b.length) {
-    const differ: number[] = [];
-    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differ.push(i);
-    if (differ.length === 1) return true;
-    // Two letters swapped: "abrri", "rendimeintos".
-    const [i, j] = differ;
-    return differ.length === 2 && j === i + 1 && a[i] === b[j] && a[j] === b[i];
+/** Every word the assistant reads a meaning from (`vocabularyOf`), worked out once. */
+let vocabulary: Vocabulary | null = null;
+function assistantWords(): Vocabulary {
+  vocabulary ??= vocabularyOf([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
+    TOP_SPENDING, RECURRING, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
+    OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
+    TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST],
+  [...Object.keys(UNITS), ...Object.keys(TIMES), ...FILLER, ...DAYS_ES, ...DAYS_EN, ...MONTHS, ...MONTHS_EN,
+    'quincena', 'trimestre', 'semestre', 'semana', 'pasada', 'pasado', 'anterior', 'millones', 'millon', 'lucas', 'palos']);
+  return vocabulary;
+}
+
+/**
+ * The sentence with its slips mended. `works`, when given, settles a word
+ * with several meanings as near as each other: the first that makes the
+ * sentence understood (else the first of them: a whole word before a stem
+ * with the typed ending kept, then alphabetically).
+ */
+export function mendSlips(text: string, ctx: PhraseContext, works?: (candidate: string) => boolean): string {
+  const words = assistantWords();
+  const names = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name),
+    ...ctx.categories.map(c => c.name)].flatMap(wordsOf));
+  const learned = new Set([...ctx.merchants.keys()].flatMap(wordsOf));
+  let current = text;
+  for (const match of [...text.matchAll(/\p{L}+/gu)]) {
+    const word = fold(match[0]);
+    if (names.has(word) || learned.has(word)) continue;
+    const near = slipsOf(word, words);
+    if (near.length === 0) continue;
+    const tied = near.filter(one => one.slips === near[0].slips).map(one => one.word);
+    const swap = (to: string) => current.replace(new RegExp(`(^|[^\\p{L}])${escaped(match[0])}(?![\\p{L}])`, 'u'), `$1${to}`);
+    const chosen = (works && tied.length > 1 ? tied.find(one => works(swap(one))) : undefined) ?? tied[0];
+    current = swap(chosen);
   }
-  const [short, long] = a.length < b.length ? [a, b] : [b, a];
-  for (let i = 0; i < long.length; i++) {
-    if (long.slice(0, i) + long.slice(i + 1) === short) return true;
-  }
-  return false;
+  return current;
+}
+
+function escaped(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function readAsTyped(text: string, ctx: PhraseContext): Reading {

@@ -529,22 +529,46 @@ test('opening an account\'s products, said any way (Jose, 2026-10-24)', () => {
   assert.equal(readPhrase('¿cuánto me han dado mis cuentas?', ctx()).intent, 'yields');
 });
 
-test('a word typed with one slip is still understood (Jose, 2026-10-29)', () => {
-  for (const said of [
-    'Absir productos de banco indigo',
-    'abrri los productos de Banco Índigo',
-    'muestrame los prodctos de Banco Índigo',
-  ]) {
-    const r = readPhrase(said, ctx());
-    assert.equal(r.intent, 'openProducts', said);
-    assert.equal(r.accountId, 5, said);
-  }
-  assert.equal(readPhrase('¿cuanto me han dado mis rendimeintos?', ctx()).intent, 'yields');
-  assert.equal(readPhrase('¿que recordatorios tengo?', ctx()).intent, 'reminders');
-  // An account's own name is never "mended" into a word of the assistant.
-  assert.equal(mendSlips('Banco Índigo', ctx()), 'Banco Índigo');
+test('slips anywhere in a sentence are still understood, not one word only (Jose, 2026-10-29)', () => {
+  const cases = [
+    ['Absir productos de banco indigo', 'openProducts'],
+    ['abrri los productos de Banco Índigo', 'openProducts'],
+    ['muestrame los prodctos de Banco Índigo', 'openProducts'],
+    ['llevme a los bolsillos de banco indigo', 'openProducts'],
+    ['¿cuanto me han dado mis rendimeintos?', 'yields'],
+    ['¿qeu recordatorios tengo?', 'reminders'],
+    ['¿que recordatorois tengo?', 'reminders'],
+    ['recuedrame pagar el arriendo el 5', 'remind'],
+    ['¿cuanto debo en total?', 'debts'],
+    ['¿cuantoo debo?', 'debts'],
+    ['¿que dueda pago priemro?', 'payFirst'],
+    ['¿en que gaste mas este mes?', 'topSpending'],
+    ['¿en que gsate mas este mes?', 'topSpending'],
+    ['¿cuales son mis gastos fiojs?', 'recurring'],
+    ['¿me alcanza para unos tneis de 300 mil?', 'afford'],
+    ['¿me alcamza para unos tenis de 300 mil?', 'afford'],
+    ['¿como voy ste mes?', 'howAmI'],
+    ['¿cuando fue la ultima vez que fui al dentista?', 'lastTime'],
+    ['¿cuadno fue la utlima vez que fui al dentista?', 'lastTime'],
+    ['¿cual fue mi gasto mas grnade?', 'biggest'],
+  ];
+  for (const [said, intent] of cases) assert.equal(readPhrase(said, ctx()).intent, intent, said);
+
+  // A spending whose verb is mistyped is still a spending.
+  const spent = readPhrase('gsaté 45 mil en mercado', ctx());
+  assert.equal(spent.intent, 'register');
+  assert.equal(spent.side, 'expense');
+  assert.equal(spent.categoryId, 10);
+  const moved = readPhrase('trasnferi 200 mil de bancolombia a rappi cuenta', ctx());
+  assert.equal(moved.intent, 'register');
+  assert.equal(moved.side, 'transfer');
+
+  // The person's own names are never "mended" into a word of the assistant.
+  assert.equal(mendSlips('Banco Índigo Bolsillo viajes Restaurante', ctx()), 'Banco Índigo Bolsillo viajes Restaurante');
   // A sentence already understood is read as it was typed.
   assert.equal(readPhrase('Ábreme los productos de Banco Índigo', ctx()).intent, 'openProducts');
+  // Nothing is made of words that are near nothing it knows.
+  assert.equal(readPhrase('zorro azul sin sentido', ctx()).intent, 'unknown');
 });
 
 test('a move between products with no amount said is still a transfer (Jose, 2026-10-24)', () => {
