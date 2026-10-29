@@ -128,3 +128,13 @@ Solo se ofrece, nunca se hace solo; solo con un extracto que cuadra; cambia una 
 - `44c` los pasos se marcan solos cuando pasan.
 - `44d` los cinco hechos: "Ya sabes lo principal" y "Ocultar".
 - `44e` la X: se pregunta, y se dice dónde volverlos a ver.
+
+## 45 - Notificaciones del teléfono, sencilla (2026-10-29, propuesta)
+
+Jose: "TIENE QUE SER SUPER SUPER SENCILLO Y CLARO DE ENTENDER". Una línea de estado, tus bancos y un botón para agregar otro; lo demás, a un toque.
+
+- `45a` todo funcionando: "Funcionando · último aviso", Movimientos por revisar, Tus bancos (cada uno dice si lee su app, sus SMS o ambos), "Agregar un banco", "Ajustes de los avisos".
+- `45b` un problema: se dice una sola vez arriba, con el único botón que lo arregla.
+- `45c` la primera vez: "Elige tus bancos" y "Agregar un banco".
+- `45d` "Agregar un banco": primero lo que te ha enviado mensajes con dinero, con "Activar"; un buscador; y "Ver las 31 apps" por si el banco no aparece.
+- `45e` ajustes aparte: avisar al instante, leer SMS, avisos de Finance, apps ocultas.

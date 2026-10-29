@@ -6261,6 +6261,15 @@ with testers runs; the paywall is finished after them.
   (`centsOf`, `moneyOf` in `MovementAlert.java`: the last "," or "." with one
   or two digits after it starts the cents). Checked with the JDK on invented
   amounts; the notice itself only on the phone.
+- **Notificaciones del teléfono no longer writes a paragraph per chat app**
+  (Jose, 2026-10-29, two screenshots: WhatsApp, Twitch, Teams, TikTok,
+  Instagram, Facebook, Telegram each with "Cuando te llegue un SMS de tu
+  banco por..." or "Llegaron 3 mensajes... sin texto"). `smsWaiting` (#50)
+  listed every app the phone flags as messaging, chat apps included; it is
+  gone with its five words - SMS senders come from the inbox since
+  `READ_SMS`. **Mockups `45a`-`45e` propose the whole screen made simple**
+  (one status line, Tus bancos, "Agregar un banco", settings apart),
+  waiting for Jose's word.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
