@@ -148,6 +148,8 @@ export interface TrendBlock {
     on?: string;
     /** A point worked out ahead of today rather than on record: drawn dashed, and said. */
     projected?: boolean;
+    /** What the point means, in a sentence, said when it is tapped (Jose, 2026-10-29: a month below zero read as a loss). */
+    says?: string;
   }[];
   /**
    * A second series beside the first (Jose, 2026-09-28: "Mes a mes" with

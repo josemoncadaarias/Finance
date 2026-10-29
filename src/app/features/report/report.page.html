@@ -268,6 +268,7 @@
                         @if (point.part && block.partLabel) {
                           <small>{{ block.partLabel }}: {{ show(point.part) }}</small>
                         }
+                        @if (point.says) { <small class="says">{{ point.says }}</small> }
                       }
                     </div>
                     @if (block.average && block.averageLabel) {
