@@ -59,6 +59,9 @@ Keep it up to date whenever we make new decisions.
 - New to: Ionic, Capacitor, mobile SQLite, Git/GitHub for personal projects.
 - Lives in Colombia. Income in COP. Also holds USD accounts.
 - Explanations: simple and clear, even in deep technical analysis.
+- **Anything he has to do himself (Play Console, RevenueCat, the phone's
+  settings) is given ONE step at a time**, waiting for his screenshot before
+  the next (Jose, 2026-10-29: "jamás vuelvas a responder así todo de una").
 - Before recommending anything, verify it against the real code or data.
   Explicitly mark what is assumed and what is verified.
 - Before applying a change, assess the risk of breaking what already works.
@@ -2187,6 +2190,18 @@ backup restore against iOS's own SQLite backend.
      until Jose's own id shows "Tienes Finance Pro"**; then turn it on and
      hide the preview switch. Checked in a browser
      with both kinds of code faked; the store's login only on the phone.
+     **Done for Jose on 2026-10-29**: his id is granted "Finance pro" for
+     Lifetime in RevenueCat (shown only with "Sandbox data" off), and the app
+     said "Tienes Finance Pro". **A grant is not a subscription**
+     (`Subscription.granted`, `isGranted`: store `PROMOTIONAL` or a product
+     id `rc_promo...`): the Finance Pro screen says "Tienes Finance Pro para
+     siempre" with no plans, no "Volver a activar" and no "Administrar en
+     Google Play" (it read as a cancelled subscription), and Más says
+     "Activo · para siempre". A purchase beside a grant is the one shown.
+     Also done that day: Japan removed from both base plans and both offers
+     of `finance_pro` (174 countries; Play's Japan authorisation by
+     2026-12-01 no longer applies); "Trader status" not yet offered in Play
+     Console (required from November 2026: do it when it appears).
 
    **The market, looked up on 2026-09-24** (prices in USD as listed; COP at
    that day's TRM of 3,264.39; regional Play prices can be lower):

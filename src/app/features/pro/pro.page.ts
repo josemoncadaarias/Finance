@@ -57,6 +57,7 @@ import { copyText } from '../../core/feedback/feedback.service';
             <app-badge [size]="44" shape="ci" [builtin]="status().icon" [fixed]="status().warn ? '#f6b93b' : '#34c98b'"></app-badge>
             <span class="ui-tx"><b class="wrap">{{ status().title }}</b><small class="wrap">{{ status().line }}</small></span>
           </div>
+          @if (!sub()?.granted) {
           <div class="prices" data-tour="pro-prices">
             @for (p of ownedOrder(); track p) {
               <div class="price" [class.mine]="p === mine()">
@@ -85,6 +86,7 @@ import { copyText } from '../../core/feedback/feedback.service';
               <ion-icon name="chevron-forward" class="chev"></ion-icon>
             </button>
           </div>
+          }
           <p class="small private"><ion-icon name="shield-checkmark-outline"></ion-icon> {{ 'pro.private' | t }}</p>
           <div class="ui-h">{{ 'pro.youHave' | t }}</div>
           <ng-container *ngTemplateOutlet="perkList"></ng-container>
@@ -208,6 +210,12 @@ export class ProPage {
   readonly status = computed(() => {
     const sub = this.sub();
     const t = (key: string, args?: Record<string, string | number>) => this.i18n.t(key as never, args);
+    // Given from the dashboard: nothing to pay, renew or manage.
+    if (sub?.granted) {
+      return sub.until
+        ? { icon: 'gift-outline', warn: false, title: t('pro.granted'), line: t('pro.granted.until', { date: this.untilDate() ?? '' }) }
+        : { icon: 'gift-outline', warn: false, title: t('pro.granted.forever'), line: t('pro.granted.line') };
+    }
     if (!sub || !sub.plan) return { icon: 'checkmark-circle', warn: false, title: t('pro.active'), line: t('pro.active.hint') };
     const date = this.untilDate() ?? '';
     const price = this.priceOf(sub.plan);

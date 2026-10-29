@@ -106,8 +106,11 @@ export class MorePage {
   /** What is paid for, in one line (34h): the trial, the renewal, or until when. */
   private paidLine(): string {
     const sub = this.pro.subscription();
+    if (sub?.granted && !sub.until) return this.i18n.t('pro.card.granted');
     const until = sub?.until ? new Date(sub.until) : null;
-    if (!sub?.plan || !until || Number.isNaN(until.getTime())) return this.i18n.t('pro.card.active');
+    if (!until || Number.isNaN(until.getTime())) return this.i18n.t('pro.card.active');
+    if (sub?.granted) return this.i18n.t('pro.card.grantedUntil', { date: until.toLocaleDateString(this.i18n.dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) });
+    if (!sub?.plan) return this.i18n.t('pro.card.active');
     const date = until.toLocaleDateString(this.i18n.dateLocale(), {
       day: 'numeric', month: 'short', ...(until.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
     });
