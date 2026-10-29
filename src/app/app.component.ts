@@ -6,7 +6,7 @@
 import { clearOldFiles } from './core/files/save-file';
 import { Component, effect, inject } from '@angular/core';
 import { Router, NavigationStart } from '@angular/router';
-import { IonApp, IonRouterOutlet, ModalController } from '@ionic/angular';
+import { IonApp, IonRouterOutlet } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { PrivacyService } from './core/ui/privacy.service';
 import { DRAWN_ICONS } from './core/icons/drawn-icons';
@@ -101,14 +101,19 @@ export class AppComponent {
    * lying over it). Going to another screen closes whatever is open; staying
    * on the same one - a query string changing - leaves it alone.
    */
-  private readonly modals = inject(ModalController);
   private readonly closeOnLeaving = inject(Router).events.subscribe(event => {
     if (!(event instanceof NavigationStart)) return;
     const from = location.pathname;
     if (event.url.split('?')[0] === from) return;
+    // Only what is open NOW: a form the next screen opens as it arrives
+    // ("Nueva cuenta" from the "+") must not be closed by this same pass
+    // (Jose, 2026-10-29: the new account's form opened and closed at once).
+    const openNow = Array.from(document.querySelectorAll<HTMLIonModalElement>('ion-modal'))
+      .filter(modal => !modal.classList.contains('overlay-hidden'))
+      .reverse();
     void (async () => {
-      for (let open = await this.modals.getTop(); open; open = await this.modals.getTop()) {
-        if (!(await open.dismiss())) break;
+      for (const modal of openNow) {
+        if (!(await modal.dismiss())) break;
       }
     })();
   });
