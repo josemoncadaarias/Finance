@@ -49,6 +49,7 @@ import { todayIso } from '../../core/yields/days';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import type { Quiet } from '../../core/notices/molds';
 import { ToastService } from '../../shared/ui/toast.service';
+import { squaringFor, type Anchor } from '../../core/statements/anchor';
 import { MOVE_COLOR } from '../../core/theme/palette';
 
 /** A proposal with everything the screen needs to explain it. */
@@ -150,6 +151,10 @@ export class ReviewPage {
    * days since then.
    */
   readonly squaring = signal<{
+    /** `match`: offer the bank's figure; `older`: an older statement moved
+     *  the anchor's day; `blocked`: it differs but the statement does not
+     *  add up, so nothing is offered (mockups 43a, 43d, 43e). */
+    kind: 'match' | 'older' | 'blocked';
     accountId: number;
     accountName: string;
     currency: string;
@@ -825,7 +830,7 @@ export class ReviewPage {
    */
   private async lookForDrift(): Promise<void> {
     const last = this.statements.lastImport();
-    if (last === null || last.reading.closing_minor === null) return this.squaring.set(null);
+    if (last === null) return this.squaring.set(null);
 
     const accountId = last.accountId;
     const day = last.reading.rows[last.reading.rows.length - 1]?.occurred_on ?? null;
@@ -841,16 +846,31 @@ export class ReviewPage {
     const account = await accounts.findById(accountId);
     if (!account) return this.squaring.set(null);
 
-    const ours = await accounts.balanceOn(accountId, day);
-    if (ours === last.reading.closing_minor) return this.squaring.set(null);
+    const anchor = await accounts.anchorOf(accountId);
+    const found = squaringFor({
+      balances: last.reading.balances,
+      statementDay: day,
+      closingMinor: last.reading.closing_minor,
+      oursAtStatement: await accounts.balanceOn(accountId, day),
+      anchor,
+      oursAtAnchor: anchor === null ? null : await accounts.balanceOn(accountId, anchor.day),
+    });
+    if (found === null) return this.squaring.set(null);
+    if (found.kind === 'agrees') {
+      // They agree: remembered as the bank's word, so an older statement read
+      // later can be squared against it. Nothing to ask.
+      await accounts.setAnchor(accountId, { day: found.day, balanceMinor: found.theirs });
+      return this.squaring.set(null);
+    }
 
     this.squaring.set({
+      kind: found.kind,
       accountId,
       accountName: account.name,
       currency: account.currency_code,
-      day,
-      theirs: last.reading.closing_minor,
-      ours,
+      day: found.day,
+      theirs: found.theirs,
+      ours: found.ours,
       opening: account.opening_balance_minor,
     });
   }
@@ -873,19 +893,40 @@ export class ReviewPage {
   /** Makes the account say what the bank said, by moving its opening figure. */
   async square(to?: number): Promise<void> {
     const squaring = this.squaring();
-    if (squaring === null) return;
+    if (squaring === null || squaring.kind === 'blocked') return;
 
     this.working.set(true);
     try {
-      await new AccountsRepository(this.database.driver)
-        .squareWith(squaring.accountId, squaring.day, to ?? squaring.theirs);
+      const accounts = new AccountsRepository(this.database.driver);
+      const anchorBefore = await accounts.anchorOf(squaring.accountId);
+      const balance = to ?? squaring.theirs;
+      const opening = await accounts.squareWith(squaring.accountId, squaring.day, balance);
+      // The day and figure the account now agrees with, kept so an older
+      // statement read later is squared against it (43e).
+      await accounts.setAnchor(squaring.accountId, { day: squaring.day, balanceMinor: balance });
       this.squaring.set(null);
       this.typingBalance.set(false);
       this.statements.lastImport.set(null);
       this.database.dataChanged();
+      this.toast.say(
+        this.i18n.t('review.square.done', { amount: this.money(opening, squaring.currency) }), 7000, {
+          icon: 'checkmark',
+          action: {
+            label: this.i18n.t('ui.review.notMovement.undo'),
+            run: () => void this.unsquare(squaring.accountId, squaring.opening, anchorBefore),
+          },
+        });
     } finally {
       this.working.set(false);
     }
+  }
+
+  /** Puts the opening figure, and the anchor, back as they were (43c). */
+  private async unsquare(accountId: number, opening: number, anchor: Anchor | null): Promise<void> {
+    const accounts = new AccountsRepository(this.database.driver);
+    await accounts.setOpening(accountId, opening);
+    await accounts.setAnchor(accountId, anchor);
+    this.database.dataChanged();
   }
 
   /** The figure typed by hand instead of either of the two offered. */

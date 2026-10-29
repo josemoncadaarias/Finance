@@ -264,6 +264,13 @@
           <span class="ui-tx"><b class="wrap">{{ 'tour.more.reset' | t }}</b><small class="wrap">{{ 'tour.more.reset.hint' | t }}</small></span>
           <ion-icon class="ui-p" name="refresh-outline"></ion-icon>
         </button>
+        @if (firstSteps.hidden()) {
+          <!-- Inicio's "Primeros pasos", put away with its X (44e). -->
+          <button type="button" class="ui-row" (click)="firstSteps.setHidden(false); toursSheet.set(false)">
+            <span class="ui-tx"><b class="wrap">{{ 'steps.show' | t }}</b><small class="wrap">{{ 'steps.show.hint' | t }}</small></span>
+            <ion-icon class="ui-p" name="rocket-outline"></ion-icon>
+          </button>
+        }
       </div>
     </div>
   </ng-template>

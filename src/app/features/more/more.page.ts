@@ -24,6 +24,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { App } from '@capacitor/app';
+import { FirstStepsService } from '../../core/ui/first-steps.service';
 import { Capacitor } from '@capacitor/core';
 import { IonContent, IonIcon, IonModal } from '@ionic/angular';
 
@@ -166,6 +167,8 @@ export class MorePage {
   readonly year = new Date().getFullYear();
   /** The installed version, as Android names it ("1.0.1118"): which Store bundle the phone runs. */
   readonly version = signal<string | null>(null);
+
+  readonly firstSteps = inject(FirstStepsService);
 
   constructor() {
     effect(() => {

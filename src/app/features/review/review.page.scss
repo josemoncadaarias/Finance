@@ -50,7 +50,8 @@
   margin-bottom: 10px;
   .shead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; b { flex: 1; font-weight: 600; } }
   .sline { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; color: var(--app-mu); padding: 4px 0; b { color: var(--app-tx); } }
-  .ui-btn { margin-top: 10px; }
+  .snote { margin: 0 0 6px; color: var(--app-mu); font-size: 13.5px; line-height: 1.4; }
+  .ui-btn { margin-top: 10px; width: 100%; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; .ui-btn { margin-top: 10px; } }
 }
 

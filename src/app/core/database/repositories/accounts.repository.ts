@@ -9,7 +9,11 @@
 
 import type { SqlDriver } from '../sql-driver';
 import type { AccountBalance, AccountGroupRow, AccountRow, GroupedBalance, IsoDate } from '../types';
+import type { Anchor } from '../../statements/anchor';
 import { RatesRepository, convertAt, type Rate } from './rates.repository';
+
+/** Where an account's statement anchor is kept, by account id. */
+const ANCHOR_KEY = 'statements.anchor.';
 
 /** Everything is valued against the peso; that is the currency Jose lives in. */
 const BASE_CURRENCY = 'COP';
@@ -286,6 +290,39 @@ export class AccountsRepository {
       'UPDATE accounts SET opening_balance_minor = ?, updated_at = ? WHERE id = ?',
       [opening, this.now(), id]);
     return opening;
+  }
+
+  /**
+   * The day and figure a statement that added up said this account held
+   * (`core/statements/anchor.ts`). In `settings`, so it travels in the backup.
+   */
+  async anchorOf(id: number): Promise<Anchor | null> {
+    const row = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [ANCHOR_KEY + id]);
+    if (!row) return null;
+    try {
+      const kept = JSON.parse(row.value) as Anchor;
+      return typeof kept?.day === 'string' && Number.isInteger(kept.balanceMinor) ? kept : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setAnchor(id: number, anchor: Anchor | null): Promise<void> {
+    if (anchor === null) {
+      await this.db.run('DELETE FROM settings WHERE key = ?', [ANCHOR_KEY + id]);
+      return;
+    }
+    await this.db.run(
+      'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+      [ANCHOR_KEY + id, JSON.stringify(anchor), this.now()]);
+  }
+
+  /** Puts an opening figure back as it was (undoing `squareWith`). */
+  async setOpening(id: number, openingMinor: number): Promise<void> {
+    await this.db.run(
+      'UPDATE accounts SET opening_balance_minor = ?, updated_at = ? WHERE id = ?',
+      [openingMinor, this.now(), id]);
   }
 
   async movementCount(id: number): Promise<number> {
