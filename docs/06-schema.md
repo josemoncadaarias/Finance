@@ -57,6 +57,7 @@ erDiagram
         TEXT description
         TEXT from_scope
         TEXT to_scope
+        INTEGER covers_transaction_id
     }
     transactions {
         INTEGER id PK
@@ -635,3 +636,4 @@ outright:
 | `idx_review_queue_open` | listing what is still unresolved |
 | `idx_credit_limit_changes_day` | unique; one credit limit per card per day |
 | `idx_reminders_active` | the reminders still ringing |
+| `idx_transfers_covers` | the move between products that covered a movement |

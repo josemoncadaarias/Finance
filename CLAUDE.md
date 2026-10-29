@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1138 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1147 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6516,6 +6516,33 @@ with testers runs; the paywall is finished after them.
   checked against the TS with the JDK on invented messages; the notice
   itself only on the phone.
 
+- **A product a movement would leave below zero is covered from another,
+  in the same save** (Jose, 2026-10-29, mockups `50a`-`50h`, approved:
+  a spending left the usual product at 0 and he then moved the same money in
+  from a pocket by hand). In the movement form, a new spending (answer
+  "Producto y patrimonio") or money sent to another account, leaving a
+  product of an account with several, shows one quiet line under the account
+  once the amount passes what that product holds: "{producto} queda en −$ X ·
+  Cubrir con {bolsillo}", with a switch. On, saving writes the movement and an
+  ordinary move between the account's products for only what is missing, in
+  one transaction; the move's note is the route's usual one, else "Para
+  cubrir {nota}". Which products may give it (pure `coverFor` in
+  `core/yields/cover.ts`, `cover.test.mjs`): those holding at least the
+  missing amount, never a CDT or one set aside from net worth; the one
+  chosen to always cover from first, then where money usually moves into
+  that product, then what holds most; with none, the line only says it goes
+  negative. Tapping the line opens "¿Con qué producto lo cubro?" with "Cubrir
+  siempre en {cuenta}" (settings `cover.always`, account -> product; the line
+  then starts on). The move remembers what it covered
+  (`transfers.covers_transaction_id`, migration 062, no foreign key since a
+  backup restores transfers first; `core/database/repositories/cover-links.ts`):
+  Inicio's row says "Cubierto con {bolsillo}" (`covered_from` in
+  `listDetailed`), the movement opened again says "Se cubrió con...", and
+  deleting it - or the transfer it covered - deletes the move too, said in
+  the delete dialog. Not for cards, loans, corrections or several at once.
+  Entry tour step `since: 3`. Checked in a browser on the sample data (off,
+  on, the sheet, saved, the list, the delete); not on the phone.
+
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
@@ -6821,4 +6848,4 @@ budget family (2/16, 1, 7), then the rest.
 - `docs/07-competitor-lukas.md` — Lukas (Jotatech) compared with this app, and ideas from it
 - `store/` — the Play Store listing, its icon, feature graphic and screenshots (taken from the invented sample backup)
 - `docs/08-redesign-checklist.md` — everything each screen does today, to check before a redesigned screen is called done
-- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas)
+- `docs/mockups/` — the redesign drawn, every screen (index in its README), plus proposals: `10*` (reading bank messages) and `11*` (debts and plans), `34*` (paying: Finance Pro, locks, the monthly allowance of messages), `37*` (currencies from a list with flags; the main currency), `38*` (the "+" with a new account, a product step by step), `39*` (the assistant: chat, goals' estimate, the button on every screen), `40*` (the assistant on the period, debts and payments), `48*` (Salir de tus deudas), `50*` (covering a product from a pocket)

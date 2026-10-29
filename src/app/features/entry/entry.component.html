@@ -176,6 +176,35 @@
              line and, hanging from it, its product (v7). -->
         <div class="ui-list ends">
           <ng-container *ngTemplateOutlet="endTpl; context: { side: 'from' }"></ng-container>
+          <!-- The product would go below zero: cover it from another, in the same save (50a-50g). -->
+          @if (coverLine(); as line) {
+            <div class="cover-line" [class.on]="line.on" role="group">
+              <ion-icon [name]="line.on ? 'swap-vertical' : 'alert-circle-outline'"></ion-icon>
+              @if (line.none) {
+                <span class="ui-tx"><span class="wrap">{{ line.below }}</span><small class="wrap">{{ line.noneText }}</small></span>
+              } @else if (line.on) {
+                <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
+                  <span class="wrap">{{ line.onTitle }}</span>
+                  <small class="wrap">{{ line.moves }}</small>
+                  @if (line.byHabit) { <small class="wrap">{{ line.byHabit }}</small> }
+                </button>
+              } @else {
+                <button type="button" class="ui-tx" (click)="pickingCover.set(true)">
+                  <span class="wrap">{{ line.below }}</span>
+                  <small class="wrap offer">{{ line.offer }}</small>
+                </button>
+              }
+              @if (!line.none) {
+                <button type="button" class="ui-switch" [class.on]="line.on" role="switch" [attr.aria-checked]="line.on"
+                        [attr.aria-label]="line.offer" (click)="toggleCover()"></button>
+              }
+            </div>
+          } @else if (coveredText()) {
+            <div class="cover-line on done">
+              <ion-icon name="swap-vertical"></ion-icon>
+              <span class="ui-tx"><small class="wrap">{{ coveredText() }}</small></span>
+            </div>
+          }
           @if (isTransfer()) {
             <div class="turn">
               <button type="button" class="swap" (click)="swapAccounts()"
@@ -589,6 +618,36 @@
                  (chosen)="chooseTransferScope($event)" (closed)="choosingTransferScope.set(null)"></app-scope-sheet>
 <app-scope-sheet [open]="choosingScope()" [kind]="kind() === 'expense' ? 'expense' : 'income'" [scope]="scope()"
                  (chosen)="chooseScope($event)" (closed)="choosingScope.set(false)"></app-scope-sheet>
+
+<!-- Which product covers it (50d): only those holding enough, the usual one first. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pickingCover()" (didDismiss)="pickingCover.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <div class="grab"></div>
+      <div class="sheet-head wide">
+        <button type="button" class="link left" (click)="pickingCover.set(false)">{{ 'entry.cancel' | t }}</button>
+        <h2 class="ui-one">{{ 'ui.cover.pick.title' | t }}</h2>
+        <span class="right"></span>
+      </div>
+      <div class="ui-list">
+        @for (choice of coverChoices(); track choice.id) {
+          <button type="button" class="ui-row" (click)="chooseCover(choice.id)">
+            @if (choice.product) { <app-badge [size]="42" [builtin]="faceOf(choice.product)" [seed]="seedOf(choice.product)"></app-badge> }
+            <span class="ui-tx"><b>{{ choice.name }}</b><small class="wrap">{{ choice.line }}</small></span>
+            @if (choice.on) { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+          </button>
+        }
+      </div>
+      <div class="ui-list cover-always">
+        <div class="ui-row">
+          <span class="ui-tx"><b class="wrap">{{ 'ui.cover.pick.always' | t: { account: account()?.name ?? '' } }}</b><small class="wrap">{{ 'ui.cover.pick.alwaysHint' | t }}</small></span>
+          <button type="button" class="ui-switch" [class.on]="coverAlwaysHere()" role="switch" [attr.aria-checked]="coverAlwaysHere()"
+                  [attr.aria-label]="'ui.cover.pick.always' | t: { account: account()?.name ?? '' }" (click)="setCoverAlways(!coverAlwaysHere())"></button>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
 
 <!-- Nothing is deleted on one tap. Jose lost a movement to a mis-tap. -->
 <app-confirm [open]="confirmingDelete()" [title]="deleteTitle()"

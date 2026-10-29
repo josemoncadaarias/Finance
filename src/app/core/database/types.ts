@@ -108,6 +108,8 @@ export interface TransferRow {
   /** What each end changes (migration 056); 'both' on every transfer before it. */
   from_scope?: 'both' | 'product' | 'netWorth';
   to_scope?: 'both' | 'product' | 'netWorth';
+  /** The movement this move between products covered (migration 062). */
+  covers_transaction_id?: number | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }

@@ -10,6 +10,7 @@ import type { SqlDriver } from '../sql-driver';
 import type { IsoDate, RateSource, TransactionRow, TransferRow } from '../types';
 import { TransactionsRepository } from './transactions.repository';
 import { loanPaymentOf, undoLoanPayment } from '../../loans/payment-links';
+import { dropCovers } from './cover-links';
 
 export interface TransferLegInput {
   account_id: number;
@@ -310,6 +311,8 @@ export class TransfersRepository {
       if (payment) await undoLoanPayment(this.db, payment);
       const found = await this.findById(id).catch(() => null);
       if (found) await this.clearScopeRows(found);
+      const legs = await this.db.query<{ id: number }>('SELECT id FROM transactions WHERE transfer_id = ?', [id]);
+      await dropCovers(this.db, legs.map(leg => leg.id));
       await this.db.run('DELETE FROM product_entries WHERE transfer_id = ?', [id]);
       await this.db.run('DELETE FROM transfers WHERE id = ?', [id]);
     });
