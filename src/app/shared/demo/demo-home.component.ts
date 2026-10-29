@@ -57,8 +57,11 @@ class Cancelled extends Error {}
     @if (part() === 'strip') {
       <div class="strip">
         <ion-icon name="flask-outline"></ion-icon>
-        <div class="words"><b>{{ 'demo.strip.title' | t }}</b><small>{{ 'demo.strip.hint' | t }}</small></div>
+        <!-- One row (Jose, 2026-10-29): what it means is behind the (i). -->
+        <b class="words">{{ 'demo.strip.short' | t }}</b>
+        <span class="ui-info" role="button" [attr.aria-label]="'ui.info' | t" (click)="hint.set(!hint())"><ion-icon name="information"></ion-icon></span>
         <button type="button" (click)="asking.set(true)">{{ 'demo.strip.start' | t }}</button>
+        @if (hint()) { <small class="hint">{{ 'demo.strip.hint' | t }}</small> }
       </div>
       <app-confirm [open]="asking()" icon="flask-outline" tone="primary"
                    [title]="'demo.erase.title' | t" [body]="'demo.erase.body' | t"
@@ -89,12 +92,11 @@ class Cancelled extends Error {}
     .restore { color: var(--app-mu); font-size: 12.8px; margin-top: 16px; }
     .restore button { background: none; border: 0; padding: 0; color: var(--app-pr); font: inherit; cursor: pointer; }
     .ui-banner { margin-top: 10px; text-align: left; }
-    .strip { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; padding: 10px 12px; border-radius: 14px;
+    .strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; padding: 7px 8px 7px 12px; border-radius: 14px;
       background: rgba(155, 123, 255, .16); border: 1px solid rgba(155, 123, 255, .4); }
     .strip > ion-icon { font-size: 20px; color: #9b7bff; flex: none; }
-    .words { flex: 1 1 170px; min-width: 0; font-size: 13px; line-height: 1.35; }
-    .words b { color: #c9b8ff; }
-    .words small { display: block; color: var(--app-mu); font-size: 12.3px; }
+    .words { min-width: 0; font-size: 13.5px; color: #c9b8ff; white-space: nowrap; }
+    .hint { flex-basis: 100%; color: var(--app-mu); font-size: 12.5px; line-height: 1.35; padding: 0 4px 2px 28px; }
     .strip button { padding: 7px 11px; border-radius: 11px; border: 0; background: rgba(155, 123, 255, .3); color: var(--app-tx);
       font: inherit; font-weight: 600; font-size: 12.8px; cursor: pointer; flex: none; margin-left: auto; }
   `],
@@ -108,6 +110,8 @@ export class DemoHomeComponent {
 
   readonly progress = signal<number | null>(null);
   readonly asking = signal(false);
+  /** The strip's (i): what the sample data pauses. */
+  readonly hint = signal(false);
   readonly erasing = signal(false);
   readonly error = signal('');
   private stop = false;
