@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1150 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1153 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6592,15 +6592,26 @@ with testers runs; the paywall is finished after them.
   the other account archived, it waits for the form, which asks what
   arrived. Test in `proposals.test.mjs`; checked in a browser on the sample
   data (listed as ready, saved as two legs, no category).
-- **The assistant reads past a slip** (Jose, 2026-10-29: "Absir productos
-  de rappi cuenta" was not understood). Only when a sentence understands
-  nothing, it is read again with each unknown word of five letters or more
-  that is one letter away (changed, added, left out, or two side by side
-  swapped) from exactly one word the assistant reads a meaning from, same
-  first letter, taken for that word (`mendSlips`, `KNOWN_WORDS` built from
-  the intents' own patterns in `read-phrase.ts`); names of accounts,
-  products and categories are never mended, and the mended reading is used
-  only when it understands something. Tests in `read-phrase.test.mjs`.
+- **The assistant reads past typing slips, in any word it knows** (Jose,
+  2026-10-29: "Absir productos de rappi cuenta" was not understood; then "no
+  es solo esa palabra, pueden ser demasiadas"). Its vocabulary is no list:
+  `vocabularyOf` (`core/assistant/mend-slips.ts`, `mend-slips.test.mjs`)
+  works it out of the intents' own patterns - every alternative, verb ending,
+  optional letter, letter class - plus the stems a pattern takes any ending
+  after ("rendimient..."), the number words, days, months and periods; a new
+  question brings its words with it. Only when a sentence understands
+  nothing, each unknown word (not a name of an account, product, category or
+  learned shop) is taken for the nearest known word with the same first
+  letter: one slip (a letter changed, added, left out, or two swapped) from
+  four letters - four-letter words only changed or swapped - and two from
+  nine; a stem keeps the ending typed. Words as near as each other are
+  settled by the one that makes the sentence understood (`mendSlips` in
+  `read-phrase.ts`), and the mended reading is used only when it understands
+  something - so a sentence already understood is never changed (a slip that
+  still reads as another question, "llevme a los rendimientos", stays that
+  question). About 3-5 ms a sentence in Node, ~50 ms once to build the
+  vocabulary. Twenty-odd mistyped questions and registers in
+  `read-phrase.test.mjs`.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
