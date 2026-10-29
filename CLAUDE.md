@@ -6195,7 +6195,9 @@ with testers runs; the paywall is finished after them.
     with it. It needs a queue of transactions first. Meanwhile the movement
     form brings its own account up to date (2026-10-24) and an account's page
     its own.
-  - Waiting for mockups: offering to set the opening balance from a statement
+  - Drawn 2026-10-29, waiting for Jose's word: `43a`-`43e` (the opening
+    balance from a statement) and `44a`-`44e` (Inicio's first steps).
+  - Was waiting for mockups: offering to set the opening balance from a statement
     that adds up (rule 22, "The opening balance is what absorbs the history"),
     and the home that teaches a new user (idea 19).
 - **A transfer both banks told is one transfer on the phone's notice too**
@@ -6405,6 +6407,15 @@ provider's own terms page before a line is written:
   use, that the Sheets API works under `drive.file`, how late a value
   arrives. The proposed check is a small prototype on Jose's account (a
   sheet with three tickers, read back).
+- **Jose's frame, 2026-10-29**: no paying and no manual steps for users -
+  only what the person's own Google account (already signed in for Drive)
+  and free public sources give. Looked up that day: Google blocks
+  GOOGLEFINANCE's HISTORICAL data from the Sheets API and Apps Script
+  (#N/A, Workspace Updates 2016), but CURRENT values can be read; so the
+  fourth shape above stands, with history the app keeps itself from day one,
+  plus EDGAR for fundamentals. Whether `drive.file` alone lets the app read
+  the sheet's values, and whether the formulas recalculate when nobody has
+  the sheet open, is still to prove with a prototype on Jose's account.
 - **When Jose resumes this**, the job is to list, per feature he named,
   what data each shape really gives, what cannot be had, and which
   features would be complete or partial.

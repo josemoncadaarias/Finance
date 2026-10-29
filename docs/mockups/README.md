@@ -110,3 +110,21 @@ Los mismos hábitos de "Lo que más registras" del "+" (`core/compose/frequent.t
 - `42c` al tocar uno: el formulario de siempre listo (cuentas, productos, nota), el cursor en el monto y "Los últimos que usaste" como atajos.
 - `42d` un gasto que se repite con notas distintas (misma cuenta y categoría) también cuenta: propone la nota que más escribes y ofrece las otras.
 - `42e` fijar favoritos: salen siempre de primero, con su estrella. `42f` dejar presionado: Fijar arriba, Abrir el formulario, No mostrarlo aquí.
+
+## 43 - El saldo inicial desde un extracto que cuadra (2026-10-29, propuesta)
+
+Solo se ofrece, nunca se hace solo; solo con un extracto que cuadra; cambia una cifra y no escribe ningún movimiento.
+
+- `43a` después de guardar el extracto, la cuenta no dice lo mismo que el banco: cuánto dice cada uno, la diferencia, "Ajustar el saldo inicial" o "Dejarlo así".
+- `43b` la pregunta: saldo inicial hoy y nuevo, el saldo que queda, y que no cambia ningún movimiento.
+- `43c` ajustado: la tarjeta dice que coinciden, con "Deshacer".
+- `43d` un extracto que no cuadra no se usa para ajustar nada, y lo dice.
+- `43e` un extracto más viejo leído después: el saldo inicial baja y el saldo de hoy no se mueve.
+
+## 44 - Inicio enseña los primeros pasos (2026-10-29, propuesta)
+
+- `44a` con la primera cuenta creada: la tarjeta "Primeros pasos", 1 de 5, el siguiente paso resaltado.
+- `44b` al tocar un paso: para qué sirve y el botón que lleva a hacerlo.
+- `44c` los pasos se marcan solos cuando pasan.
+- `44d` los cinco hechos: "Ya sabes lo principal" y "Ocultar".
+- `44e` la X: se pregunta, y se dice dónde volverlos a ver.
