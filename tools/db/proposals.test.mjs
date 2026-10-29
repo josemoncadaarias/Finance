@@ -421,6 +421,39 @@ test('the two halves of a transfer are accepted as one transfer', async () => {
   await db.close();
 });
 
+test('a lone message known as a transfer is written as that transfer, no category needed', async () => {
+  const { db, proposals, transactions, transfers, rappi, nu } = await setup();
+
+  const { ids: [id] } = await proposals.propose('avisos-1', [{
+    source: 'notification', account_id: rappi, occurred_on: '2026-10-29', amount_minor: -50_000_00,
+    description: 'Enviaste a traves de Bre-B', evidence: { transferTo: nu, transferMemory: { note: 'A Nu', fromProductId: null, toProductId: null } },
+  }]);
+  const proposal = await proposals.byId(id);
+  assert.equal(isComplete(proposal), true, 'the other account stands for the category');
+
+  const result = await accept({ proposals, transactions, transfers, db }, [proposal]);
+
+  assert.equal(result.written, 1);
+  const movements = await transactions.list();
+  assert.equal(movements.length, 2, 'two legs');
+  assert.ok(movements.every(movement => movement.transfer_id !== null && movement.category_id === null));
+  assert.deepEqual(movements.map(movement => movement.amount_minor).sort((a, b) => a - b), [-50_000_00, 50_000_00]);
+  assert.ok(movements.every(movement => movement.description === 'A Nu'), 'with the note it was saved with');
+  assert.equal((await proposals.byId(id)).status, 'accepted');
+
+  // Across currencies it waits for the form, which asks what arrived.
+  await db.run("INSERT OR IGNORE INTO currencies (code, name, minor_units) VALUES ('USD', 'Dolar', 2)");
+  await db.run("UPDATE accounts SET currency_code = 'USD' WHERE id = ?", [nu]);
+  const { ids: [later] } = await proposals.propose('avisos-2', [{
+    source: 'notification', account_id: rappi, occurred_on: '2026-10-29', amount_minor: -10_000_00,
+    description: 'Enviaste', evidence: { transferTo: nu },
+  }]);
+  const refused = await accept({ proposals, transactions, transfers, db }, [await proposals.byId(later)]);
+  assert.equal(refused.written, 0);
+  assert.equal((await proposals.byId(later)).status, 'pending');
+  await db.close();
+});
+
 test('a reading that is still missing something is refused, not written half-formed', async () => {
   const { db, proposals, transactions, transfers } = await setup();
 

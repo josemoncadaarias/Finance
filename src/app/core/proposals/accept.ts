@@ -54,7 +54,53 @@ export function isComplete(proposal: MovementProposal): boolean {
     && proposal.occurred_on !== null
     && proposal.amount_minor !== null
     && proposal.amount_minor !== 0
-    && (proposal.category_id !== null || proposal.pairs_with !== null);
+    && (proposal.category_id !== null || proposal.pairs_with !== null || transferToOf(proposal) !== null);
+}
+
+/** The account a message's shape was saved as a transfer to, if it was. */
+export function transferToOf(proposal: MovementProposal): number | null {
+  const to = said(proposal)['transferTo'];
+  return typeof to === 'number' && to !== proposal.account_id ? to : null;
+}
+
+function said(proposal: MovementProposal): Record<string, unknown> {
+  try {
+    const read = JSON.parse(proposal.evidence ?? '{}') as unknown;
+    return read && typeof read === 'object' ? read as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Where a lone message known as a transfer goes, and what it was saved with -
+ * only when it can be written as it stands: the other account still there,
+ * not archived, in the same currency (another currency needs the amount
+ * that arrived, which only the form asks), and each remembered product still
+ * in its account.
+ */
+async function learnedTransfer(repos: Repos, proposal: MovementProposal):
+  Promise<{ to: number; note: string | null; fromProductId: number | null; toProductId: number | null } | null> {
+  const to = transferToOf(proposal);
+  if (to === null || !repos.db) return null;
+  const rows = await repos.db.query<{ id: number; currency_code: string; archived: number }>(
+    'SELECT id, currency_code, archived FROM accounts WHERE id IN (?, ?)', [proposal.account_id, to]);
+  const mine = rows.find(row => row.id === proposal.account_id);
+  const other = rows.find(row => row.id === to);
+  if (!mine || !other || other.archived || mine.currency_code !== other.currency_code) return null;
+  const memory = said(proposal)['transferMemory'] as { note?: unknown; fromProductId?: unknown; toProductId?: unknown } | undefined;
+  const id = (value: unknown) => (typeof value === 'number' ? value : null);
+  const leaving = (proposal.amount_minor ?? 0) < 0;
+  const inAccount = async (product: number | null, account: number) =>
+    product !== null && repos.yields && (await repos.yields.products(account)).some(one => one.id === product) ? product : null;
+  const fromAccount = leaving ? proposal.account_id! : to;
+  const toAccount = leaving ? to : proposal.account_id!;
+  return {
+    to,
+    note: typeof memory?.note === 'string' && memory.note.trim() !== '' ? memory.note : null,
+    fromProductId: await inAccount(id(memory?.fromProductId), fromAccount),
+    toProductId: await inAccount(id(memory?.toProductId), toAccount),
+  };
 }
 
 /**
@@ -109,6 +155,38 @@ export async function accept(
       done.add(leaving.id);
       done.add(arriving.id);
       result.written += 1;
+      continue;
+    }
+
+    // One message the app knows as a transfer - its shape was saved as one
+    // before (Jose, 2026-10-29: it sat under "Te falta elegir algo" with a
+    // category it does not need). Written as that transfer, with the note
+    // and products it was saved with, exactly as the one form would.
+    const learned = proposal.pairs_with === null ? await learnedTransfer(repos, proposal) : null;
+    if (learned) {
+      const leaving = proposal.amount_minor! < 0;
+      const amount = Math.abs(proposal.amount_minor!);
+      const mine = { account_id: proposal.account_id!, amount_minor: amount, product_id: leaving ? learned.fromProductId : learned.toProductId };
+      const other = { account_id: learned.to, amount_minor: amount, product_id: leaving ? learned.toProductId : learned.fromProductId };
+      const note = learned.note ?? proposal.description ?? null;
+      const transferId = await repos.transfers.create({
+        occurred_on: proposal.occurred_on!,
+        description: note,
+        from: leaving ? mine : other,
+        to: leaving ? other : mine,
+      });
+      const written = await repos.transfers.findById(transferId);
+      const leg = leaving ? written?.from : written?.to;
+      await repos.proposals.accepted(proposal.id, leg?.id ?? transferId, learned.to,
+        { note, fromProductId: learned.fromProductId, toProductId: learned.toProductId });
+      done.add(proposal.id);
+      result.written += 1;
+      continue;
+    }
+    if (proposal.pairs_with === null && transferToOf(proposal) !== null) {
+      // Known as a transfer, but not one this can write alone (another
+      // currency, an account gone): it waits for the form.
+      result.refused.push({ id: proposal.id, reason: 'incomplete' });
       continue;
     }
 
