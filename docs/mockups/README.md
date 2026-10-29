@@ -188,13 +188,15 @@ Deudas inventadas: Tarjeta Coral 4.200.000 al 28,5 % (le paga 220.000 al mes), L
 - `48k` sin deudas.
 - `48l` el asistente lleva al plan.
 
-## 49 - Un Inicio más tranquilo (2026-10-29, propuesta)
+## 49 - Un Inicio más tranquilo (2026-10-29, propuesta, v2)
 
-Jose: "demasiada info junta que hace perder al usuario". Nada se borra; cada cosa queda a un toque.
+Jose: "demasiada info junta que hace perder al usuario". v2 tras su revisión: el gráfico queda como está (son capturas de la app), ninguna cifra se pierde y los botones rápidos no se mueven.
 
-- `49a` una cuenta: Pendientes en una línea (roja solo si algo está vencido o pasado), el saldo con una línea "Entró · Salió", "Puedes gastar hoy" en una fila, el gráfico.
-- `49a2` más abajo: "En qué gastaste" solo con gastos; "Lo que entró y lo que moviste" como sección aparte, una fila por tipo que se abre.
-- `49b` una tarjeta: lo que debes, una barra del cupo y cuándo pagar; el cupo disponible y el total quedan en la página de la tarjeta.
-- `49c` al tocar Pendientes: pagos, topes pasados y recordatorios en una hoja.
-- `49d` todas las cuentas: patrimonio, y lo movido entre tus cuentas en su sección.
-- `49e` qué cambia y a dónde se va cada cosa.
+- `49a` una cuenta: Pendientes en una línea; el saldo con Entró · Salió y, en azul, Recibido · Enviado (cada una solo si tiene algo); el ojo, los productos y editar, como hoy.
+- `49b` más abajo: la lista de categorías como hoy, y debajo, con su título, Ingresos y Entre tus cuentas.
+- `49b2` una tarjeta más abajo: Devoluciones y los pagos a la tarjeta, cada uno con su título.
+- `49c` una tarjeta: lo que debes, "Usas el 14 % · te quedan X de Y" en una línea, cuándo pagar, Salió · Recibido.
+- `49d` una tarjeta en cada caso: vencida, pasada del cupo, saldo a favor, sin deuda, sin cupo.
+- `49e` todas las cuentas: patrimonio, Entró · Salió y lo movido entre tus cuentas.
+- `49f` al tocar Pendientes: pagos, topes, metas y recordatorios.
+- `49g` qué cambia y qué se queda igual.
