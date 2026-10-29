@@ -211,8 +211,17 @@ export class ProductsPage {
   // The redesign (mockups 4a-4zz): selectors in place of one long scroll
   // ---------------------------------------------------------------------------
 
-  /** An account's page: Productos | Movimientos | Pagos | Días. */
+  /**
+   * An account's page: Productos | Movimientos | Intereses (mockups 47a-47q,
+   * Jose 2026-10-29: Pagos and Días read as the same list twice). 'payments'
+   * is the Intereses tab; 'days' is how each day was worked out, reached
+   * from inside it.
+   */
   readonly pageTab = signal<'products' | 'movements' | 'payments' | 'days'>('products');
+  /** The "···" of an account's page: what is rarely needed (47b). */
+  readonly pageMenu = signal(false);
+  /** One date of Intereses opened, with every product it paid (47d). */
+  readonly openPayDay = signal<{ on: IsoDate; payments: Payment[] } | null>(null);
 
   // A product's form is one page of steps (38c-38h; Jose, 2026-10-19): the
   // kind first, then sections that open and close, each saying whether it is
@@ -855,7 +864,7 @@ export class ProductsPage {
   readonly saving = signal(false);
 
   private readonly sheet = viewChild<IonContent>('sheet');
-  private readonly sheetAtTop = signal(true);
+  readonly sheetAtTop = signal(true);
   private readonly sheetAtBottom = signal(true);
 
   readonly showSheetUp = computed(() => !this.sheetAtTop());
@@ -1095,6 +1104,12 @@ export class ProductsPage {
       && (chosen === null || [...chosen].some(id => movementTouches(movement, id)))
       && (term === '' || line === null
         || foldText(`${this.movementTitle(line, movement)} ${this.movementDetail(line, movement)}`).includes(term)));
+  });
+
+  /** How many movements the period holds before any search: the search shows past ten (47q). */
+  readonly movementCount = computed(() => {
+    const { from, to } = this.movementsPeriod();
+    return this.movements().filter(movement => (from === null || movement.on >= from) && (to === null || movement.on <= to)).length;
   });
 
   /** Grouped as asked: by day, by category, or one list from the largest down. */
@@ -1737,6 +1752,81 @@ export class ProductsPage {
     }
     return [...months.values()];
   });
+
+  /**
+   * Intereses (47c): each month, one row per DATE with what every product
+   * paid that day together. A row of one payment opens it as before; a row
+   * of several opens the day with each product (47d).
+   */
+  readonly interestMonths = computed(() => this.paymentsByMonth().map(month => {
+    const dates = new Map<IsoDate, Payment[]>();
+    for (const payment of month.payments) {
+      const list = dates.get(payment.on) ?? [];
+      list.push(payment);
+      dates.set(payment.on, list);
+    }
+    return {
+      ...month,
+      pending: month.payments.every(payment => payment.pending),
+      dates: [...dates.entries()].map(([on, payments]) => ({
+        on, payments,
+        netMinor: payments.reduce((sum, payment) => sum + payment.netMinor, 0),
+        pending: payments.every(payment => payment.pending),
+      })),
+    };
+  }));
+
+  /** What one date of Intereses says under it: the product, or how many. */
+  payDayLine(line: ProductLine, payments: readonly Payment[]): string {
+    const products = new Set(payments.map(payment => payment.productId));
+    if (products.size === 1) {
+      const one = payments[0];
+      const kind = this.kindOf(line, one.productId, one.component, one.rateScaled, one.lastOn);
+      return `${this.productLabel(line, one.productId)} · ${kind.text}`;
+    }
+    return this.i18n.t('ui.int.between', { count: products.size });
+  }
+
+  openPayDate(payments: Payment[], on: IsoDate): void {
+    if (payments.length === 1) { this.openPaymentForm(payments[0]); return; }
+    this.openPayDay.set({ on, payments });
+  }
+
+  /** From the day of several products to one of them, to correct it against the bank. */
+  correctFromDay(payment: Payment): void {
+    this.openPayDay.set(null);
+    setTimeout(() => this.openPaymentForm(payment), 250);
+  }
+
+  productsIn(payments: readonly Payment[]): number {
+    return new Set(payments.map(payment => payment.productId)).size;
+  }
+
+  sumNet(payments: readonly Payment[]): number {
+    return payments.reduce((sum, payment) => sum + payment.netMinor, 0);
+  }
+
+  /** This month's withholding of the account on show, said once under the figure. */
+  readonly monthWithheld = computed(() => {
+    const month = today().slice(0, 7);
+    return this.allDays().filter(day => day.on_date.startsWith(month))
+      .reduce((sum, day) => sum + day.withholding_minor, 0);
+  });
+
+  /** "Arriba" once the page has left its top, never arrows over figures (47j). */
+  async toTopOfSheet(): Promise<void> {
+    await this.sheet()?.scrollToTop(300);
+  }
+
+  /** The page's menu, then where it leads. */
+  async fromPageMenu(line: ProductLine, what: 'report' | 'summary' | 'recalc' | 'stop' | 'resume'): Promise<void> {
+    this.pageMenu.set(false);
+    if (what === 'report') await this.openYieldsReport(line.account.id);
+    else if (what === 'summary') await this.goToSummary(line);
+    else if (what === 'recalc') await this.recalculate();
+    else if (what === 'stop') await this.stopAccruing();
+    else await this.resumeAccruing();
+  }
 
   /** Months of the working-out that the user has opened. */
   /** The months of payments: only the newest open (Jose, 2026-09-28). */

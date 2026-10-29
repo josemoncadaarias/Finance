@@ -6310,6 +6310,31 @@ with testers runs; the paywall is finished after them.
   chooses several. `?batch=` and a tapped notice open their origin. Review
   tour steps 2, 3 and 6 `since: 8`. Checked in a browser on the sample data
   (list, origin, the shop question, saving all, back).
+- **An account's page in Productos y rendimientos is simple now** (mockups
+  `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
+  top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,
+  net) with "Hoy estás ganando unos X al día" (`lastDayMinor`) and the
+  withholding said once (`monthWithheld`), or for a bank paying once a month
+  "Llevas ganado este mes ≈ X" and the day it arrives (`earned.pendingMinor`,
+  `paidOn`). Three tabs: **Productos** (rows whose lines wrap), **Movimientos**
+  (kept: Inicio, on one account, hides the moves between its own products, and
+  a product's own movements are no movement of the account - one list by day,
+  the product filter only with several products, the search only past ten
+  movements in the period, `movementCount`; the Por día / Por categoría / Más
+  grandes chips and the fold button gone) and **Intereses** - Pagos and Días
+  together (`interestMonths`): each month one row per date with what every
+  product paid, net; one payment opens its correction as before, several open
+  the day with each product's Ganó, Retención and Te llegó (`openPayDay`), a
+  tap on one correcting it. On top of it the interest not yet in the balance
+  with Rendido and Pasado a tu saldo (the old hero's figures). A bank paying
+  monthly keeps "Ver cómo se calculó cada día" (the old Días list, with a way
+  back). The "···" in the title bar (`pageMenu`): Resumen de intereses, Ver la
+  cuenta en Inicio, Volver a calcular los intereses (every account, as the
+  list's button), Dejar de calcular / Volver a calcular esta cuenta. The two
+  arrows that covered figures are one "Arriba" once scrolled (`to-top`).
+  Yields tour steps 1 and 2 reworded, `since: 3`. Checked in a browser on the
+  sample data (Banco Índigo, Cajita Naranja: each tab, a day of two products,
+  the menu, a long list).
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

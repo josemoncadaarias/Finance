@@ -238,68 +238,46 @@
               <span class="name marquee-loop">{{ line.account.name }}</span>
               @if (canSwitchAccount()) { <ion-icon class="down" name="chevron-down-outline"></ion-icon> }
             </button>
+            <button type="button" class="ui-round" (click)="pageMenu.set(true)" [attr.aria-label]="'review.more' | t">
+              <ion-icon name="ellipsis-horizontal"></ion-icon>
+            </button>
             <app-ask-button></app-ask-button>
           </header>
 
-          <ion-content #sheet [scrollEvents]="true" (ionScroll)="onSheetScroll(); sheetJump.measure()">
+          <ion-content #sheet [scrollEvents]="true" (ionScroll)="onSheetScroll()">
             <div class="ui-main">
               @if (error()) {
                 <div class="ui-banner bad"><ion-icon name="alert-circle-outline"></ion-icon><span>{{ error() }}</span></div>
               }
 
+              <!-- One figure, what reached the person (47a): this month's interest, or
+                   for a bank that pays once a month what is on its way. -->
               <section class="ui-hero figure" data-tour="yields-figure">
                 <div class="top">
                   <div class="what">
-                    <span class="ui-lab">{{ 'products.detail.total' | t }}</span>
-                    <div class="ui-big ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</div>
-                  </div>
-                  <!-- The way back to Inicio is the house; beside it, the summary. -->
-                  <div class="quick">
-                    <app-amounts-eye></app-amounts-eye>
-                    <button type="button" class="ui-round solid" (click)="goToSummary(line)"
-                            [attr.aria-label]="'products.toSummary' | t" [title]="'products.toSummary' | t">
-                      <ion-icon name="home-outline"></ion-icon>
-                    </button>
-                    <button type="button" class="ui-round solid" (click)="openYieldsReport(line.account.id)"
-                            [attr.aria-label]="'report.yields.open' | t" [title]="'report.yields.open' | t">
-                      <ion-icon name="bar-chart-outline"></ion-icon>
-                    </button>
-                  </div>
-                </div>
-                <div class="ui-mini tiles">
-                  <div>
-                    <span class="ui-lab">{{ 'products.part.accrued' | t }}</span>
-                    <b>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</b>
-                  </div>
-                  <div>
-                    <span class="ui-lab">{{ 'ui.yields.cashedOut' | t }}</span>
-                    <b>{{ line.earned.withdrawn_minor ? money(-abs(line.earned.withdrawn_minor), line.account.currency_code) : money(0, line.account.currency_code) }}</b>
-                  </div>
-                </div>
-                @if (line.earnsNextMinor > 0) {
-                  <p class="earns">
-                    {{ 'products.earnsOn' | t }} <b>{{ money(line.earnsNextMinor, line.account.currency_code) }}</b>.
-                    @if (line.earnsOnMinor > 0 && line.earnsOnMinor !== line.earnsNextMinor) {
-                      {{ 'products.earnsOn.today' | t:{ amount: money(line.earnsOnMinor, line.account.currency_code) } }}
+                    @if (line.earned.pendingMinor > 0 && line.earned.paidOn) {
+                      <span class="ui-lab">{{ 'ui.int.hero.pending' | t }}</span>
+                      <div class="ui-big ui-g">≈ {{ money(line.earned.pendingMinor, line.account.currency_code) }}</div>
+                    } @else {
+                      <span class="ui-lab">{{ 'ui.int.hero.paid' | t }}</span>
+                      <div class="ui-big ui-g">{{ money(line.monthMinor, line.account.currency_code) }}</div>
                     }
-                  </p>
-                }
+                  </div>
+                  <div class="quick"><app-amounts-eye></app-amounts-eye></div>
+                </div>
                 @if (line.earned.pendingMinor > 0 && line.earned.paidOn) {
-                  <p class="earns">
-                    <ion-icon name="time-outline"></ion-icon>
-                    {{ 'products.pending' | t:{ amount: money(line.earned.pendingMinor, line.account.currency_code), date: dayText(line.earned.paidOn) } }}
-                  </p>
+                  <p class="say">{{ 'ui.int.hero.arrives' | t:{ date: dayText(line.earned.paidOn) } }}</p>
+                } @else if (line.lastDayMinor > 0) {
+                  <p class="say">{{ 'ui.int.hero.perDay' | t:{ amount: money(line.lastDayMinor, line.account.currency_code) } }}</p>
                 }
+                @if (monthWithheld() > 0) { <p class="earns">{{ 'ui.int.hero.net' | t }}</p> }
               </section>
 
               <!-- A selector, never one long scroll (Jose, 2026-09-28). -->
               <div class="ui-seg tabs" data-tour="yields-tabs">
                 <button type="button" [class.on]="pageTab() === 'products'" (click)="setPageTab(line, 'products')">{{ 'products.products' | t }}</button>
                 <button type="button" [class.on]="pageTab() === 'movements'" (click)="setPageTab(line, 'movements')">{{ 'products.movements' | t }}</button>
-                <button type="button" [class.on]="pageTab() === 'payments'" (click)="setPageTab(line, 'payments')">{{ 'ui.yields.payments' | t }}</button>
-                @if (!paysEveryDay()) {
-                  <button type="button" [class.on]="pageTab() === 'days'" (click)="setPageTab(line, 'days')">{{ 'ui.yields.days' | t }}</button>
-                }
+                <button type="button" [class.on]="pageTab() === 'payments' || pageTab() === 'days'" (click)="setPageTab(line, 'payments')">{{ 'ui.int.tab' | t }}</button>
               </div>
 
               @switch (pageTab()) {
@@ -317,10 +295,10 @@
                       <button type="button" class="ui-row" (click)="openProduct(product)">
                         <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge>
                         <span class="ui-tx">
-                          <b class="ui-one">{{ product.name }}</b>
-                          <small class="ui-one">{{ productRowLine(product) }}</small>
+                          <b class="wrap">{{ product.name }}</b>
+                          <small class="wrap">{{ productRowLine(product) }}</small>
                           @if (yieldIn(line, product.id) !== 0) {
-                            <small class="ui-one">{{ 'products.products.includesYield' | t:{ amount: money(yieldIn(line, product.id), line.account.currency_code) } }}</small>
+                            <small class="wrap">{{ 'products.products.includesYield' | t:{ amount: money(yieldIn(line, product.id), line.account.currency_code) } }}</small>
                           }
                         </span>
                         <span class="ui-am" [class.ui-r]="balanceIn(line, product.id) < 0">{{ money(balanceIn(line, product.id), line.account.currency_code) }}</span>
@@ -335,23 +313,6 @@
                         </span>
                         <span class="ui-am">{{ money(totalHeld(line), line.account.currency_code) }}</span>
                       </div>
-                    }
-                  </div>
-                  <p class="hint">{{ 'ui.yields.eachApart' | t }}</p>
-
-                  <!-- Stopping the account, well away from anything else: it is
-                       silent when it happens - the figures simply stop moving. -->
-                  <div class="ui-list danger">
-                    @if (line.enabled) {
-                      <button type="button" class="ui-row plain" [disabled]="saving()" (click)="stopAccruing()">
-                        <ion-icon name="pause-circle-outline"></ion-icon>
-                        <span class="ui-tx"><b class="ui-r">{{ 'products.settings.stop' | t }}</b></span>
-                      </button>
-                    } @else {
-                      <button type="button" class="ui-row plain" [disabled]="saving()" (click)="resumeAccruing()">
-                        <ion-icon name="play-circle-outline" class="ui-p"></ion-icon>
-                        <span class="ui-tx"><b class="ui-p">{{ 'products.settings.resume' | t }}</b></span>
-                      </button>
                     }
                   </div>
                 }
@@ -373,6 +334,8 @@
                     </button>
                   </div>
 
+                  <!-- The search only once the month holds many (47q). -->
+                  @if (movementsSearch() || movementCount() > 10) {
                   <div class="ui-search" #movementsSearchRow>
                     <ion-icon name="search-outline"></ion-icon>
                     <input type="search" [placeholder]="('products.search.in' | t:{ period: movementsPeriodLabel() }) + '…'"
@@ -385,19 +348,7 @@
                     }
                   </div>
 
-                  <div class="views">
-                    @for (view of movementViews; track view.id) {
-                      <button type="button" class="ui-chip" [class.on]="movementsView() === view.id"
-                              (click)="movementsView.set(view.id)">{{ view.label | t }}</button>
-                    }
-                    <span class="grow"></span>
-                    @if (movementsView() !== 'largest') {
-                      <button type="button" class="ui-fold" (click)="toggleAllGroups()"
-                              [attr.aria-label]="(allGroupsCollapsed() ? 'ui.openAll' : 'ui.closeAll') | t">
-                        <ion-icon [name]="allGroupsCollapsed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                      </button>
-                    }
-                  </div>
+                  }
                   @if (line.products.length > 1) {
                     <div class="views">
                       <button type="button" class="ui-chip which" (click)="pickingProducts.set(true)">
@@ -473,69 +424,74 @@
                         }
                       </div>
                     }
+                    @if (line.products.length > 1) { <p class="hint">{{ 'ui.int.movesHint' | t }}</p> }
                   }
                 }
 
                 @case ('payments') {
+                  <!-- Intereses (47c): Pagos and Días together, one row per date. -->
+                  @if (line.earned.accrued_minor > 0) {
+                    <div class="ui-list since">
+                      <div class="ui-row plain">
+                        <span class="ui-tx"><b class="wrap">{{ 'products.detail.total' | t }}</b><small class="wrap">{{ 'ui.int.available.hint' | t }}</small></span>
+                        <span class="ui-am ui-g">{{ money(line.availableMinor, line.account.currency_code) }}</span>
+                      </div>
+                      <div class="ui-row plain two">
+                        <span class="ui-tx"><small>{{ 'products.part.accrued' | t }}</small><b>{{ money(line.earned.accrued_minor, line.account.currency_code) }}</b></span>
+                        <span class="ui-tx"><small>{{ 'ui.yields.cashedOut' | t }}</small><b>{{ line.earned.withdrawn_minor ? money(-abs(line.earned.withdrawn_minor), line.account.currency_code) : money(0, line.account.currency_code) }}</b></span>
+                      </div>
+                    </div>
+                  }
                   @if (payments().length === 0) {
-                    <app-empty [compact]="true" icon="cash-outline" color="#34c98b"
-                               [title]="'products.payments.noneTitle' | t" [text]="'products.payments.noneText' | t"
-                               [action]="'products.empty.seeProducts' | t" (act)="pageTab.set('products')"></app-empty>
+                    <app-empty [compact]="true" icon="sunny-outline" color="#f6b93b"
+                               [title]="'ui.int.none.title' | t" [text]="'ui.int.none.text' | t"></app-empty>
                   } @else {
-                    <div class="views">
-                      @if (line.products.length > 1) {
+                    @if (line.products.length > 1) {
+                      <div class="views">
                         <button type="button" class="ui-chip which" (click)="pickingProducts.set(true)">
                           <ion-icon name="funnel-outline"></ion-icon>{{ chosenProductsLabel() }}
                           <ion-icon name="chevron-down-outline"></ion-icon>
                         </button>
-                      }
-                      <span class="grow"></span>
-                      <button type="button" class="ui-chip" (click)="togglePaymentMonths()">
-                        <ion-icon [name]="allPaymentMonthsClosed() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
-                        {{ (allPaymentMonthsClosed() ? 'ui.openAll' : 'ui.closeAll') | t }}
-                      </button>
-                    </div>
-                    @for (month of paymentsByMonth(); track month.key) {
+                      </div>
+                    }
+                    @for (month of interestMonths(); track month.key) {
                       <div class="ui-list ui-group">
                         <div class="ui-row head" (click)="toggleWorking(month.key)">
                           <span class="ui-tx">
                             <b>{{ monthText(month.key) }}</b>
-                            <small>{{ month.payments.length === 1 ? ('ui.count.payment' | t) : ('ui.count.payments' | t:{ count: month.payments.length }) }}</small>
+                            <small class="wrap">
+                              @if (month.pending) { {{ 'ui.int.month.pending' | t }} }
+                              @else if (month.withheldMinor > 0) { {{ 'ui.int.month.net' | t:{ amount: money(month.withheldMinor, line.account.currency_code) } }} }
+                              @else { {{ 'ui.int.month.paid' | t }} }
+                            </small>
                           </span>
-                          <span class="am">
-                            <b class="ui-g">+{{ money(month.netMinor + month.withheldMinor, line.account.currency_code) }}</b>
-                            @if (month.withheldMinor > 0) { <small>{{ 'products.month.net' | t:{ amount: money(month.netMinor, line.account.currency_code) } }}</small> }
-                          </span>
+                          <span class="am"><b [class.ui-g]="!month.pending" [class.ui-mu]="month.pending">{{ month.pending ? '≈ ' : '+' }}{{ money(month.netMinor, line.account.currency_code) }}</b></span>
                           <ion-icon class="ui-chev" [name]="isWorkingOpen(month.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
                         </div>
                         @if (isWorkingOpen(month.key)) {
-                          @for (payment of month.payments; track payment.key) {
-                            <!-- Every payment can be corrected against the bank: a day by
-                                 its day, a month by its total and the day it was paid. -->
-                            <button type="button" class="ui-row" (click)="openPaymentForm(payment)">
-                              @let product = productById(line, payment.productId);
-                              @if (product) { <app-badge [size]="42" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
+                          @for (date of month.dates; track date.on) {
+                            <button type="button" class="ui-row" (click)="openPayDate(date.payments, date.on)">
+                              <app-badge shape="ci" [size]="38" [builtin]="date.pending ? 'hourglass-outline' : 'calendar-clear-outline'" [fixed]="date.pending ? '#f6b93b' : '#34c98b'"></app-badge>
                               <span class="ui-tx">
-                                @let pk = kindOf(line, payment.productId, payment.component, payment.rateScaled, payment.lastOn);
-                                <b class="ui-one">{{ weekdayDay(payment.on) }} <span [class]="'day-kind ' + pk.tone">· {{ pk.text }}</span></b>
-                                <small class="ui-one">{{ paymentLine(line, payment) }}</small>
+                                <b class="ui-one">@if (date.pending) { {{ 'ui.int.arrives' | t:{ date: dayText(date.on) } }} } @else { {{ weekdayDay(date.on) }} }</b>
+                                <small class="wrap">{{ payDayLine(line, date.payments) }}</small>
                               </span>
-                              <span class="am">
-                                <b class="ui-g">+{{ money(payment.netMinor + payment.withheldMinor, line.account.currency_code) }}</b>
-                                @if (payment.withheldMinor > 0) { <small>−{{ money(payment.withheldMinor, line.account.currency_code) }}</small> }
-                                @if (payment.pending) { <small class="ui-y">{{ 'products.payments.pending' | t }}</small> }
-                                @else if (payment.corrected || payment.on !== payment.dueOn) { <small class="ui-p">{{ 'products.payment.corrected' | t }}</small> }
-                              </span>
+                              <span class="ui-am" [class.ui-g]="!date.pending" [class.ui-mu]="date.pending">{{ date.pending ? '≈ ' : '+' }}{{ money(date.netMinor, line.account.currency_code) }}</span>
+                              <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
                             </button>
                           }
                         }
                       </div>
                     }
-                    <p class="hint">{{ (paysEveryDay() ? 'products.payments.daily' : 'products.payments.hint') | t }}</p>
+                    <p class="hint">{{ 'ui.int.hint' | t }}</p>
+                    @if (!paysEveryDay()) {
+                      <button type="button" class="ui-btn ghost see-days" (click)="pageTab.set('days'); showDays.set(true)">{{ 'ui.int.seeDays' | t }}</button>
+                    }
                   }
                 }
 
                 @case ('days') {
+                  <button type="button" class="ui-chip back-int" (click)="pageTab.set('payments')"><ion-icon name="chevron-back"></ion-icon>{{ 'ui.int.backToPaid' | t }}</button>
                   @if (openDays().length === 0) {
                     <app-empty [compact]="true" icon="calendar-outline" color="#34c98b"
                                [title]="'products.days.noneTitle' | t" [text]="'products.days.noneText' | t"
@@ -595,7 +551,9 @@
               }
               <div class="ui-page-end"></div>
             </div>
-            <app-jump #sheetJump [content]="sheet" [hidden]="searching()" [folded]="sheetFolded()" (fold)="sheetFold()"></app-jump>
+            @if (!sheetAtTop() && !searching()) {
+              <button type="button" class="to-top" slot="fixed" (click)="toTopOfSheet()"><ion-icon name="arrow-up"></ion-icon>{{ 'ui.int.top' | t }}</button>
+            }
           </ion-content>
           <!-- The page lives inside the Cuentas tab: the bar stays, with its "+". -->
           <app-tab-bar></app-tab-bar>
@@ -604,6 +562,73 @@
         <app-account-picker [open]="pickingAccount()" [accounts]="accountsWithProducts()"
                             [selectedId]="line.account.id" [heading]="'summary.account' | t"
                             (chosen)="switchAccount($event)" (closed)="pickingAccount.set(false)"></app-account-picker>
+
+        <!-- The "···" (47b): what is rarely needed, in plain words. -->
+        <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="pageMenu()" (didDismiss)="pageMenu.set(false)">
+          <ng-template>
+            <div class="ui-sheet-body ion-content-scroll-host page-menu">
+              <button type="button" class="sheet-cancel" (click)="pageMenu.set(false)">{{ 'entry.cancel' | t }}</button>
+              <div class="grab"></div>
+              <h2 class="center">{{ line.account.name }}</h2>
+              <div class="ui-list">
+                <button type="button" class="ui-row" (click)="fromPageMenu(line, 'report')">
+                  <app-badge shape="ci" [size]="38" builtin="bar-chart-outline" fixed="#6378ff"></app-badge>
+                  <span class="ui-tx"><b class="wrap">{{ 'ui.int.menu.report' | t }}</b><small class="wrap">{{ 'ui.int.menu.report.line' | t }}</small></span>
+                </button>
+                <button type="button" class="ui-row" (click)="fromPageMenu(line, 'summary')">
+                  <app-badge shape="ci" [size]="38" builtin="home-outline" fixed="#6378ff"></app-badge>
+                  <span class="ui-tx"><b class="wrap">{{ 'ui.int.menu.summary' | t }}</b><small class="wrap">{{ 'ui.int.menu.summary.line' | t }}</small></span>
+                </button>
+                <button type="button" class="ui-row" [disabled]="working()" (click)="fromPageMenu(line, 'recalc')">
+                  <app-badge shape="ci" [size]="38" builtin="refresh-outline" fixed="#6378ff"></app-badge>
+                  <span class="ui-tx"><b class="wrap">{{ 'ui.int.menu.recalc' | t }}</b><small class="wrap">{{ 'ui.int.menu.recalc.line' | t }}</small></span>
+                </button>
+                @if (line.enabled) {
+                  <button type="button" class="ui-row" [disabled]="saving()" (click)="fromPageMenu(line, 'stop')">
+                    <app-badge shape="ci" [size]="38" builtin="pause-circle-outline" fixed="#ff6b6b"></app-badge>
+                    <span class="ui-tx"><b class="wrap ui-r">{{ 'products.settings.stop' | t }}</b><small class="wrap">{{ 'ui.int.menu.stop.line' | t }}</small></span>
+                  </button>
+                } @else {
+                  <button type="button" class="ui-row" [disabled]="saving()" (click)="fromPageMenu(line, 'resume')">
+                    <app-badge shape="ci" [size]="38" builtin="play-circle-outline" fixed="#34c98b"></app-badge>
+                    <span class="ui-tx"><b class="wrap">{{ 'products.settings.resume' | t }}</b></span>
+                  </button>
+                }
+              </div>
+            </div>
+          </ng-template>
+        </ion-modal>
+
+        <!-- One date with several products (47d): each one, what it earned,
+             what was withheld and what arrived; a tap corrects it. -->
+        <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="openPayDay() !== null" (didDismiss)="openPayDay.set(null)">
+          <ng-template>
+            @if (openPayDay(); as pd) {
+              <div class="ui-sheet-body ion-content-scroll-host pay-day">
+                <button type="button" class="sheet-cancel" (click)="openPayDay.set(null)">{{ 'entry.cancel' | t }}</button>
+                <div class="grab"></div>
+                <h2 class="center">{{ weekdayDay(pd.on) }}</h2>
+                <p class="center sub">{{ 'ui.int.day.total' | t:{ amount: money(sumNet(pd.payments), line.account.currency_code), count: productsIn(pd.payments) } }}</p>
+                @for (payment of pd.payments; track payment.key) {
+                  @let product = productById(line, payment.productId);
+                  <div class="ui-list">
+                    <button type="button" class="ui-row" (click)="correctFromDay(payment)">
+                      @if (product) { <app-badge [size]="36" [builtin]="faceOf(product)" [seed]="seedOf(product)"></app-badge> }
+                      <span class="ui-tx"><b class="wrap">{{ productLabel(line, payment.productId) }}</b><small class="wrap">{{ kindOf(line, payment.productId, payment.component, payment.rateScaled, payment.lastOn).text }} · {{ 'ui.yields.on' | t:{ amount: money(payment.balanceMinor, line.account.currency_code) } }}</small></span>
+                      <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+                    </button>
+                    <div class="ui-row plain"><span class="ui-tx"><span>{{ 'ui.int.day.gross' | t }}</span></span><b>{{ money(payment.netMinor + payment.withheldMinor, line.account.currency_code) }}</b></div>
+                    @if (payment.withheldMinor > 0) {
+                      <div class="ui-row plain"><span class="ui-tx"><span>{{ 'ui.int.day.withheld' | t }}</span></span><b class="ui-r">−{{ money(payment.withheldMinor, line.account.currency_code) }}</b></div>
+                    }
+                    <div class="ui-row plain"><span class="ui-tx"><span>{{ 'ui.int.day.net' | t }}</span></span><b class="ui-g">{{ money(payment.netMinor, line.account.currency_code) }}</b></div>
+                  </div>
+                }
+                <p class="hint">{{ 'ui.int.day.hint' | t }}</p>
+              </div>
+            }
+          </ng-template>
+        </ion-modal>
 
         <!-- One payment of several days: what the bank paid, and when. -->
         <ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="form() === 'payment'" (didDismiss)="form() === 'payment' && form.set('none')">

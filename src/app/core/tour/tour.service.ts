@@ -72,8 +72,9 @@ const TOUR_LIST = {
   },
   yields: {
     steps: [
-      { target: 'yields-figure', title: 'tour.yields.figure.title', text: 'tour.yields.figure.text' },
-      { target: 'yields-tabs', title: 'tour.yields.tabs.title', text: 'tour.yields.tabs.text' },
+      // 2026-10-29: one figure on top and three tabs (47a-47q): reworded.
+      { target: 'yields-figure', title: 'tour.yields.figure.title', text: 'tour.yields.figure.text', since: 3 },
+      { target: 'yields-tabs', title: 'tour.yields.tabs.title', text: 'tour.yields.tabs.text', since: 3 },
       { target: 'yields-products', title: 'tour.yields.products.title', text: 'tour.yields.products.text' },
       // 2026-10-19: adding a product, first on the list and asked step by step (38b-38h).
       { target: 'yields-add-product', title: 'tour.yields.add.title', text: 'tour.yields.add.text', since: 2 },
