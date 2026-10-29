@@ -29,7 +29,8 @@ import type { AccountRow, IsoDate } from '../database/types';
 import type { NewProposal } from '../database/repositories/proposals.repository';
 import { merchantKeyOf } from '../proposals/merchant';
 import { foldText } from '../text/fold-text';
-import { readNotice, saysItHappened, type NoticeReading } from './read-notice';
+import { readNotice, saysItHappened, saysWhichWay, type NoticeReading } from './read-notice';
+import { verdictOf, type WordBook } from './word-book';
 import { readWithMolds, silencedBy, type Mold, type Quiet, type TransferMemory } from './molds';
 
 /** One message as the phone kept it. */
@@ -347,7 +348,7 @@ export function readNotices(
   answers: readonly NoticeAnswer[],
   accounts: readonly AccountRow[],
   recent: readonly RecentNotice[] = [],
-  learned: { molds?: readonly Mold[]; assigned?: ReadonlyMap<string, number>; quiet?: Quiet } = {},
+  learned: { molds?: readonly Mold[]; assigned?: ReadonlyMap<string, number>; quiet?: Quiet; book?: WordBook } = {},
 ): { fresh: { batch: string; proposal: NewProposal }[]; joining: Joining[] } {
   const molds = learned.molds ?? [];
   const assigned = learned.assigned ?? new Map<string, number>();
@@ -361,11 +362,14 @@ export function readNotices(
     if (before !== undefined && notice.postedAt - before < 3 * 60_000) continue;
     if (known.has(key)) continue;
     // "No es un movimiento": what the person said is not one is never offered.
+    // The word book, from every answer, holds back what reads as an advert.
     if (learned.quiet && silencedBy(noticeSource(notice), notice.text, learned.quiet, molds,
-      saysItHappened(notice.text, notice.title))) continue;
+      saysItHappened(notice.text, notice.title), learned.book ?? null, saysWhichWay(notice.text, notice.title))) continue;
 
     const arrived = localDay(notice.postedAt);
-    let reading = readNotice(notice.text, notice.title, arrived);
+    // And what it says reads as a movement is never taken for an advert.
+    const learnedMovement = !!learned.book && verdictOf(learned.book, noticeSource(notice), notice.text) === 'movement';
+    let reading = readNotice(notice.text, notice.title, arrived, learnedMovement);
     // What the person taught for this source reads it first, and exactly.
     const molded = readWithMolds(noticeSource(notice), notice.text, molds);
     if (molded) {

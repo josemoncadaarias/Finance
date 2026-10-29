@@ -105,7 +105,16 @@ final class MovementAlert {
             "pide ya", "pidelo", "compra ya", "compralo", "aprovecha", "solo hoy", "solo por hoy", "no te lo pierdas",
             "por tiempo limitado", "llevate", "descuento", "descuentazo", "dcto", "% off", "envio gratis", "domicilio gratis",
             "cupon", "black friday", "cyber", "hot sale", "oferta", "promo", "pre-aprobad", "preaprobad", "sorteo", "participa",
-            "descubre", "encuentra", "shop now", "order now", "buy now", "limited time", "discount", "free shipping", "coupon" };
+            "descubre", "encuentra", "shop now", "order now", "buy now", "limited time", "discount", "free shipping", "coupon",
+            "aplican t&c", "aplica t&c", "aplican tyc", "aplica tyc", "aplican terminos", "aplican condiciones",
+            "aplican restricciones", "terminos y condiciones", "sin cuota de manejo", "solicitala", "solicitalo", "pidela ya",
+            "terms apply" };
+    /** A credit offer: "0% de interés", "hasta 6 cuotas", "desde $0"; kept in step with OFFER in read-notice.ts. */
+    private static final Pattern OFFER = Pattern.compile(
+            "(^|[^\\d])0\\s?%\\s?(de\\s)?interes|hasta\\s\\d+\\s(cuotas|meses)|desde\\s\\$?\\s?0(?![\\d.,])");
+    /** A refusal: "no fue exitosa" says nothing happened. */
+    private static final String[] DECLINED = {
+            "rechazad", "declinad", "no fue exitos", "no exitos", "fallid", "no aprobad", "no pudo", "declined", "failed", "denied" };
     /** A price against an earlier one: "antes: 29.900". */
     private static final Pattern PRICE_BEFORE =
             Pattern.compile("(^|[^a-z])(antes|was|before)[:\\s]+(de\\s+)?(\\$|cop|usd|eur)?\\s?\\d");
@@ -113,12 +122,70 @@ final class MovementAlert {
     private static final String[] HAPPENED = {
             "compraste", "pagaste", "recibiste", "transferiste", "retiraste", "enviaste", "realizaste", "hiciste", "ganaste",
             "te transfirieron", "te enviaron", "te pagaron", "te consignaron", "te devolvimos", "te abonamos", "te llegaron",
-            "se debito", "debitamos", "abonamos", "you paid", "you spent", "you received", "you sent", "was charged" };
+            "se debito", "debitamos", "abonamos", "you paid", "you spent", "you received", "you sent", "was charged",
+            "fue exitos", "fue aprobad", "compra exitosa", "pago exitoso", "transaccion exitosa", "compra aprobada", "pago aprobado",
+            "transaccion aprobada", "realizada con exito", "realizado con exito", "was successful", "was approved" };
+
+    /** Whether it says money did move, and not that it failed. */
+    static boolean happened(String folded) {
+        return has(folded, HAPPENED) && !has(folded, DECLINED);
+    }
 
     /** An advert names a price, never money that moved (Jose, 2026-10-13). */
     static boolean isAdvert(String folded) {
-        if (has(folded, HAPPENED)) return false;
-        return has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find();
+        if (happened(folded)) return false;
+        return has(folded, ADVERT) || PRICE_BEFORE.matcher(folded).find() || OFFER.matcher(folded).find();
+    }
+
+    /** How far the word book's sum must lean; kept in step with LEAN in word-book.ts. */
+    private static final double LEAN = 2.5;
+
+    /**
+     * The words of a message as the word book counts them: single words of
+     * three letters or more, and every pair side by side. Kept in step with
+     * `wordsOf` in word-book.ts.
+     */
+    static java.util.Set<String> wordsOf(String text) {
+        String plain = Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z\u00f1&%]+", " ").trim();
+        java.util.Set<String> words = new java.util.LinkedHashSet<>();
+        if (plain.isEmpty()) return words;
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        for (String part : plain.split(" ")) if (part.length() >= 2) parts.add(part);
+        for (int i = 0; i < parts.size(); i += 1) {
+            if (parts.get(i).length() >= 3) words.add(parts.get(i));
+            if (i + 1 < parts.size()) words.add(parts.get(i) + " " + parts.get(i + 1));
+        }
+        return words;
+    }
+
+    /**
+     * What the app's word book says of a message: "movement", "advert" or
+     * null. Kept in step with `verdictOf` in word-book.ts: an advert only
+     * once the person marked one anywhere, and - while nothing of this source
+     * was ever saved - only for a message that names no direction of money.
+     */
+    static String verdict(JSONObject quiet, String source, String text, boolean saysWhichWay) {
+        JSONObject book = quiet.optJSONObject("book");
+        if (book == null) return null;
+        JSONObject sources = book.optJSONObject("sources");
+        JSONObject table = sources == null ? null : sources.optJSONObject(source);
+        if (table == null) table = book.optJSONObject("all");
+        if (table == null) return null;
+        JSONObject weights = table.optJSONObject("words");
+        double score = table.optDouble("prior", 0);
+        if (weights != null) for (String word : wordsOf(text)) score += weights.optDouble(word, 0);
+        if (score >= LEAN) return "movement";
+        if (score <= -LEAN && table.optInt("marked") > 0 && (table.optInt("ownMoves") > 0 || !saysWhichWay)) return "advert";
+        return null;
+    }
+
+    private static JSONObject quiet(Context context) {
+        try {
+            return new JSONObject(prefs(context).getString(QUIET, "{}"));
+        } catch (Exception broken) {
+            return new JSONObject();
+        }
     }
 
     private MovementAlert() {}
@@ -151,11 +218,17 @@ final class MovementAlert {
     static void post(Context context, String source, String name, String text, long at) {
         if (text == null || text.isEmpty()) { note(context, source, at, "empty", null); return; }
         String folded = fold(text);
-        if (isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
+        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
+        // What every answer of the person taught the app (Jose, 2026-10-29).
+        String learned = happened(folded) ? null : verdict(quiet(context), source, text, direction != 0);
+        if (!"movement".equals(learned) && isAdvert(folded)) { note(context, source, at, "notMovement", null); return; }
         String taught = silenced(context, source, text, folded);
         if (taught != null) { note(context, source, at, taught, null); return; }
-        int direction = has(folded, IN) && !has(folded, OUT) ? 1 : has(folded, OUT) ? -1 : 0;
-        if (direction == 0 && has(folded, NOT_A_MOVEMENT)) { note(context, source, at, "notMovement", null); return; }
+        if ("advert".equals(learned)) { note(context, source, at, "learned", null); return; }
+        if (!"movement".equals(learned) && direction == 0 && has(folded, NOT_A_MOVEMENT)) {
+            note(context, source, at, "notMovement", null);
+            return;
+        }
         if (!NotificationStore.looksLikeMoney(text)) { note(context, source, at, "noMoney", null); return; }
         Matcher found = AMOUNT.matcher(text);
         String amount = null;
@@ -163,6 +236,8 @@ final class MovementAlert {
             String number = found.group(1);
             // A bare short number (a code, an hour) is not money without a sign.
             if (found.group(0).length() == number.length() && !number.matches(".*\\d[.,]\\d{3}.*")) continue;
+            // "$0" is no money that moved: an offer's "$0 mínimo" (Jose, 2026-10-29).
+            if (centsOf(number) == 0) continue;
             amount = number;
             break;
         }
@@ -222,19 +297,15 @@ final class MovementAlert {
 
     /**
      * "taught" when the message fits a shape the person said is not a
-     * movement, "strict" when its source only takes money that moved and it
-     * does not say so; null to ring. Kept in step with `silencedBy` in molds.ts.
+     * movement; null to ring. Kept in step with `silencedBy` in molds.ts
+     * (the word book is asked apart, in `post`).
      */
     static String silenced(Context context, String source, String text, String folded) {
         try {
-            JSONObject quiet = new JSONObject(prefs(context).getString(QUIET, "{}"));
+            JSONObject quiet = quiet(context);
             String shaped = fold(text.replaceAll("\\s+", " ").trim());
             if (fits(quiet.optJSONArray("molds"), source, shaped)) return null;
             if (fits(quiet.optJSONArray("notMolds"), source, shaped)) return "taught";
-            JSONArray strict = quiet.optJSONArray("strict");
-            if (strict != null && !has(folded, HAPPENED)) {
-                for (int i = 0; i < strict.length(); i += 1) if (source.equals(strict.optString(i))) return "strict";
-            }
         } catch (Exception broken) {
             // Nothing taught can be read: the message rings as before.
         }

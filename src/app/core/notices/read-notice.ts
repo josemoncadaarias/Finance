@@ -166,10 +166,17 @@ const ADVERT = [
   'llevate', 'descuento', 'descuentazo', 'dcto', '% off', 'envio gratis', 'domicilio gratis', 'cupon', 'black friday', 'cyber',
   'hot sale', 'oferta', 'promo', 'pre-aprobad', 'preaprobad', 'sorteo', 'participa', 'descubre', 'encuentra',
   'shop now', 'order now', 'buy now', 'limited time', 'discount', 'free shipping', 'coupon',
+  // Credit offers and their small print (Jose, 2026-10-29: "Paga a 0% de
+  // interés hasta 6 cuotas ... Aplican T&C" rang as a movement of $ 0).
+  'aplican t&c', 'aplica t&c', 'aplican tyc', 'aplica tyc', 'aplican terminos', 'aplican condiciones', 'aplican restricciones',
+  'terminos y condiciones', 'sin cuota de manejo', 'solicitala', 'solicitalo', 'pidela ya', 'terms apply',
 ];
 
 /** A price against an earlier one: "antes: 29.900", "antes $29.900", "was $30". */
 const PRICE_BEFORE = /(^|[^a-z])(antes|was|before)[:\s]+(de\s+)?(\$|cop|usd|eur)?\s?\d/;
+
+/** A credit offer: "0% de interés", "hasta 6 cuotas", "desde $0". */
+const OFFER = /(^|[^\d])0\s?%\s?(de\s)?interes|hasta\s\d+\s(cuotas|meses)|desde\s\$?\s?0(?![\d.,])/;
 
 /**
  * Said only of money that DID move, to the person: an advert never says
@@ -179,12 +186,15 @@ const HAPPENED = [
   'compraste', 'pagaste', 'recibiste', 'transferiste', 'retiraste', 'enviaste', 'realizaste', 'hiciste', 'ganaste',
   'te transfirieron', 'te enviaron', 'te pagaron', 'te consignaron', 'te devolvimos', 'te abonamos', 'te llegaron',
   'se debito', 'debitamos', 'abonamos', 'you paid', 'you spent', 'you received', 'you sent', 'was charged',
+  // A purchase told as done: "Tu compra en ... fue exitosa" (Jose, 2026-10-29).
+  'fue exitos', 'fue aprobad', 'compra exitosa', 'pago exitoso', 'transaccion exitosa', 'compra aprobada', 'pago aprobado',
+  'transaccion aprobada', 'realizada con exito', 'realizado con exito', 'was successful', 'was approved',
 ];
 
 /** Whether a message is an advert rather than news of money that moved. */
 function isAdvert(folded: string): boolean {
   if (hasAny(folded, HAPPENED)) return false;
-  return hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded);
+  return hasAny(folded, ADVERT) || PRICE_BEFORE.test(folded) || OFFER.test(folded);
 }
 
 /**
@@ -193,7 +203,14 @@ function isAdvert(folded: string): boolean {
  * is offered only such messages (Jose, 2026-10-14, mockup 24d).
  */
 export function saysItHappened(text: string, title = ''): boolean {
-  return hasAny(foldText(`${title} ${text}`), HAPPENED);
+  const folded = foldText(`${title} ${text}`);
+  return hasAny(folded, HAPPENED) && !hasAny(folded, DECLINED);
+}
+
+/** Whether a message names a direction - money out or in - with its own words. */
+export function saysWhichWay(text: string, title = ''): boolean {
+  const folded = foldText(`${title} ${text}`);
+  return firstOf(folded, OUT) !== null || firstOf(folded, IN) !== null;
 }
 
 /** A reminder of something to pay is never a movement, whatever words it uses. */
@@ -295,7 +312,7 @@ function isBalance(folded: string, money: Found, all: readonly Found[]): boolean
  * Reads one message. `title` is the notification's title (the sender, for an
  * SMS); `arrivedOn` gives the year to a date written without one.
  */
-export function readNotice(text: string, title = '', arrivedOn: IsoDate | null = null): NoticeReading {
+export function readNotice(text: string, title = '', arrivedOn: IsoDate | null = null, learnedMovement = false): NoticeReading {
   const whole = `${title ? `${title}. ` : ''}${text}`.normalize('NFC').replace(/\s+/g, ' ').trim();
   // Folding keeps every character's position: only accents go, and those are
   // combining marks removed one for one after NFD... so fold per character.
@@ -320,7 +337,8 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
   }
 
   if (hasAny(folded, REMINDER)) return { ...empty, balanceMinor, digits };
-  if (isAdvert(folded)) return empty;
+  // What the person's own answers say is a movement is not taken for an advert.
+  if (!learnedMovement && isAdvert(folded)) return empty;
 
   const outAt = firstOf(folded, OUT);
   const inAt = firstOf(folded, IN);
