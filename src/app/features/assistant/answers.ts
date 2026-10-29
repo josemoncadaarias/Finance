@@ -364,6 +364,8 @@ export function payFirst(s: Speech, list: readonly DebtView[], freeMinor: number
   const top = a.order[0]?.debt;
   if (top) buttons.push({ label: s.t('ai.first.payTo', { name: top.name }), ghost: buttons.length > 0,
     route: top.kind === 'loan' ? ['/debts', 'loan', String(top.id)] : ['/debts', String(top.id)] });
+  // The whole plan, with the extra chosen and both orders (48l).
+  if (list.length > 1) buttons.push({ label: s.t('ai.first.plan'), ghost: buttons.length > 0, route: ['/debts', 'plan'] });
 
   let said: Said;
   const firstOrder = a.order[0];

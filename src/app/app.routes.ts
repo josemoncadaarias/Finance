@@ -38,6 +38,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/debts/debts.page').then(m => m.DebtsPage),
   },
   {
+    // "Salir de tus deudas" (48b): before `debts/:id`, which would take "plan" for a card.
+    path: 'debts/plan',
+    loadComponent: () => import('./features/debts/plan.page').then(m => m.DebtPlanPage),
+  },
+  {
     path: 'debts/loan/:id',
     loadComponent: () => import('./features/debts/loan.page').then(m => m.LoanPage),
   },

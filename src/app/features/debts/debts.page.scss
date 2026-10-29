@@ -57,3 +57,20 @@ app-accounts-faces { margin-bottom: 12px; }
   b { color: var(--app-pr); font-weight: 600; }
 }
 section.owed + .empty { margin-top: 12px; }
+
+/* "Salir de tus deudas" (48a). */
+.plan-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--app-tx);
+  cursor: pointer;
+  border-color: rgba(var(--app-pr-rgb), 0.5);
+  .ui-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  b { font-size: 16px; }
+  small.wrap { white-space: normal; color: var(--app-mu); font-size: 13.5px; line-height: 1.4; }
+}

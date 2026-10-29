@@ -39,6 +39,7 @@ import { daysBetween, equivalentBefore } from '../report/report-data';
 import { I18nService } from '../i18n/i18n.service';
 import { splitWorth } from '../worth/worth-split';
 import { usuryOn } from '../debts/usury';
+import { estimatedCardPayment, type PlanDebt } from '../debts/debt-plan';
 import type { DebtIn } from './debts-advice';
 import { freeInAccount, freeMoney, goalKeptIn, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
@@ -615,6 +616,40 @@ export class AssistantService {
       total += t.inMinor - t.outMinor;
     }
     return Math.max(0, Math.round(total / 3));
+  }
+
+  /**
+   * The debts as "Salir de tus deudas" plans them (48b): each with its rate
+   * (a card without one at the month's legal maximum) and what it is paid each
+   * month - a loan its installment, a card what came into it on average over
+   * the last three whole months, or an estimate when nothing did.
+   */
+  async planInputs(): Promise<{ debts: PlanDebt[]; leftOverMinor: number }> {
+    const [{ debts }, leftOverMinor] = await Promise.all([this.debts(), this.leftOverPerMonth()]);
+    const today = new Date();
+    const from = isoDay(new Date(today.getFullYear(), today.getMonth() - 3, 1));
+    const to = isoDay(new Date(today.getFullYear(), today.getMonth(), 1));
+    const cards = debts.filter(d => d.kind === 'card').map(d => d.id);
+    const paid = new Map<number, number>();
+    if (cards.length > 0) {
+      const rows = await this.db.query<{ account_id: number; total: number }>(
+        `SELECT account_id, SUM(amount_minor) AS total FROM transactions
+         WHERE account_id IN (${cards.map(() => '?').join(',')}) AND transfer_leg = 'to'
+           AND amount_minor > 0 AND occurred_on >= ? AND occurred_on < ?
+         GROUP BY account_id`, [...cards, from, to]);
+      for (const row of rows) paid.set(row.account_id, Math.round(row.total / 3));
+    }
+    const out: PlanDebt[] = debts.filter(d => d.rateScaled !== null).map(d => {
+      const usual = d.kind === 'card' ? paid.get(d.id) ?? 0 : d.installmentMinor;
+      const payment = d.kind === 'card' && usual <= 0 ? estimatedCardPayment(d.balanceMinor, d.rateScaled!) : usual;
+      return {
+        kind: d.kind, id: d.id, name: d.name, balanceMinor: d.balanceMinor, rateScaled: d.rateScaled!,
+        rateFrom: d.rateFrom === 'typed' ? 'typed' : 'reference',
+        paymentMinor: payment, paymentFrom: d.kind === 'loan' ? 'installment' : usual > 0 ? 'usual' : 'estimated',
+        installmentsLeft: d.installmentsLeft,
+      };
+    });
+    return { debts: out, leftOverMinor };
   }
 
   /** The rate a card charges, typed in the chat (40g). */
