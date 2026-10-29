@@ -97,6 +97,27 @@
       </div>
     }
 
+    <!-- "Probar el aviso": one notice now, and what the phone did with it (2026-10-29). -->
+    @if (native) {
+      <div class="ui-list test">
+        <button type="button" class="ui-row" (click)="test()" [disabled]="testing()">
+          <app-badge shape="ci" [size]="36" builtin="notifications-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'reminders.test' | t }}</b><small class="wrap">{{ 'reminders.test.hint' | t }}</small></span>
+        </button>
+      </div>
+      @if (tested(); as t) {
+        <div class="ui-banner access" [class.info]="t.result === 'sent'" [class.warn]="t.result !== 'sent'">
+          <ion-icon [name]="testIcon()"></ion-icon>
+          <span class="ui-tx">
+            <b>{{ testTitle() }}</b>
+            <small class="wrap">{{ testHint() }}</small>
+            @if (t.detail) { <small class="wrap">{{ t.detail }}</small> }
+          </span>
+          <button type="button" class="ui-btn small" (click)="openNoticeSettings()">{{ 'reminders.test.settings' | t }}</button>
+        </div>
+      }
+    }
+
     <p class="hint foot">{{ 'reminders.foot' | t }}</p>
   </div>
 </ion-content>
@@ -218,6 +239,16 @@
           </button>
         </div>
         <small class="sub rings-when" [class.now]="ringsNow()">{{ ringsWhen() }}</small>
+        <!-- This month already settled: editing does not reopen it, so it is said (2026-10-29). -->
+        @if (doneThisMonth()) {
+          <div class="done-month">
+            <ion-icon name="checkmark-done-outline"></ion-icon>
+            <span class="ui-tx"><small class="wrap">{{ (paidByShop() ? 'reminders.form.doneByShop' : 'reminders.form.doneMonth') | t }}</small></span>
+            @if (!paidByShop()) {
+              <button type="button" class="ui-chip" (click)="remindAgain.set(true)">{{ 'reminders.form.remindAgain' | t }}</button>
+            }
+          </div>
+        }
 
         <span class="lab">{{ 'reminders.form.fill' | t }}</span>
         <small class="sub">{{ 'reminders.form.fill.hint' | t }}</small>

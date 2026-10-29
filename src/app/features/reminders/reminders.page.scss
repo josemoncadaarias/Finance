@@ -39,3 +39,18 @@ small.late { color: var(--app-red); }
   h2 { margin: 4px 0 8px; font-size: 18px; }
   ion-datetime { margin: 0 auto; --background: transparent; }
 }
+
+/* This month already settled (2026-10-29). */
+.done-month {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: rgba(var(--app-grn-rgb), 0.12);
+  > ion-icon { flex: none; font-size: 20px; color: var(--app-grn); }
+  .ui-tx { flex: 1; min-width: 0; }
+  .wrap { white-space: normal; }
+}
+.ui-list.test { margin-top: 18px; }

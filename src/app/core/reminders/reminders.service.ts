@@ -24,6 +24,7 @@ import { fromIsoDay, isoDay } from '../filters/period';
 import { merchantKeyOf } from '../proposals/merchant';
 import { RemindersRepository, type ReminderInput } from './reminders.repository';
 import { BankNotifications } from '../notifications/bank-notifications';
+import { noteError } from '../feedback/error-log';
 import {
   addDays, dueWithin, monthOfDay, nextOccurrence, reminderNoticeId, ringKey, ringPlans, settledBy,
   type Occurrence, type Reminder,
@@ -37,6 +38,8 @@ const TOLD_KEY = 'finance.reminders.told';
 /** Ringings handed to the phone's alarms, with when (`ringKey` → ms). */
 const SCHEDULED_KEY = 'finance.reminders.scheduled';
 const ASKED_KEY = 'finance.reminders.asked';
+/** The test notice's id, apart from every reminder's (`reminderNoticeId`). */
+const TEST_ID = 699_999;
 
 @Injectable({ providedIn: 'root' })
 export class RemindersService {
@@ -165,8 +168,10 @@ export class RemindersService {
         this.again = false;
         await this.refreshOnce();
       } while (this.again);
-    } catch {
+    } catch (error) {
       // The screen still lists them; the phone is told on the next change.
+      // What failed is kept for "Reportar un fallo".
+      noteError(error);
     } finally {
       this.running = false;
     }
@@ -282,6 +287,44 @@ export class RemindersService {
     if (!Capacitor.isNativePlatform()) return;
     try { await LocalNotifications.changeExactNotificationSetting(); } catch { /* nothing to open */ }
     void this.refresh();
+  }
+
+  /**
+   * "Probar el aviso" (Jose, 2026-10-29: a reminder set for the very minute
+   * never showed): one notice now, on the reminders' own channel, so the
+   * screen can say what the phone did with it. Each answer names what to fix.
+   */
+  async testNotice(): Promise<{ result: 'sent' | 'off' | 'channelOff' | 'failed'; detail?: string }> {
+    if (!Capacitor.isNativePlatform()) return { result: 'failed', detail: 'web' };
+    try {
+      if (!(await this.allowed()) && (await LocalNotifications.requestPermissions()).display !== 'granted') return { result: 'off' };
+      await this.setUp();
+      const channel = (await LocalNotifications.listChannels()).channels.find(c => c.id === CHANNEL);
+      if (channel && (channel.importance ?? 3) <= 1) return { result: 'channelOff' };
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: TEST_ID,
+          title: this.i18n.t('reminder.test.title'),
+          body: this.i18n.t('reminder.test.body'),
+          channelId: CHANNEL,
+          smallIcon: 'ic_stat_movement',
+          largeIcon: 'ic_notice_logo',
+          iconColor: '#6378FF',
+          autoCancel: true,
+          extra: { kind: 'reminderTest' },
+        }],
+      });
+      const shown = (await LocalNotifications.getDeliveredNotifications()).notifications.some(n => n.id === TEST_ID);
+      return shown ? { result: 'sent' } : { result: 'channelOff' };
+    } catch (error) {
+      noteError(error);
+      return { result: 'failed', detail: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /** Android's notification settings for Finance. */
+  openNoticeSettings(): Promise<void> {
+    return BankNotifications.openAlertSettings();
   }
 
   /** Read again when the app comes back from Android's settings. */

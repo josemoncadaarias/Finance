@@ -111,6 +111,7 @@ const TOUR_LIST = {
       { target: 'reminders-list', title: 'tour.reminders.4.title', text: 'tour.reminders.4.text' },
       // 2026-10-22: any hour and minute, and what Android must allow to ring.
       { title: 'tour.reminders.5.title', text: 'tour.reminders.5.text', since: 2 },
+      { sel: 'app-reminders .ui-list.test', title: 'tour.reminders.6.title', text: 'tour.reminders.6.text', since: 3 },
     ],
   },
   pro: {
