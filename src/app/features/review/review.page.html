@@ -233,7 +233,7 @@
       @if (isSelected(line)) { <ion-icon name="checkmark"></ion-icon> }
     </span>
   }
-  @if (line.partner) {
+  @if (isTransfer(line)) {
     <app-badge [size]="40" builtin="swap-horizontal" [fixed]="MOVE"></app-badge>
   } @else if (categoryOf(line); as category) {
     <app-badge [size]="40" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id"
@@ -242,9 +242,10 @@
     <app-badge [size]="40" builtin="help" fixed="#f6b93b"></app-badge>
   }
   <span class="ui-tx">
-    <b class="ui-one">{{ line.partner ? pairTitle(line) : (line.proposal.description || ('review.noDescription' | t)) }}</b>
-    @if (line.partner) {
+    <b class="ui-one">{{ isTransfer(line) ? pairTitle(line) : (line.proposal.description || ('review.noDescription' | t)) }}</b>
+    @if (isTransfer(line)) {
       <!-- A transfer carries no category; each half shows its own once separated. -->
+      <small class="ui-one">{{ shortDay(line.proposal.occurred_on) }} · {{ 'ui.review.transferRow' | t }}</small>
     } @else if (categoryOf(line); as category) {
       <small class="ui-one">{{ shortDay(line.proposal.occurred_on) }} · {{ category.name }}
         @if (line.proposal.category_from === 'guessed') { <span class="tag guessed">{{ 'review.fromWords' | t }}</span> }
@@ -271,7 +272,7 @@
       <small class="seen"><ion-icon name="layers-outline"></ion-icon>{{ line.seenBy }}</small>
     }
   </span>
-  @if (line.partner) {
+  @if (isTransfer(line)) {
     <span class="ui-am ui-t">{{ money(abs(line.proposal.amount_minor), line.account?.currency_code) }}</span>
   } @else {
   <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">

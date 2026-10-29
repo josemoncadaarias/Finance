@@ -718,7 +718,65 @@ function paidCard(end: End, ctx: PhraseContext): boolean {
     && ctx.accounts.find(a => a.id === end.account)?.type === 'credit';
 }
 
+/**
+ * A sentence read as it was typed, and - only when that understands nothing -
+ * read again with its slips mended (Jose, 2026-10-29: "Absir productos de
+ * rappi cuenta" was not understood; people do not type perfectly). A word of
+ * five letters or more that the assistant does not know, one letter away
+ * from exactly one word it does know with the same first letter, is taken
+ * for that word. The mended reading is used only when it understands
+ * something, so a sentence already understood is never changed.
+ */
 export function readPhrase(text: string, ctx: PhraseContext): Reading {
+  const first = readAsTyped(text, ctx);
+  if (first.intent !== 'unknown' && first.intent !== 'unsure') return first;
+  const mended = mendSlips(text, ctx);
+  if (mended === text) return first;
+  const second = readAsTyped(mended, ctx);
+  if (second.intent === 'unknown' || (second.intent === 'unsure' && first.intent === 'unsure')) return first;
+  return second;
+}
+
+/** Every word the assistant reads a meaning from, five letters or more. */
+const KNOWN_WORDS: ReadonlySet<string> = new Set([HOW_GOALS, PAY_MORE, PAY_FIRST, DEBTS, DUE, PLANS, HOW_AM_I,
+  TOP_SPENDING, RECURRING, YIELDS, WHY_MORE, LAST_TIME, COST_OF, BIGGEST, SAVE_MORE, OPEN_PRODUCTS, HOW_MUCH,
+  OPEN_CATEGORY, OPEN_GOAL, OPEN_CAP, HELP, HAVE, FREE_NOW, PER_DAY, SPENT_IN, AFFORD, EXPENSE, INCOME,
+  TRANSFER_WORD, PAY_WORD, CASH_OUT_WORD, CAME_IN, REMIND, REMINDERS_LIST]
+  .flatMap(pattern => pattern.source.replace(/\\[bswdBSWD]/g, ' ').split(/[^a-z]+/))
+  .filter(word => word.length >= 5));
+
+/** The sentence with each slip mended to the one word it nearly is. */
+export function mendSlips(text: string, ctx: PhraseContext): string {
+  const names = new Set([...ctx.accounts.map(a => a.name), ...ctx.products.map(p => p.name),
+    ...(ctx.categories ?? []).map(c => c.name)].flatMap(wordsOf));
+  return text.replace(/[\p{L}]+/gu, written => {
+    const word = fold(written);
+    if (word.length < 5 || KNOWN_WORDS.has(word) || names.has(word)) return written;
+    const near = [...KNOWN_WORDS].filter(known => known[0] === word[0]
+      && Math.abs(known.length - word.length) <= 1 && oneSlip(word, known));
+    return near.length === 1 ? near[0] : written;
+  });
+}
+
+/** One letter changed, added or left out, or two side by side swapped. */
+function oneSlip(a: string, b: string): boolean {
+  if (a === b) return false;
+  if (a.length === b.length) {
+    const differ: number[] = [];
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differ.push(i);
+    if (differ.length === 1) return true;
+    // Two letters swapped: "abrri", "rendimeintos".
+    const [i, j] = differ;
+    return differ.length === 2 && j === i + 1 && a[i] === b[j] && a[j] === b[i];
+  }
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  for (let i = 0; i < long.length; i++) {
+    if (long.slice(0, i) + long.slice(i + 1) === short) return true;
+  }
+  return false;
+}
+
+function readAsTyped(text: string, ctx: PhraseContext): Reading {
   const folded = fold(text).replace(/[¿?¡!]/g, ' ');
   const tokens = tokensOf(text);
   const amount = amountIn(tokens);

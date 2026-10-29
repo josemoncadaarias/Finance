@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1148 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1150 on 2026-10-29, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6578,6 +6578,29 @@ with testers runs; the paywall is finished after them.
   its title under "Cancelar", never beside it (global.scss, a `.sheet-head`
   with no h2). Checked in a browser on the sample data.
 
+- **One message known as a transfer is a transfer row in Por revisar**
+  (Jose, 2026-10-29, screenshots: a Rappi message already opening as
+  Transferir, Rappi cuenta -> Plata, was listed under "Te falta elegir algo"
+  with a shop's category). A lone message whose shape was saved as a transfer
+  before (`evidence.transferTo`, no `pairs_with`) now reads like the two
+  banks' pair: swap icon, "{cuenta} -> {cuenta}", "Transferencia entre tus
+  cuentas", blue amount, no category asked (`isTransfer`, `pairTitle`,
+  `missing` in `review.page.ts`). It is ready when both accounts share a
+  currency, and "Guardar los listos" writes it as that transfer with the
+  note and products it was saved with (`learnedTransfer` in `accept.ts`;
+  `isComplete` takes `transferTo` for a category); across currencies, or with
+  the other account archived, it waits for the form, which asks what
+  arrived. Test in `proposals.test.mjs`; checked in a browser on the sample
+  data (listed as ready, saved as two legs, no category).
+- **The assistant reads past a slip** (Jose, 2026-10-29: "Absir productos
+  de rappi cuenta" was not understood). Only when a sentence understands
+  nothing, it is read again with each unknown word of five letters or more
+  that is one letter away (changed, added, left out, or two side by side
+  swapped) from exactly one word the assistant reads a meaning from, same
+  first letter, taken for that word (`mendSlips`, `KNOWN_WORDS` built from
+  the intents' own patterns in `read-phrase.ts`); names of accounts,
+  products and categories are never mended, and the mended reading is used
+  only when it understands something. Tests in `read-phrase.test.mjs`.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { NOTHING_LEARNED, readPhrase } from '../../src/app/core/assistant/read-phrase.ts';
+import { NOTHING_LEARNED, mendSlips, readPhrase } from '../../src/app/core/assistant/read-phrase.ts';
 import { wordCategoryOf } from '../../src/app/core/proposals/common-words.ts';
 import { fromIsoDay, periodContaining } from '../../src/app/core/filters/period.ts';
 
@@ -527,6 +527,24 @@ test('opening an account\'s products, said any way (Jose, 2026-10-24)', () => {
   // How much is a question about the yields, not a screen.
   assert.equal(readPhrase('muéstrame cuánto me han dado mis rendimientos', ctx()).intent, 'yields');
   assert.equal(readPhrase('¿cuánto me han dado mis cuentas?', ctx()).intent, 'yields');
+});
+
+test('a word typed with one slip is still understood (Jose, 2026-10-29)', () => {
+  for (const said of [
+    'Absir productos de banco indigo',
+    'abrri los productos de Banco Índigo',
+    'muestrame los prodctos de Banco Índigo',
+  ]) {
+    const r = readPhrase(said, ctx());
+    assert.equal(r.intent, 'openProducts', said);
+    assert.equal(r.accountId, 5, said);
+  }
+  assert.equal(readPhrase('¿cuanto me han dado mis rendimeintos?', ctx()).intent, 'yields');
+  assert.equal(readPhrase('¿que recordatorios tengo?', ctx()).intent, 'reminders');
+  // An account's own name is never "mended" into a word of the assistant.
+  assert.equal(mendSlips('Banco Índigo', ctx()), 'Banco Índigo');
+  // A sentence already understood is read as it was typed.
+  assert.equal(readPhrase('Ábreme los productos de Banco Índigo', ctx()).intent, 'openProducts');
 });
 
 test('a move between products with no amount said is still a transfer (Jose, 2026-10-24)', () => {

@@ -1015,13 +1015,22 @@ export class ReviewPage {
    * money left and where it arrived, and no category - each half shows its
    * own again once separated.
    */
+  /**
+   * A row that is a transfer: two banks' messages, or one message whose
+   * shape was saved as a transfer before (Jose, 2026-10-29: such a row still
+   * showed a category it does not need).
+   */
+  isTransfer(line: Line): boolean {
+    return line.partner !== null || (line.transferTo !== null && line.proposal.account_id !== null);
+  }
+
   pairTitle(line: Line): string {
     const name = (id: number | null) => (id === null ? null : this.accounts().find(one => one.id === id)?.name) ?? '';
-    const partner = line.partner;
-    if (!partner) return line.proposal.description ?? '';
+    const far = line.partner?.account_id ?? line.transferTo;
+    if (far === null) return line.proposal.description ?? '';
     const leaving = (line.proposal.amount_minor ?? 0) < 0;
-    const from = leaving ? line.proposal.account_id : partner.account_id;
-    const to = leaving ? partner.account_id : line.proposal.account_id;
+    const from = leaving ? line.proposal.account_id : far;
+    const to = leaving ? far : line.proposal.account_id;
     return `${name(from)} → ${name(to)}`;
   }
 
@@ -1562,7 +1571,14 @@ export class ReviewPage {
     // a spending by "Guardar los listos".
     // The two halves of a transfer between banks are written together, as
     // the transfer they are.
-    return (line.transferTo === null || line.proposal.pairs_with !== null) && isComplete(line.proposal);
+    // A lone message known as a transfer is written as that transfer when
+    // both ends share a currency (Jose, 2026-10-29); across currencies the
+    // amount that arrived is asked in the form.
+    if (line.transferTo !== null && line.proposal.pairs_with === null) {
+      const other = this.accounts().find(one => one.id === line.transferTo);
+      if (!other || !line.account || other.currency_code !== line.account.currency_code) return false;
+    }
+    return isComplete(line.proposal);
   }
 
   /**
@@ -1743,7 +1759,7 @@ export class ReviewPage {
     if (proposal.amount_minor === null || proposal.amount_minor === 0) {
       return this.i18n.t('review.needsAmount');
     }
-    if (proposal.category_id === null && proposal.pairs_with === null) {
+    if (proposal.category_id === null && proposal.pairs_with === null && line.transferTo === null) {
       return this.i18n.t('review.needsCategory');
     }
     return null;
