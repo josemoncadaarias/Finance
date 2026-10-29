@@ -162,17 +162,6 @@
           </div>
         </div>
       }
-      @if (smsWaiting().length > 0) {
-        <div class="ui-list sms-wait">
-          @for (line of smsWaiting(); track $index) {
-            <div class="ui-row" [class.warn]="line.warn">
-              <ion-icon [name]="line.warn ? 'eye-off-outline' : 'chatbubble-ellipses-outline'"></ion-icon>
-              <span class="ui-tx"><small>{{ line.text }}</small></span>
-            </div>
-          }
-        </div>
-      }
-
       @if (nothingFound()) {
         <div class="empty small">
           <app-badge shape="ci" [size]="60" builtin="search" fixed="#8c9bb5"></app-badge>

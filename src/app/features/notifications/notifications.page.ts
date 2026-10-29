@@ -443,27 +443,6 @@ export class NotificationsPage {
     this.openState.set(new Map(this.foldKeys().map(key => [key, open])));
   }
 
-  /**
-   * What the SMS part says while no sender is listed, one line per messaging
-   * app: no words reach the app, nothing with money yet, or nothing yet.
-   */
-  readonly smsWaiting = computed(() => {
-    if (this.senders().some(one => !one.hidden)) return [];
-    return this.apps().filter(app => app.messaging).map(source => {
-      const app = source.hidden
-        ? { ...source, label: this.i18n.t('ui.notifications.sms.hiddenApp', { app: source.label }) }
-        : source;
-      const blank = app.blank ?? 0, plain = app.plain ?? 0, money = app.money ?? 0;
-      if (blank > 0 && money === 0) {
-        return { warn: true, text: this.i18n.t(blank === 1 ? 'ui.notifications.sms.blankOne' : 'ui.notifications.sms.blank', { count: blank, app: app.label }) };
-      }
-      if (plain > 0 && money === 0) {
-        return { warn: false, text: this.i18n.t('ui.notifications.sms.plain', { app: app.label }) };
-      }
-      return { warn: false, text: this.i18n.t('ui.notifications.sms.none', { app: app.label }) };
-    });
-  });
-
   senderLine(one: SeenSender): string {
     if (one.package === SMS_INBOX) {
       return this.i18n.t(one.count === 1 ? 'ui.notifications.inboxLine.one' : 'ui.notifications.inboxLine',
