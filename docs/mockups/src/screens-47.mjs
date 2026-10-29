@@ -6,11 +6,12 @@
 //   together, and the detail of each product opens on tap;
 // - one figure on top, what reached the person: "Este mes te han pagado";
 //   the withholding is said once, small;
-// - Movimientos leaves the page: one row opens Inicio on this account;
+// - Movimientos stays (v2: Inicio hides moves between products of one
+//   account and never shows a product's own movements), one plain list;
 // - "Dejar de calcular" and "Recalcular" go behind the "···";
 // - no floating arrows over figures: one small "Arriba" once scrolled.
 // Names and figures invented.
-import { ic, C, PALETTE, tint, ci, sq, chev, down, tabs, status } from './lib.mjs';
+import { ic, C, PALETTE, tint, ci, sq, chev, down, tabs, status, periodBar, catIcon } from './lib.mjs';
 
 const S = {};
 const st = status.replace('class="status"', 'class="status" style="padding:6px 6px"');
@@ -27,7 +28,7 @@ const hero = (paid, line2, line3 = 'Ya sin la retención en la fuente (impuesto 
  <div class="lab">${lab}</div><div class="big g">${paid}</div>
  <div style="font-size:14.5px;margin-top:6px">${line2}</div>
  ${line3 ? `<div class="sub" style="margin-top:6px">${line3}</div>` : ''}${extra}</div>`;
-const twoTabs = on => `<div class="seg" style="margin:12px 0">${['Productos', 'Intereses'].map(t => `<div class="${t === on ? 'on' : ''}">${t}</div>`).join('')}</div>`;
+const twoTabs = on => `<div class="seg" style="margin:12px 0">${['Productos', 'Movimientos', 'Intereses'].map(t => `<div class="${t === on ? 'on' : ''}">${t}</div>`).join('')}</div>`;
 const page = (h, top, on, body, opts = {}) => `${h}<main>${top}${twoTabs(on)}${body}<div style="height:120px"></div></main><div class="fade"></div>${opts.after ?? ''}${tabs('Cuentas')}`;
 
 const P = { cuenta: ['wallet-outline', C.grn], renta: ['home-outline', C.grn], cdt: ['lock-closed-outline', C.gold ?? C.yel], viaje: ['airplane-outline', C.cya] };
@@ -40,8 +41,7 @@ const products = `<div class="list">
  ${prod('cdt', 'CDT 12 meses', 'Paga al vencer, el 2 de marzo de 2027', '15.000.000,00')}
  ${prod('renta', 'Para el impuesto de renta', '9 % al año · gana unos $&nbsp;530 al día', '2.434.267,11', 'No cuenta en tu patrimonio')}
  <div class="row" style="background:var(--s2)"><div class="tx"><b>Entre todos</b><small>Lo que tienen hoy los 3 productos</small></div><div class="am" style="font-weight:700">29.498.345,43</div></div></div>
- <div class="list" style="margin-top:12px"><div class="row">${ci('add', C.blu, 38)}<div class="tx"><b class="p">Agregar un producto</b><small>Un bolsillo, una alcancía o un CDT</small></div></div>
- <div class="row">${ci('list-outline', C.blu, 38)}<div class="tx"><b>Ver los movimientos de esta cuenta</b><small>Se abren en Inicio</small></div>${chev()}</div></div>`;
+ <div class="list" style="margin-top:12px"><div class="row">${ci('add', C.blu, 38)}<div class="tx"><b class="p">Agregar un producto</b><small>Un bolsillo, una alcancía o un CDT</small></div></div></div>`;
 
 const indigoHero = hero('$&nbsp;87.955,38', 'Hoy estás ganando unos <b>$&nbsp;3.040</b> al día');
 
@@ -126,7 +126,51 @@ S['47k-calculando'] = page(head(), `<div class="card hero"><div class="lab">Este
 // 47l - the products of an account with only one: no total row, nothing to compare.
 S['47l-un-producto'] = page(head('Cuenta Pequeña', C.grn, 'wallet-outline'), hero('$&nbsp;9.420,55', 'Hoy estás ganando unos <b>$&nbsp;325</b> al día', ''), 'Productos', `<div class="list">
  ${prod('cuenta', 'Ahorros', '9 % al año · gana unos $&nbsp;325 al día', '1.380.220,40', 'Es tu producto habitual')}</div>
- <div class="list" style="margin-top:12px"><div class="row">${ci('add', C.blu, 38)}<div class="tx"><b class="p">Agregar un producto</b><small>Un bolsillo, una alcancía o un CDT</small></div></div>
- <div class="row">${ci('list-outline', C.blu, 38)}<div class="tx"><b>Ver los movimientos de esta cuenta</b><small>Se abren en Inicio</small></div>${chev()}</div></div>`);
+ <div class="list" style="margin-top:12px"><div class="row">${ci('add', C.blu, 38)}<div class="tx"><b class="p">Agregar un producto</b><small>Un bolsillo, una alcancía o un CDT</small></div></div></div>`);
+
+// ------------------------------------------------------------ Movimientos (v2)
+// It stays: Inicio, looking at one account, hides the moves between its own
+// products, and a product's own movements ("Solo el producto") are no
+// movement of the account at all. One list by day, nothing else to choose.
+const mv = (icon, t, s2, a, cls = '') => `<div class="row">${icon}<div class="tx"><b class="one">${t}</b><small class="one">${s2}</small></div><div class="am ${cls}">${a}</div></div>`;
+const dayHead = (t, n, total, cls) => `<div class="row" style="background:var(--s2);padding:9px 14px"><div class="tx"><b style="font-size:14.5px">${t}</b><small style="font-size:12px">${n}</small></div><span class="${cls}" style="font-weight:600;font-size:14px">${total}</span></div>`;
+const swap = ci('swap-horizontal', C.blu, 40);
+const prodChip = `<div style="display:flex;margin-top:10px"><span class="chip">${ic('funnel-outline', '', 'width:17px;height:17px')}Todos los productos ${down()}</span></div>`;
+const indigoMoves = `<div class="list" style="margin-top:10px">${dayHead('Hoy · jueves 29', '3 movimientos', '−186.400,00', 'r')}
+  ${mv(catIcon('mercado'), 'Mercado de la semana', 'Mercado · desde Ahorros', '−186.400,00', 'r')}
+  ${mv(swap, 'Para el impuesto de renta', 'Ahorros → Para el impuesto de renta', '150.000,00', 'p')}
+  ${mv(catIcon('cashback'), 'Cashback de octubre', 'Solo en el producto Ahorros', '+146.000,00', 'g')}</div>
+ <div class="list" style="margin-top:10px">${dayHead('Martes 27', '2 movimientos', '+3.200.000,00', 'g')}
+  ${mv(catIcon('salario'), 'Nómina', 'Salario · a Ahorros', '+3.200.000,00', 'g')}
+  ${mv(swap, 'Retiro del bolsillo', 'Para el impuesto de renta → Ahorros', '80.000,00', 'p')}</div>
+ <div class="list" style="margin-top:10px">${dayHead('Viernes 23', '1 movimiento', '−24.000,00', 'r')}</div>`;
+
+// 47m - Movimientos: everything of the account and its products, by day.
+S['47m-movimientos'] = page(head(), indigoHero, 'Movimientos', `${periodBar('Octubre 2026', 0)}${prodChip}${indigoMoves}
+ ${note('Aquí están también los traslados entre tus productos y lo que guardaste solo en un producto. Inicio no los muestra porque no cambian el saldo de la cuenta.')}`);
+
+// 47n - choosing one product: the list shows only what touched it.
+S['47n-movimientos-un-producto'] = S['47m-movimientos'] + sheet(`<h2 style="text-align:center;font-size:18px;margin-bottom:12px">Ver los movimientos de</h2><div class="list">
+ <div class="row">${ci('layers-outline', C.blu, 38)}<div class="tx"><b>Todos los productos</b></div>${ic('checkmark', 'p')}</div>
+ <div class="row">${psq('cuenta', 38)}<div class="tx"><b>Ahorros</b></div></div>
+ <div class="row">${psq('cdt', 38)}<div class="tx"><b>CDT 12 meses</b></div></div>
+ <div class="row">${psq('renta', 38)}<div class="tx"><b>Para el impuesto de renta</b></div></div></div><div style="height:6px"></div>`);
+
+// 47o - an account with one product: no product filter, the same list.
+S['47o-movimientos-cuenta-simple'] = page(head('Cuenta Pequeña', C.grn, 'wallet-outline'), hero('$&nbsp;9.420,55', 'Hoy estás ganando unos <b>$&nbsp;325</b> al día', ''), 'Movimientos', `${periodBar('Octubre 2026', 0)}
+ <div class="list" style="margin-top:10px">${dayHead('Miércoles 28', '2 movimientos', '−62.000,00', 'r')}
+  ${mv(catIcon('rest'), 'Almuerzo', 'Restaurantes', '−32.000,00', 'r')}
+  ${mv(catIcon('transp'), 'Taxi al aeropuerto', 'Transporte', '−30.000,00', 'r')}</div>
+ <div class="list" style="margin-top:10px">${dayHead('Lunes 26', '1 movimiento', '+500.000,00', 'g')}</div>`);
+
+// 47p - a month with nothing: one sentence and one button.
+S['47p-movimientos-mes-vacio'] = page(head(), indigoHero, 'Movimientos', `${periodBar('Noviembre 2026', 0)}
+ <div class="card" style="text-align:center;padding:24px 16px;margin-top:12px">${centred(ci('receipt-outline', C.blu, 56))}<b style="font-size:16px">No hay movimientos en noviembre</b>
+ <div class="sub" style="margin-top:6px">Ni en la cuenta ni en sus productos.</div>
+ <div class="btn" style="margin-top:14px">${ic('add')}Registrar un movimiento</div></div>`);
+
+// 47q - a month with many movements: the search shows, nothing else is added.
+S['47q-movimientos-buscar'] = page(head(), indigoHero, 'Movimientos', `${periodBar('Octubre 2026', 0)}
+ <div class="search" style="margin-top:10px">${ic('search-outline')}<span class="one">Buscar en octubre</span></div>${prodChip}${indigoMoves}`);
 
 export default S;

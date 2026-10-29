@@ -151,9 +151,9 @@ Jose: "es tanta información que el usuario se pierde... FÁCIL Y SENCILLO". Dos
 
 ## 47 - Productos e intereses de una cuenta, sencilla (2026-10-29, propuesta)
 
-Jose, con cuatro capturas de Banco Índigo: "confusas o enredadas y con mucha info". Dos pestañas en vez de cuatro.
+Jose, con cuatro capturas de Banco Índigo: "confusas o enredadas y con mucha info". Tres pestañas en vez de cuatro: Productos | Movimientos | Intereses (v2: Movimientos se queda, porque Inicio no muestra los traslados entre productos de una cuenta ni lo guardado solo en un producto).
 
-- `47a` Productos: arriba lo que te pagaron este mes y lo que ganas hoy; cada producto con su nombre completo, su saldo y una línea; al final "Agregar un producto" y "Ver los movimientos de esta cuenta" (en Inicio).
+- `47a` Productos: arriba lo que te pagaron este mes y lo que ganas hoy; cada producto con su nombre completo, su saldo y una línea; al final "Agregar un producto".
 - `47b` el menú "···": Resumen de intereses, Editar la cuenta, Volver a calcular, Dejar de calcular.
 - `47c` Intereses: Pagos y Días juntos, una fila por día con lo de todos los productos.
 - `47d` un día abierto: cada producto, lo que ganó, la retención y lo que te llegó; "El banco pagó otra cifra".
@@ -165,3 +165,8 @@ Jose, con cuatro capturas de Banco Índigo: "confusas o enredadas y con mucha in
 - `47j` lista larga: sin flechas encima de las cifras, un solo botón "Arriba".
 - `47k` calculando los intereses de hoy.
 - `47l` una cuenta con un solo producto.
+- `47m` Movimientos: una lista por día con todo, también los traslados entre productos y lo de "Solo el producto".
+- `47n` elegir un producto para ver solo lo suyo.
+- `47o` una cuenta con un solo producto: sin filtro.
+- `47p` un mes sin movimientos.
+- `47q` un mes largo: aparece la búsqueda.
