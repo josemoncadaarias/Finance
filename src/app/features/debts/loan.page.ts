@@ -58,7 +58,8 @@ export class LoanPage {
   readonly today = isoDay(new Date());
 
   readonly loan = signal<LoanRow | null | undefined>(undefined);
-  readonly tab = signal<Tab>('summary');
+  /** `?tab=ahead` opens on Abonar ("Salir de tus deudas", 48f). */
+  readonly tab = signal<Tab>(this.route.snapshot.queryParamMap.get('tab') === 'ahead' ? 'ahead' : 'summary');
 
   /** Cuotas opens on the installment to pay, not on the first of the loan. */
   private readonly toNext = effect(() => {

@@ -1,0 +1,222 @@
+<!-- "Salir de tus deudas" (48a-48l). -->
+<ion-content [fullscreen]="true">
+  <header class="ui-titlebar">
+    <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
+      <ion-icon name="chevron-back"></ion-icon>
+    </button>
+    <h1>{{ (single() ? 'ui.plan.titleOne' : 'ui.plan.title') | t }}</h1>
+    <button type="button" class="ui-round" data-tour="plan-why" (click)="whyOpen.set(true)" [attr.aria-label]="'ui.plan.why.title' | t">
+      <ion-icon name="information-circle-outline"></ion-icon>
+    </button>
+    <app-ask-button></app-ask-button>
+  </header>
+
+  <div class="ui-main plan">
+    @if (debts() === null) {
+      <div class="loading"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else if (plan(); as p) {
+      <!-- How much more each month: the app suggests, the person decides. -->
+      <div class="ui-list" data-tour="plan-extra">
+        <label class="ui-field">
+          <span class="in">
+            <span class="lab">{{ 'ui.plan.extra' | t }}</span>
+            <input inputmode="decimal" [value]="extra().text" placeholder="0" [appAmountInput]="extra()" (amountChange)="setExtra($event)">
+          </span>
+          <button type="button" class="link" (click)="choicesOpen.set(true)">{{ 'ui.plan.extra.other' | t }}</button>
+        </label>
+      </div>
+      @if (leftOver() > 0) {
+        <p class="note">{{ 'ui.plan.leftOver' | t:{ amount: money(leftOver()) } }}</p>
+      } @else {
+        <div class="ui-banner warn top"><ion-icon name="alert-circle-outline"></ion-icon><span>{{ 'ui.plan.noLeftOver' | t }}</span></div>
+      }
+
+      @if (!single() && !sameOrder()) {
+        <div class="ui-seg ways" data-tour="plan-ways">
+          <button type="button" [class.on]="p.by === 'rate'" (click)="choose('rate')"><ion-icon name="trending-down-outline"></ion-icon>{{ 'ui.plan.way.rate' | t }}</button>
+          <button type="button" [class.on]="p.by === 'balance'" (click)="choose('balance')"><ion-icon name="flash-outline"></ion-icon>{{ 'ui.plan.way.balance' | t }}</button>
+        </div>
+      }
+
+      <!-- The one answer. -->
+      @if (p.endless) {
+        <div class="ui-banner bad top"><ion-icon name="alert-circle-outline"></ion-icon>
+          <span>{{ 'ui.plan.endless' | t:{ name: endlessAlone()?.name ?? p.steps[0].debt.name } }}</span></div>
+      } @else {
+        <section class="ui-hero answer" data-tour="plan-answer">
+          @if (p.extraMinor > 0) {
+            <span class="ui-lab">{{ (single() ? 'ui.plan.endsOne' : 'ui.plan.ends') | t:{ name: p.steps[0].debt.name } }}</span>
+            <div class="ui-big">{{ monthOf(p.months) }}</div>
+            @if (p.baseEndless) {
+              <p class="ui-sub">{{ 'ui.plan.baseEndless' | t:{ name: endlessAlone()?.name ?? '' } }}</p>
+            } @else {
+              <div class="ui-mini">
+                <div><span class="ui-lab">{{ 'ui.plan.saved' | t }}</span><b class="ui-g">{{ money(p.savedMinor) }}</b></div>
+                <div><span class="ui-lab">{{ 'ui.plan.sooner' | t }}</span><b>{{ (p.soonerMonths === 1 ? 'ui.plan.months.one' : 'ui.plan.months') | t:{ count: p.soonerMonths } }}</b></div>
+              </div>
+              <p class="ui-sub">{{ 'ui.plan.against' | t }}</p>
+            }
+            @if (p.by === 'balance' && !single() && !sameOrder() && other(); as o) {
+              <p class="ui-sub">{{ 'ui.plan.balanceCost' | t:{ month: monthOf(p.steps[0].months), amount: money(p.interestMinor - o.interestMinor) } }}</p>
+            }
+          } @else {
+            <span class="ui-lab">{{ 'ui.plan.onlyPayments' | t }}</span>
+            <div class="ui-big">{{ monthOf(p.months) }}</div>
+            <p class="ui-sub">{{ 'ui.plan.interestTotal' | t:{ amount: money(p.interestMinor) } }}</p>
+          }
+        </section>
+        @if (smallHelp(); as help) {
+          <div class="ui-banner info top"><ion-icon name="bulb-outline"></ion-icon><span>{{ 'ui.plan.smallHelp' | t:{ amount: money(hundredThousand), saved: money(help) } }}</span></div>
+        }
+      }
+
+      <!-- Debts without a rate: one banner, whatever their number (48h). -->
+      @if (referenced().length > 0) {
+        <button type="button" class="ui-banner warn top as-button" (click)="openDebt(referenced()[0])"><ion-icon name="alert-circle-outline"></ion-icon>
+          <span>{{ (referenced().length === 1 ? 'ui.plan.reference' : 'ui.plan.referenceMany') | t:{ name: referenced()[0].name, names: referencedNames(), rate: rate(referenced()[0].rateScaled) } }}
+            <b>{{ (referenced().length === 1 ? 'ui.plan.reference.set' : 'ui.plan.reference.setFirst') | t:{ name: referenced()[0].name } }}</b></span></button>
+      }
+
+      @if (!single() && !p.endless) {
+        <div class="ui-card bars">
+          <b>{{ 'ui.plan.bars' | t }}</b>
+          @for (s of p.steps; track s.debt.kind + s.debt.id; let i = $index) {
+            <div class="bar-row">
+              <span class="ui-one">{{ s.debt.name }}</span>
+              <span class="track"><i [style.width.%]="barOf(s)" [style.background]="colors[i % colors.length]" [class.first]="i === 0"></i></span>
+            </div>
+          }
+          <div class="years">
+            @for (y of years(); track y.year) { <span [style.left.%]="y.at">{{ y.year }}</span> }
+          </div>
+        </div>
+      }
+
+      <h3 class="ui-h">{{ (single() ? 'ui.plan.yourDebt' : 'ui.plan.order') | t }}</h3>
+      <div class="ui-list" data-tour="plan-order">
+        @for (s of p.steps; track s.debt.kind + s.debt.id; let i = $index) {
+          <button type="button" class="ui-row step" (click)="stepOpen.set(s)">
+            @if (!single()) { <span class="n" [class.first]="i === 0 && p.extraMinor > 0">{{ i + 1 }}</span> }
+            <app-badge shape="ci" [size]="40" [builtin]="icon(s.debt)" [fixed]="colors[i % colors.length]"></app-badge>
+            <span class="ui-tx">
+              <b class="wrap">{{ s.debt.name }}</b>
+              <small>{{ 'ui.plan.owes' | t:{ amount: money(s.debt.balanceMinor) } }} · {{ 'ui.plan.rate' | t:{ rate: rate(s.debt.rateScaled) } }}</small>
+              <small class="wrap">{{ payLine(s.debt) }}</small>
+              <small class="wrap">{{ why(s, i) }}</small>
+              @if (i === 0 && p.extraMinor > 0) { <span class="ui-tag extra">{{ 'ui.plan.extraHere' | t }}</span> }
+            </span>
+            <span class="ends"><small>{{ 'ui.plan.endsAt' | t }}</small><b>{{ p.endless && s.months >= 600 ? ('ui.plan.never' | t) : monthOf(s.months, true) }}</b></span>
+          </button>
+        }
+      </div>
+
+      @if (p.apart.length > 0) {
+        <h3 class="ui-h">{{ 'ui.plan.apart' | t }}</h3>
+        <div class="ui-list">
+          @for (d of p.apart; track d.id) {
+            <button type="button" class="ui-row step" (click)="openDebt(d)">
+              <app-badge shape="ci" [size]="40" builtin="home-outline" fixed="#ff9f43"></app-badge>
+              <span class="ui-tx">
+                <b class="wrap">{{ d.name }}</b>
+                <small>{{ 'ui.plan.owes' | t:{ amount: money(d.balanceMinor) } }} · {{ 'ui.plan.rate' | t:{ rate: rate(d.rateScaled) } }}</small>
+                <small class="wrap">{{ 'ui.plan.apart.why' | t:{ count: d.installmentsLeft } }}</small>
+              </span>
+              <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
+            </button>
+          }
+        </div>
+      }
+
+      @if (estimated().length > 0) {
+        <p class="note">{{ 'ui.plan.estimated' | t:{ names: estimatedNames() } }}</p>
+      }
+      <p class="note">{{ 'ui.plan.disclaimer' | t }}</p>
+    } @else {
+      <app-empty icon="happy-outline" color="#2ecc71" [title]="'ui.plan.none.title' | t" [text]="'ui.plan.none.text' | t"
+                 [action]="'ui.plan.none.add' | t" actionIcon="add" (act)="addDebt()"></app-empty>
+    }
+  </div>
+</ion-content>
+
+<!-- ¿Cuál me conviene? (48d) -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="whyOpen()" (didDismiss)="whyOpen.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host plan-sheet">
+      <button type="button" class="sheet-cancel" (click)="whyOpen.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'ui.plan.why.title' | t }}</h2>
+      <div class="ui-list">
+        <div class="ui-row plain way">
+          <app-badge shape="ci" [size]="40" builtin="trending-down-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.plan.way.rate' | t }}</b><span class="ui-tag good">{{ 'ui.plan.recommended' | t }}</span><small class="wrap">{{ 'ui.plan.why.rate' | t }}</small></span>
+        </div>
+        <div class="ui-row plain way">
+          <app-badge shape="ci" [size]="40" builtin="flash-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.plan.way.balance' | t }}</b><small class="wrap">{{ 'ui.plan.why.balance' | t }}</small></span>
+        </div>
+      </div>
+      <div class="ui-list">
+        <div class="ui-row plain way">
+          <app-badge shape="ci" [size]="40" builtin="repeat-outline" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.plan.why.both' | t }}</b><small class="wrap">{{ 'ui.plan.why.both.text' | t }}</small></span>
+        </div>
+      </div>
+      <p class="note">{{ 'ui.plan.why.law' | t }}</p>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ¿Cuánto puedes poner de más? (48e) -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="choicesOpen()" (didDismiss)="choicesOpen.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host plan-sheet">
+      <button type="button" class="sheet-cancel" (click)="choicesOpen.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      <h2 class="center">{{ 'ui.plan.choices.title' | t }}</h2>
+      @if (leftOver() > 0) { <p class="center sub">{{ 'ui.plan.choices.leftOver' | t:{ amount: money(leftOver()) } }}</p> }
+      <h3 class="ui-h split"><span>{{ 'ui.plan.choices.more' | t }}</span><span>{{ 'ui.plan.saved' | t }}</span></h3>
+      <div class="ui-list">
+        @for (c of choices(); track c.extraMinor) {
+          <button type="button" class="ui-row" (click)="useChoice(c)">
+            <ion-icon [name]="c.extraMinor === extraMinor() ? 'checkmark-circle' : 'ellipse-outline'" [class.on]="c.extraMinor === extraMinor()"></ion-icon>
+            <span class="ui-tx"><b>{{ 'ui.plan.choices.perMonth' | t:{ amount: money(c.extraMinor) } }}</b>
+              <small>{{ c.endless ? ('ui.plan.choices.never' | t) : ('ui.plan.choices.free' | t:{ month: monthOf(c.months) }) }}</small></span>
+            <b class="ui-g">{{ c.endless || c.baseEndless ? '' : money(c.savedMinor) }}</b>
+          </button>
+        }
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- One debt of the order: what to pay it this month (48f). -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="stepOpen() !== null" (didDismiss)="stepOpen.set(null)">
+  <ng-template>
+    @if (stepOpen(); as s) {
+      <div class="ui-sheet-body ion-content-scroll-host plan-sheet">
+        <button type="button" class="sheet-cancel" (click)="stepOpen.set(null)">{{ 'entry.cancel' | t }}</button>
+        <div class="grab"></div>
+        <div class="center head">
+          <app-badge shape="ci" [size]="52" [builtin]="icon(s.debt)" fixed="#6378ff"></app-badge>
+          <h2>{{ s.debt.name }}</h2>
+          @if (extraOf(s) > 0) { <p class="sub">{{ 'ui.plan.step.first' | t }}</p> }
+        </div>
+        <h3 class="ui-h">{{ 'ui.plan.step.thisMonth' | t:{ month: nextMonthName() } }}</h3>
+        <div class="ui-list">
+          <div class="ui-row plain line"><span class="ui-tx">{{ (s.debt.kind === 'loan' ? 'ui.plan.step.installment' : 'ui.plan.step.usual') | t }}</span><b>{{ money(s.debt.paymentMinor) }}</b></div>
+          @if (extraOf(s) > 0) {
+            <div class="ui-row plain line"><span class="ui-tx">{{ 'ui.plan.step.extra' | t }}</span><b>{{ money(extraOf(s)) }}</b></div>
+            <div class="ui-row plain line"><span class="ui-tx">{{ 'ui.plan.step.total' | t }}</span><b class="p">{{ money(s.debt.paymentMinor + extraOf(s)) }}</b></div>
+          }
+        </div>
+        <p class="note">{{ (s.debt.kind === 'card' ? 'ui.plan.step.cardNote' : extraOf(s) > 0 ? 'ui.plan.step.loanNote' : 'ui.plan.step.loanPlain') | t }}</p>
+        @if (s.debt.kind === 'card') {
+          <button type="button" class="ui-btn" (click)="payStep(s)"><ion-icon name="swap-horizontal"></ion-icon>{{ 'ui.plan.step.payCard' | t:{ amount: money(s.debt.paymentMinor + extraOf(s)) } }}</button>
+        } @else if (extraOf(s) > 0) {
+          <button type="button" class="ui-btn" (click)="payStep(s)"><ion-icon name="trending-down-outline"></ion-icon>{{ 'ui.plan.step.payAhead' | t:{ amount: money(extraOf(s)) } }}</button>
+        }
+        <button type="button" class="ui-btn ghost" (click)="openDebt(s.debt)">{{ (s.debt.kind === 'card' ? 'ui.plan.step.seeCard' : 'ui.plan.step.seeLoan') | t }}</button>
+      </div>
+    }
+  </ng-template>
+</ion-modal>

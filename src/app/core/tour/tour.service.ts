@@ -185,6 +185,16 @@ const TOUR_LIST = {
       { sel: 'app-debts .ui-bigtitle .ui-pill', title: 'tour.debts.3.title', text: 'tour.debts.3.text' },
       { title: 'tour.debts.4.title', text: 'tour.debts.4.text', since: 2 },
       { sel: 'app-debts .ui-h.with-total', title: 'tour.debts.5.title', text: 'tour.debts.5.text', since: 3 },
+      // 2026-10-29: "Salir de tus deudas" (48a).
+      { target: 'debts-plan', title: 'tour.debts.6.title', text: 'tour.debts.6.text', since: 4 },
+    ],
+  },
+  debtPlan: {
+    steps: [
+      { target: 'plan-extra', title: 'tour.debtPlan.1.title', text: 'tour.debtPlan.1.text' },
+      { target: 'plan-ways', title: 'tour.debtPlan.2.title', text: 'tour.debtPlan.2.text' },
+      { target: 'plan-answer', title: 'tour.debtPlan.3.title', text: 'tour.debtPlan.3.text' },
+      { target: 'plan-order', title: 'tour.debtPlan.4.title', text: 'tour.debtPlan.4.text' },
     ],
   },
   card: {
@@ -313,7 +323,7 @@ export const TOURS: Record<TourId, Tour> = TOUR_LIST;
 /** Which screen's tour a route offers; the first match wins, most specific first. */
 const ROUTE_TOURS: [RegExp, TourId][] = [
   [/^\/more/, 'more'], [/^\/pro/, 'pro'], [/^\/view\/bar/, 'bar'], [/^\/view/, 'view'], [/^\/accounts/, 'accounts'], [/^\/currencies/, 'currencies'], [/^\/report/, 'report'],
-  [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/\d/, 'card'],
+  [/^\/categories/, 'categories'], [/^\/products/, 'products'], [/^\/debts\/loan\//, 'loan'], [/^\/debts\/plan/, 'debtPlan'], [/^\/debts\/\d/, 'card'],
   [/^\/debts/, 'debts'], [/^\/reminders/, 'reminders'], [/^\/plans\/goal\//, 'goal'], [/^\/plans\/\d/, 'limit'], [/^\/plans/, 'plans'],
   [/^\/tax/, 'tax'], [/^\/review/, 'review'], [/^\/notifications/, 'notifications'], [/^\/export/, 'export'],
   [/^\/account(\?|$)/, 'google'], [/^\/erase/, 'erase'], [/^\/assistant/, 'assistant'],

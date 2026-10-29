@@ -28,6 +28,11 @@ import { loanSchedule, type LoanSchedule } from '../../core/loans/schedule';
 import { LoanEditorComponent } from './loan-editor.component';
 import { AccountEditorComponent } from '../accounts/account-editor.component';
 import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
+import { AssistantService } from '../../core/assistant/assistant.service';
+import { planDebts } from '../../core/debts/debt-plan';
+import { keptExtra, keptOrder } from '../../core/debts/plan-prefs';
+import { formatMoney } from '../../core/database/money';
+import { monthName } from '../../core/filters/period';
 
 export interface LoanSummary { loan: LoanRow; s: LoanSchedule }
 
@@ -56,6 +61,9 @@ export class DebtsPage {
   readonly newLoan = signal(false);
   readonly newCard = signal(false);
   private readonly today = isoDay(new Date());
+  private readonly assistant = inject(AssistantService);
+  /** The line of "Salir de tus deudas" (48a), or null with nothing to plan. */
+  readonly planLine = signal<string | null>(null);
 
   /** What falls due this month, cards and installments, and how much of it is interest. */
   readonly thisMonth = computed(() => {
@@ -111,6 +119,29 @@ export class DebtsPage {
     ]);
     this.cards.set(cards);
     this.loans.set(loans.filter(l => !l.account.archived).map(loan => ({ loan, s: loanSchedule(loan.terms, loan.payments, this.today) })));
+    void this.readPlan();
+  }
+
+  /** What the plan would get, with the extra chosen there (or suggested): one sentence. */
+  private async readPlan(): Promise<void> {
+    const { debts, leftOverMinor } = await this.assistant.planInputs();
+    if (debts.length === 0) { this.planLine.set(null); return; }
+    const plan = planDebts(debts, keptExtra(leftOverMinor), keptOrder());
+    if (plan.extraMinor <= 0 || plan.endless || plan.baseEndless || plan.savedMinor <= 0) {
+      this.planLine.set(this.i18n.t('ui.debts.plan.lineNoExtra'));
+      return;
+    }
+    const now = new Date();
+    const at = new Date(now.getFullYear(), now.getMonth() + plan.months, 1);
+    const pesos = (minor: number) => `$\u00a0${formatMoney(Math.round(minor / 100), 'COP', { withSymbol: false, minorUnits: 0 })}`;
+    this.planLine.set(this.i18n.t('ui.debts.plan.line', {
+      amount: pesos(plan.extraMinor), saved: pesos(plan.savedMinor),
+      month: this.i18n.t('ui.plan.monthYear', { month: monthName(at, this.i18n.dateLocale()), year: at.getFullYear() }),
+    }));
+  }
+
+  openPlan(): void {
+    void this.router.navigate(['/debts/plan']);
   }
 
   loanSub(l: LoanSummary): string {

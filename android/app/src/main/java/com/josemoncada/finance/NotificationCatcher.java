@@ -179,6 +179,46 @@ public class NotificationCatcher extends NotificationListenerService {
     }
 
     /**
+     * What one app has in the status bar right now, words included, to look
+     * at before reading it (Jose, 2026-10-29). Only shown: nothing is kept.
+     * Null when Android has not bound the listener.
+     */
+    static JSONArray peek(String pkg) {
+        NotificationCatcher catcher = running;
+        if (catcher == null) return null;
+        JSONArray list = new JSONArray();
+        StatusBarNotification[] all;
+        try {
+            all = catcher.getActiveNotifications();
+        } catch (Exception refused) {
+            return null;
+        }
+        if (all == null) return list;
+        for (StatusBarNotification one : all) {
+            try {
+                if (!pkg.equals(one.getPackageName())) continue;
+                Notification notification = one.getNotification();
+                if (notification == null || (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0) continue;
+                Bundle extras = notification.extras;
+                if (extras == null) continue;
+                String said = text(extras, Notification.EXTRA_TEXT);
+                String big = text(extras, Notification.EXTRA_BIG_TEXT);
+                if (big.length() > said.length()) said = big;
+                String title = text(extras, Notification.EXTRA_TITLE);
+                if (said.isEmpty() && title.isEmpty()) continue;
+                JSONObject row = new JSONObject();
+                row.put("title", title);
+                row.put("text", said);
+                row.put("postedAt", one.getPostTime());
+                list.put(row);
+            } catch (Exception broken) {
+                // One notification less.
+            }
+        }
+        return list;
+    }
+
+    /**
      * What the listener sees in the status bar right now, one line per
      * notification and never a word of what it says: the app, whether it is
      * a conversation, whether it carries words, whether they look like money,

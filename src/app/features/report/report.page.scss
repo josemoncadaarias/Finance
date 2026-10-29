@@ -294,3 +294,6 @@
 
 .title-acts { display: inline-flex; gap: 8px; align-items: center; }
 .pro-export { text-align: center; color: var(--app-mu); font-size: 13px; margin: 14px 4px 0; ion-icon { vertical-align: -2px; } }
+
+/* What a tapped month means, in a sentence (the balance's growth chart). */
+.reading .says { flex-basis: 100%; white-space: normal; line-height: 1.4; color: var(--app-mu); }

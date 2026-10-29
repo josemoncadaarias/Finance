@@ -490,15 +490,30 @@ export const yieldGrowth: Section<YieldsReportData> = data => {
   const all = growthMonths(data, end);
   if (all.length < 2) return null;
   const start = totals.get(all[0]) ?? 0;
+  const earned = earnedByMonth(data, end);
+  // Inside a sentence a Spanish month is lower case: "desde noviembre 2025".
+  const label = monthLabel(all[0], data.locale);
+  const first = data.locale.startsWith('es') ? label.charAt(0).toLowerCase() + label.slice(1) : label;
+  // Each month says why it is above or below the first: what the yields added
+  // since then, and what was put in or taken out - the rest of the change.
+  let earnedSince = 0;
   return {
     kind: 'trend',
     id: 'yields-growth',
-    title: fill(data.words['report.yields.growth'], { month: monthLabel(all[0], data.locale) }),
+    title: fill(data.words['report.yields.growth'], { month: first }),
     about: data.words['report.yields.about.growth'],
-    points: all.map(month => ({
-      label: monthLabel(month, data.locale),
-      value: money(Math.round((totals.get(month) ?? 0) - start), data.currency),
-    })),
+    points: all.map((month, at) => {
+      const change = Math.round((totals.get(month) ?? 0) - start);
+      if (at > 0) earnedSince += earned.get(month) ?? 0;
+      const moved = Math.round(change - earnedSince);
+      const show = (minor: number) => formatMoney(Math.abs(minor), data.currency);
+      const says = at === 0 ? fill(data.words['report.yields.growth.base'], { month: first })
+        : [fill(data.words[change >= 0 ? 'report.yields.growth.more' : 'report.yields.growth.less'], { amount: show(change), month: first }),
+          fill(data.words[Math.abs(moved) < 100_000 ? 'report.yields.growth.onlyEarned'
+            : moved > 0 ? 'report.yields.growth.putIn' : 'report.yields.growth.tookOut'],
+          { earned: show(Math.round(earnedSince)), moved: show(moved) })].join(' ');
+      return { label: monthLabel(month, data.locale), value: money(change, data.currency), says };
+    }),
   };
 };
 

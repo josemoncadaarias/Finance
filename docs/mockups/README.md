@@ -170,3 +170,20 @@ Jose, con cuatro capturas de Banco Índigo: "confusas o enredadas y con mucha in
 - `47o` una cuenta con un solo producto: sin filtro.
 - `47p` un mes sin movimientos.
 - `47q` un mes largo: aparece la búsqueda.
+
+## 48 - Salir de tus deudas: un plan para varias deudas (2026-10-29, propuesta)
+
+Deudas inventadas: Tarjeta Coral 4.200.000 al 28,5 % (le paga 220.000 al mes), Libre inversión 18.000.000 al 22 % (cuota 690.000), Crédito del carro 42.000.000 al 16,5 % (cuota 1.180.000), Crédito de estudio 2.500.000 al 12 % (cuota 150.000). Cifras calculadas mes a mes desde noviembre de 2026.
+
+- `48a` Deudas: una tarjeta lleva al plan, con su resultado en una frase.
+- `48b` el plan, "Pagar menos intereses": cuánto pones de más (la app sugiere lo que te sobra), cuándo quedas sin deudas, cuánto te ahorras, cuándo se acaba cada una y el orden.
+- `48c` "Cerrar una pronto": la más pequeña primero, y cuánto más de intereses cuesta.
+- `48d` el (i): cuál me conviene.
+- `48e` cambiar cuánto pones: lo que logra cada valor, lado a lado.
+- `48f` tocar una deuda: qué pagarle este mes y el botón para hacerlo.
+- `48g` un crédito de vivienda, aparte: sigue con su cuota.
+- `48h` una deuda sin tasa: se ordena con la máxima legal y se pide.
+- `48i` no te sobra nada: se dice claro y se muestra pagando solo las cuotas.
+- `48j` una sola deuda: sin orden que elegir.
+- `48k` sin deudas.
+- `48l` el asistente lleva al plan.

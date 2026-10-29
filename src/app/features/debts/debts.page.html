@@ -47,6 +47,15 @@
         }
       </section>
 
+      <!-- "Salir de tus deudas" (48a): one card, its answer in a sentence. -->
+      @if (planLine(); as line) {
+        <button type="button" class="ui-card plan-card" data-tour="debts-plan" (click)="openPlan()">
+          <app-badge shape="ci" [size]="46" builtin="flag-outline" [fixed]="accent.accent().color"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.debts.plan.title' | t }}</b><small class="wrap">{{ line }}</small></span>
+          <ion-icon class="ui-chev" name="chevron-forward"></ion-icon>
+        </button>
+      }
+
       <!-- Only what the person has (Jose, 2026-10-15, 31b): a kind with
            nothing in it is not a section, only a line saying where to add one. -->
       <!-- Tarjetas and Préstamos in the order chosen on "Personaliza tu vista" (31g). -->
