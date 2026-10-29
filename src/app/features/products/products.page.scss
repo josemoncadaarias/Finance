@@ -45,3 +45,19 @@ app-accounts-faces { margin-bottom: 12px; }
   &.missed { color: var(--app-yel); }
   &.cdt { color: #4cb8f5; }
 }
+
+/* Mockups 47a-47q: an account's page made simple. */
+.figure .say { margin: 6px 0 0; font-size: 15px; line-height: 1.4; }
+.since { margin-bottom: 12px; .two { gap: 12px; .ui-tx { flex: 1; display: flex; flex-direction: column; } } .ui-tx { display: flex; flex-direction: column; gap: 2px; } }
+.see-days { width: 100%; margin-top: 6px; }
+.back-int { margin-bottom: 10px; display: inline-flex; align-items: center; gap: 4px; }
+.to-top {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(112px + env(safe-area-inset-bottom));
+  z-index: 20; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 18px;
+  background: var(--app-s3); color: var(--app-tx); font: inherit; font-size: 13.5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  ion-icon { font-size: 16px; }
+}
+.page-menu .ui-tx, .pay-day .ui-tx { display: flex; flex-direction: column; gap: 2px; }
+.pay-day .ui-list { margin-top: 10px; }
+.pay-day .sub { color: var(--app-mu); font-size: 13.5px; margin: 2px 0 6px; }
+.ui-tx b.wrap, .ui-tx small.wrap { white-space: normal; }
