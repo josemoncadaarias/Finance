@@ -1050,12 +1050,83 @@ atajo: Instalar el atajo de {remitente}"). Native code per platform
 (Java now, Swift then) behind the same plugin names, so the TypeScript
 does not change.
 
-Jose has no Mac and no iPhone as of this date, and is not paying for now. The
+Jose has no Mac and no iPhone as of this date (2026-09-21, still so on
+2026-10-30), and is not paying for now. The
 eventual goal, when it happens, is the App Store. **So: write nothing that
 assumes Android** - no fixed file paths, no Android-only plugin. Two things
 would be left to do on the day: a separate Google OAuth client for iOS (the
 one on record is tied to the Android keystore's SHA-1) and testing a real
 backup restore against iOS's own SQLite backend.
+
+**Apple Pay at the till, as Lukas does it** (Jose, 2026-10-30, from a video
+of Lukas: a payment made with an Apple Watch at a card reader showed up in
+the app on the iPhone). Most likely the Shortcuts personal automation
+"Transaction" (iOS 17+): it runs when a card or pass of Apple Wallet is
+used, hands the shortcut the card, the merchant and the amount, and can be
+filtered by card, category or merchant - verified only in third-party
+guides (idropnews, travel-spend, finerd), not in Apple's own pages. That
+Lukas uses it is assumed (it fits its "Instalar atajo" list); that an Apple
+Watch payment fires it is assumed too (the watch's cards live in the
+iPhone's Wallet; the video suggests it). The same door here: an App Intent
+("Registrar un pago en Finance") the shortcut calls, writing the same raw
+message the Java side writes, so molds, accounts learned, "Movimiento
+detectado" and Por revisar need nothing new - never saved without the tap
+(rule 22). Its limits, to say on the screen: only Apple Pay (a physical card
+at the reader fires nothing; its bank SMS come by the SMS shortcut instead);
+forum reports of the automation not running at times and of firing for
+declined payments; and it cannot be tried in a simulator - only on a real
+iPhone with a card in Wallet. FinanceKit stays out of the plan while it is
+an entitlement granted case by case and US-only.
+
+**What can start without a Mac or an iPhone, and what cannot** (Jose,
+2026-10-30, rightly: the macOS runner above means the work need not wait
+for a Mac).
+- **Without paying anything, from a cloud session plus GitHub Actions**:
+  `npx cap add ios` and the `ios/` project in the repository; the native
+  plugins rewritten in Swift behind the same names (the list below); a
+  workflow on a `macos` runner that builds the app for the **iOS
+  Simulator** (no signing is needed for the simulator), runs it, and takes
+  screenshots of its screens with `xcrun simctl io booted screenshot`, kept
+  as artifacts - the browser checks the sessions already do, on a real iOS
+  WebView. The WebView part (nearly the whole app) is already checked in a
+  browser. macOS minutes count 10x against the free 2,000 of a private
+  repository (about 200 real minutes): build only when run by hand, as
+  `release-aab.yml`.
+- **Needs the Apple Developer Program** (US$99/year, from memory): any
+  install on a real iPhone (TestFlight), signing (certificate and profile
+  as GitHub secrets, made once on developer.apple.com - a Mac is not needed
+  for that), App Store Connect, the App Store subscription for Finance Pro,
+  App Intents running from Shortcuts on a device.
+- **Needs a real iPhone** (Jose's or a tester's through TestFlight): the
+  Shortcuts automations (Transaction, Message, Email) firing for real,
+  Apple Pay and the Apple Watch, the camera, voice, notifications ringing,
+  Google sign-in, the purchase with a sandbox tester, how the screens read
+  with Dynamic Type.
+- **A Mac is never strictly needed** while the macOS runner builds, signs
+  and uploads; it would only make debugging native code faster.
+
+**The native pieces to write in Swift** (Android's Java today, in
+`android/app/src/main/java/com/josemoncada/finance/`): `OcrPlugin` (Vision),
+`SpeechPlugin` (Speech framework), `ShortcutsPlugin` (quick actions),
+`MainActivity.followFontSize` (Dynamic Type, or CSS), `DriveAuthPlugin`
+(check first whether `@capgo/capacitor-social-login`'s iOS side already
+covers the Drive scope), and a new App Intent feeding the inbox the
+notices' plugin reads. `BankNotificationsPlugin`, `NotificationCatcher`,
+`NotificationStore`, `SmsInbox`, `SmsReceiver`, `MovementAlert*`,
+`ListenerGuard` and `ListenerKeeper` have no iOS counterpart: their plugin
+answers "not available" there, and the App Intent's inbox takes their
+place. Every other plugin in `package.json` (sqlite, filesystem, share,
+local notifications, haptics, keyboard, status bar, app, RevenueCat) has an
+official iOS side; `jeep-sqlite` is the browser's only.
+
+**A suggested order, when Jose says start**: (1) `DeviceService` and every
+Android-only entry asking it, so iOS hides what it lacks - provable in a
+browser today; (2) `ios/` and the simulator workflow with screenshots;
+(3) the Swift plugins; (4) the App Intent and the shortcuts for SMS senders
+and Apple Pay, with their own screen of steps (one shortcut per sender or
+card); (5) after the Developer Program: signing, TestFlight on a real
+iPhone, a backup restored there, then the App Store listing and Finance
+Pro's App Store products in RevenueCat.
 
 ### Non-negotiable business rules
 
