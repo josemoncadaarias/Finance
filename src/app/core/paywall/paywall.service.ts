@@ -1,13 +1,12 @@
 /**
  * "Is this paid for?" - the one question, answered in one place (rule 21).
  *
- * Google Play is behind it through RevenueCat (Android only). While the app
- * does not charge (`CHARGING` in plan.ts) everything answers unlocked, so
- * nothing changes for anybody. "Ver la app como alguien sin Pro" on the Finance Pro
- * screen (`finance.paywall.preview`) shows the app as somebody who has not
- * paid sees it, to try the locks. When Google Play (through RevenueCat) is
- * plugged in, it changes here and nowhere else; what was last read is kept,
- * so no lock is ever felt offline. A lock stops something NEW, never what is
+ * Google Play is behind it through RevenueCat (Android only). The app
+ * charges (`CHARGING` in plan.ts) wherever something can be bought: there,
+ * anybody without an active entitlement - a purchase, the trial or a grant -
+ * sees the free version; where nothing can be bought (a browser) everything
+ * is open. What the store last said is kept, so no lock is ever felt
+ * offline. A lock stops something NEW, never what is
  * on record (rule 21, 1).
  */
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -20,6 +19,7 @@ import { isAnonymous, proIdOf } from './pro-id';
 import { CHARGING, PLAN, canUse, freeLeft, isUnlocked, reportSectionFree, type Feature } from './plan';
 import { changeModeFor, lapsedOn, subscriptionOf, trialDaysOf, type EntitlementLike, type ProPlan, type Subscription } from './subscription';
 
+/** Where the old "see the free version" switch was kept; cleared on start. */
 const PREVIEW_KEY = 'finance.paywall.preview';
 /** The assistant's questions this month (`{ month, n }`). */
 const QUESTIONS_KEY = 'assistant.questions';
@@ -60,9 +60,6 @@ export class PaywallService {
   private readonly database = inject(DatabaseService);
   private readonly google = inject(GoogleAccountService);
 
-  /** Set while the free version is being looked at. */
-  readonly previewFree = signal(readPreview());
-
   /** Whether the store says Finance Pro is active: bought, or in its trial. */
   readonly entitled = signal(readEntitled().on === true);
 
@@ -75,14 +72,17 @@ export class PaywallService {
   /** When a Finance Pro no longer active ran out (34p). */
   readonly lapsed = signal<string | null>(readEntitled().lapsed ?? null);
 
-  /** Whether everything is open: paid, in the trial, or the app not charging yet. */
-  readonly unlocked = computed(() => isUnlocked(this.entitled(), CHARGING, this.previewFree()));
+  /** Whether a store is there to buy from: the app on Android with its key. */
+  readonly storeAvailable = Capacitor.getPlatform() === 'android' && !!environment.revenueCatGoogleKey;
+
+  /** Whether the app charges here: only where Finance Pro can be bought. */
+  readonly charging = signal(CHARGING && this.storeAvailable);
+
+  /** Whether everything is open: paid, in the trial, granted, or nothing to buy here. */
+  readonly unlocked = computed(() => isUnlocked(this.entitled(), this.charging()));
 
   /** The two plans with the store's prices, once read (Android only). */
   readonly plans = signal<{ monthly: StorePlan | null; yearly: StorePlan | null } | null>(null);
-
-  /** Whether a store is there to buy from: the app on Android with its key. */
-  readonly storeAvailable = Capacitor.getPlatform() === 'android' && !!environment.revenueCatGoogleKey;
 
   private connecting: Promise<boolean> | null = null;
 
@@ -98,6 +98,7 @@ export class PaywallService {
   constructor() {
     // A few seconds after opening, so nothing of it is felt at start.
     if (this.storeAvailable) setTimeout(() => void this.connect(), 4000);
+    try { localStorage.removeItem(PREVIEW_KEY); } catch { /* storage blocked: nothing kept to clear */ }
     // Signed in to Google, or into another account: the store follows it.
     effect(() => {
       const email = this.google.user()?.email ?? '';
@@ -330,13 +331,6 @@ export class PaywallService {
     return row?.n ?? 0;
   }
 
-  setPreviewFree(on: boolean): void {
-    this.previewFree.set(on);
-    try {
-      if (on) localStorage.setItem(PREVIEW_KEY, 'free');
-      else localStorage.removeItem(PREVIEW_KEY);
-    } catch { /* storage blocked: the switch holds for this opening only */ }
-  }
 }
 
 function readEntitled(): { on?: boolean; sub?: Subscription | null; everPaid?: boolean; lapsed?: string | null; code?: string | null } {
@@ -344,14 +338,6 @@ function readEntitled(): { on?: boolean; sub?: Subscription | null; everPaid?: b
     return JSON.parse(localStorage.getItem(ENTITLED_KEY) ?? '{}');
   } catch {
     return {};
-  }
-}
-
-function readPreview(): boolean {
-  try {
-    return localStorage.getItem(PREVIEW_KEY) === 'free';
-  } catch {
-    return false;
   }
 }
 

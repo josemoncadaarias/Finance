@@ -43,11 +43,9 @@ test('the trial lasts seven days', () => {
 });
 
 test('who has everything open: a purchase always; nobody else once the app charges', () => {
-  assert.equal(isUnlocked(true, true, false), true);
-  assert.equal(isUnlocked(true, false, true), true, 'a test purchase unlocks the free preview');
-  assert.equal(isUnlocked(false, false, false), true, 'before charging, everything is open');
-  assert.equal(isUnlocked(false, false, true), false, 'the preview shows the free version');
-  assert.equal(isUnlocked(false, true, false), false);
+  assert.equal(isUnlocked(true, true), true, 'a purchase, the trial or a grant opens everything');
+  assert.equal(isUnlocked(false, true), false, 'without them the free version, wherever it charges');
+  assert.equal(isUnlocked(false, false), true, 'where nothing can be bought, nothing is locked');
 });
 
 test('the assistant: 20 free questions a month (Jose, 2026-10-22)', () => {

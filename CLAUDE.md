@@ -2072,7 +2072,7 @@ backup restore against iOS's own SQLite backend.
      screen (`/pro`, `features/pro/pro.page.ts`) "Ver la app como alguien sin
      Pro" (`finance.paywall.preview`) shows the free version, to try the locks
      on the phone; the buy and restore buttons say purchases arrive with the
-     store. **Hide that switch in production when billing is plugged in.**
+     store. **That switch was removed on 2026-10-30, when charging began (below).**
      The locks, each through `allow(feature)` (counts in the database) or
      `can`/`ask`: `/tax` by a route guard (`proGuard`), creating a category
      (categories page and the movement form), the Imagen propia tab
@@ -2198,6 +2198,22 @@ backup restore against iOS's own SQLite backend.
      siempre" with no plans, no "Volver a activar" and no "Administrar en
      Google Play" (it read as a cancelled subscription), and Más says
      "Activo · para siempre". A purchase beside a grant is the one shown.
+     **The app charges, and the preview switch is gone** (Jose, 2026-10-30:
+     "la opción de ver como alguien sin pro creo que habría que quitarla").
+     `CHARGING` is true; `isUnlocked(entitled, charging)` - a purchase, the
+     trial or a grant opens everything, anybody else sees the free version.
+     It charges only where Finance Pro can be bought
+     (`PaywallService.charging` = `CHARGING && storeAvailable`): a browser
+     or a build without the store key keeps everything open, since a lock
+     there would have no way through. "Ver la app como alguien sin Pro"
+     (`previewFree`, `finance.paywall.preview`, cleared on start) and its
+     words are removed. Checked in a browser on the sample data with
+     `charging` forced on: creating a category, a cap, a goal, a loan, a
+     product, reading a statement, the report's spreadsheet and `/tax` each
+     open the Pro sheet; the report's paid sections show PRO and no figures;
+     accounts in dollars and euros, the loans and the cards stay in view
+     (rule 21, 1). Still to do before selling for real: the public address
+     in the payments profile.
      Also done that day: Japan removed from both base plans and both offers
      of `finance_pro` (174 countries; Play's Japan authorisation by
      2026-12-01 no longer applies); "Trader status" not yet offered in Play
