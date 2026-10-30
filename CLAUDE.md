@@ -6635,6 +6635,18 @@ with testers runs; the paywall is finished after them.
   question). About 3-5 ms a sentence in Node, ~50 ms once to build the
   vocabulary. Twenty-odd mistyped questions and registers in
   `read-phrase.test.mjs`.
+- **A move between products turned around brings the other way's note**
+  (Jose, 2026-10-30, two screenshots: Rappi cuenta's "Recarga bolsillo
+  principal" sometimes kept "Retiro bolsillo principal"). Read from the code
+  and reproduced in a browser: a form opened with its note carried in (a
+  habit from the "+" or the assistant) keeps that note while the ENDS are the
+  ones it came with, and the ends were compared by account only - between two
+  products of one account both ends are the same account, so turning it
+  around never counted as a change. Now turning it around or picking a
+  product by hand (`endsTouched` in `entry.component.ts`) lets the route's own
+  usual note in. Checked in a browser on the sample data: opened with
+  "Retiro", turned around "Recarga", back "Retiro" (the build before stayed on
+  "Retiro").
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
