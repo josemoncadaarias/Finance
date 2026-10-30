@@ -23,6 +23,7 @@ import {
 } from '@ionic/angular';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { IconPickerComponent } from '../../core/icons/icon-picker.component';
@@ -46,6 +47,7 @@ import {
 })
 export class ProductKindEditorComponent {
   private readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   readonly i18n = inject(I18nService);
 
   /** The one being corrected, or null while one is being made. */
@@ -121,6 +123,7 @@ export class ProductKindEditorComponent {
         id = existing.id;
       } else {
         id = await repository.create(changes);
+        await this.pro.noteCategoryCreated();
       }
 
       this.database.dataChanged();

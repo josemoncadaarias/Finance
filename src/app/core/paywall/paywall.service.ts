@@ -23,6 +23,8 @@ import { changeModeFor, lapsedOn, subscriptionOf, trialDaysOf, type EntitlementL
 const PREVIEW_KEY = 'finance.paywall.preview';
 /** The assistant's questions this month (`{ month, n }`). */
 const QUESTIONS_KEY = 'assistant.questions';
+/** How many categories the person has created (the app's own are never counted). */
+const CREATED_KEY = 'categories.created';
 /** The store's last answer, kept so no lock is felt offline (rule 21, 2). */
 const ENTITLED_KEY = 'finance.pro.entitled';
 
@@ -287,8 +289,27 @@ export class PaywallService {
       case 'goals': return count('SELECT COUNT(*) AS n FROM goals WHERE archived = 0');
       case 'noticeMovements': return this.messagesThisMonth();
       case 'assistant': return (await this.questions()).n;
+      case 'newCategories': return this.categoriesCreated();
       default: return 0;
     }
+  }
+
+  /** Categories the person created, kept in the database so a backup carries them. */
+  private async categoriesCreated(): Promise<number> {
+    const row = await this.database.driver.queryOne<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?', [CREATED_KEY]);
+    const n = Number(row?.value ?? 0);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  /** One more category created by the person, counted against the free ones. */
+  async noteCategoryCreated(): Promise<void> {
+    if (this.database.status() !== 'ready') return;
+    const n = await this.categoriesCreated();
+    await this.database.driver.run(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [CREATED_KEY, String(n + 1), new Date().toISOString()]);
   }
 
   /** The assistant's questions answered this month, kept in the database so a backup carries them. */

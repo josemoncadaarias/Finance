@@ -189,8 +189,8 @@ export class CategoriesPage {
    * three short answers and is asked far less often than a category is
    * looked for.
    */
-  startNew(): void {
-    if (!this.pro.can('newCategories')) { this.pro.ask('newCategories'); return; }
+  async startNew(): Promise<void> {
+    if (!(await this.pro.allow('newCategories'))) return;
     this.choosingList.set(true);
   }
 

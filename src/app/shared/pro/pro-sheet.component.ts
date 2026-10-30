@@ -23,8 +23,8 @@ import { BadgeComponent } from '../ui/badge.component';
           <div class="ui-sheet-body lock">
             <div class="grab"></div>
             <div class="face"><app-badge shape="ci" [size]="58" [builtin]="face().icon" [fixed]="face().color"></app-badge></div>
-            <b class="title">{{ $any('pro.f.' + f + '.title') | t }}</b>
-            <p class="ui-sub">{{ $any('pro.f.' + f + '.text') | t }}</p>
+            <b class="title">{{ $any('pro.f.' + f + '.title') | t:{ free: free() } }}</b>
+            <p class="ui-sub">{{ $any('pro.f.' + f + '.text') | t:{ free: free() } }}</p>
             @if (paidOnly()) { <p class="part">{{ 'pro.partOf' | t:{ days: days } }}</p> }
             <button type="button" class="ui-btn" (click)="see()">{{ 'pro.see' | t }}</button>
             <button type="button" class="later" (click)="pro.asking.set(null)">{{ 'pro.notNow' | t }}</button>
@@ -52,6 +52,8 @@ export class ProSheetComponent {
   readonly face = computed(() => FEATURE_FACE[this.pro.asking() ?? 'tax']);
   /** A feature with no free allowance says it is part of Pro; a used allowance says so in its title. */
   readonly paidOnly = computed(() => PLAN[this.pro.asking() ?? 'tax'].free === 0);
+  /** How many are free, for a sheet that names it ("tus 5 categorías gratis"). */
+  readonly free = computed(() => PLAN[this.pro.asking() ?? 'tax'].free);
 
   see(): void {
     this.pro.asking.set(null);

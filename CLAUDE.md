@@ -2214,6 +2214,13 @@ backup restore against iOS's own SQLite backend.
      accounts in dollars and euros, the loans and the cards stay in view
      (rule 21, 1). Still to do before selling for real: the public address
      in the payments profile.
+     **Five categories of one's own are free** (Jose, 2026-10-30: "me parece
+     demasiado cobrar por eso"). `PLAN.newCategories` is 5, ever; counted as
+     the person creates them (`categories.created` in `settings`, travels in
+     the backup; `noteCategoryCreated` from the category editor and the
+     product-kind editor), never the ones the app brings or makes itself
+     (Intereses, Seguros). Past five, "Ya creaste tus 5 categorías gratis";
+     the ones created stay. Checked in a browser with charging forced on.
      Also done that day: Japan removed from both base plans and both offers
      of `finance_pro` (174 countries; Play's Japan authorisation by
      2026-12-01 no longer applies); "Trader status" not yet offered in Play

@@ -20,12 +20,16 @@ test('the free allowances Jose decided', () => {
   assert.equal(canUse('noticeMovements', 14, false), true);
   assert.equal(canUse('noticeMovements', 15, false), false);
   assert.equal(PLAN.noticeMovements.per, 'month');
-  for (const f of ['currencies', 'tax', 'newCategories', 'ownImages', 'reportExport', 'reportFull'])
+  for (const f of ['currencies', 'tax', 'ownImages', 'reportExport', 'reportFull'])
     assert.equal(canUse(f, 0, false), false, f);
   for (const f of ['loans', 'limits', 'goals']) {
     assert.equal(canUse(f, 0, false), true, f);
     assert.equal(canUse(f, 1, false), false, f);
   }
+  // Jose, 2026-10-30: a few categories of one's own are free.
+  assert.equal(canUse('newCategories', 4, false), true);
+  assert.equal(canUse('newCategories', 5, false), false);
+  assert.equal(PLAN.newCategories.per, 'ever');
   assert.equal(freeLeft('noticeMovements', 12), 3);
   assert.equal(freeLeft('noticeMovements', 20), 0);
 });

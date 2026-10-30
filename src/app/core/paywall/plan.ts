@@ -48,7 +48,9 @@ export const PLAN: Record<Feature, Allowance> = {
   reportFull: { free: 0, per: 'ever' },
   reportExport: { free: 0, per: 'ever' },
   tax: { free: 0, per: 'ever' },
-  newCategories: { free: 0, per: 'ever' },
+  // Jose, 2026-10-30: a few free ("me parece demasiado cobrar por eso").
+  // Counted as the person creates them, never the ones the app brings.
+  newCategories: { free: 5, per: 'ever' },
   ownImages: { free: 0, per: 'ever' },
   // Jose, 2026-10-22: some free, the rest paid. Nothing is charged per use
   // (no AI behind it), so the allowance is generous: enough to make it a
