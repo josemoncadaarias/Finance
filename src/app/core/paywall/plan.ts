@@ -60,20 +60,21 @@ export const PLAN: Record<Feature, Allowance> = {
 export const FREE_REPORT_SECTIONS: readonly string[] = ['headline', 'versus', 'categories', 'biggest'];
 
 /**
- * Whether the app charges yet. While false, everybody has everything open
- * (the store sells nothing until Jose says so); the preview switch still
- * shows the free version, and a purchase made to test it unlocks it.
- * Turning it on is this one line.
+ * Whether the app charges. On since 2026-10-30 (Jose, once his own Finance
+ * Pro for good was granted): the free version is what anybody without Pro
+ * sees, and the "Ver la app como alguien sin Pro" switch that let it be
+ * tried is gone. Turning it off again is this one line.
  */
-export const CHARGING = false;
+export const CHARGING = true;
 
 /**
- * Whether everything is open: a purchase or the trial (an active
- * entitlement in the store), or - while the app does not charge - anybody
- * not looking at the free version on purpose.
+ * Whether everything is open: a purchase, the trial or a grant (an active
+ * entitlement in the store), or the app not charging where it is running -
+ * not at all, or where nothing can be bought (a browser, no store key): a
+ * lock there would be a door with no way through.
  */
-export function isUnlocked(entitled: boolean, charging: boolean, previewFree: boolean): boolean {
-  return entitled || (!charging && !previewFree);
+export function isUnlocked(entitled: boolean, charging: boolean): boolean {
+  return entitled || !charging;
 }
 
 /** Days with everything open after installing. */

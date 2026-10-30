@@ -137,13 +137,6 @@ import { copyText } from '../../core/feedback/feedback.service';
           </div>
         }
 
-        <div class="ui-list preview">
-          <div class="ui-row plain">
-            <span class="ui-tx"><b class="wrap">{{ 'pro.preview' | t }}</b><small class="wrap">{{ 'pro.preview.hint' | t }}</small></span>
-            <button type="button" class="ui-switch" [class.on]="pro.previewFree()" role="switch" [attr.aria-checked]="pro.previewFree()"
-                    [attr.aria-label]="'pro.preview' | t" (click)="pro.setPreviewFree(!pro.previewFree())"></button>
-          </div>
-        </div>
         <div class="ui-page-end"></div>
       </div>
     </ion-content>
@@ -176,7 +169,6 @@ import { copyText } from '../../core/feedback/feedback.service';
     .private ion-icon { vertical-align: -2px; }
     .link { display: block; width: 100%; margin-top: 10px; padding: 10px; border: 0; background: none;
       color: var(--app-pr); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
-    .preview { margin-top: 28px; }
     .status { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgba(52, 201, 139, 0.45); }
     .status.warn { border-color: rgba(246, 185, 59, 0.5); }
     .status.lapsed { margin-bottom: 16px; }
