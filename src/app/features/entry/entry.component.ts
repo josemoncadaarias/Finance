@@ -1380,6 +1380,15 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** The accounts the form opened on, to tell when the person chose others. */
   private startEnds: string | null = null;
+  /**
+   * Set once the person turns the transfer around or picks a product
+   * themselves (Jose, 2026-10-30: a move between two products of one
+   * account, opened with its note carried in - a habit, the assistant -
+   * and turned around kept the note of the way it came, "Retiro" for a
+   * "Recarga": both ends are the same account, so comparing accounts saw no
+   * change).
+   */
+  private endsTouched = false;
 
   private endsNow(): string {
     return `${this.accountId()}>${this.isTransfer() ? this.toAccountId() : ''}`;
@@ -1391,7 +1400,7 @@ export class EntryComponent implements OnInit, OnDestroy {
     // the accounts are the ones it came with; another account chosen brings
     // that account's usual note (Jose, 2026-10-22), when it has one.
     const carried = !!this.request().start?.note;
-    const moved = carried && this.startEnds !== null && this.endsNow() !== this.startEnds;
+    const moved = carried && (this.endsTouched || (this.startEnds !== null && this.endsNow() !== this.startEnds));
     if (this.isEditing() || (carried && !moved) || this.noteIsTheirs) return;
     if (this.database.status() !== 'ready') return;
     const asked = ++this.usualNoteAsked;
@@ -2017,6 +2026,7 @@ export class EntryComponent implements OnInit, OnDestroy {
   }
 
   swapAccounts(): void {
+    this.endsTouched = true;
     this.forgetFilledAll();
     const from = this.accountId();
     this.accountId.set(this.toAccountId());
@@ -2262,6 +2272,7 @@ export class EntryComponent implements OnInit, OnDestroy {
 
   /** Answers the second step and closes the sheet. */
   chooseProduct(id: number): void {
+    this.endsTouched = true;
     const toSide = this.productSide() === 'to';
     if (toSide) this.toProductId.set(id);
     else this.productId.set(id);
