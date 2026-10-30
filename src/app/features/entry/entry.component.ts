@@ -1812,8 +1812,8 @@ export class EntryComponent implements OnInit, OnDestroy {
     });
   }
 
-  newCategory(): void {
-    if (!this.pro.can('newCategories')) { this.pro.ask('newCategories'); return; }
+  async newCategory(): Promise<void> {
+    if (!(await this.pro.allow('newCategories'))) return;
     this.editingCategory.set({ category: null, kind: this.kind() === 'expense' ? 'expense' : 'income' });
   }
 

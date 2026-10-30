@@ -17,6 +17,7 @@ import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
 import { DatabaseService } from '../../core/database/database.service';
+import { PaywallService } from '../../core/paywall/paywall.service';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { changeCategoryKind, kindChangeReach, KindTaken } from '../../core/categories/change-kind';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
@@ -35,6 +36,7 @@ import type { CategoryKind, CategoryRow } from '../../core/database/types';
 })
 export class CategoryEditorComponent implements OnInit {
   private readonly database = inject(DatabaseService);
+  private readonly pro = inject(PaywallService);
   readonly i18n = inject(I18nService);
 
   /** The category being corrected, or null when creating one. */
@@ -182,6 +184,7 @@ export class CategoryEditorComponent implements OnInit {
         await categories.update(category.id, { ...shared, archived: this.archived() });
       } else {
         await categories.create({ ...shared, kind: this.kind() });
+        await this.pro.noteCategoryCreated();
       }
 
       this.database.dataChanged();
