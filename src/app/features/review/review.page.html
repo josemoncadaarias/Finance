@@ -112,14 +112,16 @@
         }
 
         <!-- Every group folded: one row each, opened only when wanted. -->
+        @let needOpen = isPartOpen(batch, 'need');
+        @let readyOpen = isPartOpen(batch, 'ready');
         @if (needIn(batch).length > 0) {
           <section class="ui-list part" data-tour="review-need">
             <div class="ui-row head" (click)="togglePart(batch, 'need')" (contextmenu)="pressedMany($event, needIn(batch))">
               <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
               <span class="ui-tx"><b class="wrap">{{ 'ui.rev2.need.title' | t }}</b><small>{{ countOf(needIn(batch).length) }}</small></span>
-              <ion-icon class="ui-chev" [name]="isPartOpen(batch, 'need') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              <ion-icon class="ui-chev" [name]="needOpen ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
             </div>
-            @if (isPartOpen(batch, 'need')) {
+            @if (needOpen) {
               @for (day of partDays(batch, 'need'); track day.key; let i = $index) { <ng-container *ngTemplateOutlet="dayRows; context: { $implicit: day, index: i }"></ng-container> }
             }
           </section>
@@ -129,9 +131,9 @@
             <div class="ui-row head" (click)="togglePart(batch, 'ready')" (contextmenu)="pressedMany($event, readyIn(batch))">
               <app-badge [size]="38" builtin="checkmark" fixed="#34c98b"></app-badge>
               <span class="ui-tx"><b class="wrap">{{ 'ui.rev2.ready.title' | t }}</b><small>{{ countOf(readyIn(batch).length) }}</small></span>
-              <ion-icon class="ui-chev" [name]="isPartOpen(batch, 'ready') ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+              <ion-icon class="ui-chev" [name]="readyOpen ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
             </div>
-            @if (isPartOpen(batch, 'ready')) {
+            @if (readyOpen) {
               @for (day of partDays(batch, 'ready'); track day.key; let i = $index) { <ng-container *ngTemplateOutlet="dayRows; context: { $implicit: day, index: i }"></ng-container> }
             }
           </section>
