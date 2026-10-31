@@ -6462,6 +6462,15 @@ with testers runs; the paywall is finished after them.
   algo". **Minimalist, in Jose's sense: group everything that can be
   grouped, so the first screen says little, and each thing opens when
   wanted.** Review tour step 3 `since: 11`.
+  **No heading per day either** (Jose, the same day: "le quitamos una capa
+  de complejidad"): inside a group the rows are one list, newest first (each
+  row already says its day), or the biggest first when "Por monto" is
+  chosen; the funnel's sheet adds "Agrupar: Sin agrupar / Por categoría"
+  (`groupBy`), and only then each category is a folding heading with its
+  count and total, the largest first. **Rule: order a list instead of
+  grouping it; grouping is an option the person turns on.** Review tour
+  step 3 `since: 12`. Checked in a browser on the sample data (no headings,
+  by date, by amount, by category, choosing all and "Ver cuáles").
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,

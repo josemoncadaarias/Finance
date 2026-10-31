@@ -1715,20 +1715,27 @@ export class ReviewPage {
   }
 
   private daysOfPart(batch: Batch, part: string, lines: Line[]): Day[] {
-    const byAmount = this.sortBy() === 'amount';
-    const days = new Map<string, Day>();
+    // One list in order, no headings (Jose, 2026-10-31: a heading per day was
+    // one more layer to read); grouped by category only when asked for.
+    const byCategory = this.groupBy() === 'category';
+    const groups = new Map<string, Day>();
     for (const line of lines) {
-      const key = `${batch.key}|${part}|${byAmount ? 'all' : line.proposal.occurred_on ?? ''}`;
-      const day = days.get(key) ?? {
-        key, title: byAmount ? '' : this.longDay(line.proposal.occurred_on),
+      const category = byCategory ? this.categoryOf(line) : null;
+      const key = `${batch.key}|${part}|${byCategory ? `c${category?.id ?? 0}` : 'all'}`;
+      const group = groups.get(key) ?? {
+        key, title: byCategory ? category?.name ?? this.i18n.t('ui.review.group.noCategory') : '',
         lines: [], totalMinor: 0, currency: line.account?.currency_code ?? 'COP',
       };
-      day.lines.push(line);
-      day.totalMinor += line.proposal.amount_minor ?? 0;
-      days.set(key, day);
+      group.lines.push(line);
+      group.totalMinor += line.proposal.amount_minor ?? 0;
+      groups.set(key, group);
     }
-    return [...days.values()];
+    const list = [...groups.values()];
+    return byCategory ? list.sort((one, other) => Math.abs(other.totalMinor) - Math.abs(one.totalMinor)) : list;
   }
+
+  /** Grouping inside "Te falta elegir algo" and "Listos": none, or by category. */
+  readonly groupBy = signal<'none' | 'category'>('none');
 
   /** The search field, shown from its button (Jose, 2026-10-31: little on the first screen). */
   readonly searching = signal(false);
@@ -1787,7 +1794,9 @@ export class ReviewPage {
     this.knownOpen.set(known);
   }
 
+  /** Newest first, unless the person asked for the biggest first. */
   private byDay(lines: Line[]): Line[] {
+    if (this.sortBy() === 'amount') return lines;
     return [...lines].sort((one, other) => (other.proposal.occurred_on ?? '').localeCompare(one.proposal.occurred_on ?? ''));
   }
 
