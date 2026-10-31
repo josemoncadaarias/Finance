@@ -137,7 +137,8 @@
 .group-body .ui-row.line { cursor: pointer; }
 .group-body .head .total { font-weight: 600; font-size: 14px; white-space: nowrap; }
 .group-hint { margin: 2px 4px 0; text-align: center; }
-.group-answer { position: sticky; bottom: 0; }
+.group-answer { position: sticky; bottom: 0; flex-shrink: 0; min-height: 52px; font-size: 15px; box-shadow: 0 -10px 18px var(--app-bg, transparent); }
+.group-body > * { flex-shrink: 0; }
 
 /* Finance Pro: the month's messages (34d). */
 .pro-month { padding: 14px 16px; margin-bottom: 12px;

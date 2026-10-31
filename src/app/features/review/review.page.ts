@@ -429,7 +429,7 @@ export class ReviewPage {
 
   /** The group whose movements are on show, or null. */
   readonly group = signal<Repeated | null>(null);
-  readonly groupView = signal<'day' | 'category'>('day');
+  readonly groupView = signal<'none' | 'category'>('none');
 
   readonly groupLines = computed(() => {
     const group = this.group();
@@ -444,27 +444,27 @@ export class ReviewPage {
     return this.i18n.t('ui.review.group.total', { count: lines.length, total: `${total > 0 ? '+' : ''}${this.money(total, currency)}` });
   });
 
-  /** Its movements by day, newest first, or by category, largest first. */
+  /** Its movements in one list, newest first; or, when asked, by category, largest first. */
   readonly groupSections = computed(() => {
-    const byCategory = this.groupView() === 'category';
+    const newestFirst = [...this.groupLines()].sort((a, b) => (b.proposal.occurred_on ?? '').localeCompare(a.proposal.occurred_on ?? ''));
+    if (this.groupView() === 'none') {
+      const totalMinor = newestFirst.reduce((sum, line) => sum + (line.proposal.amount_minor ?? 0), 0);
+      return [{ key: 'all', title: '', category: null as CategoryRow | null, lines: newestFirst, totalMinor }];
+    }
     const sections = new Map<string, { key: string; title: string; category: CategoryRow | null; lines: Line[]; totalMinor: number }>();
-    for (const line of this.groupLines()) {
+    for (const line of newestFirst) {
       const category = this.categoryOf(line);
-      const key = byCategory ? `c${category?.id ?? 0}` : line.proposal.occurred_on ?? '';
-      const title = byCategory ? category?.name ?? this.i18n.t('ui.review.group.noCategory') : this.longDay(line.proposal.occurred_on);
-      const found = sections.get(key) ?? { key, title, category: byCategory ? category : null, lines: [], totalMinor: 0 };
+      const key = `c${category?.id ?? 0}`;
+      const found = sections.get(key) ?? { key, title: category?.name ?? this.i18n.t('ui.review.group.noCategory'), category, lines: [], totalMinor: 0 };
       found.lines.push(line);
       found.totalMinor += line.proposal.amount_minor ?? 0;
       sections.set(key, found);
     }
-    const list = [...sections.values()];
-    return byCategory
-      ? list.sort((a, b) => Math.abs(b.totalMinor) - Math.abs(a.totalMinor))
-      : list.sort((a, b) => b.key.localeCompare(a.key));
+    return [...sections.values()].sort((a, b) => Math.abs(b.totalMinor) - Math.abs(a.totalMinor));
   });
 
   openGroup(shop: Repeated): void {
-    this.groupView.set('day');
+    this.groupView.set('none');
     this.group.set(shop);
   }
 

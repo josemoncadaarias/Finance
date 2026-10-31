@@ -467,11 +467,12 @@
           </span>
         </div>
         <div class="ui-seg group-view">
-          <button type="button" [class.on]="groupView() === 'day'" (click)="groupView.set('day')">{{ 'ui.review.group.byDay' | t }}</button>
-          <button type="button" [class.on]="groupView() === 'category'" (click)="groupView.set('category')">{{ 'ui.review.group.byCategory' | t }}</button>
+          <button type="button" [class.on]="groupView() === 'none'" (click)="groupView.set('none')">{{ 'ui.rev2.groupBy.none' | t }}</button>
+          <button type="button" [class.on]="groupView() === 'category'" (click)="groupView.set('category')">{{ 'ui.rev2.groupBy.category' | t }}</button>
         </div>
         @for (section of groupSections(); track section.key) {
           <section class="ui-list ui-group">
+            @if (section.title) {
             <div class="ui-row head">
               @if (section.category; as category) {
                 <app-badge [size]="30" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
@@ -479,6 +480,7 @@
               <span class="ui-tx"><b class="ui-one">{{ section.title }}</b><small>{{ countOf(section.lines.length) }}</small></span>
               <span class="total" [class.ui-r]="section.totalMinor < 0" [class.ui-g]="section.totalMinor > 0">{{ section.totalMinor > 0 ? '+' : '' }}{{ money(section.totalMinor, section.lines[0]?.account?.currency_code) }}</span>
             </div>
+            }
             @for (line of section.lines; track line.proposal.id) {
               <div class="ui-row line" role="button" (click)="openFromGroup(line)">
                 @if (categoryOf(line); as category) {
@@ -488,7 +490,7 @@
                 }
                 <span class="ui-tx">
                   <b class="ui-one">{{ line.proposal.description || ('review.noDescription' | t) }}</b>
-                  <small class="ui-one">{{ groupView() === 'day' ? (categoryOf(line)?.name ?? ('ui.review.group.noCategory' | t)) : longDay(line.proposal.occurred_on) }}</small>
+                  <small class="ui-one">{{ groupView() === 'none' ? (categoryOf(line)?.name ?? ('ui.review.group.noCategory' | t)) + ' · ' + shortDay(line.proposal.occurred_on) : longDay(line.proposal.occurred_on) }}</small>
                 </span>
                 <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
                   {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
