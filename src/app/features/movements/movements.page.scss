@@ -70,8 +70,11 @@
 .ui-period { margin-top: 10px; }
 
 .figures {
-  .top { display: flex; align-items: center; gap: 8px; min-height: 40px; }
-  .top .ui-lab { flex: 1; min-width: 0; }
+  /* Label and figure beside the buttons when the figure fits; otherwise the
+     row wraps and the buttons stay on top, on the right (wrap-reverse). */
+  .top { display: flex; flex-wrap: wrap-reverse; align-items: center; gap: 4px 8px; }
+  .top .what { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+  .top .quick { margin-left: auto; }
   .ui-big { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; small { font-size: 14px; color: var(--app-mu); } }
   .ui-big.s { font-size: 27px; }
   .ui-big.xs { font-size: 23px; }
@@ -108,6 +111,9 @@
    only fits one order (Jose, 2026-10-15: cards touching after reordering). */
 .home-slots { display: flex; flex-direction: column; gap: 12px; }
 .home-slots > * { margin-top: 0; margin-bottom: 0; }
+/* A block with nothing to show today (Puedes gastar hoy on a card, the first
+   steps once done) takes no gap either (Jose, 2026-10-31: a wide strip). */
+.home-slots > :empty { display: none; }
 .faces-slot > :first-child { margin-top: 0; }
 .faces-slot:empty { display: none; }
 

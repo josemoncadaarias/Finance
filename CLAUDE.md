@@ -6471,6 +6471,19 @@ with testers runs; the paywall is finished after them.
   grouping it; grouping is an option the person turns on.** Review tour
   step 3 `since: 12`. Checked in a browser on the sample data (no headings,
   by date, by amount, by category, choosing all and "Ver cuáles").
+- **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:
+  "DEBES HOY" alone on a row beside the buttons, the figure under it, and a
+  wide strip before Gráfico / Movimientos). The label and the figure are one
+  column beside the buttons (`.top .what` in `movements.page.scss`); the row
+  wraps in reverse (`flex-wrap: wrap-reverse`), so when the figure does not
+  fit beside the buttons they stay on top, on the right, and the figure keeps
+  the whole width under them, read whole as before. And a block of Inicio
+  with nothing to show (`app-safe-today` on a card, `app-first-steps` once
+  done) takes no gap (`.home-slots > :empty`): the strip was two empty gaps
+  of 12px. Measured in a browser on the sample data: at 412 px a card's
+  label, figure and buttons share the top (the card 79px shorter), at 360 px
+  "1.209.480,00" wraps under the buttons as before; 12px from the card to the
+  selector.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,

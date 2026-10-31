@@ -89,10 +89,22 @@
     <!-- How much there is today, and what the period did to it. -->
     @if (store.standing(); as standing) {
       <section class="ui-hero figures" data-tour="hero">
-        <!-- The label and the buttons share the top line; the figure has the
-             whole width under them, so it is read whole (Jose, 2026-10-15). -->
+        @let card = standing.kind === 'credit';
+        <!-- The label and the figure beside the buttons when the figure fits
+             there (Jose, 2026-10-31: the label sat alone on a row of its own);
+             a long figure drops under the buttons and keeps the whole width,
+             so it is still read whole (2026-10-15). -->
         <div class="top">
-          <div class="ui-lab">{{ standing.label }}</div>
+          <div class="what">
+            <div class="ui-lab">{{ standing.label }}</div>
+            <div class="ui-big" [ngClass]="bigSize(standing.amountMinor)"
+                 [class.ui-y]="card && standing.amountMinor < 0"
+                 [class.ui-g]="card && standing.amountMinor > 0"
+                 [class.ui-r]="!card && standing.amountMinor < 0">
+              @if (standing.kind === 'net-worth') { $ }{{ (card && standing.amountMinor < 0 ? -standing.amountMinor : standing.amountMinor) | money:standing.currency }}
+              @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
+            </div>
+          </div>
           <!-- One account's quick buttons: first where it leads - a card's
                debt, an earning account's products and yields - then editing
                it (Jose, 2026-10-01). -->
@@ -120,14 +132,6 @@
               }
           }
           </span>
-        </div>
-        @let card = standing.kind === 'credit';
-        <div class="ui-big" [ngClass]="bigSize(standing.amountMinor)"
-             [class.ui-y]="card && standing.amountMinor < 0"
-             [class.ui-g]="card && standing.amountMinor > 0"
-             [class.ui-r]="!card && standing.amountMinor < 0">
-          @if (standing.kind === 'net-worth') { $ }{{ (card && standing.amountMinor < 0 ? -standing.amountMinor : standing.amountMinor) | money:standing.currency }}
-          @if (filter.allAccounts() && standing.currency !== 'COP') { <small>{{ standing.currency }}</small> }
         </div>
 
         <!-- A card: how much of its limit is used, what is left and the limit,
