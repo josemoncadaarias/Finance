@@ -6813,6 +6813,11 @@ with testers runs; the paywall is finished after them.
   automatic Drive copy) now says the person chooses. English moved where
   the meaning did. The patterns are in the app-copy skill (5b). Placeholders
   checked against English; checked in a browser on the sample data.
+  **A second sweep the same day** (Jose: "Es la última" - ¿la última qué?):
+  about 145 more, found by scripts that list strings opening on a pronoun
+  or a bare verb, sentences with no noun, and opening clauses without their
+  comma; every string must read alone, without leaning on what the screen
+  shows beside it (skill 5b, "second sweep").
 - **A move between products turned around brings the other way's note**
   (Jose, 2026-10-30, two screenshots: Rappi cuenta's "Recarga bolsillo
   principal" sometimes kept "Retiro bolsillo principal"). Read from the code
