@@ -226,7 +226,7 @@
               @case ('rich') {
                 <!-- The whole picture's answers (40b-40j): plain pieces, kept in the history. -->
                 @if (card.band) {
-                  <div class="verdict" [class]="'verdict ' + card.tone"><ion-icon name="alert-circle-outline"></ion-icon><b>{{ card.band }}</b></div>
+                  <div class="verdict" [class]="'verdict ' + card.tone"><ion-icon [name]="bandIcon(card.tone)"></ion-icon><b>{{ card.band }}</b></div>
                 }
                 @for (b of card.blocks; track $index) {
                   <ng-container *ngTemplateOutlet="richBlock; context: { $implicit: b }"></ng-container>

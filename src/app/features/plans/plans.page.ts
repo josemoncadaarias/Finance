@@ -55,6 +55,16 @@ export class PlansPage {
   readonly editingGoal = signal<number | null>(
     ['goal', 'yes', '1', 'true'].includes(this.route.snapshot.queryParamMap.get('new') ?? '') ? 0 : null);
   readonly newGoalKind = signal<GoalKind>('custom');
+  /** A goal asked for by the assistant (52f): its name and figure. */
+  readonly startName = signal(this.route.snapshot.queryParamMap.get('name') ?? '');
+  readonly startAmount = signal(Number(this.route.snapshot.queryParamMap.get('amount') ?? 0) || 0);
+
+  /** The goal editor closed: what the assistant asked for is used once. */
+  goalDone(): void {
+    this.editingGoal.set(null);
+    this.startName.set('');
+    this.startAmount.set(0);
+  }
   readonly showReached = signal(false);
   readonly avisos = signal(false);
   /** The editor: null closed, 0 a new limit, otherwise that limit. */

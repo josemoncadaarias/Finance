@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1159 on 2026-10-31, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1166 on 2026-10-31, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5970,10 +5970,28 @@ with testers runs; the paywall is finished after them.
   does NOT change**: "¿me alcanza?" and "¿cómo voy?" still weigh the money
   held (`freeMoney`) - Jose, the same day: a big purchase is weighed against
   the free wealth, but never all of it ("no te puedes quedar sin patrimonio
-  libre"); the rule for how much of it is not decided yet. Home tour step
+  libre"); decided and built the same day, below. Home tour step
   `since: 19`. **Every sheet's title now has its own row under Cancelar**
   (`margin-top: 30px !important` in global.scss; Jose: "Cancelar" stuck to
   the title). Checked in a browser on the sample data.
+- **"¿Me alcanza?" for a big purchase never counts all the savings**
+  (Jose, 2026-10-31, mockups `52a`-`52g`, approved as drawn: "constrúyelo
+  así"). A purchase that fits in what is left this month is answered from
+  the month (`spendRoom`, `affordMonth` in `answers.ts`); a bigger one by
+  `bigRoom` (`core/assistant/big-purchase.ts`, pure, `big-purchase.test.mjs`):
+  what the accounts hold, less what the goals keep and this month's
+  payments, less a cushion of `CUSHION_MONTHS` (6) months of normal spending
+  (average of the last 3 whole months, every account) that an emergency fund
+  already covers in part or whole (`GoalMoney.emergency`), less half
+  (`GOALS_SHARE`) of the rest for the goals in progress, never more than
+  they lack. `weighBig`: yes; "most" (amber) past `MOST_SHARE` = 70 % of it;
+  no (red) with what is missing and "Crear una meta de {amount}", which opens
+  the goal editor with the name and figure (`/plans?face=goals&new=goal&
+  name=&amount=`, `startName`/`startAmount`, used once). Each answer folds
+  "Ver cómo se calcula" with every line. A category's cap passed is still
+  said. The answer from one account (39j) is unchanged. The band's icon
+  follows its tone (`bandIcon`). Assistant tour step `since: 10`. Checked in
+  a browser on the sample data (tenis, viaje, carro, apartamento, the goal).
 - **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
   movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
   receipt's photo is part 2). On Android, the statement pickers

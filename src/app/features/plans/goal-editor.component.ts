@@ -41,6 +41,9 @@ export class GoalEditorComponent {
   readonly goalId = input<number | null>(null);
   /** A new goal's kind: an ordinary one or an emergency fund. */
   readonly kind = input<GoalKind>('custom');
+  /** A new goal started from the assistant's "Crear una meta de X" (52f). */
+  readonly startName = input('');
+  readonly startAmount = input(0);
   readonly done = output<void>();
 
   readonly name = signal('');
@@ -156,6 +159,10 @@ export class GoalEditorComponent {
             this.name.set(this.i18n.t('goals.emergency.name'));
             this.face.set(GOAL_FACES[1]);
             this.setMonths(6);
+          }
+          else {
+            if (this.startName()) this.name.set(this.startName());
+            if (this.startAmount() > 0) this.amount.set(AmountBuffer.from(this.startAmount()));
           }
         }
         void this.loadSpots();

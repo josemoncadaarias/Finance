@@ -24,6 +24,8 @@ import type { GoalView } from '../../core/goals/goals.service';
 import type { DebtView, PeriodPicture, Picture, RecurringPicture, YieldsPicture } from '../../core/assistant/assistant.service';
 import { advise, interestThisMonth, monthAfter, payMore, type DebtIn } from '../../core/assistant/debts-advice';
 import { perDay } from '../../core/assistant/free-money';
+import { perDayOf, type SpendRoom } from '../../core/assistant/spend-room';
+import { CUSHION_MONTHS, weighBig, type BigRoom } from '../../core/assistant/big-purchase';
 import { EA_SCALE } from '../../core/loans/schedule';
 import type { Movement } from '../../features/movements/group-movements';
 import { everyMonths, monthsBetween, nextInMonths, type NoteMatches, type NoteRow } from '../../core/assistant/note-search';
@@ -1048,5 +1050,90 @@ export function openPlan(s: Speech, kind: 'goal' | 'cap', found: { id: number; n
     said: { key: kind === 'goal' ? 'ai.openPlan.whichGoal' : 'ai.openPlan.whichCap', values: {} },
     card: card([], [list]), next: [],
     ask: all.slice(0, 4).map(p => s.t(kind === 'goal' ? 'ai.openPlan.askGoal' : 'ai.openPlan.askCap', { name: p.name })),
+  };
+}
+
+// ---- "¿Me alcanza?" from the month or for a big purchase (52a-52g) -----------
+
+/** What a cap would say about a spending: its name and how far it would go past. */
+export interface CapPass {
+  name: string;
+  overMinor: number;
+}
+
+/** A figure never leaves its "$" alone at the end of a line. */
+const whole = (t: string) => t.replace(/\$ /g, '$\u00a0');
+
+/** "Los tenis" from "tenis"; "La compra" with no thing said. */
+function thingLabel(s: Speech, thing: string | null): string {
+  const t = (thing ?? '').trim();
+  return t ? t[0].toUpperCase() + t.slice(1) : s.t('ai.big.thing');
+}
+
+function capNote(s: Speech, cap: CapPass | null): RichBlock[] {
+  return cap && cap.overMinor > 0 ? [{ note: whole(s.t('ai.big.capOver', { cap: cap.name, over: s.pesos(cap.overMinor) })) }] : [];
+}
+
+/** A purchase that fits in what is left this month (52a). */
+export function affordMonth(s: Speech, amountMinor: number, thing: string | null, room: SpendRoom, cap: CapPass | null): Answer {
+  const left = room.leftMinor - amountMinor;
+  const over = cap !== null && cap.overMinor > 0;
+  const blocks: RichBlock[] = [
+    { note: s.t('ai.big.month.from') },
+    { line: { k: s.t('ai.big.month.left'), v: s.pesos(room.leftMinor) } },
+    { line: { k: thingLabel(s, thing), v: `−${s.pesos(amountMinor)}`, cls: 'ui-r' } },
+    { line: { k: s.t('ai.big.month.after'), v: s.pesos(left), cls: 'ui-g' } },
+    { line: { k: s.t(room.daysLeft === 1 ? 'today.perDay.one' : 'today.perDay', { count: room.daysLeft }), v: s.pesos(perDayOf(left, room.daysLeft)) } },
+    ...capNote(s, cap),
+  ];
+  return {
+    said: { key: over ? 'ai.big.month.yesButCap' : 'ai.big.month.yes', values: { cap: cap?.name ?? '' } },
+    card: card(blocks, [], over ? 'warn' : 'ok', s.t(over ? 'ai.big.band.monthCap' : 'ai.big.band.month', { cap: cap?.name ?? '' })),
+    next: ['ai.next.howAmI'],
+  };
+}
+
+/** A purchase bigger than the month: weighed against part of the savings (52b-52f). */
+export function affordBig(s: Speech, amountMinor: number, thing: string | null, big: BigRoom, cap: CapPass | null): Answer {
+  const w = weighBig(big.roomMinor, amountMinor);
+  const label = thingLabel(s, thing);
+  const blocks: RichBlock[] = [{ line: { k: s.t('ai.big.room'), v: s.pesos(big.roomMinor) } }];
+  if (w.verdict === 'no') {
+    blocks.push({ line: { k: label, v: s.pesos(amountMinor) } });
+    blocks.push({ line: { k: s.t('ai.big.short'), v: s.pesos(w.shortMinor), cls: 'ui-r' } });
+    blocks.push({ note: s.t('ai.big.goalHint') });
+  } else {
+    blocks.push({ line: { k: label, v: `−${s.pesos(amountMinor)}`, cls: 'ui-r' } });
+    blocks.push({ line: { k: s.t('ai.big.after'), v: s.pesos(w.afterMinor), cls: w.verdict === 'most' ? 'ui-y' : 'ui-g' } });
+    blocks.push(...capNote(s, cap));
+  }
+  const cushionWhy = big.cushionMinor === 0 && big.emergencyMinor > 0
+    ? s.t('ai.big.calc.cushion.covered', { months: CUSHION_MONTHS })
+    : big.emergencyMinor > 0
+      ? s.t('ai.big.calc.cushion.part', { months: CUSHION_MONTHS, need: s.pesos(big.cushionNeedMinor), fund: s.pesos(big.emergencyMinor) })
+      : s.t('ai.big.calc.cushion.none', { months: CUSHION_MONTHS, need: s.pesos(big.cushionNeedMinor) });
+  const minus = (minor: number) => minor > 0 ? `−${s.pesos(minor)}` : s.pesos(0);
+  blocks.push({ fold: { title: s.t('ai.big.how'), open: false, blocks: [
+    { line: { k: s.t('ai.big.calc.accounts'), v: s.pesos(big.inAccountsMinor) } },
+    { line: { k: s.t('ai.big.calc.goals'), v: minus(big.inGoalsMinor), cls: 'ui-p' } },
+    { line: { k: s.t('ai.big.calc.payments'), v: minus(big.paymentsMinor), cls: 'ui-r' } },
+    { line: { k: s.t('ai.big.calc.cushion'), v: minus(big.cushionMinor), cls: 'ui-p' } },
+    { note: whole(cushionWhy) },
+    { line: { k: s.t('ai.big.calc.half'), v: minus(big.forGoalsMinor), cls: 'ui-p' } },
+    { note: whole(big.goalsLackMinor > 0 ? s.t('ai.big.calc.half.lack', { lack: s.pesos(big.goalsLackMinor) }) : s.t('ai.big.calc.half.none')) },
+    { line: { k: s.t('ai.big.room'), v: s.pesos(big.roomMinor), cls: 'ui-g' } },
+    { note: s.t('ai.big.calc.never') },
+  ] } });
+  const buttons: RichButton[] = w.verdict === 'no'
+    ? [{ label: s.t('ai.big.goal', { amount: s.pesos(amountMinor) }), ghost: false, route: ['/plans'],
+        query: { face: 'goals', new: 'goal', amount: String(amountMinor), name: thing ? label : '' } }]
+    : [];
+  const key: TranslationKey = w.verdict === 'no' ? 'ai.big.no' : w.verdict === 'most' ? 'ai.big.most' : 'ai.big.yes';
+  const band = whole(w.verdict === 'no' ? s.t('ai.big.band.no', { short: s.pesos(w.shortMinor) })
+    : w.verdict === 'most' ? s.t('ai.big.band.most', { pct: w.pct }) : s.t('ai.big.band.yes'));
+  return {
+    said: { key, values: { room: whole(s.pesos(big.roomMinor)) } },
+    card: card(blocks, buttons, w.verdict === 'no' ? 'bad' : w.verdict === 'most' ? 'warn' : 'ok', band),
+    next: ['ai.next.howAmI'],
   };
 }
