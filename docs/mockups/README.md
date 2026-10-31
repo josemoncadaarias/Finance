@@ -225,3 +225,15 @@ Jose: la app decía que se podían gastar 230 millones en un mes mientras una me
 - `51e` sin ingresos registrados: lo dice y ofrece registrar uno.
 - `51f` el ajuste "Cuánto ahorrar cada mes" (10, 20, 30 % u otro).
 - `51g` dónde vive: Más → Preferencias.
+
+## 52 - ¿Me alcanza? para una compra grande (2026-10-31, propuesta)
+
+Jose: con 230 millones libres y una meta de 500 millones abierta, la app no puede decir "sí" a un apartamento de 230 millones. Propuesta: una compra que cabe en el mes se responde con el mes (como en 51); una más grande se mira con los ahorros, pero nunca con todos: se dejan un colchón de 6 meses de gastos (cero si el fondo de emergencia ya lo cubre) y la mitad de lo que queda para las metas en curso.
+
+- `52a` unos tenis: cabe en el mes.
+- `52b` un viaje de 8 millones: te alcanza con tus ahorros.
+- `52c` cómo se calcula lo que puedes usar para una compra grande.
+- `52d` el mismo cálculo sin fondo de emergencia: el colchón se separa aquí.
+- `52e` un carro de 90 millones: te alcanza, pero se lleva el 85 %.
+- `52f` un apartamento de 230 millones: no te alcanza todavía, cuánto falta y "Crear una meta".
+- `52g` qué cambia y qué se queda igual.
