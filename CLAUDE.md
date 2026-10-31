@@ -6441,6 +6441,15 @@ with testers runs; the paywall is finished after them.
   stays. **Rule: a redesign for clarity never drops a function the person
   uses** - what is folded away stays one tap away. Review tour steps 3 and
   6 `since: 10`. Checked in a browser on the sample data.
+  **"Ver cuáles" hides nothing and unticks nothing** (Jose, the same day:
+  it filtered to the rows that needed something, so the ready ones vanished
+  and his choice was cut to the waiting ones). It now opens the days that
+  hold the chosen rows needing something, scrolls to the first, and marks
+  them in amber while choosing (`seeWaiting`, `.picked.lacks`). Checked in a
+  browser: 8 chosen before and after, every row still on view.
+  **The lesson, for every screen**: a change is checked in a browser along
+  the flows the person actually uses (choose several, "Ver cuáles", save),
+  not only by looking at the screen once.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,

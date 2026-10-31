@@ -308,7 +308,7 @@
 
 <!-- One movement, the same row wherever it is listed. -->
 <ng-template #lineRow let-line>
-<div class="ui-row line" [class.picked]="isSelected(line)" (click)="tapped(line)" (contextmenu)="pressed($event, line)"
+<div class="ui-row line" [attr.data-row]="line.proposal.id" [class.picked]="isSelected(line)" [class.lacks]="selecting() && isSelected(line) && !ready(line)" (click)="tapped(line)" (contextmenu)="pressed($event, line)"
      [attr.role]="selecting() ? 'checkbox' : 'button'" [attr.aria-checked]="selecting() ? isSelected(line) : null">
   @if (selecting()) {
     <span class="ui-tick" [class.on]="isSelected(line)" aria-hidden="true">

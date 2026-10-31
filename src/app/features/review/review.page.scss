@@ -66,6 +66,8 @@
 .line .seen { display: flex; gap: 6px; align-items: flex-start; color: var(--app-mu); white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
 .line .flag { display: flex; gap: 6px; align-items: flex-start; color: #4da3ff; white-space: normal; margin-top: 3px; ion-icon { font-size: 15px; flex: none; margin-top: 1px; } }
 .picked { background: rgba(var(--app-pr-rgb), 0.12); }
+/* A chosen row that cannot be saved yet, shown where it is ("Ver cuáles"). */
+.picked.lacks { background: rgba(var(--app-yel-rgb), 0.14); box-shadow: inset 3px 0 0 var(--app-yel); }
 
 .tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
 .tag.learned { background: rgba(var(--app-grn-rgb), 0.16); color: var(--app-grn); }
