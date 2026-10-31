@@ -100,12 +100,15 @@ interface Batch {
   lines: Line[];
 }
 
+/** A day of rows, folded or open. */
+interface Day { key: string; title: string; lines: Line[]; totalMinor: number; currency: string }
+
 @Component({
   selector: 'app-review',
   standalone: true,
   imports: [AskButtonComponent, 
     CommonModule, FormsModule, TranslatePipe, ConfirmComponent, CategorySheetComponent,
-    BadgeComponent, AccountPickerComponent,
+    BadgeComponent, AccountPickerComponent, JumpComponent,
     IonContent, IonIcon, IonSpinner, IonModal,
   ],
   templateUrl: './review.page.html',
@@ -307,7 +310,10 @@ export class ReviewPage {
     return this.narrowed() || this.shownIn(batch).length < batch.lines.length;
   }
 
-  readonly shownCount = computed(() => this.batches().reduce((sum, batch) => sum + this.shownIn(batch).length, 0));
+  readonly shownCount = computed(() => {
+    const viewing = this.viewing();
+    return viewing ? this.shownIn(viewing).length : this.batches().reduce((sum, batch) => sum + this.shownIn(batch).length, 0);
+  });
 
   countOf(count: number): string {
     return count === 1 ? this.i18n.t('ui.count.movement') : this.i18n.t('ui.count.movements', { count });
@@ -1139,8 +1145,11 @@ export class ReviewPage {
   /** The category sheet is open for the selection. */
   readonly choosingForSelection = signal(false);
 
-  /** Every row on view, across batches, as the filter leaves it. */
-  private readonly shownLines = computed(() => this.batches().flatMap(batch => this.shownIn(batch)));
+  /** Every row on view as the filter leaves it: the origin open, or every origin. */
+  private readonly shownLines = computed(() => {
+    const viewing = this.viewing();
+    return viewing ? this.shownIn(viewing) : this.batches().flatMap(batch => this.shownIn(batch));
+  });
 
   /** What is ticked and still waiting: a row answered meanwhile drops out. */
   readonly selectedLines = computed(() => {
@@ -1646,16 +1655,11 @@ export class ReviewPage {
   /** The origin on view, or null for the list of them. */
   readonly inBatch = signal<string | null>(null);
   readonly viewing = computed(() => this.batches().find(batch => batch.key === this.inBatch()) ?? null);
-  /** "Ver los otros N": every ready row of the origin, not only the first few. */
-  readonly restShown = signal(false);
   /** What was just saved from an origin that has nothing left (46e). */
   readonly done = signal<{ title: string; count: number; account: string } | null>(null);
-  readonly READY_FIRST = 3;
-
   openOrigin(batch: Batch): void {
     this.search.set('');
     this.showOnly.set('all');
-    this.restShown.set(false);
     this.done.set(null);
     this.inBatch.set(batch.key);
     void this.content()?.scrollToTop(0);
@@ -1680,10 +1684,70 @@ export class ReviewPage {
     return this.byDay(this.shownIn(batch).filter(line => ready.has(line.proposal.id)));
   }
 
-  /** The first few ready ones, or all of them once asked or while searching. */
-  readyShown(batch: Batch): Line[] {
-    const all = this.readyIn(batch);
-    return this.restShown() || this.search().trim() !== '' ? all : all.slice(0, this.READY_FIRST);
+  /**
+   * An origin's two parts, each by day, the first day open (Jose,
+   * 2026-10-31: the redesign had flattened them into one long list). Sorted
+   * by amount, a part is one list with no days.
+   */
+  private readonly partsByBatch = computed(() => new Map(this.batches().map(batch => [batch.key, {
+    need: this.daysOfPart(batch, 'need', this.needIn(batch)),
+    ready: this.daysOfPart(batch, 'ready', this.readyIn(batch)),
+  }])));
+
+  partDays(batch: Batch, part: 'need' | 'ready'): Day[] {
+    return this.partsByBatch().get(batch.key)?.[part] ?? [];
+  }
+
+  private daysOfPart(batch: Batch, part: string, lines: Line[]): Day[] {
+    const byAmount = this.sortBy() === 'amount';
+    const days = new Map<string, Day>();
+    for (const line of lines) {
+      const key = `${batch.key}|${part}|${byAmount ? 'all' : line.proposal.occurred_on ?? ''}`;
+      const day = days.get(key) ?? {
+        key, title: byAmount ? '' : this.longDay(line.proposal.occurred_on),
+        lines: [], totalMinor: 0, currency: line.account?.currency_code ?? 'COP',
+      };
+      day.lines.push(line);
+      day.totalMinor += line.proposal.amount_minor ?? 0;
+      days.set(key, day);
+    }
+    return [...days.values()];
+  }
+
+  /** A day of a part: the first one open until the person says otherwise; all open while searching. */
+  isPartDayOpen(day: Day, index: number): boolean {
+    if (day.title === '' || this.search().trim() !== '') return true;
+    return this.dayState().get(day.key) ?? index === 0;
+  }
+
+  togglePartDay(day: Day, index: number): void {
+    this.dayState.set(new Map(this.dayState()).set(day.key, !this.isPartDayOpen(day, index)));
+  }
+
+  /** Everything of the origin on view folded: its days, its repeated shops, what is on record. */
+  readonly viewFolded = computed(() => {
+    const batch = this.viewing();
+    if (!batch) return true;
+    const state = this.dayState();
+    const openDay = (day: Day, index: number) => state.get(day.key) ?? index === 0;
+    return this.partDays(batch, 'need').every((day, i) => day.title === '' || !openDay(day, i))
+      && this.partDays(batch, 'ready').every((day, i) => day.title === '' || !openDay(day, i))
+      && !this.shopsOpen().has(batch.key) && !this.knownOpen().has(batch.key);
+  });
+
+  /** The button between the two arrows: open everything of the origin, or fold it all. */
+  foldView(): void {
+    const batch = this.viewing();
+    if (!batch) return;
+    const open = this.viewFolded();
+    const next = new Map(this.dayState());
+    for (const day of [...this.partDays(batch, 'need'), ...this.partDays(batch, 'ready')]) next.set(day.key, open);
+    this.dayState.set(next);
+    const shops = new Set(this.shopsOpen());
+    const known = new Set(this.knownOpen());
+    if (open) { shops.add(batch.key); known.add(batch.key); } else { shops.delete(batch.key); known.delete(batch.key); }
+    this.shopsOpen.set(shops);
+    this.knownOpen.set(known);
   }
 
   private byDay(lines: Line[]): Line[] {
@@ -1721,8 +1785,8 @@ export class ReviewPage {
 
   /**
    * The same shop elsewhere in this origin, asked once a category is chosen
-   * for one of them (46c) - it replaces the "Movimientos que se repiten"
-   * section.
+   * for one of them (46c), beside the "Movimientos que se repiten" section
+   * (back on 2026-10-31: Jose had not asked for it to go).
    */
   readonly sameShop = signal<{ repeated: Repeated; category: CategoryRow; others: number } | null>(null);
   private askShopFor: { batch: string; merchant: string; id: number; seen: unknown } | null = null;

@@ -6425,6 +6425,22 @@ with testers runs; the paywall is finished after them.
   chooses several. `?batch=` and a tapped notice open their origin. Review
   tour steps 2, 3 and 6 `since: 8`. Checked in a browser on the sample data
   (list, origin, the shop question, saving all, back).
+  **Taking the tools out was a mistake, put right on 2026-10-31** (Jose,
+  from the phone with a 45-row Ualá statement: no repeated shops, no days,
+  no arrows - "te pedí que mejoráramos la presentación", not that anything
+  went). Inside an origin, everything it had before is back beside the new
+  clarity: the search (always), "Todos · por fecha" (Mostrar and Ordenar),
+  the fold-all button and "Seleccionar"; "Movimientos que se repiten"
+  (folded, its shops ticked while choosing, each opening its page); "Te
+  falta elegir algo" and "Listos" each in folding days with their count and
+  total, the first day open (`partDays`, `isPartDayOpen`; sorted by amount
+  a part is one list), a day ticked or long-pressed takes all its rows; and
+  the two arrows with the fold button (`app-jump`, `foldView`). "Ver los
+  otros N" is gone (the days fold instead). The selection bar counts the
+  origin on view only. The same-shop question after choosing a category
+  stays. **Rule: a redesign for clarity never drops a function the person
+  uses** - what is folded away stays one tap away. Review tour steps 3 and
+  6 `since: 10`. Checked in a browser on the sample data.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,

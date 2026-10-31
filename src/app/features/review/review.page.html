@@ -1,7 +1,7 @@
 <!-- Movimientos por revisar (mockups 6a-6z): what a statement or a bank
      notification proposed, answered one by one or several at once. Nothing is
      written without that answer (rule 22). -->
-<ion-content [class.selecting]="selecting()">
+<ion-content #list [scrollEvents]="true" (ionScroll)="jump.measure()" [class.selecting]="selecting()">
   <header class="ui-titlebar">
     <button type="button" class="back" (click)="back()" [attr.aria-label]="'ui.back' | t">
       <ion-icon name="chevron-back"></ion-icon>
@@ -73,37 +73,94 @@
           }
         </section>
 
-        @if (batch.lines.length > 8) {
-          <div class="ui-search">
-            <ion-icon name="search-outline"></ion-icon>
-            <input type="search" [placeholder]="'ui.review.search' | t" [value]="search()"
-                   (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
-            @if (search()) {
-              <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
-            }
+        <!-- Search, what to show and its order, fold all, choose several: the
+             tools the origin had before 46 (Jose, 2026-10-31). -->
+        <div class="ui-search">
+          <ion-icon name="search-outline"></ion-icon>
+          <input type="search" [placeholder]="'ui.review.search' | t" [value]="search()"
+                 (input)="search.set($any($event.target).value ?? '')" enterkeyhint="search">
+          @if (search()) {
+            <button type="button" (click)="search.set('')" [attr.aria-label]="'ui.close' | t"><ion-icon name="close-circle"></ion-icon></button>
+          }
+        </div>
+        <div class="controls" data-tour="review-tools">
+          <button type="button" class="ui-chip view" [class.on]="showOnly() !== 'all' || sortBy() !== 'date'" (click)="choosingView.set(true)">
+            <ion-icon name="funnel-outline"></ion-icon><span>{{ viewLabel() }}</span><ion-icon name="chevron-down-outline"></ion-icon>
+          </button>
+          <span class="grow"></span>
+          <button type="button" class="ui-fold" (click)="foldView()"
+                  [attr.aria-label]="(viewFolded() ? 'ui.openAll' : 'ui.closeAll') | t">
+            <ion-icon [name]="viewFolded() ? 'chevron-expand-outline' : 'chevron-collapse-outline'"></ion-icon>
+          </button>
+          @if (!selecting()) {
+            <button type="button" class="ui-chip" (click)="startSelecting()">
+              <ion-icon name="checkmark-done-outline"></ion-icon>{{ 'review.select' | t }}
+            </button>
+          } @else {
+            <button type="button" class="ui-chip on" (click)="stopSelecting()">
+              <ion-icon name="close"></ion-icon>{{ 'ui.review.exit' | t }}
+            </button>
+          }
+        </div>
+        @if (narrowed() && shownIn(batch).length < batch.lines.length) {
+          <div class="seen">
+            <ion-icon name="eye-off-outline"></ion-icon>
+            <span>{{ 'ui.review.seeing' | t:{ shown: shownIn(batch).length, total: batch.lines.length } }}</span>
+            <button type="button" (click)="showEverything()">{{ 'review.hidden.show' | t }}</button>
           </div>
         }
 
-        @if (needIn(batch); as need) {
-          @if (need.length > 0) {
-            <h3 class="ui-h">{{ 'ui.rev2.need' | t:{ count: need.length } }}</h3>
-            <div class="ui-list" data-tour="review-need">
-              @for (line of need; track line.proposal.id) { <ng-container *ngTemplateOutlet="lineRow; context: { $implicit: line }"></ng-container> }
+        <!-- The shops that turn up more than once here, answered once each. -->
+        @if (!narrowed() && repeatedOf(batch).length > 0) {
+          <section class="ui-list ui-group shops" data-tour="review-repeated">
+            <div class="ui-row head" (click)="toggleShops(batch)" (contextmenu)="pressedMany($event, allShopLines(batch))">
+              <app-badge [size]="34" builtin="repeat" fixed="#2ec4b6"></app-badge>
+              <span class="ui-tx">
+                <b>{{ 'review.repeated' | t }}</b>
+                <small>{{ (repeatedOf(batch).length === 1 ? 'ui.review.shopsOne' : 'ui.review.shops') | t:{ shops: repeatedOf(batch).length, count: allShopLines(batch).length } }}</small>
+              </span>
+              <span class="ui-info" role="button" (click)="$event.stopPropagation(); info.set(i18n.t('review.repeated.hint'))"
+                    [attr.aria-label]="'ui.info' | t"><ion-icon name="information"></ion-icon></span>
+              <ion-icon class="ui-chev" [name]="shopsOpen().has(batch.key) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+            </div>
+            @if (shopsOpen().has(batch.key)) {
+              @for (shop of repeatedOf(batch); track shop.merchant) {
+                @let shopLines = linesOfShop(shop);
+                <div class="ui-row shop" [class.picked]="selecting() && tickOf(shopLines) === 'on'"
+                     (click)="selecting() ? toggleMany(shopLines) : openGroup(shop)" (contextmenu)="pressedMany($event, shopLines)">
+                  @if (selecting()) {
+                    <span class="ui-tick" [class.on]="tickOf(shopLines) === 'on'" [class.half]="tickOf(shopLines) === 'half'" aria-hidden="true">
+                      @if (tickOf(shopLines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(shopLines) === 'half') { <ion-icon name="remove"></ion-icon> }
+                    </span>
+                  }
+                  @if (shop.category; as category) {
+                    <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+                  } @else {
+                    <app-badge [size]="38" builtin="storefront" fixed="#2ec4b6"></app-badge>
+                  }
+                  <span class="ui-tx">
+                    <b class="ui-one">{{ shop.sample }}</b>
+                    <small>{{ countOf(shop.count) }}@if (selecting() && tickOf(shopLines) === 'on') { · {{ 'ui.review.allPicked' | t }} }</small>
+                  </span>
+                  @if (!selecting()) { <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon> }
+                </div>
+              }
+            }
+          </section>
+        }
+
+        @if (partDays(batch, 'need'); as days) {
+          @if (days.length > 0) {
+            <h3 class="ui-h">{{ 'ui.rev2.need' | t:{ count: needIn(batch).length } }}</h3>
+            <div data-tour="review-need">
+              @for (day of days; track day.key; let i = $index) { <ng-container *ngTemplateOutlet="daySection; context: { $implicit: day, index: i }"></ng-container> }
             </div>
           }
         }
-        @if (readyIn(batch); as ready) {
-          @if (ready.length > 0) {
-            <h3 class="ui-h">{{ 'ui.rev2.ready' | t:{ count: ready.length } }}</h3>
-            <div class="ui-list">
-              @for (line of readyShown(batch); track line.proposal.id) { <ng-container *ngTemplateOutlet="lineRow; context: { $implicit: line }"></ng-container> }
-              @if (readyShown(batch).length < ready.length) {
-                <button type="button" class="ui-row more" (click)="restShown.set(true)">
-                  <span class="ui-tx"><b class="ui-link">{{ (ready.length - readyShown(batch).length === 1 ? 'ui.rev2.seeRest.one' : 'ui.rev2.seeRest') | t:{ count: ready.length - readyShown(batch).length } }}</b></span>
-                  <ion-icon class="ui-chev" name="chevron-down-outline"></ion-icon>
-                </button>
-              }
-            </div>
+        @if (partDays(batch, 'ready'); as days) {
+          @if (days.length > 0) {
+            <h3 class="ui-h">{{ 'ui.rev2.ready' | t:{ count: readyIn(batch).length } }}</h3>
+            @for (day of days; track day.key; let i = $index) { <ng-container *ngTemplateOutlet="daySection; context: { $implicit: day, index: i }"></ng-container> }
           }
         }
         @if (knownIn(batch).length > 0) {
@@ -222,7 +279,32 @@
       </button>
     </div>
   }
+  <app-jump #jump [content]="list" [folded]="viewing() ? viewFolded() : null" (fold)="foldView()" [hidden]="selecting()"></app-jump>
 </ion-content>
+
+<!-- One day of a part, folding; its tick takes the whole day while choosing. -->
+<ng-template #daySection let-day let-index="index">
+  <section class="ui-list ui-group">
+    @if (day.title) {
+      <div class="ui-row head" [class.picked]="selecting() && tickOf(day.lines) === 'on'"
+           (click)="selecting() ? toggleMany(day.lines) : togglePartDay(day, index)" (contextmenu)="pressedMany($event, day.lines)">
+        @if (selecting()) {
+          <span class="ui-tick" [class.on]="tickOf(day.lines) === 'on'" [class.half]="tickOf(day.lines) === 'half'" aria-hidden="true">
+            @if (tickOf(day.lines) === 'on') { <ion-icon name="checkmark"></ion-icon> } @else if (tickOf(day.lines) === 'half') { <ion-icon name="remove"></ion-icon> }
+          </span>
+        }
+        <span class="ui-tx"><b class="ui-one">{{ day.title }}</b><small>{{ countOf(day.lines.length) }}</small></span>
+        <span class="total" [class.ui-r]="day.totalMinor < 0" [class.ui-g]="day.totalMinor > 0">{{ day.totalMinor > 0 ? '+' : '' }}{{ money(day.totalMinor, day.currency) }}</span>
+        @if (!selecting()) {
+          <ion-icon class="ui-chev" [name]="isPartDayOpen(day, index) ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+        }
+      </div>
+    }
+    @if (isPartDayOpen(day, index)) {
+      @for (line of day.lines; track line.proposal.id) { <ng-container *ngTemplateOutlet="lineRow; context: { $implicit: line }"></ng-container> }
+    }
+  </section>
+</ng-template>
 
 <!-- One movement, the same row wherever it is listed. -->
 <ng-template #lineRow let-line>
