@@ -6804,6 +6804,15 @@ with testers runs; the paywall is finished after them.
   question). About 3-5 ms a sentence in Node, ~50 ms once to build the
   vocabulary. Twenty-odd mistyped questions and registers in
   `read-phrase.test.mjs`.
+- **Every Spanish word of the app was read again for slang and half
+  phrases** (Jose, 2026-10-31: "mira bien todas las expresiones o jergas").
+  About 240 strings rewritten in `translations*.ts` (the tax module left as
+  it is): no "ojo", "de siempre", "lo de más", "se ... solo/sola" for what
+  the app does automatically, "lo que te toca pagar", "seguido", "lugares";
+  each fragment names its subject; "nada se sube solo" (false since the
+  automatic Drive copy) now says the person chooses. English moved where
+  the meaning did. The patterns are in the app-copy skill (5b). Placeholders
+  checked against English; checked in a browser on the sample data.
 - **A move between products turned around brings the other way's note**
   (Jose, 2026-10-30, two screenshots: Rappi cuenta's "Recarga bolsillo
   principal" sometimes kept "Retiro bolsillo principal"). Read from the code
