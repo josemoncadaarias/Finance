@@ -6523,6 +6523,14 @@ with testers runs; the paywall is finished after them.
   "con los datos ya escritos" across the app. The app-copy skill carries
   the new rules (5b-5d). Debt-plan tour steps 1, 3, 4 `since: 2`. Checked in
   a browser on the sample data.
+  **The chart says dates** (Jose, 2026-10-31: "Cuándo terminas cada deuda"
+  said little). Now "Cuándo terminas de pagar cada deuda", "Desde hoy hasta
+  {mes}, el mes en que quedas sin deudas", each debt with its month and year
+  and "en N meses" over its bar, and a time axis under the bars (Hoy, then
+  about four months with their year, ending on the last month; `ticks` in
+  `plan.page.ts`). The "why" lines were rebuilt so no subject is split from
+  its verb ("el dinero que sobre pasa" read as "sobrepasa"; skill 5b, third
+  pass). Checked in a browser on the sample data.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,

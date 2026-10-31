@@ -200,7 +200,7 @@ const TOUR_LIST = {
       { target: 'plan-extra', title: 'tour.debtPlan.1.title', text: 'tour.debtPlan.1.text', since: 2 },
       { target: 'plan-ways', title: 'tour.debtPlan.2.title', text: 'tour.debtPlan.2.text' },
       { target: 'plan-answer', title: 'tour.debtPlan.3.title', text: 'tour.debtPlan.3.text', since: 2 },
-      { target: 'plan-order', title: 'tour.debtPlan.4.title', text: 'tour.debtPlan.4.text', since: 2 },
+      { target: 'plan-order', title: 'tour.debtPlan.4.title', text: 'tour.debtPlan.4.text', since: 3 },
     ],
   },
   card: {

@@ -17,14 +17,19 @@
   .bars {
     margin-top: 12px;
     padding: 12px 14px;
-    > b { font-size: 14.5px; display: block; margin-bottom: 4px; }
-    .bar-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; margin-top: 7px; }
-    .bar-row > span:first-child { font-size: 12.5px; color: var(--app-mu); }
-    .track { height: 12px; border-radius: 6px; background: var(--app-s2); position: relative; overflow: hidden; }
-    .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; opacity: 0.6; }
+    > b { font-size: 14.5px; display: block; }
+    .bars-sub { display: block; font-size: 12.5px; color: var(--app-mu); margin: 2px 0 6px; }
+    .tl-row { margin-top: 10px; }
+    .tl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; }
+    .tl-head .ui-one { color: var(--app-tx); min-width: 0; }
+    .tl-when { flex: none; color: var(--app-mu); font-size: 12.5px; b { color: var(--app-tx); font-weight: 600; } }
+    .track { display: block; margin-top: 5px; height: 10px; border-radius: 5px; background: var(--app-s2); position: relative; overflow: hidden; }
+    .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; opacity: 0.6; }
     .track i.first { opacity: 1; }
-    .years { position: relative; height: 16px; margin: 6px 0 0 104px; font-size: 11.5px; color: var(--app-mu); }
-    .years span { position: absolute; transform: translateX(-50%); }
+    .ticks { position: relative; height: 18px; margin-top: 8px; border-top: 1px solid var(--app-s2); padding-top: 4px; font-size: 11.5px; color: var(--app-mu); }
+    .ticks span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+    .ticks span.start { transform: none; }
+    .ticks span.end { transform: translateX(-100%); }
   }
   .step {
     align-items: flex-start;

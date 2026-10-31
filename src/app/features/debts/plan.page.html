@@ -80,14 +80,18 @@
       @if (!single() && !p.endless) {
         <div class="ui-card bars">
           <b>{{ 'ui.plan.bars' | t }}</b>
+          <small class="bars-sub">{{ 'ui.plan.bars.sub' | t:{ month: monthOf(p.months) } }}</small>
           @for (s of p.steps; track s.debt.kind + s.debt.id; let i = $index) {
-            <div class="bar-row">
-              <span class="ui-one">{{ s.debt.name }}</span>
+            <div class="tl-row">
+              <div class="tl-head">
+                <span class="ui-one">{{ s.debt.name }}</span>
+                <span class="tl-when"><b>{{ monthOf(s.months, true) }}</b> · {{ inMonths(s.months) }}</span>
+              </div>
               <span class="track"><i [style.width.%]="barOf(s)" [style.background]="colors[i % colors.length]" [class.first]="i === 0"></i></span>
             </div>
           }
-          <div class="years">
-            @for (y of years(); track y.year) { <span [style.left.%]="y.at">{{ y.year }}</span> }
+          <div class="ticks">
+            @for (t of ticks(); track t.at) { <span [style.left.%]="t.at" [class.start]="t.at === 0" [class.end]="t.at === 100">{{ t.label }}</span> }
           </div>
         </div>
       }
