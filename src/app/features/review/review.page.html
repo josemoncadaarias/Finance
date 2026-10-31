@@ -79,7 +79,7 @@
           <button type="button" class="ui-round" [class.on]="searching() || !!search()" (click)="searching.set(!searching())" [attr.aria-label]="'ui.review.search' | t">
             <ion-icon name="search-outline"></ion-icon>
           </button>
-          <button type="button" class="ui-round" [class.on]="showOnly() !== 'all' || sortBy() !== 'date'" (click)="choosingView.set(true)" [attr.aria-label]="'ui.review.show' | t">
+          <button type="button" class="ui-round" [class.on]="showOnly() !== 'all' || sortBy() !== 'date' || groupBy() !== 'none'" (click)="choosingView.set(true)" [attr.aria-label]="'ui.review.show' | t">
             <ion-icon name="funnel-outline"></ion-icon>
           </button>
           <span class="grow"></span>
@@ -293,7 +293,8 @@
   <app-jump #jump [content]="list" [folded]="viewing() ? viewFolded() : null" (fold)="foldView()" [hidden]="selecting()"></app-jump>
 </ion-content>
 
-<!-- One day inside a group, folding; its tick takes the whole day while choosing. -->
+<!-- One category inside a group when grouped (folding, its tick takes them all);
+     ungrouped, the rows in order with no heading. -->
 <ng-template #dayRows let-day let-index="index">
   @if (day.title) {
     <div class="ui-row day" [class.picked]="selecting() && tickOf(day.lines) === 'on'"
@@ -543,6 +544,19 @@
           <app-badge shape="ci" [size]="38" builtin="cash" fixed="#34c98b"></app-badge>
           <span class="ui-tx"><b>{{ 'review.sort.amount' | t }}</b><small>{{ 'ui.review.byAmount.line' | t }}</small></span>
           @if (sortBy() === 'amount') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+      </div>
+      <h3 class="ui-h">{{ 'ui.rev2.groupBy' | t }}</h3>
+      <div class="ui-list">
+        <button type="button" class="ui-row" (click)="groupBy.set('none'); choosingView.set(false)">
+          <app-badge shape="ci" [size]="38" builtin="list" fixed="#6378ff"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.rev2.groupBy.none' | t }}</b><small>{{ 'ui.rev2.groupBy.none.line' | t }}</small></span>
+          @if (groupBy() === 'none') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
+        </button>
+        <button type="button" class="ui-row" (click)="groupBy.set('category'); choosingView.set(false)">
+          <app-badge shape="ci" [size]="38" builtin="pricetags" fixed="#f2709c"></app-badge>
+          <span class="ui-tx"><b>{{ 'ui.rev2.groupBy.category' | t }}</b><small>{{ 'ui.rev2.groupBy.category.line' | t }}</small></span>
+          @if (groupBy() === 'category') { <span class="ui-tick on"><ion-icon name="checkmark"></ion-icon></span> }
         </button>
       </div>
     </div>

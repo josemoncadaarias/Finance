@@ -268,7 +268,7 @@ const TOUR_LIST = {
     steps: [
       { title: 'tour.review.1.title', text: 'tour.review.1.text' },
       { sel: 'app-review .origins', title: 'tour.review.2.title', text: 'tour.review.2.text', since: 8 },
-      { title: 'tour.review.3.title', text: 'tour.review.3.text', since: 11 },
+      { title: 'tour.review.3.title', text: 'tour.review.3.text', since: 12 },
       // 2026-10-13/14: everything chosen is remembered; "No es un movimiento".
       { title: 'tour.review.4.title', text: 'tour.review.4.text', since: 2 },
       { title: 'tour.review.5.title', text: 'tour.review.5.text', since: 9 },
