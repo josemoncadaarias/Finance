@@ -6450,6 +6450,18 @@ with testers runs; the paywall is finished after them.
   **The lesson, for every screen**: a change is checked in a browser along
   the flows the person actually uses (choose several, "Ver cuáles", save),
   not only by looking at the screen once.
+  **And the first screen of an origin holds little** (Jose, the same day:
+  headings with every day under them was "un montón de información"). Under
+  the origin's card, each group is ONE folded row with its icon and count -
+  "Te falta elegir algo", "Listos para guardar", "Movimientos que se
+  repiten", "Ya los tenías registrados" (`partsOpen`, `togglePart`) - and
+  only inside it the days, folded but the first. The tools are two round
+  buttons (the magnifier shows the search field, `searching`; the funnel
+  opens Mostrar/Ordenar) and "Seleccionar"; fold-all lives between the
+  arrows. A search opens every group; "Ver cuáles" opens "Te falta elegir
+  algo". **Minimalist, in Jose's sense: group everything that can be
+  grouped, so the first screen says little, and each thing opens when
+  wanted.** Review tour step 3 `since: 11`.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,
