@@ -72,12 +72,15 @@
 .figures {
   /* Label and figure beside the buttons when the figure fits; otherwise the
      row wraps and the buttons stay on top, on the right (wrap-reverse). */
-  .top { display: flex; flex-wrap: wrap-reverse; align-items: center; gap: 4px 8px; }
+  .top { display: flex; flex-wrap: wrap-reverse; align-items: center; gap: 4px 14px; }
   .top .what { flex: 1 1 auto; min-width: 0; max-width: 100%; }
   .top .quick { margin-left: auto; }
   .ui-big { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; small { font-size: 14px; color: var(--app-mu); } }
-  .ui-big.s { font-size: 27px; }
-  .ui-big.xs { font-size: 23px; }
+  .ui-big.d7 { font-size: 28px; }
+  .ui-big.d8 { font-size: 26px; }
+  .ui-big.d9 { font-size: 24px; }
+  .ui-big.d10 { font-size: 22px; }
+  .ui-big.d12 { font-size: 20px; }
   .quick { display: flex; gap: 8px; flex: none; }
   .used { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13.5px; }
   .used + .credit { height: 9px; margin-top: 6px; }
@@ -171,3 +174,6 @@
   color: var(--app-move);
   ion-icon { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 }
+
+// The sheet of one account's options (2026-10-31).
+.action-icon { pointer-events: none; flex: none; }

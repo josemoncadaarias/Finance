@@ -53,6 +53,7 @@ const TOUR_LIST = {
       { sel: 'app-movements app-first-steps .ui-card', title: 'tour.home.steps.title', text: 'tour.home.steps.text', since: 16 },
       // 2026-10-14: the eye that hides every amount.
       { sel: 'app-movements app-amounts-eye', title: 'tour.home.eye.title', text: 'tour.home.eye.text', since: 3 },
+      { sel: 'app-movements .figures .quick button.ui-round', title: 'tour.home.actions.title', text: 'tour.home.actions.text', since: 18 },
       // 2026-10-22: what can be spent today, and how (idea 1);
       // 2026-10-28: one account chosen shows that account's money alone.
       { sel: 'app-movements app-safe-today .today', title: 'tour.home.today.title', text: 'tour.home.today.text', since: 15 },

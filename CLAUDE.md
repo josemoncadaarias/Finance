@@ -6471,6 +6471,18 @@ with testers runs; the paywall is finished after them.
   grouping it; grouping is an option the person turns on.** Review tour
   step 3 `since: 12`. Checked in a browser on the sample data (no headings,
   by date, by amount, by category, choosing all and "Ver cuáles").
+- **A long balance shrinks, and an account's buttons are one "···"**
+  (Jose, 2026-10-31: "1.035.660,00" sat against three round buttons). The
+  figure steps down one size per digit past six (`bigSize`: 31, 28, 26, 24,
+  22, 20 px), with 14px kept between it and the buttons. Beside the eye, an
+  account with two or more actions shows one "···" (`quickActions`) opening
+  a sheet, each row with what it does (its debt and statement, its products
+  and interest, editing it; `actionLook`); with one action, that button
+  alone. Home tour step `since: 18`. **The group sheet of "Movimientos que
+  se repiten" is one list too**: newest first, each row "category · day",
+  "Sin agrupar / Por categoría" on top, and "Responder los N" no longer
+  squeezed (`flex-shrink: 0`, 52px). Checked in a browser on the sample data
+  at 360 and 412 px.
 - **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:
   "DEBES HOY" alone on a row beside the buttons, the figure under it, and a
   wide strip before Gráfico / Movimientos). The label and the figure are one

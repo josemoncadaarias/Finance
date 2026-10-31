@@ -112,24 +112,16 @@
             <!-- The eye that hides every amount, first, on every screen with money (28). -->
             <app-amounts-eye></app-amounts-eye>
           @if (store.selectedAccount(); as account) {
-              @if (account.type === 'credit' || loanIds().has(account.id)) {
-                <button type="button" class="ui-round solid" (click)="toDebt(account.id)"
-                        [attr.aria-label]="'summary.toDebt' | t" [title]="'summary.toDebt' | t">
-                  <ion-icon name="receipt-outline"></ion-icon>
-                </button>
+            @if (quickActions().length > 1) {
+              <button type="button" class="ui-round solid" (click)="actionsOpen.set(true)"
+                      [attr.aria-label]="'summary.actions' | t" [title]="'summary.actions' | t">
+                <ion-icon name="ellipsis-horizontal"></ion-icon>
+              </button>
+            } @else {
+              @for (action of quickActions(); track action) {
+                <ng-container *ngTemplateOutlet="actionButton; context: { $implicit: action, account: account }"></ng-container>
               }
-              @if (earning().has(account.id)) {
-                <button type="button" class="ui-round solid" (click)="toProducts(account.id)"
-                        [attr.aria-label]="'summary.toProducts' | t" [title]="'summary.toProducts' | t">
-                  <ion-icon name="piggy-bank"></ion-icon>
-                </button>
-              }
-              @if (!loanIds().has(account.id)) {
-                <button type="button" class="ui-round solid" (click)="scope.editAccount(account)"
-                        [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
-                  <ion-icon name="account-edit"></ion-icon>
-                </button>
-              }
+            }
           }
           </span>
         </div>
@@ -369,3 +361,50 @@
 <!-- The dates, the account, and the account editor: one definition, shared
      with the financial summary. -->
 <app-scope-sheets #scope></app-scope-sheets>
+
+<!-- One account's quick action as a round button, when it is the only one. -->
+<ng-template #actionButton let-action let-account="account">
+  @switch (action) {
+    @case ('debt') {
+      <button type="button" class="ui-round solid" (click)="toDebt(account.id)" [attr.aria-label]="'summary.toDebt' | t" [title]="'summary.toDebt' | t">
+        <ion-icon name="receipt-outline"></ion-icon>
+      </button>
+    }
+    @case ('products') {
+      <button type="button" class="ui-round solid" (click)="toProducts(account.id)" [attr.aria-label]="'summary.toProducts' | t" [title]="'summary.toProducts' | t">
+        <ion-icon name="piggy-bank"></ion-icon>
+      </button>
+    }
+    @case ('edit') {
+      <button type="button" class="ui-round solid" (click)="scope.editAccount(account)" [attr.aria-label]="'summary.editAccount' | t" [title]="'summary.editAccount' | t">
+        <ion-icon name="account-edit"></ion-icon>
+      </button>
+    }
+  }
+</ng-template>
+
+<!-- Two or more of them: one "···" and this sheet, each saying what it does. -->
+<ion-modal [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" class="ui-sheet" [isOpen]="actionsOpen()" (didDismiss)="actionsOpen.set(false)">
+  <ng-template>
+    <div class="ui-sheet-body ion-content-scroll-host">
+      <button type="button" class="sheet-cancel" (click)="actionsOpen.set(false)">{{ 'entry.cancel' | t }}</button>
+      <div class="grab"></div>
+      @if (store.selectedAccount(); as account) {
+        <h3 class="ui-h first">{{ account.name }}</h3>
+        <div class="ui-list">
+          @for (action of quickActions(); track action) {
+            @let look = actionLook(action, account.id);
+            <button type="button" class="ui-row" (click)="actionsOpen.set(false); action === 'debt' ? toDebt(account.id) : action === 'products' ? toProducts(account.id) : scope.editAccount(account)">
+              <span class="ui-round solid action-icon"><ion-icon [name]="look.icon"></ion-icon></span>
+              <span class="ui-tx">
+                <b>{{ look.title | t }}</b>
+                <small>{{ look.line | t }}</small>
+              </span>
+              <ion-icon name="chevron-forward-outline" class="ui-chev"></ion-icon>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+</ion-modal>

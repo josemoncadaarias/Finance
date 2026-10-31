@@ -18,7 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import { IonContent, IonHeader, IonIcon, IonSpinner } from '@ionic/angular';
+import { IonContent, IonHeader, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import * as allIcons from 'ionicons/icons';
 
@@ -56,6 +56,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import type { Standing } from './movements.store';
 import { MOVE_COLOR } from '../../core/theme/palette';
 import { AttentionHomeComponent } from './attention-home.component';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
 
 @Component({
@@ -66,7 +67,7 @@ import { AmountsEyeComponent } from '../../shared/ui/amounts-eye.component';
     AmountsEyeComponent,
     CommonModule, FormsModule, MoneyPipe, DemoHomeComponent, SpendingChartComponent, SwipeDirective, BadgeComponent,
     TranslatePipe, ScopeSheetsComponent, AttentionHomeComponent,
-    IonContent, IonHeader, IonIcon, IonSpinner,
+    IonContent, IonHeader, IonIcon, IonModal, IonSpinner,
   ],
 })
 export class MovementsPage {
@@ -163,6 +164,31 @@ export class MovementsPage {
 
   /** The accounts that are loans: their quick button opens the loan (debts, part 2). */
   readonly loanIds = signal<ReadonlySet<number>>(new Set());
+
+  /**
+   * What one account's card offers beside its eye: its debt (a card or a
+   * loan), its products (an account that earns) and editing it (not a loan).
+   * Two or more fold into one "···" that says what each does (Jose,
+   * 2026-10-31: three round buttons crowded a long balance).
+   */
+  readonly quickActions = computed<('debt' | 'products' | 'edit')[]>(() => {
+    const account = this.store.selectedAccount();
+    if (!account) return [];
+    const loan = this.loanIds().has(account.id);
+    const actions: ('debt' | 'products' | 'edit')[] = [];
+    if (account.type === 'credit' || loan) actions.push('debt');
+    if (this.earning().has(account.id)) actions.push('products');
+    if (!loan) actions.push('edit');
+    return actions;
+  });
+  readonly actionsOpen = signal(false);
+
+  /** How each of them reads in that sheet. */
+  actionLook(action: 'debt' | 'products' | 'edit', accountId: number): { icon: string; title: TranslationKey; line: TranslationKey } {
+    if (action === 'debt') return { icon: 'receipt-outline', title: 'summary.toDebt', line: this.loanIds().has(accountId) ? 'summary.toDebt.loan' : 'summary.toDebt.line' };
+    if (action === 'products') return { icon: 'piggy-bank', title: 'summary.toProducts', line: 'summary.toProducts.line' };
+    return { icon: 'account-edit', title: 'summary.editAccount', line: 'summary.editAccount.line' };
+  }
 
   /** A card's debt and its statement, or a loan's page. */
   async toDebt(accountId: number): Promise<void> {
@@ -607,8 +633,10 @@ export class MovementsPage {
    * narrow phone (Jose, 2026-10-15: "-7.780.959..." cut by the buttons).
    */
   bigSize(minor: number): string {
+    // One step smaller for each digit past six, so a long balance still sits
+    // whole beside its buttons (Jose, 2026-10-31).
     const digits = String(Math.abs(Math.trunc(minor / 100))).length;
-    return digits >= 11 ? 'xs' : digits >= 9 ? 's' : '';
+    return digits >= 12 ? 'd12' : digits >= 10 ? 'd10' : digits >= 9 ? 'd9' : digits >= 8 ? 'd8' : digits >= 7 ? 'd7' : '';
   }
 
   toggle(key: string): void {
