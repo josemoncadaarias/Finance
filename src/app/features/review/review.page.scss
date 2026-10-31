@@ -178,3 +178,10 @@
   p { margin: 0 0 8px; color: var(--app-mu); font-size: 15px; }
   .ui-btn { width: 100%; }
 }
+
+/* Each group of an origin is one folded row (Jose, 2026-10-31: little on the first screen). */
+.controls .ui-round.on { background: rgba(var(--app-pr-rgb), 0.18); color: var(--app-pr); }
+.part { margin-bottom: 10px; }
+.part > .ui-row.head { cursor: pointer; align-items: center; gap: 12px; .ui-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; } b { font-size: 15.5px; font-weight: 600; } }
+.part .ui-row.day { cursor: pointer; align-items: center; padding-top: 10px; padding-bottom: 10px; background: rgba(var(--app-bg-rgb), 0.35);
+  b { font-size: 14px; font-weight: 600; } .total { font-weight: 600; font-size: 14px; flex: none; } }

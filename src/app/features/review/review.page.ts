@@ -1181,6 +1181,8 @@ export class ReviewPage {
       }
     }
     this.dayState.set(next);
+    const viewing = this.viewing();
+    if (viewing) this.partsOpen.set(new Set(this.partsOpen()).add(`${viewing.key}|need`));
     setTimeout(() => document.querySelector(`app-review [data-row="${waiting[0].proposal.id}"]`)
       ?.scrollIntoView({ block: 'center' }), 60);
   }
@@ -1672,6 +1674,7 @@ export class ReviewPage {
   readonly done = signal<{ title: string; count: number; account: string } | null>(null);
   openOrigin(batch: Batch): void {
     this.search.set('');
+    this.searching.set(false);
     this.showOnly.set('all');
     this.done.set(null);
     this.inBatch.set(batch.key);
@@ -1727,6 +1730,23 @@ export class ReviewPage {
     return [...days.values()];
   }
 
+  /** The search field, shown from its button (Jose, 2026-10-31: little on the first screen). */
+  readonly searching = signal(false);
+
+  /** The groups of an origin ("Te falta elegir algo", "Listos"): all folded until tapped. */
+  private readonly partsOpen = signal<ReadonlySet<string>>(new Set());
+
+  isPartOpen(batch: Batch, part: 'need' | 'ready'): boolean {
+    return this.search().trim() !== '' || this.partsOpen().has(`${batch.key}|${part}`);
+  }
+
+  togglePart(batch: Batch, part: 'need' | 'ready'): void {
+    const next = new Set(this.partsOpen());
+    const key = `${batch.key}|${part}`;
+    if (!next.delete(key)) next.add(key);
+    this.partsOpen.set(next);
+  }
+
   /** A day of a part: the first one open until the person says otherwise; all open while searching. */
   isPartDayOpen(day: Day, index: number): boolean {
     if (day.title === '' || this.search().trim() !== '') return true;
@@ -1743,7 +1763,8 @@ export class ReviewPage {
     if (!batch) return true;
     const state = this.dayState();
     const openDay = (day: Day, index: number) => state.get(day.key) ?? index === 0;
-    return this.partDays(batch, 'need').every((day, i) => day.title === '' || !openDay(day, i))
+    return !this.partsOpen().has(`${batch.key}|need`) && !this.partsOpen().has(`${batch.key}|ready`)
+      && this.partDays(batch, 'need').every((day, i) => day.title === '' || !openDay(day, i))
       && this.partDays(batch, 'ready').every((day, i) => day.title === '' || !openDay(day, i))
       && !this.shopsOpen().has(batch.key) && !this.knownOpen().has(batch.key);
   });
@@ -1756,6 +1777,9 @@ export class ReviewPage {
     const next = new Map(this.dayState());
     for (const day of [...this.partDays(batch, 'need'), ...this.partDays(batch, 'ready')]) next.set(day.key, open);
     this.dayState.set(next);
+    const parts = new Set(this.partsOpen());
+    for (const part of ['need', 'ready']) { if (open) parts.add(`${batch.key}|${part}`); else parts.delete(`${batch.key}|${part}`); }
+    this.partsOpen.set(parts);
     const shops = new Set(this.shopsOpen());
     const known = new Set(this.knownOpen());
     if (open) { shops.add(batch.key); known.add(batch.key); } else { shops.delete(batch.key); known.delete(batch.key); }
