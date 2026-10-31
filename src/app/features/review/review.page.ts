@@ -1168,8 +1168,21 @@ export class ReviewPage {
 
   /** "Ver cuáles": the list narrowed to what still needs something. */
   seeWaiting(): void {
-    this.showOnly.set('waiting');
-    this.selectedIds.set(new Set(this.selectedWaiting().map(line => line.proposal.id)));
+    // Nothing is hidden and nothing is unticked (Jose, 2026-10-31: the ready
+    // ones vanished and his choice was lost): the days holding the chosen
+    // rows that need something open, and the first of them comes into view.
+    const waiting = this.selectedWaiting();
+    if (waiting.length === 0) return;
+    const ids = new Set(waiting.map(line => line.proposal.id));
+    const next = new Map(this.dayState());
+    for (const batch of this.batches()) {
+      for (const day of [...this.partDays(batch, 'need'), ...this.partDays(batch, 'ready')]) {
+        if (day.lines.some(line => ids.has(line.proposal.id))) next.set(day.key, true);
+      }
+    }
+    this.dayState.set(next);
+    setTimeout(() => document.querySelector(`app-review [data-row="${waiting[0].proposal.id}"]`)
+      ?.scrollIntoView({ block: 'center' }), 60);
   }
 
   readonly allShownSelected = computed(() => {
