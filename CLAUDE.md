@@ -6481,7 +6481,7 @@ with testers runs; the paywall is finished after them.
   with nothing to show (`app-safe-today` on a card, `app-first-steps` once
   done) takes no gap (`.home-slots > :empty`): the strip was two empty gaps
   of 12px. Measured in a browser on the sample data: at 412 px a card's
-  label, figure and buttons share the top (the card 79px shorter), at 360 px
+  label, figure and buttons share the top row, at 360 px
   "1.209.480,00" wraps under the buttons as before; 12px from the card to the
   selector.
 - **An account's page in Productos y rendimientos is simple now** (mockups
