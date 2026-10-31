@@ -168,18 +168,38 @@ export class DebtPlanPage {
     return out.length > 4 ? out.filter((_, i) => i % Math.ceil(out.length / 4) === 0) : out;
   });
 
-  /** What one step of the order does, in a sentence. */
+  /**
+   * What one step of the order does, said whole: how much it is paid and
+   * why it sits there (Jose, 2026-10-31: the three loose lines read badly).
+   */
   why(step: PlanStep, i: number): string {
     const plan = this.plan()!;
-    const extra = plan.extraMinor > 0;
+    const pay = this.payLine(step.debt);
     if (i === 0) {
-      const key = plan.by === 'rate' ? 'ui.plan.why.firstRate' : 'ui.plan.why.firstBalance';
-      return this.i18n.t(extra ? key : 'ui.plan.why.firstNoExtra', { amount: this.money(plan.extraMinor) });
+      if (plan.extraMinor <= 0) return `${pay} ${this.i18n.t('ui.plan.why.firstNoExtra')}`;
+      const kind = plan.by === 'rate' ? 'ui.plan.why.firstRate' : 'ui.plan.why.firstBalance';
+      // Paid off next month: it does not take the whole extra, and says where the rest goes.
+      if (step.months <= 1) {
+        const next = plan.steps[1]?.debt.name;
+        const rest = next ? this.i18n.t('ui.plan.why.rest.next', { next }) : this.i18n.t('ui.plan.why.rest.free');
+        return this.i18n.t(`${kind}.oneGo` as 'ui.plan.why.firstRate.oneGo', { rest });
+      }
+      return this.i18n.t(kind, {
+        total: this.money(step.debt.paymentMinor + plan.extraMinor),
+        pay: this.money(step.debt.paymentMinor),
+        amount: this.money(plan.extraMinor),
+      });
     }
     const prev = plan.steps[i - 1].debt.name;
-    // A debt that ends before the one ahead of it only ever pays its own.
-    if (step.months <= plan.steps[i - 1].months) return this.i18n.t('ui.plan.why.alone');
-    return this.i18n.t(i === plan.steps.length - 1 ? 'ui.plan.why.last' : 'ui.plan.why.next', { prev });
+    // It ends when its own payment alone would end it: no money of the others reaches it.
+    if (!step.endlessAlone && step.monthsAlone <= step.months) return `${pay} ${this.i18n.t('ui.plan.why.alone')}`;
+    // Paid off next month with what was left of the extra money.
+    if (step.months <= 1 && plan.extraMinor > 0) {
+      const next = plan.steps[i + 1]?.debt.name;
+      const rest = next ? this.i18n.t('ui.plan.why.rest.next', { next }) : this.i18n.t('ui.plan.why.rest.free');
+      return `${pay} ${this.i18n.t('ui.plan.why.leftover', { rest })}`;
+    }
+    return `${pay} ${this.i18n.t(i === plan.steps.length - 1 ? 'ui.plan.why.last' : 'ui.plan.why.next', { prev })}`;
   }
 
   payLine(debt: PlanDebt): string {

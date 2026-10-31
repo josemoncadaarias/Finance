@@ -6509,6 +6509,20 @@ with testers runs; the paywall is finished after them.
   label, figure and buttons share the top row, at 360 px
   "1.209.480,00" wraps under the buttons as before; 12px from the card to the
   selector.
+- **"Salir de tus deudas": each debt is one clear row** (Jose, 2026-10-31,
+  a screenshot: loose lines, "lo de más", "La más cara", and the first card
+  claiming $ 5.600.000 more for a debt of $ 132.400). A row is the number,
+  the name with "Terminas en {mes}" on its line, "Debes X · interés Y anual",
+  and ONE paragraph (`why` in `plan.page.ts`) chosen by the figures: the
+  first gets its pay plus the extra in figures, or, when it is paid off next
+  month, that it does not need all the extra and where the rest goes; a debt
+  that ends with its own payment says so only when `monthsAlone <= months`
+  (it used to be judged against the debt before it, and lied); one finished
+  by the extra's remainder says so; otherwise the freed payments reach it.
+  Every "lo de más" is "dinero adicional" now, and "formulario lleno" is
+  "con los datos ya escritos" across the app. The app-copy skill carries
+  the new rules (5b-5d). Debt-plan tour steps 1, 3, 4 `since: 2`. Checked in
+  a browser on the sample data.
 - **An account's page in Productos y rendimientos is simple now** (mockups
   `47a`-`47q`, built 2026-10-29 at Jose's word, "Agregar un producto" kept on
   top as it was). On top ONE figure: "Este mes te han pagado" (`monthMinor`,
