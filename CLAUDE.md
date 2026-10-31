@@ -6491,6 +6491,11 @@ with testers runs; the paywall is finished after them.
   movimientos listos", "Responder los 2 movimientos", "Guardar los N
   movimientos", "Sí, a los N movimientos"). Review tour step 3 `since: 13`.
   Checked in a browser on the sample data at 360, 393 and 412 px.
+  **A sheet's title has a row of its own** (Jose, the same day: beside
+  "Cancelar" a long title read as one phrase with it): every `.sheet-head`
+  with an h2 puts Cancelar and its action on the first row and the title,
+  centred, on the next (`.sheet-head:has(> h2)` in global.scss), for every
+  sheet at once.
 - **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:
   "DEBES HOY" alone on a row beside the buttons, the figure under it, and a
   wide strip before Gráfico / Movimientos). The label and the figure are one

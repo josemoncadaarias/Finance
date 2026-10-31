@@ -1829,6 +1829,17 @@ ion-modal.ui-sheet {
     button.icon { border: 0; background: none; color: var(--app-pr); padding: 4px; display: grid; cursor: pointer; ion-icon { font-size: 22px; } }
   }
 
+  /* The title has a row of its own under Cancelar and the action (Jose,
+     2026-10-31: beside Cancelar a long title read as one phrase with it). */
+  .sheet-head:has(> h2) {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "left . right" "title title title";
+    row-gap: 10px;
+    > h2 { grid-area: title; }
+    > .left { grid-area: left; }
+    > .right { grid-area: right; }
+  }
+
   h2.center { text-align: center; font-size: 17px; font-weight: 700; margin: 0 0 12px; }
 }
 
