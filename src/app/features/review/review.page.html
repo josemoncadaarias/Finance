@@ -455,50 +455,32 @@
         <span class="right"></span>
       </div>
       @if (group(); as shop) {
-        <div class="ui-card group-head">
-          @if (shop.category; as category) {
-            <app-badge [size]="46" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
-          } @else {
-            <app-badge [size]="46" builtin="storefront" fixed="#2ec4b6"></app-badge>
-          }
-          <span class="ui-tx">
-            <b class="ui-one">{{ shop.sample }}</b>
-            <small>{{ groupTotal() }}</small>
-          </span>
+        <!-- What they all say once, then only how many and how much (Jose,
+             2026-10-31: a card with the shop's icon read as one more movement). -->
+        <p class="group-says">{{ 'ui.review.group.says' | t:{ name: shop.sample } }}</p>
+        <div class="ui-card group-sum">
+          <span><small>{{ 'ui.review.group.count' | t }}</small><b>{{ groupLines().length }}</b></span>
+          <span><small>{{ 'ui.review.group.sum' | t }}</small>
+            <b [class.ui-r]="groupSumMinor() < 0" [class.ui-g]="groupSumMinor() > 0">{{ groupSumMinor() > 0 ? '+' : '' }}{{ money(groupSumMinor(), groupLines()[0]?.account?.currency_code) }}</b></span>
         </div>
-        <div class="ui-seg group-view">
-          <button type="button" [class.on]="groupView() === 'none'" (click)="groupView.set('none')">{{ 'ui.rev2.groupBy.none' | t }}</button>
-          <button type="button" [class.on]="groupView() === 'category'" (click)="groupView.set('category')">{{ 'ui.rev2.groupBy.category' | t }}</button>
-        </div>
-        @for (section of groupSections(); track section.key) {
-          <section class="ui-list ui-group">
-            @if (section.title) {
-            <div class="ui-row head">
-              @if (section.category; as category) {
-                <app-badge [size]="30" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+        <section class="ui-list">
+          @for (line of groupNewestFirst(); track line.proposal.id) {
+            <div class="ui-row line" role="button" (click)="openFromGroup(line)">
+              @if (categoryOf(line); as category) {
+                <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
+              } @else {
+                <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
               }
-              <span class="ui-tx"><b class="ui-one">{{ section.title }}</b><small>{{ countOf(section.lines.length) }}</small></span>
-              <span class="total" [class.ui-r]="section.totalMinor < 0" [class.ui-g]="section.totalMinor > 0">{{ section.totalMinor > 0 ? '+' : '' }}{{ money(section.totalMinor, section.lines[0]?.account?.currency_code) }}</span>
+              <span class="ui-tx">
+                <b class="ui-one">{{ shortDay(line.proposal.occurred_on) }}</b>
+                <small class="ui-one">{{ categoryOf(line)?.name ?? ('ui.review.group.noCategory' | t) }}@if (line.proposal.description && line.proposal.description !== shop.sample) { · {{ line.proposal.description }} }</small>
+              </span>
+              <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
+                {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
+              </span>
             </div>
-            }
-            @for (line of section.lines; track line.proposal.id) {
-              <div class="ui-row line" role="button" (click)="openFromGroup(line)">
-                @if (categoryOf(line); as category) {
-                  <app-badge [size]="38" [builtin]="category.builtin_icon" [customId]="category.custom_icon_id" [tone]="category.color" [seed]="category.id"></app-badge>
-                } @else {
-                  <app-badge [size]="38" builtin="help" fixed="#f6b93b"></app-badge>
-                }
-                <span class="ui-tx">
-                  <b class="ui-one">{{ line.proposal.description || ('review.noDescription' | t) }}</b>
-                  <small class="ui-one">{{ groupView() === 'none' ? (categoryOf(line)?.name ?? ('ui.review.group.noCategory' | t)) + ' · ' + shortDay(line.proposal.occurred_on) : longDay(line.proposal.occurred_on) }}</small>
-                </span>
-                <span class="ui-am" [class.ui-r]="(line.proposal.amount_minor ?? 0) < 0" [class.ui-g]="(line.proposal.amount_minor ?? 0) > 0">
-                  {{ (line.proposal.amount_minor ?? 0) > 0 ? '+' : '' }}{{ money(line.proposal.amount_minor, line.account?.currency_code) }}
-                </span>
-              </div>
-            }
-          </section>
-        }
+          }
+        </section>
         <p class="ui-sub group-hint">{{ 'ui.review.group.hint' | t }}</p>
         <button type="button" class="ui-btn group-answer" (click)="answerGroup()">
           <ion-icon name="layers-outline"></ion-icon>{{ 'ui.review.group.answer' | t:{ count: groupLines().length } }}

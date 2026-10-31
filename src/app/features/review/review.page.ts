@@ -429,42 +429,21 @@ export class ReviewPage {
 
   /** The group whose movements are on show, or null. */
   readonly group = signal<Repeated | null>(null);
-  readonly groupView = signal<'none' | 'category'>('none');
 
   readonly groupLines = computed(() => {
     const group = this.group();
     return group ? this.linesOfShop(group) : [];
   });
 
-  /** "5 movimientos · −750.000 en total". */
-  readonly groupTotal = computed(() => {
-    const lines = this.groupLines();
-    const total = lines.reduce((sum, line) => sum + (line.proposal.amount_minor ?? 0), 0);
-    const currency = lines[0]?.account?.currency_code;
-    return this.i18n.t('ui.review.group.total', { count: lines.length, total: `${total > 0 ? '+' : ''}${this.money(total, currency)}` });
-  });
+  /** What they come to together. */
+  readonly groupSumMinor = computed(() =>
+    this.groupLines().reduce((sum, line) => sum + (line.proposal.amount_minor ?? 0), 0));
 
-  /** Its movements in one list, newest first; or, when asked, by category, largest first. */
-  readonly groupSections = computed(() => {
-    const newestFirst = [...this.groupLines()].sort((a, b) => (b.proposal.occurred_on ?? '').localeCompare(a.proposal.occurred_on ?? ''));
-    if (this.groupView() === 'none') {
-      const totalMinor = newestFirst.reduce((sum, line) => sum + (line.proposal.amount_minor ?? 0), 0);
-      return [{ key: 'all', title: '', category: null as CategoryRow | null, lines: newestFirst, totalMinor }];
-    }
-    const sections = new Map<string, { key: string; title: string; category: CategoryRow | null; lines: Line[]; totalMinor: number }>();
-    for (const line of newestFirst) {
-      const category = this.categoryOf(line);
-      const key = `c${category?.id ?? 0}`;
-      const found = sections.get(key) ?? { key, title: category?.name ?? this.i18n.t('ui.review.group.noCategory'), category, lines: [], totalMinor: 0 };
-      found.lines.push(line);
-      found.totalMinor += line.proposal.amount_minor ?? 0;
-      sections.set(key, found);
-    }
-    return [...sections.values()].sort((a, b) => Math.abs(b.totalMinor) - Math.abs(a.totalMinor));
-  });
+  /** One list, newest first: they are one shop, so there is nothing to group by. */
+  readonly groupNewestFirst = computed(() =>
+    [...this.groupLines()].sort((a, b) => (b.proposal.occurred_on ?? '').localeCompare(a.proposal.occurred_on ?? '')));
 
   openGroup(shop: Repeated): void {
-    this.groupView.set('none');
     this.group.set(shop);
   }
 
