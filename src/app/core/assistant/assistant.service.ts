@@ -42,6 +42,7 @@ import { usuryOn } from '../debts/usury';
 import { estimatedCardPayment, type PlanDebt } from '../debts/debt-plan';
 import type { DebtIn } from './debts-advice';
 import { freeInAccount, freeMoney, goalKeptIn, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { bigRoom, type BigRoom } from './big-purchase';
 import { INCOME_MONTHS, spendRoom, type RoomPayment, type SpendRoom } from './spend-room';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
@@ -297,6 +298,7 @@ export class AssistantService {
         amountMinor: g.terms.amountMinor, savedMinor: saved, savedAtMonthStartMinor: atStart,
         dueMonth: g.terms.dueMonth, paceMinor: g.status.paceMinor,
         reached: g.status.state === 'reached', countedMinor: Math.min(saved, countedMinor),
+        emergency: g.terms.kind === 'emergency',
       };
     });
 
@@ -358,6 +360,30 @@ export class AssistantService {
     ];
     const goalsAskMinor = picture.free.goals.filter(g => g.how === 'dated').reduce((sum, g) => sum + g.aimMinor, 0);
     return spendRoom({ incomes, savePct, goalsAskMinor, spentMinor: spent, payments, today });
+  }
+
+  /**
+   * What can go to a big purchase (52c): the money held, less what the goals
+   * keep and this month's payments, less a cushion of 6 months of normal
+   * spending (the average of the last 3 whole months, every account) that an
+   * emergency fund may already cover, less half of the rest for the goals
+   * still in progress (`bigRoom`).
+   */
+  async bigRoom(picture: Picture): Promise<BigRoom> {
+    const now = new Date();
+    let spent = 0;
+    for (let back = 1; back <= INCOME_MONTHS; back++) {
+      const month = periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1));
+      spent += totalsOf(await this.store.movementsFor(month, undefined, true), 'base').outMinor;
+    }
+    const f = picture.free;
+    const emergencyKeptMinor = f.goals.filter(g => g.goal.emergency).reduce((sum, g) => sum + g.keptMinor, 0);
+    const goalsLackMinor = f.goals.filter(g => !g.goal.emergency && g.how !== 'reached')
+      .reduce((sum, g) => sum + Math.max(0, g.goal.amountMinor - g.goal.savedMinor), 0);
+    return bigRoom({
+      inAccountsMinor: f.inAccountsMinor, inGoalsMinor: f.inGoalsMinor, paymentsMinor: f.paymentsMinor,
+      monthlySpendMinor: Math.round(spent / INCOME_MONTHS), emergencyKeptMinor, goalsLackMinor,
+    });
   }
 
   /**

@@ -44,7 +44,7 @@ import { RemindersService } from '../../core/reminders/reminders.service';
 import * as A from './answers';
 import type { OpenCategory, RichButton, RichCard, Speech } from './answers';
 import { FilterService } from '../../core/filters/filter.service';
-import { afford, perDay, type GoalThisMonth } from '../../core/assistant/free-money';
+import { perDay, type GoalThisMonth } from '../../core/assistant/free-money';
 import { canListen, listen } from '../../core/assistant/speech';
 import { currentPeriod, isoDay, periodLabel } from '../../core/filters/period';
 import type { LimitView } from '../../core/limits/limits.service';
@@ -998,36 +998,23 @@ export class AssistantPage {
       return;
     }
 
+    // A purchase that fits in what is left this month is answered from the
+    // month (52a); a bigger one against part of the savings, never all (52b-52f).
     const cap = this.assistant.capOf(reading.categoryId);
-    const verdict = afford(free, amount, cap ? { remainingMinor: cap.status.remainingMinor } : null);
-    const days = picture.free.daysLeft;
-    const rest = verdict.afterMinor;
-    const values = {
-      amount: this.pesos(amount), rest: this.pesos(rest), day: this.pesos(perDay(rest, days)),
-      over: this.pesos(verdict.capOverMinor), short: this.pesos(verdict.shortMinor),
-      cap: cap?.name ?? '', capLeft: cap ? this.pesos(cap.status.remainingMinor) : '',
-      interest: this.pesos(picture.interest.reduce((s, i) => s + i.minor, 0)),
-    };
-    const card: FreeCard = {
-      kind: 'free', amountMinor: amount, thing: reading.thing, cap, picture, restMinor: rest,
-      noCategory: reading.categoryId === null, account: null,
-      tone: verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'yesButCap' ? 'warn' : 'bad',
-      headline: verdict.verdict === 'yes' ? this.i18n.t('ai.verdict.yes')
-        : verdict.verdict === 'yesButCap' ? this.i18n.t('ai.verdict.yesButCap')
-        : this.i18n.t('ai.verdict.no', { short: values.short }),
-    };
-    let key: TranslationKey;
-    if (verdict.verdict === 'no') key = picture.interest.length > 0 ? 'ai.afford.noInterest' : 'ai.afford.no';
-    else if (verdict.verdict === 'yesButCap') key = 'ai.afford.yesButCap';
-    else key = reading.categoryId === null ? 'ai.afford.yesNoCategory' : 'ai.afford.yes';
-    let chips: Chip[] | undefined;
-    if (reading.categoryId === null && verdict.verdict !== 'no') {
+    const capPass = cap ? { name: cap.name, overMinor: Math.max(0, amount - cap.status.remainingMinor) } : null;
+    const room = await this.assistant.spendRoom(picture, await this.saveShare.load());
+    const answer = !room.noIncome && amount <= room.leftMinor
+      ? A.affordMonth(this.speech(), amount, reading.thing, room, capPass)
+      : A.affordBig(this.speech(), amount, reading.thing, await this.assistant.bigRoom(picture), capPass);
+    if (reading.categoryId === null && answer.card?.tone !== 'bad') {
       const top = await this.topCategories('expense', 2);
       this.waiting = { kind: 'category', reading: { ...reading, intent: 'afford' }, said };
-      chips = [...top.map(c => ({ label: this.i18n.t('ai.category.isIt', { category: c.name }), act: () => void this.categoryIs(c) })),
+      const chips: Chip[] = [...top.map(c => ({ label: this.i18n.t('ai.category.isIt', { category: c.name }), act: () => void this.categoryIs(c) })),
         { label: this.i18n.t('ai.category.other'), act: () => this.categorySheet.set('expense') }];
+      this.say(answer.said.key, answer.said.values, { card: answer.card!, chips });
+      return;
     }
-    this.say(key, values, { card, chips });
+    this.give(answer);
   }
 
   /** The everyday figure, the same as Inicio's "Puedes gastar hoy" (51b). */
@@ -1133,6 +1120,11 @@ export class AssistantPage {
       month: ym => { const [y, m] = ym.split('-').map(Number); return y ? new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' }) : ''; },
       today: isoDay(new Date()),
     };
+  }
+
+  /** The band's icon by its tone: a tick for yes, a cross for no, a warning otherwise. */
+  bandIcon(tone: string): string {
+    return tone === 'ok' ? 'checkmark-circle-outline' : tone === 'bad' ? 'close-circle-outline' : 'alert-circle-outline';
   }
 
   private give(answer: A.Answer): void {

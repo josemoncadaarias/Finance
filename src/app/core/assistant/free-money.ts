@@ -44,6 +44,8 @@ export interface GoalMoney {
    * Absent: all of it.
    */
   countedMinor?: number;
+  /** An emergency fund: what it keeps is the cushion for a big purchase (`bigRoom`). */
+  emergency?: boolean;
 }
 
 export type GoalHow = 'dated' | 'average' | 'noHistory' | 'reached';

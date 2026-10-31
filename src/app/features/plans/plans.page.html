@@ -253,7 +253,7 @@
 
 <ion-modal class="entry-sheet" [isOpen]="editingGoal() !== null" (didDismiss)="editingGoal.set(null)">
   <ng-template>
-    <app-goal-editor [goalId]="editingGoal() || null" [kind]="newGoalKind()" (done)="editingGoal.set(null)"></app-goal-editor>
+    <app-goal-editor [goalId]="editingGoal() || null" [kind]="newGoalKind()" [startName]="startName()" [startAmount]="startAmount()" (done)="goalDone()"></app-goal-editor>
   </ng-template>
 </ion-modal>
 
