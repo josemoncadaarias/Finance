@@ -116,6 +116,24 @@ What it found, so it is not written again:
 - A sentence never contradicts a setting: "nada se sube solo" was false
   once the automatic Drive copy existed.
 
+**A second sweep the same day** (Jose: "Es la última... ¿última qué?";
+about 145 more strings):
+- **Never an adjective or a pronoun standing in for a noun the sentence
+  does not name.** "Es la última" → "Es la última deuda de la lista";
+  "pasa a esta" → "pasa a esta deuda"; "Ya la tienes" → "Ya tienes esta
+  moneda"; "Para una cuenta que..." (no verb) → "Úsalo para una cuenta
+  que..."; "Lo pasaste el..." → "Pasaste el tope el...". The screen showing
+  the noun nearby is not enough: each string must read alone.
+- **A comma after an opening clause**: "Con este gasto, llegas al...",
+  "Si la pagas hoy, te ahorras...", "Desde mañana, cada uno gana...",
+  "Sin Pro, tienes...". And before "pero", "porque" when it explains a
+  whole idea, and between two ideas joined by "y" when the second has its
+  own subject ("...la terminas de pagar el próximo mes, y no necesitas...").
+- **"Terminar" a debt is "terminar de pagar"**; "termina" alone reads as
+  the debt doing something.
+- Section labels name what they count: "Topes pasados · 2", not "Se
+  pasaron · 2 topes".
+
 ## 5c. A sentence must be TRUE in every case it is shown
 
 A sentence that explains a figure is checked against each case the
