@@ -97,15 +97,14 @@
         @for (s of p.steps; track s.debt.kind + s.debt.id; let i = $index) {
           <button type="button" class="ui-row step" (click)="stepOpen.set(s)">
             @if (!single()) { <span class="n" [class.first]="i === 0 && p.extraMinor > 0">{{ i + 1 }}</span> }
-            <app-badge shape="ci" [size]="40" [builtin]="icon(s.debt)" [fixed]="colors[i % colors.length]"></app-badge>
             <span class="ui-tx">
-              <b class="wrap">{{ s.debt.name }}</b>
+              <span class="head">
+                <b class="name">{{ s.debt.name }}</b>
+                <span class="ends">{{ 'ui.plan.endsAt' | t }} <b>{{ p.endless && s.months >= 600 ? ('ui.plan.never' | t) : monthOf(s.months, true) }}</b></span>
+              </span>
               <small>{{ 'ui.plan.owes' | t:{ amount: money(s.debt.balanceMinor) } }} · {{ 'ui.plan.rate' | t:{ rate: rate(s.debt.rateScaled) } }}</small>
-              <small class="wrap">{{ payLine(s.debt) }}</small>
-              <small class="wrap">{{ why(s, i) }}</small>
-              @if (i === 0 && p.extraMinor > 0) { <span class="ui-tag extra">{{ 'ui.plan.extraHere' | t }}</span> }
+              <small class="say">{{ why(s, i) }}</small>
             </span>
-            <span class="ends"><small>{{ 'ui.plan.endsAt' | t }}</small><b>{{ p.endless && s.months >= 600 ? ('ui.plan.never' | t) : monthOf(s.months, true) }}</b></span>
           </button>
         }
       </div>

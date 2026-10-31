@@ -65,6 +65,43 @@ own words. Never invent a term of the app's own.
   los días, más 5,5% al mes si gastas cierto valor"); a name appears only when
   it is the person's own data (Jose, 2026-10-22).
 
+## 5b. No shorthand, no half-phrases (Jose, 2026-10-31)
+
+Jose, angry and right: "lo de más", "lo de siempre", "el formulario lleno",
+"un toque y...", "Aquí va lo de más" read as slang or as an unfinished
+sentence. Each says less than it seems to.
+
+| Wrong | Right |
+|---|---|
+| Le pagas lo de siempre y los $ X de más | Cada mes le pagas $ T: $ P de su pago normal y $ X adicionales |
+| Aquí va lo de más | (say it in the sentence; no loose tag) |
+| El formulario se abre lleno | El formulario se abre con los datos ya escritos |
+| Un toque abre... | Al tocarlo se abre... |
+| La más cara | Tiene el interés más alto |
+| Se acaba sola | Con su pago normal la terminas |
+
+- Every sentence has its subject and its object. Read it to someone who
+  has not seen the screen: if they ask "¿lo de qué?", "¿lleno de qué?",
+  rewrite it.
+- Money has a name: "dinero adicional", "su pago normal", "su cuota", never
+  "lo de más" or "lo de siempre".
+
+## 5c. A sentence must be TRUE in every case it is shown
+
+A sentence that explains a figure is checked against each case the
+arithmetic can produce, not only the usual one. "Le pagas $ X adicionales"
+is false when the debt needs less than X to be finished; "la terminas con
+su pago normal" is false when money of another debt reached it. Write one
+wording per case and choose it from the figures (as `why` in
+`plan.page.ts` does), then look at it in a browser with data that makes
+each case happen.
+
+## 5d. Layout of a row with words
+
+A row's title and its key figure share one line; the explanation is ONE
+paragraph under them, never three loose lines. No icon or tag that repeats
+what the words already say.
+
 ## 6. Agreement and articles
 
 Check gender and number against the noun you named: "la TRM oficial", "el
