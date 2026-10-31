@@ -155,17 +155,27 @@ export class DebtPlanPage {
     return Math.max(4, Math.round(step.months / last * 100));
   }
 
-  /** The years marked under the bars. */
-  readonly years = computed(() => {
+  /** "en 3 meses", how far from today a debt ends. */
+  inMonths(months: number): string {
+    return this.i18n.t(months === 1 ? 'ui.plan.bars.in.one' : 'ui.plan.bars.in', { count: months });
+  }
+
+  /** The months marked under the bars: today, a few months between and the last one. */
+  readonly ticks = computed(() => {
     const last = this.plan()?.months ?? 0;
+    if (last <= 0) return [];
     const now = new Date();
-    const out: { year: number; at: number }[] = [];
-    for (let year = now.getFullYear() + 1; ; year++) {
-      const months = (year - now.getFullYear()) * 12 - now.getMonth();
-      if (months >= last) break;
-      out.push({ year, at: Math.round(months / last * 100) });
+    const label = (m: number) => {
+      const at = new Date(now.getFullYear(), now.getMonth() + m, 1);
+      return `${monthName(at, this.i18n.dateLocale()).slice(0, 3)} ${at.getFullYear()}`;
+    };
+    const step = Math.max(1, Math.ceil(last / 4));
+    const out = [{ at: 0, label: this.i18n.t('ui.plan.bars.today') }];
+    for (let m = step; m < last; m += step) {
+      if (last - m >= step / 2) out.push({ at: Math.round(m / last * 100), label: label(m) });
     }
-    return out.length > 4 ? out.filter((_, i) => i % Math.ceil(out.length / 4) === 0) : out;
+    out.push({ at: 100, label: label(last) });
+    return out;
   });
 
   /**

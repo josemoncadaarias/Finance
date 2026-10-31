@@ -134,6 +134,18 @@ about 145 more strings):
 - Section labels name what they count: "Topes pasados · 2", not "Se
   pasaron · 2 topes".
 
+**A third pass the same day** (Jose: "el dinero que sobre pasa a..." reads
+as "sobrepasa"; "el dinero que les pagabas pasa a esta" reads in one breath):
+- **Never a comma between a subject and its verb** (RAE): "el dinero que
+  sobre, pasa a..." is wrong Spanish. When a long subject reads badly,
+  rebuild the sentence instead: "Lo que te sobre de ese dinero se suma a...",
+  "Cuando termines de pagar {deuda}, el pago que le hacías se suma a esta
+  deuda".
+- **Read two neighbouring words aloud**: if they fuse into another word
+  ("sobre pasa" → sobrepasa, "sin fin", "a parte"), rewrite.
+- A relative clause that ends where the verb starts ("que les pagabas pasa")
+  is rebuilt with an opening clause and a comma after it.
+
 ## 5c. A sentence must be TRUE in every case it is shown
 
 A sentence that explains a figure is checked against each case the
