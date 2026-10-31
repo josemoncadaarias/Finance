@@ -132,8 +132,12 @@
 
 // One group of movements that repeat (25b, 25c).
 .group-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: calc(16px + var(--ion-safe-area-bottom, 0px)); }
-.group-head { display: flex; gap: 12px; align-items: center; padding: 14px; .ui-tx b { font-size: 16px; } }
-.group-view { margin: 0; }
+.group-says { margin: 0 4px; font-size: 13.5px; color: var(--app-mu); text-align: center; overflow-wrap: anywhere; }
+.group-sum { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 14px;
+  span { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+  span + span { border-left: 1px solid rgba(127, 127, 127, 0.2); }
+  small { font-size: 12.5px; color: var(--app-mu); }
+  b { font-size: 18px; font-weight: 700; } }
 .group-body .ui-row.line { cursor: pointer; }
 .group-body .head .total { font-weight: 600; font-size: 14px; white-space: nowrap; }
 .group-hint { margin: 2px 4px 0; text-align: center; }

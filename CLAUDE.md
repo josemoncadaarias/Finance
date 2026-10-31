@@ -6479,10 +6479,18 @@ with testers runs; the paywall is finished after them.
   a sheet, each row with what it does (its debt and statement, its products
   and interest, editing it; `actionLook`); with one action, that button
   alone. Home tour step `since: 18`. **The group sheet of "Movimientos que
-  se repiten" is one list too**: newest first, each row "category · day",
-  "Sin agrupar / Por categoría" on top, and "Responder los N" no longer
-  squeezed (`flex-shrink: 0`, 52px). Checked in a browser on the sample data
-  at 360 and 412 px.
+  se repiten" is one list too**: newest first, and "Responder los N
+  movimientos" no longer squeezed (`flex-shrink: 0`, 52px). **It says what
+  they share once** (Jose, the same day: a card with the shop's icon read as
+  one more movement, and grouping by category made no sense - one shop is
+  one category): "Todos dicen «{shop}»", then a card with only how many and
+  how much (`groupSumMinor`), and each row its day and category, plus its own
+  words only when they differ from the group's (a group is one shop by its
+  first four words, numbers and accents left out: `merchantKeyOf`). No
+  grouping choice. **A count on a button names what it counts** ("Guardar 5
+  movimientos listos", "Responder los 2 movimientos", "Guardar los N
+  movimientos", "Sí, a los N movimientos"). Review tour step 3 `since: 13`.
+  Checked in a browser on the sample data at 360, 393 and 412 px.
 - **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:
   "DEBES HOY" alone on a row beside the buttons, the figure under it, and a
   wide strip before Gráfico / Movimientos). The label and the figure are one
