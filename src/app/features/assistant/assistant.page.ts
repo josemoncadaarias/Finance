@@ -34,6 +34,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
 import { AccountPickerComponent } from '../../shared/account-picker/account-picker.component';
 import { ConfirmComponent } from '../../shared/confirm/confirm.component';
+import { SaveShareService } from '../../core/assistant/save-share.service';
 import { AssistantService, type Picture } from '../../core/assistant/assistant.service';
 import { fold, readPhrase, type Reading } from '../../core/assistant/read-phrase';
 import { termsOf } from '../../core/assistant/note-search';
@@ -252,6 +253,7 @@ export class AssistantPage {
   private readonly router = inject(Router);
   private readonly database = inject(DatabaseService);
   private readonly assistant = inject(AssistantService);
+  private readonly saveShare = inject(SaveShareService);
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
   private readonly filter = inject(FilterService);
@@ -514,7 +516,7 @@ export class AssistantPage {
       if (grew) out.push({ text: this.i18n.t('ai.forYou.spent', { category: grew.sl.label }), sub: this.i18n.t('ai.forYou.spentGrew'), icon: 'pie-chart-outline' });
       else if (top) out.push({ text: this.i18n.t('ai.forYou.spent', { category: top.label }), sub: this.i18n.t('ai.forYou.spentTop'), icon: 'pie-chart-outline' });
       const picture = await this.assistant.picture();
-      const day = perDay(picture.free.freeMinor, picture.free.daysLeft);
+      const day = (await this.assistant.spendRoom(picture, await this.saveShare.load())).perDayMinor;
       if (day > 0) {
         // A figure a little over a day's free money, round, to ask about.
         const ask = Math.max(5_000_000, Math.ceil(day * 2 / 1_000_000) * 1_000_000);
@@ -1028,15 +1030,14 @@ export class AssistantPage {
     this.say(key, values, { card, chips });
   }
 
+  /** The everyday figure, the same as Inicio's "Puedes gastar hoy" (51b). */
   private async howMuchADay(): Promise<void> {
     const picture = await this.assistant.picture();
-    const f = picture.free;
-    const day = perDay(f.freeMinor, f.daysLeft);
-    this.say(f.freeMinor > 0 ? 'ai.perDay.answer' : 'ai.perDay.none', {
-      end: this.monthEndText(f.monthEnd), rest: this.pesos(f.freeMinor), day: this.pesos(day), count: f.daysLeft,
-    }, {
-      card: { kind: 'free', tone: f.freeMinor > 0 ? 'plain' : 'bad', headline: '', amountMinor: null, thing: null, cap: null,
-        picture, restMinor: f.freeMinor, noCategory: false, account: null },
+    const r = await this.assistant.spendRoom(picture, await this.saveShare.load());
+    if (r.noIncome) return this.say('ai.perDay.noIncome', {});
+    if (r.leftMinor <= 0) return this.say('ai.perDay.none', { over: this.pesos(-r.leftMinor), pct: r.savePct });
+    this.say('ai.perDay.answer', {
+      end: this.monthEndText(r.monthEnd), rest: this.pesos(r.leftMinor), day: this.pesos(r.perDayMinor), count: r.daysLeft, pct: r.savePct,
     });
   }
 

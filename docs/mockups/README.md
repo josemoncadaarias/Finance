@@ -213,3 +213,15 @@ Jose: un gasto sale del producto habitual, que suele estar en 0, y luego él pas
 - `50f` ningún producto alcanza: solo lo dice.
 - `50g` una transferencia (pagar la tarjeta) funciona igual.
 - `50h` ya guardado: el gasto con una línea "Cubierto con Bolsillo Viajes".
+
+## 51 - Puedes gastar hoy, desde lo que recibes (2026-10-31, propuesta)
+
+Jose: la app decía que se podían gastar 230 millones en un mes mientras una meta de 500 millones seguía abierta. Propuesta: la cifra sale de lo que la persona recibe en un mes normal (promedio de los 3 meses completos anteriores), menos un porcentaje para ahorrar (20 % por defecto), menos lo ya gastado, menos los pagos fijos y cuotas que faltan. Los ahorros acumulados no cuentan. Un solo ajuste nuevo, sin campos en las categorías.
+
+- `51a` Inicio: la misma fila, "Para cada día, hasta el 31 de octubre".
+- `51b` al tocarla: cómo se calcula, en cinco líneas, y que los ahorros no se cuentan.
+- `51c` una meta con fecha pide más que el 20 %: se separa lo que pide la meta.
+- `51d` ya se gastó más de lo que alcanza: en rojo, con cuánto.
+- `51e` sin ingresos registrados: lo dice y ofrece registrar uno.
+- `51f` el ajuste "Cuánto ahorrar cada mes" (10, 20, 30 % u otro).
+- `51g` dónde vive: Más → Preferencias.

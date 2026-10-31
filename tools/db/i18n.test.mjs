@@ -39,6 +39,8 @@ test('no phrase is left empty or accidentally identical', () => {
     'reminder.notice.title', 'reminder.notice.titleAmount',
     // "no" is spelled the same in Spanish and English.
     'csv.no',
+    // A percentage, written the same way in both.
+    'save.pct',
     // A colour's name, the same word in both.
     'accent.coral',
     'ui.notifications.apps',

@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1153 on 2026-10-29, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1159 on 2026-10-31, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5946,6 +5946,34 @@ with testers runs; the paywall is finished after them.
   free places in proportion to what each holds. On his backup each of those
   accounts keeps about 37 % of its balance, and what all accounts keep adds
   up to the "Todas las cuentas" figure (88,218,095).
+- **"Puedes gastar hoy" comes from what comes in, not from what is held**
+  (Jose, 2026-10-31, mockups `51a`-`51g`, approved: "construyelo así por el
+  momento"; the old figure told him 230 million were free to spend in a
+  month while a 500 million goal was open). `spendRoom`
+  (`core/assistant/spend-room.ts`, pure, `spend-room.test.mjs`): the average
+  of what came in over the last 3 whole months (the summary's `totalsOf`,
+  every account), less the share set aside for the goals - "Cuánto ahorrar
+  cada mes", 20 % by default (the 50/30/20 rule's saving), or what the goals
+  with a date ask this month when larger -, less what was spent this month,
+  less the fixed payments not seen yet and the loan installments due (a
+  loan's interest and insurance categories are not taken as fixed payments,
+  so an installment is never counted twice); spread over the days left. The
+  money held is not counted, and the sheet says so with its figure; a card's
+  statement is no payment here (each purchase was spending). Nothing came
+  in: the row says so with "Registrar un ingreso". Over: red, with how much.
+  One account chosen shows the same figure, said to be all accounts; a card,
+  a loan or an account outside net worth shows nothing. The share is a
+  setting (`budget.savePct` in `settings`, `SaveShareService`, travels in the
+  backup), chosen in Más → Preferencias or from the sheet
+  (`app-save-share-sheet`: 10, 20, 30 % or another from 0 to 90). The
+  assistant's "¿cuánto puedo gastar al día?" says the same figure. **What it
+  does NOT change**: "¿me alcanza?" and "¿cómo voy?" still weigh the money
+  held (`freeMoney`) - Jose, the same day: a big purchase is weighed against
+  the free wealth, but never all of it ("no te puedes quedar sin patrimonio
+  libre"); the rule for how much of it is not decided yet. Home tour step
+  `since: 19`. **Every sheet's title now has its own row under Cancelar**
+  (`margin-top: 30px !important` in global.scss; Jose: "Cancelar" stuck to
+  the title). Checked in a browser on the sample data.
 - **A statement from photos or screenshots** (Jose, 2026-10-22: "leer
   movimientos de imágenes... escaneadas"; rule 22's OCR door, part 1 - a
   receipt's photo is part 2). On Android, the statement pickers

@@ -20,6 +20,8 @@ import { PLAN, TRIAL_DAYS } from '../../core/paywall/plan';
 import { buyOffer, daysLeft } from '../../core/paywall/subscription';
 import { TourService } from '../../core/tour/tour.service';
 import { ToastService } from '../../shared/ui/toast.service';
+import { SaveShareService } from '../../core/assistant/save-share.service';
+import { SaveShareSheetComponent } from '../../shared/save-share/save-share-sheet.component';
 import { RemindersService } from '../../core/reminders/reminders.service';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
@@ -58,7 +60,7 @@ import { barScreen, leftTheBar } from '../../core/ui/bar-choice';
   selector: 'app-more',
   templateUrl: './more.page.html',
   styleUrls: ['./more.page.scss'],
-  imports: [AskButtonComponent, TranslatePipe, AvatarComponent, BadgeComponent, FlagComponent, IonContent, IonIcon, IonModal],
+  imports: [AskButtonComponent, TranslatePipe, AvatarComponent, BadgeComponent, FlagComponent, IonContent, IonIcon, IonModal, SaveShareSheetComponent],
 })
 export class MorePage {
   readonly privacy = inject(PrivacyService);
@@ -162,6 +164,8 @@ export class MorePage {
   readonly loans = signal<LoanSchedule[]>([]);
 
   readonly languageSheet = signal(false);
+  readonly saveSheet = signal(false);
+  readonly saveShare = inject(SaveShareService);
   readonly appearanceSheet = signal(false);
   readonly toursSheet = signal(false);
   readonly tour = inject(TourService);
