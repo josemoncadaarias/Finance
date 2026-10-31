@@ -86,6 +86,36 @@ sentence. Each says less than it seems to.
 - Money has a name: "dinero adicional", "su pago normal", "su cuota", never
   "lo de más" or "lo de siempre".
 
+**The whole app was swept for this on 2026-10-31** (about 240 strings).
+What it found, so it is not written again:
+
+| Wrong | Right |
+|---|---|
+| Ojo: ... | Atención: ... (or just say it) |
+| Tu cuenta / tu producto de siempre | Tu cuenta / tu producto habitual |
+| Se borran solos, se actualiza sola, se cierra solo, se calcula solo | ... automáticamente / la app lo calcula |
+| Nada se guarda solo | Nada se guarda sin que lo confirmes |
+| Llegan solas | Aparecen en la app |
+| Lo que te toca pagar | Lo que debes pagar |
+| Que repites seguido | Que repites con frecuencia |
+| Va justo o pasado | Está cerca del límite o ya se pasó |
+| Para llenar el formulario | Datos para el formulario |
+| {count} lugares | {count} cuentas o bolsillos |
+| No cuadran (two figures) | No coinciden (keep "Cuadra" only for a statement that adds up) |
+| Retefuente, backup | Retención en la fuente, copia de seguridad |
+| Escoge | Elige |
+| Te entró, Te quedó | Recibiste, Te sobró |
+| $ X de más | $ X por encima del tope / más de lo que te propusiste gastar |
+| Se renueva solo | Empieza de nuevo el día 1 |
+| Mientras no lo hagas, no los cuento | Mientras no los pases, no los sumo al dinero libre |
+
+- "Solo/sola" for something the app does by itself always reads as
+  "alone": say "automáticamente" or name who does it.
+- A fragment under a figure still names its subject: "compras que van a la
+  próxima factura", not "van a la próxima factura".
+- A sentence never contradicts a setting: "nada se sube solo" was false
+  once the automatic Drive copy existed.
+
 ## 5c. A sentence must be TRUE in every case it is shown
 
 A sentence that explains a figure is checked against each case the
