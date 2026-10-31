@@ -145,6 +145,12 @@
         <span class="ui-tx"><b class="wrap">{{ 'view.title' | t }}</b><small class="wrap">{{ 'view.row' | t }}</small></span>
         <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
       </button>
+      <!-- How much of what comes in is set aside before "Puedes gastar hoy" (51g). -->
+      <button type="button" class="ui-row" (click)="saveSheet.set(true)">
+        <app-badge [size]="40" builtin="save-outline" fixed="#3ccf91"></app-badge>
+        <span class="ui-tx"><b class="wrap">{{ 'save.title' | t }}</b><small>{{ 'save.pct' | t:{ pct: saveShare.pct() } }}</small></span>
+        <ion-icon class="ui-chev" name="chevron-forward-outline"></ion-icon>
+      </button>
       <!-- Start every opening with the amounts hidden (28e). -->
       <div class="ui-row">
         <app-badge [size]="40" builtin="eye-off-outline" fixed="#8c9bb5"></app-badge>
@@ -275,3 +281,5 @@
     </div>
   </ng-template>
 </ion-modal>
+
+<app-save-share-sheet [open]="saveSheet()" (closed)="saveSheet.set(false)"></app-save-share-sheet>

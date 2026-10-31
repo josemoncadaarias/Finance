@@ -56,7 +56,7 @@ const TOUR_LIST = {
       { sel: 'app-movements .figures .quick button.ui-round', title: 'tour.home.actions.title', text: 'tour.home.actions.text', since: 18 },
       // 2026-10-22: what can be spent today, and how (idea 1);
       // 2026-10-28: one account chosen shows that account's money alone.
-      { sel: 'app-movements app-safe-today .today', title: 'tour.home.today.title', text: 'tour.home.today.text', since: 15 },
+      { sel: 'app-movements app-safe-today .today', title: 'tour.home.today.title', text: 'tour.home.today.text', since: 19 },
       // 2026-10-29: the card's credit in one line under its bar (49c).
       { sel: 'app-movements .figures .credit-line', title: 'tour.home.card.title', text: 'tour.home.card.text', since: 17 },
       { sel: 'app-movements app-spending-chart .box', title: 'tour.home.donut.title', text: 'tour.home.donut.text', since: 4 },

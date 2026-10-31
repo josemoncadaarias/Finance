@@ -2588,7 +2588,10 @@ ion-modal.confirm-sheet .confirm-dialog .kept { display: flex; gap: 6px; align-i
   font-weight: 500;
   cursor: pointer;
 }
-.ui-sheet-body:has(> .sheet-cancel) > h2,
+/* The title has a row of its own under Cancelar, with room between them
+   (Jose, 2026-10-31: "Cancelar" pegged to a long title read as one phrase). */
+/* !important: a screen's own `h2 { margin: ... }` must not pull it back beside Cancelar. */
+.ui-sheet-body:has(> .sheet-cancel) > h2 { margin-top: 30px !important; padding-left: 8px; padding-right: 8px; }
 .ui-sheet-body:has(> .sheet-cancel) > .sheet-head h2 { padding-left: 78px; padding-right: 78px; }
 .ui-sheet-body:has(> .sheet-cancel):not(:has(> h2)):not(:has(> .sheet-head)) > .grab { margin-bottom: 40px; }
 /* A head with no h2 (a title of its own, as a reminder's) starts under Cancelar, never beside it. */

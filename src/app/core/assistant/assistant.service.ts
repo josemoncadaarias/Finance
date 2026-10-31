@@ -42,6 +42,7 @@ import { usuryOn } from '../debts/usury';
 import { estimatedCardPayment, type PlanDebt } from '../debts/debt-plan';
 import type { DebtIn } from './debts-advice';
 import { freeInAccount, freeMoney, goalKeptIn, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
+import { INCOME_MONTHS, spendRoom, type RoomPayment, type SpendRoom } from './spend-room';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 import { matchNotes, type NoteMatches, type NoteRow } from './note-search';
@@ -324,6 +325,39 @@ export class AssistantService {
         g.places.map(p => ({ accountId: p.place.accountId, pesos: p.pesos, free: freeProduct(p.product) })),
         g.terms.amountMinor, accountId), 0);
     return freeInAccount({ accountId, holdsMinor: held.holdsMinor, payments: picture.free.payments, keptMinor, today: isoDay(new Date()) });
+  }
+
+  /**
+   * "Puedes gastar hoy" (Jose, 2026-10-31, `51a`-`51g`): from what comes in
+   * each month, never from what is held (`spendRoom`). What came in over the
+   * last three whole months and what went out this month are the summary's
+   * own `totalsOf` over every account; the payments to come are the fixed
+   * payments not seen this month and the loan installments of `picture`.
+   */
+  async spendRoom(picture: Picture, savePct: number): Promise<SpendRoom> {
+    const now = new Date();
+    const today = isoDay(now);
+    const incomes: { month: string; inMinor: number }[] = [];
+    for (let back = 1; back <= INCOME_MONTHS; back++) {
+      const month = periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1));
+      const t = totalsOf(await this.store.movementsFor(month, undefined, true), 'base');
+      incomes.push({ month: (month.from ?? today).slice(0, 7), inMinor: t.inMinor });
+    }
+    const current = periodContaining('month', now);
+    const spent = totalsOf(await this.store.movementsFor({ ...current, to: today }, undefined, true), 'base').outMinor;
+    // A loan's interest and insurance look like a fixed payment every month;
+    // its installment is already among the payments, so they are left out.
+    const loanCategories = new Set((await this.db.query<{ id: number }>(
+      `SELECT DISTINCT t.category_id AS id FROM transactions t JOIN loan_payments lp
+         ON t.id IN (lp.interest_tx_id, lp.insurance_tx_id, lp.late_tx_id) WHERE t.category_id IS NOT NULL`)).map(r => r.id));
+    const fixed = (await this.recurring()).fixed
+      .filter(f => f.thisMonthMinor <= 0 && (f.categoryId === null || !loanCategories.has(f.categoryId)));
+    const payments: RoomPayment[] = [
+      ...fixed.map(f => ({ kind: 'fixed' as const, name: f.name, amountMinor: f.averageMinor, dueOn: null })),
+      ...picture.free.payments.filter(p => p.kind === 'loan').map(p => ({ kind: 'loan' as const, name: p.name, amountMinor: p.amountMinor, dueOn: p.dueOn })),
+    ];
+    const goalsAskMinor = picture.free.goals.filter(g => g.how === 'dated').reduce((sum, g) => sum + g.aimMinor, 0);
+    return spendRoom({ incomes, savePct, goalsAskMinor, spentMinor: spent, payments, today });
   }
 
   /**
