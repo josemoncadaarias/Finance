@@ -6554,13 +6554,14 @@ with testers runs; the paywall is finished after them.
   that runs out in 5 s (`SAVED_BANNER_MS`) and stops while the finger is on
   it. A tap opens that movement in the one form (closing a form still open
   with "Registrar otro" first); swiped up or left alone it goes and the
-  movement stays. **"Deshacer"** deletes it as the form does, after copying
-  every row the deletion takes (`core/database/repositories/undo-delete.ts`:
-  the movement or the transfer and its legs, its halves on a product, the
-  cover from a pocket, rows a foreign key cascades, references it only
-  empties); a bank message saved as it goes back to Por revisar. The banner
-  then says "Gasto borrado" with **"Recuperar"** for 5 s, which inserts those
-  rows again with their own ids (`undo-delete.test.mjs`). Shown only for a
+  movement stays. **"Deshacer"** removes it as the form deletes it (the
+  movement or the transfer and its legs, its halves on a product, the cover
+  from a pocket; `deleteWithSnapshot` in `core/database/repositories/
+  undo-delete.ts`), a bank message saved as it goes back to Por revisar,
+  and the banner closes - **no second notice** (Jose, 2026-11-01: undoing is
+  the decision itself; a "borrado" notice belongs to deleting by hand).
+  `restoreSnapshot` (tested in `undo-delete.test.mjs`) is kept but no
+  screen calls it since then. Shown only for a
   NEW spending, income or transfer saved from the movement form or the
   assistant's "Guardar" - never a correction, a loan's payment, several at
   once or a product-only entry (those keep their toast). With "Registrar
@@ -6574,10 +6575,8 @@ with testers runs; the paywall is finished after them.
   proposals point at, a transfer once), after "Responder los N" / "Editar"
   for several (`saveMany`), as "N movimientos guardados" with the first two
   names, and after a "Solo el producto" entry (`entryId` target,
-  `lastEntryOf`). Undoing several deletes them all and their messages go
-  back to Por revisar; "Volver a guardarlos" puts them back. Undo says
-  "Deshiciste el gasto / el ingreso / los N movimientos", "Ya no está en tus
-  movimientos" and "Volver a guardarlo" - never "borrado". A banner that
+  `lastEntryOf`). Undoing several removes them all and their messages go
+  back to Por revisar; the banner just closes. A banner that
   fails to read is no longer silent: the error goes to the log "Reportar un
   fallo" carries (`noteError`). Still not shown: a loan's payment (its parts
   are a payment record; undo stays on the loan's page) and a correction. A
