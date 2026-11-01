@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1169 on 2026-11-01, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1175 on 2026-11-01, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -5961,8 +5961,8 @@ with testers runs; the paywall is finished after them.
   money held is not counted, and the sheet says so with its figure; a card's
   statement is no payment here (each purchase was spending). Nothing came
   in: the row says so with "Registrar un ingreso". Over: red, with how much.
-  One account chosen shows the same figure, said to be all accounts; a card,
-  a loan or an account outside net worth shows nothing. The share is a
+  One account chosen shows that account's own figure since 2026-11-01
+  (below); a loan or an account outside net worth shows nothing. The share is a
   setting (`budget.savePct` in `settings`, `SaveShareService`, travels in the
   backup), chosen in Más → Preferencias or from the sheet
   (`app-save-share-sheet`: 10, 20, 30 % or another from 0 to 90). The
@@ -5974,6 +5974,26 @@ with testers runs; the paywall is finished after them.
   `since: 19`. **Every sheet's title now has its own row under Cancelar**
   (`margin-top: 30px !important` in global.scss; Jose: "Cancelar" stuck to
   the title). Checked in a browser on the sample data.
+- **"Puedes gastar hoy" for the one account chosen on top** (Jose,
+  2026-11-01, mockups `54a`-`54h`, with his change: an account fed only by
+  transfers is spent too, from its balance). `accountRoom`
+  (`core/assistant/account-room.ts`, pure, `account-room.test.mjs`;
+  `AssistantService.accountRoom`): an account income comes into (its own
+  income over the last 3 whole months above zero) - what comes into it a
+  month (income and transfers received, averaged), less the savings share of
+  its income only, less what already left it this month (spending and
+  transfers out), less the payments usually made from it (fixed payments of
+  that account not seen yet, a card's statement or a loan's installment it
+  pays), never more than it holds free (holds less what goals keep in it,
+  `goalKeptIn`, less those payments); any other account - its balance, less
+  what goals keep in it and those payments; a card - what is usually spent
+  with it a month less what was spent this month, never past its available
+  credit (no history: it says so, with no figure). Spread over the days
+  left. The sheet says the lines of its kind and "Elige Todas las cuentas
+  arriba..."; the savings share is changed only from an income account's
+  sheet. A loan, an archived account or one outside net worth shows nothing.
+  "Todas las cuentas" is unchanged (`spendRoom`). Home tour step reworded,
+  `since: 20`. Checked in a browser on the sample data, every account.
 - **"¿Me alcanza?" for a big purchase never counts all the savings**
   (Jose, 2026-10-31, mockups `52a`-`52g`, approved as drawn: "constrúyelo
   así"). A purchase that fits in what is left this month is answered from

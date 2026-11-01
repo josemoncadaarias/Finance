@@ -28,7 +28,7 @@ export const SAVE_PCT_CHOICES = [10, 20, 30] as const;
 export const INCOME_MONTHS = 3;
 
 export interface RoomPayment {
-  kind: 'fixed' | 'loan';
+  kind: 'fixed' | 'loan' | 'card';
   name: string;
   amountMinor: number;
   /** 'YYYY-MM-DD' when known (a loan's due day), else null. */
