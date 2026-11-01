@@ -41,7 +41,7 @@ import { TransfersRepository, type TransferScope } from '../../core/database/rep
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { TourService } from '../../core/tour/tour.service';
 import { ComposeService } from '../../core/ui/compose.service';
-import { SavedBannerService } from '../../core/ui/saved-banner.service';
+import { SavedBannerService, type SavedTarget } from '../../core/ui/saved-banner.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
@@ -833,17 +833,22 @@ export class EntryComponent implements OnInit, OnDestroy {
     const note = this.note().trim();
     const scoped = !this.isTransfer() && this.asksScope() && this.scope() !== 'both';
     let saved = 0;
+    const targets: SavedTarget[] = [];
     try {
       for (const item of ready) {
         this.current = item.proposal;
         this.amount.set(AmountBuffer.from(Math.abs(item.amountMinor ?? 0)));
         this.occurredOn.set(item.onDate);
         if (this.isTransfer()) {
-          await this.saveTransfer();
+          const created = await this.saveTransfer();
+          if (created !== null) targets.push({ transferId: created });
         } else {
           this.categoryId.set(category ?? item.proposal.categoryId ?? null);
           this.note.set(note || item.note);
           const written = scoped ? await this.saveScoped() : await this.saveMovement();
+          const entryId = written === null && scoped ? await this.lastEntryOf(this.accountId()!) : null;
+          if (written !== null) targets.push({ transactionId: written });
+          else if (entryId !== null) targets.push({ entryId });
           await this.teach();
           await this.answerProposal(written);
         }
@@ -858,7 +863,18 @@ export class EntryComponent implements OnInit, OnDestroy {
       await this.workOutAgain();
     }
     const left = many.items.length - saved;
-    this.toast.say(this.i18n.t(left > 0 ? 'ui.many.savedLeft' : 'ui.many.saved', { count: saved, left }), 4000);
+    // The banner says what was saved (53); what stays behind is said after it.
+    await this.savedBanner.saved(targets);
+    if (left > 0 || targets.length === 0) {
+      this.toast.say(this.i18n.t(left > 0 ? 'ui.many.savedLeft' : 'ui.many.saved', { count: saved, left }), 4000);
+    }
+  }
+
+  /** The product's own movement just written on this account ("Solo el producto"). */
+  private async lastEntryOf(accountId: number): Promise<number | null> {
+    const row = await this.database.driver.queryOne<{ id: number | null }>(
+      'SELECT MAX(id) AS id FROM product_entries WHERE account_id = ?', [accountId]);
+    return row?.id ?? null;
   }
 
   private readonly tour = inject(TourService);
@@ -2080,6 +2096,7 @@ export class EntryComponent implements OnInit, OnDestroy {
       const cover = loan ? null : this.coverToWrite();
       // A new transfer's id, for the saved banner.
       let createdTransfer: number | null = null;
+      let createdEntry: number | null = null;
       if (loan) await this.saveLoanPayment(loan);
       else if (cover) {
         // The movement and its cover are one save: neither is left alone.
@@ -2100,7 +2117,10 @@ export class EntryComponent implements OnInit, OnDestroy {
       else if (this.isTransfer()) createdTransfer = await this.saveTransfer();
       else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
-      else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') written = await this.saveScoped();
+      else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') {
+        written = await this.saveScoped();
+        if (written === null) createdEntry = await this.lastEntryOf(this.accountId()!);
+      }
       else written = await this.saveMovement();
       if (!loan && !this.isTransfer()) await this.teach();
       if (!loan && !this.isTransfer() && this.request().proposal) await this.answerProposal(written);
@@ -2122,7 +2142,8 @@ export class EntryComponent implements OnInit, OnDestroy {
       const newOne = !loan && !this.request().editing && !this.request().editingEntry;
       const target = !newOne ? null
         : this.isTransfer() ? (createdTransfer !== null ? { transferId: createdTransfer } : null)
-        : written !== null ? { transactionId: written as number } : null;
+        : written !== null ? { transactionId: written as number }
+        : createdEntry !== null ? { entryId: createdEntry } : null;
       if (target) void this.savedBanner.saved(target);
       if (this.again() && !this.isEditing()) {
         this.startNext();

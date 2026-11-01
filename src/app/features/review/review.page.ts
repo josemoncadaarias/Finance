@@ -49,6 +49,7 @@ import { todayIso } from '../../core/yields/days';
 import { NoticeInboxService } from '../../core/notices/notice-inbox.service';
 import type { Quiet } from '../../core/notices/molds';
 import { ToastService } from '../../shared/ui/toast.service';
+import { SavedBannerService, type SavedTarget } from '../../core/ui/saved-banner.service';
 import { squaringFor, type Anchor } from '../../core/statements/anchor';
 import { MOVE_COLOR } from '../../core/theme/palette';
 
@@ -125,6 +126,7 @@ export class ReviewPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly savedBanner = inject(SavedBannerService);
   readonly info = signal<string | null>(null);
 
   back(): void {
@@ -2158,12 +2160,31 @@ export class ReviewPage {
         this.error.set(this.i18n.t('review.error.incomplete', { count: result.refused.length }));
       }
       this.database.dataChanged();
+      void this.savedBanner.saved(await this.writtenBy(proposals));
       await this.refresh();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.working.set(false);
     }
+  }
+
+  /** What "Guardar los listos" wrote, for the saved banner (53): a transfer once. */
+  private async writtenBy(proposals: readonly MovementProposal[]): Promise<SavedTarget[]> {
+    if (proposals.length === 0) return [];
+    const ids = proposals.map(p => p.id);
+    const rows = await this.database.driver.query<{ tx: number; transfer: number | null }>(
+      `SELECT t.id AS tx, t.transfer_id AS transfer FROM movement_proposals p
+       JOIN transactions t ON t.id = p.transaction_id
+       WHERE p.id IN (${ids.map(() => '?').join(', ')}) AND p.status = 'accepted'`, ids);
+    const seen = new Set<string>();
+    const targets: SavedTarget[] = [];
+    for (const row of rows) {
+      const target: SavedTarget = row.transfer !== null ? { transferId: row.transfer } : { transactionId: row.tx };
+      const key = row.transfer !== null ? `t${row.transfer}` : `m${row.tx}`;
+      if (!seen.has(key)) { seen.add(key); targets.push(target); }
+    }
+    return targets;
   }
 
   private async rejectOne(line: Line): Promise<void> {

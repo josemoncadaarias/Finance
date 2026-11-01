@@ -13,7 +13,9 @@ import { Injectable, inject, signal } from '@angular/core';
 import { DatabaseService } from '../database/database.service';
 import { formatMoney } from '../database/money';
 import type { TransactionRow } from '../database/types';
-import { deleteWithSnapshot, restoreSnapshot, type MovementSnapshot } from '../database/repositories/undo-delete';
+import { deleteWithSnapshot, restoreSnapshot, type MovementSnapshot, type MovementTarget } from '../database/repositories/undo-delete';
+import type { ProductEntry } from '../database/repositories/yields.repository';
+import { noteError } from '../feedback/error-log';
 import { I18nService } from '../i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { ComposeService } from './compose.service';
@@ -21,7 +23,7 @@ import { ComposeService } from './compose.service';
 /** How long the banner stays, in milliseconds. */
 export const SAVED_BANNER_MS = 5000;
 
-export type SavedTarget = { transactionId: number } | { transferId: number };
+export type SavedTarget = MovementTarget;
 
 export interface SavedNotice {
   /** Changes on every new banner, so its bar starts again. */
@@ -32,9 +34,12 @@ export interface SavedNotice {
   sub: string;
   /** The figure as said: signed for a spending or an income. */
   amount: string;
-  target: SavedTarget;
-  snapshot?: MovementSnapshot;
+  /** What was saved: one, or several saved at once ("Guardar los listos"). */
+  targets: SavedTarget[];
+  snapshots?: MovementSnapshot[];
 }
+
+type Said = Omit<SavedNotice, 'key' | 'phase' | 'targets' | 'snapshots'>;
 
 @Injectable({ providedIn: 'root' })
 export class SavedBannerService {
@@ -47,16 +52,21 @@ export class SavedBannerService {
   private keys = 0;
   private busy = false;
 
-  /** Says what was just saved. Never fails a save: a banner it cannot read is not shown. */
-  async saved(target: SavedTarget): Promise<void> {
+  /**
+   * Says what was just saved. Never fails a save: a banner it cannot read is
+   * not shown, and why goes to the errors "Reportar un fallo" can carry.
+   */
+  async saved(what: SavedTarget | readonly SavedTarget[]): Promise<void> {
+    const targets = (Array.isArray(what) ? what : [what as SavedTarget]).filter(t => t.transactionId !== undefined || t.transferId !== undefined || t.entryId !== undefined);
+    if (targets.length === 0) return;
     try {
-      const said = 'transferId' in target ? await this.readTransfer(target.transferId) : await this.readMovement(target.transactionId);
+      const said = targets.length === 1 ? await this.readOne(targets[0]) : await this.readMany(targets);
       if (!said) return;
       // The quiet toast of the same save would only repeat it.
       this.toast.dismiss();
-      this.notice.set({ ...said, key: ++this.keys, phase: 'saved', target });
-    } catch {
-      /* the movement is saved; the banner is only a courtesy */
+      this.notice.set({ ...said, key: ++this.keys, phase: 'saved', targets });
+    } catch (error) {
+      noteError(error);
     }
   }
 
@@ -66,23 +76,33 @@ export class SavedBannerService {
     if (now && (key === undefined || now.key === key)) this.notice.set(null);
   }
 
-  /** A tap: that movement in the one form. */
+  /** A tap: that movement in the one form. Several saved at once only close. */
   async edit(): Promise<void> {
     const now = this.notice();
     if (!now || now.phase !== 'saved') return;
     this.notice.set(null);
+    if (now.targets.length !== 1) return;
+    const target = now.targets[0];
     const db = this.database.driver;
-    const row = 'transferId' in now.target
-      ? await db.queryOne<TransactionRow>("SELECT * FROM transactions WHERE transfer_id = ? ORDER BY transfer_leg = 'from' DESC LIMIT 1", [now.target.transferId])
-      : await db.queryOne<TransactionRow>('SELECT * FROM transactions WHERE id = ?', [now.target.transactionId]);
-    if (!row) return;
+    let open: () => void;
+    if (target.entryId !== undefined) {
+      const entry = await db.queryOne<ProductEntry>('SELECT * FROM product_entries WHERE id = ?', [target.entryId]);
+      if (!entry) return;
+      open = () => this.compose.entry.set({ kind: entry.amount_minor < 0 ? 'expense' : 'income', editingEntry: entry });
+    } else {
+      const row = target.transferId !== undefined
+        ? await db.queryOne<TransactionRow>("SELECT * FROM transactions WHERE transfer_id = ? ORDER BY transfer_leg = 'from' DESC LIMIT 1", [target.transferId])
+        : await db.queryOne<TransactionRow>('SELECT * FROM transactions WHERE id = ?', [target.transactionId]);
+      if (!row) return;
+      open = () => this.compose.edit(row);
+    }
     // With "Registrar otro" the form is still open: it closes first, so the
     // movement opens in a form of its own.
     if (this.compose.entry()) {
       this.compose.close();
-      setTimeout(() => this.compose.edit(row), 350);
+      setTimeout(open, 350);
     } else {
-      this.compose.edit(row);
+      open();
     }
   }
 
@@ -92,10 +112,12 @@ export class SavedBannerService {
     if (!now || now.phase !== 'saved' || this.busy) return;
     this.busy = true;
     try {
-      const snapshot = await deleteWithSnapshot(this.database.driver, now.target);
+      const snapshots: MovementSnapshot[] = [];
+      for (const target of now.targets) snapshots.push(await deleteWithSnapshot(this.database.driver, target));
       this.database.dataChanged();
-      this.notice.set({ ...now, key: ++this.keys, phase: 'deleted', snapshot });
+      this.notice.set({ ...now, key: ++this.keys, phase: 'deleted', snapshots });
     } catch (error) {
+      noteError(error);
       this.notice.set(null);
       this.toast.say(error instanceof Error ? error.message : String(error), 5000, { icon: 'alert-circle-outline' });
     } finally {
@@ -106,14 +128,16 @@ export class SavedBannerService {
   /** "Recuperar": back exactly as it was. */
   async recover(): Promise<void> {
     const now = this.notice();
-    if (!now || now.phase !== 'deleted' || !now.snapshot || this.busy) return;
+    if (!now || now.phase !== 'deleted' || !now.snapshots || this.busy) return;
     this.busy = true;
     try {
-      await restoreSnapshot(this.database.driver, now.snapshot);
+      // Put back in the reverse order they went.
+      for (const snapshot of [...now.snapshots].reverse()) await restoreSnapshot(this.database.driver, snapshot);
       this.database.dataChanged();
       this.notice.set(null);
-      this.toast.say(this.i18n.t('saved.back'), 2500);
+      this.toast.say(this.i18n.t(now.targets.length > 1 ? 'saved.backMany' : 'saved.back', { count: now.targets.length }), 2500);
     } catch (error) {
+      noteError(error);
       this.notice.set(null);
       this.toast.say(error instanceof Error ? error.message : String(error), 5000, { icon: 'alert-circle-outline' });
     } finally {
@@ -121,7 +145,42 @@ export class SavedBannerService {
     }
   }
 
-  private async readMovement(id: number): Promise<Omit<SavedNotice, 'key' | 'phase' | 'target'> | null> {
+  private readOne(target: SavedTarget): Promise<Said | null> {
+    if (target.entryId !== undefined) return this.readEntry(target.entryId);
+    if (target.transferId !== undefined) return this.readTransfer(target.transferId);
+    return this.readMovement(target.transactionId!);
+  }
+
+  /** Several at once: how many, the first names, and the total when they are alike. */
+  private async readMany(targets: readonly SavedTarget[]): Promise<Said | null> {
+    const each = (await Promise.all(targets.map(t => this.readOne(t)))).filter((x): x is Said => x !== null);
+    if (each.length === 0) return null;
+    const names = each.slice(0, 2).map(x => x.title);
+    const sub = each.length > 2
+      ? this.i18n.t('saved.manyNames', { names: names.join(', '), more: each.length - 2 })
+      : names.join(' · ');
+    const sides = new Set(each.map(x => x.side));
+    const side = sides.size === 1 ? each[0].side : 'transfer';
+    return { side, title: this.i18n.t('saved.manyTitle', { count: each.length }), sub, amount: '' };
+  }
+
+  private async readEntry(id: number): Promise<Said | null> {
+    const row = await this.database.driver.queryOne<{ amount_minor: number; note: string | null; on_date: string; product: string | null; account: string; currency: string; category: string | null }>(
+      `SELECT e.amount_minor, e.note, e.on_date, p.name AS product, a.name AS account, a.currency_code AS currency, c.name AS category
+       FROM product_entries e JOIN accounts a ON a.id = e.account_id
+       LEFT JOIN products p ON p.id = e.product_id LEFT JOIN categories c ON c.id = e.category_id
+       WHERE e.id = ?`, [id]);
+    if (!row) return null;
+    const side = row.amount_minor < 0 ? 'expense' : 'income';
+    const note = row.note?.trim() || '';
+    const title = note || row.category || row.product || row.account;
+    const where = row.product ? `${row.account} · ${row.product}` : row.account;
+    const sub = [note ? row.category : null, where, this.day(row.on_date)].filter(Boolean).join(' · ');
+    const figure = formatMoney(Math.abs(row.amount_minor), row.currency);
+    return { side, title, sub, amount: (side === 'expense' ? '−' : '+') + figure };
+  }
+
+  private async readMovement(id: number): Promise<Said | null> {
     const row = await this.database.driver.queryOne<{ amount_minor: number; description: string | null; occurred_on: string; account: string; currency: string; category: string | null }>(
       `SELECT t.amount_minor, t.description, t.occurred_on, a.name AS account, a.currency_code AS currency, c.name AS category
        FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id
@@ -135,7 +194,7 @@ export class SavedBannerService {
     return { side, title, sub, amount: (side === 'expense' ? '−' : '+') + figure };
   }
 
-  private async readTransfer(id: number): Promise<Omit<SavedNotice, 'key' | 'phase' | 'target'> | null> {
+  private async readTransfer(id: number): Promise<Said | null> {
     const db = this.database.driver;
     const transfer = await db.queryOne<{ occurred_on: string; description: string | null }>('SELECT occurred_on, description FROM transfers WHERE id = ?', [id]);
     if (!transfer) return null;
