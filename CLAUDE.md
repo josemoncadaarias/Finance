@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1166 on 2026-10-31, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1168 on 2026-11-01, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6542,6 +6542,33 @@ with testers runs; the paywall is finished after them.
   with an h2 puts Cancelar and its action on the first row and the title,
   centred, on the next (`.sheet-head:has(> h2)` in global.scss), for every
   sheet at once.
+- **"Gasto guardado": a banner on top of everything after saving** (Jose,
+  2026-11-01, mockups `53a`-`53f`, approved as drawn; the idea came from
+  Lukas's, the look is our own). `app-saved-banner` (`shared/ui/`, mounted
+  once in the shell, z-index 45000, over every sheet and form) draws
+  `SavedBannerService` (`core/ui/`): the app's own wallet (`assets/icon/
+  saved-logo.png`, from the icon's foreground) a little larger than the
+  banner with its cards over the top edge; "Gasto / Ingreso / Transferencia
+  guardada", what was saved (the note, or the category; "Cuenta → Cuenta" for
+  a transfer), category · account · day, the figure in its colour; a green bar
+  that runs out in 5 s (`SAVED_BANNER_MS`) and stops while the finger is on
+  it. A tap opens that movement in the one form (closing a form still open
+  with "Registrar otro" first); swiped up or left alone it goes and the
+  movement stays. **"Deshacer"** deletes it as the form does, after copying
+  every row the deletion takes (`core/database/repositories/undo-delete.ts`:
+  the movement or the transfer and its legs, its halves on a product, the
+  cover from a pocket, rows a foreign key cascades, references it only
+  empties); a bank message saved as it goes back to Por revisar. The banner
+  then says "Gasto borrado" with **"Recuperar"** for 5 s, which inserts those
+  rows again with their own ids (`undo-delete.test.mjs`). Shown only for a
+  NEW spending, income or transfer saved from the movement form or the
+  assistant's "Guardar" - never a correction, a loan's payment, several at
+  once or a product-only entry (those keep their toast). With "Registrar
+  otro" it replaces the old "Guardado. Ya puedes registrar el siguiente".
+  Yields of an account touched by an undo are redone by the next pass (month
+  marks). Entry tour step `since: 4`. Checked in a browser on the sample data
+  (saved from the assistant and from the form, Deshacer, Recuperar, the tap,
+  the bar running out); not on the phone.
 - **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:
   "DEBES HOY" alone on a row beside the buttons, the figure under it, and a
   wide strip before Gráfico / Movimientos). The label and the figure are one

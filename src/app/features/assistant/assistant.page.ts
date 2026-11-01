@@ -29,6 +29,7 @@ import type { YieldProduct } from '../../core/database/repositories/yields.repos
 import { AccountsRepository } from '../../core/database/repositories/accounts.repository';
 import { CategoriesRepository } from '../../core/database/repositories/categories.repository';
 import { ComposeService, type SavedChoice } from '../../core/ui/compose.service';
+import { SavedBannerService } from '../../core/ui/saved-banner.service';
 import { ToastService } from '../../shared/ui/toast.service';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { CategorySheetComponent } from '../../shared/category-sheet/category-sheet.component';
@@ -256,6 +257,7 @@ export class AssistantPage {
   private readonly saveShare = inject(SaveShareService);
   private readonly compose = inject(ComposeService);
   private readonly toast = inject(ToastService);
+  private readonly savedBanner = inject(SavedBannerService);
   private readonly filter = inject(FilterService);
   private readonly pro = inject(PaywallService);
   private readonly reminders = inject(RemindersService);
@@ -927,7 +929,7 @@ export class AssistantPage {
     if (card.state !== 'open' || this.busy()) return;
     this.busy.set(true);
     try {
-      await this.assistant.register({
+      const written = await this.assistant.register({
         side: card.side, accountId: card.account.id, productId: card.product?.id ?? null,
         categoryId: card.category.id, amountMinor: card.amountMinor, onDate: card.onDate, note: card.note,
       });
@@ -940,7 +942,8 @@ export class AssistantPage {
       }
       this.messages.update(list => [...list]);
       this.compose.saved.update(n => n + 1);
-      this.toast.say(this.i18n.t('ai.register.saved'), 2500);
+      if (written !== null) void this.savedBanner.saved({ transactionId: written });
+      else this.toast.say(this.i18n.t('ai.register.saved'), 2500);
     } catch (error) {
       this.say('ai.error', { why: error instanceof Error ? error.message : String(error) });
     } finally {
