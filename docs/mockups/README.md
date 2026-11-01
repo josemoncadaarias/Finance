@@ -237,3 +237,14 @@ Jose: con 230 millones libres y una meta de 500 millones abierta, la app no pued
 - `52e` un carro de 90 millones: te alcanza, pero se lleva el 85 %.
 - `52f` un apartamento de 230 millones: no te alcanza todavía, cuánto falta y "Crear una meta".
 - `52g` qué cambia y qué se queda igual.
+
+## 53 - El aviso de «Guardado» (2026-11-01, propuesta)
+
+Jose: después de guardar un movimiento, un aviso arriba, encima de todo, con una barra que se acaba; sirve de seguro para corregirlo o borrarlo si fue un error. El identificador es la billetera del ícono de la app, un poco más grande que el aviso, con sus tarjetas saliendo por encima del borde.
+
+- `53a` un gasto guardado, sobre Inicio: qué se guardó, el valor, "Deshacer" y la barra verde.
+- `53b` un ingreso.
+- `53c` una transferencia, en el azul de las transferencias.
+- `53d` con el dedo encima, la barra se detiene; al soltar se abre ese movimiento en el formulario de siempre.
+- `53e` después de "Deshacer": el gasto se borró, con "Recuperar" unos segundos.
+- `53f` cómo funciona, en cuatro líneas.
