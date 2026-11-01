@@ -77,3 +77,17 @@ test('a transfer and its product-only end come back exactly', async () => {
   await restoreSnapshot(db, snap);
   assert.deepEqual(await dump(db), before);
 });
+
+test('a product-only entry comes back exactly', async () => {
+  const { db, NOW, account, main } = await setUp();
+  const yields = new YieldsRepository(db, NOW);
+  await db.run(`INSERT INTO product_entries (account_id, source, kind, product_id, on_date, amount_minor, note, created_at, updated_at)
+    VALUES (?, 'cashback', 'cashback', ?, '2026-11-01', 100, 'Prueba', ?, ?)`, [account, main, NOW(), NOW()]);
+  const id = (await db.queryOne('SELECT MAX(id) AS id FROM product_entries')).id;
+  const before = await dump(db);
+  const snap = await deleteWithSnapshot(db, { entryId: id });
+  assert.equal((await db.queryOne('SELECT COUNT(*) AS n FROM product_entries')).n, 0);
+  await restoreSnapshot(db, snap);
+  assert.deepEqual(await dump(db), before);
+  void yields;
+});

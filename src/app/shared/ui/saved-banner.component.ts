@@ -24,7 +24,7 @@ import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.
           <img class="logo" src="assets/icon/saved-logo.png" alt="" draggable="false">
           @if (n.phase === 'saved') {
             <div class="line">
-              <span class="kind"><ion-icon name="checkmark-circle"></ion-icon>{{ kindKey(n.side) | t }}</span>
+              <span class="kind"><ion-icon name="checkmark-circle"></ion-icon>{{ n.targets.length > 1 ? ('saved.manyKind' | t) : (kindKey(n.side) | t) }}</span>
               <b class="amount" [class.out]="n.side === 'expense'" [class.in]="n.side === 'income'" [class.move]="n.side === 'transfer'">{{ n.amount }}</b>
             </div>
             <div class="line low">
@@ -34,11 +34,11 @@ import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.
           } @else {
             <div class="line low">
               <span class="what">
-                <span class="kind gone"><ion-icon name="trash-outline"></ion-icon>{{ goneKey(n.side) | t }}</span>
-                <b class="title">{{ n.title }}</b>
-                <small>{{ n.amount.replace('−', '').replace('+', '') }} · {{ 'saved.goneSub' | t }}</small>
+                <span class="kind gone"><ion-icon name="arrow-undo-outline"></ion-icon>{{ n.targets.length > 1 ? ('saved.gone.many' | t:{ count: n.targets.length }) : (goneKey(n.side) | t) }}</span>
+                <b class="title">{{ n.targets.length > 1 ? n.sub : n.title }}</b>
+                <small>@if (n.amount) {<span>{{ n.amount.replace('−', '').replace('+', '') }} · </span>}{{ (n.targets.length > 1 ? 'saved.goneSubMany' : 'saved.goneSub') | t }}</small>
               </span>
-              <button type="button" class="act" data-act (click)="banner.recover()">{{ 'saved.recover' | t }}</button>
+              <button type="button" class="act" data-act (click)="banner.recover()">{{ (n.targets.length > 1 ? 'saved.recoverMany' : 'saved.recover') | t }}</button>
             </div>
           }
           <div class="track"><div class="fill" [style.animation-duration.ms]="ms" [style.animation-play-state]="pressed() ? 'paused' : 'running'" (animationend)="banner.close(n.key)"></div></div>

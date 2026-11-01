@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1168 on 2026-11-01, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1169 on 2026-11-01, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6566,7 +6566,25 @@ with testers runs; the paywall is finished after them.
   once or a product-only entry (those keep their toast). With "Registrar
   otro" it replaces the old "Guardado. Ya puedes registrar el siguiente".
   Yields of an account touched by an undo are redone by the next pass (month
-  marks). Entry tour step `since: 4`. Checked in a browser on the sample data
+  marks). Entry tour step `since: 4`.
+  **Where it did not show, and what undo says** (Jose, the same day: no
+  banner in several flows; "Ingreso borrado" after Deshacer read as if a
+  record had been deleted). Now it also comes after "Guardar los listos" in
+  Por revisar (`writtenBy` in `review.page.ts`: the movements the accepted
+  proposals point at, a transfer once), after "Responder los N" / "Editar"
+  for several (`saveMany`), as "N movimientos guardados" with the first two
+  names, and after a "Solo el producto" entry (`entryId` target,
+  `lastEntryOf`). Undoing several deletes them all and their messages go
+  back to Por revisar; "Volver a guardarlos" puts them back. Undo says
+  "Deshiciste el gasto / el ingreso / los N movimientos", "Ya no está en tus
+  movimientos" and "Volver a guardarlo" - never "borrado". A banner that
+  fails to read is no longer silent: the error goes to the log "Reportar un
+  fallo" carries (`noteError`). Still not shown: a loan's payment (its parts
+  are a payment record; undo stays on the loan's page) and a correction. A
+  receipt's photo saved through the form showed it in a browser; why Jose
+  did not see it on the phone is not proved (assumed: that account's habit
+  was "Solo el producto", covered now). Entry tour step reworded,
+  `since: 5`. Checked in a browser on the sample data
   (saved from the assistant and from the form, Deshacer, Recuperar, the tap,
   the bar running out); not on the phone.
 - **Inicio's balance card wastes no row** (Jose, 2026-10-31, a screenshot:

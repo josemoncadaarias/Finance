@@ -21,13 +21,16 @@ import { TransfersRepository } from './transfers.repository';
 
 type Row = Record<string, unknown>;
 
+/** A movement, a transfer, or a product's own movement ("Solo el producto"). */
+export interface MovementTarget { transactionId?: number; transferId?: number; entryId?: number }
+
 export interface MovementSnapshot {
   /** Rows to insert again, parents first. */
   rows: { table: string; row: Row }[];
   /** References a foreign key emptied: set back to `value`. */
   links: { table: string; column: string; rowid: number; value: number }[];
   /** What was deleted, to delete it the same way. */
-  target: { transactionId?: number; transferId?: number };
+  target: MovementTarget;
   /** Bank messages saved as this movement: back in Por revisar while it is gone. */
   proposals: number[];
 }
@@ -41,7 +44,13 @@ async function idsOf(db: SqlDriver, sql: string, params: unknown[]): Promise<num
 }
 
 /** Copies everything deleting this movement or transfer would take. */
-export async function snapshotMovement(db: SqlDriver, target: { transactionId?: number; transferId?: number }): Promise<MovementSnapshot> {
+export async function snapshotMovement(db: SqlDriver, target: MovementTarget): Promise<MovementSnapshot> {
+  if (target.entryId !== undefined) {
+    // A product's own movement is one row: nothing points at it.
+    const rows = (await db.query<Row>('SELECT * FROM product_entries WHERE id = ?', [target.entryId]))
+      .map(row => ({ table: 'product_entries', row }));
+    return { rows, links: [], target, proposals: [] };
+  }
   const transferIds = target.transferId !== undefined ? [target.transferId] : [];
   let txIds = target.transactionId !== undefined ? [target.transactionId] : [];
   if (transferIds.length) txIds = [...txIds, ...await idsOf(db, `SELECT id FROM transactions WHERE transfer_id IN (${marks(transferIds)})`, transferIds)];
@@ -92,8 +101,12 @@ export async function snapshotMovement(db: SqlDriver, target: { transactionId?: 
 }
 
 /** Deletes the movement or transfer as the form does, after copying it. */
-export async function deleteWithSnapshot(db: SqlDriver, target: { transactionId?: number; transferId?: number }): Promise<MovementSnapshot> {
+export async function deleteWithSnapshot(db: SqlDriver, target: MovementTarget): Promise<MovementSnapshot> {
   const snapshot = await snapshotMovement(db, target);
+  if (target.entryId !== undefined) {
+    await db.run('DELETE FROM product_entries WHERE id = ?', [target.entryId]);
+    return snapshot;
+  }
   if (target.transferId !== undefined) await new TransfersRepository(db).delete(target.transferId);
   else if (target.transactionId !== undefined) await new TransactionsRepository(db).delete(target.transactionId);
   // A message saved by mistake waits in Por revisar again.
