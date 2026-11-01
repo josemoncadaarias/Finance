@@ -248,3 +248,13 @@ Jose: después de guardar un movimiento, un aviso arriba, encima de todo, con un
 - `53d` con el dedo encima, la barra se detiene; al soltar se abre ese movimiento en el formulario de siempre.
 - `53e` después de "Deshacer": el gasto se borró, con "Recuperar" unos segundos. **Descartado** por Jose (2026-11-01): Deshacer quita el movimiento y el aviso se cierra, sin un segundo aviso.
 - `53f` cómo funciona, en cuatro líneas.
+
+## 54 - Puedes gastar hoy en una sola cuenta (2026-11-01, propuesta)
+
+Jose: con una cuenta elegida arriba, "Puedes gastar hoy" mostraba la cifra de todas las cuentas. Propuesta: Todas las cuentas queda igual (51); con una sola cuenta, la cifra sale de esa cuenta.
+
+- `54a` y `54b` una cuenta de nómina: lo que le entra cada mes, menos el 20 % de sus ingresos, lo que ya salió de ella y los pagos que sueles hacer desde ella.
+- `54c` y `54d` una billetera que se llena con transferencias y tiene poco: nunca más de lo que tiene hoy.
+- `54e` una cuenta de ahorro a la que no le entra dinero cada mes: no da cifra por día, dice cuánto tiene.
+- `54f` y `54g` una tarjeta: lo que sueles gastar con ella al mes, menos lo gastado; el cupo no cuenta como dinero tuyo.
+- `54h` qué cambia, por tipo de cuenta.
