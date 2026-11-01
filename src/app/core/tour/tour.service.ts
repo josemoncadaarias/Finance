@@ -322,6 +322,7 @@ const TOUR_LIST = {
       { sel: 'app-entry app-form-foot .again', title: 'tour.entry.4.title', text: 'tour.entry.4.text' },
       { title: 'tour.entry.5.title', text: 'tour.entry.5.text', since: 2 },
       { title: 'tour.entry.6.title', text: 'tour.entry.6.text', since: 3 },
+      { title: 'tour.entry.7.title', text: 'tour.entry.7.text', since: 4 },
     ],
   },
 } satisfies Record<string, Tour>;

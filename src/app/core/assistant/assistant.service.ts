@@ -771,14 +771,15 @@ export class AssistantService {
   async register(input: {
     side: 'expense' | 'income'; accountId: number; productId: number | null; categoryId: number;
     amountMinor: number; onDate: string; note: string;
-  }): Promise<void> {
+  }): Promise<number | null> {
     const db = this.db;
+    let written: number | null = null;
     const yields = new YieldsRepository(db);
     const products = await yields.products(input.accountId);
     const note = input.note.trim() || null;
     if (products.length > 0) {
       await db.transaction(async () => {
-        await writeScoped(db, yields, {
+        written = await writeScoped(db, yields, {
           scope: 'both', kind: input.side, accountId: input.accountId, categoryId: input.categoryId,
           productId: input.productId, movementProductId: products.length > 1 ? input.productId : null,
           onDate: input.onDate, amountMinor: input.amountMinor, note,
@@ -788,7 +789,7 @@ export class AssistantService {
       await accrueAndSettle(db, yields, new TaxParametersRepository(db), input.accountId, isoDay(new Date()));
       await yields.markAccrued(isoDay(new Date()), { onlyIfKnown: true });
     } else {
-      await new TransactionsRepository(db).create({
+      written = await new TransactionsRepository(db).create({
         account_id: input.accountId, category_id: input.categoryId, product_id: null,
         occurred_on: input.onDate,
         amount_minor: input.side === 'expense' ? -input.amountMinor : input.amountMinor,
@@ -797,5 +798,6 @@ export class AssistantService {
     }
     if (note) await new ProposalsRepository(db).learn(note, input.categoryId, input.onDate);
     this.database.dataChanged();
+    return written;
   }
 }

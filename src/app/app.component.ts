@@ -27,6 +27,7 @@ import { TabBarComponent } from './shared/ui/tab-bar.component';
 import { ComposeHostComponent } from './shared/ui/compose-host.component';
 import { StatementFlowComponent } from './shared/ui/statement-flow.component';
 import { ToastComponent } from './shared/ui/toast.component';
+import { SavedBannerComponent } from './shared/ui/saved-banner.component';
 import { OpeningNoticeComponent } from './shared/ui/opening-notice.component';
 import { LimitAlertComponent } from './features/plans/limit-alert.component';
 import { ProSheetComponent } from './shared/pro/pro-sheet.component';
@@ -40,7 +41,7 @@ import { TourOverlayComponent } from './shared/tour/tour-overlay.component';
   styleUrls: ['app.component.scss'],
   imports: [
     IonApp, IonRouterOutlet,
-    TabBarComponent, ComposeHostComponent, StatementFlowComponent, ToastComponent, OpeningNoticeComponent, LimitAlertComponent, ProSheetComponent, FeedbackSheetComponent, HabitOptionsComponent, TourOverlayComponent,
+    TabBarComponent, ComposeHostComponent, StatementFlowComponent, ToastComponent, SavedBannerComponent, OpeningNoticeComponent, LimitAlertComponent, ProSheetComponent, FeedbackSheetComponent, HabitOptionsComponent, TourOverlayComponent,
   ],
 })
 export class AppComponent {

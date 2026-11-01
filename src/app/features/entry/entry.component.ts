@@ -41,6 +41,7 @@ import { TransfersRepository, type TransferScope } from '../../core/database/rep
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { TourService } from '../../core/tour/tour.service';
 import { ComposeService } from '../../core/ui/compose.service';
+import { SavedBannerService } from '../../core/ui/saved-banner.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
@@ -239,6 +240,7 @@ export class EntryComponent implements OnInit, OnDestroy {
    */
   readonly again = signal(false);
   private readonly toast = inject(ToastService);
+  private readonly savedBanner = inject(SavedBannerService);
 
   setAgain(on: boolean): void {
     this.again.set(on);
@@ -2076,6 +2078,8 @@ export class EntryComponent implements OnInit, OnDestroy {
         return;
       }
       const cover = loan ? null : this.coverToWrite();
+      // A new transfer's id, for the saved banner.
+      let createdTransfer: number | null = null;
       if (loan) await this.saveLoanPayment(loan);
       else if (cover) {
         // The movement and its cover are one save: neither is left alone.
@@ -2083,6 +2087,7 @@ export class EntryComponent implements OnInit, OnDestroy {
           let covered: number | null;
           if (this.isTransfer()) {
             const created = await this.saveTransfer();
+            createdTransfer = created;
             covered = created === null ? null
               : (await this.legsOf(created)).find(leg => leg.account_id === this.accountId())?.id ?? null;
           } else {
@@ -2092,7 +2097,7 @@ export class EntryComponent implements OnInit, OnDestroy {
           if (covered !== null) await this.writeCover(cover, covered);
         });
       }
-      else if (this.isTransfer()) await this.saveTransfer();
+      else if (this.isTransfer()) createdTransfer = await this.saveTransfer();
       else if (this.request().editingEntry) await this.saveEntry(this.request().editingEntry!);
       else if (this.request().editing && this.reshapes()) await this.saveReshaped();
       else if (!this.request().editing && this.asksScope() && this.scope() !== 'both') written = await this.saveScoped();
@@ -2112,9 +2117,16 @@ export class EntryComponent implements OnInit, OnDestroy {
           amountMinor: this.amount().minor, onDate: this.occurredOn(), note: this.note().trim(),
         });
       }
+      // "Gasto guardado" on top of everything, to correct or undo it (53a-53f):
+      // a new movement only, never a correction or a loan's payment.
+      const newOne = !loan && !this.request().editing && !this.request().editingEntry;
+      const target = !newOne ? null
+        : this.isTransfer() ? (createdTransfer !== null ? { transferId: createdTransfer } : null)
+        : written !== null ? { transactionId: written as number } : null;
+      if (target) void this.savedBanner.saved(target);
       if (this.again() && !this.isEditing()) {
         this.startNext();
-        this.toast.say(this.i18n.t('entry.again.saved'), 2500);
+        if (!target) this.toast.say(this.i18n.t('entry.again.saved'), 2500);
       } else {
         this.saved.emit();
       }
