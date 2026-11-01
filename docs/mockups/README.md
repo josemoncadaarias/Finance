@@ -246,5 +246,5 @@ Jose: después de guardar un movimiento, un aviso arriba, encima de todo, con un
 - `53b` un ingreso.
 - `53c` una transferencia, en el azul de las transferencias.
 - `53d` con el dedo encima, la barra se detiene; al soltar se abre ese movimiento en el formulario de siempre.
-- `53e` después de "Deshacer": el gasto se borró, con "Recuperar" unos segundos.
+- `53e` después de "Deshacer": el gasto se borró, con "Recuperar" unos segundos. **Descartado** por Jose (2026-11-01): Deshacer quita el movimiento y el aviso se cierra, sin un segundo aviso.
 - `53f` cómo funciona, en cuatro líneas.

@@ -2,7 +2,7 @@
  * The "Guardado" banner (Jose, 2026-11-01, mockups `53a`-`53f`): right after a
  * spending, an income or a transfer is saved, a banner on top of everything
  * says what was saved for 5 seconds. A tap opens it in the one form to correct
- * it; "Deshacer" deletes it, with "Recuperar" for a few seconds after; swiped
+ * it; "Deshacer" removes it and closes the banner, with no second notice; swiped
  * up or left alone, it goes and the movement stays saved.
  *
  * Callers only say what was written (`saved`); the banner reads how to say it.
@@ -13,7 +13,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { DatabaseService } from '../database/database.service';
 import { formatMoney } from '../database/money';
 import type { TransactionRow } from '../database/types';
-import { deleteWithSnapshot, restoreSnapshot, type MovementSnapshot, type MovementTarget } from '../database/repositories/undo-delete';
+import { deleteWithSnapshot, type MovementTarget } from '../database/repositories/undo-delete';
 import type { ProductEntry } from '../database/repositories/yields.repository';
 import { noteError } from '../feedback/error-log';
 import { I18nService } from '../i18n/i18n.service';
@@ -28,7 +28,7 @@ export type SavedTarget = MovementTarget;
 export interface SavedNotice {
   /** Changes on every new banner, so its bar starts again. */
   key: number;
-  phase: 'saved' | 'deleted';
+  phase: 'saved';
   side: 'expense' | 'income' | 'transfer';
   title: string;
   sub: string;
@@ -36,10 +36,9 @@ export interface SavedNotice {
   amount: string;
   /** What was saved: one, or several saved at once ("Guardar los listos"). */
   targets: SavedTarget[];
-  snapshots?: MovementSnapshot[];
 }
 
-type Said = Omit<SavedNotice, 'key' | 'phase' | 'targets' | 'snapshots'>;
+type Said = Omit<SavedNotice, 'key' | 'phase' | 'targets'>;
 
 @Injectable({ providedIn: 'root' })
 export class SavedBannerService {
@@ -106,36 +105,17 @@ export class SavedBannerService {
     }
   }
 
-  /** "Deshacer": deleted as the form deletes it, kept to be put back. */
+  /** "Deshacer": removed as the form removes it, and the banner closes. */
   async undo(): Promise<void> {
     const now = this.notice();
     if (!now || now.phase !== 'saved' || this.busy) return;
     this.busy = true;
     try {
-      const snapshots: MovementSnapshot[] = [];
-      for (const target of now.targets) snapshots.push(await deleteWithSnapshot(this.database.driver, target));
-      this.database.dataChanged();
-      this.notice.set({ ...now, key: ++this.keys, phase: 'deleted', snapshots });
-    } catch (error) {
-      noteError(error);
-      this.notice.set(null);
-      this.toast.say(error instanceof Error ? error.message : String(error), 5000, { icon: 'alert-circle-outline' });
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  /** "Recuperar": back exactly as it was. */
-  async recover(): Promise<void> {
-    const now = this.notice();
-    if (!now || now.phase !== 'deleted' || !now.snapshots || this.busy) return;
-    this.busy = true;
-    try {
-      // Put back in the reverse order they went.
-      for (const snapshot of [...now.snapshots].reverse()) await restoreSnapshot(this.database.driver, snapshot);
+      // Undoing is the decision itself: the movement goes and the banner with
+      // it, with no second notice (Jose, 2026-11-01).
+      for (const target of now.targets) await deleteWithSnapshot(this.database.driver, target);
       this.database.dataChanged();
       this.notice.set(null);
-      this.toast.say(this.i18n.t(now.targets.length > 1 ? 'saved.backMany' : 'saved.back', { count: now.targets.length }), 2500);
     } catch (error) {
       noteError(error);
       this.notice.set(null);
