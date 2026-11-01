@@ -255,6 +255,6 @@ Jose: con una cuenta elegida arriba, "Puedes gastar hoy" mostraba la cifra de to
 
 - `54a` y `54b` una cuenta de nómina: lo que le entra cada mes, menos el 20 % de sus ingresos, lo que ya salió de ella y los pagos que sueles hacer desde ella.
 - `54c` y `54d` una billetera que se llena con transferencias y tiene poco: nunca más de lo que tiene hoy.
-- `54e` una cuenta de ahorro a la que no le entra dinero cada mes: no da cifra por día, dice cuánto tiene.
+- `54e` una cuenta de ahorro a la que no le entra dinero cada mes: no da cifra por día, dice cuánto tiene. **Cambiado** por Jose (2026-11-01): una cuenta que solo recibe transferencias también se gasta; su cifra sale de su saldo, menos lo de sus metas y sus pagos (así se construyó, también para la billetera de `54c`).
 - `54f` y `54g` una tarjeta: lo que sueles gastar con ella al mes, menos lo gastado; el cupo no cuenta como dinero tuyo.
 - `54h` qué cambia, por tipo de cuenta.

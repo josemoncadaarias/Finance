@@ -44,6 +44,7 @@ import type { DebtIn } from './debts-advice';
 import { freeInAccount, freeMoney, goalKeptIn, type DuePayment, type FreeMoney, type GoalMoney } from './free-money';
 import { bigRoom, type BigRoom } from './big-purchase';
 import { INCOME_MONTHS, spendRoom, type RoomPayment, type SpendRoom } from './spend-room';
+import { accountRoom, type AccountMonth, type AccountRoom } from './account-room';
 import { recurringOf, type Face, type MonthSpend, type Recurring } from './recurring';
 import { fold, type Learned, type LearnedRoute, type PhraseContext } from './read-phrase';
 import { matchNotes, type NoteMatches, type NoteRow } from './note-search';
@@ -360,6 +361,65 @@ export class AssistantService {
     ];
     const goalsAskMinor = picture.free.goals.filter(g => g.how === 'dated').reduce((sum, g) => sum + g.aimMinor, 0);
     return spendRoom({ incomes, savePct, goalsAskMinor, spentMinor: spent, payments, today });
+  }
+
+  /**
+   * "Puedes gastar hoy" for one account chosen on Inicio (54a-54h,
+   * `accountRoom`): a salary account from what comes into it, any other from
+   * what it holds, a card from what is usually spent with it. Null for a
+   * loan, an account outside net worth or archived.
+   */
+  /** An account's name, for the words said about it. */
+  async accountName(accountId: number): Promise<string | null> {
+    return (await this.db.queryOne<{ name: string }>('SELECT name FROM accounts WHERE id = ?', [accountId]))?.name ?? null;
+  }
+
+  async accountRoom(picture: Picture, accountId: number, savePct: number): Promise<AccountRoom | null> {
+    const now = new Date();
+    const today = isoDay(now);
+    const balance = (await new AccountsRepository(this.db).balances()).find(b => b.account.id === accountId);
+    if (!balance || balance.account.archived || !balance.account.include_in_net_worth) return null;
+    const row = balance.account;
+    const isLoan = await this.db.queryOne<{ id: number }>('SELECT account_id AS id FROM loans WHERE account_id = ?', [accountId]);
+    if (isLoan) return null;
+    const card = row.type === 'credit';
+    const held = picture.accounts.find(a => a.account.id === accountId);
+    if (!card && !held) return null;
+
+    const months: AccountMonth[] = [];
+    for (let back = 1; back <= INCOME_MONTHS; back++) {
+      const month = periodContaining('month', new Date(now.getFullYear(), now.getMonth() - back, 1));
+      const t = totalsOf(await this.store.movementsFor(month, [row]), 'base');
+      months.push({ month: (month.from ?? today).slice(0, 7), inMinor: t.inMinor, receivedMinor: t.receivedMinor, outMinor: t.outMinor });
+    }
+    const current = periodContaining('month', now);
+    const t = totalsOf(await this.store.movementsFor({ ...current, to: today }, [row]), 'base');
+
+    if (card) {
+      const available = row.credit_limit_minor !== null && row.currency_code === 'COP'
+        ? row.credit_limit_minor + balance.balance_minor : null;
+      return accountRoom({ kind: 'card', months, savePct, thisMonth: { outMinor: t.outMinor, sentMinor: 0 },
+        payments: [], holdsMinor: 0, keptMinor: 0, availableMinor: available, today });
+    }
+
+    const loanCategories = new Set((await this.db.query<{ id: number }>(
+      `SELECT DISTINCT t.category_id AS id FROM transactions t JOIN loan_payments lp
+         ON t.id IN (lp.interest_tx_id, lp.insurance_tx_id, lp.late_tx_id) WHERE t.category_id IS NOT NULL`)).map(r => r.id));
+    const fixed = (await this.recurring()).fixed
+      .filter(f => f.accountId === accountId && f.thisMonthMinor <= 0 && (f.categoryId === null || !loanCategories.has(f.categoryId)));
+    const payments: RoomPayment[] = [
+      ...fixed.map(f => ({ kind: 'fixed' as const, name: f.name, amountMinor: f.averageMinor, dueOn: null })),
+      ...picture.free.payments.filter(p => p.fromAccountId === accountId)
+        .map(p => ({ kind: p.kind, name: p.name, amountMinor: p.amountMinor, dueOn: p.dueOn })),
+    ];
+    const freeProduct = (p: YieldProduct | null) => p === null || (p.kind !== 'cdt' && p.include_in_net_worth === 1);
+    const keptMinor = this.goals.live()
+      .filter(g => !g.terms.allAccounts)
+      .reduce((sum, g) => sum + goalKeptIn(
+        g.places.map(p => ({ accountId: p.place.accountId, pesos: p.pesos, free: freeProduct(p.product) })),
+        g.terms.amountMinor, accountId), 0);
+    return accountRoom({ kind: 'money', months, savePct, thisMonth: { outMinor: t.outMinor, sentMinor: t.movedMinor },
+      payments, holdsMinor: held!.holdsMinor, keptMinor, today });
   }
 
   /**
