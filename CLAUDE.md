@@ -931,7 +931,30 @@ could not prove.
   Currencies tour step `since: 3`. Checked in a browser on the sample data
   with stubbed rates (Cuentas and Inicio 78,712,764.24 COP → 20,118.78 USD).
 
-- **A currency no account uses can be removed** (Jose, 2026-10-19, mockups
+- **The TRM is said as one value per day, never as the dollar's price
+  now** (Jose, 2026-11-03: he saw the dollar near 3,250 in the news while
+  the app said 3,182.99 "hoy", the same for days). Checked on his backup and
+  in the press: the app was right - 3,182.99 was the TRM certified for
+  31 October, in force through the 2 November holiday to the 3rd; the 3,250
+  was the market price, which moves all day; every day before had its own
+  TRM, and the euro moved daily too. So the screen now says it:
+  "TRM de hoy · rige desde el {día}" (`trmSince` in `core/rates/trm-since.ts`,
+  `trm-since.test.mjs`: the first day of the run of official rows holding
+  today's value), and the dollar's sheet "TRM de hoy / Rige desde...".
+  **Tomorrow's TRM, once published**, shows under the dollar ("La TRM de
+  mañana, {día}, ya se publicó: X") and in its sheet: `refresh` asks again,
+  quietly and hourly, from 1 p.m. while no row after today is on record
+  (`lookForTomorrow`; a failure then is no failure, today's stands), also on
+  opening Monedas y TRM; a row dated after today was already stored and never
+  answers for today (every reader takes the rate on or before the day).
+  Assumed, not verified: that datos.gov.co lists tomorrow's TRM the same
+  afternoon (the session cannot reach it); if it does not, nothing shows.
+  Under the card, always with a dollar: "La TRM es un solo valor oficial por
+  día. El precio del dólar que ves en noticias... no es la TRM." A live
+  market price was weighed and not built: no free source licensed for an app,
+  it needs the network, and nothing in the app is valued at it. Currencies
+  tour step `since: 5`. Checked in a browser with the TRM and the ECB stubbed.
+
   `37e`-`37g`). Its sheet on Monedas y TRM says "Ninguna cuenta usa esta
   moneda." and offers "Quitar esta moneda", asked first; yes deletes its
   `exchange_rates` rows and its `currencies` row in one transaction

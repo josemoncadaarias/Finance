@@ -18,6 +18,7 @@ import { DatabaseService } from '../database/database.service';
 import { RatesRepository, RATE_SCALE, type Rate } from '../database/repositories/rates.repository';
 import { fetchTrm, TrmError } from './trm-client';
 import { inUsdOn, trmOn } from './historical-rates';
+import { trmSince } from './trm-since';
 
 export type RefreshState = 'idle' | 'checking' | 'updated' | 'offline' | 'failed';
 
@@ -31,6 +32,10 @@ export type OtherResult = 'updated' | 'typed' | 'noSource' | 'failed';
 /** The dollar is the only rate that has a public source; the rest are typed. */
 const TRM_CURRENCY = 'USD';
 const BASE_CURRENCY = 'COP';
+
+/** Tomorrow's TRM is certified in the afternoon: looked for from 1 p.m., hourly. */
+const TOMORROW_FROM_HOUR = 13;
+const TOMORROW_EVERY_MS = 60 * 60 * 1000;
 
 /** How much history to pull when the app has never seen a rate. */
 const FIRST_RUN_DAYS = 30;
@@ -78,11 +83,34 @@ export class RatesService {
     return rate !== null && rate.on_date < todayIso();
   });
 
+  /**
+   * The day the TRM in force was certified for: Friday's TRM still rules on
+   * Monday after a holiday, and the screen says "rige desde el 31 oct" rather
+   * than "hoy", which read as the dollar's price right now (Jose, 2026-11-03).
+   */
+  readonly since = signal<string | null>(null);
+
+  /**
+   * Tomorrow's TRM, once published: the Superfinanciera certifies it in the
+   * afternoon, from what was traded today. Null until then.
+   */
+  readonly tomorrow = signal<Rate | null>(null);
+
+  /** When tomorrow's TRM was last looked for, so it is asked at most hourly. */
+  private lastTomorrowTry = 0;
+
   async load(): Promise<void> {
     if (this.database.status() !== 'ready') return;
 
     const rates = new RatesRepository(this.database.driver);
-    this.current.set(await rates.inForce(TRM_CURRENCY, BASE_CURRENCY, todayIso()));
+    const today = todayIso();
+    const current = await rates.inForce(TRM_CURRENCY, BASE_CURRENCY, today);
+    this.current.set(current);
+    const recent = await rates.history(TRM_CURRENCY, BASE_CURRENCY, 40);
+    this.since.set(trmSince(recent, today));
+    const next = recent.filter(rate => rate.on_date > today && rate.source === 'trm')
+      .sort((a, b) => (a.on_date < b.on_date ? -1 : 1))[0] ?? null;
+    this.tomorrow.set(next);
   }
 
   /**
@@ -100,8 +128,10 @@ export class RatesService {
 
     // Already have today's, and nobody asked twice.
     const existing = await rates.inForce(TRM_CURRENCY, BASE_CURRENCY, today);
-    if (!options.force && existing?.on_date === today) {
-      this.current.set(existing);
+    // Today's is on record: asked again only for tomorrow's, quietly.
+    const onlyTomorrow = !options.force && existing?.on_date === today;
+    if (onlyTomorrow && !(await this.lookForTomorrow(rates, today))) {
+      await this.load();
       this.state.set('idle');
       return;
     }
@@ -142,16 +172,32 @@ export class RatesService {
         });
       }
 
-      this.current.set(await rates.inForce(TRM_CURRENCY, BASE_CURRENCY, today));
+      await this.load();
       this.state.set('updated');
       this.database.dataChanged();
     } catch (error) {
       // The stored rates are untouched; the screen keeps showing the last one
       // and now knows the attempt failed.
       this.current.set(existing);
+      // Tomorrow's not reachable yet is no failure: today's is right.
+      if (onlyTomorrow) { this.state.set('idle'); return; }
       this.lastError.set(error instanceof Error ? error.message : String(error));
       this.state.set(error instanceof TrmError && !navigator.onLine ? 'offline' : 'failed');
     }
+  }
+
+  /**
+   * Whether to ask again for tomorrow's TRM: today's is on record, tomorrow's
+   * is not, it is past 1 p.m. (it is certified in the afternoon), and the last
+   * try was over an hour ago.
+   */
+  private async lookForTomorrow(rates: RatesRepository, today: string): Promise<boolean> {
+    if (new Date().getHours() < TOMORROW_FROM_HOUR) return false;
+    if (Date.now() - this.lastTomorrowTry < TOMORROW_EVERY_MS) return false;
+    const after = (await rates.history(TRM_CURRENCY, BASE_CURRENCY, 1))[0];
+    if (after && after.on_date > today) return false;
+    this.lastTomorrowTry = Date.now();
+    return true;
   }
 
   /** What the last refresh did for each currency other than the dollar. */
