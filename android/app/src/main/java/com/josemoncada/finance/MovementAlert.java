@@ -206,6 +206,57 @@ final class MovementAlert {
         return Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * The words of a message that can name a shop or a person: four letters
+     * or more, no figure, none of a message's ordinary words. Kept on the
+     * mark of what rang, to tell one movement told twice from two movements
+     * of the same figure.
+     */
+    private static final java.util.Set<String> ORDINARY = new java.util.HashSet<>(java.util.Arrays.asList(
+            "compra", "compraste", "compras", "pago", "pagaste", "pagos", "retiro", "retiraste", "enviaste", "envio",
+            "enviado", "enviada", "transferiste", "transferencia", "transferencias", "debito", "credito", "cargo",
+            "recibiste", "recibido", "recibida", "abono", "consignacion", "deposito", "ingreso", "realizaste",
+            "hiciste", "cuenta", "tarjeta", "saldo", "disponible", "pesos", "valor", "monto", "movimiento", "exitosa",
+            "exitoso", "aprobada", "aprobado", "desde", "hacia", "para", "por", "con", "tus", "fecha", "hora", "banco",
+            "app", "aplicacion", "notificacion", "mensaje", "nuevo", "nueva", "tienes", "acabas", "realizado",
+            "realizada", "detalle", "detalles", "consulta", "ingresa", "ahorros", "ahorro", "corriente", "virtual",
+            "fisica", "final", "terminada", "terminado", "este", "esta", "hemos", "registrado", "registramos",
+            "purchase", "payment", "transfer", "sent", "received", "your", "account", "card", "balance", "from",
+            "with", "approved", "successful"));
+
+    private static String wordsOf(String folded) {
+        StringBuilder out = new StringBuilder();
+        for (String word : folded.split("[^a-z0-9]+")) {
+            if (word.length() < 4 || word.matches(".*\\d.*") || ORDINARY.contains(word)) continue;
+            if (out.length() > 0) out.append(' ');
+            out.append(word);
+        }
+        return out.toString();
+    }
+
+    private static final Pattern CARD = Pattern.compile(
+            "(?:\\*+\\s?|(?i:final|finalizada en|terminada en|terminado en|termina en|ending in|ending)\\s*\\*?\\s*)(\\d{3,4})\\b");
+
+    private static String cardOf(String text) {
+        Matcher found = CARD.matcher(text);
+        return found.find() ? found.group(1) : null;
+    }
+
+    /** A word of the shop or the card's digits in common with what rang before. */
+    static boolean alsoAgree(JSONObject before, String folded) {
+        String card = before.optString("card", "");
+        // Two cards named and different: not the same movement.
+        if (!card.isEmpty()) {
+            String mine = cardOf(folded);
+            if (mine != null) return mine.equals(card);
+        }
+        String theirs = before.optString("words", "");
+        if (theirs.isEmpty()) return false;
+        java.util.Set<String> seen = new java.util.HashSet<>(java.util.Arrays.asList(theirs.split(" ")));
+        for (String word : wordsOf(folded).split(" ")) if (!word.isEmpty() && seen.contains(word)) return true;
+        return false;
+    }
+
     private static boolean has(String folded, String[] words) {
         for (String word : words) if (folded.contains(word)) return true;
         return false;
@@ -262,7 +313,12 @@ final class MovementAlert {
                 // another is a transfer's two halves, not one movement told
                 // twice: it joins the notice as that transfer (Jose, 2026-10-28).
                 boolean halves = direction != 0 && one.optInt("direction") == -direction;
-                if (sameMoney && near && !other.equals(source) && !halves) {
+                // And something besides the amount must agree - a word of the
+                // shop or the card's digits - as readNotices asks before it
+                // merges two messages (Jose, 2026-11-03: a purchase with one
+                // bank and a transfer of the same figure from another, minutes
+                // apart, rang once and the transfer's notice never showed).
+                if (sameMoney && near && !other.equals(source) && !halves && alsoAgree(one, folded)) {
                     note(context, source, at, "same", one.optString("name", other));
                     return;
                 }
@@ -274,6 +330,9 @@ final class MovementAlert {
             mark.put("source", source);
             mark.put("name", name);
             mark.put("direction", direction);
+            mark.put("words", wordsOf(folded));
+            String card = cardOf(text);
+            if (card != null) mark.put("card", card);
             rang.put(mark);
             while (rang.length() > KEEP) rang.remove(0);
             JSONArray pending = array(context, PENDING);
