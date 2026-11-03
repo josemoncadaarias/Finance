@@ -6465,6 +6465,20 @@ with testers runs; the paywall is finished after them.
   (`centsOf`, `moneyOf` in `MovementAlert.java`: the last "," or "." with one
   or two digits after it starts the cents). Checked with the JDK on invented
   amounts; the notice itself only on the phone.
+- **The same figure from two banks rings twice unless something else
+  agrees** (Jose, 2026-11-03: a card purchase with one bank rang and was
+  saved; minutes later a transfer of the same 58,523 from another bank did
+  not ring, though it waited in Por revisar). `MovementAlert.post` took any
+  message of the same amount, from another source, within 20 minutes, in
+  the same direction, for the same movement told twice - while
+  `readNotices` merges two messages only when something besides the amount
+  agrees. Now the phone asks the same: the card's last digits (two named and
+  different: never the same), or a word of four letters or more, no figure,
+  outside a list of a message's ordinary words (`alsoAgree`, `wordsOf`,
+  `cardOf`; each mark of what rang keeps its `words` and `card`). Checked
+  with the JDK on invented messages (a purchase and a transfer of one figure
+  ring both; one purchase told by SMS and by the app rings once); the notice
+  itself only on the phone.
 - **Notificaciones del teléfono no longer writes a paragraph per chat app**
   (Jose, 2026-10-29, two screenshots: WhatsApp, Twitch, Teams, TikTok,
   Instagram, Facebook, Telegram each with "Cuando te llegue un SMS de tu
