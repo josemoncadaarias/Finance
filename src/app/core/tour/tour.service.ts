@@ -156,6 +156,8 @@ const TOUR_LIST = {
       { target: 'main-currency', title: 'tour.currencies.5.title', text: 'tour.currencies.5.text', since: 3 },
       // 2026-10-19: a currency no account uses can be removed (37e-37g).
       { title: 'tour.currencies.6.title', text: 'tour.currencies.6.text', since: 4 },
+      // 2026-11-03: the TRM is one value per day, said apart from the dollar's price.
+      { sel: 'app-currencies section.trm', title: 'tour.currencies.7.title', text: 'tour.currencies.7.text', since: 5 },
     ],
   },
   report: {

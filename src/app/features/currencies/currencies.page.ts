@@ -11,7 +11,7 @@
  */
 
 import { AskButtonComponent } from '../../shared/ui/ask-button.component';
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular';
 
@@ -76,6 +76,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               @if (line.rate) { <b class="fx-value">{{ rateText(line.rate.rate_scaled) }}</b> }
               @else { <b class="fx-value ui-y">{{ 'ui.currencies.noRate' | t }}</b> }
             </div>
+            @if (line.code === 'USD' && tomorrowText(); as next) { <p class="next">{{ next }}</p> }
           } @empty {
             <p class="ui-sub none">{{ 'accounts.trm.none' | t }}</p>
           }
@@ -93,6 +94,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
             }
           </div>
         </section>
+        @if (hasDollar()) { <p class="hint">{{ 'ui.currencies.trmIsNotPrice' | t }}</p> }
 
         <!-- The currency balances and reports are shown in (37d). -->
         <h3 class="ui-h">{{ 'ui.main.title' | t }}</h3>
@@ -158,10 +160,24 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
               @if (line.rate) {
                 <div class="ui-row plain">
                   <span class="ui-tx">
-                    <b>{{ currentTitle(line) | t }}</b>
-                    <small>{{ line.rate.source === 'manual' && isToday(line) ? ('ui.currencies.inUse' | t) : freshness(line) }}</small>
+                    @if (isTodaysTrm(line)) {
+                      <b>{{ 'ui.currencies.trmToday' | t }}</b>
+                      <small>{{ rulesSince() }}</small>
+                    } @else {
+                      <b>{{ currentTitle(line) | t }}</b>
+                      <small>{{ line.rate.source === 'manual' && isToday(line) ? ('ui.currencies.inUse' | t) : freshness(line) }}</small>
+                    }
                   </span>
                   <b class="amount" [class.ui-y]="line.rate.source === 'manual'">{{ rateText(line.rate.rate_scaled) }}</b>
+                </div>
+              }
+              @if (line.code === 'USD' && rates.tomorrow(); as next) {
+                <div class="ui-row plain">
+                  <span class="ui-tx">
+                    <b>{{ 'ui.currencies.tomorrow.title' | t }}</b>
+                    <small class="wrap">{{ 'ui.currencies.tomorrow.sub' | t:{ date: longDate(next.on_date) } }}</small>
+                  </span>
+                  <b class="amount">{{ rateText(next.rate_scaled) }}</b>
                 </div>
               }
               @if (needsOfficial(line)) {
@@ -283,6 +299,7 @@ const CODE_COLORS: Record<string, string> = { COP: '#2ec4b6', USD: '#34c98b', EU
     .fx .ui-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .fx .ui-tx small { color: var(--app-mu); font-size: 12.5px; }
     .fx .ui-tx small.behind { color: var(--app-yel); }
+    .trm .next { margin: -2px 0 8px 52px; font-size: 12.5px; line-height: 1.4; color: var(--app-mu); text-wrap: pretty; }
     .fx-value { font-size: 19px; font-weight: 700; flex: none; }
     .refresh .ui-g { display: inline-flex; align-items: center; gap: 4px; }
     .refresh { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13.5px; flex-wrap: wrap; }
@@ -327,6 +344,14 @@ export class CurrenciesPage {
   /** Every currency but the peso, for the card on top. */
   readonly foreign = computed(() => this.lines().filter(line => line.code !== 'COP'));
 
+  readonly hasDollar = computed(() => this.foreign().some(line => line.code === 'USD'));
+
+  /** "La TRM de mañana, miércoles 4 nov, ya se publicó: 3.230,45", once it is. */
+  readonly tomorrowText = computed(() => {
+    const next = this.rates.tomorrow();
+    return next ? this.i18n.t('ui.currencies.tomorrow.line', { date: this.longDate(next.on_date), value: this.rateText(next.rate_scaled) }) : null;
+  });
+
   /** How many have no value dated today. */
   readonly behindCount = computed(() => this.foreign().filter(line => !this.isToday(line)).length);
   readonly adding = signal(false);
@@ -350,6 +375,11 @@ export class CurrenciesPage {
     effect(() => {
       this.database.dataVersion();
       if (this.database.status() === 'ready') void this.load();
+    });
+    // Tomorrow's TRM is published in the afternoon: looked for quietly on
+    // opening the screen (the service keeps it to once an hour).
+    effect(() => {
+      if (this.database.status() === 'ready') untracked(() => void this.rates.refresh());
     });
   }
 
@@ -389,6 +419,14 @@ export class CurrenciesPage {
     const from = line.rate.source === 'trm' ? 'ui.currencies.fromTrm'
       : line.rate.source === 'manual' ? 'ui.currencies.fromHand'
       : line.rate.source === 'demo' ? 'ui.currencies.fromDemo' : 'ui.currencies.fromEcb';
+    // The dollar says which TRM it is: today's, and since when it rules, so
+    // it is not read as the dollar's price right now (Jose, 2026-11-03).
+    if (this.isTodaysTrm(line)) {
+      const since = this.rates.since();
+      return since && since < todayIso()
+        ? this.i18n.t('ui.currencies.trmSince', { date: this.shortDate(since) })
+        : this.i18n.t('ui.currencies.trmToday');
+    }
     const when = this.isToday(line)
       ? this.i18n.t('ui.currencies.sinceToday')
       : this.i18n.t('ui.currencies.since', { date: this.shortDate(line.rate.on_date) });
@@ -565,8 +603,28 @@ export class CurrenciesPage {
     return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(scaled / RATE_SCALE);
   }
 
+  /** The dollar valued at today's official TRM. */
+  isTodaysTrm(line: CurrencyLine): boolean {
+    return line.code === 'USD' && line.rate?.source === 'trm' && this.isToday(line);
+  }
+
+  /** "Rige desde el 31 oct" or "Rige desde hoy". */
+  rulesSince(): string {
+    const since = this.rates.since();
+    return since && since < todayIso()
+      ? this.i18n.t('ui.currencies.rulesSince', { date: this.shortDate(since) })
+      : this.i18n.t('ui.currencies.rulesToday');
+  }
+
+  /** "miércoles 4 nov". */
+  longDate(iso: string): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(this.i18n.dateLocale(), { weekday: 'long', day: 'numeric', month: 'short' }).replace(/,/g, '').replace(/ /g, '\u00a0');
+  }
+
+  /** A date never split over two lines ("31 de / oct"). */
   private shortDate(iso: string): string {
-    return shortDay(iso, this.i18n.dateLocale());
+    return shortDay(iso, this.i18n.dateLocale()).replace(/ /g, '\u00a0');
   }
 }
 
