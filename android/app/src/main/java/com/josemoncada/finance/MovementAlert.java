@@ -224,7 +224,7 @@ final class MovementAlert {
             "purchase", "payment", "transfer", "sent", "received", "your", "account", "card", "balance", "from",
             "with", "approved", "successful"));
 
-    private static String wordsOf(String folded) {
+    private static String shopWordsOf(String folded) {
         StringBuilder out = new StringBuilder();
         for (String word : folded.split("[^a-z0-9]+")) {
             if (word.length() < 4 || word.matches(".*\\d.*") || ORDINARY.contains(word)) continue;
@@ -253,7 +253,7 @@ final class MovementAlert {
         String theirs = before.optString("words", "");
         if (theirs.isEmpty()) return false;
         java.util.Set<String> seen = new java.util.HashSet<>(java.util.Arrays.asList(theirs.split(" ")));
-        for (String word : wordsOf(folded).split(" ")) if (!word.isEmpty() && seen.contains(word)) return true;
+        for (String word : shopWordsOf(folded).split(" ")) if (!word.isEmpty() && seen.contains(word)) return true;
         return false;
     }
 
@@ -330,7 +330,7 @@ final class MovementAlert {
             mark.put("source", source);
             mark.put("name", name);
             mark.put("direction", direction);
-            mark.put("words", wordsOf(folded));
+            mark.put("words", shopWordsOf(folded));
             String card = cardOf(text);
             if (card != null) mark.put("card", card);
             rang.put(mark);
