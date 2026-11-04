@@ -98,6 +98,19 @@ export function shopMatch(
   }
   if (chain) return { categoryId: chain.k.categoryId, accountId: chain.k.accountId, note: chain.k.note, how: 'chain' };
 
+  // A shop learned by a name the longer one holds whole: "DIDI" inside "DLO
+  // DIDI", where a bank prints its processor before the shop (Jose,
+  // 2026-11-04). Its words must be four letters or more, so a short code
+  // never decides; of several, the one used most.
+  let inside: KnownShop | null = null;
+  for (const k of known) {
+    const theirs = k.merchant.split(' ').filter(w => w.length >= 3);
+    if (theirs.length === 0 || theirs.some(w => w.length < 4)) continue;
+    if (!theirs.every(w => stems.has(stem(w)))) continue;
+    if (!inside || k.times > inside.times) inside = k;
+  }
+  if (inside) return { categoryId: inside.categoryId, accountId: inside.accountId, note: inside.note, how: 'chain' };
+
   // A category named by one of the shop's words.
   for (const word of words) {
     if (word.length < 4) continue;

@@ -88,6 +88,7 @@ function unclaimed<T extends { id: number }>(reading: MovementProposal, ledger: 
   return ledger.filter(row => !mine.some(source => claimed.get(row.id)?.has(source)));
 }
 import { wordCategoryOf } from '../../proposals/common-words';
+import { shopMatch, type KnownShop, type NamedCategory } from '../../receipts/shop-category';
 import { todayIso } from '../../yields/days';
 import { DAYS_APART, MESSAGE_DAYS_APART, sameMovementAnywhere, sameMovementAs, transferPairs, type LedgerMovement } from '../../proposals/matching';
 
@@ -201,6 +202,10 @@ export class ProposalsRepository {
     // statement; on a phone that is most of a minute for a long one.
     const dictionary = await this.dictionary();
     const starters = await this.starterCategories();
+    const categoryRows = await this.db.query<{ id: number; name: string; kind: string }>(
+      'SELECT id, name, kind FROM categories WHERE archived = 0');
+    const kindOf = new Map(categoryRows.map(row => [row.id, row.kind]));
+    const named: NamedCategory[] = categoryRows.map(row => ({ id: row.id, name: row.name }));
 
     // What was there before, so the ids handed back are this call's alone: a
     // batch of notifications is one per app and grows over many calls.
@@ -225,7 +230,19 @@ export class ProposalsRepository {
         // What this person has filed before, first. Only where that says
         // nothing does a word in the description get to suggest anything.
         let category = reading.category_id ?? dictionary.categoryOf(reading.description ?? null);
-        let from: 'learned' | 'guessed' | null = category === null ? null : 'learned';
+        let byName = false;
+        // Then the same reading a receipt's shop gets: a learned shop or one
+        // of the person's categories named inside the description ("DLO
+        // DIDI" and a category or a shop "Didi"), on the side its sign says.
+        if (category === null && reading.description) {
+          const side = (reading.amount_minor ?? 0) > 0 ? 'income' : 'expense';
+          const match = shopMatch(reading.description,
+            dictionary.known.filter(k => kindOf.get(k.categoryId) === side),
+            named.filter(c => kindOf.get(c.id) === side), []);
+          if (match) { category = match.categoryId; byName = match.how === 'name'; }
+        }
+        // A category found by its name alone is a suggestion, not something learned.
+        let from: 'learned' | 'guessed' | null = category === null ? null : byName ? 'guessed' : 'learned';
         if (category === null) {
           const word = wordCategoryOf(reading.description ?? null, reading.amount_minor ?? null);
           category = word === null
@@ -888,7 +905,7 @@ export class ProposalsRepository {
    * answer. It is a small table - one row per shop somebody has ever filed -
    * and reading it whole once beats reading it twice per line of a statement.
    */
-  private async dictionary(): Promise<{ categoryOf(description: string | null): number | null }> {
+  private async dictionary(): Promise<{ known: KnownShop[]; categoryOf(description: string | null): number | null }> {
     const rows = await this.db.query<{ merchant: string; category_id: number; times: number }>(
       'SELECT merchant, category_id, times FROM merchant_categories');
 
@@ -903,6 +920,7 @@ export class ProposalsRepository {
     }
 
     return {
+      known: rows.map(row => ({ merchant: row.merchant, categoryId: row.category_id, accountId: null, note: null, times: row.times })),
       categoryOf(description: string | null): number | null {
         const merchant = merchantKeyOf(description);
         if (merchant.length === 0) return null;
