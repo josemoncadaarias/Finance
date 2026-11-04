@@ -58,3 +58,16 @@ test('one note is no habit, and a shop with nothing in common is nobody\'s', () 
   assert.equal(shopMatch('TALLER OMEGA', KNOWN, CATEGORIES, []), null);
   assert.equal(shopMatch(null, KNOWN, CATEGORIES, []), null);
 });
+
+test('a learned shop held whole inside a longer name, a processor before it', () => {
+  const known = [...KNOWN, { merchant: 'TAXIVIA', categoryId: 6, accountId: null, note: null, times: 9 }];
+  assert.equal(shopMatch('PAGOSX Taxivia', known, CATEGORIES, []).categoryId, 6);
+  // A short learned name never decides.
+  const short = [{ merchant: 'D1', categoryId: 1, accountId: null, note: null, times: 5 }];
+  assert.equal(shopMatch('PAGOSX D1 Norte', short, [], []), null);
+});
+
+test('a category named after a word that is not the first', () => {
+  const m = shopMatch('PAGOSX Taxivia', [], [{ id: 8, name: 'Taxivia' }], []);
+  assert.deepEqual(m, { categoryId: 8, accountId: null, note: null, how: 'name' });
+});

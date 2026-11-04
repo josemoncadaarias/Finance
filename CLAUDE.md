@@ -6465,6 +6465,18 @@ with testers runs; the paywall is finished after them.
   (`centsOf`, `moneyOf` in `MovementAlert.java`: the last "," or "." with one
   or two digits after it starts the cents). Checked with the JDK on invented
   amounts; the notice itself only on the phone.
+- **A bank message names its shop after a processor, and the category is
+  still found** (Jose, 2026-11-04: "Tu compra en DLO Didi" came with no
+  category, while every Didi movement is filed under his category "Didi").
+  `propose` asked only the dictionary's exact key ("DLO DIDI") and its first
+  word ("DLO"). Now, when that says nothing, it asks `shopMatch` - the
+  receipts' reading - over the learned shops and the categories of the
+  movement's side: a category named by one of its words is a suggestion
+  (`guessed`), a learned shop is `learned`. `shopMatch` also takes a learned
+  shop whose every word (four letters or more) the longer name holds
+  ("TAXIVIA" in "PAGOSX Taxivia"). Tests in `shop-category.test.mjs` and
+  `proposals.test.mjs` (invented); on his backup "DLO Didi" gives Didi. Only
+  messages read after the update change.
 - **The same figure from two banks rings twice unless something else
   agrees** (Jose, 2026-11-03: a card purchase with one bank rang and was
   saved; minutes later a transfer of the same 58,523 from another bank did

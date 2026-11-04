@@ -197,6 +197,22 @@ test('a category learned once is proposed the next time', async () => {
   await db.close();
 });
 
+test('a shop learned alone is found inside a message that puts a processor before it', async () => {
+  const { db, proposals, mercados, rappi } = await setup();
+
+  // Invented: the shop filed by itself, then a bank's message naming it after a code.
+  await proposals.learn('TAXIVIA', mercados, '2026-09-01');
+  await proposals.propose('notice:demo', [{
+    source: 'notification', account_id: rappi, occurred_on: '2026-09-10',
+    amount_minor: -5_560_00, description: 'PAGOSX Taxivia', evidence: {},
+  }]);
+
+  const [waiting] = await proposals.pending();
+  assert.equal(waiting.category_id, mercados);
+  assert.equal(waiting.category_from, 'learned');
+  await db.close();
+});
+
 test('teaching it something else replaces the answer rather than arguing', async () => {
   const { db, proposals, mercados, restaurante } = await setup();
 
