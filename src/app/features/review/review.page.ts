@@ -1310,6 +1310,14 @@ export class ReviewPage {
         this.done.set(null);
         void this.router.navigate([], { queryParams: { batch: null }, queryParamsHandling: 'merge', replaceUrl: true });
       }
+      // The evening's notice (8 p.m.): one movement opens; several open
+      // the list unfolded.
+      const proposal = Number(params.get('proposal'));
+      if (proposal > 0 || params.get('open') === 'pending') {
+        this.askedEvening = proposal > 0 ? proposal : 'pending';
+        this.openAskedFromEvening();
+        void this.router.navigate([], { queryParams: { proposal: null, open: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
       const raw = params.get('notice');
       if (!raw) return;
       try {
@@ -1319,6 +1327,28 @@ export class ReviewPage {
       }
       this.openAskedNotice();
     });
+  }
+
+  /** What the evening's notice asked for, until the list is read. */
+  private askedEvening: number | 'pending' | null = null;
+
+  private openAskedFromEvening(): void {
+    const asked = this.askedEvening;
+    const batches = this.batches();
+    if (asked === null || batches.length === 0) return;
+    this.askedEvening = null;
+    if (asked !== 'pending') {
+      for (const batch of batches) {
+        const line = batch.lines.find(one => one.proposal.id === asked);
+        if (line) { this.inBatch.set(batch.key); this.tapped(line); return; }
+      }
+    }
+    // Several, or the one asked for already answered: the list, unfolded.
+    // One origin opens itself; with several, each shows on the list.
+    const open = new Set(this.partsOpen());
+    for (const batch of batches) { open.add(`${batch.key}|need`); open.add(`${batch.key}|ready`); }
+    this.partsOpen.set(open);
+    if (batches.length === 1) this.inBatch.set(batches[0].key);
   }
 
   /** The message the phone's notice was about, until its proposal is found. */
@@ -1476,6 +1506,7 @@ export class ReviewPage {
 
       this.batches.set([...known.values()]);
       this.openAskedNotice();
+      this.openAskedFromEvening();
       await this.lookForDrift();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));

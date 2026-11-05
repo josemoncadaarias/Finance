@@ -41,7 +41,7 @@ import { TransfersRepository, type TransferScope } from '../../core/database/rep
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { TourService } from '../../core/tour/tour.service';
 import { ComposeService } from '../../core/ui/compose.service';
-import { SavedBannerService, type SavedTarget } from '../../core/ui/saved-banner.service';
+import { SavedBannerService, type Said, type SavedTarget } from '../../core/ui/saved-banner.service';
 import type { TranslationKey } from '../../core/i18n/translations';
 import type { AccountRow, CategoryKind, CategoryRow, TransactionRow } from '../../core/database/types';
 import { deriveRateScaled, formatMoney } from '../../core/database/money';
@@ -1609,6 +1609,35 @@ export class EntryComponent implements OnInit, OnDestroy {
     this.effectiveMinor() - this.loanInterest().minor - this.loanInsurance().minor - this.loanLate().minor);
 
 
+  /** What the banner says when no saved row can be read back: the form's own figures. */
+  private bannerFromForm(loan: LoanEntry | null): Said {
+    const account = this.accounts().find(a => a.id === this.accountId());
+    const currency = account?.currency_code ?? 'COP';
+    const day = this.savedBanner.day(this.occurredOn());
+    if (loan) {
+      const total = this.loanCapital() + this.loanInterest().minor + this.loanInsurance().minor + this.loanLate().minor;
+      return { side: 'transfer', title: loan.title, sub: [account?.name, day].filter(Boolean).join(' · '), amount: formatMoney(total, currency) };
+    }
+    const note = this.note().trim();
+    const category = this.categories().find(c => c.id === this.categoryId())?.name ?? null;
+    if (this.isTransfer()) {
+      const to = this.accounts().find(a => a.id === this.toAccountId());
+      return {
+        side: 'transfer',
+        title: this.i18n.t('saved.fromTo', { from: account?.name ?? '…', to: to?.name ?? '…' }),
+        sub: [note || null, day].filter(Boolean).join(' · '),
+        amount: formatMoney(this.amount().minor, currency),
+      };
+    }
+    const side = this.kind() === 'income' ? 'income' : 'expense';
+    return {
+      side,
+      title: note || category || account?.name || '',
+      sub: [note ? category : null, account?.name, day].filter(Boolean).join(' · '),
+      amount: (side === 'expense' ? '−' : '+') + formatMoney(this.amount().minor, currency),
+    };
+  }
+
   private async saveLoanPayment(loan: LoanEntry): Promise<void> {
     await new LoansRepository(this.database.driver).recordPayment({
       loanAccountId: loan.accountId,
@@ -2137,17 +2166,21 @@ export class EntryComponent implements OnInit, OnDestroy {
           amountMinor: this.amount().minor, onDate: this.occurredOn(), note: this.note().trim(),
         });
       }
-      // "Gasto guardado" on top of everything, to correct or undo it (53a-53f):
-      // a new movement only, never a correction or a loan's payment.
+      // "Gasto guardado" on top of everything (53a-53f), after EVERY save
+      // (Jose, 2026-11-05): a new movement can be undone from it; a
+      // correction or a loan's payment is said, to confirm it.
       const newOne = !loan && !this.request().editing && !this.request().editingEntry;
-      const target = !newOne ? null
-        : this.isTransfer() ? (createdTransfer !== null ? { transferId: createdTransfer } : null)
+      const editingTransfer = this.editingTransferId();
+      const target = loan ? null
+        : this.isTransfer() ? (createdTransfer !== null ? { transferId: createdTransfer }
+          : editingTransfer !== null ? { transferId: editingTransfer } : null)
         : written !== null ? { transactionId: written as number }
-        : createdEntry !== null ? { entryId: createdEntry } : null;
-      if (target) void this.savedBanner.saved(target);
+        : createdEntry !== null ? { entryId: createdEntry }
+        : this.request().editingEntry && !this.reshaped && this.scope() === 'product' ? { entryId: this.request().editingEntry!.id }
+        : null;
+      void this.savedBanner.saved(target, loan ? 'payment' : newOne ? 'new' : 'edited', this.bannerFromForm(loan));
       if (this.again() && !this.isEditing()) {
         this.startNext();
-        if (!target) this.toast.say(this.i18n.t('entry.again.saved'), 2500);
       } else {
         this.saved.emit();
       }

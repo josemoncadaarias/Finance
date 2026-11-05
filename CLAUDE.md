@@ -206,7 +206,7 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
-- Tests: `node tools/db/run-tests.mjs` (1175 on 2026-11-01, all must pass). Build:
+- Tests: `node tools/db/run-tests.mjs` (1188 on 2026-11-05, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
   "all agree" after any change to the report's arithmetic.
@@ -6997,6 +6997,53 @@ with testers runs; the paywall is finished after them.
   usual note in. Checked in a browser on the sample data: opened with
   "Retiro", turned around "Recarga", back "Retiro" (the build before stayed on
   "Retiro").
+- **From Jose's questions of 2026-11-05** (built the same day):
+  - **A shop named after a second "compra" is read** ("Compra exitosa - Tu
+    compra en I P S SALUD EN CASA ME por $ 44.400"): `readNotice` took the
+    shop only after the FIRST direction word, so the merchant came empty and
+    no category was looked for. Now every place a direction word is said is
+    tried (`allOf`); "Salud" then comes as a suggestion. Only messages read
+    after the update change. Test in `read-notice.test.mjs`.
+  - **The "Guardado" banner after EVERY save of the movement form**: a
+    correction ("Gasto corregido", `mode: 'edited'`, no Deshacer, a tap
+    opens it again) and a loan's payment ("Pago de la cuota guardado",
+    `mode: 'payment'`); a save whose rows cannot be pointed at (a correction
+    in a new shape) says the form's own figures (`bannerFromForm`). A
+    transfer says "De {cuenta} a {cuenta}" and its products ("Sale de X y
+    llega a Y"; between one account's products "Entre los productos de
+    {cuenta}", "De X a Y"), its title wrapping rather than cut.
+  - **Every starter category for everybody**: `addMissingStarters` adds,
+    once (`categories.starters.offered` in settings), each starter a
+    database lacks on that side - compared without case, accents or plural,
+    archived ones included - so a used app gets them too; one deleted later
+    never returns. Test in `starter-categories.test.mjs`.
+  - **The month's summary** (`MonthSummaryService`, `core/summary/`): Más →
+    Tus finanzas has "Reporte" always (no longer listed again under "No
+    están en tu barra"); on the 1st at 9:00 the phone says "📊 Tu resumen de
+    {mes} está listo", and until the Reporte is opened on that month the row
+    and Más's dot say so (`finance.monthSummary.seen`). It opens the
+    existing Reporte on that month (both faces and the spreadsheet): no
+    second report. Más tour step `since: 6`.
+  - **At 8 p.m. what still waits in Por revisar rings**
+    (`ReviewEveningService`): one movement opens itself (`/review?proposal=`),
+    several open the list unfolded (`?open=pending`); saving the last takes
+    the notice back. It counts what the app has read; a message arriving with
+    the app closed rings as "Movimiento detectado" and joins on next opening.
+    Both notices only with notifications already allowed. Checked in a
+    browser (Más, the banners); the notices themselves only on the phone.
+  - **Every icon the app ever gives is in the picker** (Jose, the same day:
+    the sample data's "Intereses CDT" wore a ribbon no picker offered, so on
+    his phone it could not be chosen). `APP_ICONS` in
+    `core/icons/icon-catalog.ts`: whatever a catalog lacks of them is its
+    last group, "Más íconos" (`icons.rest`), in both the account and the
+    category pickers; `icon-catalog.test.mjs` fails on an icon the starter
+    categories, the sample data, the product kinds or a migration give that
+    no picker offers. Checked in a browser.
+  - **Built-in bank and shop logos: dropped** (Jose, 2026-11-05, once told
+    the risk): a bank's or a shop's logo is a trademark however it is
+    stored, and shipping it in an app sold to others needs that company's
+    permission. Do not propose it again; a person's own images (rule 10)
+    stay the way to have a logo.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by

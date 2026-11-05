@@ -11,7 +11,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { CapacitorSqlDriver } from './capacitor-sql-driver';
 import { prepareWebSqlite } from './web-sqlite';
 import { applyCategoryIcons } from './category-icons';
-import { seedStarterCategories } from './starter-categories';
+import { addMissingStarters, seedStarterCategories } from './starter-categories';
 import { I18nService } from '../i18n/i18n.service';
 import type { SqlDriver } from './sql-driver';
 import { migrate, targetVersion, type MigrationResult } from './migrations/migration-runner';
@@ -99,6 +99,7 @@ export class DatabaseService {
     await eraseEverything(db, MIGRATION_SOURCES);
     await applyCategoryIcons(db);
     await seedStarterCategories(db, this.i18n.language());
+    await addMissingStarters(db, this.i18n.language());
     this.dataChanged();
   }
 
@@ -132,6 +133,8 @@ export class DatabaseService {
     // first thing anybody spends could not be recorded. Looks once per start
     // and does nothing to a database that has been used.
     await seedStarterCategories(driver, this.i18n.language());
+    // And a database in use gets the ones it lacks, once.
+    await addMissingStarters(driver, this.i18n.language());
 
     return driver;
   }

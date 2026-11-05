@@ -24,6 +24,7 @@ import { ComposeService } from '../../core/ui/compose.service';
 import { DatabaseService } from '../../core/database/database.service';
 import { ProposalsRepository } from '../../core/database/repositories/proposals.repository';
 import { LimitsService } from '../../core/limits/limits.service';
+import { MonthSummaryService } from '../../core/summary/month-summary.service';
 import { ViewPrefsService } from '../../core/ui/view-prefs.service';
 import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
 
@@ -45,7 +46,7 @@ import { barScreen, buttonFor, type BarId } from '../../core/ui/bar-choice';
       }
       <button type="button" data-tour="more" [class.on]="tab() === 'more'" (click)="go('/more')">
         <ion-icon name="grid-outline"></ion-icon><span>{{ 'ui.tab.more' | t }}</span>
-        @if (waiting() > 0 || limitPassed()) { <i class="dot"></i> }
+        @if (waiting() > 0 || limitPassed() || summary.pending()) { <i class="dot"></i> }
       </button>
     </nav>
     <ng-template #plus>
@@ -154,6 +155,7 @@ export class TabBarComponent {
   readonly waiting = signal(0);
   /** A limit of this month gone over also lights the dot (mockup `14l`). */
   private readonly limits = inject(LimitsService);
+  readonly summary = inject(MonthSummaryService);
   readonly limitPassed = computed(() => this.limits.current().passed.length > 0);
 
   constructor() {

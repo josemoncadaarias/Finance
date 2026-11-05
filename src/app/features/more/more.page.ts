@@ -54,6 +54,7 @@ import { GoalsService } from '../../core/goals/goals.service';
 import { PrivacyService } from '../../core/ui/privacy.service';
 
 import { ViewPrefsService } from '../../core/ui/view-prefs.service';
+import { MonthSummaryService } from '../../core/summary/month-summary.service';
 import { barScreen, leftTheBar } from '../../core/ui/bar-choice';
 
 @Component({
@@ -122,7 +123,22 @@ export class MorePage {
   }
 
   /** Inicio or Reporte when no longer on the bottom bar (33f); Cuentas is always under Tus finanzas. */
-  readonly offBar = computed(() => leftTheBar(this.view.bar()).filter(id => id !== 'accounts').map(barScreen));
+  // The Reporte has its own row in Tus finanzas (Jose, 2026-11-05), so it is
+  // not listed here twice.
+  readonly offBar = computed(() => leftTheBar(this.view.bar()).filter(id => id !== 'accounts' && id !== 'report').map(barScreen));
+
+  readonly summary = inject(MonthSummaryService);
+  /** "Tu resumen de octubre está listo", or what the Reporte is for. */
+  readonly reportLine = computed(() => {
+    const month = this.summary.pending();
+    return month ? this.i18n.t('more.report.ready', { month: this.summary.nameOf(month) }) : this.i18n.t('more.report.hint');
+  });
+
+  openReport(): void {
+    const month = this.summary.pending();
+    if (month) this.summary.open(month);
+    else this.go('/report');
+  }
 
   /** Planes: how this month's limits go, or what a limit is for (14a). */
   readonly plansLate = computed(() => this.limits.current().passed.length > 0);

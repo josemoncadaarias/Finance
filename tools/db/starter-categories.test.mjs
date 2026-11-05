@@ -95,3 +95,29 @@ test('a new install can record what an investment earned or lost, already marked
   await seedStarterCategories(english, 'en', NOW);
   assert.equal((await english.query('SELECT name FROM categories WHERE counts_as_return = 1')).length, 2);
 });
+
+test('a database in use gets the starters it lacks, once, never a twin by plural or accent', async () => {
+  const { addMissingStarters } = await import('../../src/app/core/database/starter-categories.ts');
+  const db = await fresh();
+  for (const name of ['Mercados', 'Restaurantes', 'Salud']) {
+    await db.run(
+      `INSERT INTO categories (name, kind, builtin_icon, archived, sort_order, created_at, updated_at)
+       VALUES (?, 'expense', 'pricetag-outline', 0, 0, ?, ?)`, [name, NOW(), NOW()]);
+  }
+  await db.run(
+    `INSERT INTO categories (name, kind, builtin_icon, archived, sort_order, created_at, updated_at)
+     VALUES ('Mascota', 'expense', 'paw-outline', 1, 0, ?, ?)`, [NOW(), NOW()]);
+  const added = await addMissingStarters(db, 'es', NOW);
+  const names = await namesIn(db, 'expense');
+  assert.ok(added > 0);
+  assert.ok(!names.includes('Mercado') && !names.includes('Restaurante'), 'a plural is the same name');
+  assert.equal(names.filter(n => n === 'Salud').length, 1);
+  assert.ok(!names.includes('Mascotas'), 'an archived one is not brought back');
+  assert.ok(names.includes('Ropa') && names.includes('Otros gastos'));
+  assert.ok((await namesIn(db, 'income')).includes('Salario'));
+
+  // Deleted afterwards, it does not come back.
+  await db.run("DELETE FROM categories WHERE name = 'Ropa'");
+  assert.equal(await addMissingStarters(db, 'es', NOW), 0);
+  assert.ok(!(await namesIn(db, 'expense')).includes('Ropa'));
+});
