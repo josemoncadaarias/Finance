@@ -17,6 +17,7 @@ import { deleteWithSnapshot, type MovementTarget } from '../database/repositorie
 import type { ProductEntry } from '../database/repositories/yields.repository';
 import { noteError } from '../feedback/error-log';
 import { I18nService } from '../i18n/i18n.service';
+import type { TranslationKey } from '../i18n/translations';
 import { ToastService } from '../../shared/ui/toast.service';
 import { ComposeService } from './compose.service';
 
@@ -29,6 +30,11 @@ export interface SavedNotice {
   /** Changes on every new banner, so its bar starts again. */
   key: number;
   phase: 'saved';
+  /**
+   * A new movement can be undone; a correction or a loan's payment is only
+   * said (Jose, 2026-11-05: every save shows its banner, to confirm it).
+   */
+  mode: SavedMode;
   side: 'expense' | 'income' | 'transfer';
   title: string;
   sub: string;
@@ -38,7 +44,9 @@ export interface SavedNotice {
   targets: SavedTarget[];
 }
 
-type Said = Omit<SavedNotice, 'key' | 'phase' | 'targets'>;
+export type SavedMode = 'new' | 'edited' | 'payment';
+
+export type Said = Omit<SavedNotice, 'key' | 'phase' | 'targets' | 'mode'>;
 
 @Injectable({ providedIn: 'root' })
 export class SavedBannerService {
@@ -55,15 +63,21 @@ export class SavedBannerService {
    * Says what was just saved. Never fails a save: a banner it cannot read is
    * not shown, and why goes to the errors "Reportar un fallo" can carry.
    */
-  async saved(what: SavedTarget | readonly SavedTarget[]): Promise<void> {
-    const targets = (Array.isArray(what) ? what : [what as SavedTarget]).filter(t => t.transactionId !== undefined || t.transferId !== undefined || t.entryId !== undefined);
-    if (targets.length === 0) return;
+  async saved(what: SavedTarget | readonly SavedTarget[] | null, mode: SavedMode = 'new', fallback: Said | null = null): Promise<void> {
+    const all = what === null ? [] : Array.isArray(what) ? what : [what as SavedTarget];
+    let targets = all.filter(t => t.transactionId !== undefined || t.transferId !== undefined || t.entryId !== undefined);
     try {
-      const said = targets.length === 1 ? await this.readOne(targets[0]) : await this.readMany(targets);
+      let said = targets.length === 0 ? null
+        : targets.length === 1 ? await this.readOne(targets[0]) : await this.readMany(targets);
+      // A save whose rows could not be pointed at (a correction written in
+      // a new shape, a loan's payment) still says what the form saved.
+      if (!said) { said = fallback; targets = []; }
       if (!said) return;
+      // Only a new movement is undone from the banner.
+      const kept: SavedMode = mode === 'new' && targets.length === 0 ? 'edited' : mode;
       // The quiet toast of the same save would only repeat it.
       this.toast.dismiss();
-      this.notice.set({ ...said, key: ++this.keys, phase: 'saved', targets });
+      this.notice.set({ ...said, key: ++this.keys, phase: 'saved', mode: kept, targets });
     } catch (error) {
       noteError(error);
     }
@@ -108,7 +122,7 @@ export class SavedBannerService {
   /** "Deshacer": removed as the form removes it, and the banner closes. */
   async undo(): Promise<void> {
     const now = this.notice();
-    if (!now || now.phase !== 'saved' || this.busy) return;
+    if (!now || now.phase !== 'saved' || now.mode !== 'new' || this.busy) return;
     this.busy = true;
     try {
       // Undoing is the decision itself: the movement goes and the banner with
@@ -178,25 +192,44 @@ export class SavedBannerService {
     const db = this.database.driver;
     const transfer = await db.queryOne<{ occurred_on: string; description: string | null }>('SELECT occurred_on, description FROM transfers WHERE id = ?', [id]);
     if (!transfer) return null;
-    // An end that changed a product only has no leg: its account is the product's.
-    const ends = await db.query<{ leg: string; account: string; currency: string; amount_minor: number }>(
-      `SELECT t.transfer_leg AS leg, a.name AS account, a.currency_code AS currency, t.amount_minor
+    // An end that changed a product only has no leg: its account is the
+    // product's. A leg naming no product is in the usual one, when the
+    // account has products at all.
+    const usual = `(SELECT name FROM products WHERE account_id = a.id AND is_default = 1 LIMIT 1)`;
+    const ends = await db.query<{ leg: string; account_id: number; account: string; product: string | null; currency: string; amount_minor: number }>(
+      `SELECT t.transfer_leg AS leg, a.id AS account_id, a.name AS account,
+              COALESCE((SELECT name FROM products WHERE id = t.product_id), ${usual}) AS product,
+              a.currency_code AS currency, t.amount_minor
        FROM transactions t JOIN accounts a ON a.id = t.account_id WHERE t.transfer_id = ?
        UNION ALL
-       SELECT e.transfer_leg AS leg, a.name AS account, a.currency_code AS currency, e.amount_minor
+       SELECT e.transfer_leg AS leg, a.id AS account_id, a.name AS account, p.name AS product,
+              a.currency_code AS currency, e.amount_minor
        FROM product_entries e JOIN products p ON p.id = e.product_id JOIN accounts a ON a.id = p.account_id
        WHERE e.transfer_id = ?`, [id, id]);
     const from = ends.find(e => e.leg === 'from');
     const to = ends.find(e => e.leg === 'to');
     if (!from && !to) return null;
     const leaving = from ?? to!;
-    const title = `${from?.account ?? '…'} → ${to?.account ?? '…'}`;
-    const sub = [transfer.description?.trim() || null, this.day(transfer.occurred_on)].filter(Boolean).join(' · ');
+    // "Rappi cuenta → Plata" said nothing (Jose, 2026-11-05): the banner
+    // says where it went from and to, and the products.
+    const t = (key: TranslationKey, params: Record<string, string>) => this.i18n.t(key, params);
+    let title: string;
+    let products: string | null = null;
+    if (from && to && from.account_id === to.account_id) {
+      title = t('saved.between.title', { account: from.account });
+      if (from.product && to.product) products = t('saved.between.products', { from: from.product, to: to.product });
+    } else {
+      title = t('saved.fromTo', { from: from?.account ?? '…', to: to?.account ?? '…' });
+      if (from?.product && to?.product) products = t('saved.fromTo.both', { from: from.product, to: to.product });
+      else if (from?.product) products = t('saved.fromTo.from', { from: from.product });
+      else if (to?.product) products = t('saved.fromTo.to', { to: to.product });
+    }
+    const sub = [products, transfer.description?.trim() || null, this.day(transfer.occurred_on)].filter(Boolean).join(' · ');
     return { side: 'transfer', title, sub, amount: formatMoney(Math.abs(leaving.amount_minor), leaving.currency) };
   }
 
   /** "hoy", "ayer", or the day in words. */
-  private day(iso: string): string {
+  day(iso: string): string {
     const today = new Date();
     const at = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (iso === at(today)) return this.i18n.t('ui.today');

@@ -9,6 +9,7 @@ import { Component, inject, signal } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import type { TranslationKey } from '../../core/i18n/translations';
 import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.service';
 
 @Component({
@@ -23,12 +24,14 @@ import { SAVED_BANNER_MS, SavedBannerService } from '../../core/ui/saved-banner.
              (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up($event)" (pointercancel)="cancel()">
           <img class="logo" src="assets/icon/saved-logo.png" alt="" draggable="false">
             <div class="line">
-              <span class="kind"><ion-icon name="checkmark-circle"></ion-icon>{{ n.targets.length > 1 ? ('saved.manyKind' | t) : (kindKey(n.side) | t) }}</span>
+              <span class="kind"><ion-icon name="checkmark-circle"></ion-icon>{{ n.targets.length > 1 ? ('saved.manyKind' | t) : (kindKey(n.side, n.mode) | t) }}</span>
               <b class="amount" [class.out]="n.side === 'expense'" [class.in]="n.side === 'income'" [class.move]="n.side === 'transfer'">{{ n.amount }}</b>
             </div>
             <div class="line low">
               <span class="what"><b class="title">{{ n.title }}</b><small>{{ n.sub }}</small></span>
-              <button type="button" class="act" data-act (click)="banner.undo()"><ion-icon name="arrow-undo-outline"></ion-icon>{{ 'saved.undo' | t }}</button>
+              @if (n.mode === 'new') {
+                <button type="button" class="act" data-act (click)="banner.undo()"><ion-icon name="arrow-undo-outline"></ion-icon>{{ 'saved.undo' | t }}</button>
+              }
             </div>
           <div class="track"><div class="fill" [style.animation-duration.ms]="ms" [style.animation-play-state]="pressed() ? 'paused' : 'running'" (animationend)="banner.close(n.key)"></div></div>
           @if (pressed()) { <p class="held">{{ 'saved.held' | t }}</p> }
@@ -127,8 +130,10 @@ export class SavedBannerComponent {
   private startY: number | null = null;
   private moved = false;
 
-  kindKey(side: string): 'saved.income' | 'saved.transfer' | 'saved.expense' {
-    return side === 'income' ? 'saved.income' : side === 'transfer' ? 'saved.transfer' : 'saved.expense';
+  kindKey(side: string, mode: string): TranslationKey {
+    if (mode === 'payment') return 'saved.payment' as TranslationKey;
+    const base = side === 'income' ? 'saved.income' : side === 'transfer' ? 'saved.transfer' : 'saved.expense';
+    return (mode === 'edited' ? `${base}.edited` : base) as TranslationKey;
   }
 
 

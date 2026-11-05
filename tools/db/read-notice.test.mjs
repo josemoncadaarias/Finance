@@ -32,6 +32,9 @@ const CASES = [
     { kind: 'movement', direction: 'out', amountMinor: P(1000000), merchant: 'Maria Perez', balanceMinor: P(3456789.12) }],
   ['Enviaste $50.000 a 3001234567', '',
     { kind: 'movement', direction: 'out', amountMinor: P(50000) }],
+  // The word said twice, the shop after the second (Jose, 2026-11-05).
+  ['Compra exitosa - Tu compra en CLINICA DEL SOL SEDE NORTE por $ 44.400 fue exitosa. Consulta los detalles de tu compra en tus transacciones.', 'Banco Seis',
+    { kind: 'movement', direction: 'out', amountMinor: P(44400), merchant: 'CLINICA DEL SOL SEDE NORTE' }],
   // Money coming in.
   ['Recibiste $1.500.000 de EMPRESA ABC SAS en tu cuenta *7788', '',
     { kind: 'movement', direction: 'in', amountMinor: P(1500000), merchant: 'EMPRESA ABC SAS', digits: '7788' }],

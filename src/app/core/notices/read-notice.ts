@@ -230,6 +230,18 @@ function firstOf(folded: string, words: readonly string[]): { start: number; end
   return best;
 }
 
+/** Every place one of the words is said, in order. */
+function allOf(folded: string, words: readonly string[]): { start: number; end: number }[] {
+  const found: { start: number; end: number }[] = [];
+  for (const word of words) {
+    const pattern = new RegExp(`(^|[^a-z])(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})[a-z]*`, 'g');
+    for (let at = pattern.exec(folded); at; at = pattern.exec(folded)) {
+      found.push({ start: at.index + at[1].length, end: at.index + at[0].length });
+    }
+  }
+  return found.sort((a, b) => a.start - b.start);
+}
+
 function hasAny(folded: string, words: readonly string[]): boolean {
   return words.some(word => folded.includes(word));
 }
@@ -357,8 +369,15 @@ export function readNotice(text: string, title = '', arrivedOn: IsoDate | null =
 
   // Where: after the amount ("$45.900 en EXITO"), or after the word that said
   // what happened ("Compra en EXITO por $45.900").
-  const merchant = merchantAfter(whole, amount.end, direction)
-    || (said ? merchantAfter(whole, said.end, direction) : '');
+  // The word may be said twice, the name after the second ("Compra exitosa -
+  // Tu compra en TIENDA por $X"): each place it is said is tried in turn.
+  let merchant = merchantAfter(whole, amount.end, direction);
+  if (!merchant && said) {
+    for (const at of allOf(folded, direction === 'in' ? IN : OUT)) {
+      merchant = merchantAfter(whole, at.end, direction);
+      if (merchant) break;
+    }
+  }
 
   return {
     kind: direction === null ? 'unclear' : 'movement',
