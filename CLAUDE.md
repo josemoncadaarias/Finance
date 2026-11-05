@@ -7031,10 +7031,19 @@ with testers runs; the paywall is finished after them.
     the app closed rings as "Movimiento detectado" and joins on next opening.
     Both notices only with notifications already allowed. Checked in a
     browser (Más, the banners); the notices themselves only on the phone.
-  - **Not built, waiting for Jose**: built-in logos for banks and
-    categories matched by name - the images are in his backup, not in the
-    repository, and shipping banks' logos needs his word on trademarks; the
-    "Intereses de CDT" image that does not appear - not reproduced yet.
+  - **Every icon the app ever gives is in the picker** (Jose, the same day:
+    the sample data's "Intereses CDT" wore a ribbon no picker offered, so on
+    his phone it could not be chosen). `APP_ICONS` in
+    `core/icons/icon-catalog.ts`: whatever a catalog lacks of them is its
+    last group, "Más íconos" (`icons.rest`), in both the account and the
+    category pickers; `icon-catalog.test.mjs` fails on an icon the starter
+    categories, the sample data, the product kinds or a migration give that
+    no picker offers. Checked in a browser.
+  - **Built-in bank and shop logos: dropped** (Jose, 2026-11-05, once told
+    the risk): a bank's or a shop's logo is a trademark however it is
+    stored, and shipping it in an app sold to others needs that company's
+    permission. Do not propose it again; a person's own images (rule 10)
+    stay the way to have a logo.
 - **Biometric or PIN lock: never** (idea 4, said twice by Jose).
 - **A shop remembers its account** (Jose, 2026-10-22, migration 059:
   `merchant_categories.account_id`). Filled from the ledger by
