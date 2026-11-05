@@ -85,7 +85,7 @@ categories, products and what the app can tell the user about them.
 
 ---
 
-## Start here: where things stand (updated 2026-10-15)
+## Start here: where things stand (updated 2026-11-05)
 
 Read this section first on any machine or in any session; everything below
 it is the detail and the reasoning.
@@ -160,6 +160,28 @@ takes typing over the account form (#130); credit card statements and other
 banks' layouts are read (#131, #132); a figure missing to add up is brought
 from the statement's summary (#133).
 
+**Where the store stands (2026-11-05).** The app is on the internal and
+closed (Alpha) tracks. **Jose applied for production access on 2026-11-04**
+(Play Console → Production → "Apply for production", the questionnaire on
+recruiting testers, engagement, feedback, audience, value and readiness
+answered in English, under 300 characters each; expected installs 0-10K).
+Google reviews it in up to 7 days and emails the account owner
+(jadex.apps@gmail.com). **Next, once approved, one step at a time with
+Jose**: create the first production release (Store bundle on `main`, then
+promote that version to Production with its `<es-419>` note); the SMS and
+foreground-service declarations saved on 2026-10-09 go for review with it;
+replace the public address in the payments profile before selling for
+real; file "Trader status" when Play Console offers it. Until approval,
+updates keep going to Closed testing as before.
+
+**From #134 to #295 (2026-10-15 to 2026-11-05)** each change is told in the
+dated bullets of "How to work", of "The assistant" and of the rule it
+touches. The last ones: TRM "rige desde" and tomorrow's TRM (#291); the same
+figure from two banks rings twice unless something else agrees (#292, #293);
+a shop named after a processor ("DLO Didi") still finds its category (#294);
+the "Guardado" banner after every save, the month's summary, the 8 p.m.
+review notice, starter categories and icons for everybody (#295).
+
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
 `release-aab.yml`, `workflow_dispatch`) on that branch builds the old app
@@ -230,6 +252,13 @@ could not prove.
   testers and its release note** (Jose, 2026-10-09): Store bundle on `main`,
   then the new version into Closed testing (Alpha) with an `<es-419>` note
   of at most 500 characters, then Send changes for review.
+- **A Java change is compiled before it is pushed** (2026-11-04: a second
+  `wordsOf` in `MovementAlert.java` broke the Store bundle with "method
+  already defined"). The session has no Android SDK, but `javac -d <tmp>
+  <file>.java` still reports duplicates and unknown methods of the file
+  itself: read its errors, ignoring only the missing `android.*`,
+  `androidx.*`, `org.json` and other project classes. `MovementAlert`
+  already holds the word book's `wordsOf` (a Set) - name new helpers apart.
 - A new user-facing word goes into `core/i18n/translations.ts` or, for the
   redesign's words, `core/i18n/translations-ui.ts` - both languages, same
   keys (`i18n.test.mjs` checks it).
@@ -6486,7 +6515,7 @@ with testers runs; the paywall is finished after them.
   `readNotices` merges two messages only when something besides the amount
   agrees. Now the phone asks the same: the card's last digits (two named and
   different: never the same), or a word of four letters or more, no figure,
-  outside a list of a message's ordinary words (`alsoAgree`, `wordsOf`,
+  outside a list of a message's ordinary words (`alsoAgree`, `shopWordsOf`,
   `cardOf`; each mark of what rang keeps its `words` and `card`). Checked
   with the JDK on invented messages (a purchase and a transfer of one figure
   ring both; one purchase told by SMS and by the app rings once); the notice
@@ -7286,6 +7315,9 @@ budget family (2/16, 1, 7), then the rest.
   not what they are worth. Valuation and its tax treatment come later; interest
   and a change in market value are taxed differently in Colombia and must not
   share a table just because they look alike. Decision by Jose, 2026-09-08.
+- [ ] Production access (applied 2026-11-04): forward or screenshot Google's
+      email when it arrives, then the first production release, one step at
+      a time (see "Where the store stands" in "Start here").
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 - [ ] Try the redesign on the phone and report what reads wrong: the list
