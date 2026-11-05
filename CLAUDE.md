@@ -186,6 +186,11 @@ testers are opted in to Closed testing and their activity, get at least 12
 real ones using it daily, promote each update to Closed testing with a note
 saying what feedback it answers, then apply again after 14 days, answering
 the questionnaire with those concrete facts.
+Seen on Jose's screenshot the same day: the Closed testing list "Testers"
+holds 19 addresses (being on the list is not being opted in; how many
+opted in was not seen yet), the track's "Feedback URL or email address"
+was EMPTY (to fill with jadex.apps@gmail.com), and Play Console now shows
+"Declare your trader status" (file it, one step at a time).
 
 **From #134 to #297 (2026-10-15 to 2026-11-05)** each change is told in the
 dated bullets of "How to work", of "The assistant" and of the rule it
