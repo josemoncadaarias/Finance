@@ -173,6 +173,19 @@ foreground-service declarations saved on 2026-10-09 go for review with it;
 replace the public address in the payments profile before selling for
 real; file "Trader status" when Play Console offers it. Until approval,
 updates keep going to Closed testing as before.
+**Refused on 2026-11-05** ("More testing required to access Google Play
+production"): Google's possible reasons were testers not engaged during
+the closed test, and not gathering and acting on feedback through updates;
+it asks for 14 MORE days of closed testing with real testers before
+applying again. The guidance page (support.google.com answer 14151465)
+could not be read from the cloud session (host not allowed). Assumed, not
+verified: most updates went only to the internal track (the Store bundle's
+default), so the closed track showed few updates; and the testers opted in
+were few or rarely opened the app. Plan: check in Play Console how many
+testers are opted in to Closed testing and their activity, get at least 12
+real ones using it daily, promote each update to Closed testing with a note
+saying what feedback it answers, then apply again after 14 days, answering
+the questionnaire with those concrete facts.
 
 **From #134 to #297 (2026-10-15 to 2026-11-05)** each change is told in the
 dated bullets of "How to work", of "The assistant" and of the rule it
@@ -7340,9 +7353,9 @@ budget family (2/16, 1, 7), then the rest.
   not what they are worth. Valuation and its tax treatment come later; interest
   and a change in market value are taxed differently in Colombia and must not
   share a table just because they look alike. Decision by Jose, 2026-09-08.
-- [ ] Production access (applied 2026-11-04): forward or screenshot Google's
-      email when it arrives, then the first production release, one step at
-      a time (see "Where the store stands" in "Start here").
+- [ ] Production access: refused 2026-11-05, 14 more days of closed
+      testing required. One step at a time: screenshot of Closed testing's
+      testers (how many opted in) first (see "Where the store stands").
 - [ ] Confirm whether he currently files form 210 and whether a legal entity
       is involved.
 - [ ] Try the redesign on the phone and report what reads wrong: the list
