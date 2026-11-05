@@ -177,8 +177,16 @@ updates keep going to Closed testing as before.
 production"): Google's possible reasons were testers not engaged during
 the closed test, and not gathering and acting on feedback through updates;
 it asks for 14 MORE days of closed testing with real testers before
-applying again. The guidance page (support.google.com answer 14151465)
-could not be read from the cloud session (host not allowed). Assumed, not
+applying again. The guidance page (support.google.com answer 14151465,
+read from Jose's PDF of it): at least 12 testers opted in to the CLOSED
+test continuously for the 14 days BEFORE applying (a rolling window: no
+restart needed while they stay in); give testers clear instructions on
+what to test and how to report, a clear feedback channel (testers can also
+send private feedback through Google Play, read in Play Console →
+Monitor and improve → Ratings and reviews → Testing feedback); respond to
+feedback and fix bugs during the test; the application asks to SUMMARISE
+the testing feedback. Refusal reasons named: fewer than 12 opted in, or
+insufficient engagement. Assumed, not
 verified: most updates went only to the internal track (the Store bundle's
 default), so the closed track showed few updates; and the testers opted in
 were few or rarely opened the app. Plan: check in Play Console how many
@@ -189,7 +197,8 @@ the questionnaire with those concrete facts.
 Seen on Jose's screenshot the same day: the Closed testing list "Testers"
 holds 19 addresses (being on the list is not being opted in; how many
 opted in was not seen yet), the track's "Feedback URL or email address"
-was EMPTY (to fill with jadex.apps@gmail.com), and Play Console now shows
+was EMPTY (filled with jadex.apps@gmail.com and saved; to send for review
+once the review of 2026-11-04's changes ends), and Play Console now shows
 "Declare your trader status" (file it, one step at a time).
 
 **From #134 to #297 (2026-10-15 to 2026-11-05)** each change is told in the
