@@ -297,3 +297,8 @@
 
 /* What a tapped month means, in a sentence (the balance's growth chart). */
 .reading .says { flex-basis: 100%; white-space: normal; line-height: 1.4; color: var(--app-mu); }
+
+/* A new month is being worked out: the sections stay where they are, dimmed,
+   and are replaced in place - never swapped for the spinner (no flicker). */
+.body > * { transition: opacity 0.15s ease; }
+.body.refreshing > * { opacity: 0.55; pointer-events: none; }

@@ -59,8 +59,8 @@
     </div>
   </div>
 
-  <div class="ui-main body">
-    @if (working()) {
+  <div class="ui-main body" [class.refreshing]="refreshing()">
+    @if (working() && blocks().length === 0) {
       <div class="state"><ion-spinner></ion-spinner><p>{{ 'report.working' | t }}</p></div>
     } @else if (blocks().length === 0) {
       @if (mode() === 'yields') {

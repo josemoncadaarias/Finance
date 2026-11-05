@@ -201,19 +201,36 @@ export class ReportPage {
       // A section turned on or off in "Personaliza tu vista".
       this.view.reportHidden();
       this.view.reportOrder();
-      if (this.database.status() === 'ready') void this.build();
+      // Untracked: `build` reads the filter, the store's accounts and more
+      // before its first await, and an async call inside an effect is tracked
+      // up to there. Tracked, a change of month rebuilt the report three or
+      // four times - first on the NEW period with the OLD month's movements,
+      // then as the accounts, the balance and the rows landed - and each pass
+      // swapped the sections for the spinner: the flicker Jose recorded
+      // (2026-11-04).
+      if (this.database.status() === 'ready') untracked(() => void this.build());
     });
   }
 
+  /** Which build is the latest: an older one finishing later never paints over it. */
+  private generation = 0;
+
+  /** The sections on show are being replaced: drawn dimmed, never swapped for the spinner. */
+  readonly refreshing = computed(() =>
+    this.blocks().length > 0 && (this.working() || (this.mode() === 'money' && this.store.loading())));
+
   private async build(): Promise<void> {
+    const mine = ++this.generation;
     this.working.set(true);
     try {
       if (this.mode() === 'yields') {
         const { data, blocks } = await this.yieldsReport.build();
+        if (mine !== this.generation) return;
         this.yieldsData.set(data);
         this.blocks.set(blocks);
       } else {
         const { data, blocks } = await this.report.build();
+        if (mine !== this.generation) return;
         this.data.set(data);
         // The sections turned off in "Personaliza tu vista" (31h); the first always stays.
         const hidden = this.view.reportHidden();
@@ -222,7 +239,7 @@ export class ReportPage {
       // Another period is another question, and it starts closed.
       this.open.set(new Set());
     } finally {
-      this.working.set(false);
+      if (mine === this.generation) this.working.set(false);
     }
   }
 
