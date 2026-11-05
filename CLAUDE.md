@@ -174,13 +174,16 @@ replace the public address in the payments profile before selling for
 real; file "Trader status" when Play Console offers it. Until approval,
 updates keep going to Closed testing as before.
 
-**From #134 to #295 (2026-10-15 to 2026-11-05)** each change is told in the
+**From #134 to #297 (2026-10-15 to 2026-11-05)** each change is told in the
 dated bullets of "How to work", of "The assistant" and of the rule it
 touches. The last ones: TRM "rige desde" and tomorrow's TRM (#291); the same
 figure from two banks rings twice unless something else agrees (#292, #293);
 a shop named after a processor ("DLO Didi") still finds its category (#294);
 the "Guardado" banner after every save, the month's summary, the 8 p.m.
-review notice, starter categories and icons for everybody (#295).
+review notice, starter categories and icons for everybody (#295); CLAUDE.md
+brought up to date (#296); the Reporte changes month without flicker (#297,
+Store bundle run 178, version 1178 on the internal track - see "An async call
+inside an effect" under "How to work").
 
 **Going back.** Branch `app-before-redesign` holds `main` exactly as it was
 before #1 (commit 5e185ad). Running "Store bundle" (Actions tab,
@@ -228,6 +231,28 @@ could not prove.
   "Pending from Jose".
 
 **How to work, wherever you are.**
+- **Every session that changes anything brings this file up to date before
+  it ends** (Jose, 2026-11-05: "siempre en toda sesión al hacer cambios,
+  siempre debemos actualizar todo el claude md"). Not only a new rule: what
+  was built or fixed and where (the dated bullet or the rule it touches),
+  the PR numbers in "Start here", the test count, what was checked and what
+  was assumed, what is waiting for Jose's phone or his word, and the
+  "Pending from Jose" list. A future session on any machine knows only what
+  is written here and in the commits. Done in the same PR as the change, or
+  in a PR right after it - never left for "later".
+- **An async call inside an `effect` is tracked up to its first `await`**
+  (2026-11-05, the Reporte's flicker when changing month, seen in Jose's
+  screen recording). `effect(() => { ...; void this.build(); })` made every
+  signal `build()` read before awaiting - the period, the store's accounts,
+  its balance - a trigger, so one change of month rebuilt the report three
+  or four times, the first on the new period with the old month's rows, each
+  pass swapping the sections for the spinner, and an older pass could finish
+  last. The rule: read the triggers explicitly in the effect, then call the
+  async work inside `untracked(() => ...)`; keep a generation counter so an
+  older result never paints over a newer one; and while new figures are
+  worked out, dim what is on show (`.refreshing` in `report.page.scss`)
+  instead of swapping it for a spinner. Checked in a browser on the sample
+  data with a MutationObserver logging each state; not yet seen on the phone.
 - Tests: `node tools/db/run-tests.mjs` (1188 on 2026-11-05, all must pass). Build:
   `npx ng build`. The report's two audits, `tools/db/audit-money-report.mjs`
   and `tools/db/audit-yields-report.mjs`, take a backup file and must say
@@ -7367,6 +7392,8 @@ budget family (2/16, 1, 7), then the rest.
       days and look at "Desde el corte", or send a backup to check.
 - [ ] Send other banks' statements (Ualá, Nu, Bancolombia, Davivienda,
       Nequi...) to turn each layout into a test.
+- [ ] With version 1178 (or later) installed, change month on the Reporte
+      and say whether any flicker is left (fixed 2026-11-05, #297).
 - [ ] One phone shows every screen ~6 % larger than another (2026-10-14):
       say whether its "Tamaño de pantalla" is set large; scaling the app
       down on narrow phones was proposed and not built.
